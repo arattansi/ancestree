@@ -13,10 +13,11 @@ export function SiteHeader() {
           Ancestree
         </Link>
         <nav aria-label="Primary" className="flex items-center gap-2">
-          <Button render={<Link href="/tree" />} size="sm">
+          <Button nativeButton={false} render={<Link href="/tree" />} size="sm">
             Tree
           </Button>
           <Button
+            nativeButton={false}
             render={<Link href="/join" />}
             size="sm"
             variant="outline"

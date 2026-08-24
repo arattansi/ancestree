@@ -16,10 +16,10 @@ export default function Home() {
         </p>
       </div>
       <div className="flex flex-col gap-3 sm:flex-row">
-        <Button render={<Link href="/tree" />} size="lg">
+        <Button nativeButton={false} render={<Link href="/tree" />} size="lg">
           View the tree
         </Button>
-        <Button render={<Link href="/join" />} size="lg" variant="outline">
+        <Button nativeButton={false} render={<Link href="/join" />} size="lg" variant="outline">
           Have an invite?
         </Button>
       </div>

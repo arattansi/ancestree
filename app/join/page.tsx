@@ -32,7 +32,7 @@ export default function JoinPage() {
           invite, keep that URL — it will bring you here when auth is wired.
         </CardContent>
         <CardFooter>
-          <Button render={<Link href="/" />}>
+          <Button nativeButton={false} render={<Link href="/" />}>
             Back home
           </Button>
         </CardFooter>
