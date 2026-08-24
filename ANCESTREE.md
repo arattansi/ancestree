@@ -19,6 +19,8 @@ Product brief and build plan live in the **🌳 Ancestree** Notion teamspace.
 - `npm run dev` — start dev server
 - `npm run build` — production build
 - `npm run lint` — ESLint
+- `supabase db push` — apply local migrations to the linked remote project
+- `supabase start` — local stack (requires Docker Desktop)
 
 ## Environment variables
 
@@ -35,7 +37,8 @@ Until Supabase env is set, `middleware.ts` no-ops so the app still boots.
 - `app/` — App Router pages (`/` landing, `/tree` canvas placeholder)
 - `components/ui/` — shadcn primitives
 - `lib/supabase/` — `client.ts` (browser), `server.ts` (RSC/actions), `middleware.ts` (session refresh)
-- `lib/database.types.ts` — generated Supabase types (placeholder until Step 2)
+- `lib/database.types.ts` — generated Supabase types (regenerate after schema changes)
+- `supabase/` — local CLI project linked to `kkmemshpkxrzogijxgnb` (`Product-Ancestree`)
 
 ## Conventions
 
@@ -45,14 +48,42 @@ Until Supabase env is set, `middleware.ts` no-ops so the app still boots.
 - Private storage buckets (`photos`, `documents`) served via signed URLs.
 - Commit prefix: `Ancestree v1 (step/total): <subject>`.
 
-## Data model (target — built in Step 2)
+## Data model
 
-`trees`, `profiles`, `people`, `relationships` (parent | spouse), `invites`,
-`claims`, `entry_comments`, `documents`. See the Notion Product Brief for the
-full ERD and field list.
+Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
+`supabase/migrations/`.
+
+| Table | Purpose |
+|---|---|
+| `trees` | Multi-tree-ready container (v1 uses one shared tree) |
+| `profiles` | `auth.users` row: `role` (`admin` \| `member`), `can_invite`, `self_person_id` |
+| `people` | Demographic nodes; `owner_user_id` starts as `created_by` and moves on claim |
+| `relationships` | Directed `parent` edges; undirected `spouse` pairs; siblings inferred |
+| `invites` | Shareable tokens (`active` \| `accepted` \| `revoked`) |
+| `claims` | Auto-approve / dispute / reject a person entry |
+| `entry_comments` | Comments and flags (`open` \| `resolved`) |
+| `documents` | Metadata for private file uploads |
+
+**Checks:** `people` requires given **or** preferred name, family name, country of
+birth, and `is_deceased` (NOT NULL). `lineage_type` is writable by admins only.
+
+**RLS:** every public table. Members read rows in trees they belong to (admin,
+tree creator, accepted invite, or `self_person`). Writes use
+`profiles.auth_user_id = auth.uid()`. Person edits: owner (or admin). Deletes:
+admin only.
+
+**Storage:** private buckets `photos` and `documents`. Object path
+`{tree_id}/{person_id}/{filename}`. Members can read via signed URLs; only the
+entry owner/admin can write.
+
+Helpers live in the unexposed `private` schema (`is_admin`, `is_tree_member`,
+`can_edit_person`).
 
 ## Changelog
 
+- **Step 2 — Data model, RLS & storage**: `supabase init` + link to
+  Product-Ancestree; first migrations for all tables, RLS, and private
+  `photos` / `documents` buckets; generated `lib/database.types.ts`.
 - **Step 1 — Repo & infra bootstrap**: Next.js 16 + Tailwind v4 + shadcn/ui
   scaffold; Public Sans; Supabase client/server/middleware helpers (env-guarded);
   `.env.example`; landing page + `/tree` placeholder; this doc.
