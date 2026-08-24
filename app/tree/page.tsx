@@ -1,4 +1,11 @@
+import type { Metadata } from "next";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+export const metadata: Metadata = {
+  title: "Family tree · Ancestree",
+  description: "Collaborative family tree canvas (coming soon).",
+};
 
 // Placeholder for the canvas tree (built in Step 6 — Tree visualization).
 export default function TreePage() {

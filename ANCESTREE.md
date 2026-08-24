@@ -12,6 +12,8 @@ Product brief and build plan live in the **🌳 Ancestree** Notion teamspace.
 - **Font**: Public Sans (`--font-sans`)
 - **Backend**: Supabase (Auth / Postgres / Storage) — free tier
 - **Hosting**: Vercel (Hobby) at `ancestree.space`
+- **GitHub**: https://github.com/arattansi/ancestree
+- **Supabase project**: `Product-Ancestree` (`kkmemshpkxrzogijxgnb`, ca-central-1, Free)
 - **Tree UI**: React Flow (`@xyflow/react`) + dagre auto-layout (added in Step 6)
 
 ## Commands
@@ -30,13 +32,14 @@ Copy `.env.example` to `.env.local` and fill in:
 - `SUPABASE_SERVICE_ROLE_KEY` — server-only, never sent to the client
 - `NEXT_PUBLIC_SITE_URL` — base URL for magic-link redirects and invite links
 
-Until Supabase env is set, `middleware.ts` no-ops so the app still boots.
+Until Supabase env is set, `proxy.ts` no-ops so the app still boots. With env
+set, unauthenticated visits to `/tree` redirect to `/join`.
 
 ## Project structure
 
-- `app/` — App Router pages (`/` landing, `/tree` canvas placeholder)
+- `app/` — App Router pages (`/` landing, `/tree` canvas placeholder, `/join`)
 - `components/ui/` — shadcn primitives
-- `lib/supabase/` — `client.ts` (browser), `server.ts` (RSC/actions), `middleware.ts` (session refresh)
+- `lib/supabase/` — `client.ts` (browser), `server.ts` (RSC/actions), `middleware.ts` (session refresh), `admin.ts` (service role, server-only)
 - `lib/database.types.ts` — generated Supabase types (regenerate after schema changes)
 - `supabase/` — local CLI project linked to `kkmemshpkxrzogijxgnb` (`Product-Ancestree`)
 
@@ -85,5 +88,12 @@ Helpers live in the unexposed `private` schema (`is_admin`, `is_tree_member`,
   Product-Ancestree; first migrations for all tables, RLS, and private
   `photos` / `documents` buckets; generated `lib/database.types.ts`.
 - **Step 1 — Repo & infra bootstrap**: Next.js 16 + Tailwind v4 + shadcn/ui
-  scaffold; Public Sans; Supabase client/server/middleware helpers (env-guarded);
-  `.env.example`; landing page + `/tree` placeholder; this doc.
+  scaffold; Public Sans; Supabase client/server/middleware/admin helpers
+  (env-guarded); `.env.example`; landing + `/tree` placeholder + `/join`;
+  GitHub repo `arattansi/ancestree`; Product-Ancestree (`kkmemshpkxrzogijxgnb`);
+  Vercel Hobby project `ancestree` (`prj_tfdWlxVA1Wu6tbiLquXMjso5wTap`) +
+  `ancestree.space` / `www.ancestree.space`; this doc.
+
+**Step 1 infra notes:** `SUPABASE_SERVICE_ROLE_KEY` is server-only. Set it in
+`.env.local` and Vercel from Supabase Project Settings → API (service_role).
+Do not commit it. Preview env vars may need a git branch in this CLI version.
