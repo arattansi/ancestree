@@ -24,9 +24,17 @@ export async function requestMagicLink(
 ): Promise<MagicLinkState> {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const inviteToken = String(formData.get("inviteToken") ?? "").trim();
+  const consent = formData.get("consent");
 
   if (!EMAIL_RE.test(email)) {
     return { error: "Enter a valid email address.", email };
+  }
+
+  if (consent !== "on" && consent !== "true") {
+    return {
+      error: "Please accept the privacy notice to continue.",
+      email,
+    };
   }
 
   const callback = new URL("/auth/callback", getSiteUrl());

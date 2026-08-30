@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { claimPerson, disputeClaim } from "@/app/actions/claims";
 import { setEntryVerified } from "@/app/actions/entry-comments";
+import { deletePerson } from "@/app/actions/privacy";
 import { PersonDocuments } from "@/components/person-documents";
 import { EntryComments } from "@/components/tree/entry-comments";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -98,6 +99,27 @@ export function PersonPanel({
       return;
     }
     toast.success(person.verified_at ? "Verification cleared." : "Entry marked verified.");
+    router.refresh();
+  }
+
+  async function onDelete() {
+    if (!person) return;
+    if (
+      !window.confirm(
+        "Permanently delete this entry, its relationships, photo, and documents? This cannot be undone.",
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    const res = await deletePerson(person.id);
+    setBusy(false);
+    if (res.error) {
+      toast.error(res.error);
+      return;
+    }
+    toast.success("Entry deleted.");
+    onClose();
     router.refresh();
   }
 
@@ -240,6 +262,18 @@ export function PersonPanel({
                       {person.verified_at
                         ? "Clear verified"
                         : "Mark verified"}
+                    </Button>
+                  ) : null}
+
+                  {isAdmin ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-destructive"
+                      onClick={onDelete}
+                      disabled={busy}
+                    >
+                      Delete entry
                     </Button>
                   ) : null}
                 </div>

@@ -1,9 +1,12 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
+
+import Link from "next/link";
 
 import { requestMagicLink, type MagicLinkState } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -17,6 +20,7 @@ export function MagicLinkForm({
   submitLabel?: string;
 }) {
   const [state, formAction, pending] = useActionState(requestMagicLink, INITIAL);
+  const [consented, setConsented] = useState(false);
 
   if (state.ok) {
     return (
@@ -59,7 +63,32 @@ export function MagicLinkForm({
           </p>
         ) : null}
       </div>
-      <Button type="submit" disabled={pending}>
+      <Label
+        htmlFor="consent"
+        className="group/field-label flex items-start gap-2.5 text-sm font-normal text-muted-foreground"
+      >
+        <Checkbox
+          id="consent"
+          name="consent"
+          checked={consented}
+          onCheckedChange={(value) => setConsented(value === true)}
+          className="mt-0.5"
+        />
+        <span>
+          I agree that my family details, photos, and documents will be shared
+          with other members of this private tree, and I have read the{" "}
+          <Link
+            href="/privacy"
+            target="_blank"
+            className="underline underline-offset-4"
+          >
+            privacy notice
+          </Link>
+          .
+        </span>
+      </Label>
+
+      <Button type="submit" disabled={pending || !consented}>
         {pending ? "Sending…" : submitLabel}
       </Button>
     </form>

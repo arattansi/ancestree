@@ -41,9 +41,14 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `/auth/callback` (magic-link handler) + `/auth/auth-code-error`, `/onboarding`
   (first-run self entry + connect), `/people/new` (add a connected relative),
   `/people/[id]/edit` (owner/creator/admin entry edit), `/tree` (React Flow
-  canvas), `/account` (profile + in-app notifications), `/admin` (admin-only:
-  overview stats + members + disputes), `/trees/new` (Step 9 seam, flagged)
-- `app/actions/` — server actions (`auth.ts`: magic link + sign out;
+  canvas), `/account` (profile + in-app notifications + delete-account),
+  `/admin` (admin-only: overview stats + members + disputes + JSON export),
+  `/privacy` (public PIPEDA-minded privacy notice), `/trees/new` (Step 9 seam,
+  flagged)
+- `app/actions/` — server actions (`auth.ts`: magic link (+ consent gate) +
+  sign out; `privacy.ts`: `exportTreeData` (admin JSON export) / `deletePerson`
+  (admin erasure + storage cleanup) / `deleteAccount` (self-serve, reassigns
+  contributions to a founding admin);
   `trees.ts`: `startOwnTree` (Step 9 multi-tree seam);
   `invites.ts`: mint invite link, grant/revoke `can_invite`;
   `people.ts`: `addPeopleWithConnections` (transactional multi-person + edge
@@ -150,8 +155,52 @@ Site URL `https://ancestree.space`; Redirect URLs allowlist
 `https://*-arattansi.vercel.app/**`. Email provider = built-in for now (free
 tier ~3–4/hour) — swap to an SMTP provider before wider testing.
 
+## Privacy & compliance (Step 10)
+
+Family data (living people, DOB, photos, documents) is treated as sensitive PII;
+Canadian context → PIPEDA-minded.
+
+- **Consent at registration**: the magic-link form has a required consent
+  checkbox linking to `/privacy`; `requestMagicLink` rejects the request without
+  it. `/privacy` is in `proxy.ts`'s public prefixes so it is readable pre-auth.
+- **All PII behind auth + RLS**: every table is RLS-scoped by tree membership;
+  nothing is public or indexed. Photos/documents live in private buckets and are
+  only ever served through short-lived signed URLs (unchanged from Step 2).
+- **Admin data export**: `/admin` → "Download JSON export"
+  (`exportTreeData`, service-role read of every table scoped to the shared tree;
+  `components/admin-export.tsx` streams it as a client-side download).
+- **Delete a person**: `PersonPanel` → "Delete entry" (admins only,
+  `deletePerson`) removes the row (edges cascade) plus its photo and document
+  objects from storage.
+- **Delete your account**: `/account` → "Delete my account" (`deleteAccount`)
+  removes the auth user + `profiles` row after reassigning the member's
+  `created_by` / `owner_user_id` / `uploaded_by` references to a founding admin,
+  so the shared record stays intact. Blocked if the caller is the only admin.
+- **Free-tier headroom**: photos are downscaled client-side to ≤1280px JPEG
+  (`lib/image.ts#compressImage`, wired in the add + edit forms); documents are
+  capped at 10MB/file client-side (`person-documents.tsx`), well under the
+  Supabase Free limits (50MB/file, 1GB storage, 500MB DB). No `console.*` calls
+  anywhere in `app/` `lib/` `components/` — no PII in logs.
+
+## v1 acceptance checklist
+
+All Product Brief items pass as of Step 10: invite-gated magic-link auth with
+inviter-attributed links; onboarding self-entry + connection (chain-add);
+demographic form with required-field + conditional-deceased validation; private
+photo + multi-document upload via signed URLs; admin-only lineage; React Flow +
+dagre canvas with custom nodes, pan/zoom, detail panel; edit gating
+(creator/owner/admin) + admin delete; claim flow (detect on register,
+auto-approve, notify creator, creator lockout); flag/comment + resolve/verify;
+multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
+`ancestree.space` via Vercel (`git push` → production on `main`).
+
 ## Changelog
 
+- **Step 10 — Privacy, acceptance & ship**: no migration. Consent gate on the
+  magic-link form + `/privacy` notice; admin JSON export, admin delete-person
+  (+ storage cleanup), self-serve delete-account (`app/actions/privacy.ts`,
+  `components/{admin-export,delete-account}.tsx`); 10MB document cap; full v1
+  acceptance checklist verified. `proxy.ts` public prefixes gain `/privacy`.
 - **Step 9 — Multi-tree seam, polish & admin dashboard** (migration
   `20260830240000_multi_tree_seam`): new `tree_bridges` table (RLS: members of
   either side) + `start_own_tree(name, bridge_person_id, person)` SECURITY

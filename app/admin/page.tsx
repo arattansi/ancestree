@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { setCanInvite } from "@/app/actions/invites";
 import { AdminDisputedClaims } from "@/components/admin-disputed-claims";
+import { AdminExport } from "@/components/admin-export";
 import { InviteMinter } from "@/components/invite-minter";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -113,6 +114,20 @@ export default async function AdminPage() {
               </div>
             ))}
           </dl>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Data &amp; privacy</CardTitle>
+          <CardDescription>
+            Export the whole tree as JSON for a data-access request. To erase a
+            specific person and their photos and documents, open their entry on
+            the tree and use &ldquo;Delete entry&rdquo;.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AdminExport />
         </CardContent>
       </Card>
 

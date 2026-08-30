@@ -18,6 +18,8 @@ import { createClient } from "@/lib/supabase/client";
 
 const ACCEPT = ".pdf,.jpg,.jpeg,.png";
 const ALLOWED = /^(application\/pdf|image\/jpeg|image\/png)$/;
+// Keep well under the Supabase free-tier limits (50MB/file, 1GB total).
+const MAX_BYTES = 10 * 1024 * 1024;
 
 export function PersonDocuments({
   personId,
@@ -49,6 +51,10 @@ export function PersonDocuments({
       for (const file of files) {
         if (!ALLOWED.test(file.type)) {
           toast.error(`${file.name}: only PDF, JPG, or PNG files.`);
+          continue;
+        }
+        if (file.size > MAX_BYTES) {
+          toast.error(`${file.name}: files must be 10MB or smaller.`);
           continue;
         }
         const path = `${treeId}/${personId}/${crypto.randomUUID()}.${fileExtension(file)}`;

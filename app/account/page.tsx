@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 
+import Link from "next/link";
+
 import { signOut } from "@/app/actions/auth";
+import { DeleteAccount } from "@/components/delete-account";
 import { NotificationsList } from "@/components/notifications-list";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -60,6 +63,25 @@ export default async function AccountPage() {
         </CardHeader>
         <CardContent>
           <NotificationsList items={notifications} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Privacy &amp; your data</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3 text-sm text-muted-foreground">
+          <p>
+            Read how your family&rsquo;s data is stored and protected in the{" "}
+            <Link href="/privacy" className="underline underline-offset-4">
+              privacy notice
+            </Link>
+            . For a full JSON copy of the tree, or to remove a specific entry,
+            ask an admin.
+          </p>
+          <div>
+            <DeleteAccount />
+          </div>
         </CardContent>
       </Card>
 
