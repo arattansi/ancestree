@@ -22,9 +22,11 @@ import { toast } from "sonner";
 import "@xyflow/react/dist/style.css";
 
 import { setPersonPosition } from "@/app/actions/people";
+import { ClaimSuggestions } from "@/components/tree/claim-suggestions";
 import { PersonNode } from "@/components/tree/person-node";
 import { PersonPanel } from "@/components/tree/person-panel";
 import { Button } from "@/components/ui/button";
+import type { ClaimCandidate } from "@/lib/claims";
 import { layoutTree } from "@/lib/tree-layout";
 import type { TreeGraphEdge, TreeGraphPerson } from "@/lib/tree";
 
@@ -37,6 +39,7 @@ type Props = {
   selfPersonId: string | null;
   currentUserId: string;
   isAdmin: boolean;
+  claimCandidates: ClaimCandidate[];
 };
 
 function buildGraph(
@@ -98,7 +101,12 @@ function Canvas({
   selfPersonId,
   currentUserId,
   isAdmin,
+  claimCandidates,
 }: Props) {
+  const claimableIds = React.useMemo(
+    () => new Set(claimCandidates.map((c) => c.id)),
+    [claimCandidates],
+  );
   const initial = React.useMemo(
     () => buildGraph(people, relationships, selfPersonId),
     [people, relationships, selfPersonId],
@@ -136,7 +144,9 @@ function Canvas({
     !!selectedPerson &&
     (isAdmin ||
       selectedPerson.owner_user_id === currentUserId ||
-      selectedPerson.created_by === currentUserId);
+      (selectedPerson.created_by === currentUserId &&
+        selectedPerson.owner_user_id === selectedPerson.created_by &&
+        selectedPerson.claim_status !== "approved"));
 
   return (
     <>
@@ -176,6 +186,11 @@ function Canvas({
             Add a relative
           </Button>
         </Panel>
+        {claimCandidates.length > 0 ? (
+          <Panel position="top-left">
+            <ClaimSuggestions candidates={claimCandidates} />
+          </Panel>
+        ) : null}
       </ReactFlow>
 
       <PersonPanel
@@ -184,6 +199,8 @@ function Canvas({
         isAdmin={isAdmin}
         isSelf={selectedPerson?.id === selfPersonId}
         canEdit={canEdit}
+        claimable={!!selectedPerson && claimableIds.has(selectedPerson.id)}
+        isCreator={selectedPerson?.created_by === currentUserId}
         onClose={() => setSelectedId(null)}
       />
     </>

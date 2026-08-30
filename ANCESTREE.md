@@ -40,14 +40,20 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
 - `app/` — App Router pages: `/` landing, `/join` (+ `/join/[token]` invite accept),
   `/auth/callback` (magic-link handler) + `/auth/auth-code-error`, `/onboarding`
   (first-run self entry + connect), `/people/new` (add a connected relative),
-  `/tree` (React Flow canvas), `/account`, `/admin` (admin-only)
+  `/people/[id]/edit` (owner/creator/admin entry edit), `/tree` (React Flow
+  canvas), `/account` (profile + in-app notifications), `/admin` (admin-only)
 - `app/actions/` — server actions (`auth.ts`: magic link + sign out;
   `invites.ts`: mint invite link, grant/revoke `can_invite`;
   `people.ts`: `addPeopleWithConnections` (transactional multi-person + edge
   create), update person, drag-to-pin position, photo + document writes,
-  signed URLs)
+  signed URLs; `claims.ts`: `claimPerson` / `disputeClaim` / `resolveClaim` /
+  `markNotificationsRead`)
 - `components/tree/` — `family-tree.tsx` React Flow canvas, `person-node.tsx`
-  custom node, `person-panel.tsx` detail Sheet
+  custom node, `person-panel.tsx` detail Sheet (edit link + claim / dispute),
+  `claim-suggestions.tsx` "Is this you?" canvas prompt
+- `components/notifications-list.tsx` (account) + `admin-disputed-claims.tsx`
+  (admin uphold / reverse); `lib/claims.ts` — claim candidates, notifications,
+  disputed-claim queries
 - `components/ui/` — shadcn primitives (incl. `form` = react-hook-form + zod)
 - `components/person-fields.tsx` — shared demographic fieldset; `person-form.tsx` —
   edit an existing entry; `add-person-flow.tsx` — self / relative add with chain
@@ -84,7 +90,8 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `people` | Demographic nodes; `owner_user_id` starts as `created_by` and moves on claim |
 | `relationships` | Directed `parent` edges; undirected `spouse` pairs; siblings inferred |
 | `invites` | Shareable tokens (`active` \| `accepted` \| `revoked`) |
-| `claims` | Auto-approve / dispute / reject a person entry |
+| `claims` | Auto-approve / dispute / reject a person entry (`dispute_reason`, `resolved_by`) |
+| `notifications` | In-app notices (`claim_approved` \| `claim_disputed` \| `claim_upheld` \| `claim_reversed`); recipient-scoped RLS |
 | `entry_comments` | Comments and flags (`open` \| `resolved`) |
 | `documents` | Metadata for private file uploads |
 
@@ -93,8 +100,11 @@ birth, and `is_deceased` (NOT NULL). `lineage_type` is writable by admins only.
 
 **RLS:** every public table. Members read rows in trees they belong to (admin,
 tree creator, accepted invite, or `self_person`). Writes use
-`profiles.auth_user_id = auth.uid()`. Person edits: owner (or admin). Deletes:
-admin only.
+`profiles.auth_user_id = auth.uid()`. Person edits (`private.can_edit_person`):
+current `owner_user_id`, an admin, **or** the original `created_by` while the
+entry is still unclaimed (owner unchanged, no approved claim). Deletes: admin
+only. A claim moves `owner_user_id` to the claimant, so the creator then loses
+edit rights until an admin reverses the claim.
 
 **Storage:** private buckets `photos` and `documents`. Object path
 `{tree_id}/{person_id}/{filename}`. Members can read via signed URLs; only the
@@ -134,6 +144,21 @@ tier ~3–4/hour) — swap to an SMTP provider before wider testing.
 
 ## Changelog
 
+- **Step 7 — Claiming & permissions** (migration `20260830220000`): edit gating
+  is now owner / admin / unclaimed-creator (`private.can_edit_person` +
+  `private.person_is_claimed`), enforced by the existing `people_update` policy
+  and re-checked in the `/people/[id]/edit` route. `person_claim_candidates()`
+  surfaces unclaimed same-name entries; `claim_person()` (SECURITY DEFINER)
+  auto-approves — moves `owner_user_id`, repoints `profiles.self_person_id`,
+  merges the caller's onboarding stub (relationships / documents / comments /
+  photo) and deletes it, writes an `approved` `claims` row, and notifies the
+  creator. `dispute_claim()` (creator only) → `disputed`, routed to admins;
+  `resolve_claim(uphold|reverse)` (admin) restores ownership + detaches the
+  claimant on reverse. New `notifications` table + `private.notify()`; abuse
+  controls: 5 claims / 24h / user, server-side name-match re-check, admin-only
+  reversal. UI: `ClaimSuggestions` canvas prompt, claim/dispute in
+  `PersonPanel`, account `NotificationsList` (+ header unread badge), admin
+  `AdminDisputedClaims`.
 - **Step 6 — Tree visualization (canvas)**: `/tree` is now a React Flow
   (`@xyflow/react`) + dagre canvas. `lib/tree.ts#getTreeGraph` loads all people
   (with 1h signed photo URLs) + relationship edges for the shared tree;

@@ -18,27 +18,33 @@ export type Database = {
         Row: {
           claimant_user_id: string
           created_at: string
+          dispute_reason: string | null
           id: string
           person_id: string
           resolved_at: string | null
+          resolved_by: string | null
           status: string
           updated_at: string
         }
         Insert: {
           claimant_user_id: string
           created_at?: string
+          dispute_reason?: string | null
           id?: string
           person_id: string
           resolved_at?: string | null
+          resolved_by?: string | null
           status: string
           updated_at?: string
         }
         Update: {
           claimant_user_id?: string
           created_at?: string
+          dispute_reason?: string | null
           id?: string
           person_id?: string
           resolved_at?: string | null
+          resolved_by?: string | null
           status?: string
           updated_at?: string
         }
@@ -63,6 +69,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "people"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "claims_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "claims_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
           },
         ]
       }
@@ -245,6 +265,85 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "trees"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          actor_user_id: string | null
+          body: string
+          claim_id: string | null
+          created_at: string
+          id: string
+          person_id: string | null
+          read_at: string | null
+          recipient_user_id: string
+          type: string
+        }
+        Insert: {
+          actor_user_id?: string | null
+          body: string
+          claim_id?: string | null
+          created_at?: string
+          id?: string
+          person_id?: string | null
+          read_at?: string | null
+          recipient_user_id: string
+          type: string
+        }
+        Update: {
+          actor_user_id?: string | null
+          body?: string
+          claim_id?: string | null
+          created_at?: string
+          id?: string
+          person_id?: string | null
+          read_at?: string | null
+          recipient_user_id?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_actor_user_id_fkey"
+            columns: ["actor_user_id"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "notifications_actor_user_id_fkey"
+            columns: ["actor_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "notifications_claim_id_fkey"
+            columns: ["claim_id"]
+            isOneToOne: false
+            referencedRelation: "claims"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_recipient_user_id_fkey"
+            columns: ["recipient_user_id"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "notifications_recipient_user_id_fkey"
+            columns: ["recipient_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
           },
         ]
       }
@@ -563,6 +662,11 @@ export type Database = {
         Args: { p_edges?: Json; p_people: Json; p_self_index?: number }
         Returns: Json
       }
+      claim_person: { Args: { p_person_id: string }; Returns: Json }
+      dispute_claim: {
+        Args: { p_claim_id: string; p_reason?: string }
+        Returns: undefined
+      }
       ensure_profile: {
         Args: { p_display_name?: string }
         Returns: {
@@ -590,6 +694,36 @@ export type Database = {
           valid: boolean
         }[]
       }
+      person_claim_candidates: {
+        Args: never
+        Returns: {
+          city_of_birth: string | null
+          country_of_birth: string
+          created_at: string
+          created_by: string
+          date_of_birth: string | null
+          date_of_death: string | null
+          family_name: string
+          given_name: string | null
+          id: string
+          is_deceased: boolean
+          lineage_type: string | null
+          owner_user_id: string
+          photo_path: string | null
+          place_of_death: string | null
+          pos_x: number | null
+          pos_y: number | null
+          preferred_name: string | null
+          tree_id: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "people"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       redeem_invite: {
         Args: { p_display_name?: string; p_token: string }
         Returns: {
@@ -608,6 +742,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      resolve_claim: {
+        Args: { p_action: string; p_claim_id: string }
+        Returns: undefined
       }
     }
     Enums: {

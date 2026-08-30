@@ -23,6 +23,11 @@ export type TreeGraphPerson = {
   owner_user_id: string;
   created_by: string;
   photo_url: string | null;
+  /** `approved` once someone has claimed this entry, `disputed` while an admin
+   *  is reviewing a contested claim, otherwise `null`. */
+  claim_status: "approved" | "disputed" | null;
+  /** The active claim row id, when `claim_status` is set. */
+  claim_id: string | null;
 };
 
 export type TreeGraphEdge = {
@@ -40,15 +45,32 @@ export async function getTreeGraph(treeId: string): Promise<{
   relationships: TreeGraphEdge[];
 }> {
   const supabase = await createClient();
-  const [peopleRes, relRes] = await Promise.all([
+  const [peopleRes, relRes, claimRes] = await Promise.all([
     supabase.from("people").select(PERSON_COLUMNS).eq("tree_id", treeId),
     supabase
       .from("relationships")
       .select("from_person, to_person, type")
       .eq("tree_id", treeId),
+    supabase
+      .from("claims")
+      .select("id, person_id, status")
+      .in("status", ["approved", "disputed"]),
   ]);
 
   const rows = peopleRes.data ?? [];
+
+  // person_id -> active claim. `disputed` wins over `approved` if both exist.
+  const claimByPerson = new Map<
+    string,
+    { id: string; status: "approved" | "disputed" }
+  >();
+  for (const c of claimRes.data ?? []) {
+    const status = c.status as "approved" | "disputed";
+    const current = claimByPerson.get(c.person_id);
+    if (!current || (current.status === "approved" && status === "disputed")) {
+      claimByPerson.set(c.person_id, { id: c.id, status });
+    }
+  }
   const paths = rows
     .map((p) => p.photo_path)
     .filter((p): p is string => Boolean(p));
@@ -64,10 +86,15 @@ export async function getTreeGraph(treeId: string): Promise<{
   }
 
   return {
-    people: rows.map((p) => ({
-      ...p,
-      photo_url: p.photo_path ? urlByPath.get(p.photo_path) ?? null : null,
-    })),
+    people: rows.map((p) => {
+      const claim = claimByPerson.get(p.id) ?? null;
+      return {
+        ...p,
+        photo_url: p.photo_path ? urlByPath.get(p.photo_path) ?? null : null,
+        claim_status: claim?.status ?? null,
+        claim_id: claim?.id ?? null,
+      };
+    }),
     relationships: relRes.data ?? [],
   };
 }

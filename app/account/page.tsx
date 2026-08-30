@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { signOut } from "@/app/actions/auth";
+import { NotificationsList } from "@/components/notifications-list";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,6 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getUser, requireProfile } from "@/lib/auth";
+import { listNotifications } from "@/lib/claims";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Your account" };
@@ -24,6 +26,8 @@ export default async function AccountPage() {
     .select("invited_by_name")
     .eq("auth_user_id", profile.auth_user_id)
     .maybeSingle();
+
+  const notifications = user ? await listNotifications(user.id) : [];
 
   return (
     <main className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-6 px-4 py-10">
@@ -47,6 +51,15 @@ export default async function AccountPage() {
           <Row label="Invite rights">
             {profile.role === "admin" || profile.can_invite ? "Yes" : "No"}
           </Row>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Notifications</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <NotificationsList items={notifications} />
         </CardContent>
       </Card>
 

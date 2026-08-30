@@ -1,10 +1,13 @@
 import Link from "next/link";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getProfile } from "@/lib/auth";
+import { countUnreadNotifications } from "@/lib/claims";
 
 export async function SiteHeader() {
   const profile = await getProfile();
+  const unread = profile ? await countUnreadNotifications() : 0;
 
   return (
     <header className="border-b border-border bg-background">
@@ -38,6 +41,11 @@ export async function SiteHeader() {
                 variant="outline"
               >
                 Account
+                {unread > 0 ? (
+                  <Badge variant="destructive" className="ml-1.5">
+                    {unread}
+                  </Badge>
+                ) : null}
               </Button>
             </>
           ) : (

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { setCanInvite } from "@/app/actions/invites";
+import { AdminDisputedClaims } from "@/components/admin-disputed-claims";
 import { InviteMinter } from "@/components/invite-minter";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { requireAdmin } from "@/lib/auth";
+import { listDisputedClaims } from "@/lib/claims";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
@@ -27,6 +29,8 @@ export default async function AdminPage() {
     .from("member_directory")
     .select("*")
     .order("created_at", { ascending: true });
+
+  const disputedClaims = await listDisputedClaims();
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-10">
@@ -46,6 +50,19 @@ export default async function AdminPage() {
         </CardHeader>
         <CardContent>
           <InviteMinter />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Disputed claims</CardTitle>
+          <CardDescription>
+            {disputedClaims.length} awaiting a decision. Upholding keeps the new
+            owner; reversing returns the entry to its creator.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AdminDisputedClaims claims={disputedClaims} />
         </CardContent>
       </Card>
 

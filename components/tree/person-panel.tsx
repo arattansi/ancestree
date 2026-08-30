@@ -1,11 +1,16 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
+import { claimPerson, disputeClaim } from "@/app/actions/claims";
 import { PersonDocuments } from "@/components/person-documents";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Sheet,
   SheetContent,
@@ -36,6 +41,8 @@ export function PersonPanel({
   isAdmin,
   isSelf,
   canEdit,
+  claimable,
+  isCreator,
   onClose,
 }: {
   person: TreeGraphPerson | null;
@@ -43,9 +50,54 @@ export function PersonPanel({
   isAdmin: boolean;
   isSelf: boolean;
   canEdit: boolean;
+  /** This entry looks like the signed-in member and is unclaimed. */
+  claimable: boolean;
+  /** The signed-in member originally created this entry. */
+  isCreator: boolean;
   onClose: () => void;
 }) {
+  const router = useRouter();
   const open = person !== null;
+  const [busy, setBusy] = React.useState(false);
+  const [disputing, setDisputing] = React.useState(false);
+  const [reason, setReason] = React.useState("");
+  const [prevId, setPrevId] = React.useState(person?.id);
+
+  // Reset the inline dispute form whenever a different person is selected.
+  if (person?.id !== prevId) {
+    setPrevId(person?.id);
+    setDisputing(false);
+    setReason("");
+  }
+
+  async function onClaim() {
+    if (!person) return;
+    setBusy(true);
+    const res = await claimPerson(person.id);
+    setBusy(false);
+    if (res.error) {
+      toast.error(res.error);
+      return;
+    }
+    toast.success("Claimed — this is now your entry.");
+    onClose();
+    router.refresh();
+  }
+
+  async function onDispute() {
+    if (!person?.claim_id) return;
+    setBusy(true);
+    const res = await disputeClaim(person.claim_id, reason);
+    setBusy(false);
+    if (res.error) {
+      toast.error(res.error);
+      return;
+    }
+    toast.success("Dispute sent to an admin.");
+    setDisputing(false);
+    onClose();
+    router.refresh();
+  }
 
   return (
     <Sheet
@@ -79,6 +131,12 @@ export function PersonPanel({
                 {person.is_deceased ? (
                   <Badge variant="secondary">Deceased</Badge>
                 ) : null}
+                {person.claim_status === "approved" ? (
+                  <Badge variant="outline">Claimed</Badge>
+                ) : null}
+                {person.claim_status === "disputed" ? (
+                  <Badge variant="destructive">Ownership disputed</Badge>
+                ) : null}
                 {isAdmin && person.lineage_type ? (
                   <Badge variant="outline">Lineage: {person.lineage_type}</Badge>
                 ) : null}
@@ -90,10 +148,7 @@ export function PersonPanel({
                 <Field label="Given name" value={person.given_name} />
                 <Field label="Preferred name" value={person.preferred_name} />
                 <Field label="Family name" value={person.family_name} />
-                <Field
-                  label="Date of birth"
-                  value={person.date_of_birth}
-                />
+                <Field label="Date of birth" value={person.date_of_birth} />
                 <Field
                   label="Place of birth"
                   value={
@@ -128,21 +183,84 @@ export function PersonPanel({
                 </p>
               </section>
 
-              <section className="flex flex-col gap-2 border-t border-border pt-5">
+              <section className="flex flex-col gap-3 border-t border-border pt-5">
                 <h2 className="text-sm font-semibold">Manage</h2>
+
                 <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" size="sm" disabled>
-                    {canEdit ? "Edit entry" : "Edit (owner only)"}
-                  </Button>
-                  {!isSelf ? (
-                    <Button variant="outline" size="sm" disabled>
-                      Claim as me
+                  {canEdit ? (
+                    <Button
+                      nativeButton={false}
+                      render={<Link href={`/people/${person.id}/edit`} />}
+                      variant="outline"
+                      size="sm"
+                    >
+                      Edit entry
+                    </Button>
+                  ) : null}
+
+                  {!isSelf && claimable && !person.claim_status ? (
+                    <Button size="sm" onClick={onClaim} disabled={busy}>
+                      {busy ? "Claiming…" : "This is me — claim it"}
                     </Button>
                   ) : null}
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Editing and claiming are wired up in the next steps.
-                </p>
+
+                {!canEdit && !claimable && !isSelf ? (
+                  <p className="text-xs text-muted-foreground">
+                    Only the entry owner or an admin can edit this entry.
+                  </p>
+                ) : null}
+
+                {person.claim_status === "approved" && isCreator ? (
+                  disputing ? (
+                    <div className="flex flex-col gap-2 rounded-md border border-border p-3">
+                      <label
+                        htmlFor="dispute-reason"
+                        className="text-xs font-medium text-muted-foreground"
+                      >
+                        Why is this claim wrong? (optional)
+                      </label>
+                      <Input
+                        id="dispute-reason"
+                        value={reason}
+                        onChange={(e) => setReason(e.target.value)}
+                        placeholder="This isn't the same person…"
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={onDispute}
+                          disabled={busy}
+                        >
+                          {busy ? "Sending…" : "Send dispute"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setDisputing(false)}
+                          disabled={busy}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className="self-start text-xs text-destructive underline underline-offset-2"
+                      onClick={() => setDisputing(true)}
+                    >
+                      You created this entry — dispute the claim
+                    </button>
+                  )
+                ) : null}
+
+                {person.claim_status === "disputed" ? (
+                  <p className="text-xs text-muted-foreground">
+                    A dispute over this entry is with an admin.
+                  </p>
+                ) : null}
               </section>
             </div>
           </>

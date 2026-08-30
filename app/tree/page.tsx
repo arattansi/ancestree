@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FamilyTree } from "@/components/tree/family-tree";
 import { Button } from "@/components/ui/button";
 import { getUser, requireSelfPerson } from "@/lib/auth";
+import { listClaimCandidates } from "@/lib/claims";
 import { getSharedTree, getTreeGraph } from "@/lib/tree";
 
 export const metadata: Metadata = {
@@ -30,7 +31,10 @@ export default async function TreePage() {
     );
   }
 
-  const { people, relationships } = await getTreeGraph(tree.id);
+  const [{ people, relationships }, claimCandidates] = await Promise.all([
+    getTreeGraph(tree.id),
+    listClaimCandidates(),
+  ]);
 
   return (
     <main className="flex flex-1 flex-col">
@@ -41,6 +45,7 @@ export default async function TreePage() {
         selfPersonId={profile.self_person_id}
         currentUserId={user.id}
         isAdmin={profile.role === "admin"}
+        claimCandidates={claimCandidates}
       />
     </main>
   );
