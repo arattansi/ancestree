@@ -100,8 +100,8 @@ Helpers live in the unexposed `private` schema (`is_admin`, `is_tree_member`,
   (`can_invite_to_tree`). `redeem_invite` (SECURITY DEFINER) creates the member
   `profiles` row with `invited_by_user_id = invite.created_by` and flips the
   invite to `accepted`. `invite_preview(token)` is the only pre-auth RPC.
-- **Admin bootstrap**: `private.admin_allowlist(email)` (seeded with the build
-  owner — **add the second co-admin before launch**). First login by an
+- **Admin bootstrap**: `private.admin_allowlist(email)` — seeded with both
+  co-admins (Aalim Rattansi, Raiya Suleman). First login by an
   allowlisted email runs `ensure_profile`, which creates the single shared
   `trees` row and an `admin` / `can_invite` profile. Non-allowlisted users
   without an invite get `needs_invite`.
@@ -121,8 +121,8 @@ tier ~3–4/hour) — swap to an SMTP provider before wider testing.
 
 - **Step 3 — Auth & invite system**: magic-link auth + invite-gated
   registration; `redeem_invite` / `ensure_profile` / `invite_preview` RPCs +
-  `admin_allowlist` bootstrap + `member_directory` view (migrations
-  `20260830192758`, `20260830192832`); `/join`, `/join/[token]`,
+  `admin_allowlist` bootstrap (both co-admins seeded) + `member_directory` view
+  (migrations `20260830192758`, `20260830192832`, `20260830194512`); `/join`, `/join/[token]`,
   `/auth/callback`, `/account`, `/admin`; `lib/auth.ts`, `lib/site-url.ts`,
   `app/actions/{auth,invites}.ts`; auth-aware `SiteHeader`.
 - **Step 2 — Data model, RLS & storage**: `supabase init` + link to
