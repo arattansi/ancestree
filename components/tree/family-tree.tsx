@@ -12,6 +12,7 @@ import {
   ReactFlowProvider,
   useEdgesState,
   useNodesState,
+  useReactFlow,
   type Edge,
   type Node,
   type NodeMouseHandler,
@@ -25,6 +26,13 @@ import { setPersonPosition } from "@/app/actions/people";
 import { ClaimSuggestions } from "@/components/tree/claim-suggestions";
 import { PersonNode } from "@/components/tree/person-node";
 import { PersonPanel } from "@/components/tree/person-panel";
+import { TreeSearch } from "@/components/tree/tree-search";
+import {
+  EMPTY_FILTER,
+  isFilterActive,
+  matchesFilter,
+  type TreeFilter,
+} from "@/lib/tree-search";
 import { Button } from "@/components/ui/button";
 import type { ClaimCandidate } from "@/lib/claims";
 import { multiTreeEnabled } from "@/lib/flags";
@@ -55,7 +63,12 @@ function buildGraph(
     id: person.id,
     type: "person",
     position: positions.get(person.id) ?? { x: 0, y: 0 },
-    data: { person, isSelf: person.id === selfPersonId, selected: false },
+    data: {
+      person,
+      isSelf: person.id === selfPersonId,
+      selected: false,
+      dimmed: false,
+    },
   }));
 
   const edges: Edge[] = [];
@@ -116,6 +129,8 @@ function Canvas({
   const [nodes, setNodes, onNodesChange] = useNodesState(initial.nodes);
   const [edges, , onEdgesChange] = useEdgesState(initial.edges);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
+  const [filter, setFilter] = React.useState<TreeFilter>(EMPTY_FILTER);
+  const { fitView } = useReactFlow();
 
   React.useEffect(() => {
     setNodes((current) =>
@@ -126,6 +141,38 @@ function Canvas({
       ),
     );
   }, [selectedId, setNodes]);
+
+  const filterActive = isFilterActive(filter);
+  const matchingIds = React.useMemo(() => {
+    if (!filterActive) return null;
+    return new Set(
+      people.filter((p) => matchesFilter(p, filter)).map((p) => p.id),
+    );
+  }, [people, filter, filterActive]);
+
+  React.useEffect(() => {
+    setNodes((current) =>
+      current.map((n) => {
+        const dimmed = matchingIds !== null && !matchingIds.has(n.id);
+        return n.data.dimmed === dimmed
+          ? n
+          : { ...n, data: { ...n.data, dimmed } };
+      }),
+    );
+  }, [matchingIds, setNodes]);
+
+  const onPick = React.useCallback(
+    (personId: string) => {
+      setSelectedId(personId);
+      void fitView({
+        nodes: [{ id: personId }],
+        duration: 600,
+        maxZoom: 1.4,
+        minZoom: 1.4,
+      });
+    },
+    [fitView],
+  );
 
   const onNodeClick = React.useCallback<NodeMouseHandler>((_, node) => {
     setSelectedId(node.id);
@@ -197,11 +244,17 @@ function Canvas({
             </Button>
           ) : null}
         </Panel>
-        {claimCandidates.length > 0 ? (
-          <Panel position="top-left">
+        <Panel position="top-left" className="flex flex-col gap-2">
+          <TreeSearch
+            people={people}
+            filter={filter}
+            onFilterChange={setFilter}
+            onPick={onPick}
+          />
+          {claimCandidates.length > 0 ? (
             <ClaimSuggestions candidates={claimCandidates} />
-          </Panel>
-        ) : null}
+          ) : null}
+        </Panel>
       </ReactFlow>
 
       <PersonPanel

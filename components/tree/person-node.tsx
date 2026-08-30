@@ -16,12 +16,14 @@ export type PersonNodeData = {
   person: TreeGraphPerson;
   isSelf: boolean;
   selected?: boolean;
+  /** Filtered out by the tree search panel — shown faded. */
+  dimmed?: boolean;
 };
 
 const handleClass = "!size-1.5 !border-0 !bg-border";
 
 function PersonNodeImpl({ data }: NodeProps) {
-  const { person, isSelf, selected } = data as PersonNodeData;
+  const { person, isSelf, selected, dimmed } = data as PersonNodeData;
   const name = personDisplayName(person);
   const lifespan = personLifespan(person);
   const deceased = person.is_deceased;
@@ -29,8 +31,9 @@ function PersonNodeImpl({ data }: NodeProps) {
   return (
     <div
       className={cn(
-        "relative flex w-52 items-center gap-3 rounded-xl border bg-card px-3 py-2.5 text-left shadow-sm transition-colors",
+        "relative flex w-52 items-center gap-3 rounded-xl border bg-card px-3 py-2.5 text-left shadow-sm transition-[colors,opacity]",
         "hover:border-ring/60",
+        dimmed && "opacity-25",
         deceased ? "border-dashed border-border" : "border-border",
         selected && "border-ring ring-2 ring-ring/40",
         isSelf && !selected && "border-primary/60",
