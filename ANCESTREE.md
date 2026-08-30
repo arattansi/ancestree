@@ -47,13 +47,15 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `people.ts`: `addPeopleWithConnections` (transactional multi-person + edge
   create), update person, drag-to-pin position, photo + document writes,
   signed URLs; `claims.ts`: `claimPerson` / `disputeClaim` / `resolveClaim` /
-  `markNotificationsRead`)
+  `markNotificationsRead`; `entry-comments.ts`: `getEntryComments` /
+  `addEntryComment` / `resolveEntryFlag` / `setEntryVerified`)
 - `components/tree/` — `family-tree.tsx` React Flow canvas, `person-node.tsx`
-  custom node, `person-panel.tsx` detail Sheet (edit link + claim / dispute),
-  `claim-suggestions.tsx` "Is this you?" canvas prompt
+  custom node (open-flag badge + verified `✓`), `person-panel.tsx` detail Sheet
+  (edit link + claim / dispute + admin verify), `entry-comments.tsx` (comment /
+  flag thread + resolve), `claim-suggestions.tsx` "Is this you?" canvas prompt
 - `components/notifications-list.tsx` (account) + `admin-disputed-claims.tsx`
   (admin uphold / reverse); `lib/claims.ts` — claim candidates, notifications,
-  disputed-claim queries
+  disputed-claim queries; `lib/entry-comments.ts` — comment/flag thread reads
 - `components/ui/` — shadcn primitives (incl. `form` = react-hook-form + zod)
 - `components/person-fields.tsx` — shared demographic fieldset; `person-form.tsx` —
   edit an existing entry; `add-person-flow.tsx` — self / relative add with chain
@@ -91,8 +93,8 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `relationships` | Directed `parent` edges; undirected `spouse` pairs; siblings inferred |
 | `invites` | Shareable tokens (`active` \| `accepted` \| `revoked`) |
 | `claims` | Auto-approve / dispute / reject a person entry (`dispute_reason`, `resolved_by`) |
-| `notifications` | In-app notices (`claim_approved` \| `claim_disputed` \| `claim_upheld` \| `claim_reversed`); recipient-scoped RLS |
-| `entry_comments` | Comments and flags (`open` \| `resolved`) |
+| `notifications` | In-app notices (`claim_*`, `entry_commented` \| `entry_flagged` \| `flag_resolved` \| `entry_verified`); recipient-scoped RLS |
+| `entry_comments` | Comments and flags (`is_flag`, `open` \| `resolved`, `resolved_by`) |
 | `documents` | Metadata for private file uploads |
 
 **Checks:** `people` requires given **or** preferred name, family name, country of
@@ -144,6 +146,22 @@ tier ~3–4/hour) — swap to an SMTP provider before wider testing.
 
 ## Changelog
 
+- **Step 8 — Entry comments, flags & verification** (migration
+  `20260830230000`): `people` gains `verified_at` / `verified_by`;
+  `entry_comments` gains `resolved_at` / `resolved_by`. Any tree member can
+  comment or raise a flag (`is_flag`) — inserted directly under the existing
+  `entry_comments` RLS (optimistic UI). An `AFTER INSERT/UPDATE` trigger
+  (`private.entry_comment_notify`) posts an in-app `notifications` row to the
+  entry's `owner_user_id` + `created_by` on every comment/flag, and to the
+  flag's author when it is resolved (new notification types `entry_commented`,
+  `entry_flagged`, `flag_resolved`, `entry_verified`). `resolve_entry_flag()`
+  (owner / admin / flag author) toggles a flag open↔resolved; the
+  `entry_comments_update` policy is widened so the entry owner can moderate.
+  `set_entry_verified()` (admins only) stamps verification and notifies. UI:
+  `EntryComments` panel section (thread + composer + resolve), open-flag badge
+  on `PersonNode` + panel header, `✓` verified marker on the node, admin
+  "Mark verified" in the panel. `getTreeGraph` now also loads open-flag counts;
+  `lib/entry-comments.ts` resolves author/resolver names.
 - **Step 7 — Claiming & permissions** (migration `20260830220000`): edit gating
   is now owner / admin / unclaimed-creator (`private.can_edit_person` +
   `private.person_is_claimed`), enforced by the existing `people_update` policy

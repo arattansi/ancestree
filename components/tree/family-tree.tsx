@@ -201,6 +201,7 @@ function Canvas({
         canEdit={canEdit}
         claimable={!!selectedPerson && claimableIds.has(selectedPerson.id)}
         isCreator={selectedPerson?.created_by === currentUserId}
+        currentUserId={currentUserId}
         onClose={() => setSelectedId(null)}
       />
     </>

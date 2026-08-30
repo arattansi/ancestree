@@ -22,7 +22,10 @@ export type TreeGraphPerson = {
   pos_y: number | null;
   owner_user_id: string;
   created_by: string;
+  verified_at: string | null;
   photo_url: string | null;
+  /** Count of open (unresolved) flags raised against this entry. */
+  open_flag_count: number;
   /** `approved` once someone has claimed this entry, `disputed` while an admin
    *  is reviewing a contested claim, otherwise `null`. */
   claim_status: "approved" | "disputed" | null;
@@ -37,7 +40,7 @@ export type TreeGraphEdge = {
 };
 
 const PERSON_COLUMNS =
-  "id, given_name, preferred_name, family_name, date_of_birth, date_of_death, city_of_birth, country_of_birth, is_deceased, place_of_death, lineage_type, photo_path, pos_x, pos_y, owner_user_id, created_by";
+  "id, given_name, preferred_name, family_name, date_of_birth, date_of_death, city_of_birth, country_of_birth, is_deceased, place_of_death, lineage_type, photo_path, pos_x, pos_y, owner_user_id, created_by, verified_at";
 
 /** Everyone in the tree plus their relationship edges, with signed photo URLs. */
 export async function getTreeGraph(treeId: string): Promise<{
@@ -45,7 +48,7 @@ export async function getTreeGraph(treeId: string): Promise<{
   relationships: TreeGraphEdge[];
 }> {
   const supabase = await createClient();
-  const [peopleRes, relRes, claimRes] = await Promise.all([
+  const [peopleRes, relRes, claimRes, flagRes] = await Promise.all([
     supabase.from("people").select(PERSON_COLUMNS).eq("tree_id", treeId),
     supabase
       .from("relationships")
@@ -55,7 +58,20 @@ export async function getTreeGraph(treeId: string): Promise<{
       .from("claims")
       .select("id, person_id, status")
       .in("status", ["approved", "disputed"]),
+    supabase
+      .from("entry_comments")
+      .select("person_id")
+      .eq("is_flag", true)
+      .eq("status", "open"),
   ]);
+
+  const openFlagsByPerson = new Map<string, number>();
+  for (const f of flagRes.data ?? []) {
+    openFlagsByPerson.set(
+      f.person_id,
+      (openFlagsByPerson.get(f.person_id) ?? 0) + 1,
+    );
+  }
 
   const rows = peopleRes.data ?? [];
 
@@ -93,6 +109,7 @@ export async function getTreeGraph(treeId: string): Promise<{
         photo_url: p.photo_path ? urlByPath.get(p.photo_path) ?? null : null,
         claim_status: claim?.status ?? null,
         claim_id: claim?.id ?? null,
+        open_flag_count: openFlagsByPerson.get(p.id) ?? 0,
       };
     }),
     relationships: relRes.data ?? [],

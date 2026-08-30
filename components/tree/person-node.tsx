@@ -29,7 +29,7 @@ function PersonNodeImpl({ data }: NodeProps) {
   return (
     <div
       className={cn(
-        "flex w-52 items-center gap-3 rounded-xl border bg-card px-3 py-2.5 text-left shadow-sm transition-colors",
+        "relative flex w-52 items-center gap-3 rounded-xl border bg-card px-3 py-2.5 text-left shadow-sm transition-colors",
         "hover:border-ring/60",
         deceased ? "border-dashed border-border" : "border-border",
         selected && "border-ring ring-2 ring-ring/40",
@@ -51,6 +51,16 @@ function PersonNodeImpl({ data }: NodeProps) {
       />
       <Handle type="source" position={Position.Bottom} className={handleClass} />
 
+      {person.open_flag_count > 0 ? (
+        <span
+          className="absolute -top-1.5 -right-1.5 flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] font-semibold text-white"
+          title={`${person.open_flag_count} open flag${person.open_flag_count === 1 ? "" : "s"}`}
+          aria-label={`${person.open_flag_count} open flags`}
+        >
+          {person.open_flag_count}
+        </span>
+      ) : null}
+
       <Avatar size="lg" className={cn(deceased && "opacity-70")}>
         {person.photo_url ? (
           <AvatarImage src={person.photo_url} alt="" />
@@ -61,12 +71,21 @@ function PersonNodeImpl({ data }: NodeProps) {
       <div className="min-w-0 flex-1">
         <p
           className={cn(
-            "truncate text-sm font-medium",
+            "flex items-center gap-1 truncate text-sm font-medium",
             deceased ? "text-muted-foreground" : "text-foreground",
           )}
           title={name}
         >
-          {name}
+          <span className="truncate">{name}</span>
+          {person.verified_at ? (
+            <span
+              className="shrink-0 text-primary"
+              title="Verified by an admin"
+              aria-label="Verified"
+            >
+              ✓
+            </span>
+          ) : null}
         </p>
         <p className="truncate text-xs text-muted-foreground">
           {isSelf ? "You" : person.family_name}

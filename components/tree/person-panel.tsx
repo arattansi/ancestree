@@ -6,7 +6,9 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { claimPerson, disputeClaim } from "@/app/actions/claims";
+import { setEntryVerified } from "@/app/actions/entry-comments";
 import { PersonDocuments } from "@/components/person-documents";
+import { EntryComments } from "@/components/tree/entry-comments";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,6 +45,7 @@ export function PersonPanel({
   canEdit,
   claimable,
   isCreator,
+  currentUserId,
   onClose,
 }: {
   person: TreeGraphPerson | null;
@@ -50,6 +53,7 @@ export function PersonPanel({
   isAdmin: boolean;
   isSelf: boolean;
   canEdit: boolean;
+  currentUserId: string;
   /** This entry looks like the signed-in member and is unclaimed. */
   claimable: boolean;
   /** The signed-in member originally created this entry. */
@@ -81,6 +85,19 @@ export function PersonPanel({
     }
     toast.success("Claimed — this is now your entry.");
     onClose();
+    router.refresh();
+  }
+
+  async function onToggleVerified() {
+    if (!person) return;
+    setBusy(true);
+    const res = await setEntryVerified(person.id, !person.verified_at);
+    setBusy(false);
+    if (res.error) {
+      toast.error(res.error);
+      return;
+    }
+    toast.success(person.verified_at ? "Verification cleared." : "Entry marked verified.");
     router.refresh();
   }
 
@@ -131,6 +148,15 @@ export function PersonPanel({
                 {person.is_deceased ? (
                   <Badge variant="secondary">Deceased</Badge>
                 ) : null}
+                {person.verified_at ? (
+                  <Badge variant="default">Verified</Badge>
+                ) : null}
+                {person.open_flag_count > 0 ? (
+                  <Badge variant="destructive">
+                    {person.open_flag_count} open flag
+                    {person.open_flag_count === 1 ? "" : "s"}
+                  </Badge>
+                ) : null}
                 {person.claim_status === "approved" ? (
                   <Badge variant="outline">Claimed</Badge>
                 ) : null}
@@ -175,12 +201,12 @@ export function PersonPanel({
                 <PersonDocuments personId={person.id} treeId={treeId} />
               </section>
 
-              <section className="flex flex-col gap-2 border-t border-border pt-5">
-                <h2 className="text-sm font-semibold">Comments &amp; flags</h2>
-                <p className="text-sm text-muted-foreground">
-                  Flagging entries for review and discussion arrives in a later
-                  step.
-                </p>
+              <section className="border-t border-border pt-5">
+                <EntryComments
+                  personId={person.id}
+                  currentUserId={currentUserId}
+                  canModerate={canEdit}
+                />
               </section>
 
               <section className="flex flex-col gap-3 border-t border-border pt-5">
@@ -203,7 +229,27 @@ export function PersonPanel({
                       {busy ? "Claiming…" : "This is me — claim it"}
                     </Button>
                   ) : null}
+
+                  {isAdmin ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={onToggleVerified}
+                      disabled={busy}
+                    >
+                      {person.verified_at
+                        ? "Clear verified"
+                        : "Mark verified"}
+                    </Button>
+                  ) : null}
                 </div>
+
+                {person.verified_at ? (
+                  <p className="text-xs text-muted-foreground">
+                    Verified by an admin on{" "}
+                    {new Date(person.verified_at).toLocaleDateString()}.
+                  </p>
+                ) : null}
 
                 {!canEdit && !claimable && !isSelf ? (
                   <p className="text-xs text-muted-foreground">

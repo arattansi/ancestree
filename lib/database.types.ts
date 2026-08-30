@@ -149,6 +149,8 @@ export type Database = {
           id: string
           is_flag: boolean
           person_id: string
+          resolved_at: string | null
+          resolved_by: string | null
           status: string
           updated_at: string
         }
@@ -159,6 +161,8 @@ export type Database = {
           id?: string
           is_flag?: boolean
           person_id: string
+          resolved_at?: string | null
+          resolved_by?: string | null
           status?: string
           updated_at?: string
         }
@@ -169,6 +173,8 @@ export type Database = {
           id?: string
           is_flag?: boolean
           person_id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
           status?: string
           updated_at?: string
         }
@@ -193,6 +199,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "people"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entry_comments_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "entry_comments_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
           },
         ]
       }
@@ -368,6 +388,8 @@ export type Database = {
           preferred_name: string | null
           tree_id: string
           updated_at: string
+          verified_at: string | null
+          verified_by: string | null
         }
         Insert: {
           city_of_birth?: string | null
@@ -389,6 +411,8 @@ export type Database = {
           preferred_name?: string | null
           tree_id: string
           updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
         }
         Update: {
           city_of_birth?: string | null
@@ -410,6 +434,8 @@ export type Database = {
           preferred_name?: string | null
           tree_id?: string
           updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
         }
         Relationships: [
           {
@@ -446,6 +472,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "trees"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "people_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "people_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
           },
         ]
       }
@@ -716,6 +756,8 @@ export type Database = {
           preferred_name: string | null
           tree_id: string
           updated_at: string
+          verified_at: string | null
+          verified_by: string | null
         }[]
         SetofOptions: {
           from: "*"
@@ -745,6 +787,14 @@ export type Database = {
       }
       resolve_claim: {
         Args: { p_action: string; p_claim_id: string }
+        Returns: undefined
+      }
+      resolve_entry_flag: {
+        Args: { p_comment_id: string; p_resolved?: boolean }
+        Returns: undefined
+      }
+      set_entry_verified: {
+        Args: { p_person_id: string; p_verified?: boolean }
         Returns: undefined
       }
     }
