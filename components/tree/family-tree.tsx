@@ -27,6 +27,7 @@ import { PersonNode } from "@/components/tree/person-node";
 import { PersonPanel } from "@/components/tree/person-panel";
 import { Button } from "@/components/ui/button";
 import type { ClaimCandidate } from "@/lib/claims";
+import { multiTreeEnabled } from "@/lib/flags";
 import { layoutTree } from "@/lib/tree-layout";
 import type { TreeGraphEdge, TreeGraphPerson } from "@/lib/tree";
 
@@ -177,7 +178,7 @@ function Canvas({
           maskColor="var(--muted)"
           className="!bg-card"
         />
-        <Panel position="top-right">
+        <Panel position="top-right" className="flex flex-col items-end gap-2">
           <Button
             nativeButton={false}
             render={<Link href="/people/new" />}
@@ -185,6 +186,16 @@ function Canvas({
           >
             Add a relative
           </Button>
+          {multiTreeEnabled ? (
+            <Button
+              nativeButton={false}
+              render={<Link href="/trees/new" />}
+              size="sm"
+              variant="outline"
+            >
+              Start your own tree
+            </Button>
+          ) : null}
         </Panel>
         {claimCandidates.length > 0 ? (
           <Panel position="top-left">

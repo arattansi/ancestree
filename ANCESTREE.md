@@ -41,8 +41,10 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `/auth/callback` (magic-link handler) + `/auth/auth-code-error`, `/onboarding`
   (first-run self entry + connect), `/people/new` (add a connected relative),
   `/people/[id]/edit` (owner/creator/admin entry edit), `/tree` (React Flow
-  canvas), `/account` (profile + in-app notifications), `/admin` (admin-only)
+  canvas), `/account` (profile + in-app notifications), `/admin` (admin-only:
+  overview stats + members + disputes), `/trees/new` (Step 9 seam, flagged)
 - `app/actions/` — server actions (`auth.ts`: magic link + sign out;
+  `trees.ts`: `startOwnTree` (Step 9 multi-tree seam);
   `invites.ts`: mint invite link, grant/revoke `can_invite`;
   `people.ts`: `addPeopleWithConnections` (transactional multi-person + edge
   create), update person, drag-to-pin position, photo + document writes,
@@ -65,7 +67,10 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   types + `buildChainEdges`; `lib/siblings.ts` — sibling inference; `lib/tree.ts` —
   shared-tree + member lookups + `getTreeGraph` (canvas data);
   `lib/tree-layout.ts` — pure dagre auto-layout; `lib/person-name.ts` — display
-  name + lifespan + initials; `lib/image.ts` — client-side photo downscale
+  name + lifespan + initials; `lib/image.ts` — client-side photo downscale;
+  `lib/flags.ts` — build-time feature flags (`multiTreeEnabled`)
+- `components/start-tree-form.tsx` — Step 9 "start your own tree" form;
+  `components/ui/skeleton.tsx` + `app/{tree,admin,account}/loading.tsx` skeletons
 - `lib/auth.ts` — `getUser` / `getProfile` / `requireProfile` / `requireSelfPerson` / `requireAdmin` (server-only)
 - `lib/site-url.ts` — `getSiteUrl()` for magic-link redirects and invite links
 - `lib/supabase/` — `client.ts` (browser), `server.ts` (RSC/actions), `middleware.ts` (session refresh), `admin.ts` (service role, server-only)
@@ -96,6 +101,7 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `notifications` | In-app notices (`claim_*`, `entry_commented` \| `entry_flagged` \| `flag_resolved` \| `entry_verified`); recipient-scoped RLS |
 | `entry_comments` | Comments and flags (`is_flag`, `open` \| `resolved`, `resolved_by`) |
 | `documents` | Metadata for private file uploads |
+| `tree_bridges` | Step 9 seam: links a member's own `trees` row to a tree they belong to via a spouse bridge (feature-flagged; second tree not rendered) |
 
 **Checks:** `people` requires given **or** preferred name, family name, country of
 birth, and `is_deceased` (NOT NULL). `lineage_type` is writable by admins only.
@@ -146,6 +152,20 @@ tier ~3–4/hour) — swap to an SMTP provider before wider testing.
 
 ## Changelog
 
+- **Step 9 — Multi-tree seam, polish & admin dashboard** (migration
+  `20260830240000_multi_tree_seam`): new `tree_bridges` table (RLS: members of
+  either side) + `start_own_tree(name, bridge_person_id, person)` SECURITY
+  DEFINER RPC that creates a member's own `trees` row, their root `people` row
+  in it, and one spouse bridge back to a person on a tree they already belong
+  to (one per member). Gated by `NEXT_PUBLIC_ENABLE_MULTI_TREE` via
+  `lib/flags.ts#multiTreeEnabled`; the second tree is **not** drawn — this is a
+  clean seam for v2. UI: `/trees/new` (`components/start-tree-form.tsx`,
+  `app/actions/trees.ts#startOwnTree`), plus a flagged "Start your own tree"
+  button on the canvas. Polish: `components/ui/skeleton.tsx` +
+  `app/{tree,admin,account}/loading.tsx` route skeletons, wrapping/focus-ring
+  fixes in `site-header.tsx`. Admin dashboard (`/admin`): an Overview stat grid
+  (members, entries, relationships, claimed, unverified, open flags, disputes,
+  bridges) and a per-member "Entries created" column.
 - **Step 8 — Entry comments, flags & verification** (migration
   `20260830230000`): `people` gains `verified_at` / `verified_by`;
   `entry_comments` gains `resolved_at` / `resolved_by`. Any tree member can

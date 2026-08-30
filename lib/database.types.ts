@@ -613,6 +613,68 @@ export type Database = {
           },
         ]
       }
+      tree_bridges: {
+        Row: {
+          created_at: string
+          created_by: string
+          from_person: string
+          from_tree: string
+          id: string
+          to_person: string
+          to_tree: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          from_person: string
+          from_tree: string
+          id?: string
+          to_person: string
+          to_tree: string
+          type?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          from_person?: string
+          from_tree?: string
+          id?: string
+          to_person?: string
+          to_tree?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tree_bridges_from_person_fkey"
+            columns: ["from_person"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tree_bridges_from_tree_fkey"
+            columns: ["from_tree"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tree_bridges_to_person_fkey"
+            columns: ["to_person"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tree_bridges_to_tree_fkey"
+            columns: ["to_tree"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trees: {
         Row: {
           created_at: string
@@ -796,6 +858,14 @@ export type Database = {
       set_entry_verified: {
         Args: { p_person_id: string; p_verified?: boolean }
         Returns: undefined
+      }
+      start_own_tree: {
+        Args: {
+          p_bridge_person_id: string
+          p_person: Json
+          p_tree_name: string
+        }
+        Returns: Json
       }
     }
     Enums: {
