@@ -6,7 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { requireProfile } from "@/lib/auth";
+import { requireSelfPerson } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "Family tree",
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 
 // Placeholder for the canvas tree (built in Step 6 — Tree visualization).
 export default async function TreePage() {
-  const profile = await requireProfile();
+  const profile = await requireSelfPerson();
 
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-6 px-6 py-24">

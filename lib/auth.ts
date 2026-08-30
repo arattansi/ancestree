@@ -49,6 +49,16 @@ export async function requireProfile(): Promise<Profile> {
   return profile;
 }
 
+/**
+ * Require a member who has completed first-run onboarding (their own person
+ * entry). Sends members without one to `/onboarding`.
+ */
+export async function requireSelfPerson(): Promise<Profile> {
+  const profile = await requireProfile();
+  if (!profile.self_person_id) redirect("/onboarding");
+  return profile;
+}
+
 export async function requireAdmin(): Promise<Profile> {
   const profile = await requireProfile();
   if (profile.role !== "admin") redirect("/tree");

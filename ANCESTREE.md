@@ -38,12 +38,16 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
 ## Project structure
 
 - `app/` — App Router pages: `/` landing, `/join` (+ `/join/[token]` invite accept),
-  `/auth/callback` (magic-link handler) + `/auth/auth-code-error`, `/tree`
-  (authed placeholder), `/account`, `/admin` (admin-only)
+  `/auth/callback` (magic-link handler) + `/auth/auth-code-error`, `/onboarding`
+  (first-run self entry), `/tree` (authed placeholder), `/account`, `/admin`
+  (admin-only)
 - `app/actions/` — server actions (`auth.ts`: magic link + sign out;
-  `invites.ts`: mint invite link, grant/revoke `can_invite`)
-- `components/ui/` — shadcn primitives
-- `lib/auth.ts` — `getUser` / `getProfile` / `requireProfile` / `requireAdmin` (server-only)
+  `invites.ts`: mint invite link, grant/revoke `can_invite`;
+  `people.ts`: create/update person, photo + document writes, signed URLs)
+- `components/ui/` — shadcn primitives (incl. `form` = react-hook-form + zod)
+- `components/person-form.tsx` — reusable PersonForm; `components/person-documents.tsx`
+- `lib/person-schema.ts` — shared zod schema; `lib/image.ts` — client-side photo downscale
+- `lib/auth.ts` — `getUser` / `getProfile` / `requireProfile` / `requireSelfPerson` / `requireAdmin` (server-only)
 - `lib/site-url.ts` — `getSiteUrl()` for magic-link redirects and invite links
 - `lib/supabase/` — `client.ts` (browser), `server.ts` (RSC/actions), `middleware.ts` (session refresh), `admin.ts` (service role, server-only)
 - `lib/database.types.ts` — generated Supabase types (regenerate after schema changes)
@@ -119,6 +123,17 @@ tier ~3–4/hour) — swap to an SMTP provider before wider testing.
 
 ## Changelog
 
+- **Step 4 — Person form & onboarding**: reusable `PersonForm` (shadcn Form +
+  zod, `lib/person-schema.ts`); required = (given|preferred) + family +
+  country_of_birth + explicit `is_deceased`; death fields revealed on the
+  Deceased checkbox; admin-only Lineage select. Client-side photo
+  downscale (`lib/image.ts`) → `photos` bucket; multi-file Documents section
+  (`person-documents.tsx`) → `documents` bucket with signed-URL download +
+  remove. First-run onboarding at `/onboarding` (guarded by
+  `requireSelfPerson`) creates the member's own person via the
+  `create_self_person` SECURITY DEFINER RPC (migration `20260830200539`) which
+  also sets `profiles.self_person_id`. `next.config.ts` allows the Supabase
+  Storage image host.
 - **Step 3 — Auth & invite system**: magic-link auth + invite-gated
   registration; `redeem_invite` / `ensure_profile` / `invite_preview` RPCs +
   `admin_allowlist` bootstrap (both co-admins seeded) + `member_directory` view

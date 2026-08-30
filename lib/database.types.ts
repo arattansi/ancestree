@@ -529,6 +529,21 @@ export type Database = {
       }
     }
     Functions: {
+      create_self_person: {
+        Args: {
+          p_city_of_birth?: string
+          p_country_of_birth: string
+          p_date_of_birth?: string
+          p_date_of_death?: string
+          p_family_name: string
+          p_given_name: string
+          p_is_deceased: boolean
+          p_photo_path?: string
+          p_place_of_death?: string
+          p_preferred_name: string
+        }
+        Returns: string
+      }
       ensure_profile: {
         Args: { p_display_name?: string }
         Returns: {
