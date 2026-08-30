@@ -39,14 +39,21 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
 
 - `app/` — App Router pages: `/` landing, `/join` (+ `/join/[token]` invite accept),
   `/auth/callback` (magic-link handler) + `/auth/auth-code-error`, `/onboarding`
-  (first-run self entry), `/tree` (authed placeholder), `/account`, `/admin`
-  (admin-only)
+  (first-run self entry + connect), `/people/new` (add a connected relative),
+  `/tree` (authed placeholder), `/account`, `/admin` (admin-only)
 - `app/actions/` — server actions (`auth.ts`: magic link + sign out;
   `invites.ts`: mint invite link, grant/revoke `can_invite`;
-  `people.ts`: create/update person, photo + document writes, signed URLs)
+  `people.ts`: `addPeopleWithConnections` (transactional multi-person + edge
+  create), update person, photo + document writes, signed URLs)
 - `components/ui/` — shadcn primitives (incl. `form` = react-hook-form + zod)
-- `components/person-form.tsx` — reusable PersonForm; `components/person-documents.tsx`
-- `lib/person-schema.ts` — shared zod schema; `lib/image.ts` — client-side photo downscale
+- `components/person-fields.tsx` — shared demographic fieldset; `person-form.tsx` —
+  edit an existing entry; `add-person-flow.tsx` — self / relative add with chain
+  connect; `relationship-picker.tsx` — search-select an existing member;
+  `components/person-documents.tsx`
+- `lib/person-schema.ts` — shared zod schema; `lib/connections.ts` — chain/edge
+  types + `buildChainEdges`; `lib/siblings.ts` — sibling inference; `lib/tree.ts` —
+  shared-tree + member lookups; `lib/person-name.ts` — display name;
+  `lib/image.ts` — client-side photo downscale
 - `lib/auth.ts` — `getUser` / `getProfile` / `requireProfile` / `requireSelfPerson` / `requireAdmin` (server-only)
 - `lib/site-url.ts` — `getSiteUrl()` for magic-link redirects and invite links
 - `lib/supabase/` — `client.ts` (browser), `server.ts` (RSC/actions), `middleware.ts` (session refresh), `admin.ts` (service role, server-only)
@@ -123,6 +130,18 @@ tier ~3–4/hour) — swap to an SMTP provider before wider testing.
 
 ## Changelog
 
+- **Step 5 — Connections & add-person flow**: `add_people_with_connections`
+  SECURITY DEFINER RPC (migration `20260830210000`) creates one or more people
+  plus their `parent`/`spouse` edges in a single transaction, links the caller's
+  `self_person_id` when `p_self_index` is set, guards against parent/child cycles
+  (recursive walk), and — for non-admins — rejects the write unless every new
+  person reaches a pre-existing tree member (admins seed roots freely). Replaces
+  `create_self_person` (dropped). `sibling_edges` security-invoker view exposes
+  sibling pairs from shared parents; `lib/siblings.ts` mirrors it client-side.
+  New `AddPersonFlow` (self + relative modes) with `RelationshipPicker`
+  search-select and inline chain-add of missing in-between people; `/onboarding`
+  now requires a connection, `/people/new` adds relatives. `PersonForm` is now
+  edit-only; demographic fields extracted to `PersonFields`.
 - **Step 4 — Person form & onboarding**: reusable `PersonForm` (shadcn Form +
   zod, `lib/person-schema.ts`); required = (given|preferred) + family +
   country_of_birth + explicit `is_deceased`; death fields revealed on the

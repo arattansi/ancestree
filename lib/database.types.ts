@@ -527,22 +527,41 @@ export type Database = {
           },
         ]
       }
+      sibling_edges: {
+        Row: {
+          person_a: string | null
+          person_b: string | null
+          tree_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "relationships_to_person_fkey"
+            columns: ["person_a"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "relationships_to_person_fkey"
+            columns: ["person_b"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "relationships_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
-      create_self_person: {
-        Args: {
-          p_city_of_birth?: string
-          p_country_of_birth: string
-          p_date_of_birth?: string
-          p_date_of_death?: string
-          p_family_name: string
-          p_given_name: string
-          p_is_deceased: boolean
-          p_photo_path?: string
-          p_place_of_death?: string
-          p_preferred_name: string
-        }
-        Returns: string
+      add_people_with_connections: {
+        Args: { p_edges?: Json; p_people: Json; p_self_index?: number }
+        Returns: Json
       }
       ensure_profile: {
         Args: { p_display_name?: string }

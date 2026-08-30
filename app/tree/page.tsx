@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -23,9 +25,14 @@ export default async function TreePage() {
         <CardHeader>
           <CardTitle>Welcome, {profile.display_name ?? "family"}</CardTitle>
         </CardHeader>
-        <CardContent className="text-muted-foreground">
-          The interactive tree canvas lands in Step 6. Onboarding and the entry
-          form arrive in Steps 4&ndash;5.
+        <CardContent className="flex flex-col items-center gap-4 text-muted-foreground">
+          <p>
+            The interactive tree canvas lands in Step 6. You can already add
+            relatives and connect them to the tree.
+          </p>
+          <Button nativeButton={false} render={<Link href="/people/new" />}>
+            Add a relative
+          </Button>
         </CardContent>
       </Card>
     </main>
