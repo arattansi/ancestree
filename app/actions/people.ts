@@ -164,6 +164,28 @@ export async function updatePerson(
   return { personId };
 }
 
+/** Persist a drag-to-pin canvas position. Owner or admin only (RLS). */
+export async function setPersonPosition(
+  personId: string,
+  x: number,
+  y: number,
+): Promise<{ error?: string }> {
+  await requireProfile();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("people")
+    .update({ pos_x: Math.round(x), pos_y: Math.round(y) })
+    .eq("id", personId);
+  if (error) {
+    if (error.message.toLowerCase().includes("row-level security")) {
+      return { error: "Only the entry owner or an admin can move this card." };
+    }
+    return { error: friendlyError(error.message) };
+  }
+  revalidatePath("/tree");
+  return {};
+}
+
 /** Point a person row at an uploaded photo (or clear it). */
 export async function setPersonPhoto(
   personId: string,

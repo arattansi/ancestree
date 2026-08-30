@@ -40,11 +40,14 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
 - `app/` — App Router pages: `/` landing, `/join` (+ `/join/[token]` invite accept),
   `/auth/callback` (magic-link handler) + `/auth/auth-code-error`, `/onboarding`
   (first-run self entry + connect), `/people/new` (add a connected relative),
-  `/tree` (authed placeholder), `/account`, `/admin` (admin-only)
+  `/tree` (React Flow canvas), `/account`, `/admin` (admin-only)
 - `app/actions/` — server actions (`auth.ts`: magic link + sign out;
   `invites.ts`: mint invite link, grant/revoke `can_invite`;
   `people.ts`: `addPeopleWithConnections` (transactional multi-person + edge
-  create), update person, photo + document writes, signed URLs)
+  create), update person, drag-to-pin position, photo + document writes,
+  signed URLs)
+- `components/tree/` — `family-tree.tsx` React Flow canvas, `person-node.tsx`
+  custom node, `person-panel.tsx` detail Sheet
 - `components/ui/` — shadcn primitives (incl. `form` = react-hook-form + zod)
 - `components/person-fields.tsx` — shared demographic fieldset; `person-form.tsx` —
   edit an existing entry; `add-person-flow.tsx` — self / relative add with chain
@@ -52,8 +55,9 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `components/person-documents.tsx`
 - `lib/person-schema.ts` — shared zod schema; `lib/connections.ts` — chain/edge
   types + `buildChainEdges`; `lib/siblings.ts` — sibling inference; `lib/tree.ts` —
-  shared-tree + member lookups; `lib/person-name.ts` — display name;
-  `lib/image.ts` — client-side photo downscale
+  shared-tree + member lookups + `getTreeGraph` (canvas data);
+  `lib/tree-layout.ts` — pure dagre auto-layout; `lib/person-name.ts` — display
+  name + lifespan + initials; `lib/image.ts` — client-side photo downscale
 - `lib/auth.ts` — `getUser` / `getProfile` / `requireProfile` / `requireSelfPerson` / `requireAdmin` (server-only)
 - `lib/site-url.ts` — `getSiteUrl()` for magic-link redirects and invite links
 - `lib/supabase/` — `client.ts` (browser), `server.ts` (RSC/actions), `middleware.ts` (session refresh), `admin.ts` (service role, server-only)
@@ -130,6 +134,18 @@ tier ~3–4/hour) — swap to an SMTP provider before wider testing.
 
 ## Changelog
 
+- **Step 6 — Tree visualization (canvas)**: `/tree` is now a React Flow
+  (`@xyflow/react`) + dagre canvas. `lib/tree.ts#getTreeGraph` loads all people
+  (with 1h signed photo URLs) + relationship edges for the shared tree;
+  `lib/tree-layout.ts#layoutTree` is a pure, client-safe dagre pass — top-down by
+  generation, with invisible "union" nodes tying couples to one rank and hanging
+  their children from a shared point; pinned `people.pos_x/pos_y` override the
+  auto position. `components/tree/`: `family-tree.tsx` (canvas + pan/zoom /
+  minimap / controls, drag-to-pin via `setPersonPosition` server action),
+  `person-node.tsx` (photo/initials, display name, lifespan, dashed deceased
+  styling, self-highlight), `person-panel.tsx` (shadcn Sheet — full details,
+  documents, disabled Edit/Claim stubs for Steps 7–8). Empty state links into
+  the Step 5 onboarding / add-relative flow. New dep: `dagre`.
 - **Step 5 — Connections & add-person flow**: `add_people_with_connections`
   SECURITY DEFINER RPC (migration `20260830210000`) creates one or more people
   plus their `parent`/`spouse` edges in a single transaction, links the caller's
