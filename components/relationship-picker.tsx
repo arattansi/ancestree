@@ -5,7 +5,12 @@ import * as React from "react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
-export type TreeMemberOption = { id: string; label: string };
+export type TreeMemberOption = {
+  id: string;
+  label: string;
+  /** Maiden name, when set — also matched by the search box. */
+  maidenName?: string | null;
+};
 
 /**
  * Search-select for choosing an existing tree member to connect a new entry to.
@@ -29,7 +34,9 @@ export function RelationshipPicker({
   const matches = React.useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return members;
-    return members.filter((m) => m.label.toLowerCase().includes(q));
+    return members.filter((m) =>
+      `${m.label} ${m.maidenName ?? ""}`.toLowerCase().includes(q),
+    );
   }, [members, query]);
 
   return (
@@ -88,6 +95,12 @@ export function RelationshipPicker({
                     )}
                   >
                     {m.label}
+                    {m.maidenName ? (
+                      <span className="text-muted-foreground">
+                        {" "}
+                        · née {m.maidenName}
+                      </span>
+                    ) : null}
                   </button>
                 </li>
               ))

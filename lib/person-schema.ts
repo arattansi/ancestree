@@ -27,6 +27,7 @@ export const personSchema = z
   .object({
     given_name: optionalText(120),
     preferred_name: optionalText(120),
+    maiden_name: optionalText(120),
     family_name: z
       .string()
       .trim()
@@ -67,6 +68,7 @@ export type PersonFormValues = z.infer<typeof personSchema>;
 export const emptyPersonValues: PersonFormValues = {
   given_name: "",
   preferred_name: "",
+  maiden_name: "",
   family_name: "",
   date_of_birth: "",
   city_of_birth: "",
@@ -87,6 +89,7 @@ export function toPersonPayload(values: PersonFormValues) {
   return {
     given_name: trimOrNull(values.given_name),
     preferred_name: trimOrNull(values.preferred_name),
+    maiden_name: trimOrNull(values.maiden_name),
     family_name: values.family_name.trim(),
     date_of_birth: trimOrNull(values.date_of_birth),
     city_of_birth: trimOrNull(values.city_of_birth),

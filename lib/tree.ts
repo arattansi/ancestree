@@ -9,6 +9,7 @@ export type TreeGraphPerson = {
   id: string;
   given_name: string | null;
   preferred_name: string | null;
+  maiden_name: string | null;
   family_name: string;
   date_of_birth: string | null;
   date_of_death: string | null;
@@ -40,7 +41,7 @@ export type TreeGraphEdge = {
 };
 
 const PERSON_COLUMNS =
-  "id, given_name, preferred_name, family_name, date_of_birth, date_of_death, city_of_birth, country_of_birth, is_deceased, place_of_death, lineage_type, photo_path, pos_x, pos_y, owner_user_id, created_by, verified_at";
+  "id, given_name, preferred_name, maiden_name, family_name, date_of_birth, date_of_death, city_of_birth, country_of_birth, is_deceased, place_of_death, lineage_type, photo_path, pos_x, pos_y, owner_user_id, created_by, verified_at";
 
 /** Everyone in the tree plus their relationship edges, with signed photo URLs. */
 export async function getTreeGraph(treeId: string): Promise<{
@@ -139,11 +140,15 @@ export async function listTreeMembers(
   const supabase = await createClient();
   const { data } = await supabase
     .from("people")
-    .select("id, given_name, preferred_name, family_name")
+    .select("id, given_name, preferred_name, maiden_name, family_name")
     .eq("tree_id", treeId)
     .order("family_name", { ascending: true });
 
   return (data ?? [])
     .filter((p) => p.id !== excludeId)
-    .map((p) => ({ id: p.id, label: personDisplayName(p) }));
+    .map((p) => ({
+      id: p.id,
+      label: personDisplayName(p),
+      maidenName: p.maiden_name ?? null,
+    }));
 }

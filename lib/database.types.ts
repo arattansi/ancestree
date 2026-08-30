@@ -380,6 +380,7 @@ export type Database = {
           id: string
           is_deceased: boolean
           lineage_type: string | null
+          maiden_name: string | null
           owner_user_id: string
           photo_path: string | null
           place_of_death: string | null
@@ -403,6 +404,7 @@ export type Database = {
           id?: string
           is_deceased: boolean
           lineage_type?: string | null
+          maiden_name?: string | null
           owner_user_id: string
           photo_path?: string | null
           place_of_death?: string | null
@@ -426,6 +428,7 @@ export type Database = {
           id?: string
           is_deceased?: boolean
           lineage_type?: string | null
+          maiden_name?: string | null
           owner_user_id?: string
           photo_path?: string | null
           place_of_death?: string | null
@@ -646,6 +649,20 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "tree_bridges_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "tree_bridges_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
             foreignKeyName: "tree_bridges_from_person_fkey"
             columns: ["from_person"]
             isOneToOne: false
@@ -810,6 +827,7 @@ export type Database = {
           id: string
           is_deceased: boolean
           lineage_type: string | null
+          maiden_name: string | null
           owner_user_id: string
           photo_path: string | null
           place_of_death: string | null

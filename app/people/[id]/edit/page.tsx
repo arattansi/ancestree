@@ -25,7 +25,7 @@ export default async function EditPersonPage({
   const { data: person } = await supabase
     .from("people")
     .select(
-      "id, tree_id, given_name, preferred_name, family_name, date_of_birth, city_of_birth, country_of_birth, is_deceased, date_of_death, place_of_death, lineage_type, photo_path, owner_user_id, created_by",
+      "id, tree_id, given_name, preferred_name, maiden_name, family_name, date_of_birth, city_of_birth, country_of_birth, is_deceased, date_of_death, place_of_death, lineage_type, photo_path, owner_user_id, created_by",
     )
     .eq("id", id)
     .maybeSingle();
@@ -60,6 +60,7 @@ export default async function EditPersonPage({
   const values: PersonFormValues = {
     given_name: person.given_name ?? "",
     preferred_name: person.preferred_name ?? "",
+    maiden_name: person.maiden_name ?? "",
     family_name: person.family_name,
     date_of_birth: person.date_of_birth ?? "",
     city_of_birth: person.city_of_birth ?? "",

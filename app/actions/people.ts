@@ -89,6 +89,7 @@ export async function addPeopleWithConnections(
     return {
       given_name: p.given_name ?? "",
       preferred_name: p.preferred_name ?? "",
+      maiden_name: p.maiden_name ?? "",
       family_name: p.family_name,
       country_of_birth: p.country_of_birth,
       city_of_birth: p.city_of_birth ?? "",
@@ -139,6 +140,7 @@ export async function updatePerson(
   const update: TablesUpdate<"people"> = {
     given_name: payload.given_name,
     preferred_name: payload.preferred_name,
+    maiden_name: payload.maiden_name,
     family_name: payload.family_name,
     date_of_birth: payload.date_of_birth,
     city_of_birth: payload.city_of_birth,

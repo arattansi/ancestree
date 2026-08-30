@@ -195,6 +195,7 @@ export function PersonPanel({
               <dl className="grid grid-cols-2 gap-4">
                 <Field label="Given name" value={person.given_name} />
                 <Field label="Preferred name" value={person.preferred_name} />
+                <Field label="Maiden name" value={person.maiden_name} />
                 <Field label="Family name" value={person.family_name} />
                 <Field label="Date of birth" value={person.date_of_birth} />
                 <Field
@@ -218,6 +219,19 @@ export function PersonPanel({
                   </>
                 ) : null}
               </dl>
+
+              {canEdit && !person.maiden_name ? (
+                <div className="rounded-md border border-dashed border-border bg-muted/40 px-3 py-2.5 text-xs text-muted-foreground">
+                  No maiden name on this entry yet.{" "}
+                  <Link
+                    href={`/people/${person.id}/edit`}
+                    className="font-medium text-foreground underline underline-offset-2"
+                  >
+                    Add one
+                  </Link>{" "}
+                  if you know it.
+                </div>
+              ) : null}
 
               <section className="border-t border-border pt-5">
                 <PersonDocuments personId={person.id} treeId={treeId} />

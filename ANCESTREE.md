@@ -110,6 +110,8 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 
 **Checks:** `people` requires given **or** preferred name, family name, country of
 birth, and `is_deceased` (NOT NULL). `lineage_type` is writable by admins only.
+`maiden_name` is an optional nullable text column, visible to and editable by any
+member who can already edit the entry.
 
 **RLS:** every public table. Members read rows in trees they belong to (admin,
 tree creator, accepted invite, or `self_person`). Writes use
@@ -195,6 +197,22 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 11 — Optional maiden name** (migration
+  `20260830250000_person_maiden_name`): new nullable `people.maiden_name text`
+  column (no default; existing rows stay NULL). `add_people_with_connections`
+  re-created to persist it on create. Shared zod schema
+  (`lib/person-schema.ts`) gains an optional `maiden_name` (≤120 chars, blank OK)
+  wired into `toPersonPayload` + `emptyPersonValues`; `PersonFields` shows a
+  "Maiden name" input beside the other name fields (not admin-gated), so it
+  appears in both the edit form and the add-a-relative flow. `updatePerson`
+  writes it. Detail panel (`PersonPanel`) shows "Maiden name" when set and — for
+  an editor of an entry with no maiden name — a subtle dashed inline prompt
+  linking to the edit form (opt-in, per-person, non-blocking; gated by the same
+  creator/owner/admin `canEdit`). The **canvas `PersonNode` does not** display
+  it. Search: `listTreeMembers` + `TreeMemberOption` carry `maidenName`, and the
+  `RelationshipPicker` search box matches it alongside the display name (and
+  shows "· née …" on matching rows). `lib/database.types.ts` regenerated.
 
 - **Step 10 — Privacy, acceptance & ship**: no migration. Consent gate on the
   magic-link form + `/privacy` notice; admin JSON export, admin delete-person

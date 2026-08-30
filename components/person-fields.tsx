@@ -111,6 +111,23 @@ export function PersonFields<T extends FieldValues>({
         )}
       />
 
+      <FormField
+        control={control}
+        name={name("maiden_name")}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Maiden name</FormLabel>
+            <FormControl>
+              <Input {...field} value={field.value ?? ""} />
+            </FormControl>
+            <FormDescription>
+              Optional. A family name at birth, before any change on marriage.
+            </FormDescription>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
       <div className="grid gap-4 sm:grid-cols-2">
         <FormField
           control={control}
