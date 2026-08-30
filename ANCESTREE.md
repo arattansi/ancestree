@@ -37,8 +37,14 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
 
 ## Project structure
 
-- `app/` — App Router pages (`/` landing, `/tree` canvas placeholder, `/join`)
+- `app/` — App Router pages: `/` landing, `/join` (+ `/join/[token]` invite accept),
+  `/auth/callback` (magic-link handler) + `/auth/auth-code-error`, `/tree`
+  (authed placeholder), `/account`, `/admin` (admin-only)
+- `app/actions/` — server actions (`auth.ts`: magic link + sign out;
+  `invites.ts`: mint invite link, grant/revoke `can_invite`)
 - `components/ui/` — shadcn primitives
+- `lib/auth.ts` — `getUser` / `getProfile` / `requireProfile` / `requireAdmin` (server-only)
+- `lib/site-url.ts` — `getSiteUrl()` for magic-link redirects and invite links
 - `lib/supabase/` — `client.ts` (browser), `server.ts` (RSC/actions), `middleware.ts` (session refresh), `admin.ts` (service role, server-only)
 - `lib/database.types.ts` — generated Supabase types (regenerate after schema changes)
 - `supabase/` — local CLI project linked to `kkmemshpkxrzogijxgnb` (`Product-Ancestree`)
@@ -82,8 +88,43 @@ entry owner/admin can write.
 Helpers live in the unexposed `private` schema (`is_admin`, `is_tree_member`,
 `can_edit_person`).
 
+## Auth & invites (Step 3)
+
+- **Magic-link only** (`supabase.auth.signInWithOtp`). `proxy.ts` redirects
+  unauthenticated visits to protected routes → `/join`; authenticated users
+  without a member profile → `/join?status=pending`.
+- **`/auth/callback`** exchanges the code (or verifies the OTP hash), then either
+  `redeem_invite(token)` (invite flow) or `ensure_profile()` (admin bootstrap).
+- **Invite tokens** (`public.invites`): `can_invite` members + admins mint a
+  single-use, 14-day link `"/join/<token>"` by inserting a row directly under RLS
+  (`can_invite_to_tree`). `redeem_invite` (SECURITY DEFINER) creates the member
+  `profiles` row with `invited_by_user_id = invite.created_by` and flips the
+  invite to `accepted`. `invite_preview(token)` is the only pre-auth RPC.
+- **Admin bootstrap**: `private.admin_allowlist(email)` (seeded with the build
+  owner — **add the second co-admin before launch**). First login by an
+  allowlisted email runs `ensure_profile`, which creates the single shared
+  `trees` row and an `admin` / `can_invite` profile. Non-allowlisted users
+  without an invite get `needs_invite`.
+- **`profiles_protect_role`** trigger still pins role/`can_invite` for
+  non-admins; the SECURITY DEFINER helpers set a `LOCAL`
+  `ancestree.privileged_profile_write` GUC to bypass it during bootstrap only.
+- **`public.member_directory`** view (`security_invoker`) = profiles + resolved
+  `invited_by_name`; drives `/admin` and `/account`.
+
+**Supabase dashboard config (do once):** Authentication → URL Configuration →
+Site URL `https://ancestree.space`; Redirect URLs allowlist
+`http://localhost:3000/**`, `https://ancestree.space/**`,
+`https://*-arattansi.vercel.app/**`. Email provider = built-in for now (free
+tier ~3–4/hour) — swap to an SMTP provider before wider testing.
+
 ## Changelog
 
+- **Step 3 — Auth & invite system**: magic-link auth + invite-gated
+  registration; `redeem_invite` / `ensure_profile` / `invite_preview` RPCs +
+  `admin_allowlist` bootstrap + `member_directory` view (migrations
+  `20260830192758`, `20260830192832`); `/join`, `/join/[token]`,
+  `/auth/callback`, `/account`, `/admin`; `lib/auth.ts`, `lib/site-url.ts`,
+  `app/actions/{auth,invites}.ts`; auth-aware `SiteHeader`.
 - **Step 2 — Data model, RLS & storage**: `supabase init` + link to
   Product-Ancestree; first migrations for all tables, RLS, and private
   `photos` / `documents` buckets; generated `lib/database.types.ts`.

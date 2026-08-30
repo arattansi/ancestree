@@ -1,41 +1,69 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
-import { Button } from "@/components/ui/button";
+import { MagicLinkForm } from "@/components/magic-link-form";
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { getProfile, getUser } from "@/lib/auth";
 
 export const metadata: Metadata = {
-  title: "Join · Ancestree",
-  description: "Ancestree is invite-only. Use a family invite link to join.",
+  title: "Join",
+  description: "Ancestree is invite-only. Sign in with a family invite link.",
 };
 
-export default function JoinPage() {
+export default async function JoinPage({
+  searchParams,
+}: PageProps<"/join">) {
+  const { status, error } = await searchParams;
+
+  const profile = await getProfile();
+  if (profile) redirect("/tree");
+
+  const user = await getUser();
+  const pending = status === "pending" || Boolean(user);
+
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-6 px-6 py-24">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Invite only</CardTitle>
+          <CardTitle>{pending ? "Almost there" : "Sign in to Ancestree"}</CardTitle>
           <CardDescription>
-            Ancestree is a private family tree. You need an invite link from a
-            relative to create an account.
+            {pending
+              ? "Your email is verified, but it is not linked to a family invite yet. Ask the relative who invited you to send you their invite link, then open it on this device."
+              : "Ancestree is a private family tree. Enter your email and we will send you a one-time sign-in link."}
           </CardDescription>
         </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
-          Magic-link sign-in lands in a later step. If you already have an
-          invite, keep that URL — it will bring you here when auth is wired.
+        <CardContent className="flex flex-col gap-4">
+          {error === "invite" ? (
+            <p
+              role="alert"
+              className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
+            >
+              That invite link is invalid, already used, or expired.
+            </p>
+          ) : null}
+
+          {pending ? (
+            <p className="text-sm text-muted-foreground">
+              Have an invite link? Open it directly — it will sign you in and add
+              you to the tree.
+            </p>
+          ) : (
+            <MagicLinkForm />
+          )}
+
+          <p className="text-sm text-muted-foreground">
+            <Link href="/" className="underline underline-offset-4">
+              Back home
+            </Link>
+          </p>
         </CardContent>
-        <CardFooter>
-          <Button nativeButton={false} render={<Link href="/" />}>
-            Back home
-          </Button>
-        </CardFooter>
       </Card>
     </main>
   );

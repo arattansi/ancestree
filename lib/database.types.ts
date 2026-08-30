@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.15"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -43,6 +43,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "claims_claimant_user_id_fkey"
+            columns: ["claimant_user_id"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
           {
             foreignKeyName: "claims_claimant_user_id_fkey"
             columns: ["claimant_user_id"]
@@ -102,6 +109,13 @@ export type Database = {
             foreignKeyName: "documents_uploaded_by_fkey"
             columns: ["uploaded_by"]
             isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "documents_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["auth_user_id"]
           },
@@ -139,6 +153,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "entry_comments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
           {
             foreignKeyName: "entry_comments_created_by_fkey"
             columns: ["created_by"]
@@ -194,7 +215,21 @@ export type Database = {
             foreignKeyName: "invites_accepted_by_user_id_fkey"
             columns: ["accepted_by_user_id"]
             isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "invites_accepted_by_user_id_fkey"
+            columns: ["accepted_by_user_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "invites_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
             referencedColumns: ["auth_user_id"]
           },
           {
@@ -282,7 +317,21 @@ export type Database = {
             foreignKeyName: "people_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "people_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "people_owner_user_id_fkey"
+            columns: ["owner_user_id"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
             referencedColumns: ["auth_user_id"]
           },
           {
@@ -337,6 +386,13 @@ export type Database = {
             foreignKeyName: "profiles_invited_by_user_id_fkey"
             columns: ["invited_by_user_id"]
             isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "profiles_invited_by_user_id_fkey"
+            columns: ["invited_by_user_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["auth_user_id"]
           },
@@ -381,6 +437,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "relationships_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
           {
             foreignKeyName: "relationships_created_by_fkey"
             columns: ["created_by"]
@@ -437,10 +500,81 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      member_directory: {
+        Row: {
+          auth_user_id: string | null
+          can_invite: boolean | null
+          created_at: string | null
+          display_name: string | null
+          invited_by_name: string | null
+          invited_by_user_id: string | null
+          role: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_invited_by_user_id_fkey"
+            columns: ["invited_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "profiles_invited_by_user_id_fkey"
+            columns: ["invited_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+        ]
+      }
     }
     Functions: {
-      [_ in never]: never
+      ensure_profile: {
+        Args: { p_display_name?: string }
+        Returns: {
+          auth_user_id: string
+          can_invite: boolean
+          created_at: string
+          display_name: string | null
+          invited_by_user_id: string | null
+          role: string
+          self_person_id: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "profiles"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      invite_preview: {
+        Args: { p_token: string }
+        Returns: {
+          inviter_name: string
+          tree_name: string
+          valid: boolean
+        }[]
+      }
+      redeem_invite: {
+        Args: { p_display_name?: string; p_token: string }
+        Returns: {
+          auth_user_id: string
+          can_invite: boolean
+          created_at: string
+          display_name: string | null
+          invited_by_user_id: string | null
+          role: string
+          self_person_id: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "profiles"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
       [_ in never]: never
