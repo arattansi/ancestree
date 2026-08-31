@@ -471,9 +471,11 @@ export function PersonPanel({
                 <Field
                   label="Place of birth"
                   value={
+                    person.birth_place_historical ||
                     [person.city_of_birth, person.country_of_birth]
                       .filter(Boolean)
-                      .join(", ") || null
+                      .join(", ") ||
+                    null
                   }
                 />
                 {person.is_deceased ? (
@@ -484,7 +486,9 @@ export function PersonPanel({
                     />
                     <Field
                       label="Place of death"
-                      value={person.place_of_death}
+                      value={
+                        person.death_place_historical || person.place_of_death
+                      }
                     />
                   </>
                 ) : null}

@@ -75,7 +75,8 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
 - `lib/places.ts` — server-only `searchPlaces` / `getPlacesByIds` /
   `formatPlaceLabel`; `lib/country-names.ts` — `countryName` (ISO→name) +
   `ALPHA2`; `app/actions/places.ts` — `searchPlacesAction` / `requestNewPlace`
-  (admin) / `listCountryOptions`
+  (admin) / `listCountryOptions`; `lib/historical-names.ts` — pure
+  `resolveHistoricalName` / `formatHistoricalPlace` (Step 4.5d, `.test.ts`)
 - `lib/person-schema.ts` — shared zod schema; `lib/connections.ts` — chain/edge
   types + `buildChainEdges`; `lib/connection-suggestions.ts` — implied-connection
   detection engine (+ `.server.ts` loader, `.test.ts`); `lib/siblings.ts` — sibling inference; `lib/tree.ts` —
@@ -118,6 +119,7 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `entry_comments` | Comments and flags (`is_flag`, `open` \| `resolved`, `resolved_by`) |
 | `documents` | Metadata for private file uploads |
 | `places` | GeoNames reference data (populated places + admin areas) for birthplace autocomplete; not tree-scoped — read by any member, written only by the import script |
+| `historical_names` | Curated period names for a place/country over a date range (Step 4.5d); matched by `place_id` then `country_code` against a birth/death year. Read by any member; seeded by migration |
 | `tree_bridges` | Step 9 seam: links a member's own `trees` row to a tree they belong to via a spouse bridge (feature-flagged; second tree not rendered) |
 
 **Checks:** `people` requires first **or** preferred name, last name, and
@@ -245,6 +247,24 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 4.5d — Historical place-name resolution** (migrations
+  `20260831060000_historical_names` + `..._seed_east_africa`): new
+  `historical_names` table (`place_id` **or** `country_code`, `name`,
+  `start_date`/`end_date`, `source`) — a curated, **not** global set. Seeded for
+  the regions this tree spans (Tanganyika/German East Africa, Sultanate of
+  Zanzibar (place-scoped, GeoNames 148730), Kenya Colony / British East Africa
+  Protectorate, Uganda Protectorate, Union of South Africa). `lib/historical-
+  names.ts` — pure `resolveHistoricalName(rows, {placeId, countryCode,
+  eventDate})` (place-scoped beats country-scoped; `end_date` exclusive) +
+  `formatHistoricalPlace` ("Nairobi, Kenya Colony · now Kenya"; no label when
+  the period name already equals the modern country). `getTreeGraph` loads the
+  table once and sets `birth_place_historical` / `death_place_historical` per
+  person from the birth/death year; `PersonPanel` shows those in place of the
+  plain birth/death place when present. Vitest: `lib/historical-names.test.ts`.
+  Verified against real rows — e.g. Zanzibar 1925 → "Sultanate of Zanzibar",
+  Nairobi 1936 → "Kenya Colony", Nairobi 1965 → (modern). Add regions by
+  appending to the seed migration.
 
 - **Step 4.5c — Places autocomplete in the person form** (no migration):
   `components/place-autocomplete.tsx` — a Base UI `Combobox` bound to `places`

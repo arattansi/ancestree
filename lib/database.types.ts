@@ -333,6 +333,47 @@ export type Database = {
           },
         ]
       }
+      historical_names: {
+        Row: {
+          country_code: string | null
+          created_at: string
+          end_date: string | null
+          id: number
+          name: string
+          place_id: number | null
+          source: string
+          start_date: string | null
+        }
+        Insert: {
+          country_code?: string | null
+          created_at?: string
+          end_date?: string | null
+          id?: never
+          name: string
+          place_id?: number | null
+          source?: string
+          start_date?: string | null
+        }
+        Update: {
+          country_code?: string | null
+          created_at?: string
+          end_date?: string | null
+          id?: never
+          name?: string
+          place_id?: number | null
+          source?: string
+          start_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "historical_names_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invites: {
         Row: {
           accepted_by_user_id: string | null

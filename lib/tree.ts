@@ -2,6 +2,12 @@ import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
 import { personDisplayName } from "@/lib/person-name";
+import {
+  formatHistoricalPlace,
+  resolveHistoricalName,
+  type HistoricalNameRow,
+} from "@/lib/historical-names";
+import { countryName } from "@/lib/country-names";
 import type { TreeMemberOption } from "@/components/relationship-picker";
 
 /** A person plus the fields the tree canvas + detail panel need. */
@@ -16,8 +22,14 @@ export type TreeGraphPerson = {
   date_of_death: string | null;
   city_of_birth: string | null;
   country_of_birth: string;
+  place_id_birth: number | null;
+  place_id_death: number | null;
   is_deceased: boolean;
   place_of_death: string | null;
+  /** "City, Period name · now Country" when a curated period name applies to the
+   *  birth/death year (Step 4.5d); otherwise null and the plain text is shown. */
+  birth_place_historical: string | null;
+  death_place_historical: string | null;
   lineage_type: string | null;
   photo_path: string | null;
   pos_x: number | null;
@@ -48,7 +60,7 @@ export type TreeGraphEdge = {
 };
 
 const PERSON_COLUMNS =
-  "id, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_death, city_of_birth, country_of_birth, is_deceased, place_of_death, lineage_type, photo_path, pos_x, pos_y, owner_user_id, created_by, verified_at";
+  "id, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_death, city_of_birth, country_of_birth, place_id_birth, place_id_death, is_deceased, place_of_death, lineage_type, photo_path, pos_x, pos_y, owner_user_id, created_by, verified_at";
 
 /** Everyone in the tree plus their relationship edges, with signed photo URLs. */
 export async function getTreeGraph(treeId: string): Promise<{
@@ -85,6 +97,47 @@ export async function getTreeGraph(treeId: string): Promise<{
 
   const rows = peopleRes.data ?? [];
 
+  // Step 4.5d — resolve period-appropriate place names for birth/death years.
+  const placeIds = [
+    ...new Set(
+      rows
+        .flatMap((p) => [p.place_id_birth, p.place_id_death])
+        .filter((n): n is number => typeof n === "number"),
+    ),
+  ];
+  const [placeRes, histRes] = await Promise.all([
+    placeIds.length > 0
+      ? supabase.from("places").select("id, country_code").in("id", placeIds)
+      : Promise.resolve({ data: [] as { id: number; country_code: string | null }[] }),
+    supabase
+      .from("historical_names")
+      .select("place_id, country_code, name, start_date, end_date"),
+  ]);
+  const ccByPlace = new Map(
+    (placeRes.data ?? []).map((p) => [p.id, p.country_code]),
+  );
+  const histRows = (histRes.data ?? []) as HistoricalNameRow[];
+
+  const historicalFor = (
+    placeId: number | null,
+    fallbackCity: string | null,
+    fallbackCountry: string | null,
+    eventDate: string | null,
+  ): string | null => {
+    const cc = placeId != null ? ccByPlace.get(placeId) ?? null : null;
+    const historical = resolveHistoricalName(histRows, {
+      placeId,
+      countryCode: cc,
+      eventDate,
+    });
+    if (!historical) return null;
+    return formatHistoricalPlace({
+      city: fallbackCity,
+      modernCountry: (cc ? countryName(cc) : null) || fallbackCountry,
+      historical,
+    });
+  };
+
   // person_id -> active claim. `disputed` wins over `approved` if both exist.
   const claimByPerson = new Map<
     string,
@@ -120,6 +173,18 @@ export async function getTreeGraph(treeId: string): Promise<{
         claim_status: claim?.status ?? null,
         claim_id: claim?.id ?? null,
         open_flag_count: openFlagsByPerson.get(p.id) ?? 0,
+        birth_place_historical: historicalFor(
+          p.place_id_birth,
+          p.city_of_birth,
+          p.country_of_birth,
+          p.date_of_birth,
+        ),
+        death_place_historical: historicalFor(
+          p.place_id_death,
+          p.place_of_death,
+          null,
+          p.date_of_death,
+        ),
       };
     }),
     relationships: relRes.data ?? [],
