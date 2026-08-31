@@ -28,8 +28,11 @@ export type SuggestionSource = (typeof SUGGESTION_SOURCES)[number];
 export const SIBLING_CHECK_WINDOW_YEARS = 40;
 
 export type PendingEdge = {
-  type: "parent" | "spouse";
-  /** For `parent`: `a` is a parent of `b`. For `spouse`: undirected pair. */
+  type: "parent" | "spouse" | "sibling";
+  /**
+   * For `parent`: `a` is a parent of `b`. For `spouse` / `sibling`: undirected
+   * pair. Sibling edges only count towards "these two are already connected".
+   */
   a: PersonRef;
   b: PersonRef;
 };

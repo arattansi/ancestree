@@ -127,7 +127,12 @@ const flowSchema = z.object({
   people: z.array(personSchema).min(1),
   anchorId: z.string(),
   links: z.array(
-    z.object({ kind: z.enum(RELATIONSHIP_KINDS), ...spouseDatesShape }),
+    z.object({
+      kind: z.enum(RELATIONSHIP_KINDS),
+      /** Sibling links only — also connect to the sibling's parents. */
+      linkToParents: z.boolean().optional(),
+      ...spouseDatesShape,
+    }),
   ),
   extraLinks: z
     .array(
@@ -251,8 +256,9 @@ export function AddPersonFlow({
     const n = personDisplayName(watchedPeople[idx] ?? {});
     return n === "Unnamed person" ? fallback : n;
   };
-  const anchorLabel =
-    members.find((m) => m.id === anchorId)?.label ?? "the tree";
+  const anchorMember = members.find((m) => m.id === anchorId);
+  const anchorLabel = anchorMember?.label ?? "the tree";
+  const anchorParents = anchorMember?.parents ?? [];
   const primaryFallback = mode === "self" ? "You" : "this person";
   const primaryLabel = mode === "self" ? "You" : nameOf(0, "This person");
 
@@ -384,6 +390,25 @@ export function AddPersonFlow({
       edges = edges.map((e, i) =>
         e.type === "spouse" ? { ...e, ...spouseDates(values.links[i]) } : e,
       );
+
+      // "is a sibling of" the anchor + "also link to their parents": add a
+      // parent edge from each of the anchor's known parents to the first chain
+      // person, so the two actually render side by side as siblings.
+      const firstLink = values.links[0];
+      const anchorMember = members.find((m) => m.id === values.anchorId);
+      if (
+        firstLink?.kind === "sibling" &&
+        firstLink.linkToParents &&
+        anchorMember?.parents?.length
+      ) {
+        for (const parent of anchorMember.parents) {
+          edges.push({
+            type: "parent",
+            a: { kind: "existing", id: parent.id },
+            b: chainRefs[0],
+          });
+        }
+      }
     }
 
     // Task 11.4 — additional connections from the primary new person to other
@@ -592,6 +617,29 @@ export function AddPersonFlow({
                             }
                           }}
                         />
+                      ) : null}
+                      {watchedLinks[i]?.kind === "sibling" &&
+                      i === 0 &&
+                      anchorParents.length > 0 ? (
+                        <label className="flex items-start gap-2 text-xs text-muted-foreground">
+                          <Checkbox
+                            id={`link-${i}-to-parents`}
+                            checked={watchedLinks[i]?.linkToParents ?? false}
+                            onCheckedChange={(c) =>
+                              form.setValue(
+                                `links.${i}.linkToParents`,
+                                c === true,
+                                { shouldDirty: true },
+                              )
+                            }
+                          />
+                          <span>
+                            Also connect to {anchorLabel}&rsquo;s parent
+                            {anchorParents.length > 1 ? "s" : ""} (
+                            {anchorParents.map((p) => p.label).join(" & ")}) so
+                            they appear together as siblings.
+                          </span>
+                        </label>
                       ) : null}
                     </div>
                   ))}

@@ -234,11 +234,31 @@ export async function listTreeMembers(
   excludeId?: string | null,
 ): Promise<TreeMemberOption[]> {
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("people")
-    .select("id, first_name, preferred_name, maiden_name, last_name")
-    .eq("tree_id", treeId)
-    .order("last_name", { ascending: true });
+  const [{ data }, { data: parentRels }] = await Promise.all([
+    supabase
+      .from("people")
+      .select("id, first_name, preferred_name, maiden_name, last_name")
+      .eq("tree_id", treeId)
+      .order("last_name", { ascending: true }),
+    supabase
+      .from("relationships")
+      .select("from_person, to_person")
+      .eq("tree_id", treeId)
+      .eq("type", "parent"),
+  ]);
+
+  const labelById = new Map(
+    (data ?? []).map((p) => [p.id, personDisplayName(p)]),
+  );
+  // child id -> [{ parent id, label }]
+  const parentsByChild = new Map<string, { id: string; label: string }[]>();
+  for (const r of parentRels ?? []) {
+    const label = labelById.get(r.from_person);
+    if (!label) continue;
+    const list = parentsByChild.get(r.to_person) ?? [];
+    list.push({ id: r.from_person, label });
+    parentsByChild.set(r.to_person, list);
+  }
 
   return (data ?? [])
     .filter((p) => p.id !== excludeId)
@@ -246,5 +266,6 @@ export async function listTreeMembers(
       id: p.id,
       label: personDisplayName(p),
       maidenName: p.maiden_name ?? null,
+      parents: parentsByChild.get(p.id) ?? [],
     }));
 }

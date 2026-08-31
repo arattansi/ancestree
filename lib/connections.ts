@@ -4,7 +4,12 @@ import type { PersonFormValues } from "@/lib/person-schema";
  * How a person relates to the person they connect to. `parent` / `child` are
  * the two directions of a parent edge; `spouse` is the undirected pair.
  */
-export const RELATIONSHIP_KINDS = ["parent", "child", "spouse"] as const;
+export const RELATIONSHIP_KINDS = [
+  "parent",
+  "child",
+  "spouse",
+  "sibling",
+] as const;
 export type RelationshipKind = (typeof RELATIONSHIP_KINDS)[number];
 
 /** "{subject} is the {…} of {object}" for the relationship picker. */
@@ -12,6 +17,7 @@ export const KIND_STATEMENT: Record<RelationshipKind, string> = {
   parent: "is a parent of",
   child: "is a child of",
   spouse: "is the spouse / partner of",
+  sibling: "is a sibling of",
 };
 
 export type PersonRef =
@@ -19,7 +25,7 @@ export type PersonRef =
   | { kind: "existing"; id: string };
 
 export type ConnectionEdge = {
-  type: "parent" | "spouse";
+  type: "parent" | "spouse" | "sibling";
   a: PersonRef;
   b: PersonRef;
   /** Spouse edges only — optional marriage/divorce tracking (Step 11.5). */
@@ -70,6 +76,9 @@ export function buildChainEdges(
     const kind = kinds[i];
     if (kind === "spouse") {
       edges.push({ type: "spouse", a: object, b: subject });
+    } else if (kind === "sibling") {
+      // Undirected, like spouse; the RPC orders the pair.
+      edges.push({ type: "sibling", a: object, b: subject });
     } else if (kind === "parent") {
       // subject is a parent of object
       edges.push({ type: "parent", a: subject, b: object });

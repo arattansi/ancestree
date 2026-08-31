@@ -10,6 +10,11 @@ export type TreeMemberOption = {
   label: string;
   /** Maiden name, when set — also matched by the search box. */
   maidenName?: string | null;
+  /**
+   * This member's parents already on the tree. Used by the add-person flow to
+   * offer "also link the new sibling to these parents" so they render together.
+   */
+  parents?: { id: string; label: string }[];
 };
 
 /**
