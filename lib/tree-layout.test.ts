@@ -378,33 +378,69 @@ describe("descent unions", () => {
 });
 
 describe("generation bands", () => {
-  it("labels each row relative to the anchors", () => {
+  it("names the generation, not a relationship", () => {
     const { people, relationships } = family();
     const { bands } = layoutTree(people, relationships, {
       anchorIds: ["adminA", "adminB"],
     });
+    // "Parents" would mislabel every aunt and uncle sharing that row.
     expect(bands.map((b) => b.label)).toEqual([
-      "Parents",
-      "Founders",
-      "Children",
+      "Parents' generation",
+      "Founders' generation",
+      "Children's generation",
     ]);
     expect(bands.find((b) => b.generation === -1)!.count).toBe(4);
   });
 
-  it("dates a band from its members' birth years", () => {
+  it("labels an aunt with the generation she actually shares", () => {
+    const { people, relationships } = family();
+    const { bands, generations } = layoutTree(
+      [...people, person("auntA", "1965-01-01")],
+      [...relationships, parent("gpaA", "auntA"), parent("gmaA", "auntA")],
+      { anchorIds: ["adminA", "adminB"] },
+    );
+    // The aunt sits on the founders' row and the label is true of her too.
+    expect(generations.get("auntA")).toBe(0);
+    expect(bands.find((b) => b.generation === 0)!.label).toBe(
+      "Founders' generation",
+    );
+  });
+
+  it("spans the decades a row actually covers", () => {
     const { people, relationships } = family();
     const { bands } = layoutTree(people, relationships, {
       anchorIds: ["adminA", "adminB"],
     });
-    expect(bands.find((b) => b.generation === -1)!.sublabel).toBe("b. 1930s");
+    // One set of grandparents is 1920s, the other 1930s — show both rather
+    // than picking one and misfiling half the row.
+    expect(bands.find((b) => b.generation === -1)!.sublabel).toBe(
+      "b. 1920s–1930s",
+    );
+  });
+
+  it("shows a single decade when the row shares one", () => {
+    const { people, relationships } = family();
+    const { bands } = layoutTree(people, relationships, {
+      anchorIds: ["adminA", "adminB"],
+    });
+    // Both founders were born in the 1960s.
     expect(bands.find((b) => b.generation === 0)!.sublabel).toBe("b. 1960s");
   });
 
+  it("omits the date when too few birth years are known", () => {
+    const { bands } = layoutTree(
+      [person("p"), person("a"), person("b", "1990-01-01")],
+      [parent("p", "a"), parent("p", "b")],
+      { anchorIds: ["p"] },
+    );
+    expect(bands.find((b) => b.generation === 1)!.sublabel).toBeNull();
+  });
+
   it("names deep generations", () => {
-    expect(generationLabel(-3)).toBe("Great-grandparents");
-    expect(generationLabel(-5)).toBe("3× great-grandparents");
-    expect(generationLabel(4)).toBe("2× great-grandchildren");
-    expect(generationLabel(0)).toBe("Founders");
+    expect(generationLabel(-3)).toBe("Great-grandparents' generation");
+    expect(generationLabel(-5)).toBe("3× great-grandparents' generation");
+    expect(generationLabel(4)).toBe("2× great-grandchildren's generation");
+    expect(generationLabel(0)).toBe("Founders' generation");
   });
 });
 

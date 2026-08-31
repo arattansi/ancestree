@@ -272,7 +272,11 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   guarantees** no two cards on a row are closer than `GUTTER` — overlap is
   impossible at any size (tested on a 105-person tree). Couples stay adjacent
   eldest-left; sibling runs go oldest→youngest. The canvas draws generation
-  lanes (`ViewportPortal`) labelled relative to the founders, and routes every
+  lanes (`ViewportPortal`) labelled by *generation* rather than by relationship
+  — "Parents' generation", not "Parents", since that row also holds the aunts,
+  uncles and in-laws born into it — captioned with the decade span the row
+  actually covers ("b. 1950s–1960s" when two sets of parents are a decade
+  apart), and routes every
   child of a parent set through a shared `busY` so a marriage shows one trunk
   plus stubs (`DescentEdge`). That junction is computed by the pure
   `descentGeometry(parentRects, childTop)` from the parents' **live** card

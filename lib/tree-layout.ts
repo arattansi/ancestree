@@ -775,8 +775,15 @@ function measure(base: Map<string, XY>) {
 const ANCESTOR_LABELS = ["Founders", "Parents", "Grandparents"];
 const DESCENDANT_LABELS = ["Founders", "Children", "Grandchildren"];
 
-/** "Grandparents", "Great-grandchildren", "×3 great-grandparents", … */
-export function generationLabel(generation: number): string {
+/** "Parents" → "Parents'"; "Children" → "Children's". */
+const possessive = (noun: string) =>
+  noun.endsWith("s") ? `${noun}'` : `${noun}'s`;
+
+/**
+ * The cohort that occupies a generation: "Parents", "Great-grandparents", … —
+ * relative to the anchors.
+ */
+function generationCohort(generation: number): string {
   if (generation === 0) return "Founders";
   const up = generation < 0;
   const depth = Math.abs(generation);
@@ -784,9 +791,35 @@ export function generationLabel(generation: number): string {
   if (depth < table.length) return table[depth];
   const greats = depth - 2;
   const base = up ? "grandparents" : "grandchildren";
-  return greats === 1
-    ? `Great-${base}`
-    : `${greats}× great-${base}`;
+  return greats === 1 ? `Great-${base}` : `${greats}× great-${base}`;
+}
+
+/**
+ * A generation band's label: "Parents' generation", not "Parents".
+ *
+ * A row holds a whole cohort, not one relationship — your parents share it with
+ * their siblings, their siblings' partners, and anyone else born into that
+ * generation. Labelling the band "Parents" quietly mislabels every aunt and
+ * uncle on it; naming the *generation* is true of everyone in the row.
+ */
+export function generationLabel(generation: number): string {
+  return `${possessive(generationCohort(generation))} generation`;
+}
+
+/**
+ * "b. 1950s" for a row born in one decade, "b. 1950s–1960s" when it spans more.
+ *
+ * A generation is a cohort, not a cohort of one age: two sets of parents born a
+ * decade apart genuinely share the row, and picking one decade for the label
+ * makes half that row look misfiled. `null` when too few birth years are known
+ * for a date to mean anything.
+ */
+function decadeRange(years: number[], rowSize: number): string | null {
+  if (years.length < Math.max(2, Math.ceil(rowSize / 2))) return null;
+  const decade = (year: number) => Math.floor(year / 10) * 10;
+  const first = decade(Math.min(...years));
+  const last = decade(Math.max(...years));
+  return first === last ? `b. ${first}s` : `b. ${first}s–${last}s`;
 }
 
 function buildBands(
@@ -804,19 +837,14 @@ function buildBands(
       const years = group
         .map((id) => dob.get(id))
         .filter((d): d is string => !!d && d !== FAR_FUTURE)
-        .map((d) => Number(d.slice(0, 4)))
-        .sort((a, b) => a - b);
-      // Only worth a decade label once most of the row has a birth year.
-      const median =
-        years.length >= Math.max(2, Math.ceil(group.length / 2))
-          ? years[years.length >> 1]
-          : null;
+        .map((d) => Number(d.slice(0, 4)));
+
       return {
         generation,
         y: generation * ROW_H - ROW_GAP / 2,
         height: NODE_H + ROW_GAP,
         label: generationLabel(generation),
-        sublabel: median === null ? null : `b. ${Math.floor(median / 10) * 10}s`,
+        sublabel: decadeRange(years, group.length),
         count: group.length,
       };
     });
