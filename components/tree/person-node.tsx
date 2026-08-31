@@ -14,12 +14,15 @@ export type PersonNodeData = {
   selected?: boolean;
   /** Filtered out by the tree search panel — shown faded. */
   dimmed?: boolean;
+  /** An endpoint of the connection the user clicked — shown ringed. */
+  highlighted?: boolean;
 };
 
 const handleClass = "!size-1.5 !border-0 !bg-border";
 
 function PersonNodeImpl({ data }: NodeProps) {
-  const { person, isSelf, selected, dimmed } = data as PersonNodeData;
+  const { person, isSelf, selected, dimmed, highlighted } =
+    data as PersonNodeData;
   const name = personDisplayName(person);
   const deceased = person.is_deceased;
   const birthYear = person.date_of_birth?.slice(0, 4) ?? null;
@@ -66,11 +69,14 @@ function PersonNodeImpl({ data }: NodeProps) {
           // Fixed height (matching NODE_H) so every card is identical: the
           // left/right handles sit at each card's own centre, so cards of
           // differing heights would tilt the spouse line between them.
-          "relative flex h-24 w-52 items-center gap-3 overflow-hidden rounded-xl border bg-card px-3 py-2.5 text-left shadow-sm transition-[colors,opacity]",
+          "relative flex h-24 w-52 items-center gap-3 overflow-hidden rounded-xl border bg-card px-3 py-2.5 text-left shadow-sm transition-[colors,opacity,transform,box-shadow]",
           "hover:border-ring/60",
           deceased ? "border-dashed border-border" : "border-border",
           selected && "border-ring ring-2 ring-ring/40",
-          isSelf && !selected && "border-primary/60",
+          highlighted &&
+            !selected &&
+            "border-[#77B255] bg-[#77B255]/10 ring-4 ring-[#77B255]/50 shadow-[0_0_32px_6px_rgba(119,178,85,0.45)] scale-[1.04]",
+          isSelf && !selected && !highlighted && "border-primary/60",
         )}
       >
       <Handle type="target" position={Position.Top} className={handleClass} />

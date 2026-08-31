@@ -61,6 +61,10 @@ import { personDisplayName } from "@/lib/person-name";
 import type { TreeGraphEdge, TreeGraphPerson } from "@/lib/tree";
 import type { PersonRelation } from "@/components/tree/person-panel";
 
+// Spotlight palette from the 🌳 emoji: the ringed cards glow foliage green
+// (#77B255, in person-node.tsx); the connection lines take the trunk brown.
+const SPOTLIGHT_BROWN = "#A57939";
+
 const sameDescent = (a: Descent, b: Descent) =>
   a.startX === b.startX && a.startY === b.startY && a.busY === b.busY;
 
@@ -325,7 +329,6 @@ function buildGraph(
       targetHandle: "l",
       type: "spouse",
       data: { pair: [left, right] },
-      selectable: false,
       style: {
         stroke: "var(--muted-foreground)",
         strokeWidth: 1.5,
@@ -358,10 +361,17 @@ function Canvas({
     () => buildGraph(people, relationships, selfPersonId, anchorIds),
     [people, relationships, selfPersonId, anchorIds],
   );
+  const nameById = React.useMemo(
+    () => new Map(people.map((p) => [p.id, personDisplayName(p)])),
+    [people],
+  );
 
   const [nodes, setNodes, onNodesChange] = useNodesState(graph.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(graph.edges);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
+  const [selectedEdgeId, setSelectedEdgeId] = React.useState<string | null>(
+    null,
+  );
   const [filter, setFilter] = React.useState<TreeFilter>(EMPTY_FILTER);
   const [arranging, setArranging] = React.useState(false);
   const { fitView } = useReactFlow();
@@ -403,6 +413,108 @@ function Canvas({
     );
   }, [matchingIds, setNodes]);
 
+  // Clicking a connection: name the two people it joins and ring them both.
+  const connection = React.useMemo(() => {
+    if (!selectedEdgeId) return null;
+    const edge = graph.edges.find((e) => e.id === selectedEdgeId);
+    if (!edge) return null;
+
+    if (edge.type === "descent") {
+      const parents = (
+        Array.isArray(edge.data?.parents) ? edge.data.parents : []
+      ) as string[];
+      const parentNames = parents
+        .map((pid) => nameById.get(pid))
+        .filter((n): n is string => !!n);
+      const childName = nameById.get(edge.target);
+      if (!childName || parentNames.length === 0) return null;
+      // Also light up the branch between the parents — the spouse line joining
+      // them is the fork this child hangs off.
+      const parentLink = graph.edges.find(
+        (e) =>
+          e.type === "spouse" &&
+          Array.isArray(e.data?.pair) &&
+          parents.every((pid) => (e.data!.pair as string[]).includes(pid)),
+      );
+      return {
+        endpoints: new Set<string>([...parents, edge.target]),
+        edgeIds: new Set<string>(
+          [edge.id, parentLink?.id].filter((v): v is string => !!v),
+        ),
+        label: parentNames.length > 1 ? "Parents" : "Parent",
+        separator: "→",
+        from: parentNames.join(" & "),
+        to: childName,
+      };
+    }
+
+    if (edge.type === "spouse") {
+      const pair = (
+        Array.isArray(edge.data?.pair) ? edge.data.pair : []
+      ) as string[];
+      const [aName, bName] = pair.map((pid) => nameById.get(pid));
+      if (!aName || !bName) return null;
+      const rel = relationships.find(
+        (r) =>
+          r.type === "spouse" &&
+          ((r.from_person === pair[0] && r.to_person === pair[1]) ||
+            (r.from_person === pair[1] && r.to_person === pair[0])),
+      );
+      return {
+        endpoints: new Set<string>(pair),
+        edgeIds: new Set<string>([edge.id]),
+        label: rel?.is_divorced ? "Former spouses" : "Spouses",
+        separator: "—",
+        from: aName,
+        to: bName,
+      };
+    }
+
+    return null;
+  }, [selectedEdgeId, graph.edges, nameById, relationships]);
+
+  // Ring the people at each end of the clicked connection.
+  React.useEffect(() => {
+    const endpoints = connection?.endpoints ?? null;
+    setNodes((current) =>
+      current.map((n) => {
+        if (n.type !== "person") return n;
+        const highlighted = endpoints?.has(n.id) ?? false;
+        return n.data.highlighted === highlighted
+          ? n
+          : { ...n, data: { ...n.data, highlighted } };
+      }),
+    );
+  }, [connection, setNodes]);
+
+  // Fade every connection except the spotlighted branch — the clicked line plus,
+  // for a child, the parents' link — and draw those in trunk brown.
+  const displayEdges = React.useMemo(() => {
+    const activeIds = connection?.edgeIds ?? null;
+    if (!activeIds) return edges;
+    return edges.map((e) => {
+      const active = activeIds.has(e.id);
+      return {
+        ...e,
+        style: {
+          ...e.style,
+          ...(active
+            ? { stroke: SPOTLIGHT_BROWN, strokeWidth: 3, opacity: 1 }
+            : { opacity: 0.15 }),
+        },
+        zIndex: active ? 10 : undefined,
+      };
+    });
+  }, [edges, connection]);
+
+  const onEdgeClick = React.useCallback(
+    (_: React.MouseEvent, edge: Edge) => {
+      setSelectedId(null);
+      setSelectedEdgeId((cur) => (cur === edge.id ? null : edge.id));
+    },
+    [],
+  );
+
   const onPick = React.useCallback(
     (personId: string) => {
       setSelectedId(personId);
@@ -418,6 +530,7 @@ function Canvas({
 
   const onNodeClick = React.useCallback<NodeMouseHandler>((_, node) => {
     if (node.type !== "person") return;
+    setSelectedEdgeId(null);
     setSelectedId(node.id);
   }, []);
 
@@ -498,14 +611,18 @@ function Canvas({
     <>
       <ReactFlow
         nodes={nodes}
-        edges={edges}
+        edges={displayEdges}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeClick={onNodeClick}
+        onEdgeClick={onEdgeClick}
         onNodeDragStop={onNodeDragStop}
-        onPaneClick={() => setSelectedId(null)}
+        onPaneClick={() => {
+          setSelectedId(null);
+          setSelectedEdgeId(null);
+        }}
         colorMode="system"
         fitView
         fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
@@ -563,6 +680,30 @@ function Canvas({
             </Button>
           ) : null}
         </Panel>
+        {connection ? (
+          <Panel position="bottom-center">
+            <div className="flex items-center gap-3 rounded-full border border-border bg-card px-4 py-2 text-sm shadow-md">
+              <span className="font-medium text-foreground">
+                {connection.label}
+              </span>
+              <span className="text-muted-foreground">
+                {connection.from}
+                <span className="mx-1.5 text-muted-foreground/50">
+                  {connection.separator}
+                </span>
+                {connection.to}
+              </span>
+              <button
+                type="button"
+                className="text-muted-foreground/60 hover:text-foreground"
+                onClick={() => setSelectedEdgeId(null)}
+                aria-label="Clear connection highlight"
+              >
+                ✕
+              </button>
+            </div>
+          </Panel>
+        ) : null}
         <Panel position="top-left" className="flex flex-col gap-2">
           <TreeSearch
             people={people}
