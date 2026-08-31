@@ -426,10 +426,18 @@ function Canvas({
       const parentNames = parents
         .map((pid) => nameById.get(pid))
         .filter((n): n is string => !!n);
-      const childName = nameById.get(edge.target);
-      if (!childName || parentNames.length === 0) return null;
+      if (parentNames.length === 0) return null;
+      // The whole sibling set hangs off this fork, so highlight every child of
+      // the union, not just the one whose line was clicked.
+      const unionId = edge.id.slice(2).split("->")[0];
+      const union = graph.layout.unions.find((u) => u.id === unionId);
+      const children = union?.children ?? [edge.target];
+      const childNames = children
+        .map((cid) => nameById.get(cid))
+        .filter((n): n is string => !!n);
+      if (childNames.length === 0) return null;
       // Also light up the branch between the parents — the spouse line joining
-      // them is the fork this child hangs off.
+      // them is the fork the children hang off.
       const parentLink = graph.edges.find(
         (e) =>
           e.type === "spouse" &&
@@ -437,14 +445,20 @@ function Canvas({
           parents.every((pid) => (e.data!.pair as string[]).includes(pid)),
       );
       return {
-        endpoints: new Set<string>([...parents, edge.target]),
+        endpoints: new Set<string>([...parents, ...children]),
         edgeIds: new Set<string>(
-          [edge.id, parentLink?.id].filter((v): v is string => !!v),
+          [
+            ...children.map((cid) => `d:${unionId}->${cid}`),
+            parentLink?.id,
+          ].filter((v): v is string => !!v),
         ),
         label: parentNames.length > 1 ? "Parents" : "Parent",
         separator: "→",
         from: parentNames.join(" & "),
-        to: childName,
+        to:
+          childNames.length > 1
+            ? `${childNames.slice(0, -1).join(", ")} & ${childNames.at(-1)}`
+            : childNames[0],
       };
     }
 
@@ -471,7 +485,7 @@ function Canvas({
     }
 
     return null;
-  }, [selectedEdgeId, graph.edges, nameById, relationships]);
+  }, [selectedEdgeId, graph.edges, graph.layout.unions, nameById, relationships]);
 
   // Ring the people at each end of the clicked connection.
   React.useEffect(() => {
