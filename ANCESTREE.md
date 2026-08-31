@@ -70,7 +70,12 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
 - `components/person-fields.tsx` — shared demographic fieldset; `person-form.tsx` —
   edit an existing entry; `add-person-flow.tsx` — self / relative add with chain
   connect; `relationship-picker.tsx` — search-select an existing member;
-  `components/person-documents.tsx`
+  `place-autocomplete.tsx` — `places`-backed birth/death location picker
+  (+ admin "add a place"); `components/person-documents.tsx`
+- `lib/places.ts` — server-only `searchPlaces` / `getPlacesByIds` /
+  `formatPlaceLabel`; `lib/country-names.ts` — `countryName` (ISO→name) +
+  `ALPHA2`; `app/actions/places.ts` — `searchPlacesAction` / `requestNewPlace`
+  (admin) / `listCountryOptions`
 - `lib/person-schema.ts` — shared zod schema; `lib/connections.ts` — chain/edge
   types + `buildChainEdges`; `lib/connection-suggestions.ts` — implied-connection
   detection engine (+ `.server.ts` loader, `.test.ts`); `lib/siblings.ts` — sibling inference; `lib/tree.ts` —
@@ -115,8 +120,10 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `places` | GeoNames reference data (populated places + admin areas) for birthplace autocomplete; not tree-scoped — read by any member, written only by the import script |
 | `tree_bridges` | Step 9 seam: links a member's own `trees` row to a tree they belong to via a spouse bridge (feature-flagged; second tree not rendered) |
 
-**Checks:** `people` requires first **or** preferred name, last name, country of
-birth, and `is_deceased` (NOT NULL). `lineage_type` is writable by admins only.
+**Checks:** `people` requires first **or** preferred name, last name, and
+`is_deceased` (NOT NULL). The form now requires a **`place_id_birth`** (GeoNames
+`places` FK, Step 4.5c) rather than free-text country; `city_of_birth` /
+`country_of_birth` are still written (derived from the picked place). `lineage_type` is writable by admins only.
 `middle_name` and `maiden_name` are optional nullable text columns, visible to and
 editable by any member who can already edit the entry.
 
@@ -238,6 +245,24 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 4.5c — Places autocomplete in the person form** (no migration):
+  `components/place-autocomplete.tsx` — a Base UI `Combobox` bound to `places`
+  via `searchPlacesAction` (debounced trigram search, `app/actions/places.ts`),
+  showing "City, ST, Country" (`lib/places.ts#formatPlaceLabel`; `admin1` only
+  when GeoNames stored a letter code). `PersonFields` now has a **Place of
+  birth** (required — `personSchema` rejects a null `place_id_birth`) and
+  **Place of death** picker instead of the free-text city/country/place-of-death
+  inputs; picking a place also fills the legacy `city_of_birth` /
+  `country_of_birth` / `place_of_death` text (derived, kept until 4.5b's
+  columns are dropped). `updatePerson` writes the FKs directly;
+  `addPeopleWithConnections` sets them on the new rows right after the RPC (RPC
+  signature unchanged). Admin-only escape hatch: "Add a place" dialog →
+  `requestNewPlace` (service-role insert, ids ≥ `10_000_000_000` mark
+  admin-added). Edit form pre-loads the selected place label via
+  `getPlacesByIds`. Detail/canvas views keep rendering the (now canonical)
+  text columns. `lib/country-names.ts` — `countryName` + `ALPHA2`. Known gap:
+  the flagged `start_own_tree` seam still writes only text (no `place_id`).
 
 - **Step 4.5b — `people` place FKs + backfill** (migration
   `20260831050000_people_place_id_fks`): `people` gains nullable

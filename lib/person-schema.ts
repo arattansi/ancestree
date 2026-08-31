@@ -35,20 +35,25 @@ export const personSchema = z
       .min(1, "Last name is required.")
       .max(120, "Keep this under 120 characters."),
     date_of_birth: optionalDate,
+    // Canonical GeoNames place (Step 4.5c). `city_of_birth` / `country_of_birth`
+    // are still written alongside it (derived from the picked place) until the
+    // legacy text columns are dropped — see Step 4.5b.
+    place_id_birth: z.number().int().positive().nullable(),
     city_of_birth: optionalText(120),
-    country_of_birth: z
-      .string()
-      .trim()
-      .min(1, "Country of birth is required.")
-      .max(120, "Keep this under 120 characters."),
+    country_of_birth: optionalText(120),
     is_deceased: z.boolean(),
     date_of_death: optionalDate,
+    place_id_death: z.number().int().positive().nullable(),
     place_of_death: optionalText(160),
     lineage_type: z.enum(LINEAGE_TYPES).optional(),
   })
   .refine((v) => Boolean(v.first_name?.trim() || v.preferred_name?.trim()), {
     message: "Enter a first name or a preferred name.",
     path: ["first_name"],
+  })
+  .refine((v) => v.place_id_birth != null, {
+    message: "Choose a place of birth from the list.",
+    path: ["place_id_birth"],
   })
   .refine(
     (v) =>
@@ -73,10 +78,12 @@ export const emptyPersonValues: PersonFormValues = {
   maiden_name: "",
   last_name: "",
   date_of_birth: "",
+  place_id_birth: null,
   city_of_birth: "",
   country_of_birth: "",
   is_deceased: false,
   date_of_death: "",
+  place_id_death: null,
   place_of_death: "",
   lineage_type: undefined,
 };
@@ -95,10 +102,12 @@ export function toPersonPayload(values: PersonFormValues) {
     maiden_name: trimOrNull(values.maiden_name),
     last_name: values.last_name.trim(),
     date_of_birth: trimOrNull(values.date_of_birth),
+    place_id_birth: values.place_id_birth ?? null,
     city_of_birth: trimOrNull(values.city_of_birth),
-    country_of_birth: values.country_of_birth.trim(),
+    country_of_birth: (values.country_of_birth ?? "").trim(),
     is_deceased: values.is_deceased,
     date_of_death: values.is_deceased ? trimOrNull(values.date_of_death) : null,
+    place_id_death: values.is_deceased ? values.place_id_death ?? null : null,
     place_of_death: values.is_deceased ? trimOrNull(values.place_of_death) : null,
     lineage_type: values.lineage_type ?? null,
   };

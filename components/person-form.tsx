@@ -33,11 +33,13 @@ export function PersonForm({
   isAdmin,
   person,
   photoUrl,
+  placeLabels,
 }: {
   treeId: string;
   isAdmin: boolean;
   person: ExistingPerson;
   photoUrl?: string | null;
+  placeLabels?: { birth?: string | null; death?: string | null };
 }) {
   const router = useRouter();
   const [photoFile, setPhotoFile] = React.useState<File | null>(null);
@@ -119,6 +121,7 @@ export function PersonForm({
           control={form.control}
           isAdmin={isAdmin}
           idPrefix={`person-${person.id}`}
+          placeLabels={placeLabels}
         />
 
         <div className="flex flex-col gap-2">

@@ -2,12 +2,15 @@
 
 import * as React from "react";
 import {
+  useFormContext,
   useWatch,
   type Control,
   type FieldValues,
   type Path,
 } from "react-hook-form";
 
+import { PlaceAutocomplete } from "@/components/place-autocomplete";
+import { countryName } from "@/lib/country-names";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   FormControl,
@@ -37,18 +40,56 @@ export function PersonFields<T extends FieldValues>({
   isAdmin,
   prefix,
   idPrefix,
+  placeLabels,
 }: {
   control: Control<T>;
   isAdmin: boolean;
   prefix?: string;
   idPrefix: string;
+  /** Labels for already-selected places, so the edit form shows them on load. */
+  placeLabels?: { birth?: string | null; death?: string | null };
 }) {
+  const { setValue } = useFormContext<T>();
   const name = React.useCallback(
     (field: string) => (prefix ? `${prefix}.${field}` : field) as Path<T>,
     [prefix],
   );
 
   const isDeceased = useWatch({ control, name: name("is_deceased") });
+  const placeIdBirth = useWatch({ control, name: name("place_id_birth") });
+  const placeIdDeath = useWatch({ control, name: name("place_id_death") });
+
+  const setPlace = React.useCallback(
+    (
+      kind: "birth" | "death",
+      place: { id: number; name: string; country_code: string | null } | null,
+    ) => {
+      const label = place
+        ? [place.name, countryName(place.country_code)].filter(Boolean).join(", ")
+        : "";
+      const idField = kind === "birth" ? "place_id_birth" : "place_id_death";
+      const textField = kind === "birth" ? "city_of_birth" : "place_of_death";
+      setValue(name(idField), (place?.id ?? null) as never, {
+        shouldValidate: true,
+        shouldDirty: true,
+      });
+      setValue(
+        name(textField),
+        (kind === "birth" ? place?.name ?? "" : label) as never,
+        { shouldDirty: true },
+      );
+      if (kind === "birth") {
+        setValue(
+          name("country_of_birth"),
+          (place
+            ? countryName(place.country_code) || place.country_code || ""
+            : "") as never,
+          { shouldValidate: true, shouldDirty: true },
+        );
+      }
+    },
+    [name, setValue],
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -159,35 +200,30 @@ export function PersonFields<T extends FieldValues>({
             </FormItem>
           )}
         />
-        <FormField
-          control={control}
-          name={name("city_of_birth")}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>City of birth</FormLabel>
-              <FormControl>
-                <Input {...field} value={field.value ?? ""} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
       </div>
 
       <FormField
         control={control}
-        name={name("country_of_birth")}
-        render={({ field }) => (
+        name={name("place_id_birth")}
+        render={({ fieldState }) => (
           <FormItem>
-            <FormLabel>Country of birth</FormLabel>
+            <FormLabel htmlFor={`${idPrefix}-place-birth`}>
+              Place of birth
+            </FormLabel>
             <FormControl>
-              <Input
-                autoComplete="country-name"
-                required
-                {...field}
-                value={field.value ?? ""}
+              <PlaceAutocomplete
+                id={`${idPrefix}-place-birth`}
+                value={typeof placeIdBirth === "number" ? placeIdBirth : null}
+                initialLabel={placeLabels?.birth}
+                isAdmin={isAdmin}
+                invalid={Boolean(fieldState.error)}
+                placeholder="Search for a city, town, or village…"
+                onChange={(place) => setPlace("birth", place)}
               />
             </FormControl>
+            <FormDescription>
+              Pick the closest match — you can’t enter a place that isn’t listed.
+            </FormDescription>
             <FormMessage />
           </FormItem>
         )}
@@ -232,12 +268,23 @@ export function PersonFields<T extends FieldValues>({
           />
           <FormField
             control={control}
-            name={name("place_of_death")}
-            render={({ field }) => (
+            name={name("place_id_death")}
+            render={() => (
               <FormItem>
-                <FormLabel>Place of death</FormLabel>
+                <FormLabel htmlFor={`${idPrefix}-place-death`}>
+                  Place of death
+                </FormLabel>
                 <FormControl>
-                  <Input {...field} value={field.value ?? ""} />
+                  <PlaceAutocomplete
+                    id={`${idPrefix}-place-death`}
+                    value={
+                      typeof placeIdDeath === "number" ? placeIdDeath : null
+                    }
+                    initialLabel={placeLabels?.death}
+                    isAdmin={isAdmin}
+                    placeholder="Search for a place…"
+                    onChange={(place) => setPlace("death", place)}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>

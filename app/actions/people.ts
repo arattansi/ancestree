@@ -149,6 +149,24 @@ export async function addPeopleWithConnections(
   }
 
   const result = data as { ids: string[]; self_id: string | null };
+
+  // The RPC still takes only the legacy text place columns; set the canonical
+  // `places` FKs (Step 4.5c) on the freshly-created rows. ids align with people.
+  const placeUpdates = result.ids
+    .map((personId, i) => {
+      const values = people[i];
+      if (!values) return null;
+      const birth = values.place_id_birth ?? null;
+      const death = values.is_deceased ? values.place_id_death ?? null : null;
+      if (birth == null && death == null) return null;
+      return supabase
+        .from("people")
+        .update({ place_id_birth: birth, place_id_death: death })
+        .eq("id", personId);
+    })
+    .filter((q): q is NonNullable<typeof q> => q !== null);
+  if (placeUpdates.length > 0) await Promise.all(placeUpdates);
+
   revalidatePath("/tree");
   revalidatePath("/onboarding");
   return { personIds: result.ids, selfId: result.self_id };
@@ -257,10 +275,12 @@ export async function updatePerson(
     maiden_name: payload.maiden_name,
     last_name: payload.last_name,
     date_of_birth: payload.date_of_birth,
+    place_id_birth: payload.place_id_birth,
     city_of_birth: payload.city_of_birth,
     country_of_birth: payload.country_of_birth,
     is_deceased: payload.is_deceased,
     date_of_death: payload.date_of_death,
+    place_id_death: payload.place_id_death,
     place_of_death: payload.place_of_death,
   };
   // lineage_type is admin-only; the DB trigger rejects other writers.

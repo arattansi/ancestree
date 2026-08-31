@@ -6,6 +6,7 @@ import { PersonForm } from "@/components/person-form";
 import { Button } from "@/components/ui/button";
 import { getUser, requireSelfPerson } from "@/lib/auth";
 import { personDisplayName } from "@/lib/person-name";
+import { formatPlaceLabel, getPlacesByIds } from "@/lib/places";
 import type { PersonFormValues } from "@/lib/person-schema";
 import { createClient } from "@/lib/supabase/server";
 
@@ -25,7 +26,7 @@ export default async function EditPersonPage({
   const { data: person } = await supabase
     .from("people")
     .select(
-      "id, tree_id, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, city_of_birth, country_of_birth, is_deceased, date_of_death, place_of_death, lineage_type, photo_path, owner_user_id, created_by",
+      "id, tree_id, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, place_id_birth, city_of_birth, country_of_birth, is_deceased, date_of_death, place_id_death, place_of_death, lineage_type, photo_path, owner_user_id, created_by",
     )
     .eq("id", id)
     .maybeSingle();
@@ -57,6 +58,22 @@ export default async function EditPersonPage({
     photoUrl = signed?.signedUrl ?? null;
   }
 
+  const placeMap = await getPlacesByIds(
+    [person.place_id_birth, person.place_id_death].filter(
+      (n): n is number => typeof n === "number",
+    ),
+  );
+  const birthPlace = person.place_id_birth
+    ? placeMap.get(person.place_id_birth)
+    : undefined;
+  const deathPlace = person.place_id_death
+    ? placeMap.get(person.place_id_death)
+    : undefined;
+  const placeLabels = {
+    birth: birthPlace ? formatPlaceLabel(birthPlace) : person.city_of_birth,
+    death: deathPlace ? formatPlaceLabel(deathPlace) : person.place_of_death,
+  };
+
   const values: PersonFormValues = {
     first_name: person.first_name ?? "",
     middle_name: person.middle_name ?? "",
@@ -64,10 +81,12 @@ export default async function EditPersonPage({
     maiden_name: person.maiden_name ?? "",
     last_name: person.last_name,
     date_of_birth: person.date_of_birth ?? "",
+    place_id_birth: person.place_id_birth ?? null,
     city_of_birth: person.city_of_birth ?? "",
-    country_of_birth: person.country_of_birth,
+    country_of_birth: person.country_of_birth ?? "",
     is_deceased: person.is_deceased,
     date_of_death: person.date_of_death ?? "",
+    place_id_death: person.place_id_death ?? null,
     place_of_death: person.place_of_death ?? "",
     lineage_type:
       (person.lineage_type as PersonFormValues["lineage_type"]) ?? undefined,
@@ -99,6 +118,7 @@ export default async function EditPersonPage({
         isAdmin={isAdmin}
         person={{ ...values, id: person.id, photo_path: person.photo_path }}
         photoUrl={photoUrl}
+        placeLabels={placeLabels}
       />
     </main>
   );
