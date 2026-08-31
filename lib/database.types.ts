@@ -86,6 +86,98 @@ export type Database = {
           },
         ]
       }
+      connection_suggestions: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          related_person_id: string
+          resolved_at: string | null
+          resolved_by: string | null
+          source: string
+          status: string
+          subject_person_id: string
+          suggested_type: string
+          tree_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          related_person_id: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          source: string
+          status?: string
+          subject_person_id: string
+          suggested_type: string
+          tree_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          related_person_id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          source?: string
+          status?: string
+          subject_person_id?: string
+          suggested_type?: string
+          tree_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "connection_suggestions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "connection_suggestions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "connection_suggestions_related_person_id_fkey"
+            columns: ["related_person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "connection_suggestions_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "connection_suggestions_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "connection_suggestions_subject_person_id_fkey"
+            columns: ["subject_person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "connection_suggestions_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
           created_at: string
@@ -551,8 +643,11 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string
+          divorce_date: string | null
           from_person: string
           id: string
+          is_divorced: boolean
+          marriage_date: string | null
           to_person: string
           tree_id: string
           type: string
@@ -561,8 +656,11 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by: string
+          divorce_date?: string | null
           from_person: string
           id?: string
+          is_divorced?: boolean
+          marriage_date?: string | null
           to_person: string
           tree_id: string
           type: string
@@ -571,8 +669,11 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string
+          divorce_date?: string | null
           from_person?: string
           id?: string
+          is_divorced?: boolean
+          marriage_date?: string | null
           to_person?: string
           tree_id?: string
           type?: string

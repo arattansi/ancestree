@@ -100,7 +100,8 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `trees` | Multi-tree-ready container (v1 uses one shared tree) |
 | `profiles` | `auth.users` row: `role` (`admin` \| `member`), `can_invite`, `self_person_id` |
 | `people` | Demographic nodes; `owner_user_id` starts as `created_by` and moves on claim |
-| `relationships` | Directed `parent` edges; undirected `spouse` pairs; siblings inferred |
+| `relationships` | Directed `parent` edges; undirected `spouse` pairs (optional `marriage_date` / `is_divorced` / `divorce_date`, spouse-only by CHECK); siblings inferred |
+| `connection_suggestions` | Implied-connection prompts surfaced by the add-person flow (`suggested_type` spouse/parent/sibling_check, `source`, `status` pending/accepted/dismissed); UNIQUE (subject, related, type, source) = no re-prompt |
 | `invites` | Shareable tokens (`active` \| `accepted` \| `revoked`) |
 | `claims` | Auto-approve / dispute / reject a person entry (`dispute_reason`, `resolved_by`) |
 | `notifications` | In-app notices (`claim_*`, `entry_commented` \| `entry_flagged` \| `flag_resolved` \| `entry_verified`); recipient-scoped RLS |
@@ -197,6 +198,20 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 11.1 — Marriage/divorce fields + `connection_suggestions` table**
+  (migration `20260831000000_marriage_divorce_and_connection_suggestions`):
+  `relationships` gains `marriage_date date`, `is_divorced boolean NOT NULL
+  DEFAULT false`, `divorce_date date`, with CHECKs — `divorce_date` only when
+  `is_divorced`, `divorce_date >= marriage_date` when both set, and all three
+  NULL/false unless `type = 'spouse'`. New `connection_suggestions` table
+  (id, tree_id, subject_person_id, related_person_id, `suggested_type`
+  spouse|parent|sibling_check, `source` co_parent|unlinked_spouse_child|
+  name_dob_match, `status` pending|accepted|dismissed, created_by, resolved_by,
+  resolved_at, created_at) with `UNIQUE (subject_person_id, related_person_id,
+  suggested_type, source)` as the no-reprompt guarantee. RLS: SELECT/INSERT by
+  tree membership (as self), UPDATE by the suggestion's creator or a tree admin.
+  Types regenerated. Down: drop the table + the three columns/constraints.
 
 - **Step 11 — Optional maiden name** (migration
   `20260830250000_person_maiden_name`): new nullable `people.maiden_name text`
