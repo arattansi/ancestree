@@ -55,10 +55,10 @@ export function PersonFields<T extends FieldValues>({
       <div className="grid gap-4 sm:grid-cols-2">
         <FormField
           control={control}
-          name={name("given_name")}
+          name={name("first_name")}
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Given name</FormLabel>
+              <FormLabel>First name</FormLabel>
               <FormControl>
                 <Input
                   autoComplete="given-name"
@@ -67,8 +67,25 @@ export function PersonFields<T extends FieldValues>({
                 />
               </FormControl>
               <FormDescription>
-                Enter a given name or a preferred name.
+                Enter a first name or a preferred name.
               </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={control}
+          name={name("middle_name")}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Middle name</FormLabel>
+              <FormControl>
+                <Input
+                  autoComplete="additional-name"
+                  {...field}
+                  value={field.value ?? ""}
+                />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -94,10 +111,10 @@ export function PersonFields<T extends FieldValues>({
 
       <FormField
         control={control}
-        name={name("family_name")}
+        name={name("last_name")}
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Family name</FormLabel>
+            <FormLabel>Last name</FormLabel>
             <FormControl>
               <Input
                 autoComplete="family-name"
@@ -121,7 +138,7 @@ export function PersonFields<T extends FieldValues>({
               <Input {...field} value={field.value ?? ""} />
             </FormControl>
             <FormDescription>
-              Optional. A family name at birth, before any change on marriage.
+              Optional. A last name at birth, before any change on marriage.
             </FormDescription>
             <FormMessage />
           </FormItem>

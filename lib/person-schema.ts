@@ -19,19 +19,20 @@ const optionalDate = z
   .or(z.literal(""));
 
 /**
- * Shared person schema. Required: (given OR preferred) AND family name AND
+ * Shared person schema. Required: (first OR preferred) AND last name AND
  * country of birth AND an explicit living/deceased answer. Death fields only
  * apply when `is_deceased` is true.
  */
 export const personSchema = z
   .object({
-    given_name: optionalText(120),
+    first_name: optionalText(120),
+    middle_name: optionalText(120),
     preferred_name: optionalText(120),
     maiden_name: optionalText(120),
-    family_name: z
+    last_name: z
       .string()
       .trim()
-      .min(1, "Family name is required.")
+      .min(1, "Last name is required.")
       .max(120, "Keep this under 120 characters."),
     date_of_birth: optionalDate,
     city_of_birth: optionalText(120),
@@ -45,9 +46,9 @@ export const personSchema = z
     place_of_death: optionalText(160),
     lineage_type: z.enum(LINEAGE_TYPES).optional(),
   })
-  .refine((v) => Boolean(v.given_name?.trim() || v.preferred_name?.trim()), {
-    message: "Enter a given name or a preferred name.",
-    path: ["given_name"],
+  .refine((v) => Boolean(v.first_name?.trim() || v.preferred_name?.trim()), {
+    message: "Enter a first name or a preferred name.",
+    path: ["first_name"],
   })
   .refine(
     (v) =>
@@ -66,10 +67,11 @@ export const personSchema = z
 export type PersonFormValues = z.infer<typeof personSchema>;
 
 export const emptyPersonValues: PersonFormValues = {
-  given_name: "",
+  first_name: "",
+  middle_name: "",
   preferred_name: "",
   maiden_name: "",
-  family_name: "",
+  last_name: "",
   date_of_birth: "",
   city_of_birth: "",
   country_of_birth: "",
@@ -87,10 +89,11 @@ function trimOrNull(s?: string): string | null {
 /** Normalise validated form values into the shape the DB writers expect. */
 export function toPersonPayload(values: PersonFormValues) {
   return {
-    given_name: trimOrNull(values.given_name),
+    first_name: trimOrNull(values.first_name),
+    middle_name: trimOrNull(values.middle_name),
     preferred_name: trimOrNull(values.preferred_name),
     maiden_name: trimOrNull(values.maiden_name),
-    family_name: values.family_name.trim(),
+    last_name: values.last_name.trim(),
     date_of_birth: trimOrNull(values.date_of_birth),
     city_of_birth: trimOrNull(values.city_of_birth),
     country_of_birth: values.country_of_birth.trim(),

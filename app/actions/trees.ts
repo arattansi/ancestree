@@ -68,9 +68,10 @@ export async function startOwnTree(input: {
     p_tree_name: treeName,
     p_bridge_person_id: input.bridgePersonId,
     p_person: {
-      given_name: p.given_name ?? "",
+      first_name: p.first_name ?? "",
+      middle_name: p.middle_name ?? "",
       preferred_name: p.preferred_name ?? "",
-      family_name: p.family_name,
+      last_name: p.last_name,
       country_of_birth: p.country_of_birth,
       city_of_birth: p.city_of_birth ?? "",
       date_of_birth: p.date_of_birth ?? "",

@@ -314,7 +314,7 @@ export function AddPersonFlow({
     }
     return {
       suggestion: s,
-      question: `${a} shares a family name and birth year with ${b} — are they related?`,
+      question: `${a} shares a last name and birth year with ${b} — are they related?`,
     };
   });
 
@@ -403,7 +403,7 @@ export function AddPersonFlow({
 
     const detected = await detectConnections({
       newPeople: values.people.map((p) => ({
-        familyName: p.family_name,
+        familyName: p.last_name,
         dateOfBirth: p.date_of_birth || null,
       })),
       pendingEdges: edges,

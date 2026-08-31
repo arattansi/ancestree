@@ -52,7 +52,7 @@ function suggestionQuestion(s: PanelSuggestion): string {
   if (s.source === "unlinked_spouse_child") {
     return `Is ${s.subjectLabel} also a parent of ${s.relatedLabel}?`;
   }
-  return `${s.subjectLabel} shares a family name and birth year with ${s.relatedLabel} — are they related?`;
+  return `${s.subjectLabel} shares a last name and birth year with ${s.relatedLabel} — are they related?`;
 }
 
 function PendingConnectionPrompts({
@@ -462,10 +462,11 @@ export function PersonPanel({
 
             <div className="flex flex-col gap-6 px-4 pb-6">
               <dl className="grid grid-cols-2 gap-4">
-                <Field label="Given name" value={person.given_name} />
+                <Field label="First name" value={person.first_name} />
+                <Field label="Middle name" value={person.middle_name} />
                 <Field label="Preferred name" value={person.preferred_name} />
                 <Field label="Maiden name" value={person.maiden_name} />
-                <Field label="Family name" value={person.family_name} />
+                <Field label="Last name" value={person.last_name} />
                 <Field label="Date of birth" value={person.date_of_birth} />
                 <Field
                   label="Place of birth"

@@ -1,13 +1,13 @@
 export type NamedPerson = {
-  given_name?: string | null;
+  first_name?: string | null;
   preferred_name?: string | null;
-  family_name?: string | null;
+  last_name?: string | null;
 };
 
-/** Display name for a person: preferred name (or given name) + family name. */
+/** Display name for a person: preferred name (or first name) + last name. */
 export function personDisplayName(p: NamedPerson): string {
-  const first = (p.preferred_name || p.given_name || "").trim();
-  const last = (p.family_name || "").trim();
+  const first = (p.preferred_name || p.first_name || "").trim();
+  const last = (p.last_name || "").trim();
   return [first, last].filter(Boolean).join(" ") || "Unnamed person";
 }
 
@@ -33,7 +33,7 @@ export function personLifespan(p: {
 
 /** Two-letter initials for the avatar fallback. */
 export function personInitials(p: NamedPerson): string {
-  const first = (p.preferred_name || p.given_name || "").trim();
-  const last = (p.family_name || "").trim();
+  const first = (p.preferred_name || p.first_name || "").trim();
+  const last = (p.last_name || "").trim();
   return ((first[0] ?? "") + (last[0] ?? "")).toUpperCase() || "?";
 }

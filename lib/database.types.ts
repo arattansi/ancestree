@@ -467,8 +467,9 @@ export type Database = {
           created_by: string
           date_of_birth: string | null
           date_of_death: string | null
-          family_name: string
-          given_name: string | null
+          first_name: string | null
+          last_name: string
+          middle_name: string | null
           id: string
           is_deceased: boolean
           lineage_type: string | null
@@ -491,8 +492,9 @@ export type Database = {
           created_by: string
           date_of_birth?: string | null
           date_of_death?: string | null
-          family_name: string
-          given_name?: string | null
+          first_name?: string | null
+          last_name: string
+          middle_name?: string | null
           id?: string
           is_deceased: boolean
           lineage_type?: string | null
@@ -515,8 +517,9 @@ export type Database = {
           created_by?: string
           date_of_birth?: string | null
           date_of_death?: string | null
-          family_name?: string
-          given_name?: string | null
+          first_name?: string | null
+          last_name?: string
+          middle_name?: string | null
           id?: string
           is_deceased?: boolean
           lineage_type?: string | null
@@ -970,8 +973,9 @@ export type Database = {
           created_by: string
           date_of_birth: string | null
           date_of_death: string | null
-          family_name: string
-          given_name: string | null
+          first_name: string | null
+          last_name: string
+          middle_name: string | null
           id: string
           is_deceased: boolean
           lineage_type: string | null

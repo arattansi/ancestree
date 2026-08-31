@@ -12,7 +12,7 @@ export type ClaimCandidate = {
 
 /**
  * Unclaimed entries already on the tree that look like the signed-in member
- * (same family name + a matching given/preferred name). Drives the
+ * (same last name + a matching first/preferred name). Drives the
  * "Is this you? Claim it." prompt. Empty until the member has a self entry.
  */
 export async function listClaimCandidates(): Promise<ClaimCandidate[]> {
@@ -126,7 +126,7 @@ export async function listDisputedClaims(): Promise<DisputedClaim[]> {
   const personIds = [...new Set(rows.map((r) => r.person_id))];
   const { data: people } = await supabase
     .from("people")
-    .select("id, given_name, preferred_name, family_name, created_by")
+    .select("id, first_name, preferred_name, last_name, created_by")
     .in("id", personIds);
   const personById = new Map((people ?? []).map((p) => [p.id, p]));
 

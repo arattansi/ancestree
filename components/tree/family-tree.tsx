@@ -6,8 +6,10 @@ import {
   Background,
   BackgroundVariant,
   Controls,
+  Handle,
   MiniMap,
   Panel,
+  Position,
   ReactFlow,
   ReactFlowProvider,
   useEdgesState,
@@ -37,12 +39,26 @@ import { Button } from "@/components/ui/button";
 import type { ClaimCandidate } from "@/lib/claims";
 import type { PanelSuggestion } from "@/lib/connection-suggestions";
 import { multiTreeEnabled } from "@/lib/flags";
-import { layoutTree } from "@/lib/tree-layout";
+import { layoutTree, NODE_W, NODE_H } from "@/lib/tree-layout";
 import { personDisplayName } from "@/lib/person-name";
 import type { TreeGraphEdge, TreeGraphPerson } from "@/lib/tree";
 import type { PersonRelation } from "@/components/tree/person-panel";
 
-const nodeTypes = { person: PersonNode };
+/**
+ * Invisible layout-only node that sits on a couple's spouse line. A single
+ * "descent" edge runs from here down to each shared child, so a two-parent
+ * child shows one line from the marriage instead of one line per parent.
+ */
+function UnionNode() {
+  return (
+    <div className="size-px">
+      <Handle type="target" position={Position.Top} className="!opacity-0" />
+      <Handle type="source" position={Position.Bottom} className="!opacity-0" />
+    </div>
+  );
+}
+
+const nodeTypes = { person: PersonNode, union: UnionNode };
 
 type Props = {
   people: TreeGraphPerson[];
@@ -75,43 +91,108 @@ function buildGraph(
     },
   }));
 
+  const parentEdges = relationships.filter(
+    (r) => r.type === "parent" && ids.has(r.from_person) && ids.has(r.to_person),
+  );
+
+  // Spouse pairs, keyed order-independently, so a child of a married couple
+  // can be hung off one shared "union" point instead of two parent edges.
+  const pairKey = (a: string, b: string) => [a, b].sort().join("~");
+  const spousePairs = new Set(
+    relationships
+      .filter(
+        (r) =>
+          r.type === "spouse" && ids.has(r.from_person) && ids.has(r.to_person),
+      )
+      .map((r) => pairKey(r.from_person, r.to_person)),
+  );
+
+  const parentsByChild = new Map<string, string[]>();
+  for (const r of parentEdges) {
+    const list = parentsByChild.get(r.to_person) ?? [];
+    if (!list.includes(r.from_person)) list.push(r.from_person);
+    parentsByChild.set(r.to_person, list);
+  }
+
   const edges: Edge[] = [];
-  for (const r of relationships) {
-    if (!ids.has(r.from_person) || !ids.has(r.to_person)) continue;
-    if (r.type === "parent") {
-      edges.push({
-        id: `p:${r.from_person}->${r.to_person}`,
-        source: r.from_person,
-        target: r.to_person,
-        type: "smoothstep",
-        style: { stroke: "var(--border)", strokeWidth: 1.5 },
-      });
-    } else if (r.type === "spouse") {
-      const a = positions.get(r.from_person);
-      const b = positions.get(r.to_person);
-      const [left, right] =
-        (a?.x ?? 0) <= (b?.x ?? 0)
-          ? [r.from_person, r.to_person]
-          : [r.to_person, r.from_person];
-      edges.push({
-        id: `s:${left}~${right}`,
-        source: left,
-        target: right,
-        sourceHandle: "r",
-        targetHandle: "l",
-        type: "straight",
-        selectable: false,
-        style: {
-          stroke: "var(--muted-foreground)",
-          strokeWidth: 1.5,
-          // Divorced pairs get a sparser, fainter dash than a current marriage.
-          strokeDasharray: r.is_divorced ? "2 5" : "5 4",
-          opacity: r.is_divorced ? 0.6 : 1,
+  const unionNodes = new Map<string, Node>();
+  // Children whose parent edges are drawn via a couple union (skipped below).
+  const childrenViaUnion = new Set<string>();
+
+  const parentEdgeStyle = { stroke: "var(--border)", strokeWidth: 1.5 };
+
+  for (const [child, parents] of parentsByChild) {
+    if (parents.length !== 2 || !spousePairs.has(pairKey(parents[0], parents[1])))
+      continue;
+    const a = positions.get(parents[0]);
+    const b = positions.get(parents[1]);
+    if (!a || !b) continue;
+
+    const unionId = `u:${pairKey(parents[0], parents[1])}`;
+    if (!unionNodes.has(unionId)) {
+      unionNodes.set(unionId, {
+        id: unionId,
+        type: "union",
+        // Centre of the two partner nodes — sits on the spouse line.
+        position: {
+          x: (a.x + b.x) / 2 + NODE_W / 2,
+          y: (a.y + b.y) / 2 + NODE_H / 2,
         },
+        data: {},
+        draggable: false,
+        selectable: false,
+        focusable: false,
       });
     }
+    edges.push({
+      id: `d:${unionId}->${child}`,
+      source: unionId,
+      target: child,
+      type: "smoothstep",
+      style: parentEdgeStyle,
+    });
+    childrenViaUnion.add(child);
   }
-  return { nodes, edges };
+
+  for (const r of parentEdges) {
+    if (childrenViaUnion.has(r.to_person)) continue;
+    edges.push({
+      id: `p:${r.from_person}->${r.to_person}`,
+      source: r.from_person,
+      target: r.to_person,
+      type: "smoothstep",
+      style: parentEdgeStyle,
+    });
+  }
+
+  for (const r of relationships) {
+    if (r.type !== "spouse") continue;
+    if (!ids.has(r.from_person) || !ids.has(r.to_person)) continue;
+    const a = positions.get(r.from_person);
+    const b = positions.get(r.to_person);
+    const [left, right] =
+      (a?.x ?? 0) <= (b?.x ?? 0)
+        ? [r.from_person, r.to_person]
+        : [r.to_person, r.from_person];
+    edges.push({
+      id: `s:${left}~${right}`,
+      source: left,
+      target: right,
+      sourceHandle: "r",
+      targetHandle: "l",
+      type: "straight",
+      selectable: false,
+      style: {
+        stroke: "var(--muted-foreground)",
+        strokeWidth: 1.5,
+        // Divorced pairs get a sparser, fainter dash than a current marriage.
+        strokeDasharray: r.is_divorced ? "2 5" : "5 4",
+        opacity: r.is_divorced ? 0.6 : 1,
+      },
+    });
+  }
+
+  return { nodes: [...nodes, ...unionNodes.values()], edges };
 }
 
 function Canvas({
@@ -142,7 +223,7 @@ function Canvas({
   React.useEffect(() => {
     setNodes((current) =>
       current.map((n) =>
-        n.data.selected === (n.id === selectedId)
+        n.type !== "person" || n.data.selected === (n.id === selectedId)
           ? n
           : { ...n, data: { ...n.data, selected: n.id === selectedId } },
       ),
@@ -160,6 +241,7 @@ function Canvas({
   React.useEffect(() => {
     setNodes((current) =>
       current.map((n) => {
+        if (n.type !== "person") return n;
         const dimmed = matchingIds !== null && !matchingIds.has(n.id);
         return n.data.dimmed === dimmed
           ? n
@@ -182,6 +264,7 @@ function Canvas({
   );
 
   const onNodeClick = React.useCallback<NodeMouseHandler>((_, node) => {
+    if (node.type !== "person") return;
     setSelectedId(node.id);
   }, []);
 

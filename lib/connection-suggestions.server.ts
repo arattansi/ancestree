@@ -27,7 +27,7 @@ export async function detectImpliedConnections(
   const [peopleRes, edgeRes, sugRes] = await Promise.all([
     supabase
       .from("people")
-      .select("id, family_name, date_of_birth")
+      .select("id, last_name, date_of_birth")
       .eq("tree_id", treeId),
     supabase
       .from("relationships")
@@ -55,7 +55,7 @@ export async function detectImpliedConnections(
     pendingEdges: pending.pendingEdges,
     existingPeople: (peopleRes.data ?? []).map((p) => ({
       id: p.id,
-      familyName: p.family_name,
+      familyName: p.last_name,
       dateOfBirth: p.date_of_birth,
     })),
     existingEdges: (edgeRes.data ?? []).map((e) => ({
@@ -98,7 +98,7 @@ export async function listPanelSuggestions(
   ];
   const { data: people } = await supabase
     .from("people")
-    .select("id, given_name, preferred_name, family_name")
+    .select("id, first_name, preferred_name, last_name")
     .in("id", ids);
   const labelById = new Map(
     (people ?? []).map((p) => [p.id, personDisplayName(p)]),

@@ -5,11 +5,7 @@ import { Handle, Position, type NodeProps } from "@xyflow/react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-import {
-  personDisplayName,
-  personInitials,
-  personLifespan,
-} from "@/lib/person-name";
+import { personDisplayName, personInitials } from "@/lib/person-name";
 import type { TreeGraphPerson } from "@/lib/tree";
 
 export type PersonNodeData = {
@@ -25,8 +21,13 @@ const handleClass = "!size-1.5 !border-0 !bg-border";
 function PersonNodeImpl({ data }: NodeProps) {
   const { person, isSelf, selected, dimmed } = data as PersonNodeData;
   const name = personDisplayName(person);
-  const lifespan = personLifespan(person);
   const deceased = person.is_deceased;
+  const birthYear = person.date_of_birth?.slice(0, 4) ?? null;
+  const birthplace = person.city_of_birth || person.country_of_birth || null;
+  // e.g. "b. 1995, Burnaby"
+  const born = [birthYear && `b. ${birthYear}`, birthplace]
+    .filter(Boolean)
+    .join(", ");
 
   return (
     <div
@@ -90,10 +91,22 @@ function PersonNodeImpl({ data }: NodeProps) {
             </span>
           ) : null}
         </p>
-        <p className="truncate text-xs text-muted-foreground">
-          {isSelf ? "You" : person.family_name}
-          {lifespan ? ` · ${lifespan}` : ""}
-        </p>
+        {isSelf ? (
+          <p className="truncate text-xs font-medium text-primary">You</p>
+        ) : null}
+        {person.maiden_name ? (
+          <p
+            className="truncate text-xs text-muted-foreground"
+            title={`née ${person.maiden_name}`}
+          >
+            née {person.maiden_name}
+          </p>
+        ) : null}
+        {born ? (
+          <p className="truncate text-xs text-muted-foreground" title={born}>
+            {born}
+          </p>
+        ) : null}
       </div>
     </div>
   );

@@ -56,8 +56,11 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   signed URLs; `claims.ts`: `claimPerson` / `disputeClaim` / `resolveClaim` /
   `markNotificationsRead`; `entry-comments.ts`: `getEntryComments` /
   `addEntryComment` / `resolveEntryFlag` / `setEntryVerified`)
-- `components/tree/` — `family-tree.tsx` React Flow canvas, `person-node.tsx`
-  custom node (open-flag badge + verified `✓`), `person-panel.tsx` detail Sheet
+- `components/tree/` — `family-tree.tsx` React Flow canvas (a child of a married
+  couple hangs off one invisible `union` node on the spouse line, so it shows a
+  single descent line rather than one edge per parent), `person-node.tsx`
+  custom node (name, then `née` maiden name / birth year / birthplace;
+  open-flag badge + verified `✓`), `person-panel.tsx` detail Sheet
   (edit link + claim / dispute + admin verify), `entry-comments.tsx` (comment /
   flag thread + resolve), `claim-suggestions.tsx` "Is this you?" canvas prompt
 - `components/notifications-list.tsx` (account) + `admin-disputed-claims.tsx`
@@ -72,7 +75,8 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   types + `buildChainEdges`; `lib/connection-suggestions.ts` — implied-connection
   detection engine (+ `.server.ts` loader, `.test.ts`); `lib/siblings.ts` — sibling inference; `lib/tree.ts` —
   shared-tree + member lookups + `getTreeGraph` (canvas data);
-  `lib/tree-layout.ts` — pure dagre auto-layout; `lib/person-name.ts` — display
+  `lib/tree-layout.ts` — pure dagre auto-layout (couples / siblings then ordered
+  left→right by DOB, eldest first); `lib/person-name.ts` — display
   name + lifespan + initials; `lib/image.ts` — client-side photo downscale;
   `lib/flags.ts` — build-time feature flags (`multiTreeEnabled`)
 - `components/start-tree-form.tsx` — Step 9 "start your own tree" form;
@@ -395,8 +399,8 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   their children from a shared point; pinned `people.pos_x/pos_y` override the
   auto position. `components/tree/`: `family-tree.tsx` (canvas + pan/zoom /
   minimap / controls, drag-to-pin via `setPersonPosition` server action),
-  `person-node.tsx` (photo/initials, display name, lifespan, dashed deceased
-  styling, self-highlight), `person-panel.tsx` (shadcn Sheet — full details,
+  `person-node.tsx` (photo/initials, name + `née` maiden name / birth year
+  / birthplace, dashed deceased styling, self-highlight), `person-panel.tsx` (shadcn Sheet — full details,
   documents, disabled Edit/Claim stubs for Steps 7–8). Empty state links into
   the Step 5 onboarding / add-relative flow. New dep: `dagre`.
 - **Step 5 — Connections & add-person flow**: `add_people_with_connections`

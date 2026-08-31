@@ -53,10 +53,11 @@ export function matchesFilter(p: TreeGraphPerson, f: TreeFilter): boolean {
     const haystack = fold(
       [
         personDisplayName(p),
-        p.given_name,
+        p.first_name,
+        p.middle_name,
         p.preferred_name,
         p.maiden_name,
-        p.family_name,
+        p.last_name,
         p.city_of_birth,
         p.country_of_birth,
         p.place_of_death,

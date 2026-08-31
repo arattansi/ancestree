@@ -99,10 +99,11 @@ export async function addPeopleWithConnections(
   const pPeople = people.map((values) => {
     const p = toPersonPayload(values);
     return {
-      given_name: p.given_name ?? "",
+      first_name: p.first_name ?? "",
+      middle_name: p.middle_name ?? "",
       preferred_name: p.preferred_name ?? "",
       maiden_name: p.maiden_name ?? "",
-      family_name: p.family_name,
+      last_name: p.last_name,
       country_of_birth: p.country_of_birth,
       city_of_birth: p.city_of_birth ?? "",
       date_of_birth: p.date_of_birth ?? "",
@@ -250,10 +251,11 @@ export async function updatePerson(
   const payload = toPersonPayload(parsed.data);
 
   const update: TablesUpdate<"people"> = {
-    given_name: payload.given_name,
+    first_name: payload.first_name,
+    middle_name: payload.middle_name,
     preferred_name: payload.preferred_name,
     maiden_name: payload.maiden_name,
-    family_name: payload.family_name,
+    last_name: payload.last_name,
     date_of_birth: payload.date_of_birth,
     city_of_birth: payload.city_of_birth,
     country_of_birth: payload.country_of_birth,
