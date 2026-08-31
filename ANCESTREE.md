@@ -108,6 +108,7 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `notifications` | In-app notices (`claim_*`, `entry_commented` \| `entry_flagged` \| `flag_resolved` \| `entry_verified`); recipient-scoped RLS |
 | `entry_comments` | Comments and flags (`is_flag`, `open` \| `resolved`, `resolved_by`) |
 | `documents` | Metadata for private file uploads |
+| `places` | GeoNames reference data (populated places + admin areas) for birthplace autocomplete; not tree-scoped — read by any member, written only by the import script |
 | `tree_bridges` | Step 9 seam: links a member's own `trees` row to a tree they belong to via a spouse bridge (feature-flagged; second tree not rendered) |
 
 **Checks:** `people` requires given **or** preferred name, family name, country of
@@ -186,6 +187,35 @@ Canadian context → PIPEDA-minded.
   Supabase Free limits (50MB/file, 1GB storage, 500MB DB). No `console.*` calls
   anywhere in `app/` `lib/` `components/` — no PII in logs.
 
+## Reference data — GeoNames `places`
+
+Birthplace autocomplete is backed by `public.places`, imported from the
+[GeoNames](https://www.geonames.org/) `cities500` export (all populated places
+with population ≥ 500).
+
+- **Source dump:** `cities500.zip` → `cities500.txt`, GeoNames "geoname" table
+  layout (19 tab-separated columns, no header).
+  **Version imported:** `cities500.txt` dated **2024-11-04** (latest
+  `modification_date` in the file; re-download from
+  `https://download.geonames.org/export/dump/cities500.zip` for a fresher cut).
+- **Import command** (needs `NEXT_PUBLIC_SUPABASE_URL` +
+  `SUPABASE_SERVICE_ROLE_KEY` in `.env.local`):
+
+  ```
+  npm run import:geonames -- /path/to/cities500.txt
+  ```
+
+  `scripts/import-geonames.ts` streams the file, keeps `feature_class IN ('P','A')`,
+  and batch-upserts (1000/batch) on `id`, so it is safe to re-run. It prints the
+  final `places` row count.
+- **Expected result:** ~235,552 rows (cities500 is entirely `feature_class = 'P'`
+  — it contains no `'A'` admin areas; those would need the full `allCountries`
+  dump or a dedicated admin export).
+- **Free-tier size:** cities500 in `places` (table + the two `pg_trgm` GIN
+  indexes + the `country_code` btree) is on the order of ~100–150 MB, well under
+  the Supabase Free 500 MB database limit. **`allCountries` (~13M rows, ~55×) is
+  multiple GB and must not be imported on the free tier.**
+
 ## v1 acceptance checklist
 
 All Product Brief items pass as of Step 10: invite-gated magic-link auth with
@@ -199,6 +229,19 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 4.5a — GeoNames `places` table + importer** (migration
+  `20260831020000_places_geonames`): new `public.places` reference table
+  (GeoNames `geonameid` PK, `name`, `ascii_name`, `country_code`, `admin1_code`,
+  `feature_class` / `feature_code`, lat/lon, `population`, and a stored
+  `search_name = lower(ascii_name)` generated column). `pg_trgm` enabled; GIN
+  trigram indexes on `search_name` and `ascii_name` for fuzzy autocomplete, plus
+  a btree on `country_code`. RLS on: `SELECT` for any `authenticated` member,
+  no write policies (service-role only). `scripts/import-geonames.ts` (run via
+  `npm run import:geonames`) streams the tab-delimited GeoNames dump, filters to
+  `feature_class IN ('P','A')`, and idempotently batch-upserts on `id`. New
+  devDep `tsx`. See **Reference data — GeoNames `places`** for the source
+  version, import command, and free-tier size note.
 
 - **Step 11.5 — Marriage & divorce UI** (no migration; uses the 11.1 columns):
   spouse links in the add-person flow (base "How they connect" rows +
