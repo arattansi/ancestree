@@ -200,6 +200,16 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 11.4 — Multi-connection add-person flow** (no migration): once the
+  base connection resolves, `add-person-flow` offers "connects to more people
+  on the tree" — up to `MAX_EXTRA_CONNECTIONS` (10) repeatable rows, each a
+  `RelationshipPicker` + parent/child/spouse select. Zod `superRefine` rejects
+  a duplicate (person, type) row inline. All edges (chain + extras) go in the
+  one `add_people_with_connections` transaction; detection + the Step 11.3
+  modal run over the combined set. Cross-tree targets are impossible (member
+  list is tree-scoped) and re-rejected by `resolve_person_ref`; the
+  parent-child/spouse pair guard from 11.3 covers the new cycle case.
+
 - **Step 11.3 — Blocking approval modal** (migration
   `20260831010000_add_person_suggestions_rpc`):
   `add_people_with_connections` gains a 4th arg `p_suggestions` — the implied

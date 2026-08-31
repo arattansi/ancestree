@@ -48,10 +48,35 @@ import { personDisplayName } from "@/lib/person-name";
 import { emptyPersonValues, personSchema } from "@/lib/person-schema";
 import { createClient } from "@/lib/supabase/client";
 
+/** Multi-connection cap — keeps the one submit transaction small (Task 11.4). */
+const MAX_EXTRA_CONNECTIONS = 10;
+
 const flowSchema = z.object({
   people: z.array(personSchema).min(1),
   anchorId: z.string(),
   links: z.array(z.object({ kind: z.enum(RELATIONSHIP_KINDS) })),
+  extraLinks: z
+    .array(
+      z.object({
+        targetId: z.string().min(1, "Pick someone on the tree."),
+        kind: z.enum(RELATIONSHIP_KINDS),
+      }),
+    )
+    .max(MAX_EXTRA_CONNECTIONS)
+    .superRefine((rows, ctx) => {
+      const seen = new Set<string>();
+      rows.forEach((r, i) => {
+        const key = `${r.targetId}:${r.kind}`;
+        if (r.targetId && seen.has(key)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "This is the same connection twice.",
+            path: [i, "targetId"],
+          });
+        }
+        seen.add(key);
+      });
+    }),
 });
 type FlowValues = z.infer<typeof flowSchema>;
 
@@ -80,6 +105,7 @@ export function AddPersonFlow({
     edges: ReturnType<typeof buildChainEdges>;
   } | null>(null);
   const [saving, setSaving] = React.useState(false);
+  const [addingMore, setAddingMore] = React.useState(false);
 
   const form = useForm<FlowValues>({
     resolver: zodResolver(flowSchema),
@@ -88,11 +114,18 @@ export function AddPersonFlow({
       people: [emptyPersonValues],
       anchorId: "",
       links: [{ kind: "child" }],
+      extraLinks: [],
     },
   });
 
   const people = useFieldArray({ control: form.control, name: "people" });
   const links = useFieldArray({ control: form.control, name: "links" });
+  const extraLinks = useFieldArray({
+    control: form.control,
+    name: "extraLinks",
+  });
+  const watchedExtra =
+    useWatch({ control: form.control, name: "extraLinks" }) ?? [];
 
   const watchedPeopleRaw = useWatch({ control: form.control, name: "people" });
   const watchedPeople = React.useMemo(
@@ -270,6 +303,16 @@ export function AddPersonFlow({
         values.anchorId,
         chainRefs,
         values.links.map((l) => l.kind),
+      );
+    }
+
+    // Task 11.4 — additional connections from the primary new person to other
+    // existing members. `members` is already scoped to this tree, and the RPC
+    // re-checks every target belongs to the tree (rejects cross-tree rows).
+    for (const row of values.extraLinks) {
+      if (!row.targetId) continue;
+      edges = edges.concat(
+        buildChainEdges(row.targetId, [{ kind: "new", index: 0 }], [row.kind]),
       );
     }
 
@@ -496,6 +539,106 @@ export function AddPersonFlow({
                     connect{primaryFallback === "You" ? "" : "s"} through each
                     person to {anchorLabel}.
                   </p>
+
+                  <div className="flex flex-col gap-3 border-t border-border pt-4">
+                    <label className="flex items-center gap-3 text-sm">
+                      <Checkbox
+                        id="more-connections-toggle"
+                        checked={addingMore}
+                        onCheckedChange={(c) => {
+                          const on = c === true;
+                          setAddingMore(on);
+                          if (on && extraLinks.fields.length === 0) {
+                            extraLinks.append({ targetId: "", kind: "child" });
+                          }
+                          if (!on) extraLinks.replace([]);
+                        }}
+                      />
+                      <span>
+                        {mode === "self" ? "You connect" : "This person connects"}{" "}
+                        to more people on the tree
+                      </span>
+                    </label>
+
+                    {addingMore
+                      ? extraLinks.fields.map((field, i) => (
+                          <div
+                            key={field.id}
+                            className="flex flex-col gap-2 rounded-md border border-border p-3"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-medium text-muted-foreground">
+                                Connection {i + 1}
+                              </span>
+                              <button
+                                type="button"
+                                className="text-xs text-destructive underline underline-offset-2"
+                                onClick={() => extraLinks.remove(i)}
+                              >
+                                Remove
+                              </button>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 text-sm">
+                              <span className="font-medium">{primaryLabel}</span>
+                              <Select
+                                value={watchedExtra[i]?.kind ?? "child"}
+                                onValueChange={(v) =>
+                                  form.setValue(
+                                    `extraLinks.${i}.kind`,
+                                    v as RelationshipKind,
+                                    { shouldDirty: true, shouldValidate: true },
+                                  )
+                                }
+                              >
+                                <SelectTrigger className="w-[210px]">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {RELATIONSHIP_KINDS.map((k) => (
+                                    <SelectItem key={k} value={k}>
+                                      {KIND_STATEMENT[k]}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <RelationshipPicker
+                              members={members}
+                              value={watchedExtra[i]?.targetId ?? ""}
+                              onChange={(id) =>
+                                form.setValue(`extraLinks.${i}.targetId`, id, {
+                                  shouldDirty: true,
+                                  shouldValidate: true,
+                                })
+                              }
+                            />
+                            {form.formState.errors.extraLinks?.[i]?.targetId ? (
+                              <p className="text-xs font-medium text-destructive">
+                                {
+                                  form.formState.errors.extraLinks[i]?.targetId
+                                    ?.message
+                                }
+                              </p>
+                            ) : null}
+                          </div>
+                        ))
+                      : null}
+
+                    {addingMore &&
+                    extraLinks.fields.length < MAX_EXTRA_CONNECTIONS ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="self-start"
+                        onClick={() =>
+                          extraLinks.append({ targetId: "", kind: "child" })
+                        }
+                      >
+                        Add another connection
+                      </Button>
+                    ) : null}
+                  </div>
                 </div>
               ) : null}
             </div>
