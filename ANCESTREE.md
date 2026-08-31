@@ -69,7 +69,8 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   connect; `relationship-picker.tsx` — search-select an existing member;
   `components/person-documents.tsx`
 - `lib/person-schema.ts` — shared zod schema; `lib/connections.ts` — chain/edge
-  types + `buildChainEdges`; `lib/siblings.ts` — sibling inference; `lib/tree.ts` —
+  types + `buildChainEdges`; `lib/connection-suggestions.ts` — implied-connection
+  detection engine (+ `.server.ts` loader, `.test.ts`); `lib/siblings.ts` — sibling inference; `lib/tree.ts` —
   shared-tree + member lookups + `getTreeGraph` (canvas data);
   `lib/tree-layout.ts` — pure dagre auto-layout; `lib/person-name.ts` — display
   name + lifespan + initials; `lib/image.ts` — client-side photo downscale;
@@ -198,6 +199,21 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 11.2 — Connection-suggestion detection engine** (no migration):
+  `lib/connection-suggestions.ts#computeImpliedConnections` is a pure, read-only
+  function over the pending edge set (`{ kind: "new" | "existing" }` refs) that
+  proposes three patterns — `co_parent` (shared child, no edge between the
+  parents → suggest `spouse`), `unlinked_spouse_child` (a pending spouse edge
+  where one side has children unlinked to the other → suggest `parent`, one per
+  child), and `name_dob_match` (a new person shares a surname + birth-year
+  within `SIBLING_CHECK_WINDOW_YEARS` (40) with an unconnected existing person →
+  suggest `sibling_check`, never an edge). It never re-emits a pair already in
+  `connection_suggestions` (dedupe via `suggestionDedupeKey`, mirroring the DB
+  unique key). `lib/connection-suggestions.server.ts#detectImpliedConnections`
+  loads the tree's people/edges/recorded suggestions and runs it. Vitest added
+  (`npm test`); `lib/connection-suggestions.test.ts` covers each pattern +
+  dedupe + the never-an-edge guarantee.
 
 - **Step 11.1 — Marriage/divorce fields + `connection_suggestions` table**
   (migration `20260831000000_marriage_divorce_and_connection_suggestions`):
