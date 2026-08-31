@@ -10,8 +10,15 @@ import { z } from "zod";
 
 import {
   addPeopleWithConnections,
+  detectConnections,
   setPersonPhoto,
 } from "@/app/actions/people";
+import {
+  ConnectionApprovalDialog,
+  type SuggestionPrompt,
+  type SuggestionResolution,
+} from "@/components/connection-approval-dialog";
+import type { ImpliedConnection } from "@/lib/connection-suggestions";
 import { PersonFields } from "@/components/person-fields";
 import {
   RelationshipPicker,
@@ -67,6 +74,12 @@ export function AddPersonFlow({
   const [photoFile, setPhotoFile] = React.useState<File | null>(null);
   const [photoBusy, setPhotoBusy] = React.useState(false);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
+  const [suggestions, setSuggestions] = React.useState<ImpliedConnection[]>([]);
+  const [pendingSave, setPendingSave] = React.useState<{
+    values: FlowValues;
+    edges: ReturnType<typeof buildChainEdges>;
+  } | null>(null);
+  const [saving, setSaving] = React.useState(false);
 
   const form = useForm<FlowValues>({
     resolver: zodResolver(flowSchema),
@@ -81,14 +94,32 @@ export function AddPersonFlow({
   const people = useFieldArray({ control: form.control, name: "people" });
   const links = useFieldArray({ control: form.control, name: "links" });
 
-  const watchedPeople =
-    useWatch({ control: form.control, name: "people" }) ?? [];
+  const watchedPeopleRaw = useWatch({ control: form.control, name: "people" });
+  const watchedPeople = React.useMemo(
+    () => watchedPeopleRaw ?? [],
+    [watchedPeopleRaw],
+  );
   const anchorId = useWatch({ control: form.control, name: "anchorId" }) ?? "";
   const watchedLinks = useWatch({ control: form.control, name: "links" }) ?? [];
 
   const showChain = mustConnect || connecting;
   const needAnchor = showChain;
   const intermediateCount = people.fields.length - 1;
+
+  const labelForRef = React.useCallback(
+    (ref: PersonRef): string => {
+      if (ref.kind === "existing") {
+        return (
+          members.find((m) => m.id === ref.id)?.label ?? "someone on the tree"
+        );
+      }
+      const n = personDisplayName(watchedPeople[ref.index] ?? {});
+      if (n !== "Unnamed person") return n;
+      if (ref.index === 0) return mode === "self" ? "you" : "this person";
+      return `person ${ref.index}`;
+    },
+    [members, watchedPeople, mode],
+  );
 
   const photoPreview = React.useMemo(
     () => (photoFile ? URL.createObjectURL(photoFile) : null),
@@ -161,38 +192,45 @@ export function AddPersonFlow({
     links.remove(links.fields.length - 1);
   }
 
-  async function onSubmit(values: FlowValues) {
-    setSubmitError(null);
-
-    const useConnection = showChain && Boolean(values.anchorId);
-    if (needAnchor && !values.anchorId) {
-      setSubmitError("Choose someone already in the tree to connect to.");
-      return;
+  const prompts: SuggestionPrompt[] = suggestions.map((s) => {
+    const a = labelForRef(s.subject);
+    const b = labelForRef(s.related);
+    if (s.source === "co_parent") {
+      return { suggestion: s, question: `Are ${a} and ${b} married or partners?` };
     }
-
-    let edges: ReturnType<typeof buildChainEdges> = [];
-    if (useConnection) {
-      const chainRefs: PersonRef[] = [];
-      for (let i = 1; i <= intermediateCount; i += 1) {
-        chainRefs.push({ kind: "new", index: i });
-      }
-      chainRefs.push({ kind: "new", index: 0 });
-      edges = buildChainEdges(
-        values.anchorId,
-        chainRefs,
-        values.links.map((l) => l.kind),
-      );
+    if (s.source === "unlinked_spouse_child") {
+      return {
+        suggestion: s,
+        question: `Is ${a} also a parent of ${labelForRef(s.child ?? s.related)}?`,
+      };
     }
+    return {
+      suggestion: s,
+      question: `${a} shares a family name and birth year with ${b} — are they related?`,
+    };
+  });
 
+  async function persist(
+    values: FlowValues,
+    edges: ReturnType<typeof buildChainEdges>,
+    resolved: {
+      subject: PersonRef;
+      related: PersonRef;
+      suggested_type: ImpliedConnection["suggestedType"];
+      source: ImpliedConnection["source"];
+      resolution: SuggestionResolution;
+    }[],
+  ): Promise<boolean> {
     const result = await addPeopleWithConnections({
       people: values.people,
       edges,
       selfIndex: mode === "self" ? 0 : null,
+      suggestions: resolved,
     });
 
     if (result.error || !result.personIds) {
       setSubmitError(result.error ?? "Couldn't save these entries.");
-      return;
+      return false;
     }
 
     const primaryId = result.personIds[0];
@@ -210,9 +248,67 @@ export function AddPersonFlow({
     );
     router.replace("/tree");
     router.refresh();
+    return true;
   }
 
-  const submitting = form.formState.isSubmitting || photoBusy;
+  async function onSubmit(values: FlowValues) {
+    setSubmitError(null);
+
+    if (needAnchor && !values.anchorId) {
+      setSubmitError("Choose someone already in the tree to connect to.");
+      return;
+    }
+
+    let edges: ReturnType<typeof buildChainEdges> = [];
+    if (showChain && values.anchorId) {
+      const chainRefs: PersonRef[] = [];
+      for (let i = 1; i <= intermediateCount; i += 1) {
+        chainRefs.push({ kind: "new", index: i });
+      }
+      chainRefs.push({ kind: "new", index: 0 });
+      edges = buildChainEdges(
+        values.anchorId,
+        chainRefs,
+        values.links.map((l) => l.kind),
+      );
+    }
+
+    const detected = await detectConnections({
+      newPeople: values.people.map((p) => ({
+        familyName: p.family_name,
+        dateOfBirth: p.date_of_birth || null,
+      })),
+      pendingEdges: edges,
+    });
+
+    if (detected.suggestions && detected.suggestions.length > 0) {
+      setSuggestions(detected.suggestions);
+      setPendingSave({ values, edges });
+      return;
+    }
+
+    await persist(values, edges, []);
+  }
+
+  async function onResolve(resolutions: SuggestionResolution[]) {
+    if (!pendingSave) return;
+    setSaving(true);
+    const resolved = suggestions.map((s, i) => ({
+      subject: s.subject,
+      related: s.related,
+      suggested_type: s.suggestedType,
+      source: s.source,
+      resolution: resolutions[i],
+    }));
+    const ok = await persist(pendingSave.values, pendingSave.edges, resolved);
+    setSaving(false);
+    if (ok) {
+      setPendingSave(null);
+      setSuggestions([]);
+    }
+  }
+
+  const submitting = form.formState.isSubmitting || photoBusy || saving;
 
   return (
     <Form {...form}>
@@ -427,6 +523,17 @@ export function AddPersonFlow({
               : "Add relative"}
         </Button>
       </form>
+
+      <ConnectionApprovalDialog
+        open={pendingSave !== null}
+        prompts={prompts}
+        busy={saving}
+        onCancel={() => {
+          setPendingSave(null);
+          setSuggestions([]);
+        }}
+        onResolve={onResolve}
+      />
     </Form>
   );
 }

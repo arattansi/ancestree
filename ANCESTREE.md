@@ -200,6 +200,22 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 11.3 — Blocking approval modal** (migration
+  `20260831010000_add_person_suggestions_rpc`):
+  `add_people_with_connections` gains a 4th arg `p_suggestions` — the implied
+  connections the adder resolved. Each is written to `connection_suggestions`
+  (`accepted` / `dismissed` / `pending` from Yes / No / Skip); an `accepted`
+  spouse/parent suggestion also creates its edge, all in the one transaction
+  with the new person + base edges. New guard: a pair can't be both a
+  parent-child and a spouse edge (also covers Step 11.4). `add-person-flow`
+  now runs `detectConnections` (server action → `detectImpliedConnections`)
+  after form validation; 1+ suggestions open `ConnectionApprovalDialog` — a
+  non-dismissible shadcn `Dialog`, one Yes/No/Skip row each, entry blocked
+  until all answered. Still-pending suggestions surface inline on the person's
+  detail panel (`PendingConnectionPrompts` in `PersonPanel`, fed by
+  `listPanelSuggestions`), resolvable by the suggestion's author or an admin
+  via `resolveConnectionSuggestion` → `resolve_connection_suggestion()` RPC.
+
 - **Step 11.2 — Connection-suggestion detection engine** (no migration):
   `lib/connection-suggestions.ts#computeImpliedConnections` is a pure, read-only
   function over the pending edge set (`{ kind: "new" | "existing" }` refs) that

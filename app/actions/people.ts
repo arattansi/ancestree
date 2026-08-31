@@ -12,6 +12,15 @@ import {
   refToString,
   type AddPeopleInput,
 } from "@/lib/connections";
+import {
+  detectImpliedConnections,
+} from "@/lib/connection-suggestions.server";
+import type {
+  ImpliedConnection,
+  NewPersonInput,
+  PendingEdge,
+} from "@/lib/connection-suggestions";
+import { getSharedTree } from "@/lib/tree";
 import { createClient } from "@/lib/supabase/server";
 import type { TablesUpdate } from "@/lib/database.types";
 
@@ -43,6 +52,9 @@ function friendlyConnectionError(message: string | undefined): string {
   }
   if (m.includes("not in this tree")) {
     return "The person you're connecting to is no longer on the tree. Refresh and try again.";
+  }
+  if (m.includes("partners and parent and child")) {
+    return "Two people can't be both partners and parent and child.";
   }
   if (m.includes("row-level security")) {
     return "You don't have permission to make that change.";
@@ -106,6 +118,21 @@ export async function addPeopleWithConnections(
     type: e.type,
     a: refToString(e.a),
     b: refToString(e.b),
+    ...(e.type === "spouse"
+      ? {
+          marriage_date: e.marriage_date ?? "",
+          is_divorced: e.is_divorced ?? false,
+          divorce_date: e.is_divorced ? e.divorce_date ?? "" : "",
+        }
+      : {}),
+  }));
+
+  const pSuggestions = (input.suggestions ?? []).map((s) => ({
+    subject: refToString(s.subject),
+    related: refToString(s.related),
+    suggested_type: s.suggested_type,
+    source: s.source,
+    resolution: s.resolution,
   }));
 
   const supabase = await createClient();
@@ -113,6 +140,7 @@ export async function addPeopleWithConnections(
     p_people: pPeople,
     p_edges: pEdges,
     p_self_index: input.selfIndex ?? undefined,
+    p_suggestions: pSuggestions,
   });
 
   if (error || !data) {
@@ -123,6 +151,49 @@ export async function addPeopleWithConnections(
   revalidatePath("/tree");
   revalidatePath("/onboarding");
   return { personIds: result.ids, selfId: result.self_id };
+}
+
+/**
+ * Run the implied-connection detection engine (Step 11.2) over the edges a
+ * pending add-person submit would create, so the flow can show the blocking
+ * approval modal before it commits. Read-only.
+ */
+export async function detectConnections(input: {
+  newPeople: NewPersonInput[];
+  pendingEdges: PendingEdge[];
+}): Promise<{ suggestions?: ImpliedConnection[]; error?: string }> {
+  await requireProfile();
+  const tree = await getSharedTree();
+  if (!tree) return { suggestions: [] };
+  try {
+    const suggestions = await detectImpliedConnections(tree.id, {
+      newPeople: input.newPeople,
+      pendingEdges: input.pendingEdges,
+    });
+    return { suggestions };
+  } catch {
+    // Detection is advisory — never block an add on its failure.
+    return { suggestions: [] };
+  }
+}
+
+/**
+ * Resolve a still-pending implied connection later, from a person's detail
+ * panel. Author or admin only (enforced by RLS + the RPC).
+ */
+export async function resolveConnectionSuggestion(
+  id: string,
+  resolution: "accepted" | "dismissed" | "pending",
+): Promise<{ error?: string }> {
+  await requireProfile();
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("resolve_connection_suggestion", {
+    p_id: id,
+    p_resolution: resolution,
+  });
+  if (error) return { error: friendlyConnectionError(error.message) };
+  revalidatePath("/tree");
+  return {};
 }
 
 /** Update an existing person entry. Owner or admin only (enforced by RLS). */

@@ -879,7 +879,12 @@ export type Database = {
     }
     Functions: {
       add_people_with_connections: {
-        Args: { p_edges?: Json; p_people: Json; p_self_index?: number }
+        Args: {
+          p_edges?: Json
+          p_people: Json
+          p_self_index?: number
+          p_suggestions?: Json
+        }
         Returns: Json
       }
       claim_person: { Args: { p_person_id: string }; Returns: Json }
@@ -968,6 +973,10 @@ export type Database = {
       }
       resolve_claim: {
         Args: { p_action: string; p_claim_id: string }
+        Returns: undefined
+      }
+      resolve_connection_suggestion: {
+        Args: { p_id: string; p_resolution: string }
         Returns: undefined
       }
       resolve_entry_flag: {

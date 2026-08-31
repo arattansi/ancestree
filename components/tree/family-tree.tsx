@@ -35,6 +35,7 @@ import {
 } from "@/lib/tree-search";
 import { Button } from "@/components/ui/button";
 import type { ClaimCandidate } from "@/lib/claims";
+import type { PanelSuggestion } from "@/lib/connection-suggestions";
 import { multiTreeEnabled } from "@/lib/flags";
 import { layoutTree } from "@/lib/tree-layout";
 import type { TreeGraphEdge, TreeGraphPerson } from "@/lib/tree";
@@ -49,6 +50,7 @@ type Props = {
   currentUserId: string;
   isAdmin: boolean;
   claimCandidates: ClaimCandidate[];
+  panelSuggestions: PanelSuggestion[];
 };
 
 function buildGraph(
@@ -116,6 +118,7 @@ function Canvas({
   currentUserId,
   isAdmin,
   claimCandidates,
+  panelSuggestions,
 }: Props) {
   const claimableIds = React.useMemo(
     () => new Set(claimCandidates.map((c) => c.id)),
@@ -260,6 +263,11 @@ function Canvas({
       <PersonPanel
         person={selectedPerson}
         treeId={treeId}
+        suggestions={panelSuggestions.filter(
+          (s) =>
+            s.subjectPersonId === selectedId ||
+            s.relatedPersonId === selectedId,
+        )}
         isAdmin={isAdmin}
         isSelf={selectedPerson?.id === selfPersonId}
         canEdit={canEdit}

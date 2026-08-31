@@ -71,6 +71,17 @@ export type DetectionInput = {
   resolvedKeys?: ReadonlySet<string>;
 };
 
+/** A pending suggestion shown inline on a person's detail panel (Step 11.3). */
+export type PanelSuggestion = {
+  id: string;
+  subjectPersonId: string;
+  relatedPersonId: string;
+  suggestedType: SuggestedType;
+  source: SuggestionSource;
+  subjectLabel: string;
+  relatedLabel: string;
+};
+
 const refKey = refToString;
 
 function normName(s: string | null | undefined): string {

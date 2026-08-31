@@ -22,6 +22,19 @@ export type ConnectionEdge = {
   type: "parent" | "spouse";
   a: PersonRef;
   b: PersonRef;
+  /** Spouse edges only — optional marriage/divorce tracking (Step 11.5). */
+  marriage_date?: string | null;
+  is_divorced?: boolean;
+  divorce_date?: string | null;
+};
+
+/** One resolved implied connection, as sent to the add-person server action. */
+export type ResolvedSuggestionInput = {
+  subject: PersonRef;
+  related: PersonRef;
+  suggested_type: "spouse" | "parent" | "sibling_check";
+  source: "co_parent" | "unlinked_spouse_child" | "name_dob_match";
+  resolution: "accepted" | "dismissed" | "pending";
 };
 
 /** Payload for the `addPeopleWithConnections` server action. */
@@ -29,6 +42,7 @@ export type AddPeopleInput = {
   people: PersonFormValues[];
   edges: ConnectionEdge[];
   selfIndex: number | null;
+  suggestions?: ResolvedSuggestionInput[];
 };
 
 /**

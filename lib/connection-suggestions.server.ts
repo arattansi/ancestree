@@ -1,13 +1,17 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
+import { personDisplayName } from "@/lib/person-name";
 import {
   computeImpliedConnections,
   suggestionDedupeKey,
   type ImpliedConnection,
   type NewPersonInput,
+  type PanelSuggestion,
   type PendingEdge,
 } from "@/lib/connection-suggestions";
+
+export type { PanelSuggestion };
 
 /**
  * Load the tree's current people / edges / recorded suggestions and run the
@@ -61,4 +65,52 @@ export async function detectImpliedConnections(
     })),
     resolvedKeys,
   });
+}
+
+/**
+ * Pending implied connections the signed-in member is allowed to resolve
+ * (its author, or any admin — mirrors the RLS on `connection_suggestions`).
+ * The tree canvas filters these down to the person whose panel is open.
+ */
+export async function listPanelSuggestions(
+  treeId: string,
+  viewerId: string,
+  isAdmin: boolean,
+): Promise<PanelSuggestion[]> {
+  const supabase = await createClient();
+
+  let query = supabase
+    .from("connection_suggestions")
+    .select(
+      "id, subject_person_id, related_person_id, suggested_type, source, created_by",
+    )
+    .eq("tree_id", treeId)
+    .eq("status", "pending");
+  if (!isAdmin) query = query.eq("created_by", viewerId);
+
+  const { data: rows } = await query;
+  if (!rows || rows.length === 0) return [];
+
+  const ids = [
+    ...new Set(
+      rows.flatMap((r) => [r.subject_person_id, r.related_person_id]),
+    ),
+  ];
+  const { data: people } = await supabase
+    .from("people")
+    .select("id, given_name, preferred_name, family_name")
+    .in("id", ids);
+  const labelById = new Map(
+    (people ?? []).map((p) => [p.id, personDisplayName(p)]),
+  );
+
+  return rows.map((r) => ({
+    id: r.id,
+    subjectPersonId: r.subject_person_id,
+    relatedPersonId: r.related_person_id,
+    suggestedType: r.suggested_type as PanelSuggestion["suggestedType"],
+    source: r.source as PanelSuggestion["source"],
+    subjectLabel: labelById.get(r.subject_person_id) ?? "someone",
+    relatedLabel: labelById.get(r.related_person_id) ?? "someone",
+  }));
 }
