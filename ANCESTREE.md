@@ -200,6 +200,22 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 11.5 — Marriage & divorce UI** (no migration; uses the 11.1 columns):
+  spouse links in the add-person flow (base "How they connect" rows +
+  Task 11.4's extra-connection rows) reveal an optional **Marriage date** +
+  **They later divorced** checkbox → **Divorce date**, mirroring the
+  Deceased/Date-of-death pattern (`SpouseDatesFields`); the values ride the
+  `ConnectionEdge` into `add_people_with_connections`. `getTreeGraph` now
+  carries `id / created_by / marriage_date / is_divorced / divorce_date` on
+  each edge. `PersonPanel` gains a **Family** section — spouse rows show
+  "Married {date}" and a "Divorced {date}" badge, with inline editing of all
+  three fields (`updateRelationshipMarriage` server action, gated by the
+  existing `relationships_update` RLS = admin or the edge's creator; DB CHECKs
+  keep dates coherent). The canvas draws a divorced pair with a sparser,
+  fainter dash than a current marriage. The Step 11.3 modal's "Yes" still
+  creates the spouse edge without dates — they're added afterwards from the
+  panel (fields stay fully optional, never block save).
+
 - **Step 11.4 — Multi-connection add-person flow** (no migration): once the
   base connection resolves, `add-person-flow` offers "connects to more people
   on the tree" — up to `MAX_EXTRA_CONNECTIONS` (10) repeatable rows, each a

@@ -35,9 +35,15 @@ export type TreeGraphPerson = {
 };
 
 export type TreeGraphEdge = {
+  id: string;
   from_person: string;
   to_person: string;
   type: string;
+  created_by: string;
+  /** Spouse edges only (Step 11.5). */
+  marriage_date: string | null;
+  is_divorced: boolean;
+  divorce_date: string | null;
 };
 
 const PERSON_COLUMNS =
@@ -53,7 +59,9 @@ export async function getTreeGraph(treeId: string): Promise<{
     supabase.from("people").select(PERSON_COLUMNS).eq("tree_id", treeId),
     supabase
       .from("relationships")
-      .select("from_person, to_person, type")
+      .select(
+        "id, from_person, to_person, type, created_by, marriage_date, is_divorced, divorce_date",
+      )
       .eq("tree_id", treeId),
     supabase
       .from("claims")

@@ -38,7 +38,9 @@ import type { ClaimCandidate } from "@/lib/claims";
 import type { PanelSuggestion } from "@/lib/connection-suggestions";
 import { multiTreeEnabled } from "@/lib/flags";
 import { layoutTree } from "@/lib/tree-layout";
+import { personDisplayName } from "@/lib/person-name";
 import type { TreeGraphEdge, TreeGraphPerson } from "@/lib/tree";
+import type { PersonRelation } from "@/components/tree/person-panel";
 
 const nodeTypes = { person: PersonNode };
 
@@ -102,7 +104,9 @@ function buildGraph(
         style: {
           stroke: "var(--muted-foreground)",
           strokeWidth: 1.5,
-          strokeDasharray: "5 4",
+          // Divorced pairs get a sparser, fainter dash than a current marriage.
+          strokeDasharray: r.is_divorced ? "2 5" : "5 4",
+          opacity: r.is_divorced ? 0.6 : 1,
         },
       });
     }
@@ -191,6 +195,39 @@ function Canvas({
 
   const selectedPerson =
     people.find((p) => p.id === selectedId) ?? null;
+
+  const relations = React.useMemo<PersonRelation[]>(() => {
+    if (!selectedId) return [];
+    const nameById = new Map(people.map((p) => [p.id, personDisplayName(p)]));
+    return relationships
+      .filter(
+        (r) => r.from_person === selectedId || r.to_person === selectedId,
+      )
+      .flatMap((r) => {
+        const otherId =
+          r.from_person === selectedId ? r.to_person : r.from_person;
+        const otherName = nameById.get(otherId);
+        if (!otherName) return [];
+        // parent edges are stored from = parent, to = child.
+        const kind: PersonRelation["kind"] =
+          r.type === "spouse"
+            ? "spouse"
+            : r.from_person === selectedId
+              ? "child"
+              : "parent";
+        return [
+          {
+            id: r.id,
+            otherName,
+            kind,
+            marriageDate: r.marriage_date,
+            isDivorced: r.is_divorced,
+            divorceDate: r.divorce_date,
+            canEdit: isAdmin || r.created_by === currentUserId,
+          },
+        ];
+      });
+  }, [selectedId, relationships, people, isAdmin, currentUserId]);
   const canEdit =
     !!selectedPerson &&
     (isAdmin ||
@@ -268,6 +305,7 @@ function Canvas({
             s.subjectPersonId === selectedId ||
             s.relatedPersonId === selectedId,
         )}
+        relations={relations}
         isAdmin={isAdmin}
         isSelf={selectedPerson?.id === selfPersonId}
         canEdit={canEdit}

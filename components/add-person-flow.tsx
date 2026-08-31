@@ -51,15 +51,90 @@ import { createClient } from "@/lib/supabase/client";
 /** Multi-connection cap — keeps the one submit transaction small (Task 11.4). */
 const MAX_EXTRA_CONNECTIONS = 10;
 
+type SpouseDates = {
+  marriage_date?: string;
+  is_divorced?: boolean;
+  divorce_date?: string;
+};
+
+/** Normalise a spouse link's optional marriage/divorce fields for an edge. */
+function spouseDates(link: SpouseDates | undefined) {
+  return {
+    marriage_date: link?.marriage_date?.trim() ? link.marriage_date : null,
+    is_divorced: link?.is_divorced ?? false,
+    divorce_date:
+      link?.is_divorced && link?.divorce_date?.trim()
+        ? link.divorce_date
+        : null,
+  };
+}
+
+/** Optional marriage / divorce fields carried on a spouse link (Step 11.5). */
+const spouseDatesShape = {
+  marriage_date: z.string().optional(),
+  is_divorced: z.boolean().optional(),
+  divorce_date: z.string().optional(),
+};
+
+function SpouseDatesFields({
+  idBase,
+  value,
+  onPatch,
+}: {
+  idBase: string;
+  value: SpouseDates;
+  onPatch: (patch: SpouseDates) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-3 rounded-md border border-dashed border-border p-3">
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor={`${idBase}-marriage`} className="text-xs font-normal">
+          Marriage date (optional)
+        </Label>
+        <Input
+          id={`${idBase}-marriage`}
+          type="date"
+          value={value.marriage_date ?? ""}
+          onChange={(e) => onPatch({ marriage_date: e.target.value })}
+        />
+      </div>
+      <label className="flex items-center gap-3 text-sm">
+        <Checkbox
+          id={`${idBase}-divorced`}
+          checked={value.is_divorced ?? false}
+          onCheckedChange={(c) => onPatch({ is_divorced: c === true })}
+        />
+        <span>They later divorced</span>
+      </label>
+      {value.is_divorced ? (
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor={`${idBase}-divorce`} className="text-xs font-normal">
+            Divorce date (optional)
+          </Label>
+          <Input
+            id={`${idBase}-divorce`}
+            type="date"
+            value={value.divorce_date ?? ""}
+            onChange={(e) => onPatch({ divorce_date: e.target.value })}
+          />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 const flowSchema = z.object({
   people: z.array(personSchema).min(1),
   anchorId: z.string(),
-  links: z.array(z.object({ kind: z.enum(RELATIONSHIP_KINDS) })),
+  links: z.array(
+    z.object({ kind: z.enum(RELATIONSHIP_KINDS), ...spouseDatesShape }),
+  ),
   extraLinks: z
     .array(
       z.object({
         targetId: z.string().min(1, "Pick someone on the tree."),
         kind: z.enum(RELATIONSHIP_KINDS),
+        ...spouseDatesShape,
       }),
     )
     .max(MAX_EXTRA_CONNECTIONS)
@@ -304,6 +379,11 @@ export function AddPersonFlow({
         chainRefs,
         values.links.map((l) => l.kind),
       );
+      // buildChainEdges emits one edge per link, in order — carry the optional
+      // marriage/divorce fields onto the spouse ones (Step 11.5).
+      edges = edges.map((e, i) =>
+        e.type === "spouse" ? { ...e, ...spouseDates(values.links[i]) } : e,
+      );
     }
 
     // Task 11.4 — additional connections from the primary new person to other
@@ -311,8 +391,13 @@ export function AddPersonFlow({
     // re-checks every target belongs to the tree (rejects cross-tree rows).
     for (const row of values.extraLinks) {
       if (!row.targetId) continue;
+      const [edge] = buildChainEdges(
+        row.targetId,
+        [{ kind: "new", index: 0 }],
+        [row.kind],
+      );
       edges = edges.concat(
-        buildChainEdges(row.targetId, [{ kind: "new", index: 0 }], [row.kind]),
+        edge.type === "spouse" ? { ...edge, ...spouseDates(row) } : edge,
       );
     }
 
@@ -466,31 +551,48 @@ export function AddPersonFlow({
                   {links.fields.map((field, i) => (
                     <div
                       key={field.id}
-                      className="flex flex-wrap items-center gap-2 rounded-md border border-border p-3 text-sm"
+                      className="flex flex-col gap-2 rounded-md border border-border p-3 text-sm"
                     >
-                      <span className="font-medium">{linkSubject(i)}</span>
-                      <Select
-                        value={watchedLinks[i]?.kind ?? "child"}
-                        onValueChange={(v) =>
-                          form.setValue(
-                            `links.${i}.kind`,
-                            v as RelationshipKind,
-                            { shouldDirty: true },
-                          )
-                        }
-                      >
-                        <SelectTrigger className="w-[210px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {RELATIONSHIP_KINDS.map((k) => (
-                            <SelectItem key={k} value={k}>
-                              {KIND_STATEMENT[k]}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <span className="font-medium">{linkObject(i)}</span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium">{linkSubject(i)}</span>
+                        <Select
+                          value={watchedLinks[i]?.kind ?? "child"}
+                          onValueChange={(v) =>
+                            form.setValue(
+                              `links.${i}.kind`,
+                              v as RelationshipKind,
+                              { shouldDirty: true },
+                            )
+                          }
+                        >
+                          <SelectTrigger className="w-[210px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {RELATIONSHIP_KINDS.map((k) => (
+                              <SelectItem key={k} value={k}>
+                                {KIND_STATEMENT[k]}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <span className="font-medium">{linkObject(i)}</span>
+                      </div>
+                      {watchedLinks[i]?.kind === "spouse" ? (
+                        <SpouseDatesFields
+                          idBase={`link-${i}`}
+                          value={watchedLinks[i] ?? {}}
+                          onPatch={(patch) => {
+                            for (const [k, v] of Object.entries(patch)) {
+                              form.setValue(
+                                `links.${i}.${k}` as `links.${number}.marriage_date`,
+                                v as never,
+                                { shouldDirty: true, shouldValidate: true },
+                              );
+                            }
+                          }}
+                        />
+                      ) : null}
                     </div>
                   ))}
 
@@ -619,6 +721,24 @@ export function AddPersonFlow({
                                     ?.message
                                 }
                               </p>
+                            ) : null}
+                            {watchedExtra[i]?.kind === "spouse" ? (
+                              <SpouseDatesFields
+                                idBase={`extra-${i}`}
+                                value={watchedExtra[i] ?? {}}
+                                onPatch={(patch) => {
+                                  for (const [k, v] of Object.entries(patch)) {
+                                    form.setValue(
+                                      `extraLinks.${i}.${k}` as `extraLinks.${number}.marriage_date`,
+                                      v as never,
+                                      {
+                                        shouldDirty: true,
+                                        shouldValidate: true,
+                                      },
+                                    );
+                                  }
+                                }}
+                              />
                             ) : null}
                           </div>
                         ))

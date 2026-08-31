@@ -7,7 +7,10 @@ import { toast } from "sonner";
 
 import { claimPerson, disputeClaim } from "@/app/actions/claims";
 import { setEntryVerified } from "@/app/actions/entry-comments";
-import { resolveConnectionSuggestion } from "@/app/actions/people";
+import {
+  resolveConnectionSuggestion,
+  updateRelationshipMarriage,
+} from "@/app/actions/people";
 import { deletePerson } from "@/app/actions/privacy";
 import type { PanelSuggestion } from "@/lib/connection-suggestions";
 import { PersonDocuments } from "@/components/person-documents";
@@ -15,7 +18,9 @@ import { EntryComments } from "@/components/tree/entry-comments";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Sheet,
   SheetContent,
@@ -124,10 +129,183 @@ function PendingConnectionPrompts({
   );
 }
 
+export type PersonRelation = {
+  id: string;
+  otherName: string;
+  kind: "spouse" | "parent" | "child";
+  marriageDate: string | null;
+  isDivorced: boolean;
+  divorceDate: string | null;
+  canEdit: boolean;
+};
+
+function SpouseRow({
+  relation,
+  onChanged,
+}: {
+  relation: PersonRelation;
+  onChanged: () => void;
+}) {
+  const [editing, setEditing] = React.useState(false);
+  const [marriageDate, setMarriageDate] = React.useState(
+    relation.marriageDate ?? "",
+  );
+  const [isDivorced, setIsDivorced] = React.useState(relation.isDivorced);
+  const [divorceDate, setDivorceDate] = React.useState(
+    relation.divorceDate ?? "",
+  );
+  const [busy, setBusy] = React.useState(false);
+
+  async function save() {
+    setBusy(true);
+    const res = await updateRelationshipMarriage(relation.id, {
+      marriage_date: marriageDate,
+      is_divorced: isDivorced,
+      divorce_date: divorceDate,
+    });
+    setBusy(false);
+    if (res.error) {
+      toast.error(res.error);
+      return;
+    }
+    toast.success("Saved.");
+    setEditing(false);
+    onChanged();
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5 rounded-md border border-border p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-medium text-muted-foreground">
+          Spouse / partner
+        </span>
+        <span className="text-sm text-foreground">{relation.otherName}</span>
+        {relation.isDivorced ? (
+          <Badge variant="outline">
+            Divorced{relation.divorceDate ? ` ${relation.divorceDate}` : ""}
+          </Badge>
+        ) : null}
+      </div>
+
+      {relation.marriageDate && !editing ? (
+        <p className="text-xs text-muted-foreground">
+          Married {relation.marriageDate}
+        </p>
+      ) : null}
+
+      {!editing && relation.canEdit ? (
+        <button
+          type="button"
+          className="self-start text-xs text-foreground underline underline-offset-2"
+          onClick={() => setEditing(true)}
+        >
+          {relation.marriageDate || relation.isDivorced
+            ? "Edit marriage / divorce"
+            : "Add marriage / divorce dates"}
+        </button>
+      ) : null}
+
+      {editing ? (
+        <div className="mt-1 flex flex-col gap-3">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor={`marriage-${relation.id}`} className="text-xs">
+              Marriage date
+            </Label>
+            <Input
+              id={`marriage-${relation.id}`}
+              type="date"
+              value={marriageDate}
+              onChange={(e) => setMarriageDate(e.target.value)}
+            />
+          </div>
+          <label className="flex items-center gap-3 text-sm">
+            <Checkbox
+              id={`divorced-${relation.id}`}
+              checked={isDivorced}
+              onCheckedChange={(c) => setIsDivorced(c === true)}
+            />
+            <span>They later divorced</span>
+          </label>
+          {isDivorced ? (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor={`divorce-${relation.id}`} className="text-xs">
+                Divorce date
+              </Label>
+              <Input
+                id={`divorce-${relation.id}`}
+                type="date"
+                value={divorceDate}
+                onChange={(e) => setDivorceDate(e.target.value)}
+              />
+            </div>
+          ) : null}
+          <div className="flex gap-2">
+            <Button size="sm" onClick={save} disabled={busy}>
+              {busy ? "Saving…" : "Save"}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={busy}
+              onClick={() => {
+                setEditing(false);
+                setMarriageDate(relation.marriageDate ?? "");
+                setIsDivorced(relation.isDivorced);
+                setDivorceDate(relation.divorceDate ?? "");
+              }}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function FamilySection({
+  relations,
+  onChanged,
+}: {
+  relations: PersonRelation[];
+  onChanged: () => void;
+}) {
+  if (relations.length === 0) return null;
+  const spouses = relations.filter((r) => r.kind === "spouse");
+  const parents = relations.filter((r) => r.kind === "parent");
+  const children = relations.filter((r) => r.kind === "child");
+
+  return (
+    <section className="flex flex-col gap-3 border-t border-border pt-5">
+      <h2 className="text-sm font-semibold">Family</h2>
+      {spouses.map((s) => (
+        <SpouseRow key={s.id} relation={s} onChanged={onChanged} />
+      ))}
+      {parents.length > 0 ? (
+        <div className="flex flex-col gap-0.5">
+          <dt className="text-xs font-medium text-muted-foreground">Parents</dt>
+          <dd className="text-sm">
+            {parents.map((p) => p.otherName).join(", ")}
+          </dd>
+        </div>
+      ) : null}
+      {children.length > 0 ? (
+        <div className="flex flex-col gap-0.5">
+          <dt className="text-xs font-medium text-muted-foreground">Children</dt>
+          <dd className="text-sm">
+            {children.map((c) => c.otherName).join(", ")}
+          </dd>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 export function PersonPanel({
   person,
   treeId,
   suggestions,
+  relations,
   isAdmin,
   isSelf,
   canEdit,
@@ -140,6 +318,8 @@ export function PersonPanel({
   treeId: string;
   /** Pending implied connections involving this person the viewer can resolve. */
   suggestions: PanelSuggestion[];
+  /** This person's parent / child / spouse links (spouse rows carry dates). */
+  relations: PersonRelation[];
   isAdmin: boolean;
   isSelf: boolean;
   canEdit: boolean;
@@ -321,6 +501,11 @@ export function PersonPanel({
                   if you know it.
                 </div>
               ) : null}
+
+              <FamilySection
+                relations={relations}
+                onChanged={() => router.refresh()}
+              />
 
               <PendingConnectionPrompts
                 suggestions={suggestions}

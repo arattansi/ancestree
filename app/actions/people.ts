@@ -178,6 +178,47 @@ export async function detectConnections(input: {
 }
 
 /**
+ * Update the optional marriage / divorce fields on a spouse relationship.
+ * Gated by the existing `relationships_update` RLS (admin or the edge's
+ * `created_by`); the DB CHECKs keep the dates coherent. All fields optional.
+ */
+export async function updateRelationshipMarriage(
+  relationshipId: string,
+  input: {
+    marriage_date?: string | null;
+    is_divorced: boolean;
+    divorce_date?: string | null;
+  },
+): Promise<{ error?: string }> {
+  await requireProfile();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("relationships")
+    .update({
+      marriage_date: input.marriage_date?.trim() ? input.marriage_date : null,
+      is_divorced: input.is_divorced,
+      divorce_date:
+        input.is_divorced && input.divorce_date?.trim()
+          ? input.divorce_date
+          : null,
+    })
+    .eq("id", relationshipId)
+    .eq("type", "spouse");
+  if (error) {
+    const m = error.message.toLowerCase();
+    if (m.includes("divorce_after_marriage")) {
+      return { error: "The divorce date can't be before the marriage date." };
+    }
+    if (m.includes("row-level security")) {
+      return { error: "Only the relationship's creator or an admin can edit this." };
+    }
+    return { error: "Couldn't save those dates. Try again." };
+  }
+  revalidatePath("/tree");
+  return {};
+}
+
+/**
  * Resolve a still-pending implied connection later, from a person's detail
  * panel. Author or admin only (enforced by RLS + the RPC).
  */
