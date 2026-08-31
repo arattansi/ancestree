@@ -545,6 +545,8 @@ export type Database = {
           place_id_birth: number | null
           place_id_death: number | null
           place_of_death: string | null
+          pos_dx: number | null
+          pos_dy: number | null
           pos_x: number | null
           pos_y: number | null
           preferred_name: string | null
@@ -572,6 +574,8 @@ export type Database = {
           place_id_birth?: number | null
           place_id_death?: number | null
           place_of_death?: string | null
+          pos_dx?: number | null
+          pos_dy?: number | null
           pos_x?: number | null
           pos_y?: number | null
           preferred_name?: string | null
@@ -599,6 +603,8 @@ export type Database = {
           place_id_birth?: number | null
           place_id_death?: number | null
           place_of_death?: string | null
+          pos_dx?: number | null
+          pos_dy?: number | null
           pos_x?: number | null
           pos_y?: number | null
           preferred_name?: string | null
@@ -1071,6 +1077,8 @@ export type Database = {
           place_id_birth: number | null
           place_id_death: number | null
           place_of_death: string | null
+          pos_dx: number | null
+          pos_dy: number | null
           pos_x: number | null
           pos_y: number | null
           preferred_name: string | null

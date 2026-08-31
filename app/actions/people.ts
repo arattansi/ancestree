@@ -300,17 +300,27 @@ export async function updatePerson(
   return { personId };
 }
 
-/** Persist a drag-to-pin canvas position. Owner or admin only (RLS). */
+/**
+ * Persist a drag as a *nudge* from the card's auto-layout position, so it keeps
+ * following the tree as relatives are added instead of freezing in place. Also
+ * clears any legacy absolute pin on the row, converting it on first drag.
+ * Owner or admin only (RLS).
+ */
 export async function setPersonPosition(
   personId: string,
-  x: number,
-  y: number,
+  dx: number,
+  dy: number,
 ): Promise<{ error?: string }> {
   await requireProfile();
   const supabase = await createClient();
   const { error } = await supabase
     .from("people")
-    .update({ pos_x: Math.round(x), pos_y: Math.round(y) })
+    .update({
+      pos_dx: Math.round(dx),
+      pos_dy: Math.round(dy),
+      pos_x: null,
+      pos_y: null,
+    })
     .eq("id", personId);
   if (error) {
     if (error.message.toLowerCase().includes("row-level security")) {
@@ -318,6 +328,27 @@ export async function setPersonPosition(
     }
     return { error: friendlyError(error.message) };
   }
+  revalidatePath("/tree");
+  return {};
+}
+
+/**
+ * Drop every manual nudge and legacy pin in the tree, handing the whole canvas
+ * back to the auto-layout. Admin only — it discards other people's placements.
+ */
+export async function autoArrangeTree(
+  treeId: string,
+): Promise<{ error?: string }> {
+  const profile = await requireProfile();
+  if (profile.role !== "admin") {
+    return { error: "Only an admin can re-arrange the whole tree." };
+  }
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("people")
+    .update({ pos_dx: null, pos_dy: null, pos_x: null, pos_y: null })
+    .eq("tree_id", treeId);
+  if (error) return { error: friendlyError(error.message) };
   revalidatePath("/tree");
   return {};
 }

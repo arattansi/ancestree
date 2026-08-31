@@ -14,7 +14,8 @@ Product brief and build plan live in the **🌳 Ancestree** Notion teamspace.
 - **Hosting**: Vercel (Hobby) at `ancestree.space`
 - **GitHub**: https://github.com/arattansi/ancestree
 - **Supabase project**: `Product-Ancestree` (`kkmemshpkxrzogijxgnb`, ca-central-1, Free)
-- **Tree UI**: React Flow (`@xyflow/react`) + dagre auto-layout (added in Step 6)
+- **Tree UI**: React Flow (`@xyflow/react`) + a purpose-built anchored auto-layout
+  (Step 6; replaced dagre in Step 4.6)
 
 ## Commands
 
@@ -56,9 +57,12 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   signed URLs; `claims.ts`: `claimPerson` / `disputeClaim` / `resolveClaim` /
   `markNotificationsRead`; `entry-comments.ts`: `getEntryComments` /
   `addEntryComment` / `resolveEntryFlag` / `setEntryVerified`)
-- `components/tree/` — `family-tree.tsx` React Flow canvas (a child of a married
-  couple hangs off one invisible `union` node on the spouse line, so it shows a
-  single descent line rather than one edge per parent), `person-node.tsx`
+- `components/tree/` — `family-tree.tsx` React Flow canvas (generation lanes
+  behind the cards; a child's descent line starts from a junction *derived from
+  its parents' live positions* — not a node — so it follows them as they are
+  dragged, and all of a couple's children bend at a shared horizontal bus, so a
+  marriage shows one trunk rather than one line per parent; admin
+  "Auto-arrange" clears every manual nudge), `person-node.tsx`
   custom node (name, then `née` maiden name / birth year / birthplace;
   open-flag badge + verified `✓`), `person-panel.tsx` detail Sheet
   (edit link + claim / dispute + admin verify), `entry-comments.tsx` (comment /
@@ -81,8 +85,14 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   types + `buildChainEdges`; `lib/connection-suggestions.ts` — implied-connection
   detection engine (+ `.server.ts` loader, `.test.ts`); `lib/siblings.ts` — sibling inference; `lib/tree.ts` —
   shared-tree + member lookups + `getTreeGraph` (canvas data);
-  `lib/tree-layout.ts` — pure dagre auto-layout (couples / siblings then ordered
-  left→right by DOB, eldest first); `lib/person-name.ts` — display
+  `lib/tree-layout.ts` — the anchored auto-layout engine (Step 4.6, `.test.ts`):
+  generations relative to the founding admins fix `y`, the anchor couple is
+  translated to the origin, each admin's bloodline is pushed to its own side of
+  it, median sweeps cut edge crossings, and a separation sweep guarantees a
+  minimum gap between cards. Couple partners sit side by side eldest-left and a
+  sibling set runs oldest→youngest. Also emits generation bands and per-couple
+  descent points (`descentGeometry`, shared with the canvas so the drawn line
+  and the laid-out one follow one rule); `lib/person-name.ts` — display
   name + lifespan + initials; `lib/image.ts` — client-side photo downscale;
   `lib/flags.ts` — build-time feature flags (`multiTreeEnabled`)
 - `components/start-tree-form.tsx` — Step 9 "start your own tree" form;
@@ -239,8 +249,8 @@ with population ≥ 500).
 All Product Brief items pass as of Step 10: invite-gated magic-link auth with
 inviter-attributed links; onboarding self-entry + connection (chain-add);
 demographic form with required-field + conditional-deceased validation; private
-photo + multi-document upload via signed URLs; admin-only lineage; React Flow +
-dagre canvas with custom nodes, pan/zoom, detail panel; edit gating
+photo + multi-document upload via signed URLs; admin-only lineage; React Flow
+canvas with custom nodes, anchored auto-layout, pan/zoom, detail panel; edit gating
 (creator/owner/admin) + admin delete; claim flow (detect on register,
 auto-approve, notify creator, creator lockout); flag/comment + resolve/verify;
 multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
@@ -248,6 +258,32 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 4.6 — Anchored tree layout** (migration
+  `20260831070000_person_layout_offsets`): replaced the dagre pass with a
+  purpose-built engine in `lib/tree-layout.ts` (24 vitest cases). Generations are
+  numbered *relative to the founding admins* (`getTreeAnchors()` reads their
+  `self_person_id`s), so generation fixes `y` and adding a great-grandparent
+  extends the chart upward instead of reflowing it; the anchor couple is
+  translated to the canvas origin. Ancestors reachable from only one anchor —
+  and their collaterals — are pushed to that anchor's side of the origin, so the
+  two bloodlines never interleave. Within a row: seed order by side then degree
+  (hubs innermost), four median sweeps to cut crossings, barycentre coordinate
+  passes to centre parents over children, then a **separation sweep that
+  guarantees** no two cards on a row are closer than `GUTTER` — overlap is
+  impossible at any size (tested on a 105-person tree). Couples stay adjacent
+  eldest-left; sibling runs go oldest→youngest. The canvas draws generation
+  lanes (`ViewportPortal`) labelled relative to the founders, and routes every
+  child of a parent set through a shared `busY` so a marriage shows one trunk
+  plus stubs (`DescentEdge`). That junction is computed by the pure
+  `descentGeometry(parentRects, childTop)` from the parents' **live** card
+  positions read out of the React Flow store — an invisible junction *node*
+  would stay where the layout first put it and detach the moment a parent was
+  dragged. It also handles a lone parent and partners dragged apart by dropping
+  the start below the cards rather than across a face. Drags now persist as a **nudge** (`pos_dx`/`pos_dy`)
+  from the computed position rather than an absolute pin, so a moved card follows
+  the tree as it grows; legacy `pos_x`/`pos_y` still win until that card is next
+  dragged, and an admin-only **Auto-arrange** (`autoArrangeTree`) clears every
+  nudge and pin at once. Dropped dep: `dagre` (+ `@types/dagre`).
 - **Step 4.5d — Historical place-name resolution** (migrations
   `20260831060000_historical_names` + `..._seed_east_africa`): new
   `historical_names` table (`place_id` **or** `country_code`, `name`,

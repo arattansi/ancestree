@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { getUser, requireSelfPerson } from "@/lib/auth";
 import { listClaimCandidates } from "@/lib/claims";
 import { listPanelSuggestions } from "@/lib/connection-suggestions.server";
-import { getSharedTree, getTreeGraph } from "@/lib/tree";
+import { getSharedTree, getTreeAnchors, getTreeGraph } from "@/lib/tree";
 
 export const metadata: Metadata = {
   title: "Family tree",
@@ -32,11 +32,12 @@ export default async function TreePage() {
     );
   }
 
-  const [{ people, relationships }, claimCandidates, panelSuggestions] =
+  const [{ people, relationships }, claimCandidates, panelSuggestions, anchorIds] =
     await Promise.all([
       getTreeGraph(tree.id),
       listClaimCandidates(),
       listPanelSuggestions(tree.id, user.id, profile.role === "admin"),
+      getTreeAnchors(),
     ]);
 
   return (
@@ -46,6 +47,7 @@ export default async function TreePage() {
         relationships={relationships}
         treeId={tree.id}
         selfPersonId={profile.self_person_id}
+        anchorIds={anchorIds}
         currentUserId={user.id}
         isAdmin={profile.role === "admin"}
         claimCandidates={claimCandidates}

@@ -34,6 +34,8 @@ export type TreeGraphPerson = {
   photo_path: string | null;
   pos_x: number | null;
   pos_y: number | null;
+  pos_dx: number | null;
+  pos_dy: number | null;
   owner_user_id: string;
   created_by: string;
   verified_at: string | null;
@@ -60,7 +62,7 @@ export type TreeGraphEdge = {
 };
 
 const PERSON_COLUMNS =
-  "id, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_death, city_of_birth, country_of_birth, place_id_birth, place_id_death, is_deceased, place_of_death, lineage_type, photo_path, pos_x, pos_y, owner_user_id, created_by, verified_at";
+  "id, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_death, city_of_birth, country_of_birth, place_id_birth, place_id_death, is_deceased, place_of_death, lineage_type, photo_path, pos_x, pos_y, owner_user_id, created_by, verified_at, pos_dx, pos_dy";
 
 /** Everyone in the tree plus their relationship edges, with signed photo URLs. */
 export async function getTreeGraph(treeId: string): Promise<{
@@ -201,6 +203,25 @@ export async function getSharedTree(): Promise<{ id: string } | null> {
     .limit(1)
     .maybeSingle();
   return data ?? null;
+}
+
+/**
+ * The people the canvas is centred on: the founding admins' own entries. The
+ * layout anchors generation 0 on them and grows the tree outward, so the chart
+ * stays stable as relatives are added at either end.
+ */
+export async function getTreeAnchors(): Promise<string[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("profiles")
+    .select("self_person_id, created_at")
+    .eq("role", "admin")
+    .not("self_person_id", "is", null)
+    .order("created_at", { ascending: true })
+    .limit(2);
+  return (data ?? [])
+    .map((row) => row.self_person_id)
+    .filter((id): id is string => id !== null);
 }
 
 /**

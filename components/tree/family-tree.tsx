@@ -5,26 +5,31 @@ import Link from "next/link";
 import {
   Background,
   BackgroundVariant,
+  BaseEdge,
   Controls,
-  Handle,
   MiniMap,
   Panel,
   Position,
   ReactFlow,
   ReactFlowProvider,
+  ViewportPortal,
+  getSmoothStepPath,
   useEdgesState,
   useNodesState,
   useReactFlow,
+  useStore,
   type Edge,
+  type EdgeProps,
   type Node,
   type NodeMouseHandler,
   type OnNodeDrag,
+  type ReactFlowState,
 } from "@xyflow/react";
 import { toast } from "sonner";
 
 import "@xyflow/react/dist/style.css";
 
-import { setPersonPosition } from "@/app/actions/people";
+import { autoArrangeTree, setPersonPosition } from "@/app/actions/people";
 import { ClaimSuggestions } from "@/components/tree/claim-suggestions";
 import { PersonNode } from "@/components/tree/person-node";
 import { PersonPanel } from "@/components/tree/person-panel";
@@ -39,32 +44,149 @@ import { Button } from "@/components/ui/button";
 import type { ClaimCandidate } from "@/lib/claims";
 import type { PanelSuggestion } from "@/lib/connection-suggestions";
 import { multiTreeEnabled } from "@/lib/flags";
-import { layoutTree, NODE_W, NODE_H } from "@/lib/tree-layout";
+import { cn } from "@/lib/utils";
+import {
+  descentGeometry,
+  layoutTree,
+  NODE_H,
+  NODE_W,
+  type CardRect,
+  type Descent,
+  type GenerationBand,
+  type TreeLayout,
+} from "@/lib/tree-layout";
 import { personDisplayName } from "@/lib/person-name";
 import type { TreeGraphEdge, TreeGraphPerson } from "@/lib/tree";
 import type { PersonRelation } from "@/components/tree/person-panel";
 
+const sameDescent = (a: Descent, b: Descent) =>
+  a.startX === b.startX && a.startY === b.startY && a.busY === b.busY;
+
 /**
- * Invisible layout-only node that sits on a couple's spouse line. A single
- * "descent" edge runs from here down to each shared child, so a two-parent
- * child shows one line from the marriage instead of one line per parent.
+ * A descent line from a couple down to one child.
+ *
+ * The junction it starts from is *derived from the parents' live positions*
+ * rather than being a node of its own — an invisible node would sit where the
+ * layout first put it and stay there while you dragged its parents around,
+ * leaving the line detached from them. Reading the parents straight out of the
+ * store means the trunk follows every drag, on either side of the connection.
+ *
+ * All of a couple's children bend at the same `busY`, so their trunks overlap
+ * exactly and a marriage reads as one trunk plus a stub per child rather than
+ * one diagonal each.
  */
-function UnionNode() {
+function DescentEdge({
+  id,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  data,
+  style,
+}: EdgeProps) {
+  const parents = React.useMemo(
+    () => (Array.isArray(data?.parents) ? (data.parents as string[]) : []),
+    [data],
+  );
+  // The layout's own geometry, used until the cards have been measured.
+  const fallback = React.useMemo<Descent>(
+    () => ({
+      startX: typeof data?.startX === "number" ? data.startX : sourceX,
+      startY: typeof data?.startY === "number" ? data.startY : sourceY,
+      busY: typeof data?.busY === "number" ? data.busY : (sourceY + targetY) / 2,
+    }),
+    [sourceX, sourceY, targetY, data],
+  );
+
+  const descent = useStore(
+    React.useCallback(
+      (state: ReactFlowState): Descent => {
+        const rects = parents
+          .map((parentId) => {
+            const node = state.nodeLookup.get(parentId);
+            if (!node) return null;
+            const { x, y } = node.internals.positionAbsolute;
+            return {
+              x,
+              y,
+              w: node.measured?.width ?? NODE_W,
+              h: node.measured?.height ?? NODE_H,
+            };
+          })
+          .filter((rect): rect is CardRect => rect !== null);
+        return descentGeometry(rects, targetY) ?? fallback;
+      },
+      [parents, fallback, targetY],
+    ),
+    sameDescent,
+  );
+
+  const [path] = getSmoothStepPath({
+    sourceX: descent.startX,
+    sourceY: descent.startY,
+    sourcePosition: Position.Bottom,
+    targetX,
+    targetY,
+    targetPosition: Position.Top,
+    borderRadius: 10,
+    centerY: descent.busY,
+  });
+  return <BaseEdge id={id} path={path} style={style} />;
+}
+
+/**
+ * A generation lane behind the cards: alternating tint plus a label naming the
+ * row relative to the founders ("Grandparents · b. 1930s"). This is what makes
+ * a large chart scannable — you can find a generation without tracing edges.
+ */
+function GenerationLane({
+  band,
+  minX,
+  maxX,
+}: {
+  band: GenerationBand;
+  minX: number;
+  maxX: number;
+}) {
   return (
-    <div className="size-px">
-      <Handle type="target" position={Position.Top} className="!opacity-0" />
-      <Handle type="source" position={Position.Bottom} className="!opacity-0" />
+    <div
+      className="pointer-events-none absolute"
+      style={{
+        transform: `translate(${minX}px, ${band.y}px)`,
+        width: maxX - minX,
+        height: band.height,
+      }}
+    >
+      <div
+        className={cn(
+          "size-full rounded-2xl border border-border/30",
+          band.generation % 2 === 0 ? "bg-muted/25" : "bg-transparent",
+        )}
+      />
+      <div className="absolute top-2 left-4 flex items-baseline gap-2 text-xs">
+        <span className="font-medium text-muted-foreground">{band.label}</span>
+        {band.sublabel ? (
+          <span className="text-muted-foreground/60">{band.sublabel}</span>
+        ) : null}
+        <span className="text-muted-foreground/50">
+          {band.count} {band.count === 1 ? "person" : "people"}
+        </span>
+      </div>
     </div>
   );
 }
 
-const nodeTypes = { person: PersonNode, union: UnionNode };
+const edgeTypes = { descent: DescentEdge };
+
+const nodeTypes = { person: PersonNode };
 
 type Props = {
   people: TreeGraphPerson[];
   relationships: TreeGraphEdge[];
   treeId: string;
   selfPersonId: string | null;
+  /** The founding admins' entries — the tree is centred on them. */
+  anchorIds: string[];
   currentUserId: string;
   isAdmin: boolean;
   claimCandidates: ClaimCandidate[];
@@ -75,8 +197,10 @@ function buildGraph(
   people: TreeGraphPerson[],
   relationships: TreeGraphEdge[],
   selfPersonId: string | null,
-) {
-  const positions = layoutTree(people, relationships);
+  anchorIds: string[],
+): { nodes: Node[]; edges: Edge[]; layout: TreeLayout } {
+  const layout = layoutTree(people, relationships, { anchorIds });
+  const { positions, unions } = layout;
   const ids = new Set(people.map((p) => p.id));
 
   const nodes: Node[] = people.map((person) => ({
@@ -91,78 +215,31 @@ function buildGraph(
     },
   }));
 
-  const parentEdges = relationships.filter(
-    (r) => r.type === "parent" && ids.has(r.from_person) && ids.has(r.to_person),
-  );
-
-  // Spouse pairs, keyed order-independently, so a child of a married couple
-  // can be hung off one shared "union" point instead of two parent edges.
-  const pairKey = (a: string, b: string) => [a, b].sort().join("~");
-  const spousePairs = new Set(
-    relationships
-      .filter(
-        (r) =>
-          r.type === "spouse" && ids.has(r.from_person) && ids.has(r.to_person),
-      )
-      .map((r) => pairKey(r.from_person, r.to_person)),
-  );
-
-  const parentsByChild = new Map<string, string[]>();
-  for (const r of parentEdges) {
-    const list = parentsByChild.get(r.to_person) ?? [];
-    if (!list.includes(r.from_person)) list.push(r.from_person);
-    parentsByChild.set(r.to_person, list);
-  }
-
   const edges: Edge[] = [];
-  const unionNodes = new Map<string, Node>();
-  // Children whose parent edges are drawn via a couple union (skipped below).
-  const childrenViaUnion = new Set<string>();
-
   const parentEdgeStyle = { stroke: "var(--border)", strokeWidth: 1.5 };
 
-  for (const [child, parents] of parentsByChild) {
-    if (parents.length !== 2 || !spousePairs.has(pairKey(parents[0], parents[1])))
-      continue;
-    const a = positions.get(parents[0]);
-    const b = positions.get(parents[1]);
-    if (!a || !b) continue;
-
-    const unionId = `u:${pairKey(parents[0], parents[1])}`;
-    if (!unionNodes.has(unionId)) {
-      unionNodes.set(unionId, {
-        id: unionId,
-        type: "union",
-        // Centre of the two partner nodes — sits on the spouse line.
-        position: {
-          x: (a.x + b.x) / 2 + NODE_W / 2,
-          y: (a.y + b.y) / 2 + NODE_H / 2,
+  // One bus-routed descent edge per child. The edge is anchored to a real
+  // parent node so React Flow re-renders it whenever that parent moves; it
+  // carries the whole parent set in `data` so it can find the junction between
+  // them, and the layout's `busY` as a first-paint fallback.
+  for (const union of unions) {
+    const [primary] = union.parents;
+    if (!primary) continue;
+    for (const child of union.children) {
+      edges.push({
+        id: `d:${union.id}->${child}`,
+        source: primary,
+        target: child,
+        type: "descent",
+        data: {
+          parents: union.parents,
+          startX: union.startX,
+          startY: union.startY,
+          busY: union.busY,
         },
-        data: {},
-        draggable: false,
-        selectable: false,
-        focusable: false,
+        style: parentEdgeStyle,
       });
     }
-    edges.push({
-      id: `d:${unionId}->${child}`,
-      source: unionId,
-      target: child,
-      type: "smoothstep",
-      style: parentEdgeStyle,
-    });
-    childrenViaUnion.add(child);
-  }
-
-  for (const r of parentEdges) {
-    if (childrenViaUnion.has(r.to_person)) continue;
-    edges.push({
-      id: `p:${r.from_person}->${r.to_person}`,
-      source: r.from_person,
-      target: r.to_person,
-      type: "smoothstep",
-      style: parentEdgeStyle,
-    });
   }
 
   for (const r of relationships) {
@@ -192,7 +269,7 @@ function buildGraph(
     });
   }
 
-  return { nodes: [...nodes, ...unionNodes.values()], edges };
+  return { nodes, edges, layout };
 }
 
 function Canvas({
@@ -200,6 +277,7 @@ function Canvas({
   relationships,
   treeId,
   selfPersonId,
+  anchorIds,
   currentUserId,
   isAdmin,
   claimCandidates,
@@ -209,16 +287,24 @@ function Canvas({
     () => new Set(claimCandidates.map((c) => c.id)),
     [claimCandidates],
   );
-  const initial = React.useMemo(
-    () => buildGraph(people, relationships, selfPersonId),
-    [people, relationships, selfPersonId],
+  const graph = React.useMemo(
+    () => buildGraph(people, relationships, selfPersonId, anchorIds),
+    [people, relationships, selfPersonId, anchorIds],
   );
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(initial.nodes);
-  const [edges, , onEdgesChange] = useEdgesState(initial.edges);
+  const [nodes, setNodes, onNodesChange] = useNodesState(graph.nodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(graph.edges);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const [filter, setFilter] = React.useState<TreeFilter>(EMPTY_FILTER);
+  const [arranging, setArranging] = React.useState(false);
   const { fitView } = useReactFlow();
+
+  // Re-seed the canvas whenever the graph itself changes — a new relative, or
+  // an auto-arrange that cleared everybody's nudges.
+  React.useEffect(() => {
+    setNodes(graph.nodes);
+    setEdges(graph.edges);
+  }, [graph, setNodes, setEdges]);
 
   React.useEffect(() => {
     setNodes((current) =>
@@ -268,13 +354,33 @@ function Canvas({
     setSelectedId(node.id);
   }, []);
 
-  const onNodeDragStop = React.useCallback<OnNodeDrag>((_, node) => {
-    void setPersonPosition(node.id, node.position.x, node.position.y).then(
-      (res) => {
+  // A drag is stored as a nudge from where the layout put the card, so the
+  // card keeps its offset as the tree grows instead of freezing in place.
+  const onNodeDragStop = React.useCallback<OnNodeDrag>(
+    (_, node) => {
+      if (node.type !== "person") return;
+      const auto = graph.layout.autoPositions.get(node.id);
+      if (!auto) return;
+      void setPersonPosition(
+        node.id,
+        node.position.x - auto.x,
+        node.position.y - auto.y,
+      ).then((res) => {
         if (res.error) toast.error(res.error);
-      },
-    );
-  }, []);
+      });
+    },
+    [graph],
+  );
+
+  const onAutoArrange = React.useCallback(() => {
+    setArranging(true);
+    void autoArrangeTree(treeId)
+      .then((res) => {
+        if (res.error) toast.error(res.error);
+        else toast.success("Tree re-arranged.");
+      })
+      .finally(() => setArranging(false));
+  }, [treeId]);
 
   const selectedPerson =
     people.find((p) => p.id === selectedId) ?? null;
@@ -325,6 +431,7 @@ function Canvas({
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeClick={onNodeClick}
@@ -339,6 +446,16 @@ function Canvas({
         nodesConnectable={false}
         nodesDraggable
       >
+        <ViewportPortal>
+          {graph.layout.bands.map((band) => (
+            <GenerationLane
+              key={band.generation}
+              band={band}
+              minX={graph.layout.extent.minX - 96}
+              maxX={graph.layout.extent.maxX + 96}
+            />
+          ))}
+        </ViewportPortal>
         <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
         <Controls showInteractive={false} />
         <MiniMap
@@ -356,6 +473,16 @@ function Canvas({
           >
             Add a relative
           </Button>
+          {isAdmin ? (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onAutoArrange}
+              disabled={arranging}
+            >
+              {arranging ? "Arranging…" : "Auto-arrange"}
+            </Button>
+          ) : null}
           {multiTreeEnabled ? (
             <Button
               nativeButton={false}
