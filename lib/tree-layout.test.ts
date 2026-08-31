@@ -383,11 +383,11 @@ describe("generation bands", () => {
     const { bands } = layoutTree(people, relationships, {
       anchorIds: ["adminA", "adminB"],
     });
-    // "Parents" would mislabel every aunt and uncle sharing that row.
+    // Ancestors count up from the founders, descendants count down.
     expect(bands.map((b) => b.label)).toEqual([
-      "Parents' generation",
+      "Generation One",
       "Founders' generation",
-      "Children's generation",
+      "Generation minus One",
     ]);
     expect(bands.find((b) => b.generation === -1)!.count).toBe(4);
   });
@@ -436,11 +436,21 @@ describe("generation bands", () => {
     expect(bands.find((b) => b.generation === 1)!.sublabel).toBeNull();
   });
 
-  it("names deep generations", () => {
-    expect(generationLabel(-3)).toBe("Great-grandparents' generation");
-    expect(generationLabel(-5)).toBe("3× great-grandparents' generation");
-    expect(generationLabel(4)).toBe("2× great-grandchildren's generation");
+  it("numbers generations outward from the founders", () => {
     expect(generationLabel(0)).toBe("Founders' generation");
+    // Ancestors count up …
+    expect(generationLabel(-1)).toBe("Generation One");
+    expect(generationLabel(-2)).toBe("Generation Two");
+    expect(generationLabel(-5)).toBe("Generation Five");
+    // … descendants count down.
+    expect(generationLabel(1)).toBe("Generation minus One");
+    expect(generationLabel(3)).toBe("Generation minus Three");
+  });
+
+  it("falls back to digits past the spelled-out numbers", () => {
+    expect(generationLabel(-12)).toBe("Generation Twelve");
+    expect(generationLabel(-13)).toBe("Generation 13");
+    expect(generationLabel(13)).toBe("Generation minus 13");
   });
 });
 

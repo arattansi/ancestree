@@ -772,38 +772,44 @@ function measure(base: Map<string, XY>) {
     : { minX: 0, maxX: 0 };
 }
 
-const ANCESTOR_LABELS = ["Founders", "Parents", "Grandparents"];
-const DESCENDANT_LABELS = ["Founders", "Children", "Grandchildren"];
+const NUMBER_WORDS = [
+  "Zero",
+  "One",
+  "Two",
+  "Three",
+  "Four",
+  "Five",
+  "Six",
+  "Seven",
+  "Eight",
+  "Nine",
+  "Ten",
+  "Eleven",
+  "Twelve",
+];
 
-/** "Parents" → "Parents'"; "Children" → "Children's". */
-const possessive = (noun: string) =>
-  noun.endsWith("s") ? `${noun}'` : `${noun}'s`;
-
-/**
- * The cohort that occupies a generation: "Parents", "Great-grandparents", … —
- * relative to the anchors.
- */
-function generationCohort(generation: number): string {
-  if (generation === 0) return "Founders";
-  const up = generation < 0;
-  const depth = Math.abs(generation);
-  const table = up ? ANCESTOR_LABELS : DESCENDANT_LABELS;
-  if (depth < table.length) return table[depth];
-  const greats = depth - 2;
-  const base = up ? "grandparents" : "grandchildren";
-  return greats === 1 ? `Great-${base}` : `${greats}× great-${base}`;
-}
+/** "One", "Two", … falling back to digits once the words get unwieldy. */
+const numberWord = (n: number) => NUMBER_WORDS[n] ?? String(n);
 
 /**
- * A generation band's label: "Parents' generation", not "Parents".
+ * A generation band's label: "Generation Two", not "Grandparents".
  *
- * A row holds a whole cohort, not one relationship — your parents share it with
- * their siblings, their siblings' partners, and anyone else born into that
- * generation. Labelling the band "Parents" quietly mislabels every aunt and
- * uncle on it; naming the *generation* is true of everyone in the row.
+ * A row holds a whole cohort, not one relationship — your parents share theirs
+ * with their siblings, their siblings' partners, and everyone else born into
+ * it — so naming the row after a relationship mislabels every aunt and uncle on
+ * it. Numbering the generation is true of everyone in the row.
+ *
+ * Numbers count *outward from the founders*: ancestors go up (parents are
+ * Generation One, grandparents Two) and descendants go down (children are
+ * Generation minus One). That is the inverse of the internal generation index,
+ * which grows downward with `y`.
  */
 export function generationLabel(generation: number): string {
-  return `${possessive(generationCohort(generation))} generation`;
+  if (generation === 0) return "Founders' generation";
+  const away = -generation;
+  return away > 0
+    ? `Generation ${numberWord(away)}`
+    : `Generation minus ${numberWord(-away)}`;
 }
 
 /**
