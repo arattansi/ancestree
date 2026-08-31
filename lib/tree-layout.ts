@@ -29,7 +29,7 @@
 
 /** Card size, matching `person-node.tsx` (`w-52`). */
 export const NODE_W = 208;
-export const NODE_H = 96;
+export const NODE_H = 112;
 /** Minimum gap between two cards that are not partners. */
 export const GUTTER = 48;
 /** Partners sit closer together than unrelated neighbours. */

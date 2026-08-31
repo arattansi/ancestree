@@ -5,7 +5,11 @@ import { Handle, Position, type NodeProps } from "@xyflow/react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-import { personDisplayName, personInitials } from "@/lib/person-name";
+import {
+  personDisplayName,
+  personInitials,
+  personLifespan,
+} from "@/lib/person-name";
 import type { TreeGraphPerson } from "@/lib/tree";
 
 export type PersonNodeData = {
@@ -25,12 +29,11 @@ function PersonNodeImpl({ data }: NodeProps) {
     data as PersonNodeData;
   const name = personDisplayName(person);
   const deceased = person.is_deceased;
-  const birthYear = person.date_of_birth?.slice(0, 4) ?? null;
+  // Dates on their own line ("1948 – 2019" / "b. 1995"), birthplace on the next,
+  // so a deceased person's death year is always visible without crowding out
+  // the place of birth.
+  const lifespan = personLifespan(person);
   const birthplace = person.city_of_birth || person.country_of_birth || null;
-  // e.g. "b. 1995, Burnaby"
-  const born = [birthYear && `b. ${birthYear}`, birthplace]
-    .filter(Boolean)
-    .join(", ");
 
   return (
     <div className={cn("group relative", dimmed && "opacity-25")}>
@@ -58,8 +61,13 @@ function PersonNodeImpl({ data }: NodeProps) {
             >
               {name}
             </p>
-            {born ? (
-              <p className="truncate text-xs text-muted-foreground">{born}</p>
+            {lifespan ? (
+              <p className="truncate text-xs text-muted-foreground">{lifespan}</p>
+            ) : null}
+            {birthplace ? (
+              <p className="truncate text-xs text-muted-foreground">
+                {birthplace}
+              </p>
             ) : null}
           </div>
         </div>
@@ -69,7 +77,7 @@ function PersonNodeImpl({ data }: NodeProps) {
           // Fixed height (matching NODE_H) so every card is identical: the
           // left/right handles sit at each card's own centre, so cards of
           // differing heights would tilt the spouse line between them.
-          "relative flex h-24 w-52 items-center gap-3 overflow-hidden rounded-xl border bg-card px-3 py-2.5 text-left shadow-sm transition-[colors,opacity,transform,box-shadow]",
+          "relative flex h-28 w-52 items-center gap-3 overflow-hidden rounded-xl border bg-card px-3 py-2.5 text-left shadow-sm transition-[colors,opacity,transform,box-shadow]",
           "hover:border-ring/60",
           deceased ? "border-dashed border-border" : "border-border",
           selected && "border-ring ring-2 ring-ring/40",
@@ -141,9 +149,20 @@ function PersonNodeImpl({ data }: NodeProps) {
             née {person.maiden_name}
           </p>
         ) : null}
-        {born ? (
-          <p className="truncate text-xs text-muted-foreground" title={born}>
-            {born}
+        {lifespan ? (
+          <p
+            className="truncate text-xs text-muted-foreground"
+            title={lifespan}
+          >
+            {lifespan}
+          </p>
+        ) : null}
+        {birthplace ? (
+          <p
+            className="truncate text-xs text-muted-foreground"
+            title={birthplace}
+          >
+            {birthplace}
           </p>
         ) : null}
       </div>
