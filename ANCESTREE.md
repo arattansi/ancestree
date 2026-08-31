@@ -104,7 +104,7 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 |---|---|
 | `trees` | Multi-tree-ready container (v1 uses one shared tree) |
 | `profiles` | `auth.users` row: `role` (`admin` \| `member`), `can_invite`, `self_person_id` |
-| `people` | Demographic nodes; `owner_user_id` starts as `created_by` and moves on claim |
+| `people` | Demographic nodes; `owner_user_id` starts as `created_by` and moves on claim. `place_id_birth` / `place_id_death` → `places(id)` (Step 4.5b; nullable, backfilled — legacy `city_of_birth` / `country_of_birth` / `place_of_death` text kept until reconciled) |
 | `relationships` | Directed `parent` edges; undirected `spouse` pairs (optional `marriage_date` / `is_divorced` / `divorce_date`, spouse-only by CHECK); siblings inferred |
 | `connection_suggestions` | Implied-connection prompts surfaced by the add-person flow (`suggested_type` spouse/parent/sibling_check, `source`, `status` pending/accepted/dismissed); UNIQUE (subject, related, type, source) = no re-prompt |
 | `invites` | Shareable tokens (`active` \| `accepted` \| `revoked`) |
@@ -238,6 +238,21 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 4.5b — `people` place FKs + backfill** (migration
+  `20260831050000_people_place_id_fks`): `people` gains nullable
+  `place_id_birth` / `place_id_death` bigint FKs to `places(id)` (+ btree
+  indexes). The legacy `city_of_birth` / `country_of_birth` / `place_of_death`
+  text columns are **kept** — dropped only in a later follow-up once the
+  unmatched rows are reconciled. No CHECK/RLS change (new columns nullable;
+  `people` row access already governs them). `scripts/backfill-places.ts`
+  (`npm run backfill:places`) fuzzy-matches the free text against `places`
+  (trigram-style Dice similarity, ISO-country-filtered via
+  `scripts/lib/country-codes.ts`), sets the FK at ≥0.6 confidence, and writes
+  the rest to `scripts/out/backfill-places-unmatched.csv` for manual review.
+  First run: 12/12 birth + 5/5 death matched, 0 unmatched — but "Scarborough,
+  Canada" resolved to *Scarborough Village* (cities500 has no plain
+  "Scarborough" for CA), worth a manual check. Types regenerated.
 
 - **Step 4.5a — GeoNames `places` table + importer** (migrations
   `20260831020000_places_geonames`, `20260831040000_places_trgm_extension_schema`):

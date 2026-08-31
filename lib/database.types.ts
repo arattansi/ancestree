@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       claims: {
@@ -468,14 +493,16 @@ export type Database = {
           date_of_birth: string | null
           date_of_death: string | null
           first_name: string | null
-          last_name: string
-          middle_name: string | null
           id: string
           is_deceased: boolean
+          last_name: string
           lineage_type: string | null
           maiden_name: string | null
+          middle_name: string | null
           owner_user_id: string
           photo_path: string | null
+          place_id_birth: number | null
+          place_id_death: number | null
           place_of_death: string | null
           pos_x: number | null
           pos_y: number | null
@@ -493,14 +520,16 @@ export type Database = {
           date_of_birth?: string | null
           date_of_death?: string | null
           first_name?: string | null
-          last_name: string
-          middle_name?: string | null
           id?: string
           is_deceased: boolean
+          last_name: string
           lineage_type?: string | null
           maiden_name?: string | null
+          middle_name?: string | null
           owner_user_id: string
           photo_path?: string | null
+          place_id_birth?: number | null
+          place_id_death?: number | null
           place_of_death?: string | null
           pos_x?: number | null
           pos_y?: number | null
@@ -518,14 +547,16 @@ export type Database = {
           date_of_birth?: string | null
           date_of_death?: string | null
           first_name?: string | null
-          last_name?: string
-          middle_name?: string | null
           id?: string
           is_deceased?: boolean
+          last_name?: string
           lineage_type?: string | null
           maiden_name?: string | null
+          middle_name?: string | null
           owner_user_id?: string
           photo_path?: string | null
+          place_id_birth?: number | null
+          place_id_death?: number | null
           place_of_death?: string | null
           pos_x?: number | null
           pos_y?: number | null
@@ -563,6 +594,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "people_place_id_birth_fkey"
+            columns: ["place_id_birth"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "people_place_id_death_fkey"
+            columns: ["place_id_death"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "people_tree_id_fkey"
@@ -974,14 +1019,16 @@ export type Database = {
           date_of_birth: string | null
           date_of_death: string | null
           first_name: string | null
-          last_name: string
-          middle_name: string | null
           id: string
           is_deceased: boolean
+          last_name: string
           lineage_type: string | null
           maiden_name: string | null
+          middle_name: string | null
           owner_user_id: string
           photo_path: string | null
+          place_id_birth: number | null
+          place_id_death: number | null
           place_of_death: string | null
           pos_x: number | null
           pos_y: number | null
@@ -1169,6 +1216,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },
