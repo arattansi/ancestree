@@ -111,10 +111,10 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `places` | GeoNames reference data (populated places + admin areas) for birthplace autocomplete; not tree-scoped — read by any member, written only by the import script |
 | `tree_bridges` | Step 9 seam: links a member's own `trees` row to a tree they belong to via a spouse bridge (feature-flagged; second tree not rendered) |
 
-**Checks:** `people` requires given **or** preferred name, family name, country of
+**Checks:** `people` requires first **or** preferred name, last name, country of
 birth, and `is_deceased` (NOT NULL). `lineage_type` is writable by admins only.
-`maiden_name` is an optional nullable text column, visible to and editable by any
-member who can already edit the entry.
+`middle_name` and `maiden_name` are optional nullable text columns, visible to and
+editable by any member who can already edit the entry.
 
 **RLS:** every public table. Members read rows in trees they belong to (admin,
 tree creator, accepted invite, or `self_person`). Writes use
@@ -206,15 +206,20 @@ with population ≥ 500).
   ```
 
   `scripts/import-geonames.ts` streams the file, keeps `feature_class IN ('P','A')`,
-  and batch-upserts (1000/batch) on `id`, so it is safe to re-run. It prints the
-  final `places` row count.
-- **Expected result:** ~235,552 rows (cities500 is entirely `feature_class = 'P'`
-  — it contains no `'A'` admin areas; those would need the full `allCountries`
-  dump or a dedicated admin export).
-- **Free-tier size:** cities500 in `places` (table + the two `pg_trgm` GIN
-  indexes + the `country_code` btree) is on the order of ~100–150 MB, well under
-  the Supabase Free 500 MB database limit. **`allCountries` (~13M rows, ~55×) is
+  and batch-upserts (1000/batch) on `id` via the PostgREST endpoint
+  (`Prefer: resolution=merge-duplicates` — no `supabase-js`, so it runs on
+  Node 20), so it is safe to re-run. It prints the final `places` row count.
+- **Imported:** 2026-08-31 — 235,552 rows (cities500 is entirely
+  `feature_class = 'P'`; it contains no `'A'` admin areas — those would need the
+  full `allCountries` dump or a dedicated admin export). Spot-checked against
+  New York, London, Tokyo, Paris, Buenos Aires; trigram fuzzy search verified
+  (e.g. `search_name LIKE '%zurich%'` → index scan, matches `Zürich`).
+- **Free-tier size:** `places` measures **58 MB** total (table + the two
+  `pg_trgm` GIN indexes + the `country_code` btree); whole DB **70 MB**, well
+  under the Supabase Free 500 MB limit. **`allCountries` (~13M rows, ~55×) is
   multiple GB and must not be imported on the free tier.**
+- `pg_trgm` lives in the `extensions` schema (not `public`), per the Supabase
+  linter — migration `20260831040000_places_trgm_extension_schema`.
 
 ## v1 acceptance checklist
 
@@ -230,18 +235,20 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
-- **Step 4.5a — GeoNames `places` table + importer** (migration
-  `20260831020000_places_geonames`): new `public.places` reference table
-  (GeoNames `geonameid` PK, `name`, `ascii_name`, `country_code`, `admin1_code`,
-  `feature_class` / `feature_code`, lat/lon, `population`, and a stored
-  `search_name = lower(ascii_name)` generated column). `pg_trgm` enabled; GIN
-  trigram indexes on `search_name` and `ascii_name` for fuzzy autocomplete, plus
-  a btree on `country_code`. RLS on: `SELECT` for any `authenticated` member,
-  no write policies (service-role only). `scripts/import-geonames.ts` (run via
+- **Step 4.5a — GeoNames `places` table + importer** (migrations
+  `20260831020000_places_geonames`, `20260831040000_places_trgm_extension_schema`):
+  new `public.places` reference table (GeoNames `geonameid` PK, `name`,
+  `ascii_name`, `country_code`, `admin1_code`, `feature_class` / `feature_code`,
+  lat/lon, `population`, and a stored `search_name = lower(ascii_name)` generated
+  column). `pg_trgm` enabled in the `extensions` schema; GIN trigram indexes on
+  `search_name` and `ascii_name` for fuzzy autocomplete, plus a btree on
+  `country_code`. RLS on: `SELECT` for any `authenticated` member, no write
+  policies (service-role only). `scripts/import-geonames.ts` (run via
   `npm run import:geonames`) streams the tab-delimited GeoNames dump, filters to
-  `feature_class IN ('P','A')`, and idempotently batch-upserts on `id`. New
-  devDep `tsx`. See **Reference data — GeoNames `places`** for the source
-  version, import command, and free-tier size note.
+  `feature_class IN ('P','A')`, and idempotently batch-upserts on `id` through
+  the PostgREST endpoint. New devDep `tsx`. Imported `cities500` (2024-11-04) =
+  235,552 rows, `places` at 58 MB / DB at 70 MB. `lib/database.types.ts`
+  regenerated. See **Reference data — GeoNames `places`**.
 
 - **Step 11.5 — Marriage & divorce UI** (no migration; uses the 11.1 columns):
   spouse links in the add-person flow (base "How they connect" rows +

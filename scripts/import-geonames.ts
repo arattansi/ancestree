@@ -3,23 +3,20 @@
  *
  * Streams the tab-delimited GeoNames export (e.g. `cities500.txt`), keeps only
  * populated places (feature_class 'P') and administrative areas ('A'), and
- * batch-upserts them into `places` keyed on the GeoNames id.
+ * batch-upserts them into `places` keyed on the GeoNames id via the PostgREST
+ * REST endpoint (no supabase-js — keeps this runnable on Node 20).
  *
- * Usage (Node 20+, env from .env.local — needs NEXT_PUBLIC_SUPABASE_URL and
- * SUPABASE_SERVICE_ROLE_KEY):
+ * Usage (needs NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in
+ * .env.local):
  *
  *   npm run import:geonames -- ~/Downloads/cities500.txt
  *
- * or directly:
- *
- *   npx tsx --env-file=.env.local scripts/import-geonames.ts ./cities500.txt
- *
- * Re-runnable: upsert on `id` makes it idempotent. See ANCESTREE.md for the
- * source dump version and the free-tier size note.
+ * Re-runnable: upsert on `id` (Prefer: resolution=merge-duplicates) is
+ * idempotent. See ANCESTREE.md for the source dump version and the free-tier
+ * size note.
  */
 import { createReadStream } from "node:fs";
 import { createInterface } from "node:readline";
-import { createClient } from "@supabase/supabase-js";
 
 const KEPT_FEATURE_CLASSES = new Set(["P", "A"]);
 const BATCH_SIZE = 1000;
@@ -87,11 +84,15 @@ async function main() {
     process.exit(1);
   }
 
-  const supabase = createClient(url, serviceRoleKey, {
-    auth: { persistSession: false },
-  });
+  const endpoint = `${url.replace(/\/$/, "")}/rest/v1/places`;
+  const headers = {
+    "Content-Type": "application/json",
+    apikey: serviceRoleKey,
+    Authorization: `Bearer ${serviceRoleKey}`,
+    Prefer: "resolution=merge-duplicates,return=minimal",
+  };
 
-  console.log(`Importing ${file} -> ${url}/rest/v1/places`);
+  console.log(`Importing ${file} -> ${endpoint}`);
 
   const rl = createInterface({
     input: createReadStream(file, { encoding: "utf8" }),
@@ -107,9 +108,13 @@ async function main() {
     if (batch.length === 0) return;
     const chunk = batch;
     batch = [];
-    const { error } = await supabase.from("places").upsert(chunk, { onConflict: "id" });
-    if (error) {
-      console.error(`\nUpsert failed near row ${read}:`, error.message);
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(chunk),
+    });
+    if (!res.ok) {
+      console.error(`\nUpsert failed near row ${read} (HTTP ${res.status}):`, await res.text());
       process.exit(1);
     }
     written += chunk.length;
@@ -129,16 +134,15 @@ async function main() {
 
   process.stdout.write("\n");
 
-  const { count, error: countError } = await supabase
-    .from("places")
-    .select("*", { count: "exact", head: true });
-  if (countError) {
-    console.error("Could not read back row count:", countError.message);
-  }
+  const countRes = await fetch(`${endpoint}?select=id`, {
+    method: "HEAD",
+    headers: { ...headers, Prefer: "count=exact" },
+  });
+  const total = countRes.headers.get("content-range")?.split("/")[1] ?? "?";
 
   console.log(
     `Done. Read ${read} lines, kept ${kept} (P/A), upserted ${written}. ` +
-      `places now holds ${count ?? "?"} rows.`,
+      `places now holds ${total} rows.`,
   );
 }
 

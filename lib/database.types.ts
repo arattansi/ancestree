@@ -584,6 +584,48 @@ export type Database = {
           },
         ]
       }
+      places: {
+        Row: {
+          admin1_code: string | null
+          ascii_name: string | null
+          country_code: string | null
+          feature_class: string | null
+          feature_code: string | null
+          id: number
+          latitude: number | null
+          longitude: number | null
+          name: string
+          population: number | null
+          search_name: string | null
+        }
+        Insert: {
+          admin1_code?: string | null
+          ascii_name?: string | null
+          country_code?: string | null
+          feature_class?: string | null
+          feature_code?: string | null
+          id: number
+          latitude?: number | null
+          longitude?: number | null
+          name: string
+          population?: number | null
+          search_name?: string | null
+        }
+        Update: {
+          admin1_code?: string | null
+          ascii_name?: string | null
+          country_code?: string | null
+          feature_class?: string | null
+          feature_code?: string | null
+          id?: number
+          latitude?: number | null
+          longitude?: number | null
+          name?: string
+          population?: number | null
+          search_name?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           auth_user_id: string
