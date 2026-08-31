@@ -285,7 +285,11 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   positions read out of the React Flow store — an invisible junction *node*
   would stay where the layout first put it and detach the moment a parent was
   dragged. It also handles a lone parent and partners dragged apart by dropping
-  the start below the cards rather than across a face. Drags now persist as a **nudge** (`pos_dx`/`pos_dy`)
+  the start below the cards rather than across a face. Spouse lines are drawn
+  level through both cards' vertical middles (`lateralGeometry`), stepping at
+  right angles rather than sloping if a partner is dragged off the row; the
+  person card is a fixed `NODE_H` tall so cards with different amounts of detail
+  can no longer tilt the line between them. Drags now persist as a **nudge** (`pos_dx`/`pos_dy`)
   from the computed position rather than an absolute pin, so a moved card follows
   the tree as it grows; legacy `pos_x`/`pos_y` still win until that card is next
   dragged, and an admin-only **Auto-arrange** (`autoArrangeTree`) clears every

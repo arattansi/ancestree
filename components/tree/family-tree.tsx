@@ -47,11 +47,13 @@ import { multiTreeEnabled } from "@/lib/flags";
 import { cn } from "@/lib/utils";
 import {
   descentGeometry,
+  lateralGeometry,
   layoutTree,
   NODE_H,
   NODE_W,
   type CardRect,
   type Descent,
+  type Lateral,
   type GenerationBand,
   type TreeLayout,
 } from "@/lib/tree-layout";
@@ -135,6 +137,70 @@ function DescentEdge({
 }
 
 /**
+ * The line between two partners.
+ *
+ * Drawn level, through the vertical middle of both cards, so a marriage reads
+ * as a lateral connection rather than a slightly sloped mistake. Positions come
+ * from the store rather than from the handles so the line stays level even if a
+ * card's height ever varies again; if a partner has been dragged out of line it
+ * steps around at right angles instead of going diagonal.
+ */
+function SpouseEdge({
+  id,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  data,
+  style,
+}: EdgeProps) {
+  const pair = React.useMemo(
+    () => (Array.isArray(data?.pair) ? (data.pair as string[]) : []),
+    [data],
+  );
+
+  const lateral = useStore(
+    React.useCallback(
+      (state: ReactFlowState): Lateral | null => {
+        const [a, b] = pair.map((nodeId) => {
+          const node = state.nodeLookup.get(nodeId);
+          if (!node) return null;
+          const { x, y } = node.internals.positionAbsolute;
+          return {
+            x,
+            y,
+            w: node.measured?.width ?? NODE_W,
+            h: node.measured?.height ?? NODE_H,
+          };
+        });
+        return a && b ? lateralGeometry(a, b) : null;
+      },
+      [pair],
+    ),
+    (a, b) => a?.y === b?.y && a?.jogged === b?.jogged,
+  );
+
+  // A partner dragged off the row: step around it rather than slope across.
+  if (lateral?.jogged) {
+    const [stepped] = getSmoothStepPath({
+      sourceX,
+      sourceY,
+      sourcePosition: Position.Right,
+      targetX,
+      targetY,
+      targetPosition: Position.Left,
+      borderRadius: 8,
+    });
+    return <BaseEdge id={id} path={stepped} style={style} />;
+  }
+
+  const y = lateral?.y ?? sourceY;
+  return (
+    <BaseEdge id={id} path={`M ${sourceX},${y} L ${targetX},${y}`} style={style} />
+  );
+}
+
+/**
  * A generation lane behind the cards: alternating tint plus a label naming the
  * row relative to the founders ("Grandparents · b. 1930s"). This is what makes
  * a large chart scannable — you can find a generation without tracing edges.
@@ -176,7 +242,7 @@ function GenerationLane({
   );
 }
 
-const edgeTypes = { descent: DescentEdge };
+const edgeTypes = { descent: DescentEdge, spouse: SpouseEdge };
 
 const nodeTypes = { person: PersonNode };
 
@@ -257,7 +323,8 @@ function buildGraph(
       target: right,
       sourceHandle: "r",
       targetHandle: "l",
-      type: "straight",
+      type: "spouse",
+      data: { pair: [left, right] },
       selectable: false,
       style: {
         stroke: "var(--muted-foreground)",

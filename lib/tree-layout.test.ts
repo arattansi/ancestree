@@ -7,6 +7,7 @@ import {
   ROW_GAP,
   ROW_H,
   descentGeometry,
+  lateralGeometry,
   generationLabel,
   layoutTree,
   type LayoutPerson,
@@ -511,5 +512,47 @@ describe("descentGeometry", () => {
 
   it("has no geometry without parents", () => {
     expect(descentGeometry([], childTop)).toBeNull();
+  });
+});
+
+describe("lateralGeometry", () => {
+  const card = (x: number, y: number, h = NODE_H) => ({ x, y, w: NODE_W, h });
+
+  it("runs level through the middle of two aligned cards", () => {
+    const l = lateralGeometry(card(0, 0), card(NODE_W + 24, 0));
+    expect(l.y).toBe(NODE_H / 2);
+    expect(l.jogged).toBe(false);
+  });
+
+  it("stays level for cards of differing height", () => {
+    // The old failure: taller card, centre handle lower, line sloped.
+    const l = lateralGeometry(card(0, 0), card(NODE_W + 24, 0, NODE_H + 40));
+    expect(l.jogged).toBe(true);
+  });
+
+  it("ignores sub-pixel rounding rather than jogging for it", () => {
+    const l = lateralGeometry(card(0, 0), card(NODE_W + 24, 0.4));
+    expect(l.jogged).toBe(false);
+  });
+
+  it("jogs when a partner is dragged off the row", () => {
+    const l = lateralGeometry(card(0, 0), card(NODE_W + 24, 120));
+    expect(l.jogged).toBe(true);
+  });
+});
+
+describe("couples sit level", () => {
+  it("puts both partners on exactly the same row", () => {
+    const { people, relationships } = family();
+    const { positions } = layoutTree(people, relationships, {
+      anchorIds: ["adminA", "adminB"],
+    });
+    for (const [a, b] of [
+      ["adminA", "adminB"],
+      ["gpaA", "gmaA"],
+      ["gpaB", "gmaB"],
+    ] as const) {
+      expect(positions.get(a)!.y).toBe(positions.get(b)!.y);
+    }
   });
 });

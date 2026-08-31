@@ -32,7 +32,10 @@ function PersonNodeImpl({ data }: NodeProps) {
   return (
     <div
       className={cn(
-        "relative flex w-52 items-center gap-3 rounded-xl border bg-card px-3 py-2.5 text-left shadow-sm transition-[colors,opacity]",
+        // Fixed height (matching NODE_H) so every card is identical: the
+        // left/right handles sit at each card's own centre, so cards of
+        // differing heights would tilt the spouse line between them.
+        "relative flex h-24 w-52 items-center gap-3 overflow-hidden rounded-xl border bg-card px-3 py-2.5 text-left shadow-sm transition-[colors,opacity]",
         "hover:border-ring/60",
         dimmed && "opacity-25",
         deceased ? "border-dashed border-border" : "border-border",

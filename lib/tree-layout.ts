@@ -733,6 +733,27 @@ export function descentGeometry(
   return { startX, startY, busY };
 }
 
+/** A lateral (spouse) line: a horizontal run, or an orthogonal jog. */
+export type Lateral = { y: number; jogged: boolean };
+
+/**
+ * Where the line between two partners should sit vertically.
+ *
+ * A lateral connection reads as a connection only when it is level — a line
+ * that slopes a few pixels between two cards looks like a mistake rather than a
+ * marriage. When both cards' centres agree (the normal case, since every card
+ * is the same height) the line is horizontal through those centres. When a
+ * partner has been dragged or nudged out of line, the renderer steps around it
+ * at right angles instead of drawing a diagonal.
+ */
+export function lateralGeometry(a: CardRect, b: CardRect): Lateral {
+  const centreA = a.y + a.h / 2;
+  const centreB = b.y + b.h / 2;
+  // Sub-pixel differences come from rounding, not from intent.
+  const jogged = Math.abs(centreA - centreB) > 1;
+  return { y: (centreA + centreB) / 2, jogged };
+}
+
 /**
  * Apply the manual layer on top of the computed positions: a soft offset
  * (`pos_dx` / `pos_dy`) nudges a card and follows the tree as it grows; a
