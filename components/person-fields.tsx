@@ -28,7 +28,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { LINEAGE_TYPES } from "@/lib/person-schema";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { SEX_LABELS, SEX_VALUES, LINEAGE_TYPES } from "@/lib/person-schema";
 
 /**
  * The shared demographic fieldset for a single person. Works standalone
@@ -181,6 +182,33 @@ export function PersonFields<T extends FieldValues>({
             <FormDescription>
               Optional. A last name at birth, before any change on marriage.
             </FormDescription>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={control}
+        name={name("sex")}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Sex</FormLabel>
+            <FormControl>
+              <RadioGroup
+                value={field.value ?? null}
+                onValueChange={(v) => field.onChange(v || undefined)}
+              >
+                {SEX_VALUES.map((s) => (
+                  <label
+                    key={s}
+                    className="flex items-center gap-3 text-sm font-normal"
+                  >
+                    <RadioGroupItem value={s} />
+                    {SEX_LABELS[s]}
+                  </label>
+                ))}
+              </RadioGroup>
+            </FormControl>
             <FormMessage />
           </FormItem>
         )}

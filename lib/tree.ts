@@ -26,6 +26,7 @@ export type TreeGraphPerson = {
   place_id_death: number | null;
   is_deceased: boolean;
   place_of_death: string | null;
+  sex: string | null;
   /** "City, Period name · now Country" when a curated period name applies to the
    *  birth/death year (Step 4.5d); otherwise null and the plain text is shown. */
   birth_place_historical: string | null;
@@ -62,7 +63,7 @@ export type TreeGraphEdge = {
 };
 
 const PERSON_COLUMNS =
-  "id, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_death, city_of_birth, country_of_birth, place_id_birth, place_id_death, is_deceased, place_of_death, lineage_type, photo_path, pos_x, pos_y, owner_user_id, created_by, verified_at, pos_dx, pos_dy";
+  "id, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_death, city_of_birth, country_of_birth, place_id_birth, place_id_death, is_deceased, place_of_death, sex, lineage_type, photo_path, pos_x, pos_y, owner_user_id, created_by, verified_at, pos_dx, pos_dy";
 
 /** Everyone in the tree plus their relationship edges, with signed photo URLs. */
 export async function getTreeGraph(treeId: string): Promise<{

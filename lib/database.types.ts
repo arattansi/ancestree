@@ -550,6 +550,7 @@ export type Database = {
           pos_x: number | null
           pos_y: number | null
           preferred_name: string | null
+          sex: string | null
           tree_id: string
           updated_at: string
           verified_at: string | null
@@ -579,6 +580,7 @@ export type Database = {
           pos_x?: number | null
           pos_y?: number | null
           preferred_name?: string | null
+          sex?: string | null
           tree_id: string
           updated_at?: string
           verified_at?: string | null
@@ -608,6 +610,7 @@ export type Database = {
           pos_x?: number | null
           pos_y?: number | null
           preferred_name?: string | null
+          sex?: string | null
           tree_id?: string
           updated_at?: string
           verified_at?: string | null
@@ -1025,6 +1028,17 @@ export type Database = {
         Returns: Json
       }
       claim_person: { Args: { p_person_id: string }; Returns: Json }
+      connect_people: {
+        Args: {
+          p_divorce_date?: string
+          p_from: string
+          p_is_divorced?: boolean
+          p_marriage_date?: string
+          p_to: string
+          p_type: string
+        }
+        Returns: string
+      }
       dispute_claim: {
         Args: { p_claim_id: string; p_reason?: string }
         Returns: undefined
@@ -1082,6 +1096,7 @@ export type Database = {
           pos_x: number | null
           pos_y: number | null
           preferred_name: string | null
+          sex: string | null
           tree_id: string
           updated_at: string
           verified_at: string | null

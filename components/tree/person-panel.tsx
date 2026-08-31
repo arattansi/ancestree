@@ -19,6 +19,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -33,6 +34,7 @@ import {
   personInitials,
   personLifespan,
 } from "@/lib/person-name";
+import { SEX_LABELS, type Sex } from "@/lib/person-schema";
 import type { TreeGraphPerson } from "@/lib/tree";
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
@@ -335,6 +337,7 @@ export function PersonPanel({
   const [busy, setBusy] = React.useState(false);
   const [disputing, setDisputing] = React.useState(false);
   const [reason, setReason] = React.useState("");
+  const [photoOpen, setPhotoOpen] = React.useState(false);
   const [prevId, setPrevId] = React.useState(person?.id);
 
   // Reset the inline dispute form whenever a different person is selected.
@@ -342,6 +345,7 @@ export function PersonPanel({
     setPrevId(person?.id);
     setDisputing(false);
     setReason("");
+    setPhotoOpen(false);
   }
 
   async function onClaim() {
@@ -419,12 +423,25 @@ export function PersonPanel({
           <>
             <SheetHeader className="gap-3">
               <div className="flex items-center gap-3">
-                <Avatar size="lg">
-                  {person.photo_url ? (
-                    <AvatarImage src={person.photo_url} alt="" />
-                  ) : null}
-                  <AvatarFallback>{personInitials(person)}</AvatarFallback>
-                </Avatar>
+                {person.photo_url ? (
+                  <button
+                    type="button"
+                    className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    onClick={() => setPhotoOpen(true)}
+                    aria-label={`View photo of ${personDisplayName(person)}`}
+                  >
+                    <Avatar size="lg" className="cursor-zoom-in">
+                      <AvatarImage src={person.photo_url} alt="" />
+                      <AvatarFallback>
+                        {personInitials(person)}
+                      </AvatarFallback>
+                    </Avatar>
+                  </button>
+                ) : (
+                  <Avatar size="lg">
+                    <AvatarFallback>{personInitials(person)}</AvatarFallback>
+                  </Avatar>
+                )}
                 <div className="min-w-0">
                   <SheetTitle className="truncate">
                     {personDisplayName(person)}
@@ -467,6 +484,12 @@ export function PersonPanel({
                 <Field label="Preferred name" value={person.preferred_name} />
                 <Field label="Maiden name" value={person.maiden_name} />
                 <Field label="Last name" value={person.last_name} />
+                <Field
+                  label="Sex"
+                  value={
+                    person.sex ? SEX_LABELS[person.sex as Sex] ?? null : null
+                  }
+                />
                 <Field label="Date of birth" value={person.date_of_birth} />
                 <Field
                   label="Place of birth"
@@ -641,6 +664,21 @@ export function PersonPanel({
                 ) : null}
               </section>
             </div>
+
+            {person.photo_url ? (
+              <Dialog open={photoOpen} onOpenChange={setPhotoOpen}>
+                <DialogContent className="w-fit max-w-[calc(100%-2rem)] bg-transparent p-0 ring-0 sm:max-w-lg">
+                  <DialogTitle className="sr-only">
+                    Photo of {personDisplayName(person)}
+                  </DialogTitle>
+                  <img
+                    src={person.photo_url}
+                    alt={`Photo of ${personDisplayName(person)}`}
+                    className="max-h-[80vh] w-auto rounded-xl object-contain"
+                  />
+                </DialogContent>
+              </Dialog>
+            ) : null}
           </>
         ) : null}
       </SheetContent>

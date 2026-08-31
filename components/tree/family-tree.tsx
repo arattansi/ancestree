@@ -457,7 +457,9 @@ function Canvas({
     const nameById = new Map(people.map((p) => [p.id, personDisplayName(p)]));
     return relationships
       .filter(
-        (r) => r.from_person === selectedId || r.to_person === selectedId,
+        (r) =>
+          (r.type === "parent" || r.type === "spouse") &&
+          (r.from_person === selectedId || r.to_person === selectedId),
       )
       .flatMap((r) => {
         const otherId =

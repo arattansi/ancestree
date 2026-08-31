@@ -3,12 +3,18 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { PersonForm } from "@/components/person-form";
+import {
+  EditConnections,
+  type ConnectionKind,
+  type ExistingConnection,
+} from "@/components/tree/edit-connections";
 import { Button } from "@/components/ui/button";
 import { getUser, requireSelfPerson } from "@/lib/auth";
 import { personDisplayName } from "@/lib/person-name";
 import { formatPlaceLabel, getPlacesByIds } from "@/lib/places";
 import type { PersonFormValues } from "@/lib/person-schema";
 import { createClient } from "@/lib/supabase/server";
+import { listTreeMembers } from "@/lib/tree";
 
 export const metadata: Metadata = { title: "Edit entry" };
 
@@ -26,7 +32,7 @@ export default async function EditPersonPage({
   const { data: person } = await supabase
     .from("people")
     .select(
-      "id, tree_id, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, place_id_birth, city_of_birth, country_of_birth, is_deceased, date_of_death, place_id_death, place_of_death, lineage_type, photo_path, owner_user_id, created_by",
+      "id, tree_id, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, place_id_birth, city_of_birth, country_of_birth, is_deceased, date_of_death, place_id_death, place_of_death, sex, lineage_type, photo_path, owner_user_id, created_by",
     )
     .eq("id", id)
     .maybeSingle();
@@ -74,6 +80,37 @@ export default async function EditPersonPage({
     death: deathPlace ? formatPlaceLabel(deathPlace) : person.place_of_death,
   };
 
+  const [allMembers, { data: rels }] = await Promise.all([
+    listTreeMembers(person.tree_id),
+    supabase
+      .from("relationships")
+      .select("id, from_person, to_person, type, created_by")
+      .or(`from_person.eq.${person.id},to_person.eq.${person.id}`),
+  ]);
+  const members = allMembers.filter((m) => m.id !== person.id);
+  const nameById = new Map(allMembers.map((m) => [m.id, m.label]));
+  const connections: ExistingConnection[] = (rels ?? []).flatMap((r) => {
+    const otherId = r.from_person === person.id ? r.to_person : r.from_person;
+    const otherName = nameById.get(otherId);
+    if (!otherName) return [];
+    // parent edges are stored from = parent, to = child; spouse / sibling
+    // edges are undirected.
+    const kind: ConnectionKind =
+      r.type === "spouse" || r.type === "sibling"
+        ? (r.type as "spouse" | "sibling")
+        : r.from_person === person.id
+          ? "parent"
+          : "child";
+    return [
+      {
+        id: r.id,
+        otherName,
+        kind,
+        canRemove: isAdmin || r.created_by === user.id,
+      },
+    ];
+  });
+
   const values: PersonFormValues = {
     first_name: person.first_name ?? "",
     middle_name: person.middle_name ?? "",
@@ -88,6 +125,7 @@ export default async function EditPersonPage({
     date_of_death: person.date_of_death ?? "",
     place_id_death: person.place_id_death ?? null,
     place_of_death: person.place_of_death ?? "",
+    sex: (person.sex as PersonFormValues["sex"]) ?? undefined,
     lineage_type:
       (person.lineage_type as PersonFormValues["lineage_type"]) ?? undefined,
   };
@@ -119,6 +157,13 @@ export default async function EditPersonPage({
         person={{ ...values, id: person.id, photo_path: person.photo_path }}
         photoUrl={photoUrl}
         placeLabels={placeLabels}
+      />
+
+      <EditConnections
+        personId={person.id}
+        personName={personDisplayName(person)}
+        members={members}
+        connections={connections}
       />
     </main>
   );

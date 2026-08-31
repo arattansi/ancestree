@@ -11,6 +11,7 @@ import {
 import {
   refToString,
   type AddPeopleInput,
+  type RelationshipKind,
 } from "@/lib/connections";
 import {
   detectImpliedConnections,
@@ -158,10 +159,11 @@ export async function addPeopleWithConnections(
       if (!values) return null;
       const birth = values.place_id_birth ?? null;
       const death = values.is_deceased ? values.place_id_death ?? null : null;
-      if (birth == null && death == null) return null;
+      const sex = values.sex ?? null;
+      if (birth == null && death == null && sex == null) return null;
       return supabase
         .from("people")
-        .update({ place_id_birth: birth, place_id_death: death })
+        .update({ place_id_birth: birth, place_id_death: death, sex })
         .eq("id", personId);
     })
     .filter((q): q is NonNullable<typeof q> => q !== null);
@@ -256,6 +258,99 @@ export async function resolveConnectionSuggestion(
   return {};
 }
 
+/**
+ * Link two people who are *both* already in the tree — used by the "Add a
+ * connection" card on the edit page. `kind` reads "the person being edited is
+ * the {kind} of {otherId}". Membership, the partner/parent guard and the cycle
+ * guard are enforced by the `connect_people` RPC.
+ */
+export async function connectExistingPeople(input: {
+  personId: string;
+  otherId: string;
+  kind: RelationshipKind | "sibling";
+  marriage_date?: string | null;
+  is_divorced?: boolean;
+  divorce_date?: string | null;
+}): Promise<{ error?: string }> {
+  await requireProfile();
+  if (!input.personId || !input.otherId) {
+    return { error: "Pick someone to connect to." };
+  }
+  if (input.personId === input.otherId) {
+    return { error: "A person can't connect to themselves." };
+  }
+
+  // Orient the edge. parent edges are stored from = parent, to = child;
+  // spouse / sibling edges are undirected (the RPC orders them).
+  let from = input.personId;
+  let to = input.otherId;
+  let type: "parent" | "spouse" | "sibling" = "parent";
+  if (input.kind === "spouse") {
+    type = "spouse";
+  } else if (input.kind === "sibling") {
+    type = "sibling";
+  } else if (input.kind === "child") {
+    from = input.otherId;
+    to = input.personId;
+  }
+
+  const isSpouse = type === "spouse";
+  const isDivorced = isSpouse && (input.is_divorced ?? false);
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("connect_people", {
+    p_from: from,
+    p_to: to,
+    p_type: type,
+    p_marriage_date:
+      isSpouse && input.marriage_date?.trim()
+        ? input.marriage_date
+        : undefined,
+    p_is_divorced: isDivorced,
+    p_divorce_date:
+      isDivorced && input.divorce_date?.trim()
+        ? input.divorce_date
+        : undefined,
+  });
+
+  if (error) {
+    const m = error.message.toLowerCase();
+    if (m.includes("divorce_after_marriage")) {
+      return { error: "The divorce date can't be before the marriage date." };
+    }
+    return { error: friendlyConnectionError(error.message) };
+  }
+  revalidatePath("/tree");
+  return {};
+}
+
+/**
+ * Remove a relationship edge. Admin or the edge's creator only (enforced by the
+ * `relationships_delete` RLS policy).
+ */
+export async function removeRelationship(
+  relationshipId: string,
+): Promise<{ error?: string }> {
+  await requireProfile();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("relationships")
+    .delete()
+    .eq("id", relationshipId)
+    .select("id");
+  if (error) {
+    return { error: "Couldn't remove that connection. Try again." };
+  }
+  if (!data || data.length === 0) {
+    // RLS filtered the row out — the caller isn't the creator or an admin.
+    return {
+      error: "Only the connection's creator or an admin can remove it.",
+    };
+  }
+  revalidatePath("/tree");
+  return {};
+}
+
 /** Update an existing person entry. Owner or admin only (enforced by RLS). */
 export async function updatePerson(
   personId: string,
@@ -282,6 +377,7 @@ export async function updatePerson(
     date_of_death: payload.date_of_death,
     place_id_death: payload.place_id_death,
     place_of_death: payload.place_of_death,
+    sex: payload.sex,
   };
   // lineage_type is admin-only; the DB trigger rejects other writers.
   if (profile.role === "admin") {

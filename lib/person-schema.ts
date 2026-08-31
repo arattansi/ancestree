@@ -4,6 +4,16 @@ import { z } from "zod";
 export const LINEAGE_TYPES = ["biological", "adoptive", "unknown"] as const;
 export type LineageType = (typeof LINEAGE_TYPES)[number];
 
+/** Optional self-reported sex. `undisclosed` = "Prefer not to disclose". */
+export const SEX_VALUES = ["male", "female", "undisclosed"] as const;
+export type Sex = (typeof SEX_VALUES)[number];
+
+export const SEX_LABELS: Record<Sex, string> = {
+  male: "Male",
+  female: "Female",
+  undisclosed: "Prefer not to disclose",
+};
+
 const optionalText = (max: number) =>
   z
     .string()
@@ -45,6 +55,7 @@ export const personSchema = z
     date_of_death: optionalDate,
     place_id_death: z.number().int().positive().nullable(),
     place_of_death: optionalText(160),
+    sex: z.enum(SEX_VALUES).optional(),
     lineage_type: z.enum(LINEAGE_TYPES).optional(),
   })
   .refine((v) => Boolean(v.first_name?.trim() || v.preferred_name?.trim()), {
@@ -85,6 +96,7 @@ export const emptyPersonValues: PersonFormValues = {
   date_of_death: "",
   place_id_death: null,
   place_of_death: "",
+  sex: undefined,
   lineage_type: undefined,
 };
 
@@ -109,6 +121,7 @@ export function toPersonPayload(values: PersonFormValues) {
     date_of_death: values.is_deceased ? trimOrNull(values.date_of_death) : null,
     place_id_death: values.is_deceased ? values.place_id_death ?? null : null,
     place_of_death: values.is_deceased ? trimOrNull(values.place_of_death) : null,
+    sex: values.sex ?? null,
     lineage_type: values.lineage_type ?? null,
   };
 }

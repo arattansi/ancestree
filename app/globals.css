@@ -130,3 +130,9 @@
     @apply font-sans;
   }
 }
+
+/* Lift a node above its siblings while hovered so the expanded photo
+   preview in PersonNode isn't clipped by neighbouring cards. */
+.react-flow__node:hover {
+  z-index: 1000 !important;
+}
