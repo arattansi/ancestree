@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "Privacy",
   description:
-    "How Ancestree collects, uses, and protects your family's personal information.",
+    "How ancestree collects, uses, and protects your family's personal information.",
 };
 
 export default function PrivacyPage() {
@@ -15,7 +15,7 @@ export default function PrivacyPage() {
           Privacy &amp; your family&rsquo;s data
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Ancestree is a private, invite-only family tree. This page explains
+          ancestree is a private, invite-only family tree. This page explains
           what we store and the choices you have. It is written with Canada&rsquo;s
           <abbr title="Personal Information Protection and Electronic Documents Act">
             {" "}PIPEDA

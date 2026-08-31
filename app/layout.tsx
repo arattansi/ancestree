@@ -20,8 +20,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Ancestree",
-    template: "%s · Ancestree",
+    default: "ancestree",
+    template: "%s · ancestree",
   },
   description: "Invite-only, collaborative family tree.",
 };

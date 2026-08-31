@@ -16,7 +16,7 @@ export async function SiteHeader() {
           href="/"
           className="rounded-sm text-sm font-semibold tracking-tight text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
-          Ancestree
+          ancestree.space
         </Link>
         <nav aria-label="Primary" className="flex flex-wrap items-center gap-2">
           {profile ? (

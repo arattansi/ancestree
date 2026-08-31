@@ -15,7 +15,7 @@ import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Accept invite",
-  description: "Join your family tree on Ancestree.",
+  description: "Join your family tree on ancestree.",
 };
 
 export default async function InvitePage({

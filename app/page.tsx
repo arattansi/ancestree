@@ -9,11 +9,18 @@ export default function Home() {
         <span className="text-5xl" aria-hidden>
           🌳
         </span>
-        <h1 className="text-4xl font-semibold tracking-tight">Ancestree</h1>
-        <p className="max-w-md text-lg text-muted-foreground">
-          Build your family tree together. Invite-only, collaborative, and
-          verified by the people who know best — your family.
-        </p>
+        <div className="flex flex-col items-center gap-1">
+          <h1 className="text-4xl font-semibold tracking-tight">ancestree</h1>
+          <p className="text-sm font-medium tracking-wide text-foreground [font-variant:small-caps]">
+            a space to grow your tree.
+          </p>
+        </div>
+        <div className="flex max-w-md flex-col gap-2 text-lg text-muted-foreground">
+          <p>
+            Invite-only and collaborative with the people who know best; your
+            family.
+          </p>
+        </div>
       </div>
       <div className="flex flex-col gap-3 sm:flex-row">
         <Button nativeButton={false} render={<Link href="/tree" />} size="lg">

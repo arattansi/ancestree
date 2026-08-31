@@ -14,7 +14,7 @@ import { getProfile, getUser } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "Join",
-  description: "Ancestree is invite-only. Sign in with a family invite link.",
+  description: "ancestree is invite-only. Sign in with a family invite link.",
 };
 
 export default async function JoinPage({
@@ -32,11 +32,11 @@ export default async function JoinPage({
     <main className="flex flex-1 flex-col items-center justify-center gap-6 px-6 py-24">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>{pending ? "Almost there" : "Sign in to Ancestree"}</CardTitle>
+          <CardTitle>{pending ? "Almost there" : "Sign in to ancestree"}</CardTitle>
           <CardDescription>
             {pending
               ? "Your email is verified, but it is not linked to a family invite yet. Ask the relative who invited you to send you their invite link, then open it on this device."
-              : "Ancestree is a private family tree. Enter your email and we will send you a one-time sign-in link."}
+              : "ancestree is a private family tree. Enter your email and we will send you a one-time sign-in link."}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
