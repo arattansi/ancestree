@@ -6,6 +6,7 @@ import { signOut } from "@/app/actions/auth";
 import { DeleteAccount } from "@/components/delete-account";
 import { EditDisplayName } from "@/components/edit-display-name";
 import { NotificationsList } from "@/components/notifications-list";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -66,6 +67,16 @@ export default async function AccountPage() {
         </CardHeader>
         <CardContent>
           <NotificationsList items={notifications} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>View</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-2 text-sm text-muted-foreground">
+          <p>Light, dark, or follow your device. Saved to this browser.</p>
+          <ThemeToggle />
         </CardContent>
       </Card>
 
