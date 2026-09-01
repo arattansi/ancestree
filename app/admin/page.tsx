@@ -11,6 +11,8 @@ import {
   AdminInviteRequests,
   type PendingInviteRequest,
 } from "@/components/admin-invite-requests";
+import { AdminSideNav, type AdminNavItem } from "@/components/admin/admin-side-nav";
+import { CollapsibleSection } from "@/components/admin/collapsible-section";
 import { DirectInviteForm } from "@/components/direct-invite-form";
 import { InviteMinter } from "@/components/invite-minter";
 import { ShareLinkManager, type ShareLinkRow } from "@/components/share-link-manager";
@@ -137,8 +139,24 @@ export default async function AdminPage() {
     stats.push({ label: "Own-tree bridges", value: bridgesRes.count ?? 0 });
   }
 
+  const navItems: AdminNavItem[] = [
+    { id: "overview", label: "Overview" },
+    { id: "data-privacy", label: "Data & privacy" },
+    { id: "invite", label: "Invite a relative" },
+    { id: "share", label: "Share a link" },
+    { id: "invite-requests", label: "Invite requests" },
+    { id: "own-tree", label: "Wants own tree" },
+    { id: "sent-invites", label: "Sent invites" },
+    { id: "bare-invites", label: "Bare links" },
+    { id: "nicknames", label: "Nicknames" },
+    { id: "disputes", label: "Disputed claims" },
+    { id: "members", label: "Members" },
+  ];
+
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-10">
+    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 px-4 py-10">
+      <AdminSideNav items={navItems} />
+
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Admin</h1>
         <p className="text-sm text-muted-foreground">
@@ -146,7 +164,7 @@ export default async function AdminPage() {
         </p>
       </div>
 
-      <Card>
+      <Card id="overview" className="scroll-mt-6">
         <CardHeader>
           <CardTitle>Overview</CardTitle>
           <CardDescription>Counts across the shared tree.</CardDescription>
@@ -170,148 +188,89 @@ export default async function AdminPage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Data &amp; privacy</CardTitle>
-          <CardDescription>
-            Export the whole tree as JSON for a data-access request. To erase a
-            specific person and their photos and documents, open their entry on
-            the tree and use &ldquo;Delete entry&rdquo;.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <AdminExport />
-        </CardContent>
-      </Card>
+      <CollapsibleSection
+        id="data-privacy"
+        title="Data & privacy"
+        description="Export the whole tree as JSON for a data-access request. To erase a specific person and their photos and documents, open their entry on the tree and use “Delete entry”."
+      >
+        <AdminExport />
+      </CollapsibleSection>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Invite a relative</CardTitle>
-          <CardDescription>
-            Each link is tied to you, works once, and expires after 14 days.
-            Send by name and email and it&rsquo;s emailed for you, or just
-            mint a bare link to send yourself.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-6">
+      <CollapsibleSection
+        id="invite"
+        title="Invite a relative"
+        description="Each link is tied to you, works once, and expires after 14 days. Send by name and email and it’s emailed for you, or just mint a bare link to send yourself."
+      >
+        <div className="flex flex-col gap-6">
           <DirectInviteForm />
           <div className="border-t border-border pt-6">
             <InviteMinter />
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </CollapsibleSection>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Share a view-only link</CardTitle>
-          <CardDescription>
-            Anyone with a share link can view the whole tree without signing in,
-            but can&rsquo;t edit anything. They&rsquo;ll see a prompt to request
-            edit access. Revoke a link any time to cut off access.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ShareLinkManager links={shareLinks} baseUrl={getSiteUrl()} />
-        </CardContent>
-      </Card>
+      <CollapsibleSection
+        id="share"
+        title="Share a view-only link"
+        description="Anyone with a share link can view the whole tree without signing in, but can’t edit anything. They’ll see a prompt to request edit access. Revoke a link any time to cut off access."
+      >
+        <ShareLinkManager links={shareLinks} baseUrl={getSiteUrl()} />
+      </CollapsibleSection>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Invite requests</CardTitle>
-          <CardDescription>
-            {inviteRequests.length} awaiting review. Approving mints a
-            single-use link and emails it to the person who asked — if the
-            email fails to send, you can still copy the link yourself.
-            Declining keeps a record; deleting leaves none and lets them ask
-            again.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <AdminInviteRequests requests={inviteRequests} />
-        </CardContent>
-      </Card>
+      <CollapsibleSection
+        id="invite-requests"
+        title="Invite requests"
+        description={`${inviteRequests.length} awaiting review. Approving mints a single-use link and emails it to the person who asked — if the email fails to send, you can still copy the link yourself. Declining keeps a record; deleting leaves none and lets them ask again.`}
+      >
+        <AdminInviteRequests requests={inviteRequests} />
+      </CollapsibleSection>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Wants their own tree</CardTitle>
-          <CardDescription>
-            {canvasInterest.length} on the register. These are members who
-            married into the family, tried to add their own side of it, and said
-            they&rsquo;d want a tree of their own. Nothing is granted &mdash;
-            it&rsquo;s a record of who to reach out to if this goes to market,
-            and the clearest read we have on whether there&rsquo;s demand.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <AdminCanvasInterest rows={canvasInterest} />
-        </CardContent>
-      </Card>
+      <CollapsibleSection
+        id="own-tree"
+        title="Wants their own tree"
+        description={`${canvasInterest.length} on the register. These are members who married into the family, tried to add their own side of it, and said they’d want a tree of their own. Nothing is granted — it’s a record of who to reach out to if this goes to market, and the clearest read we have on whether there’s demand.`}
+      >
+        <AdminCanvasInterest rows={canvasInterest} />
+      </CollapsibleSection>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Sent invites</CardTitle>
-          <CardDescription>
-            Every invite that has gone out, however it started — the last{" "}
-            {inviteHistory.length}. Deleting one also kills its link, so an
-            invite nobody has used yet stops working.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <AdminInviteHistory items={inviteHistory} />
-        </CardContent>
-      </Card>
+      <CollapsibleSection
+        id="sent-invites"
+        title="Sent invites"
+        description={`Every invite that has gone out, however it started — the last ${inviteHistory.length}. Deleting one also kills its link, so an invite nobody has used yet stops working.`}
+      >
+        <AdminInviteHistory items={inviteHistory} />
+      </CollapsibleSection>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Bare invite links</CardTitle>
-          <CardDescription>
-            Links minted without a name attached, so they never show up under
-            &ldquo;Sent invites&rdquo;. Copy one to send it on, or delete it to
-            stop it working — including wherever you&rsquo;ve already sent it.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <AdminBareInvites invites={bareInvites} baseUrl={getSiteUrl()} />
-        </CardContent>
-      </Card>
+      <CollapsibleSection
+        id="bare-invites"
+        title="Bare invite links"
+        description="Links minted without a name attached, so they never show up under “Sent invites”. Copy one to send it on, or delete it to stop it working — including wherever you’ve already sent it."
+      >
+        <AdminBareInvites invites={bareInvites} baseUrl={getSiteUrl()} />
+      </CollapsibleSection>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Nicknames</CardTitle>
-          <CardDescription>
-            {nicknameGroups.length} groups behind the &ldquo;is one of these
-            you?&rdquo; search a new member sees when they join. Spelling
-            mistakes and accents are handled automatically — this is for names
-            that share neither spelling nor sound with the root, like Bob for
-            Robert. The seed is English, so add the ones this family uses.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <AdminNicknames groups={nicknameGroups} />
-        </CardContent>
-      </Card>
+      <CollapsibleSection
+        id="nicknames"
+        title="Nicknames"
+        description={`${nicknameGroups.length} groups behind the “is one of these you?” search a new member sees when they join. Spelling mistakes and accents are handled automatically — this is for names that share neither spelling nor sound with the root, like Bob for Robert. The seed is English, so add the ones this family uses.`}
+      >
+        <AdminNicknames groups={nicknameGroups} />
+      </CollapsibleSection>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Disputed claims</CardTitle>
-          <CardDescription>
-            {disputedClaims.length} awaiting a decision. Upholding keeps the new
-            owner; reversing returns the entry to its creator.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <AdminDisputedClaims claims={disputedClaims} />
-        </CardContent>
-      </Card>
+      <CollapsibleSection
+        id="disputes"
+        title="Disputed claims"
+        description={`${disputedClaims.length} awaiting a decision. Upholding keeps the new owner; reversing returns the entry to its creator.`}
+      >
+        <AdminDisputedClaims claims={disputedClaims} />
+      </CollapsibleSection>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Members</CardTitle>
-          <CardDescription>
-            {members.length} member{members.length === 1 ? "" : "s"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-0">
+      <CollapsibleSection
+        id="members"
+        title="Members"
+        description={`${members.length} member${members.length === 1 ? "" : "s"}`}
+        contentClassName="p-0"
+      >
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <caption className="sr-only">
@@ -368,8 +327,7 @@ export default async function AdminPage() {
               </tbody>
             </table>
           </div>
-        </CardContent>
-      </Card>
+      </CollapsibleSection>
     </main>
   );
 }

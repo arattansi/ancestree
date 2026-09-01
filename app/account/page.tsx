@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { signOut } from "@/app/actions/auth";
 import { DeleteAccount } from "@/components/delete-account";
+import { EditDisplayName } from "@/components/edit-display-name";
 import { NotificationsList } from "@/components/notifications-list";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -38,7 +39,9 @@ export default async function AccountPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>{profile.display_name ?? "Member"}</CardTitle>
+          <CardTitle>
+            <EditDisplayName name={profile.display_name} />
+          </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3 text-sm">
           <Row label="Email">{user?.email ?? "—"}</Row>
