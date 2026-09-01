@@ -918,6 +918,70 @@ export type Database = {
           },
         ]
       }
+      share_links: {
+        Row: {
+          created_at: string
+          created_by: string
+          expires_at: string | null
+          id: string
+          label: string | null
+          last_viewed_at: string | null
+          revoked_at: string | null
+          token: string
+          tree_id: string
+          updated_at: string
+          view_count: number
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          expires_at?: string | null
+          id?: string
+          label?: string | null
+          last_viewed_at?: string | null
+          revoked_at?: string | null
+          token?: string
+          tree_id: string
+          updated_at?: string
+          view_count?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          expires_at?: string | null
+          id?: string
+          label?: string | null
+          last_viewed_at?: string | null
+          revoked_at?: string | null
+          token?: string
+          tree_id?: string
+          updated_at?: string
+          view_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "share_links_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "share_links_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "share_links_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tree_bridges: {
         Row: {
           created_at: string

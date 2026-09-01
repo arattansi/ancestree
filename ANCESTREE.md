@@ -44,9 +44,10 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `/people/[id]/edit` (owner/creator/admin entry edit), `/tree` (React Flow
   canvas), `/account` (profile + in-app notifications + delete-account),
   `/admin` (admin-only: overview stats + members + invite requests + disputes +
-  JSON export), `/request-invite` (public: ask an admin for an invite),
-  `/privacy` (public PIPEDA-minded privacy notice), `/trees/new` (Step 9 seam,
-  flagged)
+  JSON export + view-only share links), `/request-invite` (public: ask an admin
+  for an invite), `/shared/[token]` (public: read-only tree canvas behind an
+  admin-minted share link, with a "request edit access" CTA), `/privacy`
+  (public PIPEDA-minded privacy notice), `/trees/new` (Step 9 seam, flagged)
 - `app/actions/` — server actions (`auth.ts`: magic link (+ consent gate) +
   sign out; `privacy.ts`: `exportTreeData` (admin JSON export) / `deletePerson`
   (admin erasure + storage cleanup) / `deleteAccount` (self-serve, reassigns
@@ -180,6 +181,15 @@ Helpers live in the unexposed `private` schema (`is_admin`, `is_tree_member`,
   `lib/emails/invite-approved.ts`, needs `RESEND_API_KEY`) — if the send
   fails, the invite is still valid and the admin can copy the link and send it
   themselves; declining just closes the request.
+- **Share links** (`public.share_links`): admins mint any number of view-only
+  links `"/shared/<token>"` from `/admin` (server actions `createShareLink` /
+  `revokeShareLink`, each optionally 30-day-expiring and independently
+  revocable). The `/shared/[token]` route resolves the token with the
+  service-role client (`lib/share-links.server.ts`) — RLS is admins-only, no
+  `anon` grant — and renders `<FamilyTree readOnly>` (no drag-persist, no add /
+  claim / flag / comment / manage affordances) with a "request edit access" CTA
+  pointing at `/request-invite`. `lib/share-links.ts` holds the pure
+  usable/expired/revoked logic (`.test.ts`).
 - **Admin bootstrap**: `private.admin_allowlist(email)` — seeded with both
   co-admins (Aalim Rattansi, Raiya Suleman). First login by an
   allowlisted email runs `ensure_profile`, which creates the single shared

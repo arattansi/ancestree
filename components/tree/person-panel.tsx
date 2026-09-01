@@ -314,10 +314,13 @@ export function PersonPanel({
   claimable,
   isCreator,
   currentUserId,
+  readOnly = false,
   onClose,
 }: {
   person: TreeGraphPerson | null;
   treeId: string;
+  /** Public view-only mode — hide every editing / moderation affordance. */
+  readOnly?: boolean;
   /** Pending implied connections involving this person the viewer can resolve. */
   suggestions: PanelSuggestion[];
   /** This person's parent / child / spouse links (spouse rows carry dates). */
@@ -540,18 +543,23 @@ export function PersonPanel({
                 onResolved={() => router.refresh()}
               />
 
-              <section className="border-t border-border pt-5">
-                <PersonDocuments personId={person.id} treeId={treeId} />
-              </section>
+              {!readOnly ? (
+                <section className="border-t border-border pt-5">
+                  <PersonDocuments personId={person.id} treeId={treeId} />
+                </section>
+              ) : null}
 
-              <section className="border-t border-border pt-5">
-                <EntryComments
-                  personId={person.id}
-                  currentUserId={currentUserId}
-                  canModerate={canEdit}
-                />
-              </section>
+              {!readOnly ? (
+                <section className="border-t border-border pt-5">
+                  <EntryComments
+                    personId={person.id}
+                    currentUserId={currentUserId}
+                    canModerate={canEdit}
+                  />
+                </section>
+              ) : null}
 
+              {!readOnly ? (
               <section className="flex flex-col gap-3 border-t border-border pt-5">
                 <h2 className="text-sm font-semibold">Manage</h2>
 
@@ -663,6 +671,7 @@ export function PersonPanel({
                   </p>
                 ) : null}
               </section>
+              ) : null}
             </div>
 
             {person.photo_url ? (

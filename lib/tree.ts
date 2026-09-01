@@ -1,6 +1,12 @@
 import "server-only";
 
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+import type { Database } from "@/lib/database.types";
 import { createClient } from "@/lib/supabase/server";
+
+/** Either the cookie-scoped SSR client or the service-role admin client. */
+type DbClient = SupabaseClient<Database>;
 import { personDisplayName } from "@/lib/person-name";
 import {
   formatHistoricalPlace,
@@ -66,11 +72,14 @@ const PERSON_COLUMNS =
   "id, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_death, city_of_birth, country_of_birth, place_id_birth, place_id_death, is_deceased, place_of_death, sex, lineage_type, photo_path, pos_x, pos_y, owner_user_id, created_by, verified_at, pos_dx, pos_dy";
 
 /** Everyone in the tree plus their relationship edges, with signed photo URLs. */
-export async function getTreeGraph(treeId: string): Promise<{
+export async function getTreeGraph(
+  treeId: string,
+  db?: DbClient,
+): Promise<{
   people: TreeGraphPerson[];
   relationships: TreeGraphEdge[];
 }> {
-  const supabase = await createClient();
+  const supabase = db ?? (await createClient());
   const [peopleRes, relRes, claimRes, flagRes] = await Promise.all([
     supabase.from("people").select(PERSON_COLUMNS).eq("tree_id", treeId),
     supabase
@@ -211,8 +220,8 @@ export async function getSharedTree(): Promise<{ id: string } | null> {
  * layout anchors generation 0 on them and grows the tree outward, so the chart
  * stays stable as relatives are added at either end.
  */
-export async function getTreeAnchors(): Promise<string[]> {
-  const supabase = await createClient();
+export async function getTreeAnchors(db?: DbClient): Promise<string[]> {
+  const supabase = db ?? (await createClient());
   const { data } = await supabase
     .from("profiles")
     .select("self_person_id, created_at")

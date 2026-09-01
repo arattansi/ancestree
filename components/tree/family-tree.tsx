@@ -261,6 +261,8 @@ type Props = {
   isAdmin: boolean;
   claimCandidates: ClaimCandidate[];
   panelSuggestions: PanelSuggestion[];
+  /** Public share-link view: render the canvas without any editing controls. */
+  readOnly?: boolean;
 };
 
 function buildGraph(
@@ -352,6 +354,7 @@ function Canvas({
   isAdmin,
   claimCandidates,
   panelSuggestions,
+  readOnly = false,
 }: Props) {
   const claimableIds = React.useMemo(
     () => new Set(claimCandidates.map((c) => c.id)),
@@ -632,7 +635,7 @@ function Canvas({
         onEdgesChange={onEdgesChange}
         onNodeClick={onNodeClick}
         onEdgeClick={onEdgeClick}
-        onNodeDragStop={onNodeDragStop}
+        onNodeDragStop={readOnly ? undefined : onNodeDragStop}
         onPaneClick={() => {
           setSelectedId(null);
           setSelectedEdgeId(null);
@@ -644,7 +647,7 @@ function Canvas({
         maxZoom={1.75}
         proOptions={{ hideAttribution: true }}
         nodesConnectable={false}
-        nodesDraggable
+        nodesDraggable={!readOnly}
       >
         <ViewportPortal>
           {graph.layout.bands.map((band) => (
@@ -666,14 +669,29 @@ function Canvas({
           className="!bg-card"
         />
         <Panel position="top-right" className="flex flex-col items-end gap-2">
-          <Button
-            nativeButton={false}
-            render={<Link href="/people/new" />}
-            size="sm"
-          >
-            Add a relative
-          </Button>
-          {isAdmin ? (
+          {readOnly ? (
+            <div className="flex max-w-[15rem] flex-col items-end gap-1.5 rounded-lg border border-border bg-card/95 p-3 text-right shadow-md">
+              <span className="text-xs text-muted-foreground">
+                You&rsquo;re viewing a read-only copy of this family tree.
+              </span>
+              <Button
+                nativeButton={false}
+                render={<Link href="/request-invite" />}
+                size="sm"
+              >
+                Request edit access
+              </Button>
+            </div>
+          ) : (
+            <Button
+              nativeButton={false}
+              render={<Link href="/people/new" />}
+              size="sm"
+            >
+              Add a relative
+            </Button>
+          )}
+          {!readOnly && isAdmin ? (
             <Button
               size="sm"
               variant="outline"
@@ -683,7 +701,7 @@ function Canvas({
               {arranging ? "Arranging…" : "Auto-arrange"}
             </Button>
           ) : null}
-          {multiTreeEnabled ? (
+          {!readOnly && multiTreeEnabled ? (
             <Button
               nativeButton={false}
               render={<Link href="/trees/new" />}
@@ -725,7 +743,7 @@ function Canvas({
             onFilterChange={setFilter}
             onPick={onPick}
           />
-          {claimCandidates.length > 0 ? (
+          {!readOnly && claimCandidates.length > 0 ? (
             <ClaimSuggestions candidates={claimCandidates} />
           ) : null}
         </Panel>
@@ -743,6 +761,7 @@ function Canvas({
         isAdmin={isAdmin}
         isSelf={selectedPerson?.id === selfPersonId}
         canEdit={canEdit}
+        readOnly={readOnly}
         claimable={!!selectedPerson && claimableIds.has(selectedPerson.id)}
         isCreator={selectedPerson?.created_by === currentUserId}
         currentUserId={currentUserId}

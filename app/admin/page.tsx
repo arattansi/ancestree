@@ -8,6 +8,7 @@ import {
   type PendingInviteRequest,
 } from "@/components/admin-invite-requests";
 import { InviteMinter } from "@/components/invite-minter";
+import { ShareLinkManager, type ShareLinkRow } from "@/components/share-link-manager";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,6 +21,7 @@ import {
 import { requireAdmin } from "@/lib/auth";
 import { listDisputedClaims } from "@/lib/claims";
 import { multiTreeEnabled } from "@/lib/flags";
+import { getSiteUrl } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
@@ -39,6 +41,7 @@ export default async function AdminPage() {
     openFlagsRes,
     bridgesRes,
     inviteRequestsRes,
+    shareLinksRes,
   ] = await Promise.all([
     supabase
       .from("member_directory")
@@ -65,6 +68,12 @@ export default async function AdminPage() {
       .select("id, first_name, last_name, email, created_at")
       .eq("status", "pending")
       .order("created_at", { ascending: true }),
+    supabase
+      .from("share_links")
+      .select(
+        "id, token, label, created_at, expires_at, revoked_at, last_viewed_at, view_count",
+      )
+      .order("created_at", { ascending: false }),
   ]);
 
   const members = membersRes.data ?? [];
@@ -78,6 +87,17 @@ export default async function AdminPage() {
     lastName: r.last_name,
     email: r.email,
     createdAt: r.created_at,
+  }));
+
+  const shareLinks: ShareLinkRow[] = (shareLinksRes.data ?? []).map((l) => ({
+    id: l.id,
+    token: l.token,
+    label: l.label,
+    createdAt: l.created_at,
+    expiresAt: l.expires_at,
+    revokedAt: l.revoked_at,
+    lastViewedAt: l.last_viewed_at,
+    viewCount: l.view_count,
   }));
 
   const entryCountByCreator = new Map<string, number>();
@@ -160,6 +180,20 @@ export default async function AdminPage() {
         </CardHeader>
         <CardContent>
           <InviteMinter />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Share a view-only link</CardTitle>
+          <CardDescription>
+            Anyone with a share link can view the whole tree without signing in,
+            but can&rsquo;t edit anything. They&rsquo;ll see a prompt to request
+            edit access. Revoke a link any time to cut off access.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ShareLinkManager links={shareLinks} baseUrl={getSiteUrl()} />
         </CardContent>
       </Card>
 
