@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
@@ -20,7 +21,6 @@ import {
 import type { ImpliedConnection } from "@/lib/connection-suggestions";
 import { NewCanvasPrompt } from "@/components/new-canvas-prompt";
 import { PersonFields } from "@/components/person-fields";
-import { PhotoPicker } from "@/components/photo-picker";
 import {
   RelationshipPicker,
   type TreeMemberOption,
@@ -44,6 +44,7 @@ import {
   type PersonRef,
   type RelationshipKind,
 } from "@/lib/connections";
+import { compressImage } from "@/lib/image";
 import { personDisplayName } from "@/lib/person-name";
 import { emptyPersonValues, personSchema } from "@/lib/person-schema";
 import { createClient } from "@/lib/supabase/client";
@@ -251,11 +252,20 @@ export function AddPersonFlow({
     [members, watchedPeople, mode],
   );
 
+  const photoPreview = React.useMemo(
+    () => (photoFile ? URL.createObjectURL(photoFile) : null),
+    [photoFile],
+  );
+  React.useEffect(() => {
+    if (!photoPreview) return;
+    return () => URL.revokeObjectURL(photoPreview);
+  }, [photoPreview]);
+
   if (mustConnect && members.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        No one is on the family tree yet. An admin needs to add the first person
-        before you can connect your entry.
+        No one is on the family tree yet. An admin needs to add the first
+        person before you can connect your entry.
       </p>
     );
   }
@@ -277,6 +287,22 @@ export function AddPersonFlow({
     i + 1 <= intermediateCount
       ? nameOf(i + 1, `Person ${i + 1}`)
       : primaryLabel;
+
+  async function handlePhotoPick(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
+      toast.error("Choose a JPEG, PNG, or WebP image.");
+      return;
+    }
+    setPhotoBusy(true);
+    try {
+      setPhotoFile(await compressImage(file));
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
 
   async function uploadPhoto(personId: string, file: File): Promise<string> {
     const supabase = createClient();
@@ -302,10 +328,7 @@ export function AddPersonFlow({
     const a = labelForRef(s.subject);
     const b = labelForRef(s.related);
     if (s.source === "co_parent") {
-      return {
-        suggestion: s,
-        question: `Are ${a} and ${b} married or partners?`,
-      };
+      return { suggestion: s, question: `Are ${a} and ${b} married or partners?` };
     }
     if (s.source === "unlinked_spouse_child") {
       return {
@@ -486,14 +509,51 @@ export function AddPersonFlow({
             idPrefix="primary"
           />
 
-          <PhotoPicker
-            id="primary-photo"
-            value={photoFile}
-            onChange={setPhotoFile}
-            onBusyChange={setPhotoBusy}
-            disabled={form.formState.isSubmitting || saving}
-            hint="Optional. JPEG, PNG, or WebP; cropped and resized on your device."
-          />
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="primary-photo">Photo</Label>
+            <div className="flex items-center gap-4">
+              <div className="relative size-16 shrink-0 overflow-hidden rounded-full border border-border bg-muted">
+                {photoPreview ? (
+                  <Image
+                    src={photoPreview}
+                    alt="Selected photo preview"
+                    fill
+                    sizes="64px"
+                    className="object-cover"
+                    unoptimized
+                  />
+                ) : (
+                  <span
+                    aria-hidden
+                    className="flex size-full items-center justify-center text-muted-foreground"
+                  >
+                    ?
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-col gap-1">
+                <Input
+                  id="primary-photo"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={handlePhotoPick}
+                  disabled={photoBusy}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Optional. JPEG, PNG, or WebP; resized on your device.
+                </p>
+                {photoFile ? (
+                  <button
+                    type="button"
+                    className="self-start text-xs text-destructive underline underline-offset-2"
+                    onClick={() => setPhotoFile(null)}
+                  >
+                    Remove selected photo
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          </div>
         </section>
 
         <section className="flex flex-col gap-4 border-t border-border pt-6">
@@ -648,8 +708,7 @@ export function AddPersonFlow({
                     Add someone in between
                   </Button>
                   <p className="text-xs text-muted-foreground">
-                    Reads top to bottom:{" "}
-                    {primaryFallback === "You" ? "you" : "the new entry"}{" "}
+                    Reads top to bottom: {primaryFallback === "You" ? "you" : "the new entry"}{" "}
                     connect{primaryFallback === "You" ? "" : "s"} through each
                     person to {anchorLabel}.
                   </p>
@@ -669,9 +728,7 @@ export function AddPersonFlow({
                         }}
                       />
                       <span>
-                        {mode === "self"
-                          ? "You connect"
-                          : "This person connects"}{" "}
+                        {mode === "self" ? "You connect" : "This person connects"}{" "}
                         to more people on the tree
                       </span>
                     </label>
@@ -695,9 +752,7 @@ export function AddPersonFlow({
                               </button>
                             </div>
                             <div className="flex flex-wrap items-center gap-2 text-sm">
-                              <span className="font-medium">
-                                {primaryLabel}
-                              </span>
+                              <span className="font-medium">{primaryLabel}</span>
                               <Select
                                 value={watchedExtra[i]?.kind ?? "child"}
                                 onValueChange={(v) =>
@@ -790,7 +845,9 @@ export function AddPersonFlow({
         <Button
           type="submit"
           disabled={
-            submitting || !form.formState.isValid || (needAnchor && !anchorId)
+            submitting ||
+            !form.formState.isValid ||
+            (needAnchor && !anchorId)
           }
         >
           {submitting
