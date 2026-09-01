@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { requireProfile } from "@/lib/auth";
+import { toStoredCrop, type CropTransform } from "@/lib/image-crop";
 import {
   personSchema,
   toPersonPayload,
@@ -13,9 +14,7 @@ import {
   type AddPeopleInput,
   type RelationshipKind,
 } from "@/lib/connections";
-import {
-  detectImpliedConnections,
-} from "@/lib/connection-suggestions.server";
+import { detectImpliedConnections } from "@/lib/connection-suggestions.server";
 import type {
   ImpliedConnection,
   NewPersonInput,
@@ -32,7 +31,8 @@ export type PersonActionState = {
 
 function friendlyError(message: string | undefined): string {
   if (!message) return "Something went wrong. Try again.";
-  if (message.includes("already exists")) return "Your own entry already exists.";
+  if (message.includes("already exists"))
+    return "Your own entry already exists.";
   if (message.toLowerCase().includes("row-level security")) {
     return "You don't have permission to make that change.";
   }
@@ -136,7 +136,7 @@ export async function addPeopleWithConnections(
       ? {
           marriage_date: e.marriage_date ?? "",
           is_divorced: e.is_divorced ?? false,
-          divorce_date: e.is_divorced ? e.divorce_date ?? "" : "",
+          divorce_date: e.is_divorced ? (e.divorce_date ?? "") : "",
         }
       : {}),
   }));
@@ -160,7 +160,9 @@ export async function addPeopleWithConnections(
   if (error || !data) {
     return {
       error: friendlyConnectionError(error?.message),
-      ...(isBloodlineGate(error?.message) ? { bloodlineGate: true as const } : {}),
+      ...(isBloodlineGate(error?.message)
+        ? { bloodlineGate: true as const }
+        : {}),
     };
   }
 
@@ -173,7 +175,7 @@ export async function addPeopleWithConnections(
       const values = people[i];
       if (!values) return null;
       const birth = values.place_id_birth ?? null;
-      const death = values.is_deceased ? values.place_id_death ?? null : null;
+      const death = values.is_deceased ? (values.place_id_death ?? null) : null;
       const sex = values.sex ?? null;
       if (birth == null && death == null && sex == null) return null;
       return supabase
@@ -246,7 +248,9 @@ export async function updateRelationshipMarriage(
       return { error: "The divorce date can't be before the marriage date." };
     }
     if (m.includes("row-level security")) {
-      return { error: "Only the relationship's creator or an admin can edit this." };
+      return {
+        error: "Only the relationship's creator or an admin can edit this.",
+      };
     }
     return { error: "Couldn't save those dates. Try again." };
   }
@@ -318,14 +322,10 @@ export async function connectExistingPeople(input: {
     p_to: to,
     p_type: type,
     p_marriage_date:
-      isSpouse && input.marriage_date?.trim()
-        ? input.marriage_date
-        : undefined,
+      isSpouse && input.marriage_date?.trim() ? input.marriage_date : undefined,
     p_is_divorced: isDivorced,
     p_divorce_date:
-      isDivorced && input.divorce_date?.trim()
-        ? input.divorce_date
-        : undefined,
+      isDivorced && input.divorce_date?.trim() ? input.divorce_date : undefined,
   });
 
   if (error) {
@@ -468,12 +468,32 @@ export async function autoArrangeTree(
 export async function setPersonPhoto(
   personId: string,
   photoPath: string | null,
+  crop?: CropTransform,
 ): Promise<{ error?: string }> {
   await requireProfile();
   const supabase = await createClient();
   const { error } = await supabase
     .from("people")
-    .update({ photo_path: photoPath })
+    .update({
+      photo_path: photoPath,
+      photo_crop: photoPath && crop ? toStoredCrop(crop) : null,
+    })
+    .eq("id", personId);
+  if (error) return { error: friendlyError(error.message) };
+  revalidatePath("/tree");
+  return {};
+}
+
+/** Re-frame a photo that is already uploaded — no new file involved. */
+export async function setPersonPhotoCrop(
+  personId: string,
+  crop: CropTransform,
+): Promise<{ error?: string }> {
+  await requireProfile();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("people")
+    .update({ photo_crop: toStoredCrop(crop) })
     .eq("id", personId);
   if (error) return { error: friendlyError(error.message) };
   revalidatePath("/tree");
@@ -558,7 +578,8 @@ export async function signDocument(
     .select("file_path")
     .eq("id", documentId)
     .maybeSingle();
-  if (!doc?.file_path) return { error: "That document is no longer available." };
+  if (!doc?.file_path)
+    return { error: "That document is no longer available." };
 
   const { data, error } = await supabase.storage
     .from("documents")

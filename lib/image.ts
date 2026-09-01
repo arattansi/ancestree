@@ -7,7 +7,10 @@
  */
 export async function compressImage(
   file: File,
-  { maxEdge = 1280, quality = 0.82 }: { maxEdge?: number; quality?: number } = {},
+  {
+    maxEdge = 1280,
+    quality = 0.82,
+  }: { maxEdge?: number; quality?: number } = {},
 ): Promise<File> {
   if (!file.type.startsWith("image/")) return file;
 
@@ -31,11 +34,25 @@ export async function compressImage(
   );
   if (!blob) return file;
 
-  const name = file.name.replace(/\.[^.]+$/, "") || "photo";
-  return new File([blob], `${name}.jpg`, {
+  return new File([blob], `${baseName(file)}.jpg`, {
     type: "image/jpeg",
     lastModified: Date.now(),
   });
+}
+
+/** Natural pixel size of an image file, for the picker's crop maths. */
+export async function imageSize(
+  file: File,
+): Promise<{ width: number; height: number } | null> {
+  const bitmap = await loadBitmap(file);
+  if (!bitmap) return null;
+  const size = { width: bitmap.width, height: bitmap.height };
+  if ("close" in bitmap) bitmap.close();
+  return size;
+}
+
+function baseName(file: File): string {
+  return file.name.replace(/\.[^.]+$/, "") || "photo";
 }
 
 async function loadBitmap(

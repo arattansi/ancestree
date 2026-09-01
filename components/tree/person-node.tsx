@@ -4,6 +4,7 @@ import * as React from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { cropStyle, parseCrop } from "@/lib/image-crop";
 import { cn } from "@/lib/utils";
 import {
   personDisplayName,
@@ -50,7 +51,8 @@ function PersonNodeImpl({ data }: NodeProps) {
           <img
             src={person.photo_url}
             alt={`Photo of ${name}`}
-            className="aspect-square w-full object-cover"
+            style={cropStyle(parseCrop(person.photo_crop))}
+            className="aspect-square w-full"
           />
           <div className="flex flex-col gap-0.5 px-3 py-2">
             <p
@@ -62,7 +64,9 @@ function PersonNodeImpl({ data }: NodeProps) {
               {name}
             </p>
             {lifespan ? (
-              <p className="truncate text-xs text-muted-foreground">{lifespan}</p>
+              <p className="truncate text-xs text-muted-foreground">
+                {lifespan}
+              </p>
             ) : null}
             {birthplace ? (
               <p className="truncate text-xs text-muted-foreground">
@@ -87,85 +91,93 @@ function PersonNodeImpl({ data }: NodeProps) {
           isSelf && !selected && !highlighted && "border-primary/60",
         )}
       >
-      <Handle type="target" position={Position.Top} className={handleClass} />
-      <Handle
-        type="target"
-        position={Position.Left}
-        id="l"
-        className={handleClass}
-      />
-      <Handle
-        type="source"
-        position={Position.Right}
-        id="r"
-        className={handleClass}
-      />
-      <Handle type="source" position={Position.Bottom} className={handleClass} />
+        <Handle type="target" position={Position.Top} className={handleClass} />
+        <Handle
+          type="target"
+          position={Position.Left}
+          id="l"
+          className={handleClass}
+        />
+        <Handle
+          type="source"
+          position={Position.Right}
+          id="r"
+          className={handleClass}
+        />
+        <Handle
+          type="source"
+          position={Position.Bottom}
+          className={handleClass}
+        />
 
-      {person.open_flag_count > 0 ? (
-        <span
-          className="absolute -top-1.5 -right-1.5 flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] font-semibold text-white"
-          title={`${person.open_flag_count} open flag${person.open_flag_count === 1 ? "" : "s"}`}
-          aria-label={`${person.open_flag_count} open flags`}
-        >
-          {person.open_flag_count}
-        </span>
-      ) : null}
-
-      <Avatar size="lg" className={cn(deceased && "opacity-70")}>
-        {person.photo_url ? (
-          <AvatarImage src={person.photo_url} alt="" />
+        {person.open_flag_count > 0 ? (
+          <span
+            className="absolute -top-1.5 -right-1.5 flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] font-semibold text-white"
+            title={`${person.open_flag_count} open flag${person.open_flag_count === 1 ? "" : "s"}`}
+            aria-label={`${person.open_flag_count} open flags`}
+          >
+            {person.open_flag_count}
+          </span>
         ) : null}
-        <AvatarFallback>{personInitials(person)}</AvatarFallback>
-      </Avatar>
 
-      <div className="min-w-0 flex-1">
-        <p
-          className={cn(
-            "flex items-center gap-1 truncate text-sm font-medium",
-            deceased ? "text-muted-foreground" : "text-foreground",
-          )}
-          title={name}
-        >
-          <span className="truncate">{name}</span>
-          {person.verified_at ? (
-            <span
-              className="shrink-0 text-primary"
-              title="Verified by an admin"
-              aria-label="Verified"
-            >
-              ✓
-            </span>
+        <Avatar size="lg" className={cn(deceased && "opacity-70")}>
+          {person.photo_url ? (
+            <AvatarImage
+              src={person.photo_url}
+              alt=""
+              style={cropStyle(parseCrop(person.photo_crop))}
+            />
           ) : null}
-        </p>
-        {isSelf ? (
-          <p className="truncate text-xs font-medium text-primary">You</p>
-        ) : null}
-        {person.maiden_name ? (
+          <AvatarFallback>{personInitials(person)}</AvatarFallback>
+        </Avatar>
+
+        <div className="min-w-0 flex-1">
           <p
-            className="truncate text-xs text-muted-foreground"
-            title={`née ${person.maiden_name}`}
+            className={cn(
+              "flex items-center gap-1 truncate text-sm font-medium",
+              deceased ? "text-muted-foreground" : "text-foreground",
+            )}
+            title={name}
           >
-            née {person.maiden_name}
+            <span className="truncate">{name}</span>
+            {person.verified_at ? (
+              <span
+                className="shrink-0 text-primary"
+                title="Verified by an admin"
+                aria-label="Verified"
+              >
+                ✓
+              </span>
+            ) : null}
           </p>
-        ) : null}
-        {lifespan ? (
-          <p
-            className="truncate text-xs text-muted-foreground"
-            title={lifespan}
-          >
-            {lifespan}
-          </p>
-        ) : null}
-        {birthplace ? (
-          <p
-            className="truncate text-xs text-muted-foreground"
-            title={birthplace}
-          >
-            {birthplace}
-          </p>
-        ) : null}
-      </div>
+          {isSelf ? (
+            <p className="truncate text-xs font-medium text-primary">You</p>
+          ) : null}
+          {person.maiden_name ? (
+            <p
+              className="truncate text-xs text-muted-foreground"
+              title={`née ${person.maiden_name}`}
+            >
+              née {person.maiden_name}
+            </p>
+          ) : null}
+          {lifespan ? (
+            <p
+              className="truncate text-xs text-muted-foreground"
+              title={lifespan}
+            >
+              {lifespan}
+            </p>
+          ) : null}
+          {birthplace ? (
+            <p
+              className="truncate text-xs text-muted-foreground"
+              title={birthplace}
+            >
+              {birthplace}
+            </p>
+          ) : null}
+        </div>
       </div>
     </div>
   );

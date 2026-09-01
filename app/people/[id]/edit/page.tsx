@@ -32,7 +32,7 @@ export default async function EditPersonPage({
   const { data: person } = await supabase
     .from("people")
     .select(
-      "id, tree_id, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, place_id_birth, city_of_birth, country_of_birth, is_deceased, date_of_death, place_id_death, place_of_death, sex, lineage_type, photo_path, owner_user_id, created_by",
+      "id, tree_id, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, place_id_birth, city_of_birth, country_of_birth, is_deceased, date_of_death, place_id_death, place_of_death, sex, lineage_type, photo_path, photo_crop, owner_user_id, created_by",
     )
     .eq("id", id)
     .maybeSingle();
@@ -154,7 +154,12 @@ export default async function EditPersonPage({
       <PersonForm
         treeId={person.tree_id}
         isAdmin={isAdmin}
-        person={{ ...values, id: person.id, photo_path: person.photo_path }}
+        person={{
+          ...values,
+          id: person.id,
+          photo_path: person.photo_path,
+          photo_crop: person.photo_crop,
+        }}
         photoUrl={photoUrl}
         placeLabels={placeLabels}
       />

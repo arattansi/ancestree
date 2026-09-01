@@ -39,6 +39,8 @@ export type TreeGraphPerson = {
   death_place_historical: string | null;
   lineage_type: string | null;
   photo_path: string | null;
+  /** Thumbnail framing for `photo_path`; null means the centred default. */
+  photo_crop: unknown;
   pos_x: number | null;
   pos_y: number | null;
   pos_dx: number | null;
@@ -69,7 +71,7 @@ export type TreeGraphEdge = {
 };
 
 const PERSON_COLUMNS =
-  "id, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_death, city_of_birth, country_of_birth, place_id_birth, place_id_death, is_deceased, place_of_death, sex, lineage_type, photo_path, pos_x, pos_y, owner_user_id, created_by, verified_at, pos_dx, pos_dy";
+  "id, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_death, city_of_birth, country_of_birth, place_id_birth, place_id_death, is_deceased, place_of_death, sex, lineage_type, photo_path, photo_crop, pos_x, pos_y, owner_user_id, created_by, verified_at, pos_dx, pos_dy";
 
 /** Everyone in the tree plus their relationship edges, with signed photo URLs. */
 export async function getTreeGraph(
@@ -120,7 +122,9 @@ export async function getTreeGraph(
   const [placeRes, histRes] = await Promise.all([
     placeIds.length > 0
       ? supabase.from("places").select("id, country_code").in("id", placeIds)
-      : Promise.resolve({ data: [] as { id: number; country_code: string | null }[] }),
+      : Promise.resolve({
+          data: [] as { id: number; country_code: string | null }[],
+        }),
     supabase
       .from("historical_names")
       .select("place_id, country_code, name, start_date, end_date"),
@@ -136,7 +140,7 @@ export async function getTreeGraph(
     fallbackCountry: string | null,
     eventDate: string | null,
   ): string | null => {
-    const cc = placeId != null ? ccByPlace.get(placeId) ?? null : null;
+    const cc = placeId != null ? (ccByPlace.get(placeId) ?? null) : null;
     const historical = resolveHistoricalName(histRows, {
       placeId,
       countryCode: cc,
@@ -181,7 +185,7 @@ export async function getTreeGraph(
       const claim = claimByPerson.get(p.id) ?? null;
       return {
         ...p,
-        photo_url: p.photo_path ? urlByPath.get(p.photo_path) ?? null : null,
+        photo_url: p.photo_path ? (urlByPath.get(p.photo_path) ?? null) : null,
         claim_status: claim?.status ?? null,
         claim_id: claim?.id ?? null,
         open_flag_count: openFlagsByPerson.get(p.id) ?? 0,

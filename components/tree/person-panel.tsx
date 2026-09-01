@@ -9,11 +9,13 @@ import { claimPerson, disputeClaim } from "@/app/actions/claims";
 import { setEntryVerified } from "@/app/actions/entry-comments";
 import {
   resolveConnectionSuggestion,
+  setPersonPhotoCrop,
   updateRelationshipMarriage,
 } from "@/app/actions/people";
 import { deletePerson } from "@/app/actions/privacy";
 import type { PanelSuggestion } from "@/lib/connection-suggestions";
 import { PersonDocuments } from "@/components/person-documents";
+import { PhotoCropEditor } from "@/components/photo-crop-editor";
 import { EntryComments } from "@/components/tree/entry-comments";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +36,12 @@ import {
   personInitials,
   personLifespan,
 } from "@/lib/person-name";
+import {
+  cropStyle,
+  DEFAULT_CROP,
+  parseCrop,
+  type CropTransform,
+} from "@/lib/image-crop";
 import { SEX_LABELS, type Sex } from "@/lib/person-schema";
 import type { TreeGraphPerson } from "@/lib/tree";
 
@@ -293,7 +301,9 @@ function FamilySection({
       ) : null}
       {children.length > 0 ? (
         <div className="flex flex-col gap-0.5">
-          <dt className="text-xs font-medium text-muted-foreground">Children</dt>
+          <dt className="text-xs font-medium text-muted-foreground">
+            Children
+          </dt>
           <dd className="text-sm">
             {children.map((c) => c.otherName).join(", ")}
           </dd>
@@ -341,6 +351,9 @@ export function PersonPanel({
   const [disputing, setDisputing] = React.useState(false);
   const [reason, setReason] = React.useState("");
   const [photoOpen, setPhotoOpen] = React.useState(false);
+  const [cropOpen, setCropOpen] = React.useState(false);
+  const savedCrop = parseCrop(person?.photo_crop);
+  const [crop, setCrop] = React.useState<CropTransform>(savedCrop);
   const [prevId, setPrevId] = React.useState(person?.id);
 
   // Reset the inline dispute form whenever a different person is selected.
@@ -349,6 +362,22 @@ export function PersonPanel({
     setDisputing(false);
     setReason("");
     setPhotoOpen(false);
+    setCropOpen(false);
+    setCrop(savedCrop);
+  }
+
+  async function onSaveCrop() {
+    if (!person) return;
+    setBusy(true);
+    const res = await setPersonPhotoCrop(person.id, crop);
+    setBusy(false);
+    if (res.error) {
+      toast.error(res.error);
+      return;
+    }
+    setCropOpen(false);
+    toast.success("Photo repositioned.");
+    router.refresh();
   }
 
   async function onClaim() {
@@ -374,7 +403,9 @@ export function PersonPanel({
       toast.error(res.error);
       return;
     }
-    toast.success(person.verified_at ? "Verification cleared." : "Entry marked verified.");
+    toast.success(
+      person.verified_at ? "Verification cleared." : "Entry marked verified.",
+    );
     router.refresh();
   }
 
@@ -434,10 +465,12 @@ export function PersonPanel({
                     aria-label={`View photo of ${personDisplayName(person)}`}
                   >
                     <Avatar size="lg" className="cursor-zoom-in">
-                      <AvatarImage src={person.photo_url} alt="" />
-                      <AvatarFallback>
-                        {personInitials(person)}
-                      </AvatarFallback>
+                      <AvatarImage
+                        src={person.photo_url}
+                        alt=""
+                        style={cropStyle(parseCrop(person.photo_crop))}
+                      />
+                      <AvatarFallback>{personInitials(person)}</AvatarFallback>
                     </Avatar>
                   </button>
                 ) : (
@@ -475,7 +508,9 @@ export function PersonPanel({
                   <Badge variant="destructive">Ownership disputed</Badge>
                 ) : null}
                 {isAdmin && person.lineage_type ? (
-                  <Badge variant="outline">Lineage: {person.lineage_type}</Badge>
+                  <Badge variant="outline">
+                    Lineage: {person.lineage_type}
+                  </Badge>
                 ) : null}
               </div>
             </SheetHeader>
@@ -490,7 +525,7 @@ export function PersonPanel({
                 <Field
                   label="Sex"
                   value={
-                    person.sex ? SEX_LABELS[person.sex as Sex] ?? null : null
+                    person.sex ? (SEX_LABELS[person.sex as Sex] ?? null) : null
                   }
                 />
                 <Field label="Date of birth" value={person.date_of_birth} />
@@ -506,10 +541,7 @@ export function PersonPanel({
                 />
                 {person.is_deceased ? (
                   <>
-                    <Field
-                      label="Date of death"
-                      value={person.date_of_death}
-                    />
+                    <Field label="Date of death" value={person.date_of_death} />
                     <Field
                       label="Place of death"
                       value={
@@ -560,119 +592,183 @@ export function PersonPanel({
               ) : null}
 
               {!readOnly ? (
-              <section className="flex flex-col gap-3 border-t border-border pt-5">
-                <h2 className="text-sm font-semibold">Manage</h2>
+                <section className="flex flex-col gap-3 border-t border-border pt-5">
+                  <h2 className="text-sm font-semibold">Manage</h2>
 
-                <div className="flex flex-wrap gap-2">
-                  {canEdit ? (
-                    <Button
-                      nativeButton={false}
-                      render={<Link href={`/people/${person.id}/edit`} />}
-                      variant="outline"
-                      size="sm"
-                    >
-                      Edit entry
-                    </Button>
-                  ) : null}
-
-                  {!isSelf && claimable && !person.claim_status ? (
-                    <Button size="sm" onClick={onClaim} disabled={busy}>
-                      {busy ? "Claiming…" : "This is me — claim it"}
-                    </Button>
-                  ) : null}
-
-                  {isAdmin ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={onToggleVerified}
-                      disabled={busy}
-                    >
-                      {person.verified_at
-                        ? "Clear verified"
-                        : "Mark verified"}
-                    </Button>
-                  ) : null}
-
-                  {isAdmin ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-destructive"
-                      onClick={onDelete}
-                      disabled={busy}
-                    >
-                      Delete entry
-                    </Button>
-                  ) : null}
-                </div>
-
-                {person.verified_at ? (
-                  <p className="text-xs text-muted-foreground">
-                    Verified by an admin on{" "}
-                    {new Date(person.verified_at).toLocaleDateString()}.
-                  </p>
-                ) : null}
-
-                {!canEdit && !claimable && !isSelf ? (
-                  <p className="text-xs text-muted-foreground">
-                    Only the entry owner or an admin can edit this entry.
-                  </p>
-                ) : null}
-
-                {person.claim_status === "approved" && isCreator ? (
-                  disputing ? (
-                    <div className="flex flex-col gap-2 rounded-md border border-border p-3">
-                      <label
-                        htmlFor="dispute-reason"
-                        className="text-xs font-medium text-muted-foreground"
+                  <div className="flex flex-wrap gap-2">
+                    {canEdit ? (
+                      <Button
+                        nativeButton={false}
+                        render={<Link href={`/people/${person.id}/edit`} />}
+                        variant="outline"
+                        size="sm"
                       >
-                        Why is this claim wrong? (optional)
-                      </label>
-                      <Input
-                        id="dispute-reason"
-                        value={reason}
-                        onChange={(e) => setReason(e.target.value)}
-                        placeholder="This isn't the same person…"
-                      />
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={onDispute}
-                          disabled={busy}
-                        >
-                          {busy ? "Sending…" : "Send dispute"}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setDisputing(false)}
-                          disabled={busy}
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      className="self-start text-xs text-destructive underline underline-offset-2"
-                      onClick={() => setDisputing(true)}
-                    >
-                      You created this entry — dispute the claim
-                    </button>
-                  )
-                ) : null}
+                        Edit entry
+                      </Button>
+                    ) : null}
 
-                {person.claim_status === "disputed" ? (
-                  <p className="text-xs text-muted-foreground">
-                    A dispute over this entry is with an admin.
-                  </p>
-                ) : null}
-              </section>
+                    {canEdit && person.photo_url ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setCrop(savedCrop);
+                          setCropOpen(true);
+                        }}
+                      >
+                        Reposition photo
+                      </Button>
+                    ) : null}
+
+                    {!isSelf && claimable && !person.claim_status ? (
+                      <Button size="sm" onClick={onClaim} disabled={busy}>
+                        {busy ? "Claiming…" : "This is me — claim it"}
+                      </Button>
+                    ) : null}
+
+                    {isAdmin ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={onToggleVerified}
+                        disabled={busy}
+                      >
+                        {person.verified_at
+                          ? "Clear verified"
+                          : "Mark verified"}
+                      </Button>
+                    ) : null}
+
+                    {isAdmin ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-destructive"
+                        onClick={onDelete}
+                        disabled={busy}
+                      >
+                        Delete entry
+                      </Button>
+                    ) : null}
+                  </div>
+
+                  {person.verified_at ? (
+                    <p className="text-xs text-muted-foreground">
+                      Verified by an admin on{" "}
+                      {new Date(person.verified_at).toLocaleDateString()}.
+                    </p>
+                  ) : null}
+
+                  {!canEdit && !claimable && !isSelf ? (
+                    <p className="text-xs text-muted-foreground">
+                      Only the entry owner or an admin can edit this entry.
+                    </p>
+                  ) : null}
+
+                  {person.claim_status === "approved" && isCreator ? (
+                    disputing ? (
+                      <div className="flex flex-col gap-2 rounded-md border border-border p-3">
+                        <label
+                          htmlFor="dispute-reason"
+                          className="text-xs font-medium text-muted-foreground"
+                        >
+                          Why is this claim wrong? (optional)
+                        </label>
+                        <Input
+                          id="dispute-reason"
+                          value={reason}
+                          onChange={(e) => setReason(e.target.value)}
+                          placeholder="This isn't the same person…"
+                        />
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={onDispute}
+                            disabled={busy}
+                          >
+                            {busy ? "Sending…" : "Send dispute"}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setDisputing(false)}
+                            disabled={busy}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        className="self-start text-xs text-destructive underline underline-offset-2"
+                        onClick={() => setDisputing(true)}
+                      >
+                        You created this entry — dispute the claim
+                      </button>
+                    )
+                  ) : null}
+
+                  {person.claim_status === "disputed" ? (
+                    <p className="text-xs text-muted-foreground">
+                      A dispute over this entry is with an admin.
+                    </p>
+                  ) : null}
+                </section>
               ) : null}
             </div>
+
+            {person.photo_url && canEdit ? (
+              <Dialog
+                open={cropOpen}
+                onOpenChange={(next) => {
+                  if (!next) setCrop(savedCrop);
+                  setCropOpen(next);
+                }}
+              >
+                <DialogContent className="sm:max-w-sm">
+                  <DialogTitle>
+                    Reposition photo of {personDisplayName(person)}
+                  </DialogTitle>
+                  <div className="flex flex-col items-center gap-4 pt-2">
+                    <PhotoCropEditor
+                      url={person.photo_url}
+                      crop={crop}
+                      onCropChange={setCrop}
+                      onUnreadable={() => {
+                        toast.error("That photo couldn't be loaded.");
+                        setCropOpen(false);
+                      }}
+                    />
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={onSaveCrop} disabled={busy}>
+                        {busy ? "Saving…" : "Save"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setCrop(savedCrop);
+                          setCropOpen(false);
+                        }}
+                        disabled={busy}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setCrop(DEFAULT_CROP)}
+                        disabled={busy}
+                      >
+                        Reset
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            ) : null}
 
             {person.photo_url ? (
               <Dialog open={photoOpen} onOpenChange={setPhotoOpen}>

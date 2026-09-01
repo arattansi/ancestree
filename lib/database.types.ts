@@ -679,6 +679,7 @@ export type Database = {
           maiden_name: string | null
           middle_name: string | null
           owner_user_id: string
+          photo_crop: Json | null
           photo_path: string | null
           place_id_birth: number | null
           place_id_death: number | null
@@ -709,6 +710,7 @@ export type Database = {
           maiden_name?: string | null
           middle_name?: string | null
           owner_user_id: string
+          photo_crop?: Json | null
           photo_path?: string | null
           place_id_birth?: number | null
           place_id_death?: number | null
@@ -739,6 +741,7 @@ export type Database = {
           maiden_name?: string | null
           middle_name?: string | null
           owner_user_id?: string
+          photo_crop?: Json | null
           photo_path?: string | null
           place_id_birth?: number | null
           place_id_death?: number | null

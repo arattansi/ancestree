@@ -1,20 +1,22 @@
 "use client";
 
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 
-import { setPersonPhoto, updatePerson } from "@/app/actions/people";
+import {
+  setPersonPhoto,
+  setPersonPhotoCrop,
+  updatePerson,
+} from "@/app/actions/people";
 import { PersonDocuments } from "@/components/person-documents";
 import { PersonFields } from "@/components/person-fields";
+import { PhotoPicker } from "@/components/photo-picker";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { compressImage } from "@/lib/image";
+import { parseCrop, type CropTransform } from "@/lib/image-crop";
 import {
   emptyPersonValues,
   personSchema,
@@ -25,6 +27,7 @@ import { createClient } from "@/lib/supabase/client";
 type ExistingPerson = PersonFormValues & {
   id: string;
   photo_path: string | null;
+  photo_crop: unknown;
 };
 
 /** Edit an existing person entry (owner or admin). */
@@ -44,13 +47,12 @@ export function PersonForm({
   const router = useRouter();
   const [photoFile, setPhotoFile] = React.useState<File | null>(null);
   const [photoBusy, setPhotoBusy] = React.useState(false);
-  const [submitError, setSubmitError] = React.useState<string | null>(null);
-
-  const objectUrl = React.useMemo(
-    () => (photoFile ? URL.createObjectURL(photoFile) : null),
-    [photoFile],
+  const savedCrop = React.useMemo(
+    () => parseCrop(person.photo_crop),
+    [person.photo_crop],
   );
-  const photoPreview = objectUrl ?? photoUrl ?? null;
+  const [crop, setCrop] = React.useState<CropTransform>(savedCrop);
+  const [submitError, setSubmitError] = React.useState<string | null>(null);
 
   const form = useForm<PersonFormValues>({
     resolver: zodResolver(personSchema),
@@ -59,27 +61,6 @@ export function PersonForm({
   });
 
   const submitting = form.formState.isSubmitting || photoBusy;
-
-  React.useEffect(() => {
-    if (!objectUrl) return;
-    return () => URL.revokeObjectURL(objectUrl);
-  }, [objectUrl]);
-
-  async function handlePhotoPick(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
-      toast.error("Choose a JPEG, PNG, or WebP image.");
-      return;
-    }
-    setPhotoBusy(true);
-    try {
-      setPhotoFile(await compressImage(file));
-    } finally {
-      setPhotoBusy(false);
-    }
-  }
 
   async function uploadPhoto(personId: string, file: File): Promise<string> {
     const supabase = createClient();
@@ -96,10 +77,12 @@ export function PersonForm({
     if (photoFile) {
       try {
         const path = await uploadPhoto(person.id, photoFile);
-        await setPersonPhoto(person.id, path);
+        await setPersonPhoto(person.id, path, crop);
       } catch {
         toast.warning("The photo didn't upload — other changes still saved.");
       }
+    } else if (person.photo_path && !sameCrop(crop, savedCrop)) {
+      await setPersonPhotoCrop(person.id, crop);
     }
     const result = await updatePerson(person.id, values);
     if (result.error) {
@@ -124,53 +107,16 @@ export function PersonForm({
           placeLabels={placeLabels}
         />
 
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="photo">Photo</Label>
-          <div className="flex items-center gap-4">
-            <div className="relative size-16 shrink-0 overflow-hidden rounded-full border border-border bg-muted">
-              {photoPreview ? (
-                <Image
-                  src={photoPreview}
-                  alt="Selected photo preview"
-                  fill
-                  sizes="64px"
-                  className="object-cover"
-                  unoptimized
-                />
-              ) : (
-                <span
-                  aria-hidden
-                  className="flex size-full items-center justify-center text-muted-foreground"
-                >
-                  ?
-                </span>
-              )}
-            </div>
-            <div className="flex flex-col gap-1">
-              <Input
-                id="photo"
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                onChange={handlePhotoPick}
-                disabled={photoBusy}
-              />
-              <p className="text-xs text-muted-foreground">
-                JPEG, PNG, or WebP. Resized on your device before upload.
-              </p>
-              {photoFile ? (
-                <button
-                  type="button"
-                  className="self-start text-xs text-destructive underline underline-offset-2"
-                  onClick={() => {
-                    setPhotoFile(null);
-                  }}
-                >
-                  Remove selected photo
-                </button>
-              ) : null}
-            </div>
-          </div>
-        </div>
+        <PhotoPicker
+          id="photo"
+          value={photoFile}
+          onChange={setPhotoFile}
+          crop={crop}
+          onCropChange={setCrop}
+          currentUrl={photoUrl}
+          onBusyChange={setPhotoBusy}
+          disabled={form.formState.isSubmitting}
+        />
 
         {submitError ? (
           <p role="alert" className="text-sm font-medium text-destructive">
@@ -190,9 +136,14 @@ export function PersonForm({
   );
 }
 
+function sameCrop(a: CropTransform, b: CropTransform): boolean {
+  return a.zoom === b.zoom && a.focusX === b.focusX && a.focusY === b.focusY;
+}
+
 function stripExisting(person: ExistingPerson): PersonFormValues {
-  const { id: _id, photo_path: _photo, ...values } = person;
+  const { id: _id, photo_path: _photo, photo_crop: _crop, ...values } = person;
   void _id;
   void _photo;
+  void _crop;
   return values;
 }
