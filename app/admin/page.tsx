@@ -3,10 +3,12 @@ import type { Metadata } from "next";
 import { setCanInvite } from "@/app/actions/invites";
 import { AdminDisputedClaims } from "@/components/admin-disputed-claims";
 import { AdminExport } from "@/components/admin-export";
+import { AdminInviteHistory } from "@/components/admin-invite-history";
 import {
   AdminInviteRequests,
   type PendingInviteRequest,
 } from "@/components/admin-invite-requests";
+import { DirectInviteForm } from "@/components/direct-invite-form";
 import { InviteMinter } from "@/components/invite-minter";
 import { ShareLinkManager, type ShareLinkRow } from "@/components/share-link-manager";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +23,7 @@ import {
 import { requireAdmin } from "@/lib/auth";
 import { listDisputedClaims } from "@/lib/claims";
 import { multiTreeEnabled } from "@/lib/flags";
+import { listInviteHistory } from "@/lib/invites";
 import { getSiteUrl } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/server";
 
@@ -79,6 +82,7 @@ export default async function AdminPage() {
   const members = membersRes.data ?? [];
   const people = peopleRes.data ?? [];
   const disputedClaims = await listDisputedClaims();
+  const inviteHistory = await listInviteHistory();
   const inviteRequests: PendingInviteRequest[] = (
     inviteRequestsRes.data ?? []
   ).map((r) => ({
@@ -176,10 +180,15 @@ export default async function AdminPage() {
           <CardTitle>Invite a relative</CardTitle>
           <CardDescription>
             Each link is tied to you, works once, and expires after 14 days.
+            Send by name and email and it&rsquo;s emailed for you, or just
+            mint a bare link to send yourself.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <InviteMinter />
+        <CardContent className="flex flex-col gap-6">
+          <DirectInviteForm />
+          <div className="border-t border-border pt-6">
+            <InviteMinter />
+          </div>
         </CardContent>
       </Card>
 
@@ -208,6 +217,19 @@ export default async function AdminPage() {
         </CardHeader>
         <CardContent>
           <AdminInviteRequests requests={inviteRequests} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Sent invites</CardTitle>
+          <CardDescription>
+            Every invite that has gone out, however it started — the last{" "}
+            {inviteHistory.length}.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AdminInviteHistory items={inviteHistory} />
         </CardContent>
       </Card>
 

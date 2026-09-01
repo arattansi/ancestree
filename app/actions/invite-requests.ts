@@ -112,21 +112,6 @@ export async function approveInviteRequest(
     return { error: "Could not create an invite link. Try again." };
   }
 
-  const { error: updateError } = await supabase
-    .from("invite_requests")
-    .update({
-      status: "approved",
-      reviewed_by: admin.auth_user_id,
-      reviewed_at: new Date().toISOString(),
-      invite_id: invite.id,
-    })
-    .eq("id", id)
-    .eq("status", "pending");
-
-  if (updateError) {
-    return { error: "Could not update that request. Try again." };
-  }
-
   const url = `${getSiteUrl()}/join/${invite.token}`;
   const { subject, html } = inviteApprovedEmail({
     firstName: request.first_name,
@@ -134,6 +119,22 @@ export async function approveInviteRequest(
     url,
   });
   const sent = await sendEmail({ to: request.email, subject, html });
+
+  const { error: updateError } = await supabase
+    .from("invite_requests")
+    .update({
+      status: "approved",
+      reviewed_by: admin.auth_user_id,
+      reviewed_at: new Date().toISOString(),
+      invite_id: invite.id,
+      email_sent: sent.ok,
+    })
+    .eq("id", id)
+    .eq("status", "pending");
+
+  if (updateError) {
+    return { error: "Could not update that request. Try again." };
+  }
 
   revalidatePath("/admin");
   return {

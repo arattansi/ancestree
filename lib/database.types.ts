@@ -378,36 +378,42 @@ export type Database = {
         Row: {
           created_at: string
           email: string
+          email_sent: boolean | null
           first_name: string
           id: string
           invite_id: string | null
           last_name: string
           reviewed_at: string | null
           reviewed_by: string | null
+          source: string
           status: string
           updated_at: string
         }
         Insert: {
           created_at?: string
           email: string
+          email_sent?: boolean | null
           first_name: string
           id?: string
           invite_id?: string | null
           last_name: string
           reviewed_at?: string | null
           reviewed_by?: string | null
+          source?: string
           status?: string
           updated_at?: string
         }
         Update: {
           created_at?: string
           email?: string
+          email_sent?: boolean | null
           first_name?: string
           id?: string
           invite_id?: string | null
           last_name?: string
           reviewed_at?: string | null
           reviewed_by?: string | null
+          source?: string
           status?: string
           updated_at?: string
         }

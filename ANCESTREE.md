@@ -53,7 +53,8 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   (admin erasure + storage cleanup) / `deleteAccount` (self-serve, reassigns
   contributions to a founding admin);
   `trees.ts`: `startOwnTree` (Step 9 multi-tree seam);
-  `invites.ts`: mint invite link, grant/revoke `can_invite`;
+  `invites.ts`: mint invite link, `sendDirectInvites` (bulk name+email
+  invites), grant/revoke `can_invite`;
   `invite-requests.ts`: `requestInvite` (public, service-role write) /
   `approveInviteRequest` (mints the link) / `declineInviteRequest`;
   `people.ts`: `addPeopleWithConnections` (transactional multi-person + edge
@@ -181,6 +182,24 @@ Helpers live in the unexposed `private` schema (`is_admin`, `is_tree_member`,
   `lib/emails/invite-approved.ts`, needs `RESEND_API_KEY`) — if the send
   fails, the invite is still valid and the admin can copy the link and send it
   themselves; declining just closes the request.
+- **Direct invites**: from the same `/admin` card, an admin can skip the
+  request queue and send invites straight to people they already know — a
+  `useFieldArray` row-per-person form (first name, last name, email;
+  `components/direct-invite-form.tsx`) posting to `sendDirectInvites`
+  (`app/actions/invites.ts`). Each row mints an invite the same way
+  `createInvite` does, emails it with `lib/emails/invite-sent.ts` (same visual
+  shell as `invite-approved.ts`, via `lib/emails/shared.ts`, but worded for
+  "you were invited" rather than "your request was approved"), and — purely so
+  it shows up in the same history — inserts an already-`approved`,
+  `source = 'direct'` row into `invite_requests` (needs its own admin-scoped
+  INSERT policy, since normal rows are written pre-auth by the service role).
+- **Invite history**: `/admin`'s "Sent invites" card (`listInviteHistory` in
+  `lib/invites.ts`, `components/admin-invite-history.tsx`) is every non-
+  pending `invite_requests` row — request-driven or direct — joined to its
+  `invites` row so it can show whether the link was ever used, is still
+  active, expired, or was revoked, and whether the email actually sent
+  (`email_sent`, best-effort — a `false` doesn't mean it bounced, just that
+  Resend's API call didn't return success).
 - **Share links** (`public.share_links`): admins mint any number of view-only
   links `"/shared/<token>"` from `/admin` (server actions `createShareLink` /
   `revokeShareLink`, each optionally 30-day-expiring and independently
