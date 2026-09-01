@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
 import { sendEmail } from "@/lib/email";
 import { inviteApprovedEmail } from "@/lib/emails/invite-approved";
+import { inviteSentEmail } from "@/lib/emails/invite-sent";
 import { getSiteUrl } from "@/lib/site-url";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -142,6 +143,76 @@ export async function approveInviteRequest(
     emailed: sent.ok,
     emailError: sent.ok ? undefined : sent.error,
   };
+}
+
+/**
+ * Admin: send the invite email again for an already-approved request — the
+ * recovery path when the first send failed (a bounce, or no mail provider
+ * configured at the time) or the recipient simply lost it.
+ *
+ * Deliberately reuses the invite minted at approval instead of creating a
+ * fresh one: any link already in the wild keeps working, and the 14-day
+ * clock is not quietly reset. That also means an expired invite can't be
+ * revived here — delete the record and invite them again.
+ */
+export async function resendInviteEmail(
+  id: string,
+): Promise<{ ok?: boolean; error?: string }> {
+  const admin = await requireAdmin();
+  const supabase = await createClient();
+
+  const { data: request } = await supabase
+    .from("invite_requests")
+    .select("id, status, source, first_name, email, invites(token, status, expires_at)")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!request) return { error: "That request no longer exists." };
+  if (request.status !== "approved") {
+    return { error: "Only an approved request has an invite to resend." };
+  }
+
+  // One-to-one FK that PostgREST still hands back as an array.
+  const invite = Array.isArray(request.invites)
+    ? request.invites[0]
+    : request.invites;
+
+  if (!invite) return { error: "That approval never minted an invite link." };
+  if (invite.status === "accepted") {
+    return { error: "They have already joined — there is nothing left to send." };
+  }
+  if (invite.status !== "active") {
+    return { error: "That invite link has been revoked." };
+  }
+  if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
+    return {
+      error: "That invite link has expired. Delete it and invite them again.",
+    };
+  }
+
+  const inviterName = admin.display_name ?? "A family member";
+  const url = `${getSiteUrl()}/join/${invite.token}`;
+  // Keep the original wording: nobody asked for a direct invite, so it must
+  // not come back claiming their request was approved.
+  const { subject, html } =
+    request.source === "direct"
+      ? inviteSentEmail({ firstName: request.first_name, inviterName, url })
+      : inviteApprovedEmail({ firstName: request.first_name, inviterName, url });
+
+  const sent = await sendEmail({ to: request.email, subject, html });
+
+  const { error: updateError } = await supabase
+    .from("invite_requests")
+    .update({ email_sent: sent.ok })
+    .eq("id", id);
+
+  revalidatePath("/admin");
+
+  if (!sent.ok) return { error: `Still couldn't send it — ${sent.error}` };
+  if (updateError) {
+    return { error: "Email sent, but the record still shows it as failed." };
+  }
+  return { ok: true };
 }
 
 /** Admin: decline a request without minting anything. */

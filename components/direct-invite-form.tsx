@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { sendDirectInvites } from "@/app/actions/invites";
+import { sendDirectInvites, type SendDirectInvitesState } from "@/app/actions/invites";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,10 +43,19 @@ export function DirectInviteForm() {
     }
 
     setPending(true);
-    const res = await sendDirectInvites(
-      filled.map((r) => ({ firstName: r.firstName, lastName: r.lastName, email: r.email })),
-    );
-    setPending(false);
+    let res: SendDirectInvitesState;
+    try {
+      res = await sendDirectInvites(
+        filled.map((r) => ({ firstName: r.firstName, lastName: r.lastName, email: r.email })),
+      );
+    } catch {
+      // A rejected server action (stale action id after a deploy, dropped
+      // connection) must not strand the button on "Sending…" forever.
+      toast.error("Couldn't reach the server — reload the page and try again.");
+      return;
+    } finally {
+      setPending(false);
+    }
 
     if (res.error) {
       toast.error(res.error);

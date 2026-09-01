@@ -2,6 +2,12 @@ import "server-only";
 
 const RESEND_API_URL = "https://api.resend.com/emails";
 const DEFAULT_FROM = "ancestree <no-reply@ancestree.space>";
+/**
+ * Resend normally answers in well under a second. Without a bound, an
+ * unresponsive API would hang the server action that called us — and every
+ * caller runs inside a button the admin is watching.
+ */
+const TIMEOUT_MS = 15_000;
 
 export type SendEmailInput = {
   to: string;
@@ -37,6 +43,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
         subject: input.subject,
         html: input.html,
       }),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
     });
 
     if (!res.ok) {
@@ -44,6 +51,9 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
     }
     return { ok: true };
   } catch (err) {
+    if (err instanceof Error && err.name === "TimeoutError") {
+      return { ok: false, error: "Resend did not respond in time" };
+    }
     return { ok: false, error: err instanceof Error ? err.message : "Unknown error" };
   }
 }

@@ -1,5 +1,6 @@
 import type { InviteHistoryItem } from "@/lib/invites";
 import { DeleteInviteButton } from "@/components/delete-invite-button";
+import { ResendInviteButton } from "@/components/resend-invite-button";
 import { Badge } from "@/components/ui/badge";
 
 /** "Sent invites" history on /admin — read-only apart from deleting a row. */
@@ -28,6 +29,14 @@ export function AdminInviteHistory({ items }: { items: InviteHistoryItem[] }) {
               {item.source === "direct" ? "Sent directly" : "Requested"}
             </Badge>
             <StatusBadge item={item} />
+            {canResend(item) && (
+              <ResendInviteButton
+                id={item.id}
+                name={`${item.firstName} ${item.lastName}`}
+                email={item.email}
+                failed={item.emailSent === false}
+              />
+            )}
             <DeleteInviteButton
               id={item.id}
               name={`${item.firstName} ${item.lastName}`}
@@ -38,6 +47,19 @@ export function AdminInviteHistory({ items }: { items: InviteHistoryItem[] }) {
       ))}
     </ul>
   );
+}
+
+/** An invite is worth resending while it still exists and can still be used. */
+function canResend(item: InviteHistoryItem) {
+  return (
+    item.status === "approved" &&
+    item.inviteStatus === "active" &&
+    !isExpired(item)
+  );
+}
+
+function isExpired(item: InviteHistoryItem) {
+  return item.expiresAt ? new Date(item.expiresAt) < new Date() : false;
 }
 
 /**
@@ -71,7 +93,7 @@ function StatusBadge({ item }: { item: InviteHistoryItem }) {
     case "revoked":
       return <Badge variant="secondary">Revoked</Badge>;
     case "active": {
-      const expired = item.expiresAt ? new Date(item.expiresAt) < new Date() : false;
+      const expired = isExpired(item);
       return (
         <Badge variant="secondary">{expired ? "Expired, unused" : "Sent, not yet used"}</Badge>
       );

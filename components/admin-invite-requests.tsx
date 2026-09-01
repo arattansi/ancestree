@@ -41,8 +41,17 @@ export function AdminInviteRequests({
 
   async function onApprove(id: string, email: string) {
     setBusyId(id);
-    const res = await approveInviteRequest(id);
-    setBusyId(null);
+    let res: Awaited<ReturnType<typeof approveInviteRequest>>;
+    try {
+      res = await approveInviteRequest(id);
+    } catch {
+      // Never strand the row on "Working…" — a rejected action (stale action
+      // id after a deploy, dropped connection) has to be recoverable.
+      toast.error("Couldn't reach the server — reload the page and try again.");
+      return;
+    } finally {
+      setBusyId(null);
+    }
     if (res.error) {
       toast.error(res.error);
       return;
@@ -63,8 +72,15 @@ export function AdminInviteRequests({
 
   async function onDecline(id: string) {
     setBusyId(id);
-    const res = await declineInviteRequest(id);
-    setBusyId(null);
+    let res: { error?: string };
+    try {
+      res = await declineInviteRequest(id);
+    } catch {
+      toast.error("Couldn't reach the server — reload the page and try again.");
+      return;
+    } finally {
+      setBusyId(null);
+    }
     if (res.error) {
       toast.error(res.error);
       return;

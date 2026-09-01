@@ -28,8 +28,15 @@ export function DeleteInviteButton({
   async function onDelete() {
     if (!window.confirm(confirmText)) return;
     setBusy(true);
-    const res = await deleteInviteRequest(id);
-    setBusy(false);
+    let res: { error?: string };
+    try {
+      res = await deleteInviteRequest(id);
+    } catch {
+      toast.error("Couldn't reach the server — reload the page and try again.");
+      return;
+    } finally {
+      setBusy(false);
+    }
     router.refresh();
     if (res.error) {
       toast.error(res.error);
