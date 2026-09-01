@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
-import { AddPersonFlow } from "@/components/add-person-flow";
+import { OnboardingSelfFlow } from "@/components/onboarding-self-flow";
 import {
   Card,
   CardContent,
@@ -13,8 +13,9 @@ import { requireProfile } from "@/lib/auth";
 import { getSharedTree, listTreeMembers } from "@/lib/tree";
 
 export const metadata: Metadata = {
-  title: "Add yourself",
-  description: "Create your own entry and connect it to the family tree.",
+  title: "Find yourself",
+  description:
+    "Claim the entry a relative already added for you, or add your own.",
 };
 
 export default async function OnboardingPage() {
@@ -44,7 +45,7 @@ export default async function OnboardingPage() {
           Welcome{profile.display_name ? `, ${profile.display_name}` : ""}
         </h1>
         <p className="text-sm text-muted-foreground">
-          Add your own entry and connect it to a relative already in the tree.
+          Let&apos;s find you on the family tree — or add you to it.
         </p>
       </div>
 
@@ -52,13 +53,11 @@ export default async function OnboardingPage() {
         <CardHeader>
           <CardTitle>Your entry</CardTitle>
           <CardDescription>
-            You&apos;ll pick how you connect to someone already on the tree —
-            and can add any missing relatives in between.
+            Start with your name — someone may have added you already.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <AddPersonFlow
-            mode="self"
+          <OnboardingSelfFlow
             treeId={tree.id}
             isAdmin={profile.role === "admin"}
             members={members}

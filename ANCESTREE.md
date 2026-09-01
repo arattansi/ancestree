@@ -40,7 +40,8 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
 
 - `app/` — App Router pages: `/` landing, `/join` (+ `/join/[token]` invite accept),
   `/auth/callback` (magic-link handler) + `/auth/auth-code-error`, `/onboarding`
-  (first-run self entry + connect), `/people/new` (add a connected relative),
+  (first-run: fuzzy name search → claim your entry, else self entry +
+  connect), `/people/new` (add a connected relative),
   `/people/[id]/edit` (owner/creator/admin entry edit), `/tree` (React Flow
   canvas), `/account` (profile + in-app notifications + delete-account),
   `/admin` (admin-only: overview stats + members + invite requests + disputes +
@@ -300,6 +301,29 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 15 — Fuzzy first-run onboarding** (migration
+  `20260901030000_onboarding_name_match`): `/onboarding` used to open straight
+  onto the full add-yourself form, so a member a relative had already entered
+  created a duplicate and only met the "is this you?" claim prompt afterwards —
+  and that prompt keys off an *exact* first/last name match, which a single
+  typo defeats. Onboarding now starts with two fields (first + last name) and
+  searches the shared tree for unclaimed entries that look like them:
+  `search_self_candidates` scores each entry with `private.name_score`, which
+  folds accents and punctuation away (`private.fold_name`, `unaccent`) and then
+  takes the best of trigram similarity, normalised Levenshtein distance, a
+  double-metaphone match (0.85 — Catherine / Katherine) and a prefix match
+  (0.75 — Ali / Alimah). First and last are scored separately against
+  `first_name`/`preferred_name` and `last_name`/`maiden_name`; both halves must
+  clear 0.4 and the mean 0.55, so "Rohen Sueman" finds "Roshen Suleman" but
+  nothing unrelated. Candidates are filtered to entries nobody stands behind
+  yet (`private.person_is_claimable`) and carry their parents' names, the
+  clearest "is this me?" cue in a family tree; anything under 0.85 is labelled
+  **close match**. Picking one calls `claim_person_as_self`, which — unlike
+  `claim_person` — has no stub to merge: it moves ownership, points
+  `profiles.self_person_id` at the entry, and auto-approves a claim the
+  creator can still dispute (same rate limit, 5/24h). "None of these are me"
+  falls through to the old `AddPersonFlow`, pre-filled with the typed name.
 
 - **Step 14 — Bloodline growth gate** (migrations
   `20260901000000_bloodline_growth_gate`, `20260901010000_tree_canvas_requests`,

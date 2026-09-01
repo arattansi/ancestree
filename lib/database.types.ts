@@ -1312,6 +1312,10 @@ export type Database = {
         Returns: Json
       }
       claim_person: { Args: { p_person_id: string }; Returns: Json }
+      claim_person_as_self: {
+        Args: { p_first: string; p_last: string; p_person_id: string }
+        Returns: Json
+      }
       connect_people: {
         Args: {
           p_divorce_date?: string
@@ -1429,6 +1433,23 @@ export type Database = {
       resolve_entry_flag: {
         Args: { p_comment_id: string; p_resolved?: boolean }
         Returns: undefined
+      }
+      search_self_candidates: {
+        Args: { p_first: string; p_last: string }
+        Returns: {
+          city_of_birth: string
+          country_of_birth: string
+          date_of_birth: string
+          date_of_death: string
+          first_name: string
+          id: string
+          is_deceased: boolean
+          last_name: string
+          maiden_name: string
+          parent_names: string
+          preferred_name: string
+          score: number
+        }[]
       }
       set_entry_verified: {
         Args: { p_person_id: string; p_verified?: boolean }
