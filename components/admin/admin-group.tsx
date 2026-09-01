@@ -88,33 +88,83 @@ export function AdminGroup({
 }
 
 /**
- * A titled block inside an {@link AdminGroup}. Not independently collapsible —
- * it just carries the scroll anchor and heading the side nav targets.
+ * A titled block inside an {@link AdminGroup}. It carries the scroll anchor and
+ * heading the side nav targets. Pass `collapsible` for list-heavy blocks (the
+ * nickname table, member list, invite history…) so the group stays scannable —
+ * a collapsed block still opens itself when the side nav or a `#hash` points at
+ * it.
  */
 export function AdminSubsection({
   id,
   title,
   description,
   contentClassName,
+  collapsible = false,
+  defaultOpen = false,
   children,
 }: {
   id: string;
   title: string;
   description?: React.ReactNode;
   contentClassName?: string;
+  collapsible?: boolean;
+  defaultOpen?: boolean;
   children: React.ReactNode;
 }) {
+  const [open, setOpen] = React.useState(defaultOpen || !collapsible);
+
+  React.useEffect(() => {
+    if (!collapsible) return;
+    function reveal() {
+      setOpen(true);
+    }
+    if (window.location.hash.slice(1) === id) reveal();
+
+    function onNavigate(event: Event) {
+      if ((event as CustomEvent<string>).detail === id) reveal();
+    }
+    window.addEventListener(ADMIN_NAVIGATE_EVENT, onNavigate);
+    return () => window.removeEventListener(ADMIN_NAVIGATE_EVENT, onNavigate);
+  }, [collapsible, id]);
+
+  const heading = (
+    <div className="flex flex-col gap-1">
+      <h3 className="font-heading text-base leading-snug font-medium">{title}</h3>
+      {description ? (
+        <p className="text-sm text-muted-foreground">{description}</p>
+      ) : null}
+    </div>
+  );
+
+  if (!collapsible) {
+    return (
+      <section id={id} className="scroll-mt-20">
+        {heading}
+        <div className={cn("mt-4", contentClassName)}>{children}</div>
+      </section>
+    );
+  }
+
   return (
     <section id={id} className="scroll-mt-20">
-      <div className="flex flex-col gap-1">
-        <h3 className="font-heading text-base leading-snug font-medium">
-          {title}
-        </h3>
-        {description ? (
-          <p className="text-sm text-muted-foreground">{description}</p>
-        ) : null}
-      </div>
-      <div className={cn("mt-4", contentClassName)}>{children}</div>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full items-start justify-between gap-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        {heading}
+        <ChevronDown
+          aria-hidden
+          className={cn(
+            "mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform",
+            open && "rotate-180",
+          )}
+        />
+      </button>
+      {open ? (
+        <div className={cn("mt-4", contentClassName)}>{children}</div>
+      ) : null}
     </section>
   );
 }

@@ -299,6 +299,8 @@ export default async function AdminPage() {
       >
         <AdminSubsection
           id="own-tree"
+          collapsible
+          defaultOpen={newOwnTree > 0}
           title="Wants their own tree"
           description={`${canvasInterest.length} on the register. These are members who married into the family, tried to add their own side of it, and said they’d want a tree of their own. Nothing is granted — it’s a record of who to reach out to if this goes to market, and the clearest read we have on whether there’s demand.`}
         >
@@ -307,6 +309,8 @@ export default async function AdminPage() {
 
         <AdminSubsection
           id="invite-requests"
+          collapsible
+          defaultOpen={inviteRequests.length > 0}
           title="Requests for access"
           description={`${inviteRequests.length} awaiting review. Approving mints a single-use link and emails it to the person who asked — if the email fails to send, you can still copy the link yourself. Declining keeps a record; deleting leaves none and lets them ask again.`}
         >
@@ -315,6 +319,8 @@ export default async function AdminPage() {
 
         <AdminSubsection
           id="disputes"
+          collapsible
+          defaultOpen={disputedClaims.length > 0}
           title="Disputed claims"
           description={`${disputedClaims.length} awaiting a decision. Upholding keeps the new owner; reversing returns the entry to its creator.`}
         >
@@ -342,6 +348,7 @@ export default async function AdminPage() {
 
         <AdminSubsection
           id="share"
+          collapsible
           title="Share a view-only link"
           description="Anyone with a share link can view the whole tree without signing in, but can’t edit anything. They’ll see a prompt to request edit access. Revoke a link any time to cut off access."
         >
@@ -350,6 +357,7 @@ export default async function AdminPage() {
 
         <AdminSubsection
           id="sent-invites"
+          collapsible
           title="Sent invites"
           description={`Every invite that has gone out, however it started — the last ${inviteHistory.length}. Deleting one also kills its link, so an invite nobody has used yet stops working.`}
         >
@@ -358,6 +366,7 @@ export default async function AdminPage() {
 
         <AdminSubsection
           id="bare-invites"
+          collapsible
           title="Bare invite links"
           description="Links minted without a name attached, so they never show up under “Sent invites”. Copy one to send it on, or delete it to stop it working — including wherever you’ve already sent it."
         >
@@ -380,6 +389,7 @@ export default async function AdminPage() {
 
         <AdminSubsection
           id="nicknames"
+          collapsible
           title="Nicknames"
           description={`${nicknameGroups.length} groups behind the “is one of these you?” search a new member sees when they join. Spelling mistakes and accents are handled automatically — this is for names that share neither spelling nor sound with the root, like Bob for Robert. The seed is English, so add the ones this family uses.`}
         >
