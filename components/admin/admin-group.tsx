@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
  * `sectionIds` it contains.
  */
 export function AdminGroup({
+  id,
   title,
   description,
   sectionIds,
@@ -22,6 +23,9 @@ export function AdminGroup({
   badge = 0,
   children,
 }: {
+  /** Set when the group holds a single block — the Card becomes its own
+   *  scroll/nav target and no inner {@link AdminSubsection} is needed. */
+  id?: string;
   title: string;
   description?: React.ReactNode;
   sectionIds: string[];
@@ -50,7 +54,7 @@ export function AdminGroup({
   }, [ids]);
 
   return (
-    <Card className="scroll-mt-20">
+    <Card id={id} className="scroll-mt-20">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -62,9 +66,7 @@ export function AdminGroup({
             <span className="font-heading text-lg leading-snug font-medium">
               {title}
             </span>
-            {badge > 0 ? (
-              <Badge variant="destructive">{badge}</Badge>
-            ) : null}
+            {badge > 0 ? <Badge variant="destructive">{badge}</Badge> : null}
           </span>
           {description ? (
             <span className="text-sm text-muted-foreground">{description}</span>
@@ -129,7 +131,9 @@ export function AdminSubsection({
 
   const heading = (
     <div className="flex flex-col gap-1">
-      <h3 className="font-heading text-base leading-snug font-medium">{title}</h3>
+      <h3 className="font-heading text-base leading-snug font-medium">
+        {title}
+      </h3>
       {description ? (
         <p className="text-sm text-muted-foreground">{description}</p>
       ) : null}

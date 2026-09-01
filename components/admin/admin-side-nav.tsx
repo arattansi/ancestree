@@ -6,7 +6,8 @@ import { ADMIN_NAVIGATE_EVENT } from "@/components/admin/nav-event";
 import { cn } from "@/lib/utils";
 
 export type AdminNavItem = { id: string; label: string };
-export type AdminNavGroup = { label: string; items: AdminNavItem[] };
+/** A `label` of `null` renders the items flush, with no group heading. */
+export type AdminNavGroup = { label: string | null; items: AdminNavItem[] };
 
 /**
  * Minimalist floating section nav for the admin page, Notion-style: a thin
@@ -57,10 +58,12 @@ export function AdminSideNav({ groups }: { groups: AdminNavGroup[] }) {
     >
       <ul className="flex flex-col gap-3 border-l border-border">
         {groups.map((group) => (
-          <li key={group.label}>
-            <p className="-ml-px py-1 pl-3 text-[0.65rem] font-medium tracking-wide text-muted-foreground/70 uppercase">
-              {group.label}
-            </p>
+          <li key={group.label ?? group.items[0]?.id}>
+            {group.label ? (
+              <p className="-ml-px py-1 pl-3 text-[0.65rem] font-medium tracking-wide text-muted-foreground/70 uppercase">
+                {group.label}
+              </p>
+            ) : null}
             <ul className="flex flex-col">
               {group.items.map((item) => (
                 <li key={item.id}>

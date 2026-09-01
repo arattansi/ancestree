@@ -20,7 +20,10 @@ import {
 import { DirectInviteForm } from "@/components/direct-invite-form";
 import { InviteMinter } from "@/components/invite-minter";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { ShareLinkManager, type ShareLinkRow } from "@/components/share-link-manager";
+import {
+  ShareLinkManager,
+  type ShareLinkRow,
+} from "@/components/share-link-manager";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -64,9 +67,7 @@ export default async function AdminPage() {
       .select("*")
       .order("created_at", { ascending: true }),
     supabase.from("people").select("id, created_by, verified_at"),
-    supabase
-      .from("relationships")
-      .select("id", { count: "exact", head: true }),
+    supabase.from("relationships").select("id", { count: "exact", head: true }),
     supabase
       .from("claims")
       .select("id", { count: "exact", head: true })
@@ -77,7 +78,9 @@ export default async function AdminPage() {
       .eq("is_flag", true)
       .eq("status", "open"),
     multiTreeEnabled
-      ? supabase.from("tree_bridges").select("id", { count: "exact", head: true })
+      ? supabase
+          .from("tree_bridges")
+          .select("id", { count: "exact", head: true })
       : Promise.resolve({ count: 0 }),
     supabase
       .from("invite_requests")
@@ -154,8 +157,13 @@ export default async function AdminPage() {
   }
 
   const navGroups: AdminNavGroup[] = [
-    { label: "Overview", items: [{ id: "overview", label: "Overview" }] },
-    { label: "Members", items: [{ id: "members", label: "Members" }] },
+    {
+      label: null,
+      items: [
+        { id: "overview", label: "Overview" },
+        { id: "members", label: "Members" },
+      ],
+    },
     {
       label: "Requests & claims",
       items: [
@@ -221,73 +229,89 @@ export default async function AdminPage() {
       </Card>
 
       <AdminGroup
+        id="members"
         title="Members"
-        description={`${members.length} member${members.length === 1 ? "" : "s"}`}
+        description={`${members.length} member${members.length === 1 ? "" : "s"} — role, who invited them, entries created, and invite permissions.`}
         sectionIds={["members"]}
       >
-        <AdminSubsection
-          id="members"
-          title="Members"
-          description="Role, who invited them, entries created, and invite permissions."
-          contentClassName="-mx-(--card-spacing)"
-        >
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <caption className="sr-only">
-                Members, their role, who invited them, entries created, and
-                invite permissions
-              </caption>
-              <thead>
-                <tr className="border-b border-border text-left text-muted-foreground">
-                  <th scope="col" className="px-4 py-2 font-medium">Member</th>
-                  <th scope="col" className="px-4 py-2 font-medium">Role</th>
-                  <th scope="col" className="px-4 py-2 font-medium">Invited by</th>
-                  <th scope="col" className="px-4 py-2 font-medium">Entries</th>
-                  <th scope="col" className="px-4 py-2 font-medium">Can invite</th>
+        <div className="-mx-(--card-spacing) overflow-x-auto">
+          <table className="w-full text-sm">
+            <caption className="sr-only">
+              Members, their role, who invited them, entries created, and invite
+              permissions
+            </caption>
+            <thead>
+              <tr className="border-b border-border text-left text-muted-foreground">
+                <th scope="col" className="px-4 py-2 font-medium">
+                  Member
+                </th>
+                <th scope="col" className="px-4 py-2 font-medium">
+                  Role
+                </th>
+                <th scope="col" className="px-4 py-2 font-medium">
+                  Invited by
+                </th>
+                <th scope="col" className="px-4 py-2 font-medium">
+                  Entries
+                </th>
+                <th scope="col" className="px-4 py-2 font-medium">
+                  Can invite
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {members.map((member) => (
+                <tr
+                  key={member.auth_user_id}
+                  className="border-b border-border last:border-0"
+                >
+                  <td className="px-4 py-3 font-medium text-foreground">
+                    {member.display_name ?? "—"}
+                  </td>
+                  <td className="px-4 py-3">
+                    <Badge
+                      variant={
+                        member.role === "admin" ? "default" : "secondary"
+                      }
+                    >
+                      {member.role}
+                    </Badge>
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    {member.invited_by_name ??
+                      (member.role === "admin" ? "—" : "Unknown")}
+                  </td>
+                  <td className="px-4 py-3 tabular-nums text-muted-foreground">
+                    {member.auth_user_id
+                      ? (entryCountByCreator.get(member.auth_user_id) ?? 0)
+                      : 0}
+                  </td>
+                  <td className="px-4 py-3">
+                    {member.role === "admin" ? (
+                      <span className="text-muted-foreground">Always</span>
+                    ) : (
+                      <form action={setCanInvite}>
+                        <input
+                          type="hidden"
+                          name="userId"
+                          value={member.auth_user_id ?? ""}
+                        />
+                        <input
+                          type="hidden"
+                          name="canInvite"
+                          value={(!member.can_invite).toString()}
+                        />
+                        <Button type="submit" variant="outline" size="sm">
+                          {member.can_invite ? "Revoke" : "Grant"}
+                        </Button>
+                      </form>
+                    )}
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {members.map((member) => (
-                  <tr key={member.auth_user_id} className="border-b border-border last:border-0">
-                    <td className="px-4 py-3 font-medium text-foreground">
-                      {member.display_name ?? "—"}
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge variant={member.role === "admin" ? "default" : "secondary"}>
-                        {member.role}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {member.invited_by_name ?? (member.role === "admin" ? "—" : "Unknown")}
-                    </td>
-                    <td className="px-4 py-3 tabular-nums text-muted-foreground">
-                      {member.auth_user_id
-                        ? entryCountByCreator.get(member.auth_user_id) ?? 0
-                        : 0}
-                    </td>
-                    <td className="px-4 py-3">
-                      {member.role === "admin" ? (
-                        <span className="text-muted-foreground">Always</span>
-                      ) : (
-                        <form action={setCanInvite}>
-                          <input type="hidden" name="userId" value={member.auth_user_id ?? ""} />
-                          <input
-                            type="hidden"
-                            name="canInvite"
-                            value={(!member.can_invite).toString()}
-                          />
-                          <Button type="submit" variant="outline" size="sm">
-                            {member.can_invite ? "Revoke" : "Grant"}
-                          </Button>
-                        </form>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </AdminSubsection>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </AdminGroup>
 
       <AdminGroup
