@@ -45,86 +45,57 @@ export async function getGrowthRights(db?: DbClient): Promise<GrowthRights> {
   };
 }
 
-export type CanvasRequestStatus = "pending" | "approved" | "declined";
+export type CanvasInterestStatus = "new" | "contacted" | "dismissed";
 
-/** The caller's most recent canvas request, if they have ever made one. */
-export async function getMyCanvasRequest(
+/** Whether the caller has already told us they'd want a tree of their own. */
+export async function hasRegisteredCanvasInterest(
   db?: DbClient,
-): Promise<{ id: string; status: CanvasRequestStatus; createdAt: string } | null> {
+): Promise<boolean> {
   const supabase = db ?? (await createClient());
-  // RLS narrows this to the caller's own rows.
-  const { data } = await supabase
-    .from("tree_canvas_requests")
-    .select("id, status, created_at")
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return false;
 
-  if (!data) return null;
-  return {
-    id: data.id,
-    status: data.status as CanvasRequestStatus,
-    createdAt: data.created_at,
-  };
+  // Scoped to the caller by hand, not by RLS: an admin can read every row.
+  const { data } = await supabase
+    .from("canvas_interest")
+    .select("id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  return data !== null;
 }
 
-export type PendingCanvasRequest = {
+export type CanvasInterestRow = {
   id: string;
-  requesterName: string;
-  bridgeName: string | null;
+  displayName: string | null;
+  email: string | null;
+  personName: string | null;
   note: string | null;
+  status: CanvasInterestStatus;
+  contactedAt: string | null;
   createdAt: string;
 };
 
-/** Admin: the pending queue, with names resolved for the review card. */
-export async function listPendingCanvasRequests(
+/**
+ * Admin: the interest register — who asked, how to reach them, and where they
+ * are in outreach. Contact details come from the admin-only RPC, which is the
+ * only place `auth.users.email` is exposed.
+ */
+export async function listCanvasInterest(
   db?: DbClient,
-): Promise<PendingCanvasRequest[]> {
+): Promise<CanvasInterestRow[]> {
   const supabase = db ?? (await createClient());
-  const { data } = await supabase
-    .from("tree_canvas_requests")
-    .select("id, note, created_at, requester_user_id, bridge_person_id")
-    .eq("status", "pending")
-    .order("created_at", { ascending: true });
+  const { data } = await supabase.rpc("canvas_interest_register");
 
-  const rows = data ?? [];
-  if (rows.length === 0) return [];
-
-  const [{ data: profiles }, { data: people }] = await Promise.all([
-    supabase
-      .from("profiles")
-      .select("auth_user_id, display_name")
-      .in("auth_user_id", rows.map((r) => r.requester_user_id)),
-    supabase
-      .from("people")
-      .select("id, first_name, preferred_name, last_name")
-      .in(
-        "id",
-        rows
-          .map((r) => r.bridge_person_id)
-          .filter((id): id is string => id !== null),
-      ),
-  ]);
-
-  const nameOf = new Map(
-    (profiles ?? []).map((p) => [p.auth_user_id, p.display_name ?? "A member"]),
-  );
-  const personName = new Map(
-    (people ?? []).map((p) => [
-      p.id,
-      [p.preferred_name ?? p.first_name, p.last_name]
-        .filter(Boolean)
-        .join(" "),
-    ]),
-  );
-
-  return rows.map((r) => ({
+  return (data ?? []).map((r) => ({
     id: r.id,
-    requesterName: nameOf.get(r.requester_user_id) ?? "A member",
-    bridgeName: r.bridge_person_id
-      ? personName.get(r.bridge_person_id) ?? null
-      : null,
+    displayName: r.display_name,
+    email: r.email,
+    personName: r.person_name,
     note: r.note,
+    status: r.status as CanvasInterestStatus,
+    contactedAt: r.contacted_at,
     createdAt: r.created_at,
   }));
 }

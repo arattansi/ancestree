@@ -167,7 +167,7 @@ export function AddPersonFlow({
   isAdmin,
   members,
   initialName,
-  canvasRequestPending = false,
+  canvasInterestRegistered = false,
 }: {
   mode: "self" | "relative";
   treeId: string;
@@ -176,9 +176,9 @@ export function AddPersonFlow({
   /** Pre-fills the primary person's name — onboarding carries over the name
    *  the member typed into the "is one of these you?" search (Step 15). */
   initialName?: { first_name?: string; last_name?: string };
-  /** They have already asked an admin for a canvas of their own (Step 14.1),
-   *  so the gate prompt shows the waiting state instead of asking again. */
-  canvasRequestPending?: boolean;
+  /** They have already put their name down for a tree of their own (Step
+   *  14.3), so the gate prompt thanks them instead of asking again. */
+  canvasInterestRegistered?: boolean;
 }) {
   const router = useRouter();
   const mustConnect = !isAdmin;
@@ -819,7 +819,7 @@ export function AddPersonFlow({
       <NewCanvasPrompt
         open={canvasPrompt}
         onOpenChange={setCanvasPrompt}
-        alreadyRequested={canvasRequestPending}
+        alreadyRegistered={canvasInterestRegistered}
       />
     </Form>
   );

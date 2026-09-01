@@ -9,7 +9,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { requireSelfPerson } from "@/lib/auth";
-import { getGrowthRights, getMyCanvasRequest } from "@/lib/growth-rights.server";
+import {
+  getGrowthRights,
+  hasRegisteredCanvasInterest,
+} from "@/lib/growth-rights.server";
 import { getSharedTree, listTreeMembers } from "@/lib/tree";
 
 export const metadata: Metadata = {
@@ -36,7 +39,9 @@ export default async function NewPersonPage() {
   const rights = await getGrowthRights();
   // Say the rule up front for a member who married in, rather than letting them
   // fill the whole form and meet the gate at submit (Step 14).
-  const canvasRequest = rights.isMarriedIn ? await getMyCanvasRequest() : null;
+  const registeredInterest = rights.isMarriedIn
+    ? await hasRegisteredCanvasInterest()
+    : false;
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 py-10">
@@ -49,9 +54,8 @@ export default async function NewPersonPage() {
         {rights.isMarriedIn ? (
           <p className="mt-2 text-sm text-muted-foreground">
             You married into this family, so you can add your children and your
-            partner&apos;s relatives here. Your own side of the family belongs on
-            a canvas of its own — ask an admin for one and it stays connected
-            through your marriage.
+            partner&apos;s relatives here. Your own side of the family needs a tree
+            of its own, which Ancestree doesn&apos;t build yet.
           </p>
         ) : null}
       </div>
@@ -70,7 +74,7 @@ export default async function NewPersonPage() {
             treeId={tree.id}
             isAdmin={profile.role === "admin"}
             members={members}
-            canvasRequestPending={canvasRequest?.status === "pending"}
+            canvasInterestRegistered={registeredInterest}
           />
         </CardContent>
       </Card>

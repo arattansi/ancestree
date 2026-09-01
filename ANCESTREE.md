@@ -343,8 +343,8 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   falls through to the old `AddPersonFlow`, pre-filled with the typed name.
 
 - **Step 14 — Bloodline growth gate** (migrations
-  `20260901000000_bloodline_growth_gate`, `20260901010000_tree_canvas_requests`,
-  `20260901020000_bloodline_gate_own_descendants`): growth used to require only
+  `20260901000000_bloodline_growth_gate`, `20260901020000_bloodline_gate_own_descendants`,
+  `20260901030000_canvas_interest_register`): growth used to require only
   that a new entry reach *someone* already in the tree, and spouse edges
   counted — so anyone who married in could hang their whole birth family off
   themselves. The bloodline is now derived from an explicit anchor set
@@ -365,14 +365,16 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   admin-only so the SECURITY DEFINER RPCs are the only creation path and the
   gate can't be stepped around via the Data API. A refusal raises
   `BLOODLINE_GATE`, which the add flow answers with **"Looks like you're
-  building a new family tree"** and a request for a canvas of their own
-  (`tree_canvas_requests` → admin queue on `/admin` → `approve_tree_canvas_request`
-  mints the tree with the requester as owner, copies their entry onto it, and
-  bridges back through the relative they married, reusing the Step 9 seam).
-  Unchanged from Step 9: that second canvas only renders with
-  `NEXT_PUBLIC_ENABLE_MULTI_TREE`, and `add_people_with_connections` still
-  writes to the oldest tree. `lib/bloodline.ts` mirrors the derivation as pure
-  functions (15 vitest cases), including the co-parent leak.
+  building a new family tree"**. That prompt provisions nothing — whether we
+  build second trees at all is post-proof-of-concept, so its only job is to
+  register interest (`canvas_interest`, one row per member, surfaced on `/admin`
+  as **Wants their own tree** with the email joined from `auth.users` by an
+  admin-only RPC, a copy-addresses button and new/contacted/dismissed outreach
+  states). It is the market signal and the outreach list, not an approval queue.
+  Migration `20260901010000` briefly shipped an approve-into-a-real-tree flow;
+  `20260901030000` dropped it before it ever held a row. `lib/bloodline.ts`
+  mirrors the derivation as pure functions (15 vitest cases), including the
+  co-parent leak.
 
 - **Step 4.6 — Anchored tree layout** (migration
   `20260831070000_person_layout_offsets`): replaced the dagre pass with a

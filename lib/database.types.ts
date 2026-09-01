@@ -92,6 +92,64 @@ export type Database = {
           },
         ]
       }
+      canvas_interest: {
+        Row: {
+          contacted_at: string | null
+          contacted_by: string | null
+          created_at: string
+          id: string
+          note: string | null
+          status: string
+          tree_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          contacted_at?: string | null
+          contacted_by?: string | null
+          created_at?: string
+          id?: string
+          note?: string | null
+          status?: string
+          tree_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          contacted_at?: string | null
+          contacted_by?: string | null
+          created_at?: string
+          id?: string
+          note?: string | null
+          status?: string
+          tree_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "canvas_interest_contacted_by_fkey"
+            columns: ["contacted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "canvas_interest_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "canvas_interest_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+        ]
+      }
       claims: {
         Row: {
           claimant_user_id: string
@@ -1138,98 +1196,6 @@ export type Database = {
           },
         ]
       }
-      tree_canvas_requests: {
-        Row: {
-          bridge_person_id: string | null
-          created_at: string
-          id: string
-          new_tree_id: string | null
-          note: string | null
-          requester_user_id: string
-          reviewed_at: string | null
-          reviewed_by: string | null
-          status: string
-          tree_id: string
-          updated_at: string
-        }
-        Insert: {
-          bridge_person_id?: string | null
-          created_at?: string
-          id?: string
-          new_tree_id?: string | null
-          note?: string | null
-          requester_user_id: string
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          status?: string
-          tree_id: string
-          updated_at?: string
-        }
-        Update: {
-          bridge_person_id?: string | null
-          created_at?: string
-          id?: string
-          new_tree_id?: string | null
-          note?: string | null
-          requester_user_id?: string
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          status?: string
-          tree_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "tree_canvas_requests_bridge_person_id_fkey"
-            columns: ["bridge_person_id"]
-            isOneToOne: false
-            referencedRelation: "people"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "tree_canvas_requests_new_tree_id_fkey"
-            columns: ["new_tree_id"]
-            isOneToOne: false
-            referencedRelation: "trees"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "tree_canvas_requests_requester_user_id_fkey"
-            columns: ["requester_user_id"]
-            isOneToOne: false
-            referencedRelation: "member_directory"
-            referencedColumns: ["auth_user_id"]
-          },
-          {
-            foreignKeyName: "tree_canvas_requests_requester_user_id_fkey"
-            columns: ["requester_user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["auth_user_id"]
-          },
-          {
-            foreignKeyName: "tree_canvas_requests_reviewed_by_fkey"
-            columns: ["reviewed_by"]
-            isOneToOne: false
-            referencedRelation: "member_directory"
-            referencedColumns: ["auth_user_id"]
-          },
-          {
-            foreignKeyName: "tree_canvas_requests_reviewed_by_fkey"
-            columns: ["reviewed_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["auth_user_id"]
-          },
-          {
-            foreignKeyName: "tree_canvas_requests_tree_id_fkey"
-            columns: ["tree_id"]
-            isOneToOne: false
-            referencedRelation: "trees"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       trees: {
         Row: {
           created_at: string
@@ -1324,13 +1290,19 @@ export type Database = {
         }
         Returns: Json
       }
-      approve_tree_canvas_request: {
-        Args: {
-          p_bridge_person_id?: string
-          p_request_id: string
-          p_tree_name?: string
-        }
-        Returns: Json
+      canvas_interest_register: {
+        Args: never
+        Returns: {
+          contacted_at: string
+          created_at: string
+          display_name: string
+          email: string
+          id: string
+          note: string
+          person_name: string
+          status: string
+          user_id: string
+        }[]
       }
       claim_person: { Args: { p_person_id: string }; Returns: Json }
       claim_person_as_self: {
@@ -1347,10 +1319,6 @@ export type Database = {
           p_type: string
         }
         Returns: string
-      }
-      decline_tree_canvas_request: {
-        Args: { p_reason?: string; p_request_id: string }
-        Returns: undefined
       }
       dispute_claim: {
         Args: { p_claim_id: string; p_reason?: string }
@@ -1442,7 +1410,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
-      request_tree_canvas: { Args: { p_note?: string }; Returns: string }
+      register_canvas_interest: { Args: { p_note?: string }; Returns: string }
       resolve_claim: {
         Args: { p_action: string; p_claim_id: string }
         Returns: undefined
@@ -1471,6 +1439,10 @@ export type Database = {
           preferred_name: string
           score: number
         }[]
+      }
+      set_canvas_interest_status: {
+        Args: { p_id: string; p_status: string }
+        Returns: undefined
       }
       set_entry_verified: {
         Args: { p_person_id: string; p_verified?: boolean }

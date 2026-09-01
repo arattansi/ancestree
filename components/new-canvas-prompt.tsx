@@ -3,7 +3,7 @@
 import * as React from "react";
 import { toast } from "sonner";
 
-import { requestTreeCanvas } from "@/app/actions/tree-canvas-requests";
+import { registerCanvasInterest } from "@/app/actions/canvas-interest";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -17,38 +17,39 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
 /**
- * Shown when the bloodline gate refuses an add (Step 14). The refusal is not a
- * dead end: what they were doing is starting their own family tree, and this
- * asks an admin for a canvas to do it on — bridged back to this tree through
- * their marriage.
+ * Shown when the bloodline gate refuses an add (Step 14). What they were doing
+ * is starting their own family tree, which Ancestree doesn't do yet — so this
+ * says so plainly and offers to note their interest, which is the only honest
+ * thing to promise while we're still finding out whether there's a market for
+ * it (Step 14.3). Nothing here grants anything.
  */
 export function NewCanvasPrompt({
   open,
   onOpenChange,
-  alreadyRequested = false,
+  alreadyRegistered = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** They have a request already waiting on an admin. */
-  alreadyRequested?: boolean;
+  /** They have already put their name down. */
+  alreadyRegistered?: boolean;
 }) {
   const [note, setNote] = React.useState("");
-  const [sending, setSending] = React.useState(false);
-  const [sent, setSent] = React.useState(false);
+  const [saving, setSaving] = React.useState(false);
+  const [saved, setSaved] = React.useState(false);
 
-  async function onRequest() {
-    setSending(true);
-    const res = await requestTreeCanvas(note);
-    setSending(false);
+  async function onRegister() {
+    setSaving(true);
+    const res = await registerCanvasInterest(note);
+    setSaving(false);
     if (res.error) {
       toast.error(res.error);
       return;
     }
-    setSent(true);
-    toast.success("Request sent — an admin will be in touch.");
+    setSaved(true);
+    toast.success("Noted — thank you. We'll be in touch if this opens up.");
   }
 
-  const waiting = sent || alreadyRequested;
+  const done = saved || alreadyRegistered;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -58,26 +59,27 @@ export function NewCanvasPrompt({
           <DialogDescription>
             The people you&apos;re adding connect to you rather than to this
             family&apos;s bloodline — that&apos;s your own side of the family, and it
-            deserves its own canvas. Request access and an admin will set one up,
-            connected to this tree through your marriage.
+            needs a tree of its own. Ancestree only keeps this one tree for now.
+            If you&apos;d want your own, say so and we&apos;ll come back to you if we
+            build it.
           </DialogDescription>
         </DialogHeader>
 
-        {waiting ? (
+        {done ? (
           <p className="text-sm text-muted-foreground">
-            Your request is with the admins. You&apos;ll get a notification when
-            your canvas is ready.
+            You&apos;re on the list. In the meantime you can still add your own
+            children here, and anyone on your partner&apos;s side of the family.
           </p>
         ) : (
           <div className="grid gap-2">
             <Label htmlFor="canvas-note">
-              Anything the admins should know? (optional)
+              Who would you add? (optional, but it helps us)
             </Label>
             <Textarea
               id="canvas-note"
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="e.g. I'd like to add my parents and my brother's family."
+              placeholder="e.g. my parents, my brother's family, and my grandparents in Mombasa."
               maxLength={500}
             />
           </div>
@@ -85,11 +87,11 @@ export function NewCanvasPrompt({
 
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            {waiting ? "Close" : "Not now"}
+            {done ? "Close" : "No thanks"}
           </Button>
-          {!waiting && (
-            <Button onClick={onRequest} disabled={sending}>
-              {sending ? "Sending…" : "Request access"}
+          {!done && (
+            <Button onClick={onRegister} disabled={saving}>
+              {saving ? "Saving…" : "I'd want my own tree"}
             </Button>
           )}
         </DialogFooter>
