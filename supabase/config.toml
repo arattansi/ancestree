@@ -246,6 +246,18 @@ otp_expiry = 3600
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
 
+# Branded auth emails. Local dev reads these files; the hosted project needs the
+# same HTML pasted into Dashboard -> Authentication -> Emails. See
+# supabase/templates/_shared.md.
+[auth.email.template.magic_link]
+subject = "Your ancestree sign-in link"
+content_path = "./supabase/templates/magic-link.html"
+
+# First-time sign-ins hit this one, not magic_link.
+[auth.email.template.confirmation]
+subject = "Confirm your email for ancestree"
+content_path = "./supabase/templates/confirm-signup.html"
+
 # Uncomment to customize email template
 # [auth.email.template.invite]
 # subject = "You have been invited"

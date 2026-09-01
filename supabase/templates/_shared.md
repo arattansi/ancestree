@@ -1,0 +1,27 @@
+# Auth email templates
+
+Source of truth for the branded Supabase Auth emails. These files are wired
+into `supabase/config.toml` for local development; for the hosted project they
+must also be pasted into the Dashboard (Authentication → Emails → Templates)
+or pushed with the Management API — Supabase does not read them from the repo.
+
+Which template fires for our magic-link sign-in (`signInWithOtp`):
+
+| Situation | Template |
+|---|---|
+| Email has never signed in before | **Confirm signup** (`confirm-signup.html`) |
+| Email already exists in `auth.users` | **Magic Link** (`magic-link.html`) |
+
+Both must be branded or half of new relatives get the stock Supabase email.
+
+Design notes:
+
+- Palette is the app's own (Tailwind neutral): page `#fafafa`, card `#ffffff`,
+  border `#e5e5e5`, text `#0a0a0a`, muted `#737373`, button `#171717`/`#fafafa`,
+  radius 10px = the app's `--radius: 0.625rem`.
+- Public Sans is not loadable in Gmail/Outlook, so the stack falls back to the
+  recipient's system sans. Everything else matches the homepage.
+- Keep `{{ .ConfirmationURL }}` exactly as-is: it carries the `invite` token
+  and `next` params our `/auth/callback` route depends on.
+- Inline styles + table layout only — email clients strip `<style>` blocks and
+  ignore flex/grid.
