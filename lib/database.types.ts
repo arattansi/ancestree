@@ -566,6 +566,24 @@ export type Database = {
           },
         ]
       }
+      name_nicknames: {
+        Row: {
+          canonical: string
+          id: number
+          variant: string
+        }
+        Insert: {
+          canonical: string
+          id?: never
+          variant: string
+        }
+        Update: {
+          canonical?: string
+          id?: never
+          variant?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           actor_user_id: string | null

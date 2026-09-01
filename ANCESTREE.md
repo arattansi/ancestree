@@ -312,8 +312,12 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   `private.name_score` floors a hit at 0.9 (curated, so it counts as a strong
   match). A variant can belong to several roots — "Alex" reaches Alexander and
   Alexandra without joining those two to each other. Seeded with ~90 English
-  given names; the table is member-readable, admin-writable, and meant to be
-  extended by inserting rows as the family needs them.
+  given names; the table is member-readable and admin-writable. Because that
+  seed is English and this family's names aren't, `/admin` carries a
+  **Nicknames** panel (`AdminNicknames`) to extend it: add a root + nickname
+  pair (folded on the way in, and the root's identity row written alongside so
+  a brand-new group works from its first nickname), filter the groups, and
+  drop a single nickname or a whole root.
 
 - **Step 15 — Fuzzy first-run onboarding** (migration
   `20260901030000_onboarding_name_match`): `/onboarding` used to open straight

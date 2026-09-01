@@ -6,6 +6,7 @@ import { AdminCanvasRequests } from "@/components/admin-canvas-requests";
 import { AdminDisputedClaims } from "@/components/admin-disputed-claims";
 import { AdminExport } from "@/components/admin-export";
 import { AdminInviteHistory } from "@/components/admin-invite-history";
+import { AdminNicknames } from "@/components/admin-nicknames";
 import {
   AdminInviteRequests,
   type PendingInviteRequest,
@@ -27,6 +28,7 @@ import { listDisputedClaims } from "@/lib/claims";
 import { listPendingCanvasRequests } from "@/lib/growth-rights.server";
 import { multiTreeEnabled } from "@/lib/flags";
 import { listBareInvites, listInviteHistory } from "@/lib/invites";
+import { listNicknameGroups } from "@/lib/nicknames.server";
 import { getSiteUrl } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/server";
 
@@ -88,6 +90,7 @@ export default async function AdminPage() {
   const inviteHistory = await listInviteHistory();
   const bareInvites = await listBareInvites();
   const canvasRequests = await listPendingCanvasRequests(supabase);
+  const nicknameGroups = await listNicknameGroups();
   const inviteRequests: PendingInviteRequest[] = (
     inviteRequestsRes.data ?? []
   ).map((r) => ({
@@ -272,6 +275,22 @@ export default async function AdminPage() {
         </CardHeader>
         <CardContent>
           <AdminBareInvites invites={bareInvites} baseUrl={getSiteUrl()} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Nicknames</CardTitle>
+          <CardDescription>
+            {nicknameGroups.length} groups behind the &ldquo;is one of these
+            you?&rdquo; search a new member sees when they join. Spelling
+            mistakes and accents are handled automatically — this is for names
+            that share neither spelling nor sound with the root, like Bob for
+            Robert. The seed is English, so add the ones this family uses.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AdminNicknames groups={nicknameGroups} />
         </CardContent>
       </Card>
 
