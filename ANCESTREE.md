@@ -301,6 +301,38 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 14 — Bloodline growth gate** (migrations
+  `20260901000000_bloodline_growth_gate`, `20260901010000_tree_canvas_requests`,
+  `20260901020000_bloodline_gate_own_descendants`): growth used to require only
+  that a new entry reach *someone* already in the tree, and spouse edges
+  counted — so anyone who married in could hang their whole birth family off
+  themselves. The bloodline is now derived from an explicit anchor set
+  (`bloodline_anchors`, seeded from the founding admins' own entries, the same
+  anchors `getTreeAnchors()` numbers generations from): climb `parent` edges
+  **up** from the anchors to every ancestor, then descend from that whole set.
+  Direction is the point — walking parent edges undirected leaks from a blood
+  member down to their child and back up to the child's other parent, putting
+  every married-in partner inside. Up-then-down keeps cousins, great-aunts and
+  half-siblings in and married-in partners out; `lineage_type` sits on the
+  person, not the edge, so adoptive children descend like anyone else. The gate
+  in `add_people_with_connections` (step 5b, recomputed *after* the edges land)
+  lets a member outside the bloodline create only people inside it **or
+  descending from them**: their children and grandchildren pass, their parents,
+  siblings and in-laws do not. Admins, onboarding (no `self_person_id` yet) and
+  trees with no anchors are exempt, so the rule bites only on new growth — all
+  20 current entries are blood. `people_insert` / `relationships_insert` are now
+  admin-only so the SECURITY DEFINER RPCs are the only creation path and the
+  gate can't be stepped around via the Data API. A refusal raises
+  `BLOODLINE_GATE`, which the add flow answers with **"Looks like you're
+  building a new family tree"** and a request for a canvas of their own
+  (`tree_canvas_requests` → admin queue on `/admin` → `approve_tree_canvas_request`
+  mints the tree with the requester as owner, copies their entry onto it, and
+  bridges back through the relative they married, reusing the Step 9 seam).
+  Unchanged from Step 9: that second canvas only renders with
+  `NEXT_PUBLIC_ENABLE_MULTI_TREE`, and `add_people_with_connections` still
+  writes to the oldest tree. `lib/bloodline.ts` mirrors the derivation as pure
+  functions (15 vitest cases), including the co-parent leak.
+
 - **Step 4.6 — Anchored tree layout** (migration
   `20260831070000_person_layout_offsets`): replaced the dagre pass with a
   purpose-built engine in `lib/tree-layout.ts` (24 vitest cases). Generations are

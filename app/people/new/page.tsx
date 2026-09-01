@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { requireSelfPerson } from "@/lib/auth";
+import { getGrowthRights, getMyCanvasRequest } from "@/lib/growth-rights.server";
 import { getSharedTree, listTreeMembers } from "@/lib/tree";
 
 export const metadata: Metadata = {
@@ -32,6 +33,10 @@ export default async function NewPersonPage() {
   }
 
   const members = await listTreeMembers(tree.id);
+  const rights = await getGrowthRights();
+  // Say the rule up front for a member who married in, rather than letting them
+  // fill the whole form and meet the gate at submit (Step 14).
+  const canvasRequest = rights.isMarriedIn ? await getMyCanvasRequest() : null;
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 py-10">
@@ -41,6 +46,14 @@ export default async function NewPersonPage() {
           New entries must connect to someone already in the tree. Add any
           missing people in between as part of the same step.
         </p>
+        {rights.isMarriedIn ? (
+          <p className="mt-2 text-sm text-muted-foreground">
+            You married into this family, so you can add your children and your
+            partner&apos;s relatives here. Your own side of the family belongs on
+            a canvas of its own — ask an admin for one and it stays connected
+            through your marriage.
+          </p>
+        ) : null}
       </div>
 
       <Card>
@@ -57,6 +70,7 @@ export default async function NewPersonPage() {
             treeId={tree.id}
             isAdmin={profile.role === "admin"}
             members={members}
+            canvasRequestPending={canvasRequest?.status === "pending"}
           />
         </CardContent>
       </Card>

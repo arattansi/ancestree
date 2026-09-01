@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { setCanInvite } from "@/app/actions/invites";
 import { AdminBareInvites } from "@/components/admin-bare-invites";
+import { AdminCanvasRequests } from "@/components/admin-canvas-requests";
 import { AdminDisputedClaims } from "@/components/admin-disputed-claims";
 import { AdminExport } from "@/components/admin-export";
 import { AdminInviteHistory } from "@/components/admin-invite-history";
@@ -23,6 +24,7 @@ import {
 } from "@/components/ui/card";
 import { requireAdmin } from "@/lib/auth";
 import { listDisputedClaims } from "@/lib/claims";
+import { listPendingCanvasRequests } from "@/lib/growth-rights.server";
 import { multiTreeEnabled } from "@/lib/flags";
 import { listBareInvites, listInviteHistory } from "@/lib/invites";
 import { getSiteUrl } from "@/lib/site-url";
@@ -85,6 +87,7 @@ export default async function AdminPage() {
   const disputedClaims = await listDisputedClaims();
   const inviteHistory = await listInviteHistory();
   const bareInvites = await listBareInvites();
+  const canvasRequests = await listPendingCanvasRequests(supabase);
   const inviteRequests: PendingInviteRequest[] = (
     inviteRequestsRes.data ?? []
   ).map((r) => ({
@@ -125,6 +128,7 @@ export default async function AdminPage() {
     { label: "Open flags", value: openFlagsRes.count ?? 0 },
     { label: "Disputes", value: disputedClaims.length },
     { label: "Invite requests", value: inviteRequests.length },
+    { label: "Canvas requests", value: canvasRequests.length },
   ];
   if (multiTreeEnabled) {
     stats.push({ label: "Own-tree bridges", value: bridgesRes.count ?? 0 });
@@ -221,6 +225,25 @@ export default async function AdminPage() {
         </CardHeader>
         <CardContent>
           <AdminInviteRequests requests={inviteRequests} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Canvas requests</CardTitle>
+          <CardDescription>
+            {canvasRequests.length} awaiting review. These come from members who
+            married into the family and tried to add their own side of it —
+            approving gives them a canvas of their own, bridged back to this
+            tree through their marriage, so their branch grows without
+            reshaping this one.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AdminCanvasRequests
+            requests={canvasRequests}
+            multiTreeEnabled={multiTreeEnabled}
+          />
         </CardContent>
       </Card>
 

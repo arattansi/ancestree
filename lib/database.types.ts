@@ -39,6 +39,59 @@ export type Database = {
   }
   public: {
     Tables: {
+      bloodline_anchors: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          person_id: string
+          tree_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          person_id: string
+          tree_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          person_id?: string
+          tree_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bloodline_anchors_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "bloodline_anchors_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "bloodline_anchors_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bloodline_anchors_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       claims: {
         Row: {
           claimant_user_id: string
@@ -1064,6 +1117,98 @@ export type Database = {
           },
         ]
       }
+      tree_canvas_requests: {
+        Row: {
+          bridge_person_id: string | null
+          created_at: string
+          id: string
+          new_tree_id: string | null
+          note: string | null
+          requester_user_id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          tree_id: string
+          updated_at: string
+        }
+        Insert: {
+          bridge_person_id?: string | null
+          created_at?: string
+          id?: string
+          new_tree_id?: string | null
+          note?: string | null
+          requester_user_id: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          tree_id: string
+          updated_at?: string
+        }
+        Update: {
+          bridge_person_id?: string | null
+          created_at?: string
+          id?: string
+          new_tree_id?: string | null
+          note?: string | null
+          requester_user_id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          tree_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tree_canvas_requests_bridge_person_id_fkey"
+            columns: ["bridge_person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tree_canvas_requests_new_tree_id_fkey"
+            columns: ["new_tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tree_canvas_requests_requester_user_id_fkey"
+            columns: ["requester_user_id"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "tree_canvas_requests_requester_user_id_fkey"
+            columns: ["requester_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "tree_canvas_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "tree_canvas_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "tree_canvas_requests_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trees: {
         Row: {
           created_at: string
@@ -1158,6 +1303,14 @@ export type Database = {
         }
         Returns: Json
       }
+      approve_tree_canvas_request: {
+        Args: {
+          p_bridge_person_id?: string
+          p_request_id: string
+          p_tree_name?: string
+        }
+        Returns: Json
+      }
       claim_person: { Args: { p_person_id: string }; Returns: Json }
       connect_people: {
         Args: {
@@ -1169,6 +1322,10 @@ export type Database = {
           p_type: string
         }
         Returns: string
+      }
+      decline_tree_canvas_request: {
+        Args: { p_reason?: string; p_request_id: string }
+        Returns: undefined
       }
       dispute_claim: {
         Args: { p_claim_id: string; p_reason?: string }
@@ -1201,6 +1358,7 @@ export type Database = {
           valid: boolean
         }[]
       }
+      my_growth_rights: { Args: never; Returns: Json }
       person_claim_candidates: {
         Args: never
         Returns: {
@@ -1259,6 +1417,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      request_tree_canvas: { Args: { p_note?: string }; Returns: string }
       resolve_claim: {
         Args: { p_action: string; p_claim_id: string }
         Returns: undefined

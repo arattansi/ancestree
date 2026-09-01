@@ -19,6 +19,7 @@ import {
   type SuggestionResolution,
 } from "@/components/connection-approval-dialog";
 import type { ImpliedConnection } from "@/lib/connection-suggestions";
+import { NewCanvasPrompt } from "@/components/new-canvas-prompt";
 import { PersonFields } from "@/components/person-fields";
 import {
   RelationshipPicker,
@@ -165,11 +166,15 @@ export function AddPersonFlow({
   treeId,
   isAdmin,
   members,
+  canvasRequestPending = false,
 }: {
   mode: "self" | "relative";
   treeId: string;
   isAdmin: boolean;
   members: TreeMemberOption[];
+  /** They have already asked an admin for a canvas of their own (Step 14.1),
+   *  so the gate prompt shows the waiting state instead of asking again. */
+  canvasRequestPending?: boolean;
 }) {
   const router = useRouter();
   const mustConnect = !isAdmin;
@@ -179,6 +184,9 @@ export function AddPersonFlow({
   const [photoFile, setPhotoFile] = React.useState<File | null>(null);
   const [photoBusy, setPhotoBusy] = React.useState(false);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
+  // The bloodline gate refused this branch (Step 14) — answer with the prompt
+  // rather than leaving a dead-end error under the button.
+  const [canvasPrompt, setCanvasPrompt] = React.useState(false);
   const [suggestions, setSuggestions] = React.useState<ImpliedConnection[]>([]);
   const [pendingSave, setPendingSave] = React.useState<{
     values: FlowValues;
@@ -343,6 +351,11 @@ export function AddPersonFlow({
     });
 
     if (result.error || !result.personIds) {
+      if (result.bloodlineGate) {
+        setSubmitError(null);
+        setCanvasPrompt(true);
+        return false;
+      }
       setSubmitError(result.error ?? "Couldn't save these entries.");
       return false;
     }
@@ -844,6 +857,12 @@ export function AddPersonFlow({
           setSuggestions([]);
         }}
         onResolve={onResolve}
+      />
+
+      <NewCanvasPrompt
+        open={canvasPrompt}
+        onOpenChange={setCanvasPrompt}
+        alreadyRequested={canvasRequestPending}
       />
     </Form>
   );

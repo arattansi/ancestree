@@ -39,9 +39,17 @@ function friendlyError(message: string | undefined): string {
   return "Couldn't save this entry. Check the fields and try again.";
 }
 
+/** The RPC's marker for a refusal the "start your own canvas" prompt answers. */
+function isBloodlineGate(message: string | undefined): boolean {
+  return (message ?? "").includes("BLOODLINE_GATE");
+}
+
 function friendlyConnectionError(message: string | undefined): string {
   if (!message) return "Something went wrong. Try again.";
   const m = message.toLowerCase();
+  if (isBloodlineGate(message)) {
+    return "These entries don't connect to the family bloodline.";
+  }
   if (m.includes("already in the tree")) {
     return "These entries don't connect to the tree yet — pick someone already on it, or add the people in between.";
   }
@@ -67,6 +75,10 @@ export type AddPeopleResult = {
   personIds?: string[];
   selfId?: string | null;
   error?: string;
+  /** The bloodline gate refused this branch (Step 14): the caller married into
+   *  the family and these entries hang off them alone. The UI answers with the
+   *  "start your own canvas" prompt rather than a plain error. */
+  bloodlineGate?: true;
 };
 
 /**
@@ -146,7 +158,10 @@ export async function addPeopleWithConnections(
   });
 
   if (error || !data) {
-    return { error: friendlyConnectionError(error?.message) };
+    return {
+      error: friendlyConnectionError(error?.message),
+      ...(isBloodlineGate(error?.message) ? { bloodlineGate: true as const } : {}),
+    };
   }
 
   const result = data as { ids: string[]; self_id: string | null };
