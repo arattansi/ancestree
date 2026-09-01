@@ -21,7 +21,18 @@ Design notes:
   radius 10px = the app's `--radius: 0.625rem`.
 - Public Sans is not loadable in Gmail/Outlook, so the stack falls back to the
   recipient's system sans. Everything else matches the homepage.
-- Keep `{{ .ConfirmationURL }}` exactly as-is: it carries the `invite` token
-  and `next` params our `/auth/callback` route depends on.
+- **The link is built by hand, not with `{{ .ConfirmationURL }}`.** That
+  variable points at `<project-ref>.supabase.co/auth/v1/verify?...`, so the
+  address the recipient sees (and hovers) is a Supabase URL, not ours. Instead:
+
+      {{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=email
+
+  `{{ .RedirectTo }}` is the `emailRedirectTo` we passed to `signInWithOtp`,
+  already carrying `?next=/tree` and, for an invited relative, `&invite=<token>`
+  — which is why it has to be the base rather than `{{ .SiteURL }}`, and why
+  the extra params are appended with `&`. `/auth/callback` already handles this
+  shape: it reads `token_hash` + `type` and calls `verifyOtp`.
+- Either way the recipient must open the link in the browser that requested it
+  (PKCE keeps the code verifier in a cookie). That is unchanged from before.
 - Inline styles + table layout only — email clients strip `<style>` blocks and
   ignore flex/grid.
