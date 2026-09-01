@@ -48,12 +48,17 @@ function PersonNodeImpl({ data }: NodeProps) {
             deceased ? "border-dashed border-border" : "border-border",
           )}
         >
-          <img
-            src={person.photo_url}
-            alt={`Photo of ${name}`}
-            style={cropStyle(parseCrop(person.photo_crop))}
-            className="aspect-square w-full"
-          />
+          {/* The square wrapper clips the zoomed <img>: cropStyle applies the
+              zoom as a CSS scale() that would otherwise bleed down over the
+              name below it. */}
+          <div className="aspect-square w-full overflow-hidden">
+            <img
+              src={person.photo_url}
+              alt={`Photo of ${name}`}
+              style={cropStyle(parseCrop(person.photo_crop))}
+              className="size-full"
+            />
+          </div>
           <div className="flex flex-col gap-0.5 px-3 py-2">
             <p
               className={cn(
