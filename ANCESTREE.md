@@ -302,6 +302,19 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 15.1 — Nickname matching** (migration `20260901050000_name_nicknames`):
+  the Step 15 scorer compares how names are spelled and how they sound, so
+  Bob/Robert, Bill/William and Peggy/Margaret — which share neither — scored
+  near zero, and a relative entered under their formal name never surfaced for
+  someone who types the name they actually go by. Those pairs are data, not a
+  string metric, so `name_nicknames` holds folded `(variant, canonical)` rows
+  and `private.nickname_match` asks whether two names share a canonical;
+  `private.name_score` floors a hit at 0.9 (curated, so it counts as a strong
+  match). A variant can belong to several roots — "Alex" reaches Alexander and
+  Alexandra without joining those two to each other. Seeded with ~90 English
+  given names; the table is member-readable, admin-writable, and meant to be
+  extended by inserting rows as the family needs them.
+
 - **Step 15 — Fuzzy first-run onboarding** (migration
   `20260901030000_onboarding_name_match`): `/onboarding` used to open straight
   onto the full add-yourself form, so a member a relative had already entered
