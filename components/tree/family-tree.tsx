@@ -46,6 +46,7 @@ import type { PanelSuggestion } from "@/lib/connection-suggestions";
 import { multiTreeEnabled } from "@/lib/flags";
 import { cn } from "@/lib/utils";
 import {
+  bloodline,
   descentGeometry,
   lateralGeometry,
   layoutTree,
@@ -265,6 +266,12 @@ type Props = {
   readOnly?: boolean;
 };
 
+/** Which way a bloodline spotlight runs from the person who was clicked. */
+type BloodlineDirection = "up" | "down";
+
+/** A spotlighted connection: the edge, and the direction the click chose. */
+type SelectedEdge = { id: string; direction: BloodlineDirection };
+
 function buildGraph(
   people: TreeGraphPerson[],
   relationships: TreeGraphEdge[],
@@ -372,12 +379,12 @@ function Canvas({
   const [nodes, setNodes, onNodesChange] = useNodesState(graph.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(graph.edges);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
-  const [selectedEdgeId, setSelectedEdgeId] = React.useState<string | null>(
-    null,
-  );
+  // The spotlighted connection, plus which way along it the click pointed.
+  const [selectedEdgeId, setSelectedEdgeId] =
+    React.useState<SelectedEdge | null>(null);
   const [filter, setFilter] = React.useState<TreeFilter>(EMPTY_FILTER);
   const [arranging, setArranging] = React.useState(false);
-  const { fitView } = useReactFlow();
+  const { fitView, getNode, screenToFlowPosition } = useReactFlow();
 
   // Re-seed the canvas whenever the graph itself changes — a new relative, or
   // an auto-arrange that cleared everybody's nudges.
@@ -416,52 +423,80 @@ function Canvas({
     );
   }, [matchingIds, setNodes]);
 
-  // Clicking a connection: name the two people it joins and ring them both.
+  // Clicking a connection: work out what it joins, name it, and collect the
+  // nodes and edges the spotlight should keep lit.
   const connection = React.useMemo(() => {
     if (!selectedEdgeId) return null;
-    const edge = graph.edges.find((e) => e.id === selectedEdgeId);
+    const edge = graph.edges.find((e) => e.id === selectedEdgeId.id);
     if (!edge) return null;
 
     if (edge.type === "descent") {
+      // A descent line is one link in a bloodline, so light the whole run of
+      // them rather than the single link that was clicked. Which run depends on
+      // which end of the line the click was nearer — see `onEdgeClick`.
+      const { direction } = selectedEdgeId;
       const parents = (
         Array.isArray(edge.data?.parents) ? edge.data.parents : []
       ) as string[];
-      const parentNames = parents
+      // Looking up, the run belongs to the child at the bottom of the line;
+      // looking down, it belongs to the parents at the top.
+      const roots = direction === "up" ? [edge.target] : parents;
+      const rootNames = roots
         .map((pid) => nameById.get(pid))
         .filter((n): n is string => !!n);
-      if (parentNames.length === 0) return null;
-      // The whole sibling set hangs off this fork, so highlight every child of
-      // the union, not just the one whose line was clicked.
-      const unionId = edge.id.slice(2).split("->")[0];
-      const union = graph.layout.unions.find((u) => u.id === unionId);
-      const children = union?.children ?? [edge.target];
-      const childNames = children
-        .map((cid) => nameById.get(cid))
-        .filter((n): n is string => !!n);
-      if (childNames.length === 0) return null;
-      // Also light up the branch between the parents — the spouse line joining
-      // them is the fork the children hang off.
-      const parentLink = graph.edges.find(
-        (e) =>
-          e.type === "spouse" &&
-          Array.isArray(e.data?.pair) &&
-          parents.every((pid) => (e.data!.pair as string[]).includes(pid)),
-      );
+      if (rootNames.length === 0) return null;
+
+      const line = new Set<string>();
+      for (const root of roots)
+        for (const id of bloodline(root, relationships, direction))
+          line.add(id);
+      if (line.size === 0) return null;
+
+      const edgeIds = new Set<string>();
+      const forks: string[][] = [];
+      for (const e of graph.edges) {
+        if (e.type !== "descent") continue;
+        // The descent lines that make up the run: going up, every line arriving
+        // at the person or at one of their ancestors; going down, every line
+        // arriving at one of their descendants. Either way a line arriving at
+        // somebody off the bloodline — a sibling, an in-law — stays dim.
+        const onLine =
+          line.has(e.target) || (direction === "up" && e.target === roots[0]);
+        if (!onLine) continue;
+        edgeIds.add(e.id);
+        forks.push(
+          (Array.isArray(e.data?.parents) ? e.data.parents : []) as string[],
+        );
+      }
+      for (const e of graph.edges) {
+        if (e.type !== "spouse") continue;
+        const pair = (
+          Array.isArray(e.data?.pair) ? e.data.pair : []
+        ) as string[];
+        // A spouse line is the fork its couple's children hang off, so light it
+        // whenever a lit descent line actually leaves it. Matching on the fork
+        // rather than on the bloodline keeps a married-in partner's half of the
+        // fork lit too — going down, the trunk to a grandchild leaves the line
+        // between a descendant and the person they had that child with.
+        if (
+          pair.length > 0 &&
+          forks.some(
+            (parents) =>
+              parents.length === pair.length &&
+              parents.every((pid) => pair.includes(pid)),
+          )
+        )
+          edgeIds.add(e.id);
+      }
+
+      const kind = direction === "up" ? "ancestor" : "descendant";
       return {
-        endpoints: new Set<string>([...parents, ...children]),
-        edgeIds: new Set<string>(
-          [
-            ...children.map((cid) => `d:${unionId}->${cid}`),
-            parentLink?.id,
-          ].filter((v): v is string => !!v),
-        ),
-        label: parentNames.length > 1 ? "Parents" : "Parent",
-        separator: "→",
-        from: parentNames.join(" & "),
-        to:
-          childNames.length > 1
-            ? `${childNames.slice(0, -1).join(", ")} & ${childNames.at(-1)}`
-            : childNames[0],
+        endpoints: new Set<string>([...roots, ...line]),
+        edgeIds,
+        label: direction === "up" ? "Ancestors" : "Descendants",
+        separator: direction === "up" ? "↑" : "↓",
+        from: rootNames.join(" & "),
+        to: `${line.size} ${kind}${line.size > 1 ? "s" : ""}`,
       };
     }
 
@@ -488,7 +523,7 @@ function Canvas({
     }
 
     return null;
-  }, [selectedEdgeId, graph.edges, graph.layout.unions, nameById, relationships]);
+  }, [selectedEdgeId, graph.edges, nameById, relationships]);
 
   // Ring the people at each end of the clicked connection.
   React.useEffect(() => {
@@ -504,8 +539,8 @@ function Canvas({
     );
   }, [connection, setNodes]);
 
-  // Fade every connection except the spotlighted branch — the clicked line plus,
-  // for a child, the parents' link — and draw those in trunk brown.
+  // Fade every connection except the spotlighted run — for a descent line the
+  // whole bloodline above it — and draw those in trunk brown.
   const displayEdges = React.useMemo(() => {
     const activeIds = connection?.edgeIds ?? null;
     if (!activeIds) return edges;
@@ -524,12 +559,51 @@ function Canvas({
     });
   }, [edges, connection]);
 
+  /**
+   * A descent line is below its parents and above its child at the same time,
+   * so *where* it was clicked decides whose bloodline is meant: the trunk half,
+   * up by the parents, means "below them" and lights their descendants; the
+   * stub half, down by the child, means "above them" and lights their
+   * ancestors. The horizontal bus between the two is the dividing line.
+   */
   const onEdgeClick = React.useCallback(
-    (_: React.MouseEvent, edge: Edge) => {
+    (event: React.MouseEvent, edge: Edge) => {
       setSelectedId(null);
-      setSelectedEdgeId((cur) => (cur === edge.id ? null : edge.id));
+      let direction: BloodlineDirection = "up";
+      if (edge.type === "descent") {
+        const parents = (
+          Array.isArray(edge.data?.parents) ? edge.data.parents : []
+        ) as string[];
+        const child = getNode(edge.target);
+        const rects = parents
+          .map((parentId) => {
+            const node = getNode(parentId);
+            if (!node) return null;
+            return {
+              x: node.position.x,
+              y: node.position.y,
+              w: node.measured?.width ?? NODE_W,
+              h: node.measured?.height ?? NODE_H,
+            };
+          })
+          .filter((rect): rect is CardRect => rect !== null);
+        // Fall back to the layout's own bus for a card React Flow has not
+        // measured yet, so an early click still picks a sensible direction.
+        const busY =
+          descentGeometry(rects, child?.position.y ?? 0)?.busY ??
+          (typeof edge.data?.busY === "number" ? edge.data.busY : 0);
+        direction =
+          screenToFlowPosition({ x: event.clientX, y: event.clientY }).y > busY
+            ? "up"
+            : "down";
+      }
+      setSelectedEdgeId((cur) =>
+        cur?.id === edge.id && cur.direction === direction
+          ? null
+          : { id: edge.id, direction },
+      );
     },
-    [],
+    [getNode, screenToFlowPosition],
   );
 
   const onPick = React.useCallback(

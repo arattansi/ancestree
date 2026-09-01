@@ -10,6 +10,9 @@ import {
   lateralGeometry,
   generationLabel,
   layoutTree,
+  ancestorsOf,
+  descendantsOf,
+  bloodline,
   type LayoutPerson,
   type LayoutRelationship,
 } from "@/lib/tree-layout";
@@ -714,5 +717,142 @@ describe("family blocks stay intact", () => {
       for (let i = 1; i < sorted.length; i++)
         expect(sorted[i] - sorted[i - 1]).toBeGreaterThanOrEqual(NODE_W);
     }
+  });
+});
+
+describe("bloodline", () => {
+  it("walks the whole bloodline up, not just the parents", () => {
+    const { people, relationships } = family();
+    const line = ancestorsOf(
+      "kid",
+      [...relationships, parent("ggpaA", "gpaA")].concat([]),
+    );
+    expect(people).toHaveLength(7);
+    // Both parents, all four grandparents, and the great-grandparent above.
+    expect([...line].sort()).toEqual(
+      ["adminA", "adminB", "ggpaA", "gmaA", "gmaB", "gpaA", "gpaB"].sort(),
+    );
+  });
+
+  it("excludes the person themself, their siblings, and their children", () => {
+    const { relationships } = family();
+    const line = ancestorsOf("adminA", [
+      ...relationships,
+      parent("gpaA", "auntA"),
+      parent("gmaA", "auntA"),
+    ]);
+    expect(line.has("adminA")).toBe(false);
+    expect(line.has("auntA")).toBe(false);
+    expect(line.has("kid")).toBe(false);
+    expect([...line].sort()).toEqual(["gmaA", "gpaA"]);
+  });
+
+  it("ignores spouse edges — a partner is not an ancestor", () => {
+    const line = ancestorsOf("kid", [
+      parent("adminA", "kid"),
+      spouse("adminA", "adminB"),
+    ]);
+    expect([...line]).toEqual(["adminA"]);
+  });
+
+  it("returns nothing for someone with no parents recorded", () => {
+    const { relationships } = family();
+    expect(ancestorsOf("gpaA", relationships).size).toBe(0);
+  });
+
+  it("terminates on a cycle rather than hanging", () => {
+    const line = ancestorsOf("a", [
+      parent("a", "b"),
+      parent("b", "c"),
+      parent("c", "a"),
+    ]);
+    expect([...line].sort()).toEqual(["a", "b", "c"]);
+  });
+});
+
+describe("descendantsOf", () => {
+  /** Three generations below the anchors, plus a cousin branch to stay clear of. */
+  const dynasty = () => {
+    const { people, relationships } = family();
+    return {
+      people: [
+        ...people,
+        person("kid2", "1993-01-01"),
+        person("kidInLaw", "1989-01-01"),
+        person("grandkid", "2018-01-01"),
+        person("auntA", "1965-01-01"),
+        person("cousin", "1994-01-01"),
+      ],
+      relationships: [
+        ...relationships,
+        parent("adminA", "kid2"),
+        parent("adminB", "kid2"),
+        spouse("kid", "kidInLaw"),
+        parent("kid", "grandkid"),
+        parent("kidInLaw", "grandkid"),
+        parent("gpaA", "auntA"),
+        parent("gmaA", "auntA"),
+        parent("auntA", "cousin"),
+      ],
+    };
+  };
+
+  it("walks the whole line down, not just the children", () => {
+    const { relationships } = dynasty();
+    expect([...descendantsOf("adminA", relationships)].sort()).toEqual([
+      "grandkid",
+      "kid",
+      "kid2",
+    ]);
+  });
+
+  it("excludes the person, their partner, and anyone married in below", () => {
+    const { relationships } = dynasty();
+    const line = descendantsOf("adminA", relationships);
+    expect(line.has("adminA")).toBe(false);
+    expect(line.has("adminB")).toBe(false);
+    // The grandchild is on the line; the in-law who fathered them is not.
+    expect(line.has("kidInLaw")).toBe(false);
+    expect(line.has("grandkid")).toBe(true);
+  });
+
+  it("keeps a collateral branch off the line", () => {
+    const { relationships } = dynasty();
+    // auntA and her child descend from gpaA, but not from adminA.
+    expect(descendantsOf("adminA", relationships).has("cousin")).toBe(false);
+    const fromGpa = descendantsOf("gpaA", relationships);
+    expect(fromGpa.has("cousin")).toBe(true);
+    expect(fromGpa.has("grandkid")).toBe(true);
+  });
+
+  it("is the exact inverse of the ancestor walk", () => {
+    const { relationships } = dynasty();
+    for (const [older, younger] of [
+      ["gpaA", "grandkid"],
+      ["adminB", "kid2"],
+      ["gmaB", "kid"],
+    ] as const) {
+      expect(descendantsOf(older, relationships).has(younger)).toBe(true);
+      expect(ancestorsOf(younger, relationships).has(older)).toBe(true);
+    }
+  });
+
+  it("terminates on a cycle rather than hanging", () => {
+    const line = descendantsOf("a", [
+      parent("a", "b"),
+      parent("b", "c"),
+      parent("c", "a"),
+    ]);
+    expect([...line].sort()).toEqual(["a", "b", "c"]);
+  });
+
+  it("takes its direction from the argument", () => {
+    const { relationships } = dynasty();
+    expect(bloodline("kid", relationships, "up")).toEqual(
+      ancestorsOf("kid", relationships),
+    );
+    expect(bloodline("kid", relationships, "down")).toEqual(
+      descendantsOf("kid", relationships),
+    );
   });
 });

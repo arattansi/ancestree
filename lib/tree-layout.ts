@@ -794,6 +794,52 @@ function buildUnions(
   return unions;
 }
 
+/**
+ * Follow parent edges from `personId` all the way in one direction: `up` for
+ * everyone they descend from, `down` for everyone descended from them. Strict —
+ * the person themself is never in the result.
+ *
+ * The canvas uses this to spotlight a whole bloodline when one of its descent
+ * lines is clicked. A cycle in the data (which a mis-entered "parent" edge can
+ * create) terminates on the visited set rather than hanging the canvas.
+ */
+export function bloodline(
+  personId: string,
+  relationships: LayoutRelationship[],
+  direction: "up" | "down",
+): Set<string> {
+  const next = new Map<string, string[]>();
+  for (const r of relationships) {
+    if (r.type !== "parent") continue;
+    // Walking up follows the edge backwards, child -> parent; walking down
+    // follows it the way it is stored.
+    if (direction === "up") push(next, r.to_person, r.from_person);
+    else push(next, r.from_person, r.to_person);
+  }
+
+  const seen = new Set<string>();
+  const stack = [...(next.get(personId) ?? [])];
+  while (stack.length > 0) {
+    const id = stack.pop()!;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    stack.push(...(next.get(id) ?? []));
+  }
+  return seen;
+}
+
+/** Everyone `personId` descends from, to the top of the tree. */
+export const ancestorsOf = (
+  personId: string,
+  relationships: LayoutRelationship[],
+) => bloodline(personId, relationships, "up");
+
+/** Everyone descended from `personId`, to the bottom of the tree. */
+export const descendantsOf = (
+  personId: string,
+  relationships: LayoutRelationship[],
+) => bloodline(personId, relationships, "down");
+
 /** A card's live rectangle on the canvas, as the renderer currently sees it. */
 export type CardRect = { x: number; y: number; w: number; h: number };
 
