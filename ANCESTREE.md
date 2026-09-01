@@ -175,8 +175,11 @@ Helpers live in the unexposed `private` schema (`is_admin`, `is_tree_member`,
   by the `requestInvite` server action using the service-role client, so the
   table needs no `anon` grant or insert policy and cannot be read or enumerated
   from the browser. Admins review pending requests on `/admin`; approving mints
-  a normal single-use invite link (attributed to the reviewing admin) for them
-  to send on, declining just closes the request.
+  a normal single-use invite link (attributed to the reviewing admin) and
+  emails it to the requester via Resend (`lib/email.ts` +
+  `lib/emails/invite-approved.ts`, needs `RESEND_API_KEY`) — if the send
+  fails, the invite is still valid and the admin can copy the link and send it
+  themselves; declining just closes the request.
 - **Admin bootstrap**: `private.admin_allowlist(email)` — seeded with both
   co-admins (Aalim Rattansi, Raiya Suleman). First login by an
   allowlisted email runs `ensure_profile`, which creates the single shared

@@ -168,7 +168,8 @@ export default async function AdminPage() {
           <CardTitle>Invite requests</CardTitle>
           <CardDescription>
             {inviteRequests.length} awaiting review. Approving mints a
-            single-use link for you to send to the person who asked.
+            single-use link and emails it to the person who asked — if the
+            email fails to send, you can still copy the link yourself.
           </CardDescription>
         </CardHeader>
         <CardContent>

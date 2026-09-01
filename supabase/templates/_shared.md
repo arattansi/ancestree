@@ -5,6 +5,14 @@ into `supabase/config.toml` for local development; for the hosted project they
 must also be pasted into the Dashboard (Authentication → Emails → Templates)
 or pushed with the Management API — Supabase does not read them from the repo.
 
+**This is only sign-in mail.** The other branded email ancestree sends — the
+"you're invited" message when an admin approves an invite request — is not a
+Supabase Auth template at all. It's authored in `lib/emails/invite-approved.ts`
+and sent by `approveInviteRequest` via Resend directly (`lib/email.ts`), since
+the link it carries is our own `/join/<token>` route, not a Supabase auth
+link. Same palette, same layout, different pipeline — edit it in that file,
+not here, and it needs no push step since it's sent by app code.
+
 Which template fires for our magic-link sign-in (`signInWithOtp`):
 
 | Situation | Template |

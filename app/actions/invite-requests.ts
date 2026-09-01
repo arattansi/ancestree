@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 
 import { requireAdmin } from "@/lib/auth";
+import { sendEmail } from "@/lib/email";
+import { inviteApprovedEmail } from "@/lib/emails/invite-approved";
 import { getSiteUrl } from "@/lib/site-url";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -60,17 +62,20 @@ export async function requestInvite(
 
 /**
  * Admin: approve a request by minting a single-use invite link attributed to
- * the reviewing admin. The link is returned for them to pass on.
+ * the reviewing admin, then emailing it to the requester. The link is also
+ * returned so the admin can copy it as a fallback — if the email fails to
+ * send, `emailError` is set but the approval itself is not rolled back; the
+ * invite is already valid either way.
  */
 export async function approveInviteRequest(
   id: string,
-): Promise<{ url?: string; error?: string }> {
+): Promise<{ url?: string; emailed?: boolean; emailError?: string; error?: string }> {
   const admin = await requireAdmin();
   const supabase = await createClient();
 
   const { data: request } = await supabase
     .from("invite_requests")
-    .select("id, status")
+    .select("id, status, first_name, email")
     .eq("id", id)
     .maybeSingle();
 
@@ -122,8 +127,20 @@ export async function approveInviteRequest(
     return { error: "Could not update that request. Try again." };
   }
 
+  const url = `${getSiteUrl()}/join/${invite.token}`;
+  const { subject, html } = inviteApprovedEmail({
+    firstName: request.first_name,
+    inviterName: admin.display_name ?? "A family member",
+    url,
+  });
+  const sent = await sendEmail({ to: request.email, subject, html });
+
   revalidatePath("/admin");
-  return { url: `${getSiteUrl()}/join/${invite.token}` };
+  return {
+    url,
+    emailed: sent.ok,
+    emailError: sent.ok ? undefined : sent.error,
+  };
 }
 
 /** Admin: decline a request without minting anything. */

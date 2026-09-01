@@ -19,6 +19,8 @@ export type PendingInviteRequest = {
   createdAt: string;
 };
 
+type Approved = { url: string; emailed: boolean };
+
 export function AdminInviteRequests({
   requests,
 }: {
@@ -26,7 +28,7 @@ export function AdminInviteRequests({
 }) {
   const router = useRouter();
   const [busyId, setBusyId] = React.useState<string | null>(null);
-  const [links, setLinks] = React.useState<Record<string, string>>({});
+  const [approved, setApproved] = React.useState<Record<string, Approved>>({});
 
   if (requests.length === 0) {
     return (
@@ -36,7 +38,7 @@ export function AdminInviteRequests({
     );
   }
 
-  async function onApprove(id: string) {
+  async function onApprove(id: string, email: string) {
     setBusyId(id);
     const res = await approveInviteRequest(id);
     setBusyId(null);
@@ -45,9 +47,17 @@ export function AdminInviteRequests({
       return;
     }
     // Deliberately no router.refresh() here: the row has to stay on screen so
-    // the admin can copy the freshly minted link.
-    if (res.url) setLinks((prev) => ({ ...prev, [id]: res.url! }));
-    toast.success("Approved — copy the link and send it on.");
+    // the admin can see the outcome and copy the link as a fallback.
+    if (res.url) {
+      setApproved((prev) => ({ ...prev, [id]: { url: res.url!, emailed: !!res.emailed } }));
+    }
+    if (res.emailed) {
+      toast.success(`Approved — invite emailed to ${email}.`);
+    } else {
+      toast.warning(
+        `Approved, but the email didn't send${res.emailError ? ` (${res.emailError})` : ""} — copy the link below and send it yourself.`,
+      );
+    }
   }
 
   async function onDecline(id: string) {
@@ -74,7 +84,7 @@ export function AdminInviteRequests({
   return (
     <ul className="flex flex-col gap-3">
       {requests.map((r) => {
-        const link = links[r.id];
+        const result = approved[r.id];
         return (
           <li
             key={r.id}
@@ -91,26 +101,33 @@ export function AdminInviteRequests({
                 year: "numeric",
               })}
             </p>
-            {link ? (
-              <div className="flex gap-2">
-                <Input
-                  readOnly
-                  value={link}
-                  aria-label={`Invite link for ${r.firstName} ${r.lastName}`}
-                  className="font-mono text-xs"
-                />
-                <Button type="button" variant="outline" onClick={() => copy(link)}>
-                  Copy
-                </Button>
+            {result ? (
+              <div className="flex flex-col gap-2">
+                <p className={result.emailed ? "text-muted-foreground" : "text-destructive"}>
+                  {result.emailed
+                    ? `Invite emailed to ${r.email}.`
+                    : "Couldn't email this invite — send the link yourself:"}
+                </p>
+                <div className="flex gap-2">
+                  <Input
+                    readOnly
+                    value={result.url}
+                    aria-label={`Invite link for ${r.firstName} ${r.lastName}`}
+                    className="font-mono text-xs"
+                  />
+                  <Button type="button" variant="outline" onClick={() => copy(result.url)}>
+                    Copy
+                  </Button>
+                </div>
               </div>
             ) : (
               <div className="flex gap-2">
                 <Button
                   size="sm"
                   disabled={busyId !== null}
-                  onClick={() => onApprove(r.id)}
+                  onClick={() => onApprove(r.id, r.email)}
                 >
-                  {busyId === r.id ? "Working…" : "Approve & mint link"}
+                  {busyId === r.id ? "Working…" : "Approve & send invite"}
                 </Button>
                 <Button
                   size="sm"
