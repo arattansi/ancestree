@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { setCanInvite } from "@/app/actions/invites";
+import { AdminBareInvites } from "@/components/admin-bare-invites";
 import { AdminDisputedClaims } from "@/components/admin-disputed-claims";
 import { AdminExport } from "@/components/admin-export";
 import { AdminInviteHistory } from "@/components/admin-invite-history";
@@ -23,7 +24,7 @@ import {
 import { requireAdmin } from "@/lib/auth";
 import { listDisputedClaims } from "@/lib/claims";
 import { multiTreeEnabled } from "@/lib/flags";
-import { listInviteHistory } from "@/lib/invites";
+import { listBareInvites, listInviteHistory } from "@/lib/invites";
 import { getSiteUrl } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/server";
 
@@ -83,6 +84,7 @@ export default async function AdminPage() {
   const people = peopleRes.data ?? [];
   const disputedClaims = await listDisputedClaims();
   const inviteHistory = await listInviteHistory();
+  const bareInvites = await listBareInvites();
   const inviteRequests: PendingInviteRequest[] = (
     inviteRequestsRes.data ?? []
   ).map((r) => ({
@@ -213,6 +215,8 @@ export default async function AdminPage() {
             {inviteRequests.length} awaiting review. Approving mints a
             single-use link and emails it to the person who asked — if the
             email fails to send, you can still copy the link yourself.
+            Declining keeps a record; deleting leaves none and lets them ask
+            again.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -225,11 +229,26 @@ export default async function AdminPage() {
           <CardTitle>Sent invites</CardTitle>
           <CardDescription>
             Every invite that has gone out, however it started — the last{" "}
-            {inviteHistory.length}.
+            {inviteHistory.length}. Deleting one also kills its link, so an
+            invite nobody has used yet stops working.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <AdminInviteHistory items={inviteHistory} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Bare invite links</CardTitle>
+          <CardDescription>
+            Links minted without a name attached, so they never show up under
+            &ldquo;Sent invites&rdquo;. Copy one to send it on, or delete it to
+            stop it working — including wherever you&rsquo;ve already sent it.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AdminBareInvites invites={bareInvites} baseUrl={getSiteUrl()} />
         </CardContent>
       </Card>
 

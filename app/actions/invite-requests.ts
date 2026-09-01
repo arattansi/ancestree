@@ -166,3 +166,49 @@ export async function declineInviteRequest(
   revalidatePath("/admin");
   return {};
 }
+
+/**
+ * Admin: erase an invite record outright — both a pending request in the
+ * review queue and a reviewed one in the sent-invites history.
+ *
+ * If approving it minted a link, that invite goes too, so a link that hasn't
+ * been used yet stops working. `invite_requests.invite_id` is `on delete set
+ * null`, so the invite would otherwise outlive the record that names it.
+ * Who-invited-whom is unaffected: `profiles.invited_by_user_id` points at the
+ * inviter's profile, not at the invite row.
+ */
+export async function deleteInviteRequest(
+  id: string,
+): Promise<{ error?: string }> {
+  await requireAdmin();
+  const supabase = await createClient();
+
+  const { data: request } = await supabase
+    .from("invite_requests")
+    .select("id, invite_id")
+    .eq("id", id)
+    .maybeSingle();
+
+  // Already gone — someone else deleted it. Nothing left to do.
+  if (!request) {
+    revalidatePath("/admin");
+    return {};
+  }
+
+  const { error } = await supabase.from("invite_requests").delete().eq("id", id);
+  if (error) return { error: "Could not delete that record. Try again." };
+
+  if (request.invite_id) {
+    const { error: inviteError } = await supabase
+      .from("invites")
+      .delete()
+      .eq("id", request.invite_id);
+    if (inviteError) {
+      revalidatePath("/admin");
+      return { error: "Record deleted, but its invite link is still live." };
+    }
+  }
+
+  revalidatePath("/admin");
+  return {};
+}

@@ -1,7 +1,8 @@
 import type { InviteHistoryItem } from "@/lib/invites";
+import { DeleteInviteButton } from "@/components/delete-invite-button";
 import { Badge } from "@/components/ui/badge";
 
-/** "Sent invites" history on /admin — read-only, no client state needed. */
+/** "Sent invites" history on /admin — read-only apart from deleting a row. */
 export function AdminInviteHistory({ items }: { items: InviteHistoryItem[] }) {
   if (items.length === 0) {
     return (
@@ -27,11 +28,32 @@ export function AdminInviteHistory({ items }: { items: InviteHistoryItem[] }) {
               {item.source === "direct" ? "Sent directly" : "Requested"}
             </Badge>
             <StatusBadge item={item} />
+            <DeleteInviteButton
+              id={item.id}
+              name={`${item.firstName} ${item.lastName}`}
+              confirmText={confirmTextFor(item)}
+            />
           </div>
         </li>
       ))}
     </ul>
   );
+}
+
+/**
+ * Deleting always removes the invite alongside the record, so say what that
+ * costs: a link nobody has used yet dies with it, while one already accepted
+ * only loses its paper trail — the member stays a member.
+ */
+function confirmTextFor(item: InviteHistoryItem) {
+  const who = `${item.firstName} ${item.lastName}`;
+  if (item.inviteStatus === "accepted") {
+    return `Delete the record of ${who}'s invite? They've already joined and will stay a member — you just lose the history of how. This cannot be undone.`;
+  }
+  if (item.inviteStatus === "active") {
+    return `Delete ${who}'s invite? The link emailed to ${item.email} stops working immediately. This cannot be undone.`;
+  }
+  return `Delete the record of ${who}'s invite? This cannot be undone.`;
 }
 
 function StatusBadge({ item }: { item: InviteHistoryItem }) {

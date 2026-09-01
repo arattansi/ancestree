@@ -207,3 +207,23 @@ export async function setCanInvite(formData: FormData) {
 
   revalidatePath("/admin");
 }
+
+/**
+ * Admin: delete an invite link outright, killing it if nobody has used it.
+ *
+ * Only meant for bare links — ones with a recipient on record are deleted
+ * through their `invite_requests` row instead, so that row doesn't outlive
+ * the link it names. Deleting an already-accepted link is harmless: joining
+ * reads the invite once, and `profiles.invited_by_user_id` records the
+ * inviter independently.
+ */
+export async function deleteInvite(id: string): Promise<{ error?: string }> {
+  await requireAdmin();
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("invites").delete().eq("id", id);
+  if (error) return { error: "Could not delete that link. Try again." };
+
+  revalidatePath("/admin");
+  return {};
+}

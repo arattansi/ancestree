@@ -8,6 +8,7 @@ import {
   approveInviteRequest,
   declineInviteRequest,
 } from "@/app/actions/invite-requests";
+import { DeleteInviteButton } from "@/components/delete-invite-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -119,6 +120,13 @@ export function AdminInviteRequests({
                     Copy
                   </Button>
                 </div>
+                <div>
+                  <DeleteInviteButton
+                    id={r.id}
+                    name={`${r.firstName} ${r.lastName}`}
+                    confirmText={`Delete this record and kill the invite link you just sent ${r.email}? If they haven't used it yet, it will stop working. This cannot be undone.`}
+                  />
+                </div>
               </div>
             ) : (
               <div className="flex gap-2">
@@ -137,6 +145,12 @@ export function AdminInviteRequests({
                 >
                   Decline
                 </Button>
+                <DeleteInviteButton
+                  id={r.id}
+                  name={`${r.firstName} ${r.lastName}`}
+                  disabled={busyId !== null}
+                  confirmText={`Delete ${r.firstName} ${r.lastName}'s invite request outright? Unlike declining, it leaves no record and they can ask again. This cannot be undone.`}
+                />
               </div>
             )}
           </li>
