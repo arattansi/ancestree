@@ -556,3 +556,163 @@ describe("couples sit level", () => {
     }
   });
 });
+
+describe("family blocks stay intact", () => {
+  /** Two branches of cousins hanging off one set of great-grandparents. */
+  const cousins = () => {
+    const { people, relationships } = family();
+    return {
+      people: [
+        ...people,
+        person("ggpaA", "1900-01-01"),
+        person("gAuntA", "1932-01-01"),
+        person("gAuntAsp", "1931-01-01"),
+        person("cousin1", "1960-01-01"),
+        person("cousin2", "1964-01-01"),
+        person("auntA", "1965-01-01"),
+      ],
+      relationships: [
+        ...relationships,
+        parent("ggpaA", "gpaA"),
+        parent("ggpaA", "gAuntA"),
+        spouse("gAuntA", "gAuntAsp"),
+        parent("gAuntA", "cousin1"),
+        parent("gAuntAsp", "cousin1"),
+        parent("gAuntA", "cousin2"),
+        parent("gAuntAsp", "cousin2"),
+        parent("gpaA", "auntA"),
+        parent("gmaA", "auntA"),
+      ],
+    };
+  };
+
+  /** Everyone on `ids`' row who sits horizontally between the two extremes. */
+  const between = (
+    positions: Map<string, { x: number; y: number }>,
+    ids: string[],
+  ) => {
+    const row = positions.get(ids[0])!.y;
+    const xs = ids.map((id) => positions.get(id)!.x);
+    const [lo, hi] = [Math.min(...xs), Math.max(...xs)];
+    return [...positions]
+      .filter(
+        ([id, p]) =>
+          p.y === row && p.x > lo && p.x < hi && !ids.includes(id),
+      )
+      .map(([id]) => id);
+  };
+
+  it("never threads an outsider through a set of siblings", () => {
+    const { people, relationships } = cousins();
+    const { positions } = layoutTree(people, relationships, {
+      anchorIds: ["adminA", "adminB"],
+    });
+    expect(between(positions, ["cousin1", "cousin2"])).toEqual([]);
+  });
+
+  it("never threads an outsider between partners", () => {
+    const { people, relationships } = cousins();
+    const { positions } = layoutTree(people, relationships, {
+      anchorIds: ["adminA", "adminB"],
+    });
+    expect(between(positions, ["gAuntA", "gAuntAsp"])).toEqual([]);
+    expect(between(positions, ["adminA", "adminB"])).toEqual([]);
+  });
+
+  it("keeps a cousin branch clear of the anchors' own siblings", () => {
+    const { people, relationships } = cousins();
+    const { positions } = layoutTree(people, relationships, {
+      anchorIds: ["adminA", "adminB"],
+    });
+    // The great-aunt's children sit outside adminA's sibling group entirely.
+    const cousinEdge = Math.max(
+      positions.get("cousin1")!.x,
+      positions.get("cousin2")!.x,
+    );
+    expect(cousinEdge).toBeLessThan(positions.get("auntA")!.x);
+  });
+
+  it("centres a parent couple over the span of their children", () => {
+    const { people, relationships } = cousins();
+    const { positions } = layoutTree(people, relationships, {
+      anchorIds: ["adminA", "adminB"],
+    });
+    const centreOf = (ids: string[]) => {
+      const xs = ids.map((id) => positions.get(id)!.x + NODE_W / 2);
+      return (Math.min(...xs) + Math.max(...xs)) / 2;
+    };
+    expect(
+      Math.abs(centreOf(["gAuntA", "gAuntAsp"]) - centreOf(["cousin1", "cousin2"])),
+    ).toBeLessThan(NODE_W);
+  });
+
+  it("straddles the anchor with their siblings when no in-law claims a side", () => {
+    // One admin, five siblings: the anchor belongs in the middle of the row,
+    // not shunted to one end of their own family.
+    const people = [person("dad", "1930-01-01"), person("mum", "1932-01-01")];
+    const relationships = [spouse("dad", "mum")];
+    for (let i = 0; i < 5; i++) {
+      people.push(person(`kid${i}`, `${1955 + i}-01-01`));
+      relationships.push(parent("dad", `kid${i}`), parent("mum", `kid${i}`));
+    }
+    const { positions } = layoutTree(people, relationships, {
+      anchorIds: ["kid2"],
+    });
+    const xs = [0, 1, 2, 3, 4].map((i) => positions.get(`kid${i}`)!.x);
+    // Eldest → youngest, left → right, with the anchor sitting in the middle.
+    expect([...xs].sort((a, b) => a - b)).toEqual(xs);
+  });
+
+  it("hangs an in-law's family on their own side of the couple", () => {
+    const { people, relationships } = family();
+    const { positions } = layoutTree(people, relationships, {
+      anchorIds: ["adminA", "adminB"],
+    });
+    // adminB married in from the right, so their parents stay right of adminA's.
+    expect(positions.get("gmaA")!.x).toBeLessThan(positions.get("gpaB")!.x);
+    // …and directly above their own child's half of the couple.
+    const centre = (a: string, b: string) =>
+      (positions.get(a)!.x + positions.get(b)!.x + NODE_W) / 2;
+    expect(centre("gpaB", "gmaB")).toBeGreaterThan(
+      centre("adminA", "adminA"),
+    );
+  });
+
+  it("lays out a 300-person tree without overlaps", () => {
+    const people: LayoutPerson[] = [
+      person("r0", "1900-01-01"),
+      person("r1", "1902-01-01"),
+    ];
+    const relationships: LayoutRelationship[] = [spouse("r0", "r1")];
+    let frontier: [string, string][] = [["r0", "r1"]];
+    let n = 0;
+    for (let gen = 1; gen <= 5; gen++) {
+      const next: [string, string][] = [];
+      for (const [f, m] of frontier) {
+        for (let i = 0; i < 3; i++) {
+          const child = `p${n++}`;
+          people.push(person(child, `${1900 + gen * 25 + i}-01-01`));
+          relationships.push(parent(f, child), parent(m, child));
+          if (gen < 5 && next.length < 40) {
+            const inLaw = `p${n++}`;
+            people.push(person(inLaw, `${1900 + gen * 25 + i}-01-01`));
+            relationships.push(spouse(child, inLaw));
+            next.push([child, inLaw]);
+          }
+        }
+      }
+      frontier = next;
+    }
+    const { positions } = layoutTree(people, relationships, {
+      anchorIds: ["r0", "r1"],
+    });
+    const rows = new Map<number, number[]>();
+    for (const { x, y } of positions.values())
+      rows.set(y, [...(rows.get(y) ?? []), x]);
+    for (const xs of rows.values()) {
+      const sorted = [...xs].sort((a, b) => a - b);
+      for (let i = 1; i < sorted.length; i++)
+        expect(sorted[i] - sorted[i - 1]).toBeGreaterThanOrEqual(NODE_W);
+    }
+  });
+});

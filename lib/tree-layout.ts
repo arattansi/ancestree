@@ -1,23 +1,36 @@
 /**
  * Pure, client-safe auto-layout for the family-tree canvas.
  *
- * The layout is *anchored and stratified* rather than free-floating:
+ * The chart is built outward from the *anchors* (the founding admins) in the
+ * order the reader cares about:
  *
- *  - every person gets an integer **generation** relative to the anchors (the
- *    founding admins). Anchors sit at generation 0, their parents at -1, their
- *    children at +1. Generation fixes `y`, so a rank is always a clean row and
- *    adding a great-grandparent extends the chart upward instead of reflowing
- *    it;
- *  - the anchor couple is translated to the canvas origin, so the tree grows
- *    outward from the centre in every direction;
- *  - ancestors reachable from only one anchor are pushed to that anchor's
- *    **side** of the origin, so the two bloodlines never interleave;
- *  - within a generation, order is refined by median (barycentre) sweeps to cut
- *    edge crossings, then a final separation sweep *guarantees* a minimum gap
- *    between cards — overlap is impossible at any tree size;
- *  - a person's **degree** (how many relatives they connect to) breaks ties, so
- *    the busiest subtrees sit nearest the centre line and sparse leaves drift
- *    outward.
+ *  1. **the anchor couple is the centre.** Their atom is placed at the origin
+ *     and everything else is positioned relative to it, so the admins are
+ *     always the middle of the picture;
+ *  2. **partners sit together.** Spouses are fused into one indivisible
+ *     *atom* before any placement happens, so nothing can ever be threaded
+ *     between them;
+ *  3. **parents sit over their children.** A parent atom is centred on the
+ *     span of its children, and an ancestor is placed directly above the
+ *     member of the couple whose bloodline it belongs to;
+ *  4. **siblings stay together.** A whole family — an atom plus everything
+ *     descended from it — is laid out as one rigid *block*, and blocks are
+ *     packed against each other by their per-generation contour. Because a
+ *     block moves as a unit, no cousin, in-law, or unrelated branch can ever
+ *     be dropped into the middle of a set of siblings.
+ *
+ * Generation fixes `y`: anchors at 0, parents at -1, children at +1, so a rank
+ * is always a clean row and adding a great-grandparent extends the chart
+ * upward instead of reflowing it.
+ *
+ * Horizontally, the anchor's descendants are laid out first, then each
+ * bloodline is walked *upward*: the ancestors of the anchor's first partner
+ * grow leftward, those of the second grow rightward, and each generation's
+ * aunts, uncles, and cousins hang off the outer edge of their own parents.
+ * In-laws who marry into the tree bring their pyramid with them, placed on
+ * their outward side. Every one of those merges is a contour-packed block
+ * push, which is what makes overlap impossible at any tree size while leaving
+ * each family visually intact.
  *
  * Parent edges are stored `parent -> child`; spouses as an undirected pair. A
  * parent set with children gets a **union point** on the couple's spouse line;
@@ -138,8 +151,6 @@ const push = <K, V>(map: Map<K, V[]>, key: K, value: V) => {
 type Atom = {
   members: string[];
   generation: number;
-  /** -1 left of the origin, +1 right, 0 free to sit anywhere. */
-  side: number;
   /** Sum of the members' relationship counts. */
   degree: number;
   /** Total width of the members plus the gaps between them. */
@@ -211,17 +222,16 @@ export function layoutTree(
     spousesOf,
     degree,
   });
-  const sides = assignSides(anchors, { childrenOf, parentsOf, spousesOf });
-
   const atoms = buildAtoms(people, coupleMembers, uf, {
     generations,
-    sides,
     degree,
     byAge,
   });
-  const rows = orderRows(atoms, { parentsOf, childrenOf, byAge });
-  assignX(rows, { parentsOf, childrenOf });
-  tidySiblings(rows, { parentsOf, byAge });
+  placeAtoms(atoms, anchors, { parentsOf, childrenOf, byAge });
+  const rows = rowsOf(atoms);
+  settle(rows, { parentsOf, childrenOf });
+  // Belt and braces: `settle` already ends every row on `separateRow`, so this
+  // is a no-op on a well-formed tree and a hard floor on anything else.
   separate(rows);
 
   // Centre the whole chart on the anchor couple (or on generation 0).
@@ -308,79 +318,6 @@ function assignGenerations(
   return generation;
 }
 
-/**
- * Which side of the origin a person belongs on: -1 for the first anchor's
- * bloodline, +1 for the second's, 0 for anyone shared, married in, or descended
- * from the anchors. Ancestors are found by walking up; their other descendants
- * (siblings, aunts, cousins) inherit the side by walking back down, so a whole
- * branch stays on one half of the canvas.
- */
-function assignSides(
-  anchors: string[],
-  graph: {
-    childrenOf: Map<string, string[]>;
-    parentsOf: Map<string, string[]>;
-    spousesOf: Map<string, string[]>;
-  },
-): Map<string, number> {
-  const sides = new Map<string, number>();
-  if (anchors.length < 2) return sides;
-  const { childrenOf, parentsOf, spousesOf } = graph;
-
-  // Anyone at or below the anchors stays centred — shared descendants must not
-  // be dragged onto one parent's side.
-  const centred = new Set<string>();
-  const down = [...anchors];
-  while (down.length) {
-    const id = down.pop()!;
-    if (centred.has(id)) continue;
-    centred.add(id);
-    for (const c of childrenOf.get(id) ?? []) down.push(c);
-    for (const s of spousesOf.get(id) ?? []) down.push(s);
-  }
-
-  // Strict ancestors of each anchor (plus the people they married).
-  const ancestorsOf = (anchor: string) => {
-    const seen = new Set<string>();
-    const stack = [...(parentsOf.get(anchor) ?? [])];
-    while (stack.length) {
-      const id = stack.pop()!;
-      if (seen.has(id)) continue;
-      seen.add(id);
-      for (const p of parentsOf.get(id) ?? []) stack.push(p);
-      for (const s of spousesOf.get(id) ?? []) stack.push(s);
-    }
-    return seen;
-  };
-  const left = ancestorsOf(anchors[0]);
-  const right = ancestorsOf(anchors[1]);
-
-  const claim = (id: string, side: number) => {
-    if (centred.has(id) || sides.has(id)) return;
-    sides.set(id, side);
-  };
-  for (const id of left) if (!right.has(id)) claim(id, -1);
-  for (const id of right) if (!left.has(id)) claim(id, 1);
-
-  // Collaterals: walk down from each sided ancestor, but never into the
-  // centred cone, so siblings and cousins follow their bloodline.
-  const seeds = [...sides.entries()];
-  for (const [seed, side] of seeds) {
-    const stack = [seed];
-    const seen = new Set<string>();
-    while (stack.length) {
-      const id = stack.pop()!;
-      if (seen.has(id) || centred.has(id)) continue;
-      seen.add(id);
-      claim(id, side);
-      for (const c of childrenOf.get(id) ?? []) stack.push(c);
-      for (const s of spousesOf.get(id) ?? []) stack.push(s);
-    }
-  }
-
-  return sides;
-}
-
 /** Group people into couples-or-singletons, one row's worth at a time. */
 function buildAtoms(
   people: LayoutPerson[],
@@ -388,12 +325,11 @@ function buildAtoms(
   uf: UnionFind,
   ctx: {
     generations: Map<string, number>;
-    sides: Map<string, number>;
     degree: Map<string, number>;
     byAge: (a: string, b: string) => number;
   },
 ): Atom[] {
-  const { generations, sides, degree, byAge } = ctx;
+  const { generations, degree, byAge } = ctx;
   const claimed = new Set<string>();
   const atoms: Atom[] = [];
 
@@ -412,7 +348,6 @@ function buildAtoms(
     atoms.push({
       members: group,
       generation: g,
-      side: sides.get(group[0]) ?? 0,
       degree: group.reduce((sum, m) => sum + (degree.get(m) ?? 0), 0),
       width: atomWidth(group.length),
       x: 0,
@@ -423,103 +358,315 @@ function buildAtoms(
 }
 
 /**
- * Decide each row's left→right order.
- *
- * The seed order is by side (bloodline halves stay apart) then by degree, so
- * the best-connected atoms start nearest the centre line and thin branches
- * start at the edges. Median sweeps then pull each atom towards the atoms it
- * connects to on the row above / below, which is what removes crossings.
- * `side` stays a hard primary key throughout, so a sweep can reorder within a
- * bloodline but never shuffle the two bloodlines together.
+ * A rigid group of already-positioned atoms, plus the horizontal extent it
+ * occupies on each generation it touches. Blocks are the unit of movement:
+ * once a family is inside one, packing can only slide it whole, which is what
+ * keeps siblings, couples, and whole branches from being pulled apart.
  */
-function orderRows(
+type Block = {
+  atoms: Atom[];
+  /** generation -> [leftmost edge, rightmost edge]. */
+  extent: Map<number, [number, number]>;
+};
+
+const emptyBlock = (): Block => ({ atoms: [], extent: new Map() });
+
+/** A block holding one atom, positioned with its centre on the block origin. */
+function atomBlock(atom: Atom): Block {
+  atom.x = 0;
+  return {
+    atoms: [atom],
+    extent: new Map([[atom.generation, [-atom.width / 2, atom.width / 2]]]),
+  };
+}
+
+function shiftBlock(block: Block, dx: number) {
+  if (dx === 0) return;
+  for (const atom of block.atoms) atom.x += dx;
+  for (const [g, [lo, hi]] of block.extent)
+    block.extent.set(g, [lo + dx, hi + dx]);
+}
+
+/** Fold `other` into `base`, assuming they have already been separated. */
+function absorbBlock(base: Block, other: Block) {
+  base.atoms.push(...other.atoms);
+  for (const [g, [lo, hi]] of other.extent) {
+    const current = base.extent.get(g);
+    base.extent.set(
+      g,
+      current ? [Math.min(current[0], lo), Math.max(current[1], hi)] : [lo, hi],
+    );
+  }
+}
+
+/**
+ * How far `other` has to travel in `direction` to clear `base` by a gutter on
+ * every generation the two share. Zero when they already miss each other, so a
+ * block that fits where it wants stays exactly where it was put.
+ */
+function clearance(base: Block, other: Block, direction: -1 | 1): number {
+  let shift = 0;
+  for (const [g, [lo, hi]] of other.extent) {
+    const against = base.extent.get(g);
+    if (!against) continue;
+    if (direction === 1) shift = Math.max(shift, against[1] + GUTTER - lo);
+    else shift = Math.min(shift, against[0] - GUTTER - hi);
+  }
+  return shift;
+}
+
+/**
+ * Place `other` with its origin at `at`, then push it in `direction` until it
+ * clears everything already in `base`, and fold it in. This single primitive
+ * is the whole placement strategy: every atom, family, and branch is put where
+ * it *wants* to be and only displaced outward when it genuinely does not fit.
+ */
+function mergeBlock(base: Block, other: Block, at: number, direction: -1 | 1) {
+  shiftBlock(other, at);
+  shiftBlock(other, clearance(base, other, direction));
+  absorbBlock(base, other);
+}
+
+/** Canvas x of the centre of one member's card within its atom. */
+function memberCentre(atom: Atom, index: number) {
+  return (
+    atom.x - atom.width / 2 + index * (NODE_W + COUPLE_GAP) + NODE_W / 2
+  );
+}
+
+/**
+ * An ancestry still to be grown: the parents of `atom.members[index]`, to be
+ * planted above that member and expanded away from the centre.
+ */
+type Ascent = {
+  atom: Atom;
+  index: number;
+  outward: -1 | 1;
+  /** True once the branch has committed to a side and must not straddle. */
+  committed: boolean;
+  seq: number;
+};
+
+/**
+ * Place every atom. Returns the finished block; each atom's `x` is its centre
+ * relative to the block origin (the caller re-centres on the anchors).
+ */
+function placeAtoms(
   atoms: Atom[],
+  anchors: string[],
   ctx: {
     parentsOf: Map<string, string[]>;
     childrenOf: Map<string, string[]>;
     byAge: (a: string, b: string) => number;
   },
-): Atom[][] {
-  const { parentsOf, childrenOf } = ctx;
+): Block {
+  const { parentsOf, childrenOf, byAge } = ctx;
 
   const atomOf = new Map<string, Atom>();
   for (const atom of atoms) for (const m of atom.members) atomOf.set(m, atom);
 
-  const byGeneration = new Map<number, Atom[]>();
-  for (const atom of atoms) push(byGeneration, atom.generation, atom);
-  const rows = [...byGeneration.entries()]
-    .sort((a, b) => a[0] - b[0])
-    .map(([, row]) => row);
+  const placed = new Set<Atom>();
+  const world = emptyBlock();
+  const ascents: Ascent[] = [];
+  let sequence = 0;
 
-  // Seed: hubs towards the centre line. On the left half that means descending
-  // degree (the hub ends up rightmost, i.e. innermost); on the right, ascending.
-  for (const row of rows) {
-    row.sort(
-      (a, b) =>
-        a.side - b.side ||
-        (a.side <= 0 ? b.degree - a.degree : a.degree - b.degree) ||
-        a.members[0].localeCompare(b.members[0]),
-    );
-  }
-
-  const neighbours = (atom: Atom, direction: -1 | 1) => {
-    const map = direction === -1 ? parentsOf : childrenOf;
-    const out = new Set<Atom>();
+  /** The atoms one row down that descend from this one, eldest child first. */
+  const childAtoms = (atom: Atom) => {
+    const born = new Map<Atom, string[]>();
     for (const m of atom.members)
-      for (const other of map.get(m) ?? []) {
-        const a = atomOf.get(other);
-        if (a && a.generation === atom.generation + direction) out.add(a);
+      for (const child of childrenOf.get(m) ?? []) {
+        const a = atomOf.get(child);
+        if (!a || a.generation !== atom.generation + 1) continue;
+        const blood = born.get(a);
+        if (blood) {
+          if (!blood.includes(child)) blood.push(child);
+        } else born.set(a, [child]);
       }
-    return [...out];
+    // Sort on the *blood* child, not on the atom's first member: an atom whose
+    // married-in partner happens to be older must still sit by its own birth
+    // order among its siblings.
+    return [...born.entries()]
+      .map(([atom, blood]) => ({ atom, eldest: [...blood].sort(byAge)[0] }))
+      .sort((l, r) => byAge(l.eldest, r.eldest));
   };
 
-  const median = (values: number[]) => {
-    if (values.length === 0) return null;
-    const sorted = [...values].sort((a, b) => a - b);
-    const mid = sorted.length >> 1;
-    return sorted.length % 2
-      ? sorted[mid]
-      : (sorted[mid - 1] + sorted[mid]) / 2;
-  };
-
-  const sweep = (direction: -1 | 1) => {
-    const order = direction === 1 ? rows : [...rows].reverse();
-    const rank = new Map<Atom, number>();
-    for (const row of order) row.forEach((a, i) => rank.set(a, i));
-    for (const row of order) {
-      const key = new Map<Atom, number>();
-      row.forEach((atom, i) => {
-        const m = median(
-          neighbours(atom, -direction as -1 | 1)
-            .map((n) => rank.get(n))
-            .filter((n): n is number => n !== undefined),
-        );
-        key.set(atom, m ?? i);
-      });
-      row.sort(
-        (a, b) => a.side - b.side || key.get(a)! - key.get(b)! ||
-          a.members[0].localeCompare(b.members[0]),
+  /** The atom one row up holding this person's parents. */
+  const parentAtom = (member: string) => {
+    const found = (parentsOf.get(member) ?? [])
+      .map((p) => atomOf.get(p))
+      .filter(
+        (a): a is Atom =>
+          a !== undefined &&
+          a.generation === (atomOf.get(member)?.generation ?? 0) - 1,
       );
-      row.forEach((a, i) => rank.set(a, i));
+    // Divorced parents living in separate atoms: follow the better-connected
+    // one, so the deeper half of the ancestry is the one drawn in line.
+    return found.sort(
+      (l, r) => r.degree - l.degree || l.members[0].localeCompare(r.members[0]),
+    )[0];
+  };
+
+  /**
+   * Queue each member's ancestry. A branch keeps growing the way it started
+   * (`inherited`), so a whole bloodline stays on its own side of the chart;
+   * otherwise an in-law's family grows away from the blood member they married,
+   * which is what keeps the two families from interleaving above the couple.
+   *
+   * Within one direction the innermost member is queued first: whatever is
+   * placed first sits nearest the centre, and later ones are pushed out past
+   * it, so the ancestry lines fan out instead of crossing.
+   */
+  const queueAscents = (atom: Atom, inherited: -1 | 1 | null) => {
+    const bloodIndex = atom.members.findIndex((m) => {
+      const p = parentAtom(m);
+      return p !== undefined && placed.has(p);
+    });
+    const pending: Ascent[] = [];
+    atom.members.forEach((_, index) => {
+      if (index === bloodIndex) return;
+      const outward: -1 | 1 =
+        inherited ??
+        (bloodIndex === -1
+          ? index === 0
+            ? -1
+            : 1
+          : index < bloodIndex
+            ? -1
+            : 1);
+      pending.push({ atom, index, outward, committed: inherited !== null, seq: 0 });
+    });
+    const rightward = pending
+      .filter((a) => a.outward === 1)
+      .sort((l, r) => l.index - r.index);
+    const leftward = pending
+      .filter((a) => a.outward === -1)
+      .sort((l, r) => r.index - l.index);
+    for (const item of [...rightward, ...leftward])
+      ascents.push({ ...item, seq: sequence++ });
+  };
+
+  /**
+   * An atom and everything descended from it, as one block with the atom's
+   * centre on the origin. Children are packed left→right in birth order and
+   * the parent is centred on the span they cover.
+   */
+  const descentBlock = (atom: Atom, inherited: -1 | 1 | null): Block => {
+    placed.add(atom);
+    const block = atomBlock(atom);
+    queueAscents(atom, inherited);
+
+    const kids = childAtoms(atom)
+      .map((k) => k.atom)
+      .filter((a) => !placed.has(a));
+    if (kids.length === 0) return block;
+
+    const brood = emptyBlock();
+    for (const kid of kids) mergeBlock(brood, descentBlock(kid, inherited), 0, 1);
+    // Centre the parents on the eldest→youngest span rather than on the brood's
+    // bounding box, so a child with a big family of their own does not drag the
+    // parents off to one side.
+    const span = (kids[0].x + kids[kids.length - 1].x) / 2;
+    shiftBlock(brood, -span);
+    // The brood only ever occupies rows below the atom, so it cannot collide.
+    absorbBlock(block, brood);
+    return block;
+  };
+
+  /**
+   * Grow one ancestry step: put the parents above the member they belong to,
+   * then hang that couple's other children — the aunts and uncles — around
+   * them, each with their own descendants in tow.
+   */
+  const expand = ({ atom, index, outward, committed }: Ascent) => {
+    const member = atom.members[index];
+    const parents = parentAtom(member);
+    if (!parents || placed.has(parents)) return;
+
+    placed.add(parents);
+    mergeBlock(world, atomBlock(parents), memberCentre(atom, index), outward);
+    queueAscents(parents, outward);
+
+    const siblings = childAtoms(parents).filter((s) => !placed.has(s.atom));
+    // Aunts and uncles normally all go on the outward side, because the inward
+    // side is somebody else's bloodline and nothing may be threaded between the
+    // two. The exception is a branch that has not committed to a side yet — an
+    // anchor whose partner brought no family of their own — where the inward
+    // side is genuinely free, so the siblings straddle their brother or sister
+    // and the whole row reads eldest → youngest with the anchor in the middle.
+    const twoSided =
+      !committed &&
+      atom.members.every((m, i) => i === index || parentAtom(m) === undefined);
+    const grow = (group: typeof siblings, direction: -1 | 1) => {
+      // Nearest in age goes down first, so it lands closest to the spine and
+      // the rest fan out past it in birth order.
+      const ordered = direction === -1 ? [...group].reverse() : group;
+      for (const sibling of ordered)
+        mergeBlock(
+          world,
+          descentBlock(sibling.atom, twoSided ? null : outward),
+          parents.x,
+          direction,
+        );
+    };
+    if (twoSided) {
+      grow(siblings.filter((s) => byAge(s.eldest, member) < 0), -1);
+      grow(siblings.filter((s) => byAge(s.eldest, member) >= 0), 1);
+    } else {
+      grow(siblings, outward);
     }
   };
 
-  for (let pass = 0; pass < 4; pass++) {
-    sweep(1);
-    sweep(-1);
+  // 1. The anchor couple and their descendants: the centre of the chart.
+  const anchorAtom =
+    atoms.find((a) => a.members.some((m) => anchors.includes(m))) ??
+    [...atoms].sort(
+      (l, r) =>
+        l.generation - r.generation ||
+        r.degree - l.degree ||
+        l.members[0].localeCompare(r.members[0]),
+    )[0];
+  if (anchorAtom) absorbBlock(world, descentBlock(anchorAtom, null));
+
+  // 2. Every ancestry, nearest generation first, so the anchors' own parents
+  //    claim the space directly above them before an in-law's ever can.
+  while (ascents.length > 0) {
+    ascents.sort(
+      (l, r) =>
+        Math.abs(l.atom.generation) - Math.abs(r.atom.generation) ||
+        l.seq - r.seq,
+    );
+    expand(ascents.shift()!);
   }
 
-  return rows;
+  // 3. Anything still unplaced is a branch with no path to the anchors. Pack
+  //    each one, topmost first, off the right-hand end of the chart.
+  for (;;) {
+    const orphan = atoms
+      .filter((a) => !placed.has(a))
+      .sort(
+        (l, r) =>
+          l.generation - r.generation ||
+          r.degree - l.degree ||
+          l.members[0].localeCompare(r.members[0]),
+      )[0];
+    if (!orphan) break;
+    mergeBlock(world, descentBlock(orphan, null), 0, 1);
+    while (ascents.length > 0) expand(ascents.shift()!);
+  }
+
+  return world;
 }
 
 /**
- * Turn each row's order into x coordinates. Atoms are packed left→right at the
- * minimum spacing, then pulled towards the average x of the atoms they connect
- * to on the neighbouring rows — that is what centres parents over their
- * children and children under their parents. `separate` afterwards restores the
- * minimum gap, so this pass can pull freely without risking an overlap.
+ * Nudge each atom towards the centre of the relatives it joins on the rows
+ * above and below, then restore the minimum gap.
+ *
+ * Block packing has already fixed *order*; `separateRow` preserves order, so
+ * this pass can only tighten a parent over its brood or a child under its
+ * parents. It can never re-shuffle a family, which is exactly why it is safe to
+ * run after the structural work rather than instead of it.
  */
-function assignX(
+function settle(
   rows: Atom[][],
   ctx: {
     parentsOf: Map<string, string[]>;
@@ -529,17 +676,6 @@ function assignX(
   const { parentsOf, childrenOf } = ctx;
   const atomOf = new Map<string, Atom>();
   for (const row of rows) for (const a of row) for (const m of a.members) atomOf.set(m, a);
-
-  for (const row of rows) {
-    let cursor = 0;
-    for (const atom of row) {
-      atom.x = cursor + atom.width / 2;
-      cursor += atom.width + GUTTER;
-    }
-    // Rows start centred on zero; the anchor translation refines this later.
-    const shift = (cursor - GUTTER) / 2;
-    for (const atom of row) atom.x -= shift;
-  }
 
   const linked = (atom: Atom, direction: -1 | 1) => {
     const map = direction === -1 ? parentsOf : childrenOf;
@@ -553,15 +689,20 @@ function assignX(
   };
 
   for (let pass = 0; pass < 8; pass++) {
-    const order = pass % 2 === 0 ? rows : [...rows].reverse();
-    const direction: -1 | 1 = pass % 2 === 0 ? -1 : 1;
+    // Odd passes pull children under their parents, even ones pull parents over
+    // their children, so neither direction wins outright.
+    const direction: -1 | 1 = pass % 2 === 0 ? 1 : -1;
+    const order = direction === 1 ? [...rows].reverse() : rows;
     for (const row of order) {
       for (const atom of row) {
         const targets = linked(atom, direction);
         if (targets.length === 0) continue;
-        const want = targets.reduce((sum, t) => sum + t.x, 0) / targets.length;
-        // Ease towards the target so a single pass cannot whip a whole
-        // subtree across the canvas.
+        // Centre on the *span* the relatives cover rather than their mean: one
+        // child with a large family of their own must not drag the parents off
+        // to that side of the brood.
+        const xs = targets.map((t) => t.x);
+        const want = (Math.min(...xs) + Math.max(...xs)) / 2;
+        // Ease in, so one pass cannot whip a row across the canvas.
         atom.x += (want - atom.x) * 0.5;
       }
       separateRow(row);
@@ -569,50 +710,14 @@ function assignX(
   }
 }
 
-/**
- * Reorder each maximal run of siblings within a row oldest → youngest. Runs are
- * contiguous, so this only permutes atoms that already sit next to each other:
- * two unrelated couples (say, the two sets of grandparents) are never sorted
- * against one another by age.
- */
-function tidySiblings(
-  rows: Atom[][],
-  ctx: {
-    parentsOf: Map<string, string[]>;
-    byAge: (a: string, b: string) => number;
-  },
-) {
-  const { parentsOf, byAge } = ctx;
-  const parentKey = (atom: Atom) => {
-    const parents = new Set(
-      atom.members.flatMap((m) => parentsOf.get(m) ?? []),
-    );
-    return parents.size === 0 ? null : [...parents].sort().join("+");
-  };
-
-  for (const row of rows) {
-    let start = 0;
-    while (start < row.length) {
-      const key = parentKey(row[start]);
-      let end = start + 1;
-      // Siblings share a parent set; an atom with no parents ends the run.
-      while (key !== null && end < row.length && parentKey(row[end]) === key)
-        end++;
-      if (key !== null && end - start > 1) {
-        const slots = row.slice(start, end).map((a) => a.x);
-        const run = row
-          .slice(start, end)
-          .sort((a, b) => byAge(a.members[0], b.members[0]));
-        run.forEach((atom, i) => {
-          atom.x = slots[i];
-        });
-        row.splice(start, end - start, ...run);
-      }
-      start = end;
-    }
-  }
+/** The atoms of each generation, ordered left→right, top row first. */
+function rowsOf(atoms: Atom[]): Atom[][] {
+  const byGeneration = new Map<number, Atom[]>();
+  for (const atom of atoms) push(byGeneration, atom.generation, atom);
+  return [...byGeneration.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([, row]) => row.sort((l, r) => l.x - r.x));
 }
-
 /** Left→right then right→left sweep restoring the minimum gap in a row. */
 function separateRow(row: Atom[]) {
   for (let i = 1; i < row.length; i++) {
