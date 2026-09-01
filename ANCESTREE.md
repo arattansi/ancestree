@@ -43,7 +43,8 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   (first-run self entry + connect), `/people/new` (add a connected relative),
   `/people/[id]/edit` (owner/creator/admin entry edit), `/tree` (React Flow
   canvas), `/account` (profile + in-app notifications + delete-account),
-  `/admin` (admin-only: overview stats + members + disputes + JSON export),
+  `/admin` (admin-only: overview stats + members + invite requests + disputes +
+  JSON export), `/request-invite` (public: ask an admin for an invite),
   `/privacy` (public PIPEDA-minded privacy notice), `/trees/new` (Step 9 seam,
   flagged)
 - `app/actions/` — server actions (`auth.ts`: magic link (+ consent gate) +
@@ -52,6 +53,8 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   contributions to a founding admin);
   `trees.ts`: `startOwnTree` (Step 9 multi-tree seam);
   `invites.ts`: mint invite link, grant/revoke `can_invite`;
+  `invite-requests.ts`: `requestInvite` (public, service-role write) /
+  `approveInviteRequest` (mints the link) / `declineInviteRequest`;
   `people.ts`: `addPeopleWithConnections` (transactional multi-person + edge
   create), update person, drag-to-pin position, photo + document writes,
   signed URLs; `claims.ts`: `claimPerson` / `disputeClaim` / `resolveClaim` /
@@ -124,6 +127,7 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `relationships` | Directed `parent` edges; undirected `spouse` pairs (optional `marriage_date` / `is_divorced` / `divorce_date`, spouse-only by CHECK); siblings inferred |
 | `connection_suggestions` | Implied-connection prompts surfaced by the add-person flow (`suggested_type` spouse/parent/sibling_check, `source`, `status` pending/accepted/dismissed); UNIQUE (subject, related, type, source) = no re-prompt |
 | `invites` | Shareable tokens (`active` \| `accepted` \| `revoked`) |
+| `invite_requests` | Public invite asks — first/last name + email, `pending` \| `approved` \| `declined`, `invite_id` of the link minted on approval. Admin-only RLS; inserted server-side with the service role (no `anon` grant). One pending row per email |
 | `claims` | Auto-approve / dispute / reject a person entry (`dispute_reason`, `resolved_by`) |
 | `notifications` | In-app notices (`claim_*`, `entry_commented` \| `entry_flagged` \| `flag_resolved` \| `entry_verified`); recipient-scoped RLS |
 | `entry_comments` | Comments and flags (`is_flag`, `open` \| `resolved`, `resolved_by`) |
@@ -166,6 +170,13 @@ Helpers live in the unexposed `private` schema (`is_admin`, `is_tree_member`,
   (`can_invite_to_tree`). `redeem_invite` (SECURITY DEFINER) creates the member
   `profiles` row with `invited_by_user_id = invite.created_by` and flips the
   invite to `accepted`. `invite_preview(token)` is the only pre-auth RPC.
+- **Invite requests** (`public.invite_requests`): anyone can ask from `/` →
+  `/request-invite` with first name, last name, and email. The row is written
+  by the `requestInvite` server action using the service-role client, so the
+  table needs no `anon` grant or insert policy and cannot be read or enumerated
+  from the browser. Admins review pending requests on `/admin`; approving mints
+  a normal single-use invite link (attributed to the reviewing admin) for them
+  to send on, declining just closes the request.
 - **Admin bootstrap**: `private.admin_allowlist(email)` — seeded with both
   co-admins (Aalim Rattansi, Raiya Suleman). First login by an
   allowlisted email runs `ensure_profile`, which creates the single shared

@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { isSupabaseConfigured, updateSession } from "@/lib/supabase/middleware";
 
 // Routes reachable without an authenticated session.
-const PUBLIC_PREFIXES = ["/join", "/auth", "/login", "/privacy"];
+const PUBLIC_PREFIXES = ["/join", "/auth", "/login", "/privacy", "/request-invite"];
 
 export async function proxy(request: NextRequest) {
   // Before Supabase env is wired (Step 1 pre-config), do nothing so the app boots.

@@ -3,6 +3,10 @@ import type { Metadata } from "next";
 import { setCanInvite } from "@/app/actions/invites";
 import { AdminDisputedClaims } from "@/components/admin-disputed-claims";
 import { AdminExport } from "@/components/admin-export";
+import {
+  AdminInviteRequests,
+  type PendingInviteRequest,
+} from "@/components/admin-invite-requests";
 import { InviteMinter } from "@/components/invite-minter";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -34,6 +38,7 @@ export default async function AdminPage() {
     approvedClaimsRes,
     openFlagsRes,
     bridgesRes,
+    inviteRequestsRes,
   ] = await Promise.all([
     supabase
       .from("member_directory")
@@ -55,11 +60,25 @@ export default async function AdminPage() {
     multiTreeEnabled
       ? supabase.from("tree_bridges").select("id", { count: "exact", head: true })
       : Promise.resolve({ count: 0 }),
+    supabase
+      .from("invite_requests")
+      .select("id, first_name, last_name, email, created_at")
+      .eq("status", "pending")
+      .order("created_at", { ascending: true }),
   ]);
 
   const members = membersRes.data ?? [];
   const people = peopleRes.data ?? [];
   const disputedClaims = await listDisputedClaims();
+  const inviteRequests: PendingInviteRequest[] = (
+    inviteRequestsRes.data ?? []
+  ).map((r) => ({
+    id: r.id,
+    firstName: r.first_name,
+    lastName: r.last_name,
+    email: r.email,
+    createdAt: r.created_at,
+  }));
 
   const entryCountByCreator = new Map<string, number>();
   let unverified = 0;
@@ -79,6 +98,7 @@ export default async function AdminPage() {
     { label: "Unverified", value: unverified },
     { label: "Open flags", value: openFlagsRes.count ?? 0 },
     { label: "Disputes", value: disputedClaims.length },
+    { label: "Invite requests", value: inviteRequests.length },
   ];
   if (multiTreeEnabled) {
     stats.push({ label: "Own-tree bridges", value: bridgesRes.count ?? 0 });
@@ -140,6 +160,19 @@ export default async function AdminPage() {
         </CardHeader>
         <CardContent>
           <InviteMinter />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Invite requests</CardTitle>
+          <CardDescription>
+            {inviteRequests.length} awaiting review. Approving mints a
+            single-use link for you to send to the person who asked.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AdminInviteRequests requests={inviteRequests} />
         </CardContent>
       </Card>
 

@@ -29,6 +29,14 @@ export default function Home() {
         <Button nativeButton={false} render={<Link href="/join" />} size="lg" variant="outline">
           Have an invite?
         </Button>
+        <Button
+          nativeButton={false}
+          render={<Link href="/request-invite" />}
+          size="lg"
+          variant="ghost"
+        >
+          Request an invite
+        </Button>
       </div>
     </main>
   );
