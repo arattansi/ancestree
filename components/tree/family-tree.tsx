@@ -33,6 +33,7 @@ import { autoArrangeTree, setPersonPosition } from "@/app/actions/people";
 import { ClaimSuggestions } from "@/components/tree/claim-suggestions";
 import { PersonNode } from "@/components/tree/person-node";
 import { PersonPanel } from "@/components/tree/person-panel";
+import { TreeNotifications } from "@/components/tree/tree-notifications";
 import { TreeSearch } from "@/components/tree/tree-search";
 import {
   EMPTY_FILTER,
@@ -41,7 +42,7 @@ import {
   type TreeFilter,
 } from "@/lib/tree-search";
 import { Button } from "@/components/ui/button";
-import type { ClaimCandidate } from "@/lib/claims";
+import type { ClaimCandidate, NotificationItem } from "@/lib/claims";
 import type { PanelSuggestion } from "@/lib/connection-suggestions";
 import { multiTreeEnabled } from "@/lib/flags";
 import { cn } from "@/lib/utils";
@@ -100,7 +101,8 @@ function DescentEdge({
     () => ({
       startX: typeof data?.startX === "number" ? data.startX : sourceX,
       startY: typeof data?.startY === "number" ? data.startY : sourceY,
-      busY: typeof data?.busY === "number" ? data.busY : (sourceY + targetY) / 2,
+      busY:
+        typeof data?.busY === "number" ? data.busY : (sourceY + targetY) / 2,
     }),
     [sourceX, sourceY, targetY, data],
   );
@@ -201,7 +203,11 @@ function SpouseEdge({
 
   const y = lateral?.y ?? sourceY;
   return (
-    <BaseEdge id={id} path={`M ${sourceX},${y} L ${targetX},${y}`} style={style} />
+    <BaseEdge
+      id={id}
+      path={`M ${sourceX},${y} L ${targetX},${y}`}
+      style={style}
+    />
   );
 }
 
@@ -262,6 +268,8 @@ type Props = {
   isAdmin: boolean;
   claimCandidates: ClaimCandidate[];
   panelSuggestions: PanelSuggestion[];
+  /** The signed-in member's in-app notifications. Omitted for read-only views. */
+  notifications?: NotificationItem[];
   /** Public share-link view: render the canvas without any editing controls. */
   readOnly?: boolean;
 };
@@ -361,6 +369,7 @@ function Canvas({
   isAdmin,
   claimCandidates,
   panelSuggestions,
+  notifications = [],
   readOnly = false,
 }: Props) {
   const claimableIds = React.useMemo(
@@ -653,8 +662,7 @@ function Canvas({
       .finally(() => setArranging(false));
   }, [treeId]);
 
-  const selectedPerson =
-    people.find((p) => p.id === selectedId) ?? null;
+  const selectedPerson = people.find((p) => p.id === selectedId) ?? null;
 
   const relations = React.useMemo<PersonRelation[]>(() => {
     if (!selectedId) return [];
@@ -743,6 +751,7 @@ function Canvas({
           className="!bg-card"
         />
         <Panel position="top-right" className="flex flex-col items-end gap-2">
+          {!readOnly ? <TreeNotifications items={notifications} /> : null}
           {readOnly ? (
             <div className="flex max-w-[15rem] flex-col items-end gap-1.5 rounded-lg border border-border bg-card/95 p-3 text-right shadow-md">
               <span className="text-xs text-muted-foreground">

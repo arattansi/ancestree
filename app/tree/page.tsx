@@ -4,7 +4,7 @@ import Link from "next/link";
 import { FamilyTree } from "@/components/tree/family-tree";
 import { Button } from "@/components/ui/button";
 import { getUser, requireSelfPerson } from "@/lib/auth";
-import { listClaimCandidates } from "@/lib/claims";
+import { listClaimCandidates, listNotifications } from "@/lib/claims";
 import { listPanelSuggestions } from "@/lib/connection-suggestions.server";
 import { getSharedTree, getTreeAnchors, getTreeGraph } from "@/lib/tree";
 
@@ -32,13 +32,19 @@ export default async function TreePage() {
     );
   }
 
-  const [{ people, relationships }, claimCandidates, panelSuggestions, anchorIds] =
-    await Promise.all([
-      getTreeGraph(tree.id),
-      listClaimCandidates(),
-      listPanelSuggestions(tree.id, user.id, profile.role === "admin"),
-      getTreeAnchors(),
-    ]);
+  const [
+    { people, relationships },
+    claimCandidates,
+    panelSuggestions,
+    anchorIds,
+    notifications,
+  ] = await Promise.all([
+    getTreeGraph(tree.id),
+    listClaimCandidates(),
+    listPanelSuggestions(tree.id, user.id, profile.role === "admin"),
+    getTreeAnchors(),
+    listNotifications(user.id),
+  ]);
 
   return (
     <main className="flex flex-1 flex-col">
@@ -52,6 +58,7 @@ export default async function TreePage() {
         isAdmin={profile.role === "admin"}
         claimCandidates={claimCandidates}
         panelSuggestions={panelSuggestions}
+        notifications={notifications}
       />
     </main>
   );
