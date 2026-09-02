@@ -9,7 +9,7 @@ import { listPanelSuggestions } from "@/lib/connection-suggestions.server";
 import { getSharedTree, getTreeAnchors, getTreeGraph } from "@/lib/tree";
 
 export const metadata: Metadata = {
-  title: "Family tree",
+  title: "family",
   description: "The shared family tree canvas.",
 };
 
