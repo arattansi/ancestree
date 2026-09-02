@@ -9,11 +9,11 @@ import { Button } from "@/components/ui/button";
 import type { NotificationItem } from "@/lib/claims";
 
 /**
- * The signed-in member's in-app notifications, reachable from the tree canvas
- * itself — a bell in the top-right panel that drops down the same list the
+ * The signed-in member's in-app notifications, reachable from the header on
+ * every page — a bell next to Account that drops down the same list the
  * account page shows. Opening it clears the unread badge.
  */
-export function TreeNotifications({ items }: { items: NotificationItem[] }) {
+export function SiteNotifications({ items }: { items: NotificationItem[] }) {
   const [open, setOpen] = React.useState(false);
   const [seen, setSeen] = React.useState(false);
   const rootRef = React.useRef<HTMLDivElement>(null);
@@ -63,7 +63,7 @@ export function TreeNotifications({ items }: { items: NotificationItem[] }) {
       </Button>
 
       {open ? (
-        <div className="absolute right-0 mt-2 max-h-[60vh] w-[min(20rem,80vw)] overflow-y-auto rounded-lg border border-border bg-card p-3 text-left shadow-md">
+        <div className="absolute top-full right-0 z-50 mt-2 max-h-[70vh] w-[min(22rem,90vw)] overflow-y-auto rounded-lg border border-border bg-card p-3 text-left shadow-md">
           <p className="mb-2 font-heading text-sm font-medium">Notifications</p>
           <NotificationsList items={items} />
         </div>

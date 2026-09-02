@@ -1,20 +1,22 @@
 import Link from "next/link";
 
+import { SiteNotifications } from "@/components/site-notifications";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getProfile } from "@/lib/auth";
-import { countUnreadNotifications } from "@/lib/claims";
+import { getProfile, getUser } from "@/lib/auth";
+import { listNotifications } from "@/lib/claims";
 import { countAdminActionItems } from "@/lib/admin-notifications";
 
 export async function SiteHeader() {
   const profile = await getProfile();
   const isAdmin = profile?.role === "admin";
-  const [unread, adminItems] = profile
+  const [user, adminItems] = profile
     ? await Promise.all([
-        countUnreadNotifications(),
+        getUser(),
         isAdmin ? countAdminActionItems() : Promise.resolve(0),
       ])
-    : [0, 0];
+    : [null, 0];
+  const notifications = user ? await listNotifications(user.id) : [];
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
@@ -28,7 +30,11 @@ export async function SiteHeader() {
         <nav aria-label="Primary" className="flex flex-wrap items-center gap-2">
           {profile ? (
             <>
-              <Button nativeButton={false} render={<Link href="/tree" />} size="sm">
+              <Button
+                nativeButton={false}
+                render={<Link href="/tree" />}
+                size="sm"
+              >
                 Tree
               </Button>
               {isAdmin ? (
@@ -46,6 +52,7 @@ export async function SiteHeader() {
                   ) : null}
                 </Button>
               ) : null}
+              <SiteNotifications items={notifications} />
               <Button
                 nativeButton={false}
                 render={<Link href="/account" />}
@@ -53,11 +60,6 @@ export async function SiteHeader() {
                 variant="outline"
               >
                 Account
-                {unread > 0 ? (
-                  <Badge variant="destructive" className="ml-1.5">
-                    {unread}
-                  </Badge>
-                ) : null}
               </Button>
             </>
           ) : (
