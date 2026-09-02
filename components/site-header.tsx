@@ -35,7 +35,7 @@ export async function SiteHeader() {
                 render={<Link href="/tree" />}
                 size="sm"
               >
-                family
+                tree
               </Button>
               {isAdmin ? (
                 <Button

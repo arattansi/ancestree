@@ -740,9 +740,12 @@ function Canvas({
           zoomable
           nodeColor="var(--muted-foreground)"
           maskColor="var(--muted)"
-          className="!bg-card"
+          className="!hidden !bg-card sm:!block"
         />
-        <Panel position="top-right" className="flex flex-col items-end gap-2">
+        <Panel
+          position="top-right"
+          className="flex max-w-[45vw] flex-col items-end gap-2 sm:max-w-none"
+        >
           {readOnly ? (
             <div className="flex max-w-[15rem] flex-col items-end gap-1.5 rounded-lg border border-border bg-card/95 p-3 text-right shadow-md">
               <span className="text-xs text-muted-foreground">
@@ -810,7 +813,7 @@ function Canvas({
             </div>
           </Panel>
         ) : null}
-        <Panel position="top-left" className="flex flex-col gap-2">
+        <Panel position="top-left" className="flex flex-col items-start gap-2">
           <TreeSearch
             people={people}
             filter={filter}

@@ -36,7 +36,7 @@ export function ClaimSuggestions({
   }
 
   return (
-    <div className="w-72 rounded-xl border border-border bg-card p-3 shadow-md">
+    <div className="w-[calc(100vw-2rem)] max-w-72 rounded-xl sm:w-72 border border-border bg-card p-3 shadow-md">
       <div className="flex items-start justify-between gap-2">
         <p className="text-sm font-semibold">Is one of these you?</p>
         <button
