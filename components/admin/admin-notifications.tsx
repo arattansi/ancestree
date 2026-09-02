@@ -5,7 +5,6 @@ import { Bell } from "lucide-react";
 import { ADMIN_NAVIGATE_EVENT } from "@/components/admin/nav-event";
 import type { AdminActionItem } from "@/lib/admin-notifications";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
 
 function navigateToSection(target: string) {
   window.dispatchEvent(
@@ -56,10 +55,7 @@ export function AdminNotifications({ items }: { items: AdminActionItem[] }) {
         </nav>
       ) : null}
 
-      <Card
-        id="notifications"
-        className={cn("scroll-mt-20", total > 0 && "xl:hidden")}
-      >
+      <Card id="notifications" className="scroll-mt-20 xl:hidden">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Bell aria-hidden className="size-4 text-muted-foreground" />
