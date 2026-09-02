@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Privacy",
+  title: "privacy",
   description:
     "How ancestree collects, uses, and protects your family's personal information.",
 };

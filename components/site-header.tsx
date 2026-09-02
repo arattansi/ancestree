@@ -44,7 +44,7 @@ export async function SiteHeader() {
                   size="sm"
                   variant="ghost"
                 >
-                  Admin
+                  admin
                   {adminItems > 0 ? (
                     <Badge variant="destructive" className="ml-1.5">
                       {adminItems}
@@ -59,7 +59,7 @@ export async function SiteHeader() {
                 size="sm"
                 variant="outline"
               >
-                Account
+                account
               </Button>
             </>
           ) : (
@@ -69,7 +69,7 @@ export async function SiteHeader() {
               size="sm"
               variant="outline"
             >
-              Sign in
+              sign in
             </Button>
           )}
         </nav>

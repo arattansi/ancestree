@@ -16,7 +16,7 @@ import type { PersonFormValues } from "@/lib/person-schema";
 import { createClient } from "@/lib/supabase/server";
 import { listTreeMembers } from "@/lib/tree";
 
-export const metadata: Metadata = { title: "Edit entry" };
+export const metadata: Metadata = { title: "edit entry" };
 
 export default async function EditPersonPage({
   params,

@@ -13,7 +13,7 @@ import {
 import { getProfile } from "@/lib/auth";
 
 export const metadata: Metadata = {
-  title: "Request an invite",
+  title: "request an invite",
   description: "Ask an ancestree admin for an invite to the family tree.",
 };
 

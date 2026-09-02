@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/card";
 
 export const metadata: Metadata = {
-  title: "Sign-in link problem",
+  title: "sign-in link problem",
 };
 
 export default function AuthCodeErrorPage() {

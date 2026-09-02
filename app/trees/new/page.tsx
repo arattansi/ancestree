@@ -15,7 +15,7 @@ import { multiTreeEnabled } from "@/lib/flags";
 import { getSharedTree, listTreeMembers } from "@/lib/tree";
 
 export const metadata: Metadata = {
-  title: "Start your own tree",
+  title: "start your own tree",
   description: "Create your own family tree and bridge it to the shared one.",
 };
 

@@ -19,7 +19,7 @@ import { getUser, requireProfile } from "@/lib/auth";
 import { listNotifications } from "@/lib/claims";
 import { createClient } from "@/lib/supabase/server";
 
-export const metadata: Metadata = { title: "Your account" };
+export const metadata: Metadata = { title: "your account" };
 
 export default async function AccountPage() {
   const profile = await requireProfile();

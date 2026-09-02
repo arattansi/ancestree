@@ -44,7 +44,7 @@ import { getSiteUrl } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
-  title: "Admin",
+  title: "admin",
   description: "Manage members, invites, disputes, and entry counts.",
 };
 

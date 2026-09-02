@@ -17,7 +17,7 @@ export default function Home() {
         </div>
         <div className="flex max-w-md flex-col gap-2 text-lg text-muted-foreground">
           <p>
-            Invite-only and collaborative with the people who know best - your
+            Invite-only and collaborative with the people who know best: your
             family.
           </p>
         </div>

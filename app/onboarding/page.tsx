@@ -7,7 +7,7 @@ import { requireProfile } from "@/lib/auth";
 import { getSharedTree, listTreeMembers } from "@/lib/tree";
 
 export const metadata: Metadata = {
-  title: "Find yourself",
+  title: "find yourself",
   description:
     "Claim the entry a relative already added for you, or add your own.",
 };

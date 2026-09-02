@@ -15,7 +15,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getTreeAnchors, getTreeGraph } from "@/lib/tree";
 
 export const metadata: Metadata = {
-  title: "Shared family tree",
+  title: "shared family tree",
   description: "A read-only view of a family tree on ancestree.",
   robots: { index: false, follow: false },
 };

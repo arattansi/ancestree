@@ -16,7 +16,7 @@ import {
 import { getSharedTree, listTreeMembers } from "@/lib/tree";
 
 export const metadata: Metadata = {
-  title: "Add a relative",
+  title: "add a relative",
   description: "Add a relative and connect them to the family tree.",
 };
 

@@ -14,7 +14,7 @@ import { getProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
-  title: "Accept invite",
+  title: "accept invite",
   description: "Join your family tree on ancestree.",
 };
 
