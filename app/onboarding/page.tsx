@@ -2,13 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { OnboardingSelfFlow } from "@/components/onboarding-self-flow";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { requireProfile } from "@/lib/auth";
 import { getSharedTree, listTreeMembers } from "@/lib/tree";
 
@@ -50,12 +44,6 @@ export default async function OnboardingPage() {
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Your entry</CardTitle>
-          <CardDescription>
-            Start with your name — someone may have added you already.
-          </CardDescription>
-        </CardHeader>
         <CardContent>
           <OnboardingSelfFlow
             treeId={tree.id}
