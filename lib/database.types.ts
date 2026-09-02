@@ -1290,6 +1290,7 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_delete_member: { Args: { p_user_id: string }; Returns: undefined }
       canvas_interest_register: {
         Args: never
         Returns: {

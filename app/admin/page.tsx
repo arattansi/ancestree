@@ -17,6 +17,7 @@ import {
   AdminSideNav,
   type AdminNavGroup,
 } from "@/components/admin/admin-side-nav";
+import { DeleteMemberButton } from "@/components/delete-member-button";
 import { DirectInviteForm } from "@/components/direct-invite-form";
 import { InviteMinter } from "@/components/invite-minter";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -49,7 +50,7 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminPage() {
-  await requireAdmin();
+  const currentAdmin = await requireAdmin();
 
   const supabase = await createClient();
   const [
@@ -257,6 +258,9 @@ export default async function AdminPage() {
                 <th scope="col" className="px-4 py-2 font-medium">
                   Can invite
                 </th>
+                <th scope="col" className="px-4 py-2 font-medium">
+                  <span className="sr-only">Remove</span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -306,6 +310,19 @@ export default async function AdminPage() {
                         </Button>
                       </form>
                     )}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {member.auth_user_id &&
+                    member.role !== "admin" &&
+                    member.auth_user_id !== currentAdmin.auth_user_id ? (
+                      <DeleteMemberButton
+                        userId={member.auth_user_id}
+                        name={member.display_name ?? "this member"}
+                        entryCount={
+                          entryCountByCreator.get(member.auth_user_id) ?? 0
+                        }
+                      />
+                    ) : null}
                   </td>
                 </tr>
               ))}
