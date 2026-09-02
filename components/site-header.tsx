@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { SiteNavLink } from "@/components/site-nav-link";
 import { SiteNotifications } from "@/components/site-notifications";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,37 +31,19 @@ export async function SiteHeader() {
         <nav aria-label="Primary" className="flex flex-wrap items-center gap-2">
           {profile ? (
             <>
-              <Button
-                nativeButton={false}
-                render={<Link href="/tree" />}
-                size="sm"
-              >
-                tree
-              </Button>
+              <SiteNavLink href="/tree">tree</SiteNavLink>
               {isAdmin ? (
-                <Button
-                  nativeButton={false}
-                  render={<Link href="/admin" />}
-                  size="sm"
-                  variant="ghost"
-                >
+                <SiteNavLink href="/admin">
                   admin
                   {adminItems > 0 ? (
                     <Badge variant="destructive" className="ml-1.5">
                       {adminItems}
                     </Badge>
                   ) : null}
-                </Button>
+                </SiteNavLink>
               ) : null}
+              <SiteNavLink href="/account">account</SiteNavLink>
               <SiteNotifications items={notifications} />
-              <Button
-                nativeButton={false}
-                render={<Link href="/account" />}
-                size="sm"
-                variant="outline"
-              >
-                account
-              </Button>
             </>
           ) : (
             <Button

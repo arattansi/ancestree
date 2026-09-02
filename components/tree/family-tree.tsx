@@ -25,6 +25,7 @@ import {
   type OnNodeDrag,
   type ReactFlowState,
 } from "@xyflow/react";
+import { Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import "@xyflow/react/dist/style.css";
@@ -349,6 +350,37 @@ function buildGraph(
   }
 
   return { nodes, edges, layout };
+}
+
+/**
+ * The canvas controls sit as bare symbols so they stay out of the way of the
+ * tree, and widen to spell themselves out when you point at one.
+ */
+function ExpandingLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="grid grid-cols-[0fr] transition-[grid-template-columns] duration-200 ease-out group-hover/expand:grid-cols-[1fr] group-focus-visible/expand:grid-cols-[1fr]">
+      <span className="overflow-hidden whitespace-nowrap">
+        <span className="pl-1.5">{children}</span>
+      </span>
+    </span>
+  );
+}
+
+/** Three upright bars — the auto-arrange symbol. */
+function ColumnsIcon() {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      className="size-3.5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      aria-hidden
+    >
+      <path d="M3.5 3v10M8 3v10M12.5 3v10" />
+    </svg>
+  );
 }
 
 function Canvas({
@@ -764,8 +796,11 @@ function Canvas({
               nativeButton={false}
               render={<Link href="/people/new" />}
               size="sm"
+              className="group/expand gap-0"
+              aria-label="Add a relative"
             >
-              Add a relative
+              <Plus className="size-4" aria-hidden />
+              <ExpandingLabel>Add a relative</ExpandingLabel>
             </Button>
           )}
           {!readOnly && isAdmin ? (
@@ -774,8 +809,13 @@ function Canvas({
               variant="outline"
               onClick={onAutoArrange}
               disabled={arranging}
+              className="group/expand gap-0"
+              aria-label="Auto-arrange"
             >
-              {arranging ? "Arranging…" : "Auto-arrange"}
+              <ColumnsIcon />
+              <ExpandingLabel>
+                {arranging ? "Arranging…" : "Auto-arrange"}
+              </ExpandingLabel>
             </Button>
           ) : null}
           {!readOnly && multiTreeEnabled ? (

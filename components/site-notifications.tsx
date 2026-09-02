@@ -10,7 +10,7 @@ import type { NotificationItem } from "@/lib/claims";
 
 /**
  * The signed-in member's in-app notifications, reachable from the header on
- * every page — a bell next to Account that drops down the same list the
+ * every page — a bell just past Account that drops down the same list the
  * account page shows. Opening it clears the unread badge.
  */
 export function SiteNotifications({ items }: { items: NotificationItem[] }) {
@@ -47,7 +47,7 @@ export function SiteNotifications({ items }: { items: NotificationItem[] }) {
     <div ref={rootRef} className="relative">
       <Button
         size="sm"
-        variant="outline"
+        variant="ghost"
         onClick={toggle}
         aria-expanded={open}
         aria-label={
