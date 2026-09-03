@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useTheme } from "next-themes";
 import {
   Background,
   BackgroundVariant,
@@ -478,6 +479,20 @@ function Canvas({
   const [arranging, setArranging] = React.useState(false);
   const { fitView, getNode, screenToFlowPosition } = useReactFlow();
 
+  // React Flow's own `colorMode="system"` reads the OS preference while it
+  // renders, so the server said "light", the client said "dark", and hydration
+  // complained — and the canvas ignored the member's own Light/Dark choice.
+  // Drive it from the app's theme instead, holding the server's value until
+  // mounted (the same guard `theme-toggle.tsx` uses).
+  const { resolvedTheme } = useTheme();
+  const [themeReady, setThemeReady] = React.useState(false);
+  React.useEffect(() => {
+    function markMounted() {
+      setThemeReady(true);
+    }
+    markMounted();
+  }, []);
+  const colorMode = themeReady && resolvedTheme === "dark" ? "dark" : "light";
 
   // Re-seed the canvas whenever the graph itself changes — a new relative, or
   // an auto-arrange that cleared everybody's nudges.
@@ -859,7 +874,7 @@ function Canvas({
           setSelectedPetId(null);
           setSelectedEdgeId(null);
         }}
-        colorMode="system"
+        colorMode={colorMode}
         fitView
         fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
         minZoom={0.15}
