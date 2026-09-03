@@ -139,7 +139,52 @@ export function CompanionFields({
             </FormItem>
           )}
         />
+
+        <FormField
+          control={control}
+          name="birth_date"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel htmlFor={`${idPrefix}-birth-date`}>
+                Full birthday
+              </FormLabel>
+              <FormControl>
+                <Input
+                  id={`${idPrefix}-birth-date`}
+                  type="date"
+                  {...field}
+                  value={field.value ?? ""}
+                />
+              </FormControl>
+              <FormDescription>Optional — if you know the day.</FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
       </div>
+
+      <FormField
+        control={control}
+        name="birthplace"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel htmlFor={`${idPrefix}-birthplace`}>
+              Place of birth
+            </FormLabel>
+            <FormControl>
+              <Input
+                id={`${idPrefix}-birthplace`}
+                placeholder="The shelter on Elm Street"
+                autoComplete="off"
+                {...field}
+                value={field.value ?? ""}
+              />
+            </FormControl>
+            <FormDescription>Optional.</FormDescription>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
 
       <FormField
         control={control}

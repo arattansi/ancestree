@@ -35,6 +35,13 @@ const optionalYear = z
   .optional()
   .or(z.literal(""));
 
+/** A full ISO date from the date picker, or "" — nobody is made to give one. */
+const optionalDate = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Use the date picker.")
+  .optional()
+  .or(z.literal(""));
+
 /** "1998" -> 1998, "" -> null. */
 export const yearNumber = (value: string | undefined): number | null => {
   const n = Number((value ?? "").trim());
@@ -66,6 +73,13 @@ export const petSchema = z
       .optional()
       .or(z.literal("")),
     year_born: optionalYear,
+    birth_date: optionalDate,
+    birthplace: z
+      .string()
+      .trim()
+      .max(160, "Keep this under 160 characters.")
+      .optional()
+      .or(z.literal("")),
     is_deceased: z.boolean(),
     year_died: optionalYear,
   })
@@ -88,6 +102,28 @@ export const petSchema = z
       return born === null || died === null || died >= born;
     },
     { message: "That's before the year they were born.", path: ["year_died"] },
+  )
+  .refine(
+    (v) => {
+      if (!v.birth_date) return true;
+      const year = Number(v.birth_date.slice(0, 4));
+      return year >= MIN_PET_YEAR && year <= new Date().getFullYear();
+    },
+    {
+      message: `Use a date between ${MIN_PET_YEAR} and now.`,
+      path: ["birth_date"],
+    },
+  )
+  .refine(
+    (v) => {
+      const year = yearNumber(v.year_born);
+      if (!v.birth_date || year === null) return true;
+      return Number(v.birth_date.slice(0, 4)) === year;
+    },
+    {
+      message: "This doesn't match the year born above.",
+      path: ["birth_date"],
+    },
   );
 
 export type PetFormValues = z.infer<typeof petSchema>;
@@ -98,18 +134,27 @@ export const emptyPetValues: PetFormValues = {
   species: "dog",
   species_label: "",
   year_born: "",
+  birth_date: "",
+  birthplace: "",
   is_deceased: false,
   year_died: "",
 };
 
 /** Form values → row columns, with the fields the DB checks would reject dropped. */
 export function toPetPayload(values: PetFormValues) {
+  const birthDate = (values.birth_date ?? "").trim() || null;
+  // An exact date always implies its year, so the chip never has to guess.
+  const yearBorn = birthDate
+    ? Number(birthDate.slice(0, 4))
+    : yearNumber(values.year_born);
   return {
     name: values.name.trim(),
     species: values.species,
     species_label:
       values.species === "other" ? values.species_label?.trim() || null : null,
-    year_born: yearNumber(values.year_born),
+    year_born: yearBorn,
+    birth_date: birthDate,
+    birthplace: (values.birthplace ?? "").trim() || null,
     is_deceased: values.is_deceased,
     year_died: values.is_deceased ? yearNumber(values.year_died) : null,
   };
@@ -140,4 +185,16 @@ export function petYears(pet: {
     return "In memory";
   }
   return pet.year_born ? `b. ${pet.year_born}` : null;
+}
+
+/** "14 March 2018" from an ISO date, for the panel's details row. */
+export function formatPetBirthday(birthDate: string | null): string | null {
+  if (!birthDate) return null;
+  const parsed = new Date(`${birthDate}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
 }

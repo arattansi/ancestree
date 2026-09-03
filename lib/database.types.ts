@@ -920,8 +920,56 @@ export type Database = {
           },
         ]
       }
+      pet_comments: {
+        Row: {
+          body: string
+          created_at: string
+          created_by: string
+          id: string
+          pet_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          created_by: string
+          id?: string
+          pet_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          pet_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pet_comments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "pet_comments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "pet_comments_pet_id_fkey"
+            columns: ["pet_id"]
+            isOneToOne: false
+            referencedRelation: "pets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pets: {
         Row: {
+          birth_date: string | null
+          birthplace: string | null
           created_at: string
           created_by: string
           id: string
@@ -939,6 +987,8 @@ export type Database = {
           year_died: number | null
         }
         Insert: {
+          birth_date?: string | null
+          birthplace?: string | null
           created_at?: string
           created_by: string
           id?: string
@@ -956,6 +1006,8 @@ export type Database = {
           year_died?: number | null
         }
         Update: {
+          birth_date?: string | null
+          birthplace?: string | null
           created_at?: string
           created_by?: string
           id?: string

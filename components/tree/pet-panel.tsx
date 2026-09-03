@@ -18,6 +18,7 @@ import {
   CompanionPicker,
   type CompanionOption,
 } from "@/components/tree/companion-picker";
+import { PetComments } from "@/components/tree/pet-comments";
 import { PhotoPicker } from "@/components/photo-picker";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,7 @@ import {
   type CropTransform,
 } from "@/lib/image-crop";
 import {
+  formatPetBirthday,
   petSchema,
   petYears,
   speciesLabel,
@@ -51,6 +53,8 @@ const toFormValues = (pet: TreePet): PetFormValues => ({
   species: pet.species as PetSpecies,
   species_label: pet.species_label ?? "",
   year_born: pet.year_born ? String(pet.year_born) : "",
+  birth_date: pet.birth_date ?? "",
+  birthplace: pet.birthplace ?? "",
   is_deceased: pet.is_deceased,
   year_died: pet.year_died ? String(pet.year_died) : "",
 });
@@ -68,6 +72,7 @@ export function PetPanel({
   treeId,
   people,
   canEdit,
+  currentUserId,
   readOnly = false,
   onClose,
   onSelectPerson,
@@ -77,6 +82,7 @@ export function PetPanel({
   /** Everyone on the canvas, for linking this companion to more of them. */
   people: CompanionOption[];
   canEdit: boolean;
+  currentUserId: string;
   readOnly?: boolean;
   onClose: () => void;
   onSelectPerson: (personId: string) => void;
@@ -100,6 +106,8 @@ export function PetPanel({
           species: "dog",
           species_label: "",
           year_born: "",
+          birth_date: "",
+          birthplace: "",
           is_deceased: false,
           year_died: "",
         },
@@ -278,6 +286,29 @@ export function PetPanel({
                   </form>
                 </Form>
               ) : (
+                <>
+                  {formatPetBirthday(pet.birth_date) || pet.birthplace ? (
+                  <section className="flex flex-col gap-3">
+                    <h2 className="text-sm font-semibold">Details</h2>
+                    <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
+                      {formatPetBirthday(pet.birth_date) ? (
+                        <>
+                          <dt className="text-muted-foreground">Born</dt>
+                          <dd>{formatPetBirthday(pet.birth_date)}</dd>
+                        </>
+                      ) : null}
+                      {pet.birthplace ? (
+                        <>
+                          <dt className="text-muted-foreground">
+                            Place of birth
+                          </dt>
+                          <dd>{pet.birthplace}</dd>
+                        </>
+                      ) : null}
+                    </dl>
+                  </section>
+                  ) : null}
+
                 <section className="flex flex-col gap-3">
                   <h2 className="text-sm font-semibold">Companion to</h2>
                   <ul className="flex flex-col gap-1">
@@ -297,7 +328,16 @@ export function PetPanel({
                     A companion can belong to as many people as lived with them.
                   </p>
                 </section>
+                </>
               )}
+
+              {!readOnly && !editing ? (
+                <PetComments
+                  petId={pet.id}
+                  currentUserId={currentUserId}
+                  canEdit={canEdit}
+                />
+              ) : null}
 
               {!readOnly && canEdit && !editing ? (
                 <section className="flex flex-col gap-4 border-t border-border pt-5">

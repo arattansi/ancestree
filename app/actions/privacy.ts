@@ -37,6 +37,7 @@ export async function exportTreeData(): Promise<{
     notifications,
     pets,
     petCompanions,
+    petComments,
   ] = await Promise.all([
     db.from("trees").select("*"),
     db.from("profiles").select("*"),
@@ -49,6 +50,7 @@ export async function exportTreeData(): Promise<{
     db.from("notifications").select("*"),
     db.from("pets").select("*").eq("tree_id", tree.id),
     db.from("pet_companions").select("*"),
+    db.from("pet_comments").select("*"),
   ]);
 
   const firstError = [
@@ -63,6 +65,7 @@ export async function exportTreeData(): Promise<{
     notifications,
     pets,
     petCompanions,
+    petComments,
   ].find((r) => r.error)?.error;
   if (firstError) return { error: "Could not read every table. Try again." };
 
@@ -81,6 +84,7 @@ export async function exportTreeData(): Promise<{
       notifications: notifications.data ?? [],
       pets: pets.data ?? [],
       pet_companions: petCompanions.data ?? [],
+      pet_comments: petComments.data ?? [],
     },
   };
 
@@ -209,6 +213,10 @@ export async function deleteAccount(): Promise<{ error?: string }> {
     db.from("pets").update({ created_by: steward }).eq("created_by", user.id),
     db
       .from("pet_companions")
+      .update({ created_by: steward })
+      .eq("created_by", user.id),
+    db
+      .from("pet_comments")
       .update({ created_by: steward })
       .eq("created_by", user.id),
   ];
