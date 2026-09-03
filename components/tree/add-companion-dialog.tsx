@@ -43,6 +43,7 @@ export function AddCompanionDialog({
   treeId,
   people,
   startingWith,
+  isAdmin = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -50,6 +51,7 @@ export function AddCompanionDialog({
   people: CompanionOption[];
   /** The person whose panel this was opened from. */
   startingWith: string;
+  isAdmin?: boolean;
 }) {
   const router = useRouter();
   const [companions, setCompanions] = React.useState<string[]>([startingWith]);
@@ -126,7 +128,11 @@ export function AddCompanionDialog({
             onSubmit={form.handleSubmit(onSubmit)}
             className="flex flex-col gap-5 pt-2"
           >
-            <CompanionFields control={form.control} idPrefix="add-companion" />
+            <CompanionFields
+              control={form.control}
+              idPrefix="add-companion"
+              isAdmin={isAdmin}
+            />
 
             <CompanionPicker
               options={people}

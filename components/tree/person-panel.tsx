@@ -816,6 +816,7 @@ export function PersonPanel({
                 treeId={treeId}
                 people={people}
                 startingWith={person.id}
+                isAdmin={isAdmin}
               />
             ) : null}
 

@@ -1027,6 +1027,7 @@ function Canvas({
         people={peopleOptions}
         canEdit={canEditPet}
         currentUserId={currentUserId}
+        isAdmin={isAdmin}
         readOnly={readOnly}
         onClose={() => setSelectedPetId(null)}
         onSelectPerson={(personId) => {

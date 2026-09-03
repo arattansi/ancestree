@@ -969,7 +969,8 @@ export type Database = {
       pets: {
         Row: {
           birth_date: string | null
-          birthplace: string | null
+          city_of_birth: string | null
+          country_of_birth: string | null
           created_at: string
           created_by: string
           id: string
@@ -977,6 +978,7 @@ export type Database = {
           name: string
           photo_crop: Json | null
           photo_path: string | null
+          place_id_birth: number | null
           pos_dx: number | null
           pos_dy: number | null
           species: string
@@ -988,7 +990,8 @@ export type Database = {
         }
         Insert: {
           birth_date?: string | null
-          birthplace?: string | null
+          city_of_birth?: string | null
+          country_of_birth?: string | null
           created_at?: string
           created_by: string
           id?: string
@@ -996,6 +999,7 @@ export type Database = {
           name: string
           photo_crop?: Json | null
           photo_path?: string | null
+          place_id_birth?: number | null
           pos_dx?: number | null
           pos_dy?: number | null
           species: string
@@ -1007,7 +1011,8 @@ export type Database = {
         }
         Update: {
           birth_date?: string | null
-          birthplace?: string | null
+          city_of_birth?: string | null
+          country_of_birth?: string | null
           created_at?: string
           created_by?: string
           id?: string
@@ -1015,6 +1020,7 @@ export type Database = {
           name?: string
           photo_crop?: Json | null
           photo_path?: string | null
+          place_id_birth?: number | null
           pos_dx?: number | null
           pos_dy?: number | null
           species?: string
@@ -1031,6 +1037,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "member_directory"
             referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "pets_place_id_birth_fkey"
+            columns: ["place_id_birth"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "pets_created_by_fkey"

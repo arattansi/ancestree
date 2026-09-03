@@ -75,8 +75,9 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   flag thread + resolve), `claim-suggestions.tsx` "Is this you?" canvas prompt
 - `components/tree/pet-node.tsx` — the companion chip (a third the height of a
   person card, a pill, led by a species glyph, joined by a dotted lead) +
-  `pet-panel.tsx` (name / animal / years / optional full birthday + free-text
-  birthplace / photo / who it belongs to / a plain comment thread),
+  `pet-panel.tsx` (name / animal / years / optional full birthday + a GeoNames
+  place of birth, the same picker a person uses / photo / who it belongs to /
+  a plain comment thread),
   `pet-comments.tsx` (`pet_comments` — comments only, no flags / resolve /
   verify / notifications; `lib/pet-comments.ts` + `app/actions/pet-comments.ts`),
   `companion-fields.tsx`, `companion-picker.tsx` (multi-select
@@ -153,7 +154,7 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `places` | GeoNames reference data (populated places + admin areas) for birthplace autocomplete; not tree-scoped — read by any member, written only by the import script |
 | `historical_names` | Curated period names for a place/country over a date range (Step 4.5d); matched by `place_id` then `country_code` against a birth/death year. Read by any member; seeded by migration |
 | `tree_bridges` | Step 9 seam: links a member's own `trees` row to a tree they belong to via a spouse bridge (feature-flagged; second tree not rendered) |
-| `pets` | Companion animals — a deliberately thin, non-human entry: name, species (`cat` / `dog` / `other` + `species_label`), `year_born` / `year_died`, an optional exact `birth_date` (must agree with `year_born`) and free-text `birthplace`, photo, and a `pos_dx` / `pos_dy` nudge. No GeoNames places, lineage, claims, documents, or verification |
+| `pets` | Companion animals — a deliberately thin, non-human entry: name, species (`cat` / `dog` / `other` + `species_label`), `year_born` / `year_died`, an optional exact `birth_date` (must agree with `year_born`) and an optional GeoNames place of birth (`place_id_birth` FK + denormalised `city_of_birth` / `country_of_birth`, exactly like a person), photo, and a `pos_dx` / `pos_dy` nudge. No lineage, claims, documents, or verification |
 | `pet_companions` | Which people a pet lived with (`pet_id` + `person_id`). Many-to-many, undirected, no lineage meaning; a trigger deletes a pet once its last companion goes |
 | `pet_comments` | A plain comment thread on a companion (`pet_id`, `body`, `created_by`). No flags, no open/resolved lifecycle, no verification, no notifications; author or anyone who `can_edit_pet` may delete |
 
@@ -173,9 +174,9 @@ can already edit one of its people (`private.can_edit_pet`) — looser than a
 person entry, whose deletes are admin-only, because a pet carries no ownership
 or claim weight. Photos share the `photos` bucket under
 `{tree_id}/pets/{pet_id}/{filename}`. Its panel does carry three warm extras —
-an optional full birthday, a free-text place of birth, and a plain
-`pet_comments` thread (no flags, resolve, or notifications) — none of which
-touch the chip or its dimensions.
+an optional full birthday, a GeoNames place of birth (the same `PlaceAutocomplete`
+a person entry uses, but optional), and a plain `pet_comments` thread (no flags,
+resolve, or notifications) — none of which touch the chip or its dimensions.
 
 **RLS:** every public table. Members read rows in trees they belong to (admin,
 tree creator, accepted invite, or `self_person`). Writes use

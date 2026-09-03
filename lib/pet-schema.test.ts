@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   emptyPetValues,
   formatPetBirthday,
+  petBirthplace,
   petSchema,
   toPetPayload,
 } from "@/lib/pet-schema";
@@ -14,11 +15,13 @@ describe("petSchema birth details", () => {
     expect(petSchema.safeParse(base).success).toBe(true);
   });
 
-  it("accepts a full birthday and a free-text birthplace", () => {
+  it("accepts a full birthday and a GeoNames birthplace", () => {
     const result = petSchema.safeParse({
       ...base,
       birth_date: "2018-03-14",
-      birthplace: "The shelter on Elm Street",
+      place_id_birth: 5128581,
+      city_of_birth: "New York City",
+      country_of_birth: "United States",
     });
     expect(result.success).toBe(true);
   });
@@ -51,11 +54,32 @@ describe("toPetPayload", () => {
     expect(payload.year_born).toBe(2014);
   });
 
-  it("stores a trimmed birthplace or null", () => {
-    expect(toPetPayload({ ...base, birthplace: "  Nairobi  " }).birthplace).toBe(
-      "Nairobi",
-    );
-    expect(toPetPayload(base).birthplace).toBeNull();
+  it("carries the place FK and denormalised text, or nulls", () => {
+    const withPlace = toPetPayload({
+      ...base,
+      place_id_birth: 184745,
+      city_of_birth: "Nairobi",
+      country_of_birth: "Kenya",
+    });
+    expect(withPlace.place_id_birth).toBe(184745);
+    expect(withPlace.city_of_birth).toBe("Nairobi");
+    expect(withPlace.country_of_birth).toBe("Kenya");
+
+    const blank = toPetPayload(base);
+    expect(blank.place_id_birth).toBeNull();
+    expect(blank.city_of_birth).toBeNull();
+    expect(blank.country_of_birth).toBeNull();
+  });
+});
+
+describe("petBirthplace", () => {
+  it("joins the denormalised pair the way a person entry does", () => {
+    expect(
+      petBirthplace({ city_of_birth: "Nairobi", country_of_birth: "Kenya" }),
+    ).toBe("Nairobi, Kenya");
+    expect(
+      petBirthplace({ city_of_birth: null, country_of_birth: null }),
+    ).toBeNull();
   });
 });
 

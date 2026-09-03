@@ -74,10 +74,19 @@ export const petSchema = z
       .or(z.literal("")),
     year_born: optionalYear,
     birth_date: optionalDate,
-    birthplace: z
+    // The same GeoNames-backed place a person entry uses — a real `places.id`
+    // plus the denormalised text pair — but optional, where a person's is not.
+    place_id_birth: z.number().int().positive().nullable(),
+    city_of_birth: z
       .string()
       .trim()
-      .max(160, "Keep this under 160 characters.")
+      .max(120, "Keep this under 120 characters.")
+      .optional()
+      .or(z.literal("")),
+    country_of_birth: z
+      .string()
+      .trim()
+      .max(120, "Keep this under 120 characters.")
       .optional()
       .or(z.literal("")),
     is_deceased: z.boolean(),
@@ -135,7 +144,9 @@ export const emptyPetValues: PetFormValues = {
   species_label: "",
   year_born: "",
   birth_date: "",
-  birthplace: "",
+  place_id_birth: null,
+  city_of_birth: "",
+  country_of_birth: "",
   is_deceased: false,
   year_died: "",
 };
@@ -154,7 +165,9 @@ export function toPetPayload(values: PetFormValues) {
       values.species === "other" ? values.species_label?.trim() || null : null,
     year_born: yearBorn,
     birth_date: birthDate,
-    birthplace: (values.birthplace ?? "").trim() || null,
+    place_id_birth: values.place_id_birth ?? null,
+    city_of_birth: (values.city_of_birth ?? "").trim() || null,
+    country_of_birth: (values.country_of_birth ?? "").trim() || null,
     is_deceased: values.is_deceased,
     year_died: values.is_deceased ? yearNumber(values.year_died) : null,
   };
@@ -185,6 +198,16 @@ export function petYears(pet: {
     return "In memory";
   }
   return pet.year_born ? `b. ${pet.year_born}` : null;
+}
+
+/** "Nairobi, Kenya" from the denormalised place pair — same as a person entry. */
+export function petBirthplace(pet: {
+  city_of_birth: string | null;
+  country_of_birth: string | null;
+}): string | null {
+  return (
+    [pet.city_of_birth, pet.country_of_birth].filter(Boolean).join(", ") || null
+  );
 }
 
 /** "14 March 2018" from an ISO date, for the panel's details row. */

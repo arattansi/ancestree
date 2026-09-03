@@ -1,8 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { useWatch, type Control } from "react-hook-form";
+import { useFormContext, useWatch, type Control } from "react-hook-form";
 
+import { PlaceAutocomplete } from "@/components/place-autocomplete";
+import { countryName } from "@/lib/country-names";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   FormControl,
@@ -36,12 +38,41 @@ import {
 export function CompanionFields({
   control,
   idPrefix,
+  isAdmin = false,
 }: {
   control: Control<PetFormValues>;
   idPrefix: string;
+  /** Unlocks the "can't find it? add a place" escape hatch on the birthplace. */
+  isAdmin?: boolean;
 }) {
+  const { setValue } = useFormContext<PetFormValues>();
   const species = useWatch({ control, name: "species" });
   const isDeceased = useWatch({ control, name: "is_deceased" });
+  const placeIdBirth = useWatch({ control, name: "place_id_birth" });
+  const cityOfBirth = useWatch({ control, name: "city_of_birth" });
+  const countryOfBirth = useWatch({ control, name: "country_of_birth" });
+  const initialPlaceLabel =
+    [cityOfBirth, countryOfBirth].filter(Boolean).join(", ") || null;
+
+  // Same write pattern a person entry uses: the FK plus the denormalised
+  // city / country text the panel reads back without a join.
+  const onPlaceChange = React.useCallback(
+    (place: { id: number; name: string; country_code: string | null } | null) => {
+      setValue("place_id_birth", place?.id ?? null, {
+        shouldValidate: true,
+        shouldDirty: true,
+      });
+      setValue("city_of_birth", place?.name ?? "", { shouldDirty: true });
+      setValue(
+        "country_of_birth",
+        place
+          ? countryName(place.country_code) || place.country_code || ""
+          : "",
+        { shouldDirty: true },
+      );
+    },
+    [setValue],
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -165,22 +196,26 @@ export function CompanionFields({
 
       <FormField
         control={control}
-        name="birthplace"
-        render={({ field }) => (
+        name="place_id_birth"
+        render={({ fieldState }) => (
           <FormItem>
-            <FormLabel htmlFor={`${idPrefix}-birthplace`}>
+            <FormLabel htmlFor={`${idPrefix}-place-birth`}>
               Place of birth
             </FormLabel>
             <FormControl>
-              <Input
-                id={`${idPrefix}-birthplace`}
-                placeholder="The shelter on Elm Street"
-                autoComplete="off"
-                {...field}
-                value={field.value ?? ""}
+              <PlaceAutocomplete
+                id={`${idPrefix}-place-birth`}
+                value={typeof placeIdBirth === "number" ? placeIdBirth : null}
+                initialLabel={initialPlaceLabel}
+                isAdmin={isAdmin}
+                invalid={Boolean(fieldState.error)}
+                placeholder="Search for a city, town, or village…"
+                onChange={onPlaceChange}
               />
             </FormControl>
-            <FormDescription>Optional.</FormDescription>
+            <FormDescription>
+              Optional — pick the closest match, or leave it blank.
+            </FormDescription>
             <FormMessage />
           </FormItem>
         )}

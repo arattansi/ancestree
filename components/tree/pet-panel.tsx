@@ -38,6 +38,7 @@ import {
 } from "@/lib/image-crop";
 import {
   formatPetBirthday,
+  petBirthplace,
   petSchema,
   petYears,
   speciesLabel,
@@ -54,7 +55,9 @@ const toFormValues = (pet: TreePet): PetFormValues => ({
   species_label: pet.species_label ?? "",
   year_born: pet.year_born ? String(pet.year_born) : "",
   birth_date: pet.birth_date ?? "",
-  birthplace: pet.birthplace ?? "",
+  place_id_birth: pet.place_id_birth ?? null,
+  city_of_birth: pet.city_of_birth ?? "",
+  country_of_birth: pet.country_of_birth ?? "",
   is_deceased: pet.is_deceased,
   year_died: pet.year_died ? String(pet.year_died) : "",
 });
@@ -73,6 +76,7 @@ export function PetPanel({
   people,
   canEdit,
   currentUserId,
+  isAdmin,
   readOnly = false,
   onClose,
   onSelectPerson,
@@ -83,6 +87,7 @@ export function PetPanel({
   people: CompanionOption[];
   canEdit: boolean;
   currentUserId: string;
+  isAdmin: boolean;
   readOnly?: boolean;
   onClose: () => void;
   onSelectPerson: (personId: string) => void;
@@ -107,7 +112,9 @@ export function PetPanel({
           species_label: "",
           year_born: "",
           birth_date: "",
-          birthplace: "",
+          place_id_birth: null,
+          city_of_birth: "",
+          country_of_birth: "",
           is_deceased: false,
           year_died: "",
         },
@@ -249,6 +256,7 @@ export function PetPanel({
                     <CompanionFields
                       control={form.control}
                       idPrefix={`pet-${pet.id}`}
+                      isAdmin={isAdmin}
                     />
                     <PhotoPicker
                       id={`pet-photo-${pet.id}`}
@@ -287,7 +295,7 @@ export function PetPanel({
                 </Form>
               ) : (
                 <>
-                  {formatPetBirthday(pet.birth_date) || pet.birthplace ? (
+                  {formatPetBirthday(pet.birth_date) || petBirthplace(pet) ? (
                   <section className="flex flex-col gap-3">
                     <h2 className="text-sm font-semibold">Details</h2>
                     <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
@@ -297,12 +305,12 @@ export function PetPanel({
                           <dd>{formatPetBirthday(pet.birth_date)}</dd>
                         </>
                       ) : null}
-                      {pet.birthplace ? (
+                      {petBirthplace(pet) ? (
                         <>
                           <dt className="text-muted-foreground">
                             Place of birth
                           </dt>
-                          <dd>{pet.birthplace}</dd>
+                          <dd>{petBirthplace(pet)}</dd>
                         </>
                       ) : null}
                     </dl>
