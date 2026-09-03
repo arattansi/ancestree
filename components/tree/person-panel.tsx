@@ -15,6 +15,8 @@ import {
 import { deletePerson } from "@/app/actions/privacy";
 import type { PanelSuggestion } from "@/lib/connection-suggestions";
 import { PersonDocuments } from "@/components/person-documents";
+import { AddCompanionDialog } from "@/components/tree/add-companion-dialog";
+import type { CompanionOption } from "@/components/tree/companion-picker";
 import { PhotoCropEditor } from "@/components/photo-crop-editor";
 import { EntryComments } from "@/components/tree/entry-comments";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -43,6 +45,13 @@ import {
   type CropTransform,
 } from "@/lib/image-crop";
 import { SEX_LABELS, type Sex } from "@/lib/person-schema";
+import {
+  petYears,
+  speciesLabel,
+  SPECIES_GLYPHS,
+  type PetSpecies,
+} from "@/lib/pet-schema";
+import type { TreePet } from "@/lib/pets";
 import type { TreeGraphPerson } from "@/lib/tree";
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
@@ -313,9 +322,76 @@ function FamilySection({
   );
 }
 
+/**
+ * The pets this person lived with.
+ *
+ * Kept apart from `FamilySection` on purpose: companions are listed *after*
+ * the family, in their own section, with their own wording — never as another
+ * kind of relative in the same list.
+ */
+function CompanionsSection({
+  pets,
+  canAdd,
+  onSelectPet,
+  onAdd,
+}: {
+  pets: TreePet[];
+  canAdd: boolean;
+  onSelectPet: (petId: string) => void;
+  onAdd: () => void;
+}) {
+  if (pets.length === 0 && !canAdd) return null;
+
+  return (
+    <section className="flex flex-col gap-3 border-t border-border pt-5">
+      <h2 className="text-sm font-semibold">Companions</h2>
+      {pets.length > 0 ? (
+        <ul className="flex flex-col gap-1.5">
+          {pets.map((pet) => (
+            <li key={pet.id}>
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 rounded-md border border-border px-2.5 py-1.5 text-left text-sm hover:bg-accent hover:text-accent-foreground"
+                onClick={() => onSelectPet(pet.id)}
+              >
+                <span aria-hidden>
+                  {SPECIES_GLYPHS[pet.species as PetSpecies] ??
+                    SPECIES_GLYPHS.other}
+                </span>
+                <span className="min-w-0 flex-1 truncate">{pet.name}</span>
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  {speciesLabel(pet)}
+                  {petYears(pet) ? ` · ${petYears(pet)}` : ""}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          No pets on this entry yet.
+        </p>
+      )}
+      {canAdd ? (
+        <Button
+          size="sm"
+          variant="outline"
+          className="self-start"
+          onClick={onAdd}
+        >
+          Add a companion
+        </Button>
+      ) : null}
+    </section>
+  );
+}
+
 export function PersonPanel({
   person,
   treeId,
+  pets,
+  people,
+  onSelectPet,
   suggestions,
   relations,
   isAdmin,
@@ -329,6 +405,11 @@ export function PersonPanel({
 }: {
   person: TreeGraphPerson | null;
   treeId: string;
+  /** This person's companion animals. Not relatives — see `pet-node.tsx`. */
+  pets: TreePet[];
+  /** Everyone on the canvas, so a new companion can be shared with them. */
+  people: CompanionOption[];
+  onSelectPet: (petId: string) => void;
   /** Public view-only mode — hide every editing / moderation affordance. */
   readOnly?: boolean;
   /** Pending implied connections involving this person the viewer can resolve. */
@@ -351,6 +432,7 @@ export function PersonPanel({
   const [disputing, setDisputing] = React.useState(false);
   const [reason, setReason] = React.useState("");
   const [photoOpen, setPhotoOpen] = React.useState(false);
+  const [addingCompanion, setAddingCompanion] = React.useState(false);
   const [cropOpen, setCropOpen] = React.useState(false);
   const savedCrop = parseCrop(person?.photo_crop);
   const [crop, setCrop] = React.useState<CropTransform>(savedCrop);
@@ -362,6 +444,7 @@ export function PersonPanel({
     setDisputing(false);
     setReason("");
     setPhotoOpen(false);
+    setAddingCompanion(false);
     setCropOpen(false);
     setCrop(savedCrop);
   }
@@ -570,6 +653,13 @@ export function PersonPanel({
                 onChanged={() => router.refresh()}
               />
 
+              <CompanionsSection
+                pets={pets}
+                canAdd={!readOnly && canEdit}
+                onSelectPet={onSelectPet}
+                onAdd={() => setAddingCompanion(true)}
+              />
+
               <PendingConnectionPrompts
                 suggestions={suggestions}
                 onResolved={() => router.refresh()}
@@ -718,6 +808,16 @@ export function PersonPanel({
                 </section>
               ) : null}
             </div>
+
+            {!readOnly && canEdit ? (
+              <AddCompanionDialog
+                open={addingCompanion}
+                onOpenChange={setAddingCompanion}
+                treeId={treeId}
+                people={people}
+                startingWith={person.id}
+              />
+            ) : null}
 
             {person.photo_url && canEdit ? (
               <Dialog

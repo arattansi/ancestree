@@ -101,3 +101,21 @@ export function decadeOptions(people: TreeGraphPerson[]): string[] {
   }
   return [...set].sort((a, b) => b - a).map(String);
 }
+
+/**
+ * Whether a companion stays lit while the search filter is on.
+ *
+ * Pets have none of the demographic fields the filter asks about, so they
+ * follow their people: a companion stays lit when one of the people it belongs
+ * to matched. Free text also matches the companion's own name, so searching
+ * "biscuit" finds the dog.
+ */
+export function petMatchesFilter(
+  pet: { name: string; companions: string[] },
+  f: TreeFilter,
+  matchingPeople: Set<string>,
+): boolean {
+  const text = f.text.trim();
+  if (text && fold(pet.name).includes(fold(text))) return true;
+  return pet.companions.some((id) => matchingPeople.has(id));
+}

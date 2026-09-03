@@ -460,6 +460,12 @@ export async function autoArrangeTree(
     .update({ pos_dx: null, pos_dy: null, pos_x: null, pos_y: null })
     .eq("tree_id", treeId);
   if (error) return { error: friendlyError(error.message) };
+
+  // Companions hang off the people, so their nudges go with the same sweep.
+  await supabase
+    .from("pets")
+    .update({ pos_dx: null, pos_dy: null })
+    .eq("tree_id", treeId);
   revalidatePath("/tree");
   return {};
 }

@@ -13,9 +13,11 @@ import { getSharedTree } from "@/lib/tree";
  * ever see, in one file, so the tree's data stewards can honour a
  * "show me everything you hold" request.
  */
-export async function exportTreeData(): Promise<
-  { json?: string; filename?: string; error?: string }
-> {
+export async function exportTreeData(): Promise<{
+  json?: string;
+  filename?: string;
+  error?: string;
+}> {
   await requireAdmin();
 
   const tree = await getSharedTree();
@@ -33,6 +35,8 @@ export async function exportTreeData(): Promise<
     entryComments,
     documents,
     notifications,
+    pets,
+    petCompanions,
   ] = await Promise.all([
     db.from("trees").select("*"),
     db.from("profiles").select("*"),
@@ -43,6 +47,8 @@ export async function exportTreeData(): Promise<
     db.from("entry_comments").select("*"),
     db.from("documents").select("*"),
     db.from("notifications").select("*"),
+    db.from("pets").select("*").eq("tree_id", tree.id),
+    db.from("pet_companions").select("*"),
   ]);
 
   const firstError = [
@@ -55,6 +61,8 @@ export async function exportTreeData(): Promise<
     entryComments,
     documents,
     notifications,
+    pets,
+    petCompanions,
   ].find((r) => r.error)?.error;
   if (firstError) return { error: "Could not read every table. Try again." };
 
@@ -71,6 +79,8 @@ export async function exportTreeData(): Promise<
       entry_comments: entryComments.data ?? [],
       documents: documents.data ?? [],
       notifications: notifications.data ?? [],
+      pets: pets.data ?? [],
+      pet_companions: petCompanions.data ?? [],
     },
   };
 
@@ -104,11 +114,30 @@ export async function deletePerson(
     .select("file_path")
     .eq("person_id", personId);
 
+  // Companions whose *only* person is this one go with them (a DB trigger
+  // prunes the rows); their photos have to be swept up here.
+  const { data: companionLinks } = await supabase
+    .from("pet_companions")
+    .select("pet_id")
+    .eq("person_id", personId);
+  const petIds = [...new Set((companionLinks ?? []).map((l) => l.pet_id))];
+  const { data: petRows } = petIds.length
+    ? await supabase.from("pets").select("id, photo_path").in("id", petIds)
+    : { data: [] as { id: string; photo_path: string | null }[] };
+
   const { error } = await supabase.from("people").delete().eq("id", personId);
   if (error) return { error: "Couldn't delete that entry. Try again." };
 
+  const { data: survivingPets } = petIds.length
+    ? await supabase.from("pets").select("id").in("id", petIds)
+    : { data: [] as { id: string }[] };
+  const surviving = new Set((survivingPets ?? []).map((p) => p.id));
+
   const objects = [
     ...(person.photo_path ? [person.photo_path] : []),
+    ...(petRows ?? [])
+      .filter((p) => !surviving.has(p.id) && p.photo_path)
+      .map((p) => p.photo_path as string),
   ];
   if (objects.length) await supabase.storage.from("photos").remove(objects);
 
@@ -163,7 +192,10 @@ export async function deleteAccount(): Promise<{ error?: string }> {
       .from("relationships")
       .update({ created_by: steward })
       .eq("created_by", user.id),
-    db.from("invites").update({ created_by: steward }).eq("created_by", user.id),
+    db
+      .from("invites")
+      .update({ created_by: steward })
+      .eq("created_by", user.id),
     db
       .from("entry_comments")
       .update({ created_by: steward })
@@ -172,6 +204,13 @@ export async function deleteAccount(): Promise<{ error?: string }> {
       .from("documents")
       .update({ uploaded_by: steward })
       .eq("uploaded_by", user.id),
+    // Companions are family memories too — hand them over rather than letting
+    // the profile cascade take the household dog with it.
+    db.from("pets").update({ created_by: steward }).eq("created_by", user.id),
+    db
+      .from("pet_companions")
+      .update({ created_by: steward })
+      .eq("created_by", user.id),
   ];
   const results = await Promise.all(reassign);
   if (results.some((r) => r.error)) {
@@ -188,7 +227,9 @@ export async function deleteAccount(): Promise<{ error?: string }> {
 
   const { error: authError } = await db.auth.admin.deleteUser(user.id);
   if (authError) {
-    return { error: "Profile removed, but sign-in cleanup failed. Contact an admin." };
+    return {
+      error: "Profile removed, but sign-in cleanup failed. Contact an admin.",
+    };
   }
 
   const supabase = await createClient();

@@ -11,6 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { resolveShareLink } from "@/lib/share-links.server";
+import { getTreePets } from "@/lib/pets";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getTreeAnchors, getTreeGraph } from "@/lib/tree";
 
@@ -40,7 +41,10 @@ export default async function SharedTreePage({
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
-            <Button nativeButton={false} render={<Link href="/request-invite" />}>
+            <Button
+              nativeButton={false}
+              render={<Link href="/request-invite" />}
+            >
               Request access
             </Button>
             <p className="text-sm text-muted-foreground">
@@ -55,9 +59,10 @@ export default async function SharedTreePage({
   }
 
   const admin = createAdminClient();
-  const [{ people, relationships }, anchorIds] = await Promise.all([
+  const [{ people, relationships }, anchorIds, pets] = await Promise.all([
     getTreeGraph(link.treeId, admin),
     getTreeAnchors(admin),
+    getTreePets(link.treeId, admin),
   ]);
 
   return (
@@ -72,6 +77,7 @@ export default async function SharedTreePage({
         isAdmin={false}
         claimCandidates={[]}
         panelSuggestions={[]}
+        pets={pets}
         readOnly
       />
     </main>

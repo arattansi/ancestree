@@ -73,6 +73,17 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   open-flag badge + verified `✓`), `person-panel.tsx` detail Sheet
   (edit link + claim / dispute + admin verify), `entry-comments.tsx` (comment /
   flag thread + resolve), `claim-suggestions.tsx` "Is this you?" canvas prompt
+- `components/tree/pet-node.tsx` — the companion chip (a third the height of a
+  person card, a pill, led by a species glyph, joined by a dotted lead) +
+  `pet-panel.tsx` (name / animal / years / photo / who it belongs to, and
+  nothing else), `companion-fields.tsx`, `companion-picker.tsx` (multi-select
+  people), `add-companion-dialog.tsx` (opened from a person's panel);
+  `lib/pet-schema.ts` (pure zod + species labels), `lib/pet-layout.ts` — pets
+  are laid out **after** the humans, hung in the gap below their companions and
+  swept apart on a row (`.test.ts`); `lib/pets.ts` — `getTreePets`;
+  `app/actions/pets.ts` — add / update / link / unlink / remove / photo /
+  position. Pets are read separately from `getTreeGraph` so nothing in the
+  layout, bloodline, generation, or claim code ever sees one
 - `components/notifications-list.tsx` (account) + `admin-disputed-claims.tsx`
   (admin uphold / reverse); `lib/claims.ts` — claim candidates, notifications,
   disputed-claim queries; `lib/entry-comments.ts` — comment/flag thread reads
@@ -138,6 +149,8 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `places` | GeoNames reference data (populated places + admin areas) for birthplace autocomplete; not tree-scoped — read by any member, written only by the import script |
 | `historical_names` | Curated period names for a place/country over a date range (Step 4.5d); matched by `place_id` then `country_code` against a birth/death year. Read by any member; seeded by migration |
 | `tree_bridges` | Step 9 seam: links a member's own `trees` row to a tree they belong to via a spouse bridge (feature-flagged; second tree not rendered) |
+| `pets` | Companion animals — a deliberately thin, non-human entry: name, species (`cat` / `dog` / `other` + `species_label`), `year_born` / `year_died`, photo, and a `pos_dx` / `pos_dy` nudge. No places, lineage, claims, comments, documents, or verification |
+| `pet_companions` | Which people a pet lived with (`pet_id` + `person_id`). Many-to-many, undirected, no lineage meaning; a trigger deletes a pet once its last companion goes |
 
 **Checks:** `people` requires first **or** preferred name, last name, and
 `is_deceased` (NOT NULL). The form now requires a **`place_id_birth`** (GeoNames
@@ -145,6 +158,16 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 `country_of_birth` are still written (derived from the picked place). `lineage_type` is writable by admins only.
 `middle_name` and `maiden_name` are optional nullable text columns, visible to and
 editable by any member who can already edit the entry.
+
+**Companions (pets):** a pet is never a child and never a relative. It lives
+outside `people` / `relationships` so the layout engine, bloodline gate, claim
+system, and generation bands never have to special-case an animal; on the
+canvas it is a small pill in the row gap below its companions, joined to each
+of them by a dotted lead. Editable by an admin, whoever added it, or anyone who
+can already edit one of its people (`private.can_edit_pet`) — looser than a
+person entry, whose deletes are admin-only, because a pet carries no ownership
+or claim weight. Photos share the `photos` bucket under
+`{tree_id}/pets/{pet_id}/{filename}`.
 
 **RLS:** every public table. Members read rows in trees they belong to (admin,
 tree creator, accepted invite, or `self_person`). Writes use

@@ -31,14 +31,18 @@ import { toast } from "sonner";
 import "@xyflow/react/dist/style.css";
 
 import { autoArrangeTree, setPersonPosition } from "@/app/actions/people";
+import { setPetPosition } from "@/app/actions/pets";
 import { ClaimSuggestions } from "@/components/tree/claim-suggestions";
 import { PersonNode } from "@/components/tree/person-node";
 import { PersonPanel } from "@/components/tree/person-panel";
+import { PetNode } from "@/components/tree/pet-node";
+import { PetPanel } from "@/components/tree/pet-panel";
 import { TreeSearch } from "@/components/tree/tree-search";
 import {
   EMPTY_FILTER,
   isFilterActive,
   matchesFilter,
+  petMatchesFilter,
   type TreeFilter,
 } from "@/lib/tree-search";
 import { Button } from "@/components/ui/button";
@@ -59,6 +63,8 @@ import {
   type GenerationBand,
   type TreeLayout,
 } from "@/lib/tree-layout";
+import { layoutPets } from "@/lib/pet-layout";
+import type { TreePet } from "@/lib/pets";
 import { personDisplayName } from "@/lib/person-name";
 import type { TreeGraphEdge, TreeGraphPerson } from "@/lib/tree";
 import type { PersonRelation } from "@/components/tree/person-panel";
@@ -101,7 +107,8 @@ function DescentEdge({
     () => ({
       startX: typeof data?.startX === "number" ? data.startX : sourceX,
       startY: typeof data?.startY === "number" ? data.startY : sourceY,
-      busY: typeof data?.busY === "number" ? data.busY : (sourceY + targetY) / 2,
+      busY:
+        typeof data?.busY === "number" ? data.busY : (sourceY + targetY) / 2,
     }),
     [sourceX, sourceY, targetY, data],
   );
@@ -202,7 +209,11 @@ function SpouseEdge({
 
   const y = lateral?.y ?? sourceY;
   return (
-    <BaseEdge id={id} path={`M ${sourceX},${y} L ${targetX},${y}`} style={style} />
+    <BaseEdge
+      id={id}
+      path={`M ${sourceX},${y} L ${targetX},${y}`}
+      style={style}
+    />
   );
 }
 
@@ -250,7 +261,7 @@ function GenerationLane({
 
 const edgeTypes = { descent: DescentEdge, spouse: SpouseEdge };
 
-const nodeTypes = { person: PersonNode };
+const nodeTypes = { person: PersonNode, pet: PetNode };
 
 type Props = {
   people: TreeGraphPerson[];
@@ -263,6 +274,8 @@ type Props = {
   isAdmin: boolean;
   claimCandidates: ClaimCandidate[];
   panelSuggestions: PanelSuggestion[];
+  /** Companion animals, hung off the people they belong to (never relatives). */
+  pets: TreePet[];
   /** Public share-link view: render the canvas without any editing controls. */
   readOnly?: boolean;
 };
@@ -276,9 +289,15 @@ type SelectedEdge = { id: string; direction: BloodlineDirection };
 function buildGraph(
   people: TreeGraphPerson[],
   relationships: TreeGraphEdge[],
+  pets: TreePet[],
   selfPersonId: string | null,
   anchorIds: string[],
-): { nodes: Node[]; edges: Edge[]; layout: TreeLayout } {
+): {
+  nodes: Node[];
+  edges: Edge[];
+  layout: TreeLayout;
+  petPositions: Map<string, { x: number; y: number }>;
+} {
   const layout = layoutTree(people, relationships, { anchorIds });
   const { positions, unions } = layout;
   const ids = new Set(people.map((p) => p.id));
@@ -349,7 +368,46 @@ function buildGraph(
     });
   }
 
-  return { nodes, edges, layout };
+  // Companions are laid out *after* the humans, from the human positions, and
+  // joined by a dotted lead rather than a descent or spouse line: nothing about
+  // a pet is allowed to look like a family edge.
+  const petLayout = layoutPets(
+    pets.map((pet) => ({
+      id: pet.id,
+      companions: pet.companions,
+      pos_dx: pet.pos_dx,
+      pos_dy: pet.pos_dy,
+    })),
+    layout.autoPositions,
+  );
+
+  for (const pet of pets) {
+    const position = petLayout.positions.get(pet.id);
+    if (!position) continue;
+    nodes.push({
+      id: pet.id,
+      type: "pet",
+      position,
+      data: { pet, selected: false, dimmed: false },
+    });
+    for (const companionId of pet.companions) {
+      if (!ids.has(companionId)) continue;
+      edges.push({
+        id: `c:${companionId}~${pet.id}`,
+        source: companionId,
+        target: pet.id,
+        style: {
+          stroke: "var(--muted-foreground)",
+          strokeWidth: 1.25,
+          strokeDasharray: "1 4",
+          strokeLinecap: "round",
+          opacity: 0.7,
+        },
+      });
+    }
+  }
+
+  return { nodes, edges, layout, petPositions: petLayout.autoPositions };
 }
 
 /**
@@ -393,6 +451,7 @@ function Canvas({
   isAdmin,
   claimCandidates,
   panelSuggestions,
+  pets,
   readOnly = false,
 }: Props) {
   const claimableIds = React.useMemo(
@@ -400,8 +459,8 @@ function Canvas({
     [claimCandidates],
   );
   const graph = React.useMemo(
-    () => buildGraph(people, relationships, selfPersonId, anchorIds),
-    [people, relationships, selfPersonId, anchorIds],
+    () => buildGraph(people, relationships, pets, selfPersonId, anchorIds),
+    [people, relationships, pets, selfPersonId, anchorIds],
   );
   const nameById = React.useMemo(
     () => new Map(people.map((p) => [p.id, personDisplayName(p)])),
@@ -411,12 +470,14 @@ function Canvas({
   const [nodes, setNodes, onNodesChange] = useNodesState(graph.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(graph.edges);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
+  const [selectedPetId, setSelectedPetId] = React.useState<string | null>(null);
   // The spotlighted connection, plus which way along it the click pointed.
   const [selectedEdgeId, setSelectedEdgeId] =
     React.useState<SelectedEdge | null>(null);
   const [filter, setFilter] = React.useState<TreeFilter>(EMPTY_FILTER);
   const [arranging, setArranging] = React.useState(false);
   const { fitView, getNode, screenToFlowPosition } = useReactFlow();
+
 
   // Re-seed the canvas whenever the graph itself changes — a new relative, or
   // an auto-arrange that cleared everybody's nudges.
@@ -427,13 +488,15 @@ function Canvas({
 
   React.useEffect(() => {
     setNodes((current) =>
-      current.map((n) =>
-        n.type !== "person" || n.data.selected === (n.id === selectedId)
+      current.map((n) => {
+        const selected =
+          n.type === "pet" ? n.id === selectedPetId : n.id === selectedId;
+        return n.data.selected === selected
           ? n
-          : { ...n, data: { ...n.data, selected: n.id === selectedId } },
-      ),
+          : { ...n, data: { ...n.data, selected } };
+      }),
     );
-  }, [selectedId, setNodes]);
+  }, [selectedId, selectedPetId, setNodes]);
 
   const filterActive = isFilterActive(filter);
   const matchingIds = React.useMemo(() => {
@@ -444,16 +507,24 @@ function Canvas({
   }, [people, filter, filterActive]);
 
   React.useEffect(() => {
+    const petById = new Map(pets.map((pet) => [pet.id, pet]));
     setNodes((current) =>
       current.map((n) => {
-        if (n.type !== "person") return n;
-        const dimmed = matchingIds !== null && !matchingIds.has(n.id);
+        let dimmed = false;
+        if (matchingIds !== null) {
+          if (n.type === "pet") {
+            const pet = petById.get(n.id);
+            dimmed = pet ? !petMatchesFilter(pet, filter, matchingIds) : false;
+          } else {
+            dimmed = !matchingIds.has(n.id);
+          }
+        }
         return n.data.dimmed === dimmed
           ? n
           : { ...n, data: { ...n.data, dimmed } };
       }),
     );
-  }, [matchingIds, setNodes]);
+  }, [matchingIds, filter, pets, setNodes]);
 
   // Clicking a connection: work out what it joins, name it, and collect the
   // nodes and edges the spotlight should keep lit.
@@ -640,6 +711,7 @@ function Canvas({
 
   const onPick = React.useCallback(
     (personId: string) => {
+      setSelectedPetId(null);
       setSelectedId(personId);
       void fitView({
         nodes: [{ id: personId }],
@@ -652,8 +724,14 @@ function Canvas({
   );
 
   const onNodeClick = React.useCallback<NodeMouseHandler>((_, node) => {
-    if (node.type !== "person") return;
     setSelectedEdgeId(null);
+    if (node.type === "pet") {
+      setSelectedId(null);
+      setSelectedPetId(node.id);
+      return;
+    }
+    if (node.type !== "person") return;
+    setSelectedPetId(null);
     setSelectedId(node.id);
   }, []);
 
@@ -661,6 +739,18 @@ function Canvas({
   // card keeps its offset as the tree grows instead of freezing in place.
   const onNodeDragStop = React.useCallback<OnNodeDrag>(
     (_, node) => {
+      if (node.type === "pet") {
+        const spot = graph.petPositions.get(node.id);
+        if (!spot) return;
+        void setPetPosition(
+          node.id,
+          node.position.x - spot.x,
+          node.position.y - spot.y,
+        ).then((res) => {
+          if (res.error) toast.error(res.error);
+        });
+        return;
+      }
       if (node.type !== "person") return;
       const auto = graph.layout.autoPositions.get(node.id);
       if (!auto) return;
@@ -685,8 +775,30 @@ function Canvas({
       .finally(() => setArranging(false));
   }, [treeId]);
 
-  const selectedPerson =
-    people.find((p) => p.id === selectedId) ?? null;
+  const selectedPerson = people.find((p) => p.id === selectedId) ?? null;
+  const selectedPet = pets.find((pet) => pet.id === selectedPetId) ?? null;
+
+  const peopleOptions = React.useMemo(
+    () => people.map((p) => ({ id: p.id, label: personDisplayName(p) })),
+    [people],
+  );
+
+  // A companion is editable by whoever added it, an admin, or anyone who can
+  // already edit one of its people — looser than a person entry on purpose.
+  const canEditPet =
+    !!selectedPet &&
+    (isAdmin ||
+      selectedPet.created_by === currentUserId ||
+      selectedPet.companions.some((id) => {
+        const person = people.find((p) => p.id === id);
+        return (
+          !!person &&
+          (person.owner_user_id === currentUserId ||
+            (person.created_by === currentUserId &&
+              person.owner_user_id === person.created_by &&
+              person.claim_status !== "approved"))
+        );
+      }));
 
   const relations = React.useMemo<PersonRelation[]>(() => {
     if (!selectedId) return [];
@@ -744,6 +856,7 @@ function Canvas({
         onNodeDragStop={readOnly ? undefined : onNodeDragStop}
         onPaneClick={() => {
           setSelectedId(null);
+          setSelectedPetId(null);
           setSelectedEdgeId(null);
         }}
         colorMode="system"
@@ -869,6 +982,14 @@ function Canvas({
       <PersonPanel
         person={selectedPerson}
         treeId={treeId}
+        pets={pets.filter((pet) =>
+          selectedId ? pet.companions.includes(selectedId) : false,
+        )}
+        people={peopleOptions}
+        onSelectPet={(petId) => {
+          setSelectedId(null);
+          setSelectedPetId(petId);
+        }}
         suggestions={panelSuggestions.filter(
           (s) =>
             s.subjectPersonId === selectedId ||
@@ -883,6 +1004,19 @@ function Canvas({
         isCreator={selectedPerson?.created_by === currentUserId}
         currentUserId={currentUserId}
         onClose={() => setSelectedId(null)}
+      />
+
+      <PetPanel
+        pet={selectedPet}
+        treeId={treeId}
+        people={peopleOptions}
+        canEdit={canEditPet}
+        readOnly={readOnly}
+        onClose={() => setSelectedPetId(null)}
+        onSelectPerson={(personId) => {
+          setSelectedPetId(null);
+          onPick(personId);
+        }}
       />
     </>
   );

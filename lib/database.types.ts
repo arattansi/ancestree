@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       bloodline_anchors: {
@@ -131,6 +106,13 @@ export type Database = {
             foreignKeyName: "canvas_interest_contacted_by_fkey"
             columns: ["contacted_by"]
             isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "canvas_interest_contacted_by_fkey"
+            columns: ["contacted_by"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["auth_user_id"]
           },
@@ -140,6 +122,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "trees"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "canvas_interest_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
           },
           {
             foreignKeyName: "canvas_interest_user_id_fkey"
@@ -881,6 +870,132 @@ export type Database = {
           },
         ]
       }
+      pet_companions: {
+        Row: {
+          created_at: string
+          created_by: string
+          person_id: string
+          pet_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          person_id: string
+          pet_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          person_id?: string
+          pet_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pet_companions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "pet_companions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "pet_companions_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pet_companions_pet_id_fkey"
+            columns: ["pet_id"]
+            isOneToOne: false
+            referencedRelation: "pets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pets: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          is_deceased: boolean
+          name: string
+          photo_crop: Json | null
+          photo_path: string | null
+          pos_dx: number | null
+          pos_dy: number | null
+          species: string
+          species_label: string | null
+          tree_id: string
+          updated_at: string
+          year_born: number | null
+          year_died: number | null
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          is_deceased?: boolean
+          name: string
+          photo_crop?: Json | null
+          photo_path?: string | null
+          pos_dx?: number | null
+          pos_dy?: number | null
+          species: string
+          species_label?: string | null
+          tree_id: string
+          updated_at?: string
+          year_born?: number | null
+          year_died?: number | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          is_deceased?: boolean
+          name?: string
+          photo_crop?: Json | null
+          photo_path?: string | null
+          pos_dx?: number | null
+          pos_dy?: number | null
+          species?: string
+          species_label?: string | null
+          tree_id?: string
+          updated_at?: string
+          year_born?: number | null
+          year_died?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pets_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "pets_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "pets_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       places: {
         Row: {
           admin1_code: string | null
@@ -1370,6 +1485,7 @@ export type Database = {
           maiden_name: string | null
           middle_name: string | null
           owner_user_id: string
+          photo_crop: Json | null
           photo_path: string | null
           place_id_birth: number | null
           place_id_death: number | null
@@ -1475,12 +1591,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1504,11 +1620,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1529,11 +1645,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1554,11 +1670,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1571,11 +1687,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1585,9 +1701,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {},
   },
