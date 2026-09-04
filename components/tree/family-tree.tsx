@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useTheme } from "next-themes";
 import {
   Background,
@@ -16,6 +17,7 @@ import {
   ViewportPortal,
   getSmoothStepPath,
   useEdgesState,
+  useNodesInitialized,
   useNodesState,
   useReactFlow,
   useStore,
@@ -490,7 +492,13 @@ function Canvas({
 
   const [nodes, setNodes, onNodesChange] = useNodesState(graph.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(graph.edges);
-  const [selectedId, setSelectedId] = React.useState<string | null>(null);
+  // `/tree?person=<id>` opens the canvas on one entry — where the "View on
+  // tree" button on a notification points. The panel opens on the first render
+  // rather than through an effect; only the camera move has to wait (below).
+  const focusId = useSearchParams().get("person");
+  const [selectedId, setSelectedId] = React.useState<string | null>(() =>
+    focusId && people.some((p) => p.id === focusId) ? focusId : null,
+  );
   const [selectedPetId, setSelectedPetId] = React.useState<string | null>(null);
   // The spotlighted connection, plus which way along it the click pointed.
   const [selectedEdgeId, setSelectedEdgeId] =
@@ -757,6 +765,24 @@ function Canvas({
     },
     [fitView],
   );
+
+  // Centre the deep-linked entry, once the nodes have been measured: the canvas
+  // runs its own `fitView` on mount and would otherwise pull the viewport
+  // straight back off the person we just framed. One-shot, so panning away
+  // afterwards doesn't snap back.
+  const nodesReady = useNodesInitialized();
+  const framedRef = React.useRef(false);
+  React.useEffect(() => {
+    if (framedRef.current || !nodesReady) return;
+    if (!focusId || selectedId !== focusId) return;
+    framedRef.current = true;
+    void fitView({
+      nodes: [{ id: focusId }],
+      duration: 600,
+      maxZoom: 1.4,
+      minZoom: 1.4,
+    });
+  }, [nodesReady, focusId, selectedId, fitView]);
 
   const onNodeClick = React.useCallback<NodeMouseHandler>((_, node) => {
     setSelectedEdgeId(null);

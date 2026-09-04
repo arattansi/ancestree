@@ -71,7 +71,7 @@ export function NotificationsList({ items }: { items: NotificationItem[] }) {
             {n.personId ? (
               <Button
                 nativeButton={false}
-                render={<Link href="/tree" />}
+                render={<Link href={`/tree?person=${n.personId}`} />}
                 size="sm"
                 variant="ghost"
               >
