@@ -84,7 +84,13 @@ export function AddCompanionDialog({
       toast.error("Pick at least one person this companion belongs to.");
       return;
     }
-    const result = await addPet({ values, companionIds: companions });
+    // The person whose panel this was opened from is the primary connection:
+    // they're the one the chip hangs from. Changed later from the pet's panel.
+    const result = await addPet({
+      values,
+      companionIds: companions,
+      primaryPersonId: startingWith,
+    });
     if (result.error || !result.petId) {
       toast.error(result.error ?? "Couldn't add this companion.");
       return;

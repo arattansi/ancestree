@@ -35,6 +35,8 @@ function friendlyError(message: string | undefined): string {
 export async function addPet(input: {
   values: PetFormValues;
   companionIds: string[];
+  /** Which companion the chip hangs from; the first one if not given. */
+  primaryPersonId?: string | null;
 }): Promise<PetActionResult> {
   const profile = await requireProfile();
 
@@ -78,8 +80,47 @@ export async function addPet(input: {
     return { error: friendlyError(linkError.message) };
   }
 
+  // The primary is set *after* the links exist: the DB checks it against them,
+  // so it can't travel on the insert. Best-effort — a pet with no primary still
+  // draws, hanging off its topmost companion.
+  const primary =
+    input.primaryPersonId && companionIds.includes(input.primaryPersonId)
+      ? input.primaryPersonId
+      : companionIds[0];
+  await supabase
+    .from("pets")
+    .update({ primary_person_id: primary })
+    .eq("id", pet.id);
+
   revalidatePath("/tree");
   return { petId: pet.id };
+}
+
+/**
+ * Choose which companion a pet hangs from on the canvas.
+ *
+ * The primary decides the chip's row and keeps it tethered there; the other
+ * companions only pull it sideways. See lib/pet-layout.ts.
+ */
+export async function setPetPrimaryCompanion(
+  petId: string,
+  personId: string,
+): Promise<{ error?: string }> {
+  await requireProfile();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("pets")
+    .update({ primary_person_id: personId })
+    .eq("id", petId);
+
+  if (error) {
+    if (error.message.toLowerCase().includes("primary connection")) {
+      return { error: "Pick someone this companion already belongs to." };
+    }
+    return { error: friendlyError(error.message) };
+  }
+  revalidatePath("/tree");
+  return {};
 }
 
 /** Edit the handful of fields a companion has. */

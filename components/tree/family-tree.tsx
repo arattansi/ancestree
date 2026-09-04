@@ -372,14 +372,34 @@ function buildGraph(
   // Companions are laid out *after* the humans, from the human positions, and
   // joined by a dotted lead rather than a descent or spouse line: nothing about
   // a pet is allowed to look like a family edge.
+  //
+  // The spouse map goes along so a married primary anchors its pet on the
+  // couple: a household pet straddles the pair rather than hanging off one of
+  // them, whether or not both partners were listed as companions.
+  const spousesOf = new Map<string, string[]>();
+  for (const r of relationships) {
+    if (r.type !== "spouse") continue;
+    if (!ids.has(r.from_person) || !ids.has(r.to_person)) continue;
+    spousesOf.set(r.from_person, [
+      ...(spousesOf.get(r.from_person) ?? []),
+      r.to_person,
+    ]);
+    spousesOf.set(r.to_person, [
+      ...(spousesOf.get(r.to_person) ?? []),
+      r.from_person,
+    ]);
+  }
+
   const petLayout = layoutPets(
     pets.map((pet) => ({
       id: pet.id,
       companions: pet.companions,
+      primary: pet.primary_person_id,
       pos_dx: pet.pos_dx,
       pos_dy: pet.pos_dy,
     })),
     layout.autoPositions,
+    { spouses: spousesOf },
   );
 
   for (const pet of pets) {

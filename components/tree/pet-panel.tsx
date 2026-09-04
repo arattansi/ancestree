@@ -11,6 +11,7 @@ import {
   removePet,
   removePetCompanion,
   setPetPhoto,
+  setPetPrimaryCompanion,
   updatePet,
 } from "@/app/actions/pets";
 import { CompanionFields } from "@/components/tree/companion-fields";
@@ -181,6 +182,19 @@ export function PetPanel({
     router.refresh();
   }
 
+  async function onSetPrimary(personId: string) {
+    if (!pet || personId === pet.primary_person_id) return;
+    setBusy(true);
+    const result = await setPetPrimaryCompanion(pet.id, personId);
+    setBusy(false);
+    if (result.error) {
+      toast.error(result.error);
+      return;
+    }
+    toast.success("Primary connection updated.");
+    router.refresh();
+  }
+
   async function onRemove() {
     if (!pet) return;
     if (
@@ -319,21 +333,42 @@ export function PetPanel({
 
                 <section className="flex flex-col gap-3">
                   <h2 className="text-sm font-semibold">Companion to</h2>
-                  <ul className="flex flex-col gap-1">
-                    {pet.companions.map((id) => (
-                      <li key={id}>
-                        <button
-                          type="button"
-                          className="text-sm underline underline-offset-2 hover:text-foreground"
-                          onClick={() => onSelectPerson(id)}
+                  <ul className="flex flex-col gap-1.5">
+                    {pet.companions.map((id) => {
+                      const isPrimary = id === pet.primary_person_id;
+                      return (
+                        <li
+                          key={id}
+                          className="flex flex-wrap items-center gap-2"
                         >
-                          {labelById.get(id) ?? "Someone on the tree"}
-                        </button>
-                      </li>
-                    ))}
+                          <button
+                            type="button"
+                            className="text-sm underline underline-offset-2 hover:text-foreground"
+                            onClick={() => onSelectPerson(id)}
+                          >
+                            {labelById.get(id) ?? "Someone on the tree"}
+                          </button>
+                          {isPrimary ? (
+                            <Badge variant="secondary">Primary</Badge>
+                          ) : !readOnly && canEdit ? (
+                            <button
+                              type="button"
+                              className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground disabled:opacity-50"
+                              onClick={() => onSetPrimary(id)}
+                              disabled={busy}
+                            >
+                              Make primary
+                            </button>
+                          ) : null}
+                        </li>
+                      );
+                    })}
                   </ul>
                   <p className="text-xs text-muted-foreground">
                     A companion can belong to as many people as lived with them.
+                    The primary connection is where {pet.name} sits on the tree
+                    &mdash; under that person, or under the couple if they have a
+                    partner &mdash; leaning towards everyone else on the list.
                   </p>
                 </section>
                 </>

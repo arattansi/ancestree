@@ -548,6 +548,8 @@ export type Database = {
           created_by: string
           expires_at: string | null
           id: string
+          invited_email: string | null
+          person_id: string | null
           status: string
           token: string
           tree_id: string
@@ -559,6 +561,8 @@ export type Database = {
           created_by: string
           expires_at?: string | null
           id?: string
+          invited_email?: string | null
+          person_id?: string | null
           status?: string
           token?: string
           tree_id: string
@@ -570,6 +574,8 @@ export type Database = {
           created_by?: string
           expires_at?: string | null
           id?: string
+          invited_email?: string | null
+          person_id?: string | null
           status?: string
           token?: string
           tree_id?: string
@@ -603,6 +609,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "invites_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "invites_tree_id_fkey"
@@ -870,6 +883,52 @@ export type Database = {
           },
         ]
       }
+      pet_comments: {
+        Row: {
+          body: string
+          created_at: string
+          created_by: string
+          id: string
+          pet_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          created_by: string
+          id?: string
+          pet_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          pet_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pet_comments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "pet_comments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "pet_comments_pet_id_fkey"
+            columns: ["pet_id"]
+            isOneToOne: false
+            referencedRelation: "pets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pet_companions: {
         Row: {
           created_at: string
@@ -920,52 +979,6 @@ export type Database = {
           },
         ]
       }
-      pet_comments: {
-        Row: {
-          body: string
-          created_at: string
-          created_by: string
-          id: string
-          pet_id: string
-        }
-        Insert: {
-          body: string
-          created_at?: string
-          created_by: string
-          id?: string
-          pet_id: string
-        }
-        Update: {
-          body?: string
-          created_at?: string
-          created_by?: string
-          id?: string
-          pet_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "pet_comments_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "member_directory"
-            referencedColumns: ["auth_user_id"]
-          },
-          {
-            foreignKeyName: "pet_comments_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["auth_user_id"]
-          },
-          {
-            foreignKeyName: "pet_comments_pet_id_fkey"
-            columns: ["pet_id"]
-            isOneToOne: false
-            referencedRelation: "pets"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       pets: {
         Row: {
           birth_date: string | null
@@ -981,6 +994,7 @@ export type Database = {
           place_id_birth: number | null
           pos_dx: number | null
           pos_dy: number | null
+          primary_person_id: string | null
           species: string
           species_label: string | null
           tree_id: string
@@ -1002,6 +1016,7 @@ export type Database = {
           place_id_birth?: number | null
           pos_dx?: number | null
           pos_dy?: number | null
+          primary_person_id?: string | null
           species: string
           species_label?: string | null
           tree_id: string
@@ -1023,6 +1038,7 @@ export type Database = {
           place_id_birth?: number | null
           pos_dx?: number | null
           pos_dy?: number | null
+          primary_person_id?: string | null
           species?: string
           species_label?: string | null
           tree_id?: string
@@ -1039,6 +1055,13 @@ export type Database = {
             referencedColumns: ["auth_user_id"]
           },
           {
+            foreignKeyName: "pets_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
             foreignKeyName: "pets_place_id_birth_fkey"
             columns: ["place_id_birth"]
             isOneToOne: false
@@ -1046,11 +1069,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "pets_created_by_fkey"
-            columns: ["created_by"]
+            foreignKeyName: "pets_primary_person_id_fkey"
+            columns: ["primary_person_id"]
             isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["auth_user_id"]
+            referencedRelation: "people"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "pets_tree_id_fkey"
@@ -1527,6 +1550,7 @@ export type Database = {
       invite_preview: {
         Args: { p_token: string }
         Returns: {
+          claim_person_name: string
           inviter_name: string
           tree_name: string
           valid: boolean

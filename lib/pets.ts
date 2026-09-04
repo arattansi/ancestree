@@ -25,13 +25,19 @@ export type TreePet = {
   pos_dx: number | null;
   pos_dy: number | null;
   created_by: string;
+  /**
+   * The companion the chip hangs from on the canvas. Always one of
+   * `companions`; null only on a pet whose primary was deleted, which the
+   * layout covers by standing in the topmost companion.
+   */
+  primary_person_id: string | null;
   photo_url: string | null;
   /** The people this pet belongs to. Always at least one (see the DB trigger). */
   companions: string[];
 };
 
 const PET_COLUMNS =
-  "id, name, species, species_label, year_born, birth_date, place_id_birth, city_of_birth, country_of_birth, year_died, is_deceased, photo_path, photo_crop, pos_dx, pos_dy, created_by";
+  "id, name, species, species_label, year_born, birth_date, place_id_birth, city_of_birth, country_of_birth, year_died, is_deceased, photo_path, photo_crop, pos_dx, pos_dy, created_by, primary_person_id";
 
 /**
  * Every companion in the tree with its people and a signed photo URL. Read
