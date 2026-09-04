@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache";
 
 import { requireAdmin, requireProfile } from "@/lib/auth";
 import { sendEmail } from "@/lib/email";
+import { claimInviteEmail } from "@/lib/emails/claim-invite";
 import { inviteSentEmail } from "@/lib/emails/invite-sent";
+import { personDisplayName } from "@/lib/person-name";
 import { getSiteUrl } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/server";
 
@@ -189,6 +191,105 @@ export async function sendDirectInvites(
 
   revalidatePath("/admin");
   return { results };
+}
+
+export type ClaimInviteState = {
+  /** The address the link went to, for the confirmation message. */
+  email?: string;
+  error?: string;
+};
+
+/**
+ * Admin: email an invite for one specific unclaimed entry.
+ *
+ * The invite carries the person on it, which does two things the general
+ * invite can't: the join page names the entry, and whoever redeems the link
+ * may claim *that* entry without passing the fuzzy name match — an admin
+ * picking the entry and typing the address is the stronger signal, and the
+ * name rule is what would otherwise block a married surname or a nickname.
+ * See supabase/migrations/20260904100000_invite_to_claim_entry.sql.
+ */
+export async function sendClaimInvite(
+  personId: string,
+  email: string,
+): Promise<ClaimInviteState> {
+  const admin = await requireAdmin();
+
+  const address = email.trim().toLowerCase();
+  if (!EMAIL_RE.test(address)) {
+    return { error: "That doesn't look like an email address." };
+  }
+
+  const supabase = await createClient();
+
+  const { data: person } = await supabase
+    .from("people")
+    .select("id, tree_id, first_name, preferred_name, last_name, owner_user_id, created_by")
+    .eq("id", personId)
+    .maybeSingle();
+
+  if (!person) return { error: "That entry no longer exists." };
+
+  // Refuse on anything already spoken for, so an invite can never be used to
+  // hand someone else's entry away. Mirrors the guards in `claim_person`.
+  const [{ data: claim }, { data: member }] = await Promise.all([
+    supabase
+      .from("claims")
+      .select("id")
+      .eq("person_id", personId)
+      .eq("status", "approved")
+      .maybeSingle(),
+    supabase
+      .from("profiles")
+      .select("auth_user_id")
+      .eq("self_person_id", personId)
+      .maybeSingle(),
+  ]);
+
+  if (claim || member || person.owner_user_id !== person.created_by) {
+    return { error: "That entry already belongs to a member." };
+  }
+
+  const expiresAt = new Date(
+    Date.now() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000,
+  ).toISOString();
+
+  const { data: invite, error } = await supabase
+    .from("invites")
+    .insert({
+      tree_id: person.tree_id,
+      created_by: admin.auth_user_id,
+      status: "active",
+      expires_at: expiresAt,
+      person_id: personId,
+      invited_email: address,
+    })
+    .select("token")
+    .single();
+
+  if (error || !invite) {
+    return { error: "Could not create an invite link. Try again." };
+  }
+
+  const entryName = personDisplayName(person);
+  const { subject, html } = claimInviteEmail({
+    firstName: person.preferred_name || person.first_name || entryName,
+    entryName,
+    inviterName: admin.display_name ?? "A family member",
+    url: `${getSiteUrl()}/join/${invite.token}`,
+  });
+  const sent = await sendEmail({ to: address, subject, html });
+
+  if (!sent.ok) {
+    return {
+      error:
+        "The link was created but the email didn't send. Try again, or share the link from the admin page.",
+    };
+  }
+
+  revalidatePath("/tree");
+  revalidatePath("/admin");
+  return { email: address };
 }
 
 /** Admin-only: grant or revoke a member's ability to mint invites. */

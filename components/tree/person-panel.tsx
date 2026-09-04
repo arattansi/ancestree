@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { claimPerson, disputeClaim } from "@/app/actions/claims";
 import { setEntryVerified } from "@/app/actions/entry-comments";
+import { sendClaimInvite } from "@/app/actions/invites";
 import {
   resolveConnectionSuggestion,
   setPersonPhotoCrop,
@@ -434,6 +435,10 @@ export function PersonPanel({
   const [photoOpen, setPhotoOpen] = React.useState(false);
   const [addingCompanion, setAddingCompanion] = React.useState(false);
   const [cropOpen, setCropOpen] = React.useState(false);
+  const [claimEmail, setClaimEmail] = React.useState("");
+  const [claimInviteSent, setClaimInviteSent] = React.useState<string | null>(
+    null,
+  );
   const savedCrop = parseCrop(person?.photo_crop);
   const [crop, setCrop] = React.useState<CropTransform>(savedCrop);
   const [prevId, setPrevId] = React.useState(person?.id);
@@ -447,6 +452,8 @@ export function PersonPanel({
     setAddingCompanion(false);
     setCropOpen(false);
     setCrop(savedCrop);
+    setClaimEmail("");
+    setClaimInviteSent(null);
   }
 
   async function onSaveCrop() {
@@ -475,6 +482,20 @@ export function PersonPanel({
     toast.success("Claimed — this is now your entry.");
     onClose();
     router.refresh();
+  }
+
+  async function onSendClaimInvite() {
+    if (!person) return;
+    setBusy(true);
+    const res = await sendClaimInvite(person.id, claimEmail);
+    setBusy(false);
+    if (res.error) {
+      toast.error(res.error);
+      return;
+    }
+    setClaimInviteSent(res.email ?? claimEmail.trim());
+    setClaimEmail("");
+    toast.success(`Invite sent to ${res.email ?? "them"}.`);
   }
 
   async function onToggleVerified() {
@@ -741,6 +762,55 @@ export function PersonPanel({
                       </Button>
                     ) : null}
                   </div>
+
+                  {/* Nobody is behind this entry yet: the owner never moved
+                      away from whoever created it, and no claim stuck. Same
+                      test the server re-runs before minting the link. */}
+                  {isAdmin &&
+                  !isSelf &&
+                  person.claim_status !== "approved" &&
+                  person.owner_user_id === person.created_by ? (
+                    <div className="flex flex-col gap-2 rounded-md border border-border p-3">
+                      <Label
+                        htmlFor="claim-invite-email"
+                        className="text-xs font-medium"
+                      >
+                        Invite {personDisplayName(person)} to claim this entry
+                      </Label>
+                      <div className="flex flex-wrap gap-2">
+                        <Input
+                          id="claim-invite-email"
+                          type="email"
+                          inputMode="email"
+                          autoComplete="off"
+                          className="min-w-[12rem] flex-1"
+                          value={claimEmail}
+                          onChange={(e) => setClaimEmail(e.target.value)}
+                          placeholder="them@example.com"
+                          disabled={busy}
+                        />
+                        <Button
+                          size="sm"
+                          onClick={onSendClaimInvite}
+                          disabled={busy || claimEmail.trim().length === 0}
+                        >
+                          {busy ? "Sending…" : "Send invite"}
+                        </Button>
+                      </div>
+                      {claimInviteSent ? (
+                        <p className="text-xs text-muted-foreground">
+                          Sent to {claimInviteSent}. Opening the link lets them
+                          join and take over this entry.
+                        </p>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">
+                          Emails them a single-use link, good for 14 days. It
+                          names this entry, and claiming it hands them the
+                          record to keep up to date.
+                        </p>
+                      )}
+                    </div>
+                  ) : null}
 
                   {person.verified_at ? (
                     <p className="text-xs text-muted-foreground">

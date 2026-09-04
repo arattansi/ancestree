@@ -44,10 +44,26 @@ export default async function InvitePage({
                 <span className="font-medium text-foreground">
                   {preview.inviter_name}
                 </span>{" "}
-                invited you to help build{" "}
-                <span className="font-medium text-foreground">
-                  {preview.tree_name}
-                </span>
+                invited you to{" "}
+                {preview.claim_person_name ? (
+                  <>
+                    join{" "}
+                    <span className="font-medium text-foreground">
+                      {preview.tree_name}
+                    </span>{" "}
+                    and claim the entry for{" "}
+                    <span className="font-medium text-foreground">
+                      {preview.claim_person_name}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    help build{" "}
+                    <span className="font-medium text-foreground">
+                      {preview.tree_name}
+                    </span>
+                  </>
+                )}
                 . Enter your email to get a sign-in link — opening it accepts the
                 invite.
               </CardDescription>
