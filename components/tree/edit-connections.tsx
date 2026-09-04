@@ -177,7 +177,7 @@ export function EditConnections({
                 <SelectContent>
                   {KINDS.map((k) => (
                     <SelectItem key={k} value={k}>
-                      {KIND_STATEMENT[k]}
+                      {personName} {KIND_STATEMENT[k]} {otherLabel}
                     </SelectItem>
                   ))}
                 </SelectContent>

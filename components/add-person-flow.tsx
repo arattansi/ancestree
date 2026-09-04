@@ -563,7 +563,8 @@ export function AddPersonFlow({
                           <SelectContent>
                             {RELATIONSHIP_KINDS.map((k) => (
                               <SelectItem key={k} value={k}>
-                                {KIND_STATEMENT[k]}
+                                {linkSubject(i)} {KIND_STATEMENT[k]}{" "}
+                                {linkObject(i)}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -718,7 +719,7 @@ export function AddPersonFlow({
                                 <SelectContent>
                                   {RELATIONSHIP_KINDS.map((k) => (
                                     <SelectItem key={k} value={k}>
-                                      {KIND_STATEMENT[k]}
+                                      {primaryLabel} {KIND_STATEMENT[k]}
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
