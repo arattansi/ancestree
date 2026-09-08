@@ -3,10 +3,13 @@
 import * as React from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 
+import { LeafCard } from "@/components/tree/leaf-card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cropStyle, parseCrop } from "@/lib/image-crop";
+import { nativeLeaf } from "@/lib/native-leaf";
 import { cn } from "@/lib/utils";
 import {
+  nodeDisplayName,
   personDisplayName,
   personInitials,
   personLifespan,
@@ -21,14 +24,21 @@ export type PersonNodeData = {
   dimmed?: boolean;
   /** An endpoint of the connection the user clicked — shown ringed. */
   highlighted?: boolean;
+  /** On the spotlighted person's own tree — drawn as a leaf, pulled forward. */
+  lineage?: boolean;
+  /** Off that tree — shown blurred back behind it. */
+  blurred?: boolean;
 };
 
 const handleClass = "!size-1.5 !border-0 !bg-border";
 
 function PersonNodeImpl({ data }: NodeProps) {
-  const { person, isSelf, selected, dimmed, highlighted } =
+  const { person, isSelf, selected, dimmed, highlighted, lineage, blurred } =
     data as PersonNodeData;
+  // The full name for the hover preview and the tooltip; the condensed one for
+  // the card itself, where a surname would otherwise be cut off mid-word.
   const name = personDisplayName(person);
+  const cardName = nodeDisplayName(person);
   const deceased = person.is_deceased;
   // Dates on their own line ("1948 – 2019" / "b. 1995"), birthplace on the next,
   // so a deceased person's death year is always visible without crowding out
@@ -36,8 +46,51 @@ function PersonNodeImpl({ data }: NodeProps) {
   const lifespan = personLifespan(person);
   const birthplace = person.city_of_birth || person.country_of_birth || null;
 
+  // Pulled out of the wider tree, a card stops being a card: it becomes a leaf
+  // off the branch it hangs on, shaped by where this person was born.
+  if (lineage) {
+    return (
+      <div className="relative">
+        <Handle type="target" position={Position.Top} className={handleClass} />
+        <Handle
+          type="target"
+          position={Position.Left}
+          id="l"
+          className={handleClass}
+        />
+        <Handle
+          type="source"
+          position={Position.Right}
+          id="r"
+          className={handleClass}
+        />
+        <Handle
+          type="source"
+          position={Position.Bottom}
+          className={handleClass}
+        />
+        <LeafCard
+          person={person}
+          leaf={nativeLeaf(person)}
+          selected={!!selected}
+          isSelf={isSelf}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className={cn("group relative", dimmed && "opacity-25")}>
+    <div
+      className={cn(
+        "group relative transition-[opacity,filter] duration-300",
+        dimmed && "opacity-25",
+        // Blurred back rather than merely faded: the spotlighted tree reads as
+        // sitting in front of the rest of the canvas, not just brighter than
+        // it. Still clickable — clicking a blurred relative moves the
+        // spotlight onto their line.
+        blurred && "opacity-30 blur-[2px] saturate-50",
+      )}
+    >
       {person.photo_url ? (
         // On hover the card "grows": a larger copy of the card anchored to the
         // same centre, with a big photo above the name so the name stays visible.
@@ -144,7 +197,7 @@ function PersonNodeImpl({ data }: NodeProps) {
             )}
             title={name}
           >
-            <span className="truncate">{name}</span>
+            <span className="truncate">{cardName}</span>
             {person.verified_at ? (
               <span
                 className="shrink-0 text-primary"

@@ -17,10 +17,10 @@ import {
   ViewportPortal,
   getSmoothStepPath,
   useEdgesState,
-  useNodesInitialized,
   useNodesState,
   useReactFlow,
   useStore,
+  useUpdateNodeInternals,
   type Edge,
   type EdgeProps,
   type Node,
@@ -52,6 +52,7 @@ import { Button } from "@/components/ui/button";
 import type { ClaimCandidate } from "@/lib/claims";
 import type { PanelSuggestion } from "@/lib/connection-suggestions";
 import { multiTreeEnabled } from "@/lib/flags";
+import { personSpotlight } from "@/lib/person-spotlight";
 import { cn } from "@/lib/utils";
 import {
   bloodline,
@@ -65,6 +66,7 @@ import {
   type Lateral,
   type GenerationBand,
   type TreeLayout,
+  type XY,
 } from "@/lib/tree-layout";
 import { layoutPets } from "@/lib/pet-layout";
 import type { TreePet } from "@/lib/pets";
@@ -72,9 +74,12 @@ import { personDisplayName } from "@/lib/person-name";
 import type { TreeGraphEdge, TreeGraphPerson } from "@/lib/tree";
 import type { PersonRelation } from "@/components/tree/person-panel";
 
-// Spotlight palette from the 🌳 emoji: the ringed cards glow foliage green
-// (#77B255, in person-node.tsx); the connection lines take the trunk brown.
+// Spotlight palette from the 🌳 emoji: foliage green for the cards and the
+// leaves they turn into (#77B255, in person-node.tsx and leaf-card.tsx), trunk
+// brown for everything that carries them — branch lines, stems, the pill that
+// names the tree you pulled out.
 const SPOTLIGHT_BROWN = "#A57939";
+const SPOTLIGHT_GREEN = "#77B255";
 
 const sameDescent = (a: Descent, b: Descent) =>
   a.startX === b.startX && a.startY === b.startY && a.busY === b.busY;
@@ -139,13 +144,18 @@ function DescentEdge({
     sameDescent,
   );
 
+  // Pulled out of the tree, the cards are leaves and a branch that stopped
+  // somewhere on top of one would read as a line lying across it. So the line
+  // runs down, along, and into the stem — the leaf hangs off the branch the
+  // way a leaf does.
+  const toStem = data?.toStem === true;
   const [path] = getSmoothStepPath({
     sourceX: descent.startX,
     sourceY: descent.startY,
     sourcePosition: Position.Bottom,
     targetX,
     targetY,
-    targetPosition: Position.Top,
+    targetPosition: toStem ? Position.Left : Position.Top,
     borderRadius: 10,
     centerY: descent.busY,
   });
@@ -229,14 +239,20 @@ function GenerationLane({
   band,
   minX,
   maxX,
+  faded,
 }: {
   band: GenerationBand;
   minX: number;
   maxX: number;
+  /** A tree has been pulled out; these lanes belong to the one left behind. */
+  faded?: boolean;
 }) {
   return (
     <div
-      className="pointer-events-none absolute"
+      className={cn(
+        "pointer-events-none absolute transition-opacity duration-500",
+        faded && "opacity-20",
+      )}
       style={{
         transform: `translate(${minX}px, ${band.y}px)`,
         width: maxX - minX,
@@ -505,7 +521,11 @@ function Canvas({
     React.useState<SelectedEdge | null>(null);
   const [filter, setFilter] = React.useState<TreeFilter>(EMPTY_FILTER);
   const [arranging, setArranging] = React.useState(false);
-  const { fitView, getNode, screenToFlowPosition } = useReactFlow();
+  const { getNode, screenToFlowPosition, setCenter } = useReactFlow();
+  const updateNodeInternals = useUpdateNodeInternals();
+  // The canvas's own pixel size, for framing the pulled-out tree by hand.
+  const paneWidth = useStore((state: ReactFlowState) => state.width);
+  const paneHeight = useStore((state: ReactFlowState) => state.height);
 
   // React Flow's own `colorMode="system"` reads the OS preference while it
   // renders, so the server said "light", the client said "dark", and hydration
@@ -529,18 +549,6 @@ function Canvas({
     setEdges(graph.edges);
   }, [graph, setNodes, setEdges]);
 
-  React.useEffect(() => {
-    setNodes((current) =>
-      current.map((n) => {
-        const selected =
-          n.type === "pet" ? n.id === selectedPetId : n.id === selectedId;
-        return n.data.selected === selected
-          ? n
-          : { ...n, data: { ...n.data, selected } };
-      }),
-    );
-  }, [selectedId, selectedPetId, setNodes]);
-
   const filterActive = isFilterActive(filter);
   const matchingIds = React.useMemo(() => {
     if (!filterActive) return null;
@@ -549,25 +557,101 @@ function Canvas({
     );
   }, [people, filter, filterActive]);
 
+  // Clicking a person: their own tree — the line above and below them, plus
+  // the partners along it — and the connections that run through it. Everyone
+  // else is blurred back so the one lineage can be read on its own.
+  const spotlight = React.useMemo(() => {
+    if (!selectedId) return null;
+    const {
+      people: lit,
+      ancestors,
+      descendants,
+    } = personSpotlight(selectedId, relationships);
+    const edgeIds = new Set<string>();
+    for (const e of graph.edges) {
+      if (e.type === "descent") {
+        const parents = (
+          Array.isArray(e.data?.parents) ? e.data.parents : []
+        ) as string[];
+        // The child has to be on the line as well as a parent: a lit person's
+        // partner brings their own children in otherwise.
+        if (lit.has(e.target) && parents.some((pid) => lit.has(pid)))
+          edgeIds.add(e.id);
+      } else if (e.type === "spouse") {
+        const pair = (
+          Array.isArray(e.data?.pair) ? e.data.pair : []
+        ) as string[];
+        if (pair.length > 0 && pair.every((pid) => lit.has(pid)))
+          edgeIds.add(e.id);
+      } else if (lit.has(e.source)) {
+        // A companion's dotted lead, hanging off somebody lit.
+        edgeIds.add(e.id);
+      }
+    }
+    return { people: lit, edgeIds, ancestors, descendants };
+  }, [selectedId, relationships, graph.edges]);
+
+  // A card that turns into a leaf is a different piece of DOM with its handles
+  // in new elements, and the canvas has no way of knowing that on its own: it
+  // keeps the bounds it measured for the rectangle, stops considering the graph
+  // initialised, and every edge stays pinned to where a handle used to be.
+  // Telling it which cards changed shape puts all of that right.
+  const shapeShifted = React.useRef<Set<string>>(new Set());
   React.useEffect(() => {
-    const petById = new Map(pets.map((pet) => [pet.id, pet]));
-    setNodes((current) =>
-      current.map((n) => {
-        let dimmed = false;
-        if (matchingIds !== null) {
-          if (n.type === "pet") {
-            const pet = petById.get(n.id);
-            dimmed = pet ? !petMatchesFilter(pet, filter, matchingIds) : false;
-          } else {
-            dimmed = !matchingIds.has(n.id);
-          }
-        }
-        return n.data.dimmed === dimmed
-          ? n
-          : { ...n, data: { ...n.data, dimmed } };
-      }),
-    );
-  }, [matchingIds, filter, pets, setNodes]);
+    const lit = spotlight?.people ?? new Set<string>();
+    const changed = [...new Set([...shapeShifted.current, ...lit])];
+    shapeShifted.current = new Set(lit);
+    if (changed.length > 0) updateNodeInternals(changed);
+  }, [spotlight, updateNodeInternals]);
+
+  /**
+   * Pull the line clear of the tree it sits in.
+   *
+   * The spotlit people are laid out again *on their own* — the same layout
+   * engine, given only them — so the gaps their siblings, cousins and in-laws
+   * were holding open close up and the lineage contracts into a small tree of
+   * its own. It is anchored on the person who was clicked, who does not move,
+   * so the rest visibly travels inward to them rather than the whole thing
+   * jumping somewhere new. Companions come along, keeping their offset from
+   * the person they belong to.
+   *
+   * Nothing here is written back to node state: these positions are painted on
+   * over the real ones, so closing the spotlight puts everybody back and no
+   * drag is ever recorded against a position the reader didn't choose.
+   */
+  const pulled = React.useMemo(() => {
+    if (!spotlight || !selectedId) return null;
+    const lit = spotlight.people;
+    const litPeople = people.filter((p) => lit.has(p.id));
+    if (litPeople.length < 2) return null;
+
+    const compact = layoutTree(litPeople, relationships, {
+      anchorIds: [selectedId],
+    });
+    const anchor = compact.autoPositions.get(selectedId);
+    const home = graph.layout.positions.get(selectedId);
+    if (!anchor || !home) return null;
+    const dx = home.x - anchor.x;
+    const dy = home.y - anchor.y;
+
+    const positions = new Map<string, XY>();
+    for (const [id, spot] of compact.autoPositions)
+      positions.set(id, { x: spot.x + dx, y: spot.y + dy });
+
+    for (const pet of pets) {
+      const primary = pet.primary_person_id ?? pet.companions[0];
+      if (!primary) continue;
+      const moved = positions.get(primary);
+      const wasPerson = graph.layout.positions.get(primary);
+      const wasPet = graph.petPositions.get(pet.id);
+      if (!moved || !wasPerson || !wasPet) continue;
+      positions.set(pet.id, {
+        x: wasPet.x + (moved.x - wasPerson.x),
+        y: wasPet.y + (moved.y - wasPerson.y),
+      });
+    }
+    return positions;
+  }, [spotlight, selectedId, people, pets, relationships, graph]);
 
   // Clicking a connection: work out what it joins, name it, and collect the
   // nodes and edges the spotlight should keep lit.
@@ -671,39 +755,113 @@ function Canvas({
     return null;
   }, [selectedEdgeId, graph.edges, nameById, relationships]);
 
-  // Ring the people at each end of the clicked connection.
-  React.useEffect(() => {
+  // Everything the canvas says about a card beyond where it sits — the ring on
+  // the open entry, the fade on a card the search filtered out, the ring on a
+  // clicked connection's endpoints, and the spotlight's lit line against its
+  // blurred surroundings — is derived here rather than written back into node
+  // state. Held as state it went stale every time the graph was re-seeded: the
+  // fresh nodes came back with the flags cleared and the open entry quietly
+  // lost its ring.
+  //
+  // It is built off `graph.nodes` — the layout's own copies, which only change
+  // when the tree does — rather than off the live `nodes` state, so a drag
+  // hands every card back the same `data` object it already had and only the
+  // card being dragged re-renders.
+  const dataById = React.useMemo(() => {
+    const petById = new Map(pets.map((pet) => [pet.id, pet]));
     const endpoints = connection?.endpoints ?? null;
-    setNodes((current) =>
-      current.map((n) => {
-        if (n.type !== "person") return n;
-        const highlighted = endpoints?.has(n.id) ?? false;
-        return n.data.highlighted === highlighted
-          ? n
-          : { ...n, data: { ...n.data, highlighted } };
-      }),
-    );
-  }, [connection, setNodes]);
+    const lit = spotlight?.people ?? null;
+    const map = new Map<string, Record<string, unknown>>();
+    for (const n of graph.nodes) {
+      const isPet = n.type === "pet";
+      const pet = isPet ? petById.get(n.id) : undefined;
+      const selected = isPet ? n.id === selectedPetId : n.id === selectedId;
+      const dimmed =
+        matchingIds === null
+          ? false
+          : isPet
+            ? pet
+              ? !petMatchesFilter(pet, filter, matchingIds)
+              : false
+            : !matchingIds.has(n.id);
+      const highlighted = !isPet && (endpoints?.has(n.id) ?? false);
+      // A companion follows its people onto the lit line, and off it.
+      const inLine = !lit
+        ? false
+        : isPet
+          ? !!pet?.companions.some((id) => lit.has(id))
+          : lit.has(n.id);
+      map.set(n.id, {
+        ...n.data,
+        selected,
+        dimmed,
+        highlighted,
+        lineage: !!lit && inLine,
+        blurred: !!lit && !inLine,
+      });
+    }
+    return map;
+  }, [
+    graph.nodes,
+    pets,
+    filter,
+    matchingIds,
+    connection,
+    spotlight,
+    selectedId,
+    selectedPetId,
+  ]);
 
-  // Fade every connection except the spotlighted run — for a descent line the
-  // whole bloodline above it — and draw those in trunk brown.
+  const displayNodes = React.useMemo(
+    () =>
+      nodes.map((n) => {
+        const data = dataById.get(n.id);
+        const position = pulled?.get(n.id);
+        if (!position && (!data || data === n.data)) return n;
+        return {
+          ...n,
+          ...(data ? { data } : {}),
+          ...(position ? { position } : {}),
+          // The pulled-out line rides over what is left behind it.
+          ...(pulled ? { zIndex: position ? 20 : 0 } : {}),
+        };
+      }),
+    [nodes, dataById, pulled],
+  );
+
+  // Fade every connection except the spotlighted one — for a descent line the
+  // whole bloodline above it, for a person the whole line their tree hangs on
+  // — and draw what's left in trunk brown: the lit lines are the branches the
+  // leaves grow off, and they thicken as they carry more.
   const displayEdges = React.useMemo(() => {
-    const activeIds = connection?.edgeIds ?? null;
+    const activeIds = connection?.edgeIds ?? spotlight?.edgeIds ?? null;
     if (!activeIds) return edges;
+    // While a tree is pulled out its descent lines end on the leaf stems, which
+    // hang off the left of each card.
+    const toStem = !!pulled;
     return edges.map((e) => {
       const active = activeIds.has(e.id);
+      const stemmed = toStem && active && e.type === "descent";
       return {
         ...e,
+        ...(stemmed
+          ? { targetHandle: "l", data: { ...e.data, toStem: true } }
+          : {}),
         style: {
           ...e.style,
           ...(active
-            ? { stroke: SPOTLIGHT_BROWN, strokeWidth: 3, opacity: 1 }
-            : { opacity: 0.15 }),
+            ? {
+                stroke: SPOTLIGHT_BROWN,
+                strokeWidth: 3,
+                opacity: 1,
+                strokeLinecap: "round" as const,
+              }
+            : { opacity: 0.1 }),
         },
         zIndex: active ? 10 : undefined,
       };
     });
-  }, [edges, connection]);
+  }, [edges, connection, spotlight, pulled]);
 
   /**
    * A descent line is below its parents and above its child at the same time,
@@ -752,37 +910,116 @@ function Canvas({
     [getNode, screenToFlowPosition],
   );
 
-  const onPick = React.useCallback(
-    (personId: string) => {
-      setSelectedPetId(null);
-      setSelectedId(personId);
-      void fitView({
-        nodes: [{ id: personId }],
-        duration: 600,
-        maxZoom: 1.4,
-        minZoom: 1.4,
-      });
+  const onPick = React.useCallback((personId: string) => {
+    setSelectedPetId(null);
+    setSelectedId(personId);
+  }, []);
+
+  /**
+   * Aim the camera, in both directions.
+   *
+   * Opening a person's tree frames the *compact* positions their cards are
+   * travelling to; closing it frames every card again, so the reader is handed
+   * back the whole family rather than left on the patch of canvas the lineage
+   * happened to occupy. Both do the arithmetic here rather than calling
+   * `fitView`, which reads the canvas's own store — during a pull-out that
+   * store is a frame behind, and it holds nothing about the details sheet
+   * covering the right-hand side.
+   *
+   * Gated on the canvas's own first fit rather than on whether every card has
+   * been measured: cards change shape here, and a measurement that is briefly
+   * out of date should not cost the reader the camera move.
+   */
+  // The canvas can only be aimed once its pan-zoom exists; before that a
+  // camera move is silently dropped. `onInit` fires earlier than that, so this
+  // watches the store for the instance itself.
+  const canvasReady = useStore((state: ReactFlowState) => !!state.panZoom);
+  const frame = React.useCallback(
+    (spots: XY[], panelWidth: number, maxZoom: number, duration = 650) => {
+      if (spots.length === 0 || !paneWidth || !paneHeight) return;
+      const minX = Math.min(...spots.map((s) => s.x));
+      const maxX = Math.max(...spots.map((s) => s.x)) + NODE_W;
+      const minY = Math.min(...spots.map((s) => s.y));
+      const maxY = Math.max(...spots.map((s) => s.y)) + NODE_H;
+      const usableW = Math.max(240, paneWidth - panelWidth - 160);
+      const usableH = Math.max(240, paneHeight - 220);
+      const zoom = Math.min(
+        maxZoom,
+        usableW / (maxX - minX),
+        usableH / (maxY - minY),
+      );
+      void setCenter(
+        (minX + maxX) / 2 + panelWidth / 2 / zoom,
+        (minY + maxY) / 2,
+        { zoom, duration },
+      );
     },
-    [fitView],
+    [paneWidth, paneHeight, setCenter],
   );
 
-  // Centre the deep-linked entry, once the nodes have been measured: the canvas
-  // runs its own `fitView` on mount and would otherwise pull the viewport
-  // straight back off the person we just framed. One-shot, so panning away
-  // afterwards doesn't snap back.
-  const nodesReady = useNodesInitialized();
-  const framedRef = React.useRef(false);
+  /** The person whose tree the camera is currently framing. */
+  const framedRef = React.useRef<string | null>(null);
+
+  // The opening view: the whole tree, once the canvas can be aimed at all.
+  const openedRef = React.useRef(false);
   React.useEffect(() => {
-    if (framedRef.current || !nodesReady) return;
-    if (!focusId || selectedId !== focusId) return;
-    framedRef.current = true;
-    void fitView({
-      nodes: [{ id: focusId }],
-      duration: 600,
-      maxZoom: 1.4,
-      minZoom: 1.4,
-    });
-  }, [nodesReady, focusId, selectedId, fitView]);
+    if (!canvasReady || !paneWidth || openedRef.current) return;
+    openedRef.current = true;
+    // Unless the canvas was opened on somebody (`/tree?person=…`), in which
+    // case the effect below is framing their tree instead.
+    if (selectedId) return;
+    // Instant, not animated: the opening view has nothing to animate from, and
+    // an animated camera move this early is dropped before it starts.
+    frame([...graph.layout.positions.values()], 0, 1, 0);
+  }, [canvasReady, paneWidth, selectedId, graph.layout.positions, frame]);
+
+  React.useEffect(() => {
+    if (!canvasReady || !paneWidth || !paneHeight) return;
+    if (!selectedId || !spotlight) {
+      if (!framedRef.current) return;
+      framedRef.current = null;
+      // Back out to the whole tree, never magnified past life size — and on
+      // the same delay as the way in, for the same reason.
+      const spots = [...graph.layout.positions.values()];
+      const timer = setTimeout(() => frame(spots, 0, 1), 120);
+      return () => clearTimeout(timer);
+    }
+    if (framedRef.current === selectedId) return;
+    framedRef.current = selectedId;
+
+    // The details sheet covers the right of a wide canvas, so frame the tree
+    // in what is left of it. On a narrow screen the sheet covers everything
+    // and there is nothing to aim around; on a middling one it is never given
+    // more than a third of the canvas, or the strip left over is too thin to
+    // put a family in.
+    const panel = paneWidth >= 640 ? Math.min(448, paneWidth / 3) : 0;
+    const spots = pulled
+      ? [...spotlight.people].flatMap((id) => {
+          const spot = pulled.get(id);
+          return spot ? [spot] : [];
+        })
+      : [];
+    // Aimed a beat after the cards have moved, not with them. Selecting a
+    // person changes every card's position and re-measures the ones that just
+    // became leaves; the canvas responds by re-applying its own transform,
+    // which cancels an animated camera move that is already in flight. Letting
+    // that settle first is the difference between the camera arriving and the
+    // camera never leaving.
+    const alone = graph.layout.positions.get(selectedId);
+    const target = spots.length > 0 ? spots : alone ? [alone] : [];
+    if (target.length === 0) return;
+    const timer = setTimeout(() => frame(target, panel, 1.15), 120);
+    return () => clearTimeout(timer);
+  }, [
+    canvasReady,
+    selectedId,
+    spotlight,
+    pulled,
+    paneWidth,
+    paneHeight,
+    graph.layout.positions,
+    frame,
+  ]);
 
   const onNodeClick = React.useCallback<NodeMouseHandler>((_, node) => {
     setSelectedEdgeId(null);
@@ -906,7 +1143,8 @@ function Canvas({
   return (
     <>
       <ReactFlow
-        nodes={nodes}
+        className={cn(pulled && "tree-pulled")}
+        nodes={displayNodes}
         edges={displayEdges}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
@@ -921,13 +1159,18 @@ function Canvas({
           setSelectedEdgeId(null);
         }}
         colorMode={colorMode}
-        fitView
-        fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
+        // The opening view is framed by `frame` below, not by React Flow's own
+        // `fitView`: that one runs when the cards are first measured, and a
+        // card changing shape re-measures it, so it would re-fire in the
+        // middle of a pull-out and yank the camera back off the tree the
+        // reader just opened.
         minZoom={0.15}
         maxZoom={1.75}
         proOptions={{ hideAttribution: true }}
         nodesConnectable={false}
-        nodesDraggable={!readOnly}
+        // A card that has been pulled out of the tree is not where the reader
+        // put it, so dragging is off until the spotlight closes.
+        nodesDraggable={!readOnly && !spotlight}
       >
         <ViewportPortal>
           {graph.layout.bands.map((band) => (
@@ -936,6 +1179,7 @@ function Canvas({
               band={band}
               minX={graph.layout.extent.minX - 96}
               maxX={graph.layout.extent.maxX + 96}
+              faded={!!spotlight}
             />
           ))}
         </ViewportPortal>
@@ -1003,6 +1247,42 @@ function Canvas({
             </Button>
           ) : null}
         </Panel>
+        {spotlight && selectedPerson ? (
+          <Panel
+            position="bottom-center"
+            className="flex flex-col items-center gap-1.5"
+          >
+            <div
+              className="flex items-center gap-3 rounded-full border bg-card px-4 py-2 text-sm shadow-md"
+              style={{ borderColor: `${SPOTLIGHT_BROWN}55` }}
+            >
+              <span aria-hidden style={{ color: SPOTLIGHT_GREEN }}>
+                🌿
+              </span>
+              <span className="font-medium text-foreground">
+                {personDisplayName(selectedPerson)}&rsquo;s tree
+              </span>
+              <span className="text-muted-foreground">
+                {spotlight.ancestors}{" "}
+                {spotlight.ancestors === 1 ? "ancestor" : "ancestors"}
+                <span className="mx-1.5 text-muted-foreground/50">·</span>
+                {spotlight.descendants}{" "}
+                {spotlight.descendants === 1 ? "descendant" : "descendants"}
+              </span>
+              <button
+                type="button"
+                className="text-muted-foreground/60 hover:text-foreground"
+                onClick={() => setSelectedId(null)}
+                aria-label="Show the whole tree again"
+              >
+                ✕
+              </button>
+            </div>
+            <span className="rounded-full bg-card/80 px-2 py-0.5 text-[11px] text-muted-foreground">
+              Each leaf is a tree that grows where that person was born.
+            </span>
+          </Panel>
+        ) : null}
         {connection ? (
           <Panel position="bottom-center">
             <div className="flex items-center gap-3 rounded-full border border-border bg-card px-4 py-2 text-sm shadow-md">

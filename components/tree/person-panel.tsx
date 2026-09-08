@@ -46,6 +46,7 @@ import {
   type CropTransform,
 } from "@/lib/image-crop";
 import { SEX_LABELS, type Sex } from "@/lib/person-schema";
+import { cn } from "@/lib/utils";
 import {
   petYears,
   speciesLabel,
@@ -550,48 +551,98 @@ export function PersonPanel({
   }
 
   return (
+    // Non-modal, with no scrim: the canvas behind is doing the work of showing
+    // this person's own tree lit against the blurred rest of the family, and a
+    // backdrop would blur the spotlight away along with everything else. It
+    // stays live too, so clicking another relative moves the spotlight onto
+    // them rather than only dismissing the panel.
     <Sheet
       open={open}
+      modal={false}
+      disablePointerDismissal
       onOpenChange={(next) => {
         if (!next) onClose();
       }}
     >
-      <SheetContent className="w-full gap-0 overflow-y-auto sm:max-w-md">
+      <SheetContent
+        showOverlay={false}
+        // Over a portrait, the sheet's own ghost close button can land on a
+        // pale patch of photograph and disappear; with a photo the panel
+        // brings its own.
+        showCloseButton={!person?.photo_url}
+        className="w-full gap-0 overflow-y-auto sm:max-w-md"
+      >
         {person ? (
           <>
-            <SheetHeader className="gap-3">
-              <div className="flex items-center gap-3">
-                {person.photo_url ? (
-                  <button
-                    type="button"
-                    className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    onClick={() => setPhotoOpen(true)}
-                    aria-label={`View photo of ${personDisplayName(person)}`}
-                  >
-                    <Avatar size="lg" className="cursor-zoom-in">
-                      <AvatarImage
-                        src={person.photo_url}
-                        alt=""
-                        style={cropStyle(parseCrop(person.photo_crop))}
-                      />
-                      <AvatarFallback>{personInitials(person)}</AvatarFallback>
-                    </Avatar>
-                  </button>
-                ) : (
+            {/* With a photo, the panel opens on the person's face: a portrait
+                across the full width of the sheet, with the name over the foot
+                of it. The old inline avatar was a 48px circle wedged between
+                the title and the close button, which is both the least you can
+                do with a photograph and the most crowded place to put one. */}
+            {person.photo_url ? (
+              <>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  aria-label="Close"
+                  className="absolute top-3 right-3 z-10 flex size-8 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-sm transition-colors hover:bg-black/65 focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:outline-none"
+                >
+                  <span aria-hidden>✕</span>
+                </button>
+                <button
+                  type="button"
+                  className="group relative block aspect-[4/3] w-full shrink-0 cursor-zoom-in overflow-hidden bg-muted outline-none"
+                  onClick={() => setPhotoOpen(true)}
+                  aria-label={`View photo of ${personDisplayName(person)}`}
+                >
+                  <img
+                    src={person.photo_url}
+                    alt=""
+                    style={cropStyle(parseCrop(person.photo_crop))}
+                    className="size-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                  />
+                  {/* The name sits on the photo, over a scrim dark enough to
+                    carry it whatever the picture underneath is doing. */}
+                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/45 to-transparent px-4 pt-10 pb-3 text-left">
+                    <p className="font-heading truncate text-base font-medium text-white">
+                      {personDisplayName(person)}
+                    </p>
+                    <p className="truncate text-sm text-white/80">
+                      {personLifespan(person) ?? "Living"}
+                      {isSelf ? " · Your entry" : ""}
+                    </p>
+                  </div>
+                </button>
+              </>
+            ) : null}
+            <SheetHeader className={cn("gap-3", person.photo_url && "pt-3")}>
+              {person.photo_url ? (
+                <>
+                  {/* The sheet still needs its accessible name and description,
+                      but they are on the photo now. */}
+                  <SheetTitle className="sr-only">
+                    {personDisplayName(person)}
+                  </SheetTitle>
+                  <SheetDescription className="sr-only">
+                    {personLifespan(person) ?? "Living"}
+                  </SheetDescription>
+                </>
+              ) : (
+                <div className="flex items-center gap-3">
                   <Avatar size="lg">
                     <AvatarFallback>{personInitials(person)}</AvatarFallback>
                   </Avatar>
-                )}
-                <div className="min-w-0">
-                  <SheetTitle className="truncate">
-                    {personDisplayName(person)}
-                  </SheetTitle>
-                  <SheetDescription>
-                    {personLifespan(person) ?? "Living"}
-                    {isSelf ? " · Your entry" : ""}
-                  </SheetDescription>
+                  <div className="min-w-0">
+                    <SheetTitle className="truncate">
+                      {personDisplayName(person)}
+                    </SheetTitle>
+                    <SheetDescription>
+                      {personLifespan(person) ?? "Living"}
+                      {isSelf ? " · Your entry" : ""}
+                    </SheetDescription>
+                  </div>
                 </div>
-              </div>
+              )}
               <div className="flex flex-wrap gap-1.5">
                 {person.is_deceased ? (
                   <Badge variant="secondary">Deceased</Badge>

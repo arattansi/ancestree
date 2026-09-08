@@ -18,6 +18,10 @@ export type PetNodeData = {
   selected?: boolean;
   /** Filtered out by the tree search panel — shown faded. */
   dimmed?: boolean;
+  /** Belongs to somebody on the spotlighted tree. */
+  lineage?: boolean;
+  /** Off that tree — shown blurred back behind it. */
+  blurred?: boolean;
 };
 
 const handleClass = "!size-1 !border-0 !bg-transparent";
@@ -31,14 +35,20 @@ const handleClass = "!size-1 !border-0 !bg-transparent";
  * dog" and never as another relative in the row below.
  */
 function PetNodeImpl({ data }: NodeProps) {
-  const { pet, selected, dimmed } = data as PetNodeData;
+  const { pet, selected, dimmed, blurred } = data as PetNodeData;
   const years = petYears(pet);
   const kind = speciesLabel(pet);
   const glyph =
     SPECIES_GLYPHS[pet.species as PetSpecies] ?? SPECIES_GLYPHS.other;
 
   return (
-    <div className={cn("group relative", dimmed && "opacity-25")}>
+    <div
+      className={cn(
+        "group relative transition-[opacity,filter] duration-300",
+        dimmed && "opacity-25",
+        blurred && "opacity-30 blur-[2px] saturate-50",
+      )}
+    >
       {pet.photo_url ? (
         <div
           className={cn(

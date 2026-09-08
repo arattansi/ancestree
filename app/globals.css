@@ -136,3 +136,15 @@
 .react-flow__node:hover {
   z-index: 1000 !important;
 }
+/* While one person's tree is pulled out of the canvas, the cards that make it
+   up travel to their own compact layout instead of jumping there. The class is
+   only on the canvas during a spotlight, so an ordinary drag stays immediate. */
+.tree-pulled .react-flow__node {
+  transition: transform 560ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tree-pulled .react-flow__node {
+    transition: none;
+  }
+}
