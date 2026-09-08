@@ -1629,6 +1629,16 @@ export type Database = {
         Args: { p_comment_id: string; p_resolved?: boolean }
         Returns: undefined
       }
+      resolve_implied_connection: {
+        Args: {
+          p_related: string
+          p_resolution: string
+          p_source: string
+          p_subject: string
+          p_type: string
+        }
+        Returns: undefined
+      }
       search_self_candidates: {
         Args: { p_first: string; p_last: string }
         Returns: {

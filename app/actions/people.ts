@@ -19,6 +19,8 @@ import type {
   ImpliedConnection,
   NewPersonInput,
   PendingEdge,
+  SuggestedType,
+  SuggestionSource,
 } from "@/lib/connection-suggestions";
 import { getSharedTree } from "@/lib/tree";
 import { createClient } from "@/lib/supabase/server";
@@ -274,6 +276,41 @@ export async function resolveConnectionSuggestion(
   });
   if (error) return { error: friendlyConnectionError(error.message) };
   revalidatePath("/tree");
+  return {};
+}
+
+/**
+ * Answer a candidate the engine derived. A derived candidate has no row of its
+ * own, so it is identified by its shape — subject, related, type, source — the
+ * same unique key the ledger stores. Accepting a `spouse` / `parent` also
+ * creates the edge; a `duplicate_check` only records the answer, because the
+ * app has no merge to run.
+ */
+export async function resolveImpliedConnection(input: {
+  subjectPersonId: string;
+  relatedPersonId: string;
+  suggestedType: SuggestedType;
+  /**
+   * Every rule that proposed this edge. A merged prompt carries more than one,
+   * and all of them are recorded, so answering once settles it for good.
+   */
+  sources: SuggestionSource[];
+  resolution: "accepted" | "dismissed";
+}): Promise<{ error?: string }> {
+  await requireProfile();
+  const supabase = await createClient();
+  for (const source of input.sources) {
+    const { error } = await supabase.rpc("resolve_implied_connection", {
+      p_subject: input.subjectPersonId,
+      p_related: input.relatedPersonId,
+      p_type: input.suggestedType,
+      p_source: source,
+      p_resolution: input.resolution,
+    });
+    if (error) return { error: friendlyConnectionError(error.message) };
+  }
+  revalidatePath("/tree");
+  revalidatePath("/tree/review");
   return {};
 }
 

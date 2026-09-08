@@ -1,4 +1,9 @@
 import type { PersonFormValues } from "@/lib/person-schema";
+// Type-only, so this doesn't create an import cycle with the engine.
+import type {
+  SuggestedType,
+  SuggestionSource,
+} from "@/lib/connection-suggestions";
 
 /**
  * How a person relates to the person they connect to. `parent` / `child` are
@@ -38,8 +43,8 @@ export type ConnectionEdge = {
 export type ResolvedSuggestionInput = {
   subject: PersonRef;
   related: PersonRef;
-  suggested_type: "spouse" | "parent" | "sibling_check";
-  source: "co_parent" | "unlinked_spouse_child" | "name_dob_match";
+  suggested_type: SuggestedType;
+  source: SuggestionSource;
   resolution: "accepted" | "dismissed" | "pending";
 };
 

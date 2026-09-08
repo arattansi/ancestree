@@ -238,21 +238,6 @@ export function AddPersonFlow({
   const needAnchor = showChain;
   const intermediateCount = people.fields.length - 1;
 
-  const labelForRef = React.useCallback(
-    (ref: PersonRef): string => {
-      if (ref.kind === "existing") {
-        return (
-          members.find((m) => m.id === ref.id)?.label ?? "someone on the tree"
-        );
-      }
-      const n = personDisplayName(watchedPeople[ref.index] ?? {});
-      if (n !== "Unnamed person") return n;
-      if (ref.index === 0) return mode === "self" ? "you" : "this person";
-      return `person ${ref.index}`;
-    },
-    [members, watchedPeople, mode],
-  );
-
   if (mustConnect && members.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
@@ -300,26 +285,20 @@ export function AddPersonFlow({
     links.remove(links.fields.length - 1);
   }
 
-  const prompts: SuggestionPrompt[] = suggestions.map((s) => {
-    const a = labelForRef(s.subject);
-    const b = labelForRef(s.related);
-    if (s.source === "co_parent") {
-      return {
-        suggestion: s,
-        question: `Are ${a} and ${b} married or partners?`,
-      };
-    }
-    if (s.source === "unlinked_spouse_child") {
-      return {
-        suggestion: s,
-        question: `Is ${a} also a parent of ${labelForRef(s.child ?? s.related)}?`,
-      };
-    }
-    return {
-      suggestion: s,
-      question: `${a} shares a last name and birth year with ${b} — are they related?`,
-    };
-  });
+  // The engine explains itself; the modal shows that explanation rather than
+  // re-deriving a question from the rule name.
+  const prompts: SuggestionPrompt[] = suggestions.map((s) => ({
+    suggestion: s,
+    question: s.reason,
+    yesLabel:
+      s.suggestedType === "spouse"
+        ? "Yes, they're partners"
+        : s.suggestedType === "parent"
+          ? "Yes, add the parent"
+          : s.suggestedType === "duplicate_check"
+            ? "Yes, same person"
+            : "Yes",
+  }));
 
   async function persist(
     values: FlowValues,
@@ -429,9 +408,12 @@ export function AddPersonFlow({
     }
 
     const detected = await detectConnections({
+      // Names go along so the engine can name people in its explanations.
       newPeople: values.people.map((p) => ({
         familyName: p.last_name,
         dateOfBirth: p.date_of_birth || null,
+        givenName: p.preferred_name || p.first_name || null,
+        label: personDisplayName(p),
       })),
       pendingEdges: edges,
     });
@@ -448,13 +430,17 @@ export function AddPersonFlow({
   async function onResolve(resolutions: SuggestionResolution[]) {
     if (!pendingSave) return;
     setSaving(true);
-    const resolved = suggestions.map((s, i) => ({
-      subject: s.subject,
-      related: s.related,
-      suggested_type: s.suggestedType,
-      source: s.source,
-      resolution: resolutions[i],
-    }));
+    // A merged prompt stands for several rules; record the answer against each
+    // of them, so none of them asks again.
+    const resolved = suggestions.flatMap((s, i) =>
+      [s.source, ...s.alsoFrom].map((source) => ({
+        subject: s.subject,
+        related: s.related,
+        suggested_type: s.suggestedType,
+        source,
+        resolution: resolutions[i],
+      })),
+    );
     const ok = await persist(pendingSave.values, pendingSave.edges, resolved);
     setSaving(false);
     if (ok) {

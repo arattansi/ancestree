@@ -5,7 +5,7 @@ import { FamilyTree } from "@/components/tree/family-tree";
 import { Button } from "@/components/ui/button";
 import { getUser, requireSelfPerson } from "@/lib/auth";
 import { listClaimCandidates } from "@/lib/claims";
-import { listPanelSuggestions } from "@/lib/connection-suggestions.server";
+import { auditTreeConnections } from "@/lib/connection-suggestions.server";
 import { getTreePets } from "@/lib/pets";
 import { getSharedTree, getTreeAnchors, getTreeGraph } from "@/lib/tree";
 
@@ -42,7 +42,7 @@ export default async function TreePage() {
   ] = await Promise.all([
     getTreeGraph(tree.id),
     listClaimCandidates(),
-    listPanelSuggestions(tree.id, user.id, profile.role === "admin"),
+    auditTreeConnections(tree.id),
     getTreeAnchors(),
     getTreePets(tree.id),
   ]);

@@ -7,16 +7,18 @@ import { Button } from "@/components/ui/button";
 import { getProfile, getUser } from "@/lib/auth";
 import { listNotifications } from "@/lib/claims";
 import { countAdminActionItems } from "@/lib/admin-notifications";
+import { countOpenConnectionSuggestions } from "@/lib/connection-suggestions.server";
 
 export async function SiteHeader() {
   const profile = await getProfile();
   const isAdmin = profile?.role === "admin";
-  const [user, adminItems] = profile
+  const [user, adminItems, openConnections] = profile
     ? await Promise.all([
         getUser(),
         isAdmin ? countAdminActionItems() : Promise.resolve(0),
+        countOpenConnectionSuggestions(),
       ])
-    : [null, 0];
+    : [null, 0, 0];
   const notifications = user ? await listNotifications(user.id) : [];
 
   return (
@@ -32,6 +34,14 @@ export async function SiteHeader() {
           {profile ? (
             <>
               <SiteNavLink href="/tree">tree</SiteNavLink>
+              {openConnections > 0 ? (
+                <SiteNavLink href="/tree/review">
+                  connections
+                  <Badge variant="secondary" className="ml-1.5">
+                    {openConnections}
+                  </Badge>
+                </SiteNavLink>
+              ) : null}
               {isAdmin ? (
                 <SiteNavLink href="/admin">
                   admin

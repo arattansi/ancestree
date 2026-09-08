@@ -9,13 +9,13 @@ import { claimPerson, disputeClaim } from "@/app/actions/claims";
 import { setEntryVerified } from "@/app/actions/entry-comments";
 import { sendClaimInvite } from "@/app/actions/invites";
 import {
-  resolveConnectionSuggestion,
   setPersonPhotoCrop,
   updateRelationshipMarriage,
 } from "@/app/actions/people";
 import { deletePerson } from "@/app/actions/privacy";
 import type { PanelSuggestion } from "@/lib/connection-suggestions";
 import { PersonDocuments } from "@/components/person-documents";
+import { ConnectionPromptList } from "@/components/tree/connection-prompts";
 import { AddCompanionDialog } from "@/components/tree/add-companion-dialog";
 import type { CompanionOption } from "@/components/tree/companion-picker";
 import { PhotoCropEditor } from "@/components/photo-crop-editor";
@@ -66,16 +66,6 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-function suggestionQuestion(s: PanelSuggestion): string {
-  if (s.source === "co_parent") {
-    return `Are ${s.subjectLabel} and ${s.relatedLabel} married or partners?`;
-  }
-  if (s.source === "unlinked_spouse_child") {
-    return `Is ${s.subjectLabel} also a parent of ${s.relatedLabel}?`;
-  }
-  return `${s.subjectLabel} shares a last name and birth year with ${s.relatedLabel} — are they related?`;
-}
-
 function PendingConnectionPrompts({
   suggestions,
   onResolved,
@@ -83,69 +73,12 @@ function PendingConnectionPrompts({
   suggestions: PanelSuggestion[];
   onResolved: () => void;
 }) {
-  const [busyId, setBusyId] = React.useState<string | null>(null);
-
-  async function resolve(
-    id: string,
-    resolution: "accepted" | "dismissed" | "pending",
-  ) {
-    setBusyId(id);
-    const res = await resolveConnectionSuggestion(id, resolution);
-    setBusyId(null);
-    if (res.error) {
-      toast.error(res.error);
-      return;
-    }
-    toast.success(
-      resolution === "accepted"
-        ? "Connection added."
-        : resolution === "dismissed"
-          ? "Dismissed."
-          : "We'll ask again later.",
-    );
-    onResolved();
-  }
-
   if (suggestions.length === 0) return null;
 
   return (
     <section className="flex flex-col gap-3 border-t border-border pt-5">
       <h2 className="text-sm font-semibold">Connections to check</h2>
-      <ul className="flex flex-col gap-3">
-        {suggestions.map((s) => (
-          <li
-            key={s.id}
-            className="flex flex-col gap-2 rounded-md border border-border p-3"
-          >
-            <p className="text-sm">{suggestionQuestion(s)}</p>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                size="sm"
-                disabled={busyId !== null}
-                onClick={() => resolve(s.id, "accepted")}
-              >
-                {s.suggestedType === "sibling_check" ? "Yes" : "Yes, link them"}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={busyId !== null}
-                onClick={() => resolve(s.id, "dismissed")}
-              >
-                No
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                disabled={busyId !== null}
-                onClick={() => resolve(s.id, "pending")}
-              >
-                Skip for now
-              </Button>
-            </div>
-          </li>
-        ))}
-      </ul>
+      <ConnectionPromptList suggestions={suggestions} onResolved={onResolved} />
     </section>
   );
 }
