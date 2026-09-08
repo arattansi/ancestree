@@ -58,6 +58,7 @@ import {
   bloodline,
   descentGeometry,
   lateralGeometry,
+  stemBranchPath,
   layoutTree,
   NODE_H,
   NODE_W,
@@ -84,6 +85,22 @@ const SPOTLIGHT_GREEN = "#77B255";
 const sameDescent = (a: Descent, b: Descent) =>
   a.startX === b.startX && a.startY === b.startY && a.busY === b.busY;
 
+const sameRect = (a: CardRect | null, b: CardRect | null) =>
+  a?.x === b?.x && a?.y === b?.y && a?.w === b?.w && a?.h === b?.h;
+
+/** One node's live rectangle, or null while it is still unmeasured. */
+function rectOf(state: ReactFlowState, nodeId: string): CardRect | null {
+  const node = state.nodeLookup.get(nodeId);
+  if (!node) return null;
+  const { x, y } = node.internals.positionAbsolute;
+  return {
+    x,
+    y,
+    w: node.measured?.width ?? NODE_W,
+    h: node.measured?.height ?? NODE_H,
+  };
+}
+
 /**
  * A descent line from a couple down to one child.
  *
@@ -99,6 +116,7 @@ const sameDescent = (a: Descent, b: Descent) =>
  */
 function DescentEdge({
   id,
+  target,
   sourceX,
   sourceY,
   targetX,
@@ -121,41 +139,54 @@ function DescentEdge({
     [sourceX, sourceY, targetY, data],
   );
 
+  // Pulled out of the tree, the cards are leaves: a branch that stopped
+  // anywhere on top of one would read as a line lying across it, so the line
+  // leaves the parents at their stems and arrives at the child's, and the
+  // geometry has to know which shape it is routing between.
+  const toStem = data?.toStem === true;
+
   const descent = useStore(
     React.useCallback(
       (state: ReactFlowState): Descent => {
         const rects = parents
-          .map((parentId) => {
-            const node = state.nodeLookup.get(parentId);
-            if (!node) return null;
-            const { x, y } = node.internals.positionAbsolute;
-            return {
-              x,
-              y,
-              w: node.measured?.width ?? NODE_W,
-              h: node.measured?.height ?? NODE_H,
-            };
-          })
+          .map((parentId) => rectOf(state, parentId))
           .filter((rect): rect is CardRect => rect !== null);
-        return descentGeometry(rects, targetY) ?? fallback;
+        return descentGeometry(rects, targetY, { leafy: toStem }) ?? fallback;
       },
-      [parents, fallback, targetY],
+      [parents, fallback, targetY, toStem],
     ),
     sameDescent,
   );
 
-  // Pulled out of the tree, the cards are leaves and a branch that stopped
-  // somewhere on top of one would read as a line lying across it. So the line
-  // runs down, along, and into the stem — the leaf hangs off the branch the
-  // way a leaf does.
-  const toStem = data?.toStem === true;
+  // The child's own rectangle, so the branch can turn in along its stem rather
+  // than at whatever point the target handle happens to have been measured at.
+  const childRect = useStore(
+    React.useCallback(
+      (state: ReactFlowState) => (toStem ? rectOf(state, target) : null),
+      [target, toStem],
+    ),
+    sameRect,
+  );
+
+  if (toStem) {
+    const child = childRect ?? {
+      x: targetX,
+      y: targetY - NODE_H / 2,
+      w: NODE_W,
+      h: NODE_H,
+    };
+    return (
+      <BaseEdge id={id} path={stemBranchPath(descent, child)} style={style} />
+    );
+  }
+
   const [path] = getSmoothStepPath({
     sourceX: descent.startX,
     sourceY: descent.startY,
     sourcePosition: Position.Bottom,
     targetX,
     targetY,
-    targetPosition: toStem ? Position.Left : Position.Top,
+    targetPosition: Position.Top,
     borderRadius: 10,
     centerY: descent.busY,
   });
@@ -837,11 +868,12 @@ function Canvas({
     const activeIds = connection?.edgeIds ?? spotlight?.edgeIds ?? null;
     if (!activeIds) return edges;
     // While a tree is pulled out its descent lines end on the leaf stems, which
-    // hang off the left of each card.
-    const toStem = !!pulled;
+    // hang off the left of each card. Every line into a leaf is routed that
+    // way, lit or not: a faded line still crosses the blade it lands on.
+    const leaves = pulled ? (spotlight?.people ?? null) : null;
     return edges.map((e) => {
       const active = activeIds.has(e.id);
-      const stemmed = toStem && active && e.type === "descent";
+      const stemmed = !!leaves && e.type === "descent" && leaves.has(e.target);
       return {
         ...e,
         ...(stemmed

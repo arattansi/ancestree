@@ -846,6 +846,15 @@ export type CardRect = { x: number; y: number; w: number; h: number };
 /** Where a descent line leaves its parents, and the bus its siblings share. */
 export type Descent = { startX: number; startY: number; busY: number };
 
+export type DescentOptions = {
+  /**
+   * The parents are drawn as leaves rather than cards. A leaf's blade fills
+   * its box and overhangs it, so there is no clear edge to leave from except
+   * the stem.
+   */
+  leafy?: boolean;
+};
+
 /**
  * Where a couple's descent line starts and where it bends, given the parents'
  * *current* rectangles and the child's current top edge.
@@ -859,6 +868,7 @@ export type Descent = { startX: number; startY: number; busY: number };
 export function descentGeometry(
   parents: CardRect[],
   childTop: number,
+  options: DescentOptions = {},
 ): Descent | null {
   if (parents.length === 0) return null;
 
@@ -868,11 +878,23 @@ export function descentGeometry(
 
   // Normally the line starts on the spouse line, in the gap between partners.
   // If that point would land on top of a card — a lone parent, or partners
-  // dragged apart far enough that their midpoint sits over one of them — drop
-  // below the cards instead so the line never crosses a face.
+  // dragged apart far enough that their midpoint sits over one of them — it
+  // has to move off the card, and where to depends on what the card is.
+  //
+  // A rectangle can be left from underneath: below the bottom edge is empty
+  // canvas. A leaf cannot — the blade overhangs the box top and bottom and
+  // fills it corner to corner, so a line leaving the bottom sets off through
+  // the silhouette. The one strip of a leaf card that is never painted is the
+  // one to the left of the stem, so a leaf is left the way it is entered: at
+  // the stem root, where the branch it hangs on already reaches.
   const overlapsACard = parents.some((r) => startX > r.x && startX < r.x + r.w);
+  const stem = options.leafy
+    ? parents.reduce((a, b) => (a.x <= b.x ? a : b))
+    : null;
   const startY = overlapsACard
-    ? bottom
+    ? stem
+      ? stem.y + stem.h / 2
+      : bottom
     : parents.reduce((sum, r) => sum + r.y + r.h / 2, 0) / parents.length;
 
   // Half a row-gap below the parents puts every sibling on one shared bus.
@@ -881,7 +903,109 @@ export function descentGeometry(
   const busY =
     childTop > bottom + ROW_GAP ? bottom + ROW_GAP / 2 : (bottom + childTop) / 2;
 
-  return { startX, startY, busY };
+  return {
+    startX: overlapsACard && stem ? stem.x : startX,
+    startY,
+    busY,
+  };
+}
+
+/** Where a leaf's stem meets the branch it hangs on: the card's left edge. */
+export const stemPoint = (card: CardRect): XY => ({
+  x: card.x,
+  y: card.y + card.h / 2,
+});
+
+/**
+ * How far to the left of a leaf its branch drops before turning in along the
+ * stem. Half the gap a couple leaves between one blade's tip and the next
+ * one's stem root, so the drop lands in the middle of the only clear channel
+ * there is — clear of the leaf beside it as well as the one it feeds.
+ */
+export const STEM_LANE = COUPLE_GAP / 2 + 2;
+
+/**
+ * The branch from a couple down to one leaf: down out of the parents, along
+ * the bus their children share, down a lane to the left of the child, and in
+ * along its stem.
+ *
+ * Routed by hand rather than by a step-path helper because the helper is free
+ * to run the last leg straight at the target from whichever side is shorter —
+ * which, for a junction sitting above and to the right of a leaf, means
+ * arriving through the middle of the blade. Every corner here is chosen to
+ * stay off the silhouette instead.
+ */
+export function stemBranchPath(
+  descent: Descent,
+  child: CardRect,
+  radius = 10,
+): string {
+  const stem = stemPoint(child);
+  // Always down the lane, never straight at the stem from wherever the
+  // junction happens to be: the run along the bus sits between two rows, where
+  // there is nothing to cross, while a run at stem height crosses every leaf
+  // standing between the junction and this one.
+  const laneX = child.x - STEM_LANE;
+  return roundedPolyline(
+    [
+      { x: descent.startX, y: descent.startY },
+      { x: descent.startX, y: descent.busY },
+      { x: laneX, y: descent.busY },
+      { x: laneX, y: stem.y },
+      stem,
+    ],
+    radius,
+  );
+}
+
+/**
+ * An orthogonal run of points as an SVG path with rounded corners. Duplicate
+ * and collinear points are dropped, so a leg that collapses to nothing leaves
+ * no stray corner behind.
+ */
+export function roundedPolyline(points: XY[], radius: number): string {
+  const pts: XY[] = [];
+  for (const p of points) {
+    const last = pts[pts.length - 1];
+    if (last && last.x === p.x && last.y === p.y) continue;
+    const prev = pts[pts.length - 2];
+    // Three in a line: the middle one is not a corner, so drop it.
+    if (
+      prev &&
+      last &&
+      ((prev.x === last.x && last.x === p.x) ||
+        (prev.y === last.y && last.y === p.y))
+    ) {
+      pts.pop();
+    }
+    pts.push(p);
+  }
+  if (pts.length === 0) return "";
+  if (pts.length === 1) return `M ${pts[0].x},${pts[0].y}`;
+
+  let d = `M ${pts[0].x},${pts[0].y}`;
+  for (let i = 1; i < pts.length - 1; i++) {
+    const corner = pts[i];
+    const before = pts[i - 1];
+    const after = pts[i + 1];
+    const r = Math.min(
+      radius,
+      Math.hypot(corner.x - before.x, corner.y - before.y) / 2,
+      Math.hypot(corner.x - after.x, corner.y - after.y) / 2,
+    );
+    const towards = (to: XY) => {
+      const len = Math.hypot(to.x - corner.x, to.y - corner.y) || 1;
+      return {
+        x: corner.x + ((to.x - corner.x) / len) * r,
+        y: corner.y + ((to.y - corner.y) / len) * r,
+      };
+    };
+    const inbound = towards(before);
+    const outbound = towards(after);
+    d += ` L ${inbound.x},${inbound.y} Q ${corner.x},${corner.y} ${outbound.x},${outbound.y}`;
+  }
+  const end = pts[pts.length - 1];
+  return `${d} L ${end.x},${end.y}`;
 }
 
 /** A lateral (spouse) line: a horizontal run, or an orthogonal jog. */

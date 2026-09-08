@@ -8,6 +8,9 @@ import {
   ROW_H,
   descentGeometry,
   lateralGeometry,
+  roundedPolyline,
+  stemBranchPath,
+  STEM_LANE,
   generationLabel,
   layoutTree,
   ancestorsOf,
@@ -515,6 +518,103 @@ describe("descentGeometry", () => {
 
   it("has no geometry without parents", () => {
     expect(descentGeometry([], childTop)).toBeNull();
+  });
+
+  it("leaves a lone leaf at its stem rather than through the blade", () => {
+    const d = descentGeometry([card(0, 0)], childTop, { leafy: true })!;
+    // The blade fills the box, so the line goes out at the stem root on the
+    // left edge, at the height the stem is drawn.
+    expect(d.startX).toBe(0);
+    expect(d.startY).toBe(NODE_H / 2);
+  });
+
+  it("keeps the couple junction in the gap when the parents are leaves", () => {
+    const d = descentGeometry(partners, childTop, { leafy: true })!;
+    expect(d.startX).toBe(NODE_W + 12);
+    expect(d.startY).toBe(NODE_H / 2);
+  });
+});
+
+describe("stemBranchPath", () => {
+  const card = (x: number, y: number) => ({ x, y, w: NODE_W, h: NODE_H });
+  const descent = { startX: 400, startY: 56, busY: 178 };
+
+  it("ends on the child's stem, coming in from its left", () => {
+    const path = stemBranchPath(descent, card(0, ROW_H));
+    const [, endX, endY] = /L ([-\d.]+),([-\d.]+)$/.exec(path)!;
+    expect(Number(endX)).toBe(0);
+    expect(Number(endY)).toBe(ROW_H + NODE_H / 2);
+  });
+
+  it("keeps everything at the child's height off the blade", () => {
+    // The junction sits above and to the right of the child. The blade
+    // overhangs the card box, so nothing at those heights may sit right of the
+    // stem root — that is where the line used to cut across the leaf.
+    const child = card(0, ROW_H);
+    const path = stemBranchPath(descent, child);
+    const points = [...path.matchAll(/(-?[\d.]+),(-?[\d.]+)/g)].map((m) => ({
+      x: Number(m[1]),
+      y: Number(m[2]),
+    }));
+    const overBlade = points.filter(
+      (p) => p.y > child.y - 24 && p.y < child.y + child.h + 24,
+    );
+    expect(overBlade.length).toBeGreaterThan(0);
+    for (const p of overBlade) expect(p.x).toBeLessThanOrEqual(child.x);
+  });
+
+  it("runs straight down when the junction is already in the lane", () => {
+    const path = stemBranchPath(
+      { startX: -STEM_LANE, startY: 56, busY: 178 },
+      card(0, ROW_H),
+    );
+    // Down the lane and in along the stem: one corner, not three.
+    expect(path.match(/Q/g)!.length).toBe(1);
+  });
+
+  it("carries a junction to the right along the bus, not at stem height", () => {
+    const path = stemBranchPath(descent, card(0, ROW_H));
+    const points = [...path.matchAll(/(-?[\d.]+),(-?[\d.]+)/g)].map((m) => ({
+      x: Number(m[1]),
+      y: Number(m[2]),
+    }));
+    // Everything right of the lane happens at the bus, well above the row the
+    // leaf sits in — that is what keeps it off the leaves in between.
+    for (const p of points) {
+      if (p.x > 0) expect(p.y).toBeLessThanOrEqual(descent.busY);
+    }
+  });
+});
+
+describe("roundedPolyline", () => {
+  it("drops collinear points instead of drawing a corner on them", () => {
+    const straight = roundedPolyline(
+      [
+        { x: 0, y: 0 },
+        { x: 0, y: 50 },
+        { x: 0, y: 100 },
+      ],
+      10,
+    );
+    expect(straight).toBe("M 0,0 L 0,100");
+  });
+
+  it("rounds a corner without overshooting a short leg", () => {
+    const path = roundedPolyline(
+      [
+        { x: 0, y: 0 },
+        { x: 0, y: 8 },
+        { x: 40, y: 8 },
+      ],
+      10,
+    );
+    // The radius is capped at half the shortest leg, so the arc stays inside
+    // the run it belongs to.
+    expect(path).toContain("L 0,4 Q 0,8 4,8");
+  });
+
+  it("has nothing to draw for no points", () => {
+    expect(roundedPolyline([], 10)).toBe("");
   });
 });
 

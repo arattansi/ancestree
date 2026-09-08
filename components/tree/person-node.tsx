@@ -30,7 +30,11 @@ export type PersonNodeData = {
   blurred?: boolean;
 };
 
-const handleClass = "!size-1.5 !border-0 !bg-border";
+// The handles are anchors for the branch lines, never something the reader
+// connects up by hand (the canvas has `nodesConnectable` off), so they are
+// invisible: a grey dot on every edge of every card is four pieces of grit per
+// person, and on a leaf it lands on the blade.
+const handleClass = "!size-1 !border-0 !bg-transparent";
 
 function PersonNodeImpl({ data }: NodeProps) {
   const { person, isSelf, selected, dimmed, highlighted, lineage, blurred } =
