@@ -18,6 +18,7 @@ import {
   type SuggestionResolution,
 } from "@/components/connection-approval-dialog";
 import type { ImpliedConnection } from "@/lib/connection-suggestions";
+import { CoParentOffer } from "@/components/co-parent-offer";
 import { NewCanvasPrompt } from "@/components/new-canvas-prompt";
 import { PersonFields } from "@/components/person-fields";
 import { PhotoPicker } from "@/components/photo-picker";
@@ -146,6 +147,8 @@ const flowSchema = z.object({
       z.object({
         targetId: z.string().min(1, "Pick someone on the tree."),
         kind: z.enum(RELATIONSHIP_KINDS),
+        /** Child links only — the target's partners to record as a parent too. */
+        coParentIds: z.array(z.string()).optional(),
         ...spouseDatesShape,
       }),
     )
@@ -432,6 +435,21 @@ export function AddPersonFlow({
       edges = edges.concat(
         edge.type === "spouse" ? { ...edge, ...spouseDates(row) } : edge,
       );
+
+      // "is a child of" this target: their partners become parents too.
+      if (row.kind === "child") {
+        const target = members.find((m) => m.id === row.targetId);
+        for (const id of coParentSelection(
+          row.coParentIds,
+          target?.partners ?? [],
+        )) {
+          edges = edges.concat({
+            type: "parent",
+            a: { kind: "existing", id },
+            b: { kind: "new", index: 0 },
+          });
+        }
+      }
     }
 
     const detected = await detectConnections({
@@ -599,50 +617,18 @@ export function AddPersonFlow({
                           }}
                         />
                       ) : null}
-                      {watchedLinks[i]?.kind === "child" &&
-                      i === 0 &&
-                      anchorPartners.length > 0 ? (
-                        <div className="flex flex-col gap-1.5">
-                          <p className="text-xs text-muted-foreground">
-                            Who else is a parent?
-                          </p>
-                          {anchorPartners.map((partner) => {
-                            const chosen = coParentSelection(
-                              watchedLinks[i]?.coParentIds,
-                              anchorPartners,
-                            );
-                            const checked = chosen.includes(partner.id);
-                            return (
-                              <label
-                                key={partner.id}
-                                className="flex items-start gap-2 text-xs text-muted-foreground"
-                              >
-                                <Checkbox
-                                  id={`link-${i}-coparent-${partner.id}`}
-                                  checked={checked}
-                                  onCheckedChange={(c) =>
-                                    form.setValue(
-                                      `links.${i}.coParentIds`,
-                                      c === true
-                                        ? [...chosen, partner.id]
-                                        : chosen.filter(
-                                            (id) => id !== partner.id,
-                                          ),
-                                      { shouldDirty: true },
-                                    )
-                                  }
-                                />
-                                <span>
-                                  {partner.label} is also a parent
-                                  {partner.isDivorced
-                                    ? ` — ${anchorLabel}'s former partner`
-                                    : ""}
-                                  .
-                                </span>
-                              </label>
-                            );
-                          })}
-                        </div>
+                      {watchedLinks[i]?.kind === "child" && i === 0 ? (
+                        <CoParentOffer
+                          idBase={`link-${i}`}
+                          partners={anchorPartners}
+                          chosen={watchedLinks[i]?.coParentIds ?? null}
+                          parentLabel={anchorLabel}
+                          onChange={(ids) =>
+                            form.setValue(`links.${i}.coParentIds`, ids, {
+                              shouldDirty: true,
+                            })
+                          }
+                        />
                       ) : null}
                       {watchedLinks[i]?.kind === "sibling" &&
                       i === 0 &&
@@ -800,6 +786,29 @@ export function AddPersonFlow({
                                     ?.message
                                 }
                               </p>
+                            ) : null}
+                            {watchedExtra[i]?.kind === "child" ? (
+                              <CoParentOffer
+                                idBase={`extra-${i}`}
+                                partners={
+                                  members.find(
+                                    (m) => m.id === watchedExtra[i]?.targetId,
+                                  )?.partners ?? []
+                                }
+                                chosen={watchedExtra[i]?.coParentIds ?? null}
+                                parentLabel={
+                                  members.find(
+                                    (m) => m.id === watchedExtra[i]?.targetId,
+                                  )?.label
+                                }
+                                onChange={(ids) =>
+                                  form.setValue(
+                                    `extraLinks.${i}.coParentIds`,
+                                    ids,
+                                    { shouldDirty: true },
+                                  )
+                                }
+                              />
                             ) : null}
                             {watchedExtra[i]?.kind === "spouse" ? (
                               <SpouseDatesFields

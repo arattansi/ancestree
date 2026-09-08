@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { connectExistingPeople, removeRelationship } from "@/app/actions/people";
+import { CoParentOffer } from "@/components/co-parent-offer";
 import { coParentSelection, type PartnerOption } from "@/lib/connections";
 import {
   RelationshipPicker,
@@ -239,33 +240,13 @@ export function EditConnections({
               <span className="font-medium">{otherLabel}</span>
             </div>
 
-            {coParentOffer.length > 0 ? (
-              <div className="flex flex-col gap-1.5 rounded-md border border-dashed border-border p-3">
-                <p className="text-xs font-medium">Who else is a parent?</p>
-                {coParentOffer.map((partner) => (
-                  <label
-                    key={partner.id}
-                    className="flex items-start gap-2 text-xs text-muted-foreground"
-                  >
-                    <Checkbox
-                      id={`conn-coparent-${partner.id}`}
-                      checked={chosenCoParents.includes(partner.id)}
-                      onCheckedChange={(c) =>
-                        setCoParentIds(
-                          c === true
-                            ? [...chosenCoParents, partner.id]
-                            : chosenCoParents.filter((id) => id !== partner.id),
-                        )
-                      }
-                    />
-                    <span>
-                      {partner.label} is also a parent
-                      {partner.isDivorced ? " — a former partner" : ""}.
-                    </span>
-                  </label>
-                ))}
-              </div>
-            ) : null}
+            <CoParentOffer
+              idBase="conn"
+              partners={coParentOffer}
+              chosen={coParentIds}
+              parentLabel={kind === "child" ? otherLabel : personName}
+              onChange={setCoParentIds}
+            />
 
             {kind === "spouse" ? (
               <div className="flex flex-col gap-3 rounded-md border border-dashed border-border p-3">
