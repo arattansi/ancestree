@@ -167,6 +167,9 @@ export default async function EditPersonPage({
       <EditConnections
         personId={person.id}
         personName={personDisplayName(person)}
+        personPartners={
+          allMembers.find((m) => m.id === person.id)?.partners ?? []
+        }
         members={members}
         connections={connections}
       />

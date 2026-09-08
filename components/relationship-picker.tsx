@@ -15,6 +15,12 @@ export type TreeMemberOption = {
    * offer "also link the new sibling to these parents" so they render together.
    */
   parents?: { id: string; label: string }[];
+  /**
+   * This member's partners. Used to offer a second parent whenever someone is
+   * connected as this member's child — the write path records one parent edge
+   * at a time, so without the offer half the parentage goes missing.
+   */
+  partners?: { id: string; label: string; isDivorced: boolean }[];
 };
 
 /**

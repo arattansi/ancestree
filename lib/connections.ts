@@ -95,6 +95,31 @@ export function buildChainEdges(
   return edges;
 }
 
+/** A partner offered as the second parent on a new parent edge. */
+export type PartnerOption = { id: string; label: string; isDivorced: boolean };
+
+/**
+ * Which of a parent's partners to record as the child's other parent.
+ *
+ * `connect_people` writes one edge, so every path that creates a parent link
+ * records exactly one parent unless something offers the rest — which is how
+ * children end up hanging off one half of a couple. The offer therefore stands
+ * at "every current partner" until the member says otherwise; a former partner
+ * is listed but never pre-ticked, since a child of a past marriage is a real
+ * possibility rather than an oversight.
+ *
+ * `chosen` is `null` while the member hasn't touched the checkboxes. Ids that
+ * no longer name a partner are dropped, so a stale selection can't write an
+ * edge nobody asked for.
+ */
+export function coParentSelection(
+  chosen: readonly string[] | null | undefined,
+  partners: readonly PartnerOption[],
+): string[] {
+  const picked = chosen ?? partners.filter((p) => !p.isDivorced).map((p) => p.id);
+  return picked.filter((id) => partners.some((p) => p.id === id));
+}
+
 export function refToString(ref: PersonRef): string {
   return ref.kind === "new" ? `new:${ref.index}` : `existing:${ref.id}`;
 }

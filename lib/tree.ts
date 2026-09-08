@@ -247,18 +247,24 @@ export async function listTreeMembers(
   excludeId?: string | null,
 ): Promise<TreeMemberOption[]> {
   const supabase = await createClient();
-  const [{ data }, { data: parentRels }] = await Promise.all([
-    supabase
-      .from("people")
-      .select("id, first_name, preferred_name, maiden_name, last_name")
-      .eq("tree_id", treeId)
-      .order("last_name", { ascending: true }),
-    supabase
-      .from("relationships")
-      .select("from_person, to_person")
-      .eq("tree_id", treeId)
-      .eq("type", "parent"),
-  ]);
+  const [{ data }, { data: parentRels }, { data: spouseRels }] =
+    await Promise.all([
+      supabase
+        .from("people")
+        .select("id, first_name, preferred_name, maiden_name, last_name")
+        .eq("tree_id", treeId)
+        .order("last_name", { ascending: true }),
+      supabase
+        .from("relationships")
+        .select("from_person, to_person")
+        .eq("tree_id", treeId)
+        .eq("type", "parent"),
+      supabase
+        .from("relationships")
+        .select("from_person, to_person, is_divorced")
+        .eq("tree_id", treeId)
+        .eq("type", "spouse"),
+    ]);
 
   const labelById = new Map(
     (data ?? []).map((p) => [p.id, personDisplayName(p)]),
@@ -273,6 +279,25 @@ export async function listTreeMembers(
     parentsByChild.set(r.to_person, list);
   }
 
+  // person id -> their partners. Offered as a second parent when someone is
+  // connected as this person's child, so a child added to one partner doesn't
+  // silently end up with only half its parentage.
+  const partnersOf = new Map<
+    string,
+    { id: string; label: string; isDivorced: boolean }[]
+  >();
+  const addPartner = (person: string, partner: string, isDivorced: boolean) => {
+    const label = labelById.get(partner);
+    if (!label) return;
+    const list = partnersOf.get(person) ?? [];
+    list.push({ id: partner, label, isDivorced });
+    partnersOf.set(person, list);
+  };
+  for (const r of spouseRels ?? []) {
+    addPartner(r.from_person, r.to_person, r.is_divorced);
+    addPartner(r.to_person, r.from_person, r.is_divorced);
+  }
+
   return (data ?? [])
     .filter((p) => p.id !== excludeId)
     .map((p) => ({
@@ -280,5 +305,6 @@ export async function listTreeMembers(
       label: personDisplayName(p),
       maidenName: p.maiden_name ?? null,
       parents: parentsByChild.get(p.id) ?? [],
+      partners: partnersOf.get(p.id) ?? [],
     }));
 }

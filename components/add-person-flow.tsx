@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/select";
 import {
   buildChainEdges,
+  coParentSelection,
   KIND_STATEMENT,
   RELATIONSHIP_KINDS,
   type PersonRef,
@@ -132,6 +133,11 @@ const flowSchema = z.object({
       kind: z.enum(RELATIONSHIP_KINDS),
       /** Sibling links only — also connect to the sibling's parents. */
       linkToParents: z.boolean().optional(),
+      /**
+       * Child links only — the anchor's partners to record as a second parent.
+       * Ids, so a partner deselected by hand stays deselected.
+       */
+      coParentIds: z.array(z.string()).optional(),
       ...spouseDatesShape,
     }),
   ),
@@ -254,6 +260,11 @@ export function AddPersonFlow({
   const anchorMember = members.find((m) => m.id === anchorId);
   const anchorLabel = anchorMember?.label ?? "the tree";
   const anchorParents = anchorMember?.parents ?? [];
+  // Partners of the anchor, offered as a second parent when the first chain
+  // person is being added as the anchor's child. A current partner is the
+  // overwhelmingly likely other parent, so it is pre-ticked; a former one is
+  // offered but left for the member to decide.
+  const anchorPartners = anchorMember?.partners ?? [];
   const primaryFallback = mode === "self" ? "You" : "this person";
   const primaryLabel = mode === "self" ? "You" : nameOf(0, "This person");
 
@@ -386,6 +397,22 @@ export function AddPersonFlow({
           edges.push({
             type: "parent",
             a: { kind: "existing", id: parent.id },
+            b: chainRefs[0],
+          });
+        }
+      }
+
+      // "is a child of" the anchor + the anchor's partners the member left
+      // ticked: one parent edge each, so the child arrives with both parents
+      // rather than hanging off one of them.
+      if (firstLink?.kind === "child") {
+        for (const id of coParentSelection(
+          firstLink.coParentIds,
+          anchorMember?.partners ?? [],
+        )) {
+          edges.push({
+            type: "parent",
+            a: { kind: "existing", id },
             b: chainRefs[0],
           });
         }
@@ -571,6 +598,51 @@ export function AddPersonFlow({
                             }
                           }}
                         />
+                      ) : null}
+                      {watchedLinks[i]?.kind === "child" &&
+                      i === 0 &&
+                      anchorPartners.length > 0 ? (
+                        <div className="flex flex-col gap-1.5">
+                          <p className="text-xs text-muted-foreground">
+                            Who else is a parent?
+                          </p>
+                          {anchorPartners.map((partner) => {
+                            const chosen = coParentSelection(
+                              watchedLinks[i]?.coParentIds,
+                              anchorPartners,
+                            );
+                            const checked = chosen.includes(partner.id);
+                            return (
+                              <label
+                                key={partner.id}
+                                className="flex items-start gap-2 text-xs text-muted-foreground"
+                              >
+                                <Checkbox
+                                  id={`link-${i}-coparent-${partner.id}`}
+                                  checked={checked}
+                                  onCheckedChange={(c) =>
+                                    form.setValue(
+                                      `links.${i}.coParentIds`,
+                                      c === true
+                                        ? [...chosen, partner.id]
+                                        : chosen.filter(
+                                            (id) => id !== partner.id,
+                                          ),
+                                      { shouldDirty: true },
+                                    )
+                                  }
+                                />
+                                <span>
+                                  {partner.label} is also a parent
+                                  {partner.isDivorced
+                                    ? ` — ${anchorLabel}'s former partner`
+                                    : ""}
+                                  .
+                                </span>
+                              </label>
+                            );
+                          })}
+                        </div>
                       ) : null}
                       {watchedLinks[i]?.kind === "sibling" &&
                       i === 0 &&

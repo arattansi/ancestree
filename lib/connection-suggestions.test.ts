@@ -127,6 +127,66 @@ describe("computeImpliedConnections (add time)", () => {
     );
   });
 
+  it("asks about the partner when a child is added to one half of a couple", () => {
+    // The backstop for every path that doesn't offer the co-parent inline.
+    const out = computeImpliedConnections({
+      ...base,
+      existingPeople: [
+        { id: "f", familyName: "Suleman", givenName: "Fatehali", dateOfBirth: null },
+        { id: "r", familyName: "Suleman", givenName: "Roshen", dateOfBirth: null },
+      ],
+      existingEdges: [{ from: "f", to: "r", type: "spouse" }],
+      newPeople: [
+        {
+          familyName: "Suleman",
+          givenName: "Adil",
+          label: "Adil Suleman",
+          dateOfBirth: null,
+        },
+      ],
+      pendingEdges: [
+        {
+          type: "parent",
+          a: { kind: "existing", id: "f" },
+          b: { kind: "new", index: 0 },
+        },
+      ],
+    }).filter((c) => c.source === "unlinked_spouse_child");
+
+    expect(out).toHaveLength(1);
+    expect(out[0].subject).toEqual({ kind: "existing", id: "r" });
+    expect(out[0].related).toEqual({ kind: "new", index: 0 });
+    expect(out[0].reason).toContain("Adil Suleman");
+  });
+
+  it("stops asking once the co-parent edge is part of the same submit", () => {
+    const out = computeImpliedConnections({
+      ...base,
+      existingPeople: [
+        { id: "f", familyName: "Suleman", givenName: "Fatehali", dateOfBirth: null },
+        { id: "r", familyName: "Suleman", givenName: "Roshen", dateOfBirth: null },
+      ],
+      existingEdges: [{ from: "f", to: "r", type: "spouse" }],
+      newPeople: [{ familyName: "Suleman", dateOfBirth: null }],
+      pendingEdges: [
+        {
+          type: "parent",
+          a: { kind: "existing", id: "f" },
+          b: { kind: "new", index: 0 },
+        },
+        // What ticking the co-parent box now adds.
+        {
+          type: "parent",
+          a: { kind: "existing", id: "r" },
+          b: { kind: "new", index: 0 },
+        },
+      ],
+    });
+    expect(out.filter((c) => c.source === "unlinked_spouse_child")).toHaveLength(
+      0,
+    );
+  });
+
   it("keeps the modal on topic: a gap elsewhere in the tree is not reported", () => {
     const shared = {
       existingPeople: [

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { connectExistingPeople, removeRelationship } from "@/app/actions/people";
+import { coParentSelection, type PartnerOption } from "@/lib/connections";
 import {
   RelationshipPicker,
   type TreeMemberOption,
@@ -22,6 +23,8 @@ import {
 } from "@/components/ui/select";
 /** How the edited person relates to the other person. */
 export type ConnectionKind = "parent" | "child" | "spouse" | "sibling";
+
+export type Partner = PartnerOption;
 
 const KINDS: ConnectionKind[] = ["child", "parent", "spouse", "sibling"];
 
@@ -51,11 +54,15 @@ export type ExistingConnection = {
 export function EditConnections({
   personId,
   personName,
+  personPartners,
   members,
   connections,
 }: {
   personId: string;
   personName: string;
+  /** The edited person's own partners — the co-parents on offer when they are
+   *  the parent in the new link. */
+  personPartners: Partner[];
   members: TreeMemberOption[];
   connections: ExistingConnection[];
 }) {
@@ -63,14 +70,28 @@ export function EditConnections({
 
   const [otherId, setOtherId] = React.useState("");
   const [kind, setKind] = React.useState<ConnectionKind>("child");
+  /** null until the member touches it — see `defaultCoParents`. */
+  const [coParentIds, setCoParentIds] = React.useState<string[] | null>(null);
   const [marriageDate, setMarriageDate] = React.useState("");
   const [isDivorced, setIsDivorced] = React.useState(false);
   const [divorceDate, setDivorceDate] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const [removingId, setRemovingId] = React.useState<string | null>(null);
 
-  const otherLabel =
-    members.find((m) => m.id === otherId)?.label ?? "the other person";
+  const otherMember = members.find((m) => m.id === otherId);
+  const otherLabel = otherMember?.label ?? "the other person";
+
+  // Whose partners are on offer depends on which side of the new parent edge
+  // the parent is on: "X is a child of Y" makes Y the parent, "X is a parent
+  // of Y" makes X one.
+  const parentSide =
+    kind === "child"
+      ? { partners: otherMember?.partners ?? [], childId: personId }
+      : kind === "parent"
+        ? { partners: personPartners, childId: otherId }
+        : null;
+  const coParentOffer = parentSide?.partners ?? [];
+  const chosenCoParents = coParentSelection(coParentIds, coParentOffer);
 
   function resetForm() {
     setOtherId("");
@@ -78,6 +99,7 @@ export function EditConnections({
     setMarriageDate("");
     setIsDivorced(false);
     setDivorceDate("");
+    setCoParentIds(null);
   }
 
   async function add() {
@@ -94,12 +116,44 @@ export function EditConnections({
       is_divorced: isDivorced,
       divorce_date: divorceDate,
     });
-    setBusy(false);
     if (res.error) {
+      setBusy(false);
       toast.error(res.error);
       return;
     }
-    toast.success("Connection added.");
+    // The main edge is in. Each ticked partner becomes a parent of the same
+    // child — one call apiece, because `connect_people` writes one edge.
+    const alsoAdded: string[] = [];
+    for (const coParentId of parentSide ? chosenCoParents : []) {
+      const extra = await connectExistingPeople({
+        personId: coParentId,
+        otherId: parentSide!.childId,
+        kind: "parent",
+      });
+      if (extra.error) {
+        // The main link is saved either way; say what didn't happen.
+        toast.error(
+          `Connected, but couldn't also add ${
+            coParentOffer.find((p) => p.id === coParentId)?.label ??
+            "the other parent"
+          }: ${extra.error}`,
+        );
+        setBusy(false);
+        resetForm();
+        router.refresh();
+        return;
+      }
+      alsoAdded.push(
+        coParentOffer.find((p) => p.id === coParentId)?.label ?? "another parent",
+      );
+    }
+
+    toast.success(
+      alsoAdded.length > 0
+        ? `Connection added, with ${alsoAdded.join(" & ")} as a parent too.`
+        : "Connection added.",
+    );
+    setBusy(false);
     resetForm();
     router.refresh();
   }
@@ -184,6 +238,34 @@ export function EditConnections({
               </Select>
               <span className="font-medium">{otherLabel}</span>
             </div>
+
+            {coParentOffer.length > 0 ? (
+              <div className="flex flex-col gap-1.5 rounded-md border border-dashed border-border p-3">
+                <p className="text-xs font-medium">Who else is a parent?</p>
+                {coParentOffer.map((partner) => (
+                  <label
+                    key={partner.id}
+                    className="flex items-start gap-2 text-xs text-muted-foreground"
+                  >
+                    <Checkbox
+                      id={`conn-coparent-${partner.id}`}
+                      checked={chosenCoParents.includes(partner.id)}
+                      onCheckedChange={(c) =>
+                        setCoParentIds(
+                          c === true
+                            ? [...chosenCoParents, partner.id]
+                            : chosenCoParents.filter((id) => id !== partner.id),
+                        )
+                      }
+                    />
+                    <span>
+                      {partner.label} is also a parent
+                      {partner.isDivorced ? " — a former partner" : ""}.
+                    </span>
+                  </label>
+                ))}
+              </div>
+            ) : null}
 
             {kind === "spouse" ? (
               <div className="flex flex-col gap-3 rounded-md border border-dashed border-border p-3">
