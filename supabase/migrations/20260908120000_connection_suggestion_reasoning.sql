@@ -7,9 +7,10 @@
 --
 -- The consequence for this schema: suggestions are no longer *stored*, they are
 -- derived on read. `connection_suggestions` becomes a **ledger of answers** —
--- one row per question a member has resolved. A candidate whose key is already
--- in the table is never asked again. Nothing writes a `pending` row any more
--- (the ones already there stay, and still resolve through the old RPC).
+-- one row per question a member has resolved. A candidate whose key is in the
+-- table as `accepted` or `dismissed` is never asked again; a `pending` row --
+-- what the add-person modal's "Skip for now" writes -- is not an answer, so the
+-- loader ignores those and the candidate comes back, as that button promises.
 --
 -- Down: drop `resolve_implied_connection`; restore the two CHECK constraints to
 -- their previous value lists.

@@ -47,10 +47,14 @@ async function loadTree(treeId: string): Promise<TreeSnapshot> {
         "from_person, to_person, type, marriage_date, divorce_date, is_divorced",
       )
       .eq("tree_id", treeId),
+    // Answered rows only. The add-person modal still offers "Skip for now",
+    // which writes a `pending` row and promises to ask again — counting those
+    // as resolved would turn skipping into a silent permanent dismissal.
     supabase
       .from("connection_suggestions")
       .select("subject_person_id, related_person_id, suggested_type, source")
-      .eq("tree_id", treeId),
+      .eq("tree_id", treeId)
+      .neq("status", "pending"),
     supabase.from("name_nicknames").select("variant, canonical"),
   ]);
 
