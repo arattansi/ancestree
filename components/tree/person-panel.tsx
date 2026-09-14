@@ -805,7 +805,8 @@ export function PersonPanel({
 
                   {!canEdit && !claimable && !isSelf ? (
                     <p className="text-xs text-muted-foreground">
-                      Only the entry owner or an admin can edit this entry.
+                      Only this entry&rsquo;s owner, an admin, or a branch admin
+                      for this part of the tree can edit it.
                     </p>
                   ) : null}
 

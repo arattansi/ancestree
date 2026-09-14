@@ -141,7 +141,7 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | Table | Purpose |
 |---|---|
 | `trees` | Multi-tree-ready container (v1 uses one shared tree) |
-| `profiles` | `auth.users` row: `role` (`admin` \| `member`), `can_invite`, `self_person_id` |
+| `profiles` | `auth.users` row: `role` (`admin` \| `branch_admin` \| `member`), `can_invite`, `self_person_id` |
 | `people` | Demographic nodes; `owner_user_id` starts as `created_by` and moves on claim. `place_id_birth` / `place_id_death` → `places(id)` (Step 4.5b; nullable, backfilled — legacy `city_of_birth` / `country_of_birth` / `place_of_death` text kept until reconciled) |
 | `relationships` | Directed `parent` edges; undirected `spouse` pairs (optional `marriage_date` / `is_divorced` / `divorce_date`, spouse-only by CHECK); siblings inferred |
 | `connection_suggestions` | Implied-connection prompts surfaced by the add-person flow (`suggested_type` spouse/parent/sibling_check, `source`, `status` pending/accepted/dismissed); UNIQUE (subject, related, type, source) = no re-prompt |
@@ -181,17 +181,32 @@ resolve, or notifications) — none of which touch the chip or its dimensions.
 **RLS:** every public table. Members read rows in trees they belong to (admin,
 tree creator, accepted invite, or `self_person`). Writes use
 `profiles.auth_user_id = auth.uid()`. Person edits (`private.can_edit_person`):
-current `owner_user_id`, an admin, **or** the original `created_by` while the
-entry is still unclaimed (owner unchanged, no approved claim). Deletes: admin
-only. A claim moves `owner_user_id` to the claimant, so the creator then loses
-edit rights until an admin reverses the claim.
+current `owner_user_id`, an admin, the original `created_by` while the entry is
+still unclaimed (owner unchanged, no approved claim), **or** a branch admin
+anywhere on their own branch (Step 15). Deletes: admin only. A claim moves
+`owner_user_id` to the claimant, so the creator then loses edit rights until an
+admin reverses the claim.
+
+**Branches (Step 15):** a `branch_admin` curates the part of the tree they
+belong to. Their branch is derived from their own entry by the same up-then-down
+walk as the bloodline gate (`private.branch_ids`): climb `parent` edges to every
+ancestor, descend from that whole set, then add the partners those people
+married — one step, never walked through. So a spouse is on the branch and a
+spouse's parents are not, which is what keeps a branch admin inside their own
+side of the tree. Two limits: another member's own entry (`self_person_id` or a
+settled claim) is never theirs to edit, and a connection needs **both** ends on
+the branch (`private.can_edit_relationship`) — one end alone would let them
+redraw a line into someone else's family. Nothing else moves: deleting people,
+minting invites, setting `lineage_type` and the admin console stay admin-only.
+`lib/branch.ts` mirrors the rule for the UI; the database decides.
 
 **Storage:** private buckets `photos` and `documents`. Object path
 `{tree_id}/{person_id}/{filename}`. Members can read via signed URLs; only the
 entry owner/admin can write.
 
-Helpers live in the unexposed `private` schema (`is_admin`, `is_tree_member`,
-`can_edit_person`).
+Helpers live in the unexposed `private` schema (`is_admin`, `is_branch_admin`,
+`is_tree_member`, `can_edit_person`, `branch_ids`, `is_on_own_branch`,
+`person_is_someones_own`, `can_edit_relationship`).
 
 ## Auth & invites (Step 3)
 

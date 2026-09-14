@@ -10,6 +10,8 @@ import {
 } from "@/components/tree/edit-connections";
 import { Button } from "@/components/ui/button";
 import { getUser, requireSelfPerson } from "@/lib/auth";
+import { canEditConnection, canEditEntry } from "@/lib/branch";
+import { getSpokenForEntryIds, getViewer } from "@/lib/branch.server";
 import { personDisplayName } from "@/lib/person-name";
 import { formatPlaceLabel, getPlacesByIds } from "@/lib/places";
 import type { PersonFormValues } from "@/lib/person-schema";
@@ -47,12 +49,20 @@ export default async function EditPersonPage({
     .maybeSingle();
 
   const isAdmin = profile.role === "admin";
-  const canEdit =
-    isAdmin ||
-    person.owner_user_id === user.id ||
-    (person.created_by === user.id &&
-      person.owner_user_id === person.created_by &&
-      !approvedClaim);
+  const [viewer, spokenFor] = await Promise.all([
+    getViewer(profile, person.tree_id),
+    getSpokenForEntryIds(user.id),
+  ]);
+  const canEdit = canEditEntry(
+    {
+      id: person.id,
+      owner_user_id: person.owner_user_id,
+      created_by: person.created_by,
+      isClaimed: !!approvedClaim,
+      isSomeoneElsesOwn: spokenFor.has(person.id),
+    },
+    viewer,
+  );
 
   if (!canEdit) redirect("/tree");
 
@@ -106,7 +116,7 @@ export default async function EditPersonPage({
         id: r.id,
         otherName,
         kind,
-        canRemove: isAdmin || r.created_by === user.id,
+        canRemove: canEditConnection(r, viewer),
       },
     ];
   });

@@ -251,7 +251,8 @@ export async function updateRelationshipMarriage(
     }
     if (m.includes("row-level security")) {
       return {
-        error: "Only the relationship's creator or an admin can edit this.",
+        error:
+          "Only the relationship's creator, a branch admin for this part of the tree, or an admin can edit this.",
       };
     }
     return { error: "Couldn't save those dates. Try again." };
@@ -394,9 +395,11 @@ export async function removeRelationship(
     return { error: "Couldn't remove that connection. Try again." };
   }
   if (!data || data.length === 0) {
-    // RLS filtered the row out — the caller isn't the creator or an admin.
+    // RLS filtered the row out: not the creator, not an admin, and not a
+    // branch admin with both ends of the line on their branch.
     return {
-      error: "Only the connection's creator or an admin can remove it.",
+      error:
+        "Only the connection's creator, a branch admin for this part of the tree, or an admin can remove it.",
     };
   }
   revalidatePath("/tree");

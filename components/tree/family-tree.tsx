@@ -49,6 +49,13 @@ import {
   type TreeFilter,
 } from "@/lib/tree-search";
 import { Button } from "@/components/ui/button";
+import {
+  branchIds,
+  canEditConnection,
+  canEditEntry,
+  type EntrySubject,
+  type Viewer,
+} from "@/lib/branch";
 import type { ClaimCandidate } from "@/lib/claims";
 import type { PanelSuggestion } from "@/lib/connection-suggestions";
 import { multiTreeEnabled } from "@/lib/flags";
@@ -322,6 +329,13 @@ type Props = {
   anchorIds: string[];
   currentUserId: string;
   isAdmin: boolean;
+  /** The viewer's role: "admin", "branch_admin" or "member". */
+  role: string;
+  /**
+   * Entries that belong to the people they describe — other members' own
+   * entries and settled claims. A branch admin edits around these.
+   */
+  spokenForIds: string[];
   claimCandidates: ClaimCandidate[];
   panelSuggestions: PanelSuggestion[];
   /** Companion animals, hung off the people they belong to (never relatives). */
@@ -519,6 +533,8 @@ function Canvas({
   anchorIds,
   currentUserId,
   isAdmin,
+  role,
+  spokenForIds,
   claimCandidates,
   panelSuggestions,
   pets,
@@ -1113,6 +1129,32 @@ function Canvas({
     [people],
   );
 
+  // Who the viewer is for permission purposes. A branch admin's branch is
+  // derived from their own entry, out of the edges already on the canvas —
+  // `lib/branch` mirrors `private.branch_ids`, which is what actually decides.
+  const viewer = React.useMemo<Viewer>(
+    () => ({
+      userId: currentUserId,
+      role,
+      branch:
+        role === "branch_admin" && selfPersonId
+          ? branchIds(selfPersonId, relationships)
+          : null,
+    }),
+    [currentUserId, role, selfPersonId, relationships],
+  );
+  const spokenFor = React.useMemo(() => new Set(spokenForIds), [spokenForIds]);
+  const entrySubject = React.useCallback(
+    (person: TreeGraphPerson): EntrySubject => ({
+      id: person.id,
+      owner_user_id: person.owner_user_id,
+      created_by: person.created_by,
+      isClaimed: person.claim_status === "approved",
+      isSomeoneElsesOwn: spokenFor.has(person.id),
+    }),
+    [spokenFor],
+  );
+
   // A companion is editable by whoever added it, an admin, or anyone who can
   // already edit one of its people — looser than a person entry on purpose.
   const canEditPet =
@@ -1121,13 +1163,7 @@ function Canvas({
       selectedPet.created_by === currentUserId ||
       selectedPet.companions.some((id) => {
         const person = people.find((p) => p.id === id);
-        return (
-          !!person &&
-          (person.owner_user_id === currentUserId ||
-            (person.created_by === currentUserId &&
-              person.owner_user_id === person.created_by &&
-              person.claim_status !== "approved"))
-        );
+        return !!person && canEditEntry(entrySubject(person), viewer);
       }));
 
   const relations = React.useMemo<PersonRelation[]>(() => {
@@ -1159,18 +1195,13 @@ function Canvas({
             marriageDate: r.marriage_date,
             isDivorced: r.is_divorced,
             divorceDate: r.divorce_date,
-            canEdit: isAdmin || r.created_by === currentUserId,
+            canEdit: canEditConnection(r, viewer),
           },
         ];
       });
-  }, [selectedId, relationships, people, isAdmin, currentUserId]);
+  }, [selectedId, relationships, people, viewer]);
   const canEdit =
-    !!selectedPerson &&
-    (isAdmin ||
-      selectedPerson.owner_user_id === currentUserId ||
-      (selectedPerson.created_by === currentUserId &&
-        selectedPerson.owner_user_id === selectedPerson.created_by &&
-        selectedPerson.claim_status !== "approved"));
+    !!selectedPerson && canEditEntry(entrySubject(selectedPerson), viewer);
 
   return (
     <>

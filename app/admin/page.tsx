@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { setCanInvite } from "@/app/actions/invites";
+import { setBranchAdmin } from "@/app/actions/members";
 import { AdminBareInvites } from "@/components/admin-bare-invites";
 import { AdminCanvasInterest } from "@/components/admin-canvas-interest";
 import { AdminDisputedClaims } from "@/components/admin-disputed-claims";
@@ -232,7 +233,7 @@ export default async function AdminPage() {
       <AdminGroup
         id="members"
         title="Members"
-        description={`${members.length} member${members.length === 1 ? "" : "s"} — role, who invited them, entries created, and invite permissions.`}
+        description={`${members.length} member${members.length === 1 ? "" : "s"} — role, who invited them, entries created, and invite permissions. A branch admin can edit every entry on their own branch of the tree.`}
         sectionIds={["members"]}
       >
         <div className="-mx-(--card-spacing) overflow-x-auto">
@@ -273,13 +274,36 @@ export default async function AdminPage() {
                     {member.display_name ?? "—"}
                   </td>
                   <td className="px-4 py-3">
-                    <Badge
-                      variant={
-                        member.role === "admin" ? "default" : "secondary"
-                      }
-                    >
-                      {member.role}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        variant={
+                          member.role === "admin" ? "default" : "secondary"
+                        }
+                      >
+                        {member.role === "branch_admin"
+                          ? "branch admin"
+                          : member.role}
+                      </Badge>
+                      {member.auth_user_id && member.role !== "admin" ? (
+                        <form action={setBranchAdmin}>
+                          <input
+                            type="hidden"
+                            name="userId"
+                            value={member.auth_user_id}
+                          />
+                          <input
+                            type="hidden"
+                            name="branchAdmin"
+                            value={(member.role !== "branch_admin").toString()}
+                          />
+                          <Button type="submit" variant="ghost" size="sm">
+                            {member.role === "branch_admin"
+                              ? "Make member"
+                              : "Make branch admin"}
+                          </Button>
+                        </form>
+                      ) : null}
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">
                     {member.invited_by_name ??

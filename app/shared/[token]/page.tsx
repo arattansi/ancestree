@@ -75,6 +75,8 @@ export default async function SharedTreePage({
         anchorIds={anchorIds}
         currentUserId=""
         isAdmin={false}
+        role="member"
+        spokenForIds={[]}
         claimCandidates={[]}
         panelSuggestions={[]}
         pets={pets}

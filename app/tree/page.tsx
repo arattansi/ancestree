@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FamilyTree } from "@/components/tree/family-tree";
 import { Button } from "@/components/ui/button";
 import { getUser, requireSelfPerson } from "@/lib/auth";
+import { getSpokenForEntryIds } from "@/lib/branch.server";
 import { listClaimCandidates } from "@/lib/claims";
 import { auditTreeConnections } from "@/lib/connection-suggestions.server";
 import { getTreePets } from "@/lib/pets";
@@ -39,12 +40,14 @@ export default async function TreePage() {
     panelSuggestions,
     anchorIds,
     pets,
+    spokenFor,
   ] = await Promise.all([
     getTreeGraph(tree.id),
     listClaimCandidates(),
     auditTreeConnections(tree.id),
     getTreeAnchors(),
     getTreePets(tree.id),
+    getSpokenForEntryIds(user.id),
   ]);
 
   return (
@@ -57,6 +60,8 @@ export default async function TreePage() {
         anchorIds={anchorIds}
         currentUserId={user.id}
         isAdmin={profile.role === "admin"}
+        role={profile.role}
+        spokenForIds={[...spokenFor]}
         claimCandidates={claimCandidates}
         panelSuggestions={panelSuggestions}
         pets={pets}
