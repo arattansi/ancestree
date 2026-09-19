@@ -31,6 +31,16 @@ export type PersonActionState = {
   error?: string;
 };
 
+/**
+ * What a refused write to someone else's entry says. RLS doesn't raise on an
+ * UPDATE it filters out — the row simply isn't touched — so the actions below
+ * ask for the row back and treat "none" as this.
+ */
+const NOT_YOURS_TO_EDIT =
+  "Only this entry's owner, a branch admin for this part of the tree, or an admin can change it.";
+const NOT_YOURS_TO_MOVE =
+  "Only this entry's owner, a branch admin for this part of the tree, or an admin can move this card.";
+
 function friendlyError(message: string | undefined): string {
   if (!message) return "Something went wrong. Try again.";
   if (message.includes("already exists"))
@@ -219,8 +229,9 @@ export async function detectConnections(input: {
 
 /**
  * Update the optional marriage / divorce fields on a spouse relationship.
- * Gated by the existing `relationships_update` RLS (admin or the edge's
- * `created_by`); the DB CHECKs keep the dates coherent. All fields optional.
+ * Gated by the `relationships_update` RLS (admin, the edge's `created_by`, or a
+ * branch admin with both ends on their branch); the DB CHECKs keep the dates
+ * coherent. All fields optional.
  */
 export async function updateRelationshipMarriage(
   relationshipId: string,
@@ -232,7 +243,7 @@ export async function updateRelationshipMarriage(
 ): Promise<{ error?: string }> {
   await requireProfile();
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("relationships")
     .update({
       marriage_date: input.marriage_date?.trim() ? input.marriage_date : null,
@@ -243,20 +254,19 @@ export async function updateRelationshipMarriage(
           : null,
     })
     .eq("id", relationshipId)
-    .eq("type", "spouse");
+    .eq("type", "spouse")
+    .select("id");
+  const notYours =
+    "Only the relationship's creator, a branch admin for this part of the tree, or an admin can edit this.";
   if (error) {
     const m = error.message.toLowerCase();
     if (m.includes("divorce_after_marriage")) {
       return { error: "The divorce date can't be before the marriage date." };
     }
-    if (m.includes("row-level security")) {
-      return {
-        error:
-          "Only the relationship's creator, a branch admin for this part of the tree, or an admin can edit this.",
-      };
-    }
+    if (m.includes("row-level security")) return { error: notYours };
     return { error: "Couldn't save those dates. Try again." };
   }
+  if (!data || data.length === 0) return { error: notYours };
   revalidatePath("/tree");
   return {};
 }
@@ -378,8 +388,8 @@ export async function connectExistingPeople(input: {
 }
 
 /**
- * Remove a relationship edge. Admin or the edge's creator only (enforced by the
- * `relationships_delete` RLS policy).
+ * Remove a relationship edge. Admin, the edge's creator, or a branch admin with
+ * both ends on their branch (enforced by the `relationships_delete` RLS policy).
  */
 export async function removeRelationship(
   relationshipId: string,
@@ -406,7 +416,10 @@ export async function removeRelationship(
   return {};
 }
 
-/** Update an existing person entry. Owner or admin only (enforced by RLS). */
+/**
+ * Update an existing person entry. Owner, admin, or a branch admin on their
+ * branch (enforced by RLS).
+ */
 export async function updatePerson(
   personId: string,
   values: PersonFormValues,
@@ -440,12 +453,14 @@ export async function updatePerson(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("people")
     .update(update)
-    .eq("id", personId);
+    .eq("id", personId)
+    .select("id");
 
   if (error) return { error: friendlyError(error.message) };
+  if (!data || data.length === 0) return { error: NOT_YOURS_TO_EDIT };
 
   revalidatePath("/tree");
   return { personId };
@@ -455,7 +470,7 @@ export async function updatePerson(
  * Persist a drag as a *nudge* from the card's auto-layout position, so it keeps
  * following the tree as relatives are added instead of freezing in place. Also
  * clears any legacy absolute pin on the row, converting it on first drag.
- * Owner or admin only (RLS).
+ * Owner, admin, or a branch admin on their branch (RLS).
  */
 export async function setPersonPosition(
   personId: string,
@@ -464,7 +479,7 @@ export async function setPersonPosition(
 ): Promise<{ error?: string }> {
   await requireProfile();
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("people")
     .update({
       pos_dx: Math.round(dx),
@@ -472,13 +487,15 @@ export async function setPersonPosition(
       pos_x: null,
       pos_y: null,
     })
-    .eq("id", personId);
+    .eq("id", personId)
+    .select("id");
   if (error) {
     if (error.message.toLowerCase().includes("row-level security")) {
-      return { error: "Only the entry owner or an admin can move this card." };
+      return { error: NOT_YOURS_TO_MOVE };
     }
     return { error: friendlyError(error.message) };
   }
+  if (!data || data.length === 0) return { error: NOT_YOURS_TO_MOVE };
   revalidatePath("/tree");
   return {};
 }
@@ -518,14 +535,16 @@ export async function setPersonPhoto(
 ): Promise<{ error?: string }> {
   await requireProfile();
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("people")
     .update({
       photo_path: photoPath,
       photo_crop: photoPath && crop ? toStoredCrop(crop) : null,
     })
-    .eq("id", personId);
+    .eq("id", personId)
+    .select("id");
   if (error) return { error: friendlyError(error.message) };
+  if (!data || data.length === 0) return { error: NOT_YOURS_TO_EDIT };
   revalidatePath("/tree");
   return {};
 }
@@ -537,11 +556,13 @@ export async function setPersonPhotoCrop(
 ): Promise<{ error?: string }> {
   await requireProfile();
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("people")
     .update({ photo_crop: toStoredCrop(crop) })
-    .eq("id", personId);
+    .eq("id", personId)
+    .select("id");
   if (error) return { error: friendlyError(error.message) };
+  if (!data || data.length === 0) return { error: NOT_YOURS_TO_EDIT };
   revalidatePath("/tree");
   return {};
 }

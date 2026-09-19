@@ -1082,9 +1082,21 @@ function Canvas({
   }, []);
 
   // A drag is stored as a nudge from where the layout put the card, so the
-  // card keeps its offset as the tree grows instead of freezing in place.
+  // card keeps its offset as the tree grows instead of freezing in place. A
+  // refused move says why and puts the card back where the tree last had it —
+  // its seeded position, saved nudges included — rather than leaving it where
+  // it was dropped as though the move had stuck.
   const onNodeDragStop = React.useCallback<OnNodeDrag>(
     (_, node) => {
+      const refused = (res: { error?: string }) => {
+        if (!res.error) return;
+        toast.error(res.error);
+        const home = graph.nodes.find((n) => n.id === node.id)?.position;
+        if (!home) return;
+        setNodes((ns) =>
+          ns.map((n) => (n.id === node.id ? { ...n, position: home } : n)),
+        );
+      };
       if (node.type === "pet") {
         const spot = graph.petPositions.get(node.id);
         if (!spot) return;
@@ -1092,9 +1104,7 @@ function Canvas({
           node.id,
           node.position.x - spot.x,
           node.position.y - spot.y,
-        ).then((res) => {
-          if (res.error) toast.error(res.error);
-        });
+        ).then(refused);
         return;
       }
       if (node.type !== "person") return;
@@ -1104,11 +1114,9 @@ function Canvas({
         node.id,
         node.position.x - auto.x,
         node.position.y - auto.y,
-      ).then((res) => {
-        if (res.error) toast.error(res.error);
-      });
+      ).then(refused);
     },
-    [graph],
+    [graph, setNodes],
   );
 
   const onAutoArrange = React.useCallback(() => {

@@ -107,7 +107,8 @@ export function AddCompanionDialog({
             upsert: false,
           });
         if (error) throw error;
-        await setPetPhoto(result.petId, path, crop);
+        const res = await setPetPhoto(result.petId, path, crop);
+        if (res.error) throw new Error(res.error);
       } catch {
         toast.warning(
           "The photo didn't upload — the companion was still added.",

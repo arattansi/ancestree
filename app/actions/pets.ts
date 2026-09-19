@@ -10,11 +10,18 @@ import { createClient } from "@/lib/supabase/server";
 
 export type PetActionResult = { petId?: string; error?: string };
 
+/**
+ * What a refused write says. RLS doesn't raise on an UPDATE it filters out —
+ * the row simply isn't touched — so the actions below ask for the row back and
+ * treat "none" as this.
+ */
+const NOT_YOURS_TO_EDIT = "You don't have permission to change this companion.";
+
 function friendlyError(message: string | undefined): string {
   if (!message) return "Something went wrong. Try again.";
   const m = message.toLowerCase();
   if (m.includes("row-level security")) {
-    return "You don't have permission to change this companion.";
+    return NOT_YOURS_TO_EDIT;
   }
   if (m.includes("same tree")) {
     return "That person isn't on this tree.";
@@ -108,10 +115,11 @@ export async function setPetPrimaryCompanion(
 ): Promise<{ error?: string }> {
   await requireProfile();
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("pets")
     .update({ primary_person_id: personId })
-    .eq("id", petId);
+    .eq("id", petId)
+    .select("id");
 
   if (error) {
     if (error.message.toLowerCase().includes("primary connection")) {
@@ -119,6 +127,7 @@ export async function setPetPrimaryCompanion(
     }
     return { error: friendlyError(error.message) };
   }
+  if (!data || data.length === 0) return { error: NOT_YOURS_TO_EDIT };
   revalidatePath("/tree");
   return {};
 }
@@ -136,12 +145,14 @@ export async function updatePet(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("pets")
     .update(toPetPayload(parsed.data))
-    .eq("id", petId);
+    .eq("id", petId)
+    .select("id");
 
   if (error) return { error: friendlyError(error.message) };
+  if (!data || data.length === 0) return { error: NOT_YOURS_TO_EDIT };
 
   revalidatePath("/tree");
   return { petId };
@@ -228,14 +239,16 @@ export async function setPetPhoto(
 ): Promise<{ error?: string }> {
   await requireProfile();
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("pets")
     .update({
       photo_path: photoPath,
       photo_crop: photoPath && crop ? toStoredCrop(crop) : null,
     })
-    .eq("id", petId);
+    .eq("id", petId)
+    .select("id");
   if (error) return { error: friendlyError(error.message) };
+  if (!data || data.length === 0) return { error: NOT_YOURS_TO_EDIT };
   revalidatePath("/tree");
   return {};
 }
@@ -251,16 +264,19 @@ export async function setPetPosition(
 ): Promise<{ error?: string }> {
   await requireProfile();
   const supabase = await createClient();
-  const { error } = await supabase
+  const notYours = "Only someone who can edit this companion can move it.";
+  const { data, error } = await supabase
     .from("pets")
     .update({ pos_dx: Math.round(dx), pos_dy: Math.round(dy) })
-    .eq("id", petId);
+    .eq("id", petId)
+    .select("id");
   if (error) {
     if (error.message.toLowerCase().includes("row-level security")) {
-      return { error: "Only someone who can edit this companion can move it." };
+      return { error: notYours };
     }
     return { error: friendlyError(error.message) };
   }
+  if (!data || data.length === 0) return { error: notYours };
   revalidatePath("/tree");
   return {};
 }

@@ -346,7 +346,8 @@ export function AddPersonFlow({
     if (photoFile && primaryId) {
       try {
         const path = await uploadPhoto(primaryId, photoFile);
-        await setPersonPhoto(primaryId, path, crop);
+        const res = await setPersonPhoto(primaryId, path, crop);
+        if (res.error) throw new Error(res.error);
       } catch {
         toast.warning("Saved — but the photo didn't upload. Add it later.");
       }

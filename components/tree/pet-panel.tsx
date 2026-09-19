@@ -148,7 +148,8 @@ export function PetPanel({
             upsert: false,
           });
         if (error) throw error;
-        await setPetPhoto(pet.id, path, crop);
+        const res = await setPetPhoto(pet.id, path, crop);
+        if (res.error) throw new Error(res.error);
       } catch {
         toast.warning("The photo didn't upload — other changes still saved.");
       }

@@ -77,12 +77,14 @@ export function PersonForm({
     if (photoFile) {
       try {
         const path = await uploadPhoto(person.id, photoFile);
-        await setPersonPhoto(person.id, path, crop);
+        const res = await setPersonPhoto(person.id, path, crop);
+        if (res.error) throw new Error(res.error);
       } catch {
         toast.warning("The photo didn't upload — other changes still saved.");
       }
     } else if (person.photo_path && !sameCrop(crop, savedCrop)) {
-      await setPersonPhotoCrop(person.id, crop);
+      const res = await setPersonPhotoCrop(person.id, crop);
+      if (res.error) toast.warning("The photo's new framing didn't save.");
     }
     const result = await updatePerson(person.id, values);
     if (result.error) {
