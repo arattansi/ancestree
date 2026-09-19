@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   branchIds,
+  canEditCompanion,
   canEditConnection,
   canEditEntry,
   type BranchEdge,
@@ -190,5 +191,41 @@ describe("canEditConnection", () => {
   it("keeps the creator's own rights", () => {
     const mine = { ...line("noorali", "amyn"), created_by: "arzu-user" };
     expect(canEditConnection(mine, member)).toBe(true);
+  });
+});
+
+describe("canEditCompanion", () => {
+  // Whether the viewer can edit a given person — what the canvas answers with
+  // `canEditEntry` for each of the pet's people.
+  const editable =
+    (viewer: Viewer) =>
+    (personId: string): boolean =>
+      canEditEntry(entry({ id: personId }), viewer);
+
+  it("lets whoever added the companion edit it", () => {
+    const pet = { created_by: "arzu-user", companions: ["noorali"] };
+    expect(canEditCompanion(pet, member, editable(member))).toBe(true);
+  });
+
+  it("follows a branch admin through a companion's person on their branch", () => {
+    const pet = { created_by: "raiya-user", companions: ["noorali", "safia"] };
+    expect(canEditCompanion(pet, branchAdmin, editable(branchAdmin))).toBe(
+      true,
+    );
+  });
+
+  it("keeps a member off a companion none of whose people are theirs", () => {
+    const pet = { created_by: "raiya-user", companions: ["safia"] };
+    expect(canEditCompanion(pet, member, editable(member))).toBe(false);
+    const offBranch = { created_by: "raiya-user", companions: ["noorali"] };
+    expect(
+      canEditCompanion(offBranch, branchAdmin, editable(branchAdmin)),
+    ).toBe(false);
+  });
+
+  it("gives an admin every companion", () => {
+    const admin: Viewer = { userId: "a", role: "admin", branch: null };
+    const pet = { created_by: "raiya-user", companions: ["noorali"] };
+    expect(canEditCompanion(pet, admin, () => false)).toBe(true);
   });
 });

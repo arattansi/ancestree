@@ -51,6 +51,7 @@ import {
 import { Button } from "@/components/ui/button";
 import {
   branchIds,
+  canEditCompanion,
   canEditConnection,
   canEditEntry,
   type EntrySubject,
@@ -553,6 +554,56 @@ function Canvas({
     [people],
   );
 
+  // Who the viewer is for permission purposes. A branch admin's branch is
+  // derived from their own entry, out of the edges already on the canvas —
+  // `lib/branch` mirrors `private.branch_ids`, which is what actually decides.
+  const viewer = React.useMemo<Viewer>(
+    () => ({
+      userId: currentUserId,
+      role,
+      branch:
+        role === "branch_admin" && selfPersonId
+          ? branchIds(selfPersonId, relationships)
+          : null,
+    }),
+    [currentUserId, role, selfPersonId, relationships],
+  );
+  const spokenFor = React.useMemo(() => new Set(spokenForIds), [spokenForIds]);
+  const entrySubject = React.useCallback(
+    (person: TreeGraphPerson): EntrySubject => ({
+      id: person.id,
+      owner_user_id: person.owner_user_id,
+      created_by: person.created_by,
+      isClaimed: person.claim_status === "approved",
+      isSomeoneElsesOwn: spokenFor.has(person.id),
+    }),
+    [spokenFor],
+  );
+
+  const personById = React.useMemo(
+    () => new Map(people.map((p) => [p.id, p])),
+    [people],
+  );
+  const canEditPersonId = React.useCallback(
+    (id: string) => {
+      const person = personById.get(id);
+      return !!person && canEditEntry(entrySubject(person), viewer);
+    },
+    [personById, entrySubject, viewer],
+  );
+  // Cards whose move the database would refuse. They aren't offered as
+  // draggable at all — dragging one pans the canvas — instead of moving under
+  // the pointer and being refused on drop.
+  const lockedIds = React.useMemo(() => {
+    const locked = new Set<string>();
+    if (readOnly) return locked;
+    for (const person of people)
+      if (!canEditPersonId(person.id)) locked.add(person.id);
+    for (const pet of pets)
+      if (!canEditCompanion(pet, viewer, canEditPersonId)) locked.add(pet.id);
+    return locked;
+  }, [readOnly, people, pets, viewer, canEditPersonId]);
+
   const [nodes, setNodes, onNodesChange] = useNodesState(graph.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(graph.edges);
   // `/tree?person=<id>` opens the canvas on one entry — where the "View on
@@ -591,10 +642,22 @@ function Canvas({
 
   // Re-seed the canvas whenever the graph itself changes — a new relative, or
   // an auto-arrange that cleared everybody's nudges.
+  //
+  // A locked card is seeded with `draggable: false` — only ever `false`: a
+  // node's own `true` would override `nodesDraggable={false}` and let cards
+  // move while a tree is pulled out. Seeding it here rather than layering it
+  // on per render keeps each card the same object through someone else's
+  // drag, so only the card being dragged re-renders.
   React.useEffect(() => {
-    setNodes(graph.nodes);
+    setNodes(
+      lockedIds.size === 0
+        ? graph.nodes
+        : graph.nodes.map((n) =>
+            lockedIds.has(n.id) ? { ...n, draggable: false } : n,
+          ),
+    );
     setEdges(graph.edges);
-  }, [graph, setNodes, setEdges]);
+  }, [graph, lockedIds, setNodes, setEdges]);
 
   const filterActive = isFilterActive(filter);
   const matchingIds = React.useMemo(() => {
@@ -1137,42 +1200,10 @@ function Canvas({
     [people],
   );
 
-  // Who the viewer is for permission purposes. A branch admin's branch is
-  // derived from their own entry, out of the edges already on the canvas —
-  // `lib/branch` mirrors `private.branch_ids`, which is what actually decides.
-  const viewer = React.useMemo<Viewer>(
-    () => ({
-      userId: currentUserId,
-      role,
-      branch:
-        role === "branch_admin" && selfPersonId
-          ? branchIds(selfPersonId, relationships)
-          : null,
-    }),
-    [currentUserId, role, selfPersonId, relationships],
-  );
-  const spokenFor = React.useMemo(() => new Set(spokenForIds), [spokenForIds]);
-  const entrySubject = React.useCallback(
-    (person: TreeGraphPerson): EntrySubject => ({
-      id: person.id,
-      owner_user_id: person.owner_user_id,
-      created_by: person.created_by,
-      isClaimed: person.claim_status === "approved",
-      isSomeoneElsesOwn: spokenFor.has(person.id),
-    }),
-    [spokenFor],
-  );
-
   // A companion is editable by whoever added it, an admin, or anyone who can
   // already edit one of its people — looser than a person entry on purpose.
   const canEditPet =
-    !!selectedPet &&
-    (isAdmin ||
-      selectedPet.created_by === currentUserId ||
-      selectedPet.companions.some((id) => {
-        const person = people.find((p) => p.id === id);
-        return !!person && canEditEntry(entrySubject(person), viewer);
-      }));
+    !!selectedPet && canEditCompanion(selectedPet, viewer, canEditPersonId);
 
   const relations = React.useMemo<PersonRelation[]>(() => {
     if (!selectedId) return [];

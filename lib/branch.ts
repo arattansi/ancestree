@@ -98,6 +98,23 @@ export function canEditConnection(
   );
 }
 
+/**
+ * Mirrors `private.can_edit_pet`: an admin, whoever added the companion, or
+ * anyone who can already edit one of the people it lives with — looser than an
+ * entry on purpose, since a pet carries no ownership or claim weight. Whether
+ * one of its people is editable is the caller's to answer (`canEditEntry`
+ * needs the full entry, which only the caller has).
+ */
+export function canEditCompanion(
+  pet: { created_by: string | null; companions: readonly string[] },
+  viewer: Viewer,
+  canEditPerson: (personId: string) => boolean,
+): boolean {
+  if (viewer.role === "admin") return true;
+  if (pet.created_by === viewer.userId) return true;
+  return pet.companions.some(canEditPerson);
+}
+
 function isOnBranch(personId: string, viewer: Viewer): boolean {
   return viewer.role === "branch_admin" && !!viewer.branch?.has(personId);
 }
