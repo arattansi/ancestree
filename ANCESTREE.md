@@ -142,7 +142,7 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 |---|---|
 | `trees` | Multi-tree-ready container (v1 uses one shared tree) |
 | `profiles` | `auth.users` row: `role` (`admin` \| `branch_admin` \| `member`), `can_invite`, `self_person_id` |
-| `people` | Demographic nodes; `owner_user_id` starts as `created_by` and moves on claim. `place_id_birth` / `place_id_death` → `places(id)` (Step 4.5b; nullable, backfilled — legacy `city_of_birth` / `country_of_birth` / `place_of_death` text kept until reconciled) |
+| `people` | Demographic nodes; `owner_user_id` starts as `created_by` and moves on claim. `date_of_birth_precision` / `date_of_death_precision` (`day` \| `month` \| `year`, Step 17) say how much of each date is known — a partial date is stored on the first day of its period, CHECK-enforced, so year-only readers need no change. `place_id_birth` / `place_id_death` → `places(id)` (Step 4.5b; nullable, backfilled — legacy `city_of_birth` / `country_of_birth` / `place_of_death` text kept until reconciled) |
 | `relationships` | Directed `parent` edges; undirected `spouse` pairs (optional `marriage_date` / `is_divorced` / `divorce_date`, spouse-only by CHECK); siblings inferred |
 | `connection_suggestions` | Implied-connection prompts surfaced by the add-person flow (`suggested_type` spouse/parent/sibling_check, `source`, `status` pending/accepted/dismissed); UNIQUE (subject, related, type, source) = no re-prompt |
 | `invites` | Shareable tokens (`active` \| `accepted` \| `revoked`) |

@@ -730,7 +730,9 @@ export type Database = {
           created_at: string
           created_by: string
           date_of_birth: string | null
+          date_of_birth_precision: string
           date_of_death: string | null
+          date_of_death_precision: string
           first_name: string | null
           id: string
           is_deceased: boolean
@@ -761,7 +763,9 @@ export type Database = {
           created_at?: string
           created_by: string
           date_of_birth?: string | null
+          date_of_birth_precision?: string
           date_of_death?: string | null
+          date_of_death_precision?: string
           first_name?: string | null
           id?: string
           is_deceased: boolean
@@ -792,7 +796,9 @@ export type Database = {
           created_at?: string
           created_by?: string
           date_of_birth?: string | null
+          date_of_birth_precision?: string
           date_of_death?: string | null
+          date_of_death_precision?: string
           first_name?: string | null
           id?: string
           is_deceased?: boolean
@@ -1565,7 +1571,9 @@ export type Database = {
           created_at: string
           created_by: string
           date_of_birth: string | null
+          date_of_birth_precision: string
           date_of_death: string | null
+          date_of_death_precision: string
           first_name: string | null
           id: string
           is_deceased: boolean
