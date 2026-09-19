@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import { ConnectionReview } from "@/components/tree/connection-review";
 import { Button } from "@/components/ui/button";
+import { accountTypeOf } from "@/lib/account-types";
 import { requireSelfPerson } from "@/lib/auth";
 import { auditTreeConnections } from "@/lib/connection-suggestions.server";
 import { getSharedTree } from "@/lib/tree";
@@ -13,7 +15,9 @@ export const metadata: Metadata = {
 };
 
 export default async function ConnectionReviewPage() {
-  await requireSelfPerson();
+  const profile = await requireSelfPerson();
+  // Every answer here draws or dismisses a line, and a Leaf draws none.
+  if (accountTypeOf(profile.role).connections === "none") redirect("/tree");
   const tree = await getSharedTree();
   const suggestions = tree ? await auditTreeConnections(tree.id) : [];
 

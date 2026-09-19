@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
 import { AddPersonFlow } from "@/components/add-person-flow";
 import {
@@ -8,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { accountTypeOf } from "@/lib/account-types";
 import { requireSelfPerson } from "@/lib/auth";
 import {
   getGrowthRights,
@@ -22,6 +24,8 @@ export const metadata: Metadata = {
 
 export default async function NewPersonPage() {
   const profile = await requireSelfPerson();
+  // A Leaf's account adds nothing but their own entry, which they already have.
+  if (!accountTypeOf(profile.role).addRelatives) redirect("/tree");
   const tree = await getSharedTree();
 
   if (!tree) {

@@ -50,6 +50,7 @@ import {
   type TreeFilter,
 } from "@/lib/tree-search";
 import { Button } from "@/components/ui/button";
+import { accountTypeOf, lockedEntryNote } from "@/lib/account-types";
 import {
   branchIds,
   canEditCompanion,
@@ -331,7 +332,7 @@ type Props = {
   anchorIds: string[];
   currentUserId: string;
   isAdmin: boolean;
-  /** The viewer's role: "admin", "branch_admin" or "member". */
+  /** The viewer's `profiles.role`; `lib/account-types` says what it reaches. */
   role: string;
   /**
    * Entries that belong to the people they describe — other members' own
@@ -555,15 +556,17 @@ function Canvas({
     [people],
   );
 
-  // Who the viewer is for permission purposes. A branch admin's branch is
-  // derived from their own entry, out of the edges already on the canvas —
+  // Who the viewer is for permission purposes. A Branch's branch is derived
+  // from their own entry, out of the edges already on the canvas —
   // `lib/branch` mirrors `private.branch_ids`, which is what actually decides.
+  const accountType = React.useMemo(() => accountTypeOf(role), [role]);
   const viewer = React.useMemo<Viewer>(
     () => ({
       userId: currentUserId,
       role,
+      selfPersonId,
       branch:
-        role === "branch_admin" && selfPersonId
+        accountTypeOf(role).entries === "branch" && selfPersonId
           ? branchIds(selfPersonId, relationships)
           : null,
     }),
@@ -1322,7 +1325,7 @@ function Canvas({
                 Request edit access
               </Button>
             </div>
-          ) : (
+          ) : accountType.addRelatives ? (
             <Button
               nativeButton={false}
               render={<Link href="/people/new" />}
@@ -1333,7 +1336,7 @@ function Canvas({
               <Plus className="size-4" aria-hidden />
               <ExpandingLabel>Add a relative</ExpandingLabel>
             </Button>
-          )}
+          ) : null}
           {!readOnly && isAdmin ? (
             <Button
               size="sm"
@@ -1446,15 +1449,22 @@ function Canvas({
           setSelectedId(null);
           setSelectedPetId(petId);
         }}
-        suggestions={panelSuggestions.filter(
-          (s) =>
-            s.subjectPersonId === selectedId ||
-            s.relatedPersonId === selectedId,
-        )}
+        // Answering a prompt draws a line, which a Leaf can't.
+        suggestions={
+          accountType.connections === "none"
+            ? []
+            : panelSuggestions.filter(
+                (s) =>
+                  s.subjectPersonId === selectedId ||
+                  s.relatedPersonId === selectedId,
+              )
+        }
         relations={relations}
         isAdmin={isAdmin}
         isSelf={selectedPerson?.id === selfPersonId}
         canEdit={canEdit}
+        canAddCompanions={accountType.companions !== "none"}
+        lockedNote={lockedEntryNote(accountType)}
         readOnly={readOnly}
         claimable={!!selectedPerson && claimableIds.has(selectedPerson.id)}
         isCreator={selectedPerson?.created_by === currentUserId}

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { LEAF_REFUSAL, isLeafRefusal } from "@/lib/account-types";
 import { requireProfile } from "@/lib/auth";
 import { toStoredCrop, type CropTransform } from "@/lib/image-crop";
 import {
@@ -37,12 +38,13 @@ export type PersonActionState = {
  * ask for the row back and treat "none" as this.
  */
 const NOT_YOURS_TO_EDIT =
-  "Only this entry's owner, a branch admin for this part of the tree, or an admin can change it.";
+  "Only this entry's owner, a Branch for this side of the family, or a Root can change it.";
 const NOT_YOURS_TO_MOVE =
-  "Only this entry's owner, a branch admin for this part of the tree, or an admin can move this card.";
+  "Only this entry's owner, a Branch for this side of the family, or a Root can move this card.";
 
 function friendlyError(message: string | undefined): string {
   if (!message) return "Something went wrong. Try again.";
+  if (isLeafRefusal(message)) return LEAF_REFUSAL;
   if (message.includes("already exists"))
     return "Your own entry already exists.";
   if (message.toLowerCase().includes("row-level security")) {
@@ -58,6 +60,7 @@ function isBloodlineGate(message: string | undefined): boolean {
 
 function friendlyConnectionError(message: string | undefined): string {
   if (!message) return "Something went wrong. Try again.";
+  if (isLeafRefusal(message)) return LEAF_REFUSAL;
   const m = message.toLowerCase();
   if (isBloodlineGate(message)) {
     return "These entries don't connect to the family bloodline.";
@@ -259,7 +262,7 @@ export async function updateRelationshipMarriage(
     .eq("type", "spouse")
     .select("id");
   const notYours =
-    "Only the relationship's creator, a branch admin for this part of the tree, or an admin can edit this.";
+    "Only the relationship's creator, a Branch for this side of the family, or a Root can edit this.";
   if (error) {
     const m = error.message.toLowerCase();
     if (m.includes("divorce_after_marriage")) {
@@ -411,7 +414,7 @@ export async function removeRelationship(
     // branch admin with both ends of the line on their branch.
     return {
       error:
-        "Only the connection's creator, a branch admin for this part of the tree, or an admin can remove it.",
+        "Only the connection's creator, a Branch for this side of the family, or a Root can remove it.",
     };
   }
   revalidatePath("/tree");

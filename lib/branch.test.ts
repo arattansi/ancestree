@@ -115,9 +115,27 @@ const entry = (over: Partial<EntrySubject> = {}): EntrySubject => ({
 const branchAdmin: Viewer = {
   userId: "arzu-user",
   role: "branch_admin",
+  selfPersonId: "arzu",
   branch: branchIds("arzu", family),
 };
-const member: Viewer = { userId: "arzu-user", role: "member", branch: null };
+const member: Viewer = {
+  userId: "arzu-user",
+  role: "member",
+  selfPersonId: "arzu",
+  branch: null,
+};
+const leaf: Viewer = {
+  userId: "arzu-user",
+  role: "leaf",
+  selfPersonId: "arzu",
+  branch: null,
+};
+const admin: Viewer = {
+  userId: "a",
+  role: "admin",
+  selfPersonId: null,
+  branch: null,
+};
 
 describe("canEditEntry", () => {
   it("lets a branch admin edit an entry someone else created on their branch", () => {
@@ -162,9 +180,37 @@ describe("canEditEntry", () => {
   });
 
   it("gives an admin everything", () => {
-    const admin: Viewer = { userId: "a", role: "admin", branch: null };
     expect(canEditEntry(entry({ id: "noorali" }), admin)).toBe(true);
     expect(canEditEntry(entry({ isSomeoneElsesOwn: true }), admin)).toBe(true);
+  });
+
+  it("lets a Leaf edit their own entry and nothing else", () => {
+    expect(canEditEntry(entry({ id: "arzu" }), leaf)).toBe(true);
+    expect(canEditEntry(entry(), leaf)).toBe(false);
+  });
+
+  it("takes a Leaf's creator rights away with the rest", () => {
+    // Added while they were Canopy: still theirs by owner and creator, but a
+    // Leaf reaches their own entry alone.
+    const addedEarlier = entry({
+      id: "rehan",
+      owner_user_id: "arzu-user",
+      created_by: "arzu-user",
+    });
+    expect(canEditEntry(addedEarlier, member)).toBe(true);
+    expect(canEditEntry(addedEarlier, leaf)).toBe(false);
+  });
+
+  it("gives a Leaf still onboarding nothing to edit", () => {
+    const onboarding = { ...leaf, selfPersonId: null };
+    expect(canEditEntry(entry({ id: "arzu" }), onboarding)).toBe(false);
+  });
+
+  it("reads an unknown role as a Leaf", () => {
+    const unknown = { ...member, role: "gardener" };
+    expect(canEditEntry(entry({ id: "arzu" }), unknown)).toBe(true);
+    const addedEarlier = entry({ id: "rehan", owner_user_id: "arzu-user" });
+    expect(canEditEntry(addedEarlier, unknown)).toBe(false);
   });
 });
 
@@ -191,6 +237,12 @@ describe("canEditConnection", () => {
   it("keeps the creator's own rights", () => {
     const mine = { ...line("noorali", "amyn"), created_by: "arzu-user" };
     expect(canEditConnection(mine, member)).toBe(true);
+  });
+
+  it("gives a Leaf no lines, not even ones they drew", () => {
+    const drawn = { ...line("fatehali", "arzu"), created_by: "arzu-user" };
+    expect(canEditConnection(drawn, member)).toBe(true);
+    expect(canEditConnection(drawn, leaf)).toBe(false);
   });
 });
 
@@ -223,8 +275,13 @@ describe("canEditCompanion", () => {
     ).toBe(false);
   });
 
+  it("gives a Leaf no companions, even one that lives with them", () => {
+    const theirs = { created_by: "arzu-user", companions: ["arzu"] };
+    expect(canEditCompanion(theirs, member, editable(member))).toBe(true);
+    expect(canEditCompanion(theirs, leaf, editable(leaf))).toBe(false);
+  });
+
   it("gives an admin every companion", () => {
-    const admin: Viewer = { userId: "a", role: "admin", branch: null };
     const pet = { created_by: "raiya-user", companions: ["noorali"] };
     expect(canEditCompanion(pet, admin, () => false)).toBe(true);
   });

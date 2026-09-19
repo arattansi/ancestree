@@ -1,8 +1,9 @@
 /**
  * Branches, mirrored from `private.branch_ids` and `private.can_edit_person`
- * (Step 17).
+ * (Step 17), and what each account type may edit (Step 18,
+ * `lib/account-types`).
  *
- * A branch admin curates the part of the tree they belong to. Their branch is
+ * A Branch curates the part of the tree they belong to. Their branch is
  * derived from their own entry with the same up-then-down walk the bloodline
  * gate uses — ancestors, then everyone descending from that whole set — plus,
  * one step only, the partners those people married.
@@ -16,6 +17,7 @@
  * rule, used to decide what the UI offers without a round trip per card.
  */
 
+import { accountTypeOf } from "@/lib/account-types";
 import { bloodlineIds, type ParentEdge } from "@/lib/bloodline";
 
 export type BranchEdge = ParentEdge;
@@ -40,11 +42,14 @@ export function branchIds(
   return line;
 }
 
-/** Who is asking, and what their role lets them reach. */
+/** Who is asking, and what their account type lets them reach. */
 export type Viewer = {
   userId: string;
+  /** `profiles.role`; `lib/account-types` says what it reaches. */
   role: string;
-  /** The viewer's branch, or `null` when they are not a branch admin. */
+  /** Their own entry — all a Leaf may edit. `null` while onboarding. */
+  selfPersonId: string | null;
+  /** The viewer's branch, or `null` when they are not a Branch. */
   branch: ReadonlySet<string> | null;
 };
 
@@ -60,12 +65,15 @@ export type EntrySubject = {
 };
 
 /**
- * Mirrors `private.can_edit_person`: admin, current owner, the original
- * creator while the entry is still unclaimed — or a branch admin anywhere on
- * their own branch, as long as the entry isn't somebody else's own.
+ * Mirrors `private.can_edit_person`: a Root; a Leaf on their own entry and
+ * nowhere else; otherwise the current owner, the original creator while the
+ * entry is still unclaimed — or a Branch anywhere on their own branch, as long
+ * as the entry isn't somebody else's own.
  */
 export function canEditEntry(entry: EntrySubject, viewer: Viewer): boolean {
-  if (viewer.role === "admin") return true;
+  const { entries } = accountTypeOf(viewer.role);
+  if (entries === "tree") return true;
+  if (entries === "self") return entry.id === viewer.selfPersonId;
   if (entry.owner_user_id === viewer.userId) return true;
   if (
     entry.created_by === viewer.userId &&
@@ -78,9 +86,11 @@ export function canEditEntry(entry: EntrySubject, viewer: Viewer): boolean {
 }
 
 /**
- * Mirrors `private.can_edit_relationship`. Both ends have to be on the branch:
- * one alone would let a branch admin redraw the line into someone else's
- * family, which is the leak the walk exists to prevent.
+ * Mirrors `private.can_edit_relationship`: a Root; never a Leaf, not even a
+ * line they drew before they were one; otherwise whoever drew it, or a Branch
+ * with both ends on their branch. One end alone would let a Branch redraw the
+ * line into someone else's family, which is the leak the walk exists to
+ * prevent.
  */
 export function canEditConnection(
   connection: {
@@ -90,7 +100,9 @@ export function canEditConnection(
   },
   viewer: Viewer,
 ): boolean {
-  if (viewer.role === "admin") return true;
+  const { connections } = accountTypeOf(viewer.role);
+  if (connections === "tree") return true;
+  if (connections === "none") return false;
   if (connection.created_by === viewer.userId) return true;
   return (
     isOnBranch(connection.from_person, viewer) &&
@@ -99,22 +111,28 @@ export function canEditConnection(
 }
 
 /**
- * Mirrors `private.can_edit_pet`: an admin, whoever added the companion, or
+ * Mirrors `private.can_edit_pet`: a Root, whoever added the companion, or
  * anyone who can already edit one of the people it lives with — looser than an
- * entry on purpose, since a pet carries no ownership or claim weight. Whether
- * one of its people is editable is the caller's to answer (`canEditEntry`
- * needs the full entry, which only the caller has).
+ * entry on purpose, since a pet carries no ownership or claim weight. A Leaf
+ * edits none, even one that lives with them: a pet is its own chip, not part
+ * of their entry. Whether one of its people is editable is the caller's to
+ * answer (`canEditEntry` needs the full entry, which only the caller has).
  */
 export function canEditCompanion(
   pet: { created_by: string | null; companions: readonly string[] },
   viewer: Viewer,
   canEditPerson: (personId: string) => boolean,
 ): boolean {
-  if (viewer.role === "admin") return true;
+  const { companions } = accountTypeOf(viewer.role);
+  if (companions === "tree") return true;
+  if (companions === "none") return false;
   if (pet.created_by === viewer.userId) return true;
   return pet.companions.some(canEditPerson);
 }
 
 function isOnBranch(personId: string, viewer: Viewer): boolean {
-  return viewer.role === "branch_admin" && !!viewer.branch?.has(personId);
+  return (
+    accountTypeOf(viewer.role).entries === "branch" &&
+    !!viewer.branch?.has(personId)
+  );
 }

@@ -9,6 +9,7 @@ import {
   type ExistingConnection,
 } from "@/components/tree/edit-connections";
 import { Button } from "@/components/ui/button";
+import { accountTypeOf } from "@/lib/account-types";
 import { getUser, requireSelfPerson } from "@/lib/auth";
 import { canEditConnection, canEditEntry } from "@/lib/branch";
 import { getSpokenForEntryIds, getViewer } from "@/lib/branch.server";
@@ -182,15 +183,27 @@ export default async function EditPersonPage({
         placeLabels={placeLabels}
       />
 
-      <EditConnections
-        personId={person.id}
-        personName={personDisplayName(person)}
-        personPartners={
-          allMembers.find((m) => m.id === person.id)?.partners ?? []
-        }
-        members={members}
-        connections={connections}
-      />
+      {accountTypeOf(profile.role).connections === "none" ? (
+        // A Leaf keeps their entry, not the lines around it (Step 18).
+        <section className="flex flex-col gap-1 rounded-lg border border-border p-4">
+          <h2 className="text-base font-semibold">Connections</h2>
+          <p className="text-sm text-muted-foreground">
+            As a Leaf, you keep your own details up to date and the rest of the
+            family keeps the lines between entries. If one of yours is wrong,
+            flag your entry on the tree and a Branch or Root will fix it.
+          </p>
+        </section>
+      ) : (
+        <EditConnections
+          personId={person.id}
+          personName={personDisplayName(person)}
+          personPartners={
+            allMembers.find((m) => m.id === person.id)?.partners ?? []
+          }
+          members={members}
+          connections={connections}
+        />
+      )}
     </main>
   );
 }

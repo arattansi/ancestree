@@ -356,6 +356,8 @@ export function PersonPanel({
   isAdmin,
   isSelf,
   canEdit,
+  canAddCompanions = true,
+  lockedNote,
   claimable,
   isCreator,
   currentUserId,
@@ -378,6 +380,10 @@ export function PersonPanel({
   isAdmin: boolean;
   isSelf: boolean;
   canEdit: boolean;
+  /** The viewer's account type adds companions at all (a Leaf's doesn't). */
+  canAddCompanions?: boolean;
+  /** Why the viewer can't edit this entry, when they can't. */
+  lockedNote: string;
   currentUserId: string;
   /** This entry looks like the signed-in member and is unclaimed. */
   claimable: boolean;
@@ -696,7 +702,7 @@ export function PersonPanel({
 
               <CompanionsSection
                 pets={pets}
-                canAdd={!readOnly && canEdit}
+                canAdd={!readOnly && canEdit && canAddCompanions}
                 onSelectPet={onSelectPet}
                 onAdd={() => setAddingCompanion(true)}
               />
@@ -841,8 +847,7 @@ export function PersonPanel({
 
                   {!canEdit && !claimable && !isSelf ? (
                     <p className="text-xs text-muted-foreground">
-                      Only this entry&rsquo;s owner, an admin, or a branch admin
-                      for this part of the tree can edit it.
+                      {lockedNote}
                     </p>
                   ) : null}
 
@@ -900,7 +905,7 @@ export function PersonPanel({
               ) : null}
             </div>
 
-            {!readOnly && canEdit ? (
+            {!readOnly && canEdit && canAddCompanions ? (
               <AddCompanionDialog
                 open={addingCompanion}
                 onOpenChange={setAddingCompanion}

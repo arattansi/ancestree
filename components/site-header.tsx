@@ -5,6 +5,7 @@ import { SiteNavLink } from "@/components/site-nav-link";
 import { SiteNotifications } from "@/components/site-notifications";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { accountTypeOf } from "@/lib/account-types";
 import { getProfile, getUser } from "@/lib/auth";
 import { listNotifications } from "@/lib/claims";
 import { countAdminActionItems } from "@/lib/admin-notifications";
@@ -13,11 +14,16 @@ import { countOpenConnectionSuggestions } from "@/lib/connection-suggestions.ser
 export async function SiteHeader() {
   const profile = await getProfile();
   const isAdmin = profile?.role === "admin";
+  // A Leaf can't answer connection prompts, so isn't pointed at them.
+  const answersConnections =
+    !!profile && accountTypeOf(profile.role).connections !== "none";
   const [user, adminItems, openConnections] = profile
     ? await Promise.all([
         getUser(),
         isAdmin ? countAdminActionItems() : Promise.resolve(0),
-        countOpenConnectionSuggestions(),
+        answersConnections
+          ? countOpenConnectionSuggestions()
+          : Promise.resolve(0),
       ])
     : [null, 0, 0];
   const notifications = user ? await listNotifications(user.id) : [];

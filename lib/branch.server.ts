@@ -1,5 +1,6 @@
 import "server-only";
 
+import { accountTypeOf } from "@/lib/account-types";
 import { branchIds, type Viewer } from "@/lib/branch";
 import { createClient } from "@/lib/supabase/server";
 import type { Profile } from "@/lib/auth";
@@ -35,15 +36,22 @@ export async function getSpokenForEntryIds(
 
 /**
  * Who the viewer is for permission purposes, with their branch resolved when
- * the role calls for one. Mirrors `private.is_on_own_branch`: a branch admin
- * still in onboarding, with no entry of their own, has no branch.
+ * their account type calls for one. Mirrors `private.is_on_own_branch`: a
+ * Branch still in onboarding, with no entry of their own, has no branch.
  */
 export async function getViewer(
   profile: Profile,
   treeId: string,
 ): Promise<Viewer> {
-  const base = { userId: profile.auth_user_id, role: profile.role };
-  if (profile.role !== "branch_admin" || !profile.self_person_id) {
+  const base = {
+    userId: profile.auth_user_id,
+    role: profile.role,
+    selfPersonId: profile.self_person_id,
+  };
+  if (
+    accountTypeOf(profile.role).entries !== "branch" ||
+    !profile.self_person_id
+  ) {
     return { ...base, branch: null };
   }
 
