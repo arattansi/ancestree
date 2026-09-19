@@ -188,13 +188,18 @@ only their own `self_person_id` entry. Deletes: admin only. A claim moves
 `owner_user_id` to the claimant, so the creator then loses edit rights until an
 admin reverses the claim.
 
-**Branches (Step 17):** a `branch_admin` curates the part of the tree they
-belong to. Their branch is derived from their own entry by the same up-then-down
-walk as the bloodline gate (`private.branch_ids`): climb `parent` edges to every
-ancestor, descend from that whole set, then add the partners those people
-married — one step, never walked through. So a spouse is on the branch and a
-spouse's parents are not, which is what keeps a branch admin inside their own
-side of the tree. Two limits: another member's own entry (`self_person_id` or a
+**Branches (Step 17, re-anchored in 18.1):** a `branch_admin` curates one
+Root's side of the tree. A branch is measured from one person by the same
+up-then-down walk as the bloodline gate (`private.branch_ids`): climb `parent`
+edges to every ancestor, descend from that whole set, then add the partners
+those people married — one step, never walked through. So a spouse is on the
+branch and a spouse's parents are not. A Branch tends the branch of **the Root
+they are related to** — every Root whose branch has the Branch's own entry on
+it, by blood or marriage (`private.root_person_ids` → `private.own_branch_ids`;
+`lib/branch.ts#branchReach`). Related to both Roots (their child), they tend
+both sides; related to none, they tend nothing and edit like Canopy. Until
+18.1 the walk started from the Branch's own entry, which left out the Root's
+other grandparents' families and let in the Branch's own in-laws' side. Two limits: another member's own entry (`self_person_id` or a
 settled claim) is never theirs to edit, and a connection needs **both** ends on
 the branch (`private.can_edit_relationship`) — one end alone would let them
 redraw a line into someone else's family. Nothing else moves: deleting people,
@@ -210,7 +215,7 @@ a name, and where each type's reach is written down (`entries`, `connections`,
 | Stored `role` | Name | Reach |
 |---|---|---|
 | `admin` | **Root** | Everything, plus running the tree: members and their account types, invites, share links, deletes, lineage, verification |
-| `branch_admin` | **Branch** | Every entry and connection on their own branch (see **Branches**) |
+| `branch_admin` | **Branch** | Every entry and connection on the side of the Root they're related to (see **Branches**) |
 | `member` | **Canopy** | What they add, the lines they draw, and their own entry. New members join as Canopy |
 | `leaf` | **Leaf** | Their own entry (details, photo, documents, card position). Read, comment, flag, claim — nothing that grows or reshapes the tree |
 
@@ -247,7 +252,7 @@ entry owner/admin can write.
 
 Helpers live in the unexposed `private` schema (`is_admin`, `is_branch_admin`,
 `is_leaf`, `is_tree_member`, `can_edit_person`, `branch_ids`,
-`is_on_own_branch`, `person_is_someones_own`, `can_edit_relationship`,
+`root_person_ids`, `own_branch_ids`, `is_on_own_branch`, `person_is_someones_own`, `can_edit_relationship`,
 `can_edit_pet`, `leaf_guard_people`, `leaf_guard_relationships`).
 
 ## Auth & invites (Step 3)
@@ -390,6 +395,17 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 18.1 — A Branch tends their Root's side** (migration
+  `20260919130000_branch_on_related_root`): a Branch's reach was measured from
+  their own entry; it is now the branch of the Root they are related to, so a
+  Branch looks after a founder's side of the tree rather than their own corner
+  of it. On the live tree Arzu's reach grows from 14 entries to 17 (Raiya's
+  mother's family) and loses none. A child of both Roots tends both sides; a
+  member related to no Root tends nothing. `/admin` says whose side each Branch
+  tends, and `/account` tells a Branch theirs. Checked in a rolled-back
+  transaction: the new entries and the lines between them editable, Aalim's
+  side and Raiya's own entry still refused, no reach while onboarding.
 
 - **Step 18 — Account types** (migration `20260919120000_account_types`):
   the seed of a model that could one day be sold as plans. The three roles
