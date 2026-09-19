@@ -21,12 +21,20 @@ const ALLOWED = /^(application\/pdf|image\/jpeg|image\/png)$/;
 // Keep well under the Supabase free-tier limits (50MB/file, 1GB total).
 const MAX_BYTES = 10 * 1024 * 1024;
 
+/**
+ * An entry's documents. Everyone on the tree can list and download them
+ * (`documents_select`); adding and removing is for whoever can edit the entry
+ * (`private.can_edit_person`), so only they are offered the controls.
+ */
 export function PersonDocuments({
   personId,
   treeId,
+  canEdit,
 }: {
   personId: string;
   treeId: string;
+  /** The viewer can edit this entry — mirrors `lib/branch#canEditEntry`. */
+  canEdit: boolean;
 }) {
   const [docs, setDocs] = React.useState<PersonDocument[] | null>(null);
   const [busy, setBusy] = React.useState(false);
@@ -116,20 +124,22 @@ export function PersonDocuments({
         Documents
       </h2>
 
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="documents">Add documents</Label>
-        <Input
-          id="documents"
-          type="file"
-          accept={ACCEPT}
-          multiple
-          onChange={onPick}
-          disabled={busy}
-        />
-        <p className="text-xs text-muted-foreground">
-          PDF, JPG, or PNG. Only you and admins can see these.
-        </p>
-      </div>
+      {canEdit ? (
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="documents">Add documents</Label>
+          <Input
+            id="documents"
+            type="file"
+            accept={ACCEPT}
+            multiple
+            onChange={onPick}
+            disabled={busy}
+          />
+          <p className="text-xs text-muted-foreground">
+            PDF, JPG, or PNG. Everyone on the tree can see and download them.
+          </p>
+        </div>
+      ) : null}
 
       {docs === null ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
@@ -153,15 +163,17 @@ export function PersonDocuments({
                 >
                   Download
                 </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  disabled={pendingId === doc.id}
-                  onClick={() => onRemove(doc.id)}
-                >
-                  Remove
-                </Button>
+                {canEdit ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    disabled={pendingId === doc.id}
+                    onClick={() => onRemove(doc.id)}
+                  >
+                    Remove
+                  </Button>
+                ) : null}
               </span>
             </li>
           ))}

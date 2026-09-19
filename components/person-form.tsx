@@ -132,7 +132,7 @@ export function PersonForm({
       </form>
 
       <div className="mt-8 border-t border-border pt-6">
-        <PersonDocuments personId={person.id} treeId={treeId} />
+        <PersonDocuments personId={person.id} treeId={treeId} canEdit />
       </div>
     </Form>
   );

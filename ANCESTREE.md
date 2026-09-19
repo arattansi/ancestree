@@ -412,6 +412,16 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 18.3 — Document controls follow edit rights**: an entry's panel
+  offered "Add documents" and Remove to everyone, and the database refused
+  anyone who couldn't edit the entry — a Remove even looked like it worked,
+  because RLS filters a refused delete instead of raising, until the list
+  reloaded. `PersonDocuments` now takes `canEdit` and shows the uploader and
+  Remove only to editors; everyone keeps the list and Download, since every
+  member can read documents. `removeDocument` reports a refused delete. The
+  uploader's note said "Only you and admins can see these", which was never
+  true; it now says everyone on the tree can see and download them.
+
 - **Step 18.2 — Invite someone straight in as a Leaf** (migration
   `20260919140000_invite_as_leaf`): an invite now says what it makes someone,
   Canopy or Leaf, and a Branch can send Leaf links from `/account` without an

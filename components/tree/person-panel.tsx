@@ -714,7 +714,11 @@ export function PersonPanel({
 
               {!readOnly ? (
                 <section className="border-t border-border pt-5">
-                  <PersonDocuments personId={person.id} treeId={treeId} />
+                  <PersonDocuments
+                    personId={person.id}
+                    treeId={treeId}
+                    canEdit={canEdit}
+                  />
                 </section>
               ) : null}
 

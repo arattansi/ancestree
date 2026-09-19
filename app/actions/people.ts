@@ -627,11 +627,20 @@ export async function removeDocument(
     .eq("id", documentId)
     .maybeSingle();
 
-  const { error } = await supabase
+  const { data: removed, error } = await supabase
     .from("documents")
     .delete()
-    .eq("id", documentId);
+    .eq("id", documentId)
+    .select("id");
   if (error) return { error: friendlyError(error.message) };
+  // RLS filters a refused delete rather than raising — say so, rather than
+  // letting the list drop a document that is still there.
+  if (!removed || removed.length === 0) {
+    return {
+      error:
+        "Only someone who can edit this entry can remove its documents.",
+    };
+  }
 
   if (doc?.file_path) {
     await supabase.storage.from("documents").remove([doc.file_path]);
