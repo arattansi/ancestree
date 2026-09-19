@@ -5,6 +5,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { getSiteUrl } from "@/lib/site-url";
 
 import "./globals.css";
 
@@ -20,12 +21,23 @@ const geistMono = Geist_Mono({
   display: "swap",
 });
 
+const description = "Invite-only, collaborative family tree.";
+
 export const metadata: Metadata = {
+  // The link preview (app/opengraph-image.tsx) needs an absolute URL.
+  metadataBase: new URL(getSiteUrl()),
   title: {
     default: "ancestree",
     template: "%s · ancestree",
   },
-  description: "Invite-only, collaborative family tree.",
+  description,
+  openGraph: {
+    type: "website",
+    siteName: "ancestree",
+    title: "ancestree",
+    description,
+  },
+  twitter: { card: "summary_large_image" },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

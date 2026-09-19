@@ -35,7 +35,9 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
+  // opengraph-image has no file extension, so it needs naming here: link
+  // preview crawlers are never signed in and would be sent to /join.
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|opengraph-image|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
