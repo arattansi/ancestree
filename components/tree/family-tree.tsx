@@ -832,6 +832,10 @@ function Canvas({
       const kind = direction === "up" ? "ancestor" : "descendant";
       return {
         endpoints: new Set<string>([...roots, ...line]),
+        // Everyone the lit lines touch stays bright and the rest of the tree
+        // dims — including each fork's other parent, so a married-in partner
+        // doesn't fade out from under the line their children hang off.
+        cards: new Set<string>([...roots, ...line, ...forks.flat()]),
         edgeIds,
         label: direction === "up" ? "Ancestors" : "Descendants",
         separator: direction === "up" ? "↑" : "↓",
@@ -854,6 +858,7 @@ function Canvas({
       );
       return {
         endpoints: new Set<string>(pair),
+        cards: new Set<string>(pair),
         edgeIds: new Set<string>([edge.id]),
         label: rel?.is_divorced ? "Former spouses" : "Spouses",
         separator: "—",
@@ -880,13 +885,14 @@ function Canvas({
   const dataById = React.useMemo(() => {
     const petById = new Map(pets.map((pet) => [pet.id, pet]));
     const endpoints = connection?.endpoints ?? null;
+    const lineCards = connection?.cards ?? null;
     const lit = spotlight?.people ?? null;
     const map = new Map<string, Record<string, unknown>>();
     for (const n of graph.nodes) {
       const isPet = n.type === "pet";
       const pet = isPet ? petById.get(n.id) : undefined;
       const selected = isPet ? n.id === selectedPetId : n.id === selectedId;
-      const dimmed =
+      const filteredOut =
         matchingIds === null
           ? false
           : isPet
@@ -894,6 +900,10 @@ function Canvas({
               ? !petMatchesFilter(pet, filter, matchingIds)
               : false
             : !matchingIds.has(n.id);
+      // A clicked line shows only the family it runs through; companions go
+      // with the rest, their leads already faded with the other lines.
+      const offLine = !!lineCards && (isPet || !lineCards.has(n.id));
+      const dimmed = filteredOut || offLine;
       const highlighted = !isPet && (endpoints?.has(n.id) ?? false);
       // A companion follows its people onto the lit line, and off it.
       const inLine = !lit
