@@ -6,9 +6,17 @@ import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { sendDirectInvites, type SendDirectInvitesState } from "@/app/actions/invites";
+import { JoinsAsChoice } from "@/components/joins-as-choice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  INVITABLE_ACCOUNT_TYPES,
+  accountTypeOf,
+  type AccountTypeKey,
+} from "@/lib/account-types";
+
+const JOINS_AS_OPTIONS = INVITABLE_ACCOUNT_TYPES.map((t) => t.key);
 
 type Row = { key: string; firstName: string; lastName: string; email: string };
 
@@ -20,6 +28,7 @@ function emptyRow(): Row {
 export function DirectInviteForm() {
   const router = useRouter();
   const [rows, setRows] = React.useState<Row[]>([emptyRow()]);
+  const [joinsAs, setJoinsAs] = React.useState<AccountTypeKey>("member");
   const [pending, setPending] = React.useState(false);
 
   function updateRow(key: string, field: keyof Omit<Row, "key">, value: string) {
@@ -47,6 +56,7 @@ export function DirectInviteForm() {
     try {
       res = await sendDirectInvites(
         filled.map((r) => ({ firstName: r.firstName, lastName: r.lastName, email: r.email })),
+        joinsAs,
       );
     } catch {
       // A rejected server action (stale action id after a deploy, dropped
@@ -70,8 +80,8 @@ export function DirectInviteForm() {
     if (succeeded.length > 0) {
       toast.success(
         succeeded.length === 1
-          ? `Invite emailed to ${succeeded[0].email}.`
-          : `${succeeded.length} invites emailed.`,
+          ? `Invite emailed to ${succeeded[0].email} — they'll join as ${accountTypeOf(joinsAs).name}.`
+          : `${succeeded.length} invites emailed — they'll join as ${accountTypeOf(joinsAs).name}.`,
       );
     }
     notEmailed.forEach((r) =>
@@ -134,6 +144,13 @@ export function DirectInviteForm() {
           </div>
         ))}
       </div>
+
+      <JoinsAsChoice
+        options={JOINS_AS_OPTIONS}
+        value={joinsAs}
+        onChange={setJoinsAs}
+        disabled={pending}
+      />
 
       <div className="flex gap-2">
         <Button type="button" variant="outline" size="sm" onClick={addRow}>

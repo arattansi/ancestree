@@ -549,6 +549,7 @@ export type Database = {
           expires_at: string | null
           id: string
           invited_email: string | null
+          joins_as: string
           person_id: string | null
           status: string
           token: string
@@ -562,6 +563,7 @@ export type Database = {
           expires_at?: string | null
           id?: string
           invited_email?: string | null
+          joins_as?: string
           person_id?: string | null
           status?: string
           token?: string
@@ -575,6 +577,7 @@ export type Database = {
           expires_at?: string | null
           id?: string
           invited_email?: string | null
+          joins_as?: string
           person_id?: string | null
           status?: string
           token?: string
@@ -1558,6 +1561,7 @@ export type Database = {
         Returns: {
           claim_person_name: string
           inviter_name: string
+          joins_as: string
           tree_name: string
           valid: boolean
         }[]

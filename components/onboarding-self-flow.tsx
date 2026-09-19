@@ -29,10 +29,13 @@ export function OnboardingSelfFlow({
   treeId,
   isAdmin,
   members,
+  selfOnly = false,
 }: {
   treeId: string;
   isAdmin: boolean;
   members: TreeMemberOption[];
+  /** A Leaf: they add their own entry and its connection, nobody else. */
+  selfOnly?: boolean;
 }) {
   const router = useRouter();
   const [step, setStep] = React.useState<Step>("name");
@@ -84,8 +87,9 @@ export function OnboardingSelfFlow({
         <div className="flex flex-col gap-1">
           <h2 className="text-base font-semibold">Add yourself</h2>
           <p className="text-sm text-muted-foreground">
-            You&apos;ll pick how you connect to someone already on the tree — and
-            can add any missing relatives in between.
+            {selfOnly
+              ? "You'll pick how you connect to someone already on the tree. If the relatives in between are missing, ask whoever invited you to add them first."
+              : "You'll pick how you connect to someone already on the tree — and can add any missing relatives in between."}
           </p>
         </div>
         <AddPersonFlow
@@ -94,6 +98,7 @@ export function OnboardingSelfFlow({
           isAdmin={isAdmin}
           members={members}
           initialName={{ first_name: first, last_name: last }}
+          selfOnly={selfOnly}
         />
         <button
           type="button"

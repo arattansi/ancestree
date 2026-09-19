@@ -1,3 +1,5 @@
+import { AccountTypeBadge } from "@/components/account-type-badge";
+import { LEAF } from "@/lib/account-types";
 import type { InviteHistoryItem } from "@/lib/invites";
 import { DeleteInviteButton } from "@/components/delete-invite-button";
 import { ResendInviteButton } from "@/components/resend-invite-button";
@@ -28,6 +30,10 @@ export function AdminInviteHistory({ items }: { items: InviteHistoryItem[] }) {
             <Badge variant="secondary">
               {item.source === "direct" ? "Sent directly" : "Requested"}
             </Badge>
+            {/* Canopy is what every invite used to make; only a Leaf is news. */}
+            {item.joinsAs === LEAF.key ? (
+              <AccountTypeBadge role={item.joinsAs} />
+            ) : null}
             <StatusBadge item={item} />
             {canResend(item) && (
               <ResendInviteButton

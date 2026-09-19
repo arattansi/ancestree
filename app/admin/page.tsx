@@ -36,7 +36,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { branchSideLabel } from "@/lib/account-types";
+import { branchSideLabel, invitableTypes } from "@/lib/account-types";
 import { requireAdmin } from "@/lib/auth";
 import { getBranchSides } from "@/lib/branch.server";
 import { buildAdminActionItems } from "@/lib/admin-notifications";
@@ -341,6 +341,14 @@ export default async function AdminPage() {
                           <Button type="submit" variant="outline" size="sm">
                             {member.can_invite ? "Revoke" : "Grant"}
                           </Button>
+                          {/* What the grant adds, when the type already invites. */}
+                          {member.role === "branch_admin" ? (
+                            <span className="mt-1 block text-xs text-muted-foreground">
+                              {member.can_invite
+                                ? "Canopy or Leaf"
+                                : "Leaves without it"}
+                            </span>
+                          ) : null}
                         </form>
                       )}
                     </td>
@@ -420,12 +428,17 @@ export default async function AdminPage() {
         <AdminSubsection
           id="invite"
           title="Invite a relative"
-          description="Each link is tied to you, works once, and expires after 14 days. Send by name and email and it’s emailed for you, or just mint a bare link to send yourself."
+          description="Each link is tied to you, works once, and expires after 14 days. Send by name and email and it’s emailed for you, or just mint a bare link to send yourself. Either way, choose whether they join as Canopy or as a Leaf; Branches can send Leaf links from their account page."
         >
           <div className="flex flex-col gap-6">
             <DirectInviteForm />
             <div className="border-t border-border pt-6">
-              <InviteMinter />
+              <InviteMinter
+                options={invitableTypes(
+                  currentAdmin.role,
+                  currentAdmin.can_invite,
+                ).map((t) => t.key)}
+              />
             </div>
           </div>
         </AdminSubsection>

@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { deleteInvite } from "@/app/actions/invites";
+import { AccountTypeBadge } from "@/components/account-type-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { LEAF } from "@/lib/account-types";
 import type { BareInvite } from "@/lib/invites";
 
 /**
@@ -66,6 +68,9 @@ export function AdminBareInvites({
         >
           <div className="flex flex-wrap items-center gap-1.5">
             <StatusBadge invite={invite} />
+            {invite.joinsAs === LEAF.key ? (
+              <AccountTypeBadge role={invite.joinsAs} />
+            ) : null}
             <span className="text-muted-foreground">
               Minted by {invite.createdByName ?? "a former member"} on{" "}
               {new Date(invite.createdAt).toLocaleDateString(undefined, {

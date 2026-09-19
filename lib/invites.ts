@@ -15,6 +15,8 @@ export type InviteHistoryItem = {
   inviteToken: string | null;
   inviteStatus: "active" | "accepted" | "revoked" | null;
   expiresAt: string | null;
+  /** The account type the link makes someone (`invites.joins_as`). */
+  joinsAs: string | null;
 };
 
 const HISTORY_LIMIT = 50;
@@ -30,7 +32,7 @@ export async function listInviteHistory(): Promise<InviteHistoryItem[]> {
   const { data } = await supabase
     .from("invite_requests")
     .select(
-      "id, first_name, last_name, email, source, status, email_sent, reviewed_at, invites(token, status, expires_at)",
+      "id, first_name, last_name, email, source, status, email_sent, reviewed_at, invites(token, status, expires_at, joins_as)",
     )
     .neq("status", "pending")
     .order("reviewed_at", { ascending: false, nullsFirst: false })
@@ -52,6 +54,7 @@ export async function listInviteHistory(): Promise<InviteHistoryItem[]> {
       inviteToken: invite?.token ?? null,
       inviteStatus: (invite?.status as InviteHistoryItem["inviteStatus"]) ?? null,
       expiresAt: invite?.expires_at ?? null,
+      joinsAs: invite?.joins_as ?? null,
     };
   });
 }
@@ -64,6 +67,8 @@ export type BareInvite = {
   expiresAt: string | null;
   /** Null if the minter's profile has no display name set. */
   createdByName: string | null;
+  /** The account type the link makes someone (`invites.joins_as`). */
+  joinsAs: string;
 };
 
 /**
@@ -86,7 +91,7 @@ export async function listBareInvites(): Promise<BareInvite[]> {
   const { data } = await supabase
     .from("invites")
     .select(
-      "id, token, status, created_at, expires_at, profiles!invites_created_by_fkey(display_name), invite_requests(id)",
+      "id, token, status, created_at, expires_at, joins_as, profiles!invites_created_by_fkey(display_name), invite_requests(id)",
     )
     .order("created_at", { ascending: false })
     .limit(BARE_SCAN_LIMIT);
@@ -111,6 +116,7 @@ export async function listBareInvites(): Promise<BareInvite[]> {
         createdAt: i.created_at,
         expiresAt: i.expires_at,
         createdByName: creator?.display_name ?? null,
+        joinsAs: i.joins_as,
       };
     });
 }

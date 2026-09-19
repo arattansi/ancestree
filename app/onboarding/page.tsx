@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { OnboardingSelfFlow } from "@/components/onboarding-self-flow";
 import { Card, CardContent } from "@/components/ui/card";
+import { accountTypeOf } from "@/lib/account-types";
 import { requireProfile } from "@/lib/auth";
 import { getSharedTree, listTreeMembers } from "@/lib/tree";
 
@@ -49,6 +50,8 @@ export default async function OnboardingPage() {
             treeId={tree.id}
             isAdmin={profile.role === "admin"}
             members={members}
+            // A Leaf may add their own entry and nothing else (Step 18.2).
+            selfOnly={!accountTypeOf(profile.role).addRelatives}
           />
         </CardContent>
       </Card>

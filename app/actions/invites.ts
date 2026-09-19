@@ -2,6 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 
+import {
+  INVITABLE_ACCOUNT_TYPES,
+  invitableTypes,
+  isInvitableKey,
+} from "@/lib/account-types";
 import { requireAdmin, requireProfile } from "@/lib/auth";
 import { sendEmail } from "@/lib/email";
 import { claimInviteEmail } from "@/lib/emails/claim-invite";
@@ -20,11 +25,23 @@ export type CreateInviteState = {
   error?: string;
 };
 
-/** Mint a fresh, inviter-attributed, single-use invite link. */
-export async function createInvite(): Promise<CreateInviteState> {
+/**
+ * Mint a fresh, inviter-attributed, single-use invite link that joins as
+ * `joinsAs` — Canopy (`member`) or Leaf (`leaf`), whichever the inviter may
+ * give (`invitableTypes`; `private.can_invite_as` decides).
+ */
+export async function createInvite(
+  joinsAs: string = "member",
+): Promise<CreateInviteState> {
   const profile = await requireProfile();
-  if (profile.role !== "admin" && !profile.can_invite) {
+  const allowed = invitableTypes(profile.role, profile.can_invite);
+  if (allowed.length === 0) {
     return { error: "You don't have permission to create invites." };
+  }
+  if (!allowed.some((t) => t.key === joinsAs)) {
+    return {
+      error: `You can invite relatives as ${allowed.map((t) => t.name).join(" or ")} only.`,
+    };
   }
 
   const supabase = await createClient();
@@ -51,6 +68,7 @@ export async function createInvite(): Promise<CreateInviteState> {
       created_by: profile.auth_user_id,
       status: "active",
       expires_at: expiresAt,
+      joins_as: joinsAs,
     })
     .select("token")
     .single();
@@ -60,6 +78,7 @@ export async function createInvite(): Promise<CreateInviteState> {
   }
 
   revalidatePath("/admin");
+  revalidatePath("/account");
   return { url: `${getSiteUrl()}/join/${invite.token}` };
 }
 
@@ -91,8 +110,14 @@ export type SendDirectInvitesState = {
  */
 export async function sendDirectInvites(
   rows: DirectInviteRow[],
+  joinsAs: string = "member",
 ): Promise<SendDirectInvitesState> {
   const admin = await requireAdmin();
+  if (!isInvitableKey(joinsAs)) {
+    return {
+      error: `An invite can only make someone ${INVITABLE_ACCOUNT_TYPES.map((t) => t.name).join(" or ")}.`,
+    };
+  }
 
   const trimmed = rows
     .map((r) => ({
@@ -150,6 +175,7 @@ export async function sendDirectInvites(
         created_by: admin.auth_user_id,
         status: "active",
         expires_at: expiresAt,
+        joins_as: joinsAs,
       })
       .select("id, token")
       .single();

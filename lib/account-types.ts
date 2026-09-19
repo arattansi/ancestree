@@ -58,6 +58,12 @@ export type AccountType = {
   companions: Reach;
   /** Add new relatives to the tree. */
   addRelatives: boolean;
+  /**
+   * Who they can invite, before any grant (`profiles.can_invite`): `any` (as
+   * Canopy or Leaf), `leaves` (as Leaves only), or `none`. A grant widens
+   * `leaves` / `none` — see `invitableTypes`.
+   */
+  invites: "any" | "leaves" | "none";
   /** The admin console: members and their account types, invites, share
    *  links, deleting entries, lineage, verification, auto-arrange. */
   runsTree: boolean;
@@ -73,6 +79,7 @@ export const ROOT: AccountType = {
   connections: "tree",
   companions: "tree",
   addRelatives: true,
+  invites: "any",
   runsTree: true,
 };
 
@@ -86,6 +93,7 @@ export const BRANCH: AccountType = {
   connections: "branch",
   companions: "branch",
   addRelatives: true,
+  invites: "leaves",
   runsTree: false,
 };
 
@@ -99,6 +107,7 @@ export const CANOPY: AccountType = {
   connections: "own",
   companions: "own",
   addRelatives: true,
+  invites: "none",
   runsTree: false,
 };
 
@@ -112,6 +121,7 @@ export const LEAF: AccountType = {
   connections: "none",
   companions: "none",
   addRelatives: false,
+  invites: "none",
   runsTree: false,
 };
 
@@ -146,6 +156,30 @@ export const ASSIGNABLE_ACCOUNT_TYPES: readonly AccountType[] = [
 
 export function isAssignable(key: unknown): key is AccountTypeKey {
   return ASSIGNABLE_ACCOUNT_TYPES.some((t) => t.key === key);
+}
+
+/** What an invite link can make someone: Canopy or Leaf, never more. */
+export const INVITABLE_ACCOUNT_TYPES: readonly AccountType[] = [CANOPY, LEAF];
+
+/**
+ * The account types someone can invite a relative in as, widest first.
+ * Mirrors `private.can_invite_as`: a Root, either; a Branch, Leaves; and a
+ * Root's invite grant lets anyone invite Canopy or Leaf — except a Leaf, who
+ * never brings in someone wider than themselves.
+ */
+export function invitableTypes(
+  role: string | null | undefined,
+  canInvite: boolean,
+): AccountType[] {
+  const type = accountTypeOf(role);
+  if (type.invites === "any") return [CANOPY, LEAF];
+  if (canInvite) return type === LEAF ? [LEAF] : [CANOPY, LEAF];
+  if (type.invites === "leaves") return [LEAF];
+  return [];
+}
+
+export function isInvitableKey(key: unknown): key is "member" | "leaf" {
+  return INVITABLE_ACCOUNT_TYPES.some((t) => t.key === key);
 }
 
 /** One line of what an account type can do: yes, no, or how far. */
@@ -193,7 +227,12 @@ export function describeAccess(type: AccountType): Access[] {
     { label: "Add companions", value: type.companions !== "none" },
     {
       label: "Invite relatives",
-      value: type.runsTree ? true : "If a Root allows it",
+      value:
+        type.invites === "any"
+          ? true
+          : type.invites === "leaves"
+            ? "As Leaves"
+            : "If a Root allows it",
     },
     { label: "Run the tree", value: type.runsTree },
   ];

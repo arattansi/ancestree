@@ -222,6 +222,7 @@ export function AddPersonFlow({
   members,
   initialName,
   canvasInterestRegistered = false,
+  selfOnly = false,
 }: {
   mode: "self" | "relative";
   treeId: string;
@@ -233,6 +234,13 @@ export function AddPersonFlow({
   /** They have already put their name down for a tree of their own (Step
    *  14.3), so the gate prompt thanks them instead of asking again. */
   canvasInterestRegistered?: boolean;
+  /**
+   * A Leaf onboarding (Step 18.2): they may add their own entry and the lines
+   * that place it, and nothing else, so there are no in-between people to add
+   * and only the suggestions about them are asked — anything else would be
+   * refused when it saved (`private.leaf_guard_*`).
+   */
+  selfOnly?: boolean;
 }) {
   const router = useRouter();
   const mustConnect = !isAdmin;
@@ -509,8 +517,14 @@ export function AddPersonFlow({
       pendingEdges: edges,
     });
 
-    if (detected.suggestions && detected.suggestions.length > 0) {
-      setSuggestions(detected.suggestions);
+    // A Leaf can only answer for lines through their own entry (new:0).
+    const askable = (detected.suggestions ?? []).filter(
+      (s) =>
+        !selfOnly ||
+        [s.subject, s.related].some((r) => r.kind === "new" && r.index === 0),
+    );
+    if (askable.length > 0) {
+      setSuggestions(askable);
       setPendingSave({ values, edges });
       return;
     }
@@ -583,9 +597,11 @@ export function AddPersonFlow({
               Connect to the family tree
             </h2>
             <p className="text-sm text-muted-foreground">
-              {mustConnect
-                ? "Every entry must connect to someone already in the tree. If the person in between isn't here yet, add them below."
-                : "Admins can add a root person without a connection."}
+              {selfOnly
+                ? "Pick a relative already on the tree and say how you're related."
+                : mustConnect
+                  ? "Every entry must connect to someone already in the tree. If the person in between isn't here yet, add them below."
+                  : "Admins can add a root person without a connection."}
             </p>
           </div>
 
@@ -741,21 +757,25 @@ export function AddPersonFlow({
                     );
                   })}
 
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="self-start"
-                    onClick={addIntermediate}
-                  >
-                    Add someone in between
-                  </Button>
-                  <p className="text-xs text-muted-foreground">
-                    Reads top to bottom:{" "}
-                    {primaryFallback === "You" ? "you" : "the new entry"}{" "}
-                    connect{primaryFallback === "You" ? "" : "s"} through each
-                    person to {anchorLabel}.
-                  </p>
+                  {selfOnly ? null : (
+                    <>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="self-start"
+                        onClick={addIntermediate}
+                      >
+                        Add someone in between
+                      </Button>
+                      <p className="text-xs text-muted-foreground">
+                        Reads top to bottom:{" "}
+                        {primaryFallback === "You" ? "you" : "the new entry"}{" "}
+                        connect{primaryFallback === "You" ? "" : "s"} through
+                        each person to {anchorLabel}.
+                      </p>
+                    </>
+                  )}
 
                   <div className="flex flex-col gap-3 border-t border-border pt-4">
                     <label className="flex items-center gap-3 text-sm">

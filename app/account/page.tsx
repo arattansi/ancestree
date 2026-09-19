@@ -7,6 +7,7 @@ import { AccountTypeBadge } from "@/components/account-type-badge";
 import { AccountTypeCard } from "@/components/account-type-guide";
 import { DeleteAccount } from "@/components/delete-account";
 import { EditDisplayName } from "@/components/edit-display-name";
+import { InviteMinter } from "@/components/invite-minter";
 import { NotificationsList } from "@/components/notifications-list";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
@@ -17,7 +18,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { accountTypeOf, branchSideLabel } from "@/lib/account-types";
+import {
+  accountTypeOf,
+  branchSideLabel,
+  invitableTypes,
+} from "@/lib/account-types";
 import { getUser, requireProfile } from "@/lib/auth";
 import { getBranchSides } from "@/lib/branch.server";
 import { listNotifications } from "@/lib/claims";
@@ -38,6 +43,8 @@ export default async function AccountPage() {
 
   const notifications = user ? await listNotifications(user.id) : [];
   const accountType = accountTypeOf(profile.role);
+  // Roots invite from /admin; everyone else who may, invites from here.
+  const inviteOptions = invitableTypes(profile.role, profile.can_invite);
   // A Branch is told whose side they tend: the Root they're related to.
   const branchSide =
     accountType.entries === "branch" && profile.self_person_id
@@ -68,7 +75,11 @@ export default async function AccountPage() {
               (profile.role === "admin" ? "Founding Root" : "Unknown")}
           </Row>
           <Row label="Invite rights">
-            {profile.role === "admin" || profile.can_invite ? "Yes" : "No"}
+            {inviteOptions.length === 0
+              ? "No"
+              : inviteOptions.length === 1
+                ? `As ${inviteOptions[0].name}s`
+                : "Yes"}
           </Row>
         </CardContent>
       </Card>
@@ -91,6 +102,21 @@ export default async function AccountPage() {
           <AccountTypeCard type={accountType} />
         </CardContent>
       </Card>
+
+      {!accountType.runsTree && inviteOptions.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Invite a relative</CardTitle>
+            <CardDescription>
+              A single-use link, tied to you, that expires after 14 days. Send
+              it however suits them — a message, WhatsApp, an email.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <InviteMinter options={inviteOptions.map((t) => t.key)} />
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader>

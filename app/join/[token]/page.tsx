@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { AccountTypeGlyph } from "@/components/account-type-badge";
 import { MagicLinkForm } from "@/components/magic-link-form";
 import {
   Card,
@@ -10,6 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { LEAF } from "@/lib/account-types";
 import { getProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
@@ -56,6 +58,13 @@ export default async function InvitePage({
                       {preview.claim_person_name}
                     </span>
                   </>
+                ) : preview.joins_as === LEAF.key ? (
+                  <>
+                    join{" "}
+                    <span className="font-medium text-foreground">
+                      {preview.tree_name}
+                    </span>
+                  </>
                 ) : (
                   <>
                     help build{" "}
@@ -69,6 +78,19 @@ export default async function InvitePage({
               </CardDescription>
             </CardHeader>
             <CardContent>
+              {preview.joins_as === LEAF.key ? (
+                // Say what a Leaf is before they sign up, not after.
+                <div className="mb-5 flex items-start gap-3 rounded-lg border border-account-leaf/30 bg-account-leaf/10 p-3 text-sm">
+                  <AccountTypeGlyph type={LEAF} tinted className="mt-0.5" />
+                  <p className="text-foreground">
+                    You&rsquo;ll join as a{" "}
+                    <span className="font-medium">Leaf</span>: you can see the
+                    whole tree, keep your own entry up to date — your details,
+                    photo and documents — and comment on or flag anything that
+                    looks wrong.
+                  </p>
+                </div>
+              ) : null}
               <MagicLinkForm inviteToken={token} submitLabel="Accept &amp; sign in" />
               <p className="mt-4 text-xs text-muted-foreground">
                 By joining you agree to share your family details with other
