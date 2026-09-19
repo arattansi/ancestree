@@ -3,18 +3,21 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { signOut } from "@/app/actions/auth";
+import { AccountTypeBadge } from "@/components/account-type-badge";
+import { AccountTypeCard } from "@/components/account-type-guide";
 import { DeleteAccount } from "@/components/delete-account";
 import { EditDisplayName } from "@/components/edit-display-name";
 import { NotificationsList } from "@/components/notifications-list";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { accountTypeOf } from "@/lib/account-types";
 import { getUser, requireProfile } from "@/lib/auth";
 import { listNotifications } from "@/lib/claims";
 import { createClient } from "@/lib/supabase/server";
@@ -33,6 +36,7 @@ export default async function AccountPage() {
     .maybeSingle();
 
   const notifications = user ? await listNotifications(user.id) : [];
+  const accountType = accountTypeOf(profile.role);
 
   return (
     <main className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-6 px-4 py-10">
@@ -46,18 +50,30 @@ export default async function AccountPage() {
         </CardHeader>
         <CardContent className="flex flex-col gap-3 text-sm">
           <Row label="Email">{user?.email ?? "—"}</Row>
-          <Row label="Role">
-            <Badge variant={profile.role === "admin" ? "default" : "secondary"}>
-              {profile.role === "branch_admin" ? "branch admin" : profile.role}
-            </Badge>
+          <Row label="Account">
+            <AccountTypeBadge role={profile.role} />
           </Row>
           <Row label="Invited by">
             {directory?.invited_by_name ??
-              (profile.role === "admin" ? "Founding admin" : "Unknown")}
+              (profile.role === "admin" ? "Founding Root" : "Unknown")}
           </Row>
           <Row label="Invite rights">
             {profile.role === "admin" || profile.can_invite ? "Yes" : "No"}
           </Row>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Your account type</CardTitle>
+          <CardDescription>
+            {accountType.runsTree
+              ? "You set everyone else’s from the admin page."
+              : "A Root sets account types. Ask one if yours should change."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AccountTypeCard type={accountType} />
         </CardContent>
       </Card>
 

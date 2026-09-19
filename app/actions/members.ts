@@ -2,25 +2,30 @@
 
 import { revalidatePath } from "next/cache";
 
+import { ROOT, isAssignable } from "@/lib/account-types";
 import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 /**
- * Admin: make a member a branch admin, or put them back to member.
+ * Root: give a member a different account type — Branch, Canopy or Leaf
+ * (`lib/account-types`).
  *
- * A branch admin curates the part of the tree they belong to — every entry on
- * their own branch, and the connections between two people on it. Which
- * entries those are is derived from their own entry, not configured here; see
- * `private.branch_ids` (Step 17). Admins are left alone: demoting one is a
- * bigger decision than this button, and promoting one would be a demotion.
+ * What each can reach is the database's to enforce; this only records the
+ * choice. A Branch's branch is derived from their own entry, not configured
+ * here (`private.branch_ids`, Step 17). Roots are left alone: making someone a
+ * Root, or unmaking one, is a bigger decision than a dropdown.
  */
-export async function setBranchAdmin(formData: FormData) {
+export async function setAccountType(
+  userId: string,
+  key: string,
+): Promise<{ error?: string }> {
   await requireAdmin();
 
-  const userId = String(formData.get("userId") ?? "");
-  const makeBranchAdmin = String(formData.get("branchAdmin") ?? "") === "true";
-  if (!userId) return;
+  if (!userId) return { error: "No member specified." };
+  if (!isAssignable(key)) {
+    return { error: "That isn't an account type a Root can give." };
+  }
 
   const supabase = await createClient();
   const { data: target } = await supabase
@@ -28,15 +33,26 @@ export async function setBranchAdmin(formData: FormData) {
     .select("role")
     .eq("auth_user_id", userId)
     .maybeSingle();
-  if (!target || target.role === "admin") return;
+  if (!target) return { error: "That member no longer exists." };
+  if (target.role === ROOT.key) {
+    return { error: "A Root's account type can't be changed here." };
+  }
 
-  await supabase
+  // `profiles_protect_role` quietly keeps the old role for anyone who isn't
+  // a Root, so read the row back rather than trusting a clean response.
+  const { data } = await supabase
     .from("profiles")
-    .update({ role: makeBranchAdmin ? "branch_admin" : "member" })
-    .eq("auth_user_id", userId);
+    .update({ role: key })
+    .eq("auth_user_id", userId)
+    .select("role");
+  if (data?.[0]?.role !== key) {
+    return { error: "Couldn't change that account type. Try again." };
+  }
 
   revalidatePath("/admin");
   revalidatePath("/tree");
+  revalidatePath("/account");
+  return {};
 }
 
 /**

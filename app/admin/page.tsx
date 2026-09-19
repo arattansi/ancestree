@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 
 import { setCanInvite } from "@/app/actions/invites";
-import { setBranchAdmin } from "@/app/actions/members";
+import { AccountTypeBadge } from "@/components/account-type-badge";
+import { AccountTypeGuide } from "@/components/account-type-guide";
+import { AccountTypePicker } from "@/components/account-type-picker";
 import { AdminBareInvites } from "@/components/admin-bare-invites";
 import { AdminCanvasInterest } from "@/components/admin-canvas-interest";
 import { AdminDisputedClaims } from "@/components/admin-disputed-claims";
@@ -26,7 +28,6 @@ import {
   ShareLinkManager,
   type ShareLinkRow,
 } from "@/components/share-link-manager";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -164,6 +165,7 @@ export default async function AdminPage() {
       items: [
         { id: "overview", label: "Overview" },
         { id: "members", label: "Members" },
+        { id: "account-types", label: "Account types" },
       ],
     },
     {
@@ -231,128 +233,117 @@ export default async function AdminPage() {
       </Card>
 
       <AdminGroup
-        id="members"
         title="Members"
-        description={`${members.length} member${members.length === 1 ? "" : "s"} — role, who invited them, entries created, and invite permissions. A branch admin can edit every entry on their own branch of the tree.`}
-        sectionIds={["members"]}
+        description={`${members.length} member${members.length === 1 ? "" : "s"} — their account type, who invited them, entries created, and invite permissions.`}
+        sectionIds={["members", "account-types"]}
       >
-        <div className="-mx-(--card-spacing) overflow-x-auto">
-          <table className="w-full text-sm">
-            <caption className="sr-only">
-              Members, their role, who invited them, entries created, and invite
-              permissions
-            </caption>
-            <thead>
-              <tr className="border-b border-border text-left text-muted-foreground">
-                <th scope="col" className="px-4 py-2 font-medium">
-                  Member
-                </th>
-                <th scope="col" className="px-4 py-2 font-medium">
-                  Role
-                </th>
-                <th scope="col" className="px-4 py-2 font-medium">
-                  Invited by
-                </th>
-                <th scope="col" className="px-4 py-2 font-medium">
-                  Entries
-                </th>
-                <th scope="col" className="px-4 py-2 font-medium">
-                  Can invite
-                </th>
-                <th scope="col" className="px-4 py-2 font-medium">
-                  <span className="sr-only">Remove</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {members.map((member) => (
-                <tr
-                  key={member.auth_user_id}
-                  className="border-b border-border last:border-0"
-                >
-                  <td className="px-4 py-3 font-medium text-foreground">
-                    {member.display_name ?? "—"}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <Badge
-                        variant={
-                          member.role === "admin" ? "default" : "secondary"
-                        }
-                      >
-                        {member.role === "branch_admin"
-                          ? "branch admin"
-                          : member.role}
-                      </Badge>
+        <AdminSubsection id="members" title="Who’s on the tree">
+          <div className="-mx-(--card-spacing) overflow-x-auto">
+            <table className="w-full text-sm">
+              <caption className="sr-only">
+                Members, their account type, who invited them, entries created,
+                and invite permissions
+              </caption>
+              <thead>
+                <tr className="border-b border-border text-left text-muted-foreground">
+                  <th scope="col" className="px-4 py-2 font-medium">
+                    Member
+                  </th>
+                  <th scope="col" className="px-4 py-2 font-medium">
+                    Account
+                  </th>
+                  <th scope="col" className="px-4 py-2 font-medium">
+                    Invited by
+                  </th>
+                  <th scope="col" className="px-4 py-2 font-medium">
+                    Entries
+                  </th>
+                  <th scope="col" className="px-4 py-2 font-medium">
+                    Can invite
+                  </th>
+                  <th scope="col" className="px-4 py-2 font-medium">
+                    <span className="sr-only">Remove</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {members.map((member) => (
+                  <tr
+                    key={member.auth_user_id}
+                    className="border-b border-border last:border-0"
+                  >
+                    <td className="px-4 py-3 font-medium text-foreground">
+                      {member.display_name ?? "—"}
+                    </td>
+                    <td className="px-4 py-3">
                       {member.auth_user_id && member.role !== "admin" ? (
-                        <form action={setBranchAdmin}>
+                        <AccountTypePicker
+                          userId={member.auth_user_id}
+                          role={member.role ?? "member"}
+                          name={member.display_name ?? "This member"}
+                        />
+                      ) : (
+                        <AccountTypeBadge role={member.role} />
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {member.invited_by_name ??
+                        (member.role === "admin" ? "—" : "Unknown")}
+                    </td>
+                    <td className="px-4 py-3 tabular-nums text-muted-foreground">
+                      {member.auth_user_id
+                        ? (entryCountByCreator.get(member.auth_user_id) ?? 0)
+                        : 0}
+                    </td>
+                    <td className="px-4 py-3">
+                      {member.role === "admin" ? (
+                        <span className="text-muted-foreground">Always</span>
+                      ) : (
+                        <form action={setCanInvite}>
                           <input
                             type="hidden"
                             name="userId"
-                            value={member.auth_user_id}
+                            value={member.auth_user_id ?? ""}
                           />
                           <input
                             type="hidden"
-                            name="branchAdmin"
-                            value={(member.role !== "branch_admin").toString()}
+                            name="canInvite"
+                            value={(!member.can_invite).toString()}
                           />
-                          <Button type="submit" variant="ghost" size="sm">
-                            {member.role === "branch_admin"
-                              ? "Make member"
-                              : "Make branch admin"}
+                          <Button type="submit" variant="outline" size="sm">
+                            {member.can_invite ? "Revoke" : "Grant"}
                           </Button>
                         </form>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {member.auth_user_id &&
+                      member.role !== "admin" &&
+                      member.auth_user_id !== currentAdmin.auth_user_id ? (
+                        <DeleteMemberButton
+                          userId={member.auth_user_id}
+                          name={member.display_name ?? "this member"}
+                          entryCount={
+                            entryCountByCreator.get(member.auth_user_id) ?? 0
+                          }
+                        />
                       ) : null}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {member.invited_by_name ??
-                      (member.role === "admin" ? "—" : "Unknown")}
-                  </td>
-                  <td className="px-4 py-3 tabular-nums text-muted-foreground">
-                    {member.auth_user_id
-                      ? (entryCountByCreator.get(member.auth_user_id) ?? 0)
-                      : 0}
-                  </td>
-                  <td className="px-4 py-3">
-                    {member.role === "admin" ? (
-                      <span className="text-muted-foreground">Always</span>
-                    ) : (
-                      <form action={setCanInvite}>
-                        <input
-                          type="hidden"
-                          name="userId"
-                          value={member.auth_user_id ?? ""}
-                        />
-                        <input
-                          type="hidden"
-                          name="canInvite"
-                          value={(!member.can_invite).toString()}
-                        />
-                        <Button type="submit" variant="outline" size="sm">
-                          {member.can_invite ? "Revoke" : "Grant"}
-                        </Button>
-                      </form>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    {member.auth_user_id &&
-                    member.role !== "admin" &&
-                    member.auth_user_id !== currentAdmin.auth_user_id ? (
-                      <DeleteMemberButton
-                        userId={member.auth_user_id}
-                        name={member.display_name ?? "this member"}
-                        entryCount={
-                          entryCountByCreator.get(member.auth_user_id) ?? 0
-                        }
-                      />
-                    ) : null}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </AdminSubsection>
+
+        <AdminSubsection
+          id="account-types"
+          collapsible
+          title="Account types"
+          description="What each kind of member can reach. Anyone who isn’t a Root can be switched between Branch, Canopy and Leaf from the table above; new members join as Canopy."
+        >
+          <AccountTypeGuide />
+        </AdminSubsection>
       </AdminGroup>
 
       <AdminGroup
