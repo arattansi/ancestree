@@ -49,8 +49,15 @@ export function CanvasTip() {
   }
 
   return (
-    <Panel position="bottom-center">
-      <div className="flex max-w-[min(28rem,calc(100vw-7rem))] items-start gap-3 rounded-lg border border-border bg-card/95 px-3 py-2 text-xs shadow-md">
+    // Sized off the canvas, not the text: a centred panel only gets the half
+    // of the canvas right of its anchor to shrink-wrap into, which on a phone
+    // stacked the tip into a tall column. 7rem keeps it clear of the zoom
+    // controls in the corner.
+    <Panel
+      position="bottom-center"
+      className="w-[min(28rem,calc(100%-7rem))]"
+    >
+      <div className="flex items-start gap-3 rounded-lg border border-border bg-card/95 px-3 py-2 text-xs shadow-md">
         <p className="text-muted-foreground">
           <span className="font-medium text-foreground">
             Tap or click anyone to pull their own tree out of the family.
