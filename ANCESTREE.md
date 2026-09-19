@@ -215,7 +215,7 @@ a name, and where each type's reach is written down (`entries`, `connections`,
 | Stored `role` | Name | Reach |
 |---|---|---|
 | `admin` | **Root** | Everything, plus running the tree: members and their account types, invites, share links, deletes, lineage, verification |
-| `branch_admin` | **Branch** | Every entry and connection on the side of the Root they're related to (see **Branches**) |
+| `branch_admin` | **Branch** | Every entry and connection on the side of the Root they're related to (see **Branches**); invites relatives as Leaves with no grant needed |
 | `member` | **Canopy** | What they add, the lines they draw, and their own entry. New members join as Canopy |
 | `leaf` | **Leaf** | Their own entry (details, photo, documents, card position). Read, comment, flag, claim — nothing that grows or reshapes the tree |
 
@@ -223,7 +223,8 @@ The keys kept their old values on purpose: renaming them would rewrite every
 `role = 'admin'` test in the database for no visible change. A Root switches
 anyone else between Branch, Canopy and Leaf on `/admin` (`AccountTypePicker` →
 `setAccountType`); making or unmaking a Root isn't on offer there. `can_invite`
-stays a separate grant on top of any type.
+stays a separate grant on top of any type, and an invite link can make
+someone Canopy or Leaf (see **Invite as a Leaf** under Auth & invites).
 
 A Leaf is held to their entry in the database, not just the UI:
 `can_edit_person` / `can_edit_relationship` / `can_edit_pet` and the
@@ -267,6 +268,21 @@ Helpers live in the unexposed `private` schema (`is_admin`, `is_branch_admin`,
   (`can_invite_to_tree`). `redeem_invite` (SECURITY DEFINER) creates the member
   `profiles` row with `invited_by_user_id = invite.created_by` and flips the
   invite to `accepted`. `invite_preview(token)` is the only pre-auth RPC.
+- **Invite as a Leaf (Step 18.2)**: every invite carries `invites.joins_as`
+  (`member` | `leaf`, default `member`) and `redeem_invite` creates the
+  profile with that role. Who may mint which is `private.can_invite_as`
+  (mirrored by `lib/account-types#invitableTypes`): a Root either; a Branch
+  Leaves, no grant needed; anyone a Root has granted `can_invite` either —
+  except a Leaf, who can only invite Leaves. Branch and Root are never given by
+  link. The `invites_guard` trigger keeps a link's `joins_as` and its claim
+  target (`person_id`) to Roots, so a Branch can't mint a Leaf link and widen
+  it afterwards, or aim a link at someone else's entry. Roots choose on
+  `/admin` (both invite forms, `JoinsAsChoice`); everyone else who can invite
+  gets an "Invite a relative" card on `/account`. `/join/<token>` tells a Leaf
+  what that means before they sign up, and a Leaf's onboarding form offers no
+  in-between people and only the suggestions about them (`selfOnly`), since
+  the Leaf guards would refuse anything else. Leaf links are marked in
+  `/admin`'s sent-invites and bare-links lists.
 - **Invite requests** (`public.invite_requests`): anyone can ask from `/` →
   `/request-invite` with first name, last name, and email. The row is written
   by the `requestInvite` server action using the service-role client, so the
@@ -395,6 +411,18 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 18.2 — Invite someone straight in as a Leaf** (migration
+  `20260919140000_invite_as_leaf`): an invite now says what it makes someone,
+  Canopy or Leaf, and a Branch can send Leaf links from `/account` without an
+  invite grant — Arzu's first use. Roots pick on `/admin`. The same migration
+  closes two gaps in who can edit an invite: a link's type and its claim
+  target are now a Root's alone. Checked in a rolled-back transaction: a
+  Branch mints a Leaf link but not a Canopy one, can't widen or retarget it,
+  can still revoke it; a Root mints either; the signed-out preview says Leaf;
+  a new user redeeming it becomes a Leaf credited to the Branch. A Leaf's
+  onboarding drops "add someone in between", which the Leaf guards would have
+  refused at the last step.
 
 - **Step 18.1 — A Branch tends their Root's side** (migration
   `20260919130000_branch_on_related_root`): a Branch's reach was measured from
