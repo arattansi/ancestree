@@ -29,6 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { chosenPlace } from "@/lib/place-choice";
 import { cn } from "@/lib/utils";
 
 export type SelectedPlace = {
@@ -66,16 +67,18 @@ export function PlaceAutocomplete({
   placeholder?: string;
 }) {
   const [items, setItems] = React.useState<Item[]>([]);
+  const [picked, setPicked] = React.useState<Item | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [query, setQuery] = React.useState("");
   const [addOpen, setAddOpen] = React.useState(false);
   const timer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const reqId = React.useRef(0);
 
-  const selected: Item | null = React.useMemo(() => {
+  // A value nobody has picked in this session shows the label the form was
+  // opened with. Built from those two alone — never from `items` — so a search
+  // coming back doesn't mint a new object and make Base UI rewrite the input.
+  const fallback: Item | null = React.useMemo(() => {
     if (value == null) return null;
-    const known = items.find((i) => i.value === value);
-    if (known) return known;
     return {
       value,
       label: initialLabel || "Selected place",
@@ -87,7 +90,12 @@ export function PlaceAutocomplete({
         label: initialLabel || "",
       },
     };
-  }, [value, items, initialLabel]);
+  }, [value, initialLabel]);
+
+  const selected = React.useMemo(
+    () => chosenPlace(value, picked, fallback),
+    [value, picked, fallback],
+  );
 
   const runSearch = React.useCallback((q: string) => {
     if (timer.current) clearTimeout(timer.current);
@@ -125,13 +133,24 @@ export function PlaceAutocomplete({
         filter={null}
         isItemEqualToValue={(a: Item, b: Item) => a.value === b.value}
         onValueChange={(v: Item | null) => {
+          // A pick settles it: drop any search still in flight so its results
+          // can't land on top of the choice.
+          if (timer.current) clearTimeout(timer.current);
+          reqId.current++;
+          setLoading(false);
+          setPicked(v);
           onChange(
             v
               ? { id: v.place.id, name: v.place.name, country_code: v.place.country_code }
               : null,
           );
         }}
-        onInputValueChange={(q: string) => {
+        onInputValueChange={(q: string, details) => {
+          // Only the member's own typing is a search. Base UI writes the input
+          // too — the picked option's label on a pick, the selected label when
+          // the popup closes — and searching for those found nothing, emptied
+          // the list, and knocked the pick back to "Selected place".
+          if (details.reason !== "input-change") return;
           setQuery(q);
           runSearch(q);
         }}
@@ -201,10 +220,9 @@ export function PlaceAutocomplete({
           initialName={query}
           onOpenChange={setAddOpen}
           onAdded={(place) => {
-            setItems((prev) => [
-              { value: place.id, label: place.label, place },
-              ...prev,
-            ]);
+            const item: Item = { value: place.id, label: place.label, place };
+            setItems((prev) => [item, ...prev]);
+            setPicked(item);
             onChange({
               id: place.id,
               name: place.name,
