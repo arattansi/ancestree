@@ -30,7 +30,17 @@ const MONTH_ITEMS: Record<string, string> = {
   ...Object.fromEntries(MONTH_VALUES.map((v, i) => [v, MONTH_NAMES[i]])),
 };
 
-const digits = (s: string) => s.replace(/\D/g, "");
+/**
+ * Keep only the digits of what was typed. When that leaves the value as it
+ * was — a letter typed into "19" — the state doesn't change, React skips the
+ * re-render, and the letter would stay on screen (eating into `maxLength`);
+ * so the box is put right by hand.
+ */
+function digitsOf(input: HTMLInputElement): string {
+  const next = input.value.replace(/\D/g, "");
+  if (next !== input.value) input.value = next;
+  return next;
+}
 
 /**
  * A date typed as Day / Month / Year, in that order.
@@ -95,7 +105,7 @@ export function DateField({
         maxLength={2}
         value={parts.day}
         disabled={disabled}
-        onChange={(e) => update({ day: digits(e.target.value) })}
+        onChange={(e) => update({ day: digitsOf(e.target) })}
         onBlur={onBlur}
         className="w-16"
       />
@@ -133,7 +143,7 @@ export function DateField({
         maxLength={4}
         value={parts.year}
         disabled={disabled}
-        onChange={(e) => update({ year: digits(e.target.value) })}
+        onChange={(e) => update({ year: digitsOf(e.target) })}
         onBlur={onBlur}
         className="w-20"
       />
