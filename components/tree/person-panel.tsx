@@ -45,6 +45,7 @@ import {
   parseCrop,
   type CropTransform,
 } from "@/lib/image-crop";
+import { formatPartialDate } from "@/lib/partial-date";
 import { SEX_LABELS, type Sex } from "@/lib/person-schema";
 import { cn } from "@/lib/utils";
 import {
@@ -136,14 +137,17 @@ function SpouseRow({
         <span className="text-sm text-foreground">{relation.otherName}</span>
         {relation.isDivorced ? (
           <Badge variant="outline">
-            Divorced{relation.divorceDate ? ` ${relation.divorceDate}` : ""}
+            Divorced
+            {relation.divorceDate
+              ? ` ${formatPartialDate(relation.divorceDate)}`
+              : ""}
           </Badge>
         ) : null}
       </div>
 
       {relation.marriageDate && !editing ? (
         <p className="text-xs text-muted-foreground">
-          Married {relation.marriageDate}
+          Married {formatPartialDate(relation.marriageDate)}
         </p>
       ) : null}
 
@@ -616,7 +620,13 @@ export function PersonPanel({
                     person.sex ? (SEX_LABELS[person.sex as Sex] ?? null) : null
                   }
                 />
-                <Field label="Date of birth" value={person.date_of_birth} />
+                <Field
+                  label="Date of birth"
+                  value={formatPartialDate(
+                    person.date_of_birth,
+                    person.date_of_birth_precision,
+                  )}
+                />
                 <Field
                   label="Place of birth"
                   value={
@@ -629,7 +639,13 @@ export function PersonPanel({
                 />
                 {person.is_deceased ? (
                   <>
-                    <Field label="Date of death" value={person.date_of_death} />
+                    <Field
+                      label="Date of death"
+                      value={formatPartialDate(
+                        person.date_of_death,
+                        person.date_of_death_precision,
+                      )}
+                    />
                     <Field
                       label="Place of death"
                       value={

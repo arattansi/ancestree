@@ -26,6 +26,11 @@ export type TreeGraphPerson = {
   last_name: string;
   date_of_birth: string | null;
   date_of_death: string | null;
+  /** How much of each date is known — `day` | `month` | `year` (Step 17). A
+   *  partial date sits on the first day of its period; show it with
+   *  `formatPartialDate`, never as the raw ISO string. */
+  date_of_birth_precision: string;
+  date_of_death_precision: string;
   city_of_birth: string | null;
   country_of_birth: string;
   place_id_birth: number | null;
@@ -71,7 +76,7 @@ export type TreeGraphEdge = {
 };
 
 const PERSON_COLUMNS =
-  "id, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_death, city_of_birth, country_of_birth, place_id_birth, place_id_death, is_deceased, place_of_death, sex, lineage_type, photo_path, photo_crop, pos_x, pos_y, owner_user_id, created_by, verified_at, pos_dx, pos_dy";
+  "id, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_death, date_of_birth_precision, date_of_death_precision, city_of_birth, country_of_birth, place_id_birth, place_id_death, is_deceased, place_of_death, sex, lineage_type, photo_path, photo_crop, pos_x, pos_y, owner_user_id, created_by, verified_at, pos_dx, pos_dy";
 
 /** Everyone in the tree plus their relationship edges, with signed photo URLs. */
 export async function getTreeGraph(

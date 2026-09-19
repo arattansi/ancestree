@@ -4,8 +4,8 @@ import * as React from "react";
 
 import { cropStyle, parseCrop } from "@/lib/image-crop";
 import { leafLabel, type LeafShape, type NativeLeaf } from "@/lib/native-leaf";
+import { formatPartialDate } from "@/lib/partial-date";
 import {
-  formatFullDate,
   nodeDisplayName,
   personDisplayName,
   personLifespan,
@@ -104,8 +104,14 @@ function LeafDetail({
   person: TreeGraphPerson;
   leaf: NativeLeaf;
 }) {
-  const born = formatFullDate(person.date_of_birth);
-  const died = formatFullDate(person.date_of_death);
+  const born = formatPartialDate(
+    person.date_of_birth,
+    person.date_of_birth_precision,
+  );
+  const died = formatPartialDate(
+    person.date_of_death,
+    person.date_of_death_precision,
+  );
   const birthplace =
     [person.city_of_birth, person.country_of_birth]
       .filter(Boolean)

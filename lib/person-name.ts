@@ -48,18 +48,6 @@ export function personLifespan(p: {
   return null;
 }
 
-/** "25 August 1992" from an ISO date, for the hover card on a leaf. */
-export function formatFullDate(iso?: string | null): string | null {
-  if (!iso) return null;
-  const parsed = new Date(`${iso}T00:00:00`);
-  if (Number.isNaN(parsed.getTime())) return null;
-  return parsed.toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-}
-
 /** Two-letter initials for the avatar fallback. */
 export function personInitials(p: NamedPerson): string {
   const first = (p.preferred_name || p.first_name || "").trim();
