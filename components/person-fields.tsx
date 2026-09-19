@@ -9,6 +9,7 @@ import {
   type Path,
 } from "react-hook-form";
 
+import { DateField } from "@/components/date-field";
 import { PlaceAutocomplete } from "@/components/place-autocomplete";
 import { countryName } from "@/lib/country-names";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -222,8 +223,13 @@ export function PersonFields<T extends FieldValues>({
             <FormItem>
               <FormLabel>Date of birth</FormLabel>
               <FormControl>
-                <Input type="date" {...field} value={field.value ?? ""} />
+                <DateField
+                  value={field.value ?? ""}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                />
               </FormControl>
+              <FormDescription>A year on its own is fine.</FormDescription>
               <FormMessage />
             </FormItem>
           )}
@@ -288,8 +294,13 @@ export function PersonFields<T extends FieldValues>({
               <FormItem>
                 <FormLabel>Date of death</FormLabel>
                 <FormControl>
-                  <Input type="date" {...field} value={field.value ?? ""} />
+                  <DateField
+                    value={field.value ?? ""}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                  />
                 </FormControl>
+                <FormDescription>A year on its own is fine.</FormDescription>
                 <FormMessage />
               </FormItem>
             )}

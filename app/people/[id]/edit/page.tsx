@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { getUser, requireSelfPerson } from "@/lib/auth";
 import { canEditConnection, canEditEntry } from "@/lib/branch";
 import { getSpokenForEntryIds, getViewer } from "@/lib/branch.server";
+import { toPartialIso } from "@/lib/partial-date";
 import { personDisplayName } from "@/lib/person-name";
 import { formatPlaceLabel, getPlacesByIds } from "@/lib/places";
 import type { PersonFormValues } from "@/lib/person-schema";
@@ -34,7 +35,7 @@ export default async function EditPersonPage({
   const { data: person } = await supabase
     .from("people")
     .select(
-      "id, tree_id, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, place_id_birth, city_of_birth, country_of_birth, is_deceased, date_of_death, place_id_death, place_of_death, sex, lineage_type, photo_path, photo_crop, owner_user_id, created_by",
+      "id, tree_id, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_birth_precision, place_id_birth, city_of_birth, country_of_birth, is_deceased, date_of_death, date_of_death_precision, place_id_death, place_of_death, sex, lineage_type, photo_path, photo_crop, owner_user_id, created_by",
     )
     .eq("id", id)
     .maybeSingle();
@@ -127,12 +128,19 @@ export default async function EditPersonPage({
     preferred_name: person.preferred_name ?? "",
     maiden_name: person.maiden_name ?? "",
     last_name: person.last_name,
-    date_of_birth: person.date_of_birth ?? "",
+    // A partial date opens as just what's known ("1931", "1931-03").
+    date_of_birth: toPartialIso(
+      person.date_of_birth,
+      person.date_of_birth_precision,
+    ),
     place_id_birth: person.place_id_birth ?? null,
     city_of_birth: person.city_of_birth ?? "",
     country_of_birth: person.country_of_birth ?? "",
     is_deceased: person.is_deceased,
-    date_of_death: person.date_of_death ?? "",
+    date_of_death: toPartialIso(
+      person.date_of_death,
+      person.date_of_death_precision,
+    ),
     place_id_death: person.place_id_death ?? null,
     place_of_death: person.place_of_death ?? "",
     sex: (person.sex as PersonFormValues["sex"]) ?? undefined,

@@ -75,8 +75,10 @@ export async function startOwnTree(input: {
       country_of_birth: p.country_of_birth,
       city_of_birth: p.city_of_birth ?? "",
       date_of_birth: p.date_of_birth ?? "",
+      date_of_birth_precision: p.date_of_birth_precision,
       is_deceased: p.is_deceased,
       date_of_death: p.date_of_death ?? "",
+      date_of_death_precision: p.date_of_death_precision,
       place_of_death: p.place_of_death ?? "",
     },
   });
