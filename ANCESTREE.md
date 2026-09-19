@@ -141,7 +141,7 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | Table | Purpose |
 |---|---|
 | `trees` | Multi-tree-ready container (v1 uses one shared tree) |
-| `profiles` | `auth.users` row: `role` (`admin` \| `branch_admin` \| `member`), `can_invite`, `self_person_id` |
+| `profiles` | `auth.users` row: `role` (`admin` \| `branch_admin` \| `member` \| `leaf` — shown as Root / Branch / Canopy / Leaf, see **Account types**), `can_invite`, `self_person_id` |
 | `people` | Demographic nodes; `owner_user_id` starts as `created_by` and moves on claim. `date_of_birth_precision` / `date_of_death_precision` (`day` \| `month` \| `year`, Step 17) say how much of each date is known — a partial date is stored on the first day of its period, CHECK-enforced, so year-only readers need no change. `place_id_birth` / `place_id_death` → `places(id)` (Step 4.5b; nullable, backfilled — legacy `city_of_birth` / `country_of_birth` / `place_of_death` text kept until reconciled) |
 | `relationships` | Directed `parent` edges; undirected `spouse` pairs (optional `marriage_date` / `is_divorced` / `divorce_date`, spouse-only by CHECK); siblings inferred |
 | `connection_suggestions` | Implied-connection prompts surfaced by the add-person flow (`suggested_type` spouse/parent/sibling_check, `source`, `status` pending/accepted/dismissed); UNIQUE (subject, related, type, source) = no re-prompt |
@@ -183,7 +183,8 @@ tree creator, accepted invite, or `self_person`). Writes use
 `profiles.auth_user_id = auth.uid()`. Person edits (`private.can_edit_person`):
 current `owner_user_id`, an admin, the original `created_by` while the entry is
 still unclaimed (owner unchanged, no approved claim), **or** a branch admin
-anywhere on their own branch (Step 17). Deletes: admin only. A claim moves
+anywhere on their own branch (Step 17). A Leaf (Step 18) gets none of that:
+only their own `self_person_id` entry. Deletes: admin only. A claim moves
 `owner_user_id` to the claimant, so the creator then loses edit rights until an
 admin reverses the claim.
 
@@ -200,13 +201,54 @@ redraw a line into someone else's family. Nothing else moves: deleting people,
 minting invites, setting `lineage_type` and the admin console stay admin-only.
 `lib/branch.ts` mirrors the rule for the UI; the database decides.
 
+**Account types (Step 18):** four kinds of member, named for the tree they
+grow. `lib/account-types.ts` is the model — the only place a stored key becomes
+a name, and where each type's reach is written down (`entries`, `connections`,
+`companions`: `tree` / `branch` / `own` / `self` / `none`; `addRelatives`;
+`runsTree`) — so a name or a plan's limits can change without a migration.
+
+| Stored `role` | Name | Reach |
+|---|---|---|
+| `admin` | **Root** | Everything, plus running the tree: members and their account types, invites, share links, deletes, lineage, verification |
+| `branch_admin` | **Branch** | Every entry and connection on their own branch (see **Branches**) |
+| `member` | **Canopy** | What they add, the lines they draw, and their own entry. New members join as Canopy |
+| `leaf` | **Leaf** | Their own entry (details, photo, documents, card position). Read, comment, flag, claim — nothing that grows or reshapes the tree |
+
+The keys kept their old values on purpose: renaming them would rewrite every
+`role = 'admin'` test in the database for no visible change. A Root switches
+anyone else between Branch, Canopy and Leaf on `/admin` (`AccountTypePicker` →
+`setAccountType`); making or unmaking a Root isn't on offer there. `can_invite`
+stays a separate grant on top of any type.
+
+A Leaf is held to their entry in the database, not just the UI:
+`can_edit_person` / `can_edit_relationship` / `can_edit_pet` and the
+`pets_insert` policy check `private.is_leaf()`, and because people and lines
+are mostly written by SECURITY DEFINER RPCs that RLS never sees, two table
+triggers (`people_leaf_guard`, `relationships_leaf_guard`) refuse a Leaf's
+insert with `LEAF_ACCOUNT`. The one exception is onboarding: a Leaf with no
+entry yet may add one person — themselves — and the lines that place that
+entry (remembered in the transaction-local `ancestree.leaf_seed`). Claiming
+(`claim_person`) still works: it only moves lines that already run through the
+Leaf's own entry. The UI follows the same model: no "Add a relative", no
+connection prompts or `/tree/review`, no companions, no connection editor, and
+a locked entry says why in the viewer's own terms (`lockedEntryNote`).
+
+The brand lives in `components/account-type-badge.tsx` (a mark per type on
+lucide's 24px grid — a trunk splitting into roots, a limb in leaf, a crown, a
+leaf — and `AccountTypeBadge`) and `components/account-type-guide.tsx` (a card
+per type listing what it can do, read off `describeAccess`), coloured by the
+`--account-{root,branch,canopy,leaf}` tokens in `globals.css` (bark,
+heartwood, crown, new growth; each ≥ 5:1 on its own tint in both themes).
+`/account` shows the member's own card; `/admin` → Members shows all four.
+
 **Storage:** private buckets `photos` and `documents`. Object path
 `{tree_id}/{person_id}/{filename}`. Members can read via signed URLs; only the
 entry owner/admin can write.
 
 Helpers live in the unexposed `private` schema (`is_admin`, `is_branch_admin`,
-`is_tree_member`, `can_edit_person`, `branch_ids`, `is_on_own_branch`,
-`person_is_someones_own`, `can_edit_relationship`).
+`is_leaf`, `is_tree_member`, `can_edit_person`, `branch_ids`,
+`is_on_own_branch`, `person_is_someones_own`, `can_edit_relationship`,
+`can_edit_pet`, `leaf_guard_people`, `leaf_guard_relationships`).
 
 ## Auth & invites (Step 3)
 
@@ -348,6 +390,22 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 18 — Account types** (migration `20260919120000_account_types`):
+  the seed of a model that could one day be sold as plans. The three roles
+  became four named account types — **Root** (`admin`), **Branch**
+  (`branch_admin`), **Canopy** (`member`) and the new **Leaf** (`leaf`), a
+  member who keeps their own entry and can read, comment on and flag the
+  rest. `lib/account-types.ts` describes each by how far its rights reach,
+  and `lib/branch.ts` now reads that instead of testing role strings. The
+  database holds a Leaf to their entry through the edit helpers, the pets
+  insert policy and two table triggers that also cover the SECURITY DEFINER
+  RPCs (exercised in a rolled-back transaction: own entry editable; add
+  relative, connect, accept a prompt and add a pet all refused; onboarding
+  self-add allowed; Canopy unchanged). Each type has a mark, a colour and a
+  card; `/admin` swaps the "make branch admin" button for a Branch / Canopy /
+  Leaf picker and lists all four, and `/account` shows the member's own. See
+  **Account types** above.
 
 - **Step 17 — Feedback round 1 (Arzu)** (migrations
   `20260913090000_branch_admin_role`, `20260918120000_partial_person_dates`):
