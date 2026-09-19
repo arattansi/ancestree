@@ -1,4 +1,4 @@
--- Step 15 — Branch admins
+-- Step 17 — Branch admins
 --
 -- A third role between `member` and `admin`. A branch admin curates the part of
 -- the tree they belong to: they can edit any entry on their own branch, and fix

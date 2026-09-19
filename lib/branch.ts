@@ -1,6 +1,6 @@
 /**
  * Branches, mirrored from `private.branch_ids` and `private.can_edit_person`
- * (Step 15).
+ * (Step 17).
  *
  * A branch admin curates the part of the tree they belong to. Their branch is
  * derived from their own entry with the same up-then-down walk the bloodline

@@ -183,11 +183,11 @@ tree creator, accepted invite, or `self_person`). Writes use
 `profiles.auth_user_id = auth.uid()`. Person edits (`private.can_edit_person`):
 current `owner_user_id`, an admin, the original `created_by` while the entry is
 still unclaimed (owner unchanged, no approved claim), **or** a branch admin
-anywhere on their own branch (Step 15). Deletes: admin only. A claim moves
+anywhere on their own branch (Step 17). Deletes: admin only. A claim moves
 `owner_user_id` to the claimant, so the creator then loses edit rights until an
 admin reverses the claim.
 
-**Branches (Step 15):** a `branch_admin` curates the part of the tree they
+**Branches (Step 17):** a `branch_admin` curates the part of the tree they
 belong to. Their branch is derived from their own entry by the same up-then-down
 walk as the bloodline gate (`private.branch_ids`): climb `parent` edges to every
 ancestor, descend from that whole set, then add the partners those people

@@ -12,7 +12,7 @@ import { createClient } from "@/lib/supabase/server";
  * A branch admin curates the part of the tree they belong to — every entry on
  * their own branch, and the connections between two people on it. Which
  * entries those are is derived from their own entry, not configured here; see
- * `private.branch_ids` (Step 15). Admins are left alone: demoting one is a
+ * `private.branch_ids` (Step 17). Admins are left alone: demoting one is a
  * bigger decision than this button, and promoting one would be a demotion.
  */
 export async function setBranchAdmin(formData: FormData) {

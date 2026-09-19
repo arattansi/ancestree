@@ -48,7 +48,7 @@ export default async function AccountPage() {
           <Row label="Email">{user?.email ?? "—"}</Row>
           <Row label="Role">
             <Badge variant={profile.role === "admin" ? "default" : "secondary"}>
-              {profile.role}
+              {profile.role === "branch_admin" ? "branch admin" : profile.role}
             </Badge>
           </Row>
           <Row label="Invited by">
