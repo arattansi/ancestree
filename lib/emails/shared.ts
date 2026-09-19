@@ -1,3 +1,5 @@
+import { getSiteUrl } from "@/lib/site-url";
+
 /**
  * Shared HTML shell for ancestree's own transactional emails (as opposed to
  * the Supabase Auth templates in supabase/templates/, which are a separate
@@ -35,7 +37,7 @@ export function renderInviteEmail(input: {
             <tr>
               <td style="padding:40px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
 
-                <p style="margin:0;font-size:28px;line-height:1;">&#127795;</p>
+                <img src="${getSiteUrl()}/brand/ancestree-mark-132.png" width="44" height="44" alt="" style="display:block;width:44px;height:44px;border:0;" />
                 <p style="margin:16px 0 0;font-size:20px;font-weight:600;letter-spacing:-0.02em;color:#0a0a0a;">ancestree</p>
                 <p style="margin:6px 0 0;font-size:11px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;color:#0a0a0a;">A space to grow your tree.</p>
 

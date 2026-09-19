@@ -10,7 +10,8 @@
     "test": "vitest run",
     "import:geonames": "tsx --env-file=.env.local scripts/import-geonames.ts",
     "backfill:places": "tsx --env-file=.env.local scripts/backfill-places.ts",
-    "email:push": "tsx --env-file=.env.local scripts/push-email-templates.ts"
+    "email:push": "tsx --env-file=.env.local scripts/push-email-templates.ts",
+    "brand:build": "tsx scripts/brand-mark.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
@@ -39,6 +40,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.2",
+    "sharp": "^0.35.3",
     "tailwindcss": "^4",
     "tsx": "^4.23.13",
     "typescript": "^5",

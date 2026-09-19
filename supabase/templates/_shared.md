@@ -29,6 +29,11 @@ Design notes:
   radius 10px = the app's `--radius: 0.625rem`.
 - Public Sans is not loadable in Gmail/Outlook, so the stack falls back to the
   recipient's system sans. Everything else matches the homepage.
+- The logo is `{{ .SiteURL }}/brand/ancestree-mark-132.png`, shown at 44px —
+  a PNG because Gmail and Outlook drop SVG. It is served by the deployed site,
+  so a template that points at a new image must not be pushed before the
+  deploy carrying that image is live, or the header shows a broken image.
+  `npm run brand:build` regenerates it along with the rest of the brand files.
 - **The link is built by hand, not with `{{ .ConfirmationURL }}`.** That
   variable points at `<project-ref>.supabase.co/auth/v1/verify?...`, so the
   address the recipient sees (and hovers) is a Supabase URL, not ours. Instead:
