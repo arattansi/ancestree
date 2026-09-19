@@ -5,7 +5,7 @@
  * Four, named for the tree they grow, from the ground up:
  *
  *   Root    admin          the whole tree, and running it
- *   Branch  branch_admin   every entry on their own side of the family
+ *   Branch  branch_admin   every entry on the side of the Root they're related to
  *   Canopy  member         what they add, and their own entry
  *   Leaf    leaf           their own entry; the rest is theirs to read
  *
@@ -34,7 +34,7 @@ export type AccountTypeKey = (typeof ACCOUNT_TYPE_KEYS)[number];
  * Branch that edits its side of the family also edits what it added itself.
  *
  * - `tree`   everything on the tree
- * - `branch` their side of the family (`lib/branch.ts#branchIds`)
+ * - `branch` the side of the Root they are related to (`lib/branch.ts#branchReach`)
  * - `own`    what they added, and their own entry
  * - `self`   their own entry only
  * - `none`   nothing
@@ -79,9 +79,9 @@ export const ROOT: AccountType = {
 export const BRANCH: AccountType = {
   key: "branch_admin",
   name: "Branch",
-  tagline: "Tends one side of the family",
+  tagline: "Tends a Root’s side of the family",
   description:
-    "A Branch looks after the side of the family they belong to: their ancestors, everyone descended from them, and the people those relatives married. They can edit any entry and connection there, except another member’s own entry.",
+    "A Branch looks after the side of the family of the Root they’re related to: that Root’s ancestors, everyone descended from them, and the people those relatives married. They can edit any entry and connection there, except another member’s own entry.",
   entries: "branch",
   connections: "branch",
   companions: "branch",
@@ -157,7 +157,7 @@ export type Access = {
 
 const ENTRY_REACH: Record<Reach, string | false> = {
   tree: "Every entry",
-  branch: "Their side of the family",
+  branch: "Their Root’s side",
   own: "The ones they added",
   self: "Only their own",
   none: false,
@@ -165,7 +165,7 @@ const ENTRY_REACH: Record<Reach, string | false> = {
 
 const CONNECTION_REACH: Record<Reach, string | false> = {
   tree: "Any",
-  branch: "Within their side",
+  branch: "Within that side",
   own: "The ones they drew",
   self: "Only their own",
   none: false,
@@ -197,6 +197,20 @@ export function describeAccess(type: AccountType): Access[] {
     },
     { label: "Run the tree", value: type.runsTree },
   ];
+}
+
+/**
+ * Whose side a Branch tends, as a phrase: "Raiya Suleman’s side", or "Aalim
+ * Rattansi’s and Raiya Suleman’s sides" for a child of both. `null` when they
+ * are related to no Root and so tend nothing.
+ */
+export function branchSideLabel(rootNames: readonly string[]): string | null {
+  if (rootNames.length === 0) return null;
+  const owners = rootNames.map((name) => `${name}’s`);
+  const last = owners.pop();
+  return owners.length === 0
+    ? `${last} side`
+    : `${owners.join(", ")} and ${last} sides`;
 }
 
 /** Why an entry is closed to the viewer, put in terms of their own account. */

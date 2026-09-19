@@ -8,7 +8,12 @@ import { getSpokenForEntryIds } from "@/lib/branch.server";
 import { listClaimCandidates } from "@/lib/claims";
 import { auditTreeConnections } from "@/lib/connection-suggestions.server";
 import { getTreePets } from "@/lib/pets";
-import { getSharedTree, getTreeAnchors, getTreeGraph } from "@/lib/tree";
+import {
+  getRootEntryIds,
+  getSharedTree,
+  getTreeAnchors,
+  getTreeGraph,
+} from "@/lib/tree";
 
 export const metadata: Metadata = {
   title: "family",
@@ -39,6 +44,7 @@ export default async function TreePage() {
     claimCandidates,
     panelSuggestions,
     anchorIds,
+    rootIds,
     pets,
     spokenFor,
   ] = await Promise.all([
@@ -46,6 +52,7 @@ export default async function TreePage() {
     listClaimCandidates(),
     auditTreeConnections(tree.id),
     getTreeAnchors(),
+    getRootEntryIds(),
     getTreePets(tree.id),
     getSpokenForEntryIds(user.id),
   ]);
@@ -58,6 +65,7 @@ export default async function TreePage() {
         treeId={tree.id}
         selfPersonId={profile.self_person_id}
         anchorIds={anchorIds}
+        rootIds={rootIds}
         currentUserId={user.id}
         isAdmin={profile.role === "admin"}
         role={profile.role}

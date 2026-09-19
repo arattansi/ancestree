@@ -9,6 +9,7 @@ import {
   LEAF,
   ROOT,
   accountTypeOf,
+  branchSideLabel,
   describeAccess,
   isAccountTypeKey,
   isAssignable,
@@ -99,7 +100,7 @@ describe("describeAccess", () => {
 
   it("says how far each type's edits reach", () => {
     expect(valueOf(ROOT, "Edit entries")).toBe(true);
-    expect(valueOf(BRANCH, "Edit entries")).toBe("Their side of the family");
+    expect(valueOf(BRANCH, "Edit entries")).toBe("Their Root’s side");
     expect(valueOf(CANOPY, "Edit entries")).toBe("The ones they added");
     expect(valueOf(LEAF, "Edit entries")).toBe("Only their own");
     expect(valueOf(LEAF, "Change connections")).toBe(false);
@@ -110,5 +111,22 @@ describe("describeAccess", () => {
   it("gives a Root invites outright and everyone else when allowed", () => {
     expect(valueOf(ROOT, "Invite relatives")).toBe(true);
     expect(valueOf(CANOPY, "Invite relatives")).toBe("If a Root allows it");
+  });
+});
+
+describe("branchSideLabel", () => {
+  it("names the one Root's side a Branch tends", () => {
+    expect(branchSideLabel(["Raiya Suleman"])).toBe("Raiya Suleman’s side");
+  });
+
+  it("names every side for someone related to more than one Root", () => {
+    expect(branchSideLabel(["Aalim Rattansi", "Raiya Suleman"])).toBe(
+      "Aalim Rattansi’s and Raiya Suleman’s sides",
+    );
+    expect(branchSideLabel(["A", "B", "C"])).toBe("A’s, B’s and C’s sides");
+  });
+
+  it("has nothing to say for someone related to no Root", () => {
+    expect(branchSideLabel([])).toBeNull();
   });
 });

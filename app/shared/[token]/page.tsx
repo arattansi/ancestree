@@ -73,6 +73,8 @@ export default async function SharedTreePage({
         treeId={link.treeId}
         selfPersonId={null}
         anchorIds={anchorIds}
+        // Read-only: nobody tends anything here.
+        rootIds={[]}
         currentUserId=""
         isAdmin={false}
         role="member"

@@ -52,7 +52,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { accountTypeOf, lockedEntryNote } from "@/lib/account-types";
 import {
-  branchIds,
+  branchReach,
   canEditCompanion,
   canEditConnection,
   canEditEntry,
@@ -330,6 +330,8 @@ type Props = {
   selfPersonId: string | null;
   /** The founding admins' entries — the tree is centred on them. */
   anchorIds: string[];
+  /** Every Root's entry: a Branch tends the side of the one they're related to. */
+  rootIds: string[];
   currentUserId: string;
   isAdmin: boolean;
   /** The viewer's `profiles.role`; `lib/account-types` says what it reaches. */
@@ -534,6 +536,7 @@ function Canvas({
   treeId,
   selfPersonId,
   anchorIds,
+  rootIds,
   currentUserId,
   isAdmin,
   role,
@@ -556,9 +559,9 @@ function Canvas({
     [people],
   );
 
-  // Who the viewer is for permission purposes. A Branch's branch is derived
-  // from their own entry, out of the edges already on the canvas —
-  // `lib/branch` mirrors `private.branch_ids`, which is what actually decides.
+  // Who the viewer is for permission purposes. A Branch tends the side of the
+  // Root they're related to, worked out from the edges already on the canvas —
+  // `lib/branch` mirrors `private.own_branch_ids`, which is what decides.
   const accountType = React.useMemo(() => accountTypeOf(role), [role]);
   const viewer = React.useMemo<Viewer>(
     () => ({
@@ -567,10 +570,10 @@ function Canvas({
       selfPersonId,
       branch:
         accountTypeOf(role).entries === "branch" && selfPersonId
-          ? branchIds(selfPersonId, relationships)
+          ? branchReach(selfPersonId, rootIds, relationships)
           : null,
     }),
-    [currentUserId, role, selfPersonId, relationships],
+    [currentUserId, role, selfPersonId, rootIds, relationships],
   );
   const spokenFor = React.useMemo(() => new Set(spokenForIds), [spokenForIds]);
   const entrySubject = React.useCallback(

@@ -244,6 +244,24 @@ export async function getTreeAnchors(db?: DbClient): Promise<string[]> {
 }
 
 /**
+ * Every Root's own entry: what a Branch's side of the tree is measured from
+ * (Step 18.1). Unlike `getTreeAnchors` this is every Root, not the first two
+ * the canvas is centred on. Mirrors `private.root_person_ids`.
+ */
+export async function getRootEntryIds(db?: DbClient): Promise<string[]> {
+  const supabase = db ?? (await createClient());
+  const { data } = await supabase
+    .from("profiles")
+    .select("self_person_id, created_at")
+    .eq("role", "admin")
+    .not("self_person_id", "is", null)
+    .order("created_at", { ascending: true });
+  return (data ?? [])
+    .map((row) => row.self_person_id)
+    .filter((id): id is string => id !== null);
+}
+
+/**
  * Everyone currently in the tree, as search-select options, newest last.
  * `excludeId` drops a person (e.g. the caller's own entry) from the list.
  */

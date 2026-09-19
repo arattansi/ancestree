@@ -36,7 +36,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { branchSideLabel } from "@/lib/account-types";
 import { requireAdmin } from "@/lib/auth";
+import { getBranchSides } from "@/lib/branch.server";
 import { buildAdminActionItems } from "@/lib/admin-notifications";
 import { listDisputedClaims } from "@/lib/claims";
 import { listCanvasInterest } from "@/lib/growth-rights.server";
@@ -64,6 +66,7 @@ export default async function AdminPage() {
     bridgesRes,
     inviteRequestsRes,
     shareLinksRes,
+    selfEntriesRes,
   ] = await Promise.all([
     supabase
       .from("member_directory")
@@ -96,9 +99,27 @@ export default async function AdminPage() {
         "id, token, label, created_at, expires_at, revoked_at, last_viewed_at, view_count",
       )
       .order("created_at", { ascending: false }),
+    supabase.from("profiles").select("auth_user_id, self_person_id"),
   ]);
 
   const members = membersRes.data ?? [];
+  // Whose side each Branch tends — the Root their own entry is related to.
+  const selfEntryOf = new Map(
+    (selfEntriesRes.data ?? []).map((p) => [p.auth_user_id, p.self_person_id]),
+  );
+  const branchSides = await getBranchSides(
+    members.flatMap((m) =>
+      m.role === "branch_admin" && m.auth_user_id
+        ? [selfEntryOf.get(m.auth_user_id)].filter((id): id is string => !!id)
+        : [],
+    ),
+  );
+  const branchCaption = (userId: string | null): string => {
+    const self = userId ? selfEntryOf.get(userId) : null;
+    if (!self) return "Tends a side once they’re on the tree";
+    const side = branchSideLabel(branchSides.get(self) ?? []);
+    return side ? `Tends ${side}` : "Related to no Root, so tends no side";
+  };
   const people = peopleRes.data ?? [];
   const disputedClaims = await listDisputedClaims();
   const inviteHistory = await listInviteHistory();
@@ -277,11 +298,18 @@ export default async function AdminPage() {
                     </td>
                     <td className="px-4 py-3">
                       {member.auth_user_id && member.role !== "admin" ? (
-                        <AccountTypePicker
-                          userId={member.auth_user_id}
-                          role={member.role ?? "member"}
-                          name={member.display_name ?? "This member"}
-                        />
+                        <div className="flex flex-col items-start gap-1">
+                          <AccountTypePicker
+                            userId={member.auth_user_id}
+                            role={member.role ?? "member"}
+                            name={member.display_name ?? "This member"}
+                          />
+                          {member.role === "branch_admin" ? (
+                            <span className="text-xs text-muted-foreground">
+                              {branchCaption(member.auth_user_id)}
+                            </span>
+                          ) : null}
+                        </div>
                       ) : (
                         <AccountTypeBadge role={member.role} />
                       )}
@@ -340,7 +368,7 @@ export default async function AdminPage() {
           id="account-types"
           collapsible
           title="Account types"
-          description="What each kind of member can reach. Anyone who isn’t a Root can be switched between Branch, Canopy and Leaf from the table above; new members join as Canopy."
+          description="What each kind of member can reach. Anyone who isn’t a Root can be switched between Branch, Canopy and Leaf from the table above; new members join as Canopy. A Branch tends the side of whichever Root their own entry is related to — both sides, for a child of two Roots."
         >
           <AccountTypeGuide />
         </AdminSubsection>

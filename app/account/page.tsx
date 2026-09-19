@@ -17,8 +17,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { accountTypeOf } from "@/lib/account-types";
+import { accountTypeOf, branchSideLabel } from "@/lib/account-types";
 import { getUser, requireProfile } from "@/lib/auth";
+import { getBranchSides } from "@/lib/branch.server";
 import { listNotifications } from "@/lib/claims";
 import { createClient } from "@/lib/supabase/server";
 
@@ -37,6 +38,15 @@ export default async function AccountPage() {
 
   const notifications = user ? await listNotifications(user.id) : [];
   const accountType = accountTypeOf(profile.role);
+  // A Branch is told whose side they tend: the Root they're related to.
+  const branchSide =
+    accountType.entries === "branch" && profile.self_person_id
+      ? branchSideLabel(
+          (await getBranchSides([profile.self_person_id])).get(
+            profile.self_person_id,
+          ) ?? [],
+        )
+      : null;
 
   return (
     <main className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-6 px-4 py-10">
@@ -67,6 +77,11 @@ export default async function AccountPage() {
         <CardHeader>
           <CardTitle>Your account type</CardTitle>
           <CardDescription>
+            {accountType.entries === "branch"
+              ? branchSide
+                ? `You tend ${branchSide}. `
+                : "You’re not related to a Root on the tree yet, so there’s no side for you to tend. "
+              : null}
             {accountType.runsTree
               ? "You set everyone else’s from the admin page."
               : "A Root sets account types. Ask one if yours should change."}
