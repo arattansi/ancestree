@@ -248,12 +248,20 @@ heartwood, crown, new growth; each ≥ 5:1 on its own tint in both themes).
 `/account` shows the member's own card; `/admin` → Members shows all four.
 
 **Storage:** private buckets `photos` and `documents`. Object path
-`{tree_id}/{person_id}/{filename}`. Members can read via signed URLs; only the
-entry owner/admin can write.
+`{tree_id}/{person_id}/{filename}`, served only through signed URLs. Photos are
+readable by every member; only whoever can edit the entry can write either.
+**Documents are private (Step 18.4):** a document's row and file are readable
+only by a Root, the entry's owner (or the member whose own entry it is), and
+the Branch who tends that side of the tree — including another member's own
+entry, which the Branch can't edit (`private.can_see_documents`, on
+`documents_select` and `storage_documents_select`; mirrored by
+`lib/branch#canSeeDocuments`). Everyone who can edit an entry is in that set,
+which a delete also needs. Others see a one-line "private" note in the panel
+rather than an empty list.
 
 Helpers live in the unexposed `private` schema (`is_admin`, `is_branch_admin`,
 `is_leaf`, `is_tree_member`, `can_edit_person`, `branch_ids`,
-`root_person_ids`, `own_branch_ids`, `is_on_own_branch`, `person_is_someones_own`, `can_edit_relationship`,
+`root_person_ids`, `own_branch_ids`, `is_on_own_branch`, `can_see_documents`, `person_is_someones_own`, `can_edit_relationship`,
 `can_edit_pet`, `leaf_guard_people`, `leaf_guard_relationships`).
 
 ## Auth & invites (Step 3)
@@ -411,6 +419,16 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 18.4 — Documents are private** (migration
+  `20260919150000_documents_private`): every member could list and download
+  every document on the tree. Now only a Root, the entry's owner and the
+  Branch for its side can; everyone else sees that they are private instead
+  of "No documents yet". The account-type cards gained a "See documents" row,
+  and `/privacy` says who can see them. Checked in a rolled-back transaction
+  against the one live document: Roots and its owner see the row and the
+  file; a Canopy member or Leaf who doesn't own it sees neither; a Branch on
+  Raiya's side (where it is) sees both, one on Aalim's side neither.
 
 - **Step 18.3 — Document controls follow edit rights**: an entry's panel
   offered "Add documents" and Remove to everyone, and the database refused

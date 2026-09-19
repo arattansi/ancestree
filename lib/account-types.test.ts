@@ -104,6 +104,10 @@ describe("describeAccess", () => {
     expect(valueOf(BRANCH, "Edit entries")).toBe("Their Root’s side");
     expect(valueOf(CANOPY, "Edit entries")).toBe("The ones they added");
     expect(valueOf(LEAF, "Edit entries")).toBe("Only their own");
+    expect(valueOf(ROOT, "See documents")).toBe(true);
+    expect(valueOf(BRANCH, "See documents")).toBe("Their Root’s side");
+    expect(valueOf(CANOPY, "See documents")).toBe("Entries they own");
+    expect(valueOf(LEAF, "See documents")).toBe("Only their own");
     expect(valueOf(LEAF, "Change connections")).toBe(false);
     expect(valueOf(LEAF, "Add relatives")).toBe(false);
     expect(valueOf(LEAF, "Add companions")).toBe(false);

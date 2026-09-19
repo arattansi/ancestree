@@ -52,6 +52,11 @@ export default function PrivacyPage() {
             Photos and documents live in private storage and are only ever served
             through short-lived signed URLs.
           </li>
+          <li>
+            Documents on an entry go further: only the entry&rsquo;s owner, the
+            relative looking after that side of the family, and the tree&rsquo;s
+            founders can see or download them.
+          </li>
           <li>Nothing on the tree is public or indexed by search engines.</li>
           <li>We never sell or share this data with third parties.</li>
         </ul>

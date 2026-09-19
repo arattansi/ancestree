@@ -56,6 +56,7 @@ import {
   canEditCompanion,
   canEditConnection,
   canEditEntry,
+  canSeeDocuments,
   type EntrySubject,
   type Viewer,
 } from "@/lib/branch";
@@ -1258,6 +1259,8 @@ function Canvas({
   }, [selectedId, relationships, people, viewer]);
   const canEdit =
     !!selectedPerson && canEditEntry(entrySubject(selectedPerson), viewer);
+  const canSeeDocs =
+    !!selectedPerson && canSeeDocuments(entrySubject(selectedPerson), viewer);
 
   return (
     <>
@@ -1466,6 +1469,7 @@ function Canvas({
         isAdmin={isAdmin}
         isSelf={selectedPerson?.id === selfPersonId}
         canEdit={canEdit}
+        canSeeDocuments={canSeeDocs}
         canAddCompanions={accountType.companions !== "none"}
         lockedNote={lockedEntryNote(accountType)}
         readOnly={readOnly}

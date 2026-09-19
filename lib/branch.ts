@@ -164,6 +164,19 @@ export function canEditCompanion(
   return pet.companions.some(canEditPerson);
 }
 
+/**
+ * Mirrors `private.can_see_documents` (Step 18.4): a Root; the entry's owner,
+ * or the member whose own entry it is; or the Branch who tends the side it is
+ * on — including another member's own entry, which that Branch can't edit but
+ * does look after. Everyone who can edit an entry is in here.
+ */
+export function canSeeDocuments(entry: EntrySubject, viewer: Viewer): boolean {
+  if (accountTypeOf(viewer.role).entries === "tree") return true;
+  if (entry.owner_user_id === viewer.userId) return true;
+  if (entry.id === viewer.selfPersonId) return true;
+  return isOnBranch(entry.id, viewer);
+}
+
 function isOnBranch(personId: string, viewer: Viewer): boolean {
   return (
     accountTypeOf(viewer.role).entries === "branch" &&

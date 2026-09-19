@@ -22,9 +22,11 @@ const ALLOWED = /^(application\/pdf|image\/jpeg|image\/png)$/;
 const MAX_BYTES = 10 * 1024 * 1024;
 
 /**
- * An entry's documents. Everyone on the tree can list and download them
- * (`documents_select`); adding and removing is for whoever can edit the entry
- * (`private.can_edit_person`), so only they are offered the controls.
+ * An entry's documents. Only its owner, the Branch for its side of the tree
+ * and the Roots can list and download them (`private.can_see_documents`, Step
+ * 18.4) — the caller shows this only to them. Adding and removing is for
+ * whoever can edit the entry (`private.can_edit_person`), a narrower set, so
+ * only they are offered the controls.
  */
 export function PersonDocuments({
   personId,
@@ -136,7 +138,8 @@ export function PersonDocuments({
             disabled={busy}
           />
           <p className="text-xs text-muted-foreground">
-            PDF, JPG, or PNG. Everyone on the tree can see and download them.
+            PDF, JPG, or PNG. Only this entry&rsquo;s owner, the Branch for
+            this side of the family, and the Roots can see them.
           </p>
         </div>
       ) : null}

@@ -356,6 +356,7 @@ export function PersonPanel({
   isAdmin,
   isSelf,
   canEdit,
+  canSeeDocuments,
   canAddCompanions = true,
   lockedNote,
   claimable,
@@ -380,6 +381,8 @@ export function PersonPanel({
   isAdmin: boolean;
   isSelf: boolean;
   canEdit: boolean;
+  /** Documents are the owner's, their Branch's and the Roots' (Step 18.4). */
+  canSeeDocuments: boolean;
   /** The viewer's account type adds companions at all (a Leaf's doesn't). */
   canAddCompanions?: boolean;
   /** Why the viewer can't edit this entry, when they can't. */
@@ -714,11 +717,23 @@ export function PersonPanel({
 
               {!readOnly ? (
                 <section className="border-t border-border pt-5">
-                  <PersonDocuments
-                    personId={person.id}
-                    treeId={treeId}
-                    canEdit={canEdit}
-                  />
+                  {canSeeDocuments ? (
+                    <PersonDocuments
+                      personId={person.id}
+                      treeId={treeId}
+                      canEdit={canEdit}
+                    />
+                  ) : (
+                    // Not "No documents yet" — there may be some, just not
+                    // theirs to see.
+                    <div className="flex flex-col gap-1">
+                      <h2 className="text-sm font-semibold">Documents</h2>
+                      <p className="text-xs text-muted-foreground">
+                        Private to this entry&rsquo;s owner, the Branch for
+                        this side of the family, and the Roots.
+                      </p>
+                    </div>
+                  )}
                 </section>
               ) : null}
 

@@ -197,6 +197,14 @@ const ENTRY_REACH: Record<Reach, string | false> = {
   none: false,
 };
 
+const DOCUMENT_REACH: Record<Reach, string | false> = {
+  tree: "Every entry",
+  branch: "Their Root’s side",
+  own: "Entries they own",
+  self: "Only their own",
+  none: false,
+};
+
 const CONNECTION_REACH: Record<Reach, string | false> = {
   tree: "Any",
   branch: "Within that side",
@@ -219,6 +227,9 @@ export function describeAccess(type: AccountType): Access[] {
     { label: "See the whole tree", value: true },
     { label: "Comment on and flag entries", value: true },
     { label: "Edit entries", value: reach(ENTRY_REACH, type.entries) },
+    // Documents follow the same reach as editing, except that a Branch also
+    // sees members' own entries on their side (`private.can_see_documents`).
+    { label: "See documents", value: reach(DOCUMENT_REACH, type.entries) },
     {
       label: "Change connections",
       value: reach(CONNECTION_REACH, type.connections),
