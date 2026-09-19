@@ -349,6 +349,28 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 17 — Feedback round 1 (Arzu)** (migrations
+  `20260913090000_branch_admin_role`, `20260918120000_partial_person_dates`):
+  the first member outside the admin pair sent seven notes, and three were
+  permission effects admins never see. *Branch admins* (see **Branches**
+  above) let a member curate their own side of the tree — the relatives
+  someone else entered, their own parents included — without being handed
+  the whole tree. Writes that RLS filters out (it doesn't raise on an UPDATE)
+  now report "only the owner / a branch admin / an admin can…" instead of
+  "Changes saved.", a refused drag puts the card back, and cards the viewer
+  can't move aren't draggable at all. The place picker stopped searching for
+  its own label after a pick (Base UI reports filling the input as an input
+  change; that search found nothing and knocked the pick back to "Selected
+  place"). Dates are typed as Day / Month / Year (`DateField`) instead of a
+  phone's date wheel, and birth and death dates may be a year or a month and
+  year: `people.date_of_{birth,death}_precision`, a partial date stored on the
+  first day of its period, shown by `formatPartialDate` ("May 1950", "1950").
+  Marriage and divorce dates use the same field but stay whole for now. The
+  canvas gained a dismissible tip explaining the two click-to-focus views,
+  and a clicked line now dims every card it doesn't run through. The rest of
+  the round — "how are we related?", birthdays and anniversaries, the
+  married-in layout, group drag — is on the Notion board under Step 17.
+
 - **Step 15.1 — Nickname matching** (migration `20260901050000_name_nicknames`):
   the Step 15 scorer compares how names are spelled and how they sound, so
   Bob/Robert, Bill/William and Peggy/Margaret — which share neither — scored
