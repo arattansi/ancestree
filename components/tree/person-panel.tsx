@@ -18,6 +18,7 @@ import { PersonDocuments } from "@/components/person-documents";
 import { ConnectionPromptList } from "@/components/tree/connection-prompts";
 import { AddCompanionDialog } from "@/components/tree/add-companion-dialog";
 import type { CompanionOption } from "@/components/tree/companion-picker";
+import { DateField } from "@/components/date-field";
 import { PhotoCropEditor } from "@/components/photo-crop-editor";
 import { EntryComments } from "@/components/tree/entry-comments";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -45,7 +46,11 @@ import {
   parseCrop,
   type CropTransform,
 } from "@/lib/image-crop";
-import { formatPartialDate } from "@/lib/partial-date";
+import {
+  formatPartialDate,
+  marriageDateProblems,
+  toStoredDate,
+} from "@/lib/partial-date";
 import { SEX_LABELS, type Sex } from "@/lib/person-schema";
 import { cn } from "@/lib/utils";
 import {
@@ -110,13 +115,22 @@ function SpouseRow({
     relation.divorceDate ?? "",
   );
   const [busy, setBusy] = React.useState(false);
+  // Marriage dates have to be whole (no precision column on relationships).
+  const dateProblems = marriageDateProblems({
+    marriageDate,
+    isDivorced,
+    divorceDate,
+  });
+  const datesOk = !dateProblems.marriage && !dateProblems.divorce;
 
   async function save() {
+    if (!datesOk) return;
     setBusy(true);
     const res = await updateRelationshipMarriage(relation.id, {
-      marriage_date: marriageDate,
+      // Padded to ISO: a one-digit day types as "1965-03-5".
+      marriage_date: toStoredDate(marriageDate).date,
       is_divorced: isDivorced,
-      divorce_date: divorceDate,
+      divorce_date: toStoredDate(divorceDate).date,
     });
     setBusy(false);
     if (res.error) {
@@ -169,12 +183,15 @@ function SpouseRow({
             <Label htmlFor={`marriage-${relation.id}`} className="text-xs">
               Marriage date
             </Label>
-            <Input
+            <DateField
               id={`marriage-${relation.id}`}
-              type="date"
               value={marriageDate}
-              onChange={(e) => setMarriageDate(e.target.value)}
+              onChange={setMarriageDate}
+              aria-invalid={Boolean(dateProblems.marriage)}
             />
+            {dateProblems.marriage ? (
+              <p className="text-xs text-destructive">{dateProblems.marriage}</p>
+            ) : null}
           </div>
           <label className="flex items-center gap-3 text-sm">
             <Checkbox
@@ -189,16 +206,19 @@ function SpouseRow({
               <Label htmlFor={`divorce-${relation.id}`} className="text-xs">
                 Divorce date
               </Label>
-              <Input
+              <DateField
                 id={`divorce-${relation.id}`}
-                type="date"
                 value={divorceDate}
-                onChange={(e) => setDivorceDate(e.target.value)}
+                onChange={setDivorceDate}
+                aria-invalid={Boolean(dateProblems.divorce)}
               />
+              {dateProblems.divorce ? (
+                <p className="text-xs text-destructive">{dateProblems.divorce}</p>
+              ) : null}
             </div>
           ) : null}
           <div className="flex gap-2">
-            <Button size="sm" onClick={save} disabled={busy}>
+            <Button size="sm" onClick={save} disabled={busy || !datesOk}>
               {busy ? "Saving…" : "Save"}
             </Button>
             <Button

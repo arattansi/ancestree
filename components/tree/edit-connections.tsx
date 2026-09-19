@@ -6,14 +6,15 @@ import { toast } from "sonner";
 
 import { connectExistingPeople, removeRelationship } from "@/app/actions/people";
 import { CoParentOffer } from "@/components/co-parent-offer";
+import { DateField } from "@/components/date-field";
 import { coParentSelection, type PartnerOption } from "@/lib/connections";
+import { marriageDateProblems, toStoredDate } from "@/lib/partial-date";
 import {
   RelationshipPicker,
   type TreeMemberOption,
 } from "@/components/relationship-picker";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -103,19 +104,28 @@ export function EditConnections({
     setCoParentIds(null);
   }
 
+  // Marriage dates have to be whole (no precision column on relationships).
+  const dateProblems =
+    kind === "spouse"
+      ? marriageDateProblems({ marriageDate, isDivorced, divorceDate })
+      : { marriage: null, divorce: null };
+  const datesOk = !dateProblems.marriage && !dateProblems.divorce;
+
   async function add() {
     if (!otherId) {
       toast.error("Pick someone already in the tree.");
       return;
     }
+    if (!datesOk) return;
     setBusy(true);
     const res = await connectExistingPeople({
       personId,
       otherId,
       kind,
-      marriage_date: marriageDate,
+      // Padded to ISO: a one-digit day types as "1965-03-5".
+      marriage_date: toStoredDate(marriageDate).date ?? "",
       is_divorced: isDivorced,
-      divorce_date: divorceDate,
+      divorce_date: toStoredDate(divorceDate).date ?? "",
     });
     if (res.error) {
       setBusy(false);
@@ -254,12 +264,17 @@ export function EditConnections({
                   <Label htmlFor="conn-marriage" className="text-xs font-normal">
                     Marriage date (optional)
                   </Label>
-                  <Input
+                  <DateField
                     id="conn-marriage"
-                    type="date"
                     value={marriageDate}
-                    onChange={(e) => setMarriageDate(e.target.value)}
+                    onChange={setMarriageDate}
+                    aria-invalid={Boolean(dateProblems.marriage)}
                   />
+                  {dateProblems.marriage ? (
+                    <p className="text-xs text-destructive">
+                      {dateProblems.marriage}
+                    </p>
+                  ) : null}
                 </div>
                 <label className="flex items-center gap-3 text-sm">
                   <Checkbox
@@ -274,19 +289,24 @@ export function EditConnections({
                     <Label htmlFor="conn-divorce" className="text-xs font-normal">
                       Divorce date (optional)
                     </Label>
-                    <Input
+                    <DateField
                       id="conn-divorce"
-                      type="date"
                       value={divorceDate}
-                      onChange={(e) => setDivorceDate(e.target.value)}
+                      onChange={setDivorceDate}
+                      aria-invalid={Boolean(dateProblems.divorce)}
                     />
+                    {dateProblems.divorce ? (
+                      <p className="text-xs text-destructive">
+                        {dateProblems.divorce}
+                      </p>
+                    ) : null}
                   </div>
                 ) : null}
               </div>
             ) : null}
 
             <div>
-              <Button size="sm" onClick={add} disabled={busy}>
+              <Button size="sm" onClick={add} disabled={busy || !datesOk}>
                 {busy ? "Adding…" : "Add connection"}
               </Button>
             </div>

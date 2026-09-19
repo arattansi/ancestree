@@ -203,3 +203,35 @@ export function isBeforeAtSharedPrecision(
   }
   return false;
 }
+
+/**
+ * What's wrong with a marriage's dates, field by field. They have to be whole
+ * — `relationships` has no precision column yet — and a divorce can't come
+ * before the marriage it ends.
+ */
+export function marriageDateProblems({
+  marriageDate,
+  isDivorced,
+  divorceDate,
+}: {
+  marriageDate?: string | null;
+  isDivorced?: boolean | null;
+  divorceDate?: string | null;
+}): { marriage: string | null; divorce: string | null } {
+  const marriage = dateProblem(marriageDate, { allowPartial: false });
+  const divorce = isDivorced
+    ? dateProblem(divorceDate, { allowPartial: false })
+    : null;
+  if (
+    !marriage &&
+    !divorce &&
+    isDivorced &&
+    isBeforeAtSharedPrecision(divorceDate, marriageDate)
+  ) {
+    return {
+      marriage: null,
+      divorce: "The divorce date can't be before the marriage date.",
+    };
+  }
+  return { marriage, divorce };
+}

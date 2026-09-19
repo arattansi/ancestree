@@ -19,6 +19,7 @@ import {
 } from "@/components/connection-approval-dialog";
 import type { ImpliedConnection } from "@/lib/connection-suggestions";
 import { CoParentOffer } from "@/components/co-parent-offer";
+import { DateField } from "@/components/date-field";
 import { NewCanvasPrompt } from "@/components/new-canvas-prompt";
 import { PersonFields } from "@/components/person-fields";
 import { PhotoPicker } from "@/components/photo-picker";
@@ -29,7 +30,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Form } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -47,6 +47,7 @@ import {
   type RelationshipKind,
 } from "@/lib/connections";
 import { DEFAULT_CROP, type CropTransform } from "@/lib/image-crop";
+import { marriageDateProblems, toStoredDate } from "@/lib/partial-date";
 import { personDisplayName } from "@/lib/person-name";
 import { emptyPersonValues, personSchema } from "@/lib/person-schema";
 import { createClient } from "@/lib/supabase/client";
@@ -63,12 +64,12 @@ type SpouseDates = {
 /** Normalise a spouse link's optional marriage/divorce fields for an edge. */
 function spouseDates(link: SpouseDates | undefined) {
   return {
-    marriage_date: link?.marriage_date?.trim() ? link.marriage_date : null,
+    // Whole dates, padded to ISO ("1965-03-5" → "1965-03-05").
+    marriage_date: toStoredDate(link?.marriage_date).date,
     is_divorced: link?.is_divorced ?? false,
-    divorce_date:
-      link?.is_divorced && link?.divorce_date?.trim()
-        ? link.divorce_date
-        : null,
+    divorce_date: link?.is_divorced
+      ? toStoredDate(link?.divorce_date).date
+      : null,
   };
 }
 
@@ -79,14 +80,36 @@ const spouseDatesShape = {
   divorce_date: z.string().optional(),
 };
 
+/**
+ * A link's marriage dates are only checked while it is a spouse link: one
+ * switched to "child" keeps its old dates in the form, and they mustn't hold
+ * up a submit they no longer belong to.
+ */
+function spouseDateIssues(
+  link: SpouseDates & { kind: string },
+): { path: "marriage_date" | "divorce_date"; message: string }[] {
+  if (link.kind !== "spouse") return [];
+  const { marriage, divorce } = marriageDateProblems({
+    marriageDate: link.marriage_date,
+    isDivorced: link.is_divorced,
+    divorceDate: link.divorce_date,
+  });
+  return [
+    ...(marriage ? [{ path: "marriage_date" as const, message: marriage }] : []),
+    ...(divorce ? [{ path: "divorce_date" as const, message: divorce }] : []),
+  ];
+}
+
 function SpouseDatesFields({
   idBase,
   value,
   onPatch,
+  errors,
 }: {
   idBase: string;
   value: SpouseDates;
   onPatch: (patch: SpouseDates) => void;
+  errors?: { marriage?: string; divorce?: string };
 }) {
   return (
     <div className="flex flex-col gap-3 rounded-md border border-dashed border-border p-3">
@@ -94,12 +117,15 @@ function SpouseDatesFields({
         <Label htmlFor={`${idBase}-marriage`} className="text-xs font-normal">
           Marriage date (optional)
         </Label>
-        <Input
+        <DateField
           id={`${idBase}-marriage`}
-          type="date"
           value={value.marriage_date ?? ""}
-          onChange={(e) => onPatch({ marriage_date: e.target.value })}
+          onChange={(v) => onPatch({ marriage_date: v })}
+          aria-invalid={Boolean(errors?.marriage)}
         />
+        {errors?.marriage ? (
+          <p className="text-xs text-destructive">{errors.marriage}</p>
+        ) : null}
       </div>
       <label className="flex items-center gap-3 text-sm">
         <Checkbox
@@ -114,12 +140,15 @@ function SpouseDatesFields({
           <Label htmlFor={`${idBase}-divorce`} className="text-xs font-normal">
             Divorce date (optional)
           </Label>
-          <Input
+          <DateField
             id={`${idBase}-divorce`}
-            type="date"
             value={value.divorce_date ?? ""}
-            onChange={(e) => onPatch({ divorce_date: e.target.value })}
+            onChange={(v) => onPatch({ divorce_date: v })}
+            aria-invalid={Boolean(errors?.divorce)}
           />
+          {errors?.divorce ? (
+            <p className="text-xs text-destructive">{errors.divorce}</p>
+          ) : null}
         </div>
       ) : null}
     </div>
@@ -140,6 +169,14 @@ const flowSchema = z.object({
        */
       coParentIds: z.array(z.string()).optional(),
       ...spouseDatesShape,
+    }).superRefine((link, ctx) => {
+      for (const issue of spouseDateIssues(link)) {
+        ctx.addIssue({
+          code: "custom",
+          message: issue.message,
+          path: [issue.path],
+        });
+      }
     }),
   ),
   extraLinks: z
@@ -150,6 +187,14 @@ const flowSchema = z.object({
         /** Child links only — the target's partners to record as a parent too. */
         coParentIds: z.array(z.string()).optional(),
         ...spouseDatesShape,
+      }).superRefine((link, ctx) => {
+        for (const issue of spouseDateIssues(link)) {
+          ctx.addIssue({
+            code: "custom",
+            message: issue.message,
+            path: [issue.path],
+          });
+        }
       }),
     )
     .max(MAX_EXTRA_CONNECTIONS)
@@ -607,6 +652,14 @@ export function AddPersonFlow({
                         <SpouseDatesFields
                           idBase={`link-${i}`}
                           value={watchedLinks[i] ?? {}}
+                          errors={{
+                            marriage:
+                              form.formState.errors.links?.[i]?.marriage_date
+                                ?.message,
+                            divorce:
+                              form.formState.errors.links?.[i]?.divorce_date
+                                ?.message,
+                          }}
                           onPatch={(patch) => {
                             for (const [k, v] of Object.entries(patch)) {
                               form.setValue(
@@ -815,6 +868,14 @@ export function AddPersonFlow({
                               <SpouseDatesFields
                                 idBase={`extra-${i}`}
                                 value={watchedExtra[i] ?? {}}
+                                errors={{
+                                  marriage:
+                                    form.formState.errors.extraLinks?.[i]
+                                      ?.marriage_date?.message,
+                                  divorce:
+                                    form.formState.errors.extraLinks?.[i]
+                                      ?.divorce_date?.message,
+                                }}
                                 onPatch={(patch) => {
                                   for (const [k, v] of Object.entries(patch)) {
                                     form.setValue(

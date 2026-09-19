@@ -6,6 +6,7 @@ import {
   formatPartialDate,
   isBeforeAtSharedPrecision,
   joinDateParts,
+  marriageDateProblems,
   splitDateParts,
   toPartialIso,
   toStoredDate,
@@ -129,5 +130,40 @@ describe("isBeforeAtSharedPrecision", () => {
     expect(isBeforeAtSharedPrecision("19", "1990")).toBe(false);
     expect(isBeforeAtSharedPrecision("1950--3", "1990")).toBe(false);
     expect(isBeforeAtSharedPrecision("", "1990")).toBe(false);
+  });
+});
+
+describe("marriageDateProblems", () => {
+  it("wants whole dates", () => {
+    expect(
+      marriageDateProblems({ marriageDate: "1965", isDivorced: false }),
+    ).toEqual({ marriage: "Enter the whole date, or clear it.", divorce: null });
+  });
+
+  it("only checks a divorce date when they divorced", () => {
+    expect(
+      marriageDateProblems({
+        marriageDate: "1965-03-12",
+        isDivorced: false,
+        divorceDate: "19",
+      }),
+    ).toEqual({ marriage: null, divorce: null });
+  });
+
+  it("refuses a divorce before the marriage", () => {
+    expect(
+      marriageDateProblems({
+        marriageDate: "1965-03-12",
+        isDivorced: true,
+        divorceDate: "1964-01-5",
+      }).divorce,
+    ).toBe("The divorce date can't be before the marriage date.");
+  });
+
+  it("leaves empty dates alone", () => {
+    expect(marriageDateProblems({ isDivorced: true })).toEqual({
+      marriage: null,
+      divorce: null,
+    });
   });
 });
