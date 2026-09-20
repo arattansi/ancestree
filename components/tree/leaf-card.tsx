@@ -89,8 +89,8 @@ const VEINS = [
   "M140,75 C152,84 168,90 182,92",
 ];
 
-const LEAF_GREEN = "#77B255";
-const TRUNK_BROWN = "#A57939";
+const LEAF_GREEN = "var(--brand-green)";
+const TRUNK_BROWN = "var(--brand-brown)";
 
 /**
  * The card that appears over a leaf while it is hovered: the photo the leaf
@@ -124,7 +124,9 @@ function LeafDetail({
         "pointer-events-none absolute top-1/2 left-1/2 z-50 hidden w-60 -translate-x-1/2 -translate-y-1/2",
         "flex-col overflow-hidden rounded-xl border bg-popover shadow-xl group-hover/leaf:flex",
       )}
-      style={{ borderColor: `${LEAF_GREEN}66` }}
+      style={{
+        borderColor: `color-mix(in srgb, ${LEAF_GREEN} 40%, transparent)`,
+      }}
     >
       {person.photo_url ? (
         <div className="aspect-[4/3] w-full overflow-hidden bg-muted">
@@ -207,7 +209,7 @@ export function LeafCard({
         className={cn(
           "absolute inset-x-0 -inset-y-[19px] overflow-visible transition-[filter] duration-300",
           selected
-            ? "drop-shadow-[0_10px_22px_rgba(119,178,85,0.45)]"
+            ? "drop-shadow-[0_10px_22px_color-mix(in_srgb,var(--brand-green)_45%,transparent)]"
             : "drop-shadow-[0_8px_18px_rgba(38,32,22,0.22)]",
         )}
         aria-hidden

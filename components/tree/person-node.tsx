@@ -149,7 +149,7 @@ function PersonNodeImpl({ data }: NodeProps) {
           selected && "border-ring ring-2 ring-ring/40",
           highlighted &&
             !selected &&
-            "border-[#77B255] bg-[#77B255]/10 ring-4 ring-[#77B255]/50 shadow-[0_0_32px_6px_rgba(119,178,85,0.45)] scale-[1.04]",
+            "border-brand-green bg-brand-green/10 ring-4 ring-brand-green/50 shadow-[0_0_32px_6px_color-mix(in_srgb,var(--brand-green)_45%,transparent)] scale-[1.04]",
           isSelf && !selected && !highlighted && "border-primary/60",
         )}
       >

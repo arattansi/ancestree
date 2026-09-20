@@ -45,6 +45,8 @@
   --color-account-branch: var(--account-branch);
   --color-account-canopy: var(--account-canopy);
   --color-account-leaf: var(--account-leaf);
+  --color-brand-green: var(--brand-green);
+  --color-brand-brown: var(--brand-brown);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -55,6 +57,10 @@
 }
 
 :root {
+  /* Brand palette, taken from the 🌳 logo emoji: foliage green and trunk
+     brown. The same in both themes, so .dark doesn't redefine them. */
+  --brand-green: #77b255;
+  --brand-brown: #a57939;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);

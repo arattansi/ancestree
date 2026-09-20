@@ -86,12 +86,12 @@ import { personDisplayName } from "@/lib/person-name";
 import type { TreeGraphEdge, TreeGraphPerson } from "@/lib/tree";
 import type { PersonRelation } from "@/components/tree/person-panel";
 
-// Spotlight palette from the 🌳 emoji: foliage green for the cards and the
-// leaves they turn into (#77B255, in person-node.tsx and leaf-card.tsx), trunk
-// brown for everything that carries them — branch lines, stems, the pill that
-// names the tree you pulled out.
-const SPOTLIGHT_BROWN = "#A57939";
-const SPOTLIGHT_GREEN = "#77B255";
+// Spotlight palette, the brand tokens from globals.css: foliage green for the
+// cards and the leaves they turn into (person-node.tsx and leaf-card.tsx),
+// trunk brown for everything that carries them — branch lines, stems, the pill
+// that names the tree you pulled out.
+const SPOTLIGHT_BROWN = "var(--brand-brown)";
+const SPOTLIGHT_GREEN = "var(--brand-green)";
 
 const sameDescent = (a: Descent, b: Descent) =>
   a.startX === b.startX && a.startY === b.startY && a.busY === b.busY;
@@ -1376,7 +1376,9 @@ function Canvas({
           >
             <div
               className="flex items-center gap-3 rounded-full border bg-card px-4 py-2 text-sm shadow-md"
-              style={{ borderColor: `${SPOTLIGHT_BROWN}55` }}
+              style={{
+                borderColor: `color-mix(in srgb, ${SPOTLIGHT_BROWN} 33%, transparent)`,
+              }}
             >
               <span aria-hidden style={{ color: SPOTLIGHT_GREEN }}>
                 🌿
