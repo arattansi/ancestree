@@ -6,6 +6,7 @@ import {
   canEditCompanion,
   canEditConnection,
   canEditEntry,
+  canInviteToClaim,
   canSeeDocuments,
   relatedRoots,
   type BranchEdge,
@@ -284,6 +285,60 @@ describe("canEditEntry", () => {
     expect(canEditEntry(entry({ id: "arzu" }), unknown)).toBe(true);
     const addedEarlier = entry({ id: "rehan", owner_user_id: "arzu-user" });
     expect(canEditEntry(addedEarlier, unknown)).toBe(false);
+  });
+});
+
+describe("canInviteToClaim", () => {
+  const mine = entry({
+    id: "minaz",
+    owner_user_id: "arzu-user",
+    created_by: "arzu-user",
+  });
+
+  it("lets a Root invite someone to claim any unclaimed entry", () => {
+    expect(canInviteToClaim(entry(), admin)).toBe(true);
+    expect(canInviteToClaim(entry({ id: "minaz" }), admin)).toBe(true);
+  });
+
+  it("lets a Branch reach their side, and what they added off it", () => {
+    expect(canInviteToClaim(entry(), branchAdmin)).toBe(true);
+    expect(canInviteToClaim(entry({ id: "minaz" }), branchAdmin)).toBe(false);
+    expect(canInviteToClaim(mine, branchAdmin)).toBe(true);
+  });
+
+  it("keeps Canopy to the entries they added", () => {
+    expect(canInviteToClaim(mine, member)).toBe(true);
+    expect(canInviteToClaim(entry(), member)).toBe(false);
+  });
+
+  it("gives a Leaf none, not even what they added earlier", () => {
+    expect(canInviteToClaim(mine, leaf)).toBe(false);
+    expect(canInviteToClaim(entry({ id: "arzu" }), leaf)).toBe(false);
+  });
+
+  it("refuses an entry somebody is already behind", () => {
+    for (const viewer of [admin, branchAdmin]) {
+      expect(canInviteToClaim(entry({ isClaimed: true }), viewer)).toBe(false);
+      expect(
+        canInviteToClaim(entry({ isSomeoneElsesOwn: true }), viewer),
+      ).toBe(false);
+      // Handed over without a claim row: the owner moved off the creator.
+      expect(
+        canInviteToClaim(entry({ owner_user_id: "someone-else" }), viewer),
+      ).toBe(false);
+    }
+  });
+
+  it("refuses someone who has died", () => {
+    expect(canInviteToClaim(entry({ isDeceased: true }), admin)).toBe(false);
+    expect(canInviteToClaim({ ...mine, isDeceased: true }, member)).toBe(false);
+  });
+
+  it("refuses the viewer's own entry", () => {
+    expect(
+      canInviteToClaim(entry({ id: "arzu" }), { ...admin, selfPersonId: "arzu" }),
+    ).toBe(false);
+    expect(canInviteToClaim(entry({ id: "arzu" }), branchAdmin)).toBe(false);
   });
 });
 

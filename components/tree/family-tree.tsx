@@ -51,12 +51,17 @@ import {
   type TreeFilter,
 } from "@/lib/tree-search";
 import { Button } from "@/components/ui/button";
-import { accountTypeOf, lockedEntryNote } from "@/lib/account-types";
+import {
+  accountTypeOf,
+  invitableTypes,
+  lockedEntryNote,
+} from "@/lib/account-types";
 import {
   branchReach,
   canEditCompanion,
   canEditConnection,
   canEditEntry,
+  canInviteToClaim,
   canSeeDocuments,
   type EntrySubject,
   type Viewer,
@@ -683,6 +688,7 @@ function Canvas({
       created_by: person.created_by,
       isClaimed: person.claim_status === "approved",
       isSomeoneElsesOwn: spokenFor.has(person.id),
+      isDeceased: person.is_deceased,
     }),
     [spokenFor],
   );
@@ -1500,6 +1506,8 @@ function Canvas({
     !!selectedPerson && canEditEntry(entrySubject(selectedPerson), viewer);
   const canSeeDocs =
     !!selectedPerson && canSeeDocuments(entrySubject(selectedPerson), viewer);
+  const canInvite =
+    !!selectedPerson && canInviteToClaim(entrySubject(selectedPerson), viewer);
 
   return (
     <>
@@ -1712,6 +1720,9 @@ function Canvas({
         isSelf={selectedPerson?.id === selfPersonId}
         canEdit={canEdit}
         canSeeDocuments={canSeeDocs}
+        claimInviteOptions={
+          canInvite ? invitableTypes(viewer.role).map((t) => t.key) : []
+        }
         canAddCompanions={accountType.companions !== "none"}
         lockedNote={lockedEntryNote(accountType)}
         readOnly={readOnly}

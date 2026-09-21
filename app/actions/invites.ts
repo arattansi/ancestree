@@ -35,7 +35,7 @@ export async function createInvite(
   joinsAs: string = "member",
 ): Promise<CreateInviteState> {
   const profile = await requireProfile();
-  const allowed = invitableTypes(profile.role, profile.can_invite);
+  const allowed = invitableTypes(profile.role);
   if (allowed.length === 0) {
     return { error: "You don't have permission to create invites." };
   }
@@ -126,7 +126,7 @@ export async function sendDirectInvites(
       error: `An invite can only make someone ${INVITABLE_ACCOUNT_TYPES.map((t) => t.name).join(" or ")}.`,
     };
   }
-  const allowed = invitableTypes(inviter.role, inviter.can_invite);
+  const allowed = invitableTypes(inviter.role);
   if (allowed.length === 0) {
     return { error: "You don't have permission to send invites." };
   }
@@ -246,20 +246,34 @@ export type ClaimInviteState = {
 };
 
 /**
- * Admin: email an invite for one specific unclaimed entry.
+ * Email an invite for one specific unclaimed entry.
  *
  * The invite carries the person on it, which does two things the general
  * invite can't: the join page names the entry, and whoever redeems the link
- * may claim *that* entry without passing the fuzzy name match — an admin
- * picking the entry and typing the address is the stronger signal, and the
- * name rule is what would otherwise block a married surname or a nickname.
- * See supabase/migrations/20260904100000_invite_to_claim_entry.sql.
+ * may claim *that* entry without passing the fuzzy name match — someone who
+ * tends the entry picking it and typing the address is the stronger signal,
+ * and the name rule is what would otherwise block a married surname or a
+ * nickname. See supabase/migrations/20260904100000_invite_to_claim_entry.sql.
+ *
+ * Open to whoever could edit the entry (`private.can_invite_to_claim`, Step
+ * 22.1): a Root anywhere, a Branch on their side, Canopy on what they added.
+ * A Root chooses what the newcomer joins as; from anyone else it is a Leaf.
  */
 export async function sendClaimInvite(
   personId: string,
   email: string,
+  joinsAs: string = "leaf",
 ): Promise<ClaimInviteState> {
-  const admin = await requireAdmin();
+  const inviter = await requireProfile();
+  const allowed = invitableTypes(inviter.role);
+  if (allowed.length === 0) {
+    return { error: "You don't have permission to send invites." };
+  }
+  if (!allowed.some((t) => t.key === joinsAs)) {
+    return {
+      error: `You can invite relatives as ${allowed.map((t) => t.name).join(" or ")} only.`,
+    };
+  }
 
   const address = email.trim().toLowerCase();
   if (!EMAIL_RE.test(address)) {
@@ -267,6 +281,12 @@ export async function sendClaimInvite(
   }
 
   const supabase = await createClient();
+
+  // Asked as the inviter: is this entry theirs to hand over? It also covers
+  // the entry having gone, or being out of their sight.
+  const { data: mayInvite } = await supabase.rpc("can_invite_to_claim", {
+    p_person_id: personId,
+  });
 
   const { data: person } = await supabase
     .from("people")
@@ -295,18 +315,28 @@ export async function sendClaimInvite(
   if (claim || member || person.owner_user_id !== person.created_by) {
     return { error: "That entry already belongs to a member." };
   }
+  if (mayInvite !== true) {
+    return {
+      error:
+        "You can invite someone to claim only an entry you can edit. Ask a Root to send this one.",
+    };
+  }
 
   const expiresAt = new Date(
     Date.now() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000,
   ).toISOString();
 
-  const { data: invite, error } = await supabase
+  // Bound to the address, so opening it signs them straight in. Only a Root
+  // or the service role may bind one (`invites_guard`), hence the service-role
+  // write, as in `sendDirectInvites`: the inviter's right was checked above.
+  const { data: invite, error } = await createAdminClient()
     .from("invites")
     .insert({
       tree_id: person.tree_id,
-      created_by: admin.auth_user_id,
+      created_by: inviter.auth_user_id,
       status: "active",
       expires_at: expiresAt,
+      joins_as: joinsAs,
       person_id: personId,
       invited_email: address,
     })
@@ -321,38 +351,22 @@ export async function sendClaimInvite(
   const { subject, html } = claimInviteEmail({
     firstName: person.preferred_name || person.first_name || entryName,
     entryName,
-    inviterName: admin.display_name ?? "A family member",
+    inviterName: inviter.display_name ?? "A family member",
     url: `${getSiteUrl()}/join/${invite.token}`,
   });
   const sent = await sendEmail({ to: address, subject, html });
 
   if (!sent.ok) {
     return {
-      error:
-        "The link was created but the email didn't send. Try again, or share the link from the admin page.",
+      error: allowed.length > 1
+        ? "The link was created but the email didn't send. Try again, or share the link from the admin page."
+        : "The link was created but the email didn't send. Try again in a moment.",
     };
   }
 
   revalidatePath("/tree");
   revalidatePath("/admin");
   return { email: address };
-}
-
-/** Admin-only: grant or revoke a member's ability to mint invites. */
-export async function setCanInvite(formData: FormData) {
-  await requireAdmin();
-
-  const userId = String(formData.get("userId") ?? "");
-  const canInvite = String(formData.get("canInvite") ?? "") === "true";
-  if (!userId) return;
-
-  const supabase = await createClient();
-  await supabase
-    .from("profiles")
-    .update({ can_invite: canInvite })
-    .eq("auth_user_id", userId);
-
-  revalidatePath("/admin");
 }
 
 /**

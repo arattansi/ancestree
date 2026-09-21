@@ -59,11 +59,16 @@ export type AccountType = {
   /** Add new relatives to the tree. */
   addRelatives: boolean;
   /**
-   * Who they can invite, before any grant (`profiles.can_invite`): `any` (as
-   * Canopy or Leaf), `leaves` (as Leaves only), or `none`. A grant widens
-   * `leaves` / `none` — see `invitableTypes`.
+   * Who they can invite: `any` (as Canopy or Leaf), `leaves` (as Leaves only),
+   * or `none`. Nothing wider than a Leaf comes in without a Root.
    */
   invites: "any" | "leaves" | "none";
+  /**
+   * Whose unclaimed entries they can invite someone to claim — the entries
+   * they can edit (`lib/branch.ts#canInviteToClaim`). `none` for a Leaf, whose
+   * one entry is already their own.
+   */
+  claimInvites: Reach;
   /** The admin console: members and their account types, invites, share
    *  links, deleting entries, lineage, verification, auto-arrange. */
   runsTree: boolean;
@@ -80,6 +85,7 @@ export const ROOT: AccountType = {
   companions: "tree",
   addRelatives: true,
   invites: "any",
+  claimInvites: "tree",
   runsTree: true,
 };
 
@@ -88,12 +94,13 @@ export const BRANCH: AccountType = {
   name: "Branch",
   tagline: "Tends a Root’s side of the family",
   description:
-    "A Branch looks after the side of the family of the Root they’re related to: that Root’s ancestors, everyone descended from them, and the people those relatives married. They can edit any entry and connection there, except another member’s own entry.",
+    "A Branch looks after the side of the family of the Root they’re related to: that Root’s ancestors, everyone descended from them, and the people those relatives married. They can edit any entry and connection there, except another member’s own entry. They bring relatives in as Leaves, and can invite someone to claim an unclaimed entry on that side.",
   entries: "branch",
   connections: "branch",
   companions: "branch",
   addRelatives: true,
   invites: "leaves",
+  claimInvites: "branch",
   runsTree: false,
 };
 
@@ -102,12 +109,13 @@ export const CANOPY: AccountType = {
   name: "Canopy",
   tagline: "Grows the tree",
   description:
-    "Where most of the family sits. Canopy members add relatives, and edit the entries and connections they added themselves.",
+    "Where most of the family sits. Canopy members add relatives, and edit the entries and connections they added themselves. They bring relatives in as Leaves, and can invite someone to claim an entry they added.",
   entries: "own",
   connections: "own",
   companions: "own",
   addRelatives: true,
-  invites: "none",
+  invites: "leaves",
+  claimInvites: "own",
   runsTree: false,
 };
 
@@ -122,6 +130,7 @@ export const LEAF: AccountType = {
   companions: "none",
   addRelatives: false,
   invites: "none",
+  claimInvites: "none",
   runsTree: false,
 };
 
@@ -163,17 +172,12 @@ export const INVITABLE_ACCOUNT_TYPES: readonly AccountType[] = [CANOPY, LEAF];
 
 /**
  * The account types someone can invite a relative in as, widest first.
- * Mirrors `private.can_invite_as`: a Root, either; a Branch, Leaves; and a
- * Root's invite grant lets anyone invite Canopy or Leaf — except a Leaf, who
- * never brings in someone wider than themselves.
+ * Mirrors `private.can_invite_as`: a Root, either; a Branch or a Canopy
+ * member, Leaves; a Leaf, nobody.
  */
-export function invitableTypes(
-  role: string | null | undefined,
-  canInvite: boolean,
-): AccountType[] {
+export function invitableTypes(role: string | null | undefined): AccountType[] {
   const type = accountTypeOf(role);
   if (type.invites === "any") return [CANOPY, LEAF];
-  if (canInvite) return type === LEAF ? [LEAF] : [CANOPY, LEAF];
   if (type.invites === "leaves") return [LEAF];
   return [];
 }
@@ -202,6 +206,14 @@ const DOCUMENT_REACH: Record<Reach, string | false> = {
   branch: "Their Root’s side",
   own: "Entries they own",
   self: "Only their own",
+  none: false,
+};
+
+const CLAIM_INVITE_REACH: Record<Reach, string | false> = {
+  tree: "Any unclaimed entry",
+  branch: "On their Root’s side, as Leaves",
+  own: "The ones they added, as Leaves",
+  self: false,
   none: false,
 };
 
@@ -243,7 +255,11 @@ export function describeAccess(type: AccountType): Access[] {
           ? true
           : type.invites === "leaves"
             ? "As Leaves"
-            : "If a Root allows it",
+            : false,
+    },
+    {
+      label: "Invite someone to claim an entry",
+      value: reach(CLAIM_INVITE_REACH, type.claimInvites),
     },
     { label: "Run the tree", value: type.runsTree },
   ];

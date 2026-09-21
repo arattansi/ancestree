@@ -96,6 +96,8 @@ export type EntrySubject = {
   isClaimed: boolean;
   /** It is another member's own entry — theirs to edit, nobody else's. */
   isSomeoneElsesOwn: boolean;
+  /** They have died. Bears on claiming only: there is nobody to invite. */
+  isDeceased?: boolean;
 };
 
 /**
@@ -117,6 +119,23 @@ export function canEditEntry(entry: EntrySubject, viewer: Viewer): boolean {
     return true;
   }
   return isOnBranch(entry.id, viewer) && !entry.isSomeoneElsesOwn;
+}
+
+/**
+ * Mirrors `private.can_invite_to_claim` (Step 22.1): an entry they can edit
+ * that nobody is behind yet — the owner never moved away from whoever created
+ * it, no claim stuck, it is no member's own, and they are living. So a Root,
+ * anywhere; a Branch, on their side or among their own additions; Canopy,
+ * among their own additions; a Leaf, nowhere, since the one entry they edit
+ * is theirs.
+ */
+export function canInviteToClaim(entry: EntrySubject, viewer: Viewer): boolean {
+  if (accountTypeOf(viewer.role).claimInvites === "none") return false;
+  if (entry.id === viewer.selfPersonId) return false;
+  if (entry.isClaimed || entry.isSomeoneElsesOwn) return false;
+  if (entry.isDeceased) return false;
+  if (entry.owner_user_id !== entry.created_by) return false;
+  return canEditEntry(entry, viewer);
 }
 
 /**

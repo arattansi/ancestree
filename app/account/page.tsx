@@ -45,7 +45,7 @@ export default async function AccountPage() {
   const notifications = user ? await listNotifications(user.id) : [];
   const accountType = accountTypeOf(profile.role);
   // Roots invite from /admin; everyone else who may, invites from here.
-  const inviteOptions = invitableTypes(profile.role, profile.can_invite);
+  const inviteOptions = invitableTypes(profile.role);
   // A Branch is told whose side they tend: the Root they're related to.
   const branchSide =
     accountType.entries === "branch" && profile.self_person_id

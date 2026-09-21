@@ -116,8 +116,8 @@ describe("describeAccess", () => {
   it("gives a Root invites outright, a Branch Leaves, the rest when allowed", () => {
     expect(valueOf(ROOT, "Invite relatives")).toBe(true);
     expect(valueOf(BRANCH, "Invite relatives")).toBe("As Leaves");
-    expect(valueOf(CANOPY, "Invite relatives")).toBe("If a Root allows it");
-    expect(valueOf(LEAF, "Invite relatives")).toBe("If a Root allows it");
+    expect(valueOf(CANOPY, "Invite relatives")).toBe("As Leaves");
+    expect(valueOf(LEAF, "Invite relatives")).toBe(false);
   });
 });
 
@@ -139,31 +139,24 @@ describe("branchSideLabel", () => {
 });
 
 describe("invitableTypes", () => {
-  const keys = (role: string, canInvite: boolean) =>
-    invitableTypes(role, canInvite).map((t) => t.name);
+  const names = (role: string) => invitableTypes(role).map((t) => t.name);
 
-  it("lets a Root invite as Canopy or Leaf, grant or no grant", () => {
-    expect(keys("admin", false)).toEqual(["Canopy", "Leaf"]);
+  it("lets a Root invite as Canopy or Leaf", () => {
+    expect(names("admin")).toEqual(["Canopy", "Leaf"]);
   });
 
-  it("lets a Branch invite Leaves without a grant, and Canopy with one", () => {
-    expect(keys("branch_admin", false)).toEqual(["Leaf"]);
-    expect(keys("branch_admin", true)).toEqual(["Canopy", "Leaf"]);
+  it("lets a Branch and Canopy bring in Leaves, and nothing wider", () => {
+    expect(names("branch_admin")).toEqual(["Leaf"]);
+    expect(names("member")).toEqual(["Leaf"]);
   });
 
-  it("lets Canopy invite only once a Root allows it", () => {
-    expect(keys("member", false)).toEqual([]);
-    expect(keys("member", true)).toEqual(["Canopy", "Leaf"]);
-  });
-
-  it("never lets a Leaf bring in someone wider than themselves", () => {
-    expect(keys("leaf", false)).toEqual([]);
-    expect(keys("leaf", true)).toEqual(["Leaf"]);
+  it("never lets a Leaf invite", () => {
+    expect(names("leaf")).toEqual([]);
   });
 
   it("never offers Root or Branch by link", () => {
     for (const role of ["admin", "branch_admin", "member", "leaf"]) {
-      for (const t of invitableTypes(role, true)) {
+      for (const t of invitableTypes(role)) {
         expect(["member", "leaf"]).toContain(t.key);
       }
     }

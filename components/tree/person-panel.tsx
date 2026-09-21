@@ -15,6 +15,7 @@ import {
 import { deletePerson } from "@/app/actions/privacy";
 import type { PanelSuggestion } from "@/lib/connection-suggestions";
 import { AccountTypeBadge } from "@/components/account-type-badge";
+import { JoinsAsChoice } from "@/components/joins-as-choice";
 import { PersonDocuments } from "@/components/person-documents";
 import { ConnectionPromptList } from "@/components/tree/connection-prompts";
 import { AddCompanionDialog } from "@/components/tree/add-companion-dialog";
@@ -53,6 +54,7 @@ import {
   marriageDateProblems,
   toStoredDate,
 } from "@/lib/partial-date";
+import type { AccountTypeKey } from "@/lib/account-types";
 import { SEX_LABELS, type Sex } from "@/lib/person-schema";
 import { cn } from "@/lib/utils";
 import {
@@ -359,6 +361,7 @@ export function PersonPanel({
   isSelf,
   canEdit,
   canSeeDocuments,
+  claimInviteOptions = [],
   canAddCompanions = true,
   lockedNote,
   claimable,
@@ -386,6 +389,12 @@ export function PersonPanel({
   canEdit: boolean;
   /** Documents are the owner's, their Branch's and the Roots' (Step 18.4). */
   canSeeDocuments: boolean;
+  /**
+   * What the viewer may invite someone to claim this entry as (Step 22.1):
+   * Canopy or Leaf for a Root, a Leaf from a Branch or Canopy who can edit it.
+   * Empty when the entry isn't theirs to hand over, or is already someone's.
+   */
+  claimInviteOptions?: readonly AccountTypeKey[];
   /** The viewer's account type adds companions at all (a Leaf's doesn't). */
   canAddCompanions?: boolean;
   /** Why the viewer can't edit this entry, when they can't. */
@@ -413,6 +422,13 @@ export function PersonPanel({
   const [claimInviteSent, setClaimInviteSent] = React.useState<string | null>(
     null,
   );
+  const [claimJoinsAs, setClaimJoinsAs] = React.useState<AccountTypeKey | null>(
+    null,
+  );
+  // Widest first, so a Root's choice opens on Canopy, as it always joined.
+  const joinsAs =
+    claimInviteOptions.find((key) => key === claimJoinsAs) ??
+    claimInviteOptions[0];
   const savedCrop = parseCrop(person?.photo_crop);
   const [crop, setCrop] = React.useState<CropTransform>(savedCrop);
   const [prevId, setPrevId] = React.useState(person?.id);
@@ -428,6 +444,7 @@ export function PersonPanel({
     setCrop(savedCrop);
     setClaimEmail("");
     setClaimInviteSent(null);
+    setClaimJoinsAs(null);
   }
 
   async function onSaveCrop() {
@@ -461,7 +478,7 @@ export function PersonPanel({
   async function onSendClaimInvite() {
     if (!person) return;
     setBusy(true);
-    const res = await sendClaimInvite(person.id, claimEmail);
+    const res = await sendClaimInvite(person.id, claimEmail, joinsAs);
     setBusy(false);
     if (res.error) {
       toast.error(res.error);
@@ -824,13 +841,10 @@ export function PersonPanel({
                     ) : null}
                   </div>
 
-                  {/* Nobody is behind this entry yet: the owner never moved
-                      away from whoever created it, and no claim stuck. Same
-                      test the server re-runs before minting the link. */}
-                  {isAdmin &&
-                  !isSelf &&
-                  person.claim_status !== "approved" &&
-                  person.owner_user_id === person.created_by ? (
+                  {/* Nobody is behind this entry yet, and it is the viewer's to
+                      hand over (`canInviteToClaim`). The server asks the
+                      database the same thing before minting the link. */}
+                  {claimInviteOptions.length > 0 ? (
                     <div className="flex flex-col gap-2 rounded-md border border-border p-3">
                       <Label
                         htmlFor="claim-invite-email"
@@ -858,6 +872,12 @@ export function PersonPanel({
                           {busy ? "Sending…" : "Send invite"}
                         </Button>
                       </div>
+                      <JoinsAsChoice
+                        options={claimInviteOptions}
+                        value={joinsAs}
+                        onChange={setClaimJoinsAs}
+                        disabled={busy}
+                      />
                       {claimInviteSent ? (
                         <p className="text-xs text-muted-foreground">
                           Sent to {claimInviteSent}. Opening the link lets them

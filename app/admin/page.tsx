@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 
-import { setCanInvite } from "@/app/actions/invites";
 import { AccountTypeBadge } from "@/components/account-type-badge";
 import { AccountTypeGuide } from "@/components/account-type-guide";
 import { AccountTypePicker } from "@/components/account-type-picker";
@@ -280,7 +279,7 @@ export default async function AdminPage() {
                     Entries
                   </th>
                   <th scope="col" className="px-4 py-2 font-medium">
-                    Can invite
+                    Invites as
                   </th>
                   <th scope="col" className="px-4 py-2 font-medium">
                     <span className="sr-only">Remove</span>
@@ -323,34 +322,10 @@ export default async function AdminPage() {
                         ? (entryCountByCreator.get(member.auth_user_id) ?? 0)
                         : 0}
                     </td>
-                    <td className="px-4 py-3">
-                      {member.role === "admin" ? (
-                        <span className="text-muted-foreground">Always</span>
-                      ) : (
-                        <form action={setCanInvite}>
-                          <input
-                            type="hidden"
-                            name="userId"
-                            value={member.auth_user_id ?? ""}
-                          />
-                          <input
-                            type="hidden"
-                            name="canInvite"
-                            value={(!member.can_invite).toString()}
-                          />
-                          <Button type="submit" variant="outline" size="sm">
-                            {member.can_invite ? "Revoke" : "Grant"}
-                          </Button>
-                          {/* What the grant adds, when the type already invites. */}
-                          {member.role === "branch_admin" ? (
-                            <span className="mt-1 block text-xs text-muted-foreground">
-                              {member.can_invite
-                                ? "Canopy or Leaf"
-                                : "Leaves without it"}
-                            </span>
-                          ) : null}
-                        </form>
-                      )}
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {invitableTypes(member.role)
+                        .map((t) => t.name)
+                        .join(" or ") || "—"}
                     </td>
                     <td className="px-4 py-3 text-right">
                       {member.auth_user_id &&
@@ -428,16 +403,13 @@ export default async function AdminPage() {
         <AdminSubsection
           id="invite"
           title="Invite a relative"
-          description="Each link is tied to you, works once, and expires after 14 days. Send by name and email and it’s emailed for you — that link signs them straight in, nothing to set up. Or mint a bare link to send yourself; it asks for their email first. Either way, choose whether they join as Canopy or as a Leaf; Branches can invite Leaves from their account page."
+          description="Each link is tied to you, works once, and expires after 14 days. Send by name and email and it’s emailed for you — that link signs them straight in, nothing to set up. Or mint a bare link to send yourself; it asks for their email first. Either way, choose whether they join as Canopy or as a Leaf; Branches and Canopy members invite Leaves from their account page."
         >
           <div className="flex flex-col gap-6">
             <DirectInviteForm />
             <div className="border-t border-border pt-6">
               <InviteMinter
-                options={invitableTypes(
-                  currentAdmin.role,
-                  currentAdmin.can_invite,
-                ).map((t) => t.key)}
+                options={invitableTypes(currentAdmin.role).map((t) => t.key)}
               />
             </div>
           </div>

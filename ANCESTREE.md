@@ -55,7 +55,7 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   contributions to a founding admin);
   `trees.ts`: `startOwnTree` (Step 9 multi-tree seam);
   `invites.ts`: mint invite link, `sendDirectInvites` (bulk name+email
-  invites), grant/revoke `can_invite`;
+  invites), `sendClaimInvite` (invite someone to claim one entry);
   `invite-requests.ts`: `requestInvite` (public, service-role write) /
   `approveInviteRequest` (mints the link) / `declineInviteRequest`;
   `people.ts`: `addPeopleWithConnections` (transactional multi-person + edge
@@ -215,16 +215,17 @@ a name, and where each type's reach is written down (`entries`, `connections`,
 | Stored `role` | Name | Reach |
 |---|---|---|
 | `admin` | **Root** | Everything, plus running the tree: members and their account types, invites, share links, deletes, lineage, verification |
-| `branch_admin` | **Branch** | Every entry and connection on the side of the Root they're related to (see **Branches**); invites relatives as Leaves with no grant needed |
-| `member` | **Canopy** | What they add, the lines they draw, and their own entry. New members join as Canopy |
+| `branch_admin` | **Branch** | Every entry and connection on the side of the Root they're related to (see **Branches**); invites relatives as Leaves, and invites someone to claim an unclaimed entry on that side |
+| `member` | **Canopy** | What they add, the lines they draw, and their own entry. Invites relatives as Leaves, and invites someone to claim an entry they added. New members join as Canopy |
 | `leaf` | **Leaf** | Their own entry (details, photo, documents, card position). Read, comment, flag, claim — nothing that grows or reshapes the tree |
 
 The keys kept their old values on purpose: renaming them would rewrite every
 `role = 'admin'` test in the database for no visible change. A Root switches
 anyone else between Branch, Canopy and Leaf on `/admin` (`AccountTypePicker` →
-`setAccountType`); making or unmaking a Root isn't on offer there. `can_invite`
-stays a separate grant on top of any type, and an invite link can make
-someone Canopy or Leaf (see **Invite as a Leaf** under Auth & invites).
+`setAccountType`); making or unmaking a Root isn't on offer there. Who may
+invite follows from the type alone — the per-member `can_invite` grant was
+retired in Step 22.1 — and an invite link can make someone Canopy or Leaf (see
+**Invite as a Leaf** under Auth & invites).
 
 A Leaf is held to their entry in the database, not just the UI:
 `can_edit_person` / `can_edit_relationship` / `can_edit_pet` and the
@@ -291,20 +292,33 @@ Helpers live in the unexposed `private` schema (`is_admin`, `is_branch_admin`,
   address and still asks for one and verifies it by email. The privacy
   checkbox sits on `/request-invite` for people who ask, and on the accept
   page for people invited cold.
-- **Invite tokens** (`public.invites`): `can_invite` members + admins mint a
+- **Invite tokens** (`public.invites`): whoever may invite mints a
   single-use, 14-day link `"/join/<token>"` by inserting a row directly under RLS
-  (`can_invite_to_tree`). `redeem_invite` (SECURITY DEFINER) creates the member
+  (`can_invite_as`). `redeem_invite` (SECURITY DEFINER) creates the member
   `profiles` row with `invited_by_user_id = invite.created_by` and flips the
   invite to `accepted`. `invite_preview(token)` is the only pre-auth RPC.
 - **Invite as a Leaf (Step 18.2)**: every invite carries `invites.joins_as`
   (`member` | `leaf`, default `member`) and `redeem_invite` creates the
   profile with that role. Who may mint which is `private.can_invite_as`
-  (mirrored by `lib/account-types#invitableTypes`): a Root either; a Branch
-  Leaves, no grant needed; anyone a Root has granted `can_invite` either —
-  except a Leaf, who can only invite Leaves. Branch and Root are never given by
-  link. The `invites_guard` trigger keeps a link's `joins_as` and its claim
-  target (`person_id`) to Roots, so a Branch can't mint a Leaf link and widen
-  it afterwards, or aim a link at someone else's entry. Roots choose on
+  (mirrored by `lib/account-types#invitableTypes`): a Root either; a Branch or
+  a Canopy member Leaves; a Leaf nobody (Step 22.1 — before it, Canopy needed a
+  Root's `can_invite` grant, which also widened a Branch to Canopy). Branch and
+  Root are never given by link. The `invites_guard` trigger keeps changing a
+  link's `joins_as` or claim target (`person_id`) to Roots, so nobody can mint
+  a Leaf link and widen it afterwards, or aim a link at someone else's entry.
+- **Invite someone to claim an entry** (`20260904100000_invite_to_claim_entry`,
+  widened in Step 22.1): an invite with
+  `person_id` set names the entry on `/join/<token>` and lets whoever redeems
+  it claim that entry without the name match. `private.can_invite_to_claim`
+  says whose entry that may be: one the inviter can edit (`can_edit_person`)
+  that nobody is behind yet — owner still the creator, no approved claim, no
+  member's own — and whose person is living. So a Root anywhere, a Branch on
+  their side or among their additions, Canopy among their additions, a Leaf
+  nowhere; `lib/branch#canInviteToClaim` mirrors it for the entry panel. A Root
+  picks Canopy or Leaf; from anyone else it joins as a Leaf, enforced by
+  `invites_guard`. `sendClaimInvite` asks `public.can_invite_to_claim` as the
+  inviter, then writes with the service role, since the link is bound to the
+  address (`invited_email`) and signs it in. Roots choose on
   `/admin` (both invite forms, `JoinsAsChoice`); everyone else who can invite
   gets an "Invite a relative" card on `/account`. `/join/<token>` tells a Leaf
   what that means before they sign up, and a Leaf's onboarding form offers no
@@ -442,6 +456,19 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 22.1 — Branches and Canopy invite someone to claim an entry**
+  (migration `20260921130000_claim_invites_by_reach`): inviting someone to
+  claim a particular entry was a Root's alone. It now follows edit reach — a
+  Branch on the side they tend, Canopy on the entries they added — for entries
+  nobody is behind yet, and never for someone who has died. From anyone but a
+  Root the newcomer joins as a Leaf; a Root's claim invite now offers Canopy or
+  Leaf, where it always made a Canopy member before. The per-member invite
+  grant is retired: every Branch and Canopy member invites Leaves from
+  `/account`, a Root invites either, a Leaf never invites, and `/admin`'s
+  "Can invite" toggle is now a read-only "Invites as" column. Only the two
+  Roots held the grant, so nobody lost anything. First of the Step 22
+  permissions work.
 
 - **Step 21.3 — The trunk meets the bar in the middle**: parents often sit
   off to one side of their children in the overview, so the trunk met the
