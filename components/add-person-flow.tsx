@@ -51,6 +51,7 @@ import { marriageDateProblems, toStoredDate } from "@/lib/partial-date";
 import { personDisplayName } from "@/lib/person-name";
 import { emptyPersonValues, personSchema } from "@/lib/person-schema";
 import { createClient } from "@/lib/supabase/client";
+import { treeFocusHref } from "@/lib/tree-links";
 
 /** Multi-connection cap — keeps the one submit transaction small (Task 11.4). */
 const MAX_EXTRA_CONNECTIONS = 10;
@@ -223,6 +224,7 @@ export function AddPersonFlow({
   initialName,
   canvasInterestRegistered = false,
   selfOnly = false,
+  initialAnchorId = null,
 }: {
   mode: "self" | "relative";
   treeId: string;
@@ -241,6 +243,9 @@ export function AddPersonFlow({
    * refused when it saved (`private.leaf_guard_*`).
    */
   selfOnly?: boolean;
+  /** Who they're connecting to, already picked — the canvas's Add button
+   *  passes whoever was selected (Step 19.2). Must be one of `members`. */
+  initialAnchorId?: string | null;
 }) {
   const router = useRouter();
   const mustConnect = !isAdmin;
@@ -273,7 +278,7 @@ export function AddPersonFlow({
           last_name: initialName?.last_name ?? "",
         },
       ],
-      anchorId: "",
+      anchorId: initialAnchorId ?? "",
       links: [{ kind: "child" }],
       extraLinks: [],
     },
@@ -409,7 +414,11 @@ export function AddPersonFlow({
     toast.success(
       mode === "self" ? "You're in the family tree." : "Relative added.",
     );
-    router.replace("/tree");
+    // Land on the person they set out to add, with their own tree pulled
+    // out (Step 19.2). `personIds[0]` is always that person: the RPC returns
+    // ids in the order `people` was sent, and the chain's in-between people
+    // follow the primary one.
+    router.replace(treeFocusHref(primaryId));
     router.refresh();
     return true;
   }

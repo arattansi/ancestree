@@ -28,13 +28,13 @@ import {
   type OnNodeDrag,
   type ReactFlowState,
 } from "@xyflow/react";
-import { Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import "@xyflow/react/dist/style.css";
 
 import { autoArrangeTree, setPersonPosition } from "@/app/actions/people";
 import { setPetPosition } from "@/app/actions/pets";
+import { AddRelativeButton } from "@/components/tree/add-relative-button";
 import { CanvasTip } from "@/components/tree/canvas-tip";
 import { ClaimSuggestions } from "@/components/tree/claim-suggestions";
 import { PersonNode } from "@/components/tree/person-node";
@@ -618,9 +618,18 @@ function Canvas({
   // tree" button on a notification points. The panel opens on the first render
   // rather than through an effect; only the camera move has to wait (below).
   const focusId = useSearchParams().get("person");
-  const [selectedId, setSelectedId] = React.useState<string | null>(() =>
-    focusId && people.some((p) => p.id === focusId) ? focusId : null,
-  );
+  const focusable =
+    focusId && people.some((p) => p.id === focusId) ? focusId : null;
+  const [selectedId, setSelectedId] = React.useState<string | null>(focusable);
+  // Seeded once per `person`, not once per mount (Step 19.2): after an add the
+  // new entry can arrive a render after the canvas does, and a notification
+  // can point a canvas that is already open at someone else. Closing the
+  // panel doesn't re-open it — the URL hasn't changed.
+  const [seededFocus, setSeededFocus] = React.useState(focusable);
+  if (focusable && focusable !== seededFocus) {
+    setSeededFocus(focusable);
+    setSelectedId(focusable);
+  }
   const [selectedPetId, setSelectedPetId] = React.useState<string | null>(null);
   // The spotlighted connection, plus which way along it the click pointed.
   const [selectedEdgeId, setSelectedEdgeId] =
@@ -1211,6 +1220,16 @@ function Canvas({
   }, [treeId]);
 
   const selectedPerson = people.find((p) => p.id === selectedId) ?? null;
+  // Whose relative the Add button adds (Step 19.2): whoever is selected.
+  const addTarget = selectedPerson
+    ? {
+        id: selectedPerson.id,
+        name:
+          selectedPerson.preferred_name ||
+          selectedPerson.first_name ||
+          personDisplayName(selectedPerson),
+      }
+    : null;
   const selectedPet = pets.find((pet) => pet.id === selectedPetId) ?? null;
 
   const peopleOptions = React.useMemo(
@@ -1316,7 +1335,14 @@ function Canvas({
         />
         <Panel
           position="top-right"
-          className="flex max-w-[45vw] flex-col items-end gap-2 sm:max-w-none"
+          className={cn(
+            "flex max-w-[45vw] flex-col items-end gap-2 sm:max-w-none",
+            // Beside the details sheet rather than under it (Step 19.2). The
+            // sheet renders 24rem wide from `sm` up (its base `max-w-sm` wins
+            // over the panel's `max-w-md`); below that it covers the canvas
+            // and carries its own Add button.
+            selectedPerson && "sm:!mr-[calc(24rem+15px)]",
+          )}
         >
           {readOnly ? (
             <div className="flex max-w-[15rem] flex-col items-end gap-1.5 rounded-lg border border-border bg-card/95 p-3 text-right shadow-md">
@@ -1332,16 +1358,10 @@ function Canvas({
               </Button>
             </div>
           ) : accountType.addRelatives ? (
-            <Button
-              nativeButton={false}
-              render={<Link href="/people/new" />}
-              size="sm"
-              className="group/expand gap-0"
-              aria-label="Add a relative"
-            >
-              <Plus className="size-4" aria-hidden />
-              <ExpandingLabel>Add a relative</ExpandingLabel>
-            </Button>
+            <AddRelativeButton
+              relatedTo={addTarget}
+              labelFrom={selectedPerson ? "lg" : "sm"}
+            />
           ) : null}
           {!readOnly && isAdmin ? (
             <Button
@@ -1478,6 +1498,7 @@ function Canvas({
         claimable={!!selectedPerson && claimableIds.has(selectedPerson.id)}
         isCreator={selectedPerson?.created_by === currentUserId}
         currentUserId={currentUserId}
+        addRelativeOf={accountType.addRelatives ? addTarget : null}
         onClose={() => setSelectedId(null)}
       />
 

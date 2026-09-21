@@ -16,13 +16,16 @@ import {
   hasRegisteredCanvasInterest,
 } from "@/lib/growth-rights.server";
 import { getSharedTree, listTreeMembers } from "@/lib/tree";
+import { validRelatedTo } from "@/lib/tree-links";
 
 export const metadata: Metadata = {
   title: "add a relative",
   description: "Add a relative and connect them to the family tree.",
 };
 
-export default async function NewPersonPage() {
+export default async function NewPersonPage({
+  searchParams,
+}: PageProps<"/people/new">) {
   const profile = await requireSelfPerson();
   // A Leaf's account adds nothing but their own entry, which they already have.
   if (!accountTypeOf(profile.role).addRelatives) redirect("/tree");
@@ -40,6 +43,14 @@ export default async function NewPersonPage() {
   }
 
   const members = await listTreeMembers(tree.id);
+  // "Add a relative" with someone selected on the canvas (Step 19.2): start
+  // the flow connected to them. Only an id on this tree is honoured; the
+  // growth rights and the bloodline gate still judge the result at submit.
+  const { relatedTo } = await searchParams;
+  const initialAnchorId = validRelatedTo(
+    relatedTo,
+    members.map((m) => m.id),
+  );
   const rights = await getGrowthRights();
   // Say the rule up front for a member who married in, rather than letting them
   // fill the whole form and meet the gate at submit (Step 14).
@@ -79,6 +90,7 @@ export default async function NewPersonPage() {
             isAdmin={profile.role === "admin"}
             members={members}
             canvasInterestRegistered={registeredInterest}
+            initialAnchorId={initialAnchorId}
           />
         </CardContent>
       </Card>

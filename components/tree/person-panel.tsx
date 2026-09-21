@@ -18,6 +18,7 @@ import { AccountTypeBadge } from "@/components/account-type-badge";
 import { PersonDocuments } from "@/components/person-documents";
 import { ConnectionPromptList } from "@/components/tree/connection-prompts";
 import { AddCompanionDialog } from "@/components/tree/add-companion-dialog";
+import { AddRelativeButton } from "@/components/tree/add-relative-button";
 import type { CompanionOption } from "@/components/tree/companion-picker";
 import { DateField } from "@/components/date-field";
 import { PhotoCropEditor } from "@/components/photo-crop-editor";
@@ -364,6 +365,7 @@ export function PersonPanel({
   isCreator,
   currentUserId,
   readOnly = false,
+  addRelativeOf = null,
   onClose,
 }: {
   person: TreeGraphPerson | null;
@@ -393,6 +395,10 @@ export function PersonPanel({
   claimable: boolean;
   /** The signed-in member originally created this entry. */
   isCreator: boolean;
+  /** Offer "Add a relative of …" here too, for a phone, where this sheet
+   *  covers the canvas and its Add button (Step 19.2). `null` when the
+   *  viewer can't add relatives. */
+  addRelativeOf?: { id: string; name: string } | null;
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -638,6 +644,12 @@ export function PersonPanel({
                   </Badge>
                 ) : null}
               </div>
+              {addRelativeOf && !readOnly ? (
+                <AddRelativeButton
+                  relatedTo={addRelativeOf}
+                  className="w-full sm:hidden"
+                />
+              ) : null}
             </SheetHeader>
 
             <div className="flex flex-col gap-6 px-4 pb-6">
