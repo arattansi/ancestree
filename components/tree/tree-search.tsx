@@ -114,7 +114,9 @@ export function TreeSearch({ people, filter, onFilterChange, onPick }: Props) {
                 }
               >
                 <SelectTrigger className="w-full" size="sm">
-                  <SelectValue placeholder="Country" />
+                  <SelectValue>
+                    {(v: string) => (v === ANY ? "Place of Birth" : v)}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={ANY}>Any country</SelectItem>
@@ -133,7 +135,9 @@ export function TreeSearch({ people, filter, onFilterChange, onPick }: Props) {
                 }
               >
                 <SelectTrigger className="w-full" size="sm">
-                  <SelectValue placeholder="Born" />
+                  <SelectValue>
+                    {(v: string) => (v === ANY ? "Year of Birth" : `${v}s`)}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={ANY}>Any decade</SelectItem>
