@@ -1055,45 +1055,50 @@ export const stemPoint = (card: CardRect): XY => ({
 });
 
 /**
- * How far to the left of a leaf its branch drops before turning in along the
- * stem. Half the gap a couple leaves between one blade's tip and the next
- * one's stem root, so the drop lands in the middle of the only clear channel
- * there is — clear of the leaf beside it as well as the one it feeds.
+ * How far to the left of a leaf a sibling bracket drops before turning in
+ * along the stem. Half the gap a couple leaves between one blade's tip and
+ * the next one's stem root, so the drop lands in the middle of the only clear
+ * channel there is — clear of the leaf beside it as well as the one it feeds.
  */
 export const STEM_LANE = COUPLE_GAP / 2 + 2;
 
 /**
- * The branch from a couple down to one leaf: down out of the parents, along
- * the bus their children share, down a lane to the left of the child, and in
- * along its stem.
- *
- * Routed by hand rather than by a step-path helper because the helper is free
- * to run the last leg straight at the target from whichever side is shorter —
- * which, for a junction sitting above and to the right of a leaf, means
- * arriving through the middle of the blade. Every corner here is chosen to
- * stay off the silhouette instead.
+ * How far short of a leaf a descent line stops. The name sits inside the
+ * blade, so a line that reached the outline would read as running into it;
+ * this leaves a clear gap above the highest point of the leaf — about 6px
+ * once the blade's outline and the line's round cap have taken their share.
  */
-export function stemBranchPath(
+export const LEAF_LINE_GAP = 10;
+
+/**
+ * The branch from a couple down to one leaf: down out of the parents, along
+ * the bus their children share, and straight down over the middle of the leaf
+ * — stopping `LEAF_LINE_GAP` above the top of its blade, so it never lands on
+ * the blade or the name inside it.
+ *
+ * `bladeTop` is where this leaf's blade starts, measured down from the top of
+ * its card: negative for a shape whose lobes stand above the card box, as a
+ * maple's do. A child dragged up so close that its blade reaches the bus gets
+ * no drop at all — the line ends on the bus above it rather than climbing.
+ */
+export function leafBranchPath(
   descent: Descent,
   child: CardRect,
+  bladeTop: number,
   radius = 10,
-  /** Every sibling's lane on the bus, this one's included: see `descentRoute`. */
-  laneXs: number[] = [],
+  /** Every sibling's landing on the bus, this one's included: see `descentRoute`. */
+  landXs: number[] = [],
 ): string {
-  const stem = stemPoint(child);
-  // Always down the lane, never straight at the stem from wherever the
-  // junction happens to be: the run along the bus sits between two rows, where
-  // there is nothing to cross, while a run at stem height crosses every leaf
-  // standing between the junction and this one.
-  const laneX = stemLaneX(child);
+  const x = leafLandX(child);
+  const y = Math.max(descent.busY, child.y + bladeTop - LEAF_LINE_GAP);
   return roundedPolyline(
-    [...descentRoute(descent, laneX, laneXs), { x: laneX, y: stem.y }, stem],
+    [...descentRoute(descent, x, landXs), { x, y }],
     radius,
   );
 }
 
-/** The x of the lane a branch drops down to reach a leaf's stem. */
-export const stemLaneX = (card: CardRect) => card.x - STEM_LANE;
+/** Where a branch drops off the bus onto a leaf: over the middle of it. */
+export const leafLandX = (card: CardRect) => card.x + card.w / 2;
 
 /**
  * How far above a row a sibling bracket runs: a quarter of the row gap, well

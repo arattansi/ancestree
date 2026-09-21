@@ -12,7 +12,9 @@ import {
   trunkStep,
   lateralGeometry,
   roundedPolyline,
-  stemBranchPath,
+  leafBranchPath,
+  leafLandX,
+  LEAF_LINE_GAP,
   siblingBracketPoints,
   BRACKET_RISE,
   PILL_H,
@@ -543,54 +545,41 @@ describe("descentGeometry", () => {
   });
 });
 
-describe("stemBranchPath", () => {
+describe("leafBranchPath", () => {
   const card = (x: number, y: number) => ({ x, y, w: NODE_W, h: NODE_H });
   const descent = { startX: 400, startY: 56, busY: 178, stepY: 145 };
+  const pointsOf = (path: string) =>
+    [...path.matchAll(/(-?[\d.]+),(-?[\d.]+)/g)].map((m) => ({
+      x: Number(m[1]),
+      y: Number(m[2]),
+    }));
 
-  it("ends on the child's stem, coming in from its left", () => {
-    const path = stemBranchPath(descent, card(0, ROW_H));
+  it("comes down over the middle of the leaf and stops above its blade", () => {
+    // A maple's lobes stand 30px above its card.
+    const path = leafBranchPath(descent, card(0, ROW_H), -30);
     const [, endX, endY] = /L ([-\d.]+),([-\d.]+)$/.exec(path)!;
-    expect(Number(endX)).toBe(0);
-    expect(Number(endY)).toBe(ROW_H + NODE_H / 2);
+    expect(Number(endX)).toBe(NODE_W / 2);
+    expect(Number(endY)).toBe(ROW_H - 30 - LEAF_LINE_GAP);
   });
 
-  it("keeps everything at the child's height off the blade", () => {
-    // The junction sits above and to the right of the child. The blade
-    // overhangs the card box, so nothing at those heights may sit right of the
-    // stem root — that is where the line used to cut across the leaf.
+  it("stops short of a blade that starts inside the card", () => {
+    const path = leafBranchPath(descent, card(0, ROW_H), 2);
+    const [, , endY] = /L ([-\d.]+),([-\d.]+)$/.exec(path)!;
+    expect(Number(endY)).toBe(ROW_H + 2 - LEAF_LINE_GAP);
+  });
+
+  it("drops straight down into the leaf: nothing below the bus is off-centre", () => {
     const child = card(0, ROW_H);
-    const path = stemBranchPath(descent, child);
-    const points = [...path.matchAll(/(-?[\d.]+),(-?[\d.]+)/g)].map((m) => ({
-      x: Number(m[1]),
-      y: Number(m[2]),
-    }));
-    const overBlade = points.filter(
-      (p) => p.y > child.y - 24 && p.y < child.y + child.h + 24,
-    );
-    expect(overBlade.length).toBeGreaterThan(0);
-    for (const p of overBlade) expect(p.x).toBeLessThanOrEqual(child.x);
-  });
-
-  it("runs straight down when the junction is already in the lane", () => {
-    const path = stemBranchPath(
-      { startX: -STEM_LANE, startY: 56, busY: 178, stepY: 145 },
-      card(0, ROW_H),
-    );
-    // Down the lane and in along the stem: one corner, not three.
-    expect(path.match(/Q/g)!.length).toBe(1);
-  });
-
-  it("carries a junction to the right along the bus, not at stem height", () => {
-    const path = stemBranchPath(descent, card(0, ROW_H));
-    const points = [...path.matchAll(/(-?[\d.]+),(-?[\d.]+)/g)].map((m) => ({
-      x: Number(m[1]),
-      y: Number(m[2]),
-    }));
-    // Everything right of the lane happens at the bus, well above the row the
-    // leaf sits in — that is what keeps it off the leaves in between.
-    for (const p of points) {
-      if (p.x > 0) expect(p.y).toBeLessThanOrEqual(descent.busY);
+    for (const p of pointsOf(leafBranchPath(descent, child, -30))) {
+      if (p.y > descent.busY) expect(p.x).toBe(leafLandX(child));
     }
+  });
+
+  it("never climbs back up to a leaf dragged up into the bus", () => {
+    const path = leafBranchPath(descent, card(0, descent.busY), -30);
+    const [, endX, endY] = /L ([-\d.]+),([-\d.]+)$/.exec(path)!;
+    expect(Number(endX)).toBe(NODE_W / 2);
+    expect(Number(endY)).toBe(descent.busY);
   });
 });
 
@@ -653,8 +642,8 @@ describe("the trunk meets its bar in the middle", () => {
       { x, y: descent.busY },
     ]);
     // Exactly the points the old step path bent through.
-    expect(stemBranchPath(descent, card(900, ROW_H), 10, [x])).toBe(
-      stemBranchPath(descent, card(900, ROW_H)),
+    expect(leafBranchPath(descent, card(900, ROW_H), 0, 10, [x])).toBe(
+      leafBranchPath(descent, card(900, ROW_H), 0),
     );
   });
 
@@ -686,14 +675,16 @@ describe("the trunk meets its bar in the middle", () => {
     expect(above.stepY).toBeNull();
   });
 
-  it("steps each leaf's branch to the middle of the leaves' lanes", () => {
+  it("steps each leaf's branch to the middle of the leaves", () => {
     const leaves = [card(400, ROW_H), card(700, ROW_H)];
-    const lanes = leaves.map((l) => l.x - STEM_LANE);
-    const [a, b] = leaves.map((l) =>
-      commands(stemBranchPath(descent, l, 10, lanes)),
+    const lands = leaves.map(leafLandX);
+    // Leaves of different species stop at different heights, but share the
+    // same trunk, step and bar.
+    const [a, b] = leaves.map((l, i) =>
+      commands(leafBranchPath(descent, l, i === 0 ? -30 : 2, 10, lands)),
     );
     expect(a.slice(0, 5)).toEqual(b.slice(0, 5));
-    expect(a[3]).toContain(`${(lanes[0] + lanes[1]) / 2 - 10},${descent.stepY}`);
+    expect(a[3]).toContain(`${(lands[0] + lands[1]) / 2 - 10},${descent.stepY}`);
   });
 
   it("gives each partner's children their own bar", () => {

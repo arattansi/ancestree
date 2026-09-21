@@ -115,6 +115,18 @@ const BLADE_BOTTOM: Record<LeafShape, number> = {
 
 /** The blade box overhangs the card by this much top and bottom. */
 const OVERHANG = 19;
+
+/**
+ * Where a leaf's blade starts, in card pixels down from the top of its card:
+ * negative when its lobes stand above the card box, as a maple's do. Every
+ * blade is mirrored about the midrib at y 75, so its top is as far above the
+ * midrib as its bottom is below. A descent line stops just short of this, so
+ * it never lands on the blade or the name inside it.
+ */
+export function bladeTop(shape: LeafShape): number {
+  return 150 - (BLADE_BOTTOM[shape] ?? BLADE_BOTTOM.ovate) - OVERHANG;
+}
+
 /** Space between the lowest point of a leaf and the mark hung under it. */
 const MARK_GAP = 6;
 

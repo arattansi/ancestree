@@ -37,6 +37,7 @@ import { setPetPosition } from "@/app/actions/pets";
 import { AddRelativeButton } from "@/components/tree/add-relative-button";
 import { CanvasTip } from "@/components/tree/canvas-tip";
 import { ClaimSuggestions } from "@/components/tree/claim-suggestions";
+import { bladeTop } from "@/components/tree/leaf-card";
 import { PersonNode } from "@/components/tree/person-node";
 import { PersonPanel } from "@/components/tree/person-panel";
 import { PetNode } from "@/components/tree/pet-node";
@@ -63,6 +64,7 @@ import {
 import type { ClaimCandidate } from "@/lib/claims";
 import type { PanelSuggestion } from "@/lib/connection-suggestions";
 import { multiTreeEnabled } from "@/lib/flags";
+import { nativeLeaf } from "@/lib/native-leaf";
 import { personSpotlight, spotlightPeople } from "@/lib/person-spotlight";
 import { cn } from "@/lib/utils";
 import {
@@ -72,8 +74,7 @@ import {
   lateralGeometry,
   roundedPolyline,
   siblingBracketPoints,
-  stemBranchPath,
-  stemLaneX,
+  leafBranchPath,
   trunkStep,
   layoutTree,
   NODE_H,
@@ -178,13 +179,15 @@ function DescentEdge({
 
   // Pulled out of the tree, the cards are leaves: a branch that stopped
   // anywhere on top of one would read as a line lying across it, so the line
-  // leaves the parents at their stems and arrives at the child's, and the
-  // geometry has to know which shape it is routing between.
-  const toStem = data?.toStem === true;
+  // leaves the parents at their stems and comes down over the child, stopping
+  // short of its blade — whose top depends on the species, so the spotlight
+  // passes it in.
+  const toLeaf = data?.toLeaf === true;
+  const bladeTop = typeof data?.bladeTop === "number" ? data.bladeTop : 0;
 
-  // Where each sibling drops off the bar — the top of its card, or its stem
-  // lane as a leaf — and how high the highest of them sits. Every child of the
-  // union reads the same cards, so they all draw the same trunk, step and bar.
+  // Where each sibling drops off the bar — over the middle of its card or
+  // leaf — and how high the highest of them sits. Every child of the union
+  // reads the same cards, so they all draw the same trunk, step and bar.
   const bar = useStore(
     React.useCallback(
       (state: ReactFlowState): SiblingBar | null => {
@@ -194,11 +197,11 @@ function DescentEdge({
           .filter((rect): rect is CardRect => rect !== null);
         if (rects.length < 2) return null;
         return {
-          landXs: rects.map((r) => (toStem ? stemLaneX(r) : r.x + r.w / 2)),
+          landXs: rects.map((r) => r.x + r.w / 2),
           top: Math.min(...rects.map((r) => r.y)),
         };
       },
-      [siblings, toStem],
+      [siblings],
     ),
     sameBar,
   );
@@ -211,25 +214,25 @@ function DescentEdge({
         const rects = parents
           .map((parentId) => rectOf(state, parentId))
           .filter((rect): rect is CardRect => rect !== null);
-        return descentGeometry(rects, childTop, { leafy: toStem }) ?? fallback;
+        return descentGeometry(rects, childTop, { leafy: toLeaf }) ?? fallback;
       },
-      [parents, fallback, childTop, toStem],
+      [parents, fallback, childTop, toLeaf],
     ),
     sameDescent,
   );
 
-  // The child's own rectangle, so the branch can turn in along its stem rather
+  // The child's own rectangle, so the branch can stop above its blade rather
   // than at whatever point the target handle happens to have been measured at.
   const childRect = useStore(
     React.useCallback(
-      (state: ReactFlowState) => (toStem ? rectOf(state, target) : null),
-      [target, toStem],
+      (state: ReactFlowState) => (toLeaf ? rectOf(state, target) : null),
+      [target, toLeaf],
     ),
     sameRect,
   );
 
   const landXs = bar?.landXs ?? [];
-  if (toStem) {
+  if (toLeaf) {
     const child = childRect ?? {
       x: targetX,
       y: targetY - NODE_H / 2,
@@ -239,7 +242,7 @@ function DescentEdge({
     return (
       <BaseEdge
         id={id}
-        path={stemBranchPath(descent, child, 10, landXs)}
+        path={leafBranchPath(descent, child, bladeTop, 10, landXs)}
         style={style}
       />
     );
@@ -1096,6 +1099,16 @@ function Canvas({
     [nodes, dataById, pulled],
   );
 
+  // How far a leaf's blade reaches above its card, so a line into it can stop
+  // short of that leaf rather than the tallest one.
+  const leafBladeTop = React.useCallback(
+    (id: string) => {
+      const person = personById.get(id);
+      return person ? bladeTop(nativeLeaf(person).shape) : 0;
+    },
+    [personById],
+  );
+
   // Fade every connection except the spotlighted one — for a descent line the
   // whole bloodline above it, for a person the whole line their tree hangs on
   // — and draw what's left in trunk brown: the lit lines are the branches the
@@ -1103,13 +1116,14 @@ function Canvas({
   const displayEdges = React.useMemo(() => {
     const activeIds = connection?.edgeIds ?? spotlight?.edgeIds ?? null;
     if (!activeIds) return edges;
-    // While a tree is pulled out its descent lines end on the leaf stems, which
-    // hang off the left of each card. Every line into a leaf is routed that
-    // way, lit or not: a faded line still crosses the blade it lands on.
+    // While a tree is pulled out its descent lines come down over each leaf
+    // and stop just above its blade, whose top depends on the species. Every
+    // line into a leaf is routed that way, lit or not: a faded line still
+    // crosses the blade it lands on.
     const leaves = pulled ? (spotlight?.people ?? null) : null;
     const shown: Edge[] = edges.map((e) => {
       const active = activeIds.has(e.id);
-      const stemmed = !!leaves && e.type === "descent" && leaves.has(e.target);
+      const toLeaf = !!leaves && e.type === "descent" && leaves.has(e.target);
       // A half-sibling's other parent stays behind, blurred, in the tree
       // (Step 19.3): route their line from the parent who came along only,
       // or the trunk would start halfway to someone left out of the picture.
@@ -1117,7 +1131,7 @@ function Canvas({
         Array.isArray(e.data?.parents) ? e.data.parents : []
       ) as string[];
       const litParents =
-        stemmed && active ? parents.filter((pid) => leaves.has(pid)) : parents;
+        toLeaf && active ? parents.filter((pid) => leaves.has(pid)) : parents;
       // A bar spans only the children drawn the same way: the leaves pulled
       // out share one, and whoever stayed behind in the tree keeps another.
       const siblings = (
@@ -1125,7 +1139,7 @@ function Canvas({
       ) as string[];
       const barSiblings =
         leaves && e.type === "descent"
-          ? siblings.filter((cid) => leaves.has(cid) === stemmed)
+          ? siblings.filter((cid) => leaves.has(cid) === toLeaf)
           : siblings;
       // The pulled layout can seat a partner on the other side (a pill goes
       // on the far side of its sibling, Step 19.4), so a spouse line runs
@@ -1141,12 +1155,13 @@ function Canvas({
               data: { ...e.data, pair: [e.target, e.source] },
             }
           : {}),
-        ...(stemmed
+        ...(toLeaf
           ? {
               targetHandle: "l",
               data: {
                 ...e.data,
-                toStem: true,
+                toLeaf: true,
+                bladeTop: leafBladeTop(e.target),
                 parents: litParents,
                 siblings: barSiblings,
               },
@@ -1195,7 +1210,7 @@ function Canvas({
       }
     }
     return shown;
-  }, [edges, connection, spotlight, pulled, selectedId]);
+  }, [edges, connection, spotlight, pulled, selectedId, leafBladeTop]);
 
   /**
    * A descent line is below its parents and above its child at the same time,
