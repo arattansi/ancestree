@@ -369,6 +369,7 @@ export function PersonPanel({
   currentUserId,
   readOnly = false,
   addRelativeOf = null,
+  connectionPrompt = null,
   onClose,
 }: {
   person: TreeGraphPerson | null;
@@ -408,6 +409,9 @@ export function PersonPanel({
    *  covers the canvas and its Add button (Step 19.2). `null` when the
    *  viewer can't add relatives. */
   addRelativeOf?: { id: string; name: string } | null;
+  /** Shown first when this person was opened from a search: the canvas's
+   *  offer to light their connection to somebody else. */
+  connectionPrompt?: React.ReactNode;
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -670,6 +674,7 @@ export function PersonPanel({
             </SheetHeader>
 
             <div className="flex flex-col gap-6 px-4 pb-6">
+              {connectionPrompt}
               <dl className="grid grid-cols-2 gap-4">
                 <Field label="First name" value={person.first_name} />
                 <Field label="Middle name" value={person.middle_name} />

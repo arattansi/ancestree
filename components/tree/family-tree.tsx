@@ -28,6 +28,7 @@ import {
   type OnNodeDrag,
   type ReactFlowState,
 } from "@xyflow/react";
+import { Route } from "lucide-react";
 import { toast } from "sonner";
 
 import "@xyflow/react/dist/style.css";
@@ -42,7 +43,13 @@ import { PersonNode } from "@/components/tree/person-node";
 import { PersonPanel } from "@/components/tree/person-panel";
 import { PetNode } from "@/components/tree/pet-node";
 import { PetPanel } from "@/components/tree/pet-panel";
-import { TreeSearch } from "@/components/tree/tree-search";
+import { PersonPicker } from "@/components/tree/person-picker";
+import {
+  NO_CONNECTION,
+  TreeSearch,
+  type ConnectionEnds,
+} from "@/components/tree/tree-search";
+import { useShowCompanions } from "@/components/tree/use-show-companions";
 import {
   EMPTY_FILTER,
   isFilterActive,
@@ -67,6 +74,7 @@ import {
   type Viewer,
 } from "@/lib/branch";
 import type { ClaimCandidate } from "@/lib/claims";
+import { connectionLabel, connectionPath } from "@/lib/connection-path";
 import type { PanelSuggestion } from "@/lib/connection-suggestions";
 import { multiTreeEnabled } from "@/lib/flags";
 import { nativeLeaf } from "@/lib/native-leaf";
@@ -426,6 +434,9 @@ const edgeTypes = {
 
 const nodeTypes = { person: PersonNode, pet: PetNode };
 
+const NO_PETS: TreePet[] = [];
+const NOBODY: ReadonlySet<string> = new Set();
+
 type Props = {
   people: TreeGraphPerson[];
   relationships: TreeGraphEdge[];
@@ -648,9 +659,14 @@ function Canvas({
   spokenForIds,
   claimCandidates,
   panelSuggestions,
-  pets,
+  pets: allPets,
   readOnly = false,
 }: Props) {
+  // Companions stay off the canvas until the viewer switches them on (Step
+  // 23). Off the canvas only: a person's details still list theirs, and
+  // picking one there still opens it.
+  const [showCompanions, setShowCompanions] = useShowCompanions();
+  const pets = showCompanions ? allPets : NO_PETS;
   const claimableIds = React.useMemo(
     () => new Set(claimCandidates.map((c) => c.id)),
     [claimCandidates],
@@ -740,6 +756,13 @@ function Canvas({
   const [selectedEdgeId, setSelectedEdgeId] =
     React.useState<SelectedEdge | null>(null);
   const [filter, setFilter] = React.useState<TreeFilter>(EMPTY_FILTER);
+  // The two people whose connection is lit, once both are picked — from the
+  // filters card, or from the prompt a searched-for person's details carry.
+  const [connectionEnds, setConnectionEnds] =
+    React.useState<ConnectionEnds>(NO_CONNECTION);
+  // Whoever was last opened from a search result: their details offer to show
+  // how they are connected to somebody else.
+  const [searchedId, setSearchedId] = React.useState<string | null>(null);
   const [arranging, setArranging] = React.useState(false);
   const { getNode, screenToFlowPosition, setCenter } = useReactFlow();
   const updateNodeInternals = useUpdateNodeInternals();
@@ -793,7 +816,62 @@ function Canvas({
   // the partners along it, and their brothers and sisters beside them (Step
   // 19.3) — and the connections that run through it. Everyone else is blurred
   // back so the one lineage can be read on its own.
+  // The chain of relationships between the two picked people, if there is one.
+  const path = React.useMemo(
+    () =>
+      connectionEnds.from && connectionEnds.to
+        ? connectionPath(connectionEnds.from, connectionEnds.to, relationships)
+        : null,
+    [connectionEnds, relationships],
+  );
+
   const spotlight = React.useMemo(() => {
+    // A connection between two people is pulled out exactly as one person's
+    // tree is: the chain is the lit set, anchored on the first of the two.
+    if (path) {
+      const lit = new Set<string>([...path.people, ...path.coParents]);
+      // Parent→child links the chain walks, whichever way it walked them.
+      const links = new Set(
+        path.steps.flatMap((s) =>
+          s.kind === "up"
+            ? [`${s.to}>${s.from}`]
+            : s.kind === "down"
+              ? [`${s.from}>${s.to}`]
+              : [],
+        ),
+      );
+      const edgeIds = new Set<string>();
+      for (const e of graph.edges) {
+        if (e.type === "descent") {
+          const parents = (
+            Array.isArray(e.data?.parents) ? e.data.parents : []
+          ) as string[];
+          if (parents.some((pid) => links.has(`${pid}>${e.target}`)))
+            edgeIds.add(e.id);
+        } else if (e.type === "spouse") {
+          // A marriage the chain crosses, or the couple it turns round on.
+          const pair = (
+            Array.isArray(e.data?.pair) ? e.data.pair : []
+          ) as string[];
+          if (pair.length > 0 && pair.every((pid) => lit.has(pid)))
+            edgeIds.add(e.id);
+        }
+      }
+      return {
+        anchorId: path.people[0],
+        people: lit,
+        // Companions are nobody's connection: none ride along.
+        line: NOBODY,
+        siblingSpouses: NOBODY,
+        spouseOf: new Map<string, string>(),
+        edgeIds,
+        ancestors: 0,
+        descendants: 0,
+        brackets: path.steps
+          .filter((s) => s.kind === "sibling")
+          .map((s) => [s.from, s.to] as [string, string]),
+      };
+    }
     if (!selectedId) return null;
     const roles = personSpotlight(selectedId, relationships);
     const { ancestors, descendants, looseSiblings, line, siblingSpouses } =
@@ -837,6 +915,7 @@ function Canvas({
       }
     }
     return {
+      anchorId: selectedId,
       people: lit,
       line,
       siblingSpouses,
@@ -844,9 +923,13 @@ function Canvas({
       edgeIds,
       ancestors,
       descendants,
-      looseSiblings,
+      // A sibling with no parents on the tree gets a bracket to the person
+      // instead of a bus (Step 19.3).
+      brackets: [...looseSiblings].map(
+        (sibling) => [selectedId, sibling] as [string, string],
+      ),
     };
-  }, [selectedId, relationships, graph.edges, people]);
+  }, [path, selectedId, relationships, graph.edges, people]);
 
   // A card that turns into a leaf is a different piece of DOM with its handles
   // in new elements, and the canvas has no way of knowing that on its own: it
@@ -877,13 +960,14 @@ function Canvas({
    * drag is ever recorded against a position the reader didn't choose.
    */
   const pulled = React.useMemo(() => {
-    if (!spotlight || !selectedId) return null;
+    if (!spotlight) return null;
+    const { anchorId } = spotlight;
     const lit = spotlight.people;
     const litPeople = people.filter((p) => lit.has(p.id));
     if (litPeople.length < 2) return null;
 
     const compact = layoutTree(litPeople, relationships, {
-      anchorIds: [selectedId],
+      anchorIds: [anchorId],
       // Siblings' partners packed as pills (Step 19.4); the overview layout
       // never passes this, so its positions are untouched.
       compactIds: spotlight.siblingSpouses,
@@ -891,8 +975,8 @@ function Canvas({
       // drops onto the middle of the children's bar with no step.
       centreFamilies: true,
     });
-    const anchor = compact.autoPositions.get(selectedId);
-    const home = graph.layout.positions.get(selectedId);
+    const anchor = compact.autoPositions.get(anchorId);
+    const home = graph.layout.positions.get(anchorId);
     if (!anchor || !home) return null;
     const dx = home.x - anchor.x;
     const dy = home.y - anchor.y;
@@ -915,7 +999,7 @@ function Canvas({
       });
     }
     return positions;
-  }, [spotlight, selectedId, people, pets, relationships, graph]);
+  }, [spotlight, people, pets, relationships, graph]);
 
   // Clicking a connection: work out what it joins, name it, and collect the
   // nodes and edges the spotlight should keep lit.
@@ -1041,11 +1125,17 @@ function Canvas({
     const endpoints = connection?.endpoints ?? null;
     const lineCards = connection?.cards ?? null;
     const lit = spotlight?.people ?? null;
+    // The two people a lit connection runs between stand out from the chain.
+    const ends = path
+      ? new Set([path.people[0], path.people[path.people.length - 1]])
+      : NOBODY;
     const map = new Map<string, Record<string, unknown>>();
     for (const n of graph.nodes) {
       const isPet = n.type === "pet";
       const pet = isPet ? petById.get(n.id) : undefined;
-      const selected = isPet ? n.id === selectedPetId : n.id === selectedId;
+      const selected = isPet
+        ? n.id === selectedPetId
+        : n.id === selectedId || ends.has(n.id);
       const filteredOut =
         matchingIds === null
           ? false
@@ -1087,6 +1177,7 @@ function Canvas({
     matchingIds,
     connection,
     spotlight,
+    path,
     selectedId,
     selectedPetId,
   ]);
@@ -1192,20 +1283,20 @@ function Canvas({
         zIndex: active ? 10 : undefined,
       };
     });
-    // A sibling with no parents on the tree gets a bracket to the person
-    // instead of a bus (Step 19.3), dashed because it stands for a stated
-    // relationship rather than a line of descent anyone can trace.
-    if (pulled && selectedId && !connection) {
-      for (const sibling of spotlight?.looseSiblings ?? []) {
+    // Siblings with no parents on the tree get a bracket instead of a bus
+    // (Step 19.3), dashed because it stands for a stated relationship rather
+    // than a line of descent anyone can trace.
+    if (pulled && !connection) {
+      for (const [from, sibling] of spotlight?.brackets ?? []) {
         shown.push({
-          id: `b:${selectedId}~${sibling}`,
-          source: selectedId,
+          id: `b:${from}~${sibling}`,
+          source: from,
           target: sibling,
           // Handles only anchor the edge; the path comes from the cards.
           sourceHandle: "r",
           targetHandle: "l",
           type: "siblingBracket",
-          data: { pair: [selectedId, sibling] },
+          data: { pair: [from, sibling] },
           selectable: false,
           focusable: false,
           style: {
@@ -1219,7 +1310,7 @@ function Canvas({
       }
     }
     return shown;
-  }, [edges, connection, spotlight, pulled, selectedId, leafBladeTop]);
+  }, [edges, connection, spotlight, pulled, leafBladeTop]);
 
   /**
    * A descent line is below its parents and above its child at the same time,
@@ -1231,6 +1322,7 @@ function Canvas({
   const onEdgeClick = React.useCallback(
     (event: React.MouseEvent, edge: Edge) => {
       setSelectedId(null);
+      setConnectionEnds(NO_CONNECTION);
       let direction: BloodlineDirection = "up";
       if (edge.type === "descent") {
         const parents = (
@@ -1277,10 +1369,42 @@ function Canvas({
     [getNode, screenToFlowPosition],
   );
 
-  const onPick = React.useCallback((personId: string) => {
+  const selectPerson = React.useCallback((personId: string) => {
     setSelectedPetId(null);
+    setConnectionEnds(NO_CONNECTION);
     setSelectedId(personId);
   }, []);
+
+  // Opening someone from a search result: their details go on to ask who to
+  // connect them to.
+  const onPick = React.useCallback(
+    (personId: string) => {
+      selectPerson(personId);
+      setSearchedId(personId);
+    },
+    [selectPerson],
+  );
+
+  // Both ends picked and a chain between them: the connection takes over the
+  // canvas from whoever was open. With no chain the canvas stays as it was and
+  // the filters card says so.
+  // Answers whether a connection was lit.
+  const onConnectionChange = React.useCallback(
+    (next: ConnectionEnds): boolean => {
+      setConnectionEnds(next);
+      const lit =
+        !!next.from &&
+        !!next.to &&
+        !!connectionPath(next.from, next.to, relationships);
+      if (lit) {
+        setSelectedId(null);
+        setSelectedPetId(null);
+        setSelectedEdgeId(null);
+      }
+      return lit;
+    },
+    [relationships],
+  );
 
   /**
    * Aim the camera, in both directions.
@@ -1342,7 +1466,11 @@ function Canvas({
 
   React.useEffect(() => {
     if (!canvasReady || !paneWidth || !paneHeight) return;
-    if (!selectedId || !spotlight) {
+    // One person's tree, or the connection between two.
+    const framedKey = path
+      ? `${path.people[0]}~${path.people[path.people.length - 1]}`
+      : selectedId;
+    if (!framedKey || !spotlight) {
       if (!framedRef.current) return;
       framedRef.current = null;
       // Back out to the whole tree, never magnified past life size — and on
@@ -1351,15 +1479,16 @@ function Canvas({
       const timer = setTimeout(() => frame(spots, 0, 1), 120);
       return () => clearTimeout(timer);
     }
-    if (framedRef.current === selectedId) return;
-    framedRef.current = selectedId;
+    if (framedRef.current === framedKey) return;
+    framedRef.current = framedKey;
 
     // The details sheet covers the right of a wide canvas, so frame the tree
     // in what is left of it. On a narrow screen the sheet covers everything
     // and there is nothing to aim around; on a middling one it is never given
     // more than a third of the canvas, or the strip left over is too thin to
     // put a family in.
-    const panel = paneWidth >= 640 ? Math.min(448, paneWidth / 3) : 0;
+    const panel =
+      selectedId && paneWidth >= 640 ? Math.min(448, paneWidth / 3) : 0;
     const spots = pulled
       ? [...spotlight.people].flatMap((id) => {
           const spot = pulled.get(id);
@@ -1372,13 +1501,14 @@ function Canvas({
     // which cancels an animated camera move that is already in flight. Letting
     // that settle first is the difference between the camera arriving and the
     // camera never leaving.
-    const alone = graph.layout.positions.get(selectedId);
+    const alone = graph.layout.positions.get(spotlight.anchorId);
     const target = spots.length > 0 ? spots : alone ? [alone] : [];
     if (target.length === 0) return;
     const timer = setTimeout(() => frame(target, panel, 1.15), 120);
     return () => clearTimeout(timer);
   }, [
     canvasReady,
+    path,
     selectedId,
     spotlight,
     pulled,
@@ -1390,6 +1520,8 @@ function Canvas({
 
   const onNodeClick = React.useCallback<NodeMouseHandler>((_, node) => {
     setSelectedEdgeId(null);
+    setConnectionEnds(NO_CONNECTION);
+    setSearchedId(null);
     if (node.type === "pet") {
       setSelectedId(null);
       setSelectedPetId(node.id);
@@ -1449,6 +1581,45 @@ function Canvas({
   }, [treeId]);
 
   const selectedPerson = people.find((p) => p.id === selectedId) ?? null;
+
+  // What the lit connection is called, for the pill under it.
+  const pathSummary = React.useMemo(() => {
+    if (!path) return null;
+    const [first, last] = [path.people[0], path.people[path.people.length - 1]];
+    const [step] = path.steps;
+    // Only the canvas's own edges know a marriage has ended.
+    const divorced =
+      path.steps.length === 1 &&
+      step.kind === "spouse" &&
+      relationships.some(
+        (r) =>
+          r.type === "spouse" &&
+          r.is_divorced &&
+          ((r.from_person === first && r.to_person === last) ||
+            (r.from_person === last && r.to_person === first)),
+      );
+    return {
+      from: nameById.get(first) ?? "",
+      to: nameById.get(last) ?? "",
+      label: divorced
+        ? "Former spouses"
+        : connectionLabel(path, relationships, (id) => personById.get(id)?.sex),
+    };
+  }, [path, relationships, nameById, personById]);
+
+  // Offered in a searched-for person's details: light the line from them to
+  // somebody else. Refused here, with the reason, when nothing joins the two —
+  // the details sheet has nowhere to show an empty connection.
+  const connectFromSelected = (toId: string) => {
+    if (!selectedId) return;
+    if (!connectionPath(selectedId, toId, relationships)) {
+      toast.info(
+        `Nothing on the tree joins ${nameById.get(selectedId) ?? "them"} and ${nameById.get(toId) ?? "them"} yet.`,
+      );
+      return;
+    }
+    onConnectionChange({ from: selectedId, to: toId });
+  };
   // Whose relative the Add button adds (Step 19.2): whoever is selected.
   const addTarget = selectedPerson
     ? {
@@ -1459,7 +1630,7 @@ function Canvas({
           personDisplayName(selectedPerson),
       }
     : null;
-  const selectedPet = pets.find((pet) => pet.id === selectedPetId) ?? null;
+  const selectedPet = allPets.find((pet) => pet.id === selectedPetId) ?? null;
 
   const peopleOptions = React.useMemo(
     () => people.map((p) => ({ id: p.id, label: personDisplayName(p) })),
@@ -1529,6 +1700,7 @@ function Canvas({
           setSelectedId(null);
           setSelectedPetId(null);
           setSelectedEdgeId(null);
+          setConnectionEnds(NO_CONNECTION);
         }}
         colorMode={colorMode}
         // The opening view is framed by `frame` below, not by React Flow's own
@@ -1620,7 +1792,43 @@ function Canvas({
             </Button>
           ) : null}
         </Panel>
-        {spotlight && selectedPerson ? (
+        {path && pathSummary ? (
+          <Panel
+            position="bottom-center"
+            className="w-[min(34rem,calc(100%-7rem))]"
+          >
+            <div
+              className="mx-auto flex w-fit max-w-full items-center gap-3 rounded-2xl border bg-card px-4 py-2 text-sm shadow-md"
+              style={{
+                borderColor: `color-mix(in srgb, ${SPOTLIGHT_BROWN} 33%, transparent)`,
+              }}
+            >
+              <span aria-hidden style={{ color: SPOTLIGHT_GREEN }}>
+                🌿
+              </span>
+              {/* Stacked, so a long name for the connection wraps under the
+                  two people rather than being cut off beside them. */}
+              <span className="flex min-w-0 flex-col">
+                <span className="truncate font-medium text-foreground">
+                  {pathSummary.from}
+                  <span className="mx-1.5 text-muted-foreground/50">↔</span>
+                  {pathSummary.to}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {pathSummary.label}
+                </span>
+              </span>
+              <button
+                type="button"
+                className="text-muted-foreground/60 hover:text-foreground"
+                onClick={() => setConnectionEnds(NO_CONNECTION)}
+                aria-label="Show the whole tree again"
+              >
+                ✕
+              </button>
+            </div>
+          </Panel>
+        ) : spotlight && selectedPerson ? (
           <Panel
             position="bottom-center"
             className="flex flex-col items-center gap-1.5"
@@ -1690,6 +1898,13 @@ function Canvas({
             filter={filter}
             onFilterChange={setFilter}
             onPick={onPick}
+            connection={connectionEnds}
+            onConnectionChange={onConnectionChange}
+            connectionMissing={
+              !!connectionEnds.from && !!connectionEnds.to && !path
+            }
+            showCompanions={showCompanions}
+            onShowCompanionsChange={setShowCompanions}
           />
           {!readOnly && claimCandidates.length > 0 ? (
             <ClaimSuggestions candidates={claimCandidates} />
@@ -1700,7 +1915,7 @@ function Canvas({
       <PersonPanel
         person={selectedPerson}
         treeId={treeId}
-        pets={pets.filter((pet) =>
+        pets={allPets.filter((pet) =>
           selectedId ? pet.companions.includes(selectedId) : false,
         )}
         people={peopleOptions}
@@ -1733,6 +1948,30 @@ function Canvas({
         isCreator={selectedPerson?.created_by === currentUserId}
         currentUserId={currentUserId}
         addRelativeOf={accountType.addRelatives ? addTarget : null}
+        connectionPrompt={
+          selectedPerson && selectedPerson.id === searchedId ? (
+            <section className="flex flex-col gap-2 rounded-lg border border-dashed border-border bg-muted/40 p-3">
+              <h2 className="flex items-center gap-1.5 text-sm font-semibold">
+                <Route className="size-3.5 text-muted-foreground" />
+                How is {addTarget?.name} connected to…
+              </h2>
+              <PersonPicker
+                people={people}
+                value={null}
+                onChange={(id) => {
+                  if (id) connectFromSelected(id);
+                }}
+                excludeId={selectedPerson.id}
+                placeholder="Search a second person…"
+                label={`Second person, to show their connection to ${addTarget?.name}`}
+              />
+              <p className="text-xs text-muted-foreground">
+                Pick someone and the line between the two lights up on the
+                tree.
+              </p>
+            </section>
+          ) : null
+        }
         onClose={() => setSelectedId(null)}
       />
 
@@ -1745,10 +1984,7 @@ function Canvas({
         isAdmin={isAdmin}
         readOnly={readOnly}
         onClose={() => setSelectedPetId(null)}
-        onSelectPerson={(personId) => {
-          setSelectedPetId(null);
-          onPick(personId);
-        }}
+        onSelectPerson={selectPerson}
       />
     </>
   );

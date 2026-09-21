@@ -83,6 +83,28 @@ export function matchesFilter(p: TreeGraphPerson, f: TreeFilter): boolean {
   return true;
 }
 
+/**
+ * Whether `text` is part of one of a person's names. Narrower than the search
+ * filter on purpose: picking the two ends of a connection is about who, and
+ * "London" shouldn't offer everyone born there.
+ */
+export function matchesName(p: TreeGraphPerson, text: string): boolean {
+  const needle = fold(text.trim());
+  if (!needle) return false;
+  return fold(
+    [
+      personDisplayName(p),
+      p.first_name,
+      p.middle_name,
+      p.preferred_name,
+      p.maiden_name,
+      p.last_name,
+    ]
+      .filter(Boolean)
+      .join(" "),
+  ).includes(needle);
+}
+
 /** Distinct countries present in the tree, alphabetical. */
 export function countryOptions(people: TreeGraphPerson[]): string[] {
   const set = new Set<string>();
