@@ -5,6 +5,7 @@ import { Handle, Position, type NodeProps } from "@xyflow/react";
 
 import { LeafCard } from "@/components/tree/leaf-card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { FitText } from "@/components/ui/fit-text";
 import { cropStyle, parseCrop } from "@/lib/image-crop";
 import { nativeLeaf } from "@/lib/native-leaf";
 import { cn } from "@/lib/utils";
@@ -117,14 +118,16 @@ function PersonNodeImpl({ data }: NodeProps) {
             />
           </div>
           <div className="flex flex-col gap-0.5 px-3 py-2">
-            <p
+            <FitText
+              max={14}
+              min={11}
               className={cn(
-                "truncate text-sm font-medium",
+                "leading-5 font-medium",
                 deceased ? "text-muted-foreground" : "text-foreground",
               )}
             >
               {name}
-            </p>
+            </FitText>
             {lifespan ? (
               <p className="truncate text-xs text-muted-foreground">
                 {lifespan}
@@ -201,7 +204,11 @@ function PersonNodeImpl({ data }: NodeProps) {
             )}
             title={name}
           >
-            <span className="truncate">{cardName}</span>
+            {/* Sized to its text rather than the row, so the ✓ sits right
+                after the name. */}
+            <FitText max={14} min={11} className="flex-initial leading-5">
+              {cardName}
+            </FitText>
             {person.verified_at ? (
               <span
                 className="shrink-0 text-primary"
