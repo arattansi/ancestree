@@ -959,6 +959,35 @@ export function stemBranchPath(
 }
 
 /**
+ * How far above a row a sibling bracket runs: a quarter of the row gap, well
+ * under the half-gap bus that parents hang their children from, so a bracket
+ * can never be read as — or run along — a shared parents' line.
+ */
+export const BRACKET_RISE = ROW_GAP / 4;
+
+/**
+ * The bracket joining two siblings who share no parent on the tree (Step
+ * 19.3): a stored "sibling of" row whose parents were never entered. With no
+ * parents there is no bus to hang them from, so they get a short one of their
+ * own — up out of each leaf's stem lane, across just above the row, and down
+ * into the other's, exactly as a real sibling bus arrives.
+ */
+export function siblingBracketPoints(a: CardRect, b: CardRect): XY[] {
+  const [left, right] = a.x <= b.x ? [a, b] : [b, a];
+  const y = Math.min(left.y, right.y) - BRACKET_RISE;
+  const from = stemPoint(left);
+  const to = stemPoint(right);
+  return [
+    from,
+    { x: left.x - STEM_LANE, y: from.y },
+    { x: left.x - STEM_LANE, y },
+    { x: right.x - STEM_LANE, y },
+    { x: right.x - STEM_LANE, y: to.y },
+    to,
+  ];
+}
+
+/**
  * An orthogonal run of points as an SVG path with rounded corners. Duplicate
  * and collinear points are dropped, so a leg that collapses to nothing leaves
  * no stray corner behind.

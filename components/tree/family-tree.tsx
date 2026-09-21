@@ -63,12 +63,14 @@ import {
 import type { ClaimCandidate } from "@/lib/claims";
 import type { PanelSuggestion } from "@/lib/connection-suggestions";
 import { multiTreeEnabled } from "@/lib/flags";
-import { personSpotlight } from "@/lib/person-spotlight";
+import { personSpotlight, spotlightPeople } from "@/lib/person-spotlight";
 import { cn } from "@/lib/utils";
 import {
   bloodline,
   descentGeometry,
   lateralGeometry,
+  roundedPolyline,
+  siblingBracketPoints,
   stemBranchPath,
   layoutTree,
   NODE_H,
@@ -273,6 +275,29 @@ function SpouseEdge({
 }
 
 /**
+ * The bracket between the spotlighted person and a sibling who shares no
+ * parent on the tree (Step 19.3) — joined by a stored "sibling of" row alone,
+ * so there is no parents' bus to hang them from. Spotlight-only, and routed
+ * from the live cards like every other line so it follows them as they move.
+ */
+function SiblingBracketEdge({ id, data, style }: EdgeProps) {
+  const pair = React.useMemo(
+    () => (Array.isArray(data?.pair) ? (data.pair as string[]) : []),
+    [data],
+  );
+  const path = useStore(
+    React.useCallback(
+      (state: ReactFlowState): string | null => {
+        const [a, b] = pair.map((nodeId) => rectOf(state, nodeId));
+        return a && b ? roundedPolyline(siblingBracketPoints(a, b), 10) : null;
+      },
+      [pair],
+    ),
+  );
+  return path ? <BaseEdge id={id} path={path} style={style} /> : null;
+}
+
+/**
  * A generation lane behind the cards: alternating tint plus a label naming the
  * row relative to the founders ("Grandparents · b. 1930s"). This is what makes
  * a large chart scannable — you can find a generation without tracing edges.
@@ -320,7 +345,11 @@ function GenerationLane({
   );
 }
 
-const edgeTypes = { descent: DescentEdge, spouse: SpouseEdge };
+const edgeTypes = {
+  descent: DescentEdge,
+  spouse: SpouseEdge,
+  siblingBracket: SiblingBracketEdge,
+};
 
 const nodeTypes = { person: PersonNode, pet: PetNode };
 
@@ -685,15 +714,14 @@ function Canvas({
   }, [people, filter, filterActive]);
 
   // Clicking a person: their own tree — the line above and below them, plus
-  // the partners along it — and the connections that run through it. Everyone
-  // else is blurred back so the one lineage can be read on its own.
+  // the partners along it, and their brothers and sisters beside them (Step
+  // 19.3) — and the connections that run through it. Everyone else is blurred
+  // back so the one lineage can be read on its own.
   const spotlight = React.useMemo(() => {
     if (!selectedId) return null;
-    const {
-      people: lit,
-      ancestors,
-      descendants,
-    } = personSpotlight(selectedId, relationships);
+    const roles = personSpotlight(selectedId, relationships);
+    const { ancestors, descendants, looseSiblings, line } = roles;
+    const lit = spotlightPeople(roles);
     const edgeIds = new Set<string>();
     for (const e of graph.edges) {
       if (e.type === "descent") {
@@ -710,12 +738,20 @@ function Canvas({
         ) as string[];
         if (pair.length > 0 && pair.every((pid) => lit.has(pid)))
           edgeIds.add(e.id);
-      } else if (lit.has(e.source)) {
-        // A companion's dotted lead, hanging off somebody lit.
+      } else if (line.has(e.source)) {
+        // A companion's dotted lead, hanging off somebody on the line. A
+        // sibling's companion stays behind with their children (Step 19.3).
         edgeIds.add(e.id);
       }
     }
-    return { people: lit, edgeIds, ancestors, descendants };
+    return {
+      people: lit,
+      line,
+      edgeIds,
+      ancestors,
+      descendants,
+      looseSiblings,
+    };
   }, [selectedId, relationships, graph.edges]);
 
   // A card that turns into a leaf is a different piece of DOM with its handles
@@ -766,6 +802,7 @@ function Canvas({
       positions.set(id, { x: spot.x + dx, y: spot.y + dy });
 
     for (const pet of pets) {
+      if (!pet.companions.some((id) => spotlight.line.has(id))) continue;
       const primary = pet.primary_person_id ?? pet.companions[0];
       if (!primary) continue;
       const moved = positions.get(primary);
@@ -926,7 +963,7 @@ function Canvas({
       const inLine = !lit
         ? false
         : isPet
-          ? !!pet?.companions.some((id) => lit.has(id))
+          ? !!pet?.companions.some((id) => spotlight?.line.has(id))
           : lit.has(n.id);
       map.set(n.id, {
         ...n.data,
@@ -977,13 +1014,24 @@ function Canvas({
     // hang off the left of each card. Every line into a leaf is routed that
     // way, lit or not: a faded line still crosses the blade it lands on.
     const leaves = pulled ? (spotlight?.people ?? null) : null;
-    return edges.map((e) => {
+    const shown: Edge[] = edges.map((e) => {
       const active = activeIds.has(e.id);
       const stemmed = !!leaves && e.type === "descent" && leaves.has(e.target);
+      // A half-sibling's other parent stays behind, blurred, in the tree
+      // (Step 19.3): route their line from the parent who came along only,
+      // or the trunk would start halfway to someone left out of the picture.
+      const parents = (
+        Array.isArray(e.data?.parents) ? e.data.parents : []
+      ) as string[];
+      const litParents =
+        stemmed && active ? parents.filter((pid) => leaves.has(pid)) : parents;
       return {
         ...e,
         ...(stemmed
-          ? { targetHandle: "l", data: { ...e.data, toStem: true } }
+          ? {
+              targetHandle: "l",
+              data: { ...e.data, toStem: true, parents: litParents },
+            }
           : {}),
         style: {
           ...e.style,
@@ -999,7 +1047,34 @@ function Canvas({
         zIndex: active ? 10 : undefined,
       };
     });
-  }, [edges, connection, spotlight, pulled]);
+    // A sibling with no parents on the tree gets a bracket to the person
+    // instead of a bus (Step 19.3), dashed because it stands for a stated
+    // relationship rather than a line of descent anyone can trace.
+    if (pulled && selectedId && !connection) {
+      for (const sibling of spotlight?.looseSiblings ?? []) {
+        shown.push({
+          id: `b:${selectedId}~${sibling}`,
+          source: selectedId,
+          target: sibling,
+          // Handles only anchor the edge; the path comes from the cards.
+          sourceHandle: "r",
+          targetHandle: "l",
+          type: "siblingBracket",
+          data: { pair: [selectedId, sibling] },
+          selectable: false,
+          focusable: false,
+          style: {
+            stroke: SPOTLIGHT_BROWN,
+            strokeWidth: 3,
+            strokeDasharray: "6 6",
+            strokeLinecap: "round",
+          },
+          zIndex: 10,
+        });
+      }
+    }
+    return shown;
+  }, [edges, connection, spotlight, pulled, selectedId]);
 
   /**
    * A descent line is below its parents and above its child at the same time,

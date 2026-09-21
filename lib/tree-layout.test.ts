@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  COUPLE_GAP,
   GUTTER,
   NODE_H,
   NODE_W,
@@ -10,6 +11,8 @@ import {
   lateralGeometry,
   roundedPolyline,
   stemBranchPath,
+  siblingBracketPoints,
+  BRACKET_RISE,
   STEM_LANE,
   generationLabel,
   layoutTree,
@@ -19,6 +22,7 @@ import {
   type LayoutPerson,
   type LayoutRelationship,
 } from "@/lib/tree-layout";
+import { personSpotlight, spotlightPeople } from "@/lib/person-spotlight";
 
 const person = (
   id: string,
@@ -956,3 +960,102 @@ describe("descendantsOf", () => {
     );
   });
 });
+
+describe("siblingBracketPoints (Step 19.3)", () => {
+  const me = { x: 0, y: 0, w: NODE_W, h: NODE_H };
+  const sib = { x: 3 * NODE_W, y: 0, w: NODE_W, h: NODE_H };
+
+  it("runs from one stem to the other, above the row", () => {
+    const points = siblingBracketPoints(me, sib);
+    expect(points[0]).toEqual({ x: 0, y: NODE_H / 2 });
+    expect(points.at(-1)).toEqual({ x: 3 * NODE_W, y: NODE_H / 2 });
+    const top = Math.min(...points.map((p) => p.y));
+    expect(top).toBe(-BRACKET_RISE);
+    // Clear of the parents' bus, which sits half a row gap up.
+    expect(top).toBeGreaterThan(-ROW_GAP / 2);
+  });
+
+  it("drops down each leaf's stem lane, never across a blade", () => {
+    const xs = siblingBracketPoints(me, sib).slice(1, -1).map((p) => p.x);
+    expect(new Set(xs)).toEqual(new Set([-STEM_LANE, 3 * NODE_W - STEM_LANE]));
+  });
+
+  it("is the same line whichever way round the pair is given", () => {
+    expect(siblingBracketPoints(sib, me)).toEqual(siblingBracketPoints(me, sib));
+  });
+});
+
+describe("spotlight layout with siblings (Step 19.3)", () => {
+  // grandpa
+  //    |
+  //  (dad — mum)
+  //    |
+  //  elder — inlaw   me — partner   younger        loose — loosespouse
+  //                                  (a stored "sibling of" me, no parents)
+  const people = [
+    person("grandpa", "1920-01-01"),
+    person("dad", "1950-01-01"),
+    person("mum", "1952-01-01"),
+    person("uncle", "1954-01-01"),
+    person("elder", "1978-01-01"),
+    person("inlaw", "1977-01-01"),
+    person("me", "1982-01-01"),
+    person("partner", "1983-01-01"),
+    person("younger", "1986-01-01"),
+    person("loose", "1980-01-01"),
+    person("loosespouse", "1981-01-01"),
+    person("niece", "2005-01-01"),
+  ];
+  const relationships: LayoutRelationship[] = [
+    parent("grandpa", "dad"),
+    parent("grandpa", "uncle"),
+    spouse("dad", "mum"),
+    ...["elder", "me", "younger"].flatMap((c) => [
+      parent("dad", c),
+      parent("mum", c),
+    ]),
+    spouse("elder", "inlaw"),
+    parent("elder", "niece"),
+    spouse("me", "partner"),
+    spouse("loose", "loosespouse"),
+    { from_person: "me", to_person: "loose", type: "sibling" },
+  ];
+
+  const pulled = () => {
+    const lit = spotlightPeople(personSpotlight("me", relationships));
+    return layoutTree(
+      people.filter((p) => lit.has(p.id)),
+      relationships,
+      { anchorIds: ["me"] },
+    ).autoPositions;
+  };
+
+  it("puts every sibling on the focused person's row", () => {
+    const at = pulled();
+    for (const id of ["elder", "younger", "loose"])
+      expect(at.get(id)?.y).toBe(at.get("me")?.y);
+  });
+
+  it("orders the siblings who share parents eldest first", () => {
+    const at = pulled();
+    expect(at.get("elder")!.x).toBeLessThan(at.get("me")!.x);
+    expect(at.get("me")!.x).toBeLessThan(at.get("younger")!.x);
+  });
+
+  it("overlaps nothing", () => {
+    const at = pulled();
+    const row = [...at.entries()]
+      .filter(([, p]) => p.y === at.get("me")!.y)
+      .map(([, p]) => p.x)
+      .sort((l, r) => l - r);
+    for (let i = 1; i < row.length; i++)
+      expect(row[i] - row[i - 1]).toBeGreaterThanOrEqual(NODE_W + COUPLE_GAP);
+  });
+
+  it("leaves the siblings' children and the aunts and uncles out", () => {
+    const at = pulled();
+    expect(at.has("niece")).toBe(false);
+    expect(at.has("uncle")).toBe(false);
+  });
+});
+
