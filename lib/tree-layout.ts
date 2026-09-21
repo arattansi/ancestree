@@ -92,6 +92,8 @@ export type UnionPoint = {
   startY: number;
   /** The y of the horizontal bus the children hang from. */
   busY: number;
+  /** Where the trunk may jog sideways to the bus's midpoint, if anywhere. */
+  stepY: number | null;
   parents: string[];
   children: string[];
 };
@@ -904,8 +906,16 @@ export const descendantsOf = (
 /** A card's live rectangle on the canvas, as the renderer currently sees it. */
 export type CardRect = { x: number; y: number; w: number; h: number };
 
-/** Where a descent line leaves its parents, and the bus its siblings share. */
-export type Descent = { startX: number; startY: number; busY: number };
+/**
+ * Where a descent line leaves its parents, the bus its siblings share, and the
+ * height the trunk jogs at to meet that bus in the middle (`null`: no room).
+ */
+export type Descent = {
+  startX: number;
+  startY: number;
+  busY: number;
+  stepY: number | null;
+};
 
 export type DescentOptions = {
   /**
@@ -968,7 +978,74 @@ export function descentGeometry(
     startX: overlapsACard && stem ? stem.x : startX,
     startY,
     busY,
+    stepY: stepHeight(bottom, busY),
   };
+}
+
+/**
+ * The trunk's jog runs a quarter-gap below the parents: clear of the bus at
+ * half the gap, and of a spotlight's sibling bracket a quarter-gap above the
+ * children's row. Squeezed by a child dragged up close, it sits halfway to the
+ * bus instead; with too little room for two rounded corners, there is no jog.
+ */
+function stepHeight(bottom: number, busY: number): number | null {
+  const room = busY - bottom;
+  if (room >= ROW_GAP / 2) return bottom + ROW_GAP / 4;
+  return room >= MIN_STEP_ROOM ? bottom + room / 2 : null;
+}
+
+/** Below this much drop from the parents to the bus, the trunk runs straight. */
+const MIN_STEP_ROOM = 8;
+
+/**
+ * Past this sideways distance a trunk jogs to its bus's midpoint; within it,
+ * the jog would be a smudge, so the trunk drops straight.
+ */
+const STEP_THRESHOLD = 1;
+
+/**
+ * The shared head of every descent line out of one union: down out of the
+ * parents, sideways at `stepY` to the midpoint of the siblings' bar, down to
+ * the bar, and along it to above `landX`, where this child's line drops off.
+ *
+ * `landXs` are where *every* sibling in the union drops off the bar — this
+ * child included — read from their current cards, so the midpoint follows a
+ * drag. Every child of a union computes the same trunk, step and bar from the
+ * same inputs, so the faint lines overlap exactly instead of doubling.
+ *
+ * A lone child, or a trunk already within a pixel of the middle, gets today's
+ * single bend at the bus: no jog.
+ */
+export function descentRoute(
+  descent: Descent,
+  landX: number,
+  landXs: number[],
+): XY[] {
+  const start = { x: descent.startX, y: descent.startY };
+  const land = { x: landX, y: descent.busY };
+  const step = trunkStep(descent, landXs);
+  if (!step) return [start, { x: start.x, y: descent.busY }, land];
+  return [
+    start,
+    { x: start.x, y: step.y },
+    { x: step.midX, y: step.y },
+    { x: step.midX, y: descent.busY },
+    land,
+  ];
+}
+
+/** Where the trunk jogs to meet its bar in the middle, or null for no jog. */
+export function trunkStep(
+  descent: Descent,
+  landXs: number[],
+): { y: number; midX: number } | null {
+  if (landXs.length < 2 || descent.stepY === null) return null;
+  // Strictly between the trunk's start and the bus, or it is no step at all.
+  if (descent.stepY <= descent.startY || descent.stepY >= descent.busY)
+    return null;
+  const midX = (Math.min(...landXs) + Math.max(...landXs)) / 2;
+  if (Math.abs(midX - descent.startX) < STEP_THRESHOLD) return null;
+  return { y: descent.stepY, midX };
 }
 
 /** Where a leaf's stem meets the branch it hangs on: the card's left edge. */
@@ -1000,24 +1077,23 @@ export function stemBranchPath(
   descent: Descent,
   child: CardRect,
   radius = 10,
+  /** Every sibling's lane on the bus, this one's included: see `descentRoute`. */
+  laneXs: number[] = [],
 ): string {
   const stem = stemPoint(child);
   // Always down the lane, never straight at the stem from wherever the
   // junction happens to be: the run along the bus sits between two rows, where
   // there is nothing to cross, while a run at stem height crosses every leaf
   // standing between the junction and this one.
-  const laneX = child.x - STEM_LANE;
+  const laneX = stemLaneX(child);
   return roundedPolyline(
-    [
-      { x: descent.startX, y: descent.startY },
-      { x: descent.startX, y: descent.busY },
-      { x: laneX, y: descent.busY },
-      { x: laneX, y: stem.y },
-      stem,
-    ],
+    [...descentRoute(descent, laneX, laneXs), { x: laneX, y: stem.y }, stem],
     radius,
   );
 }
+
+/** The x of the lane a branch drops down to reach a leaf's stem. */
+export const stemLaneX = (card: CardRect) => card.x - STEM_LANE;
 
 /**
  * How far above a row a sibling bracket runs: a quarter of the row gap, well

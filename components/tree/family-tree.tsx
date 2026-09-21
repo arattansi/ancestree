@@ -68,10 +68,13 @@ import { cn } from "@/lib/utils";
 import {
   bloodline,
   descentGeometry,
+  descentRoute,
   lateralGeometry,
   roundedPolyline,
   siblingBracketPoints,
   stemBranchPath,
+  stemLaneX,
+  trunkStep,
   layoutTree,
   NODE_H,
   NODE_W,
@@ -96,7 +99,21 @@ const SPOTLIGHT_BROWN = "var(--brand-brown)";
 const SPOTLIGHT_GREEN = "var(--brand-green)";
 
 const sameDescent = (a: Descent, b: Descent) =>
-  a.startX === b.startX && a.startY === b.startY && a.busY === b.busY;
+  a.startX === b.startX &&
+  a.startY === b.startY &&
+  a.busY === b.busY &&
+  a.stepY === b.stepY;
+
+/** Where a union's children drop off their bar, and the highest one's top. */
+type SiblingBar = { landXs: number[]; top: number };
+
+const sameBar = (a: SiblingBar | null, b: SiblingBar | null) =>
+  a === b ||
+  (!!a &&
+    !!b &&
+    a.top === b.top &&
+    a.landXs.length === b.landXs.length &&
+    a.landXs.every((x, i) => x === b.landXs[i]));
 
 const sameRect = (a: CardRect | null, b: CardRect | null) =>
   a?.x === b?.x && a?.y === b?.y && a?.w === b?.w && a?.h === b?.h;
@@ -141,6 +158,12 @@ function DescentEdge({
     () => (Array.isArray(data?.parents) ? (data.parents as string[]) : []),
     [data],
   );
+  // Every child hanging off this union's bar, this one included: the trunk
+  // meets the bar halfway between the outermost two, wherever they are now.
+  const siblings = React.useMemo(
+    () => (Array.isArray(data?.siblings) ? (data.siblings as string[]) : []),
+    [data],
+  );
   // The layout's own geometry, used until the cards have been measured.
   const fallback = React.useMemo<Descent>(
     () => ({
@@ -148,6 +171,7 @@ function DescentEdge({
       startY: typeof data?.startY === "number" ? data.startY : sourceY,
       busY:
         typeof data?.busY === "number" ? data.busY : (sourceY + targetY) / 2,
+      stepY: typeof data?.stepY === "number" ? data.stepY : null,
     }),
     [sourceX, sourceY, targetY, data],
   );
@@ -158,15 +182,38 @@ function DescentEdge({
   // geometry has to know which shape it is routing between.
   const toStem = data?.toStem === true;
 
+  // Where each sibling drops off the bar — the top of its card, or its stem
+  // lane as a leaf — and how high the highest of them sits. Every child of the
+  // union reads the same cards, so they all draw the same trunk, step and bar.
+  const bar = useStore(
+    React.useCallback(
+      (state: ReactFlowState): SiblingBar | null => {
+        if (siblings.length < 2) return null;
+        const rects = siblings
+          .map((childId) => rectOf(state, childId))
+          .filter((rect): rect is CardRect => rect !== null);
+        if (rects.length < 2) return null;
+        return {
+          landXs: rects.map((r) => (toStem ? stemLaneX(r) : r.x + r.w / 2)),
+          top: Math.min(...rects.map((r) => r.y)),
+        };
+      },
+      [siblings, toStem],
+    ),
+    sameBar,
+  );
+
+  // A lone child keeps measuring from its own handle, exactly as before.
+  const childTop = bar?.top ?? targetY;
   const descent = useStore(
     React.useCallback(
       (state: ReactFlowState): Descent => {
         const rects = parents
           .map((parentId) => rectOf(state, parentId))
           .filter((rect): rect is CardRect => rect !== null);
-        return descentGeometry(rects, targetY, { leafy: toStem }) ?? fallback;
+        return descentGeometry(rects, childTop, { leafy: toStem }) ?? fallback;
       },
-      [parents, fallback, targetY, toStem],
+      [parents, fallback, childTop, toStem],
     ),
     sameDescent,
   );
@@ -181,6 +228,7 @@ function DescentEdge({
     sameRect,
   );
 
+  const landXs = bar?.landXs ?? [];
   if (toStem) {
     const child = childRect ?? {
       x: targetX,
@@ -189,8 +237,25 @@ function DescentEdge({
       h: NODE_H,
     };
     return (
-      <BaseEdge id={id} path={stemBranchPath(descent, child)} style={style} />
+      <BaseEdge
+        id={id}
+        path={stemBranchPath(descent, child, 10, landXs)}
+        style={style}
+      />
     );
+  }
+
+  // Parents off to one side of their children: jog across to the middle of
+  // the bar on the way down, so the family hangs evenly off one trunk.
+  if (trunkStep(descent, landXs)) {
+    const path = roundedPolyline(
+      [
+        ...descentRoute(descent, targetX, landXs),
+        { x: targetX, y: targetY },
+      ],
+      10,
+    );
+    return <BaseEdge id={id} path={path} style={style} />;
   }
 
   const [path] = getSmoothStepPath({
@@ -431,9 +496,11 @@ function buildGraph(
         type: "descent",
         data: {
           parents: union.parents,
+          siblings: union.children,
           startX: union.startX,
           startY: union.startY,
           busY: union.busY,
+          stepY: union.stepY,
         },
         style: parentEdgeStyle,
       });
@@ -1051,6 +1118,15 @@ function Canvas({
       ) as string[];
       const litParents =
         stemmed && active ? parents.filter((pid) => leaves.has(pid)) : parents;
+      // A bar spans only the children drawn the same way: the leaves pulled
+      // out share one, and whoever stayed behind in the tree keeps another.
+      const siblings = (
+        Array.isArray(e.data?.siblings) ? e.data.siblings : []
+      ) as string[];
+      const barSiblings =
+        leaves && e.type === "descent"
+          ? siblings.filter((cid) => leaves.has(cid) === stemmed)
+          : siblings;
       // The pulled layout can seat a partner on the other side (a pill goes
       // on the far side of its sibling, Step 19.4), so a spouse line runs
       // from whoever is on the left now, or it would cross both cards.
@@ -1068,9 +1144,16 @@ function Canvas({
         ...(stemmed
           ? {
               targetHandle: "l",
-              data: { ...e.data, toStem: true, parents: litParents },
+              data: {
+                ...e.data,
+                toStem: true,
+                parents: litParents,
+                siblings: barSiblings,
+              },
             }
-          : {}),
+          : barSiblings !== siblings
+            ? { data: { ...e.data, siblings: barSiblings } }
+            : {}),
         style: {
           ...e.style,
           ...(active
@@ -1144,8 +1227,17 @@ function Canvas({
           .filter((rect): rect is CardRect => rect !== null);
         // Fall back to the layout's own bus for a card React Flow has not
         // measured yet, so an early click still picks a sensible direction.
+        // The bus sits above the highest sibling, as the edge draws it.
+        const siblings = (
+          Array.isArray(edge.data?.siblings) ? edge.data.siblings : []
+        ) as string[];
+        const tops = siblings
+          .map((childId) => getNode(childId)?.position.y)
+          .filter((y): y is number => y !== undefined);
+        const childTop =
+          tops.length > 1 ? Math.min(...tops) : (child?.position.y ?? 0);
         const busY =
-          descentGeometry(rects, child?.position.y ?? 0)?.busY ??
+          descentGeometry(rects, childTop)?.busY ??
           (typeof edge.data?.busY === "number" ? edge.data.busY : 0);
         direction =
           screenToFlowPosition({ x: event.clientX, y: event.clientY }).y > busY

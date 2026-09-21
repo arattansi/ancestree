@@ -8,6 +8,8 @@ import {
   ROW_GAP,
   ROW_H,
   descentGeometry,
+  descentRoute,
+  trunkStep,
   lateralGeometry,
   roundedPolyline,
   stemBranchPath,
@@ -543,7 +545,7 @@ describe("descentGeometry", () => {
 
 describe("stemBranchPath", () => {
   const card = (x: number, y: number) => ({ x, y, w: NODE_W, h: NODE_H });
-  const descent = { startX: 400, startY: 56, busY: 178 };
+  const descent = { startX: 400, startY: 56, busY: 178, stepY: 145 };
 
   it("ends on the child's stem, coming in from its left", () => {
     const path = stemBranchPath(descent, card(0, ROW_H));
@@ -571,7 +573,7 @@ describe("stemBranchPath", () => {
 
   it("runs straight down when the junction is already in the lane", () => {
     const path = stemBranchPath(
-      { startX: -STEM_LANE, startY: 56, busY: 178 },
+      { startX: -STEM_LANE, startY: 56, busY: 178, stepY: 145 },
       card(0, ROW_H),
     );
     // Down the lane and in along the stem: one corner, not three.
@@ -589,6 +591,135 @@ describe("stemBranchPath", () => {
     for (const p of points) {
       if (p.x > 0) expect(p.y).toBeLessThanOrEqual(descent.busY);
     }
+  });
+});
+
+describe("the trunk meets its bar in the middle", () => {
+  const card = (x: number, y: number) => ({ x, y, w: NODE_W, h: NODE_H });
+  // A couple, and their children on the next row down.
+  const partners = [card(0, 0), card(NODE_W + 24, 0)];
+  const descent = descentGeometry(partners, ROW_H)!;
+  const centre = (x: number) => x + NODE_W / 2;
+  // Three children off to the right of the couple's junction at x = 220.
+  const kids = [card(400, ROW_H), card(640, ROW_H), card(880, ROW_H)];
+  const landXs = kids.map((k) => centre(k.x));
+  const pathTo = (x: number, xs = landXs) =>
+    roundedPolyline(
+      [...descentRoute(descent, x, xs), { x, y: ROW_H }],
+      10,
+    );
+  const commands = (path: string) => path.match(/[MLQ][^MLQ]*/g)!;
+
+  it("jogs a quarter-gap below the parents, clear of the bus", () => {
+    expect(descent.stepY).toBe(NODE_H + ROW_GAP / 4);
+    expect(descent.stepY!).toBeLessThan(descent.busY);
+  });
+
+  it("drops onto the bar halfway between the first and last child", () => {
+    const route = descentRoute(descent, landXs[0], landXs);
+    const midX = (landXs[0] + landXs[2]) / 2;
+    // start, down to the step, across it, and down onto the bar.
+    expect(route.slice(0, 4)).toEqual([
+      { x: descent.startX, y: descent.startY },
+      { x: descent.startX, y: descent.stepY },
+      { x: midX, y: descent.stepY },
+      { x: midX, y: descent.busY },
+    ]);
+  });
+
+  it("draws the same trunk, step and bar for every child", () => {
+    const paths = landXs.map((x) => commands(pathTo(x)));
+    // M, down the trunk, the corner onto the step, across it, and the corner
+    // down onto the drop: the same five commands for every child.
+    for (const p of paths) expect(p.slice(0, 5)).toEqual(paths[0].slice(0, 5));
+    // The drop itself is shared too, by every child that turns off it.
+    expect(paths[2].slice(0, 6)).toEqual(paths[0].slice(0, 6));
+    // The middle child carries straight on down the drop.
+    expect(paths[1][5]).toBe(`L ${landXs[1]},${ROW_H}`);
+  });
+
+  it("uses the same midpoint whichever order the siblings come in", () => {
+    const a = descentRoute(descent, landXs[1], landXs);
+    const b = descentRoute(descent, landXs[1], [...landXs].reverse());
+    expect(a).toEqual(b);
+  });
+
+  it("keeps a single child's one bend at the bus", () => {
+    const x = centre(900);
+    expect(trunkStep(descent, [x])).toBeNull();
+    expect(descentRoute(descent, x, [x])).toEqual([
+      { x: descent.startX, y: descent.startY },
+      { x: descent.startX, y: descent.busY },
+      { x, y: descent.busY },
+    ]);
+    // Exactly the points the old step path bent through.
+    expect(stemBranchPath(descent, card(900, ROW_H), 10, [x])).toBe(
+      stemBranchPath(descent, card(900, ROW_H)),
+    );
+  });
+
+  it("drops straight when the parents are already centred", () => {
+    const xs = [descent.startX - 120.4, descent.startX + 120];
+    expect(trunkStep(descent, xs)).toBeNull();
+    expect(descentRoute(descent, xs[0], xs)).toHaveLength(3);
+  });
+
+  it("rounds a short step with corners no bigger than half of it", () => {
+    const xs = [descent.startX - 116, descent.startX + 120];
+    const path = pathTo(xs[0], xs);
+    // A 2px step: both of its corners shrink to 1px rather than overshoot.
+    const q = commands(path).filter((c) => c.startsWith("Q"));
+    const [, endX] = /Q [-\d.]+,[-\d.]+ ([-\d.]+),/.exec(q[0])!;
+    expect(Math.abs(Number(endX) - descent.startX)).toBeCloseTo(1);
+  });
+
+  it("keeps the step between the parents and the bus for a child dragged up", () => {
+    const squeezed = descentGeometry(partners, NODE_H + 40)!;
+    expect(squeezed.stepY!).toBeGreaterThan(NODE_H);
+    expect(squeezed.stepY!).toBeLessThan(squeezed.busY);
+    // Too close to fit two corners: no step, just the midpoint bend.
+    const tight = descentGeometry(partners, NODE_H + 10)!;
+    expect(tight.stepY).toBeNull();
+    expect(trunkStep(tight, landXs)).toBeNull();
+    // Dragged above the parents altogether: the bus is above them, no step.
+    const above = descentGeometry(partners, -50)!;
+    expect(above.stepY).toBeNull();
+  });
+
+  it("steps each leaf's branch to the middle of the leaves' lanes", () => {
+    const leaves = [card(400, ROW_H), card(700, ROW_H)];
+    const lanes = leaves.map((l) => l.x - STEM_LANE);
+    const [a, b] = leaves.map((l) =>
+      commands(stemBranchPath(descent, l, 10, lanes)),
+    );
+    expect(a.slice(0, 5)).toEqual(b.slice(0, 5));
+    expect(a[3]).toContain(`${(lanes[0] + lanes[1]) / 2 - 10},${descent.stepY}`);
+  });
+
+  it("gives each partner's children their own bar", () => {
+    const out = layoutTree(
+      [
+        person("dad", "1950-01-01"),
+        person("mum", "1952-01-01"),
+        person("ex", "1949-01-01"),
+        person("a", "1975-01-01"),
+        person("b", "1977-01-01"),
+        person("c", "1980-01-01"),
+      ],
+      [
+        spouse("dad", "mum"),
+        spouse("dad", "ex"),
+        parent("dad", "a"),
+        parent("ex", "a"),
+        parent("dad", "b"),
+        parent("mum", "b"),
+        parent("dad", "c"),
+        parent("mum", "c"),
+      ],
+    );
+    const ids = out.unions.map((u) => [u.id, u.children]);
+    expect(ids).toContainEqual(["u:dad+ex", ["a"]]);
+    expect(ids).toContainEqual(["u:dad+mum", ["b", "c"]]);
   });
 });
 
