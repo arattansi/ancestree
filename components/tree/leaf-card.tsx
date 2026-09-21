@@ -42,15 +42,28 @@ function leaflet(
 }
 
 /** The baobab's hand of leaflets, spread from the top of the stem. */
-const PALMATE = [
+const LEAFLETS = [
   [0, 178, 26],
   [-20, 152, 24],
   [20, 152, 24],
   [-42, 116, 20],
   [42, 116, 20],
-]
-  .map(([angle, length, width]) => leaflet(26, 75, angle, length, width))
-  .join(" ");
+];
+
+const PALMATE = LEAFLETS.map(([angle, length, width]) =>
+  leaflet(26, 75, angle, length, width),
+).join(" ");
+
+/**
+ * The baobab's veins: a midrib down each leaflet, fanning out from the stem,
+ * so it has the same inner stem every other leaf has. They stop short of the
+ * tips, like the other leaves' veins.
+ */
+const PALMATE_VEINS = LEAFLETS.map(([angle, length]) => {
+  const rad = (angle * Math.PI) / 180;
+  const reach = length * 0.85;
+  return `M26,75 L${(26 + reach * Math.cos(rad)).toFixed(1)},${(75 + reach * Math.sin(rad)).toFixed(1)}`;
+});
 
 /**
  * Leaf silhouettes, drawn in a 208 × 150 box.
@@ -84,9 +97,10 @@ const BLADES: Record<LeafShape, string> = {
 };
 
 /**
- * Midrib and side veins, in trunk brown, clipped to whichever blade. Not on a
- * compound leaf: its leaflets fan out from the stem, so a single midrib runs
- * straight through the name instead of along anything (Step 19.1 feedback).
+ * Midrib and side veins, in trunk brown, clipped to whichever blade. The
+ * baobab's compound leaf has its own (`PALMATE_VEINS`): one midrib per
+ * leaflet, since side veins off a single midrib would cut across its
+ * leaflets rather than along them.
  */
 const VEINS = [
   "M28,75 L194,75",
@@ -256,20 +270,23 @@ export function LeafCard({
           fill={LEAF_GREEN}
           fillOpacity={selected ? 0.24 : 0.14}
         />
-        {leaf.shape === "palmate" ? null : (
-          <g clipPath={`url(#${clipId})`} opacity={0.35}>
-            {VEINS.map((d) => (
-              <path
-                key={d}
-                d={d}
-                stroke={TRUNK_BROWN}
-                strokeWidth={1}
-                fill="none"
-                strokeLinecap="round"
-              />
-            ))}
-          </g>
-        )}
+        {/* The baobab's are a shade lighter: five of them meet under the
+            name, where the other leaves have one. */}
+        <g
+          clipPath={`url(#${clipId})`}
+          opacity={leaf.shape === "palmate" ? 0.25 : 0.35}
+        >
+          {(leaf.shape === "palmate" ? PALMATE_VEINS : VEINS).map((d) => (
+            <path
+              key={d}
+              d={d}
+              stroke={TRUNK_BROWN}
+              strokeWidth={1}
+              fill="none"
+              strokeLinecap="round"
+            />
+          ))}
+        </g>
       </svg>
 
       {/* Whose entry this is (Step 19.1): hung centred under the leaf, clear
