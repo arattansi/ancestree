@@ -236,13 +236,13 @@ export function EditConnections({
                 value={kind}
                 onValueChange={(v) => setKind(v as ConnectionKind)}
               >
-                <SelectTrigger className="w-[210px]">
+                <SelectTrigger className="w-auto">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {KINDS.map((k) => (
                     <SelectItem key={k} value={k}>
-                      {personName} {KIND_STATEMENT[k]} {otherLabel}
+                      {KIND_STATEMENT[k]}
                     </SelectItem>
                   ))}
                 </SelectContent>
