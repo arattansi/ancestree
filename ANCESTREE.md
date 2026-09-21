@@ -420,6 +420,47 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 19.4 — Siblings' partners as pills**: in a spotlight, the partner
+  of each sibling from 19.3 is a small neutral pill with only their name, so
+  blood relatives (leaves) and people who married in read differently by
+  shape, not colour. `layoutTree` takes `compactIds` and packs them at pill
+  size (`PILL_W` × `PILL_H`) on the side of their partner away from the
+  focused person. Without it the layout is unchanged, which a test holds to
+  exact recorded positions. Partners of people on the line keep their leaves.
+  A pill is focusable, says "Spouse of …", and clicking it (or Enter) moves
+  the spotlight to them. On the live tree Arzu's row narrows from 1,440 to
+  1,352 units, and Aly's from 696 to 608.
+
+- **Step 19.3 — Siblings in the spotlight**: the first thing a tester asked
+  on clicking themselves was "where are my siblings?" `personSpotlight` now
+  returns roles: the line, the focused person's siblings (by shared parent,
+  including half-siblings, or by a stored `sibling` row) and those siblings'
+  partners. All are lit as leaves on the person's row, eldest first, and the
+  person doesn't move. A sibling who shares no parent on the tree gets a
+  dashed bracket to the person instead of a bus. There are none on the live
+  tree yet: all 8 stored sibling pairs also share a parent. The bracket was
+  checked against an in-memory row. Siblings' children, ancestors' siblings
+  and a partner's siblings stay dark, and companions still follow the line
+  alone.
+
+- **Step 19.2 — Land on who you added; Add in reach**: a successful add opens
+  `/tree?person=<new id>` on the new person's spotlight, where it used to
+  open the bare canvas. The canvas seeds its selection once per `person`
+  value, not once per mount. Add a relative is a 44px button with its label
+  showing. It sits beside the details sheet rather than under it, is repeated
+  inside the sheet on a phone, and starts the flow connected to whoever is
+  selected (`/people/new?relatedTo=`, checked against the tree server-side).
+
+- **Step 19.1 — Whose entry is whose**: every entry that belongs to a member
+  shows their account type: a small Root/Branch/Canopy/Leaf mark on the card
+  (bottom-right), hung under the leaf in a spotlight, and spelled out in the
+  panel. An entry is a member's through `profiles.self_person_id` or an
+  approved claim. Onboarding writes no claim, so on the live tree claims
+  alone found 1 of the 4. `getTreeGraph` loads types only when `/tree` asks
+  (`withAccountTypes`); a share link never reads profiles. Tester feedback
+  also redrew two leaves: the maple is now the Canadian flag's, and the
+  baobab no longer crosses the name with its leaflets' outlines.
+
 - **Step 18.4 — Documents are private** (migration
   `20260919150000_documents_private`): every member could list and download
   every document on the tree. Now only a Root, the entry's owner and the
