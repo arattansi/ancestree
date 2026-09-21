@@ -457,6 +457,30 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 23 — Search & filters, connections, and pets on request** (ad-hoc,
+  no migration): the search bar on the canvas is now a **Search & filters**
+  button (`components/tree/tree-search.tsx`) that opens a card with three
+  functions and closes itself once it has put something on the canvas; a badge
+  on the button counts what is switched on. (1) The old search and demographic
+  filters, unchanged. (2) **Show a connection**: pick two people
+  (`person-picker.tsx`, name-only type-ahead via `matchesName`) and
+  `connectionPath` in `lib/connection-path.ts` finds the shortest chain of
+  recorded relationships between them — blood before marriage on a tie, a
+  stored `sibling` row only where no shared parent is on the tree. The chain is
+  pulled out through the same spotlight machinery as one person's tree
+  (`spotlight.anchorId` / `brackets` generalise it), both ends ringed, plus the
+  partner of the ancestor it turns round on. `connectionLabel` names it for
+  the pill — "Second cousins", "Uncle & niece by marriage" — using `sex` where
+  recorded and neutral words otherwise; a pair nothing joins says so. Opening
+  someone from a search result puts "How is … connected to…" at the top of
+  their details (`connectionPrompt` on `PersonPanel`, so it works on a phone
+  where the sheet covers the canvas). (3) **Pets & companions** toggle
+  (`use-show-companions.ts`): companions are **off the canvas by default for
+  everyone**, returning viewers included, and switching them on is remembered
+  per browser in `localStorage` (`ancestree:companions-shown`) — not per
+  account. Hidden companions still list in a person's details and open from
+  there. Checked on a fixture tree and on the live one; 15 new tests.
+
 - **Step 22.1 — Branches and Canopy invite someone to claim an entry**
   (migrations `20260921130000_claim_invites_by_reach`,
   `20260921140000_drop_can_invite`): inviting someone to
