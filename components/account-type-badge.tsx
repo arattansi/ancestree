@@ -121,14 +121,23 @@ export function AccountTypeBadge({
 export function AccountTypeMark({
   typeKey,
   className,
+  style,
 }: {
   typeKey: AccountTypeKey;
   className?: string;
+  /** For placement worked out at render time, like a leaf's depth. */
+  style?: React.CSSProperties;
 }) {
   const type = accountTypeOf(typeKey);
   const label = `${type.name} account`;
   return (
-    <span role="img" aria-label={label} title={label} className={className}>
+    <span
+      role="img"
+      aria-label={label}
+      title={label}
+      className={className}
+      style={style}
+    >
       <AccountTypeGlyph type={type} tinted className="size-full" />
     </span>
   );

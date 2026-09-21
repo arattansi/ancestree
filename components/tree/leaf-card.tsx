@@ -97,6 +97,28 @@ const BLADES: Record<LeafShape, string> = {
 };
 
 /**
+ * How far down each blade reaches, in the same 208 × 150 box: the lowest point
+ * of its outline, measured by sampling the paths above. Hangs the account mark
+ * just under the leaf it belongs to rather than under the deepest one — an
+ * elliptic blade stops 49 units above a maple's lowest lobe. Re-measure after
+ * redrawing a blade.
+ */
+const BLADE_BOTTOM: Record<LeafShape, number> = {
+  ovate: 129,
+  elliptic: 112,
+  cordate: 126,
+  maple: 161,
+  palmate: 153,
+  oak: 128,
+  round: 130,
+};
+
+/** The blade box overhangs the card by this much top and bottom. */
+const OVERHANG = 19;
+/** Space between the lowest point of a leaf and the mark hung under it. */
+const MARK_GAP = 6;
+
+/**
  * Midrib and side veins, in trunk brown, clipped to whichever blade. The
  * baobab's compound leaf has its own (`PALMATE_VEINS`): one midrib per
  * leaflet, since side veins off a single midrib would cut across its
@@ -289,14 +311,20 @@ export function LeafCard({
         </g>
       </svg>
 
-      {/* Whose entry this is (Step 19.1): hung centred under the leaf, clear
-          of the ✓ after the name. One depth for every shape, below the
-          deepest lobe (the maple's, 30px under the card), so the marks along
-          a row line up. */}
+      {/* Whose entry this is (Step 19.1): hung centred just under its own
+          leaf, clear of the ✓ after the name. Card and blade box share a
+          scale, so the blade's depth converts to card pixels by the overhang
+          alone. */}
       {person.account_type ? (
         <AccountTypeMark
           typeKey={person.account_type}
-          className="absolute top-[calc(100%+34px)] left-1/2 size-5 -translate-x-1/2 rounded-full bg-card p-0.5"
+          className="absolute left-1/2 size-5 -translate-x-1/2 rounded-full bg-card p-0.5"
+          style={{
+            top:
+              (BLADE_BOTTOM[leaf.shape] ?? BLADE_BOTTOM.ovate) -
+              OVERHANG +
+              MARK_GAP,
+          }}
         />
       ) : null}
 
