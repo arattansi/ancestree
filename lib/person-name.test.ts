@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { nodeDisplayName, personDisplayName } from "@/lib/person-name";
+import {
+  nodeDisplayName,
+  personDisplayName,
+  preferredCopiesFirst,
+} from "@/lib/person-name";
 
 describe("nodeDisplayName", () => {
   it("leaves a name that fits alone", () => {
@@ -28,5 +32,21 @@ describe("nodeDisplayName", () => {
     expect(nodeDisplayName({ first_name: "Bartholomewicious" })).toBe(
       "Bartholomewicious",
     );
+  });
+});
+
+describe("preferredCopiesFirst", () => {
+  it("spots a preferred name that repeats the first name", () => {
+    expect(preferredCopiesFirst("Selena", "Selena")).toBe(true);
+    expect(preferredCopiesFirst(" selena ", "Selena")).toBe(true);
+  });
+
+  it("leaves a real preferred name alone", () => {
+    expect(preferredCopiesFirst("Mo", "Muhammad")).toBe(false);
+  });
+
+  it("treats an empty preferred name as nothing to follow", () => {
+    expect(preferredCopiesFirst("", "")).toBe(false);
+    expect(preferredCopiesFirst(null, "Selena")).toBe(false);
   });
 });

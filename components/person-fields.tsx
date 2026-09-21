@@ -9,9 +9,13 @@ import {
   type Path,
 } from "react-hook-form";
 
+import { Plus } from "lucide-react";
+
 import { DateField } from "@/components/date-field";
 import { PlaceAutocomplete } from "@/components/place-autocomplete";
 import { countryName } from "@/lib/country-names";
+import { preferredCopiesFirst } from "@/lib/person-name";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   FormControl,
@@ -32,6 +36,15 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { SEX_LABELS, SEX_VALUES, LINEAGE_TYPES } from "@/lib/person-schema";
 
+/** The mark on a label whose field has to be filled in. */
+function RequiredMark() {
+  return (
+    <span aria-hidden className="-ml-1.5 text-destructive">
+      *
+    </span>
+  );
+}
+
 /**
  * The shared demographic fieldset for a single person. Works standalone
  * (`prefix` omitted) or as one row of a `people[]` field array (`prefix`
@@ -51,7 +64,7 @@ export function PersonFields<T extends FieldValues>({
   /** Labels for already-selected places, so the edit form shows them on load. */
   placeLabels?: { birth?: string | null; death?: string | null };
 }) {
-  const { setValue } = useFormContext<T>();
+  const { setValue, getValues } = useFormContext<T>();
   const name = React.useCallback(
     (field: string) => (prefix ? `${prefix}.${field}` : field) as Path<T>,
     [prefix],
@@ -60,6 +73,22 @@ export function PersonFields<T extends FieldValues>({
   const isDeceased = useWatch({ control, name: name("is_deceased") });
   const placeIdBirth = useWatch({ control, name: name("place_id_birth") });
   const placeIdDeath = useWatch({ control, name: name("place_id_death") });
+  const preferredName = useWatch({ control, name: name("preferred_name") });
+
+  // A middle and a preferred name are there to reach for, not boxes to fill:
+  // offered as fields, the first name gets typed into all of them. One that
+  // already holds a name is shown.
+  const [extraNames, setExtraNames] = React.useState(() => ({
+    middle_name: Boolean(String(getValues(name("middle_name")) ?? "").trim()),
+    preferred_name: Boolean(
+      String(getValues(name("preferred_name")) ?? "").trim(),
+    ),
+  }));
+  const [justRevealed, setJustRevealed] = React.useState<string | null>(null);
+  const reveal = (field: "middle_name" | "preferred_name") => {
+    setExtraNames((shown) => ({ ...shown, [field]: true }));
+    setJustRevealed(field);
+  };
 
   const setPlace = React.useCallback(
     (
@@ -95,38 +124,40 @@ export function PersonFields<T extends FieldValues>({
 
   return (
     <div className="flex flex-col gap-6">
+      <p className="text-xs text-muted-foreground">
+        <span aria-hidden className="text-destructive">
+          *
+        </span>{" "}
+        Required
+      </p>
       <div className="grid gap-4 sm:grid-cols-2">
         <FormField
           control={control}
           name={name("first_name")}
           render={({ field }) => (
             <FormItem>
-              <FormLabel>First name</FormLabel>
+              <FormLabel>
+                First name
+                {String(preferredName ?? "").trim() ? null : <RequiredMark />}
+              </FormLabel>
               <FormControl>
                 <Input
                   autoComplete="given-name"
                   {...field}
                   value={field.value ?? ""}
-                />
-              </FormControl>
-              <FormDescription>
-                Enter a first name or a preferred name.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={control}
-          name={name("middle_name")}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Middle name</FormLabel>
-              <FormControl>
-                <Input
-                  autoComplete="additional-name"
-                  {...field}
-                  value={field.value ?? ""}
+                  onChange={(e) => {
+                    // A preferred name that only repeats the first name
+                    // follows it, or the card keeps showing the old spelling.
+                    const preferred = getValues(name("preferred_name"));
+                    if (preferredCopiesFirst(preferred, field.value)) {
+                      setValue(
+                        name("preferred_name"),
+                        e.target.value as never,
+                        { shouldDirty: true },
+                      );
+                    }
+                    field.onChange(e);
+                  }}
                 />
               </FormControl>
               <FormMessage />
@@ -135,13 +166,17 @@ export function PersonFields<T extends FieldValues>({
         />
         <FormField
           control={control}
-          name={name("preferred_name")}
+          name={name("last_name")}
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Preferred name</FormLabel>
+              <FormLabel>
+                Last name
+                <RequiredMark />
+              </FormLabel>
               <FormControl>
                 <Input
-                  autoComplete="nickname"
+                  autoComplete="family-name"
+                  required
                   {...field}
                   value={field.value ?? ""}
                 />
@@ -150,26 +185,78 @@ export function PersonFields<T extends FieldValues>({
             </FormItem>
           )}
         />
-      </div>
-
-      <FormField
-        control={control}
-        name={name("last_name")}
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Last name</FormLabel>
-            <FormControl>
-              <Input
-                autoComplete="family-name"
-                required
-                {...field}
-                value={field.value ?? ""}
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
+        {extraNames.middle_name ? (
+          <FormField
+            control={control}
+            name={name("middle_name")}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Middle name</FormLabel>
+                <FormControl>
+                  <Input
+                    autoComplete="additional-name"
+                    autoFocus={justRevealed === "middle_name"}
+                    {...field}
+                    value={field.value ?? ""}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        ) : null}
+        {extraNames.preferred_name ? (
+          <FormField
+            control={control}
+            name={name("preferred_name")}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Preferred name</FormLabel>
+                <FormControl>
+                  <Input
+                    autoComplete="nickname"
+                    autoFocus={justRevealed === "preferred_name"}
+                    {...field}
+                    value={field.value ?? ""}
+                  />
+                </FormControl>
+                <FormDescription>
+                  Shown on the tree in place of the first name.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        ) : null}
+        {extraNames.middle_name && extraNames.preferred_name ? null : (
+          <div className="flex flex-wrap gap-x-4 gap-y-1 sm:col-span-2">
+            {extraNames.middle_name ? null : (
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                className="px-0"
+                onClick={() => reveal("middle_name")}
+              >
+                <Plus />
+                Middle name
+              </Button>
+            )}
+            {extraNames.preferred_name ? null : (
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                className="px-0"
+                onClick={() => reveal("preferred_name")}
+              >
+                <Plus />
+                Preferred name
+              </Button>
+            )}
+          </div>
         )}
-      />
+      </div>
 
       <FormField
         control={control}
@@ -243,6 +330,7 @@ export function PersonFields<T extends FieldValues>({
           <FormItem>
             <FormLabel htmlFor={`${idPrefix}-place-birth`}>
               Place of birth
+              <RequiredMark />
             </FormLabel>
             <FormControl>
               <PlaceAutocomplete

@@ -54,3 +54,20 @@ export function personInitials(p: NamedPerson): string {
   const last = (p.last_name || "").trim();
   return ((first[0] ?? "") + (last[0] ?? "")).toUpperCase() || "?";
 }
+
+/**
+ * Whether a preferred name is only a copy of the first name, rather than a
+ * name of its own.
+ *
+ * People fill both boxes with the same name. The preferred name is the one a
+ * card shows, so a spelling fix made to the first name alone changes nothing
+ * anyone can see. A copy follows the first name as it is edited; a real
+ * preferred name ("Mo" for Muhammad) is left where it is.
+ */
+export function preferredCopiesFirst(
+  preferred?: string | null,
+  first?: string | null,
+): boolean {
+  const p = (preferred ?? "").trim().toLowerCase();
+  return p !== "" && p === (first ?? "").trim().toLowerCase();
+}
