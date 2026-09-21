@@ -887,6 +887,9 @@ function Canvas({
       // Siblings' partners packed as pills (Step 19.4); the overview layout
       // never passes this, so its positions are untouched.
       compactIds: spotlight.siblingSpouses,
+      // Each family hangs straight under its parents' trunk, so the line
+      // drops onto the middle of the children's bar with no step.
+      centreFamilies: true,
     });
     const anchor = compact.autoPositions.get(selectedId);
     const home = graph.layout.positions.get(selectedId);

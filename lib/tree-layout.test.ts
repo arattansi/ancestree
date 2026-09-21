@@ -1382,3 +1382,248 @@ describe("sibling's partners as pills (Step 19.4)", () => {
   });
 });
 
+
+describe("spotlight families hang straight under their trunk", () => {
+  //   (gpa — gma)          (opa — oma)
+  //        |                    |
+  //       dad ———————————————— mum
+  //                  |
+  //         elder—inlawA  me—partner  younger—inlawC   loose (stored only)
+  //                              |
+  //                  kid1—kid1sp   kid2   kid3
+  //                     |
+  //                gkid1  gkid2
+  const people = [
+    person("gpa", "1920-01-01"), person("gma", "1922-01-01"),
+    person("opa", "1921-01-01"), person("oma", "1923-01-01"),
+    person("dad", "1950-01-01"), person("mum", "1952-01-01"),
+    person("elder", "1978-01-01"), person("inlawA", "1976-01-01"),
+    person("me", "1982-01-01"), person("partner", "1983-01-01"),
+    person("younger", "1986-01-01"), person("inlawC", "1985-01-01"),
+    person("loose", "1980-01-01"),
+    person("kid1", "2005-01-01"), person("kid1sp", "2004-01-01"),
+    person("kid2", "2007-01-01"), person("kid3", "2010-01-01"),
+    person("gkid1", "2030-01-01"), person("gkid2", "2032-01-01"),
+  ];
+  const sibling = (a: string, b: string): LayoutRelationship => ({
+    from_person: a,
+    to_person: b,
+    type: "sibling",
+  });
+  const relationships: LayoutRelationship[] = [
+    spouse("gpa", "gma"), parent("gpa", "dad"), parent("gma", "dad"),
+    spouse("opa", "oma"), parent("opa", "mum"), parent("oma", "mum"),
+    spouse("dad", "mum"),
+    ...["elder", "me", "younger"].flatMap((c) => [parent("dad", c), parent("mum", c)]),
+    spouse("elder", "inlawA"), spouse("younger", "inlawC"),
+    sibling("me", "loose"),
+    spouse("me", "partner"),
+    ...["kid1", "kid2", "kid3"].flatMap((c) => [parent("me", c), parent("partner", c)]),
+    spouse("kid1", "kid1sp"),
+    ...["gkid1", "gkid2"].flatMap((c) => [parent("kid1", c), parent("kid1sp", c)]),
+  ];
+
+  const pull = (
+    focus: string,
+    centreFamilies: boolean,
+    rels: LayoutRelationship[] = relationships,
+    folk: LayoutPerson[] = people,
+  ) => {
+    const spotlight = personSpotlight(focus, rels);
+    const lit = spotlightPeople(spotlight);
+    const at = layoutTree(
+      folk.filter((p) => lit.has(p.id)),
+      rels,
+      { anchorIds: [focus], compactIds: spotlight.siblingSpouses, centreFamilies },
+    ).autoPositions;
+    const rect = (id: string) => ({
+      ...at.get(id)!,
+      ...(spotlight.siblingSpouses.has(id)
+        ? { w: PILL_W, h: PILL_H }
+        : { w: NODE_W, h: NODE_H }),
+    });
+    return { at, rect };
+  };
+
+  /** Every family of 2+ children in the layout, with its trunk step. */
+  const steps = (
+    focus: string,
+    centreFamilies: boolean,
+    rels: LayoutRelationship[] = relationships,
+    folk: LayoutPerson[] = people,
+  ) => {
+    const { at, rect } = pull(focus, centreFamilies, rels, folk);
+    const families = new Map<string, { parents: string[]; children: string[] }>();
+    for (const r of rels) {
+      if (r.type !== "parent" || !at.has(r.to_person) || !at.has(r.from_person))
+        continue;
+      const parents = rels
+        .filter((p) => p.type === "parent" && p.to_person === r.to_person)
+        .map((p) => p.from_person)
+        .filter((p) => at.has(p))
+        .sort();
+      const key = parents.join("+");
+      const f = families.get(key) ?? { parents, children: [] };
+      if (!f.children.includes(r.to_person)) f.children.push(r.to_person);
+      families.set(key, f);
+    }
+    return [...families]
+      .filter(([, f]) => f.children.length >= 2)
+      .map(([key, f]) => {
+        const kids = f.children.map(rect);
+        const descent = descentGeometry(
+          f.parents.map(rect),
+          Math.min(...kids.map((k) => k.y)),
+          { leafy: true },
+        )!;
+        const landXs = kids.map(leafLandX);
+        const mid = (Math.min(...landXs) + Math.max(...landXs)) / 2;
+        return [
+          key,
+          trunkStep(descent, landXs),
+          Math.abs(mid - descent.startX),
+        ] as const;
+      });
+  };
+
+  for (const focus of ["me", "kid1", "elder"]) {
+    it(`has no step in any family of ${focus}'s spotlight`, () => {
+      const found = steps(focus, true);
+      expect(found.length).toBeGreaterThan(0);
+      for (const [key, step] of found) expect(step, key).toBeNull();
+    });
+  }
+
+  it("really does centre them: the plain layout steps", () => {
+    expect(steps("me", false).some(([, step]) => step !== null)).toBe(true);
+  });
+
+  it("covers the families it should", () => {
+    expect(steps("me", true).map(([key]) => key).sort()).toEqual([
+      "dad+mum",
+      "kid1+kid1sp",
+      "me+partner",
+    ]);
+  });
+
+  it("overlaps nothing, pill or card", () => {
+    for (const focus of ["me", "kid1", "elder"]) {
+      const { at, rect } = pull(focus, true);
+      const boxes = [...at.keys()].map((id) => ({ id, ...rect(id) }));
+      for (const a of boxes)
+        for (const b of boxes) {
+          if (a.id >= b.id || a.y !== b.y) continue;
+          const gap = Math.max(b.x - (a.x + a.w), a.x - (b.x + b.w));
+          expect(gap, `${focus}: ${a.id} / ${b.id}`).toBeGreaterThanOrEqual(
+            COUPLE_GAP,
+          );
+        }
+    }
+  });
+
+  it("keeps couples together and siblings in birth order", () => {
+    const { at } = pull("me", true);
+    const x = (id: string) => at.get(id)!.x;
+    expect(x("elder")).toBeLessThan(x("me"));
+    expect(x("me")).toBeLessThan(x("younger"));
+    expect(x("partner") - x("me")).toBe(NODE_W + COUPLE_GAP);
+    expect(Math.abs(x("dad") - x("mum"))).toBe(NODE_W + COUPLE_GAP);
+  });
+
+  it("stops a brood a gutter short of an atom that is not sliding with it", () => {
+    // A lone parent whose stem sits far to the left of their children, with
+    // an unrelated card parked just left of the brood on the same row.
+    const ps = [person("p"), person("a"), person("b"), person("stranger")];
+    const rels = [parent("p", "a"), parent("p", "b")];
+    const plain = layoutTree(ps, rels, { anchorIds: ["p"] }).autoPositions;
+    const out = layoutTree(ps, rels, {
+      anchorIds: ["p"],
+      centreFamilies: true,
+    }).autoPositions;
+    const rect = (m: typeof out, id: string) => ({
+      ...m.get(id)!,
+      w: NODE_W,
+      h: NODE_H,
+    });
+    // Unobstructed, the trunk leaves p's stem and lands mid-way between a and b.
+    const kids = ["a", "b"].map((id) => rect(out, id));
+    const descent = descentGeometry([rect(out, "p")], kids[0].y, { leafy: true })!;
+    expect(trunkStep(descent, kids.map(leafLandX))).toBeNull();
+    // The stranger is its own component and is never moved.
+    expect(out.get("stranger")!.x - out.get("p")!.x).toBe(
+      plain.get("stranger")!.x - plain.get("p")!.x,
+    );
+  });
+  it("gives way where two of a parent's unions want the same ground", () => {
+    // dad's two families both want the ground under him. His family with mum
+    // — the focused person's own — hangs straight; the half-siblings' family
+    // stops a gutter short of it and keeps its step. Nothing overlaps, and
+    // each union still draws its own bar.
+    const folk = [
+      ...people,
+      person("ex", "1949-01-01"),
+      person("halfsib", "1972-01-01"),
+      person("halfsib2", "1974-01-01"),
+    ];
+    const rels = [
+      ...relationships,
+      spouse("dad", "ex"),
+      ...["halfsib", "halfsib2"].flatMap((c) => [parent("dad", c), parent("ex", c)]),
+    ];
+    const centred = new Map(
+      steps("me", true, rels, folk).map(([key, , off]) => [key, off]),
+    );
+    expect([...centred.keys()].sort()).toEqual([
+      "dad+ex",
+      "dad+mum",
+      "kid1+kid1sp",
+      "me+partner",
+    ]);
+    expect(centred.get("dad+mum")!).toBeLessThan(1);
+    expect(centred.get("me+partner")!).toBeLessThan(1);
+    expect(centred.get("kid1+kid1sp")!).toBeLessThan(1);
+    expect(centred.get("dad+ex")!).toBeGreaterThan(1);
+
+    const { rect } = pull("me", true, rels, folk);
+    const [halfsib2, inlawA] = [rect("halfsib2"), rect("inlawA")];
+    expect(inlawA.x - (halfsib2.x + halfsib2.w)).toBe(GUTTER);
+  });
+
+  it("hangs cousins' families straight, side by side", () => {
+    // Three married children side by side, each with two of their own. Each
+    // pair of grandchildren is wider than the couple it hangs from, so the
+    // overview squeezes the couples together and pulls every one of them off
+    // centre; the spotlight spaces the couples out to their families instead.
+    // One grandchild has married, so their line lands off the middle of their
+    // couple: the space for that has to be kept from the start, as the
+    // cousins on either side leave no room to slide into afterwards.
+    const kids = ["a", "b", "c"];
+    const folk = [
+      person("gp", "1920-01-01"),
+      person("gm", "1921-01-01"),
+      ...kids.flatMap((k, i) => [
+        person(k, `195${i}-01-01`),
+        person(`${k}sp`, `195${i}-06-01`),
+        person(`${k}1`, `198${i}-01-01`),
+        person(`${k}2`, `198${i}-06-01`),
+      ]),
+      person("b2sp", "1990-01-01"),
+    ];
+    const rels = [
+      spouse("gp", "gm"),
+      ...kids.flatMap((k) => [
+        parent("gp", k),
+        parent("gm", k),
+        spouse(k, `${k}sp`),
+        ...[`${k}1`, `${k}2`].flatMap((c) => [parent(k, c), parent(`${k}sp`, c)]),
+      ]),
+      spouse("b2", "b2sp"),
+    ];
+    const offset = (on: boolean) =>
+      new Map(steps("gp", on, rels, folk).map(([key, , off]) => [key, off]));
+    for (const [key, off] of offset(false)) expect(off, key).toBeGreaterThan(1);
+    const centred = offset(true);
+    expect(centred.size).toBe(4);
+    for (const [key, off] of centred) expect(off, key).toBeLessThan(1);
+  });
+});

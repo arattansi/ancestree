@@ -133,6 +133,16 @@ export type LayoutOptions = {
    * the anchors. Empty or absent, the layout is exactly the full-card one.
    */
   compactIds?: ReadonlySet<string>;
+  /**
+   * Hang each family of two or more children straight under its parents, so
+   * the trunk drops onto the middle of the children's bar with no step (the
+   * spotlight's pulled-out layout). Leaves are joined at their middles and
+   * parents are left between them or at a lone parent's stem, exactly as the
+   * canvas draws them. Families are packed centred on those points, `settle`
+   * is skipped, and `centreFamilies` makes the result exact. Off, the layout
+   * is exactly the overview one.
+   */
+  centreFamilies?: boolean;
 };
 
 const FAR_FUTURE = "9999-12-31";
@@ -259,9 +269,19 @@ export function layoutTree(
     byAge,
     sizeOf,
   });
-  placeAtoms(atoms, anchors, { parentsOf, childrenOf, byAge, sizeOf });
+  placeAtoms(atoms, anchors, {
+    parentsOf,
+    childrenOf,
+    byAge,
+    sizeOf,
+    onLeaves: options.centreFamilies === true,
+  });
   const rows = rowsOf(atoms);
-  settle(rows, { parentsOf, childrenOf });
+  // The spotlight skips it: `settle` squeezes each row of siblings together
+  // while their families below stay as wide as ever, pulling every parent off
+  // the middle of their children. Straight out of the blocks, each family is
+  // already centred on its own brood, which `centreFamilies` then makes exact.
+  if (!options.centreFamilies) settle(rows, { parentsOf, childrenOf });
   // Belt and braces: `settle` already ends every row on `separateRow`, so this
   // is a no-op on a well-formed tree and a hard floor on anything else.
   separate(rows);
@@ -289,6 +309,16 @@ export function layoutTree(
     }
   }
 
+  if (options.centreFamilies) {
+    centreFamilies(atoms, parentsOf, childrenOf, sizeOf);
+    // Keep the chart centred on the anchors, whichever way their family slid.
+    const recentre =
+      anchorAtoms.length > 0
+        ? anchorAtoms.reduce((sum, a) => sum + a.x, 0) / anchorAtoms.length
+        : 0;
+    for (const atom of atoms) atom.x -= recentre;
+  }
+
   const base = new Map<string, XY>();
   for (const atom of atoms) {
     let x = atom.x - atom.width / 2;
@@ -307,6 +337,141 @@ export function layoutTree(
   const bands = buildBands(people, generations, dob);
 
   return { positions, autoPositions: base, generations, unions, bands, extent };
+}
+
+/**
+ * Centre every family of two or more children under its parents' trunk
+ * (the spotlight, Phase 2 of the line clean-up). The trunk leaves the parents
+ * where `descentGeometry` starts it for leaves, and the children are joined at
+ * their middles (`leafLandX`), so once the midpoint of the first and last
+ * child sits under the trunk `trunkStep` has nothing to step across.
+ *
+ * Families are taken top row first and each one's brood — the children's
+ * atoms and everything descended from them — slides whole, so a family
+ * already centred further down keeps its shape, and the parents and their
+ * ancestors never move. A brood that would run into an atom that is not
+ * sliding with it (a half-sibling from another union, a cousin's family, a
+ * loose sibling) stops a gutter short, and that family keeps a shorter step.
+ * One family sliding can clear the way for another taken earlier, so the pass
+ * repeats until nothing moves.
+ */
+function centreFamilies(
+  atoms: Atom[],
+  parentsOf: Map<string, string[]>,
+  childrenOf: Map<string, string[]>,
+  sizeOf: SizeOf,
+) {
+  const atomOf = new Map<string, Atom>();
+  for (const atom of atoms) for (const m of atom.members) atomOf.set(m, atom);
+
+  const rectOf = (id: string): CardRect => {
+    const atom = atomOf.get(id)!;
+    const { w, h } = sizeOf(id);
+    const y = atom.generation * ROW_H;
+    return {
+      x:
+        atom.x -
+        atom.width / 2 +
+        memberOffset(atom, atom.members.indexOf(id), sizeOf),
+      y: h === NODE_H ? y : y + (NODE_H - h) / 2,
+      w,
+      h,
+    };
+  };
+
+  // One family per parent set, as `buildUnions` groups them.
+  const families = new Map<string, { parents: string[]; children: string[] }>();
+  for (const [child, parents] of parentsOf) {
+    if (!atomOf.has(child)) continue;
+    const set = [...new Set(parents)].filter((p) => atomOf.has(p)).sort();
+    if (set.length === 0) continue;
+    const key = set.join("+");
+    const family = families.get(key) ?? { parents: set, children: [] };
+    family.children.push(child);
+    families.set(key, family);
+  }
+
+  const top = (ids: string[]) =>
+    Math.min(...ids.map((id) => atomOf.get(id)!.generation));
+  const ordered = [...families.entries()]
+    .filter(([, f]) => f.children.length >= 2)
+    .sort(
+      ([lk, l], [rk, r]) =>
+        top(l.parents) - top(r.parents) || lk.localeCompare(rk),
+    );
+
+  // Each family's brood, and the trunk it hangs from, worked out once: the
+  // shape of a brood never changes, only where it sits.
+  const plans = ordered.flatMap(([, { parents, children }]) => {
+    const parentAtoms = new Set(parents.map((p) => atomOf.get(p)!));
+    // The brood: the children's atoms and every atom below them, following
+    // children only downward so a data cycle cannot pull the parents in.
+    const brood = new Set<Atom>();
+    const queue = children.map((c) => atomOf.get(c)!);
+    while (queue.length > 0) {
+      const atom = queue.pop()!;
+      if (brood.has(atom) || parentAtoms.has(atom)) continue;
+      brood.add(atom);
+      for (const m of atom.members)
+        for (const c of childrenOf.get(m) ?? []) {
+          const next = atomOf.get(c);
+          if (next && next.generation > atom.generation) queue.push(next);
+        }
+    }
+    // A child who is also their own ancestor (bad data) has no brood to slide.
+    return [...brood].some((atom) => parentAtoms.has(atom))
+      ? []
+      : [{ parents, children, brood }];
+  });
+
+  for (let pass = 0; pass < 20; pass++) {
+    let moved = false;
+    for (const { parents, children, brood } of plans) {
+      const childRects = children.map(rectOf);
+      const trunk = descentGeometry(
+        parents.map(rectOf),
+        Math.min(...childRects.map((r) => r.y)),
+        { leafy: true },
+      );
+      if (!trunk) continue;
+      const landXs = childRects.map(leafLandX);
+      const mid = (Math.min(...landXs) + Math.max(...landXs)) / 2;
+      let shift = trunk.startX - mid;
+
+      // Clamp against everything on the brood's rows that is staying put.
+      for (const moving of brood)
+        for (const still of atoms) {
+          if (brood.has(still) || still.generation !== moving.generation)
+            continue;
+          if (shift > 0 && still.x > moving.x)
+            shift = Math.min(
+              shift,
+              Math.max(
+                0,
+                still.x -
+                  still.width / 2 -
+                  GUTTER -
+                  (moving.x + moving.width / 2),
+              ),
+            );
+          if (shift < 0 && still.x < moving.x)
+            shift = Math.max(
+              shift,
+              Math.min(
+                0,
+                still.x +
+                  still.width / 2 +
+                  GUTTER -
+                  (moving.x - moving.width / 2),
+              ),
+            );
+        }
+      if (Math.abs(shift) < 0.01) continue;
+      for (const atom of brood) atom.x += shift;
+      moved = true;
+    }
+    if (!moved) break;
+  }
 }
 
 /**
@@ -515,9 +680,11 @@ function placeAtoms(
     childrenOf: Map<string, string[]>;
     byAge: (a: string, b: string) => number;
     sizeOf: SizeOf;
+    /** Centre each family on its children's leaves (see `centreFamilies`). */
+    onLeaves?: boolean;
   },
 ): Block {
-  const { parentsOf, childrenOf, byAge, sizeOf } = ctx;
+  const { parentsOf, childrenOf, byAge, sizeOf, onLeaves } = ctx;
 
   const atomOf = new Map<string, Atom>();
   for (const atom of atoms) for (const m of atom.members) atomOf.set(m, atom);
@@ -622,11 +789,60 @@ function placeAtoms(
     // Centre the parents on the eldest→youngest span rather than on the brood's
     // bounding box, so a child with a big family of their own does not drag the
     // parents off to one side.
-    const span = (kids[0].x + kids[kids.length - 1].x) / 2;
+    const span = onLeaves
+      ? leafSpan(atom, kids) - trunkOffset(atom, kids)
+      : (kids[0].x + kids[kids.length - 1].x) / 2;
     shiftBlock(brood, -span);
     // The brood only ever occupies rows below the atom, so it cannot collide.
     absorbBlock(block, brood);
     return block;
+  };
+
+  /**
+   * The middle of a brood as the spotlight draws it: halfway between the
+   * outermost children's own leaves, not their atoms — a child who married
+   * sits off the middle of their couple.
+   */
+  const leafSpan = (atom: Atom, kids: Atom[]) => {
+    const xs = kids.flatMap((kid) =>
+      kid.members.flatMap((m, i) =>
+        (parentsOf.get(m) ?? []).some((p) => atom.members.includes(p))
+          ? [memberCentre(kid, i, sizeOf)]
+          : [],
+      ),
+    );
+    return (Math.min(...xs) + Math.max(...xs)) / 2;
+  };
+
+  /**
+   * Where the trunk leaves `atom`, from its centre: between a couple, or at a
+   * lone parent's stem. Several unions hang off one atom at different points,
+   * so for those the atom's centre is as fair as any.
+   */
+  const trunkOffset = (atom: Atom, kids: Atom[]) => {
+    const sets = new Set<string>();
+    for (const kid of kids)
+      for (const m of kid.members) {
+        const own = (parentsOf.get(m) ?? []).filter((p) =>
+          atom.members.includes(p),
+        );
+        if (own.length > 0) sets.add([...new Set(own)].sort().join("+"));
+      }
+    if (sets.size !== 1) return 0;
+    const parents = [...sets][0].split("+");
+    const trunk = descentGeometry(
+      parents.map((p) => {
+        const i = atom.members.indexOf(p);
+        return {
+          x: atom.x - atom.width / 2 + memberOffset(atom, i, sizeOf),
+          y: 0,
+          ...sizeOf(p),
+        };
+      }),
+      ROW_H,
+      { leafy: true },
+    );
+    return trunk ? trunk.startX - atom.x : 0;
   };
 
   /**
