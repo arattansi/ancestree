@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { AcceptInviteForm } from "@/components/accept-invite-form";
 import { AccountTypeGlyph } from "@/components/account-type-badge";
 import { MagicLinkForm } from "@/components/magic-link-form";
 import {
@@ -13,6 +14,7 @@ import {
 } from "@/components/ui/card";
 import { LEAF } from "@/lib/account-types";
 import { getProfile } from "@/lib/auth";
+import { getInviteRecipient } from "@/lib/sign-in.server";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
@@ -34,6 +36,10 @@ export default async function InvitePage({
   const supabase = await createClient();
   const { data } = await supabase.rpc("invite_preview", { p_token: token });
   const preview = data?.[0];
+
+  // An invite emailed to someone is their sign-in link: one button, no second
+  // email. A bare link has no address on it, so it still asks for one.
+  const recipient = preview?.valid ? await getInviteRecipient(token) : null;
 
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-6 px-6 py-24">
@@ -73,8 +79,10 @@ export default async function InvitePage({
                     </span>
                   </>
                 )}
-                . Enter your email to get a sign-in link — opening it accepts the
-                invite.
+                .{" "}
+                {recipient
+                  ? "Accepting signs you in — there is nothing else to set up."
+                  : "Enter your email to get a sign-in link — opening it accepts the invite."}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -91,11 +99,22 @@ export default async function InvitePage({
                   </p>
                 </div>
               ) : null}
-              <MagicLinkForm inviteToken={token} submitLabel="Accept &amp; sign in" />
-              <p className="mt-4 text-xs text-muted-foreground">
-                By joining you agree to share your family details with other
-                members of this private tree.
-              </p>
+              {recipient ? (
+                <AcceptInviteForm
+                  inviteToken={token}
+                  email={recipient.email}
+                  consentGiven={recipient.requested}
+                />
+              ) : (
+                <MagicLinkForm inviteToken={token} submitLabel="Accept &amp; sign in" />
+              )}
+              {recipient?.requested ? (
+                // They ticked the privacy notice when they asked to join.
+                <p className="mt-4 text-xs text-muted-foreground">
+                  By joining you agree to share your family details with other
+                  members of this private tree.
+                </p>
+              ) : null}
             </CardContent>
           </>
         ) : (

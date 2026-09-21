@@ -6,6 +6,7 @@ import { signOut } from "@/app/actions/auth";
 import { AccountTypeBadge } from "@/components/account-type-badge";
 import { AccountTypeCard } from "@/components/account-type-guide";
 import { DeleteAccount } from "@/components/delete-account";
+import { DirectInviteForm } from "@/components/direct-invite-form";
 import { EditDisplayName } from "@/components/edit-display-name";
 import { InviteMinter } from "@/components/invite-minter";
 import { NotificationsList } from "@/components/notifications-list";
@@ -108,12 +109,17 @@ export default async function AccountPage() {
           <CardHeader>
             <CardTitle>Invite a relative</CardTitle>
             <CardDescription>
-              A single-use link, tied to you, that expires after 14 days. Send
-              it however suits them — a message, WhatsApp, an email.
+              Email them an invite and the link signs them straight in — nothing
+              for them to set up. Or create a link to send yourself, by message
+              or WhatsApp; that one asks for their email first. Either way it is
+              tied to you, works once, and expires after 14 days.
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <InviteMinter options={inviteOptions.map((t) => t.key)} />
+          <CardContent className="flex flex-col gap-6">
+            <DirectInviteForm options={inviteOptions.map((t) => t.key)} />
+            <div className="border-t border-border pt-6">
+              <InviteMinter options={inviteOptions.map((t) => t.key)} />
+            </div>
           </CardContent>
         </Card>
       ) : null}

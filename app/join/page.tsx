@@ -35,7 +35,7 @@ export default async function JoinPage({
           <CardTitle>{pending ? "Almost there" : "Sign in to ancestree"}</CardTitle>
           <CardDescription>
             {pending
-              ? "Your email is verified, but it is not linked to a family invite yet. Ask the relative who invited you to send you their invite link, then open it on this device."
+              ? "Your email is verified, but it is not linked to a family invite yet. Open the invite a relative emailed you, or ask to join below."
               : "ancestree is a private family tree. Enter your email and we will send you a one-time sign-in link."}
           </CardDescription>
         </CardHeader>
@@ -52,7 +52,14 @@ export default async function JoinPage({
           {pending ? (
             <p className="text-sm text-muted-foreground">
               Have an invite link? Open it directly — it will sign you in and add
-              you to the tree.
+              you to the tree. Otherwise,{" "}
+              <Link
+                href="/request-invite"
+                className="underline underline-offset-4"
+              >
+                request an invite
+              </Link>
+              .
             </p>
           ) : (
             <MagicLinkForm />

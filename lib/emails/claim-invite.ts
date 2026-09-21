@@ -27,9 +27,10 @@ export function claimInviteEmail(input: {
     bodyHtml: `${inviterName} has been building your family&rsquo;s tree on
                   ancestree, and there&rsquo;s already an entry there for
                   <strong style="color:#0a0a0a;">${entryName}</strong>. The link
-                  below lets you join and claim it as your own, so you can fill
-                  in your own details from then on. It works once and expires in
-                  14 days.`,
+                  below signs you straight in and lets you claim it as your
+                  own, so you can fill in your own details from then on.
+                  It&rsquo;s yours alone, so please don&rsquo;t forward it. It
+                  works once and expires in 14 days.`,
     url: input.url,
   });
 

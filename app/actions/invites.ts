@@ -13,6 +13,7 @@ import { claimInviteEmail } from "@/lib/emails/claim-invite";
 import { inviteSentEmail } from "@/lib/emails/invite-sent";
 import { personDisplayName } from "@/lib/person-name";
 import { getSiteUrl } from "@/lib/site-url";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 const INVITE_TTL_DAYS = 14;
@@ -103,19 +104,35 @@ export type SendDirectInvitesState = {
 };
 
 /**
- * Admin: mint an invite for each row and email it directly to that person —
- * no public request involved. Each row also becomes an `invite_requests` row
- * (source = 'direct', pre-approved) purely so it shows up in the same "Sent
- * invites" history as a request-driven approval.
+ * Mint an invite for each row and email it directly to that person — no
+ * public request involved. Open to anyone who may invite, as whatever they
+ * may give (`invitableTypes`). Each row also becomes an `invite_requests` row
+ * (source = 'direct', pre-approved) purely so it shows up in the Roots' "Sent
+ * invites" history alongside request-driven approvals.
+ *
+ * The invite is bound to the address, so opening it signs them straight in
+ * (`signInWithInvite`). Only a Root or the service role may bind one
+ * (`invites_guard`), hence the service-role writes: the inviter's permission
+ * is checked here, and the token goes to the recipient's inbox, never back to
+ * the inviter.
  */
 export async function sendDirectInvites(
   rows: DirectInviteRow[],
   joinsAs: string = "member",
 ): Promise<SendDirectInvitesState> {
-  const admin = await requireAdmin();
+  const inviter = await requireProfile();
   if (!isInvitableKey(joinsAs)) {
     return {
       error: `An invite can only make someone ${INVITABLE_ACCOUNT_TYPES.map((t) => t.name).join(" or ")}.`,
+    };
+  }
+  const allowed = invitableTypes(inviter.role, inviter.can_invite);
+  if (allowed.length === 0) {
+    return { error: "You don't have permission to send invites." };
+  }
+  if (!allowed.some((t) => t.key === joinsAs)) {
+    return {
+      error: `You can invite relatives as ${allowed.map((t) => t.name).join(" or ")} only.`,
     };
   }
 
@@ -151,7 +168,7 @@ export async function sendDirectInvites(
     seen.add(r.email);
   }
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { data: tree } = await supabase
     .from("trees")
     .select("id")
@@ -172,10 +189,12 @@ export async function sendDirectInvites(
       .from("invites")
       .insert({
         tree_id: tree.id,
-        created_by: admin.auth_user_id,
+        created_by: inviter.auth_user_id,
         status: "active",
         expires_at: expiresAt,
         joins_as: joinsAs,
+        // The link signs this address in — see `signInWithInvite`.
+        invited_email: row.email,
       })
       .select("id, token")
       .single();
@@ -188,20 +207,20 @@ export async function sendDirectInvites(
     const url = `${getSiteUrl()}/join/${invite.token}`;
     const { subject, html } = inviteSentEmail({
       firstName: row.firstName,
-      inviterName: admin.display_name ?? "A family member",
+      inviterName: inviter.display_name ?? "A family member",
       url,
     });
     const sent = await sendEmail({ to: row.email, subject, html });
 
-    // Best-effort history row — an admin/RLS write, not the service role.
-    // If it fails the invite itself is still valid, so this doesn't fail the row.
+    // Best-effort history row. If it fails the invite itself is still valid,
+    // so this doesn't fail the row.
     await supabase.from("invite_requests").insert({
       first_name: row.firstName,
       last_name: row.lastName,
       email: row.email,
       source: "direct",
       status: "approved",
-      reviewed_by: admin.auth_user_id,
+      reviewed_by: inviter.auth_user_id,
       reviewed_at: new Date().toISOString(),
       invite_id: invite.id,
       email_sent: sent.ok,
@@ -216,6 +235,7 @@ export async function sendDirectInvites(
   }
 
   revalidatePath("/admin");
+  revalidatePath("/account");
   return { results };
 }
 

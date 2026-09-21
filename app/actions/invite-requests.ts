@@ -34,6 +34,7 @@ export async function requestInvite(
   const firstName = String(formData.get("firstName") ?? "").trim();
   const lastName = String(formData.get("lastName") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const consent = formData.get("consent");
   const entered = { firstName, lastName, email };
 
   if (!firstName || !lastName) {
@@ -44,6 +45,10 @@ export async function requestInvite(
   }
   if (!EMAIL_RE.test(email)) {
     return { error: "Enter a valid email address.", ...entered };
+  }
+  // Approval leads straight into the tree, so this is where they agree to it.
+  if (consent !== "on" && consent !== "true") {
+    return { error: "Please accept the privacy notice to continue.", ...entered };
   }
 
   const supabase = createAdminClient();
@@ -63,7 +68,9 @@ export async function requestInvite(
 
 /**
  * Admin: approve a request by minting a single-use invite link attributed to
- * the reviewing admin, then emailing it to the requester. The link is also
+ * the reviewing admin, then emailing it to the requester. The invite is bound
+ * to their address, so opening it signs them in and joins the tree in one
+ * step (`signInWithInvite`) — no second sign-in email. The link is also
  * returned so the admin can copy it as a fallback — if the email fails to
  * send, `emailError` is set but the approval itself is not rolled back; the
  * invite is already valid either way.
@@ -105,6 +112,8 @@ export async function approveInviteRequest(
       created_by: admin.auth_user_id,
       status: "active",
       expires_at: expiresAt,
+      // The link signs this address in — see `signInWithInvite`.
+      invited_email: request.email.trim().toLowerCase(),
     })
     .select("id, token")
     .single();

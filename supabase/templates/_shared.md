@@ -5,12 +5,16 @@ into `supabase/config.toml` for local development; for the hosted project they
 must also be pasted into the Dashboard (Authentication → Emails → Templates)
 or pushed with the Management API — Supabase does not read them from the repo.
 
-**This is only sign-in mail.** The other branded email ancestree sends — the
-"you're invited" message when an admin approves an invite request — is not a
-Supabase Auth template at all. It's authored in `lib/emails/invite-approved.ts`
-and sent by `approveInviteRequest` via Resend directly (`lib/email.ts`), since
-the link it carries is our own `/join/<token>` route, not a Supabase auth
-link. Same palette, same layout, different pipeline — edit it in that file,
+**This is only sign-in mail**, which returning members and people holding a
+bare invite link get. The other branded email ancestree sends — the "you're
+invited" message when an admin approves an invite request or invites someone
+by name — is not a Supabase Auth template at all. It's authored in
+`lib/emails/invite-approved.ts` and sent by `approveInviteRequest` via Resend
+directly (`lib/email.ts`), since the link it carries is our own
+`/join/<token>` route, not a Supabase auth link. That invite is bound to the
+recipient's address, and accepting it signs them in on the spot
+(`signInWithInvite` in `lib/sign-in.server.ts`) — they never see the
+templates here until their next sign-in. Same palette, same layout, different pipeline — edit it in that file,
 not here, and it needs no push step since it's sent by app code.
 
 Which template fires for our magic-link sign-in (`signInWithOtp`):
@@ -43,8 +47,14 @@ Design notes:
   `{{ .RedirectTo }}` is the `emailRedirectTo` we passed to `signInWithOtp`,
   already carrying `?next=/tree` and, for an invited relative, `&invite=<token>`
   — which is why it has to be the base rather than `{{ .SiteURL }}`, and why
-  the extra params are appended with `&`. `/auth/callback` already handles this
-  shape: it reads `token_hash` + `type` and calls `verifyOtp`.
+  the extra params are appended with `&`.
+- **Opening the link never signs anyone in; pressing the button does.**
+  `/auth/callback` forwards a `token_hash` link to `/auth/confirm`, whose
+  button POSTs to `confirmSignIn`, and only that calls `verifyOtp`. Mail
+  scanners (Outlook/Hotmail Safe Links above all) open every link in a message
+  before the recipient does; when the GET itself verified, the scanner spent
+  the one-time token and the real click got "link already used" — on every
+  fresh link, forever. Do not move `verifyOtp` back into a GET.
 - Either way the recipient must open the link in the browser that requested it
   (PKCE keeps the code verifier in a cookie). That is unchanged from before.
 - Inline styles + table layout only — email clients strip `<style>` blocks and

@@ -25,10 +25,18 @@ function emptyRow(): Row {
   return { key: `row-${nextKey++}`, firstName: "", lastName: "", email: "" };
 }
 
-export function DirectInviteForm() {
+/**
+ * Email invites by name and address. `options` is what the inviter may make
+ * someone (`invitableTypes`), widest first; the first is the default.
+ */
+export function DirectInviteForm({
+  options = JOINS_AS_OPTIONS,
+}: {
+  options?: readonly AccountTypeKey[];
+}) {
   const router = useRouter();
   const [rows, setRows] = React.useState<Row[]>([emptyRow()]);
-  const [joinsAs, setJoinsAs] = React.useState<AccountTypeKey>("member");
+  const [joinsAs, setJoinsAs] = React.useState<AccountTypeKey>(options[0]);
   const [pending, setPending] = React.useState(false);
 
   function updateRow(key: string, field: keyof Omit<Row, "key">, value: string) {
@@ -146,7 +154,7 @@ export function DirectInviteForm() {
       </div>
 
       <JoinsAsChoice
-        options={JOINS_AS_OPTIONS}
+        options={options}
         value={joinsAs}
         onChange={setJoinsAs}
         disabled={pending}

@@ -18,8 +18,9 @@ export function inviteSentEmail(input: {
   const html = renderInviteEmail({
     firstName,
     bodyHtml: `${inviterName} invited you to help build the family tree on
-                  ancestree. The link below works once and expires in 14
-                  days.`,
+                  ancestree. The link below signs you straight in &mdash;
+                  it&rsquo;s yours alone, so please don&rsquo;t forward it. It
+                  works once and expires in 14 days.`,
     url: input.url,
   });
 

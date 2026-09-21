@@ -269,8 +269,28 @@ Helpers live in the unexposed `private` schema (`is_admin`, `is_branch_admin`,
 - **Magic-link only** (`supabase.auth.signInWithOtp`). `proxy.ts` redirects
   unauthenticated visits to protected routes → `/join`; authenticated users
   without a member profile → `/join?status=pending`.
-- **`/auth/callback`** exchanges the code (or verifies the OTP hash), then either
-  `redeem_invite(token)` (invite flow) or `ensure_profile()` (admin bootstrap).
+- **`/auth/callback`** exchanges a `code`, then either `redeem_invite(token)`
+  (invite flow) or `ensure_profile()` (admin bootstrap). The link in our
+  sign-in emails carries a `token_hash` instead, and for that the callback
+  only forwards to **`/auth/confirm`**, whose button POSTs to `confirmSignIn`
+  — the one place `verifyOtp` runs. Opening the link must never spend the
+  token: mail scanners (Outlook/Hotmail Safe Links) open every link before
+  the recipient does, which is what left Raiya with "link already used" on
+  every fresh link (Step 20).
+- **An emailed invite is the sign-in link (Step 20)**: approving a request,
+  a direct invite, and a claim invite all set `invites.invited_email`.
+  `/join/<token>` then shows one "Accept & open the tree" button
+  (`AcceptInviteForm` → `acceptInvite` → `signInWithInvite` in
+  `lib/sign-in.server.ts`): with the service role it creates the confirmed
+  auth user, mints a one-time token (`auth.admin.generateLink`), spends it on
+  the spot with the cookie-bound client, and redeems the invite with the
+  recipient's name — no second email. It refuses an address that already has
+  a profile, so an invite is never a 14-day key to a live account. Because
+  the token holder becomes that address, only a Root or the service role may
+  set `invited_email` (`invites_guard`); a bare link (`createInvite`) has no
+  address and still asks for one and verifies it by email. The privacy
+  checkbox sits on `/request-invite` for people who ask, and on the accept
+  page for people invited cold.
 - **Invite tokens** (`public.invites`): `can_invite` members + admins mint a
   single-use, 14-day link `"/join/<token>"` by inserting a row directly under RLS
   (`can_invite_to_tree`). `redeem_invite` (SECURITY DEFINER) creates the member
@@ -301,7 +321,9 @@ Helpers live in the unexposed `private` schema (`is_admin`, `is_branch_admin`,
   `lib/emails/invite-approved.ts`, needs `RESEND_API_KEY`) — if the send
   fails, the invite is still valid and the admin can copy the link and send it
   themselves; declining just closes the request.
-- **Direct invites**: from the same `/admin` card, an admin can skip the
+- **Direct invites**: from the same `/admin` card — and, since Step 20, from
+  the "Invite a relative" card on `/account` for anyone who may invite, as
+  whatever `invitableTypes` lets them give — the inviter can skip the
   request queue and send invites straight to people they already know — a
   `useFieldArray` row-per-person form (first name, last name, email;
   `components/direct-invite-form.tsx`) posting to `sendDirectInvites`
@@ -310,8 +332,9 @@ Helpers live in the unexposed `private` schema (`is_admin`, `is_branch_admin`,
   shell as `invite-approved.ts`, via `lib/emails/shared.ts`, but worded for
   "you were invited" rather than "your request was approved"), and — purely so
   it shows up in the same history — inserts an already-`approved`,
-  `source = 'direct'` row into `invite_requests` (needs its own admin-scoped
-  INSERT policy, since normal rows are written pre-auth by the service role).
+  `source = 'direct'` row into `invite_requests`. Both writes use the
+  service-role client after the action has checked the inviter's permission:
+  a Branch may not bind an email through RLS, and never sees the token.
 - **Invite history**: `/admin`'s "Sent invites" card (`listInviteHistory` in
   `lib/invites.ts`, `components/admin-invite-history.tsx`) is every non-
   pending `invite_requests` row — request-driven or direct — joined to its
@@ -419,6 +442,24 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 20 — One link in** (migration `20260921120000_invite_email_signs_in`):
+  two sign-in problems from onboarding real relatives. *Bug:* Raiya got
+  "link already used" on every fresh sign-in link. The auth logs show each
+  token verified once and then failing seconds later — her Hotmail's link
+  scanner opened the email's link first, and our GET spent the one-time token.
+  `/auth/callback` now forwards a `token_hash` link to `/auth/confirm`, and
+  only that page's button (a POST) verifies; a second tap in a browser that is
+  already signed in carries on to the tree, not to an error. Emails
+  already sent keep working, and the templates are unchanged. *Redundancy:*
+  Ashif asked to join, was approved, got an invite email, typed his email
+  again, and waited for a second email to finally sign in. An emailed invite
+  is now the sign-in link: request → approve → one email → one button → the
+  tree, greeted by name. Same for direct and claim invites, and Branches can
+  now email invites from `/account`. `invites_guard` keeps binding an email to
+  an invite to Roots and the service role. Checked end to end against the live
+  project with a throwaway address (then removed), signed out on `127.0.0.1`
+  (`allowedDevOrigins`) beside a signed-in `localhost`.
 
 - **Step 19.4 — Siblings' partners as pills**: in a spotlight, the partner
   of each sibling from 19.3 is a small neutral pill with only their name, so

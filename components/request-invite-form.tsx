@@ -1,10 +1,11 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import Link from "next/link";
 
 import { requestInvite, type RequestInviteState } from "@/app/actions/invite-requests";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -12,6 +13,7 @@ const INITIAL: RequestInviteState = {};
 
 export function RequestInviteForm() {
   const [state, formAction, pending] = useActionState(requestInvite, INITIAL);
+  const [consented, setConsented] = useState(false);
 
   if (state.ok) {
     return (
@@ -21,9 +23,10 @@ export function RequestInviteForm() {
       >
         <p className="font-medium text-foreground">Request sent</p>
         <p className="mt-1 text-muted-foreground">
-          An admin will review it. If they recognise you, they will send an
-          invite link to{" "}
-          <span className="font-medium text-foreground">{state.email}</span>.
+          A relative will review it. Once they approve, we&rsquo;ll email{" "}
+          <span className="font-medium text-foreground">{state.email}</span> a
+          link that takes you straight into the tree — nothing more to sign up
+          for.
         </p>
       </div>
     );
@@ -75,16 +78,39 @@ export function RequestInviteForm() {
         </p>
       ) : null}
 
-      <Button type="submit" disabled={pending}>
+      <Label
+        htmlFor="consent"
+        className="group/field-label flex items-start gap-2.5 text-sm font-normal text-muted-foreground"
+      >
+        <Checkbox
+          id="consent"
+          name="consent"
+          checked={consented}
+          onCheckedChange={(value) => setConsented(value === true)}
+          className="mt-0.5"
+        />
+        <span>
+          If I&rsquo;m approved, I agree that my family details, photos, and
+          documents will be shared with other members of this private tree, and
+          I have read the{" "}
+          <Link
+            href="/privacy"
+            target="_blank"
+            className="underline underline-offset-4"
+          >
+            privacy notice
+          </Link>
+          .
+        </span>
+      </Label>
+
+      <Button type="submit" disabled={pending || !consented}>
         {pending ? "Sending…" : "Request an invite"}
       </Button>
 
       <p className="text-sm text-muted-foreground">
-        We only store your name and email so an admin can recognise you. See the{" "}
-        <Link href="/privacy" className="underline underline-offset-4">
-          privacy notice
-        </Link>
-        .
+        Until then we only store your name and email, so a relative can
+        recognise you.
       </p>
     </form>
   );

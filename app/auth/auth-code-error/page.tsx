@@ -20,14 +20,15 @@ export default function AuthCodeErrorPage() {
         <CardHeader>
           <CardTitle>That link didn&rsquo;t work</CardTitle>
           <CardDescription>
-            Sign-in links expire and can only be used once. Request a fresh one
-            and open it on the same device and browser.
+            Sign-in links expire after an hour and can only be used once.
+            Request a fresh one and use the newest email — an older link stops
+            working as soon as a new one is sent.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
             <Link href="/join" className="underline underline-offset-4">
-              Back to sign in
+              Get a new sign-in link
             </Link>
           </p>
         </CardContent>

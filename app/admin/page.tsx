@@ -428,7 +428,7 @@ export default async function AdminPage() {
         <AdminSubsection
           id="invite"
           title="Invite a relative"
-          description="Each link is tied to you, works once, and expires after 14 days. Send by name and email and it’s emailed for you, or just mint a bare link to send yourself. Either way, choose whether they join as Canopy or as a Leaf; Branches can send Leaf links from their account page."
+          description="Each link is tied to you, works once, and expires after 14 days. Send by name and email and it’s emailed for you — that link signs them straight in, nothing to set up. Or mint a bare link to send yourself; it asks for their email first. Either way, choose whether they join as Canopy or as a Leaf; Branches can invite Leaves from their account page."
         >
           <div className="flex flex-col gap-6">
             <DirectInviteForm />
