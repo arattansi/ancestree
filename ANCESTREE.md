@@ -443,6 +443,24 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 21.3 — The trunk meets the bar in the middle**: parents often sit
+  off to one side of their children in the overview, so the trunk met the
+  siblings' bar off-centre, sometimes right over one child, and the family
+  read as lopsided. Now no card moves; only the line does. The trunk leaves the
+  parents where it did, jogs sideways a quarter-gap below them, and drops onto
+  the bar halfway between the first and last child. It is routed by
+  `descentRoute` and `trunkStep` in `lib/tree-layout.ts` from the live cards, so
+  it follows drags. Each descent edge carries its `siblings`, and every child
+  of a union draws the identical trunk, step and bar, so the faint line never
+  doubles. One child, or a trunk within a pixel of the middle, keeps the old
+  single bend, byte for byte. One change: a child dragged up close now raises
+  the whole family's bar, not just its own line. The spotlight uses the same
+  route: the leaves pulled out share one bar, and the children left behind
+  keep another. On the live tree, Sonbhai and Karmali's four children now step
+  about 630 units across. Dragging a child moved the midpoint by exactly half
+  the drag, and both test drags were undone. Phases 21.1 (where a line lands
+  on a leaf) and 21.2 (centring the spotlight so the step disappears) follow.
+
 - **Step 20 — One link in** (migration `20260921120000_invite_email_signs_in`):
   two sign-in problems from onboarding real relatives. *Bug:* Raiya got
   "link already used" on every fresh sign-in link. The auth logs show each
