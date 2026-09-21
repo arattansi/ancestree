@@ -71,15 +71,23 @@ const BLADES: Record<LeafShape, string> = {
   elliptic: "M24,75 C64,26 150,26 204,75 C150,124 64,124 24,75 Z",
   cordate:
     "M42,75 C14,50 26,16 62,26 C88,33 104,20 140,28 C180,37 198,55 204,75 C198,95 180,113 140,122 C104,130 88,117 62,124 C26,134 14,100 42,75 Z",
+  // The leaf on the Canadian flag, on its side: the flag's own outline
+  // (stem trimmed, since the stem is drawn separately) scaled so its breadth
+  // overhangs the box like the other lobed leaves. A sugar maple is wider
+  // than it is long, and the earlier hand-drawn star read as neither.
   maple:
-    "M24,75 C28,58 34,44 44,34 C56,44 66,52 82,56 C96,38 112,22 134,12 C140,30 146,44 156,56 C176,62 192,68 204,75 C192,82 176,88 156,94 C146,106 140,120 134,138 C112,128 96,112 82,94 C66,98 56,106 44,116 C34,106 28,92 24,75 Z",
+    "M46.0,72.9 A4.37,4.37 0 0 0 50.5,67.8 L43.6,28.3 L58.3,33.6 A2.99,2.99 0 0 0 61.6,32.7 L96.7,-10.6 L101.2,-0.8 A2.99,2.99 0 0 0 104.9,0.8 L131.2,-7.8 L125.9,17.1 A2.99,2.99 0 0 0 127.7,20.5 L139.0,25.3 L118.1,44.8 A2.99,2.99 0 0 0 120.8,49.9 L169.1,40.5 L160.4,55.5 A2.99,2.99 0 0 0 161.7,59.7 L191.7,75.0 L161.7,90.3 A2.99,2.99 0 0 0 160.4,94.5 L169.1,109.5 L120.8,100.1 A2.99,2.99 0 0 0 118.1,105.2 L139.0,124.7 L127.7,129.5 A2.99,2.99 0 0 0 125.9,132.9 L131.2,157.8 L104.9,149.2 A2.99,2.99 0 0 0 101.2,150.8 L96.7,160.6 L61.6,117.3 A2.99,2.99 0 0 0 58.3,116.4 L43.6,121.7 L50.5,82.2 A4.37,4.37 0 0 0 46.0,77.1 Z",
   palmate: PALMATE,
   oak: "M24,75 C22,50 34,40 50,46 C62,50 60,26 80,30 C96,33 96,18 116,24 C134,29 138,16 154,30 C168,42 186,58 204,75 C186,92 168,108 154,120 C138,134 134,121 116,126 C96,132 96,117 80,120 C60,124 62,100 50,104 C34,110 22,100 24,75 Z",
   round:
     "M24,75 C24,38 60,20 110,20 C168,20 200,44 204,75 C200,106 168,130 110,130 C60,130 24,112 24,75 Z",
 };
 
-/** Midrib and side veins, in trunk brown, clipped to whichever blade. */
+/**
+ * Midrib and side veins, in trunk brown, clipped to whichever blade. Not on a
+ * compound leaf: its leaflets fan out from the stem, so a single midrib runs
+ * straight through the name instead of along anything (Step 19.1 feedback).
+ */
 const VEINS = [
   "M28,75 L194,75",
   "M60,75 C76,58 96,44 116,38",
@@ -228,51 +236,54 @@ export function LeafCard({
           strokeLinecap="round"
           fill="none"
         />
-        {/* Card colour first, so the text above it reads in either theme, then
-            the green wash and the outline over it. */}
+        {/* The outline goes down first, at twice its width, and the fills
+            over it: only the half outside the silhouette survives. A compound
+            leaf is several overlapping leaflets, and drawn on top their
+            outlines crossed the name; drawn underneath, it is one outline. */}
+        <path
+          d={blade}
+          fill="none"
+          stroke={LEAF_GREEN}
+          strokeWidth={selected ? 5 : 3}
+          strokeDasharray={deceased ? "6 5" : undefined}
+          strokeLinejoin="round"
+        />
+        {/* Card colour, so the text above it reads in either theme, then the
+            green wash. */}
         <path d={blade} fill="var(--card)" />
         <path
           d={blade}
           fill={LEAF_GREEN}
           fillOpacity={selected ? 0.24 : 0.14}
         />
-        <g clipPath={`url(#${clipId})`} opacity={0.35}>
-          {VEINS.map((d) => (
-            <path
-              key={d}
-              d={d}
-              stroke={TRUNK_BROWN}
-              strokeWidth={1}
-              fill="none"
-              strokeLinecap="round"
-            />
-          ))}
-        </g>
-        <path
-          d={blade}
-          fill="none"
-          stroke={LEAF_GREEN}
-          strokeWidth={selected ? 2.5 : 1.5}
-          strokeDasharray={deceased ? "6 5" : undefined}
-        />
+        {leaf.shape === "palmate" ? null : (
+          <g clipPath={`url(#${clipId})`} opacity={0.35}>
+            {VEINS.map((d) => (
+              <path
+                key={d}
+                d={d}
+                stroke={TRUNK_BROWN}
+                strokeWidth={1}
+                fill="none"
+                strokeLinecap="round"
+              />
+            ))}
+          </g>
+        )}
       </svg>
 
-      {/* Whose entry this is (Step 19.1): out at the tip, in the band every
-          blade keeps clear, and a row apart from the ✓ after the name. Backed in
-          card colour so the midrib doesn't run through it. */}
+      {/* Whose entry this is (Step 19.1): hung centred under the leaf, clear
+          of the ✓ after the name. One depth for every shape, below the
+          deepest lobe (the maple's, 30px under the card), so the marks along
+          a row line up. */}
       {person.account_type ? (
         <AccountTypeMark
           typeKey={person.account_type}
-          className="absolute top-1/2 right-3.5 size-5 -translate-y-1/2 rounded-full bg-card p-0.5"
+          className="absolute top-[calc(100%+34px)] left-1/2 size-5 -translate-x-1/2 rounded-full bg-card p-0.5"
         />
       ) : null}
 
-      <div
-        className={cn(
-          "absolute inset-0 flex flex-col justify-center pl-13",
-          person.account_type ? "pr-10" : "pr-8",
-        )}
-      >
+      <div className="absolute inset-0 flex flex-col justify-center pr-8 pl-13">
         <p
           className={cn(
             "flex items-center gap-1 truncate text-[13px] leading-tight font-medium",
