@@ -39,8 +39,9 @@ export async function getSpokenForEntryIds(
 /**
  * Who the viewer is for permission purposes, with what they tend resolved when
  * their account type calls for it. Mirrors `private.is_on_own_branch`: a
- * Branch tends the side of the Root they are related to, and one still in
- * onboarding, with no entry of their own, is related to no one.
+ * Branch tends the part of a Root's side they are related through (Step
+ * 22.2), and one still in onboarding, with no entry of their own, is related
+ * to no one.
  */
 export async function getViewer(
   profile: Profile,

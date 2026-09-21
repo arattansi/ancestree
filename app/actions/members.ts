@@ -13,7 +13,7 @@ import { createClient } from "@/lib/supabase/server";
  *
  * What each can reach is the database's to enforce; this only records the
  * choice. A Branch's branch is derived from their own entry, not configured
- * here (`private.branch_ids`, Step 17). Roots are left alone: making someone a
+ * here (`private.own_branch_ids`, Step 22.2). Roots are left alone: making someone a
  * Root, or unmaking one, is a bigger decision than a dropdown.
  */
 export async function setAccountType(

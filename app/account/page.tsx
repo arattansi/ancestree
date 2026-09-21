@@ -46,7 +46,8 @@ export default async function AccountPage() {
   const accountType = accountTypeOf(profile.role);
   // Roots invite from /admin; everyone else who may, invites from here.
   const inviteOptions = invitableTypes(profile.role);
-  // A Branch is told whose side they tend: the Root they're related to.
+  // A Branch is told whose side they tend their part of: the Root they're
+  // related to.
   const branchSide =
     accountType.entries === "branch" && profile.self_person_id
       ? branchSideLabel(
@@ -91,7 +92,7 @@ export default async function AccountPage() {
           <CardDescription>
             {accountType.entries === "branch"
               ? branchSide
-                ? `You tend ${branchSide}. `
+                ? `You tend your part of ${branchSide}: the relatives you’re related through, and the people they married. `
                 : "You’re not related to a Root on the tree yet, so there’s no side for you to tend. "
               : null}
             {accountType.runsTree
@@ -171,7 +172,13 @@ export default async function AccountPage() {
   );
 }
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
+function Row({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="flex items-center justify-between gap-4">
       <span className="text-muted-foreground">{label}</span>

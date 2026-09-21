@@ -1,14 +1,15 @@
 /**
  * Branches, mirrored from `private.branch_ids`, `private.own_branch_ids` and
- * `private.can_edit_person` (Steps 17 and 18.1), and what each account type
- * may edit (Step 18, `lib/account-types`).
+ * `private.can_edit_person` (Steps 17, 18.1 and 22.2), and what each account
+ * type may edit (Step 18, `lib/account-types`).
  *
  * A branch is measured from one person with the same up-then-down walk the
  * bloodline gate uses — ancestors, then everyone descending from that whole
  * set — plus, one step only, the partners those people married. A Branch
- * account tends the branch of the Root they are related to (`branchReach`),
- * not one measured from themselves: the tree is its Roots' families joined,
- * and a Branch keeps one of those sides in order.
+ * account tends the part of a Root's side they are related through
+ * (`branchReach`): their own branch, kept to the sides of the Roots they are
+ * related to. The tree is its Roots' families joined, and a Branch keeps
+ * their own corner of one of those sides in order.
  *
  * Up-then-down is what draws the boundary. Walking parent edges undirected
  * would leak: from a niece up to her *other* parent, and that parent's whole
@@ -58,20 +59,30 @@ export function relatedRoots(
 }
 
 /**
- * What a Branch account tends (Step 18.1): the branch of the Root they are
- * related to — every such Root's, for a child of two founders — and nothing
- * when they are related to none. Mirrors `private.own_branch_ids`.
+ * What a Branch account tends (Step 22.2): the part of a Root's side they are
+ * related through — their own branch, kept to the sides of the Roots they are
+ * related to, every such Root's for a child of two founders — and nothing when
+ * they are related to none. Mirrors `private.own_branch_ids`.
+ *
+ * Both halves bound it. From their own entry, a Root's other grandparents'
+ * families stay out (Arzu tends Raiya's father's family, not her mother's);
+ * kept to a Root's side, the Branch's own in-laws' families stay out too.
  */
 export function branchReach(
   selfId: string,
   rootIds: readonly string[],
   edges: readonly BranchEdge[],
 ): Set<string> {
-  const reach = new Set<string>();
+  const sides = new Set<string>();
   for (const root of rootIds) {
     const branch = branchIds(root, edges);
     if (!branch.has(selfId)) continue;
-    for (const id of branch) reach.add(id);
+    for (const id of branch) sides.add(id);
+  }
+
+  const reach = new Set<string>();
+  for (const id of branchIds(selfId, edges)) {
+    if (sides.has(id)) reach.add(id);
   }
   return reach;
 }

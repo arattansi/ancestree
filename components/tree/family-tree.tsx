@@ -444,7 +444,7 @@ type Props = {
   selfPersonId: string | null;
   /** The founding admins' entries — the tree is centred on them. */
   anchorIds: string[];
-  /** Every Root's entry: a Branch tends the side of the one they're related to. */
+  /** Every Root's entry: a Branch tends their part of the side of the one they're related to. */
   rootIds: string[];
   currentUserId: string;
   isAdmin: boolean;
@@ -680,9 +680,9 @@ function Canvas({
     [people],
   );
 
-  // Who the viewer is for permission purposes. A Branch tends the side of the
-  // Root they're related to, worked out from the edges already on the canvas —
-  // `lib/branch` mirrors `private.own_branch_ids`, which is what decides.
+  // Who the viewer is for permission purposes. A Branch tends the part of a
+  // Root's side they're related through, worked out from the edges already on
+  // the canvas — `lib/branch` mirrors `private.own_branch_ids`, which is what decides.
   const accountType = React.useMemo(() => accountTypeOf(role), [role]);
   const viewer = React.useMemo<Viewer>(
     () => ({

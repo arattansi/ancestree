@@ -188,18 +188,21 @@ only their own `self_person_id` entry. Deletes: admin only. A claim moves
 `owner_user_id` to the claimant, so the creator then loses edit rights until an
 admin reverses the claim.
 
-**Branches (Step 17, re-anchored in 18.1):** a `branch_admin` curates one
-Root's side of the tree. A branch is measured from one person by the same
-up-then-down walk as the bloodline gate (`private.branch_ids`): climb `parent`
-edges to every ancestor, descend from that whole set, then add the partners
-those people married — one step, never walked through. So a spouse is on the
-branch and a spouse's parents are not. A Branch tends the branch of **the Root
-they are related to** — every Root whose branch has the Branch's own entry on
-it, by blood or marriage (`private.root_person_ids` → `private.own_branch_ids`;
-`lib/branch.ts#branchReach`). Related to both Roots (their child), they tend
-both sides; related to none, they tend nothing and edit like Canopy. Until
-18.1 the walk started from the Branch's own entry, which left out the Root's
-other grandparents' families and let in the Branch's own in-laws' side. Two limits: another member's own entry (`self_person_id` or a
+**Branches (Step 17, re-anchored in 18.1, narrowed in 22.2):** a
+`branch_admin` curates their part of one Root's side of the tree. A branch is
+measured from one person by the same up-then-down walk as the bloodline gate
+(`private.branch_ids`): climb `parent` edges to every ancestor, descend from
+that whole set, then add the partners those people married — one step, never
+walked through. So a spouse is on the branch and a spouse's parents are not. A
+Branch tends **the part of a Root's side they are related through**: their own
+branch, kept to the branches of every Root whose branch has the Branch's own
+entry on it, by blood or marriage (`private.root_person_ids` →
+`private.own_branch_ids`; `lib/branch.ts#branchReach`). So Arzu tends Raiya's
+father's family, not her mother's, and a Branch's own in-laws' families never
+come in. Related to both Roots (their child), they tend their part of both
+sides; related to none, they tend nothing and edit like Canopy. (18.1 had
+given a Branch the Root's whole side; 22.2 took the other grandparents'
+families back out.) Two limits: another member's own entry (`self_person_id` or a
 settled claim) is never theirs to edit, and a connection needs **both** ends on
 the branch (`private.can_edit_relationship`) — one end alone would let them
 redraw a line into someone else's family. Nothing else moves: deleting people,
@@ -215,7 +218,7 @@ a name, and where each type's reach is written down (`entries`, `connections`,
 | Stored `role` | Name | Reach |
 |---|---|---|
 | `admin` | **Root** | Everything, plus running the tree: members and their account types, invites, share links, deletes, lineage, verification |
-| `branch_admin` | **Branch** | Every entry and connection on the side of the Root they're related to (see **Branches**); invites relatives as Leaves, and invites someone to claim an unclaimed entry on that side |
+| `branch_admin` | **Branch** | Every entry and connection on their part of the side of the Root they're related to (see **Branches**); invites relatives as Leaves, and invites someone to claim an unclaimed entry on that side |
 | `member` | **Canopy** | What they add, the lines they draw, and their own entry. Invites relatives as Leaves, and invites someone to claim an entry they added. New members join as Canopy |
 | `leaf` | **Leaf** | Their own entry (details, photo, documents, card position). Read, comment, flag, claim — nothing that grows or reshapes the tree |
 
@@ -456,6 +459,17 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 22.2 — A Branch tends only the part of a Root's side they're related
+  through** (migration `20260921150000_branch_reach_own_line`):
+  `private.own_branch_ids` is now the Branch's own branch (the Step 17 walk
+  from their entry) kept to the sides of the Roots they are related to (the
+  18.1 anchor); `lib/branch.ts#branchReach` mirrors it. Everything built on
+  `is_on_own_branch` — editing entries, lines and companions, claim invites,
+  documents — follows. On the live tree Arzu goes from 51 entries to 48,
+  losing exactly Raiya's mother's family (Noorali, Kulsum, Amyn) and gaining
+  none. `/admin`, `/account` and the account-type card now say "their part of"
+  a Root's side.
 
 - **Step 23 — Search & filters, connections, and pets on request** (ad-hoc,
   no migration): the search bar on the canvas is now a **Search & filters**

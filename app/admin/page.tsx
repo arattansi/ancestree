@@ -102,7 +102,8 @@ export default async function AdminPage() {
   ]);
 
   const members = membersRes.data ?? [];
-  // Whose side each Branch tends — the Root their own entry is related to.
+  // Whose side each Branch tends part of — the Root their own entry is related
+  // to. They tend the part of it they are related through (Step 22.2).
   const selfEntryOf = new Map(
     (selfEntriesRes.data ?? []).map((p) => [p.auth_user_id, p.self_person_id]),
   );
@@ -117,7 +118,9 @@ export default async function AdminPage() {
     const self = userId ? selfEntryOf.get(userId) : null;
     if (!self) return "Tends a side once they’re on the tree";
     const side = branchSideLabel(branchSides.get(self) ?? []);
-    return side ? `Tends ${side}` : "Related to no Root, so tends no side";
+    return side
+      ? `Tends their part of ${side}`
+      : "Related to no Root, so tends no side";
   };
   const people = peopleRes.data ?? [];
   const disputedClaims = await listDisputedClaims();
@@ -351,7 +354,7 @@ export default async function AdminPage() {
           id="account-types"
           collapsible
           title="Account types"
-          description="What each kind of member can reach. Anyone who isn’t a Root can be switched between Branch, Canopy and Leaf from the table above; new members join as Canopy. A Branch tends the side of whichever Root their own entry is related to — both sides, for a child of two Roots."
+          description="What each kind of member can reach. Anyone who isn’t a Root can be switched between Branch, Canopy and Leaf from the table above; new members join as Canopy. A Branch tends the part of a Root’s side they’re related through — a Root’s father’s family, say, not their mother’s — and a child of two Roots tends their part of both."
         >
           <AccountTypeGuide />
         </AdminSubsection>

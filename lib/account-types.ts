@@ -5,7 +5,7 @@
  * Four, named for the tree they grow, from the ground up:
  *
  *   Root    admin          the whole tree, and running it
- *   Branch  branch_admin   every entry on the side of the Root they're related to
+ *   Branch  branch_admin   their part of the side of the Root they're related to
  *   Canopy  member         what they add, and their own entry
  *   Leaf    leaf           their own entry; the rest is theirs to read
  *
@@ -34,7 +34,7 @@ export type AccountTypeKey = (typeof ACCOUNT_TYPE_KEYS)[number];
  * Branch that edits its side of the family also edits what it added itself.
  *
  * - `tree`   everything on the tree
- * - `branch` the side of the Root they are related to (`lib/branch.ts#branchReach`)
+ * - `branch` the part of a Root's side they are related through (`lib/branch.ts#branchReach`)
  * - `own`    what they added, and their own entry
  * - `self`   their own entry only
  * - `none`   nothing
@@ -92,9 +92,9 @@ export const ROOT: AccountType = {
 export const BRANCH: AccountType = {
   key: "branch_admin",
   name: "Branch",
-  tagline: "Tends a Root’s side of the family",
+  tagline: "Tends their part of a Root’s side",
   description:
-    "A Branch looks after the side of the family of the Root they’re related to: that Root’s ancestors, everyone descended from them, and the people those relatives married. They can edit any entry and connection there, except another member’s own entry. They bring relatives in as Leaves, and can invite someone to claim an unclaimed entry on that side.",
+    "A Branch looks after the part of a Root’s side of the family they’re related through: their own ancestors on that side, everyone descended from them, and the people those relatives married — so a Root’s father’s family, say, but not their mother’s, when that is how the Branch is related. They can edit any entry and connection there, except another member’s own entry. They bring relatives in as Leaves, and can invite someone to claim an unclaimed entry on that side.",
   entries: "branch",
   connections: "branch",
   companions: "branch",
@@ -195,7 +195,7 @@ export type Access = {
 
 const ENTRY_REACH: Record<Reach, string | false> = {
   tree: "Every entry",
-  branch: "Their Root’s side",
+  branch: "Their part of a Root’s side",
   own: "The ones they added",
   self: "Only their own",
   none: false,
@@ -203,7 +203,7 @@ const ENTRY_REACH: Record<Reach, string | false> = {
 
 const DOCUMENT_REACH: Record<Reach, string | false> = {
   tree: "Every entry",
-  branch: "Their Root’s side",
+  branch: "Their part of a Root’s side",
   own: "Entries they own",
   self: "Only their own",
   none: false,
@@ -211,7 +211,7 @@ const DOCUMENT_REACH: Record<Reach, string | false> = {
 
 const CLAIM_INVITE_REACH: Record<Reach, string | false> = {
   tree: "Any unclaimed entry",
-  branch: "On their Root’s side, as Leaves",
+  branch: "On their part of a Root’s side, as Leaves",
   own: "The ones they added, as Leaves",
   self: false,
   none: false,

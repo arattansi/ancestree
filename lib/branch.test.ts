@@ -138,14 +138,17 @@ describe("relatedRoots", () => {
 });
 
 describe("branchReach", () => {
-  it("tends the Root's side, not the Branch's own", () => {
+  it("tends the part of the Root's side they're related through", () => {
     const reach = branchReach("arzu", roots, family);
-    expect(reach).toEqual(branchIds("raiya", family));
-    // Raiya's mother's family: not Arzu's blood, but on Raiya's side.
-    expect(branchIds("arzu", family).has("noorali")).toBe(false);
-    expect(reach.has("noorali")).toBe(true);
-    expect(reach.has("kulsum")).toBe(true);
-    expect(reach.has("amyn")).toBe(true);
+    expect(reach).toEqual(branchIds("arzu", family));
+    // Raiya's mother's family: on Raiya's side, but not the part Arzu is
+    // related through (Step 22.2 takes back what 18.1 gave).
+    expect(branchIds("raiya", family).has("noorali")).toBe(true);
+    expect(reach.has("noorali")).toBe(false);
+    expect(reach.has("kulsum")).toBe(false);
+    expect(reach.has("amyn")).toBe(false);
+    // Raiya's mother married in, so she is still Arzu's to tend.
+    expect(reach.has("safia")).toBe(true);
     // Aalim's family stays on Aalim's side.
     expect(reach.has("aalim")).toBe(true);
     expect(reach.has("minaz")).toBe(false);
@@ -164,6 +167,29 @@ describe("branchReach", () => {
     const reach = branchReach("zara", roots, edges);
     expect(reach.has("noorali")).toBe(true);
     expect(reach.has("hussein")).toBe(true);
+  });
+
+  it("stops a cousin at the Root's side, however far their own blood runs", () => {
+    // Rehan is Raiya's cousin; his own branch runs into Shireen's family,
+    // which is nothing to Raiya.
+    const edges = [
+      ...family,
+      parent("shireen-dad", "shireen"),
+      parent("shireen-dad", "shireen-bro"),
+    ];
+    const reach = branchReach("rehan", roots, edges);
+    expect(reach.has("fatehali")).toBe(true);
+    expect(reach.has("shireen")).toBe(true);
+    expect(reach.has("shireen-bro")).toBe(false);
+    // And not Raiya's mother's family either: Rehan isn't related through it.
+    expect(reach.has("noorali")).toBe(false);
+  });
+
+  it("tends only the married-in corner for a Branch who married in", () => {
+    // Shireen is on Raiya's side as Arzu's wife. Her own family is not.
+    const edges = [...family, parent("shireen-dad", "shireen")];
+    const reach = branchReach("shireen", roots, edges);
+    expect(reach).toEqual(new Set(["shireen", "arzu", "rehan"]));
   });
 
   it("tends nothing when related to no Root", () => {
@@ -212,9 +238,10 @@ describe("canEditEntry", () => {
     expect(canEditEntry(entry(), member)).toBe(false);
   });
 
-  it("reaches the Root's whole side, past the Branch's own blood", () => {
-    expect(canEditEntry(entry({ id: "noorali" }), branchAdmin)).toBe(true);
-    expect(canEditEntry(entry({ id: "noorali" }), member)).toBe(false);
+  it("reaches the part of the Root's side they're related through", () => {
+    expect(canEditEntry(entry({ id: "safia" }), branchAdmin)).toBe(true);
+    // Raiya's mother's father: Raiya's side, not Arzu's part of it.
+    expect(canEditEntry(entry({ id: "noorali" }), branchAdmin)).toBe(false);
   });
 
   it("keeps a branch admin off the other Root's side", () => {
@@ -319,9 +346,9 @@ describe("canInviteToClaim", () => {
   it("refuses an entry somebody is already behind", () => {
     for (const viewer of [admin, branchAdmin]) {
       expect(canInviteToClaim(entry({ isClaimed: true }), viewer)).toBe(false);
-      expect(
-        canInviteToClaim(entry({ isSomeoneElsesOwn: true }), viewer),
-      ).toBe(false);
+      expect(canInviteToClaim(entry({ isSomeoneElsesOwn: true }), viewer)).toBe(
+        false,
+      );
       // Handed over without a claim row: the owner moved off the creator.
       expect(
         canInviteToClaim(entry({ owner_user_id: "someone-else" }), viewer),
@@ -336,7 +363,10 @@ describe("canInviteToClaim", () => {
 
   it("refuses the viewer's own entry", () => {
     expect(
-      canInviteToClaim(entry({ id: "arzu" }), { ...admin, selfPersonId: "arzu" }),
+      canInviteToClaim(entry({ id: "arzu" }), {
+        ...admin,
+        selfPersonId: "arzu",
+      }),
     ).toBe(false);
     expect(canInviteToClaim(entry({ id: "arzu" }), branchAdmin)).toBe(false);
   });
@@ -362,9 +392,13 @@ describe("canEditConnection", () => {
     );
   });
 
-  it("covers lines anywhere on the Root's side", () => {
-    // Safia and her father are both Raiya's side, though neither is Arzu's blood.
-    expect(canEditConnection(line("noorali", "safia"), branchAdmin)).toBe(true);
+  it("covers lines on their part of the Root's side, and no further", () => {
+    // Safia married Arzu's brother: on Arzu's part, though not Arzu's blood.
+    expect(canEditConnection(line("ashif", "safia"), branchAdmin)).toBe(true);
+    // Her father is Raiya's side but not Arzu's part of it.
+    expect(canEditConnection(line("noorali", "safia"), branchAdmin)).toBe(
+      false,
+    );
   });
 
   it("keeps the creator's own rights", () => {
@@ -437,11 +471,12 @@ describe("canSeeDocuments", () => {
     expect(canSeeDocuments(entry(), leaf)).toBe(false);
   });
 
-  it("shows a Branch their Root's side, including members' own entries", () => {
+  it("shows a Branch their part of the Root's side, including members' own entries", () => {
     const raiya = entry({ id: "raiya", isSomeoneElsesOwn: true });
     expect(canEditEntry(raiya, branchAdmin)).toBe(false);
     expect(canSeeDocuments(raiya, branchAdmin)).toBe(true);
-    expect(canSeeDocuments(entry({ id: "noorali" }), branchAdmin)).toBe(true);
+    expect(canSeeDocuments(entry({ id: "safia" }), branchAdmin)).toBe(true);
+    expect(canSeeDocuments(entry({ id: "noorali" }), branchAdmin)).toBe(false);
     expect(canSeeDocuments(entry({ id: "minaz" }), branchAdmin)).toBe(false);
   });
 
