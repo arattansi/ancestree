@@ -194,13 +194,13 @@ export function TreeSearch({ people, filter, onFilterChange, onPick }: Props) {
                       onClick={() => onPick(p.id)}
                       className="w-full rounded-md px-2 py-1.5 text-left hover:bg-accent"
                     >
-                      <span className="block truncate text-sm font-medium">
+                      <FitText max={14} min={11} className="font-medium">
                         {personDisplayName(p)}
-                      </span>
-                      <span className="block truncate text-xs text-muted-foreground">
+                      </FitText>
+                      <FitText className="text-muted-foreground">
                         {[lifespan, place].filter(Boolean).join(" · ") ||
                           "No other details"}
-                      </span>
+                      </FitText>
                     </button>
                   </li>
                 );
