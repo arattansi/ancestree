@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { FitText } from "@/components/ui/fit-text";
 import { personDisplayName, personLifespan } from "@/lib/person-name";
 import {
   countryOptions,
@@ -114,8 +115,10 @@ export function TreeSearch({ people, filter, onFilterChange, onPick }: Props) {
                 }
               >
                 <SelectTrigger className="w-full" size="sm">
-                  <SelectValue>
-                    {(v: string) => (v === ANY ? "Place of Birth" : v)}
+                  <SelectValue className="min-w-0">
+                    {(v: string) => (
+                      <FitText>{v === ANY ? "Place of Birth" : v}</FitText>
+                    )}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -135,8 +138,10 @@ export function TreeSearch({ people, filter, onFilterChange, onPick }: Props) {
                 }
               >
                 <SelectTrigger className="w-full" size="sm">
-                  <SelectValue>
-                    {(v: string) => (v === ANY ? "Year of Birth" : `${v}s`)}
+                  <SelectValue className="min-w-0">
+                    {(v: string) => (
+                      <FitText>{v === ANY ? "Year of Birth" : `${v}s`}</FitText>
+                    )}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
