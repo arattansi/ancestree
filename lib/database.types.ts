@@ -1138,7 +1138,6 @@ export type Database = {
       profiles: {
         Row: {
           auth_user_id: string
-          can_invite: boolean
           created_at: string
           display_name: string | null
           invited_by_user_id: string | null
@@ -1148,7 +1147,6 @@ export type Database = {
         }
         Insert: {
           auth_user_id: string
-          can_invite?: boolean
           created_at?: string
           display_name?: string | null
           invited_by_user_id?: string | null
@@ -1158,7 +1156,6 @@ export type Database = {
         }
         Update: {
           auth_user_id?: string
-          can_invite?: boolean
           created_at?: string
           display_name?: string | null
           invited_by_user_id?: string | null
@@ -1437,7 +1434,6 @@ export type Database = {
       member_directory: {
         Row: {
           auth_user_id: string | null
-          can_invite: boolean | null
           created_at: string | null
           display_name: string | null
           invited_by_name: string | null
@@ -1542,7 +1538,6 @@ export type Database = {
         Args: { p_display_name?: string }
         Returns: {
           auth_user_id: string
-          can_invite: boolean
           created_at: string
           display_name: string | null
           invited_by_user_id: string | null
@@ -1614,7 +1609,6 @@ export type Database = {
         Args: { p_display_name?: string; p_token: string }
         Returns: {
           auth_user_id: string
-          can_invite: boolean
           created_at: string
           display_name: string | null
           invited_by_user_id: string | null

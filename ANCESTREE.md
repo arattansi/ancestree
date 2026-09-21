@@ -141,7 +141,7 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | Table | Purpose |
 |---|---|
 | `trees` | Multi-tree-ready container (v1 uses one shared tree) |
-| `profiles` | `auth.users` row: `role` (`admin` \| `branch_admin` \| `member` \| `leaf` — shown as Root / Branch / Canopy / Leaf, see **Account types**), `can_invite`, `self_person_id` |
+| `profiles` | `auth.users` row: `role` (`admin` \| `branch_admin` \| `member` \| `leaf` — shown as Root / Branch / Canopy / Leaf, see **Account types**), `self_person_id` |
 | `people` | Demographic nodes; `owner_user_id` starts as `created_by` and moves on claim. `date_of_birth_precision` / `date_of_death_precision` (`day` \| `month` \| `year`, Step 17) say how much of each date is known — a partial date is stored on the first day of its period, CHECK-enforced, so year-only readers need no change. `place_id_birth` / `place_id_death` → `places(id)` (Step 4.5b; nullable, backfilled — legacy `city_of_birth` / `country_of_birth` / `place_of_death` text kept until reconciled) |
 | `relationships` | Directed `parent` edges; undirected `spouse` pairs (optional `marriage_date` / `is_divorced` / `divorce_date`, spouse-only by CHECK); siblings inferred |
 | `connection_suggestions` | Implied-connection prompts surfaced by the add-person flow (`suggested_type` spouse/parent/sibling_check, `source`, `status` pending/accepted/dismissed); UNIQUE (subject, related, type, source) = no re-prompt |
@@ -224,7 +224,7 @@ The keys kept their old values on purpose: renaming them would rewrite every
 anyone else between Branch, Canopy and Leaf on `/admin` (`AccountTypePicker` →
 `setAccountType`); making or unmaking a Root isn't on offer there. Who may
 invite follows from the type alone — the per-member `can_invite` grant was
-retired in Step 22.1 — and an invite link can make someone Canopy or Leaf (see
+retired, and the column dropped, in Step 22.1 — and an invite link can make someone Canopy or Leaf (see
 **Invite as a Leaf** under Auth & invites).
 
 A Leaf is held to their entry in the database, not just the UI:
@@ -368,9 +368,9 @@ Helpers live in the unexposed `private` schema (`is_admin`, `is_branch_admin`,
 - **Admin bootstrap**: `private.admin_allowlist(email)` — seeded with both
   co-admins (Aalim Rattansi, Raiya Suleman). First login by an
   allowlisted email runs `ensure_profile`, which creates the single shared
-  `trees` row and an `admin` / `can_invite` profile. Non-allowlisted users
+  `trees` row and an `admin` profile. Non-allowlisted users
   without an invite get `needs_invite`.
-- **`profiles_protect_role`** trigger still pins role/`can_invite` for
+- **`profiles_protect_role`** trigger still pins the role for
   non-admins; the SECURITY DEFINER helpers set a `LOCAL`
   `ancestree.privileged_profile_write` GUC to bypass it during bootstrap only.
 - **`public.member_directory`** view (`security_invoker`) = profiles + resolved
@@ -458,7 +458,8 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 ## Changelog
 
 - **Step 22.1 — Branches and Canopy invite someone to claim an entry**
-  (migration `20260921130000_claim_invites_by_reach`): inviting someone to
+  (migrations `20260921130000_claim_invites_by_reach`,
+  `20260921140000_drop_can_invite`): inviting someone to
   claim a particular entry was a Root's alone. It now follows edit reach — a
   Branch on the side they tend, Canopy on the entries they added — for entries
   nobody is behind yet, and never for someone who has died. From anyone but a
@@ -467,7 +468,8 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   grant is retired: every Branch and Canopy member invites Leaves from
   `/account`, a Root invites either, a Leaf never invites, and `/admin`'s
   "Can invite" toggle is now a read-only "Invites as" column. Only the two
-  Roots held the grant, so nobody lost anything. First of the Step 22
+  Roots held the grant, so nobody lost anything; `profiles.can_invite` was
+  dropped once the app that no longer read it was live. First of the Step 22
   permissions work.
 
 - **Step 21.3 — The trunk meets the bar in the middle**: parents often sit
