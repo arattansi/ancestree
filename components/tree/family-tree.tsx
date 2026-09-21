@@ -720,8 +720,24 @@ function Canvas({
   const spotlight = React.useMemo(() => {
     if (!selectedId) return null;
     const roles = personSpotlight(selectedId, relationships);
-    const { ancestors, descendants, looseSiblings, line } = roles;
+    const { ancestors, descendants, looseSiblings, line, siblingSpouses } =
+      roles;
     const lit = spotlightPeople(roles);
+    // Whose partner each pill is (Step 19.4), for its "Spouse of …".
+    const firstNameById = new Map(
+      people.map((p) => [p.id, p.preferred_name || p.first_name || ""]),
+    );
+    const spouseOf = new Map<string, string>();
+    for (const r of relationships) {
+      if (r.type !== "spouse") continue;
+      for (const [pill, sibling] of [
+        [r.from_person, r.to_person],
+        [r.to_person, r.from_person],
+      ]) {
+        if (siblingSpouses.has(pill) && roles.siblings.has(sibling))
+          spouseOf.set(pill, firstNameById.get(sibling) || "a sibling");
+      }
+    }
     const edgeIds = new Set<string>();
     for (const e of graph.edges) {
       if (e.type === "descent") {
@@ -747,12 +763,14 @@ function Canvas({
     return {
       people: lit,
       line,
+      siblingSpouses,
+      spouseOf,
       edgeIds,
       ancestors,
       descendants,
       looseSiblings,
     };
-  }, [selectedId, relationships, graph.edges]);
+  }, [selectedId, relationships, graph.edges, people]);
 
   // A card that turns into a leaf is a different piece of DOM with its handles
   // in new elements, and the canvas has no way of knowing that on its own: it
@@ -790,6 +808,9 @@ function Canvas({
 
     const compact = layoutTree(litPeople, relationships, {
       anchorIds: [selectedId],
+      // Siblings' partners packed as pills (Step 19.4); the overview layout
+      // never passes this, so its positions are untouched.
+      compactIds: spotlight.siblingSpouses,
     });
     const anchor = compact.autoPositions.get(selectedId);
     const home = graph.layout.positions.get(selectedId);
@@ -965,6 +986,8 @@ function Canvas({
         : isPet
           ? !!pet?.companions.some((id) => spotlight?.line.has(id))
           : lit.has(n.id);
+      const compressed =
+        !isPet && (spotlight?.siblingSpouses.has(n.id) ?? false);
       map.set(n.id, {
         ...n.data,
         selected,
@@ -972,6 +995,9 @@ function Canvas({
         highlighted,
         lineage: !!lit && inLine,
         blurred: !!lit && !inLine,
+        ...(compressed
+          ? { compressed, spouseOf: spotlight?.spouseOf.get(n.id) }
+          : {}),
       });
     }
     return map;
@@ -1025,8 +1051,20 @@ function Canvas({
       ) as string[];
       const litParents =
         stemmed && active ? parents.filter((pid) => leaves.has(pid)) : parents;
+      // The pulled layout can seat a partner on the other side (a pill goes
+      // on the far side of its sibling, Step 19.4), so a spouse line runs
+      // from whoever is on the left now, or it would cross both cards.
+      const [from, to] = [pulled?.get(e.source), pulled?.get(e.target)];
+      const flip = e.type === "spouse" && !!from && !!to && from.x > to.x;
       return {
         ...e,
+        ...(flip
+          ? {
+              source: e.target,
+              target: e.source,
+              data: { ...e.data, pair: [e.target, e.source] },
+            }
+          : {}),
         ...(stemmed
           ? {
               targetHandle: "l",

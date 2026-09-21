@@ -51,6 +51,13 @@ export const COUPLE_GAP = 24;
 export const ROW_GAP = 132;
 /** Row pitch: one generation to the next, top-left to top-left. */
 export const ROW_H = NODE_H + ROW_GAP;
+/**
+ * A compact "pill" card (Step 19.4): a sibling's partner in a spotlight, named
+ * and nothing more. A third of a card's height and a little over half its
+ * width, centred on the row so the spouse line to it stays level.
+ */
+export const PILL_W = 120;
+export const PILL_H = 36;
 
 export type LayoutPerson = {
   id: string;
@@ -118,6 +125,12 @@ export type TreeLayout = {
 export type LayoutOptions = {
   /** People the tree is centred on — the founding admins' own entries. */
   anchorIds?: string[];
+  /**
+   * People drawn as pills rather than cards (Step 19.4): `PILL_W` × `PILL_H`,
+   * packed at that size, and placed on the side of their partner away from
+   * the anchors. Empty or absent, the layout is exactly the full-card one.
+   */
+  compactIds?: ReadonlySet<string>;
 };
 
 const FAR_FUTURE = "9999-12-31";
@@ -149,6 +162,7 @@ const push = <K, V>(map: Map<K, V[]>, key: K, value: V) => {
 
 /** An atom is what the layout moves around: a couple, or a lone person. */
 type Atom = {
+  /** Left to right. */
   members: string[];
   generation: number;
   /** Sum of the members' relationship counts. */
@@ -160,6 +174,19 @@ type Atom = {
 };
 
 const atomWidth = (n: number) => n * NODE_W + (n - 1) * COUPLE_GAP;
+
+/** A person's card size: a pill if they are compact, otherwise a full card. */
+type SizeOf = (id: string) => { w: number; h: number };
+const FULL_CARD = { w: NODE_W, h: NODE_H };
+const PILL = { w: PILL_W, h: PILL_H };
+
+/** Where member `index` starts, measured from the atom's left edge. */
+function memberOffset(atom: Atom, index: number, sizeOf: SizeOf): number {
+  let offset = 0;
+  for (let i = 0; i < index; i++)
+    offset += sizeOf(atom.members[i]).w + COUPLE_GAP;
+  return offset;
+}
 
 /**
  * Lay the tree out. Returns positions plus the structure the canvas needs to
@@ -216,6 +243,8 @@ export function layoutTree(
   for (const p of people) push(coupleMembers, uf.find(p.id), p.id);
 
   const anchors = (options.anchorIds ?? []).filter((id) => ids.has(id));
+  const compact = options.compactIds;
+  const sizeOf: SizeOf = (id) => (compact?.has(id) ? PILL : FULL_CARD);
   const generations = assignGenerations(people, anchors, {
     childrenOf,
     parentsOf,
@@ -226,8 +255,9 @@ export function layoutTree(
     generations,
     degree,
     byAge,
+    sizeOf,
   });
-  placeAtoms(atoms, anchors, { parentsOf, childrenOf, byAge });
+  placeAtoms(atoms, anchors, { parentsOf, childrenOf, byAge, sizeOf });
   const rows = rowsOf(atoms);
   settle(rows, { parentsOf, childrenOf });
   // Belt and braces: `settle` already ends every row on `separateRow`, so this
@@ -244,16 +274,32 @@ export function layoutTree(
       : 0;
   for (const atom of atoms) atom.x -= centring;
 
+  // Pills go on the far side of their partner from the anchors (Step 19.4),
+  // so a married-in partner never stands between the person and a sibling.
+  // Only the order inside the atom changes, never its width or centre, so
+  // nothing that packing has already cleared can come to overlap.
+  if (compact && compact.size > 0) {
+    for (const atom of atoms) {
+      const pills = atom.members.filter((m) => compact.has(m));
+      if (pills.length === 0 || pills.length === atom.members.length) continue;
+      const rest = atom.members.filter((m) => !compact.has(m));
+      atom.members = atom.x < 0 ? [...pills, ...rest] : [...rest, ...pills];
+    }
+  }
+
   const base = new Map<string, XY>();
   for (const atom of atoms) {
     let x = atom.x - atom.width / 2;
     for (const member of atom.members) {
-      base.set(member, { x, y: atom.generation * ROW_H });
-      x += NODE_W + COUPLE_GAP;
+      const { w, h } = sizeOf(member);
+      const y = atom.generation * ROW_H;
+      // A pill sits on the row's centre line, where the spouse line runs.
+      base.set(member, { x, y: h === NODE_H ? y : y + (NODE_H - h) / 2 });
+      x += w + COUPLE_GAP;
     }
   }
 
-  const unions = buildUnions(base, parentsOf, byAge);
+  const unions = buildUnions(base, parentsOf, byAge, sizeOf);
   const positions = applyManualPositions(people, base);
   const extent = measure(base);
   const bands = buildBands(people, generations, dob);
@@ -327,9 +373,10 @@ function buildAtoms(
     generations: Map<string, number>;
     degree: Map<string, number>;
     byAge: (a: string, b: string) => number;
+    sizeOf: SizeOf;
   },
 ): Atom[] {
-  const { generations, degree, byAge } = ctx;
+  const { generations, degree, byAge, sizeOf } = ctx;
   const claimed = new Set<string>();
   const atoms: Atom[] = [];
 
@@ -349,7 +396,11 @@ function buildAtoms(
       members: group,
       generation: g,
       degree: group.reduce((sum, m) => sum + (degree.get(m) ?? 0), 0),
-      width: atomWidth(group.length),
+      // Full cards only: the plain sum, exactly as before pills existed.
+      width: group.every((m) => sizeOf(m) === FULL_CARD)
+        ? atomWidth(group.length)
+        : group.reduce((sum, m) => sum + sizeOf(m).w, 0) +
+          (group.length - 1) * COUPLE_GAP,
       x: 0,
     });
   }
@@ -428,9 +479,12 @@ function mergeBlock(base: Block, other: Block, at: number, direction: -1 | 1) {
 }
 
 /** Canvas x of the centre of one member's card within its atom. */
-function memberCentre(atom: Atom, index: number) {
+function memberCentre(atom: Atom, index: number, sizeOf: SizeOf) {
   return (
-    atom.x - atom.width / 2 + index * (NODE_W + COUPLE_GAP) + NODE_W / 2
+    atom.x -
+    atom.width / 2 +
+    memberOffset(atom, index, sizeOf) +
+    sizeOf(atom.members[index]).w / 2
   );
 }
 
@@ -458,9 +512,10 @@ function placeAtoms(
     parentsOf: Map<string, string[]>;
     childrenOf: Map<string, string[]>;
     byAge: (a: string, b: string) => number;
+    sizeOf: SizeOf;
   },
 ): Block {
-  const { parentsOf, childrenOf, byAge } = ctx;
+  const { parentsOf, childrenOf, byAge, sizeOf } = ctx;
 
   const atomOf = new Map<string, Atom>();
   for (const atom of atoms) for (const m of atom.members) atomOf.set(m, atom);
@@ -583,7 +638,12 @@ function placeAtoms(
     if (!parents || placed.has(parents)) return;
 
     placed.add(parents);
-    mergeBlock(world, atomBlock(parents), memberCentre(atom, index), outward);
+    mergeBlock(
+      world,
+      atomBlock(parents),
+      memberCentre(atom, index, sizeOf),
+      outward,
+    );
     queueAscents(parents, outward);
 
     const siblings = childAtoms(parents).filter((s) => !placed.has(s.atom));
@@ -757,6 +817,7 @@ function buildUnions(
   base: Map<string, XY>,
   parentsOf: Map<string, string[]>,
   byAge: (a: string, b: string) => number,
+  sizeOf: SizeOf,
 ): UnionPoint[] {
   const childrenByParentSet = new Map<string, { parents: string[]; children: string[] }>();
   for (const [child, parents] of parentsOf) {
@@ -771,10 +832,10 @@ function buildUnions(
 
   const unions: UnionPoint[] = [];
   for (const [key, { parents, children }] of childrenByParentSet) {
-    const rects = parents
-      .map((p) => base.get(p))
-      .filter((p): p is XY => p !== undefined)
-      .map((p) => ({ x: p.x, y: p.y, w: NODE_W, h: NODE_H }));
+    const rects = parents.flatMap((p) => {
+      const at = base.get(p);
+      return at ? [{ x: at.x, y: at.y, ...sizeOf(p) }] : [];
+    });
     const childTop = Math.min(
       ...children
         .map((c) => base.get(c)?.y)

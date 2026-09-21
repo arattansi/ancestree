@@ -5,6 +5,7 @@ import { Handle, Position, type NodeProps } from "@xyflow/react";
 
 import { AccountTypeMark } from "@/components/account-type-badge";
 import { LeafCard } from "@/components/tree/leaf-card";
+import { PillCard } from "@/components/tree/pill-card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { FitText } from "@/components/ui/fit-text";
 import { cropStyle, parseCrop } from "@/lib/image-crop";
@@ -30,6 +31,11 @@ export type PersonNodeData = {
   lineage?: boolean;
   /** Off that tree — shown blurred back behind it. */
   blurred?: boolean;
+  /** A sibling's partner on that tree — drawn as a name-only pill (Step
+   *  19.4). Always alongside `lineage`. */
+  compressed?: boolean;
+  /** The sibling's first name, for the pill's "Spouse of …". */
+  spouseOf?: string;
 };
 
 // The handles are anchors for the branch lines, never something the reader
@@ -39,8 +45,17 @@ export type PersonNodeData = {
 const handleClass = "!size-1 !border-0 !bg-transparent";
 
 function PersonNodeImpl({ data }: NodeProps) {
-  const { person, isSelf, selected, dimmed, highlighted, lineage, blurred } =
-    data as PersonNodeData;
+  const {
+    person,
+    isSelf,
+    selected,
+    dimmed,
+    highlighted,
+    lineage,
+    blurred,
+    compressed,
+    spouseOf,
+  } = data as PersonNodeData;
   // The full name for the hover preview and the tooltip; the condensed one for
   // the card itself, where a surname would otherwise be cut off mid-word.
   const name = personDisplayName(person);
@@ -51,6 +66,35 @@ function PersonNodeImpl({ data }: NodeProps) {
   // the place of birth.
   const lifespan = personLifespan(person);
   const birthplace = person.city_of_birth || person.country_of_birth || null;
+
+  // Married in beside a sibling, they are named and no more (Step 19.4). The
+  // spouse line reaches them at either side; top and bottom only anchor the
+  // faded lines to their own family, left behind in the tree.
+  if (lineage && compressed) {
+    return (
+      <div className="relative">
+        <Handle type="target" position={Position.Top} className={handleClass} />
+        <Handle
+          type="source"
+          position={Position.Bottom}
+          className={handleClass}
+        />
+        <Handle
+          type="target"
+          position={Position.Left}
+          id="l"
+          className={handleClass}
+        />
+        <Handle
+          type="source"
+          position={Position.Right}
+          id="r"
+          className={handleClass}
+        />
+        <PillCard person={person} spouseOf={spouseOf ?? "a sibling"} />
+      </div>
+    );
+  }
 
   // Pulled out of the wider tree, a card stops being a card: it becomes a leaf
   // off the branch it hangs on, shaped by where this person was born.

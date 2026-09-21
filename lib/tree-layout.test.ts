@@ -13,6 +13,8 @@ import {
   stemBranchPath,
   siblingBracketPoints,
   BRACKET_RISE,
+  PILL_H,
+  PILL_W,
   STEM_LANE,
   generationLabel,
   layoutTree,
@@ -1056,6 +1058,205 @@ describe("spotlight layout with siblings (Step 19.3)", () => {
     const at = pulled();
     expect(at.has("niece")).toBe(false);
     expect(at.has("uncle")).toBe(false);
+  });
+});
+
+describe("pills leave the overview alone (Step 19.4)", () => {
+  // Every family shape the layout handles, in one tree: two bloodlines, an
+  // in-law's family, a great-aunt's branch, a married child and a
+  // half-sibling from a second marriage.
+  const people = [
+    person("gpaA", "1930-01-01"), person("gmaA", "1934-01-01"),
+    person("gpaB", "1925-01-01"), person("gmaB", "1929-01-01"),
+    person("adminA", "1962-01-01"), person("adminB", "1963-01-01"),
+    person("kid", "1990-01-01"), person("ggpaA", "1900-01-01"),
+    person("gAuntA", "1932-01-01"), person("gAuntAsp", "1931-01-01"),
+    person("cousin1", "1960-01-01"), person("cousin2", "1964-01-01"),
+    person("auntA", "1965-01-01"), person("auntAsp", "1966-01-01"),
+    person("kid2", "1993-01-01"), person("kid2sp", "1992-01-01"),
+    person("ex", "1961-01-01"), person("halfsib", "1970-01-01"),
+  ];
+  const relationships = [
+    spouse("gpaA", "gmaA"), spouse("gpaB", "gmaB"), spouse("adminA", "adminB"),
+    parent("gpaA", "adminA"), parent("gmaA", "adminA"),
+    parent("gpaB", "adminB"), parent("gmaB", "adminB"),
+    parent("adminA", "kid"), parent("adminB", "kid"),
+    parent("adminA", "kid2"), parent("adminB", "kid2"), spouse("kid2", "kid2sp"),
+    parent("ggpaA", "gpaA"), parent("ggpaA", "gAuntA"), spouse("gAuntA", "gAuntAsp"),
+    parent("gAuntA", "cousin1"), parent("gAuntAsp", "cousin1"),
+    parent("gAuntA", "cousin2"), parent("gAuntAsp", "cousin2"),
+    parent("gpaA", "auntA"), parent("gmaA", "auntA"), spouse("auntA", "auntAsp"),
+    spouse("gpaB", "ex"), parent("gpaB", "halfsib"), parent("ex", "halfsib"),
+  ];
+
+  // Recorded from the layout before pills existed. Exact, not approximate:
+  // the overview must not move by a pixel's fraction.
+  const BEFORE_PILLS: [string, { x: number; y: number }][] = [
+    ["gpaA", { x: -734.1986352726817, y: -244 }],
+    ["gmaA", { x: -502.1986352726817, y: -244 }],
+    ["gpaB", { x: -215.72073144465685, y: -244 }],
+    ["gmaB", { x: 16.27926855534315, y: -244 }],
+    ["ex", { x: 248.27926855534315, y: -244 }],
+    ["adminA", { x: -220, y: 0 }],
+    ["adminB", { x: 12, y: 0 }],
+    ["kid", { x: -228.22417202964425, y: 244 }],
+    ["ggpaA", { x: -1002.2574115172029, y: -488 }],
+    ["gAuntAsp", { x: -1222.1986352726817, y: -244 }],
+    ["gAuntA", { x: -990.1986352726817, y: -244 }],
+    ["cousin1", { x: -1220, y: 0 }],
+    ["cousin2", { x: -964, y: 0 }],
+    ["auntA", { x: -708, y: 0 }],
+    ["auntAsp", { x: -476, y: 0 }],
+    ["kid2sp", { x: 27.77582797035575, y: 244 }],
+    ["kid2", { x: 259.77582797035575, y: 244 }],
+    ["halfsib", { x: 268, y: 0 }],
+  ];
+  const UNIONS_BEFORE_PILLS: [string, number, number, number][] = [
+    ["u:gmaA+gpaA", -514.1986352726817, -188, -66],
+    ["u:gmaB+gpaB", 4.279268555343151, -188, -66],
+    ["u:adminA+adminB", 0, 56, 178],
+    ["u:ggpaA", -898.2574115172029, -376, -310],
+    ["u:gAuntA+gAuntAsp", -1002.1986352726817, -188, -66],
+    ["u:ex+gpaB", 120.27926855534315, -188, -66],
+  ];
+
+  for (const [label, options] of [
+    ["no options", {}],
+    ["an empty compact set", { compactIds: new Set<string>() }],
+  ] as const) {
+    it(`lays out every card exactly as before, with ${label}`, () => {
+      const out = layoutTree(people, relationships, {
+        anchorIds: ["adminA", "adminB"],
+        ...options,
+      });
+      expect([...out.autoPositions]).toEqual(BEFORE_PILLS);
+      expect(
+        out.unions.map((u) => [u.id, u.startX, u.startY, u.busY]),
+      ).toEqual(UNIONS_BEFORE_PILLS);
+    });
+  }
+});
+
+describe("sibling's partners as pills (Step 19.4)", () => {
+  //          (dad — mum)
+  //               |
+  //  elder — inlawA / inlawB    me — partner    younger — inlawC
+  const people = [
+    person("dad", "1950-01-01"),
+    person("mum", "1952-01-01"),
+    person("elder", "1978-01-01"),
+    person("inlawA", "1976-01-01"),
+    person("inlawB", "1979-01-01"),
+    person("me", "1982-01-01"),
+    person("partner", "1983-01-01"),
+    person("younger", "1986-01-01"),
+    person("inlawC", "1985-01-01"),
+  ];
+  const relationships: LayoutRelationship[] = [
+    spouse("dad", "mum"),
+    ...["elder", "me", "younger"].flatMap((c) => [
+      parent("dad", c),
+      parent("mum", c),
+    ]),
+    spouse("elder", "inlawA"),
+    spouse("elder", "inlawB"),
+    spouse("me", "partner"),
+    spouse("younger", "inlawC"),
+  ];
+  const lay = () => {
+    const spotlight = personSpotlight("me", relationships);
+    return layoutTree(people, relationships, {
+      anchorIds: ["me"],
+      compactIds: spotlight.siblingSpouses,
+    }).autoPositions;
+  };
+  const size = (id: string) =>
+    ["inlawA", "inlawB", "inlawC"].includes(id)
+      ? { w: PILL_W, h: PILL_H }
+      : { w: NODE_W, h: NODE_H };
+
+  it("compresses only the siblings' partners, never the line's", () => {
+    const spotlight = personSpotlight("me", relationships);
+    expect([...spotlight.siblingSpouses].sort()).toEqual([
+      "inlawA",
+      "inlawB",
+      "inlawC",
+    ]);
+    expect(spotlight.siblingSpouses.has("partner")).toBe(false);
+  });
+
+  it("overlaps nothing, pill or card", () => {
+    const at = lay();
+    const boxes = [...at].map(([id, p]) => ({ id, ...p, ...size(id) }));
+    for (const a of boxes)
+      for (const b of boxes) {
+        if (a.id >= b.id) continue;
+        const clear =
+          a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y;
+        expect(clear, `${a.id} / ${b.id}`).toBe(true);
+      }
+  });
+
+  it("sits each pill right beside its partner, on the row's centre line", () => {
+    const at = lay();
+    const centre = (id: string) => at.get(id)!.y + size(id).h / 2;
+    // inlawC beside younger; inlawA and inlawB beside elder, one after another.
+    expect(at.get("inlawC")!.x).toBe(at.get("younger")!.x + NODE_W + COUPLE_GAP);
+    for (const id of ["inlawA", "inlawB", "inlawC"])
+      expect(centre(id)).toBe(centre("me"));
+  });
+
+  it("puts pills on the side away from the focused person", () => {
+    const at = lay();
+    // elder is left of me, so their pills are further left; younger's right.
+    expect(at.get("inlawA")!.x).toBeLessThan(at.get("elder")!.x);
+    expect(at.get("inlawB")!.x).toBeLessThan(at.get("elder")!.x);
+    expect(at.get("inlawC")!.x).toBeGreaterThan(at.get("younger")!.x);
+    // So no pill stands between me and a sibling.
+    const between = (id: string, a: string, b: string) => {
+      const [lo, hi] = [at.get(a)!.x, at.get(b)!.x].sort((l, r) => l - r);
+      return at.get(id)!.x > lo && at.get(id)!.x < hi;
+    };
+    for (const pill of ["inlawA", "inlawB", "inlawC"])
+      for (const sibling of ["elder", "younger"])
+        expect(between(pill, "me", sibling), pill).toBe(false);
+  });
+
+  it("keeps several partners' pills together beside the sibling", () => {
+    const at = lay();
+    const xs = ["inlawA", "inlawB"].map((id) => at.get(id)!.x).sort((l, r) => l - r);
+    expect(xs[1] - xs[0]).toBe(PILL_W + COUPLE_GAP);
+    expect(at.get("elder")!.x - xs[1]).toBe(PILL_W + COUPLE_GAP);
+  });
+
+  it("packs a narrower row than full cards would", () => {
+    const spotlight = personSpotlight("me", relationships);
+    const width = (positions: Map<string, { x: number }>, pill: boolean) => {
+      const xs = [...positions].map(([id, p]) => [p.x, p.x + (pill ? size(id).w : NODE_W)]);
+      return Math.max(...xs.map((x) => x[1])) - Math.min(...xs.map((x) => x[0]));
+    };
+    const full = layoutTree(people, relationships, { anchorIds: ["me"] });
+    const compact = layoutTree(people, relationships, {
+      anchorIds: ["me"],
+      compactIds: spotlight.siblingSpouses,
+    });
+    expect(width(compact.autoPositions, true)).toBeLessThan(
+      width(full.autoPositions, false),
+    );
+  });
+
+  it("never compresses a spouse who is also on the line", () => {
+    // younger's partner was once married to dad too — a partner on my line,
+    // who keeps their full leaf.
+    const rels = [...relationships, spouse("dad", "inlawC")];
+    const spotlight = personSpotlight("me", rels);
+    expect(spotlight.line.has("inlawC")).toBe(true);
+    expect(spotlight.siblingSpouses.has("inlawC")).toBe(false);
+    const at = layoutTree(people, rels, {
+      anchorIds: ["me"],
+      compactIds: spotlight.siblingSpouses,
+    }).autoPositions;
+    expect(at.get("inlawC")!.y).toBe(at.get("dad")!.y);
   });
 });
 
