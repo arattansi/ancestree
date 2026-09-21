@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 export function AdminInviteHistory({ items }: { items: InviteHistoryItem[] }) {
   if (items.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">No invites sent yet.</p>
+      <p className="text-sm text-muted-foreground">No invites waiting on anyone.</p>
     );
   }
 
@@ -70,14 +70,11 @@ function isExpired(item: InviteHistoryItem) {
 
 /**
  * Deleting always removes the invite alongside the record, so say what that
- * costs: a link nobody has used yet dies with it, while one already accepted
- * only loses its paper trail — the member stays a member.
+ * costs: a link nobody has used yet dies with it. (A joined invite is never
+ * here — joining deletes it.)
  */
 function confirmTextFor(item: InviteHistoryItem) {
   const who = `${item.firstName} ${item.lastName}`;
-  if (item.inviteStatus === "accepted") {
-    return `Delete the record of ${who}'s invite? They've already joined and will stay a member — you just lose the history of how. This cannot be undone.`;
-  }
   if (item.inviteStatus === "active") {
     return `Delete ${who}'s invite? The link emailed to ${item.email} stops working immediately. This cannot be undone.`;
   }
@@ -94,8 +91,6 @@ function StatusBadge({ item }: { item: InviteHistoryItem }) {
   }
 
   switch (item.inviteStatus) {
-    case "accepted":
-      return <Badge>Joined</Badge>;
     case "revoked":
       return <Badge variant="secondary">Revoked</Badge>;
     case "active": {

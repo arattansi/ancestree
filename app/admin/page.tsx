@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { AccountTypeBadge } from "@/components/account-type-badge";
 import { AccountTypeGuide } from "@/components/account-type-guide";
 import { AccountTypePicker } from "@/components/account-type-picker";
+import { AdminArchivedInvites } from "@/components/admin-archived-invites";
 import { AdminBareInvites } from "@/components/admin-bare-invites";
 import { AdminCanvasInterest } from "@/components/admin-canvas-interest";
 import { AdminDisputedClaims } from "@/components/admin-disputed-claims";
@@ -42,7 +43,12 @@ import { buildAdminActionItems } from "@/lib/admin-notifications";
 import { listDisputedClaims } from "@/lib/claims";
 import { listCanvasInterest } from "@/lib/growth-rights.server";
 import { multiTreeEnabled } from "@/lib/flags";
-import { listBareInvites, listInviteHistory } from "@/lib/invites";
+import {
+  archiveExpiredInvites,
+  listArchivedInvites,
+  listBareInvites,
+  listInviteHistory,
+} from "@/lib/invites";
 import { listNicknameGroups } from "@/lib/nicknames.server";
 import { getSiteUrl } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/server";
@@ -124,8 +130,14 @@ export default async function AdminPage() {
   };
   const people = peopleRes.data ?? [];
   const disputedClaims = await listDisputedClaims();
-  const inviteHistory = await listInviteHistory();
-  const bareInvites = await listBareInvites();
+  // Before listing, so a link that lapsed since the last visit lands in
+  // "Archived invites" rather than lingering among the live ones.
+  await archiveExpiredInvites();
+  const [inviteHistory, bareInvites, archivedInvites] = await Promise.all([
+    listInviteHistory(),
+    listBareInvites(),
+    listArchivedInvites(),
+  ]);
   const canvasInterest = await listCanvasInterest(supabase);
   const nicknameGroups = await listNicknameGroups();
   const inviteRequests: PendingInviteRequest[] = (
@@ -206,6 +218,7 @@ export default async function AdminPage() {
         { id: "share", label: "Share a link" },
         { id: "sent-invites", label: "Sent invites" },
         { id: "bare-invites", label: "Bare links" },
+        { id: "archived-invites", label: "Archived" },
       ],
     },
     {
@@ -401,7 +414,13 @@ export default async function AdminPage() {
       <AdminGroup
         title="Invites"
         description="Bring relatives in, and share the tree read-only."
-        sectionIds={["invite", "share", "sent-invites", "bare-invites"]}
+        sectionIds={[
+          "invite",
+          "share",
+          "sent-invites",
+          "bare-invites",
+          "archived-invites",
+        ]}
       >
         <AdminSubsection
           id="invite"
@@ -431,7 +450,7 @@ export default async function AdminPage() {
           id="sent-invites"
           collapsible
           title="Sent invites"
-          description={`Every invite that has gone out, however it started — the last ${inviteHistory.length}. Deleting one also kills its link, so an invite nobody has used yet stops working.`}
+          description={`Invites still waiting on someone, however they started — the last ${inviteHistory.length}. An invite disappears once they join, and moves to Archived if it expires first. Deleting one also kills its link.`}
         >
           <AdminInviteHistory items={inviteHistory} />
         </AdminSubsection>
@@ -443,6 +462,15 @@ export default async function AdminPage() {
           description="Links minted without a name attached, so they never show up under “Sent invites”. Copy one to send it on, or delete it to stop it working — including wherever you’ve already sent it."
         >
           <AdminBareInvites invites={bareInvites} baseUrl={getSiteUrl()} />
+        </AdminSubsection>
+
+        <AdminSubsection
+          id="archived-invites"
+          collapsible
+          title="Archived invites"
+          description="Invites that expired before anyone used them. They can’t be used; they’re kept only as a record. To try again, send a fresh invite."
+        >
+          <AdminArchivedInvites invites={archivedInvites} />
         </AdminSubsection>
       </AdminGroup>
 

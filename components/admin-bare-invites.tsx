@@ -30,7 +30,7 @@ export function AdminBareInvites({
   if (invites.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        No bare links minted yet.
+        No unused bare links.
       </p>
     );
   }
@@ -111,9 +111,6 @@ export function AdminBareInvites({
 
 /** Nobody's name is attached to a bare link, so the stakes are all in its state. */
 function confirmTextFor(invite: BareInvite) {
-  if (invite.status === "accepted") {
-    return "Delete this link? Someone has already joined with it and will stay a member — you just lose the record of the link. This cannot be undone.";
-  }
   if (invite.status === "active" && !isExpired(invite)) {
     return "Delete this link? Anyone holding it — including anywhere you've already sent it — will no longer be able to join. This cannot be undone.";
   }
@@ -126,8 +123,6 @@ function isExpired(invite: BareInvite) {
 
 function StatusBadge({ invite }: { invite: BareInvite }) {
   switch (invite.status) {
-    case "accepted":
-      return <Badge>Used</Badge>;
     case "revoked":
       return <Badge variant="secondary">Revoked</Badge>;
     default:

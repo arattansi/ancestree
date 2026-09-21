@@ -372,15 +372,20 @@ export async function sendClaimInvite(
 /**
  * Admin: delete an invite link outright, killing it if nobody has used it.
  *
- * Only meant for bare links — ones with a recipient on record are deleted
- * through their `invite_requests` row instead, so that row doesn't outlive
- * the link it names. Deleting an already-accepted link is harmless: joining
- * reads the invite once, and `profiles.invited_by_user_id` records the
- * inviter independently.
+ * Meant for bare links and archived invites. A "Sent invites" record naming
+ * the link goes with it, so it can't outlive the link it names — the live
+ * history deletes through that record instead (`deleteInviteRequest`), which
+ * comes to the same thing.
  */
 export async function deleteInvite(id: string): Promise<{ error?: string }> {
   await requireAdmin();
   const supabase = await createClient();
+
+  const { error: requestError } = await supabase
+    .from("invite_requests")
+    .delete()
+    .eq("invite_id", id);
+  if (requestError) return { error: "Could not delete that invite. Try again." };
 
   const { error } = await supabase.from("invites").delete().eq("id", id);
   if (error) return { error: "Could not delete that link. Try again." };

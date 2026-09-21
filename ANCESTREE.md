@@ -460,6 +460,21 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 24 — Invites clean up after themselves** (ad-hoc, migration
+  `20260921160000_invite_cleanup`): joining now **deletes** the invite
+  (`redeem_invite`) together with the "Sent invites" record that named it —
+  `profiles` already keeps who invited them and as what. An invite that
+  **expires** unused is **archived** (`invites.archived_at`): there is no
+  scheduler, so `/admin` archives whatever has lapsed as it loads
+  (`archiveExpiredInvites`), and archived ones leave "Sent invites" and
+  "Bare links" for a new collapsed **Archived invites** section, where they
+  can be deleted for good (`deleteInvite` now takes the record with it). A
+  claim invite's vouch for its entry, which lived on the accepted invite,
+  moves to `private.claim_vouches` so deleting the invite can't cost anyone
+  the claim. On the live tree the 2 accepted invites were deleted and 3
+  expired claim invites archived. Exercised `redeem_invite` in a rolled-back
+  transaction: invite and record gone, vouch kept.
+
 - **Step 22.2 — A Branch tends only the part of a Root's side they're related
   through** (migration `20260921150000_branch_reach_own_line`):
   `private.own_branch_ids` is now the Branch's own branch (the Step 17 walk

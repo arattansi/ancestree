@@ -544,6 +544,7 @@ export type Database = {
       invites: {
         Row: {
           accepted_by_user_id: string | null
+          archived_at: string | null
           created_at: string
           created_by: string
           expires_at: string | null
@@ -558,6 +559,7 @@ export type Database = {
         }
         Insert: {
           accepted_by_user_id?: string | null
+          archived_at?: string | null
           created_at?: string
           created_by: string
           expires_at?: string | null
@@ -572,6 +574,7 @@ export type Database = {
         }
         Update: {
           accepted_by_user_id?: string | null
+          archived_at?: string | null
           created_at?: string
           created_by?: string
           expires_at?: string | null
