@@ -2,6 +2,8 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import type { AccountTypeKey } from "@/lib/account-types";
+import { accountTypesByPerson } from "@/lib/account-type-links";
 import type { Database } from "@/lib/database.types";
 import { createClient } from "@/lib/supabase/server";
 
@@ -61,6 +63,10 @@ export type TreeGraphPerson = {
   claim_status: "approved" | "disputed" | null;
   /** The active claim row id, when `claim_status` is set. */
   claim_id: string | null;
+  /** The account type of the member this entry belongs to (Step 19.1), or
+   *  `null` for an entry no member has. Only loaded for signed-in members
+   *  (`getTreeGraph`'s `withAccountTypes`); always `null` on a share link. */
+  account_type: AccountTypeKey | null;
 };
 
 export type TreeGraphEdge = {
@@ -78,16 +84,24 @@ export type TreeGraphEdge = {
 const PERSON_COLUMNS =
   "id, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_death, date_of_birth_precision, date_of_death_precision, city_of_birth, country_of_birth, place_id_birth, place_id_death, is_deceased, place_of_death, sex, lineage_type, photo_path, photo_crop, pos_x, pos_y, owner_user_id, created_by, verified_at, pos_dx, pos_dy";
 
-/** Everyone in the tree plus their relationship edges, with signed photo URLs. */
+/**
+ * Everyone in the tree plus their relationship edges, with signed photo URLs.
+ *
+ * `withAccountTypes` is opt-in and set only by `/tree` (Step 19.1): a share
+ * link passes the RLS-bypassing admin client, and a visitor there must never
+ * learn who on the tree has an account, let alone what kind. Left off, the
+ * profiles aren't even read.
+ */
 export async function getTreeGraph(
   treeId: string,
   db?: DbClient,
+  { withAccountTypes = false }: { withAccountTypes?: boolean } = {},
 ): Promise<{
   people: TreeGraphPerson[];
   relationships: TreeGraphEdge[];
 }> {
   const supabase = db ?? (await createClient());
-  const [peopleRes, relRes, claimRes, flagRes] = await Promise.all([
+  const [peopleRes, relRes, claimRes, flagRes, accountTypes] = await Promise.all([
     supabase.from("people").select(PERSON_COLUMNS).eq("tree_id", treeId),
     supabase
       .from("relationships")
@@ -104,6 +118,7 @@ export async function getTreeGraph(
       .select("person_id")
       .eq("is_flag", true)
       .eq("status", "open"),
+    withAccountTypes ? loadAccountTypes(supabase) : null,
   ]);
 
   const openFlagsByPerson = new Map<string, number>();
@@ -194,6 +209,7 @@ export async function getTreeGraph(
         claim_status: claim?.status ?? null,
         claim_id: claim?.id ?? null,
         open_flag_count: openFlagsByPerson.get(p.id) ?? 0,
+        account_type: accountTypes?.get(p.id) ?? null,
         birth_place_historical: historicalFor(
           p.place_id_birth,
           p.city_of_birth,
@@ -210,6 +226,20 @@ export async function getTreeGraph(
     }),
     relationships: relRes.data ?? [],
   };
+}
+
+/** Whose entry is whose, by account type (see `accountTypesByPerson`). */
+async function loadAccountTypes(
+  supabase: DbClient,
+): Promise<Map<string, AccountTypeKey>> {
+  const [profileRes, claimRes] = await Promise.all([
+    supabase.from("profiles").select("auth_user_id, role, self_person_id"),
+    supabase
+      .from("claims")
+      .select("person_id, claimant_user_id")
+      .eq("status", "approved"),
+  ]);
+  return accountTypesByPerson(profileRes.data ?? [], claimRes.data ?? []);
 }
 
 /** The single shared v1 tree, or `null` if an admin hasn't bootstrapped yet. */

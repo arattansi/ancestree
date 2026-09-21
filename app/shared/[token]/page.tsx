@@ -60,6 +60,8 @@ export default async function SharedTreePage({
 
   const admin = createAdminClient();
   const [{ people, relationships }, anchorIds, pets] = await Promise.all([
+    // No `withAccountTypes`: who has an account is for members only, and the
+    // admin client here would read every profile (Step 19.1).
     getTreeGraph(link.treeId, admin),
     getTreeAnchors(admin),
     getTreePets(link.treeId, admin),

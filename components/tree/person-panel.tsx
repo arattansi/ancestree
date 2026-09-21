@@ -14,6 +14,7 @@ import {
 } from "@/app/actions/people";
 import { deletePerson } from "@/app/actions/privacy";
 import type { PanelSuggestion } from "@/lib/connection-suggestions";
+import { AccountTypeBadge } from "@/components/account-type-badge";
 import { PersonDocuments } from "@/components/person-documents";
 import { ConnectionPromptList } from "@/components/tree/connection-prompts";
 import { AddCompanionDialog } from "@/components/tree/add-companion-dialog";
@@ -624,6 +625,9 @@ export function PersonPanel({
                 ) : null}
                 {person.claim_status === "approved" ? (
                   <Badge variant="outline">Claimed</Badge>
+                ) : null}
+                {person.account_type ? (
+                  <AccountTypeBadge role={person.account_type} />
                 ) : null}
                 {person.claim_status === "disputed" ? (
                   <Badge variant="destructive">Ownership disputed</Badge>

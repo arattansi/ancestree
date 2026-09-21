@@ -2,6 +2,7 @@
 
 import * as React from "react";
 
+import { AccountTypeMark } from "@/components/account-type-badge";
 import { cropStyle, parseCrop } from "@/lib/image-crop";
 import { leafLabel, type LeafShape, type NativeLeaf } from "@/lib/native-leaf";
 import { formatPartialDate } from "@/lib/partial-date";
@@ -256,7 +257,22 @@ export function LeafCard({
         />
       </svg>
 
-      <div className="absolute inset-0 flex flex-col justify-center pr-8 pl-13">
+      {/* Whose entry this is (Step 19.1): out at the tip, in the band every
+          blade keeps clear, and a row apart from the ✓ after the name. Backed in
+          card colour so the midrib doesn't run through it. */}
+      {person.account_type ? (
+        <AccountTypeMark
+          typeKey={person.account_type}
+          className="absolute top-1/2 right-3.5 size-5 -translate-y-1/2 rounded-full bg-card p-0.5"
+        />
+      ) : null}
+
+      <div
+        className={cn(
+          "absolute inset-0 flex flex-col justify-center pl-13",
+          person.account_type ? "pr-10" : "pr-8",
+        )}
+      >
         <p
           className={cn(
             "flex items-center gap-1 truncate text-[13px] leading-tight font-medium",

@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 
+import { AccountTypeMark } from "@/components/account-type-badge";
 import { LeafCard } from "@/components/tree/leaf-card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { FitText } from "@/components/ui/fit-text";
@@ -196,7 +197,17 @@ function PersonNodeImpl({ data }: NodeProps) {
           <AvatarFallback>{personInitials(person)}</AvatarFallback>
         </Avatar>
 
-        <div className="min-w-0 flex-1">
+        {/* Whose entry this is (Step 19.1). Bottom-right, away from the ✓
+            beside the name and the flag count on the top corner: testers read
+            the ✓ as "this is mine", so the two must not be confusable. */}
+        {person.account_type ? (
+          <AccountTypeMark
+            typeKey={person.account_type}
+            className="absolute right-2 bottom-2 size-4"
+          />
+        ) : null}
+
+        <div className={cn("min-w-0 flex-1", person.account_type && "pr-3")}>
           <p
             className={cn(
               "flex items-center gap-1 truncate text-sm font-medium",

@@ -111,3 +111,25 @@ export function AccountTypeBadge({
     </Badge>
   );
 }
+
+/**
+ * The mark alone, in its type's colour, labelled for anyone who can't see it
+ * (Step 19.1): what a canvas node wears to say whose entry it is. Only a
+ * native tooltip — the node already has a hover card, and this must stay
+ * small enough to sit in a corner.
+ */
+export function AccountTypeMark({
+  typeKey,
+  className,
+}: {
+  typeKey: AccountTypeKey;
+  className?: string;
+}) {
+  const type = accountTypeOf(typeKey);
+  const label = `${type.name} account`;
+  return (
+    <span role="img" aria-label={label} title={label} className={className}>
+      <AccountTypeGlyph type={type} tinted className="size-full" />
+    </span>
+  );
+}

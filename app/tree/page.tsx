@@ -48,7 +48,7 @@ export default async function TreePage() {
     pets,
     spokenFor,
   ] = await Promise.all([
-    getTreeGraph(tree.id),
+    getTreeGraph(tree.id, undefined, { withAccountTypes: true }),
     listClaimCandidates(),
     auditTreeConnections(tree.id),
     getTreeAnchors(),
