@@ -180,31 +180,67 @@ const NOT_YOURS_TO_DELETE =
 
 /**
  * Permanently delete the signed-in member's own account: their auth login and
- * profile row. Entries and edges they created are reassigned to a founding
- * admin so the shared family record stays intact (see the privacy notice).
+ * profile row. Entries and edges they created are reassigned to a Root so the
+ * shared family record stays intact (see the privacy notice).
+ *
+ * A Root may leave too, but never leave the tree without one: the only Root
+ * must name a `successorId` — another member — who is made a Root first and
+ * takes over what they added. A Root stays a Root (Step 22.5), so that
+ * promotion stands even if the deletion then fails.
  */
-export async function deleteAccount(): Promise<{ error?: string }> {
-  await requireProfile();
+export async function deleteAccount(
+  successorId?: string,
+): Promise<{ error?: string }> {
+  const profile = await requireProfile();
   const user = await getUser();
   if (!user) return { error: "You are not signed in." };
 
   const db = createAdminClient();
 
-  // Find another admin to inherit stewardship of this member's contributions.
+  if (profile.role === "admin") {
+    const { count } = await db
+      .from("profiles")
+      .select("auth_user_id", { count: "exact", head: true })
+      .eq("role", "admin")
+      .neq("auth_user_id", user.id);
+    if (!count) {
+      if (!successorId || successorId === user.id) {
+        return {
+          error:
+            "You're the tree's only Root. Choose who takes over as Root before deleting your account.",
+        };
+      }
+      // Promoted as the signed-in Root, which `profiles_protect_role` allows;
+      // the service role can't change a role.
+      const supabase = await createClient();
+      const { data: promoted } = await supabase
+        .from("profiles")
+        .update({ role: "admin" })
+        .eq("auth_user_id", successorId)
+        .select("role");
+      if (promoted?.[0]?.role !== "admin") {
+        return { error: "Couldn't make them a Root. Try again." };
+      }
+    }
+  }
+
+  // Find another Root to inherit stewardship of this member's contributions:
+  // the successor a departing sole Root just named, else the longest-standing.
   const { data: admins } = await db
     .from("profiles")
     .select("auth_user_id, created_at")
     .eq("role", "admin")
     .order("created_at", { ascending: true });
 
-  const steward = (admins ?? []).find(
-    (a) => a.auth_user_id !== user.id,
+  const others = (admins ?? []).filter((a) => a.auth_user_id !== user.id);
+  const steward = (
+    others.find((a) => a.auth_user_id === successorId) ?? others[0]
   )?.auth_user_id;
 
   if (!steward) {
     return {
       error:
-        "You are the only admin. Promote another admin before deleting your account.",
+        "The tree has no other Root to hand your entries to. Ask a Root for help.",
     };
   }
 

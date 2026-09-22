@@ -5,7 +5,10 @@ import Link from "next/link";
 import { signOut } from "@/app/actions/auth";
 import { AccountTypeBadge } from "@/components/account-type-badge";
 import { AccountTypeCard } from "@/components/account-type-guide";
-import { DeleteAccount } from "@/components/delete-account";
+import {
+  DeleteAccount,
+  type SuccessorOption,
+} from "@/components/delete-account";
 import { DirectInviteForm } from "@/components/direct-invite-form";
 import { EditDisplayName } from "@/components/edit-display-name";
 import { InviteMinter } from "@/components/invite-minter";
@@ -56,6 +59,26 @@ export default async function AccountPage() {
           ) ?? [],
         )
       : null;
+
+  // The tree's only Root must name a successor before deleting their account.
+  let successors: SuccessorOption[] | null = null;
+  if (profile.role === "admin") {
+    const { data: members } = await supabase
+      .from("member_directory")
+      .select("auth_user_id, display_name, role")
+      .neq("auth_user_id", profile.auth_user_id);
+    const others = (members ?? []).filter(
+      (m): m is typeof m & { auth_user_id: string } => !!m.auth_user_id,
+    );
+    if (!others.some((m) => m.role === "admin")) {
+      successors = others
+        .map((m) => ({
+          userId: m.auth_user_id,
+          name: `${m.display_name ?? "Unnamed member"} (${accountTypeOf(m.role).name})`,
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+    }
+  }
 
   return (
     <main className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-6 px-4 py-10">
@@ -158,7 +181,7 @@ export default async function AccountPage() {
             ask an admin.
           </p>
           <div>
-            <DeleteAccount />
+            <DeleteAccount successors={successors} />
           </div>
         </CardContent>
       </Card>
