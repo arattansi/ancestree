@@ -1,10 +1,15 @@
 -- Step 25.5 — Drop the single-tree scaffolding
 --
--- APPLY ONLY AFTER the Step 25 code is deployed. Until then the live app
--- reads `profiles.role` and drags `people.pos_*`; 20260922090000 kept both
--- mirrored so nothing broke while the code was being written. Once the
--- deployed app reads `tree_members` and `tree_placements` instead, the
--- mirrors and the compatibility wrappers can go.
+-- Until the Step 25 code was deployed, the live app read `profiles.role` and
+-- dragged `people.pos_*`; 20260922090000 kept both mirrored so nothing broke
+-- while the code was being written. The deployed app now reads
+-- `tree_members` and `tree_placements` instead, so the mirrors and the
+-- compatibility wrappers can go.
+--
+-- Written as 20260922120000 and held in supabase/pending/ until that deploy.
+-- Re-dated to run after 20260923000000_default_tree_names and
+-- 20260923010000_family_tree_names: their `ensure_profile` / `redeem_invite`
+-- still write `profiles.role`, and the versions below supersede them.
 
 -- Any card dragged on the deployed canvas since the mirrors were laid down
 -- has already been copied to its home placement by trigger; copy once more

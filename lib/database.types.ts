@@ -859,10 +859,6 @@ export type Database = {
           place_id_birth: number | null
           place_id_death: number | null
           place_of_death: string | null
-          pos_dx: number | null
-          pos_dy: number | null
-          pos_x: number | null
-          pos_y: number | null
           preferred_name: string | null
           sex: string | null
           tree_id: string
@@ -897,10 +893,6 @@ export type Database = {
           place_id_birth?: number | null
           place_id_death?: number | null
           place_of_death?: string | null
-          pos_dx?: number | null
-          pos_dy?: number | null
-          pos_x?: number | null
-          pos_y?: number | null
           preferred_name?: string | null
           sex?: string | null
           tree_id: string
@@ -935,10 +927,6 @@ export type Database = {
           place_id_birth?: number | null
           place_id_death?: number | null
           place_of_death?: string | null
-          pos_dx?: number | null
-          pos_dy?: number | null
-          pos_x?: number | null
-          pos_y?: number | null
           preferred_name?: string | null
           sex?: string | null
           tree_id?: string
@@ -1278,7 +1266,6 @@ export type Database = {
           created_at: string
           display_name: string | null
           invited_by_user_id: string | null
-          role: string
           self_person_id: string | null
           updated_at: string
         }
@@ -1287,7 +1274,6 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           invited_by_user_id?: string | null
-          role?: string
           self_person_id?: string | null
           updated_at?: string
         }
@@ -1296,7 +1282,6 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           invited_by_user_id?: string | null
-          role?: string
           self_person_id?: string | null
           updated_at?: string
         }
@@ -2114,7 +2099,6 @@ export type Database = {
         }
         Returns: Json
       }
-      admin_delete_member: { Args: { p_user_id: string }; Returns: undefined }
       can_delete_person: { Args: { p_person_id: string }; Returns: boolean }
       can_invite_to_claim: { Args: { p_person_id: string }; Returns: boolean }
       claim_person: { Args: { p_person_id: string }; Returns: Json }
@@ -2151,7 +2135,6 @@ export type Database = {
           created_at: string
           display_name: string | null
           invited_by_user_id: string | null
-          role: string
           self_person_id: string | null
           updated_at: string
         }
@@ -2222,10 +2205,6 @@ export type Database = {
           place_id_birth: number | null
           place_id_death: number | null
           place_of_death: string | null
-          pos_dx: number | null
-          pos_dy: number | null
-          pos_x: number | null
-          pos_y: number | null
           preferred_name: string | null
           sex: string | null
           tree_id: string
@@ -2254,7 +2233,6 @@ export type Database = {
           created_at: string
           display_name: string | null
           invited_by_user_id: string | null
-          role: string
           self_person_id: string | null
           updated_at: string
         }
