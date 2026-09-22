@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  ancestralLandsSentence,
-  canLookUpPlace,
-  landsListParts,
-  parseTerritories,
-} from "./native-land";
+import { canLookUpPlace, landsListParts, parseTerritories } from "./native-land";
 
 // Shaped like NLD's answer to `maps=territories&position=…`: a bare array of
 // GeoJSON features, geometry and all.
@@ -121,25 +116,20 @@ describe("canLookUpPlace", () => {
   });
 });
 
-describe("the sentence a card shows", () => {
-  const lands = (...names: string[]) => names.map((name) => ({ name, url: null }));
+describe("the list a card shows", () => {
+  const list = (...names: string[]) =>
+    landsListParts(names)
+      .map((part) => part.value)
+      .join("");
 
   it("lists every territory, with a comma before the last", () => {
-    expect(ancestralLandsSentence(lands("Haudenosaunee"))).toBe(
-      "Ancestral lands of Haudenosaunee",
+    expect(list("Haudenosaunee")).toBe("Haudenosaunee");
+    expect(list("Haudenosaunee", "Mississauga")).toBe(
+      "Haudenosaunee and Mississauga",
     );
-    expect(ancestralLandsSentence(lands("Haudenosaunee", "Mississauga"))).toBe(
-      "Ancestral lands of Haudenosaunee and Mississauga",
+    expect(list("Anishinabewaki", "Haudenosaunee", "Wendake-Nionwentsïo")).toBe(
+      "Anishinabewaki, Haudenosaunee, and Wendake-Nionwentsïo",
     );
-    expect(
-      ancestralLandsSentence(
-        lands("Anishinabewaki", "Haudenosaunee", "Wendake-Nionwentsïo"),
-      ),
-    ).toBe("Ancestral lands of Anishinabewaki, Haudenosaunee, and Wendake-Nionwentsïo");
-  });
-
-  it("says nothing when there's nothing to name", () => {
-    expect(ancestralLandsSentence([])).toBeNull();
   });
 
   it("splits the list so each name can be a link", () => {

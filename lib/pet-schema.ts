@@ -89,8 +89,8 @@ export const petSchema = z
       .max(120, "Keep this under 120 characters.")
       .optional()
       .or(z.literal("")),
-    // Whose land the birthplace is, in the family's own words (Step 27.7);
-    // left empty, the panel shows Native Land Digital's names instead.
+    // Whose land the birthplace is, in the family's own words (Step 27.7):
+    // asked for only where Native Land Digital maps no territory (27.8).
     ancestral_lands_birth: z
       .string()
       .trim()

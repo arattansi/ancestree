@@ -8,9 +8,10 @@
  * data; and nothing stored or passed on without NLD's permission. So the
  * names are asked for live whenever a card or form shows them
  * (`native-land.server.ts`, behind `app/api/ancestral-lands`) and never
- * saved. What a family writes in its own words
- * (`people.ancestral_lands_birth` / `_death`) is theirs to keep, and is shown
- * in place of NLD's names.
+ * saved. Only where NLD maps nothing, or can't be asked, does a family say
+ * whose land it is in its own words (`people.ancestral_lands_birth` /
+ * `_death`, `pets.ancestral_lands_birth`); where NLD maps the place, its
+ * names are what's shown (Step 27.8).
  */
 
 export const NATIVE_LAND_URL = "https://native-land.ca";
@@ -116,15 +117,4 @@ export function landsListParts(
     type: part.type === "element" ? "name" : "literal",
     value: part.value,
   }));
-}
-
-/**
- * What a card says when the family hasn't written its own words:
- * "Ancestral lands of A, B, and C". Null when there's nothing to name.
- */
-export function ancestralLandsSentence(
-  territories: readonly Territory[],
-): string | null {
-  if (territories.length === 0) return null;
-  return `Ancestral lands of ${LIST.format(territories.map((t) => t.name))}`;
 }

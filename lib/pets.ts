@@ -18,7 +18,10 @@ export type TreePet = {
   place_id_birth: number | null;
   city_of_birth: string | null;
   country_of_birth: string | null;
-  /** Whose land the birthplace is, in the family's own words (Step 27.7). */
+  /**
+   * Whose land the birthplace is, in the family's own words (Step 27.7): only
+   * where Native Land Digital maps none; where it does, its names are shown.
+   */
   ancestral_lands_birth: string | null;
   year_died: number | null;
   is_deceased: boolean;

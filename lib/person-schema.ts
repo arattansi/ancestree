@@ -62,8 +62,9 @@ export const personSchema = z
     place_id_birth: z.number().int().positive().nullable(),
     city_of_birth: optionalText(120),
     country_of_birth: optionalText(120),
-    // Whose land the place is, in the family's own words (Step 27). Left
-    // empty, a card shows Native Land Digital's names instead, looked up live.
+    // Whose land the place is, in the family's own words (Step 27): asked for
+    // only where Native Land Digital maps no territory (27.8); where it does,
+    // a card shows NLD's names, looked up live.
     ancestral_lands_birth: optionalText(300),
     is_deceased: z.boolean(),
     date_of_death: optionalDate,

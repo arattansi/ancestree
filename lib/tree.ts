@@ -51,8 +51,9 @@ export type TreeGraphPerson = {
   birth_place_historical: string | null;
   death_place_historical: string | null;
   /**
-   * Whose land each place is, in the family's own words (Step 27). Null means
-   * the panel names Native Land Digital's territories instead, looked up live.
+   * Whose land each place is, in the family's own words (Step 27), for a
+   * place Native Land Digital maps nothing at. Where NLD does, the panel shows
+   * its names instead, looked up live (27.8).
    */
   ancestral_lands_birth: string | null;
   ancestral_lands_death: string | null;
