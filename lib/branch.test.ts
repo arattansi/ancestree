@@ -7,6 +7,7 @@ import {
   canEditConnection,
   canEditEntry,
   canInviteToClaim,
+  canOfferDelete,
   canSeeDocuments,
   relatedRoots,
   type BranchEdge,
@@ -369,6 +370,42 @@ describe("canInviteToClaim", () => {
       }),
     ).toBe(false);
     expect(canInviteToClaim(entry({ id: "arzu" }), branchAdmin)).toBe(false);
+  });
+});
+
+describe("canOfferDelete", () => {
+  const mine = entry({
+    id: "minaz",
+    owner_user_id: "arzu-user",
+    created_by: "arzu-user",
+  });
+
+  it("offers a Root every entry", () => {
+    expect(canOfferDelete(entry(), admin)).toBe(true);
+    expect(canOfferDelete(entry({ isClaimed: true }), admin)).toBe(true);
+  });
+
+  it("offers Branch and Canopy only the entries they added", () => {
+    for (const viewer of [branchAdmin, member]) {
+      expect(canOfferDelete(mine, viewer)).toBe(true);
+      // On the Branch's side, but a Root added it: editable, not deletable.
+      expect(canOfferDelete(entry(), viewer)).toBe(false);
+    }
+  });
+
+  it("stops offering once somebody is behind the entry", () => {
+    expect(canOfferDelete({ ...mine, isClaimed: true }, member)).toBe(false);
+    expect(canOfferDelete({ ...mine, isSomeoneElsesOwn: true }, member)).toBe(
+      false,
+    );
+    expect(
+      canOfferDelete({ ...mine, owner_user_id: "someone-else" }, member),
+    ).toBe(false);
+  });
+
+  it("never offers a Leaf, or anyone their own entry", () => {
+    expect(canOfferDelete(mine, leaf)).toBe(false);
+    expect(canOfferDelete({ ...mine, id: "arzu" }, member)).toBe(false);
   });
 });
 

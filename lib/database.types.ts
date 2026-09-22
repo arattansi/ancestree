@@ -433,6 +433,75 @@ export type Database = {
           },
         ]
       }
+      entry_revisions: {
+        Row: {
+          after: Json
+          before: Json
+          created_at: string
+          editor_user_id: string | null
+          id: string
+          person_id: string
+          reverted_at: string | null
+          reverted_by: string | null
+        }
+        Insert: {
+          after: Json
+          before: Json
+          created_at?: string
+          editor_user_id?: string | null
+          id?: string
+          person_id: string
+          reverted_at?: string | null
+          reverted_by?: string | null
+        }
+        Update: {
+          after?: Json
+          before?: Json
+          created_at?: string
+          editor_user_id?: string | null
+          id?: string
+          person_id?: string
+          reverted_at?: string | null
+          reverted_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "entry_revisions_editor_user_id_fkey"
+            columns: ["editor_user_id"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "entry_revisions_editor_user_id_fkey"
+            columns: ["editor_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "entry_revisions_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entry_revisions_reverted_by_fkey"
+            columns: ["reverted_by"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "entry_revisions_reverted_by_fkey"
+            columns: ["reverted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+        ]
+      }
       historical_names: {
         Row: {
           country_code: string | null
@@ -660,6 +729,7 @@ export type Database = {
           person_id: string | null
           read_at: string | null
           recipient_user_id: string
+          revision_id: string | null
           type: string
         }
         Insert: {
@@ -671,6 +741,7 @@ export type Database = {
           person_id?: string | null
           read_at?: string | null
           recipient_user_id: string
+          revision_id?: string | null
           type: string
         }
         Update: {
@@ -682,6 +753,7 @@ export type Database = {
           person_id?: string | null
           read_at?: string | null
           recipient_user_id?: string
+          revision_id?: string | null
           type?: string
         }
         Relationships: [
@@ -726,6 +798,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "notifications_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "entry_revisions"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -1502,6 +1581,7 @@ export type Database = {
         Returns: Json
       }
       admin_delete_member: { Args: { p_user_id: string }; Returns: undefined }
+      can_delete_person: { Args: { p_person_id: string }; Returns: boolean }
       can_invite_to_claim: { Args: { p_person_id: string }; Returns: boolean }
       canvas_interest_register: {
         Args: never
@@ -1649,6 +1729,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      revert_entry_edit: { Args: { p_revision_id: string }; Returns: string[] }
       search_self_candidates: {
         Args: { p_first: string; p_last: string }
         Returns: {

@@ -69,6 +69,12 @@ export type AccountType = {
    * one entry is already their own.
    */
   claimInvites: Reach;
+  /**
+   * Which entries they can delete (Step 22.3): `tree` for a Root; `own` —
+   * unclaimed entries they created, while nobody else has built on them
+   * (`private.can_delete_person`); `none` for a Leaf.
+   */
+  deletes: "tree" | "own" | "none";
   /** The admin console: members and their account types, invites, share
    *  links, deleting entries, lineage, verification, auto-arrange. */
   runsTree: boolean;
@@ -79,13 +85,14 @@ export const ROOT: AccountType = {
   name: "Root",
   tagline: "Holds the whole tree",
   description:
-    "The tree’s founders. A Root can edit every entry and connection, and runs the tree: members and their account types, invites, share links, and removing entries.",
+    "The tree’s founders. A Root can edit every entry and connection, and runs the tree: members and their account types, invites, share links, and removing entries. A Root is told when a Branch changes an entry they added, and can undo it. A Root can make another member a Root; nobody can undo that.",
   entries: "tree",
   connections: "tree",
   companions: "tree",
   addRelatives: true,
   invites: "any",
   claimInvites: "tree",
+  deletes: "tree",
   runsTree: true,
 };
 
@@ -94,13 +101,14 @@ export const BRANCH: AccountType = {
   name: "Branch",
   tagline: "Tends their part of a Root’s side",
   description:
-    "A Branch looks after the part of a Root’s side of the family they’re related through: their own ancestors on that side, everyone descended from them, and the people those relatives married — so a Root’s father’s family, say, but not their mother’s, when that is how the Branch is related. They can edit any entry and connection there, except another member’s own entry. They bring relatives in as Leaves, and can invite someone to claim an unclaimed entry on that side.",
+    "A Branch looks after the part of a Root’s side of the family they’re related through: their own ancestors on that side, everyone descended from them, and the people those relatives married — so a Root’s father’s family, say, but not their mother’s, when that is how the Branch is related. They can edit any entry and connection there, except another member’s own entry. A Root is told when they change an entry that Root added, and can undo it. They bring relatives in as Leaves, can invite someone to claim an unclaimed entry on that side, and can delete an entry they added while nobody else has built on it.",
   entries: "branch",
   connections: "branch",
   companions: "branch",
   addRelatives: true,
   invites: "leaves",
   claimInvites: "branch",
+  deletes: "own",
   runsTree: false,
 };
 
@@ -109,13 +117,14 @@ export const CANOPY: AccountType = {
   name: "Canopy",
   tagline: "Grows the tree",
   description:
-    "Where most of the family sits. Canopy members add relatives, and edit the entries and connections they added themselves. They bring relatives in as Leaves, and can invite someone to claim an entry they added.",
+    "Where most of the family sits. Canopy members add relatives, and edit the entries and connections they added themselves. They bring relatives in as Leaves, can invite someone to claim an entry they added, and can delete one while nobody else has built on it.",
   entries: "own",
   connections: "own",
   companions: "own",
   addRelatives: true,
   invites: "leaves",
   claimInvites: "own",
+  deletes: "own",
   runsTree: false,
 };
 
@@ -131,6 +140,7 @@ export const LEAF: AccountType = {
   addRelatives: false,
   invites: "none",
   claimInvites: "none",
+  deletes: "none",
   runsTree: false,
 };
 
@@ -154,10 +164,12 @@ export function accountTypeOf(role: string | null | undefined): AccountType {
 }
 
 /**
- * What a Root can set from /admin. Making someone a Root, or changing another
- * Root, is a bigger decision than a dropdown and stays out of it.
+ * What a Root can set from /admin, for anyone who isn't a Root yet. Making
+ * someone a Root is on offer (Step 22.5) but is for good: a Root is never
+ * demoted or removed, by another Root or themselves (`profiles_protect_role`).
  */
 export const ASSIGNABLE_ACCOUNT_TYPES: readonly AccountType[] = [
+  ROOT,
   BRANCH,
   CANOPY,
   LEAF,
@@ -260,6 +272,15 @@ export function describeAccess(type: AccountType): Access[] {
     {
       label: "Invite someone to claim an entry",
       value: reach(CLAIM_INVITE_REACH, type.claimInvites),
+    },
+    {
+      label: "Delete entries",
+      value:
+        type.deletes === "tree"
+          ? true
+          : type.deletes === "own"
+            ? "Ones they added, until someone else builds on them"
+            : false,
     },
     { label: "Run the tree", value: type.runsTree },
   ];

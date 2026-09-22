@@ -73,9 +73,9 @@ describe("account types", () => {
     expect(LEAF.addRelatives).toBe(false);
   });
 
-  it("offers a Root every type but Root to hand out", () => {
-    expect(ASSIGNABLE_ACCOUNT_TYPES).toEqual([BRANCH, CANOPY, LEAF]);
-    expect(isAssignable("admin")).toBe(false);
+  it("offers a Root every type to hand out, Root included", () => {
+    expect(ASSIGNABLE_ACCOUNT_TYPES).toEqual([ROOT, BRANCH, CANOPY, LEAF]);
+    expect(isAssignable("admin")).toBe(true);
     expect(isAssignable("leaf")).toBe(true);
     expect(isAssignable("gardener")).toBe(false);
   });
@@ -120,6 +120,16 @@ describe("describeAccess", () => {
     expect(valueOf(BRANCH, "Invite relatives")).toBe("As Leaves");
     expect(valueOf(CANOPY, "Invite relatives")).toBe("As Leaves");
     expect(valueOf(LEAF, "Invite relatives")).toBe(false);
+  });
+
+  it("lets a Root delete anything, Branch and Canopy their own, a Leaf nothing", () => {
+    expect(valueOf(ROOT, "Delete entries")).toBe(true);
+    for (const t of [BRANCH, CANOPY]) {
+      expect(valueOf(t, "Delete entries")).toBe(
+        "Ones they added, until someone else builds on them",
+      );
+    }
+    expect(valueOf(LEAF, "Delete entries")).toBe(false);
   });
 });
 

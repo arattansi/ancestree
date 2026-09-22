@@ -96,14 +96,17 @@ export async function exportTreeData(): Promise<{
 }
 
 /**
- * Admin-only permanent removal of a person entry, its relationship edges (via
- * cascade), and its stored photo + documents. Used for right-to-erasure
- * requests.
+ * Permanently remove a person entry, its relationship edges (via cascade), and
+ * its stored photo + documents. A Root may remove any entry — right-to-erasure
+ * requests come through here. Since Step 22.3 a Branch or Canopy member may
+ * remove an unclaimed entry they added, as long as nobody else has hung a
+ * connection, comment, document or companion on it
+ * (`private.can_delete_person`, enforced by the `people_delete` policy).
  */
 export async function deletePerson(
   personId: string,
 ): Promise<{ error?: string }> {
-  await requireAdmin();
+  await requireProfile();
   const supabase = await createClient();
 
   const { data: person } = await supabase
@@ -112,6 +115,12 @@ export async function deletePerson(
     .eq("id", personId)
     .maybeSingle();
   if (!person) return { error: "That entry no longer exists." };
+
+  // Ask first, so a refusal can say why: RLS would just delete nothing.
+  const { data: allowed } = await supabase.rpc("can_delete_person", {
+    p_person_id: personId,
+  });
+  if (!allowed) return { error: NOT_YOURS_TO_DELETE };
 
   const { data: docs } = await supabase
     .from("documents")
@@ -129,11 +138,22 @@ export async function deletePerson(
     ? await supabase.from("pets").select("id, photo_path").in("id", petIds)
     : { data: [] as { id: string; photo_path: string | null }[] };
 
-  const { error } = await supabase.from("people").delete().eq("id", personId);
+  const { data: deleted, error } = await supabase
+    .from("people")
+    .delete()
+    .eq("id", personId)
+    .select("id");
   if (error) return { error: "Couldn't delete that entry. Try again." };
+  // Something was added between the check and the delete.
+  if (!deleted || deleted.length === 0) return { error: NOT_YOURS_TO_DELETE };
+
+  // The entry is gone, and with it the storage policies' way of knowing who
+  // could edit it, so the files are swept with the service role. The delete
+  // above is what proved the right to remove them.
+  const db = createAdminClient();
 
   const { data: survivingPets } = petIds.length
-    ? await supabase.from("pets").select("id").in("id", petIds)
+    ? await db.from("pets").select("id").in("id", petIds)
     : { data: [] as { id: string }[] };
   const surviving = new Set((survivingPets ?? []).map((p) => p.id));
 
@@ -143,17 +163,20 @@ export async function deletePerson(
       .filter((p) => !surviving.has(p.id) && p.photo_path)
       .map((p) => p.photo_path as string),
   ];
-  if (objects.length) await supabase.storage.from("photos").remove(objects);
+  if (objects.length) await db.storage.from("photos").remove(objects);
 
   const docPaths = (docs ?? []).map((d) => d.file_path).filter(Boolean);
   if (docPaths.length) {
-    await supabase.storage.from("documents").remove(docPaths);
+    await db.storage.from("documents").remove(docPaths);
   }
 
   revalidatePath("/tree");
   revalidatePath("/admin");
   return {};
 }
+
+const NOT_YOURS_TO_DELETE =
+  "Someone else has added to this entry — a connection, comment, document or companion — so only a Root can remove it now. Ask a Root.";
 
 /**
  * Permanently delete the signed-in member's own account: their auth login and

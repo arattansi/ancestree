@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { LEAF_REFUSAL, isLeafRefusal } from "@/lib/account-types";
-import { requireProfile } from "@/lib/auth";
+import { requireAdmin, requireProfile } from "@/lib/auth";
 import { toStoredCrop, type CropTransform } from "@/lib/image-crop";
 import {
   personSchema,
@@ -669,4 +669,37 @@ export async function signDocument(
     .createSignedUrl(doc.file_path, 60);
   if (error || !data) return { error: "Couldn't prepare the download." };
   return { url: data.signedUrl };
+}
+
+/**
+ * Root: undo a Branch's edit to an entry a Root added (Step 22.4). The edit
+ * published at once; `revert_entry_edit` puts back each field it changed that
+ * nobody has changed since, and tells the Branch.
+ */
+export async function revertEntryEdit(
+  revisionId: string,
+): Promise<{ error?: string; restored?: number }> {
+  await requireAdmin();
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("revert_entry_edit", {
+    p_revision_id: revisionId,
+  });
+  if (error) {
+    if (error.message.includes("ALREADY_REVERTED")) {
+      return { error: "That change has already been undone." };
+    }
+    if (error.message.includes("NOTHING_TO_REVERT")) {
+      return {
+        error:
+          "Those details have been changed again since, so there's nothing left of this edit to undo.",
+      };
+    }
+    if (error.message.includes("REVISION_NOT_FOUND")) {
+      return { error: "That entry no longer exists." };
+    }
+    return { error: friendlyError(error.message) };
+  }
+  revalidatePath("/tree");
+  revalidatePath("/account");
+  return { restored: data?.length ?? 0 };
 }

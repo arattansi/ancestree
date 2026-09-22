@@ -1,6 +1,7 @@
 /**
- * Branches, mirrored from `private.branch_ids`, `private.own_branch_ids` and
- * `private.can_edit_person` (Steps 17, 18.1 and 22.2), and what each account
+ * Branches, mirrored from `private.branch_ids`, `private.own_branch_ids`,
+ * `private.can_edit_person` and `private.can_delete_person` (Steps 17, 18.1,
+ * 22.2 and 22.3), and what each account
  * type may edit (Step 18, `lib/account-types`).
  *
  * A branch is measured from one person with the same up-then-down walk the
@@ -147,6 +148,26 @@ export function canInviteToClaim(entry: EntrySubject, viewer: Viewer): boolean {
   if (entry.isDeceased) return false;
   if (entry.owner_user_id !== entry.created_by) return false;
   return canEditEntry(entry, viewer);
+}
+
+/**
+ * Whether to offer "Delete entry" (Step 22.3). Mirrors the half of
+ * `private.can_delete_person` the entry itself can answer: a Root, anything;
+ * a Branch or Canopy member, an entry they created that is still theirs —
+ * unclaimed, nobody's own, not their own. The other half, that nobody else
+ * has hung a connection, comment, document or companion on it, is the
+ * database's to check when they try; a refusal then says to ask a Root.
+ */
+export function canOfferDelete(entry: EntrySubject, viewer: Viewer): boolean {
+  const { deletes } = accountTypeOf(viewer.role);
+  if (deletes === "tree") return true;
+  if (deletes === "none") return false;
+  if (entry.id === viewer.selfPersonId) return false;
+  if (entry.isClaimed || entry.isSomeoneElsesOwn) return false;
+  return (
+    entry.created_by === viewer.userId &&
+    entry.owner_user_id === entry.created_by
+  );
 }
 
 /**

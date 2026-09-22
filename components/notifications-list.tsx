@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { disputeClaim, markNotificationsRead } from "@/app/actions/claims";
+import { revertEntryEdit } from "@/app/actions/people";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { NotificationItem } from "@/lib/claims";
@@ -35,6 +36,18 @@ export function NotificationsList({ items }: { items: NotificationItem[] }) {
     return (
       <p className="text-sm text-muted-foreground">No notifications yet.</p>
     );
+  }
+
+  async function onRevert(revisionId: string) {
+    setBusy(true);
+    const res = await revertEntryEdit(revisionId);
+    setBusy(false);
+    if (res.error) {
+      toast.error(res.error);
+    } else {
+      toast.success("Change undone. The Branch who made it has been told.");
+    }
+    router.refresh();
   }
 
   async function onDispute(claimId: string) {
@@ -76,6 +89,17 @@ export function NotificationsList({ items }: { items: NotificationItem[] }) {
                 variant="ghost"
               >
                 View on tree
+              </Button>
+            ) : null}
+
+            {n.revertibleRevisionId ? (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={busy}
+                onClick={() => onRevert(n.revertibleRevisionId as string)}
+              >
+                Undo this change
               </Button>
             ) : null}
 

@@ -184,7 +184,12 @@ tree creator, accepted invite, or `self_person`). Writes use
 current `owner_user_id`, an admin, the original `created_by` while the entry is
 still unclaimed (owner unchanged, no approved claim), **or** a branch admin
 anywhere on their own branch (Step 17). A Leaf (Step 18) gets none of that:
-only their own `self_person_id` entry. Deletes: admin only. A claim moves
+only their own `self_person_id` entry. Deletes (`private.can_delete_person`,
+Step 22.3): a Root anything; a Branch or Canopy member an entry they created
+that is still theirs — owner unchanged, no claim of any status, nobody's own
+entry, not their own — and only while every connection, comment, document and
+companion on it is theirs too; otherwise "ask a Root". A Leaf deletes nothing.
+A claim moves
 `owner_user_id` to the claimant, so the creator then loses edit rights until an
 admin reverses the claim.
 
@@ -205,8 +210,11 @@ given a Branch the Root's whole side; 22.2 took the other grandparents'
 families back out.) Two limits: another member's own entry (`self_person_id` or a
 settled claim) is never theirs to edit, and a connection needs **both** ends on
 the branch (`private.can_edit_relationship`) — one end alone would let them
-redraw a line into someone else's family. Nothing else moves: deleting people,
-minting invites, setting `lineage_type` and the admin console stay admin-only.
+redraw a line into someone else's family. When a Branch changes an entry a
+Root created or owns, the edit publishes at once and the Root can undo it
+(**Branch edits and the Root's undo**, below). Nothing else moves: deleting
+what others added, setting `lineage_type` and the admin console stay
+admin-only.
 `lib/branch.ts` mirrors the rule for the UI; the database decides.
 
 **Account types (Step 18):** four kinds of member, named for the tree they
@@ -225,7 +233,13 @@ a name, and where each type's reach is written down (`entries`, `connections`,
 The keys kept their old values on purpose: renaming them would rewrite every
 `role = 'admin'` test in the database for no visible change. A Root switches
 anyone else between Branch, Canopy and Leaf on `/admin` (`AccountTypePicker` →
-`setAccountType`); making or unmaking a Root isn't on offer there. Who may
+`setAccountType`), or makes them a Root (Step 22.5, after a confirm). A Root
+is for good: nobody demotes or removes one, another Root or themselves —
+`profiles_protect_role` raises `ROOT_IS_PERMANENT` on any change to a Root's
+role, `profiles_delete` excludes Root rows, and `admin_delete_member` already
+refused them. (Deleting your own account from `/account` is the one way out;
+it reassigns what you added to another Root.) A new Root also becomes one of
+the Roots whose sides the Branches tend (`private.root_person_ids`). Who may
 invite follows from the type alone — the per-member `can_invite` grant was
 retired, and the column dropped, in Step 22.1 — and an invite link can make someone Canopy or Leaf (see
 **Invite as a Leaf** under Auth & invites).
@@ -266,7 +280,44 @@ rather than an empty list.
 Helpers live in the unexposed `private` schema (`is_admin`, `is_branch_admin`,
 `is_leaf`, `is_tree_member`, `can_edit_person`, `branch_ids`,
 `root_person_ids`, `own_branch_ids`, `is_on_own_branch`, `can_see_documents`, `person_is_someones_own`, `can_edit_relationship`,
-`can_edit_pet`, `leaf_guard_people`, `leaf_guard_relationships`).
+`can_edit_pet`, `can_delete_person`, `leaf_guard_people`, `leaf_guard_relationships`,
+`revision_fields`, `notify_edit`, `member_label`).
+
+**Branch edits and the Root's undo (Step 22.4):** there is no approval queue.
+When a Branch edits an entry that a Root created or owns (and that isn't the
+Branch's), `person_edit_notify` keeps the edit in `public.entry_revisions`:
+just the changed fields (`private.revision_fields` — names, sex, dates,
+places, death details, photo and its framing), as they were (`before`) and as
+the Branch left them (`after`). The Root's `entry_updated` notification names
+the Branch and carries `revision_id`; its **Undo this change** button calls
+`revertEntryEdit` → `public.revert_entry_edit`, which puts back each field
+that still holds the Branch's value and leaves any field changed since alone
+(`NOTHING_TO_REVERT` when all have moved on, `ALREADY_REVERTED` on a second
+click), then tells the Branch (`edit_reverted`). Revisions are readable by
+Roots only. Connections, companions and card positions aren't revisioned —
+a Branch can only draw a line with both ends on their side, and the
+notification still says what changed.
+
+**Permissions matrix (Step 22):** the whole picture in one place. The
+database enforces every row; `lib/account-types.ts` (`describeAccess`, shown
+by the account-type cards on `/account` and `/admin`) and `lib/branch.ts`
+mirror it for the UI.
+
+| | Root | Branch | Canopy | Leaf |
+|---|---|---|---|---|
+| See the tree, comment, flag, claim their own entry | ✓ | ✓ | ✓ | ✓ |
+| Edit entries | Every entry | Their part of a Root's side (not another member's own), plus what they added | What they added, and their own | Only their own |
+| Branch edits to a Root's entries | Told; one-click undo | Publish at once | — | — |
+| Change connections | Any | Both ends on their side, or ones they drew | Ones they drew | None |
+| Companions | Any | On their side, or ones they added | Ones they added | None |
+| Add relatives | ✓ (bloodline gate) | ✓ (bloodline gate) | ✓ (bloodline gate) | Only themselves, at onboarding |
+| See documents | Every entry | Their side, members' own entries included | Entries they own | Only their own |
+| Delete entries | Any | Unclaimed ones they added, while nobody else has built on them | Same as Branch | None |
+| Invite relatives | As Canopy or Leaf | As Leaves | As Leaves | None |
+| Invite someone to claim an entry | Any unclaimed, living entry; picks Canopy or Leaf | Unclaimed on their side, as Leaves | Unclaimed ones they added, as Leaves | None |
+| Change account types | Anyone not a Root: Branch, Canopy, Leaf, or Root (for good) | — | — | — |
+| Demote or remove a Root | Never, themselves included | — | — | — |
+| Admin console, lineage, verification, share links | ✓ | — | — | — |
 
 ## Auth & invites (Step 3)
 
@@ -459,6 +510,30 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 22.3–22.6 — Deleting what you added, undoing a Branch's edit, new
+  Roots, and the matrix** (migrations `20260921170000_delete_own_entries`,
+  `20260921180000_branch_edit_revert`, `20260921190000_roots_are_permanent`).
+  **22.3:** a Branch or Canopy member can delete an unclaimed entry they
+  added, as long as every connection, comment, document and companion on it
+  is theirs too (`private.can_delete_person`, now the `people_delete`
+  policy); otherwise the panel says to ask a Root. `lib/branch#canOfferDelete`
+  decides when to show the button, and `deletePerson` asks
+  `public.can_delete_person` first so a refusal says why. **22.4:** a
+  Branch's edit to a Root's entry still publishes at once; the trigger now
+  keeps it as an `entry_revisions` row and the Root's notification gets
+  **Undo this change**, which puts back only the fields nobody has changed
+  since and tells the Branch (`edit_reverted`). **22.5:** a Root can make
+  another member a Root from the `/admin` picker, after a confirm; the
+  database now refuses to demote a Root (`ROOT_IS_PERMANENT`) or delete a
+  Root's profile. **22.6:** the permissions matrix under Data model, and a
+  "Delete entries" line on every account-type card. Exercised in rolled-back
+  transactions on the live database: Arzu's edit to a Root's entry recorded a
+  revision and notified Raiya with it, Aalim's undo restored the field and
+  told Arzu, and a second undo was refused. A Branch's fresh entry could be
+  deleted until another member commented on it. Demoting a Root, a Root
+  demoting themselves, and deleting a Root's row were all refused. 6 new
+  tests.
 
 - **Step 24 — Invites clean up after themselves** (ad-hoc, migration
   `20260921160000_invite_cleanup`): joining now **deletes** the invite

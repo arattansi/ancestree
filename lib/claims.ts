@@ -39,6 +39,11 @@ export type NotificationItem = {
   claimId: string | null;
   /** True when the recipient is the entry's creator and can still dispute. */
   canDispute: boolean;
+  /**
+   * A Branch's edit to a Root's entry that this Root can still undo (Step
+   * 22.4); `null` otherwise, or once it has been undone.
+   */
+  revertibleRevisionId: string | null;
 };
 
 /** Recent in-app notifications for the signed-in member, newest first. */
@@ -48,7 +53,9 @@ export async function listNotifications(
   const supabase = await createClient();
   const { data } = await supabase
     .from("notifications")
-    .select("id, type, body, created_at, read_at, person_id, claim_id")
+    .select(
+      "id, type, body, created_at, read_at, person_id, claim_id, revision_id",
+    )
     .order("created_at", { ascending: false })
     .limit(50);
 
@@ -80,6 +87,20 @@ export async function listNotifications(
     }
   }
 
+  // Revisions are readable by Roots only, so for anyone else this finds none.
+  const revisionIds = rows
+    .map((n) => n.revision_id)
+    .filter((id): id is string => Boolean(id));
+  const revertible = new Set<string>();
+  if (revisionIds.length > 0) {
+    const { data: revisions } = await supabase
+      .from("entry_revisions")
+      .select("id")
+      .in("id", revisionIds)
+      .is("reverted_at", null);
+    for (const r of revisions ?? []) revertible.add(r.id);
+  }
+
   return rows.map((n) => ({
     id: n.id,
     type: n.type,
@@ -89,6 +110,8 @@ export async function listNotifications(
     personId: n.person_id,
     claimId: n.claim_id,
     canDispute: n.claim_id ? disputable.has(n.claim_id) : false,
+    revertibleRevisionId:
+      n.revision_id && revertible.has(n.revision_id) ? n.revision_id : null,
   }));
 }
 

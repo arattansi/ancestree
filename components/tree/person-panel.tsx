@@ -361,6 +361,7 @@ export function PersonPanel({
   isSelf,
   canEdit,
   canSeeDocuments,
+  canDelete = false,
   claimInviteOptions = [],
   canAddCompanions = true,
   lockedNote,
@@ -390,6 +391,12 @@ export function PersonPanel({
   canEdit: boolean;
   /** Documents are the owner's, their Branch's and the Roots' (Step 18.4). */
   canSeeDocuments: boolean;
+  /**
+   * Offer "Delete entry" (Step 22.3): a Root, or the Branch or Canopy member
+   * who added it while it is still theirs (`canOfferDelete`). The database
+   * still refuses once somebody else has built on it.
+   */
+  canDelete?: boolean;
   /**
    * What the viewer may invite someone to claim this entry as (Step 22.1):
    * Canopy or Leaf for a Root, a Leaf from a Branch or Canopy who can edit it.
@@ -512,7 +519,9 @@ export function PersonPanel({
     if (!person) return;
     if (
       !window.confirm(
-        "Permanently delete this entry, its relationships, photo, and documents? This cannot be undone.",
+        isAdmin
+          ? "Permanently delete this entry, its relationships, photo, and documents? This cannot be undone."
+          : "Permanently delete this entry you added, with its connections, photo and documents? This cannot be undone.",
       )
     ) {
       return;
@@ -833,7 +842,7 @@ export function PersonPanel({
                       </Button>
                     ) : null}
 
-                    {isAdmin ? (
+                    {canDelete && !readOnly ? (
                       <Button
                         size="sm"
                         variant="outline"

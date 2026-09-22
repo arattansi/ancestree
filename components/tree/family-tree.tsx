@@ -69,6 +69,7 @@ import {
   canEditConnection,
   canEditEntry,
   canInviteToClaim,
+  canOfferDelete,
   canSeeDocuments,
   type EntrySubject,
   type Viewer,
@@ -1682,6 +1683,8 @@ function Canvas({
     !!selectedPerson && canSeeDocuments(entrySubject(selectedPerson), viewer);
   const canInvite =
     !!selectedPerson && canInviteToClaim(entrySubject(selectedPerson), viewer);
+  const canDelete =
+    !!selectedPerson && canOfferDelete(entrySubject(selectedPerson), viewer);
 
   return (
     <>
@@ -1938,6 +1941,7 @@ function Canvas({
         isSelf={selectedPerson?.id === selfPersonId}
         canEdit={canEdit}
         canSeeDocuments={canSeeDocs}
+        canDelete={canDelete}
         claimInviteOptions={
           canInvite ? invitableTypes(viewer.role).map((t) => t.key) : []
         }

@@ -11,7 +11,11 @@ import {
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select";
-import { ASSIGNABLE_ACCOUNT_TYPES, accountTypeOf } from "@/lib/account-types";
+import {
+  ASSIGNABLE_ACCOUNT_TYPES,
+  ROOT,
+  accountTypeOf,
+} from "@/lib/account-types";
 
 const ITEMS = ASSIGNABLE_ACCOUNT_TYPES.map((t) => ({
   value: t.key,
@@ -19,8 +23,9 @@ const ITEMS = ASSIGNABLE_ACCOUNT_TYPES.map((t) => ({
 }));
 
 /**
- * Root, on /admin: switch a member between Branch, Canopy and Leaf. Saves on
- * pick, and puts the old type back if the save doesn't take.
+ * Root, on /admin: switch a member between Branch, Canopy and Leaf, or make
+ * them a Root. Saves on pick, and puts the old type back if the save doesn't
+ * take. Making a Root asks first: it can't be undone, by anyone (Step 22.5).
  */
 export function AccountTypePicker({
   userId,
@@ -37,6 +42,14 @@ export function AccountTypePicker({
 
   function choose(next: string | null) {
     if (!next || next === value) return;
+    if (
+      next === ROOT.key &&
+      !window.confirm(
+        `Make ${name} a Root? They'll hold the whole tree, just as you do: every entry and connection, members and invites, deleting entries. A Root stays a Root — nobody, you included, can change that later.`,
+      )
+    ) {
+      return;
+    }
     const previous = value;
     setValue(next);
     startTransition(async () => {

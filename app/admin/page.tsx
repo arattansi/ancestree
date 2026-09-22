@@ -367,7 +367,7 @@ export default async function AdminPage() {
           id="account-types"
           collapsible
           title="Account types"
-          description="What each kind of member can reach. Anyone who isn’t a Root can be switched between Branch, Canopy and Leaf from the table above; new members join as Canopy. A Branch tends the part of a Root’s side they’re related through — a Root’s father’s family, say, not their mother’s — and a child of two Roots tends their part of both."
+          description="What each kind of member can reach. Anyone who isn’t a Root can be switched between Branch, Canopy and Leaf from the table above, or made a Root — which is for good: a Root is never demoted or removed. New members join as Canopy. A Branch tends the part of a Root’s side they’re related through — a Root’s father’s family, say, not their mother’s — and a child of two Roots tends their part of both."
         >
           <AccountTypeGuide />
         </AdminSubsection>

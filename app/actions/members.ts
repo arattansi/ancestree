@@ -8,13 +8,14 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 /**
- * Root: give a member a different account type — Branch, Canopy or Leaf
+ * Root: give a member a different account type — Root, Branch, Canopy or Leaf
  * (`lib/account-types`).
  *
  * What each can reach is the database's to enforce; this only records the
  * choice. A Branch's branch is derived from their own entry, not configured
- * here (`private.own_branch_ids`, Step 22.2). Roots are left alone: making someone a
- * Root, or unmaking one, is a bigger decision than a dropdown.
+ * here (`private.own_branch_ids`, Step 22.2). Making someone a Root is for
+ * good (Step 22.5): a Root's type never changes again, which
+ * `profiles_protect_role` enforces as well.
  */
 export async function setAccountType(
   userId: string,
@@ -35,7 +36,7 @@ export async function setAccountType(
     .maybeSingle();
   if (!target) return { error: "That member no longer exists." };
   if (target.role === ROOT.key) {
-    return { error: "A Root's account type can't be changed here." };
+    return { error: "A Root stays a Root. Their account type can't change." };
   }
 
   // `profiles_protect_role` quietly keeps the old role for anyone who isn't
