@@ -1,17 +1,19 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import Link from "next/link";
 
 import { requestInvite, type RequestInviteState } from "@/app/actions/invite-requests";
+import { InviteConsent, NameEmailFields } from "@/components/request-fields";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
 const INITIAL: RequestInviteState = {};
 
-export function RequestInviteForm({ treeSlug }: { treeSlug?: string | null }) {
+/**
+ * Ask one tree's Roots for an invite, named by its slug — the share link's
+ * "request access" and a visitor's "request edit access". Without a tree,
+ * the page shows the search instead (`RequestAccessFlow`).
+ */
+export function RequestInviteForm({ treeSlug }: { treeSlug: string }) {
   const [state, formAction, pending] = useActionState(requestInvite, INITIAL);
   const [consented, setConsented] = useState(false);
 
@@ -34,44 +36,12 @@ export function RequestInviteForm({ treeSlug }: { treeSlug?: string | null }) {
 
   return (
     <form action={formAction} className="flex flex-col gap-4" noValidate>
-      {treeSlug ? <input type="hidden" name="tree" value={treeSlug} /> : null}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="firstName">First name</Label>
-          <Input
-            id="firstName"
-            name="firstName"
-            autoComplete="given-name"
-            required
-            defaultValue={state.firstName}
-          />
-        </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="lastName">Last name</Label>
-          <Input
-            id="lastName"
-            name="lastName"
-            autoComplete="family-name"
-            required
-            defaultValue={state.lastName}
-          />
-        </div>
-      </div>
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="email">Email address</Label>
-        <Input
-          id="email"
-          name="email"
-          type="email"
-          autoComplete="email"
-          inputMode="email"
-          required
-          defaultValue={state.email}
-          placeholder="you@example.com"
-          aria-invalid={state.error ? true : undefined}
-          aria-describedby={state.error ? "request-invite-error" : undefined}
-        />
-      </div>
+      <input type="hidden" name="tree" value={treeSlug} />
+      <NameEmailFields
+        idPrefix="request-invite"
+        state={state}
+        errorId={state.error ? "request-invite-error" : undefined}
+      />
 
       {state.error ? (
         <p id="request-invite-error" role="alert" className="text-sm text-destructive">
@@ -79,31 +49,11 @@ export function RequestInviteForm({ treeSlug }: { treeSlug?: string | null }) {
         </p>
       ) : null}
 
-      <Label
-        htmlFor="consent"
-        className="group/field-label flex items-start gap-2.5 text-sm font-normal text-muted-foreground"
-      >
-        <Checkbox
-          id="consent"
-          name="consent"
-          checked={consented}
-          onCheckedChange={(value) => setConsented(value === true)}
-          className="mt-0.5"
-        />
-        <span>
-          If I&rsquo;m approved, I agree that my family details, photos, and
-          documents will be shared with other members of this private tree, and
-          I have read the{" "}
-          <Link
-            href="/privacy"
-            target="_blank"
-            className="underline underline-offset-4"
-          >
-            privacy notice
-          </Link>
-          .
-        </span>
-      </Label>
+      <InviteConsent
+        id="request-invite-consent"
+        checked={consented}
+        onCheckedChange={setConsented}
+      />
 
       <Button type="submit" disabled={pending || !consented}>
         {pending ? "Sending…" : "Request an invite"}

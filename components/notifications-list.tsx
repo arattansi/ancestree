@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -11,7 +12,7 @@ import { respondToPlacement } from "@/app/actions/trees";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { NotificationItem } from "@/lib/claims";
-import { treeFocusHref } from "@/lib/tree-links";
+import { newTreeHref, treeFocusHref } from "@/lib/tree-links";
 
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -141,6 +142,18 @@ export function NotificationsList({
                   View on tree
                 </Button>
               </form>
+            ) : null}
+
+            {n.type === "tree_request_approved" ? (
+              // Step 26: a reviewer said yes; naming the tree is the next step.
+              <Button
+                nativeButton={false}
+                render={<Link href={newTreeHref()} />}
+                size="sm"
+                variant="outline"
+              >
+                Start your tree
+              </Button>
             ) : null}
 
             {n.revertibleRevisionId ? (

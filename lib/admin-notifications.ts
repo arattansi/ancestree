@@ -18,6 +18,8 @@ export type AdminActionItem = {
 export function buildAdminActionItems(counts: {
   inviteRequests: number;
   disputedClaims: number;
+  /** Requests to start a tree (Step 26) — a beta reviewer's only. */
+  treeRequests?: number;
 }): AdminActionItem[] {
   const items: AdminActionItem[] = [
     {
@@ -29,6 +31,11 @@ export function buildAdminActionItems(counts: {
       target: "disputes",
       label: "disputed claims",
       count: counts.disputedClaims,
+    },
+    {
+      target: "tree-requests",
+      label: "requests to start a tree",
+      count: counts.treeRequests ?? 0,
     },
   ];
   return items.filter((i) => i.count > 0);

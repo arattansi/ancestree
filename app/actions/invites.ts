@@ -10,8 +10,8 @@ import {
 import { requireProfile } from "@/lib/auth";
 import { sendEmail } from "@/lib/email";
 import { claimInviteEmail } from "@/lib/emails/claim-invite";
-import { founderInviteEmail } from "@/lib/emails/founder-invite";
 import { inviteSentEmail } from "@/lib/emails/invite-sent";
+import { mintFounderInvite } from "@/lib/founder-invites.server";
 import { personDisplayName } from "@/lib/person-name";
 import { getSiteUrl } from "@/lib/site-url";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -228,11 +228,12 @@ export async function sendDirectInvites(
 }
 
 /**
- * Root: invite someone to found a tree of their own (Step 25, the beta's only
- * door for a brand-new family). Redeeming creates a fresh tree named after
- * them, makes them its Root, and lands them on its onboarding. The invite is
- * recorded against the inviting tree so it shows up in that tree's history;
- * nothing from this tree is copied over.
+ * Root: invite someone to found a tree of their own (Step 25). With a beta
+ * reviewer approving someone off the waitlist (Step 26, `approveTreeRequest`),
+ * it's how a brand-new family gets in. Redeeming creates a fresh tree named
+ * after them, makes them its Root, and lands them on its onboarding. The
+ * invite is recorded against the inviting tree so it shows up in that tree's
+ * history; nothing from this tree is copied over.
  */
 export async function sendFounderInvites(
   treeId: string,
@@ -245,55 +246,14 @@ export async function sendFounderInvites(
   const checked = checkRows(rows);
   if (checked.error || !checked.rows) return { error: checked.error };
 
-  const supabase = createAdminClient();
   const results: DirectInviteResult[] = [];
-
   for (const row of checked.rows) {
-    const { data: invite, error: inviteError } = await supabase
-      .from("invites")
-      .insert({
-        tree_id: treeId,
-        created_by: inviter.auth_user_id,
-        status: "active",
-        expires_at: expiry(),
-        joins_as: "member",
-        founds_tree: true,
-        invited_email: row.email,
-      })
-      .select("id, token")
-      .single();
-
-    if (inviteError || !invite) {
-      results.push({ email: row.email, minted: false, emailed: false, error: "Could not create a link." });
-      continue;
-    }
-
-    const url = `${getSiteUrl()}/join/${invite.token}`;
-    const { subject, html } = founderInviteEmail({
-      firstName: row.firstName,
-      inviterName: inviter.display_name ?? "A family member",
-      url,
-    });
-    const sent = await sendEmail({ to: row.email, subject, html });
-
-    await supabase.from("invite_requests").insert({
-      tree_id: treeId,
-      first_name: row.firstName,
-      last_name: row.lastName,
-      email: row.email,
-      source: "direct",
-      status: "approved",
-      reviewed_by: inviter.auth_user_id,
-      reviewed_at: new Date().toISOString(),
-      invite_id: invite.id,
-      email_sent: sent.ok,
-    });
-
+    const minted = await mintFounderInvite(treeId, inviter, row, "direct");
     results.push({
       email: row.email,
-      minted: true,
-      emailed: sent.ok,
-      error: sent.ok ? undefined : sent.error,
+      minted: minted.inviteId !== null,
+      emailed: minted.emailed,
+      error: minted.error,
     });
   }
 

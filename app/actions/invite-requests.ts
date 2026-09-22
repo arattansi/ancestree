@@ -3,8 +3,15 @@
 import { revalidatePath } from "next/cache";
 
 import { sendEmail } from "@/lib/email";
+import { founderApprovedEmail } from "@/lib/emails/founder-approved";
+import { founderInviteEmail } from "@/lib/emails/founder-invite";
 import { inviteApprovedEmail } from "@/lib/emails/invite-approved";
 import { inviteSentEmail } from "@/lib/emails/invite-sent";
+import {
+  problemState,
+  readNameAndEmail,
+  type RequestFormState,
+} from "@/lib/request-forms";
 import { getSiteUrl } from "@/lib/site-url";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -12,62 +19,52 @@ import { revalidateTreePages } from "@/lib/revalidate";
 import { requireProfile } from "@/lib/auth";
 import { rootOf } from "@/lib/tree-context";
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const INVITE_TTL_DAYS = 14;
-const MAX_NAME_LENGTH = 80;
 
-export type RequestInviteState = {
-  ok?: boolean;
-  error?: string;
-  firstName?: string;
-  lastName?: string;
-  email?: string;
-};
+export type RequestInviteState = RequestFormState & { ok?: boolean };
 
 /**
  * Public: ask a tree's Roots for an invite. Written with the service-role
  * client because the requester is not signed in and `invite_requests` is not
- * reachable from `anon`. `tree` names the tree (its slug, from a share link's
- * "request access" button); without one the request goes to the first tree,
- * which is the family this site began with.
+ * reachable from `anon`. `tree` names the tree by its slug: from a share
+ * link's "request access" button, or from the tree the request-access search
+ * found them on (`findFamilyTree`, Step 26). There's no default tree any
+ * more — with several families on the site, a request without one would be
+ * guessing whose it is.
  */
 export async function requestInvite(
   _prev: RequestInviteState,
   formData: FormData,
 ): Promise<RequestInviteState> {
-  const firstName = String(formData.get("firstName") ?? "").trim();
-  const lastName = String(formData.get("lastName") ?? "").trim();
-  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const { entered, problem } = readNameAndEmail(formData);
   const consent = formData.get("consent");
   const treeSlug = String(formData.get("tree") ?? "").trim();
-  const entered = { firstName, lastName, email };
 
-  if (!firstName || !lastName) {
-    return { error: "Enter your first and last name.", ...entered };
-  }
-  if (firstName.length > MAX_NAME_LENGTH || lastName.length > MAX_NAME_LENGTH) {
-    return { error: "That name is too long.", ...entered };
-  }
-  if (!EMAIL_RE.test(email)) {
-    return { error: "Enter a valid email address.", ...entered };
-  }
+  if (problem) return problemState(problem, entered);
   // Approval leads straight into the tree, so this is where they agree to it.
   if (consent !== "on" && consent !== "true") {
     return { error: "Please accept the privacy notice to continue.", ...entered };
   }
+  if (!treeSlug) {
+    return { error: "Find your family’s tree first, then ask to join it.", ...entered };
+  }
 
   const supabase = createAdminClient();
-  const treeQuery = supabase.from("trees").select("id");
-  const { data: tree } = treeSlug
-    ? await treeQuery.eq("slug", treeSlug).maybeSingle()
-    : await treeQuery.order("created_at", { ascending: true }).limit(1).maybeSingle();
+  const { data: tree } = await supabase
+    .from("trees")
+    .select("id")
+    .eq("slug", treeSlug)
+    .maybeSingle();
   if (!tree) {
     return { error: "That tree isn't taking requests. Ask the person who shared it with you.", ...entered };
   }
 
-  const { error } = await supabase
-    .from("invite_requests")
-    .insert({ tree_id: tree.id, first_name: firstName, last_name: lastName, email });
+  const { error } = await supabase.from("invite_requests").insert({
+    tree_id: tree.id,
+    first_name: entered.firstName,
+    last_name: entered.lastName,
+    email: entered.email,
+  });
 
   if (error) {
     // Unique violation on the pending-email index: they already asked.
@@ -179,7 +176,7 @@ export async function resendInviteEmail(
   // RLS shows a request only to a Root of its tree.
   const { data: request } = await supabase
     .from("invite_requests")
-    .select("id, status, source, first_name, email, invites(token, status, expires_at)")
+    .select("id, status, source, first_name, email, invites(token, status, expires_at, founds_tree)")
     .eq("id", id)
     .maybeSingle();
 
@@ -209,11 +206,17 @@ export async function resendInviteEmail(
   const inviterName = admin.display_name ?? "A family member";
   const url = `${getSiteUrl()}/join/${invite.token}`;
   // Keep the original wording: nobody asked for a direct invite, so it must
-  // not come back claiming their request was approved.
-  const { subject, html } =
-    request.source === "direct"
-      ? inviteSentEmail({ firstName: request.first_name, inviterName, url })
-      : inviteApprovedEmail({ firstName: request.first_name, inviterName, url });
+  // not come back claiming their request was approved; and a founder invite
+  // starts a tree of their own, so it must not read as joining this one.
+  const input = { firstName: request.first_name, inviterName, url };
+  const direct = request.source === "direct";
+  const { subject, html } = invite.founds_tree
+    ? direct
+      ? founderInviteEmail(input)
+      : founderApprovedEmail(input)
+    : direct
+      ? inviteSentEmail(input)
+      : inviteApprovedEmail(input);
 
   const sent = await sendEmail({ to: request.email, subject, html });
 

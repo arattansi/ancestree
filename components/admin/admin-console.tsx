@@ -14,6 +14,7 @@ import {
 import { AdminGroup, AdminSubsection } from "@/components/admin/admin-group";
 import { AdminNotifications } from "@/components/admin/admin-notifications";
 import { AdminPlacements } from "@/components/admin/admin-placements";
+import { AdminTreeRequests } from "@/components/admin/admin-tree-requests";
 import {
   AdminSideNav,
   type AdminNavGroup,
@@ -57,6 +58,7 @@ import {
 import { getSiteUrl } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/server";
 import { listMyTrees, type TreeMembership } from "@/lib/tree-context";
+import { isBetaReviewer, listTreeRequests } from "@/lib/tree-requests.server";
 
 /**
  * The current tree's admin console — the "Admin" view of the account page: stats, members, people from other trees, requests, disputes,
@@ -155,14 +157,27 @@ export async function AdminConsole({
   // Before listing, so a link that lapsed since the last visit lands in
   // "Archived invites" rather than lingering among the live ones.
   await archiveExpiredInvites(tree.id);
-  const [inviteHistory, bareInvites, archivedInvites, candidates, foreign] =
-    await Promise.all([
-      listInviteHistory(tree.id),
-      listBareInvites(tree.id),
-      listArchivedInvites(tree.id),
-      listPlacementCandidates(tree.id),
-      listForeignPlacements(tree.id),
-    ]);
+  const [
+    inviteHistory,
+    bareInvites,
+    archivedInvites,
+    candidates,
+    foreign,
+    reviewer,
+  ] = await Promise.all([
+    listInviteHistory(tree.id),
+    listBareInvites(tree.id),
+    listArchivedInvites(tree.id),
+    listPlacementCandidates(tree.id),
+    listForeignPlacements(tree.id),
+    isBetaReviewer(),
+  ]);
+  // Requests to start a tree (Step 26) are the site's, not this tree's: the
+  // same queue shows on every console a beta reviewer runs.
+  const treeRequests = reviewer ? await listTreeRequests() : [];
+  const openTreeRequests = treeRequests.filter(
+    (r) => r.status === "pending",
+  ).length;
   const nicknameGroups = await listNicknameGroups();
   const inviteRequests: PendingInviteRequest[] = (
     inviteRequestsRes.data ?? []
@@ -212,8 +227,10 @@ export async function AdminConsole({
   const actionItems = buildAdminActionItems({
     inviteRequests: inviteRequests.length,
     disputedClaims: disputedClaims.length,
+    treeRequests: openTreeRequests,
   });
-  const requestsBadge = inviteRequests.length + disputedClaims.length;
+  const requestsBadge =
+    inviteRequests.length + disputedClaims.length + openTreeRequests;
 
   const stats: { label: string; value: number }[] = [
     { label: "Members", value: members.length },
@@ -245,6 +262,9 @@ export async function AdminConsole({
       items: [
         { id: "invite-requests", label: "Requests for Access" },
         { id: "disputes", label: "Disputed Claims" },
+        ...(reviewer
+          ? [{ id: "tree-requests", label: "Requests to Start a Tree" }]
+          : []),
       ],
     },
     {
@@ -434,8 +454,16 @@ export async function AdminConsole({
 
       <AdminGroup
         title="Requests & Claims"
-        description="People asking to join, or contesting a claim."
-        sectionIds={["invite-requests", "disputes"]}
+        description={
+          reviewer
+            ? "People asking to join, contesting a claim, or asking to start a tree."
+            : "People asking to join, or contesting a claim."
+        }
+        sectionIds={[
+          "invite-requests",
+          "disputes",
+          ...(reviewer ? ["tree-requests"] : []),
+        ]}
         badge={requestsBadge}
         defaultOpen={requestsBadge > 0}
       >
@@ -458,6 +486,18 @@ export async function AdminConsole({
         >
           <AdminDisputedClaims claims={disputedClaims} />
         </AdminSubsection>
+
+        {reviewer ? (
+          <AdminSubsection
+            id="tree-requests"
+            collapsible
+            defaultOpen={openTreeRequests > 0}
+            title="Requests to Start a Tree"
+            description={`${openTreeRequests} awaiting you, from every tree and the waitlist on the home page. New trees are by request during the beta, and only beta reviewers see this. Approving a member lets them start one and emails them. Approving someone from the waitlist emails them a founder invite from ${tree.name}, which you can resend from Sent Invites. Declining keeps a record; deleting leaves none and lets them ask again.`}
+          >
+            <AdminTreeRequests treeId={tree.id} requests={treeRequests} />
+          </AdminSubsection>
+        ) : null}
       </AdminGroup>
 
       <AdminGroup

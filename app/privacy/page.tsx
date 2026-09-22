@@ -39,6 +39,11 @@ export default function PrivacyPage() {
             Activity needed to run the tree: who created an entry, claims,
             comments, flags, and in-app notifications.
           </li>
+          <li>
+            If you ask to join a tree, or join the waitlist to start one, the
+            name and email you give — kept only so a relative or the site
+            owner can answer you, and deleted on request.
+          </li>
         </ul>
       </Section>
 

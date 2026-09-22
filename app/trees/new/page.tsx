@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { FoundTreeForm } from "@/components/found-tree-form";
+import { StartTreeButton } from "@/components/start-tree-button";
 import {
   Card,
   CardContent,
@@ -14,6 +15,8 @@ import { requireProfile } from "@/lib/auth";
 import { listMyTrees } from "@/lib/tree-context";
 import { adminHref, treesHref } from "@/lib/tree-links";
 import { defaultTreeName } from "@/lib/tree-names";
+import { TREE_REQUEST_RECEIVED } from "@/lib/tree-requests";
+import { getTreeRequestStatus } from "@/lib/tree-requests.server";
 
 export const metadata: Metadata = {
   title: "start a tree",
@@ -22,7 +25,10 @@ export const metadata: Metadata = {
 
 export default async function NewTreePage() {
   await requireProfile();
-  const trees = await listMyTrees();
+  const [trees, request] = await Promise.all([
+    listMyTrees(),
+    getTreeRequestStatus(),
+  ]);
 
   // One founded tree each: a founder is sent to the one they have.
   const founded = trees.find((t) => t.founded);
@@ -45,20 +51,41 @@ export default async function NewTreePage() {
         </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Your Tree</CardTitle>
-          <CardDescription>
-            It starts empty. Once it&rsquo;s planted you can bring yourself,
-            your children, and anyone else you can see on your other trees
-            across — a member&rsquo;s own entry waits for them to say yes.
-            Everyone keeps one entry; each tree just chooses who it shows.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <FoundTreeForm suggestedName={suggestedName} />
-        </CardContent>
-      </Card>
+      {request === "approved" ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Your Tree</CardTitle>
+            <CardDescription>
+              It starts empty. Once it&rsquo;s planted you can bring yourself,
+              your children, and anyone else you can see on your other trees
+              across — a member&rsquo;s own entry waits for them to say yes.
+              Everyone keeps one entry; each tree just chooses who it shows.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <FoundTreeForm suggestedName={suggestedName} />
+          </CardContent>
+        </Card>
+      ) : (
+        // Step 26: during the beta a new tree is by request.
+        <Card>
+          <CardHeader>
+            <CardTitle>New Trees Are in Beta</CardTitle>
+            <CardDescription>
+              {request === "pending"
+                ? TREE_REQUEST_RECEIVED
+                : "For now, a new tree starts with a request. Ask, and we’ll notify you when you can start building yours."}
+            </CardDescription>
+          </CardHeader>
+          {request === "none" ? (
+            <CardContent>
+              <StartTreeButton status="none" pendingLabel="Request sent">
+                Ask to start a tree
+              </StartTreeButton>
+            </CardContent>
+          ) : null}
+        </Card>
+      )}
 
       <p className="text-sm text-muted-foreground">
         <Link href={treesHref()} className="underline underline-offset-4">

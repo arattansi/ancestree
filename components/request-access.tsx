@@ -1,0 +1,275 @@
+"use client";
+
+import * as React from "react";
+import { useActionState } from "react";
+import Link from "next/link";
+
+import { requestInvite, type RequestInviteState } from "@/app/actions/invite-requests";
+import {
+  findFamilyTree,
+  joinBetaWaitlist,
+  type FindTreeState,
+  type WaitlistState,
+} from "@/app/actions/tree-requests";
+import { InviteConsent, NameEmailFields } from "@/components/request-fields";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { REQUEST_ACCESS_INTRO } from "@/lib/request-forms";
+import { waitlistReceived } from "@/lib/tree-requests";
+
+const INITIAL_SEARCH: FindTreeState = {};
+const INITIAL_REQUEST: RequestInviteState = {};
+const INITIAL_WAITLIST: WaitlistState = {};
+
+/** The home page's "request access" (Step 26): the flow, in a dialog. */
+export function RequestAccessDialog({
+  children,
+  ...look
+}: {
+  children: React.ReactNode;
+} & Pick<React.ComponentProps<typeof Button>, "size" | "variant" | "className">) {
+  return (
+    <Dialog>
+      <DialogTrigger render={<Button {...look} />}>{children}</DialogTrigger>
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Request access</DialogTitle>
+          <DialogDescription>{REQUEST_ACCESS_INTRO}</DialogDescription>
+        </DialogHeader>
+        <RequestAccessFlow />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * Request access, for someone signed out (Step 26). They say who they are;
+ * `findFamilyTree` looks for a tree showing someone by that name. Found, they
+ * ask that tree's Roots for an invite — choosing which, when more than one
+ * has them. Not found (or "not me"), they can ask a relative to invite them
+ * directly, or join the waitlist to start a tree of their own.
+ */
+export function RequestAccessFlow() {
+  const [search, searchAction, searching] = useActionState(
+    findFamilyTree,
+    INITIAL_SEARCH,
+  );
+  // Going back is tied to the search it left, so a fresh search moves on.
+  const [override, setOverride] = React.useState<{
+    search: FindTreeState;
+    show: "form" | "unmatched";
+  } | null>(null);
+  const show = override?.search === search ? override.show : null;
+
+  if (search.found && show !== "form") {
+    const backToForm = () => setOverride({ search, show: "form" });
+    return search.found.length > 0 && show !== "unmatched" ? (
+      <AskToJoin
+        search={search}
+        onNotMe={() => setOverride({ search, show: "unmatched" })}
+      />
+    ) : (
+      <Unmatched search={search} onBack={backToForm} />
+    );
+  }
+
+  return (
+    <form action={searchAction} className="flex flex-col gap-4" noValidate>
+      <NameEmailFields
+        idPrefix="request-access"
+        state={search}
+        errorId={search.error ? "request-access-error" : undefined}
+      />
+      {search.error ? (
+        <p id="request-access-error" role="alert" className="text-sm text-destructive">
+          {search.error}
+        </p>
+      ) : null}
+      <Button type="submit" disabled={searching}>
+        {searching ? "Looking…" : "Find my family’s tree"}
+      </Button>
+      <p className="text-sm text-muted-foreground">
+        Already on ancestree?{" "}
+        <Link href="/join" className="underline underline-offset-4">
+          Sign in
+        </Link>
+      </p>
+    </form>
+  );
+}
+
+/** Found: ask the tree's Roots for an invite, as the share link's form does. */
+function AskToJoin({
+  search,
+  onNotMe,
+}: {
+  search: FindTreeState;
+  onNotMe: () => void;
+}) {
+  const found = search.found ?? [];
+  const [state, formAction, pending] = useActionState(requestInvite, INITIAL_REQUEST);
+  const [consented, setConsented] = React.useState(false);
+  const [slug, setSlug] = React.useState(found[0]?.slug ?? "");
+  const chosen = found.find((t) => t.slug === slug) ?? found[0];
+  const name = `${search.firstName ?? ""} ${search.lastName ?? ""}`.trim();
+
+  if (state.ok) {
+    return (
+      <div role="status" className="rounded-lg border border-border bg-muted/40 p-4 text-sm">
+        <p className="font-medium text-foreground">Request sent</p>
+        <p className="mt-1 text-muted-foreground">
+          A Root of {chosen.name} will review it. Once they approve, we&rsquo;ll
+          email <span className="font-medium text-foreground">{state.email}</span>{" "}
+          a link that takes you straight into the tree — nothing more to sign up
+          for.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <form action={formAction} className="flex flex-col gap-4 text-sm">
+      <input type="hidden" name="firstName" value={search.firstName ?? ""} />
+      <input type="hidden" name="lastName" value={search.lastName ?? ""} />
+      <input type="hidden" name="email" value={search.email ?? ""} />
+      <input type="hidden" name="tree" value={chosen.slug} />
+
+      {found.length === 1 ? (
+        <div className="flex flex-col gap-1">
+          <p className="font-medium text-foreground">
+            We found someone named {name} on {chosen.name}
+          </p>
+          <p className="text-muted-foreground">
+            If that&rsquo;s you, ask to join. One of the tree&rsquo;s Roots will
+            review your request.
+          </p>
+        </div>
+      ) : (
+        <fieldset className="flex flex-col gap-2">
+          <legend className="mb-1 font-medium text-foreground">
+            We found someone named {name} on {found.length} trees
+          </legend>
+          <p className="text-muted-foreground">
+            Choose the one to ask to join. Its Roots will review your request.
+          </p>
+          <RadioGroup
+            value={slug}
+            onValueChange={(v) => {
+              if (typeof v === "string") setSlug(v);
+            }}
+          >
+            {found.map((t) => (
+              <label
+                key={t.slug}
+                className="flex cursor-pointer items-center gap-3 rounded-lg border border-border p-3 has-data-checked:border-ring"
+              >
+                <RadioGroupItem value={t.slug} />
+                <span className="font-medium text-foreground">{t.name}</span>
+              </label>
+            ))}
+          </RadioGroup>
+        </fieldset>
+      )}
+
+      {state.error ? (
+        <p role="alert" className="text-destructive">
+          {state.error}
+        </p>
+      ) : null}
+
+      <InviteConsent
+        id="request-access-consent"
+        checked={consented}
+        onCheckedChange={setConsented}
+      />
+
+      <div className="flex flex-wrap gap-2">
+        <Button type="submit" disabled={pending || !consented}>
+          {pending ? "Sending…" : "Request an invite"}
+        </Button>
+        <Button type="button" variant="ghost" onClick={onNotMe} disabled={pending}>
+          That&rsquo;s not me
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+/**
+ * Not found: ask a relative to invite them directly, or join the waitlist to
+ * start a tree of their own with what they've already typed.
+ */
+function Unmatched({
+  search,
+  onBack,
+}: {
+  search: FindTreeState;
+  onBack: () => void;
+}) {
+  const [state, formAction, pending] = useActionState(
+    joinBetaWaitlist,
+    INITIAL_WAITLIST,
+  );
+
+  return (
+    <div className="flex flex-col gap-4 text-sm">
+      <div className="flex flex-col gap-1">
+        <p className="font-medium text-foreground">
+          We couldn&rsquo;t find you on a tree yet
+        </p>
+        <p className="text-muted-foreground">
+          Families add relatives as they go, so you may not be on yours yet, or
+          you may be there under another spelling.
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-1 rounded-lg border border-border p-3">
+        <p className="font-medium text-foreground">Ask to be invited</p>
+        <p className="text-muted-foreground">
+          If someone in your family is already on ancestree, ask them, or the
+          Root who runs your family&rsquo;s tree, to invite you directly. Their
+          invite signs you straight in.
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-2 rounded-lg border border-border p-3">
+        <p className="font-medium text-foreground">Start your family&rsquo;s tree</p>
+        {state.ok && state.email ? (
+          <p role="status" className="text-muted-foreground">
+            {waitlistReceived(state.email)}
+          </p>
+        ) : (
+          <form action={formAction} className="flex flex-col gap-2">
+            <input type="hidden" name="firstName" value={search.firstName ?? ""} />
+            <input type="hidden" name="lastName" value={search.lastName ?? ""} />
+            <input type="hidden" name="email" value={search.email ?? ""} />
+            <p className="text-muted-foreground">
+              New trees are in beta. Join the waitlist, and we&rsquo;ll email{" "}
+              {search.email} when you can start building yours.
+            </p>
+            {state.error ? (
+              <p role="alert" className="text-destructive">
+                {state.error}
+              </p>
+            ) : null}
+            <Button type="submit" size="sm" className="self-start" disabled={pending}>
+              {pending ? "Sending…" : "Join the beta waitlist"}
+            </Button>
+          </form>
+        )}
+      </div>
+
+      <Button type="button" variant="ghost" className="self-start" onClick={onBack}>
+        Try a different spelling
+      </Button>
+    </div>
+  );
+}

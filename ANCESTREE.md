@@ -55,10 +55,14 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   member's home tree): `/tree` (React Flow canvas), `/tree/review`,
   `/people/new`, `/people/[id]/edit`, `/onboarding` (first-run on that
   tree); `/admin` redirects to the account page's Admin view. Site-wide: `/`
-  landing, `/join` (+ `/join/[token]` invite accept — signed in, it adds a
+  landing (Step 26: signed in, **view your tree** / **start new tree
+  (beta)**, which asks a beta reviewer; signed out, **sign in** / **request
+  access** / **start new tree (beta)**, the last two in dialogs —
+  `components/request-access.tsx`, `beta-waitlist-dialog.tsx`,
+  `start-tree-button.tsx`), `/join` (+ `/join/[token]` invite accept — signed in, it adds a
   tree), `/auth/callback` + `/auth/confirm` + `/auth/auth-code-error`,
   `/trees` (every tree you're on, your type in each), `/trees/new` (found a
-  tree of your own), `/account` (sign-in address and display name under the
+  tree of your own, once a beta reviewer has approved it), `/account` (sign-in address and display name under the
   title, then two-column cards: your trees, your entry's home and visitor
   hiding, your own details as an editable form — including your email,
   which lives on your entry (`people.email`, seeded from the sign-in address
@@ -66,10 +70,12 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   a hidden address from everyone but the entry's owner), one inbox per
   tree, delete-account — and, with `?view=admin`, the **admin console**
   of the current tree, or the first you run: stats, members, people from
-  other trees, requests, disputes, invites incl. founder invites, share
+  other trees, requests, disputes, requests to start a tree (beta
+  reviewers only), invites incl. founder invites, share
   links, tree name, who else may view, export, delete the tree;
   `components/admin/admin-console.tsx`),
-  `/request-invite` (public; `?tree=<slug>` aims it at one tree),
+  `/request-invite` (public; `?tree=<slug>` asks that tree's Roots, and
+  without one it's the request-access search),
   `/shared/[token]` (public read-only canvas), `/privacy`
 - `app/actions/` — server actions (`auth.ts`: magic link (+ consent gate) +
   sign out; `privacy.ts`: `exportTreeData` (admin JSON export) / `deletePerson`
@@ -86,6 +92,10 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   (`lib/tree-context#membershipOf` / `rootOf`);
   `invite-requests.ts`: `requestInvite` (public, service-role write) /
   `approveInviteRequest` (mints the link) / `declineInviteRequest`;
+  `tree-requests.ts` (Step 26): `requestNewTree` (a member asks to start a
+  tree), `joinBetaWaitlist` / `findFamilyTree` (public, service-role),
+  `approveTreeRequest` / `declineTreeRequest` / `deleteTreeRequest` (beta
+  reviewers);
   `people.ts`: `addPeopleWithConnections` (transactional multi-person + edge
   create), update person, drag-to-pin position, photo + document writes,
   signed URLs; `claims.ts`: `claimPerson` / `disputeClaim` / `resolveClaim` /
@@ -182,7 +192,7 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 
 | Table                    | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `trees`                  | A family's canvas (Step 25): `name`, URL `slug` (unique, follows the name), `created_by` = founder — **one founded tree per member** (partial unique index); created only by `found_tree` / a founder invite / the allowlist bootstrap, deleted only by `delete_tree`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `trees`                  | A family's canvas (Step 25): `name`, URL `slug` (unique, follows the name), `created_by` = founder — **one founded tree per member** (partial unique index); created only by `found_tree` (once a beta reviewer has approved the member's request, Step 26) / a founder invite / the allowlist bootstrap, deleted only by `delete_tree`                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `tree_members`           | **The account type, per tree** (Step 25): `(tree_id, user_id, role)`, `role` ∈ `admin` \| `branch_admin` \| `member` \| `leaf` (Root / Branch / Canopy / Leaf). Written by RPCs (`join_tree`, `set_member_role`, `remove_tree_member`) behind `tree_members_guard` (Roots set types; Root is permanent per tree)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `tree_placements`        | Which trees show a person, and where the card sits there: `(tree_id, person_id, status active\|pending\|declined, pos_*)`. The home tree always has one (trigger); others come from `place_people`, and a member's own entry waits `pending` for their yes (`respond_to_placement`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `tree_visibility`        | A Root opens their tree, read-only, to the members of another tree they're on: `(tree_id, viewer_tree_id)`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
@@ -192,8 +202,9 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `connection_suggestions` | Implied-connection prompts surfaced by the add-person flow (`suggested_type` spouse/parent/sibling_check, `source`, `status` pending/accepted/dismissed); UNIQUE (subject, related, type, source) = no re-prompt                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `invites`                | Shareable tokens into one tree (`active` \| `accepted` \| `revoked`); `founds_tree` (Step 25) makes it a founder invite — redeeming plants a new tree with the redeemer as Root                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `invite_requests`        | Public invite asks — first/last name + email, `pending` \| `approved` \| `declined`, `invite_id` of the link minted on approval. Admin-only RLS; inserted server-side with the service role (no `anon` grant). One pending row per email                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `tree_requests`          | Asks to start a tree during the beta (Step 26): a member's (`user_id`) or a waitlist sign-up's (name + email only), `pending` \| `approved` \| `declined`, answered by a beta reviewer (`private.beta_reviewers`). A member's approval is their permission to `found_tree`; a sign-up's approval mints a founder invite (`invite_id`). Reviewers see and answer every row, a member only their own; members ask through `request_tree`, the waitlist is written with the service role. One pending ask per member and per waitlist address                                                                                                                                                                                                                                                                   |
 | `claims`                 | Auto-approve / dispute / reject a person entry (`dispute_reason`, `resolved_by`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| `notifications`          | In-app notices, **one inbox per tree** (`tree_id`, Step 25; `placement_requested` \| `placement_accepted` \| `placement_declined` added); recipient-scoped RLS                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `notifications`          | In-app notices, **one inbox per tree** (`tree_id`, Step 25; `placement_requested` \| `placement_accepted` \| `placement_declined` added; `tree_request_approved`, Step 26); recipient-scoped RLS                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `entry_comments`         | Comments and flags, **one board per tree** (`tree_id`, Step 25) (`is_flag`, `open` \| `resolved`, `resolved_by`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `documents`              | Metadata for private file uploads, **one bank per tree** (`tree_id`); `shared_across_trees` shows it on every tree the person is on — flipped only by the person or a Root of their home tree (`documents_guard`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `places`                 | GeoNames reference data (populated places + admin areas) for birthplace autocomplete; not tree-scoped — read by any member, written only by the import script                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
@@ -440,8 +451,16 @@ mirror it for the UI.
   in-between people and only the suggestions about them (`selfOnly`), since
   the Leaf guards would refuse anything else. Leaf links are marked in
   `/admin`'s sent-invites and bare-links lists.
-- **Invite requests** (`public.invite_requests`): anyone can ask from `/` →
-  `/request-invite` with first name, last name, and email. The row is written
+- **Invite requests** (`public.invite_requests`): anyone can ask from `/`
+  ("request access") or `/request-invite` with first name, last name, and
+  email. Without a tree in hand, `findFamilyTree` looks for one first
+  (Step 26, `public.trees_matching_name`, service role only): a strong
+  name match (onboarding's 0.85) on a living, unclaimed entry nobody has
+  hidden from visitors, returning the **trees**, never the person. Found,
+  they ask that tree's Roots; not found, they're told to ask a relative to
+  invite them directly, or to join the waitlist to start a tree. A share
+  link's button names its tree (`?tree=<slug>`) and skips the search;
+  `requestInvite` no longer falls back to the first tree. The row is written
   by the `requestInvite` server action using the service-role client, so the
   table needs no `anon` grant or insert policy and cannot be read or enumerated
   from the browser. Admins review pending requests on `/admin`; approving mints
@@ -480,6 +499,24 @@ mirror it for the UI.
   claim / flag / comment / manage affordances) with a "request edit access" CTA
   pointing at `/request-invite`. `lib/share-links.ts` holds the pure
   usable/expired/revoked logic (`.test.ts`).
+- **Starting a tree is by request during the beta** (Step 26,
+  `public.tree_requests`): a signed-in member presses "start new tree
+  (beta)" (home page, `/trees`, `/trees/new`) and `request_tree` files one
+  ask; a signed-out visitor joins the waitlist with a name and email
+  (`joinBetaWaitlist`). **Beta reviewers** — `private.beta_reviewers`
+  (email), seeded with the build owner only; add a row to share the queue —
+  answer both from "Requests to Start a Tree" on any admin console they run,
+  counted in the header badge. Approving a member lets `found_tree` through
+  for them (it raises `TREE_REQUEST_NEEDED` otherwise), puts
+  `tree_request_approved` in their inbox (trigger) and emails them
+  (`lib/emails/tree-request-approved.ts`, via the general `renderEmail`
+  shell). Approving a sign-up mints a founder invite on the reviewer's
+  console tree (`lib/founder-invites.server.ts#mintFounderInvite`, shared
+  with `sendFounderInvites`), recorded in its Sent invites as `request` and
+  emailed with `lib/emails/founder-approved.ts`; resending a founder invite
+  now keeps founder wording. `my_tree_request()` says where an ask stands
+  (`none` | `pending` | `approved` | `founded`) and drives every "start a
+  tree" button. A Root's founder invite still needs no request.
 - **Admin bootstrap**: `private.admin_allowlist(email)` — seeded with both
   co-admins (Aalim Rattansi, Raiya Suleman). First login by an
   allowlisted email runs `ensure_profile`, which creates the single shared
@@ -651,6 +688,44 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   place-change clear, the read-only share-link panel making no lookup, and
   the edit trigger (a Root's edit notified the owner and creator "was
   updated: ancestral lands"; that probe was rolled back).
+
+- **Step 26 — The home page's calls to action** (ad-hoc; migration
+  `20260923040000_tree_requests_and_waitlist`). **Signed in:** "view your
+  tree" (`/tree`) and "start new tree (beta)". New trees are by request
+  during the beta, so the button files an ask with a beta reviewer and
+  shows "Your request has been received. We'll notify you when you can
+  start building a new tree." Pressing again only shows the dialog; once
+  approved it links to `/trees/new`, and once they've founded a tree (one
+  each) it's gone. The same gate now covers `/trees`, `/trees/new` and
+  `found_tree` itself, so the Step 25 married-in path waits on a reviewer
+  too. **Signed out:** "sign in", "request access" and "start new tree
+  (beta)". Request access takes a first name, last name and email and
+  looks for the family's tree first. A strong name match on a living,
+  unclaimed entry names the tree (never the person) and asks its Roots
+  for an invite, with a choice when several trees match and "That's not
+  me" to back out. With no match, it suggests asking a relative to invite
+  them directly, or joining the beta waitlist with what they've typed.
+  "start new tree (beta)" is that waitlist on its own, ending on the same
+  "request received" dialog. **Reviewing:** `private.beta_reviewers`
+  (seeded with the build owner) sees "Requests to Start a Tree" on their
+  admin console, in "Needs attention" and the header badge. Approving a
+  member notifies them in-app (`tree_request_approved`, with "Start your
+  tree") and by email. Approving a sign-up emails a founder invite from
+  that console's tree. Declining keeps a record; deleting doesn't, and
+  takes back an unused permission or invite. **Also:** one reading of the
+  public name-and-email forms (`lib/request-forms.ts`) that marks the
+  field at fault, where the invite request used to mark the email for a
+  missing name, and whose inputs remount instead of tripping Base UI's
+  changed-default warning; `renderEmail` under `renderInviteEmail` (invite
+  emails byte-identical); resending a founder invite keeps founder wording;
+  Sent invites marks founder invites "Starts a tree". **Verified** on the
+  live project: the migration was rehearsed in a rolled-back transaction,
+  then two throwaway accounts on Resend's test addresses ran every path:
+  waitlist → approval → founder invite → a tree planted; a member asking,
+  approval, inbox and email, then founding. A match and a no-match went
+  through request access, and a reviewer declined and deleted. All test
+  rows were deleted and the counts matched the start (1 tree, 5 profiles,
+  63 people, 84 notifications). 13 new tests.
 
 - **Step 25 — Many trees, one entry each** (ad-hoc; migrations
   `20260922090000_trees_have_members`, `20260922100000_tree_views`,

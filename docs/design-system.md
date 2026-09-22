@@ -29,6 +29,12 @@ shows a tree's name, which keeps its own capitalisation.
 Buttons that *do* something — **Save**, **Rename**, **Start my tree**,
 **Sign out** — are sentence case, like any other button.
 
+The home page's calls to action count as navigation, so they're lower-case
+too — **view your tree**, **sign in**, **request access**, **start new tree
+(beta)** — even the ones that open a dialog rather than a page. Inside the
+dialog, titles and buttons go back to sentence case (**Request access**,
+**Join the waitlist**), as dialog titles are everywhere.
+
 ## Layout
 
 - Pages sit in a centred column: `max-w-3xl` for the account page and admin

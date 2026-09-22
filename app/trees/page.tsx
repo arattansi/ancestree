@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 
 import { switchTreeForm } from "@/app/actions/current-tree";
 import { AccountTypeBadge } from "@/components/account-type-badge";
+import { StartTreeButton } from "@/components/start-tree-button";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -13,7 +13,9 @@ import {
 } from "@/components/ui/card";
 import { requireProfile } from "@/lib/auth";
 import { listMyTrees } from "@/lib/tree-context";
-import { adminHref, newTreeHref, treeHref } from "@/lib/tree-links";
+import { adminHref, treeHref } from "@/lib/tree-links";
+import { TREE_REQUEST_RECEIVED } from "@/lib/tree-requests";
+import { getTreeRequestStatus } from "@/lib/tree-requests.server";
 
 export const metadata: Metadata = {
   title: "your trees",
@@ -22,7 +24,10 @@ export const metadata: Metadata = {
 
 export default async function TreesPage() {
   await requireProfile();
-  const trees = await listMyTrees();
+  const [trees, request] = await Promise.all([
+    listMyTrees(),
+    getTreeRequestStatus(),
+  ]);
   const founded = trees.some((t) => t.founded);
 
   return (
@@ -89,14 +94,21 @@ export default async function TreesPage() {
             <CardDescription>
               For your own side of the family, with you as its first Root. Bring
               anyone you can see here along with you — they keep their one
-              entry, and you arrange them on a canvas of your own.
+              entry, and you arrange them on a canvas of your own.{" "}
+              {request === "approved"
+                ? null
+                : request === "pending"
+                  ? TREE_REQUEST_RECEIVED
+                  : "New trees are in beta, so it starts with a request."}
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <Button nativeButton={false} render={<Link href={newTreeHref()} />}>
-              Start a tree
-            </Button>
-          </CardContent>
+          {request === "pending" ? null : (
+            <CardContent>
+              <StartTreeButton status={request} pendingLabel="Request sent">
+                {request === "approved" ? "Start a tree" : "Ask to start a tree"}
+              </StartTreeButton>
+            </CardContent>
+          )}
         </Card>
       ) : null}
     </main>

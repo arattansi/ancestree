@@ -12,6 +12,7 @@ import { listNotifications } from "@/lib/claims";
 import { countOpenConnectionSuggestions } from "@/lib/connection-suggestions.server";
 import { currentAccess, listMyTrees } from "@/lib/tree-context";
 import { reviewHref, treeHref } from "@/lib/tree-links";
+import { countPendingTreeRequests } from "@/lib/tree-requests.server";
 
 /**
  * The site-wide header. Left, the mark; centre, the tree switcher for
@@ -31,17 +32,22 @@ export async function SiteHeader() {
   const visiting =
     access?.kind === "visitor" ? { name: access.visit.tree.name } : null;
 
-  const [notifications, openConnections, adminCounts] = await Promise.all([
-    user ? listNotifications(user.id) : [],
-    // A Leaf can't answer connection prompts, so isn't pointed at them.
-    currentMembership && currentMembership.type.connections !== "none"
-      ? countOpenConnectionSuggestions(currentMembership.tree.id)
-      : 0,
-    Promise.all(
-      trees.map((t) => (t.type.runsTree ? countAdminActionItems(t.id) : 0)),
-    ),
-  ]);
-  const adminItems = adminCounts.reduce((sum, n) => sum + n, 0);
+  const runsATree = trees.some((t) => t.type.runsTree);
+  const [notifications, openConnections, adminCounts, treeRequests] =
+    await Promise.all([
+      user ? listNotifications(user.id) : [],
+      // A Leaf can't answer connection prompts, so isn't pointed at them.
+      currentMembership && currentMembership.type.connections !== "none"
+        ? countOpenConnectionSuggestions(currentMembership.tree.id)
+        : 0,
+      Promise.all(
+        trees.map((t) => (t.type.runsTree ? countAdminActionItems(t.id) : 0)),
+      ),
+      // A beta reviewer answers from an admin console, so has a tree to run.
+      runsATree ? countPendingTreeRequests() : 0,
+    ]);
+  const adminItems =
+    adminCounts.reduce((sum, n) => sum + n, 0) + treeRequests;
   const showSwitcher =
     trees.length > 1 || (visiting !== null && trees.length > 0);
 

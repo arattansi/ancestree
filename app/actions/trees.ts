@@ -20,6 +20,9 @@ function friendlyTreeError(message: string | undefined): string {
   if (m.includes("one_tree_each")) {
     return "You've already started a tree of your own. You can be a Root of several trees, but found only one.";
   }
+  if (m.includes("tree_request_needed")) {
+    return "New trees are by request during the beta. Ask from your trees page, and we'll let you know when you can start one.";
+  }
   if (m.includes("name your tree")) return "Give your tree a name.";
   if (m.includes("only a root")) return "Only a Root of this tree can do that.";
   return "Couldn't do that. Try again.";
@@ -31,6 +34,8 @@ export type FoundTreeResult = { slug?: string; error?: string };
  * A member starts a tree of their own (Step 25, the married-in path): a
  * fresh tree with them as its Root. Nothing is copied; they then bring the
  * people they choose over from the trees they belong to (`placePeople`).
+ * During the beta only once a reviewer has approved their request (Step 26,
+ * `requestNewTree`); the database refuses anyone else.
  */
 export async function foundTree(name: string): Promise<FoundTreeResult> {
   await requireProfile();

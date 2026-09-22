@@ -1631,6 +1631,87 @@ export type Database = {
           },
         ]
       }
+      tree_requests: {
+        Row: {
+          created_at: string
+          email: string
+          email_sent: boolean | null
+          first_name: string
+          id: string
+          invite_id: string | null
+          last_name: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          email_sent?: boolean | null
+          first_name: string
+          id?: string
+          invite_id?: string | null
+          last_name?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          email_sent?: boolean | null
+          first_name?: string
+          id?: string
+          invite_id?: string | null
+          last_name?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tree_requests_invite_id_fkey"
+            columns: ["invite_id"]
+            isOneToOne: false
+            referencedRelation: "invites"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tree_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "tree_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "tree_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "tree_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+        ]
+      }
       tree_visibility: {
         Row: {
           created_at: string
@@ -2109,7 +2190,9 @@ export type Database = {
           valid: boolean
         }[]
       }
+      is_beta_reviewer: { Args: never; Returns: boolean }
       my_growth_rights: { Args: { p_tree?: string }; Returns: Json }
+      my_tree_request: { Args: never; Returns: string }
       person_claim_candidates: {
         Args: never
         Returns: {
@@ -2207,6 +2290,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      request_tree: { Args: never; Returns: string }
       resolve_claim: {
         Args: { p_action: string; p_claim_id: string }
         Returns: undefined
@@ -2262,6 +2346,14 @@ export type Database = {
       set_member_role: {
         Args: { p_role: string; p_tree: string; p_user: string }
         Returns: string
+      }
+      trees_matching_name: {
+        Args: { p_first: string; p_last: string }
+        Returns: {
+          tree_id: string
+          tree_name: string
+          tree_slug: string
+        }[]
       }
     }
     Enums: {
