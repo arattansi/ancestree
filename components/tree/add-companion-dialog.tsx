@@ -87,6 +87,7 @@ export function AddCompanionDialog({
     // The person whose panel this was opened from is the primary connection:
     // they're the one the chip hangs from. Changed later from the pet's panel.
     const result = await addPet({
+      treeId,
       values,
       companionIds: companions,
       primaryPersonId: startingWith,

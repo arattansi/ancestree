@@ -31,9 +31,11 @@ async function copy(text: string) {
 }
 
 export function ShareLinkManager({
+  treeId,
   links,
   baseUrl,
 }: {
+  treeId: string;
   links: ShareLinkRow[];
   baseUrl: string;
 }) {
@@ -46,7 +48,7 @@ export function ShareLinkManager({
 
   function mint() {
     startTransition(async () => {
-      const result = await createShareLink({ label, withExpiry });
+      const result = await createShareLink({ treeId, label, withExpiry });
       if (result.error) {
         toast.error(result.error);
         return;

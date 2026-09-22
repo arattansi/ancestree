@@ -9,6 +9,7 @@ import {
   signInWithInvite,
 } from "@/lib/sign-in.server";
 import { createClient } from "@/lib/supabase/server";
+import { onboardingHref } from "@/lib/tree-links";
 import { getSiteUrl } from "@/lib/site-url";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -112,7 +113,7 @@ export async function acceptInvite(
   }
 
   const result = await signInWithInvite(token);
-  if (result.ok) redirect("/tree");
+  if (result.ok) redirect(onboardingHref(result.treeSlug));
 
   if (result.reason === "already_member") {
     return {

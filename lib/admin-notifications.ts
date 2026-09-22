@@ -18,7 +18,6 @@ export type AdminActionItem = {
 export function buildAdminActionItems(counts: {
   inviteRequests: number;
   disputedClaims: number;
-  ownTree: number;
 }): AdminActionItem[] {
   const items: AdminActionItem[] = [
     {
@@ -31,11 +30,6 @@ export function buildAdminActionItems(counts: {
       label: "disputed claims",
       count: counts.disputedClaims,
     },
-    {
-      target: "own-tree",
-      label: "new own-tree registrations",
-      count: counts.ownTree,
-    },
   ];
   return items.filter((i) => i.count > 0);
 }
@@ -44,17 +38,20 @@ export function buildAdminActionItems(counts: {
  * Items waiting for an admin decision — cheap count-only query for the header
  * badge. The own-tree register is a soft signal and left out of this count.
  */
-export async function countAdminActionItems(): Promise<number> {
+export async function countAdminActionItems(treeId: string): Promise<number> {
   const supabase = await createClient();
   const [reqs, disputes] = await Promise.all([
     supabase
       .from("invite_requests")
       .select("id", { count: "exact", head: true })
+      .eq("tree_id", treeId)
       .eq("status", "pending"),
+    // Disputes are per entry; the ones for this tree are on its people.
     supabase
       .from("claims")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "disputed"),
+      .select("id, people!inner(tree_id)", { count: "exact", head: true })
+      .eq("status", "disputed")
+      .eq("people.tree_id", treeId),
   ]);
   return (reqs.count ?? 0) + (disputes.count ?? 0);
 }

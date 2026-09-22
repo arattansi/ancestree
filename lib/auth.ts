@@ -58,9 +58,3 @@ export async function requireSelfPerson(): Promise<Profile> {
   if (!profile.self_person_id) redirect("/onboarding");
   return profile;
 }
-
-export async function requireAdmin(): Promise<Profile> {
-  const profile = await requireProfile();
-  if (profile.role !== "admin") redirect("/tree");
-  return profile;
-}

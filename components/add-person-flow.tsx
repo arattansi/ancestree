@@ -20,7 +20,6 @@ import {
 import type { ImpliedConnection } from "@/lib/connection-suggestions";
 import { CoParentOffer } from "@/components/co-parent-offer";
 import { DateField } from "@/components/date-field";
-import { NewCanvasPrompt } from "@/components/new-canvas-prompt";
 import { PersonFields } from "@/components/person-fields";
 import { PhotoPicker } from "@/components/photo-picker";
 import {
@@ -219,23 +218,22 @@ type FlowValues = z.infer<typeof flowSchema>;
 export function AddPersonFlow({
   mode,
   treeId,
+  treeSlug,
   isAdmin,
   members,
   initialName,
-  canvasInterestRegistered = false,
   selfOnly = false,
   initialAnchorId = null,
 }: {
   mode: "self" | "relative";
   treeId: string;
+  /** Where to land afterwards: this tree's canvas (Step 25). */
+  treeSlug: string;
   isAdmin: boolean;
   members: TreeMemberOption[];
   /** Pre-fills the primary person's name — onboarding carries over the name
    *  the member typed into the "is one of these you?" search (Step 15). */
   initialName?: { first_name?: string; last_name?: string };
-  /** They have already put their name down for a tree of their own (Step
-   *  14.3), so the gate prompt thanks them instead of asking again. */
-  canvasInterestRegistered?: boolean;
   /**
    * A Leaf onboarding (Step 18.2): they may add their own entry and the lines
    * that place it, and nothing else, so there are no in-between people to add
@@ -258,7 +256,6 @@ export function AddPersonFlow({
   const [submitError, setSubmitError] = React.useState<string | null>(null);
   // The bloodline gate refused this branch (Step 14) — answer with the prompt
   // rather than leaving a dead-end error under the button.
-  const [canvasPrompt, setCanvasPrompt] = React.useState(false);
   const [suggestions, setSuggestions] = React.useState<ImpliedConnection[]>([]);
   const [pendingSave, setPendingSave] = React.useState<{
     values: FlowValues;
@@ -384,6 +381,7 @@ export function AddPersonFlow({
     }[],
   ): Promise<boolean> {
     const result = await addPeopleWithConnections({
+      treeId,
       people: values.people,
       edges,
       selfIndex: mode === "self" ? 0 : null,
@@ -392,8 +390,11 @@ export function AddPersonFlow({
 
     if (result.error || !result.personIds) {
       if (result.bloodlineGate) {
-        setSubmitError(null);
-        setCanvasPrompt(true);
+        // They married in: their own side belongs on a tree of their own
+        // (Step 25), which they can start from their account.
+        setSubmitError(
+          "These entries hang off you alone, so they belong on a tree of your own. Start one from the tree switcher or your account, and bring anyone from here along.",
+        );
         return false;
       }
       setSubmitError(result.error ?? "Couldn't save these entries.");
@@ -418,7 +419,7 @@ export function AddPersonFlow({
     // out (Step 19.2). `personIds[0]` is always that person: the RPC returns
     // ids in the order `people` was sent, and the chain's in-between people
     // follow the primary one.
-    router.replace(treeFocusHref(primaryId));
+    router.replace(treeFocusHref(treeSlug, primaryId));
     router.refresh();
     return true;
   }
@@ -516,6 +517,7 @@ export function AddPersonFlow({
     }
 
     const detected = await detectConnections({
+      treeId,
       // Names go along so the engine can name people in its explanations.
       newPeople: values.people.map((p) => ({
         familyName: p.last_name,
@@ -973,12 +975,6 @@ export function AddPersonFlow({
           setSuggestions([]);
         }}
         onResolve={onResolve}
-      />
-
-      <NewCanvasPrompt
-        open={canvasPrompt}
-        onOpenChange={setCanvasPrompt}
-        alreadyRegistered={canvasInterestRegistered}
       />
     </Form>
   );

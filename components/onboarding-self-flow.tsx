@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { TreeMemberOption } from "@/components/relationship-picker";
+import { treeHref } from "@/lib/tree-links";
 import {
   candidateSummary,
   canSearchName,
@@ -27,11 +28,13 @@ type Step = "name" | "results" | "add";
  */
 export function OnboardingSelfFlow({
   treeId,
+  treeSlug,
   isAdmin,
   members,
   selfOnly = false,
 }: {
   treeId: string;
+  treeSlug: string;
   isAdmin: boolean;
   members: TreeMemberOption[];
   /** A Leaf: they add their own entry and its connection, nobody else. */
@@ -55,7 +58,7 @@ export function OnboardingSelfFlow({
     }
 
     setSearching(true);
-    const res = await findSelfCandidates(first, last);
+    const res = await findSelfCandidates(treeId, first, last);
     setSearching(false);
 
     if (res.error) {
@@ -69,7 +72,7 @@ export function OnboardingSelfFlow({
   async function onClaim(candidate: SelfCandidate) {
     setError(null);
     setClaimingId(candidate.id);
-    const res = await claimSelfCandidate(candidate.id, first, last);
+    const res = await claimSelfCandidate(treeId, candidate.id, first, last);
     setClaimingId(null);
 
     if (res.error) {
@@ -77,7 +80,7 @@ export function OnboardingSelfFlow({
       return;
     }
     toast.success("Welcome back — that entry is yours now.");
-    router.replace("/tree");
+    router.replace(treeHref(treeSlug));
     router.refresh();
   }
 
@@ -95,6 +98,7 @@ export function OnboardingSelfFlow({
         <AddPersonFlow
           mode="self"
           treeId={treeId}
+          treeSlug={treeSlug}
           isAdmin={isAdmin}
           members={members}
           initialName={{ first_name: first, last_name: last }}

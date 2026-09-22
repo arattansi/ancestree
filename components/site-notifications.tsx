@@ -65,7 +65,7 @@ export function SiteNotifications({ items }: { items: NotificationItem[] }) {
       {open ? (
         <div className="absolute top-full right-0 z-50 mt-2 max-h-[70vh] w-[min(22rem,90vw)] overflow-y-auto rounded-lg border border-border bg-card p-3 text-left shadow-md">
           <p className="mb-2 font-heading text-sm font-medium">Notifications</p>
-          <NotificationsList items={items} />
+          <NotificationsList items={items} showTree />
         </div>
       ) : null}
     </div>

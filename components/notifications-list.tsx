@@ -7,9 +7,11 @@ import { toast } from "sonner";
 
 import { disputeClaim, markNotificationsRead } from "@/app/actions/claims";
 import { revertEntryEdit } from "@/app/actions/people";
+import { respondToPlacement } from "@/app/actions/trees";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { NotificationItem } from "@/lib/claims";
+import { treeFocusHref } from "@/lib/tree-links";
 
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -21,7 +23,14 @@ function timeAgo(iso: string): string {
   return `${Math.round(hrs / 24)}d ago`;
 }
 
-export function NotificationsList({ items }: { items: NotificationItem[] }) {
+export function NotificationsList({
+  items,
+  showTree = false,
+}: {
+  items: NotificationItem[];
+  /** Name each item's tree — for a list that spans every tree (Step 25). */
+  showTree?: boolean;
+}) {
   const router = useRouter();
   const [disputingId, setDisputingId] = React.useState<string | null>(null);
   const [reason, setReason] = React.useState("");
@@ -50,6 +59,18 @@ export function NotificationsList({ items }: { items: NotificationItem[] }) {
     router.refresh();
   }
 
+  async function onPlacement(placementId: string, accept: boolean) {
+    setBusy(true);
+    const res = await respondToPlacement(placementId, accept);
+    setBusy(false);
+    if (res.error) {
+      toast.error(res.error);
+      return;
+    }
+    toast.success(accept ? "You're on that tree now." : "Declined.");
+    router.refresh();
+  }
+
   async function onDispute(claimId: string) {
     setBusy(true);
     const res = await disputeClaim(claimId, reason);
@@ -73,6 +94,11 @@ export function NotificationsList({ items }: { items: NotificationItem[] }) {
         >
           <div className="flex items-start justify-between gap-3">
             <p className={n.readAt ? "text-muted-foreground" : "font-medium"}>
+              {showTree && n.treeName ? (
+                <span className="mr-1.5 rounded-sm bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
+                  {n.treeName}
+                </span>
+              ) : null}
               {n.body}
             </p>
             <span className="shrink-0 text-xs text-muted-foreground">
@@ -81,10 +107,30 @@ export function NotificationsList({ items }: { items: NotificationItem[] }) {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {n.personId ? (
+            {n.placementId ? (
+              <>
+                <Button
+                  size="sm"
+                  disabled={busy}
+                  onClick={() => onPlacement(n.placementId as string, true)}
+                >
+                  Accept
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() => onPlacement(n.placementId as string, false)}
+                >
+                  Decline
+                </Button>
+              </>
+            ) : null}
+
+            {n.personId && n.treeSlug ? (
               <Button
                 nativeButton={false}
-                render={<Link href={`/tree?person=${n.personId}`} />}
+                render={<Link href={treeFocusHref(n.treeSlug, n.personId)} />}
                 size="sm"
                 variant="ghost"
               >

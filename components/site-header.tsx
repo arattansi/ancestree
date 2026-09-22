@@ -3,29 +3,23 @@ import Link from "next/link";
 import { LogoMark } from "@/components/logo-mark";
 import { SiteNavLink } from "@/components/site-nav-link";
 import { SiteNotifications } from "@/components/site-notifications";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { accountTypeOf } from "@/lib/account-types";
 import { getProfile, getUser } from "@/lib/auth";
 import { listNotifications } from "@/lib/claims";
-import { countAdminActionItems } from "@/lib/admin-notifications";
-import { countOpenConnectionSuggestions } from "@/lib/connection-suggestions.server";
+import { defaultTreeSlug } from "@/lib/tree-context";
+import { treeHref, treesHref } from "@/lib/tree-links";
 
+/**
+ * The site-wide header (Step 25): the same on every page, so it knows nothing
+ * about which tree is open. "tree" opens the member's default tree; the tree
+ * bar beneath it, on tree pages, carries the tree's own navigation.
+ */
 export async function SiteHeader() {
   const profile = await getProfile();
-  const isAdmin = profile?.role === "admin";
-  // A Leaf can't answer connection prompts, so isn't pointed at them.
-  const answersConnections =
-    !!profile && accountTypeOf(profile.role).connections !== "none";
-  const [user, adminItems, openConnections] = profile
-    ? await Promise.all([
-        getUser(),
-        isAdmin ? countAdminActionItems() : Promise.resolve(0),
-        answersConnections
-          ? countOpenConnectionSuggestions()
-          : Promise.resolve(0),
-      ])
-    : [null, 0, 0];
+  const [user, slug] = profile
+    ? await Promise.all([getUser(), defaultTreeSlug(profile)])
+    : [null, null];
+  // Across every tree: each item names its tree.
   const notifications = user ? await listNotifications(user.id) : [];
 
   return (
@@ -41,25 +35,8 @@ export async function SiteHeader() {
         <nav aria-label="Primary" className="flex flex-wrap items-center gap-2">
           {profile ? (
             <>
-              <SiteNavLink href="/tree">tree</SiteNavLink>
-              {openConnections > 0 ? (
-                <SiteNavLink href="/tree/review">
-                  connections
-                  <Badge variant="secondary" className="ml-1.5">
-                    {openConnections}
-                  </Badge>
-                </SiteNavLink>
-              ) : null}
-              {isAdmin ? (
-                <SiteNavLink href="/admin">
-                  admin
-                  {adminItems > 0 ? (
-                    <Badge variant="destructive" className="ml-1.5">
-                      {adminItems}
-                    </Badge>
-                  ) : null}
-                </SiteNavLink>
-              ) : null}
+              {slug ? <SiteNavLink href={treeHref(slug)}>tree</SiteNavLink> : null}
+              <SiteNavLink href={treesHref()}>trees</SiteNavLink>
               <SiteNavLink href="/account">account</SiteNavLink>
               <SiteNotifications items={notifications} />
             </>

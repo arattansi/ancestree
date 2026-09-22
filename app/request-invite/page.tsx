@@ -17,9 +17,13 @@ export const metadata: Metadata = {
   description: "Ask an ancestree admin for an invite to the family tree.",
 };
 
-export default async function RequestInvitePage() {
+export default async function RequestInvitePage({
+  searchParams,
+}: PageProps<"/request-invite">) {
   const profile = await getProfile();
   if (profile) redirect("/tree");
+  const { tree } = await searchParams;
+  const treeSlug = typeof tree === "string" ? tree : null;
 
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-6 px-6 py-24">
@@ -32,7 +36,7 @@ export default async function RequestInvitePage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <RequestInviteForm />
+          <RequestInviteForm treeSlug={treeSlug} />
           <p className="text-sm text-muted-foreground">
             Already have an invite?{" "}
             <Link href="/join" className="underline underline-offset-4">

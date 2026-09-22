@@ -1,99 +1,12 @@
-import type { Metadata } from "next";
-import { redirect } from "next/navigation";
+import { redirectToDefaultTree } from "@/lib/tree-context";
+import { addRelativeHref } from "@/lib/tree-links";
 
-import { AddPersonFlow } from "@/components/add-person-flow";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { accountTypeOf } from "@/lib/account-types";
-import { requireSelfPerson } from "@/lib/auth";
-import {
-  getGrowthRights,
-  hasRegisteredCanvasInterest,
-} from "@/lib/growth-rights.server";
-import { getSharedTree, listTreeMembers } from "@/lib/tree";
-import { validRelatedTo } from "@/lib/tree-links";
-
-export const metadata: Metadata = {
-  title: "add a relative",
-  description: "Add a relative and connect them to the family tree.",
-};
-
-export default async function NewPersonPage({
+/** The pre-Step-24 add URL: opens the flow on the member's default tree. */
+export default async function LegacyNewPersonPage({
   searchParams,
 }: PageProps<"/people/new">) {
-  const profile = await requireSelfPerson();
-  // A Leaf's account adds nothing but their own entry, which they already have.
-  if (!accountTypeOf(profile.role).addRelatives) redirect("/tree");
-  const tree = await getSharedTree();
-
-  if (!tree) {
-    return (
-      <main className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-4 px-4 py-12">
-        <h1 className="text-2xl font-semibold tracking-tight">Add a relative</h1>
-        <p className="text-sm text-muted-foreground">
-          The family tree isn&apos;t set up yet.
-        </p>
-      </main>
-    );
-  }
-
-  const members = await listTreeMembers(tree.id);
-  // "Add a relative" with someone selected on the canvas (Step 19.2): start
-  // the flow connected to them. Only an id on this tree is honoured; the
-  // growth rights and the bloodline gate still judge the result at submit.
   const { relatedTo } = await searchParams;
-  const initialAnchorId = validRelatedTo(
-    relatedTo,
-    members.map((m) => m.id),
-  );
-  const rights = await getGrowthRights();
-  // Say the rule up front for a member who married in, rather than letting them
-  // fill the whole form and meet the gate at submit (Step 14).
-  const registeredInterest = rights.isMarriedIn
-    ? await hasRegisteredCanvasInterest()
-    : false;
-
-  return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 py-10">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Add a relative</h1>
-        <p className="text-sm text-muted-foreground">
-          New entries must connect to someone already in the tree. Add any
-          missing people in between as part of the same step.
-        </p>
-        {rights.isMarriedIn ? (
-          <p className="mt-2 text-sm text-muted-foreground">
-            You married into this family, so you can add your children and your
-            partner&apos;s relatives here. Your own side of the family needs a tree
-            of its own, which Ancestree doesn&apos;t build yet.
-          </p>
-        ) : null}
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Relative&apos;s entry</CardTitle>
-          <CardDescription>
-            A name and country of birth are required — everything else is
-            optional.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <AddPersonFlow
-            mode="relative"
-            treeId={tree.id}
-            isAdmin={profile.role === "admin"}
-            members={members}
-            canvasInterestRegistered={registeredInterest}
-            initialAnchorId={initialAnchorId}
-          />
-        </CardContent>
-      </Card>
-    </main>
+  await redirectToDefaultTree((slug) =>
+    addRelativeHref(slug, typeof relatedTo === "string" ? relatedTo : null),
   );
 }

@@ -62,80 +62,15 @@ export type Database = {
             foreignKeyName: "bloodline_anchors_tree_id_fkey"
             columns: ["tree_id"]
             isOneToOne: false
-            referencedRelation: "trees"
+            referencedRelation: "my_trees"
             referencedColumns: ["id"]
           },
-        ]
-      }
-      canvas_interest: {
-        Row: {
-          contacted_at: string | null
-          contacted_by: string | null
-          created_at: string
-          id: string
-          note: string | null
-          status: string
-          tree_id: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          contacted_at?: string | null
-          contacted_by?: string | null
-          created_at?: string
-          id?: string
-          note?: string | null
-          status?: string
-          tree_id: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          contacted_at?: string | null
-          contacted_by?: string | null
-          created_at?: string
-          id?: string
-          note?: string | null
-          status?: string
-          tree_id?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
           {
-            foreignKeyName: "canvas_interest_contacted_by_fkey"
-            columns: ["contacted_by"]
-            isOneToOne: false
-            referencedRelation: "member_directory"
-            referencedColumns: ["auth_user_id"]
-          },
-          {
-            foreignKeyName: "canvas_interest_contacted_by_fkey"
-            columns: ["contacted_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["auth_user_id"]
-          },
-          {
-            foreignKeyName: "canvas_interest_tree_id_fkey"
+            foreignKeyName: "bloodline_anchors_tree_id_fkey"
             columns: ["tree_id"]
             isOneToOne: false
             referencedRelation: "trees"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "canvas_interest_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: true
-            referencedRelation: "member_directory"
-            referencedColumns: ["auth_user_id"]
-          },
-          {
-            foreignKeyName: "canvas_interest_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: true
-            referencedRelation: "profiles"
-            referencedColumns: ["auth_user_id"]
           },
         ]
       }
@@ -298,6 +233,13 @@ export type Database = {
             foreignKeyName: "connection_suggestions_tree_id_fkey"
             columns: ["tree_id"]
             isOneToOne: false
+            referencedRelation: "my_trees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "connection_suggestions_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
             referencedRelation: "trees"
             referencedColumns: ["id"]
           },
@@ -311,6 +253,8 @@ export type Database = {
           id: string
           mime_type: string
           person_id: string
+          shared_across_trees: boolean
+          tree_id: string
           updated_at: string
           uploaded_by: string
         }
@@ -321,6 +265,8 @@ export type Database = {
           id?: string
           mime_type: string
           person_id: string
+          shared_across_trees?: boolean
+          tree_id: string
           updated_at?: string
           uploaded_by: string
         }
@@ -331,6 +277,8 @@ export type Database = {
           id?: string
           mime_type?: string
           person_id?: string
+          shared_across_trees?: boolean
+          tree_id?: string
           updated_at?: string
           uploaded_by?: string
         }
@@ -340,6 +288,20 @@ export type Database = {
             columns: ["person_id"]
             isOneToOne: false
             referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "my_trees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
             referencedColumns: ["id"]
           },
           {
@@ -369,6 +331,7 @@ export type Database = {
           resolved_at: string | null
           resolved_by: string | null
           status: string
+          tree_id: string
           updated_at: string
         }
         Insert: {
@@ -381,6 +344,7 @@ export type Database = {
           resolved_at?: string | null
           resolved_by?: string | null
           status?: string
+          tree_id: string
           updated_at?: string
         }
         Update: {
@@ -393,6 +357,7 @@ export type Database = {
           resolved_at?: string | null
           resolved_by?: string | null
           status?: string
+          tree_id?: string
           updated_at?: string
         }
         Relationships: [
@@ -430,6 +395,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "entry_comments_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "my_trees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entry_comments_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -556,6 +535,7 @@ export type Database = {
           reviewed_by: string | null
           source: string
           status: string
+          tree_id: string
           updated_at: string
         }
         Insert: {
@@ -570,6 +550,7 @@ export type Database = {
           reviewed_by?: string | null
           source?: string
           status?: string
+          tree_id: string
           updated_at?: string
         }
         Update: {
@@ -584,6 +565,7 @@ export type Database = {
           reviewed_by?: string | null
           source?: string
           status?: string
+          tree_id?: string
           updated_at?: string
         }
         Relationships: [
@@ -608,6 +590,20 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["auth_user_id"]
           },
+          {
+            foreignKeyName: "invite_requests_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "my_trees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invite_requests_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
         ]
       }
       invites: {
@@ -617,6 +613,7 @@ export type Database = {
           created_at: string
           created_by: string
           expires_at: string | null
+          founds_tree: boolean
           id: string
           invited_email: string | null
           joins_as: string
@@ -632,6 +629,7 @@ export type Database = {
           created_at?: string
           created_by: string
           expires_at?: string | null
+          founds_tree?: boolean
           id?: string
           invited_email?: string | null
           joins_as?: string
@@ -647,6 +645,7 @@ export type Database = {
           created_at?: string
           created_by?: string
           expires_at?: string | null
+          founds_tree?: boolean
           id?: string
           invited_email?: string | null
           joins_as?: string
@@ -696,6 +695,13 @@ export type Database = {
             foreignKeyName: "invites_tree_id_fkey"
             columns: ["tree_id"]
             isOneToOne: false
+            referencedRelation: "my_trees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invites_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
             referencedRelation: "trees"
             referencedColumns: ["id"]
           },
@@ -730,6 +736,7 @@ export type Database = {
           read_at: string | null
           recipient_user_id: string
           revision_id: string | null
+          tree_id: string | null
           type: string
         }
         Insert: {
@@ -742,6 +749,7 @@ export type Database = {
           read_at?: string | null
           recipient_user_id: string
           revision_id?: string | null
+          tree_id?: string | null
           type: string
         }
         Update: {
@@ -754,6 +762,7 @@ export type Database = {
           read_at?: string | null
           recipient_user_id?: string
           revision_id?: string | null
+          tree_id?: string | null
           type?: string
         }
         Relationships: [
@@ -806,6 +815,20 @@ export type Database = {
             referencedRelation: "entry_revisions"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "notifications_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "my_trees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
         ]
       }
       people: {
@@ -819,6 +842,7 @@ export type Database = {
           date_of_death: string | null
           date_of_death_precision: string
           first_name: string | null
+          hidden_from_visitors: boolean
           id: string
           is_deceased: boolean
           last_name: string
@@ -852,6 +876,7 @@ export type Database = {
           date_of_death?: string | null
           date_of_death_precision?: string
           first_name?: string | null
+          hidden_from_visitors?: boolean
           id?: string
           is_deceased: boolean
           last_name: string
@@ -885,6 +910,7 @@ export type Database = {
           date_of_death?: string | null
           date_of_death_precision?: string
           first_name?: string | null
+          hidden_from_visitors?: boolean
           id?: string
           is_deceased?: boolean
           last_name?: string
@@ -949,6 +975,13 @@ export type Database = {
             columns: ["place_id_death"]
             isOneToOne: false
             referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "people_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "my_trees"
             referencedColumns: ["id"]
           },
           {
@@ -1170,6 +1203,13 @@ export type Database = {
             foreignKeyName: "pets_tree_id_fkey"
             columns: ["tree_id"]
             isOneToOne: false
+            referencedRelation: "my_trees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pets_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
             referencedRelation: "trees"
             referencedColumns: ["id"]
           },
@@ -1342,6 +1382,13 @@ export type Database = {
             foreignKeyName: "relationships_tree_id_fkey"
             columns: ["tree_id"]
             isOneToOne: false
+            referencedRelation: "my_trees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "relationships_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
             referencedRelation: "trees"
             referencedColumns: ["id"]
           },
@@ -1406,81 +1453,227 @@ export type Database = {
             foreignKeyName: "share_links_tree_id_fkey"
             columns: ["tree_id"]
             isOneToOne: false
+            referencedRelation: "my_trees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "share_links_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
             referencedRelation: "trees"
             referencedColumns: ["id"]
           },
         ]
       }
-      tree_bridges: {
+      tree_members: {
         Row: {
           created_at: string
-          created_by: string
-          from_person: string
-          from_tree: string
-          id: string
-          to_person: string
-          to_tree: string
-          type: string
+          invited_by_user_id: string | null
+          role: string
+          tree_id: string
+          updated_at: string
+          user_id: string
         }
         Insert: {
           created_at?: string
-          created_by: string
-          from_person: string
-          from_tree: string
-          id?: string
-          to_person: string
-          to_tree: string
-          type?: string
+          invited_by_user_id?: string | null
+          role?: string
+          tree_id: string
+          updated_at?: string
+          user_id: string
         }
         Update: {
           created_at?: string
-          created_by?: string
-          from_person?: string
-          from_tree?: string
-          id?: string
-          to_person?: string
-          to_tree?: string
-          type?: string
+          invited_by_user_id?: string | null
+          role?: string
+          tree_id?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "tree_bridges_created_by_fkey"
-            columns: ["created_by"]
+            foreignKeyName: "tree_members_invited_by_user_id_fkey"
+            columns: ["invited_by_user_id"]
             isOneToOne: false
             referencedRelation: "member_directory"
             referencedColumns: ["auth_user_id"]
           },
           {
-            foreignKeyName: "tree_bridges_created_by_fkey"
-            columns: ["created_by"]
+            foreignKeyName: "tree_members_invited_by_user_id_fkey"
+            columns: ["invited_by_user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["auth_user_id"]
           },
           {
-            foreignKeyName: "tree_bridges_from_person_fkey"
-            columns: ["from_person"]
+            foreignKeyName: "tree_members_tree_id_fkey"
+            columns: ["tree_id"]
             isOneToOne: false
-            referencedRelation: "people"
+            referencedRelation: "my_trees"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "tree_bridges_from_tree_fkey"
-            columns: ["from_tree"]
+            foreignKeyName: "tree_members_tree_id_fkey"
+            columns: ["tree_id"]
             isOneToOne: false
             referencedRelation: "trees"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "tree_bridges_to_person_fkey"
-            columns: ["to_person"]
+            foreignKeyName: "tree_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "tree_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+        ]
+      }
+      tree_placements: {
+        Row: {
+          created_at: string
+          id: string
+          person_id: string
+          placed_by: string | null
+          pos_dx: number | null
+          pos_dy: number | null
+          pos_x: number | null
+          pos_y: number | null
+          responded_at: string | null
+          status: string
+          tree_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          person_id: string
+          placed_by?: string | null
+          pos_dx?: number | null
+          pos_dy?: number | null
+          pos_x?: number | null
+          pos_y?: number | null
+          responded_at?: string | null
+          status?: string
+          tree_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          person_id?: string
+          placed_by?: string | null
+          pos_dx?: number | null
+          pos_dy?: number | null
+          pos_x?: number | null
+          pos_y?: number | null
+          responded_at?: string | null
+          status?: string
+          tree_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tree_placements_person_id_fkey"
+            columns: ["person_id"]
             isOneToOne: false
             referencedRelation: "people"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "tree_bridges_to_tree_fkey"
-            columns: ["to_tree"]
+            foreignKeyName: "tree_placements_placed_by_fkey"
+            columns: ["placed_by"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "tree_placements_placed_by_fkey"
+            columns: ["placed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "tree_placements_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "my_trees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tree_placements_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tree_visibility: {
+        Row: {
+          created_at: string
+          granted_by: string | null
+          tree_id: string
+          viewer_tree_id: string
+        }
+        Insert: {
+          created_at?: string
+          granted_by?: string | null
+          tree_id: string
+          viewer_tree_id: string
+        }
+        Update: {
+          created_at?: string
+          granted_by?: string | null
+          tree_id?: string
+          viewer_tree_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tree_visibility_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "tree_visibility_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "tree_visibility_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "my_trees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tree_visibility_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tree_visibility_viewer_tree_id_fkey"
+            columns: ["viewer_tree_id"]
+            isOneToOne: false
+            referencedRelation: "my_trees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tree_visibility_viewer_tree_id_fkey"
+            columns: ["viewer_tree_id"]
             isOneToOne: false
             referencedRelation: "trees"
             referencedColumns: ["id"]
@@ -1493,6 +1686,7 @@ export type Database = {
           created_by: string | null
           id: string
           name: string
+          slug: string
           updated_at: string
         }
         Insert: {
@@ -1500,6 +1694,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           name: string
+          slug: string
           updated_at?: string
         }
         Update: {
@@ -1507,6 +1702,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           name?: string
+          slug?: string
           updated_at?: string
         }
         Relationships: []
@@ -1520,24 +1716,62 @@ export type Database = {
           display_name: string | null
           invited_by_name: string | null
           invited_by_user_id: string | null
+          joined_at: string | null
           role: string | null
+          self_person_id: string | null
+          tree_id: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "profiles_invited_by_user_id_fkey"
+            foreignKeyName: "profiles_self_person_id_fkey"
+            columns: ["self_person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tree_members_invited_by_user_id_fkey"
             columns: ["invited_by_user_id"]
             isOneToOne: false
             referencedRelation: "member_directory"
             referencedColumns: ["auth_user_id"]
           },
           {
-            foreignKeyName: "profiles_invited_by_user_id_fkey"
+            foreignKeyName: "tree_members_invited_by_user_id_fkey"
             columns: ["invited_by_user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["auth_user_id"]
           },
+          {
+            foreignKeyName: "tree_members_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "my_trees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tree_members_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      my_trees: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          id: string | null
+          joined_at: string | null
+          member_count: number | null
+          name: string | null
+          person_count: number | null
+          role: string | null
+          slug: string | null
+        }
+        Relationships: []
       }
       sibling_edges: {
         Row: {
@@ -1561,7 +1795,206 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "tree_placements_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "my_trees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tree_placements_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tree_edges: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          divorce_date: string | null
+          drawn_on_tree_id: string | null
+          from_person: string | null
+          id: string | null
+          is_divorced: boolean | null
+          marriage_date: string | null
+          to_person: string | null
+          tree_id: string | null
+          type: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "relationships_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "relationships_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "relationships_from_person_fkey"
+            columns: ["from_person"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "relationships_to_person_fkey"
+            columns: ["to_person"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "relationships_tree_id_fkey"
+            columns: ["drawn_on_tree_id"]
+            isOneToOne: false
+            referencedRelation: "my_trees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "relationships_tree_id_fkey"
+            columns: ["drawn_on_tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tree_placements_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "my_trees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tree_placements_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tree_people: {
+        Row: {
+          blurred: boolean | null
+          city_of_birth: string | null
+          country_of_birth: string | null
+          created_at: string | null
+          created_by: string | null
+          date_of_birth: string | null
+          date_of_birth_precision: string | null
+          date_of_death: string | null
+          date_of_death_precision: string | null
+          first_name: string | null
+          hidden_from_visitors: boolean | null
+          home_tree_id: string | null
+          id: string | null
+          is_deceased: boolean | null
+          is_home: boolean | null
+          last_name: string | null
+          lineage_type: string | null
+          maiden_name: string | null
+          middle_name: string | null
+          owner_user_id: string | null
+          photo_crop: Json | null
+          photo_path: string | null
+          place_id_birth: number | null
+          place_id_death: number | null
+          place_of_death: string | null
+          placement_id: string | null
+          placement_status: string | null
+          pos_dx: number | null
+          pos_dy: number | null
+          pos_x: number | null
+          pos_y: number | null
+          preferred_name: string | null
+          sex: string | null
+          tree_id: string | null
+          updated_at: string | null
+          verified_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "people_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "people_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "people_owner_user_id_fkey"
+            columns: ["owner_user_id"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "people_owner_user_id_fkey"
+            columns: ["owner_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "people_place_id_birth_fkey"
+            columns: ["place_id_birth"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "people_place_id_death_fkey"
+            columns: ["place_id_death"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "people_tree_id_fkey"
+            columns: ["home_tree_id"]
+            isOneToOne: false
+            referencedRelation: "my_trees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "people_tree_id_fkey"
+            columns: ["home_tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tree_placements_person_id_fkey"
+            columns: ["id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tree_placements_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "my_trees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tree_placements_tree_id_fkey"
             columns: ["tree_id"]
             isOneToOne: false
             referencedRelation: "trees"
@@ -1577,29 +2010,21 @@ export type Database = {
           p_people: Json
           p_self_index?: number
           p_suggestions?: Json
+          p_tree?: string
         }
         Returns: Json
       }
       admin_delete_member: { Args: { p_user_id: string }; Returns: undefined }
       can_delete_person: { Args: { p_person_id: string }; Returns: boolean }
       can_invite_to_claim: { Args: { p_person_id: string }; Returns: boolean }
-      canvas_interest_register: {
-        Args: never
-        Returns: {
-          contacted_at: string
-          created_at: string
-          display_name: string
-          email: string
-          id: string
-          note: string
-          person_name: string
-          status: string
-          user_id: string
-        }[]
-      }
       claim_person: { Args: { p_person_id: string }; Returns: Json }
       claim_person_as_self: {
-        Args: { p_first: string; p_last: string; p_person_id: string }
+        Args: {
+          p_first: string
+          p_last: string
+          p_person_id: string
+          p_tree?: string
+        }
         Returns: Json
       }
       connect_people: {
@@ -1609,10 +2034,12 @@ export type Database = {
           p_is_divorced?: boolean
           p_marriage_date?: string
           p_to: string
+          p_tree?: string
           p_type: string
         }
         Returns: string
       }
+      delete_tree: { Args: { p_tree: string }; Returns: Json }
       dispute_claim: {
         Args: { p_claim_id: string; p_reason?: string }
         Returns: undefined
@@ -1635,17 +2062,35 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      found_tree: {
+        Args: { p_name: string }
+        Returns: {
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          slug: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "trees"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       invite_preview: {
         Args: { p_token: string }
         Returns: {
           claim_person_name: string
+          founds_tree: boolean
           inviter_name: string
           joins_as: string
           tree_name: string
           valid: boolean
         }[]
       }
-      my_growth_rights: { Args: never; Returns: Json }
+      my_growth_rights: { Args: { p_tree?: string }; Returns: Json }
       person_claim_candidates: {
         Args: never
         Returns: {
@@ -1658,6 +2103,7 @@ export type Database = {
           date_of_death: string | null
           date_of_death_precision: string
           first_name: string | null
+          hidden_from_visitors: boolean
           id: string
           is_deceased: boolean
           last_name: string
@@ -1688,6 +2134,13 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      place_people: {
+        Args: { p_person_ids: string[]; p_tree: string }
+        Returns: {
+          placed_person_id: string
+          placement_status: string
+        }[]
+      }
       redeem_invite: {
         Args: { p_display_name?: string; p_token: string }
         Returns: {
@@ -1706,7 +2159,31 @@ export type Database = {
           isSetofReturn: false
         }
       }
-      register_canvas_interest: { Args: { p_note?: string }; Returns: string }
+      redeem_invite_tree: {
+        Args: { p_display_name?: string; p_token: string }
+        Returns: Json
+      }
+      remove_tree_member: {
+        Args: { p_tree: string; p_user_id: string }
+        Returns: boolean
+      }
+      rename_tree: {
+        Args: { p_name: string; p_tree: string }
+        Returns: {
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          slug: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "trees"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       resolve_claim: {
         Args: { p_action: string; p_claim_id: string }
         Returns: undefined
@@ -1729,9 +2206,13 @@ export type Database = {
         }
         Returns: undefined
       }
+      respond_to_placement: {
+        Args: { p_accept: boolean; p_placement_id: string }
+        Returns: undefined
+      }
       revert_entry_edit: { Args: { p_revision_id: string }; Returns: string[] }
       search_self_candidates: {
-        Args: { p_first: string; p_last: string }
+        Args: { p_first: string; p_last: string; p_tree?: string }
         Returns: {
           city_of_birth: string
           country_of_birth: string
@@ -1747,21 +2228,17 @@ export type Database = {
           score: number
         }[]
       }
-      set_canvas_interest_status: {
-        Args: { p_id: string; p_status: string }
-        Returns: undefined
-      }
       set_entry_verified: {
         Args: { p_person_id: string; p_verified?: boolean }
         Returns: undefined
       }
-      start_own_tree: {
-        Args: {
-          p_bridge_person_id: string
-          p_person: Json
-          p_tree_name: string
-        }
-        Returns: Json
+      set_home_tree: {
+        Args: { p_person: string; p_tree: string }
+        Returns: undefined
+      }
+      set_member_role: {
+        Args: { p_role: string; p_tree: string; p_user: string }
+        Returns: string
       }
     }
     Enums: {

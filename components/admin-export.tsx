@@ -6,13 +6,13 @@ import { toast } from "sonner";
 import { exportTreeData } from "@/app/actions/privacy";
 import { Button } from "@/components/ui/button";
 
-export function AdminExport() {
+export function AdminExport({ treeId }: { treeId: string }) {
   const [busy, setBusy] = React.useState(false);
 
   async function onExport() {
     setBusy(true);
     try {
-      const res = await exportTreeData();
+      const res = await exportTreeData(treeId);
       if (res.error || !res.json) {
         toast.error(res.error ?? "Export failed.");
         return;

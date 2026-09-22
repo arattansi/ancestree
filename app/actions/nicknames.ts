@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireAdmin } from "@/lib/auth";
+import { requireAnyRoot } from "@/lib/tree-context";
 import { foldName, nicknameInputError } from "@/lib/nicknames";
 import { createClient } from "@/lib/supabase/server";
 
@@ -15,7 +15,7 @@ export async function addNickname(
   root: string,
   nickname: string,
 ): Promise<{ error?: string; canonical?: string }> {
-  await requireAdmin();
+  await requireAnyRoot();
 
   const invalid = nicknameInputError(root, nickname);
   if (invalid) return { error: invalid };
@@ -45,7 +45,7 @@ export async function removeNickname(
   canonical: string,
   variant: string,
 ): Promise<{ error?: string }> {
-  await requireAdmin();
+  await requireAnyRoot();
   if (canonical === variant) {
     return { error: "Remove the whole group instead of its root name." };
   }
@@ -67,7 +67,7 @@ export async function removeNickname(
 export async function removeNicknameGroup(
   canonical: string,
 ): Promise<{ error?: string }> {
-  await requireAdmin();
+  await requireAnyRoot();
 
   const supabase = await createClient();
   const { error } = await supabase

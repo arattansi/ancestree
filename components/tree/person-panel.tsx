@@ -56,6 +56,8 @@ import {
 } from "@/lib/partial-date";
 import type { AccountTypeKey } from "@/lib/account-types";
 import { SEX_LABELS, type Sex } from "@/lib/person-schema";
+import { PersonTrees } from "@/components/tree/person-trees";
+import { editPersonHref } from "@/lib/tree-links";
 import { cn } from "@/lib/utils";
 import {
   petYears,
@@ -352,6 +354,7 @@ function CompanionsSection({
 export function PersonPanel({
   person,
   treeId,
+  treeSlug,
   pets,
   people,
   onSelectPet,
@@ -375,6 +378,8 @@ export function PersonPanel({
 }: {
   person: TreeGraphPerson | null;
   treeId: string;
+  /** The tree being viewed: edit and add links stay on it (Step 25). */
+  treeSlug: string;
   /** This person's companion animals. Not relatives — see `pet-node.tsx`. */
   pets: TreePet[];
   /** Everyone on the canvas, so a new companion can be shared with them. */
@@ -676,6 +681,7 @@ export function PersonPanel({
               </div>
               {addRelativeOf && !readOnly ? (
                 <AddRelativeButton
+                  treeSlug={treeSlug}
                   relatedTo={addRelativeOf}
                   className="w-full sm:hidden"
                 />
@@ -684,6 +690,9 @@ export function PersonPanel({
 
             <div className="flex flex-col gap-6 px-4 pb-6">
               {connectionPrompt}
+              {!readOnly ? (
+                <PersonTrees personId={person.id} currentTreeId={treeId} />
+              ) : null}
               <dl className="grid grid-cols-2 gap-4">
                 <Field label="First name" value={person.first_name} />
                 <Field label="Middle name" value={person.middle_name} />
@@ -736,7 +745,7 @@ export function PersonPanel({
                 <div className="rounded-md border border-dashed border-border bg-muted/40 px-3 py-2.5 text-xs text-muted-foreground">
                   No maiden name on this entry yet.{" "}
                   <Link
-                    href={`/people/${person.id}/edit`}
+                    href={editPersonHref(treeSlug, person.id)}
                     className="font-medium text-foreground underline underline-offset-2"
                   >
                     Add one
@@ -788,6 +797,7 @@ export function PersonPanel({
                 <section className="border-t border-border pt-5">
                   <EntryComments
                     personId={person.id}
+                    treeId={treeId}
                     currentUserId={currentUserId}
                     canModerate={canEdit}
                   />
@@ -802,7 +812,7 @@ export function PersonPanel({
                     {canEdit ? (
                       <Button
                         nativeButton={false}
-                        render={<Link href={`/people/${person.id}/edit`} />}
+                        render={<Link href={editPersonHref(treeSlug, person.id)} />}
                         variant="outline"
                         size="sm"
                       >

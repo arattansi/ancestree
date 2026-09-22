@@ -28,10 +28,12 @@ const ITEMS = ASSIGNABLE_ACCOUNT_TYPES.map((t) => ({
  * take. Making a Root asks first: it can't be undone, by anyone (Step 22.5).
  */
 export function AccountTypePicker({
+  treeId,
   userId,
   role,
   name,
 }: {
+  treeId: string;
   userId: string;
   role: string;
   name: string;
@@ -53,7 +55,7 @@ export function AccountTypePicker({
     const previous = value;
     setValue(next);
     startTransition(async () => {
-      const res = await setAccountType(userId, next);
+      const res = await setAccountType(treeId, userId, next);
       if (res.error) {
         setValue(previous);
         toast.error(res.error);

@@ -12,10 +12,12 @@ import { Button } from "@/components/ui/button";
  * login. Double-confirmed because it can't be undone.
  */
 export function DeleteMemberButton({
+  treeId,
   userId,
   name,
   entryCount,
 }: {
+  treeId: string;
   userId: string;
   name: string;
   entryCount: number;
@@ -39,7 +41,7 @@ export function DeleteMemberButton({
     setBusy(true);
     let res: { error?: string };
     try {
-      res = await deleteMember(userId);
+      res = await deleteMember(treeId, userId);
     } catch {
       toast.error("Couldn't reach the server — reload the page and try again.");
       setBusy(false);

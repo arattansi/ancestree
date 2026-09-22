@@ -1,94 +1,299 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import { requireProfile } from "@/lib/auth";
-import { multiTreeEnabled } from "@/lib/flags";
-import { personSchema, toPersonPayload } from "@/lib/person-schema";
 import { createClient } from "@/lib/supabase/server";
-import type { PersonFormValues } from "@/lib/person-schema";
+import { revalidateTreeAndAccount } from "@/lib/revalidate";
+import { redeemInvite } from "@/lib/sign-in.server";
+import { membershipOf, rootOf } from "@/lib/tree-context";
+import { onboardingHref, treeHref, treesHref } from "@/lib/tree-links";
 
-export type StartTreeResult = {
-  treeId?: string;
-  personId?: string;
-  error?: string;
-};
+const MAX_TREE_NAME = 80;
 
-function friendlyStartTreeError(message: string | undefined): string {
-  if (!message) return "Something went wrong. Try again.";
-  const m = message.toLowerCase();
-  if (m.includes("already started your own tree")) {
-    return "You've already started your own tree.";
+function friendlyTreeError(message: string | undefined): string {
+  const m = (message ?? "").toLowerCase();
+  if (m.includes("one_tree_each")) {
+    return "You've already started a tree of your own. You can be a Root of several trees, but found only one.";
   }
-  if (m.includes("not a member of that tree")) {
-    return "You can only bridge to a tree you already belong to.";
+  if (m.includes("name your tree")) return "Give your tree a name.";
+  if (m.includes("only a root")) return "Only a Root of this tree can do that.";
+  return "Couldn't do that. Try again.";
+}
+
+export type FoundTreeResult = { slug?: string; error?: string };
+
+/**
+ * A member starts a tree of their own (Step 25, the married-in path): a
+ * fresh tree with them as its Root. Nothing is copied; they then bring the
+ * people they choose over from the trees they belong to (`placePeople`).
+ */
+export async function foundTree(name: string): Promise<FoundTreeResult> {
+  await requireProfile();
+  const trimmed = name.trim();
+  if (!trimmed) return { error: "Give your tree a name." };
+  if (trimmed.length > MAX_TREE_NAME) return { error: "That name is too long." };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("found_tree", { p_name: trimmed });
+  if (error || !data) return { error: friendlyTreeError(error?.message) };
+
+  revalidateTreeAndAccount();
+  return { slug: data.slug };
+}
+
+/** Root: rename a tree. Its URL slug follows the name. */
+export async function renameTree(
+  treeId: string,
+  name: string,
+): Promise<{ slug?: string; error?: string }> {
+  const { error: notRoot } = await rootOf(treeId);
+  if (notRoot) return { error: notRoot };
+  const trimmed = name.trim();
+  if (!trimmed) return { error: "Give your tree a name." };
+  if (trimmed.length > MAX_TREE_NAME) return { error: "That name is too long." };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("rename_tree", {
+    p_tree: treeId,
+    p_name: trimmed,
+  });
+  if (error || !data) return { error: friendlyTreeError(error?.message) };
+  revalidateTreeAndAccount();
+  return { slug: data.slug };
+}
+
+export type PlacementOutcome = { personId: string; status: string };
+
+/**
+ * Root: bring people onto a tree (Step 25). Anyone the Root can see on a tree
+ * they belong to. Another member's own entry waits for that member to accept
+ * (`placement_requested`); everyone else is shown at once.
+ */
+export async function placePeople(
+  treeId: string,
+  personIds: string[],
+): Promise<{ placed?: PlacementOutcome[]; error?: string }> {
+  const { error: notRoot } = await rootOf(treeId);
+  if (notRoot) return { error: notRoot };
+  const ids = [...new Set(personIds)].filter(Boolean);
+  if (ids.length === 0) return { error: "Pick at least one person." };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("place_people", {
+    p_tree: treeId,
+    p_person_ids: ids,
+  });
+  if (error) {
+    if (error.message.toLowerCase().includes("only bring people you can see")) {
+      return { error: "You can only bring people you can see on a tree you belong to." };
+    }
+    return { error: friendlyTreeError(error.message) };
   }
-  if (m.includes("no longer on the tree")) {
-    return "That person is no longer on the tree. Refresh and try again.";
+  revalidateTreeAndAccount();
+  return {
+    placed: (data ?? []).map((r) => ({
+      personId: r.placed_person_id ?? "",
+      status: r.placement_status ?? "",
+    })),
+  };
+}
+
+/** The person a placement waits on accepts or declines it. */
+export async function respondToPlacement(
+  placementId: string,
+  accept: boolean,
+): Promise<{ error?: string }> {
+  await requireProfile();
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("respond_to_placement", {
+    p_placement_id: placementId,
+    p_accept: accept,
+  });
+  if (error) {
+    const m = error.message.toLowerCase();
+    if (m.includes("already answered")) return { error: "That request was already answered." };
+    if (m.includes("no longer exists")) return { error: "That request no longer exists." };
+    if (m.includes("only the person")) return { error: "Only the person this entry belongs to can answer." };
+    return { error: friendlyTreeError(error.message) };
   }
-  if (m.includes("name your new tree")) {
-    return "Give your new tree a name.";
-  }
-  if (m.includes("row-level security")) {
-    return "You don't have permission to do that.";
-  }
-  return "Couldn't start your tree. Check the fields and try again.";
+  revalidateTreeAndAccount();
+  return {};
 }
 
 /**
- * Multi-tree seam (Step 9). Creates a member's own `trees` row, their root
- * person in it, and a spouse bridge (`tree_bridges`) back to a person on a tree
- * they already belong to. Feature-flagged; the new tree isn't rendered in v1.
+ * Take a person off a tree that isn't their home: a Root of that tree, or
+ * the person themselves. Their entry and its connections are untouched.
  */
-export async function startOwnTree(input: {
-  treeName: string;
-  bridgePersonId: string;
-  person: PersonFormValues;
-}): Promise<StartTreeResult> {
-  if (!multiTreeEnabled) {
-    return { error: "Starting your own tree isn't available yet." };
-  }
-
+export async function removePlacement(
+  treeId: string,
+  personId: string,
+): Promise<{ error?: string }> {
   await requireProfile();
-
-  const treeName = input.treeName.trim();
-  if (!treeName) return { error: "Give your new tree a name." };
-  if (!input.bridgePersonId) {
-    return { error: "Pick the relative your new tree connects through." };
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("tree_placements")
+    .delete()
+    .eq("tree_id", treeId)
+    .eq("person_id", personId)
+    .select("id");
+  if (error) {
+    if (error.message.includes("HOME_PLACEMENT")) {
+      return { error: "This is the entry's home tree. Move its home first, or delete the entry." };
+    }
+    return { error: friendlyTreeError(error.message) };
   }
-
-  const parsed = personSchema.safeParse(input.person);
-  if (!parsed.success) {
-    return { error: "Please fix the highlighted fields and try again." };
+  if (!data || data.length === 0) {
+    return { error: "Only a Root of this tree, or the person themselves, can remove them from it." };
   }
-  const p = toPersonPayload(parsed.data);
+  revalidateTreeAndAccount();
+  return {};
+}
+
+/**
+ * Move a person's home to another tree that already shows them: the person
+ * themselves, or a Root of the current home for an unclaimed entry.
+ */
+export async function setHomeTree(
+  personId: string,
+  treeId: string,
+): Promise<{ error?: string }> {
+  await requireProfile();
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_home_tree", {
+    p_person: personId,
+    p_tree: treeId,
+  });
+  if (error) {
+    const m = error.message.toLowerCase();
+    if (m.includes("must already show")) {
+      return { error: "That tree doesn't show this entry yet. A Root there has to bring it over first." };
+    }
+    if (m.includes("only this person")) {
+      return { error: "Only this person, or a Root of their home tree for an unclaimed entry, can move their home." };
+    }
+    return { error: friendlyTreeError(error.message) };
+  }
+  revalidateTreeAndAccount();
+  return {};
+}
+
+/** Hide (or show) an entry to visitors from other trees (Step 25.4). */
+export async function setHiddenFromVisitors(
+  personId: string,
+  hidden: boolean,
+): Promise<{ error?: string }> {
+  await requireProfile();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("people")
+    .update({ hidden_from_visitors: hidden })
+    .eq("id", personId)
+    .select("id");
+  if (error) return { error: friendlyTreeError(error.message) };
+  if (!data || data.length === 0) {
+    return { error: "Only this person, or whoever can edit their entry, can change that." };
+  }
+  revalidateTreeAndAccount();
+  return {};
+}
+
+/**
+ * Root: open this tree to the members of another tree they belong to, or
+ * close it again (Step 25.4). Only a Root may; only for trees they are on.
+ */
+export async function setTreeVisibility(
+  treeId: string,
+  viewerTreeId: string,
+  visible: boolean,
+): Promise<{ error?: string }> {
+  const { membership, error: notRoot } = await rootOf(treeId);
+  if (notRoot || !membership) return { error: notRoot };
+  const { error: notThere } = await membershipOf(viewerTreeId);
+  if (notThere) return { error: "You can only open your tree to a tree you belong to." };
 
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("start_own_tree", {
-    p_tree_name: treeName,
-    p_bridge_person_id: input.bridgePersonId,
-    p_person: {
-      first_name: p.first_name ?? "",
-      middle_name: p.middle_name ?? "",
-      preferred_name: p.preferred_name ?? "",
-      last_name: p.last_name,
-      country_of_birth: p.country_of_birth,
-      city_of_birth: p.city_of_birth ?? "",
-      date_of_birth: p.date_of_birth ?? "",
-      date_of_birth_precision: p.date_of_birth_precision,
-      is_deceased: p.is_deceased,
-      date_of_death: p.date_of_death ?? "",
-      date_of_death_precision: p.date_of_death_precision,
-      place_of_death: p.place_of_death ?? "",
-    },
-  });
-
-  if (error || !data) {
-    return { error: friendlyStartTreeError(error?.message) };
+  if (visible) {
+    const { error } = await supabase.from("tree_visibility").upsert(
+      {
+        tree_id: treeId,
+        viewer_tree_id: viewerTreeId,
+        granted_by: membership.profile.auth_user_id,
+      },
+      { onConflict: "tree_id,viewer_tree_id" },
+    );
+    if (error) return { error: friendlyTreeError(error.message) };
+  } else {
+    const { error } = await supabase
+      .from("tree_visibility")
+      .delete()
+      .eq("tree_id", treeId)
+      .eq("viewer_tree_id", viewerTreeId);
+    if (error) return { error: friendlyTreeError(error.message) };
   }
+  revalidateTreeAndAccount();
+  return {};
+}
 
-  const result = data as { tree_id: string; person_id: string };
-  revalidatePath("/tree");
-  revalidatePath("/account");
-  return { treeId: result.tree_id, personId: result.person_id };
+/**
+ * A signed-in member accepts an invite to another tree (Step 25). Lands on
+ * that tree's canvas if their own entry is already shown there, else on its
+ * onboarding.
+ */
+export async function joinTreeWithInvite(token: string): Promise<{ error?: string }> {
+  await requireProfile();
+  const supabase = await createClient();
+  const joined = await redeemInvite(supabase, token);
+  if (!joined) return { error: "That invite is invalid, used up, or expired." };
+  revalidateTreeAndAccount();
+  revalidatePath("/trees");
+  redirect(joined.selfPersonId ? treeHref(joined.treeSlug) : onboardingHref(joined.treeSlug));
+}
+
+export type PersonTreeLink = {
+  id: string;
+  name: string;
+  slug: string;
+  /** The caller isn't a member: the tree's Root opened it to one of theirs. */
+  visitor: boolean;
+};
+
+/**
+ * The trees a person is shown on that the caller may open (Step 25): as a
+ * member, or as a visitor where the tree has been opened to one of theirs.
+ * RLS on `trees` is what decides; a tree the caller can't see isn't listed.
+ */
+export async function listPersonTrees(personId: string): Promise<PersonTreeLink[]> {
+  await requireProfile();
+  const supabase = await createClient();
+  const [{ data: placements }, { data: mine }] = await Promise.all([
+    supabase
+      .from("tree_placements")
+      .select("tree_id, trees(id, name, slug)")
+      .eq("person_id", personId)
+      .eq("status", "active"),
+    supabase.from("my_trees").select("id"),
+  ]);
+  const member = new Set((mine ?? []).map((t) => t.id));
+  return (placements ?? []).flatMap((p) => {
+    const t = Array.isArray(p.trees) ? p.trees[0] : p.trees;
+    if (!t?.id || !t.name || !t.slug) return [];
+    return [{ id: t.id, name: t.name, slug: t.slug, visitor: !member.has(t.id) }];
+  });
+}
+
+/**
+ * Root: delete a tree they run. Entries whose home it was move to another
+ * tree that shows them; the rest go with it (`delete_tree`).
+ */
+export async function deleteTree(treeId: string): Promise<{ error?: string }> {
+  const { error: notRoot } = await rootOf(treeId);
+  if (notRoot) return { error: notRoot };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("delete_tree", { p_tree: treeId });
+  if (error) return { error: friendlyTreeError(error.message) };
+  revalidateTreeAndAccount();
+  revalidatePath("/trees");
+  redirect(treesHref());
 }

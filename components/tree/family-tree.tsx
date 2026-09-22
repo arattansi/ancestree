@@ -77,9 +77,9 @@ import {
 import type { ClaimCandidate } from "@/lib/claims";
 import { connectionLabel, connectionPath } from "@/lib/connection-path";
 import type { PanelSuggestion } from "@/lib/connection-suggestions";
-import { multiTreeEnabled } from "@/lib/flags";
 import { nativeLeaf } from "@/lib/native-leaf";
 import { personSpotlight, spotlightPeople } from "@/lib/person-spotlight";
+import { onboardingHref } from "@/lib/tree-links";
 import { cn } from "@/lib/utils";
 import {
   bloodline,
@@ -442,6 +442,8 @@ type Props = {
   people: TreeGraphPerson[];
   relationships: TreeGraphEdge[];
   treeId: string;
+  /** The tree's URL slug: every link off the canvas stays on this tree (Step 25). */
+  treeSlug: string;
   selfPersonId: string | null;
   /** The founding admins' entries — the tree is centred on them. */
   anchorIds: string[];
@@ -462,6 +464,8 @@ type Props = {
   pets: TreePet[];
   /** Public share-link view: render the canvas without any editing controls. */
   readOnly?: boolean;
+  /** A visitor from another tree (Step 25.4): said once, above the canvas. */
+  visitorNote?: string | null;
 };
 
 /** Which way a bloodline spotlight runs from the person who was clicked. */
@@ -651,6 +655,7 @@ function Canvas({
   people,
   relationships,
   treeId,
+  treeSlug,
   selfPersonId,
   anchorIds,
   rootIds,
@@ -1164,7 +1169,7 @@ function Canvas({
         dimmed,
         highlighted,
         lineage: !!lit && inLine,
-        blurred: !!lit && !inLine,
+        blurred: (!!lit && !inLine) || (!isPet && !!(n.data as { person?: { blurred?: boolean } }).person?.blurred),
         ...(compressed
           ? { compressed, spouseOf: spotlight?.spouseOf.get(n.id) }
           : {}),
@@ -1563,12 +1568,13 @@ function Canvas({
       const auto = graph.layout.autoPositions.get(node.id);
       if (!auto) return;
       void setPersonPosition(
+        treeId,
         node.id,
         node.position.x - auto.x,
         node.position.y - auto.y,
       ).then(refused);
     },
-    [graph, setNodes],
+    [graph, setNodes, treeId],
   );
 
   const onAutoArrange = React.useCallback(() => {
@@ -1757,7 +1763,11 @@ function Canvas({
               </span>
               <Button
                 nativeButton={false}
-                render={<Link href="/request-invite" />}
+                render={
+                  <Link
+                    href={`/request-invite${treeSlug ? `?tree=${encodeURIComponent(treeSlug)}` : ""}`}
+                  />
+                }
                 size="sm"
               >
                 Request edit access
@@ -1765,6 +1775,7 @@ function Canvas({
             </div>
           ) : accountType.addRelatives ? (
             <AddRelativeButton
+              treeSlug={treeSlug}
               relatedTo={addTarget}
               labelFrom={selectedPerson ? "lg" : "sm"}
             />
@@ -1782,16 +1793,6 @@ function Canvas({
               <ExpandingLabel>
                 {arranging ? "Arranging…" : "Auto-arrange"}
               </ExpandingLabel>
-            </Button>
-          ) : null}
-          {!readOnly && multiTreeEnabled ? (
-            <Button
-              nativeButton={false}
-              render={<Link href="/trees/new" />}
-              size="sm"
-              variant="outline"
-            >
-              Start your own tree
             </Button>
           ) : null}
         </Panel>
@@ -1916,8 +1917,10 @@ function Canvas({
       </ReactFlow>
 
       <PersonPanel
-        person={selectedPerson}
+        // A hidden person's card is a blur to a visitor: nothing to open.
+        person={selectedPerson?.blurred ? null : selectedPerson}
         treeId={treeId}
+        treeSlug={treeSlug}
         pets={allPets.filter((pet) =>
           selectedId ? pet.companions.includes(selectedId) : false,
         )}
@@ -2002,7 +2005,10 @@ export function FamilyTree(props: Props) {
         <p className="max-w-sm text-sm text-muted-foreground">
           Add yourself first, then connect relatives to build out the tree.
         </p>
-        <Button nativeButton={false} render={<Link href="/onboarding" />}>
+        <Button
+          nativeButton={false}
+          render={<Link href={onboardingHref(props.treeSlug)} />}
+        >
           Add yourself
         </Button>
       </div>
@@ -2011,6 +2017,14 @@ export function FamilyTree(props: Props) {
 
   return (
     <div className="relative h-[calc(100dvh-3.5rem)] w-full">
+      {props.visitorNote ? (
+        <p
+          role="note"
+          className="absolute inset-x-0 top-0 z-30 border-b border-border bg-muted/90 px-4 py-1.5 text-center text-xs text-muted-foreground backdrop-blur"
+        >
+          {props.visitorNote}
+        </p>
+      ) : null}
       <ReactFlowProvider>
         <Canvas {...props} />
       </ReactFlowProvider>

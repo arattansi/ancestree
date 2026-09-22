@@ -15,8 +15,11 @@ import { accountTypeOf, type AccountTypeKey } from "@/lib/account-types";
  * default.
  */
 export function InviteMinter({
+  treeId,
   options = ["member"],
 }: {
+  /** The tree the link joins (Step 25). */
+  treeId: string;
   options?: readonly AccountTypeKey[];
 }) {
   const [url, setUrl] = useState<string | null>(null);
@@ -28,7 +31,7 @@ export function InviteMinter({
 
   function mint() {
     startTransition(async () => {
-      const result = await createInvite(joinsAs);
+      const result = await createInvite(treeId, joinsAs);
       if (result.error) {
         toast.error(result.error);
         return;

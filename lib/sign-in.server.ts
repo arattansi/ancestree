@@ -4,18 +4,56 @@ import type { EmailOtpType } from "@supabase/supabase-js";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { onboardingHref } from "@/lib/tree-links";
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>;
 
 /** Only allow same-origin relative redirect targets. */
 export function safeNext(next: string | null | undefined): string {
   if (next && next.startsWith("/") && !next.startsWith("//")) return next;
+  // "/tree" opens the member's default tree (Step 25).
   return "/tree";
+}
+
+export type RedeemedTree = {
+  treeId: string;
+  treeSlug: string;
+  treeName: string;
+  selfPersonId: string | null;
+};
+
+/**
+ * Redeem an invite as the signed-in user (Step 25): a profile if they have
+ * none, a membership in the invite's tree — or, for a founder invite, a
+ * brand-new tree with them as Root. Says which tree was joined.
+ */
+export async function redeemInvite(
+  supabase: ServerClient,
+  token: string,
+  displayName?: string,
+): Promise<RedeemedTree | null> {
+  const { data, error } = await supabase.rpc("redeem_invite_tree", {
+    p_token: token,
+    p_display_name: displayName,
+  });
+  if (error || !data) return null;
+  const row = data as Record<string, unknown>;
+  if (typeof row.tree_id !== "string" || typeof row.tree_slug !== "string") {
+    return null;
+  }
+  return {
+    treeId: row.tree_id,
+    treeSlug: row.tree_slug,
+    treeName: typeof row.tree_name === "string" ? row.tree_name : "",
+    selfPersonId:
+      typeof row.self_person_id === "string" ? row.self_person_id : null,
+  };
 }
 
 /**
  * Turn a fresh session into a member: redeem the invite, or provision an
- * allowlisted admin. Returns where to send them.
+ * allowlisted admin. Returns where to send them — an invite lands on the
+ * joined tree's onboarding, so they find or add themselves there.
  */
 export async function establishMembership(
   supabase: ServerClient,
@@ -26,11 +64,8 @@ export async function establishMembership(
   }: { invite?: string | null; next: string; displayName?: string },
 ): Promise<string> {
   if (invite) {
-    const { error } = await supabase.rpc("redeem_invite", {
-      p_token: invite,
-      p_display_name: displayName,
-    });
-    return error ? "/join?error=invite" : next;
+    const joined = await redeemInvite(supabase, invite, displayName);
+    return joined ? onboardingHref(joined.treeSlug) : "/join?error=invite";
   }
   const { error } = await supabase.rpc("ensure_profile", {});
   return error ? "/join?status=pending" : next;
@@ -115,7 +150,7 @@ export async function getInviteRecipient(
 }
 
 export type InviteSignInResult =
-  | { ok: true }
+  | { ok: true; treeSlug: string }
   | { ok: false; reason: "invalid" | "already_member" | "failed" };
 
 /**
@@ -125,7 +160,8 @@ export type InviteSignInResult =
  * The invite link reached that inbox, which is all a sign-in email would
  * prove — so we mint the one-time token ourselves and spend it on the spot
  * instead of mailing a second link. Refuses an address that is already a
- * member: their invite must not double as a 14-day key to a live account.
+ * member: their invite must not double as a 14-day key to a live account —
+ * a member joins another tree from the invite page while signed in.
  */
 export async function signInWithInvite(token: string): Promise<InviteSignInResult> {
   const recipient = await getInviteRecipient(token);
@@ -162,11 +198,8 @@ export async function signInWithInvite(token: string): Promise<InviteSignInResul
   });
   if (verifyError) return { ok: false, reason: "failed" };
 
-  const { error: redeemError } = await supabase.rpc("redeem_invite", {
-    p_token: token,
-    p_display_name: recipient.name ?? undefined,
-  });
-  if (redeemError) return { ok: false, reason: "invalid" };
+  const joined = await redeemInvite(supabase, token, recipient.name ?? undefined);
+  if (!joined) return { ok: false, reason: "invalid" };
 
-  return { ok: true };
+  return { ok: true, treeSlug: joined.treeSlug };
 }

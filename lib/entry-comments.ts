@@ -16,11 +16,13 @@ export type EntryComment = {
 };
 
 /**
- * Comments and flags on a person entry, newest first, with author + resolver
- * display names resolved from the member directory. Visible to any tree member
- * (enforced by `entry_comments` RLS).
+ * Comments and flags on a person entry's board on one tree (Step 25), newest
+ * first, with author + resolver display names resolved from the member
+ * directory. Visible to any member of that tree (enforced by `entry_comments`
+ * RLS).
  */
 export async function listEntryComments(
+  treeId: string,
   personId: string,
 ): Promise<EntryComment[]> {
   const supabase = await createClient();
@@ -29,6 +31,7 @@ export async function listEntryComments(
     .select(
       "id, body, is_flag, status, created_at, created_by, resolved_by, resolved_at",
     )
+    .eq("tree_id", treeId)
     .eq("person_id", personId)
     .order("created_at", { ascending: false });
 

@@ -2,7 +2,6 @@ import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
 import { personDisplayName } from "@/lib/person-name";
-import { getSharedTree } from "@/lib/tree";
 import {
   auditTree,
   computeImpliedConnections,
@@ -37,12 +36,14 @@ async function loadTree(treeId: string): Promise<TreeSnapshot> {
   const supabase = await createClient();
 
   const [peopleRes, edgeRes, sugRes, nickRes] = await Promise.all([
+    // What the tree shows (Step 25): its placed people and the lines between
+    // them, from the tree views.
     supabase
-      .from("people")
+      .from("tree_people")
       .select("id, first_name, preferred_name, last_name, date_of_birth")
       .eq("tree_id", treeId),
     supabase
-      .from("relationships")
+      .from("tree_edges")
       .select(
         "from_person, to_person, type, marriage_date, divorce_date, is_divorced",
       )
@@ -59,16 +60,19 @@ async function loadTree(treeId: string): Promise<TreeSnapshot> {
   ]);
 
   const labelById = new Map<string, string>();
-  const people: ExistingPerson[] = (peopleRes.data ?? []).map((p) => {
-    const label = personDisplayName(p);
+  const people: ExistingPerson[] = (peopleRes.data ?? []).flatMap((p) => {
+    if (!p.id || !p.last_name) return [];
+    const label = personDisplayName({ ...p, last_name: p.last_name });
     labelById.set(p.id, label);
-    return {
-      id: p.id,
-      label,
-      givenName: p.preferred_name ?? p.first_name,
-      familyName: p.last_name,
-      dateOfBirth: p.date_of_birth,
-    };
+    return [
+      {
+        id: p.id,
+        label,
+        givenName: p.preferred_name ?? p.first_name,
+        familyName: p.last_name,
+        dateOfBirth: p.date_of_birth,
+      },
+    ];
   });
 
   const byCanonical = new Map<string, Set<string>>();
@@ -81,14 +85,20 @@ async function loadTree(treeId: string): Promise<TreeSnapshot> {
 
   return {
     people,
-    edges: (edgeRes.data ?? []).map((e) => ({
-      from: e.from_person,
-      to: e.to_person,
-      type: e.type,
-      marriageDate: e.marriage_date,
-      divorceDate: e.divorce_date,
-      isDivorced: e.is_divorced,
-    })),
+    edges: (edgeRes.data ?? []).flatMap((e) =>
+      e.from_person && e.to_person && e.type
+        ? [
+            {
+              from: e.from_person,
+              to: e.to_person,
+              type: e.type,
+              marriageDate: e.marriage_date,
+              divorceDate: e.divorce_date,
+              isDivorced: e.is_divorced ?? false,
+            },
+          ]
+        : [],
+    ),
     resolvedKeys: new Set(
       (sugRes.data ?? []).map((r) =>
         suggestionDedupeKey(
@@ -181,11 +191,11 @@ function toPanelSuggestion(
  * audit — the tree is small enough that counting and listing cost the same, and
  * a count that disagreed with the queue would be worse than no badge at all.
  */
-export async function countOpenConnectionSuggestions(): Promise<number> {
-  const tree = await getSharedTree();
-  if (!tree) return 0;
+export async function countOpenConnectionSuggestions(
+  treeId: string,
+): Promise<number> {
   try {
-    return (await auditTreeConnections(tree.id)).length;
+    return (await auditTreeConnections(treeId)).length;
   } catch {
     // Advisory: a badge is never worth failing the header over.
     return 0;

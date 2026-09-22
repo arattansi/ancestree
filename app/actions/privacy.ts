@@ -3,31 +3,39 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { getUser, requireAdmin, requireProfile } from "@/lib/auth";
+import { getUser, requireProfile } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { getSharedTree } from "@/lib/tree";
+import { revalidateTreeAndAccount } from "@/lib/revalidate";
+import { rootOf } from "@/lib/tree-context";
 
 /**
- * Admin-only full export of the shared tree as JSON. Every row a member could
- * ever see, in one file, so the tree's data stewards can honour a
- * "show me everything you hold" request.
+ * Root: full export of one tree as JSON. Every row a member of it could ever
+ * see, in one file, so the tree's data stewards can honour a "show me
+ * everything you hold" request. People shown on the tree are included whether
+ * or not it is their home; other trees' boards and banks are not.
  */
-export async function exportTreeData(): Promise<{
+export async function exportTreeData(treeId: string): Promise<{
   json?: string;
   filename?: string;
   error?: string;
 }> {
-  await requireAdmin();
-
-  const tree = await getSharedTree();
-  if (!tree) return { error: "No tree to export yet." };
+  const { membership, error: notRoot } = await rootOf(treeId);
+  if (notRoot || !membership) return { error: notRoot };
 
   const db = createAdminClient();
 
+  const { data: placements } = await db
+    .from("tree_placements")
+    .select("*")
+    .eq("tree_id", treeId);
+  const personIds = (placements ?? [])
+    .filter((p) => p.status === "active")
+    .map((p) => p.person_id);
+
   const [
     trees,
-    profiles,
+    members,
     people,
     relationships,
     invites,
@@ -39,23 +47,23 @@ export async function exportTreeData(): Promise<{
     petCompanions,
     petComments,
   ] = await Promise.all([
-    db.from("trees").select("*"),
-    db.from("profiles").select("*"),
-    db.from("people").select("*").eq("tree_id", tree.id),
-    db.from("relationships").select("*").eq("tree_id", tree.id),
-    db.from("invites").select("*").eq("tree_id", tree.id),
-    db.from("claims").select("*"),
-    db.from("entry_comments").select("*"),
-    db.from("documents").select("*"),
-    db.from("notifications").select("*"),
-    db.from("pets").select("*").eq("tree_id", tree.id),
-    db.from("pet_companions").select("*"),
-    db.from("pet_comments").select("*"),
+    db.from("trees").select("*").eq("id", treeId),
+    db.from("member_directory").select("*").eq("tree_id", treeId),
+    personIds.length ? db.from("people").select("*").in("id", personIds) : Promise.resolve({ data: [], error: null }),
+    db.from("tree_edges").select("*").eq("tree_id", treeId),
+    db.from("invites").select("*").eq("tree_id", treeId),
+    personIds.length ? db.from("claims").select("*").in("person_id", personIds) : Promise.resolve({ data: [], error: null }),
+    db.from("entry_comments").select("*").eq("tree_id", treeId),
+    db.from("documents").select("*").eq("tree_id", treeId),
+    db.from("notifications").select("*").eq("tree_id", treeId),
+    db.from("pets").select("*").eq("tree_id", treeId),
+    db.from("pet_companions").select("*, pets!inner(tree_id)").eq("pets.tree_id", treeId),
+    db.from("pet_comments").select("*, pets!inner(tree_id)").eq("pets.tree_id", treeId),
   ]);
 
   const firstError = [
     trees,
-    profiles,
+    members,
     people,
     relationships,
     invites,
@@ -71,10 +79,11 @@ export async function exportTreeData(): Promise<{
 
   const payload = {
     exported_at: new Date().toISOString(),
-    tree_id: tree.id,
+    tree_id: treeId,
     tables: {
       trees: trees.data ?? [],
-      profiles: profiles.data ?? [],
+      tree_members: members.data ?? [],
+      tree_placements: placements ?? [],
       people: people.data ?? [],
       relationships: relationships.data ?? [],
       invites: invites.data ?? [],
@@ -91,17 +100,18 @@ export async function exportTreeData(): Promise<{
   const stamp = new Date().toISOString().slice(0, 10);
   return {
     json: JSON.stringify(payload, null, 2),
-    filename: `ancestree-export-${stamp}.json`,
+    filename: `ancestree-${membership.tree.slug}-${stamp}.json`,
   };
 }
 
 /**
  * Permanently remove a person entry, its relationship edges (via cascade), and
- * its stored photo + documents. A Root may remove any entry — right-to-erasure
- * requests come through here. Since Step 22.3 a Branch or Canopy member may
- * remove an unclaimed entry they added, as long as nobody else has hung a
- * connection, comment, document or companion on it
- * (`private.can_delete_person`, enforced by the `people_delete` policy).
+ * its stored photo + documents. A Root of the entry's home tree may remove any
+ * entry — right-to-erasure requests come through here. Since Step 22.3 a
+ * Branch or Canopy member may remove an unclaimed entry they added, as long
+ * as nobody else has hung a connection, comment, document or companion on it
+ * and no other tree shows it (`private.can_delete_person`, enforced by the
+ * `people_delete` policy).
  */
 export async function deletePerson(
   personId: string,
@@ -170,119 +180,148 @@ export async function deletePerson(
     await db.storage.from("documents").remove(docPaths);
   }
 
-  revalidatePath("/tree");
-  revalidatePath("/admin");
+  revalidateTreeAndAccount();
   return {};
 }
 
 const NOT_YOURS_TO_DELETE =
-  "Someone else has added to this entry — a connection, comment, document or companion — so only a Root can remove it now. Ask a Root.";
+  "Someone else has added to this entry — a connection, comment, document or companion — or another tree shows it, so only a Root can remove it now. Ask a Root.";
+
+export type DeleteAccountInput = {
+  /**
+   * Per tree where the member is the only Root: who takes over as Root there
+   * (Step 25). Keyed by tree id.
+   */
+  successors?: Record<string, string>;
+};
 
 /**
  * Permanently delete the signed-in member's own account: their auth login and
- * profile row. Entries and edges they created are reassigned to a Root so the
- * shared family record stays intact (see the privacy notice).
+ * profile row. In each tree they belong to, entries and edges they created
+ * are reassigned to a Root of that tree so the shared record stays intact
+ * (see the privacy notice).
  *
- * A Root may leave too, but never leave the tree without one: the only Root
- * must name a `successorId` — another member — who is made a Root first and
- * takes over what they added. A Root stays a Root (Step 22.5), so that
- * promotion stands even if the deletion then fails.
+ * A Root may leave too, but never leave a tree without one: where they are
+ * the only Root they must name a successor — another member of that tree —
+ * who is made a Root first and takes over what they added. A Root stays a
+ * Root (Step 22.5), so that promotion stands even if the deletion then fails.
  */
 export async function deleteAccount(
-  successorId?: string,
+  input?: DeleteAccountInput | string,
 ): Promise<{ error?: string }> {
-  const profile = await requireProfile();
+  await requireProfile();
   const user = await getUser();
   if (!user) return { error: "You are not signed in." };
 
-  const db = createAdminClient();
+  // The pre-Step-25 form passed one successor for the one tree.
+  const successors: Record<string, string> =
+    typeof input === "string" ? { "*": input } : input?.successors ?? {};
 
-  if (profile.role === "admin") {
+  const db = createAdminClient();
+  const supabase = await createClient();
+
+  const { data: memberships } = await db
+    .from("tree_members")
+    .select("tree_id, role")
+    .eq("user_id", user.id);
+
+  // 1. Every tree they run alone gets its successor first.
+  for (const m of memberships ?? []) {
+    if (m.role !== "admin") continue;
     const { count } = await db
-      .from("profiles")
-      .select("auth_user_id", { count: "exact", head: true })
+      .from("tree_members")
+      .select("user_id", { count: "exact", head: true })
+      .eq("tree_id", m.tree_id)
       .eq("role", "admin")
-      .neq("auth_user_id", user.id);
-    if (!count) {
-      if (!successorId || successorId === user.id) {
-        return {
-          error:
-            "You're the tree's only Root. Choose who takes over as Root before deleting your account.",
-        };
-      }
-      // Promoted as the signed-in Root, which `profiles_protect_role` allows;
-      // the service role can't change a role.
-      const supabase = await createClient();
-      const { data: promoted } = await supabase
-        .from("profiles")
-        .update({ role: "admin" })
-        .eq("auth_user_id", successorId)
-        .select("role");
-      if (promoted?.[0]?.role !== "admin") {
-        return { error: "Couldn't make them a Root. Try again." };
-      }
+      .neq("user_id", user.id);
+    if (count) continue;
+
+    const successorId = successors[m.tree_id] ?? successors["*"];
+    if (!successorId || successorId === user.id) {
+      return {
+        error:
+          "You're the only Root of one of your trees. Choose who takes over as Root there before deleting your account.",
+      };
+    }
+    // Promoted as the signed-in Root, which the guard allows; the service
+    // role can't change a role.
+    const { data: promoted, error } = await supabase.rpc("set_member_role", {
+      p_tree: m.tree_id,
+      p_user: successorId,
+      p_role: "admin",
+    });
+    if (error || promoted !== "admin") {
+      return { error: "Couldn't make them a Root. Try again." };
     }
   }
 
-  // Find another Root to inherit stewardship of this member's contributions:
-  // the successor a departing sole Root just named, else the longest-standing.
-  const { data: admins } = await db
-    .from("profiles")
-    .select("auth_user_id, created_at")
+  // 2. In each tree, hand what they added to a Root there: the successor
+  //    they named, else the longest-standing.
+  for (const m of memberships ?? []) {
+    const { data: roots } = await db
+      .from("tree_members")
+      .select("user_id, created_at")
+      .eq("tree_id", m.tree_id)
+      .eq("role", "admin")
+      .neq("user_id", user.id)
+      .order("created_at", { ascending: true });
+    const named = successors[m.tree_id] ?? successors["*"];
+    const steward =
+      (roots ?? []).find((r) => r.user_id === named)?.user_id ??
+      roots?.[0]?.user_id;
+    if (!steward) {
+      return {
+        error:
+          "One of your trees has no other Root to hand your entries to. Ask a Root for help.",
+      };
+    }
+
+    const results = await Promise.all([
+      db.from("people").update({ created_by: steward }).eq("created_by", user.id).eq("tree_id", m.tree_id),
+      db.from("people").update({ owner_user_id: steward }).eq("owner_user_id", user.id).eq("tree_id", m.tree_id),
+      db.from("relationships").update({ created_by: steward }).eq("created_by", user.id).eq("tree_id", m.tree_id),
+      db.from("invites").update({ created_by: steward }).eq("created_by", user.id).eq("tree_id", m.tree_id),
+      db.from("share_links").update({ created_by: steward }).eq("created_by", user.id).eq("tree_id", m.tree_id),
+      db.from("entry_comments").update({ created_by: steward }).eq("created_by", user.id).eq("tree_id", m.tree_id),
+      db.from("documents").update({ uploaded_by: steward }).eq("uploaded_by", user.id).eq("tree_id", m.tree_id),
+      // Companions are family memories too — hand them over rather than
+      // letting the profile cascade take the household dog with it.
+      db.from("pets").update({ created_by: steward }).eq("created_by", user.id).eq("tree_id", m.tree_id),
+      db.from("tree_placements").update({ placed_by: steward }).eq("placed_by", user.id).eq("tree_id", m.tree_id),
+    ]);
+    if (results.some((r) => r.error)) {
+      return { error: "Couldn't hand off your entries. Try again." };
+    }
+  }
+
+  // 3. Anything not tied to a tree row (companion links and comments, or
+  //    stray rows) goes to the first steward found.
+  const { data: anyRoot } = await db
+    .from("tree_members")
+    .select("user_id")
     .eq("role", "admin")
-    .order("created_at", { ascending: true });
-
-  const others = (admins ?? []).filter((a) => a.auth_user_id !== user.id);
-  const steward = (
-    others.find((a) => a.auth_user_id === successorId) ?? others[0]
-  )?.auth_user_id;
-
-  if (!steward) {
-    return {
-      error:
-        "The tree has no other Root to hand your entries to. Ask a Root for help.",
-    };
+    .neq("user_id", user.id)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (anyRoot) {
+    const s = anyRoot.user_id;
+    await Promise.all([
+      db.from("people").update({ created_by: s }).eq("created_by", user.id),
+      db.from("people").update({ owner_user_id: s }).eq("owner_user_id", user.id),
+      db.from("relationships").update({ created_by: s }).eq("created_by", user.id),
+      db.from("invites").update({ created_by: s }).eq("created_by", user.id),
+      db.from("share_links").update({ created_by: s }).eq("created_by", user.id),
+      db.from("entry_comments").update({ created_by: s }).eq("created_by", user.id),
+      db.from("documents").update({ uploaded_by: s }).eq("uploaded_by", user.id),
+      db.from("pets").update({ created_by: s }).eq("created_by", user.id),
+      db.from("pet_companions").update({ created_by: s }).eq("created_by", user.id),
+      db.from("pet_comments").update({ created_by: s }).eq("created_by", user.id),
+      db.from("tree_placements").update({ placed_by: s }).eq("placed_by", user.id),
+    ]);
   }
-
-  // Reassign every row that references this user with ON DELETE RESTRICT.
-  const reassign = [
-    db.from("people").update({ created_by: steward }).eq("created_by", user.id),
-    db
-      .from("people")
-      .update({ owner_user_id: steward })
-      .eq("owner_user_id", user.id),
-    db
-      .from("relationships")
-      .update({ created_by: steward })
-      .eq("created_by", user.id),
-    db
-      .from("invites")
-      .update({ created_by: steward })
-      .eq("created_by", user.id),
-    db
-      .from("entry_comments")
-      .update({ created_by: steward })
-      .eq("created_by", user.id),
-    db
-      .from("documents")
-      .update({ uploaded_by: steward })
-      .eq("uploaded_by", user.id),
-    // Companions are family memories too — hand them over rather than letting
-    // the profile cascade take the household dog with it.
-    db.from("pets").update({ created_by: steward }).eq("created_by", user.id),
-    db
-      .from("pet_companions")
-      .update({ created_by: steward })
-      .eq("created_by", user.id),
-    db
-      .from("pet_comments")
-      .update({ created_by: steward })
-      .eq("created_by", user.id),
-  ];
-  const results = await Promise.all(reassign);
-  if (results.some((r) => r.error)) {
-    return { error: "Couldn't hand off your entries. Try again." };
-  }
+  // A founded tree keeps going without its founder on record.
+  await db.from("trees").update({ created_by: null }).eq("created_by", user.id);
 
   const { error: profileError } = await db
     .from("profiles")
@@ -295,11 +334,11 @@ export async function deleteAccount(
   const { error: authError } = await db.auth.admin.deleteUser(user.id);
   if (authError) {
     return {
-      error: "Profile removed, but sign-in cleanup failed. Contact an admin.",
+      error: "Profile removed, but sign-in cleanup failed. Contact a Root.",
     };
   }
 
-  const supabase = await createClient();
   await supabase.auth.signOut();
+  revalidatePath("/");
   redirect("/?deleted=1");
 }

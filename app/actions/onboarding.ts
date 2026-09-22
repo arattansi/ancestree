@@ -10,13 +10,15 @@ import {
   type SelfCandidate,
 } from "@/lib/self-match";
 import { createClient } from "@/lib/supabase/server";
+import { revalidateTreePages } from "@/lib/revalidate";
 
 /**
- * Unclaimed entries that look like the name a new member typed. Spelling
- * mistakes, accents, nicknames and phonetic variants all still match — the
- * scoring lives in `search_self_candidates` (Step 15).
+ * Unclaimed entries on one tree that look like the name a new member typed.
+ * Spelling mistakes, accents, nicknames and phonetic variants all still match
+ * — the scoring lives in `search_self_candidates` (Step 15).
  */
 export async function findSelfCandidates(
+  treeId: string,
   first: string,
   last: string,
 ): Promise<{ candidates: SelfCandidate[]; error?: string }> {
@@ -29,6 +31,7 @@ export async function findSelfCandidates(
   const { data, error } = await supabase.rpc("search_self_candidates", {
     p_first: normalizeTypedName(first),
     p_last: normalizeTypedName(last),
+    p_tree: treeId,
   });
 
   if (error) {
@@ -61,6 +64,7 @@ function friendlyClaimError(message: string | undefined): string {
  * who can dispute it (same path as `claim_person`).
  */
 export async function claimSelfCandidate(
+  treeId: string,
   personId: string,
   first: string,
   last: string,
@@ -71,10 +75,11 @@ export async function claimSelfCandidate(
     p_person_id: personId,
     p_first: normalizeTypedName(first),
     p_last: normalizeTypedName(last),
+    p_tree: treeId,
   });
   if (error || !data) return { error: friendlyClaimError(error?.message) };
 
-  revalidatePath("/tree");
+  revalidateTreePages();
   revalidatePath("/account");
   const result = data as { person_id: string };
   return { personId: result.person_id };

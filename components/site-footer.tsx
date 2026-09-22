@@ -15,7 +15,7 @@ export function SiteFooter() {
   const pathname = usePathname();
 
   // The tree canvas fills the viewport; a footer there would only get in the way.
-  if (pathname === "/tree") {
+  if (pathname === "/tree" || /^\/t\/[^/]+\/tree\/?$/.test(pathname)) {
     return null;
   }
 

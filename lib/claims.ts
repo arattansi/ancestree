@@ -44,22 +44,51 @@ export type NotificationItem = {
    * 22.4); `null` otherwise, or once it has been undone.
    */
   revertibleRevisionId: string | null;
+  /** The tree this belongs to (Step 25): one inbox per tree. */
+  treeId: string | null;
+  treeName: string | null;
+  treeSlug: string | null;
+  /** A placement waiting on this member's answer (Step 25). */
+  placementId: string | null;
 };
 
-/** Recent in-app notifications for the signed-in member, newest first. */
+/**
+ * Recent in-app notifications for the signed-in member, newest first. With
+ * `treeId`, only that tree's inbox; without, every tree, each item naming
+ * its tree.
+ */
 export async function listNotifications(
   userId: string,
+  treeId?: string,
 ): Promise<NotificationItem[]> {
   const supabase = await createClient();
-  const { data } = await supabase
+  let query = supabase
     .from("notifications")
     .select(
-      "id, type, body, created_at, read_at, person_id, claim_id, revision_id",
+      "id, type, body, created_at, read_at, person_id, claim_id, revision_id, tree_id, trees(name, slug)",
     )
     .order("created_at", { ascending: false })
     .limit(50);
+  if (treeId) query = query.eq("tree_id", treeId);
+  const { data } = await query;
 
   const rows = data ?? [];
+
+  // Placement requests point at the placement the member must answer.
+  const placementByPerson = new Map<string, string>();
+  const pendingPersonIds = rows
+    .filter((n) => n.type === "placement_requested" && n.person_id && n.tree_id)
+    .map((n) => n.person_id as string);
+  if (pendingPersonIds.length > 0) {
+    const { data: placements } = await supabase
+      .from("tree_placements")
+      .select("id, tree_id, person_id")
+      .eq("status", "pending")
+      .in("person_id", [...new Set(pendingPersonIds)]);
+    for (const p of placements ?? []) {
+      placementByPerson.set(`${p.tree_id}:${p.person_id}`, p.id);
+    }
+  }
   const claimIds = rows
     .map((n) => n.claim_id)
     .filter((id): id is string => Boolean(id));
@@ -101,18 +130,28 @@ export async function listNotifications(
     for (const r of revisions ?? []) revertible.add(r.id);
   }
 
-  return rows.map((n) => ({
-    id: n.id,
-    type: n.type,
-    body: n.body,
-    createdAt: n.created_at,
-    readAt: n.read_at,
-    personId: n.person_id,
-    claimId: n.claim_id,
-    canDispute: n.claim_id ? disputable.has(n.claim_id) : false,
-    revertibleRevisionId:
-      n.revision_id && revertible.has(n.revision_id) ? n.revision_id : null,
-  }));
+  return rows.map((n) => {
+    const tree = Array.isArray(n.trees) ? n.trees[0] : n.trees;
+    return {
+      id: n.id,
+      type: n.type,
+      body: n.body,
+      createdAt: n.created_at,
+      readAt: n.read_at,
+      personId: n.person_id,
+      claimId: n.claim_id,
+      canDispute: n.claim_id ? disputable.has(n.claim_id) : false,
+      revertibleRevisionId:
+        n.revision_id && revertible.has(n.revision_id) ? n.revision_id : null,
+      treeId: n.tree_id,
+      treeName: tree?.name ?? null,
+      treeSlug: tree?.slug ?? null,
+      placementId:
+        n.type === "placement_requested" && n.tree_id && n.person_id
+          ? placementByPerson.get(`${n.tree_id}:${n.person_id}`) ?? null
+          : null,
+    };
+  });
 }
 
 export type DisputedClaim = {
@@ -125,13 +164,14 @@ export type DisputedClaim = {
   disputedAt: string;
 };
 
-/** Disputed claims awaiting an admin decision. */
-export async function listDisputedClaims(): Promise<DisputedClaim[]> {
+/** Disputed claims on one tree's entries awaiting a Root's decision. */
+export async function listDisputedClaims(treeId: string): Promise<DisputedClaim[]> {
   const supabase = await createClient();
   const { data: claims } = await supabase
     .from("claims")
-    .select("id, person_id, claimant_user_id, dispute_reason, updated_at")
+    .select("id, person_id, claimant_user_id, dispute_reason, updated_at, people!inner(tree_id)")
     .eq("status", "disputed")
+    .eq("people.tree_id", treeId)
     .order("updated_at", { ascending: true });
 
   const rows = claims ?? [];

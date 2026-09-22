@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { getUser, requireAdmin, requireProfile, requireSelfPerson } from "@/lib/auth";
+import { getUser, requireProfile, requireSelfPerson } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 function friendlyClaimError(message: string | undefined): string {
@@ -74,7 +74,7 @@ export async function resolveClaim(
   claimId: string,
   action: "uphold" | "reverse",
 ): Promise<{ error?: string }> {
-  await requireAdmin();
+  await requireProfile();
   const supabase = await createClient();
   const { error } = await supabase.rpc("resolve_claim", {
     p_claim_id: claimId,

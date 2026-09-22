@@ -3,17 +3,19 @@
 import { revalidatePath } from "next/cache";
 
 import { listEntryComments, type EntryComment } from "@/lib/entry-comments";
-import { requireAdmin, requireProfile } from "@/lib/auth";
+import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { revalidateTreePages } from "@/lib/revalidate";
 
 const MAX_BODY = 2000;
 
-/** Every comment / flag on an entry, for the detail panel. */
+/** Every comment / flag on an entry's board on one tree, for the detail panel. */
 export async function getEntryComments(
+  treeId: string,
   personId: string,
 ): Promise<EntryComment[]> {
   await requireProfile();
-  return listEntryComments(personId);
+  return listEntryComments(treeId, personId);
 }
 
 /**
@@ -22,6 +24,8 @@ export async function getEntryComments(
  * the entry's owner and original creator.
  */
 export async function addEntryComment(input: {
+  /** The board it goes on: one per tree (Step 25). */
+  treeId: string;
   personId: string;
   body: string;
   isFlag: boolean;
@@ -37,6 +41,7 @@ export async function addEntryComment(input: {
   const { data, error } = await supabase
     .from("entry_comments")
     .insert({
+      tree_id: input.treeId,
       person_id: input.personId,
       body,
       is_flag: input.isFlag,
@@ -51,7 +56,7 @@ export async function addEntryComment(input: {
     return { error: "Couldn't post that. Refresh and try again." };
   }
 
-  revalidatePath("/tree");
+  revalidateTreePages();
   return {
     comment: {
       id: data.id,
@@ -89,24 +94,24 @@ export async function resolveEntryFlag(
     }
     return { error: "Couldn't update that flag. Try again." };
   }
-  revalidatePath("/tree");
+  revalidateTreePages();
   revalidatePath("/account");
   return {};
 }
 
-/** Admin-only: mark an entry verified, or clear its verified status. */
+/** Root of the entry's home tree: mark it verified, or clear that. */
 export async function setEntryVerified(
   personId: string,
   verified: boolean,
 ): Promise<{ error?: string }> {
-  await requireAdmin();
+  await requireProfile();
   const supabase = await createClient();
   const { error } = await supabase.rpc("set_entry_verified", {
     p_person_id: personId,
     p_verified: verified,
   });
   if (error) return { error: "Couldn't update verification. Try again." };
-  revalidatePath("/tree");
+  revalidateTreePages();
   revalidatePath("/account");
   return {};
 }

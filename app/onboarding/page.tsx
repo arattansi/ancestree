@@ -1,60 +1,7 @@
-import type { Metadata } from "next";
-import { redirect } from "next/navigation";
+import { redirectToDefaultTree } from "@/lib/tree-context";
+import { onboardingHref } from "@/lib/tree-links";
 
-import { OnboardingSelfFlow } from "@/components/onboarding-self-flow";
-import { Card, CardContent } from "@/components/ui/card";
-import { accountTypeOf } from "@/lib/account-types";
-import { requireProfile } from "@/lib/auth";
-import { getSharedTree, listTreeMembers } from "@/lib/tree";
-
-export const metadata: Metadata = {
-  title: "find yourself",
-  description:
-    "Claim the entry a relative already added for you, or add your own.",
-};
-
-export default async function OnboardingPage() {
-  const profile = await requireProfile();
-  if (profile.self_person_id) redirect("/tree");
-
-  const tree = await getSharedTree();
-
-  if (!tree) {
-    return (
-      <main className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-4 px-4 py-12">
-        <h1 className="text-2xl font-semibold tracking-tight">Add yourself</h1>
-        <p className="text-sm text-muted-foreground">
-          The family tree isn&apos;t set up yet. Ask an admin to finish setup,
-          then try again.
-        </p>
-      </main>
-    );
-  }
-
-  const members = await listTreeMembers(tree.id);
-
-  return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 py-10">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Welcome{profile.display_name ? `, ${profile.display_name}` : ""}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Let&apos;s find you on the family tree — or add you to it.
-        </p>
-      </div>
-
-      <Card>
-        <CardContent>
-          <OnboardingSelfFlow
-            treeId={tree.id}
-            isAdmin={profile.role === "admin"}
-            members={members}
-            // A Leaf may add their own entry and nothing else (Step 18.2).
-            selfOnly={!accountTypeOf(profile.role).addRelatives}
-          />
-        </CardContent>
-      </Card>
-    </main>
-  );
+/** The pre-Step-24 onboarding URL: opens the member's default tree. */
+export default async function LegacyOnboardingPage() {
+  await redirectToDefaultTree(onboardingHref);
 }

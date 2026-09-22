@@ -1,6 +1,7 @@
 "use server";
 
-import { requireAdmin, requireProfile } from "@/lib/auth";
+import { requireProfile } from "@/lib/auth";
+import { requireAnyRoot } from "@/lib/tree-context";
 import { ALPHA2, countryName } from "@/lib/country-names";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatPlaceLabel, searchPlaces, type PlaceHit } from "@/lib/places";
@@ -26,7 +27,7 @@ export async function requestNewPlace(input: {
   countryCode: string;
   admin1?: string | null;
 }): Promise<{ place?: PlaceOption; error?: string }> {
-  await requireAdmin();
+  await requireAnyRoot();
 
   const name = input.name.trim();
   const cc = input.countryCode.trim().toUpperCase();

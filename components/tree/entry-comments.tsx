@@ -27,11 +27,14 @@ function timeAgo(iso: string): string {
 
 export function EntryComments({
   personId,
+  treeId,
   currentUserId,
   /** Owner / admin / unclaimed creator — may resolve anyone's flag. */
   canModerate,
 }: {
   personId: string;
+  /** The board being read: one per tree (Step 25). */
+  treeId: string;
   currentUserId: string;
   canModerate: boolean;
 }) {
@@ -58,20 +61,20 @@ export function EntryComments({
 
   React.useEffect(() => {
     let active = true;
-    getEntryComments(personId).then((rows) => {
+    getEntryComments(treeId, personId).then((rows) => {
       if (active) setState({ personId, items: rows });
     });
     return () => {
       active = false;
     };
-  }, [personId]);
+  }, [treeId, personId]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     const text = body.trim();
     if (!text || busy) return;
     setBusy(true);
-    const res = await addEntryComment({ personId, body: text, isFlag: asFlag });
+    const res = await addEntryComment({ treeId, personId, body: text, isFlag: asFlag });
     setBusy(false);
     if (res.error || !res.comment) {
       toast.error(res.error ?? "Couldn't post that.");

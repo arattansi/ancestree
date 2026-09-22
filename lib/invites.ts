@@ -18,6 +18,8 @@ export type InviteHistoryItem = {
   expiresAt: string | null;
   /** The account type the link makes someone (`invites.joins_as`). */
   joinsAs: string | null;
+  /** A founder invite: redeeming starts a tree of their own (Step 25). */
+  foundsTree: boolean;
 };
 
 const HISTORY_LIMIT = 50;
@@ -30,13 +32,14 @@ const HISTORY_LIMIT = 50;
  * (`redeem_invite` deletes them) and archived ones are left to
  * `listArchivedInvites`, so what's here is still waiting on someone.
  */
-export async function listInviteHistory(): Promise<InviteHistoryItem[]> {
+export async function listInviteHistory(treeId: string): Promise<InviteHistoryItem[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("invite_requests")
     .select(
-      "id, first_name, last_name, email, source, status, email_sent, reviewed_at, invites(token, status, expires_at, joins_as, archived_at)",
+      "id, first_name, last_name, email, source, status, email_sent, reviewed_at, invites(token, status, expires_at, joins_as, archived_at, founds_tree)",
     )
+    .eq("tree_id", treeId)
     .neq("status", "pending")
     .order("reviewed_at", { ascending: false, nullsFirst: false })
     .limit(HISTORY_LIMIT);
@@ -59,6 +62,7 @@ export async function listInviteHistory(): Promise<InviteHistoryItem[]> {
       inviteStatus: (invite?.status as InviteHistoryItem["inviteStatus"]) ?? null,
       expiresAt: invite?.expires_at ?? null,
       joinsAs: invite?.joins_as ?? null,
+      foundsTree: invite?.founds_tree ?? false,
     }];
   });
 }
@@ -90,13 +94,14 @@ const BARE_LIMIT = 50;
  * no `invite_requests` row, so they never surface in `listInviteHistory`;
  * without this they'd be invisible and impossible to kill.
  */
-export async function listBareInvites(): Promise<BareInvite[]> {
+export async function listBareInvites(treeId: string): Promise<BareInvite[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("invites")
     .select(
       "id, token, status, created_at, expires_at, joins_as, profiles!invites_created_by_fkey(display_name), invite_requests(id)",
     )
+    .eq("tree_id", treeId)
     .is("archived_at", null)
     .order("created_at", { ascending: false })
     .limit(BARE_SCAN_LIMIT);
@@ -133,11 +138,12 @@ export async function listBareInvites(): Promise<BareInvite[]> {
  * this is which list it shows up in. Needs a Root — it's their RLS that
  * allows the update.
  */
-export async function archiveExpiredInvites(): Promise<void> {
+export async function archiveExpiredInvites(treeId: string): Promise<void> {
   const supabase = await createClient();
   await supabase
     .from("invites")
     .update({ archived_at: new Date().toISOString() })
+    .eq("tree_id", treeId)
     .eq("status", "active")
     .is("archived_at", null)
     .lt("expires_at", new Date().toISOString());
@@ -160,13 +166,14 @@ export type ArchivedInvite = {
 const ARCHIVED_LIMIT = 50;
 
 /** Invites that expired unused, most recently archived first. */
-export async function listArchivedInvites(): Promise<ArchivedInvite[]> {
+export async function listArchivedInvites(treeId: string): Promise<ArchivedInvite[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("invites")
     .select(
       "id, invited_email, expires_at, archived_at, joins_as, profiles!invites_created_by_fkey(display_name), invite_requests(first_name, last_name, email), people(first_name, preferred_name, last_name)",
     )
+    .eq("tree_id", treeId)
     .not("archived_at", "is", null)
     .order("archived_at", { ascending: false })
     .limit(ARCHIVED_LIMIT);

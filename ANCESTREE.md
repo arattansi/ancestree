@@ -2,6 +2,9 @@
 
 Invite-only, auth-required, collaborative family-tree web app. Relatives add
 themselves and their connections into a shared, editable, canvas-style tree.
+Since Step 25 there can be many trees: a person is one entry shown on every
+tree that has brought them in, and a member's account type is per tree. The
+rules live in [`docs/trees-and-permissions.md`](docs/trees-and-permissions.md).
 
 Product brief and build plan live in the **🌳 Ancestree** Notion teamspace.
 
@@ -38,24 +41,35 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
 
 ## Project structure
 
-- `app/` — App Router pages: `/` landing, `/join` (+ `/join/[token]` invite accept),
-  `/auth/callback` (magic-link handler) + `/auth/auth-code-error`, `/onboarding`
-  (first-run: fuzzy name search → claim your entry, else self entry +
-  connect), `/people/new` (add a connected relative),
-  `/people/[id]/edit` (owner/creator/admin entry edit), `/tree` (React Flow
-  canvas), `/account` (profile + in-app notifications + delete-account),
-  `/admin` (admin-only: overview stats + members + invite requests + disputes +
-  JSON export + view-only share links), `/request-invite` (public: ask an admin
-  for an invite), `/shared/[token]` (public: read-only tree canvas behind an
-  admin-minted share link, with a "request edit access" CTA), `/privacy`
-  (public PIPEDA-minded privacy notice), `/trees/new` (Step 9 seam, flagged)
+- `app/` — App Router pages. **Tree-scoped pages live under `/t/[slug]/`**
+  (Step 25; `app/t/[slug]/layout.tsx` settles the viewer's membership — or
+  visit — and draws the tree bar): `tree` (React Flow canvas), `tree/review`,
+  `admin` (Roots of that tree: stats, members, people from other trees,
+  requests, disputes, invites incl. founder invites, share links, tree name,
+  who else may view, export, delete the tree), `people/new`,
+  `people/[id]/edit`, `onboarding` (first-run on that tree). The old
+  single-tree URLs (`/tree`, `/tree/review`, `/admin`, `/people/…`,
+  `/onboarding`) redirect to the member's default tree (their own entry's
+  home). Site-wide: `/` landing, `/join` (+ `/join/[token]` invite accept —
+  signed in, it adds a tree), `/auth/callback` + `/auth/confirm` +
+  `/auth/auth-code-error`, `/trees` (every tree you're on, your type in each),
+  `/trees/new` (found a tree of your own), `/account` (your trees, your entry's
+  home and visitor hiding, one inbox per tree, delete-account),
+  `/request-invite` (public; `?tree=<slug>` aims it at one tree),
+  `/shared/[token]` (public read-only canvas), `/privacy`
 - `app/actions/` — server actions (`auth.ts`: magic link (+ consent gate) +
   sign out; `privacy.ts`: `exportTreeData` (admin JSON export) / `deletePerson`
   (admin erasure + storage cleanup) / `deleteAccount` (self-serve, reassigns
   contributions to a founding admin);
-  `trees.ts`: `startOwnTree` (Step 9 multi-tree seam);
+  `trees.ts`: `foundTree` / `renameTree` / `deleteTree`, `placePeople` /
+  `respondToPlacement` / `removePlacement`, `setHomeTree`,
+  `setHiddenFromVisitors`, `setTreeVisibility`, `joinTreeWithInvite`,
+  `listPersonTrees` (Step 25);
   `invites.ts`: mint invite link, `sendDirectInvites` (bulk name+email
-  invites), `sendClaimInvite` (invite someone to claim one entry);
+  invites), `sendFounderInvites` (Roots: someone founds a tree of their own),
+  `sendClaimInvite` (invite someone to claim one entry); every tree-scoped
+  action takes a `treeId` and checks the caller's role *there*
+  (`lib/tree-context#membershipOf` / `rootOf`);
   `invite-requests.ts`: `requestInvite` (public, service-role write) /
   `approveInviteRequest` (mints the link) / `declineInviteRequest`;
   `people.ts`: `addPeopleWithConnections` (transactional multi-person + edge
@@ -116,10 +130,19 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   descent points (`descentGeometry`, shared with the canvas so the drawn line
   and the laid-out one follow one rule); `lib/person-name.ts` — display
   name + lifespan + initials; `lib/image.ts` — client-side photo downscale;
-  `lib/flags.ts` — build-time feature flags (`multiTreeEnabled`)
-- `components/start-tree-form.tsx` — Step 9 "start your own tree" form;
-  `components/ui/skeleton.tsx` + `app/{tree,admin,account}/loading.tsx` skeletons
-- `lib/auth.ts` — `getUser` / `getProfile` / `requireProfile` / `requireSelfPerson` / `requireAdmin` (server-only)
+  `lib/tree-context.ts` — the per-tree context (Step 25): `requireTreeMember`
+  / `requireTreeRoot` / `requireTreeSelfPerson` / `requireTreeAccess` (member
+  or visitor) for pages, `membershipOf` / `rootOf` for actions, `listMyTrees`,
+  `defaultTreeSlug`; `lib/tree-links.ts` — every tree path (`treeHref`,
+  `adminHref`, `editPersonHref`, …); `lib/revalidate.ts` — revalidate the
+  `/t/[slug]` layout after a write; `lib/placements.server.ts` — who a Root
+  could bring over, and who they have
+- `components/tree-bar.tsx` (tree switcher + account type + tree nav),
+  `found-tree-form.tsx`, `home-tree-picker.tsx`, `join-tree-button.tsx`,
+  `admin/admin-placements.tsx`, `admin/admin-tree-settings.tsx`,
+  `admin/admin-delete-tree.tsx`, `tree/person-trees.tsx` ("Also on");
+  `components/ui/skeleton.tsx` + `loading.tsx` skeletons
+- `lib/auth.ts` — `getUser` / `getProfile` / `requireProfile` / `requireSelfPerson` (server-only; roles are per tree, see `lib/tree-context.ts`)
 - `lib/site-url.ts` — `getSiteUrl()` for magic-link redirects and invite links
 - `lib/supabase/` — `client.ts` (browser), `server.ts` (RSC/actions), `middleware.ts` (session refresh), `admin.ts` (service role, server-only)
 - `lib/database.types.ts` — generated Supabase types (regenerate after schema changes)
@@ -140,20 +163,22 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 
 | Table | Purpose |
 |---|---|
-| `trees` | Multi-tree-ready container (v1 uses one shared tree) |
-| `profiles` | `auth.users` row: `role` (`admin` \| `branch_admin` \| `member` \| `leaf` — shown as Root / Branch / Canopy / Leaf, see **Account types**), `self_person_id` |
-| `people` | Demographic nodes; `owner_user_id` starts as `created_by` and moves on claim. `date_of_birth_precision` / `date_of_death_precision` (`day` \| `month` \| `year`, Step 17) say how much of each date is known — a partial date is stored on the first day of its period, CHECK-enforced, so year-only readers need no change. `place_id_birth` / `place_id_death` → `places(id)` (Step 4.5b; nullable, backfilled — legacy `city_of_birth` / `country_of_birth` / `place_of_death` text kept until reconciled) |
-| `relationships` | Directed `parent` edges; undirected `spouse` pairs (optional `marriage_date` / `is_divorced` / `divorce_date`, spouse-only by CHECK); siblings inferred |
+| `trees` | A family's canvas (Step 25): `name`, URL `slug` (unique, follows the name), `created_by` = founder — **one founded tree per member** (partial unique index); created only by `found_tree` / a founder invite / the allowlist bootstrap, deleted only by `delete_tree` |
+| `tree_members` | **The account type, per tree** (Step 25): `(tree_id, user_id, role)`, `role` ∈ `admin` \| `branch_admin` \| `member` \| `leaf` (Root / Branch / Canopy / Leaf). Written by RPCs (`join_tree`, `set_member_role`, `remove_tree_member`) behind `tree_members_guard` (Roots set types; Root is permanent per tree) |
+| `tree_placements` | Which trees show a person, and where the card sits there: `(tree_id, person_id, status active\|pending\|declined, pos_*)`. The home tree always has one (trigger); others come from `place_people`, and a member's own entry waits `pending` for their yes (`respond_to_placement`) |
+| `tree_visibility` | A Root opens their tree, read-only, to the members of another tree they're on: `(tree_id, viewer_tree_id)` |
+| `profiles` | `auth.users` row: `display_name`, `self_person_id` (one entry, wherever it's shown). `role` is a mirror of the first tree's `tree_members.role` for the pre-Step-25 app only — dropped by `supabase/pending/20260922120000_drop_legacy_single_tree.sql` |
+| `people` | Demographic nodes, **one row per person across all trees**. `tree_id` is the person's **home tree** — whose rules govern their details (Step 25; moved by `set_home_tree`). `hidden_from_visitors` blurs them to visitors. `pos_*` are a pre-Step-25 mirror of the home placement (dropped with `profiles.role`). `owner_user_id` starts as `created_by` and moves on claim. `date_of_birth_precision` / `date_of_death_precision` (`day` \| `month` \| `year`, Step 17) say how much of each date is known — a partial date is stored on the first day of its period, CHECK-enforced, so year-only readers need no change. `place_id_birth` / `place_id_death` → `places(id)` (Step 4.5b; nullable, backfilled — legacy `city_of_birth` / `country_of_birth` / `place_of_death` text kept until reconciled) |
+| `relationships` | A fact about two people, not a tree (Step 25): a tree draws it when both ends are placed there; `tree_id` records the tree it was drawn on, and uniqueness ignores it. Directed `parent` edges; undirected `spouse` pairs (optional `marriage_date` / `is_divorced` / `divorce_date`, spouse-only by CHECK); siblings inferred |
 | `connection_suggestions` | Implied-connection prompts surfaced by the add-person flow (`suggested_type` spouse/parent/sibling_check, `source`, `status` pending/accepted/dismissed); UNIQUE (subject, related, type, source) = no re-prompt |
-| `invites` | Shareable tokens (`active` \| `accepted` \| `revoked`) |
+| `invites` | Shareable tokens into one tree (`active` \| `accepted` \| `revoked`); `founds_tree` (Step 25) makes it a founder invite — redeeming plants a new tree with the redeemer as Root |
 | `invite_requests` | Public invite asks — first/last name + email, `pending` \| `approved` \| `declined`, `invite_id` of the link minted on approval. Admin-only RLS; inserted server-side with the service role (no `anon` grant). One pending row per email |
 | `claims` | Auto-approve / dispute / reject a person entry (`dispute_reason`, `resolved_by`) |
-| `notifications` | In-app notices (`claim_*`, `entry_commented` \| `entry_flagged` \| `flag_resolved` \| `entry_verified`); recipient-scoped RLS |
-| `entry_comments` | Comments and flags (`is_flag`, `open` \| `resolved`, `resolved_by`) |
-| `documents` | Metadata for private file uploads |
+| `notifications` | In-app notices, **one inbox per tree** (`tree_id`, Step 25; `placement_requested` \| `placement_accepted` \| `placement_declined` added); recipient-scoped RLS |
+| `entry_comments` | Comments and flags, **one board per tree** (`tree_id`, Step 25) (`is_flag`, `open` \| `resolved`, `resolved_by`) |
+| `documents` | Metadata for private file uploads, **one bank per tree** (`tree_id`); `shared_across_trees` shows it on every tree the person is on — flipped only by the person or a Root of their home tree (`documents_guard`) |
 | `places` | GeoNames reference data (populated places + admin areas) for birthplace autocomplete; not tree-scoped — read by any member, written only by the import script |
 | `historical_names` | Curated period names for a place/country over a date range (Step 4.5d); matched by `place_id` then `country_code` against a birth/death year. Read by any member; seeded by migration |
-| `tree_bridges` | Step 9 seam: links a member's own `trees` row to a tree they belong to via a spouse bridge (feature-flagged; second tree not rendered) |
 | `pets` | Companion animals — a deliberately thin, non-human entry: name, species (`cat` / `dog` / `other` + `species_label`), `year_born` / `year_died`, an optional exact `birth_date` (must agree with `year_born`) and an optional GeoNames place of birth (`place_id_birth` FK + denormalised `city_of_birth` / `country_of_birth`, exactly like a person), photo, and a `pos_dx` / `pos_dy` nudge. No lineage, claims, documents, or verification |
 | `pet_companions` | Which people a pet lived with (`pet_id` + `person_id`). Many-to-many, undirected, no lineage meaning; a trigger deletes a pet once its last companion goes |
 | `pet_comments` | A plain comment thread on a companion (`pet_id`, `body`, `created_by`). No flags, no open/resolved lifecycle, no verification, no notifications; author or anyone who `can_edit_pet` may delete |
@@ -178,8 +203,23 @@ an optional full birthday, a GeoNames place of birth (the same `PlaceAutocomplet
 a person entry uses, but optional), and a plain `pet_comments` thread (no flags,
 resolve, or notifications) — none of which touch the chip or its dimensions.
 
-**RLS:** every public table. Members read rows in trees they belong to (admin,
-tree creator, accepted invite, or `self_person`). Writes use
+**Trees (Step 25):** every rule below now reads *on a tree*. "A Root" means a
+Root of the tree in question (`private.is_root_of(tree)`), and a Leaf is a Leaf
+in the tree being written to (`is_leaf_in`). A person's **details** follow
+their **home tree** (`private.home_tree`): its Roots and Branches, plus the
+person themselves — who controls their own entry on every tree. What another
+tree may do with a person it shows is place and arrange the card, keep its
+own comment board and document bank, and draw lines between people it
+shows. A line may be changed by whoever drew it, or a Root (or a Branch with
+both ends on their side) of any tree that shows both ends. Members of a tree
+see its placements; members of a tree it's been opened to (`tree_visibility`)
+see it read-only, minus anyone `hidden_from_visitors`, who comes back as a
+bare placement the canvas blurs (`tree_people.blurred`). The full model and
+the per-tree matrix: [`docs/trees-and-permissions.md`](docs/trees-and-permissions.md).
+
+**RLS:** every public table. Members read rows in trees they belong to
+(`tree_members`; a person when some tree they're on shows them,
+`private.can_see_person`). Writes use
 `profiles.auth_user_id = auth.uid()`. Person edits (`private.can_edit_person`):
 current `owner_user_id`, an admin, the original `created_by` while the entry is
 still unclaimed (owner unchanged, no approved claim), **or** a branch admin
@@ -512,6 +552,43 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 25 — Many trees, one entry each** (ad-hoc; migrations
+  `20260922090000_trees_have_members`, `20260922100000_tree_views`,
+  `20260922110000_visitors_and_tree_deletion`; reference
+  `docs/trees-and-permissions.md`). People can now start their own trees.
+  **Model:** `tree_members` holds the account type per tree, so someone can
+  be Canopy on one tree and Root of another. `people.tree_id` became the
+  **home tree**, and `tree_placements` says which other trees show a person
+  and where their card sits there. Connections stopped belonging to a tree:
+  a tree draws any line whose two ends it shows. Comments, documents and
+  notifications carry a `tree_id`, giving one board, bank and inbox per tree.
+  A document can be shared to every tree the person is on, by the person or
+  a Root of their home tree. **Married-in path:** a member founds a tree
+  from `/trees/new`. On its admin page they bring anyone they can see across.
+  A member's own entry waits for that member's yes, and saying yes makes
+  them Canopy there. The person picks their home tree on `/account`.
+  **Beta path:** any Root sends a founder invite from their admin page.
+  Redeeming it plants an empty tree with the newcomer as Root. There is no
+  public "start a tree" page, so trees are invite-only. **Across trees:** a
+  Root can open their tree, read-only, to members of another tree they're
+  on. Visitors reach it from a shared person's "Also on" link. Anyone can
+  hide their own entry from visitors, and it then shows as a blurred card.
+  **Routing:** every tree page moved under `/t/[slug]/`, the old URLs
+  redirect to the member's home tree, and a tree bar switches between
+  trees. **Retired:** the Step 9 seam (`tree_bridges`, `start_own_tree`,
+  `lib/flags.ts`) and the Step 14.1 canvas-interest register (no rows).
+  **Compatibility:** the migrations kept `profiles.role` and `people.pos_*`
+  mirrored so the deployed app kept working while this was built.
+  `supabase/pending/20260922120000_drop_legacy_single_tree.sql` removes the
+  mirrors once this code is live. **Verified** on the live project with a
+  throwaway account: a founder invite planted a tree and landed on its
+  onboarding. The founder added themselves as its anchor and joined the
+  family tree as a second membership. They brought two people across, and
+  the claimed one waited, was accepted from the inbox, and appeared. A
+  visitor view blurred a hidden entry. All test rows were then deleted and
+  the counts matched the start (1 tree, 4 members, 63 people, 63
+  placements).
 
 - **Step 22.3–22.6 — Deleting what you added, undoing a Branch's edit, new
   Roots, and the matrix** (migrations `20260921170000_delete_own_entries`,

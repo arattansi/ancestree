@@ -1,11 +1,11 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 
 import { requireProfile } from "@/lib/auth";
 import { toStoredCrop, type CropTransform } from "@/lib/image-crop";
 import { petSchema, toPetPayload, type PetFormValues } from "@/lib/pet-schema";
-import { getSharedTree } from "@/lib/tree";
+import { revalidateTreePages } from "@/lib/revalidate";
+import { membershipOf } from "@/lib/tree-context";
 import { createClient } from "@/lib/supabase/server";
 
 export type PetActionResult = { petId?: string; error?: string };
@@ -40,6 +40,8 @@ function friendlyError(message: string | undefined): string {
  * companion goes away.
  */
 export async function addPet(input: {
+  /** The tree the companion lives on; its people must be shown there. */
+  treeId: string;
   values: PetFormValues;
   companionIds: string[];
   /** Which companion the chip hangs from; the first one if not given. */
@@ -56,15 +58,15 @@ export async function addPet(input: {
     return { error: "Pick at least one person this companion belongs to." };
   }
 
-  const tree = await getSharedTree();
-  if (!tree) return { error: "There's no tree to add to yet." };
+  const { error: notMember } = await membershipOf(input.treeId);
+  if (notMember) return { error: notMember };
 
   const supabase = await createClient();
   const { data: pet, error } = await supabase
     .from("pets")
     .insert({
       ...toPetPayload(parsed.data),
-      tree_id: tree.id,
+      tree_id: input.treeId,
       created_by: profile.auth_user_id,
     })
     .select("id")
@@ -99,7 +101,7 @@ export async function addPet(input: {
     .update({ primary_person_id: primary })
     .eq("id", pet.id);
 
-  revalidatePath("/tree");
+  revalidateTreePages();
   return { petId: pet.id };
 }
 
@@ -128,7 +130,7 @@ export async function setPetPrimaryCompanion(
     return { error: friendlyError(error.message) };
   }
   if (!data || data.length === 0) return { error: NOT_YOURS_TO_EDIT };
-  revalidatePath("/tree");
+  revalidateTreePages();
   return {};
 }
 
@@ -154,7 +156,7 @@ export async function updatePet(
   if (error) return { error: friendlyError(error.message) };
   if (!data || data.length === 0) return { error: NOT_YOURS_TO_EDIT };
 
-  revalidatePath("/tree");
+  revalidateTreePages();
   return { petId };
 }
 
@@ -171,7 +173,7 @@ export async function addPetCompanion(
     created_by: profile.auth_user_id,
   });
   if (error) return { error: friendlyError(error.message) };
-  revalidatePath("/tree");
+  revalidateTreePages();
   return {};
 }
 
@@ -205,7 +207,7 @@ export async function removePetCompanion(
     .eq("person_id", personId);
 
   if (error) return { error: friendlyError(error.message) };
-  revalidatePath("/tree");
+  revalidateTreePages();
   return {};
 }
 
@@ -227,7 +229,7 @@ export async function removePet(petId: string): Promise<{ error?: string }> {
     await supabase.storage.from("photos").remove([pet.photo_path]);
   }
 
-  revalidatePath("/tree");
+  revalidateTreePages();
   return {};
 }
 
@@ -249,7 +251,7 @@ export async function setPetPhoto(
     .select("id");
   if (error) return { error: friendlyError(error.message) };
   if (!data || data.length === 0) return { error: NOT_YOURS_TO_EDIT };
-  revalidatePath("/tree");
+  revalidateTreePages();
   return {};
 }
 
@@ -277,6 +279,6 @@ export async function setPetPosition(
     return { error: friendlyError(error.message) };
   }
   if (!data || data.length === 0) return { error: notYours };
-  revalidatePath("/tree");
+  revalidateTreePages();
   return {};
 }

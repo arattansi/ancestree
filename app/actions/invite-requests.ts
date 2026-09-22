@@ -2,13 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireAdmin } from "@/lib/auth";
 import { sendEmail } from "@/lib/email";
 import { inviteApprovedEmail } from "@/lib/emails/invite-approved";
 import { inviteSentEmail } from "@/lib/emails/invite-sent";
 import { getSiteUrl } from "@/lib/site-url";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { revalidateTreePages } from "@/lib/revalidate";
+import { requireProfile } from "@/lib/auth";
+import { rootOf } from "@/lib/tree-context";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const INVITE_TTL_DAYS = 14;
@@ -23,9 +25,11 @@ export type RequestInviteState = {
 };
 
 /**
- * Public: ask an admin for an invite. Written with the service-role client
- * because the requester is not signed in and `invite_requests` is not
- * reachable from `anon`.
+ * Public: ask a tree's Roots for an invite. Written with the service-role
+ * client because the requester is not signed in and `invite_requests` is not
+ * reachable from `anon`. `tree` names the tree (its slug, from a share link's
+ * "request access" button); without one the request goes to the first tree,
+ * which is the family this site began with.
  */
 export async function requestInvite(
   _prev: RequestInviteState,
@@ -35,6 +39,7 @@ export async function requestInvite(
   const lastName = String(formData.get("lastName") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const consent = formData.get("consent");
+  const treeSlug = String(formData.get("tree") ?? "").trim();
   const entered = { firstName, lastName, email };
 
   if (!firstName || !lastName) {
@@ -52,9 +57,17 @@ export async function requestInvite(
   }
 
   const supabase = createAdminClient();
+  const treeQuery = supabase.from("trees").select("id");
+  const { data: tree } = treeSlug
+    ? await treeQuery.eq("slug", treeSlug).maybeSingle()
+    : await treeQuery.order("created_at", { ascending: true }).limit(1).maybeSingle();
+  if (!tree) {
+    return { error: "That tree isn't taking requests. Ask the person who shared it with you.", ...entered };
+  }
+
   const { error } = await supabase
     .from("invite_requests")
-    .insert({ first_name: firstName, last_name: lastName, email });
+    .insert({ tree_id: tree.id, first_name: firstName, last_name: lastName, email });
 
   if (error) {
     // Unique violation on the pending-email index: they already asked.
@@ -62,28 +75,28 @@ export async function requestInvite(
     return { error: "Could not send your request. Try again shortly.", ...entered };
   }
 
-  revalidatePath("/admin");
+  revalidateTreePages();
   return { ok: true, ...entered };
 }
 
 /**
- * Admin: approve a request by minting a single-use invite link attributed to
- * the reviewing admin, then emailing it to the requester. The invite is bound
- * to their address, so opening it signs them in and joins the tree in one
- * step (`signInWithInvite`) — no second sign-in email. The link is also
- * returned so the admin can copy it as a fallback — if the email fails to
- * send, `emailError` is set but the approval itself is not rolled back; the
- * invite is already valid either way.
+ * Root: approve a request by minting a single-use invite link into its tree,
+ * attributed to the reviewing Root, then emailing it to the requester. The
+ * invite is bound to their address, so opening it signs them in and joins the
+ * tree in one step (`signInWithInvite`) — no second sign-in email. The link
+ * is also returned so the Root can copy it as a fallback — if the email fails
+ * to send, `emailError` is set but the approval itself is not rolled back;
+ * the invite is already valid either way.
  */
 export async function approveInviteRequest(
   id: string,
 ): Promise<{ url?: string; emailed?: boolean; emailError?: string; error?: string }> {
-  const admin = await requireAdmin();
+  const admin = await requireProfile();
   const supabase = await createClient();
 
   const { data: request } = await supabase
     .from("invite_requests")
-    .select("id, status, first_name, email")
+    .select("id, status, first_name, email, tree_id")
     .eq("id", id)
     .maybeSingle();
 
@@ -91,15 +104,8 @@ export async function approveInviteRequest(
   if (request.status !== "pending") {
     return { error: "That request has already been reviewed." };
   }
-
-  const { data: tree } = await supabase
-    .from("trees")
-    .select("id")
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
-  if (!tree) return { error: "No family tree exists yet." };
+  const { error: notRoot } = await rootOf(request.tree_id);
+  if (notRoot) return { error: notRoot };
 
   const expiresAt = new Date(
     Date.now() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000,
@@ -108,7 +114,7 @@ export async function approveInviteRequest(
   const { data: invite, error: inviteError } = await supabase
     .from("invites")
     .insert({
-      tree_id: tree.id,
+      tree_id: request.tree_id,
       created_by: admin.auth_user_id,
       status: "active",
       expires_at: expiresAt,
@@ -146,7 +152,7 @@ export async function approveInviteRequest(
     return { error: "Could not update that request. Try again." };
   }
 
-  revalidatePath("/admin");
+  revalidateTreePages();
   return {
     url,
     emailed: sent.ok,
@@ -155,7 +161,7 @@ export async function approveInviteRequest(
 }
 
 /**
- * Admin: send the invite email again for an already-approved request — the
+ * Root: send the invite email again for an already-approved request — the
  * recovery path when the first send failed (a bounce, or no mail provider
  * configured at the time) or the recipient simply lost it.
  *
@@ -167,9 +173,10 @@ export async function approveInviteRequest(
 export async function resendInviteEmail(
   id: string,
 ): Promise<{ ok?: boolean; error?: string }> {
-  const admin = await requireAdmin();
+  const admin = await requireProfile();
   const supabase = await createClient();
 
+  // RLS shows a request only to a Root of its tree.
   const { data: request } = await supabase
     .from("invite_requests")
     .select("id, status, source, first_name, email, invites(token, status, expires_at)")
@@ -215,7 +222,7 @@ export async function resendInviteEmail(
     .update({ email_sent: sent.ok })
     .eq("id", id);
 
-  revalidatePath("/admin");
+  revalidateTreePages();
 
   if (!sent.ok) return { error: `Still couldn't send it — ${sent.error}` };
   if (updateError) {
@@ -224,14 +231,14 @@ export async function resendInviteEmail(
   return { ok: true };
 }
 
-/** Admin: decline a request without minting anything. */
+/** Root: decline a request without minting anything. */
 export async function declineInviteRequest(
   id: string,
 ): Promise<{ error?: string }> {
-  const admin = await requireAdmin();
+  const admin = await requireProfile();
   const supabase = await createClient();
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("invite_requests")
     .update({
       status: "declined",
@@ -239,16 +246,20 @@ export async function declineInviteRequest(
       reviewed_at: new Date().toISOString(),
     })
     .eq("id", id)
-    .eq("status", "pending");
+    .eq("status", "pending")
+    .select("id");
 
   if (error) return { error: "Could not decline that request. Try again." };
+  if (!data || data.length === 0) {
+    return { error: "That request was already reviewed, or isn't yours to review." };
+  }
 
-  revalidatePath("/admin");
+  revalidateTreePages();
   return {};
 }
 
 /**
- * Admin: erase an invite record outright — both a pending request in the
+ * Root: erase an invite record outright — both a pending request in the
  * review queue and a reviewed one in the sent-invites history.
  *
  * If approving it minted a link, that invite goes too, so a link that hasn't
@@ -260,7 +271,7 @@ export async function declineInviteRequest(
 export async function deleteInviteRequest(
   id: string,
 ): Promise<{ error?: string }> {
-  await requireAdmin();
+  await requireProfile();
   const supabase = await createClient();
 
   const { data: request } = await supabase
@@ -271,7 +282,7 @@ export async function deleteInviteRequest(
 
   // Already gone — someone else deleted it. Nothing left to do.
   if (!request) {
-    revalidatePath("/admin");
+    revalidateTreePages();
     return {};
   }
 
@@ -284,11 +295,12 @@ export async function deleteInviteRequest(
       .delete()
       .eq("id", request.invite_id);
     if (inviteError) {
-      revalidatePath("/admin");
+      revalidateTreePages();
       return { error: "Record deleted, but its invite link is still live." };
     }
   }
 
-  revalidatePath("/admin");
+  revalidateTreePages();
+  revalidatePath("/account");
   return {};
 }

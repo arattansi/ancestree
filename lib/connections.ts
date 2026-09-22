@@ -50,6 +50,8 @@ export type ResolvedSuggestionInput = {
 
 /** Payload for the `addPeopleWithConnections` server action. */
 export type AddPeopleInput = {
+  /** The tree the people are added to and the lines drawn on (Step 25). */
+  treeId: string;
   people: PersonFormValues[];
   edges: ConnectionEdge[];
   selfIndex: number | null;

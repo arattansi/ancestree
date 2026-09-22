@@ -43,8 +43,8 @@ export function PersonDocuments({
   const [pendingId, setPendingId] = React.useState<string | null>(null);
 
   const refresh = React.useCallback(() => {
-    listDocuments(personId).then(setDocs);
-  }, [personId]);
+    listDocuments(treeId, personId).then(setDocs);
+  }, [treeId, personId]);
 
   React.useEffect(() => {
     refresh();
@@ -76,6 +76,7 @@ export function PersonDocuments({
           continue;
         }
         const recorded = await recordDocument({
+          treeId,
           personId,
           filePath: path,
           fileName: file.name,

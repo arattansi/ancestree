@@ -7,19 +7,26 @@ import {
   invitableTypes,
   isInvitableKey,
 } from "@/lib/account-types";
-import { requireAdmin, requireProfile } from "@/lib/auth";
+import { requireProfile } from "@/lib/auth";
 import { sendEmail } from "@/lib/email";
 import { claimInviteEmail } from "@/lib/emails/claim-invite";
+import { founderInviteEmail } from "@/lib/emails/founder-invite";
 import { inviteSentEmail } from "@/lib/emails/invite-sent";
 import { personDisplayName } from "@/lib/person-name";
 import { getSiteUrl } from "@/lib/site-url";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { revalidateTreeAndAccount } from "@/lib/revalidate";
+import { getRoleIn, membershipOf, rootOf } from "@/lib/tree-context";
 
 const INVITE_TTL_DAYS = 14;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_NAME_LENGTH = 80;
 const MAX_DIRECT_INVITE_ROWS = 20;
+
+function expiry(): string {
+  return new Date(Date.now() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString();
+}
 
 export type CreateInviteState = {
   url?: string;
@@ -27,15 +34,17 @@ export type CreateInviteState = {
 };
 
 /**
- * Mint a fresh, inviter-attributed, single-use invite link that joins as
- * `joinsAs` — Canopy (`member`) or Leaf (`leaf`), whichever the inviter may
- * give (`invitableTypes`; `private.can_invite_as` decides).
+ * Mint a fresh, inviter-attributed, single-use invite link into one tree that
+ * joins as `joinsAs` — Canopy (`member`) or Leaf (`leaf`), whichever the
+ * inviter may give there (`invitableTypes`; `private.can_invite_as` decides).
  */
 export async function createInvite(
+  treeId: string,
   joinsAs: string = "member",
 ): Promise<CreateInviteState> {
-  const profile = await requireProfile();
-  const allowed = invitableTypes(profile.role);
+  const { membership, error: notMember } = await membershipOf(treeId);
+  if (notMember || !membership) return { error: notMember };
+  const allowed = invitableTypes(membership.role);
   if (allowed.length === 0) {
     return { error: "You don't have permission to create invites." };
   }
@@ -46,29 +55,13 @@ export async function createInvite(
   }
 
   const supabase = await createClient();
-
-  const { data: tree, error: treeError } = await supabase
-    .from("trees")
-    .select("id")
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
-  if (treeError || !tree) {
-    return { error: "No family tree exists yet." };
-  }
-
-  const expiresAt = new Date(
-    Date.now() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000,
-  ).toISOString();
-
   const { data: invite, error } = await supabase
     .from("invites")
     .insert({
-      tree_id: tree.id,
-      created_by: profile.auth_user_id,
+      tree_id: treeId,
+      created_by: membership.profile.auth_user_id,
       status: "active",
-      expires_at: expiresAt,
+      expires_at: expiry(),
       joins_as: joinsAs,
     })
     .select("token")
@@ -78,8 +71,7 @@ export async function createInvite(
     return { error: "Could not create an invite link. Try again." };
   }
 
-  revalidatePath("/admin");
-  revalidatePath("/account");
+  revalidateTreeAndAccount();
   return { url: `${getSiteUrl()}/join/${invite.token}` };
 }
 
@@ -103,39 +95,7 @@ export type SendDirectInvitesState = {
   error?: string;
 };
 
-/**
- * Mint an invite for each row and email it directly to that person — no
- * public request involved. Open to anyone who may invite, as whatever they
- * may give (`invitableTypes`). Each row also becomes an `invite_requests` row
- * (source = 'direct', pre-approved) purely so it shows up in the Roots' "Sent
- * invites" history alongside request-driven approvals.
- *
- * The invite is bound to the address, so opening it signs them straight in
- * (`signInWithInvite`). Only a Root or the service role may bind one
- * (`invites_guard`), hence the service-role writes: the inviter's permission
- * is checked here, and the token goes to the recipient's inbox, never back to
- * the inviter.
- */
-export async function sendDirectInvites(
-  rows: DirectInviteRow[],
-  joinsAs: string = "member",
-): Promise<SendDirectInvitesState> {
-  const inviter = await requireProfile();
-  if (!isInvitableKey(joinsAs)) {
-    return {
-      error: `An invite can only make someone ${INVITABLE_ACCOUNT_TYPES.map((t) => t.name).join(" or ")}.`,
-    };
-  }
-  const allowed = invitableTypes(inviter.role);
-  if (allowed.length === 0) {
-    return { error: "You don't have permission to send invites." };
-  }
-  if (!allowed.some((t) => t.key === joinsAs)) {
-    return {
-      error: `You can invite relatives as ${allowed.map((t) => t.name).join(" or ")} only.`,
-    };
-  }
-
+function checkRows(rows: DirectInviteRow[]): { rows?: DirectInviteRow[]; error?: string } {
   const trimmed = rows
     .map((r) => ({
       firstName: r.firstName.trim(),
@@ -167,31 +127,59 @@ export async function sendDirectInvites(
     }
     seen.add(r.email);
   }
+  return { rows: trimmed };
+}
+
+/**
+ * Mint an invite into one tree for each row and email it directly to that
+ * person — no public request involved. Open to anyone who may invite there,
+ * as whatever they may give (`invitableTypes`). Each row also becomes an
+ * `invite_requests` row (source = 'direct', pre-approved) purely so it shows
+ * up in the Roots' "Sent invites" history alongside request-driven approvals.
+ *
+ * The invite is bound to the address, so opening it signs them straight in
+ * (`signInWithInvite`). Only a Root or the service role may bind one
+ * (`invites_guard`), hence the service-role writes: the inviter's permission
+ * is checked here, and the token goes to the recipient's inbox, never back to
+ * the inviter.
+ */
+export async function sendDirectInvites(
+  treeId: string,
+  rows: DirectInviteRow[],
+  joinsAs: string = "member",
+): Promise<SendDirectInvitesState> {
+  const { membership, error: notMember } = await membershipOf(treeId);
+  if (notMember || !membership) return { error: notMember };
+  const inviter = membership.profile;
+  if (!isInvitableKey(joinsAs)) {
+    return {
+      error: `An invite can only make someone ${INVITABLE_ACCOUNT_TYPES.map((t) => t.name).join(" or ")}.`,
+    };
+  }
+  const allowed = invitableTypes(membership.role);
+  if (allowed.length === 0) {
+    return { error: "You don't have permission to send invites." };
+  }
+  if (!allowed.some((t) => t.key === joinsAs)) {
+    return {
+      error: `You can invite relatives as ${allowed.map((t) => t.name).join(" or ")} only.`,
+    };
+  }
+
+  const checked = checkRows(rows);
+  if (checked.error || !checked.rows) return { error: checked.error };
 
   const supabase = createAdminClient();
-  const { data: tree } = await supabase
-    .from("trees")
-    .select("id")
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
-  if (!tree) return { error: "No family tree exists yet." };
-
-  const expiresAt = new Date(
-    Date.now() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000,
-  ).toISOString();
-
   const results: DirectInviteResult[] = [];
 
-  for (const row of trimmed) {
+  for (const row of checked.rows) {
     const { data: invite, error: inviteError } = await supabase
       .from("invites")
       .insert({
-        tree_id: tree.id,
+        tree_id: treeId,
         created_by: inviter.auth_user_id,
         status: "active",
-        expires_at: expiresAt,
+        expires_at: expiry(),
         joins_as: joinsAs,
         // The link signs this address in — see `signInWithInvite`.
         invited_email: row.email,
@@ -215,6 +203,7 @@ export async function sendDirectInvites(
     // Best-effort history row. If it fails the invite itself is still valid,
     // so this doesn't fail the row.
     await supabase.from("invite_requests").insert({
+      tree_id: treeId,
       first_name: row.firstName,
       last_name: row.lastName,
       email: row.email,
@@ -234,8 +223,81 @@ export async function sendDirectInvites(
     });
   }
 
-  revalidatePath("/admin");
-  revalidatePath("/account");
+  revalidateTreeAndAccount();
+  return { results };
+}
+
+/**
+ * Root: invite someone to found a tree of their own (Step 25, the beta's only
+ * door for a brand-new family). Redeeming creates a fresh tree named after
+ * them, makes them its Root, and lands them on its onboarding. The invite is
+ * recorded against the inviting tree so it shows up in that tree's history;
+ * nothing from this tree is copied over.
+ */
+export async function sendFounderInvites(
+  treeId: string,
+  rows: DirectInviteRow[],
+): Promise<SendDirectInvitesState> {
+  const { membership, error: notRoot } = await rootOf(treeId);
+  if (notRoot || !membership) return { error: notRoot };
+  const inviter = membership.profile;
+
+  const checked = checkRows(rows);
+  if (checked.error || !checked.rows) return { error: checked.error };
+
+  const supabase = createAdminClient();
+  const results: DirectInviteResult[] = [];
+
+  for (const row of checked.rows) {
+    const { data: invite, error: inviteError } = await supabase
+      .from("invites")
+      .insert({
+        tree_id: treeId,
+        created_by: inviter.auth_user_id,
+        status: "active",
+        expires_at: expiry(),
+        joins_as: "member",
+        founds_tree: true,
+        invited_email: row.email,
+      })
+      .select("id, token")
+      .single();
+
+    if (inviteError || !invite) {
+      results.push({ email: row.email, minted: false, emailed: false, error: "Could not create a link." });
+      continue;
+    }
+
+    const url = `${getSiteUrl()}/join/${invite.token}`;
+    const { subject, html } = founderInviteEmail({
+      firstName: row.firstName,
+      inviterName: inviter.display_name ?? "A family member",
+      url,
+    });
+    const sent = await sendEmail({ to: row.email, subject, html });
+
+    await supabase.from("invite_requests").insert({
+      tree_id: treeId,
+      first_name: row.firstName,
+      last_name: row.lastName,
+      email: row.email,
+      source: "direct",
+      status: "approved",
+      reviewed_by: inviter.auth_user_id,
+      reviewed_at: new Date().toISOString(),
+      invite_id: invite.id,
+      email_sent: sent.ok,
+    });
+
+    results.push({
+      email: row.email,
+      minted: true,
+      emailed: sent.ok,
+      error: sent.ok ? undefined : sent.error,
+    });
+  }
+
+  revalidateTreeAndAccount();
   return { results };
 }
 
@@ -256,8 +318,9 @@ export type ClaimInviteState = {
  * nickname. See supabase/migrations/20260904100000_invite_to_claim_entry.sql.
  *
  * Open to whoever could edit the entry (`private.can_invite_to_claim`, Step
- * 22.1): a Root anywhere, a Branch on their side, Canopy on what they added.
- * A Root chooses what the newcomer joins as; from anyone else it is a Leaf.
+ * 22.1), judged on the entry's home tree: a Root anywhere on it, a Branch on
+ * their side, Canopy on what they added. A Root chooses what the newcomer
+ * joins as; from anyone else it is a Leaf. The newcomer joins the home tree.
  */
 export async function sendClaimInvite(
   personId: string,
@@ -265,9 +328,20 @@ export async function sendClaimInvite(
   joinsAs: string = "leaf",
 ): Promise<ClaimInviteState> {
   const inviter = await requireProfile();
-  const allowed = invitableTypes(inviter.role);
+  const supabase = await createClient();
+
+  const { data: person } = await supabase
+    .from("people")
+    .select("id, tree_id, first_name, preferred_name, last_name, owner_user_id, created_by")
+    .eq("id", personId)
+    .maybeSingle();
+
+  if (!person) return { error: "That entry no longer exists." };
+
+  const role = await getRoleIn(person.tree_id);
+  const allowed = invitableTypes(role);
   if (allowed.length === 0) {
-    return { error: "You don't have permission to send invites." };
+    return { error: "You don't have permission to send invites for this entry." };
   }
   if (!allowed.some((t) => t.key === joinsAs)) {
     return {
@@ -280,21 +354,11 @@ export async function sendClaimInvite(
     return { error: "That doesn't look like an email address." };
   }
 
-  const supabase = await createClient();
-
   // Asked as the inviter: is this entry theirs to hand over? It also covers
   // the entry having gone, or being out of their sight.
   const { data: mayInvite } = await supabase.rpc("can_invite_to_claim", {
     p_person_id: personId,
   });
-
-  const { data: person } = await supabase
-    .from("people")
-    .select("id, tree_id, first_name, preferred_name, last_name, owner_user_id, created_by")
-    .eq("id", personId)
-    .maybeSingle();
-
-  if (!person) return { error: "That entry no longer exists." };
 
   // Refuse on anything already spoken for, so an invite can never be used to
   // hand someone else's entry away. Mirrors the guards in `claim_person`.
@@ -322,10 +386,6 @@ export async function sendClaimInvite(
     };
   }
 
-  const expiresAt = new Date(
-    Date.now() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000,
-  ).toISOString();
-
   // Bound to the address, so opening it signs them straight in. Only a Root
   // or the service role may bind one (`invites_guard`), hence the service-role
   // write, as in `sendDirectInvites`: the inviter's right was checked above.
@@ -335,7 +395,7 @@ export async function sendClaimInvite(
       tree_id: person.tree_id,
       created_by: inviter.auth_user_id,
       status: "active",
-      expires_at: expiresAt,
+      expires_at: expiry(),
       joins_as: joinsAs,
       person_id: personId,
       invited_email: address,
@@ -364,21 +424,20 @@ export async function sendClaimInvite(
     };
   }
 
-  revalidatePath("/tree");
-  revalidatePath("/admin");
+  revalidateTreeAndAccount();
   return { email: address };
 }
 
 /**
- * Admin: delete an invite link outright, killing it if nobody has used it.
+ * Root: delete an invite link outright, killing it if nobody has used it.
  *
  * Meant for bare links and archived invites. A "Sent invites" record naming
  * the link goes with it, so it can't outlive the link it names — the live
  * history deletes through that record instead (`deleteInviteRequest`), which
- * comes to the same thing.
+ * comes to the same thing. RLS holds it to a Root of the invite's tree.
  */
 export async function deleteInvite(id: string): Promise<{ error?: string }> {
-  await requireAdmin();
+  await requireProfile();
   const supabase = await createClient();
 
   const { error: requestError } = await supabase
@@ -387,9 +446,15 @@ export async function deleteInvite(id: string): Promise<{ error?: string }> {
     .eq("invite_id", id);
   if (requestError) return { error: "Could not delete that invite. Try again." };
 
-  const { error } = await supabase.from("invites").delete().eq("id", id);
+  const { data, error } = await supabase
+    .from("invites")
+    .delete()
+    .eq("id", id)
+    .select("id");
   if (error) return { error: "Could not delete that link. Try again." };
+  if (!data || data.length === 0) return { error: "Only a Root of this tree can delete that link." };
 
-  revalidatePath("/admin");
+  revalidateTreeAndAccount();
+  revalidatePath("/account");
   return {};
 }

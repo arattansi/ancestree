@@ -1,9 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
 import { LEAF_REFUSAL, isLeafRefusal } from "@/lib/account-types";
-import { requireAdmin, requireProfile } from "@/lib/auth";
+import { requireProfile } from "@/lib/auth";
 import { toStoredCrop, type CropTransform } from "@/lib/image-crop";
 import {
   personSchema,
@@ -23,7 +21,8 @@ import type {
   SuggestedType,
   SuggestionSource,
 } from "@/lib/connection-suggestions";
-import { getSharedTree } from "@/lib/tree";
+import { revalidateTreeAndAccount, revalidateTreePages } from "@/lib/revalidate";
+import { getRoleIn, rootOf } from "@/lib/tree-context";
 import { createClient } from "@/lib/supabase/server";
 import type { TablesUpdate } from "@/lib/database.types";
 
@@ -123,7 +122,8 @@ export async function addPeopleWithConnections(
     people.push(parsed.data);
   }
 
-  const isAdmin = profile.role === "admin";
+  if (!input.treeId) return { error: "Pick a tree to add to." };
+  const isAdmin = (await getRoleIn(input.treeId)) === "admin";
   const pPeople = people.map((values) => {
     const p = toPersonPayload(values);
     return {
@@ -172,6 +172,7 @@ export async function addPeopleWithConnections(
     p_edges: pEdges,
     p_self_index: input.selfIndex ?? undefined,
     p_suggestions: pSuggestions,
+    p_tree: input.treeId,
   });
 
   if (error || !data) {
@@ -203,8 +204,7 @@ export async function addPeopleWithConnections(
     .filter((q): q is NonNullable<typeof q> => q !== null);
   if (placeUpdates.length > 0) await Promise.all(placeUpdates);
 
-  revalidatePath("/tree");
-  revalidatePath("/onboarding");
+  revalidateTreeAndAccount();
   return { personIds: result.ids, selfId: result.self_id };
 }
 
@@ -214,14 +214,13 @@ export async function addPeopleWithConnections(
  * approval modal before it commits. Read-only.
  */
 export async function detectConnections(input: {
+  treeId: string;
   newPeople: NewPersonInput[];
   pendingEdges: PendingEdge[];
 }): Promise<{ suggestions?: ImpliedConnection[]; error?: string }> {
   await requireProfile();
-  const tree = await getSharedTree();
-  if (!tree) return { suggestions: [] };
   try {
-    const suggestions = await detectImpliedConnections(tree.id, {
+    const suggestions = await detectImpliedConnections(input.treeId, {
       newPeople: input.newPeople,
       pendingEdges: input.pendingEdges,
     });
@@ -272,7 +271,7 @@ export async function updateRelationshipMarriage(
     return { error: "Couldn't save those dates. Try again." };
   }
   if (!data || data.length === 0) return { error: notYours };
-  revalidatePath("/tree");
+  revalidateTreePages();
   return {};
 }
 
@@ -291,7 +290,7 @@ export async function resolveConnectionSuggestion(
     p_resolution: resolution,
   });
   if (error) return { error: friendlyConnectionError(error.message) };
-  revalidatePath("/tree");
+  revalidateTreePages();
   return {};
 }
 
@@ -325,8 +324,7 @@ export async function resolveImpliedConnection(input: {
     });
     if (error) return { error: friendlyConnectionError(error.message) };
   }
-  revalidatePath("/tree");
-  revalidatePath("/tree/review");
+  revalidateTreePages();
   return {};
 }
 
@@ -337,6 +335,8 @@ export async function resolveImpliedConnection(input: {
  * guard are enforced by the `connect_people` RPC.
  */
 export async function connectExistingPeople(input: {
+  /** The tree the line is drawn on; both people must be shown on it. */
+  treeId: string;
   personId: string;
   otherId: string;
   kind: RelationshipKind | "sibling";
@@ -379,6 +379,7 @@ export async function connectExistingPeople(input: {
     p_is_divorced: isDivorced,
     p_divorce_date:
       isDivorced && input.divorce_date?.trim() ? input.divorce_date : undefined,
+    p_tree: input.treeId,
   });
 
   if (error) {
@@ -388,7 +389,7 @@ export async function connectExistingPeople(input: {
     }
     return { error: friendlyConnectionError(error.message) };
   }
-  revalidatePath("/tree");
+  revalidateTreePages();
   return {};
 }
 
@@ -417,7 +418,7 @@ export async function removeRelationship(
         "Only the connection's creator, a Branch for this side of the family, or a Root can remove it.",
     };
   }
-  revalidatePath("/tree");
+  revalidateTreePages();
   return {};
 }
 
@@ -454,12 +455,19 @@ export async function updatePerson(
     place_of_death: payload.place_of_death,
     sex: payload.sex,
   };
-  // lineage_type is admin-only; the DB trigger rejects other writers.
-  if (profile.role === "admin") {
+  const supabase = await createClient();
+  // lineage_type is a home-tree Root's alone; the DB trigger rejects other
+  // writers, so only send it when the caller is one.
+  const { data: home } = await supabase
+    .from("people")
+    .select("tree_id")
+    .eq("id", personId)
+    .maybeSingle();
+  if (home && (await getRoleIn(home.tree_id)) === "admin") {
     update.lineage_type = payload.lineage_type ?? null;
   }
+  void profile;
 
-  const supabase = await createClient();
   const { data, error } = await supabase
     .from("people")
     .update(update)
@@ -469,7 +477,7 @@ export async function updatePerson(
   if (error) return { error: friendlyError(error.message) };
   if (!data || data.length === 0) return { error: NOT_YOURS_TO_EDIT };
 
-  revalidatePath("/tree");
+  revalidateTreePages();
   return { personId };
 }
 
@@ -480,21 +488,25 @@ export async function updatePerson(
  * Owner, admin, or a branch admin on their branch (RLS).
  */
 export async function setPersonPosition(
+  treeId: string,
   personId: string,
   dx: number,
   dy: number,
 ): Promise<{ error?: string }> {
   await requireProfile();
   const supabase = await createClient();
+  // The card's place on *this* canvas (Step 25): a person shown on two trees
+  // sits wherever each tree put them.
   const { data, error } = await supabase
-    .from("people")
+    .from("tree_placements")
     .update({
       pos_dx: Math.round(dx),
       pos_dy: Math.round(dy),
       pos_x: null,
       pos_y: null,
     })
-    .eq("id", personId)
+    .eq("tree_id", treeId)
+    .eq("person_id", personId)
     .select("id");
   if (error) {
     if (error.message.toLowerCase().includes("row-level security")) {
@@ -503,7 +515,7 @@ export async function setPersonPosition(
     return { error: friendlyError(error.message) };
   }
   if (!data || data.length === 0) return { error: NOT_YOURS_TO_MOVE };
-  revalidatePath("/tree");
+  revalidateTreePages();
   return {};
 }
 
@@ -514,13 +526,11 @@ export async function setPersonPosition(
 export async function autoArrangeTree(
   treeId: string,
 ): Promise<{ error?: string }> {
-  const profile = await requireProfile();
-  if (profile.role !== "admin") {
-    return { error: "Only an admin can re-arrange the whole tree." };
-  }
+  const { error: notRoot } = await rootOf(treeId);
+  if (notRoot) return { error: "Only a Root can re-arrange the whole tree." };
   const supabase = await createClient();
   const { error } = await supabase
-    .from("people")
+    .from("tree_placements")
     .update({ pos_dx: null, pos_dy: null, pos_x: null, pos_y: null })
     .eq("tree_id", treeId);
   if (error) return { error: friendlyError(error.message) };
@@ -530,7 +540,7 @@ export async function autoArrangeTree(
     .from("pets")
     .update({ pos_dx: null, pos_dy: null })
     .eq("tree_id", treeId);
-  revalidatePath("/tree");
+  revalidateTreePages();
   return {};
 }
 
@@ -552,7 +562,7 @@ export async function setPersonPhoto(
     .select("id");
   if (error) return { error: friendlyError(error.message) };
   if (!data || data.length === 0) return { error: NOT_YOURS_TO_EDIT };
-  revalidatePath("/tree");
+  revalidateTreePages();
   return {};
 }
 
@@ -570,7 +580,7 @@ export async function setPersonPhotoCrop(
     .select("id");
   if (error) return { error: friendlyError(error.message) };
   if (!data || data.length === 0) return { error: NOT_YOURS_TO_EDIT };
-  revalidatePath("/tree");
+  revalidateTreePages();
   return {};
 }
 
@@ -579,23 +589,74 @@ export type PersonDocument = {
   file_name: string;
   mime_type: string;
   created_at: string;
+  /** Uploaded onto the tree being viewed, rather than shared in from another. */
+  fromThisTree: boolean;
+  /** Visible on every tree the person is shown on. */
+  shared: boolean;
 };
 
+/**
+ * This tree's bank of documents for an entry (Step 25): the ones uploaded
+ * onto it, plus any the person shares across their trees. RLS decides which
+ * of those the caller may see.
+ */
 export async function listDocuments(
+  treeId: string,
   personId: string,
 ): Promise<PersonDocument[]> {
   await requireProfile();
   const supabase = await createClient();
   const { data } = await supabase
     .from("documents")
-    .select("id, file_name, mime_type, created_at")
+    .select("id, file_name, mime_type, created_at, tree_id, shared_across_trees")
     .eq("person_id", personId)
+    .or(`tree_id.eq.${treeId},shared_across_trees.eq.true`)
     .order("created_at", { ascending: false });
-  return data ?? [];
+  return (data ?? []).map((d) => ({
+    id: d.id,
+    file_name: d.file_name,
+    mime_type: d.mime_type,
+    created_at: d.created_at,
+    fromThisTree: d.tree_id === treeId,
+    shared: d.shared_across_trees,
+  }));
+}
+
+/**
+ * Share a document with every tree the person is shown on, or keep it to the
+ * tree it was uploaded onto. The person themselves or a Root of their home
+ * tree may flip it (`documents_guard`).
+ */
+export async function setDocumentShared(
+  documentId: string,
+  shared: boolean,
+): Promise<{ error?: string }> {
+  await requireProfile();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("documents")
+    .update({ shared_across_trees: shared })
+    .eq("id", documentId)
+    .select("id");
+  if (error) {
+    if (error.message.toLowerCase().includes("share a document")) {
+      return {
+        error:
+          "Only this person, or a Root of their home tree, can share a document across trees.",
+      };
+    }
+    return { error: friendlyError(error.message) };
+  }
+  if (!data || data.length === 0) {
+    return { error: "Only someone who can edit this entry can change its documents." };
+  }
+  revalidateTreePages();
+  return {};
 }
 
 /** Record a document already uploaded to the `documents` bucket by the client. */
 export async function recordDocument(input: {
+  treeId: string;
   personId: string;
   filePath: string;
   fileName: string;
@@ -604,6 +665,7 @@ export async function recordDocument(input: {
   const profile = await requireProfile();
   const supabase = await createClient();
   const { error } = await supabase.from("documents").insert({
+    tree_id: input.treeId,
     person_id: input.personId,
     file_path: input.filePath,
     file_name: input.fileName,
@@ -611,7 +673,7 @@ export async function recordDocument(input: {
     uploaded_by: profile.auth_user_id,
   });
   if (error) return { error: friendlyError(error.message) };
-  revalidatePath("/tree");
+  revalidateTreePages();
   return {};
 }
 
@@ -645,7 +707,7 @@ export async function removeDocument(
   if (doc?.file_path) {
     await supabase.storage.from("documents").remove([doc.file_path]);
   }
-  revalidatePath("/tree");
+  revalidateTreePages();
   return {};
 }
 
@@ -679,7 +741,7 @@ export async function signDocument(
 export async function revertEntryEdit(
   revisionId: string,
 ): Promise<{ error?: string; restored?: number }> {
-  await requireAdmin();
+  await requireProfile();
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("revert_entry_edit", {
     p_revision_id: revisionId,
@@ -699,7 +761,6 @@ export async function revertEntryEdit(
     }
     return { error: friendlyError(error.message) };
   }
-  revalidatePath("/tree");
-  revalidatePath("/account");
+  revalidateTreeAndAccount();
   return { restored: data?.length ?? 0 };
 }

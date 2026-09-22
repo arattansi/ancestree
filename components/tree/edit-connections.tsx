@@ -54,12 +54,15 @@ export type ExistingConnection = {
 };
 
 export function EditConnections({
+  treeId,
   personId,
   personName,
   personPartners,
   members,
   connections,
 }: {
+  /** The tree the new line is drawn on (Step 25). */
+  treeId: string;
   personId: string;
   personName: string;
   /** The edited person's own partners — the co-parents on offer when they are
@@ -119,6 +122,7 @@ export function EditConnections({
     if (!datesOk) return;
     setBusy(true);
     const res = await connectExistingPeople({
+      treeId,
       personId,
       otherId,
       kind,
@@ -137,6 +141,7 @@ export function EditConnections({
     const alsoAdded: string[] = [];
     for (const coParentId of parentSide ? chosenCoParents : []) {
       const extra = await connectExistingPeople({
+        treeId,
         personId: coParentId,
         otherId: parentSide!.childId,
         kind: "parent",

@@ -5,7 +5,11 @@ import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { sendDirectInvites, type SendDirectInvitesState } from "@/app/actions/invites";
+import {
+  sendDirectInvites,
+  sendFounderInvites,
+  type SendDirectInvitesState,
+} from "@/app/actions/invites";
 import { JoinsAsChoice } from "@/components/joins-as-choice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,9 +34,18 @@ function emptyRow(): Row {
  * someone (`invitableTypes`), widest first; the first is the default.
  */
 export function DirectInviteForm({
+  treeId,
   options = JOINS_AS_OPTIONS,
+  founder = false,
 }: {
+  /** The tree the invites are sent from (and, unless `founder`, into). */
+  treeId: string;
   options?: readonly AccountTypeKey[];
+  /**
+   * Founder invites (Step 25): each recipient starts a tree of their own as
+   * its Root, rather than joining this one. No account-type choice applies.
+   */
+  founder?: boolean;
 }) {
   const router = useRouter();
   const [rows, setRows] = React.useState<Row[]>([emptyRow()]);
@@ -62,10 +75,14 @@ export function DirectInviteForm({
     setPending(true);
     let res: SendDirectInvitesState;
     try {
-      res = await sendDirectInvites(
-        filled.map((r) => ({ firstName: r.firstName, lastName: r.lastName, email: r.email })),
-        joinsAs,
-      );
+      const rowsToSend = filled.map((r) => ({
+        firstName: r.firstName,
+        lastName: r.lastName,
+        email: r.email,
+      }));
+      res = founder
+        ? await sendFounderInvites(treeId, rowsToSend)
+        : await sendDirectInvites(treeId, rowsToSend, joinsAs);
     } catch {
       // A rejected server action (stale action id after a deploy, dropped
       // connection) must not strand the button on "Sending…" forever.
@@ -153,12 +170,14 @@ export function DirectInviteForm({
         ))}
       </div>
 
-      <JoinsAsChoice
-        options={options}
-        value={joinsAs}
-        onChange={setJoinsAs}
-        disabled={pending}
-      />
+      {founder ? null : (
+        <JoinsAsChoice
+          options={options}
+          value={joinsAs}
+          onChange={setJoinsAs}
+          disabled={pending}
+        />
+      )}
 
       <div className="flex gap-2">
         <Button type="button" variant="outline" size="sm" onClick={addRow}>

@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 
 const INITIAL: RequestInviteState = {};
 
-export function RequestInviteForm() {
+export function RequestInviteForm({ treeSlug }: { treeSlug?: string | null }) {
   const [state, formAction, pending] = useActionState(requestInvite, INITIAL);
   const [consented, setConsented] = useState(false);
 
@@ -34,6 +34,7 @@ export function RequestInviteForm() {
 
   return (
     <form action={formAction} className="flex flex-col gap-4" noValidate>
+      {treeSlug ? <input type="hidden" name="tree" value={treeSlug} /> : null}
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-2">
           <Label htmlFor="firstName">First name</Label>
