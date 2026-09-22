@@ -169,3 +169,51 @@
     transition: none;
   }
 }
+
+/* A node's details sheet — a person's or a companion's, marked
+   `data-docked-sheet` — sits on the right and leaves the page live, so the
+   header's buttons (tree, account, notifications) have to stay in reach
+   while it's open. From `sm` up the sheet is 24rem wide: the header lays
+   itself out in the space to its left, its right padding growing by however
+   much of the header the sheet would cover, plus a 1rem gap (the bar is at
+   most 64rem, centred). Where that space is tight, the wordmark gives way to
+   the mark. Below `sm` the sheet takes most of the screen and leaves no room
+   beside it, so it starts under the header instead, whose height
+   SiteHeaderHeight keeps in `--site-header-height`. */
+@media (width >= 40rem) {
+  .site-header-bar {
+    transition: padding-right 200ms ease-in-out;
+  }
+  body:has([data-docked-sheet][data-open]) .site-header-bar {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    padding-right: max(1rem, calc(25rem - max(0px, 50vw - 32rem)));
+  }
+}
+
+@media (40rem <= width < 48rem) {
+  body:has([data-docked-sheet][data-open]) .site-header-wordmark {
+    /* Tailwind's sr-only, so it still names the link. */
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border-width: 0;
+  }
+}
+
+@media (width < 40rem) {
+  [data-docked-sheet] {
+    top: var(--site-header-height, 0px);
+    height: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-header-bar {
+    transition: none;
+  }
+}

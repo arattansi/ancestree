@@ -595,7 +595,8 @@ export function PersonPanel({
     // this person's own tree lit against the blurred rest of the family, and a
     // backdrop would blur the spotlight away along with everything else. It
     // stays live too, so clicking another relative moves the spotlight onto
-    // them rather than only dismissing the panel.
+    // them rather than only dismissing the panel. `data-docked-sheet` moves
+    // the site header aside while it's open (globals.css).
     <Sheet
       open={open}
       modal={false}
@@ -605,6 +606,7 @@ export function PersonPanel({
       }}
     >
       <SheetContent
+        data-docked-sheet
         showOverlay={false}
         // Over a portrait, the sheet's own ghost close button can land on a
         // pale patch of photograph and disappear; with a photo the panel

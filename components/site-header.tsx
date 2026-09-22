@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { LogoMark } from "@/components/logo-mark";
+import { SiteHeaderHeight } from "@/components/site-header-height";
 import { SiteNavLink } from "@/components/site-nav-link";
 import { SiteNotifications } from "@/components/site-notifications";
 import { TreeSwitcher } from "@/components/tree-switcher";
@@ -20,6 +21,8 @@ import { countPendingTreeRequests } from "@/lib/tree-requests.server";
  * account — with a badge for anything waiting in the admin consoles they
  * run — and notifications across every tree. The current tree is the one
  * the browser remembers, so it's known here without reading the address.
+ * While a node's details sheet is open on the canvas, the header moves
+ * aside for it so these buttons stay in reach (globals.css).
  */
 export async function SiteHeader() {
   const profile = await getProfile();
@@ -53,13 +56,15 @@ export async function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-      <div className="mx-auto grid min-h-14 w-full max-w-5xl grid-cols-[1fr_auto_1fr] items-center gap-x-4 px-4 py-2">
+      {/* `site-header-bar` and `site-header-wordmark` let a node's details
+          sheet move the header aside while it's open (globals.css). */}
+      <div className="site-header-bar mx-auto grid min-h-14 w-full max-w-5xl grid-cols-[1fr_auto_1fr] items-center gap-x-4 px-4 py-2">
         <Link
           href="/"
           className="flex w-fit items-center gap-2 rounded-sm text-sm font-semibold tracking-tight text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
           <LogoMark className="size-5" />
-          ancestree.space
+          <span className="site-header-wordmark">ancestree.space</span>
         </Link>
         <div className="flex min-w-0 items-center justify-center">
           {profile && showSwitcher ? (
@@ -113,6 +118,7 @@ export async function SiteHeader() {
           )}
         </nav>
       </div>
+      <SiteHeaderHeight />
     </header>
   );
 }

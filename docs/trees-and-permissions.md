@@ -26,7 +26,7 @@ round trip.
 
 | | |
 |---|---|
-| Founding | A member founds a tree from `/trees/new` once a **beta reviewer** has approved their request (Step 26, "start new tree (beta)" on the home page or `/trees`), or a newcomer founds one by redeeming a **founder invite** — from any Root, or from a reviewer approving them off the waitlist. A founder is that tree's first Root. |
+| Founding | A member founds a tree from `/trees/new` once a **beta reviewer** has approved their request (Step 26, "start a tree (beta)" on the home page or `/trees`), or a newcomer founds one by redeeming a **founder invite** — from any Root, or from a reviewer approving them off the waitlist. A founder is that tree's first Root. |
 | Beta requests | `tree_requests`, answered by the addresses in `private.beta_reviewers` (the build owner). A member's approval is their permission to found; `found_tree` refuses anyone else. A reviewer may always found. Only reviewers see the queue; a member sees their own ask. |
 | One each | A member may found **one** tree (`trees.created_by` is unique). Being a Root of several trees is fine; founding several is not. |
 | Roots | Every tree has at least one Root, for good. The last Root may leave only by handing the tree to a successor (`deleteAccount(successorId)`, per tree). |
@@ -138,7 +138,7 @@ belongs to, or a Root of the entry's home tree.
 | **Founder** | Any Root | Creates a brand-new tree named after the newcomer, makes them its Root, and sends them to onboarding on it. Refused if the address already founded a tree. |
 
 The beta is "by invite only" because only these paths create trees: there is
-no public "start a tree" page. The home page's "start new tree (beta)" only
+no public "start a tree" page. The home page's "start a tree (beta)" only
 asks (Step 26). Signed out it joins a waitlist, which a reviewer answers with
 a founder invite; signed in it asks for the permission `found_tree` checks.
 

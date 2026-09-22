@@ -55,9 +55,9 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   member's home tree): `/tree` (React Flow canvas), `/tree/review`,
   `/people/new`, `/people/[id]/edit`, `/onboarding` (first-run on that
   tree); `/admin` redirects to the account page's Admin view. Site-wide: `/`
-  landing (Step 26: signed in, **view your tree** / **start new tree
+  landing (Step 26: signed in, **view your tree** / **start a tree
   (beta)**, which asks a beta reviewer; signed out, **sign in** / **request
-  access** / **start new tree (beta)**, the last two in dialogs —
+  access** / **start a tree (beta)**, the last two in dialogs —
   `components/request-access.tsx`, `beta-waitlist-dialog.tsx`,
   `start-tree-button.tsx`), `/join` (+ `/join/[token]` invite accept — signed in, it adds a
   tree), `/auth/callback` + `/auth/confirm` + `/auth/auth-code-error`,
@@ -500,7 +500,7 @@ mirror it for the UI.
   pointing at `/request-invite`. `lib/share-links.ts` holds the pure
   usable/expired/revoked logic (`.test.ts`).
 - **Starting a tree is by request during the beta** (Step 26,
-  `public.tree_requests`): a signed-in member presses "start new tree
+  `public.tree_requests`): a signed-in member presses "start a tree
   (beta)" (home page, `/trees`, `/trees/new`) and `request_tree` files one
   ask; a signed-out visitor joins the waitlist with a name and email
   (`joinBetaWaitlist`). **Beta reviewers** — `private.beta_reviewers`
@@ -691,21 +691,21 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 - **Step 26 — The home page's calls to action** (ad-hoc; migration
   `20260923040000_tree_requests_and_waitlist`). **Signed in:** "view your
-  tree" (`/tree`) and "start new tree (beta)". New trees are by request
+  tree" (`/tree`) and "start a tree (beta)". New trees are by request
   during the beta, so the button files an ask with a beta reviewer and
   shows "Your request has been received. We'll notify you when you can
   start building a new tree." Pressing again only shows the dialog; once
   approved it links to `/trees/new`, and once they've founded a tree (one
   each) it's gone. The same gate now covers `/trees`, `/trees/new` and
   `found_tree` itself, so the Step 25 married-in path waits on a reviewer
-  too. **Signed out:** "sign in", "request access" and "start new tree
+  too. **Signed out:** "sign in", "request access" and "start a tree
   (beta)". Request access takes a first name, last name and email and
   looks for the family's tree first. A strong name match on a living,
   unclaimed entry names the tree (never the person) and asks its Roots
   for an invite, with a choice when several trees match and "That's not
   me" to back out. With no match, it suggests asking a relative to invite
   them directly, or joining the beta waitlist with what they've typed.
-  "start new tree (beta)" is that waitlist on its own, ending on the same
+  "start a tree (beta)" is that waitlist on its own, ending on the same
   "request received" dialog. **Reviewing:** `private.beta_reviewers`
   (seeded with the build owner) sees "Requests to Start a Tree" on their
   admin console, in "Needs attention" and the header badge. Approving a
@@ -718,7 +718,14 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   missing name, and whose inputs remount instead of tripping Base UI's
   changed-default warning; `renderEmail` under `renderInviteEmail` (invite
   emails byte-identical); resending a founder invite keeps founder wording;
-  Sent invites marks founder invites "Starts a tree". **Verified** on the
+  Sent invites marks founder invites "Starts a tree". **Header beside a
+  node's details:** a person's or companion's sheet no longer covers
+  tree, account and notifications. From `sm` up the header lays out to
+  the sheet's left (`data-docked-sheet` + a `:has()` rule in
+  `globals.css`). On a phone the sheet starts under the header, whose
+  height `SiteHeaderHeight` keeps in `--site-header-height`. The
+  companion sheet is now non-modal with no scrim, like a person's.
+  **Verified** on the
   live project: the migration was rehearsed in a rolled-back transaction,
   then two throwaway accounts on Resend's test addresses ran every path:
   waitlist → approval → founder invite → a tree planted; a member asking,

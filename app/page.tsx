@@ -44,7 +44,7 @@ export default async function Home() {
               view your tree
             </Button>
             <StartTreeButton status={treeRequest ?? "none"} size="lg" variant="outline">
-              start new tree (beta)
+              start a tree (beta)
             </StartTreeButton>
           </>
         ) : (
@@ -56,7 +56,7 @@ export default async function Home() {
               request access
             </RequestAccessDialog>
             <BetaWaitlistDialog size="lg" variant="outline">
-              start new tree (beta)
+              start a tree (beta)
             </BetaWaitlistDialog>
           </>
         )}

@@ -225,13 +225,21 @@ export function PetPanel({
     : SPECIES_GLYPHS.other;
 
   return (
+    // Docked like a person's panel: no scrim, and the page stays live, so the
+    // site header moves aside and its buttons stay in reach (globals.css). A
+    // click outside still closes it.
     <Sheet
       open={pet !== null}
+      modal={false}
       onOpenChange={(next) => {
         if (!next) onClose();
       }}
     >
-      <SheetContent className="w-full gap-0 overflow-y-auto sm:max-w-sm">
+      <SheetContent
+        data-docked-sheet
+        showOverlay={false}
+        className="w-full gap-0 overflow-y-auto sm:max-w-sm"
+      >
         {pet ? (
           <>
             <SheetHeader className="gap-3">

@@ -30,7 +30,7 @@ Buttons that *do* something — **Save**, **Rename**, **Start my tree**,
 **Sign out** — are sentence case, like any other button.
 
 The home page's calls to action count as navigation, so they're lower-case
-too — **view your tree**, **sign in**, **request access**, **start new tree
+too — **view your tree**, **sign in**, **request access**, **start a tree
 (beta)** — even the ones that open a dialog rather than a page. Inside the
 dialog, titles and buttons go back to sentence case (**Request access**,
 **Join the waitlist**), as dialog titles are everywhere.
@@ -47,3 +47,9 @@ dialog, titles and buttons go back to sentence case (**Request access**,
 - The header is three columns: the mark, the tree switcher centred (only
   for someone with more than one tree to look at), and the navigation
   buttons right-aligned.
+- A node's details sheet (a person's or a companion's) never covers the
+  header's buttons. From `sm` up the header moves aside and lays out to the
+  left of the 24rem sheet, the wordmark giving way to the mark where that's
+  tight; on a phone the sheet starts under the header. Mark any new sheet
+  that sits beside the canvas `data-docked-sheet` to get the same
+  (`app/globals.css`).

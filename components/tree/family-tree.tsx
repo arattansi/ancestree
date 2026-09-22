@@ -1749,11 +1749,12 @@ function Canvas({
           position="top-right"
           className={cn(
             "flex max-w-[45vw] flex-col items-end gap-2 sm:max-w-none",
-            // Beside the details sheet rather than under it (Step 19.2). The
+            // Beside the details sheet rather than under it (Step 19.2) — a
+            // person's, or a companion's since it stopped being modal. The
             // sheet renders 24rem wide from `sm` up (its base `max-w-sm` wins
             // over the panel's `max-w-md`); below that it covers the canvas
             // and carries its own Add button.
-            selectedPerson && "sm:!mr-[calc(24rem+15px)]",
+            (selectedPerson || selectedPet) && "sm:!mr-[calc(24rem+15px)]",
           )}
         >
           {readOnly ? (
