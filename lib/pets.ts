@@ -18,6 +18,8 @@ export type TreePet = {
   place_id_birth: number | null;
   city_of_birth: string | null;
   country_of_birth: string | null;
+  /** Whose land the birthplace is, in the family's own words (Step 27.7). */
+  ancestral_lands_birth: string | null;
   year_died: number | null;
   is_deceased: boolean;
   photo_path: string | null;
@@ -37,7 +39,7 @@ export type TreePet = {
 };
 
 const PET_COLUMNS =
-  "id, name, species, species_label, year_born, birth_date, place_id_birth, city_of_birth, country_of_birth, year_died, is_deceased, photo_path, photo_crop, pos_dx, pos_dy, created_by, primary_person_id";
+  "id, name, species, species_label, year_born, birth_date, place_id_birth, city_of_birth, country_of_birth, ancestral_lands_birth, year_died, is_deceased, photo_path, photo_crop, pos_dx, pos_dy, created_by, primary_person_id";
 
 /**
  * Every companion in the tree with its people and a signed photo URL. Read

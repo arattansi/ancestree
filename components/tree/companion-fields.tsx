@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useFormContext, useWatch, type Control } from "react-hook-form";
 
+import { AncestralLandsField } from "@/components/ancestral-lands";
 import { PlaceAutocomplete } from "@/components/place-autocomplete";
 import { countryName } from "@/lib/country-names";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -45,7 +46,7 @@ export function CompanionFields({
   /** Unlocks the "can't find it? add a place" escape hatch on the birthplace. */
   isAdmin?: boolean;
 }) {
-  const { setValue } = useFormContext<PetFormValues>();
+  const { setValue, getValues } = useFormContext<PetFormValues>();
   const species = useWatch({ control, name: "species" });
   const isDeceased = useWatch({ control, name: "is_deceased" });
   const placeIdBirth = useWatch({ control, name: "place_id_birth" });
@@ -58,6 +59,10 @@ export function CompanionFields({
   // city / country text the panel reads back without a join.
   const onPlaceChange = React.useCallback(
     (place: { id: number; name: string; country_code: string | null } | null) => {
+      // Words about whose land the old place was don't describe a new one.
+      if ((place?.id ?? null) !== (getValues("place_id_birth") ?? null)) {
+        setValue("ancestral_lands_birth", "", { shouldDirty: true });
+      }
       setValue("place_id_birth", place?.id ?? null, {
         shouldValidate: true,
         shouldDirty: true,
@@ -71,7 +76,7 @@ export function CompanionFields({
         { shouldDirty: true },
       );
     },
-    [setValue],
+    [setValue, getValues],
   );
 
   return (
@@ -220,6 +225,14 @@ export function CompanionFields({
           </FormItem>
         )}
       />
+
+      {typeof placeIdBirth === "number" ? (
+        <AncestralLandsField
+          control={control}
+          name="ancestral_lands_birth"
+          placeId={placeIdBirth}
+        />
+      ) : null}
 
       <FormField
         control={control}

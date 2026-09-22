@@ -11,7 +11,7 @@ import {
 
 import { Plus } from "lucide-react";
 
-import { AncestralLandsSuggestion } from "@/components/ancestral-lands";
+import { AncestralLandsField } from "@/components/ancestral-lands";
 import { DateField } from "@/components/date-field";
 import { PlaceAutocomplete } from "@/components/place-autocomplete";
 import { countryName } from "@/lib/country-names";
@@ -27,7 +27,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -44,52 +43,6 @@ function RequiredMark() {
     <span aria-hidden className="-ml-1.5 text-destructive">
       *
     </span>
-  );
-}
-
-/**
- * The family's words for whose land a place is (Step 27), under the place it
- * belongs to. Optional: left empty, the tree names the territories Native
- * Land Digital maps there, which the suggestion below the box previews.
- */
-function AncestralLandsField<T extends FieldValues>({
-  control,
-  name,
-  placeId,
-  className,
-}: {
-  control: Control<T>;
-  name: Path<T>;
-  placeId: number;
-  className?: string;
-}) {
-  const { setValue } = useFormContext<T>();
-  return (
-    <FormField
-      control={control}
-      name={name}
-      render={({ field }) => (
-        <FormItem className={className}>
-          <FormLabel>Ancestral lands</FormLabel>
-          <FormControl>
-            <Textarea rows={2} {...field} value={field.value ?? ""} />
-          </FormControl>
-          <FormDescription>
-            Optional. Whose land this place is, in your family’s own words.
-          </FormDescription>
-          <AncestralLandsSuggestion
-            placeId={placeId}
-            onUse={(sentence) =>
-              setValue(name, sentence as never, {
-                shouldDirty: true,
-                shouldValidate: true,
-              })
-            }
-          />
-          <FormMessage />
-        </FormItem>
-      )}
-    />
   );
 }
 

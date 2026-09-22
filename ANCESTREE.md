@@ -198,7 +198,7 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `documents`              | Metadata for private file uploads, **one bank per tree** (`tree_id`); `shared_across_trees` shows it on every tree the person is on — flipped only by the person or a Root of their home tree (`documents_guard`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `places`                 | GeoNames reference data (populated places + admin areas) for birthplace autocomplete; not tree-scoped — read by any member, written only by the import script                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `historical_names`       | Curated period names for a place/country over a date range (Step 4.5d); matched by `place_id` then `country_code` against a birth/death year. Read by any member; seeded by migration                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `pets`                   | Companion animals — a deliberately thin, non-human entry: name, species (`cat` / `dog` / `other` + `species_label`), `year_born` / `year_died`, an optional exact `birth_date` (must agree with `year_born`) and an optional GeoNames place of birth (`place_id_birth` FK + denormalised `city_of_birth` / `country_of_birth`, exactly like a person), photo, and a `pos_dx` / `pos_dy` nudge. No lineage, claims, documents, or verification                                                                                                                                                                                                                                                                                                                                                                |
+| `pets`                   | Companion animals — a deliberately thin, non-human entry: name, species (`cat` / `dog` / `other` + `species_label`), `year_born` / `year_died`, an optional exact `birth_date` (must agree with `year_born`) and an optional GeoNames place of birth (`place_id_birth` FK + denormalised `city_of_birth` / `country_of_birth`, exactly like a person) with `ancestral_lands_birth` (Step 27.7, as on a person), photo, and a `pos_dx` / `pos_dy` nudge. No lineage, claims, documents, or verification                                                                                                                                                                                                                                                                                                                                                                |
 | `pet_companions`         | Which people a pet lived with (`pet_id` + `person_id`). Many-to-many, undirected, no lineage meaning; a trigger deletes a pet once its last companion goes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `pet_comments`           | A plain comment thread on a companion (`pet_id`, `body`, `created_by`). No flags, no open/resolved lifecycle, no verification, no notifications; author or anyone who `can_edit_pet` may delete                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 
@@ -585,9 +585,11 @@ cessions, not whose land a place is.
   Digital"; opening it gives NLD's link, the stewardship acknowledgement,
   and NLD's own disclaimer that the map isn't a legal or official record of
   boundaries.
-- **What gets asked.** Only GeoNames populated places with coordinates
-  (`feature_class = 'P'`); a hand-added place has none, so it shows only the
-  family's words. A share link never asks (its viewer isn't signed in).
+- **What gets asked.** A person's place of birth and death, and a
+  companion's place of birth (Step 27.7). Only GeoNames populated places
+  with coordinates (`feature_class = 'P'`) are asked about; a hand-added
+  place has none, so it shows only the family's words. A share link never
+  asks (its viewer isn't signed in).
 - **Coverage.** Strong in North America: Toronto gives Anishinabewaki,
   Ho-de-no-sau-nee-ga (Haudenosaunee), Mississauga, Mississaugas of the Credit
   First Nation and Wendake-Nionwentsïo. Checked 2026-09-22: nothing for
@@ -610,6 +612,22 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 27.7 — Ancestral lands for companions too** (migration
+  `20260923042000_companion_ancestral_lands`). A companion's place of birth
+  works like a person's: `pets.ancestral_lands_birth` holds the family's
+  own words, optional and up to 300 characters. The companion form shows
+  the same field under the birthplace, with the preview and **Start from
+  these names**, and clears the words when the place changes. Left empty,
+  the companion's panel names Native Land Digital's territories live, never
+  stored, and a share link never asks. The form field now lives in
+  `components/ancestral-lands.tsx#AncestralLandsField`, shared by both
+  forms. Companions have no place of death and no edit notices, so nothing
+  else changed in the database. **Verified** on the fixture panel against
+  the live NLD API. Calgary named Stoney, Ktunaxa, Métis, Blackfoot and
+  Tsuut'ina, and the share-link panel showed the family's words with no
+  lookup. On the fixture form, a Vancouver → Montréal change cleared the
+  words and refreshed the preview.
 
 - **Step 27 — Ancestral lands on a place of birth or death** (ad-hoc;
   migration `20260923041000_ancestral_lands`; reference

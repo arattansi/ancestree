@@ -14,6 +14,7 @@ import {
   setPetPrimaryCompanion,
   updatePet,
 } from "@/app/actions/pets";
+import { AncestralLands } from "@/components/ancestral-lands";
 import { CompanionFields } from "@/components/tree/companion-fields";
 import {
   CompanionPicker,
@@ -59,6 +60,7 @@ const toFormValues = (pet: TreePet): PetFormValues => ({
   place_id_birth: pet.place_id_birth ?? null,
   city_of_birth: pet.city_of_birth ?? "",
   country_of_birth: pet.country_of_birth ?? "",
+  ancestral_lands_birth: pet.ancestral_lands_birth ?? "",
   is_deceased: pet.is_deceased,
   year_died: pet.year_died ? String(pet.year_died) : "",
 });
@@ -116,6 +118,7 @@ export function PetPanel({
           place_id_birth: null,
           city_of_birth: "",
           country_of_birth: "",
+          ancestral_lands_birth: "",
           is_deceased: false,
           year_died: "",
         },
@@ -325,7 +328,14 @@ export function PetPanel({
                           <dt className="text-muted-foreground">
                             Place of birth
                           </dt>
-                          <dd>{petBirthplace(pet)}</dd>
+                          <dd className="flex flex-col gap-1">
+                            <span>{petBirthplace(pet)}</span>
+                            <AncestralLands
+                              wording={pet.ancestral_lands_birth}
+                              placeId={pet.place_id_birth}
+                              lookUp={!readOnly}
+                            />
+                          </dd>
                         </>
                       ) : null}
                     </dl>

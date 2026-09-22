@@ -1117,6 +1117,7 @@ export type Database = {
       }
       pets: {
         Row: {
+          ancestral_lands_birth: string | null
           birth_date: string | null
           city_of_birth: string | null
           country_of_birth: string | null
@@ -1139,6 +1140,7 @@ export type Database = {
           year_died: number | null
         }
         Insert: {
+          ancestral_lands_birth?: string | null
           birth_date?: string | null
           city_of_birth?: string | null
           country_of_birth?: string | null
@@ -1161,6 +1163,7 @@ export type Database = {
           year_died?: number | null
         }
         Update: {
+          ancestral_lands_birth?: string | null
           birth_date?: string | null
           city_of_birth?: string | null
           country_of_birth?: string | null

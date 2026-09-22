@@ -1,8 +1,23 @@
 "use client";
 
 import * as React from "react";
+import {
+  useFormContext,
+  type Control,
+  type FieldValues,
+  type Path,
+} from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
+import {
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Textarea } from "@/components/ui/textarea";
 import {
   ancestralLandsSentence,
   landsListParts,
@@ -145,7 +160,7 @@ function NativeLandCredit() {
  * In the form, under the wording: what a card will say if it's left empty,
  * and a button to start from those names rather than a blank box.
  */
-export function AncestralLandsSuggestion({
+function AncestralLandsSuggestion({
   placeId,
   onUse,
 }: {
@@ -180,5 +195,52 @@ export function AncestralLandsSuggestion({
       </Button>
       <NativeLandCredit />
     </div>
+  );
+}
+
+/**
+ * The family's words for whose land a place is (Step 27), under the place it
+ * belongs to, on a person's form and a companion's (Step 27.7). Optional:
+ * left empty, the tree names the territories Native Land Digital maps there,
+ * which the suggestion below the box previews.
+ */
+export function AncestralLandsField<T extends FieldValues>({
+  control,
+  name,
+  placeId,
+  className,
+}: {
+  control: Control<T>;
+  name: Path<T>;
+  placeId: number;
+  className?: string;
+}) {
+  const { setValue } = useFormContext<T>();
+  return (
+    <FormField
+      control={control}
+      name={name}
+      render={({ field }) => (
+        <FormItem className={className}>
+          <FormLabel>Ancestral lands</FormLabel>
+          <FormControl>
+            <Textarea rows={2} {...field} value={field.value ?? ""} />
+          </FormControl>
+          <FormDescription>
+            Optional. Whose land this place is, in your family’s own words.
+          </FormDescription>
+          <AncestralLandsSuggestion
+            placeId={placeId}
+            onUse={(sentence) =>
+              setValue(name, sentence as never, {
+                shouldDirty: true,
+                shouldValidate: true,
+              })
+            }
+          />
+          <FormMessage />
+        </FormItem>
+      )}
+    />
   );
 }
