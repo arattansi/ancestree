@@ -135,7 +135,7 @@ belongs to, or a Root of the entry's home tree.
 |---|---|---|
 | Join as Canopy / Leaf | Root (either); Branch or Canopy (Leaf only) | Adds a membership in the inviter's tree. An existing member of another tree gains a second membership; no second profile. |
 | Claim an entry | As Step 22.1, evaluated in the entry's home tree | As above, plus the vouch for that entry |
-| **Founder** | Any Root | Creates a brand-new tree named after the newcomer, makes them its Root, and sends them to onboarding on it. Refused if the address already founded a tree. |
+| **Founder** | Any Root | Creates a brand-new tree (“Family” until they rename it; `private.default_tree_name`), makes them its Root, and sends them to onboarding on it. Refused if the address already founded a tree. |
 
 The beta is "by invite only" because only these paths create trees: there is
 no public "start a tree" page. The home page's "start a tree (beta)" only

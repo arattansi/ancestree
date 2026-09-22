@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   INVITABLE_ACCOUNT_TYPES,
+  ROOT,
   accountTypeOf,
   type AccountTypeKey,
 } from "@/lib/account-types";
@@ -103,10 +104,15 @@ export function DirectInviteForm({
     const succeeded = results.filter((r) => r.minted && r.emailed);
 
     if (succeeded.length > 0) {
+      // A founder invite doesn't join this tree, so `joinsAs` says nothing
+      // about it: they become the Root of a tree of their own.
+      const outcome = founder
+        ? `start a tree of their own as its ${ROOT.name}`
+        : `join as ${accountTypeOf(joinsAs).name}`;
       toast.success(
         succeeded.length === 1
-          ? `Invite emailed to ${succeeded[0].email} — they'll join as ${accountTypeOf(joinsAs).name}.`
-          : `${succeeded.length} invites emailed — they'll join as ${accountTypeOf(joinsAs).name}.`,
+          ? `Invite emailed to ${succeeded[0].email} — they'll ${outcome}.`
+          : `${succeeded.length} invites emailed — they'll ${founder ? "each " : ""}${outcome}.`,
       );
     }
     notEmailed.forEach((r) =>

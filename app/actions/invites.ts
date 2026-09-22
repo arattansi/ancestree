@@ -230,10 +230,10 @@ export async function sendDirectInvites(
 /**
  * Root: invite someone to found a tree of their own (Step 25). With a beta
  * reviewer approving someone off the waitlist (Step 28, `approveTreeRequest`),
- * it's how a brand-new family gets in. Redeeming creates a fresh tree named
- * after them, makes them its Root, and lands them on its onboarding. The
- * invite is recorded against the inviting tree so it shows up in that tree's
- * history; nothing from this tree is copied over.
+ * it's how a brand-new family gets in. Redeeming creates a fresh tree (named
+ * by `private.default_tree_name`), makes them its Root, and lands them on its
+ * onboarding. The invite is recorded against the inviting tree so it shows up
+ * in that tree's history; nothing from this tree is copied over.
  */
 export async function sendFounderInvites(
   treeId: string,

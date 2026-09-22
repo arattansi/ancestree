@@ -98,8 +98,8 @@ export default async function InvitePage({
                   <p className="text-foreground">
                     You&rsquo;ll be the tree&rsquo;s first{" "}
                     <span className="font-medium">Root</span>: it starts empty,
-                    named after you, and you decide who joins it and what
-                    they can do. You can rename it any time.
+                    and you decide who joins it and what they can do. You can
+                    rename it any time.
                   </p>
                 </div>
               ) : preview.joins_as === LEAF.key ? (
