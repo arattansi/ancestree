@@ -833,6 +833,8 @@ export type Database = {
       }
       people: {
         Row: {
+          ancestral_lands_birth: string | null
+          ancestral_lands_death: string | null
           city_of_birth: string | null
           country_of_birth: string
           created_at: string
@@ -869,6 +871,8 @@ export type Database = {
           verified_by: string | null
         }
         Insert: {
+          ancestral_lands_birth?: string | null
+          ancestral_lands_death?: string | null
           city_of_birth?: string | null
           country_of_birth: string
           created_at?: string
@@ -905,6 +909,8 @@ export type Database = {
           verified_by?: string | null
         }
         Update: {
+          ancestral_lands_birth?: string | null
+          ancestral_lands_death?: string | null
           city_of_birth?: string | null
           country_of_birth?: string
           created_at?: string
@@ -1891,6 +1897,8 @@ export type Database = {
       }
       tree_people: {
         Row: {
+          ancestral_lands_birth: string | null
+          ancestral_lands_death: string | null
           blurred: boolean | null
           city_of_birth: string | null
           country_of_birth: string | null
@@ -2102,6 +2110,8 @@ export type Database = {
       person_claim_candidates: {
         Args: never
         Returns: {
+          ancestral_lands_birth: string | null
+          ancestral_lands_death: string | null
           city_of_birth: string | null
           country_of_birth: string
           created_at: string

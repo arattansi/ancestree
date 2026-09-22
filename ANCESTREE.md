@@ -37,6 +37,10 @@ Copy `.env.example` to `.env.local` and fill in:
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` — client + server
 - `SUPABASE_SERVICE_ROLE_KEY` — server-only, never sent to the client
 - `NEXT_PUBLIC_SITE_URL` — base URL for magic-link redirects and invite links
+- `NATIVE_LAND_API_KEY` — server-only; Native Land Digital's API key, for the
+  ancestral lands under a place of birth or death (Step 27). Without it the
+  tree shows only what families write themselves. See
+  [Reference data — Native Land Digital](#reference-data--native-land-digital)
 
 Until Supabase env is set, `proxy.ts` no-ops so the app still boots. With env
 set, unauthenticated visits to `/tree` redirect to `/join`.
@@ -127,6 +131,11 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `ALPHA2`; `app/actions/places.ts` — `searchPlacesAction` / `requestNewPlace`
   (admin) / `listCountryOptions`; `lib/historical-names.ts` — pure
   `resolveHistoricalName` / `formatHistoricalPlace` (Step 4.5d, `.test.ts`)
+- Ancestral lands (Step 27): `lib/native-land.ts` — pure parsing and wording
+  of Native Land Digital's answer (`.test.ts`); `lib/native-land.server.ts` —
+  `territoriesAt(lat, lng)`, the only caller of NLD; `app/api/ancestral-lands`
+  — `GET ?place=<places.id>` for members; `components/ancestral-lands.tsx` —
+  the card's lands line and the form's suggestion
 - `lib/person-schema.ts` — shared zod schema; `lib/connections.ts` — chain/edge
   types + `buildChainEdges`; `lib/connection-suggestions.ts` — implied-connection
   detection engine (+ `.server.ts` loader, `.test.ts`); `lib/siblings.ts` — sibling inference; `lib/tree.ts` —
@@ -178,7 +187,7 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `tree_placements`        | Which trees show a person, and where the card sits there: `(tree_id, person_id, status active\|pending\|declined, pos_*)`. The home tree always has one (trigger); others come from `place_people`, and a member's own entry waits `pending` for their yes (`respond_to_placement`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `tree_visibility`        | A Root opens their tree, read-only, to the members of another tree they're on: `(tree_id, viewer_tree_id)`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `profiles`               | `auth.users` row: `display_name`, `self_person_id` (one entry, wherever it's shown). `role` is a mirror of the first tree's `tree_members.role` for the pre-Step-25 app only — dropped by `supabase/pending/20260922120000_drop_legacy_single_tree.sql`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| `people`                 | Demographic nodes, **one row per person across all trees**. `tree_id` is the person's **home tree** — whose rules govern their details (Step 25; moved by `set_home_tree`). `hidden_from_visitors` blurs them to visitors. `pos_*` are a pre-Step-25 mirror of the home placement (dropped with `profiles.role`). `owner_user_id` starts as `created_by` and moves on claim. `date_of_birth_precision` / `date_of_death_precision` (`day` \| `month` \| `year`, Step 17) say how much of each date is known — a partial date is stored on the first day of its period, CHECK-enforced, so year-only readers need no change. `place_id_birth` / `place_id_death` → `places(id)` (Step 4.5b; nullable, backfilled — legacy `city_of_birth` / `country_of_birth` / `place_of_death` text kept until reconciled) |
+| `people`                 | Demographic nodes, **one row per person across all trees**. `tree_id` is the person's **home tree** — whose rules govern their details (Step 25; moved by `set_home_tree`). `hidden_from_visitors` blurs them to visitors. `pos_*` are a pre-Step-25 mirror of the home placement (dropped with `profiles.role`). `owner_user_id` starts as `created_by` and moves on claim. `date_of_birth_precision` / `date_of_death_precision` (`day` \| `month` \| `year`, Step 17) say how much of each date is known — a partial date is stored on the first day of its period, CHECK-enforced, so year-only readers need no change. `place_id_birth` / `place_id_death` → `places(id)` (Step 4.5b; nullable, backfilled — legacy `city_of_birth` / `country_of_birth` / `place_of_death` text kept until reconciled). `ancestral_lands_birth` / `ancestral_lands_death` (Step 27): the family's own words for whose land each place is, ≤ 300 characters; null shows Native Land Digital's names instead, looked up live and never stored |
 | `relationships`          | A fact about two people, not a tree (Step 25): a tree draws it when both ends are placed there; `tree_id` records the tree it was drawn on, and uniqueness ignores it. Directed `parent` edges; undirected `spouse` pairs (optional `marriage_date` / `is_divorced` / `divorce_date`, spouse-only by CHECK); siblings inferred                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `connection_suggestions` | Implied-connection prompts surfaced by the add-person flow (`suggested_type` spouse/parent/sibling_check, `source`, `status` pending/accepted/dismissed); UNIQUE (subject, related, type, source) = no re-prompt                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `invites`                | Shareable tokens into one tree (`active` \| `accepted` \| `revoked`); `founds_tree` (Step 25) makes it a founder invite — redeeming plants a new tree with the redeemer as Root                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
@@ -550,6 +559,44 @@ with population ≥ 500).
 - `pg_trgm` lives in the `extensions` schema (not `public`), per the Supabase
   linter — migration `20260831040000_places_trgm_extension_schema`.
 
+## Reference data — Native Land Digital
+
+The ancestral lands under a place of birth or death (Step 27) come from
+[Native Land Digital](https://native-land.ca) (NLD), a non-profit that maps
+Indigenous territories, languages and treaties. It's the only broad source of
+*traditional territories*: the truly open alternatives (the USFS Royce
+land-cession layer, CIRNAC's Historic Treaties) cover treaties and land
+cessions, not whose land a place is.
+
+- **Terms.** The API key comes with NLD's
+  [Data Sovereignty Treaty](https://api-docs.native-land.ca/data-sovereignty-treaty):
+  non-commercial use only (no subscription, membership or bundled service
+  that charges for it); NLD credited as the source, with Indigenous
+  communities acknowledged as the stewards of the data; and **no storing or
+  redistributing its data without NLD's permission**. If Ancestree ever
+  charges, this needs NLD's written permission first.
+- **So nothing of NLD's is saved.** `lib/native-land.server.ts` asks
+  `native-land.ca/api/index.php?maps=territories&position=lat,lng&key=…`
+  each time a card or form shows a place (`cache: "no-store"`; the route
+  answers `Cache-Control: no-store`; the browser keeps answers in memory only
+  while the page is open). What a family writes in its own words
+  (`people.ancestral_lands_birth` / `_death`) is theirs, and is shown instead.
+- **Credit.** Every card that shows NLD's names says "From Native Land
+  Digital"; opening it gives NLD's link, the stewardship acknowledgement,
+  and NLD's own disclaimer that the map isn't a legal or official record of
+  boundaries.
+- **What gets asked.** Only GeoNames populated places with coordinates
+  (`feature_class = 'P'`); a hand-added place has none, so it shows only the
+  family's words. A share link never asks (its viewer isn't signed in).
+- **Coverage.** Strong in North America: Toronto gives Anishinabewaki,
+  Ho-de-no-sau-nee-ga (Haudenosaunee), Mississauga, Mississaugas of the Credit
+  First Nation and Wendake-Nionwentsïo. Checked 2026-09-22: nothing for
+  Kampala, Nairobi, Dar es Salaam, Mumbai or London, where the card shows
+  only what a family writes.
+- **Key.** `NATIVE_LAND_API_KEY`, from an account at
+  <https://native-land.ca/auth/signup> (free; agreeing to the treaty is part
+  of signing up).
+
 ## v1 acceptance checklist
 
 All Product Brief items pass as of Step 10: invite-gated magic-link auth with
@@ -563,6 +610,29 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 27 — Ancestral lands on a place of birth or death** (ad-hoc;
+  migration `20260923041000_ancestral_lands`; reference
+  [Reference data — Native Land Digital](#reference-data--native-land-digital)).
+  A card now says whose land a person was born or died on. **Stored:**
+  `people.ancestral_lands_birth` / `ancestral_lands_death`, the family's own
+  words (optional, ≤ 300 characters), carried through `tree_people`; an edit
+  to them notifies like any other ("ancestral lands"), and a Branch's edit can
+  be undone (`private.revision_fields`). Changing the place clears the words
+  in the form, since they described the old one. **Looked up, never stored:**
+  left empty, the panel names the territories Native Land Digital maps at the
+  place, e.g. "Ancestral lands of Anishinabewaki ᐊᓂᔑᓈᐯᐗᑭ, …", each name
+  linked to its page on native-land.ca and credited "From Native Land
+  Digital". The form previews that line under the place, with **Start from
+  these names** to edit it into the family's own. Asked through
+  `GET /api/ancestral-lands?place=<id>` (members only), a route handler so a
+  slow answer never holds up the panel's server actions, which the client
+  sends one at a time. Place fields in the panel now span its width.
+  **Verified** against the live NLD API from a signed-in dev server: Toronto
+  and Vancouver on a fixture card and form, "Start from these names", the
+  place-change clear, the read-only share-link panel making no lookup, and
+  the edit trigger (a Root's edit notified the owner and creator "was
+  updated: ancestral lands"; that probe was rolled back).
 
 - **Step 25 — Many trees, one entry each** (ad-hoc; migrations
   `20260922090000_trees_have_members`, `20260922100000_tree_views`,

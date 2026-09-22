@@ -15,6 +15,7 @@ import {
 import { deletePerson } from "@/app/actions/privacy";
 import type { PanelSuggestion } from "@/lib/connection-suggestions";
 import { AccountTypeBadge } from "@/components/account-type-badge";
+import { AncestralLands } from "@/components/ancestral-lands";
 import { JoinsAsChoice } from "@/components/joins-as-choice";
 import { PersonDocuments } from "@/components/person-documents";
 import { ConnectionPromptList } from "@/components/tree/connection-prompts";
@@ -74,6 +75,36 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
     <div className="flex flex-col gap-0.5">
       <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
       <dd className="text-sm text-foreground">{value}</dd>
+    </div>
+  );
+}
+
+/**
+ * A place of birth or death, with whose land it is beneath it (Step 27). It
+ * takes the panel's full width, so the lands have room to read and don't
+ * reflow the grid when Native Land Digital's names arrive.
+ */
+function PlaceField({
+  label,
+  place,
+  wording,
+  placeId,
+  lookUp,
+}: {
+  label: string;
+  place: string | null;
+  wording: string | null;
+  placeId: number | null;
+  lookUp: boolean;
+}) {
+  if (!place) return null;
+  return (
+    <div className="col-span-2 flex flex-col gap-0.5">
+      <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
+      <dd className="flex flex-col gap-1 text-sm text-foreground">
+        <span>{place}</span>
+        <AncestralLands wording={wording} placeId={placeId} lookUp={lookUp} />
+      </dd>
     </div>
   );
 }
@@ -725,15 +756,18 @@ export function PersonPanel({
                     person.date_of_birth_precision,
                   )}
                 />
-                <Field
+                <PlaceField
                   label="Place of birth"
-                  value={
+                  place={
                     person.birth_place_historical ||
                     [person.city_of_birth, person.country_of_birth]
                       .filter(Boolean)
                       .join(", ") ||
                     null
                   }
+                  wording={person.ancestral_lands_birth}
+                  placeId={person.place_id_birth}
+                  lookUp={!readOnly}
                 />
                 {person.is_deceased ? (
                   <>
@@ -744,11 +778,14 @@ export function PersonPanel({
                         person.date_of_death_precision,
                       )}
                     />
-                    <Field
+                    <PlaceField
                       label="Place of death"
-                      value={
+                      place={
                         person.death_place_historical || person.place_of_death
                       }
+                      wording={person.ancestral_lands_death}
+                      placeId={person.place_id_death}
+                      lookUp={!readOnly}
                     />
                   </>
                 ) : null}

@@ -50,6 +50,12 @@ export type TreeGraphPerson = {
    *  birth/death year (Step 4.5d); otherwise null and the plain text is shown. */
   birth_place_historical: string | null;
   death_place_historical: string | null;
+  /**
+   * Whose land each place is, in the family's own words (Step 27). Null means
+   * the panel names Native Land Digital's territories instead, looked up live.
+   */
+  ancestral_lands_birth: string | null;
+  ancestral_lands_death: string | null;
   lineage_type: string | null;
   photo_path: string | null;
   /** Thumbnail framing for `photo_path`; null means the centred default. */
@@ -104,7 +110,7 @@ export type TreeGraphEdge = {
  * says whether this tree is the one whose rules govern the entry.
  */
 const PERSON_COLUMNS =
-  "id, home_tree_id, is_home, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_death, date_of_birth_precision, date_of_death_precision, city_of_birth, country_of_birth, place_id_birth, place_id_death, is_deceased, place_of_death, sex, lineage_type, photo_path, photo_crop, pos_x, pos_y, owner_user_id, created_by, verified_at, pos_dx, pos_dy, hidden_from_visitors, blurred, email, email_visible";
+  "id, home_tree_id, is_home, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_death, date_of_birth_precision, date_of_death_precision, city_of_birth, country_of_birth, place_id_birth, place_id_death, is_deceased, place_of_death, sex, lineage_type, photo_path, photo_crop, pos_x, pos_y, owner_user_id, created_by, verified_at, pos_dx, pos_dy, hidden_from_visitors, blurred, email, email_visible, ancestral_lands_birth, ancestral_lands_death";
 
 /**
  * Everyone placed on the tree plus the connections between them, with signed
@@ -192,6 +198,8 @@ export async function getTreeGraph(
           place_id_birth: null,
           place_id_death: null,
           place_of_death: null,
+          ancestral_lands_birth: null,
+          ancestral_lands_death: null,
           sex: null,
           lineage_type: null,
           photo_path: null,

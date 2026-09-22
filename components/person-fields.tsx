@@ -11,6 +11,7 @@ import {
 
 import { Plus } from "lucide-react";
 
+import { AncestralLandsSuggestion } from "@/components/ancestral-lands";
 import { DateField } from "@/components/date-field";
 import { PlaceAutocomplete } from "@/components/place-autocomplete";
 import { countryName } from "@/lib/country-names";
@@ -26,6 +27,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -42,6 +44,52 @@ function RequiredMark() {
     <span aria-hidden className="-ml-1.5 text-destructive">
       *
     </span>
+  );
+}
+
+/**
+ * The family's words for whose land a place is (Step 27), under the place it
+ * belongs to. Optional: left empty, the tree names the territories Native
+ * Land Digital maps there, which the suggestion below the box previews.
+ */
+function AncestralLandsField<T extends FieldValues>({
+  control,
+  name,
+  placeId,
+  className,
+}: {
+  control: Control<T>;
+  name: Path<T>;
+  placeId: number;
+  className?: string;
+}) {
+  const { setValue } = useFormContext<T>();
+  return (
+    <FormField
+      control={control}
+      name={name}
+      render={({ field }) => (
+        <FormItem className={className}>
+          <FormLabel>Ancestral lands</FormLabel>
+          <FormControl>
+            <Textarea rows={2} {...field} value={field.value ?? ""} />
+          </FormControl>
+          <FormDescription>
+            Optional. Whose land this place is, in your family’s own words.
+          </FormDescription>
+          <AncestralLandsSuggestion
+            placeId={placeId}
+            onUse={(sentence) =>
+              setValue(name, sentence as never, {
+                shouldDirty: true,
+                shouldValidate: true,
+              })
+            }
+          />
+          <FormMessage />
+        </FormItem>
+      )}
+    />
   );
 }
 
@@ -108,6 +156,14 @@ export function PersonFields<T extends FieldValues>({
         : "";
       const idField = kind === "birth" ? "place_id_birth" : "place_id_death";
       const textField = kind === "birth" ? "city_of_birth" : "place_of_death";
+      // Words about whose land the old place was don't describe a new one.
+      if ((place?.id ?? null) !== (getValues(name(idField)) ?? null)) {
+        setValue(
+          name(kind === "birth" ? "ancestral_lands_birth" : "ancestral_lands_death"),
+          "" as never,
+          { shouldDirty: true },
+        );
+      }
       setValue(name(idField), (place?.id ?? null) as never, {
         shouldValidate: true,
         shouldDirty: true,
@@ -127,7 +183,7 @@ export function PersonFields<T extends FieldValues>({
         );
       }
     },
-    [name, setValue],
+    [name, setValue, getValues],
   );
 
   return (
@@ -360,6 +416,14 @@ export function PersonFields<T extends FieldValues>({
         )}
       />
 
+      {typeof placeIdBirth === "number" ? (
+        <AncestralLandsField
+          control={control}
+          name={name("ancestral_lands_birth")}
+          placeId={placeIdBirth}
+        />
+      ) : null}
+
       <FormField
         control={control}
         name={name("is_deceased")}
@@ -426,6 +490,14 @@ export function PersonFields<T extends FieldValues>({
               </FormItem>
             )}
           />
+          {typeof placeIdDeath === "number" ? (
+            <AncestralLandsField
+              control={control}
+              name={name("ancestral_lands_death")}
+              placeId={placeIdDeath}
+              className="sm:col-span-2"
+            />
+          ) : null}
         </div>
       ) : null}
 
