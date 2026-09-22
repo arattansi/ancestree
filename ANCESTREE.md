@@ -237,8 +237,10 @@ anyone else between Branch, Canopy and Leaf on `/admin` (`AccountTypePicker` →
 is for good: nobody demotes or removes one, another Root or themselves —
 `profiles_protect_role` raises `ROOT_IS_PERMANENT` on any change to a Root's
 role, `profiles_delete` excludes Root rows, and `admin_delete_member` already
-refused them. (Deleting your own account from `/account` is the one way out;
-it reassigns what you added to another Root.) A new Root also becomes one of
+refused them. A Root may still delete their own account from `/account`, but the tree is
+never left without a Root: the only Root must first choose another member to
+take over (`DeleteAccount` → `deleteAccount(successorId)`), who is made a
+Root — for good — and inherits what the departing Root added. A new Root also becomes one of
 the Roots whose sides the Branches tend (`private.root_person_ids`). Who may
 invite follows from the type alone — the per-member `can_invite` grant was
 retired, and the column dropped, in Step 22.1 — and an invite link can make someone Canopy or Leaf (see
@@ -316,7 +318,7 @@ mirror it for the UI.
 | Invite relatives | As Canopy or Leaf | As Leaves | As Leaves | None |
 | Invite someone to claim an entry | Any unclaimed, living entry; picks Canopy or Leaf | Unclaimed on their side, as Leaves | Unclaimed ones they added, as Leaves | None |
 | Change account types | Anyone not a Root: Branch, Canopy, Leaf, or Root (for good) | — | — | — |
-| Demote or remove a Root | Never, themselves included | — | — | — |
+| Demote or remove a Root | Never, themselves included; a Root may delete their own account, handing over to a new Root if they're the last | — | — | — |
 | Admin console, lineage, verification, share links | ✓ | — | — | — |
 
 ## Auth & invites (Step 3)
@@ -533,7 +535,9 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   told Arzu, and a second undo was refused. A Branch's fresh entry could be
   deleted until another member commented on it. Demoting a Root, a Root
   demoting themselves, and deleting a Root's row were all refused. 6 new
-  tests.
+  tests. Follow-up: a Root can delete their own account, but the tree's only
+  Root must first pick a member to take over as Root in the delete dialog;
+  that member is promoted, then inherits what the Root added.
 
 - **Step 24 — Invites clean up after themselves** (ad-hoc, migration
   `20260921160000_invite_cleanup`): joining now **deletes** the invite
