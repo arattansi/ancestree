@@ -145,7 +145,7 @@ export function NotificationsList({
             ) : null}
 
             {n.type === "tree_request_approved" ? (
-              // Step 26: a reviewer said yes; naming the tree is the next step.
+              // Step 28: a reviewer said yes; naming the tree is the next step.
               <Button
                 nativeButton={false}
                 render={<Link href={newTreeHref()} />}

@@ -10,7 +10,7 @@ import { treeHref } from "@/lib/tree-links";
 import { getTreeRequestStatus } from "@/lib/tree-requests.server";
 
 /**
- * The landing page (Step 26). Signed in: view your tree, or ask to start a
+ * The landing page (Step 28). Signed in: view your tree, or ask to start a
  * new one. Signed out: sign in, request access (which looks for your
  * family's tree first), or join the waitlist to start one. New trees are by
  * request during the beta. The buttons are navigation, so lower-case

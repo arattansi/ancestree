@@ -19,7 +19,7 @@ import { toTreeRequestStatus, type TreeRequestStatus } from "@/lib/tree-requests
 import { isBetaReviewer } from "@/lib/tree-requests.server";
 
 /**
- * A signed-in member asks to start a tree of their own (Step 26). During the
+ * A signed-in member asks to start a tree of their own (Step 28). During the
  * beta a new tree is by request (`found_tree` refuses anyone a reviewer
  * hasn't approved); asking again changes nothing. Answers where the ask
  * stands afterwards, so someone approved in the meantime can go straight on.
@@ -39,7 +39,7 @@ export async function requestNewTree(): Promise<{
 export type WaitlistState = RequestFormState & { ok?: boolean };
 
 /**
- * Public: join the waitlist to start a tree (Step 26). Written with the
+ * Public: join the waitlist to start a tree (Step 28). Written with the
  * service role, because the person isn't signed in and `tree_requests` isn't
  * reachable from anon. A reviewer answers with a founder invite by email.
  */
@@ -107,7 +107,7 @@ export type ApproveTreeRequestResult = {
 };
 
 /**
- * Reviewer: say yes to a request to start a tree (Step 26).
+ * Reviewer: say yes to a request to start a tree (Step 28).
  *
  * A member may then found one: the database puts it in their inbox
  * (`tree_request_notify`) and this emails them. Someone from the waitlist

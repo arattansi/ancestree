@@ -18,7 +18,7 @@ export type AdminActionItem = {
 export function buildAdminActionItems(counts: {
   inviteRequests: number;
   disputedClaims: number;
-  /** Requests to start a tree (Step 26) — a beta reviewer's only. */
+  /** Requests to start a tree (Step 28) — a beta reviewer's only. */
   treeRequests?: number;
 }): AdminActionItem[] {
   const items: AdminActionItem[] = [

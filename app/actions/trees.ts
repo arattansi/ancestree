@@ -34,7 +34,7 @@ export type FoundTreeResult = { slug?: string; error?: string };
  * A member starts a tree of their own (Step 25, the married-in path): a
  * fresh tree with them as its Root. Nothing is copied; they then bring the
  * people they choose over from the trees they belong to (`placePeople`).
- * During the beta only once a reviewer has approved their request (Step 26,
+ * During the beta only once a reviewer has approved their request (Step 28,
  * `requestNewTree`); the database refuses anyone else.
  */
 export async function foundTree(name: string): Promise<FoundTreeResult> {

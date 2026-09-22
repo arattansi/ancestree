@@ -1,5 +1,5 @@
 /**
- * Asking to start a tree during the beta (Step 26). A member's ask is
+ * Asking to start a tree during the beta (Step 28). A member's ask is
  * answered by a reviewer (`private.beta_reviewers`); until then starting a
  * tree is closed to them, the database included (`found_tree`).
  */

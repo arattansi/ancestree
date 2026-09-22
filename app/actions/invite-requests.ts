@@ -28,7 +28,7 @@ export type RequestInviteState = RequestFormState & { ok?: boolean };
  * client because the requester is not signed in and `invite_requests` is not
  * reachable from `anon`. `tree` names the tree by its slug: from a share
  * link's "request access" button, or from the tree the request-access search
- * found them on (`findFamilyTree`, Step 26). There's no default tree any
+ * found them on (`findFamilyTree`, Step 28). There's no default tree any
  * more — with several families on the site, a request without one would be
  * guessing whose it is.
  */

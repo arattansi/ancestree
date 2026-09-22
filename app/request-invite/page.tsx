@@ -23,7 +23,7 @@ export const metadata: Metadata = {
  * Asking to join. With `?tree=<slug>` (a share link's "request access", a
  * visitor's "request edit access") the request goes straight to that tree's
  * Roots. Without one it's the home page's request-access flow: find the
- * family's tree first (Step 26).
+ * family's tree first (Step 28).
  */
 export default async function RequestInvitePage({
   searchParams,

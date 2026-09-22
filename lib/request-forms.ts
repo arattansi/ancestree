@@ -1,7 +1,7 @@
 /**
  * The name-and-address forms anyone can fill in without signing in: asking
  * to join a tree, looking for your family's tree first, and the waitlist to
- * start one (Step 26). One reading of them, so each says the same thing
+ * start one (Step 28). One reading of them, so each says the same thing
  * about a bad entry.
  */
 

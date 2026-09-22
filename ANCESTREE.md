@@ -55,7 +55,7 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   member's home tree): `/tree` (React Flow canvas), `/tree/review`,
   `/people/new`, `/people/[id]/edit`, `/onboarding` (first-run on that
   tree); `/admin` redirects to the account page's Admin view. Site-wide: `/`
-  landing (Step 26: signed in, **view your tree** / **start a tree
+  landing (Step 28: signed in, **view your tree** / **start a tree
   (beta)**, which asks a beta reviewer; signed out, **sign in** / **request
   access** / **start a tree (beta)**, the last two in dialogs —
   `components/request-access.tsx`, `beta-waitlist-dialog.tsx`,
@@ -92,7 +92,7 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   (`lib/tree-context#membershipOf` / `rootOf`);
   `invite-requests.ts`: `requestInvite` (public, service-role write) /
   `approveInviteRequest` (mints the link) / `declineInviteRequest`;
-  `tree-requests.ts` (Step 26): `requestNewTree` (a member asks to start a
+  `tree-requests.ts` (Step 28): `requestNewTree` (a member asks to start a
   tree), `joinBetaWaitlist` / `findFamilyTree` (public, service-role),
   `approveTreeRequest` / `declineTreeRequest` / `deleteTreeRequest` (beta
   reviewers);
@@ -192,7 +192,7 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 
 | Table                    | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `trees`                  | A family's canvas (Step 25): `name`, URL `slug` (unique, follows the name), `created_by` = founder — **one founded tree per member** (partial unique index); created only by `found_tree` (once a beta reviewer has approved the member's request, Step 26) / a founder invite / the allowlist bootstrap, deleted only by `delete_tree`                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `trees`                  | A family's canvas (Step 25): `name`, URL `slug` (unique, follows the name), `created_by` = founder — **one founded tree per member** (partial unique index); created only by `found_tree` (once a beta reviewer has approved the member's request, Step 28) / a founder invite / the allowlist bootstrap, deleted only by `delete_tree`                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `tree_members`           | **The account type, per tree** (Step 25): `(tree_id, user_id, role)`, `role` ∈ `admin` \| `branch_admin` \| `member` \| `leaf` (Root / Branch / Canopy / Leaf). Written by RPCs (`join_tree`, `set_member_role`, `remove_tree_member`) behind `tree_members_guard` (Roots set types; Root is permanent per tree)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `tree_placements`        | Which trees show a person, and where the card sits there: `(tree_id, person_id, status active\|pending\|declined, pos_*)`. The home tree always has one (trigger); others come from `place_people`, and a member's own entry waits `pending` for their yes (`respond_to_placement`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `tree_visibility`        | A Root opens their tree, read-only, to the members of another tree they're on: `(tree_id, viewer_tree_id)`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
@@ -202,9 +202,9 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `connection_suggestions` | Implied-connection prompts surfaced by the add-person flow (`suggested_type` spouse/parent/sibling_check, `source`, `status` pending/accepted/dismissed); UNIQUE (subject, related, type, source) = no re-prompt                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `invites`                | Shareable tokens into one tree (`active` \| `accepted` \| `revoked`); `founds_tree` (Step 25) makes it a founder invite — redeeming plants a new tree with the redeemer as Root                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `invite_requests`        | Public invite asks — first/last name + email, `pending` \| `approved` \| `declined`, `invite_id` of the link minted on approval. Admin-only RLS; inserted server-side with the service role (no `anon` grant). One pending row per email                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `tree_requests`          | Asks to start a tree during the beta (Step 26): a member's (`user_id`) or a waitlist sign-up's (name + email only), `pending` \| `approved` \| `declined`, answered by a beta reviewer (`private.beta_reviewers`). A member's approval is their permission to `found_tree`; a sign-up's approval mints a founder invite (`invite_id`). Reviewers see and answer every row, a member only their own; members ask through `request_tree`, the waitlist is written with the service role. One pending ask per member and per waitlist address                                                                                                                                                                                                                                                                   |
+| `tree_requests`          | Asks to start a tree during the beta (Step 28): a member's (`user_id`) or a waitlist sign-up's (name + email only), `pending` \| `approved` \| `declined`, answered by a beta reviewer (`private.beta_reviewers`). A member's approval is their permission to `found_tree`; a sign-up's approval mints a founder invite (`invite_id`). Reviewers see and answer every row, a member only their own; members ask through `request_tree`, the waitlist is written with the service role. One pending ask per member and per waitlist address                                                                                                                                                                                                                                                                   |
 | `claims`                 | Auto-approve / dispute / reject a person entry (`dispute_reason`, `resolved_by`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| `notifications`          | In-app notices, **one inbox per tree** (`tree_id`, Step 25; `placement_requested` \| `placement_accepted` \| `placement_declined` added; `tree_request_approved`, Step 26); recipient-scoped RLS                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `notifications`          | In-app notices, **one inbox per tree** (`tree_id`, Step 25; `placement_requested` \| `placement_accepted` \| `placement_declined` added; `tree_request_approved`, Step 28); recipient-scoped RLS                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `entry_comments`         | Comments and flags, **one board per tree** (`tree_id`, Step 25) (`is_flag`, `open` \| `resolved`, `resolved_by`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `documents`              | Metadata for private file uploads, **one bank per tree** (`tree_id`); `shared_across_trees` shows it on every tree the person is on — flipped only by the person or a Root of their home tree (`documents_guard`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `places`                 | GeoNames reference data (populated places + admin areas) for birthplace autocomplete; not tree-scoped — read by any member, written only by the import script                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
@@ -454,7 +454,7 @@ mirror it for the UI.
 - **Invite requests** (`public.invite_requests`): anyone can ask from `/`
   ("request access") or `/request-invite` with first name, last name, and
   email. Without a tree in hand, `findFamilyTree` looks for one first
-  (Step 26, `public.trees_matching_name`, service role only): a strong
+  (Step 28, `public.trees_matching_name`, service role only): a strong
   name match (onboarding's 0.85) on a living, unclaimed entry nobody has
   hidden from visitors, returning the **trees**, never the person. Found,
   they ask that tree's Roots; not found, they're told to ask a relative to
@@ -499,7 +499,7 @@ mirror it for the UI.
   claim / flag / comment / manage affordances) with a "request edit access" CTA
   pointing at `/request-invite`. `lib/share-links.ts` holds the pure
   usable/expired/revoked logic (`.test.ts`).
-- **Starting a tree is by request during the beta** (Step 26,
+- **Starting a tree is by request during the beta** (Step 28,
   `public.tree_requests`): a signed-in member presses "start a tree
   (beta)" (home page, `/trees`, `/trees/new`) and `request_tree` files one
   ask; a signed-out visitor joins the waitlist with a name and email
@@ -650,46 +650,7 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
-- **Step 27.7 — Ancestral lands for companions too** (migration
-  `20260923042000_companion_ancestral_lands`). A companion's place of birth
-  works like a person's: `pets.ancestral_lands_birth` holds the family's
-  own words, optional and up to 300 characters. The companion form shows
-  the same field under the birthplace, with the preview and **Start from
-  these names**, and clears the words when the place changes. Left empty,
-  the companion's panel names Native Land Digital's territories live, never
-  stored, and a share link never asks. The form field now lives in
-  `components/ancestral-lands.tsx#AncestralLandsField`, shared by both
-  forms. Companions have no place of death and no edit notices, so nothing
-  else changed in the database. **Verified** on the fixture panel against
-  the live NLD API. Calgary named Stoney, Ktunaxa, Métis, Blackfoot and
-  Tsuut'ina, and the share-link panel showed the family's words with no
-  lookup. On the fixture form, a Vancouver → Montréal change cleared the
-  words and refreshed the preview.
-
-- **Step 27 — Ancestral lands on a place of birth or death** (ad-hoc;
-  migration `20260923041000_ancestral_lands`; reference
-  [Reference data — Native Land Digital](#reference-data--native-land-digital)).
-  A card now says whose land a person was born or died on. **Stored:**
-  `people.ancestral_lands_birth` / `ancestral_lands_death`, the family's own
-  words (optional, ≤ 300 characters), carried through `tree_people`; an edit
-  to them notifies like any other ("ancestral lands"), and a Branch's edit can
-  be undone (`private.revision_fields`). Changing the place clears the words
-  in the form, since they described the old one. **Looked up, never stored:**
-  left empty, the panel names the territories Native Land Digital maps at the
-  place, e.g. "Ancestral lands of Anishinabewaki ᐊᓂᔑᓈᐯᐗᑭ, …", each name
-  linked to its page on native-land.ca and credited "From Native Land
-  Digital". The form previews that line under the place, with **Start from
-  these names** to edit it into the family's own. Asked through
-  `GET /api/ancestral-lands?place=<id>` (members only), a route handler so a
-  slow answer never holds up the panel's server actions, which the client
-  sends one at a time. Place fields in the panel now span its width.
-  **Verified** against the live NLD API from a signed-in dev server: Toronto
-  and Vancouver on a fixture card and form, "Start from these names", the
-  place-change clear, the read-only share-link panel making no lookup, and
-  the edit trigger (a Root's edit notified the owner and creator "was
-  updated: ancestral lands"; that probe was rolled back).
-
-- **Step 26 — The home page's calls to action** (ad-hoc; migration
+- **Step 28 — The home page's calls to action** (ad-hoc; migration
   `20260923040000_tree_requests_and_waitlist`). **Signed in:** "view your
   tree" (`/tree`) and "start a tree (beta)". New trees are by request
   during the beta, so the button files an ask with a beta reviewer and
@@ -733,6 +694,45 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   through request access, and a reviewer declined and deleted. All test
   rows were deleted and the counts matched the start (1 tree, 5 profiles,
   63 people, 84 notifications). 13 new tests.
+
+- **Step 27.7 — Ancestral lands for companions too** (migration
+  `20260923042000_companion_ancestral_lands`). A companion's place of birth
+  works like a person's: `pets.ancestral_lands_birth` holds the family's
+  own words, optional and up to 300 characters. The companion form shows
+  the same field under the birthplace, with the preview and **Start from
+  these names**, and clears the words when the place changes. Left empty,
+  the companion's panel names Native Land Digital's territories live, never
+  stored, and a share link never asks. The form field now lives in
+  `components/ancestral-lands.tsx#AncestralLandsField`, shared by both
+  forms. Companions have no place of death and no edit notices, so nothing
+  else changed in the database. **Verified** on the fixture panel against
+  the live NLD API. Calgary named Stoney, Ktunaxa, Métis, Blackfoot and
+  Tsuut'ina, and the share-link panel showed the family's words with no
+  lookup. On the fixture form, a Vancouver → Montréal change cleared the
+  words and refreshed the preview.
+
+- **Step 27 — Ancestral lands on a place of birth or death** (ad-hoc;
+  migration `20260923041000_ancestral_lands`; reference
+  [Reference data — Native Land Digital](#reference-data--native-land-digital)).
+  A card now says whose land a person was born or died on. **Stored:**
+  `people.ancestral_lands_birth` / `ancestral_lands_death`, the family's own
+  words (optional, ≤ 300 characters), carried through `tree_people`; an edit
+  to them notifies like any other ("ancestral lands"), and a Branch's edit can
+  be undone (`private.revision_fields`). Changing the place clears the words
+  in the form, since they described the old one. **Looked up, never stored:**
+  left empty, the panel names the territories Native Land Digital maps at the
+  place, e.g. "Ancestral lands of Anishinabewaki ᐊᓂᔑᓈᐯᐗᑭ, …", each name
+  linked to its page on native-land.ca and credited "From Native Land
+  Digital". The form previews that line under the place, with **Start from
+  these names** to edit it into the family's own. Asked through
+  `GET /api/ancestral-lands?place=<id>` (members only), a route handler so a
+  slow answer never holds up the panel's server actions, which the client
+  sends one at a time. Place fields in the panel now span its width.
+  **Verified** against the live NLD API from a signed-in dev server: Toronto
+  and Vancouver on a fixture card and form, "Start from these names", the
+  place-change clear, the read-only share-link panel making no lookup, and
+  the edit trigger (a Root's edit notified the owner and creator "was
+  updated: ancestral lands"; that probe was rolled back).
 
 - **Step 25 — Many trees, one entry each** (ad-hoc; migrations
   `20260922090000_trees_have_members`, `20260922100000_tree_views`,

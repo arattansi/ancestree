@@ -1,4 +1,4 @@
--- Step 26 — The homepage's calls to action.
+-- Step 28 — The homepage's calls to action.
 --
 -- Signed in, a member can ask to start a tree of their own; signed out,
 -- anyone can join a waitlist to start one, or look for their family's tree
@@ -145,7 +145,7 @@ $$;
 revoke all on function private.may_found_tree() from anon, public;
 grant execute on function private.may_found_tree() to authenticated, service_role;
 
--- As in 20260922090000, plus the Step 26 permission.
+-- As in 20260922090000, plus the Step 28 permission.
 create or replace function public.found_tree(p_name text)
 returns public.trees
 language plpgsql

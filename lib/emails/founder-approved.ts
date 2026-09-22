@@ -2,7 +2,7 @@ import { escapeHtml } from "@/lib/email";
 import { renderInviteEmail } from "@/lib/emails/shared";
 
 /**
- * "Start your family tree" for someone off the beta waitlist (Step 26): a
+ * "Start your family tree" for someone off the beta waitlist (Step 28): a
  * reviewer approved their request, and the link is a founder invite. The
  * sibling of lib/emails/founder-invite.ts, which a Root sends unasked —
  * as lib/emails/invite-approved.ts is to invite-sent.ts.

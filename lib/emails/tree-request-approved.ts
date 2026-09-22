@@ -3,7 +3,7 @@ import { renderEmail } from "@/lib/emails/shared";
 
 /**
  * "You can start your tree" — sent by `approveTreeRequest` when a reviewer
- * says yes to a member's request to start a tree (Step 26). Not an invite:
+ * says yes to a member's request to start a tree (Step 28). Not an invite:
  * the button only opens the page where they name it, and signs nobody in,
  * so it can be opened any number of times.
  */

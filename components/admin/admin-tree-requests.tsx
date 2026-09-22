@@ -26,7 +26,7 @@ function shortDate(iso: string): string {
 }
 
 /**
- * Requests to start a tree (Step 26), on a beta reviewer's admin console:
+ * Requests to start a tree (Step 28), on a beta reviewer's admin console:
  * members asking from the home page or their trees page, and sign-ups from
  * the waitlist. Approving a member lets them start one; approving a sign-up
  * sends a founder invite from `treeId`, the tree whose console this is.

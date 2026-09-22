@@ -172,7 +172,7 @@ export async function AdminConsole({
     listForeignPlacements(tree.id),
     isBetaReviewer(),
   ]);
-  // Requests to start a tree (Step 26) are the site's, not this tree's: the
+  // Requests to start a tree (Step 28) are the site's, not this tree's: the
   // same queue shows on every console a beta reviewer runs.
   const treeRequests = reviewer ? await listTreeRequests() : [];
   const openTreeRequests = treeRequests.filter(

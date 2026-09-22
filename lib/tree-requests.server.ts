@@ -5,7 +5,7 @@ import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { toTreeRequestStatus, type TreeRequestStatus } from "@/lib/tree-requests";
 
-/** Where the signed-in member's ask to start a tree stands (Step 26). */
+/** Where the signed-in member's ask to start a tree stands (Step 28). */
 export async function getTreeRequestStatus(): Promise<TreeRequestStatus> {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("my_tree_request");

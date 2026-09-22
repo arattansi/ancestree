@@ -24,7 +24,7 @@ type ButtonLook = Pick<
 >;
 
 /**
- * Starting a tree, for a signed-in member (Step 26). During the beta a new
+ * Starting a tree, for a signed-in member (Step 28). During the beta a new
  * tree is by request: the first press asks a reviewer and says so in a
  * dialog, and pressing again only shows the dialog. Once they're approved
  * it's a link to naming the tree; once they've founded one, nothing — it's

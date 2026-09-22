@@ -67,7 +67,7 @@ export default async function NewTreePage() {
           </CardContent>
         </Card>
       ) : (
-        // Step 26: during the beta a new tree is by request.
+        // Step 28: during the beta a new tree is by request.
         <Card>
           <CardHeader>
             <CardTitle>New Trees Are in Beta</CardTitle>

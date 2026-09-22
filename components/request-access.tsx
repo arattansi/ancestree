@@ -29,7 +29,7 @@ const INITIAL_SEARCH: FindTreeState = {};
 const INITIAL_REQUEST: RequestInviteState = {};
 const INITIAL_WAITLIST: WaitlistState = {};
 
-/** The home page's "request access" (Step 26): the flow, in a dialog. */
+/** The home page's "request access" (Step 28): the flow, in a dialog. */
 export function RequestAccessDialog({
   children,
   ...look
@@ -51,7 +51,7 @@ export function RequestAccessDialog({
 }
 
 /**
- * Request access, for someone signed out (Step 26). They say who they are;
+ * Request access, for someone signed out (Step 28). They say who they are;
  * `findFamilyTree` looks for a tree showing someone by that name. Found, they
  * ask that tree's Roots for an invite — choosing which, when more than one
  * has them. Not found (or "not me"), they can ask a relative to invite them

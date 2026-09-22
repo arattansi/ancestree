@@ -30,7 +30,7 @@ export type MintedFounderInvite = {
  *
  * `source` says how it started, and so which email goes: a Root sending one
  * unasked (`direct`), or a beta reviewer approving a waitlist sign-up
- * (`request`, Step 26). Either way a "Sent invites" record is kept on
+ * (`request`, Step 28). Either way a "Sent invites" record is kept on
  * `treeId`, so the invite can be resent or killed from there.
  *
  * The caller must already have checked that `inviter` is a Root of

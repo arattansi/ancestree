@@ -20,7 +20,7 @@ import { waitlistReceived } from "@/lib/tree-requests";
 const INITIAL: WaitlistState = {};
 
 /**
- * "start a tree (beta)" for someone signed out (Step 26): the waitlist to
+ * "start a tree (beta)" for someone signed out (Step 28): the waitlist to
  * start a family tree of their own. A reviewer answers with a founder invite
  * by email. The form lives in the dialog, so closing it starts afresh.
  */
