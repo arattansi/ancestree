@@ -11,45 +11,45 @@ import {
   validRelatedTo,
 } from "@/lib/tree-links";
 
-describe("tree paths (Step 25)", () => {
-  it("puts every tree page under its slug", () => {
-    expect(treeHref("rattansi")).toBe("/t/rattansi/tree");
-    expect(reviewHref("rattansi")).toBe("/t/rattansi/tree/review");
-    expect(adminHref("rattansi")).toBe("/t/rattansi/admin");
-    expect(adminHref("rattansi", "placements")).toBe("/t/rattansi/admin#placements");
-    expect(onboardingHref("rattansi")).toBe("/t/rattansi/onboarding");
-    expect(editPersonHref("rattansi", "p1")).toBe("/t/rattansi/people/p1/edit");
+describe("tree paths", () => {
+  it("keeps every tree page at a plain address", () => {
+    expect(treeHref()).toBe("/tree");
+    expect(reviewHref()).toBe("/tree/review");
+    expect(onboardingHref()).toBe("/onboarding");
+    expect(editPersonHref("p1")).toBe("/people/p1/edit");
+    expect(editPersonHref("a b")).toBe("/people/a%20b/edit");
   });
 
-  it("encodes the slug", () => {
-    expect(treeHref("a b")).toBe("/t/a%20b/tree");
+  it("opens the admin console as the account page's admin view", () => {
+    expect(adminHref()).toBe("/account?view=admin");
+    expect(adminHref("placements")).toBe("/account?view=admin#placements");
   });
 });
 
 describe("treeFocusHref", () => {
   it("opens the canvas on the person just added", () => {
-    expect(treeFocusHref("t", "abc-123")).toBe("/t/t/tree?person=abc-123");
+    expect(treeFocusHref("abc-123")).toBe("/tree?person=abc-123");
   });
 
   it("falls back to the plain canvas without an id", () => {
-    expect(treeFocusHref("t", undefined)).toBe("/t/t/tree");
-    expect(treeFocusHref("t", null)).toBe("/t/t/tree");
-    expect(treeFocusHref("t", "")).toBe("/t/t/tree");
+    expect(treeFocusHref(undefined)).toBe("/tree");
+    expect(treeFocusHref(null)).toBe("/tree");
+    expect(treeFocusHref("")).toBe("/tree");
   });
 
   it("encodes the id", () => {
-    expect(treeFocusHref("t", "a&b=c")).toBe("/t/t/tree?person=a%26b%3Dc");
+    expect(treeFocusHref("a&b=c")).toBe("/tree?person=a%26b%3Dc");
   });
 });
 
 describe("addRelativeHref", () => {
   it("carries the selected person as relatedTo", () => {
-    expect(addRelativeHref("t", "p1")).toBe("/t/t/people/new?relatedTo=p1");
+    expect(addRelativeHref("p1")).toBe("/people/new?relatedTo=p1");
   });
 
   it("is the plain flow with nobody selected", () => {
-    expect(addRelativeHref("t", null)).toBe("/t/t/people/new");
-    expect(addRelativeHref("t")).toBe("/t/t/people/new");
+    expect(addRelativeHref(null)).toBe("/people/new");
+    expect(addRelativeHref()).toBe("/people/new");
   });
 });
 

@@ -3,41 +3,96 @@ import Link from "next/link";
 import { LogoMark } from "@/components/logo-mark";
 import { SiteNavLink } from "@/components/site-nav-link";
 import { SiteNotifications } from "@/components/site-notifications";
+import { TreeSwitcher } from "@/components/tree-switcher";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { countAdminActionItems } from "@/lib/admin-notifications";
 import { getProfile, getUser } from "@/lib/auth";
 import { listNotifications } from "@/lib/claims";
-import { defaultTreeSlug } from "@/lib/tree-context";
-import { treeHref, treesHref } from "@/lib/tree-links";
+import { countOpenConnectionSuggestions } from "@/lib/connection-suggestions.server";
+import { currentAccess, listMyTrees } from "@/lib/tree-context";
+import { reviewHref, treeHref } from "@/lib/tree-links";
 
 /**
- * The site-wide header (Step 25): the same on every page, so it knows nothing
- * about which tree is open. "tree" opens the member's default tree; the tree
- * bar beneath it, on tree pages, carries the tree's own navigation.
+ * The site-wide header. Left, the mark; centre, the tree switcher for
+ * anyone with more than one tree to look at; right, the tree's pages, the
+ * account — with a badge for anything waiting in the admin consoles they
+ * run — and notifications across every tree. The current tree is the one
+ * the browser remembers, so it's known here without reading the address.
  */
 export async function SiteHeader() {
   const profile = await getProfile();
-  const [user, slug] = profile
-    ? await Promise.all([getUser(), defaultTreeSlug(profile)])
-    : [null, null];
-  // Across every tree: each item names its tree.
-  const notifications = user ? await listNotifications(user.id) : [];
+  const [user, trees, access] = profile
+    ? await Promise.all([getUser(), listMyTrees(), currentAccess()])
+    : [null, [], null];
+
+  const currentMembership =
+    access?.kind === "member" ? access.membership : null;
+  const visiting =
+    access?.kind === "visitor" ? { name: access.visit.tree.name } : null;
+
+  const [notifications, openConnections, adminCounts] = await Promise.all([
+    user ? listNotifications(user.id) : [],
+    // A Leaf can't answer connection prompts, so isn't pointed at them.
+    currentMembership && currentMembership.type.connections !== "none"
+      ? countOpenConnectionSuggestions(currentMembership.tree.id)
+      : 0,
+    Promise.all(
+      trees.map((t) => (t.type.runsTree ? countAdminActionItems(t.id) : 0)),
+    ),
+  ]);
+  const adminItems = adminCounts.reduce((sum, n) => sum + n, 0);
+  const showSwitcher =
+    trees.length > 1 || (visiting !== null && trees.length > 0);
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-      <div className="mx-auto flex min-h-14 w-full max-w-5xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-2">
+      <div className="mx-auto grid min-h-14 w-full max-w-5xl grid-cols-[1fr_auto_1fr] items-center gap-x-4 px-4 py-2">
         <Link
           href="/"
-          className="flex items-center gap-2 rounded-sm text-sm font-semibold tracking-tight text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          className="flex w-fit items-center gap-2 rounded-sm text-sm font-semibold tracking-tight text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
           <LogoMark className="size-5" />
           ancestree.space
         </Link>
-        <nav aria-label="Primary" className="flex flex-wrap items-center gap-2">
+        <div className="flex min-w-0 items-center justify-center">
+          {profile && showSwitcher ? (
+            <TreeSwitcher
+              trees={trees.map((t) => ({
+                id: t.id,
+                name: t.name,
+                role: t.role,
+              }))}
+              currentId={currentMembership?.tree.id ?? null}
+              visiting={visiting}
+            />
+          ) : null}
+        </div>
+        <nav
+          aria-label="Primary"
+          className="flex flex-wrap items-center justify-end gap-2"
+        >
           {profile ? (
             <>
-              {slug ? <SiteNavLink href={treeHref(slug)}>tree</SiteNavLink> : null}
-              <SiteNavLink href={treesHref()}>trees</SiteNavLink>
-              <SiteNavLink href="/account">account</SiteNavLink>
+              {access ? (
+                <SiteNavLink href={treeHref()}>tree</SiteNavLink>
+              ) : null}
+              {openConnections > 0 ? (
+                <SiteNavLink href={reviewHref()}>
+                  connections
+                  <Badge variant="secondary" className="ml-1.5">
+                    {openConnections}
+                  </Badge>
+                </SiteNavLink>
+              ) : null}
+              <SiteNavLink href="/account">
+                account
+                {adminItems > 0 ? (
+                  <Badge variant="destructive" className="ml-1.5">
+                    {adminItems}
+                  </Badge>
+                ) : null}
+              </SiteNavLink>
               <SiteNotifications items={notifications} />
             </>
           ) : (

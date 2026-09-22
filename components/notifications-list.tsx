@@ -1,11 +1,11 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { disputeClaim, markNotificationsRead } from "@/app/actions/claims";
+import { switchTreeForm } from "@/app/actions/current-tree";
 import { revertEntryEdit } from "@/app/actions/people";
 import { respondToPlacement } from "@/app/actions/trees";
 import { Button } from "@/components/ui/button";
@@ -127,15 +127,20 @@ export function NotificationsList({
               </>
             ) : null}
 
-            {n.personId && n.treeSlug ? (
-              <Button
-                nativeButton={false}
-                render={<Link href={treeFocusHref(n.treeSlug, n.personId)} />}
-                size="sm"
-                variant="ghost"
+            {n.personId && n.treeId ? (
+              // The item's tree may not be the one being looked at: switch
+              // to it, then open the person.
+              <form
+                action={switchTreeForm.bind(
+                  null,
+                  n.treeId,
+                  treeFocusHref(n.personId),
+                )}
               >
-                View on tree
-              </Button>
+                <Button type="submit" size="sm" variant="ghost">
+                  View on tree
+                </Button>
+              </form>
             ) : null}
 
             {n.revertibleRevisionId ? (

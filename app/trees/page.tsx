@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { switchTreeForm } from "@/app/actions/current-tree";
 import { AccountTypeBadge } from "@/components/account-type-badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,7 +28,7 @@ export default async function TreesPage() {
   return (
     <main className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-6 px-4 py-10">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Your trees</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Your Trees</h1>
         <p className="text-sm text-muted-foreground">
           You have one entry, shown on each tree that has brought you in. Your
           account type can differ from tree to tree.
@@ -37,8 +38,8 @@ export default async function TreesPage() {
       {trees.length === 0 ? (
         <Card>
           <CardContent className="text-sm text-muted-foreground">
-            You&rsquo;re not on a tree yet. Accept an invite from a relative,
-            or start one of your own below.
+            You&rsquo;re not on a tree yet. Accept an invite from a relative, or
+            start one of your own below.
           </CardContent>
         </Card>
       ) : (
@@ -49,17 +50,12 @@ export default async function TreesPage() {
                 <CardHeader>
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
-                      <CardTitle>
-                        <Link
-                          href={treeHref(t.slug)}
-                          className="hover:underline"
-                        >
-                          {t.name}
-                        </Link>
-                      </CardTitle>
+                      <CardTitle>{t.name}</CardTitle>
                       <CardDescription>
-                        {t.personCount} {t.personCount === 1 ? "entry" : "entries"} ·{" "}
-                        {t.memberCount} {t.memberCount === 1 ? "member" : "members"}
+                        {t.personCount}{" "}
+                        {t.personCount === 1 ? "entry" : "entries"} ·{" "}
+                        {t.memberCount}{" "}
+                        {t.memberCount === 1 ? "member" : "members"}
                         {t.founded ? " · founded by you" : ""}
                       </CardDescription>
                     </div>
@@ -67,22 +63,17 @@ export default async function TreesPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="flex flex-wrap gap-2">
-                  <Button
-                    nativeButton={false}
-                    render={<Link href={treeHref(t.slug)} />}
-                    size="sm"
-                  >
-                    Open the tree
-                  </Button>
-                  {t.type.runsTree ? (
-                    <Button
-                      nativeButton={false}
-                      render={<Link href={adminHref(t.slug)} />}
-                      size="sm"
-                      variant="outline"
-                    >
-                      Admin
+                  <form action={switchTreeForm.bind(null, t.id, treeHref())}>
+                    <Button type="submit" size="sm">
+                      Open the tree
                     </Button>
+                  </form>
+                  {t.type.runsTree ? (
+                    <form action={switchTreeForm.bind(null, t.id, adminHref())}>
+                      <Button type="submit" size="sm" variant="outline">
+                        Admin
+                      </Button>
+                    </form>
                   ) : null}
                 </CardContent>
               </Card>
@@ -94,11 +85,11 @@ export default async function TreesPage() {
       {!founded ? (
         <Card>
           <CardHeader>
-            <CardTitle>Start a tree of your own</CardTitle>
+            <CardTitle>Start a Tree of Your Own</CardTitle>
             <CardDescription>
-              For your own side of the family, with you as its first Root.
-              Bring anyone you can see here along with you — they keep their
-              one entry, and you arrange them on a canvas of your own.
+              For your own side of the family, with you as its first Root. Bring
+              anyone you can see here along with you — they keep their one
+              entry, and you arrange them on a canvas of your own.
             </CardDescription>
           </CardHeader>
           <CardContent>

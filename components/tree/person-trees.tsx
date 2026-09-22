@@ -1,8 +1,8 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 
+import { switchTreeForm } from "@/app/actions/current-tree";
 import { listPersonTrees, type PersonTreeLink } from "@/app/actions/trees";
 import { treeFocusHref } from "@/lib/tree-links";
 
@@ -10,7 +10,8 @@ import { treeFocusHref } from "@/lib/tree-links";
  * "Also on" (Step 25): the other trees this person is shown on that the
  * viewer may open — as a member, or as a visitor where that tree's Root has
  * opened it to this one. The way from one family's canvas to the next runs
- * through the people they share.
+ * through the people they share. Each link switches the browser to that
+ * tree and opens it on this person.
  */
 export function PersonTrees({
   personId,
@@ -47,14 +48,18 @@ export function PersonTrees({
     <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
       <span>Also on</span>
       {trees.map((t) => (
-        <Link
+        <form
           key={t.id}
-          href={treeFocusHref(t.slug, personId)}
-          className="font-medium text-foreground underline underline-offset-2"
+          action={switchTreeForm.bind(null, t.id, treeFocusHref(personId))}
         >
-          {t.name}
-          {t.visitor ? " (view only)" : ""}
-        </Link>
+          <button
+            type="submit"
+            className="font-medium text-foreground underline underline-offset-2"
+          >
+            {t.name}
+            {t.visitor ? " (view only)" : ""}
+          </button>
+        </form>
       ))}
     </div>
   );

@@ -1,9 +1,12 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireProfile } from "@/lib/auth";
+import {
+  clearCurrentTreeCookie,
+  setCurrentTreeCookie,
+} from "@/lib/current-tree.server";
 import { createClient } from "@/lib/supabase/server";
 import { revalidateTreeAndAccount } from "@/lib/revalidate";
 import { redeemInvite } from "@/lib/sign-in.server";
@@ -39,6 +42,8 @@ export async function foundTree(name: string): Promise<FoundTreeResult> {
   const { data, error } = await supabase.rpc("found_tree", { p_name: trimmed });
   if (error || !data) return { error: friendlyTreeError(error?.message) };
 
+  // Their new tree is the one they're looking at from here on.
+  await setCurrentTreeCookie(data.id);
   revalidateTreeAndAccount();
   return { slug: data.slug };
 }
@@ -247,8 +252,7 @@ export async function joinTreeWithInvite(token: string): Promise<{ error?: strin
   const joined = await redeemInvite(supabase, token);
   if (!joined) return { error: "That invite is invalid, used up, or expired." };
   revalidateTreeAndAccount();
-  revalidatePath("/trees");
-  redirect(joined.selfPersonId ? treeHref(joined.treeSlug) : onboardingHref(joined.treeSlug));
+  redirect(joined.selfPersonId ? treeHref() : onboardingHref());
 }
 
 export type PersonTreeLink = {
@@ -293,7 +297,7 @@ export async function deleteTree(treeId: string): Promise<{ error?: string }> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("delete_tree", { p_tree: treeId });
   if (error) return { error: friendlyTreeError(error.message) };
+  await clearCurrentTreeCookie();
   revalidateTreeAndAccount();
-  revalidatePath("/trees");
   redirect(treesHref());
 }

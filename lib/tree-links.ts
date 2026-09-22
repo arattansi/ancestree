@@ -1,58 +1,50 @@
 /**
- * Links into a tree (Step 25): every tree-scoped page lives under
- * `/t/<slug>/…`, and these build the paths so the shape is written once.
- * Query parameters each end reads are named here too.
+ * Links into the tree the member is looking at. Tree pages have plain
+ * addresses — the tree itself is remembered per browser
+ * (`lib/current-tree.server.ts`), so nothing here carries a tree. Query
+ * parameters each end reads are named here too.
  */
 
 const enc = encodeURIComponent;
 
-/** The tree's base path. */
-export function treeBase(slug: string): string {
-  return `/t/${enc(slug)}`;
-}
-
 /** The canvas. */
-export function treeHref(slug: string): string {
-  return `${treeBase(slug)}/tree`;
+export function treeHref(): string {
+  return "/tree";
 }
 
 /** The canvas opened on one person's spotlight (`FamilyTree` reads `person`). */
-export function treeFocusHref(
-  slug: string,
-  personId: string | null | undefined,
-): string {
-  return personId ? `${treeHref(slug)}?person=${enc(personId)}` : treeHref(slug);
+export function treeFocusHref(personId: string | null | undefined): string {
+  return personId ? `${treeHref()}?person=${enc(personId)}` : treeHref();
 }
 
 /** Connections the tree implies but hasn't recorded. */
-export function reviewHref(slug: string): string {
-  return `${treeBase(slug)}/tree/review`;
+export function reviewHref(): string {
+  return "/tree/review";
 }
 
-/** The tree's admin console; `section` is a card id on it. */
-export function adminHref(slug: string, section?: string): string {
-  return section
-    ? `${treeBase(slug)}/admin#${enc(section)}`
-    : `${treeBase(slug)}/admin`;
+/**
+ * The tree's admin console: the "Admin" view of the account page. `section`
+ * is a card id on it.
+ */
+export function adminHref(section?: string): string {
+  const base = "/account?view=admin";
+  return section ? `${base}#${enc(section)}` : base;
 }
 
 /** The add flow, with `relatedTo` preselected as the person to connect to. */
-export function addRelativeHref(
-  slug: string,
-  relatedTo?: string | null,
-): string {
-  const base = `${treeBase(slug)}/people/new`;
+export function addRelativeHref(relatedTo?: string | null): string {
+  const base = "/people/new";
   return relatedTo ? `${base}?relatedTo=${enc(relatedTo)}` : base;
 }
 
-/** Edit one entry, from this tree. */
-export function editPersonHref(slug: string, personId: string): string {
-  return `${treeBase(slug)}/people/${enc(personId)}/edit`;
+/** Edit one entry, from the tree being viewed. */
+export function editPersonHref(personId: string): string {
+  return `/people/${enc(personId)}/edit`;
 }
 
-/** First-run: find or add yourself on this tree. */
-export function onboardingHref(slug: string): string {
-  return `${treeBase(slug)}/onboarding`;
+/** First-run: find or add yourself on the tree being viewed. */
+export function onboardingHref(): string {
+  return "/onboarding";
 }
 
 /** The member's trees, and starting one. */

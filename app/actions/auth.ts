@@ -113,7 +113,7 @@ export async function acceptInvite(
   }
 
   const result = await signInWithInvite(token);
-  if (result.ok) redirect(onboardingHref(result.treeSlug));
+  if (result.ok) redirect(onboardingHref());
 
   if (result.reason === "already_member") {
     return {

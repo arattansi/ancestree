@@ -40,6 +40,12 @@ export type TreeGraphPerson = {
   is_deceased: boolean;
   place_of_death: string | null;
   sex: string | null;
+  /**
+   * The person's email, when they show it to other members or the viewer
+   * owns the entry — the `tree_people` view withholds it otherwise.
+   */
+  email: string | null;
+  email_visible: boolean;
   /** "City, Period name · now Country" when a curated period name applies to the
    *  birth/death year (Step 4.5d); otherwise null and the plain text is shown. */
   birth_place_historical: string | null;
@@ -98,7 +104,7 @@ export type TreeGraphEdge = {
  * says whether this tree is the one whose rules govern the entry.
  */
 const PERSON_COLUMNS =
-  "id, home_tree_id, is_home, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_death, date_of_birth_precision, date_of_death_precision, city_of_birth, country_of_birth, place_id_birth, place_id_death, is_deceased, place_of_death, sex, lineage_type, photo_path, photo_crop, pos_x, pos_y, owner_user_id, created_by, verified_at, pos_dx, pos_dy, hidden_from_visitors, blurred";
+  "id, home_tree_id, is_home, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_death, date_of_birth_precision, date_of_death_precision, city_of_birth, country_of_birth, place_id_birth, place_id_death, is_deceased, place_of_death, sex, lineage_type, photo_path, photo_crop, pos_x, pos_y, owner_user_id, created_by, verified_at, pos_dx, pos_dy, hidden_from_visitors, blurred, email, email_visible";
 
 /**
  * Everyone placed on the tree plus the connections between them, with signed
@@ -119,26 +125,27 @@ export async function getTreeGraph(
   relationships: TreeGraphEdge[];
 }> {
   const supabase = db ?? (await createClient());
-  const [peopleRes, relRes, claimRes, flagRes, accountTypes] = await Promise.all([
-    supabase.from("tree_people").select(PERSON_COLUMNS).eq("tree_id", treeId),
-    supabase
-      .from("tree_edges")
-      .select(
-        "id, from_person, to_person, type, created_by, marriage_date, is_divorced, divorce_date",
-      )
-      .eq("tree_id", treeId),
-    supabase
-      .from("claims")
-      .select("id, person_id, status")
-      .in("status", ["approved", "disputed"]),
-    supabase
-      .from("entry_comments")
-      .select("person_id")
-      .eq("tree_id", treeId)
-      .eq("is_flag", true)
-      .eq("status", "open"),
-    withAccountTypes ? loadAccountTypes(supabase, treeId) : null,
-  ]);
+  const [peopleRes, relRes, claimRes, flagRes, accountTypes] =
+    await Promise.all([
+      supabase.from("tree_people").select(PERSON_COLUMNS).eq("tree_id", treeId),
+      supabase
+        .from("tree_edges")
+        .select(
+          "id, from_person, to_person, type, created_by, marriage_date, is_divorced, divorce_date",
+        )
+        .eq("tree_id", treeId),
+      supabase
+        .from("claims")
+        .select("id, person_id, status")
+        .in("status", ["approved", "disputed"]),
+      supabase
+        .from("entry_comments")
+        .select("person_id")
+        .eq("tree_id", treeId)
+        .eq("is_flag", true)
+        .eq("status", "open"),
+      withAccountTypes ? loadAccountTypes(supabase, treeId) : null,
+    ]);
 
   const openFlagsByPerson = new Map<string, number>();
   for (const f of flagRes.data ?? []) {
@@ -154,7 +161,13 @@ export async function getTreeGraph(
   // the placement alone (Step 25.4).
   const rows = (peopleRes.data ?? []).flatMap((p) => {
     if (!p.id) return [];
-    if (p.blurred || !p.last_name || !p.home_tree_id || !p.owner_user_id || !p.created_by) {
+    if (
+      p.blurred ||
+      !p.last_name ||
+      !p.home_tree_id ||
+      !p.owner_user_id ||
+      !p.created_by
+    ) {
       if (!p.blurred) return [];
       return [
         {
@@ -298,6 +311,8 @@ export async function getTreeGraph(
       const claim = claimByPerson.get(p.id) ?? null;
       return {
         ...p,
+        // Null on a blurred row (the view's left join); no email, not shown.
+        email_visible: p.email_visible ?? false,
         photo_url: p.photo_path ? (urlByPath.get(p.photo_path) ?? null) : null,
         claim_status: claim?.status ?? null,
         claim_id: claim?.id ?? null,
@@ -373,7 +388,9 @@ export async function getTreeAnchors(
     .limit(2);
   const anchors = (data ?? []).map((row) => row.person_id);
   // A tree whose Roots haven't anchored it yet centres on their entries.
-  return anchors.length > 0 ? anchors : (await getRootEntryIds(treeId, supabase)).slice(0, 2);
+  return anchors.length > 0
+    ? anchors
+    : (await getRootEntryIds(treeId, supabase)).slice(0, 2);
 }
 
 /**

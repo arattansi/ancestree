@@ -68,6 +68,19 @@ export const personSchema = z
     place_of_death: optionalText(160),
     sex: z.enum(SEX_VALUES).optional(),
     lineage_type: z.enum(LINEAGE_TYPES).optional(),
+    // Contact details live on the entry, shown to other members only when
+    // the person chooses (`email_visible`); their own address is seeded from
+    // the one they sign in with.
+    email: z
+      .string()
+      .trim()
+      .max(254, "Keep this under 254 characters.")
+      .refine((v) => v === "" || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v), {
+        message: "That doesn't look like an email address.",
+      })
+      .optional()
+      .or(z.literal("")),
+    email_visible: z.boolean().optional(),
   })
   .refine((v) => Boolean(v.first_name?.trim() || v.preferred_name?.trim()), {
     message: "Enter a first name or a preferred name.",
@@ -109,6 +122,8 @@ export const emptyPersonValues: PersonFormValues = {
   place_of_death: "",
   sex: undefined,
   lineage_type: undefined,
+  email: "",
+  email_visible: false,
 };
 
 function trimOrNull(s?: string): string | null {
@@ -136,9 +151,13 @@ export function toPersonPayload(values: PersonFormValues) {
     is_deceased: values.is_deceased,
     date_of_death: death.date,
     date_of_death_precision: death.precision,
-    place_id_death: values.is_deceased ? values.place_id_death ?? null : null,
-    place_of_death: values.is_deceased ? trimOrNull(values.place_of_death) : null,
+    place_id_death: values.is_deceased ? (values.place_id_death ?? null) : null,
+    place_of_death: values.is_deceased
+      ? trimOrNull(values.place_of_death)
+      : null,
     sex: values.sex ?? null,
     lineage_type: values.lineage_type ?? null,
+    email: trimOrNull(values.email)?.toLowerCase() ?? null,
+    email_visible: values.email_visible ?? false,
   };
 }

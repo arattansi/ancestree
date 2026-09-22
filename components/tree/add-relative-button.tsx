@@ -13,13 +13,10 @@ import { cn } from "@/lib/utils";
  * button. With someone selected it starts the add flow connected to them.
  */
 export function AddRelativeButton({
-  treeSlug,
   relatedTo,
   labelFrom = "always",
   className,
 }: {
-  /** The tree the relative is added to. */
-  treeSlug: string;
   /** The selected person, whose relative this will be. */
   relatedTo: { id: string; name: string } | null;
   /**
@@ -36,7 +33,7 @@ export function AddRelativeButton({
   return (
     <Button
       nativeButton={false}
-      render={<Link href={addRelativeHref(treeSlug, relatedTo?.id)} />}
+      render={<Link href={addRelativeHref(relatedTo?.id)} />}
       size="lg"
       className={cn(
         "h-11 min-w-11 gap-2 px-3 text-sm shadow-md sm:px-4",

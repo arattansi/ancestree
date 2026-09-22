@@ -21,7 +21,10 @@ import type {
   SuggestedType,
   SuggestionSource,
 } from "@/lib/connection-suggestions";
-import { revalidateTreeAndAccount, revalidateTreePages } from "@/lib/revalidate";
+import {
+  revalidateTreeAndAccount,
+  revalidateTreePages,
+} from "@/lib/revalidate";
 import { getRoleIn, rootOf } from "@/lib/tree-context";
 import { createClient } from "@/lib/supabase/server";
 import type { TablesUpdate } from "@/lib/database.types";
@@ -456,15 +459,21 @@ export async function updatePerson(
     sex: payload.sex,
   };
   const supabase = await createClient();
-  // lineage_type is a home-tree Root's alone; the DB trigger rejects other
-  // writers, so only send it when the caller is one.
   const { data: home } = await supabase
     .from("people")
-    .select("tree_id")
+    .select("tree_id, owner_user_id")
     .eq("id", personId)
     .maybeSingle();
+  // lineage_type is a home-tree Root's alone; the DB trigger rejects other
+  // writers, so only send it when the caller is one.
   if (home && (await getRoleIn(home.tree_id)) === "admin") {
     update.lineage_type = payload.lineage_type ?? null;
+  }
+  // Contact details are the entry owner's alone: anyone else's form never
+  // showed them, so writing its blanks would wipe them.
+  if (home?.owner_user_id === profile.auth_user_id) {
+    update.email = payload.email;
+    update.email_visible = payload.email_visible;
   }
   void profile;
 
@@ -608,7 +617,9 @@ export async function listDocuments(
   const supabase = await createClient();
   const { data } = await supabase
     .from("documents")
-    .select("id, file_name, mime_type, created_at, tree_id, shared_across_trees")
+    .select(
+      "id, file_name, mime_type, created_at, tree_id, shared_across_trees",
+    )
     .eq("person_id", personId)
     .or(`tree_id.eq.${treeId},shared_across_trees.eq.true`)
     .order("created_at", { ascending: false });
@@ -648,7 +659,9 @@ export async function setDocumentShared(
     return { error: friendlyError(error.message) };
   }
   if (!data || data.length === 0) {
-    return { error: "Only someone who can edit this entry can change its documents." };
+    return {
+      error: "Only someone who can edit this entry can change its documents.",
+    };
   }
   revalidateTreePages();
   return {};
@@ -699,8 +712,7 @@ export async function removeDocument(
   // letting the list drop a document that is still there.
   if (!removed || removed.length === 0) {
     return {
-      error:
-        "Only someone who can edit this entry can remove its documents.",
+      error: "Only someone who can edit this entry can remove its documents.",
     };
   }
 

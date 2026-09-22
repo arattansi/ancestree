@@ -3,17 +3,23 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { signOut } from "@/app/actions/auth";
+import { switchTreeForm } from "@/app/actions/current-tree";
 import { AccountTypeBadge } from "@/components/account-type-badge";
 import { AccountTypeCard } from "@/components/account-type-guide";
 import {
-  DeleteAccount,
-  type SoleRootTree,
-} from "@/components/delete-account";
+  AccountViewToggle,
+  type AccountView,
+} from "@/components/account-view-toggle";
+import { AdminConsole } from "@/components/admin/admin-console";
+import { BackToTop } from "@/components/back-to-top";
+import { ClearNotificationsButton } from "@/components/clear-notifications-button";
+import { DeleteAccount, type SoleRootTree } from "@/components/delete-account";
 import { DirectInviteForm } from "@/components/direct-invite-form";
 import { EditDisplayName } from "@/components/edit-display-name";
 import { HomeTreePicker } from "@/components/home-tree-picker";
 import { InviteMinter } from "@/components/invite-minter";
 import { NotificationsList } from "@/components/notifications-list";
+import { PersonForm } from "@/components/person-form";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,22 +34,171 @@ import {
   branchSideLabel,
   invitableTypes,
 } from "@/lib/account-types";
-import { getUser, requireProfile } from "@/lib/auth";
+import { getUser, requireProfile, type Profile } from "@/lib/auth";
 import { getBranchSides } from "@/lib/branch.server";
 import { listNotifications } from "@/lib/claims";
+import { loadOwnEntry, type OwnEntry } from "@/lib/own-entry.server";
 import { createClient } from "@/lib/supabase/server";
-import { listMyTrees } from "@/lib/tree-context";
-import { newTreeHref, treeHref, treesHref } from "@/lib/tree-links";
+import {
+  currentAccess,
+  listMyTrees,
+  membershipOf,
+  type MyTree,
+  type TreeMembership,
+} from "@/lib/tree-context";
+import {
+  adminHref,
+  newTreeHref,
+  onboardingHref,
+  treeHref,
+  treesHref,
+} from "@/lib/tree-links";
 
-export const metadata: Metadata = { title: "your account" };
+export async function generateMetadata({
+  searchParams,
+}: PageProps<"/account">): Promise<Metadata> {
+  const { view } = await searchParams;
+  if (view === "admin") {
+    return {
+      title: "admin",
+      description: "Manage members, invites, disputes, and entry counts.",
+    };
+  }
+  if (view === "settings") return { title: "settings" };
+  return { title: "your account" };
+}
 
-export default async function AccountPage() {
+/**
+ * The account page, in three views: your profile — your own entry, as a
+ * form — then, for a Root, the admin console (`?view=admin`) of the tree
+ * they're looking at, or of the first tree they run when the current one
+ * isn't theirs to run; and settings (`?view=settings`) for everything else.
+ */
+export default async function AccountPage({
+  searchParams,
+}: PageProps<"/account">) {
+  const { view: requested } = await searchParams;
   const profile = await requireProfile();
+  const [user, trees, access, ownEntry] = await Promise.all([
+    getUser(),
+    listMyTrees(),
+    currentAccess(),
+    loadOwnEntry(profile),
+  ]);
+
+  const runs = trees.filter((t) => t.type.runsTree);
+  let console: TreeMembership | null = null;
+  if (requested === "admin" && runs.length > 0) {
+    if (access?.kind === "member" && access.membership.isRoot) {
+      console = access.membership;
+    } else {
+      console = (await membershipOf(runs[0].id)).membership ?? null;
+    }
+  }
+  const view: AccountView = console
+    ? "admin"
+    : requested === "settings"
+      ? "settings"
+      : "profile";
+
+  return (
+    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-10">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Your Account
+          </h1>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+            <span>Signed in as {user?.email ?? "—"}</span>
+            <span aria-hidden>·</span>
+            <span className="flex items-center gap-1">
+              Known to members as
+              <EditDisplayName name={profile.display_name} />
+            </span>
+          </div>
+        </div>
+        <AccountViewToggle
+          view={view}
+          consoleTreeId={console?.tree.id ?? runs[0]?.id ?? null}
+          adminTrees={runs}
+        />
+      </div>
+
+      {view === "admin" && console ? (
+        <AdminConsole membership={console} />
+      ) : view === "settings" ? (
+        <SettingsView profile={profile} trees={trees} />
+      ) : (
+        <ProfileView ownEntry={ownEntry} />
+      )}
+      <BackToTop />
+    </main>
+  );
+}
+
+/** Your own entry — what your card says on every tree — as a form. */
+function ProfileView({ ownEntry }: { ownEntry: OwnEntry | null }) {
+  if (!ownEntry) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Your Details</CardTitle>
+          <CardDescription>
+            You don&rsquo;t have an entry of your own yet. Find yourself on the
+            tree, or add yourself, and your details will live here.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button
+            nativeButton={false}
+            render={<Link href={onboardingHref()} />}
+          >
+            Find yourself on the tree
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Your Details</CardTitle>
+        <CardDescription>
+          What your own card says on every tree you&rsquo;re on. Yours to keep
+          up to date; a relative who wants something changed flags it on the
+          tree.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <PersonForm
+          treeId={ownEntry.homeTreeId}
+          isAdmin={ownEntry.isHomeRoot}
+          person={ownEntry.person}
+          photoUrl={ownEntry.photoUrl}
+          placeLabels={ownEntry.placeLabels}
+          withContact
+        />
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
+ * Settings: your trees, your entry across them, appearance, privacy, invites
+ * you may send, your inbox, and signing out — cards in two columns, the wide
+ * ones spanning both.
+ */
+async function SettingsView({
+  profile,
+  trees,
+}: {
+  profile: Profile;
+  trees: MyTree[];
+}) {
   const user = await getUser();
 
   const supabase = await createClient();
-  const [trees, notifications, { data: directory }] = await Promise.all([
-    listMyTrees(),
+  const [notifications, { data: directory }] = await Promise.all([
     user ? listNotifications(user.id) : Promise.resolve([]),
     supabase
       .from("member_directory")
@@ -123,26 +278,10 @@ export default async function AccountPage() {
   const founded = trees.some((t) => t.founded);
 
   return (
-    <main className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-6 px-4 py-10">
-      <h1 className="text-2xl font-semibold tracking-tight">Your account</h1>
-
+    <div className="grid gap-6 md:grid-cols-2">
       <Card>
         <CardHeader>
-          <CardTitle>
-            <EditDisplayName name={profile.display_name} />
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3 text-sm">
-          <Row label="Email">{user?.email ?? "—"}</Row>
-          <Row label="Trees">
-            {trees.length === 0 ? "None yet" : trees.map((t) => t.name).join(", ")}
-          </Row>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Your trees</CardTitle>
+          <CardTitle>Your Trees</CardTitle>
           <CardDescription>
             Your account type on each tree, set by that tree&rsquo;s Roots.{" "}
             <Link href={treesHref()} className="underline underline-offset-4">
@@ -160,18 +299,44 @@ export default async function AccountPage() {
           {trees.map((t) => {
             const side = branchSideByTree.get(t.id);
             return (
-              <div key={t.id} className="flex flex-col gap-2 rounded-lg border border-border p-3">
+              <div
+                key={t.id}
+                className="flex flex-col gap-2 rounded-lg border border-border p-3"
+              >
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <Link href={treeHref(t.slug)} className="font-medium hover:underline">
-                    {t.name}
-                  </Link>
-                  <AccountTypeBadge role={t.role} />
+                  <form action={switchTreeForm.bind(null, t.id, treeHref())}>
+                    <button
+                      type="submit"
+                      className="font-medium hover:underline"
+                    >
+                      {t.name}
+                    </button>
+                  </form>
+                  <span className="flex items-center gap-2">
+                    {t.type.runsTree ? (
+                      <form
+                        action={switchTreeForm.bind(null, t.id, adminHref())}
+                      >
+                        <button
+                          type="submit"
+                          className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
+                        >
+                          Admin console
+                        </button>
+                      </form>
+                    ) : null}
+                    <AccountTypeBadge role={t.role} />
+                  </span>
                 </div>
                 <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs text-muted-foreground">
                   <dt>Invited by</dt>
                   <dd className="text-foreground">
                     {invitedByTree.get(t.id) ??
-                      (t.founded ? "You founded it" : t.type.runsTree ? "Founding Root" : "Unknown")}
+                      (t.founded
+                        ? "You founded it"
+                        : t.type.runsTree
+                          ? "Founding Root"
+                          : "Unknown")}
                   </dd>
                   <dt>Invite rights</dt>
                   <dd className="text-foreground">
@@ -220,9 +385,10 @@ export default async function AccountPage() {
       {profile.self_person_id && home ? (
         <Card>
           <CardHeader>
-            <CardTitle>Your entry</CardTitle>
+            <CardTitle>Your Entry</CardTitle>
             <CardDescription>
-              One entry, shown on {shownOn.length === 1 ? "one tree" : `${shownOn.length} trees`}:{" "}
+              One entry, shown on{" "}
+              {shownOn.length === 1 ? "one tree" : `${shownOn.length} trees`}:{" "}
               {shownOn.map((t) => t.name).join(", ")}. A Root asks before
               showing it on theirs; you can answer from your inbox below.
             </CardDescription>
@@ -238,32 +404,70 @@ export default async function AccountPage() {
         </Card>
       ) : null}
 
+      <Card>
+        <CardHeader>
+          <CardTitle>View</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3 text-sm text-muted-foreground">
+          <p>Light, dark, or follow your device. Saved to this browser.</p>
+          <ThemeToggle />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Privacy &amp; Your Data</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3 text-sm text-muted-foreground">
+          <p>
+            Read how your family&rsquo;s data is stored and protected in the{" "}
+            <Link href="/privacy" className="underline underline-offset-4">
+              privacy notice
+            </Link>
+            .
+          </p>
+          <div>
+            <DeleteAccount soleRootTrees={soleRootTrees} />
+          </div>
+        </CardContent>
+      </Card>
+
       {inviteFrom.map((t) => {
         const options = invitableTypes(t.role);
         return (
           <Card key={t.id}>
             <CardHeader>
-              <CardTitle>Invite a relative to {t.name}</CardTitle>
+              <CardTitle>Invite a Relative to {t.name}</CardTitle>
               <CardDescription>
-                Email them an invite and the link signs them straight in — nothing
-                for them to set up. Or create a link to send yourself, by message
-                or WhatsApp; that one asks for their email first. Either way it is
-                tied to you, works once, and expires after 14 days.
+                Email them an invite and the link signs them straight in —
+                nothing for them to set up. Or create a link to send yourself,
+                by message or WhatsApp; that one asks for their email first.
+                Either way it is tied to you, works once, and expires after 14
+                days.
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-6">
-              <DirectInviteForm treeId={t.id} options={options.map((o) => o.key)} />
+              <DirectInviteForm
+                treeId={t.id}
+                options={options.map((o) => o.key)}
+              />
               <div className="border-t border-border pt-6">
-                <InviteMinter treeId={t.id} options={options.map((o) => o.key)} />
+                <InviteMinter
+                  treeId={t.id}
+                  options={options.map((o) => o.key)}
+                />
               </div>
             </CardContent>
           </Card>
         );
       })}
 
-      <Card>
+      <Card className="md:col-span-2">
         <CardHeader>
-          <CardTitle>Notifications</CardTitle>
+          <div className="flex items-start justify-between gap-2">
+            <CardTitle>Notifications</CardTitle>
+            <ClearNotificationsButton items={notifications} />
+          </div>
           <CardDescription>
             {trees.length > 1
               ? "One inbox per tree; each item says which."
@@ -287,55 +491,11 @@ export default async function AccountPage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>View</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-2 text-sm text-muted-foreground">
-          <p>Light, dark, or follow your device. Saved to this browser.</p>
-          <ThemeToggle />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Privacy &amp; your data</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3 text-sm text-muted-foreground">
-          <p>
-            Read how your family&rsquo;s data is stored and protected in the{" "}
-            <Link href="/privacy" className="underline underline-offset-4">
-              privacy notice
-            </Link>
-            . For a full JSON copy of a tree, or to remove a specific entry,
-            ask one of its Roots.
-          </p>
-          <div>
-            <DeleteAccount soleRootTrees={soleRootTrees} />
-          </div>
-        </CardContent>
-      </Card>
-
-      <form action={signOut}>
+      <form action={signOut} className="md:col-span-2">
         <Button type="submit" variant="outline">
           Sign out
         </Button>
       </form>
-    </main>
-  );
-}
-
-function Row({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-4">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="text-right font-medium text-foreground">{children}</span>
     </div>
   );
 }

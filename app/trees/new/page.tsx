@@ -11,9 +11,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { requireProfile } from "@/lib/auth";
-import { createClient } from "@/lib/supabase/server";
 import { listMyTrees } from "@/lib/tree-context";
 import { adminHref, treesHref } from "@/lib/tree-links";
+import { defaultTreeName } from "@/lib/tree-names";
 
 export const metadata: Metadata = {
   title: "start a tree",
@@ -21,31 +21,21 @@ export const metadata: Metadata = {
 };
 
 export default async function NewTreePage() {
-  const profile = await requireProfile();
+  await requireProfile();
   const trees = await listMyTrees();
 
   // One founded tree each: a founder is sent to the one they have.
   const founded = trees.find((t) => t.founded);
   if (founded) redirect(adminHref(founded.slug));
 
-  // Suggest the family name from their own entry.
-  let suggestedName = profile.display_name ? `${profile.display_name}’s tree` : "Our family tree";
-  if (profile.self_person_id) {
-    const supabase = await createClient();
-    const { data: self } = await supabase
-      .from("people")
-      .select("last_name, maiden_name")
-      .eq("id", profile.self_person_id)
-      .maybeSingle();
-    const family = self?.maiden_name || self?.last_name;
-    if (family) suggestedName = `The ${family} family`;
-  }
+  // "My Family Tree" for a first tree, "My Second Tree" after that.
+  const suggestedName = defaultTreeName(trees.length);
 
   return (
     <main className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-6 px-4 py-10">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
-          Start a tree of your own
+          Start a Tree of Your Own
         </h1>
         <p className="text-sm text-muted-foreground">
           A separate canvas for your side of the family, with you as its first
@@ -57,7 +47,7 @@ export default async function NewTreePage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Your tree</CardTitle>
+          <CardTitle>Your Tree</CardTitle>
           <CardDescription>
             It starts empty. Once it&rsquo;s planted you can bring yourself,
             your children, and anyone else you can see on your other trees

@@ -13,7 +13,8 @@ import { adminHref } from "@/lib/tree-links";
 /**
  * "Start a tree of your own" (Step 25): a name, and the member becomes the
  * first Root of a fresh tree. They then bring people over from the trees
- * they belong to on its admin page, which is where this lands.
+ * they belong to on its admin console, which is where this lands — the new
+ * tree is the current one from here on.
  */
 export function FoundTreeForm({ suggestedName }: { suggestedName: string }) {
   const router = useRouter();
@@ -32,7 +33,7 @@ export function FoundTreeForm({ suggestedName }: { suggestedName: string }) {
       return;
     }
     toast.success("Your tree is planted.");
-    router.push(adminHref(res.slug, "placements"));
+    router.push(adminHref("placements"));
     router.refresh();
   }
 
@@ -49,8 +50,8 @@ export function FoundTreeForm({ suggestedName }: { suggestedName: string }) {
           required
         />
         <p className="text-xs text-muted-foreground">
-          Usually the family name. You can rename it later; the web address
-          follows the name.
+          Call it whatever you like — the family name, say. You can rename it
+          any time from its admin console; the web address follows the name.
         </p>
       </div>
       {error ? (

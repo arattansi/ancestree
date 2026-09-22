@@ -196,7 +196,9 @@ function SpouseRow({
               aria-invalid={Boolean(dateProblems.marriage)}
             />
             {dateProblems.marriage ? (
-              <p className="text-xs text-destructive">{dateProblems.marriage}</p>
+              <p className="text-xs text-destructive">
+                {dateProblems.marriage}
+              </p>
             ) : null}
           </div>
           <label className="flex items-center gap-3 text-sm">
@@ -219,7 +221,9 @@ function SpouseRow({
                 aria-invalid={Boolean(dateProblems.divorce)}
               />
               {dateProblems.divorce ? (
-                <p className="text-xs text-destructive">{dateProblems.divorce}</p>
+                <p className="text-xs text-destructive">
+                  {dateProblems.divorce}
+                </p>
               ) : null}
             </div>
           ) : null}
@@ -354,7 +358,6 @@ function CompanionsSection({
 export function PersonPanel({
   person,
   treeId,
-  treeSlug,
   pets,
   people,
   onSelectPet,
@@ -378,8 +381,6 @@ export function PersonPanel({
 }: {
   person: TreeGraphPerson | null;
   treeId: string;
-  /** The tree being viewed: edit and add links stay on it (Step 25). */
-  treeSlug: string;
   /** This person's companion animals. Not relatives — see `pet-node.tsx`. */
   pets: TreePet[];
   /** Everyone on the canvas, so a new companion can be shared with them. */
@@ -681,7 +682,6 @@ export function PersonPanel({
               </div>
               {addRelativeOf && !readOnly ? (
                 <AddRelativeButton
-                  treeSlug={treeSlug}
                   relatedTo={addRelativeOf}
                   className="w-full sm:hidden"
                 />
@@ -699,6 +699,19 @@ export function PersonPanel({
                 <Field label="Preferred name" value={person.preferred_name} />
                 <Field label="Maiden name" value={person.maiden_name} />
                 <Field label="Last name" value={person.last_name} />
+                <Field
+                  label="Email"
+                  value={
+                    person.email ? (
+                      <a
+                        href={`mailto:${person.email}`}
+                        className="underline underline-offset-2"
+                      >
+                        {person.email}
+                      </a>
+                    ) : null
+                  }
+                />
                 <Field
                   label="Sex"
                   value={
@@ -745,7 +758,7 @@ export function PersonPanel({
                 <div className="rounded-md border border-dashed border-border bg-muted/40 px-3 py-2.5 text-xs text-muted-foreground">
                   No maiden name on this entry yet.{" "}
                   <Link
-                    href={editPersonHref(treeSlug, person.id)}
+                    href={editPersonHref(person.id)}
                     className="font-medium text-foreground underline underline-offset-2"
                   >
                     Add one
@@ -785,8 +798,8 @@ export function PersonPanel({
                     <div className="flex flex-col gap-1">
                       <h2 className="text-sm font-semibold">Documents</h2>
                       <p className="text-xs text-muted-foreground">
-                        Private to this entry&rsquo;s owner, the Branch for
-                        this side of the family, and the Roots.
+                        Private to this entry&rsquo;s owner, the Branch for this
+                        side of the family, and the Roots.
                       </p>
                     </div>
                   )}
@@ -812,7 +825,7 @@ export function PersonPanel({
                     {canEdit ? (
                       <Button
                         nativeButton={false}
-                        render={<Link href={editPersonHref(treeSlug, person.id)} />}
+                        render={<Link href={editPersonHref(person.id)} />}
                         variant="outline"
                         size="sm"
                       >

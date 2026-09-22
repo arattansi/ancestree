@@ -28,7 +28,7 @@ export function AdminTreeName({ treeId, name }: { treeId: string; name: string }
       return;
     }
     toast.success("Renamed.");
-    router.replace(adminHref(res.slug, "tree-name"));
+    router.replace(adminHref("tree-name"));
     router.refresh();
   }
 

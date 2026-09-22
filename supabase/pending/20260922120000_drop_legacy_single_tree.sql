@@ -147,7 +147,7 @@ begin
   v_tree_id := private.current_tree_id();
   if v_tree_id is null then
     insert into public.trees (name, slug, created_by)
-    values ('Family Tree', 'family-tree', v_uid)
+    values ('Family', 'family', v_uid)
     returning id into v_tree_id;
   end if;
 
@@ -206,7 +206,7 @@ begin
     if exists (select 1 from public.trees t where t.created_by = v_uid) then
       raise exception 'ONE_TREE_EACH: you have already founded a tree' using errcode = '23505';
     end if;
-    v_tree := private.found_tree_for(v_uid, v_name || '’s tree');
+    v_tree := private.found_tree_for(v_uid, private.default_tree_name(v_uid));
   else
     perform private.join_tree(v_invite.tree_id, v_uid, v_invite.joins_as, v_invite.created_by);
     select * into v_tree from public.trees where id = v_invite.tree_id;

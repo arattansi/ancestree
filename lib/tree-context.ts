@@ -1,7 +1,7 @@
 import "server-only";
 
 import { cache } from "react";
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 
 import {
   accountTypeOf,
@@ -10,9 +10,10 @@ import {
   type AccountTypeKey,
 } from "@/lib/account-types";
 import { getProfile, getUser, requireProfile, type Profile } from "@/lib/auth";
+import { readCurrentTreeId } from "@/lib/current-tree.server";
 import type { Tables } from "@/lib/database.types";
 import { createClient } from "@/lib/supabase/server";
-import { onboardingHref, treesHref } from "@/lib/tree-links";
+import { onboardingHref, treeHref, treesHref } from "@/lib/tree-links";
 
 export type Tree = Pick<
   Tables<"trees">,
@@ -34,27 +35,18 @@ export type TreeMembership = {
 
 const TREE_COLUMNS = "id, name, slug, created_by, created_at";
 
-/** A tree by its URL slug, if the caller may see it. */
-export const getTreeBySlug = cache(async (slug: string): Promise<Tree | null> => {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("trees")
-    .select(TREE_COLUMNS)
-    .eq("slug", slug)
-    .maybeSingle();
-  return data ?? null;
-});
-
 /** A tree by id, if the caller may see it. */
-export const getTreeById = cache(async (treeId: string): Promise<Tree | null> => {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("trees")
-    .select(TREE_COLUMNS)
-    .eq("id", treeId)
-    .maybeSingle();
-  return data ?? null;
-});
+export const getTreeById = cache(
+  async (treeId: string): Promise<Tree | null> => {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from("trees")
+      .select(TREE_COLUMNS)
+      .eq("id", treeId)
+      .maybeSingle();
+    return data ?? null;
+  },
+);
 
 /** The caller's account type on a tree, or `null` when they are not on it. */
 export const getRoleIn = cache(
@@ -82,26 +74,6 @@ function membership(
 }
 
 /**
- * The membership behind a tree-scoped page. Signed-out visitors go to
- * `/join`; members who aren't on this tree get a 404, which says nothing
- * about whether the tree exists.
- */
-export const requireTreeMember = cache(
-  async (slug: string): Promise<TreeMembership> => {
-    const profile = await getProfile();
-    if (!profile) {
-      const user = await getUser();
-      redirect(user ? "/join?status=pending" : "/join");
-    }
-    const tree = await getTreeBySlug(slug);
-    if (!tree) notFound();
-    const role = await getRoleIn(tree.id);
-    if (!role) notFound();
-    return membership(tree, profile, role);
-  },
-);
-
-/**
  * A member looking at a tree they don't belong to, because one of its Roots
  * opened it to a tree they do belong to (Step 25.4). Read-only; hidden
  * entries are a blur to them.
@@ -118,36 +90,77 @@ export type TreeAccess =
   | { kind: "visitor"; visit: TreeVisit };
 
 /**
- * How the signed-in member may see a tree: as a member, or as a visitor.
- * Neither, and the tree is a 404 to them — RLS on `trees` already hides a
- * tree from anyone with no way in.
+ * The tree the member is looking at: the one their browser last chose, if
+ * they can still see it — as a member, or as a visitor — else their home
+ * tree, else the first they joined. `null` for a member of no tree. Every
+ * tree page starts here, so "/tree" always means the same tree as the
+ * header says.
  */
-export const requireTreeAccess = cache(async (slug: string): Promise<TreeAccess> => {
+export const currentAccess = cache(async (): Promise<TreeAccess | null> => {
+  const profile = await getProfile();
+  if (!profile) return null;
+  const trees = await listMyTrees();
+  const chosen = await readCurrentTreeId();
+
+  if (chosen) {
+    const mine = trees.find((t) => t.id === chosen);
+    // RLS on `trees` only returns a row to a member or a visitor.
+    const tree = await getTreeById(chosen);
+    if (tree && mine) {
+      return {
+        kind: "member",
+        membership: membership(tree, profile, mine.role),
+      };
+    }
+    if (tree) {
+      const supabase = await createClient();
+      const { data: via } = await supabase
+        .from("tree_visibility")
+        .select(
+          "viewer_tree_id, viewer:trees!tree_visibility_viewer_tree_id_fkey(id, name, slug, created_by, created_at)",
+        )
+        .eq("tree_id", tree.id)
+        .limit(1)
+        .maybeSingle();
+      const viaRaw = Array.isArray(via?.viewer) ? via?.viewer[0] : via?.viewer;
+      return {
+        kind: "visitor",
+        visit: { tree, profile, viaTree: viaRaw ?? null },
+      };
+    }
+  }
+
+  const home = await defaultTree(profile);
+  if (!home) return null;
+  const tree = await getTreeById(home.id);
+  if (!tree) return null;
+  return { kind: "member", membership: membership(tree, profile, home.role) };
+});
+
+/**
+ * How the signed-in member may see the current tree. Signed-out visitors go
+ * to `/join`; a member of no tree at all goes to their (empty) trees page.
+ */
+export async function requireTreeAccess(): Promise<TreeAccess> {
   const profile = await getProfile();
   if (!profile) {
     const user = await getUser();
     redirect(user ? "/join?status=pending" : "/join");
   }
-  const tree = await getTreeBySlug(slug);
-  if (!tree) notFound();
-  const role = await getRoleIn(tree.id);
-  if (role) return { kind: "member", membership: membership(tree, profile, role) };
+  const access = await currentAccess();
+  if (!access) redirect(treesHref());
+  return access;
+}
 
-  // The row came back, so RLS let them see it: a visitor. Which of their
-  // trees it was opened to is for the tree bar.
-  const supabase = await createClient();
-  const { data: via } = await supabase
-    .from("tree_visibility")
-    .select("viewer_tree_id, viewer:trees!tree_visibility_viewer_tree_id_fkey(id, name, slug, created_by, created_at)")
-    .eq("tree_id", tree.id)
-    .limit(1)
-    .maybeSingle();
-  const viaRaw = Array.isArray(via?.viewer) ? via?.viewer[0] : via?.viewer;
-  return {
-    kind: "visitor",
-    visit: { tree, profile, viaTree: viaRaw ?? null },
-  };
-});
+/**
+ * The membership behind a page that only a member of the tree may use. A
+ * visitor is sent back to the canvas, which they may see.
+ */
+export async function requireTreeMember(): Promise<TreeMembership> {
+  const access = await requireTreeAccess();
+  if (access.kind !== "member") redirect(treeHref());
+  return access.membership;
+}
 
 /**
  * Reference data shared by every tree (nicknames, new places) is curated by
@@ -160,10 +173,10 @@ export async function requireAnyRoot(): Promise<Profile> {
   return profile;
 }
 
-/** A tree-scoped page for Roots only; others are sent to the canvas. */
-export async function requireTreeRoot(slug: string): Promise<TreeMembership> {
-  const m = await requireTreeMember(slug);
-  if (!m.isRoot) redirect(`/t/${slug}/tree`);
+/** A page for Roots of the current tree only; others are sent to the canvas. */
+export async function requireTreeRoot(): Promise<TreeMembership> {
+  const m = await requireTreeMember();
+  if (!m.isRoot) redirect(treeHref());
   return m;
 }
 
@@ -171,11 +184,9 @@ export async function requireTreeRoot(slug: string): Promise<TreeMembership> {
  * A member who has their own entry, and has it on this tree. Anyone without
  * one is sent to this tree's onboarding.
  */
-export async function requireTreeSelfPerson(
-  slug: string,
-): Promise<TreeMembership> {
-  const m = await requireTreeMember(slug);
-  if (!m.profile.self_person_id) redirect(onboardingHref(slug));
+export async function requireTreeSelfPerson(): Promise<TreeMembership> {
+  const m = await requireTreeMember();
+  if (!m.profile.self_person_id) redirect(onboardingHref());
   const supabase = await createClient();
   const { data } = await supabase
     .from("tree_placements")
@@ -184,7 +195,7 @@ export async function requireTreeSelfPerson(
     .eq("person_id", m.profile.self_person_id)
     .eq("status", "active")
     .maybeSingle();
-  if (!data) redirect(onboardingHref(slug));
+  if (!data) redirect(onboardingHref());
   return m;
 }
 
@@ -256,40 +267,24 @@ export const listMyTrees = cache(async (): Promise<MyTree[]> => {
 });
 
 /**
- * Where "/tree" and friends should land: the tree the member's own entry
- * calls home when they belong to it, else the first tree they joined. `null`
- * for a member of no tree at all.
+ * The tree "/tree" lands on when none has been chosen: the tree the member's
+ * own entry calls home when they belong to it, else the first tree they
+ * joined. `null` for a member of no tree at all.
  */
-export async function defaultTreeSlug(
-  profile: Profile | null,
-): Promise<string | null> {
-  const trees = await listMyTrees();
-  if (trees.length === 0) return null;
-  if (profile?.self_person_id) {
-    const supabase = await createClient();
-    const { data } = await supabase
-      .from("people")
-      .select("tree_id")
-      .eq("id", profile.self_person_id)
-      .maybeSingle();
-    const home = trees.find((t) => t.id === data?.tree_id);
-    if (home) return home.slug;
-  }
-  return trees[0].slug;
-}
-
-/**
- * Send a legacy single-tree URL to the same page on the member's default
- * tree. `build` turns the slug into the new path (query string included).
- */
-export async function redirectToDefaultTree(
-  build: (slug: string) => string,
-): Promise<never> {
-  const profile = await getProfile();
-  if (!profile) {
-    const user = await getUser();
-    redirect(user ? "/join?status=pending" : "/join");
-  }
-  const slug = await defaultTreeSlug(profile);
-  redirect(slug ? build(slug) : treesHref());
-}
+export const defaultTree = cache(
+  async (profile: Profile | null): Promise<MyTree | null> => {
+    const trees = await listMyTrees();
+    if (trees.length === 0) return null;
+    if (profile?.self_person_id) {
+      const supabase = await createClient();
+      const { data } = await supabase
+        .from("people")
+        .select("tree_id")
+        .eq("id", profile.self_person_id)
+        .maybeSingle();
+      const home = trees.find((t) => t.id === data?.tree_id);
+      if (home) return home;
+    }
+    return trees[0];
+  },
+);

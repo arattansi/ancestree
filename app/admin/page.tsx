@@ -1,7 +1,8 @@
-import { redirectToDefaultTree } from "@/lib/tree-context";
+import { redirect } from "next/navigation";
+
 import { adminHref } from "@/lib/tree-links";
 
-/** The pre-Step-24 admin URL: opens the member's default tree. */
-export default async function LegacyAdminPage() {
-  await redirectToDefaultTree((slug) => adminHref(slug));
+/** The old admin URL: the console is the account page's Admin view now. */
+export default function LegacyAdminPage() {
+  redirect(adminHref());
 }

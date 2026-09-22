@@ -57,7 +57,9 @@ export async function disputeClaim(
   if (error) {
     const m = error.message.toLowerCase();
     if (m.includes("only the person who created")) {
-      return { error: "Only the person who created this entry can dispute it." };
+      return {
+        error: "Only the person who created this entry can dispute it.",
+      };
     }
     if (m.includes("not open to dispute")) {
       return { error: "This claim can no longer be disputed." };
@@ -94,6 +96,30 @@ export async function resolveClaim(
 }
 
 /** Mark all of the signed-in member's notifications as read. */
+/**
+ * Clear notifications: the caller's own, by id. The list sends every item
+ * except a placement request still waiting on an answer, which is the only
+ * kind that can't be found again once it's gone.
+ */
+export async function clearNotifications(
+  ids: string[],
+): Promise<{ cleared?: number; error?: string }> {
+  const user = await getUser();
+  if (!user) return { error: "You are not signed in." };
+  const wanted = [...new Set(ids)].filter(Boolean);
+  if (wanted.length === 0) return { cleared: 0 };
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("notifications")
+    .delete()
+    .in("id", wanted)
+    .eq("recipient_user_id", user.id)
+    .select("id");
+  if (error) return { error: "Couldn't clear your notifications. Try again." };
+  revalidatePath("/account");
+  return { cleared: data?.length ?? 0 };
+}
+
 export async function markNotificationsRead(): Promise<void> {
   const user = await getUser();
   if (!user) return;

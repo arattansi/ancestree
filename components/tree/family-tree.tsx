@@ -442,7 +442,7 @@ type Props = {
   people: TreeGraphPerson[];
   relationships: TreeGraphEdge[];
   treeId: string;
-  /** The tree's URL slug: every link off the canvas stays on this tree (Step 25). */
+  /** The tree's URL slug, for the public "request access" link. */
   treeSlug: string;
   selfPersonId: string | null;
   /** The founding admins' entries — the tree is centred on them. */
@@ -1775,7 +1775,6 @@ function Canvas({
             </div>
           ) : accountType.addRelatives ? (
             <AddRelativeButton
-              treeSlug={treeSlug}
               relatedTo={addTarget}
               labelFrom={selectedPerson ? "lg" : "sm"}
             />
@@ -1920,7 +1919,6 @@ function Canvas({
         // A hidden person's card is a blur to a visitor: nothing to open.
         person={selectedPerson?.blurred ? null : selectedPerson}
         treeId={treeId}
-        treeSlug={treeSlug}
         pets={allPets.filter((pet) =>
           selectedId ? pet.companions.includes(selectedId) : false,
         )}
@@ -2007,7 +2005,7 @@ export function FamilyTree(props: Props) {
         </p>
         <Button
           nativeButton={false}
-          render={<Link href={onboardingHref(props.treeSlug)} />}
+          render={<Link href={onboardingHref()} />}
         >
           Add yourself
         </Button>

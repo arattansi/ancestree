@@ -72,7 +72,8 @@ export default async function SharedTreePage({
   return (
     <main className="flex flex-1 flex-col">
       <FamilyTree
-        people={people}
+        // Contact details are for members, never for a public link.
+        people={people.map((p) => ({ ...p, email: null }))}
         relationships={relationships}
         treeId={link.treeId}
         treeSlug={tree?.slug ?? ""}

@@ -28,13 +28,11 @@ type Step = "name" | "results" | "add";
  */
 export function OnboardingSelfFlow({
   treeId,
-  treeSlug,
   isAdmin,
   members,
   selfOnly = false,
 }: {
   treeId: string;
-  treeSlug: string;
   isAdmin: boolean;
   members: TreeMemberOption[];
   /** A Leaf: they add their own entry and its connection, nobody else. */
@@ -80,7 +78,7 @@ export function OnboardingSelfFlow({
       return;
     }
     toast.success("Welcome back — that entry is yours now.");
-    router.replace(treeHref(treeSlug));
+    router.replace(treeHref());
     router.refresh();
   }
 
@@ -98,7 +96,6 @@ export function OnboardingSelfFlow({
         <AddPersonFlow
           mode="self"
           treeId={treeId}
-          treeSlug={treeSlug}
           isAdmin={isAdmin}
           members={members}
           initialName={{ first_name: first, last_name: last }}

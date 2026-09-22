@@ -53,12 +53,18 @@ function RequiredMark() {
 export function PersonFields<T extends FieldValues>({
   control,
   isAdmin,
+  withContact = false,
   prefix,
   idPrefix,
   placeLabels,
 }: {
   control: Control<T>;
   isAdmin: boolean;
+  /**
+   * Show the contact block (email, and whether other members see it): for
+   * the entry's owner editing it. The add flow leaves it for later.
+   */
+  withContact?: boolean;
   prefix?: string;
   idPrefix: string;
   /** Labels for already-selected places, so the edit form shows them on load. */
@@ -96,7 +102,9 @@ export function PersonFields<T extends FieldValues>({
       place: { id: number; name: string; country_code: string | null } | null,
     ) => {
       const label = place
-        ? [place.name, countryName(place.country_code)].filter(Boolean).join(", ")
+        ? [place.name, countryName(place.country_code)]
+            .filter(Boolean)
+            .join(", ")
         : "";
       const idField = kind === "birth" ? "place_id_birth" : "place_id_death";
       const textField = kind === "birth" ? "city_of_birth" : "place_of_death";
@@ -106,7 +114,7 @@ export function PersonFields<T extends FieldValues>({
       });
       setValue(
         name(textField),
-        (kind === "birth" ? place?.name ?? "" : label) as never,
+        (kind === "birth" ? (place?.name ?? "") : label) as never,
         { shouldDirty: true },
       );
       if (kind === "birth") {
@@ -344,7 +352,8 @@ export function PersonFields<T extends FieldValues>({
               />
             </FormControl>
             <FormDescription>
-              Pick the closest match — you can’t enter a place that isn’t listed.
+              Pick the closest match — you can’t enter a place that isn’t
+              listed.
             </FormDescription>
             <FormMessage />
           </FormItem>
@@ -414,6 +423,56 @@ export function PersonFields<T extends FieldValues>({
                   />
                 </FormControl>
                 <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+      ) : null}
+
+      {withContact ? (
+        <div className="grid gap-4 rounded-lg border border-border p-4">
+          <FormField
+            control={control}
+            name={name("email")}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Email</FormLabel>
+                <FormControl>
+                  <Input
+                    type="email"
+                    autoComplete="email"
+                    placeholder="name@example.com"
+                    {...field}
+                    value={field.value ?? ""}
+                  />
+                </FormControl>
+                <FormDescription>
+                  Kept private unless you choose to show it below.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={control}
+            name={name("email_visible")}
+            render={({ field }) => (
+              <FormItem className="flex-row items-center gap-3">
+                <FormControl>
+                  <Checkbox
+                    id={`${idPrefix}-email-visible`}
+                    checked={field.value ?? false}
+                    onCheckedChange={(checked) =>
+                      field.onChange(checked === true)
+                    }
+                  />
+                </FormControl>
+                <FormLabel
+                  htmlFor={`${idPrefix}-email-visible`}
+                  className="font-normal"
+                >
+                  Show this email to other members of the tree
+                </FormLabel>
               </FormItem>
             )}
           />

@@ -841,6 +841,8 @@ export type Database = {
           date_of_birth_precision: string
           date_of_death: string | null
           date_of_death_precision: string
+          email: string | null
+          email_visible: boolean
           first_name: string | null
           hidden_from_visitors: boolean
           id: string
@@ -875,6 +877,8 @@ export type Database = {
           date_of_birth_precision?: string
           date_of_death?: string | null
           date_of_death_precision?: string
+          email?: string | null
+          email_visible?: boolean
           first_name?: string | null
           hidden_from_visitors?: boolean
           id?: string
@@ -909,6 +913,8 @@ export type Database = {
           date_of_birth_precision?: string
           date_of_death?: string | null
           date_of_death_precision?: string
+          email?: string | null
+          email_visible?: boolean
           first_name?: string | null
           hidden_from_visitors?: boolean
           id?: string
@@ -1894,6 +1900,8 @@ export type Database = {
           date_of_birth_precision: string | null
           date_of_death: string | null
           date_of_death_precision: string | null
+          email: string | null
+          email_visible: boolean | null
           first_name: string | null
           hidden_from_visitors: boolean | null
           home_tree_id: string | null
@@ -2102,6 +2110,8 @@ export type Database = {
           date_of_birth_precision: string
           date_of_death: string | null
           date_of_death_precision: string
+          email: string | null
+          email_visible: boolean
           first_name: string | null
           hidden_from_visitors: boolean
           id: string

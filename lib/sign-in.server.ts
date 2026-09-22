@@ -2,6 +2,7 @@ import "server-only";
 
 import type { EmailOtpType } from "@supabase/supabase-js";
 
+import { setCurrentTreeCookie } from "@/lib/current-tree.server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { onboardingHref } from "@/lib/tree-links";
@@ -11,7 +12,6 @@ type ServerClient = Awaited<ReturnType<typeof createClient>>;
 /** Only allow same-origin relative redirect targets. */
 export function safeNext(next: string | null | undefined): string {
   if (next && next.startsWith("/") && !next.startsWith("//")) return next;
-  // "/tree" opens the member's default tree (Step 25).
   return "/tree";
 }
 
@@ -25,7 +25,9 @@ export type RedeemedTree = {
 /**
  * Redeem an invite as the signed-in user (Step 25): a profile if they have
  * none, a membership in the invite's tree — or, for a founder invite, a
- * brand-new tree with them as Root. Says which tree was joined.
+ * brand-new tree with them as Root. Says which tree was joined, and makes
+ * it the one their browser is looking at. Only from a server action or
+ * route handler, since it writes a cookie.
  */
 export async function redeemInvite(
   supabase: ServerClient,
@@ -41,6 +43,7 @@ export async function redeemInvite(
   if (typeof row.tree_id !== "string" || typeof row.tree_slug !== "string") {
     return null;
   }
+  await setCurrentTreeCookie(row.tree_id);
   return {
     treeId: row.tree_id,
     treeSlug: row.tree_slug,
@@ -65,7 +68,7 @@ export async function establishMembership(
 ): Promise<string> {
   if (invite) {
     const joined = await redeemInvite(supabase, invite, displayName);
-    return joined ? onboardingHref(joined.treeSlug) : "/join?error=invite";
+    return joined ? onboardingHref() : "/join?error=invite";
   }
   const { error } = await supabase.rpc("ensure_profile", {});
   return error ? "/join?status=pending" : next;
@@ -150,7 +153,7 @@ export async function getInviteRecipient(
 }
 
 export type InviteSignInResult =
-  | { ok: true; treeSlug: string }
+  | { ok: true; treeId: string }
   | { ok: false; reason: "invalid" | "already_member" | "failed" };
 
 /**
@@ -201,5 +204,5 @@ export async function signInWithInvite(token: string): Promise<InviteSignInResul
   const joined = await redeemInvite(supabase, token, recipient.name ?? undefined);
   if (!joined) return { ok: false, reason: "invalid" };
 
-  return { ok: true, treeSlug: joined.treeSlug };
+  return { ok: true, treeId: joined.treeId };
 }

@@ -1,5 +1,3 @@
-import type { Metadata } from "next";
-
 import { AccountTypeBadge } from "@/components/account-type-badge";
 import { AccountTypeGuide } from "@/components/account-type-guide";
 import { AccountTypePicker } from "@/components/account-type-picker";
@@ -58,16 +56,19 @@ import {
 } from "@/lib/placements.server";
 import { getSiteUrl } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/server";
-import { listMyTrees, requireTreeRoot } from "@/lib/tree-context";
+import { listMyTrees, type TreeMembership } from "@/lib/tree-context";
 
-export const metadata: Metadata = {
-  title: "admin",
-  description: "Manage members, invites, disputes, and entry counts.",
-};
-
-export default async function AdminPage({ params }: PageProps<"/t/[slug]/admin">) {
-  const { slug } = await params;
-  const { tree, profile: currentAdmin, role } = await requireTreeRoot(slug);
+/**
+ * The current tree's admin console — the "Admin" view of the account page: stats, members, people from other trees, requests, disputes,
+ * invites, share links, the tree's name, who else may view it, export and
+ * deletion. The account page hands it a Root's membership of that tree.
+ */
+export async function AdminConsole({
+  membership,
+}: {
+  membership: TreeMembership;
+}) {
+  const { tree, profile: currentAdmin, role } = membership;
 
   const supabase = await createClient();
   const [
@@ -118,7 +119,10 @@ export default async function AdminPage({ params }: PageProps<"/t/[slug]/admin">
       )
       .eq("tree_id", tree.id)
       .order("created_at", { ascending: false }),
-    supabase.from("tree_visibility").select("viewer_tree_id").eq("tree_id", tree.id),
+    supabase
+      .from("tree_visibility")
+      .select("viewer_tree_id")
+      .eq("tree_id", tree.id),
     listMyTrees(),
   ]);
 
@@ -127,7 +131,9 @@ export default async function AdminPage({ params }: PageProps<"/t/[slug]/admin">
   );
   // Whose side each Branch tends part of — the Root their own entry is related
   // to. They tend the part of it they are related through (Step 22.2).
-  const selfEntryOf = new Map(members.map((m) => [m.auth_user_id, m.self_person_id]));
+  const selfEntryOf = new Map(
+    members.map((m) => [m.auth_user_id, m.self_person_id]),
+  );
   const branchSides = await getBranchSides(
     members.flatMap((m) =>
       m.role === "branch_admin"
@@ -179,7 +185,9 @@ export default async function AdminPage({ params }: PageProps<"/t/[slug]/admin">
     viewCount: l.view_count,
   }));
 
-  const openTo = new Set((visibilityRes.data ?? []).map((v) => v.viewer_tree_id));
+  const openTo = new Set(
+    (visibilityRes.data ?? []).map((v) => v.viewer_tree_id),
+  );
   const viewers: ViewerTreeOption[] = myTrees
     .filter((t) => t.id !== tree.id)
     .map((t) => ({ id: t.id, name: t.name, visible: openTo.has(t.id) }));
@@ -198,7 +206,9 @@ export default async function AdminPage({ params }: PageProps<"/t/[slug]/admin">
     if (p.is_home === false) fromElsewhere += 1;
   }
 
-  const pendingPlacements = foreign.filter((f) => f.status === "pending").length;
+  const pendingPlacements = foreign.filter(
+    (f) => f.status === "pending",
+  ).length;
   const actionItems = buildAdminActionItems({
     inviteRequests: inviteRequests.length,
     disputedClaims: disputedClaims.length,
@@ -208,7 +218,7 @@ export default async function AdminPage({ params }: PageProps<"/t/[slug]/admin">
   const stats: { label: string; value: number }[] = [
     { label: "Members", value: members.length },
     { label: "Entries", value: people.length },
-    { label: "From other trees", value: fromElsewhere },
+    { label: "From Other Trees", value: fromElsewhere },
     { label: "Connections", value: relCountRes.count ?? 0 },
     { label: "Claimed", value: approvedClaimsRes.count ?? 0 },
     { label: "Unverified", value: unverified },
@@ -223,37 +233,37 @@ export default async function AdminPage({ params }: PageProps<"/t/[slug]/admin">
       items: [
         { id: "overview", label: "Overview" },
         { id: "members", label: "Members" },
-        { id: "account-types", label: "Account types" },
+        { id: "account-types", label: "Account Types" },
       ],
     },
     {
       label: "People",
-      items: [{ id: "placements", label: "From other trees" }],
+      items: [{ id: "placements", label: "From Other Trees" }],
     },
     {
       label: "Requests & claims",
       items: [
-        { id: "invite-requests", label: "Requests for access" },
-        { id: "disputes", label: "Disputed claims" },
+        { id: "invite-requests", label: "Requests for Access" },
+        { id: "disputes", label: "Disputed Claims" },
       ],
     },
     {
       label: "Invites",
       items: [
-        { id: "invite", label: "Invite a relative" },
-        { id: "found", label: "Invite someone to start a tree" },
-        { id: "share", label: "Share a link" },
-        { id: "sent-invites", label: "Sent invites" },
-        { id: "bare-invites", label: "Bare links" },
+        { id: "invite", label: "Invite a Relative" },
+        { id: "found", label: "Invite Someone to Start a Tree" },
+        { id: "share", label: "Share a Link" },
+        { id: "sent-invites", label: "Sent Invites" },
+        { id: "bare-invites", label: "Bare Links" },
         { id: "archived-invites", label: "Archived" },
       ],
     },
     {
       label: "Settings",
       items: [
-        { id: "tree-name", label: "Tree name" },
-        { id: "visibility", label: "Who else can view" },
-        { id: "data-privacy", label: "Data & privacy" },
+        { id: "tree-name", label: "Tree Name" },
+        { id: "visibility", label: "Who Else Can View" },
+        { id: "data-privacy", label: "Data & Privacy" },
         { id: "nicknames", label: "Nicknames" },
         { id: "view", label: "View" },
       ],
@@ -261,11 +271,11 @@ export default async function AdminPage({ params }: PageProps<"/t/[slug]/admin">
   ];
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 px-4 py-10">
+    <div className="flex flex-col gap-4">
       <AdminSideNav groups={navGroups} />
 
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{tree.name}</h1>
+        <h2 className="text-xl font-semibold tracking-tight">{tree.name}</h2>
         <p className="text-sm text-muted-foreground">
           Members, invites, disputes, who this tree shows, and its health at a
           glance.
@@ -303,7 +313,7 @@ export default async function AdminPage({ params }: PageProps<"/t/[slug]/admin">
         description={`${members.length} member${members.length === 1 ? "" : "s"} — their account type on this tree, who invited them, entries created, and invite permissions.`}
         sectionIds={["members", "account-types"]}
       >
-        <AdminSubsection id="members" title="Who’s on the tree">
+        <AdminSubsection id="members" title="Who’s on the Tree">
           <div className="-mx-(--card-spacing) overflow-x-auto">
             <table className="w-full text-sm">
               <caption className="sr-only">
@@ -395,7 +405,7 @@ export default async function AdminPage({ params }: PageProps<"/t/[slug]/admin">
         <AdminSubsection
           id="account-types"
           collapsible
-          title="Account types"
+          title="Account Types"
           description="What each kind of member can reach on this tree. Anyone who isn’t a Root can be switched between Branch, Canopy and Leaf from the table above, or made a Root — which is for good: a Root is never demoted or removed. New members join as Canopy. A member’s type on another tree is that tree’s business. A Branch tends the part of a Root’s side they’re related through — a Root’s father’s family, say, not their mother’s — and a child of two Roots tends their part of both."
         >
           <AccountTypeGuide />
@@ -403,7 +413,7 @@ export default async function AdminPage({ params }: PageProps<"/t/[slug]/admin">
       </AdminGroup>
 
       <AdminGroup
-        title="People from other trees"
+        title="People from Other Trees"
         description="Everyone has one entry. Bring people you can see on your other trees onto this one; their details stay theirs to keep, and each tree arranges them on its own canvas."
         sectionIds={["placements"]}
         badge={pendingPlacements}
@@ -411,15 +421,19 @@ export default async function AdminPage({ params }: PageProps<"/t/[slug]/admin">
       >
         <AdminSubsection
           id="placements"
-          title="Who this tree shows"
+          title="Who This Tree Shows"
           description={`${fromElsewhere} ${fromElsewhere === 1 ? "person" : "people"} on this tree call another tree home. Their details, photo and connections follow their home tree’s rules; what you decide here is whether they appear, and where the card sits. A member’s own entry only appears once they’ve said yes.`}
         >
-          <AdminPlacements treeId={tree.id} candidates={candidates} placed={foreign} />
+          <AdminPlacements
+            treeId={tree.id}
+            candidates={candidates}
+            placed={foreign}
+          />
         </AdminSubsection>
       </AdminGroup>
 
       <AdminGroup
-        title="Requests & claims"
+        title="Requests & Claims"
         description="People asking to join, or contesting a claim."
         sectionIds={["invite-requests", "disputes"]}
         badge={requestsBadge}
@@ -429,7 +443,7 @@ export default async function AdminPage({ params }: PageProps<"/t/[slug]/admin">
           id="invite-requests"
           collapsible
           defaultOpen={inviteRequests.length > 0}
-          title="Requests for access"
+          title="Requests for Access"
           description={`${inviteRequests.length} awaiting review. Approving mints a single-use link and emails it to the person who asked — if the email fails to send, you can still copy the link yourself. Declining keeps a record; deleting leaves none and lets them ask again.`}
         >
           <AdminInviteRequests requests={inviteRequests} />
@@ -439,7 +453,7 @@ export default async function AdminPage({ params }: PageProps<"/t/[slug]/admin">
           id="disputes"
           collapsible
           defaultOpen={disputedClaims.length > 0}
-          title="Disputed claims"
+          title="Disputed Claims"
           description={`${disputedClaims.length} awaiting a decision. Upholding keeps the new owner; reversing returns the entry to its creator.`}
         >
           <AdminDisputedClaims claims={disputedClaims} />
@@ -460,7 +474,7 @@ export default async function AdminPage({ params }: PageProps<"/t/[slug]/admin">
       >
         <AdminSubsection
           id="invite"
-          title="Invite a relative"
+          title="Invite a Relative"
           description="Each link is tied to you, works once, and expires after 14 days. Send by name and email and it’s emailed for you — that link signs them straight in, nothing to set up. Or mint a bare link to send yourself; it asks for their email first. Either way, choose whether they join as Canopy or as a Leaf; Branches and Canopy members invite Leaves from their account page. Someone who already has an account on another tree joins this one with the same link."
         >
           <div className="flex flex-col gap-6">
@@ -477,7 +491,7 @@ export default async function AdminPage({ params }: PageProps<"/t/[slug]/admin">
         <AdminSubsection
           id="found"
           collapsible
-          title="Invite someone to start a tree of their own"
+          title="Invite Someone to Start a Tree of Their Own"
           description="For a family that isn’t yours: the link signs them in and plants a brand-new, empty tree with them as its first Root. Nothing from this tree goes with it. One founded tree per person; a member who already has one can still be a Root elsewhere."
         >
           <DirectInviteForm treeId={tree.id} founder />
@@ -486,16 +500,20 @@ export default async function AdminPage({ params }: PageProps<"/t/[slug]/admin">
         <AdminSubsection
           id="share"
           collapsible
-          title="Share a view-only link"
+          title="Share a View-Only Link"
           description="Anyone with a share link can view this tree without signing in, but can’t edit anything. They’ll see a prompt to request access. Revoke a link any time to cut off access."
         >
-          <ShareLinkManager treeId={tree.id} links={shareLinks} baseUrl={getSiteUrl()} />
+          <ShareLinkManager
+            treeId={tree.id}
+            links={shareLinks}
+            baseUrl={getSiteUrl()}
+          />
         </AdminSubsection>
 
         <AdminSubsection
           id="sent-invites"
           collapsible
-          title="Sent invites"
+          title="Sent Invites"
           description={`Invites still waiting on someone, however they started — the last ${inviteHistory.length}. An invite disappears once they join, and moves to Archived if it expires first. Deleting one also kills its link.`}
         >
           <AdminInviteHistory items={inviteHistory} />
@@ -504,7 +522,7 @@ export default async function AdminPage({ params }: PageProps<"/t/[slug]/admin">
         <AdminSubsection
           id="bare-invites"
           collapsible
-          title="Bare invite links"
+          title="Bare Invite Links"
           description="Links minted without a name attached, so they never show up under “Sent invites”. Copy one to send it on, or delete it to stop it working — including wherever you’ve already sent it."
         >
           <AdminBareInvites invites={bareInvites} baseUrl={getSiteUrl()} />
@@ -513,7 +531,7 @@ export default async function AdminPage({ params }: PageProps<"/t/[slug]/admin">
         <AdminSubsection
           id="archived-invites"
           collapsible
-          title="Archived invites"
+          title="Archived Invites"
           description="Invites that expired before anyone used them. They can’t be used; they’re kept only as a record. To try again, send a fresh invite."
         >
           <AdminArchivedInvites invites={archivedInvites} />
@@ -523,11 +541,17 @@ export default async function AdminPage({ params }: PageProps<"/t/[slug]/admin">
       <AdminGroup
         title="Settings"
         description="The tree’s name, who else may view it, data exports, nickname matching, and appearance."
-        sectionIds={["tree-name", "visibility", "data-privacy", "nicknames", "view"]}
+        sectionIds={[
+          "tree-name",
+          "visibility",
+          "data-privacy",
+          "nicknames",
+          "view",
+        ]}
       >
         <AdminSubsection
           id="tree-name"
-          title="Tree name"
+          title="Tree Name"
           description="Shown in the header and the tree switcher. The web address follows it, so links you’ve shared before change with it."
         >
           <AdminTreeName treeId={tree.id} name={tree.name} />
@@ -536,7 +560,7 @@ export default async function AdminPage({ params }: PageProps<"/t/[slug]/admin">
         <AdminSubsection
           id="visibility"
           collapsible
-          title="Who else can view this tree"
+          title="Who Else Can View This Tree"
           description="Open this tree, read-only, to the members of another tree you belong to. They reach it from the card of someone shown on both, and can ask to join. Anyone can mark their own entry hidden from visitors; it then appears blurred to them."
         >
           <AdminTreeVisibility treeId={tree.id} viewers={viewers} />
@@ -544,7 +568,7 @@ export default async function AdminPage({ params }: PageProps<"/t/[slug]/admin">
 
         <AdminSubsection
           id="data-privacy"
-          title="Data & privacy"
+          title="Data & Privacy"
           description="Export this tree as JSON for a data-access request. To erase a specific person and their photos and documents, open their entry on the tree and use “Delete entry”. Deleting the whole tree moves everyone whose home it is to another tree that shows them, and removes the rest."
         >
           <div className="flex flex-wrap items-center gap-3">
@@ -570,6 +594,6 @@ export default async function AdminPage({ params }: PageProps<"/t/[slug]/admin">
           <ThemeToggle />
         </AdminSubsection>
       </AdminGroup>
-    </main>
+    </div>
   );
 }

@@ -218,7 +218,6 @@ type FlowValues = z.infer<typeof flowSchema>;
 export function AddPersonFlow({
   mode,
   treeId,
-  treeSlug,
   isAdmin,
   members,
   initialName,
@@ -227,8 +226,6 @@ export function AddPersonFlow({
 }: {
   mode: "self" | "relative";
   treeId: string;
-  /** Where to land afterwards: this tree's canvas (Step 25). */
-  treeSlug: string;
   isAdmin: boolean;
   members: TreeMemberOption[];
   /** Pre-fills the primary person's name — onboarding carries over the name
@@ -419,7 +416,7 @@ export function AddPersonFlow({
     // out (Step 19.2). `personIds[0]` is always that person: the RPC returns
     // ids in the order `people` was sent, and the chain's in-between people
     // follow the primary one.
-    router.replace(treeFocusHref(treeSlug, primaryId));
+    router.replace(treeFocusHref(primaryId));
     router.refresh();
     return true;
   }

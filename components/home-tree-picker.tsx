@@ -67,9 +67,17 @@ export function HomeTreePicker({
       <div className="flex flex-col gap-2">
         <Label htmlFor="home-tree">Home tree</Label>
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Select value={choice} onValueChange={(v) => setChoice(String(v ?? homeTreeId))}>
-            <SelectTrigger id="home-tree" className="sm:w-72">
-              <SelectValue />
+          <Select
+            value={choice}
+            onValueChange={(v) => setChoice(String(v ?? homeTreeId))}
+          >
+            <SelectTrigger id="home-tree" className="w-full min-w-0 sm:flex-1">
+              {/* Base UI shows the raw value unless told the label. */}
+              <SelectValue>
+                {(value: string) =>
+                  options.find((o) => o.id === value)?.name ?? ""
+                }
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {options.map((o) => (
@@ -82,6 +90,7 @@ export function HomeTreePicker({
           <Button
             size="sm"
             variant="outline"
+            className="shrink-0"
             onClick={onMove}
             disabled={busy || choice === homeTreeId || options.length < 2}
           >
@@ -103,8 +112,8 @@ export function HomeTreePicker({
           onCheckedChange={(on) => onHide(on === true)}
         />
         <Label htmlFor="hide-visitors" className="font-normal leading-snug">
-          Hide my entry from visitors — people viewing a tree I&rsquo;m on
-          from another tree see a blurred card with no name or details.
+          Hide my entry from visitors — people viewing a tree I&rsquo;m on from
+          another tree see a blurred card with no name or details.
         </Label>
       </div>
     </div>

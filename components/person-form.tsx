@@ -37,12 +37,15 @@ export function PersonForm({
   person,
   photoUrl,
   placeLabels,
+  withContact = false,
 }: {
   treeId: string;
   isAdmin: boolean;
   person: ExistingPerson;
   photoUrl?: string | null;
   placeLabels?: { birth?: string | null; death?: string | null };
+  /** The viewer owns this entry, so may see and set its contact details. */
+  withContact?: boolean;
 }) {
   const router = useRouter();
   const [photoFile, setPhotoFile] = React.useState<File | null>(null);
@@ -107,6 +110,7 @@ export function PersonForm({
           isAdmin={isAdmin}
           idPrefix={`person-${person.id}`}
           placeLabels={placeLabels}
+          withContact={withContact}
         />
 
         <PhotoPicker

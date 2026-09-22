@@ -3,6 +3,8 @@
 import { Bell } from "lucide-react";
 import * as React from "react";
 
+import { ClearNotificationsButton } from "@/components/clear-notifications-button";
+import { CloseOnNavigate } from "@/components/close-on-navigate";
 import { NotificationsList } from "@/components/notifications-list";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,7 +13,8 @@ import type { NotificationItem } from "@/lib/claims";
 /**
  * The signed-in member's in-app notifications, reachable from the header on
  * every page — a bell just past Account that drops down the same list the
- * account page shows. Opening it clears the unread badge.
+ * account page shows. Opening it clears the unread badge; once a button in
+ * it has led somewhere, it closes rather than hang over the page it led to.
  */
 export function SiteNotifications({ items }: { items: NotificationItem[] }) {
   const [open, setOpen] = React.useState(false);
@@ -64,7 +67,13 @@ export function SiteNotifications({ items }: { items: NotificationItem[] }) {
 
       {open ? (
         <div className="absolute top-full right-0 z-50 mt-2 max-h-[70vh] w-[min(22rem,90vw)] overflow-y-auto rounded-lg border border-border bg-card p-3 text-left shadow-md">
-          <p className="mb-2 font-heading text-sm font-medium">Notifications</p>
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <p className="font-heading text-sm font-medium">Notifications</p>
+            <ClearNotificationsButton items={items} />
+          </div>
+          <React.Suspense fallback={null}>
+            <CloseOnNavigate onNavigate={() => setOpen(false)} />
+          </React.Suspense>
           <NotificationsList items={items} showTree />
         </div>
       ) : null}
