@@ -504,7 +504,8 @@ mirror it for the UI.
   (beta)" (home page, `/trees`, `/trees/new`) and `request_tree` files one
   ask; a signed-out visitor joins the waitlist with a name and email
   (`joinBetaWaitlist`). **Beta reviewers** — `private.beta_reviewers`
-  (email), seeded with the build owner only; add a row to share the queue —
+  (email): the build owner and, since `20260923043000`, Raiya Suleman; add
+  a row (by migration) to share the queue further —
   answer both from "Requests to Start a Tree" on any admin console they run,
   counted in the header badge. Approving a member lets `found_tree` through
   for them (it raises `TREE_REQUEST_NEEDED` otherwise), puts
@@ -668,7 +669,7 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   them directly, or joining the beta waitlist with what they've typed.
   "start a tree (beta)" is that waitlist on its own, ending on the same
   "request received" dialog. **Reviewing:** `private.beta_reviewers`
-  (seeded with the build owner) sees "Requests to Start a Tree" on their
+  (the build owner, then Raiya Suleman too) sees "Requests to Start a Tree" on their
   admin console, in "Needs attention" and the header badge. Approving a
   member notifies them in-app (`tree_request_approved`, with "Start your
   tree") and by email. Approving a sign-up emails a founder invite from
