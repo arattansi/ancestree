@@ -1,4 +1,4 @@
--- Step 25.5 — Drop the single-tree scaffolding
+-- Step 25.6 — Drop the single-tree scaffolding
 --
 -- Until the Step 25 code was deployed, the live app read `profiles.role` and
 -- dragged `people.pos_*`; 20260922090000 kept both mirrored so nothing broke
