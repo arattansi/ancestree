@@ -913,6 +913,37 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 41.2 — A member who opens an emailed invite signed out gets the
+  sign-in link at once** (Step 41, first-time journey follow-ups; no
+  migration). A member invited to a second tree who opened the invite
+  signed out was shown the privacy tick and "Accept & open the tree", and
+  only after pressing it did the page say the address already has an
+  account and offer "Email me a sign-in link" (Step 30.8): two taps for
+  nothing. Now, for someone signed out, the page asks
+  `address_has_profile` (service role only) as it renders
+  (`opensOnSignInLink` in `lib/sign-in.server.ts`; `signInWithInvite`
+  asks through the same `addressHasProfile`). An address with an account
+  opens straight on that link, with no tick, since a member's join asks
+  for none, under "Once you’re signed in, accepting adds it to your
+  trees." It only looks up: the GET that mail scanners open mints and
+  sends nothing, and a failed lookup keeps the accept form. It shows
+  nothing new, since the address was on the page and pressing Accept said
+  it had an account. Nothing else changed: a newcomer's tick and Accept, a
+  signed-in member's Join, a signed-in first-timer's accept form, a bare
+  link's form, and `acceptInvite`'s fallback for an address that gets an
+  account after the page loads. J10 signed out goes from 7 taps to 5, with
+  no fields typed. **Verified:** 747 tests pass (7 new). On a dev server
+  with throwaway accounts and trees: a signed-out member's invite opened on
+  "Email me a sign-in link" with no tick, having minted nothing (no
+  one-time token, `recovery_sent_at` or email); the email it sent, read
+  back through Resend, carried `next` = the invite and no invite to redeem;
+  its link landed on the invite signed in, and Join placed their entry on
+  the second tree and told its Root. A newcomer's invite still showed the
+  tick, a bare link its name-and-email form, and a signed-in first-timer
+  at the invite's address the accept form. An accept form loaded before
+  its address got an account fell back to the sign-in link when pressed,
+  and opened on it after a reload. All throwaway rows were deleted.
+
 - **Step 40.5 — Drop the unused ancestral-lands columns** (migration
   `20260923141000_drop_ancestral_lands_columns`). Aalim asked for the
   columns Step 40 left unused to go too: `people.ancestral_lands_birth` /
