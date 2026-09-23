@@ -679,6 +679,28 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 30.4 — Sign in without the privacy tick; invite-only said up
+  front** (Step 30, first-time journeys: one sub-step per fix in the
+  journey maps; UI only, no migration). **F7:** a plain sign-in no longer
+  shows the privacy checkbox, and `requestMagicLink` no longer refuses
+  without it. That's a member coming back, who agreed when they joined,
+  and members were ticking it at every sign-in. The form links to the
+  privacy notice instead. A bare invite link's form, where someone is
+  joining, still requires it, by the same rule
+  (`lib/privacy-consent.ts#signInNeedsConsent`). **F8:** the signed-out
+  home page says under its buttons that ancestree is invite-only (request
+  access, or open the invite a relative emailed you), and `/join` says the
+  same with request access linked, so a newcomer hears it before sending
+  themselves a sign-in email. Sign in stays the filled button, for members
+  coming back. `/auth/confirm` said "Welcome back" to first visits and
+  "Your email is confirmed" before its button had checked the link; it now
+  says "Finish Signing In" ("Join the Family Tree" for an invite) and "One
+  more tap and you're in." **Verified:** 453 tests pass (3 new), typecheck
+  and lint clean. Signed out on a dev server: the home page line at
+  desktop, 400px and 360px; `/join` sends without a tick; a throwaway bare
+  invite still requires it; `/auth/confirm` shows the new copy, and a fake
+  token lands on the error page. The throwaway tree and invite were deleted.
+
 - **Step 33 — Share-link views are counted** (ad-hoc; migration
   `20260923061500_record_share_link_view`). A share link never recorded a
   view: both live links showed 0 views and no last view though they had
