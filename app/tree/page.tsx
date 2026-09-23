@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { getSpokenForEntryIds } from "@/lib/branch.server";
 import { listClaimCandidates } from "@/lib/claims";
 import { auditTreeConnections } from "@/lib/connection-suggestions.server";
+import { getGettingStarted } from "@/lib/first-tree.server";
 import { getTreePets } from "@/lib/pets";
 import { createClient } from "@/lib/supabase/server";
 import { getRootEntryIds, getTreeAnchors, getTreeGraph } from "@/lib/tree";
@@ -84,6 +85,8 @@ export default async function TreePage() {
     getTreePets(tree.id),
     getSpokenForEntryIds(profile.auth_user_id),
   ]);
+  // The founder's "Getting started" list (Step 29), read off the same graph.
+  const gettingStarted = await getGettingStarted(access.membership, relationships);
 
   if (people.length === 0) {
     return (
@@ -116,6 +119,7 @@ export default async function TreePage() {
         claimCandidates={claimCandidates}
         panelSuggestions={panelSuggestions}
         pets={pets}
+        gettingStarted={gettingStarted}
       />
     </main>
   );

@@ -55,3 +55,17 @@ buttons tells a newcomer that ancestree is invite-only (Step 30.4).
   tight; on a phone the sheet starts under the header. Mark any new sheet
   that sits beside the canvas `data-docked-sheet` to get the same
   (`app/globals.css`).
+
+## Step-by-step flows
+
+- A flow of steps (the founder's first run, Step 29) shows where you are
+  as a numbered list at the top: the current step named, done steps
+  ticked, and every other step a link once it can open. On a phone only
+  the current step keeps its name.
+- Each step has its own address (`?step=`), so a refresh or a save that
+  refreshes the page stays on it.
+- Its buttons — **Continue**, **Skip for now**, **Save and continue** —
+  finish a step rather than move between views, so they're sentence case
+  like any other action. Everything but the one step the flow can't do
+  without can be skipped, and whatever's left is offered again where the
+  flow ends (the canvas's **Getting Started** list).

@@ -11,7 +11,7 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidateTreeAndAccount } from "@/lib/revalidate";
 import { redeemInvite } from "@/lib/sign-in.server";
 import { membershipOf, rootOf } from "@/lib/tree-context";
-import { onboardingHref, treeHref, treesHref } from "@/lib/tree-links";
+import { onboardingHref, treesHref } from "@/lib/tree-links";
 
 const MAX_TREE_NAME = 80;
 
@@ -32,10 +32,11 @@ export type FoundTreeResult = { slug?: string; error?: string };
 
 /**
  * A member starts a tree of their own (Step 25, the married-in path): a
- * fresh tree with them as its Root. Nothing is copied; they then bring the
- * people they choose over from the trees they belong to (`placePeople`).
- * During the beta only once a reviewer has approved their request (Step 28,
- * `requestNewTree`); the database refuses anyone else.
+ * fresh tree with them as its Root. Nothing is copied; their first run on it
+ * (Step 29) brings their own entry and close family over from the trees they
+ * belong to (`bringOwnEntry`, `placePeople`). During the beta only once a
+ * reviewer has approved their request (Step 28, `requestNewTree`); the
+ * database refuses anyone else.
  */
 export async function foundTree(name: string): Promise<FoundTreeResult> {
   await requireProfile();
@@ -108,6 +109,27 @@ export async function placePeople(
       status: r.placement_status ?? "",
     })),
   };
+}
+
+/**
+ * A founder who already has an entry on another tree brings it onto the one
+ * they've just founded (Step 29): still one entry, now shown here too.
+ * `place_people` makes it this tree's anchor, as adding themselves would.
+ */
+export async function bringOwnEntry(treeId: string): Promise<{ error?: string }> {
+  const { membership, error: notRoot } = await rootOf(treeId);
+  if (notRoot || !membership) return { error: notRoot };
+  const selfId = membership.profile.self_person_id;
+  if (!selfId) return { error: "You don't have an entry to bring yet." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("place_people", {
+    p_tree: treeId,
+    p_person_ids: [selfId],
+  });
+  if (error) return { error: friendlyTreeError(error.message) };
+  revalidateTreeAndAccount();
+  return {};
 }
 
 /** The person a placement waits on accepts or declines it. */
@@ -248,8 +270,9 @@ export async function setTreeVisibility(
 
 /**
  * A signed-in member accepts an invite to another tree (Step 25). Lands on
- * that tree's canvas if their own entry is already shown there, else on its
- * onboarding.
+ * that tree's onboarding, which sends them on to the canvas when their own
+ * entry is already shown there — and walks a founder invite's new Root
+ * through their first run (Step 29).
  */
 export async function joinTreeWithInvite(token: string): Promise<{ error?: string }> {
   await requireProfile();
@@ -257,7 +280,7 @@ export async function joinTreeWithInvite(token: string): Promise<{ error?: strin
   const joined = await redeemInvite(supabase, token);
   if (!joined) return { error: "That invite is invalid, used up, or expired." };
   revalidateTreeAndAccount();
-  redirect(joined.selfPersonId ? treeHref() : onboardingHref());
+  redirect(onboardingHref());
 }
 
 export type PersonTreeLink = {

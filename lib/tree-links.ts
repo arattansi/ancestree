@@ -47,6 +47,14 @@ export function onboardingHref(): string {
   return "/onboarding";
 }
 
+/**
+ * One step of a founder's first run (Step 29): `invite`, `you`, `name` or
+ * `family` (`lib/first-tree.ts`).
+ */
+export function onboardingStepHref(step: string): string {
+  return `${onboardingHref()}?step=${enc(step)}`;
+}
+
 /** The member's trees, and starting one. */
 export function treesHref(): string {
   return "/trees";

@@ -63,6 +63,7 @@ export function PersonFields<T extends FieldValues>({
   prefix,
   idPrefix,
   placeLabels,
+  lineage,
 }: {
   control: Control<T>;
   isAdmin: boolean;
@@ -75,6 +76,12 @@ export function PersonFields<T extends FieldValues>({
   idPrefix: string;
   /** Labels for already-selected places, so the edit form shows them on load. */
   placeLabels?: { birth?: string | null; death?: string | null };
+  /**
+   * Offer the lineage choice (a Root's, about the link to this person's
+   * parent). Defaults to `isAdmin`; the first run's family step asks it only
+   * about a child, whose parent is the founder adding them (Step 29).
+   */
+  lineage?: boolean;
 }) {
   const { setValue, getValues } = useFormContext<T>();
   const name = React.useCallback(
@@ -509,7 +516,7 @@ export function PersonFields<T extends FieldValues>({
         </div>
       ) : null}
 
-      {isAdmin ? (
+      {(lineage ?? isAdmin) ? (
         <FormField
           control={control}
           name={name("lineage_type")}

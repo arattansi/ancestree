@@ -46,3 +46,40 @@ export function defaultTreeName(existingTrees: number): string {
   const n = existing + 1;
   return `${n}${ordinalSuffix(n)} Family`;
 }
+
+/**
+ * Whether a tree still has a name `defaultTreeName` gave it — nobody has
+ * named it yet. The founder's first run offers to (Step 29).
+ */
+export function isDefaultTreeName(name: string): boolean {
+  const trimmed = name.trim();
+  if (trimmed === "Family") return true;
+  const ordinal = /^(\S+) Family$/.exec(trimmed)?.[1];
+  if (!ordinal) return false;
+  if (ORDINAL_WORDS.includes(ordinal)) return true;
+  const figures = /^(\d+)(st|nd|rd|th)$/.exec(ordinal);
+  if (!figures) return false;
+  const n = Number(figures[1]);
+  return n > ORDINAL_WORDS.length + 1 && figures[2] === ordinalSuffix(n);
+}
+
+/**
+ * What to offer a founder in place of a default name: their family's name,
+ * "The Garcia Family". A maiden name comes first — someone who married in
+ * and starts a tree is starting their own side — and a name one of their
+ * other trees already has is passed over, so two trees they're on never
+ * share a name. `null` when there's nothing better than the default.
+ */
+export function suggestedTreeName(
+  names: { maidenName?: string | null; lastName?: string | null },
+  taken: readonly string[] = [],
+): string | null {
+  const used = new Set(taken.map((n) => n.trim().toLowerCase()));
+  for (const family of [names.maidenName, names.lastName]) {
+    const trimmed = (family ?? "").trim();
+    if (!trimmed) continue;
+    const name = `The ${trimmed} Family`;
+    if (!used.has(name.toLowerCase())) return name;
+  }
+  return null;
+}

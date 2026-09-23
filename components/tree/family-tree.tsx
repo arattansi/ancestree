@@ -38,6 +38,7 @@ import { setPetPosition } from "@/app/actions/pets";
 import { AddRelativeButton } from "@/components/tree/add-relative-button";
 import { CanvasTip } from "@/components/tree/canvas-tip";
 import { ClaimSuggestions } from "@/components/tree/claim-suggestions";
+import { GettingStarted } from "@/components/tree/getting-started";
 import { bladeTop } from "@/components/tree/leaf-card";
 import { PersonNode } from "@/components/tree/person-node";
 import { PersonPanel } from "@/components/tree/person-panel";
@@ -77,6 +78,7 @@ import {
 import type { ClaimCandidate } from "@/lib/claims";
 import { connectionLabel, connectionPath } from "@/lib/connection-path";
 import type { PanelSuggestion } from "@/lib/connection-suggestions";
+import type { GettingStartedItem } from "@/lib/first-tree";
 import { nativeLeaf } from "@/lib/native-leaf";
 import { personSpotlight, spotlightPeople } from "@/lib/person-spotlight";
 import { onboardingHref } from "@/lib/tree-links";
@@ -482,6 +484,8 @@ type Props = {
   shareToken?: string;
   /** A visitor from another tree (Step 25.4): said once, above the canvas. */
   visitorNote?: string | null;
+  /** What's left of the founder's first run (Step 29), for the tree's founder. */
+  gettingStarted?: GettingStartedItem[] | null;
 };
 
 /** Which way a bloodline spotlight runs from the person who was clicked. */
@@ -684,6 +688,7 @@ function Canvas({
   pets: allPets,
   readOnly = false,
   shareToken,
+  gettingStarted = null,
 }: Props) {
   // Companions stay off the canvas until the viewer switches them on (Step
   // 23). Off the canvas only: a person's details still list theirs, and
@@ -1929,6 +1934,9 @@ function Canvas({
           />
           {!readOnly && claimCandidates.length > 0 ? (
             <ClaimSuggestions candidates={claimCandidates} />
+          ) : null}
+          {!readOnly && gettingStarted ? (
+            <GettingStarted treeId={treeId} items={gettingStarted} />
           ) : null}
         </Panel>
       </ReactFlow>

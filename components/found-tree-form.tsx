@@ -8,13 +8,13 @@ import { foundTree } from "@/app/actions/trees";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { adminHref } from "@/lib/tree-links";
+import { onboardingHref } from "@/lib/tree-links";
 
 /**
  * "Start a tree of your own" (Step 25): a name, and the member becomes the
- * first Root of a fresh tree. They then bring people over from the trees
- * they belong to on its admin console, which is where this lands — the new
- * tree is the current one from here on.
+ * first Root of a fresh tree. It lands on the founder's first run there
+ * (Step 29) — invite, bring themselves and their close family over — as the
+ * new tree is the current one from here on.
  */
 export function FoundTreeForm({ suggestedName }: { suggestedName: string }) {
   const router = useRouter();
@@ -33,7 +33,7 @@ export function FoundTreeForm({ suggestedName }: { suggestedName: string }) {
       return;
     }
     toast.success("Your tree is planted.");
-    router.push(adminHref("placements"));
+    router.push(onboardingHref());
     router.refresh();
   }
 

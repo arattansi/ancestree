@@ -54,7 +54,9 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   too; `lib/tree-context.ts#currentAccess` resolves it, falling back to the
   member's home tree): `/tree` (React Flow canvas), `/tree/review`,
   `/people/new`, `/people/[id]/edit`, `/onboarding` (first-run on that
-  tree); `/admin` redirects to the account page's Admin view. Site-wide: `/`
+  tree: a member finds or adds themselves; the tree's founder gets four
+  steps instead, `?step=invite|you|name|family` — `components/first-tree/`,
+  Step 29); `/admin` redirects to the account page's Admin view. Site-wide: `/`
   landing (Step 28: signed in, **view your tree** / **start a tree
   (beta)**, which asks a beta reviewer; signed out, **sign in** / **request
   access** / **start a tree (beta)**, the last two in dialogs —
@@ -164,6 +166,10 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   descent points (`descentGeometry`, shared with the canvas so the drawn line
   and the laid-out one follow one rule); `lib/person-name.ts` — display
   name + lifespan + initials; `lib/image.ts` — client-side photo downscale;
+  `lib/first-tree.ts` — a founder's first run (Step 29): the steps and
+  where each opens, the "Getting started" items, the founder's close family
+  from a tree's lines, and the lines a quick-added relative gets
+  (`closeRelativeEdges`; `.server.ts` loads it, `.test.ts`);
   `lib/tree-context.ts` — the per-tree context (Step 25): `requireTreeMember`
   / `requireTreeRoot` / `requireTreeSelfPerson` / `requireTreeAccess` (member
   or visitor) for pages, `membershipOf` / `rootOf` for actions, `listMyTrees`,
@@ -678,6 +684,63 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 29 — A founder's first run: invite, you, name, close family**
+  (ad-hoc; migration `20260923062000_founder_anchor_on_placement`).
+  Someone who has just started a tree now gets four short steps on
+  `/onboarding` (`components/first-tree/`), whether they came by founder
+  invite or founded it from `/trees/new`. Before, a newcomer searched an
+  empty tree for their own name, and a member landed on the admin console.
+  **Invite** comes first because it introduces the account types: all
+  four, with who each is for (the founder is the Root; a Branch is given
+  once someone has joined). Below them, name-and-email rows each take their
+  own Canopy or Leaf, sent one type at a time (`sendDirectInvites`). The
+  step can be skipped. **You:** a newcomer adds themselves, with the name
+  prefilled from their display name (`namePrefill`). The form has no
+  connect section and no lineage, as there's nobody on the tree yet. A
+  member brings their existing entry across with one button
+  (`bringOwnEntry`), never adding a second copy of themselves. **Name:**
+  asked only while the tree has a default name ("Family", "Second Family",
+  `isDefaultTreeName`). It's prefilled with "The {maiden or last name}
+  Family", unless one of their trees already has that name
+  (`suggestedTreeName`). **Family:** the founder's close family, laid out as
+  the tree will hold them: parents above, siblings and partners either
+  side, children below. Each empty place opens a short dialog
+  (`QuickRelativeDialog`) with the person's details, an optional photo and
+  an optional claim invite (Step 31's). It also asks the one question that
+  places them: whether a second parent partnered the first (ticked), a
+  child's other parent (a current partner, ticked), and which parents a
+  sibling shares (both; untick one for a half-sibling). A sibling waits for
+  a parent to share, since the overview seats siblings only under one. The
+  lines come from `lib/first-tree#closeRelativeEdges`. A member first sees
+  "Already on {their other tree}": their parents, partners, children and
+  siblings there, ticked, to bring across (`placePeople`). Another member's
+  own entry waits for that member's yes. Every step saves as it goes and
+  has its own address, so a refresh stays on it, and the progress list
+  links back to any step. **Canvas:** the founder gets **Getting Started**
+  under the search (`components/tree/getting-started.tsx`): invite, you,
+  name, parents, and a partner, child or sibling, each linking back to its
+  step. It goes once all five are done, or when they close it (per browser,
+  per tree). **Also:** `place_people` now anchors a founder's own entry on
+  the tree they founded, as adding themselves does; a member-founded tree
+  had neither an anchor nor a bloodline gate. `joinTreeWithInvite` lands on
+  onboarding. On an empty tree, the add-relative form hides its connect
+  section, and says "A Root" where it said "admin". **Verified** on the
+  live project with throwaway accounts on Resend's test inbox. A founder
+  invite led to the invite step, where a Canopy and a Leaf invite were
+  sent. The founder added themselves (name prefilled), named the tree "The
+  Tester Family", and added two parents (partnered), a sibling (invited to
+  claim her entry as a Leaf), a partner with a marriage date, and a child
+  with the partner as co-parent. The database held exactly those lines,
+  with the founder as the anchor, and the checklist went once all was done.
+  The sibling then accepted, claimed her entry, asked to start a tree, was
+  approved, and founded one from `/trees/new`. Her first run brought her
+  entry across, which anchored the tree, and passed over the taken name.
+  It listed her parents and sister from the first tree, brought the
+  parents at once, and asked her sister first (`placement_requested`). The
+  migration was rehearsed in a rolled-back transaction first: placing
+  someone else, a Root who isn't the founder, and a second placement
+  anchored nothing. All test rows were then deleted. 31 new tests.
 
 - **Step 30.4 — Sign in without the privacy tick; invite-only said up
   front** (Step 30, first-time journeys: one sub-step per fix in the

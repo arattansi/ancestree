@@ -1,21 +1,48 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
+import { FirstTreeOnboarding } from "@/components/first-tree/first-tree-onboarding";
 import { OnboardingSelfFlow } from "@/components/onboarding-self-flow";
 import { Card, CardContent } from "@/components/ui/card";
+import { isFounder } from "@/lib/first-tree.server";
 import { createClient } from "@/lib/supabase/server";
 import { listTreeMembers } from "@/lib/tree";
-import { requireTreeMember } from "@/lib/tree-context";
+import { currentAccess, requireTreeMember } from "@/lib/tree-context";
 import { treeHref } from "@/lib/tree-links";
 
-export const metadata: Metadata = {
-  title: "find yourself",
-  description:
-    "Claim the entry a relative already added for you, or add your own.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const access = await currentAccess();
+  if (access?.kind === "member" && isFounder(access.membership)) {
+    return {
+      title: "start your tree",
+      description: "Invite who'll help, add yourself and your closest family.",
+    };
+  }
+  return {
+    title: "find yourself",
+    description:
+      "Claim the entry a relative already added for you, or add your own.",
+  };
+}
 
-export default async function OnboardingPage() {
-  const { tree, profile, type, isRoot } = await requireTreeMember();
+export default async function OnboardingPage({
+  searchParams,
+}: PageProps<"/onboarding">) {
+  const membership = await requireTreeMember();
+  const { tree, profile, type, isRoot } = membership;
+
+  // The tree's founder has nobody to find: their first run walks them
+  // through inviting, adding themselves, naming it and their close family
+  // (Step 29), and they can come back to any step from the canvas.
+  if (isFounder(membership)) {
+    const { step } = await searchParams;
+    return (
+      <FirstTreeOnboarding
+        membership={membership}
+        asked={typeof step === "string" ? step : undefined}
+      />
+    );
+  }
 
   // Already on this tree: nothing to find. A member who has an entry on
   // another tree but not this one is placed here by the tree's Root, not by

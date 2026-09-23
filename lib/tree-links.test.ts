@@ -5,6 +5,7 @@ import {
   adminHref,
   editPersonHref,
   onboardingHref,
+  onboardingStepHref,
   reviewHref,
   treeFocusHref,
   treeHref,
@@ -16,6 +17,7 @@ describe("tree paths", () => {
     expect(treeHref()).toBe("/tree");
     expect(reviewHref()).toBe("/tree/review");
     expect(onboardingHref()).toBe("/onboarding");
+    expect(onboardingStepHref("family")).toBe("/onboarding?step=family");
     expect(editPersonHref("p1")).toBe("/people/p1/edit");
     expect(editPersonHref("a b")).toBe("/people/a%20b/edit");
   });
