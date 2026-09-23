@@ -1105,7 +1105,7 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   not the guard change: a document blocked the merge, which fell back to
   placing. With all of it: bare entries merged (lines, note, document, pet,
   card spot; an entry already on the tree kept its spot; a Root's
-  unanswered placement kept its `placed_by`), the six unsafe cases fell
+  unanswered placement kept its `placed_by`), the seven unsafe cases fell
   back, and an ordinary invite, a newcomer's claim and an invite naming
   their own entry behaved as before; a Root still can't refile a document,
   and a member can't call the merge. Applied and recorded under the file's
