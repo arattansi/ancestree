@@ -757,6 +757,53 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 34 — Three account types: Root, Branch and Leaf** (ad-hoc
+  request; migrations `20260923090000_three_account_types`, and
+  `20260923091000_retire_leaf_key` once this code is serving). The first
+  Leaf, who could keep only their own entry up to date, is retired, and
+  Canopy is called Leaf now. The stored keys stay: `member` is the Leaf,
+  and everyone who was a Leaf on any tree (one member) moved up to it. A
+  Leaf keeps what Canopy could do, except that new entries go on their own
+  line only: their ancestors, everyone descended from them, and the people
+  those relatives married (`private.line_ids`: the Step 17 walk from their
+  own entry, plus brothers and sisters recorded without the parents they
+  share). It is measured once the new lines are drawn, so a Leaf can add
+  great-grandparents and then their other children;
+  `add_people_with_connections` refuses anything else with `OWN_LINE`, and
+  the bloodline gate still applies on top. The canvas offers "Add a
+  relative of …" only from someone on a Leaf's line (`lib/branch.ts#lineIds`,
+  `canAddRelativeOf`), and `/people/new` lists only them to connect from and
+  says why. Everyone who can invite, Root, Branch or Leaf, invites as a
+  Leaf: the Canopy/Leaf choice is gone from every invite form
+  (`JoinsAsNote` says it instead), and so are the Leaf badges on the admin's
+  invite lists and the members table's "Invites as" column. A Root makes a
+  Leaf a Branch from the members table, as before; the picker offers Root,
+  Branch and Leaf, and a Leaf's account page says a Root can make them a
+  Branch. The old Leaf's guards (`people_leaf_guard`,
+  `relationships_leaf_guard`, `is_leaf_in`) and the onboarding mode that
+  kept a Leaf to their own entry are gone. Canopy's crown mark went with
+  it; its green stays as `--canopy`, the colour of things done. The first
+  migration keeps a shim for the app that was live when it was applied: a
+  `leaf` that app writes is stored as `member`. The second removes it and
+  narrows the check constraints once this code is live. **Verified:**
+  rehearsed rolled back on live, applied, every function body md5-matches
+  the file, and the same 22 checks passed again on the applied state as
+  Aly, Rehan, Arzu, Aalim and a throwaway new member. Aly added a
+  great-grandparent above Hussein, then that great-grandparent's other
+  child, and a sibling recorded only as a sibling; a parent of Safia and a
+  child of Raiya's alone were refused; Rehan, the old Leaf, added his own
+  child and could draw lines; Arzu, a Branch, isn't held to her line; a
+  Root setting the retired `leaf`, and an invite the old app sends as
+  `leaf`, both came out `member`; a new member couldn't add before their
+  own entry, and could onboard as Aly's child. 602 tests pass;
+  type-check, lint and build are clean. On a dev server as a Root, the
+  members table showed Aly, Ashif and Rehan as Leaves with no "Invites as"
+  column, the picker offered Root, Branch and Leaf, the guide had three
+  cards, both invite forms said they join as a Leaf, and the canvas marked
+  them with the leaf. A throwaway page rendered the canvas and the add
+  form as Aly: "Add a relative of Minaz" and "of Raiya" were offered,
+  Safia's card offered none, and the form listed Aly's own family and
+  Raiya but no Sulemans. The page was deleted.
 - **Step 30.3 — Approve a request as the entry it matched** (Step 30,
   first-time journeys; migration `20260923071000_approve_request_as_claim`).
   Request access had already matched a newcomer to an entry on the tree,
