@@ -190,8 +190,7 @@ export async function addPeopleWithConnections(
   const result = data as { ids: string[]; self_id: string | null };
 
   // The RPC still takes only the legacy text place columns; set the canonical
-  // `places` FKs (Step 4.5c), and the family's words for whose land each place
-  // is (Step 27), on the freshly-created rows. ids align with people.
+  // `places` FKs (Step 4.5c) on the freshly-created rows. ids align with people.
   const placeUpdates = result.ids
     .map((personId, i) => {
       const values = people[i];
@@ -201,8 +200,6 @@ export async function addPeopleWithConnections(
         place_id_birth: p.place_id_birth,
         place_id_death: p.place_id_death,
         sex: p.sex,
-        ancestral_lands_birth: p.ancestral_lands_birth,
-        ancestral_lands_death: p.ancestral_lands_death,
       };
       if (Object.values(update).every((v) => v == null)) return null;
       return supabase.from("people").update(update).eq("id", personId);
@@ -459,8 +456,6 @@ export async function updatePerson(
     date_of_death_precision: payload.date_of_death_precision,
     place_id_death: payload.place_id_death,
     place_of_death: payload.place_of_death,
-    ancestral_lands_birth: payload.ancestral_lands_birth,
-    ancestral_lands_death: payload.ancestral_lands_death,
     sex: payload.sex,
   };
   const supabase = await createClient();

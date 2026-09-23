@@ -1,22 +1,7 @@
 "use client";
 
 import * as React from "react";
-import {
-  useFormContext,
-  type Control,
-  type FieldValues,
-  type Path,
-} from "react-hook-form";
 
-import {
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Textarea } from "@/components/ui/textarea";
 import {
   landsListParts,
   LANDS_UNAVAILABLE,
@@ -94,42 +79,29 @@ function useAncestralLands(
 }
 
 /**
- * Under a place of birth or death on a card (Step 27.8): the territories
- * Native Land Digital maps there, credited to NLD, or, only where NLD maps
- * none or can't be asked, the family's own words. Read-only trees ask too
- * (27.9): a visitor as themselves, a share link through `shareToken`.
+ * Under a place of birth or death on a card: the territories Native Land
+ * Digital maps there, credited to NLD. Where NLD maps none, or can't be
+ * asked, nothing at all (Step 40). Read-only trees ask too (27.9): a visitor
+ * as themselves, a share link through `shareToken`.
  */
 export function AncestralLands({
-  wording,
   placeId,
   shareToken = null,
 }: {
-  wording: string | null;
   placeId: number | null;
   /** On a share link: its token, since the viewer isn't signed in to ask. */
   shareToken?: string | null;
 }) {
-  const asking = placeId != null;
-  const answer = useAncestralLands(placeId, shareToken);
-
-  if (asking) {
-    // Nothing until NLD answers, so the family's words never flash up before
-    // names that take their place.
-    if (!answer) return null;
-    if (answer.territories.length > 0) {
-      return (
-        <div className="flex flex-col gap-0.5 text-xs text-muted-foreground">
-          <p>
-            Ancestral lands of <LandsList territories={answer.territories} />
-          </p>
-          <NativeLandCredit />
-        </div>
-      );
-    }
-  }
-  return wording ? (
-    <p className="text-xs text-muted-foreground">{wording}</p>
-  ) : null;
+  const territories = useAncestralLands(placeId, shareToken)?.territories;
+  if (!territories?.length) return null;
+  return (
+    <div className="flex flex-col gap-0.5 text-xs text-muted-foreground">
+      <p>
+        Ancestral lands of <LandsList territories={territories} />
+      </p>
+      <NativeLandCredit />
+    </div>
+  );
 }
 
 /** "A, B, and C", each name linked to its page on native-land.ca. */
@@ -181,72 +153,28 @@ function NativeLandCredit() {
 
 /**
  * A place's ancestral lands in a form, under the place they belong to, on a
- * person's form and a companion's (Step 27.8). Where Native Land Digital maps
- * territories there, they are shown as NLD gives them, with nothing to fill
- * in. Only where NLD maps none, or can't be asked (a place added by hand has
- * no coordinates), does the family get a box to say whose land it is.
+ * person's form and a companion's: the territories Native Land Digital maps
+ * there, as NLD gives them, with nothing to fill in. Where NLD maps none, or
+ * can't be asked (a place added by hand has no coordinates), nothing at all,
+ * and nothing while it's being asked, so a place with none never flashes up
+ * a line that then goes (Step 40).
  */
-export function AncestralLandsField<T extends FieldValues>({
-  control,
-  name,
+export function AncestralLandsField({
   placeId,
   className,
 }: {
-  control: Control<T>;
-  name: Path<T>;
   placeId: number;
   className?: string;
 }) {
-  const { getValues, setValue } = useFormContext<T>();
-  const answer = useAncestralLands(placeId);
-  const territories = answer?.territories ?? [];
-  const mapped = territories.length > 0;
-
-  // NLD's names stand for a place it maps: words written while it had none,
-  // or couldn't be asked, go on the next save rather than linger unseen.
-  React.useEffect(() => {
-    if (mapped && getValues(name)) {
-      setValue(name, "" as never, { shouldDirty: true });
-    }
-  }, [mapped, name, getValues, setValue]);
-
-  if (!answer || mapped) {
-    return (
-      <div className={cn("flex flex-col gap-2", className)}>
-        <p className="text-sm leading-none font-medium">Ancestral lands</p>
-        {answer ? (
-          <>
-            <p className="text-sm">
-              <LandsList territories={territories} />
-            </p>
-            <NativeLandCredit />
-          </>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            Checking Native Land Digital…
-          </p>
-        )}
-      </div>
-    );
-  }
-
+  const territories = useAncestralLands(placeId)?.territories;
+  if (!territories?.length) return null;
   return (
-    <FormField
-      control={control}
-      name={name}
-      render={({ field }) => (
-        <FormItem className={className}>
-          <FormLabel>Ancestral lands</FormLabel>
-          <FormControl>
-            <Textarea rows={2} {...field} value={field.value ?? ""} />
-          </FormControl>
-          <FormDescription>
-            Our database does not contain a distinct ancestral name for this
-            land. Please include whose land this is.
-          </FormDescription>
-          <FormMessage />
-        </FormItem>
-      )}
-    />
+    <div className={cn("flex flex-col gap-2", className)}>
+      <p className="text-sm leading-none font-medium">Ancestral lands</p>
+      <p className="text-sm">
+        <LandsList territories={territories} />
+      </p>
+      <NativeLandCredit />
+    </div>
   );
 }

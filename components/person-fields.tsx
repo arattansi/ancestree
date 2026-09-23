@@ -121,14 +121,6 @@ export function PersonFields<T extends FieldValues>({
         : "";
       const idField = kind === "birth" ? "place_id_birth" : "place_id_death";
       const textField = kind === "birth" ? "city_of_birth" : "place_of_death";
-      // Words about whose land the old place was don't describe a new one.
-      if ((place?.id ?? null) !== (getValues(name(idField)) ?? null)) {
-        setValue(
-          name(kind === "birth" ? "ancestral_lands_birth" : "ancestral_lands_death"),
-          "" as never,
-          { shouldDirty: true },
-        );
-      }
       setValue(name(idField), (place?.id ?? null) as never, {
         shouldValidate: true,
         shouldDirty: true,
@@ -148,7 +140,7 @@ export function PersonFields<T extends FieldValues>({
         );
       }
     },
-    [name, setValue, getValues],
+    [name, setValue],
   );
 
   return (
@@ -382,11 +374,7 @@ export function PersonFields<T extends FieldValues>({
       />
 
       {typeof placeIdBirth === "number" ? (
-        <AncestralLandsField
-          control={control}
-          name={name("ancestral_lands_birth")}
-          placeId={placeIdBirth}
-        />
+        <AncestralLandsField placeId={placeIdBirth} />
       ) : null}
 
       <FormField
@@ -457,8 +445,6 @@ export function PersonFields<T extends FieldValues>({
           />
           {typeof placeIdDeath === "number" ? (
             <AncestralLandsField
-              control={control}
-              name={name("ancestral_lands_death")}
               placeId={placeIdDeath}
               className="sm:col-span-2"
             />

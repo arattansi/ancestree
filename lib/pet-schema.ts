@@ -89,14 +89,6 @@ export const petSchema = z
       .max(120, "Keep this under 120 characters.")
       .optional()
       .or(z.literal("")),
-    // Whose land the birthplace is, in the family's own words (Step 27.7):
-    // asked for only where Native Land Digital maps no territory (27.8).
-    ancestral_lands_birth: z
-      .string()
-      .trim()
-      .max(300, "Keep this under 300 characters.")
-      .optional()
-      .or(z.literal("")),
     is_deceased: z.boolean(),
     year_died: optionalYear,
   })
@@ -155,7 +147,6 @@ export const emptyPetValues: PetFormValues = {
   place_id_birth: null,
   city_of_birth: "",
   country_of_birth: "",
-  ancestral_lands_birth: "",
   is_deceased: false,
   year_died: "",
 };
@@ -177,11 +168,6 @@ export function toPetPayload(values: PetFormValues) {
     place_id_birth: values.place_id_birth ?? null,
     city_of_birth: (values.city_of_birth ?? "").trim() || null,
     country_of_birth: (values.country_of_birth ?? "").trim() || null,
-    // The wording belongs to its place: none without one.
-    ancestral_lands_birth:
-      values.place_id_birth != null
-        ? (values.ancestral_lands_birth ?? "").trim() || null
-        : null,
     is_deceased: values.is_deceased,
     year_died: values.is_deceased ? yearNumber(values.year_died) : null,
   };

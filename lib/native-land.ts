@@ -8,10 +8,8 @@
  * data; and nothing stored or passed on without NLD's permission. So the
  * names are asked for live whenever a card or form shows them
  * (`native-land.server.ts`, behind `app/api/ancestral-lands` and a share
- * link's `app/shared/[token]/ancestral-lands`) and never saved. Only where NLD maps nothing, or can't be asked, does a family say
- * whose land it is in its own words (`people.ancestral_lands_birth` /
- * `_death`, `pets.ancestral_lands_birth`); where NLD maps the place, its
- * names are what's shown (Step 27.8).
+ * link's `app/shared/[token]/ancestral-lands`) and never saved. Where NLD
+ * maps nothing, or can't be asked, nothing is shown at all (Step 40).
  */
 
 export const NATIVE_LAND_URL = "https://native-land.ca";

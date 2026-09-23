@@ -68,15 +68,10 @@ export const personSchema = z
     place_id_birth: z.number().int().positive().nullable(),
     city_of_birth: optionalText(120),
     country_of_birth: optionalText(120),
-    // Whose land the place is, in the family's own words (Step 27): asked for
-    // only where Native Land Digital maps no territory (27.8); where it does,
-    // a card shows NLD's names, looked up live.
-    ancestral_lands_birth: optionalText(300),
     is_deceased: z.boolean(),
     date_of_death: optionalDate,
     place_id_death: z.number().int().positive().nullable(),
     place_of_death: optionalText(160),
-    ancestral_lands_death: optionalText(300),
     sex: z.enum(SEX_VALUES).optional(),
     lineage_type: z.enum(LINEAGE_TYPES).optional(),
     // Contact details live on the entry, shown to other members only when
@@ -127,12 +122,10 @@ export const emptyPersonValues: PersonFormValues = {
   place_id_birth: null,
   city_of_birth: "",
   country_of_birth: "",
-  ancestral_lands_birth: "",
   is_deceased: false,
   date_of_death: "",
   place_id_death: null,
   place_of_death: "",
-  ancestral_lands_death: "",
   sex: undefined,
   lineage_type: undefined,
   email: "",
@@ -161,11 +154,6 @@ export function toPersonPayload(values: PersonFormValues) {
     place_id_birth: values.place_id_birth ?? null,
     city_of_birth: trimOrNull(values.city_of_birth),
     country_of_birth: (values.country_of_birth ?? "").trim(),
-    // The wording belongs to its place: none without one.
-    ancestral_lands_birth:
-      values.place_id_birth != null
-        ? trimOrNull(values.ancestral_lands_birth)
-        : null,
     is_deceased: values.is_deceased,
     date_of_death: death.date,
     date_of_death_precision: death.precision,
@@ -173,10 +161,6 @@ export function toPersonPayload(values: PersonFormValues) {
     place_of_death: values.is_deceased
       ? trimOrNull(values.place_of_death)
       : null,
-    ancestral_lands_death:
-      values.is_deceased && values.place_id_death != null
-        ? trimOrNull(values.ancestral_lands_death)
-        : null,
     sex: values.sex ?? null,
     lineage_type: values.lineage_type ?? null,
     email: trimOrNull(values.email)?.toLowerCase() ?? null,

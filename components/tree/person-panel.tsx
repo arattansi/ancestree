@@ -88,13 +88,11 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
 function PlaceField({
   label,
   place,
-  wording,
   placeId,
   shareToken,
 }: {
   label: string;
   place: string | null;
-  wording: string | null;
   placeId: number | null;
   shareToken: string | null;
 }) {
@@ -104,11 +102,7 @@ function PlaceField({
       <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
       <dd className="flex flex-col gap-1 text-sm text-foreground">
         <span>{place}</span>
-        <AncestralLands
-          wording={wording}
-          placeId={placeId}
-          shareToken={shareToken}
-        />
+        <AncestralLands placeId={placeId} shareToken={shareToken} />
       </dd>
     </div>
   );
@@ -793,7 +787,6 @@ export function PersonPanel({
                       .join(", ") ||
                     null
                   }
-                  wording={person.ancestral_lands_birth}
                   placeId={person.place_id_birth}
                   shareToken={shareToken}
                 />
@@ -811,7 +804,6 @@ export function PersonPanel({
                       place={
                         person.death_place_historical || person.place_of_death
                       }
-                      wording={person.ancestral_lands_death}
                       placeId={person.place_id_death}
                       shareToken={shareToken}
                     />
