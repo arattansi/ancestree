@@ -3,11 +3,15 @@ import { describe, expect, it } from "vitest";
 import { RELAY_ANSWERED } from "@/lib/invite-relays";
 import { openedRelayNote, type OpenedRelay } from "@/lib/opened-relay";
 
+const NOW = new Date("2026-09-23T12:00:00.000Z");
+const daysAgo = (d: number) => new Date(NOW.getTime() - d * 24 * 60 * 60 * 1000).toISOString();
+
 const zed: OpenedRelay = {
   status: "invited",
   firstName: "Zed",
   lastName: "Qadri",
   treeName: "Qadri Family",
+  createdAt: daysAgo(2),
 };
 
 describe("openedRelayNote (Step 41.1)", () => {
@@ -33,6 +37,17 @@ describe("openedRelayNote (Step 41.1)", () => {
   });
 
   it("says only that it's been answered for any other state", () => {
-    expect(openedRelayNote({ ...zed, status: "pending" })).toBe(RELAY_ANSWERED);
+    expect(openedRelayNote({ ...zed, status: "pending" }, NOW)).toBe(RELAY_ANSWERED);
+  });
+
+  it("says an ask left 30 days lapsed without an answer (Step 41.5)", () => {
+    const lapsed = { ...zed, status: "pending", treeName: null, createdAt: daysAgo(31) };
+    expect(openedRelayNote(lapsed, NOW)).toBe(
+      "Zed Qadri’s request lapsed after 30 days without an answer.",
+    );
+    // An answer given in time still says what it was, however old.
+    expect(openedRelayNote({ ...zed, createdAt: daysAgo(31) }, NOW)).toBe(
+      "You’ve invited Zed Qadri to Qadri Family.",
+    );
   });
 });

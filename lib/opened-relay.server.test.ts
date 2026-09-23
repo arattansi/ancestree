@@ -34,6 +34,7 @@ describe("loadOpenedRelay (Step 41.1)", () => {
       status: "invited",
       first_name: "Zed",
       last_name: "Qadri",
+      created_at: "2026-09-21T12:00:00.000Z",
       trees: { name: "Qadri Family" },
     };
     await expect(loadOpenedRelay("r1")).resolves.toEqual({
@@ -41,10 +42,11 @@ describe("loadOpenedRelay (Step 41.1)", () => {
       firstName: "Zed",
       lastName: "Qadri",
       treeName: "Qadri Family",
+      createdAt: "2026-09-21T12:00:00.000Z",
     });
     expect(asked).toEqual({
       table: "invite_relays",
-      columns: "status, first_name, last_name, trees(name)",
+      columns: "status, first_name, last_name, created_at, trees(name)",
       id: "r1",
     });
   });
