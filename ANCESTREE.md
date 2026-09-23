@@ -144,8 +144,12 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
 - Ancestral lands (Step 27): `lib/native-land.ts` — pure parsing and wording
   of Native Land Digital's answer (`.test.ts`); `lib/native-land.server.ts` —
   `territoriesAt(lat, lng)`, the only caller of NLD; `app/api/ancestral-lands`
-  — `GET ?place=<places.id>` for members; `components/ancestral-lands.tsx` —
-  the card's lands line and the form's suggestion
+  — `GET ?place=<places.id>` for anyone signed in (members, and visitors
+  from another tree); `app/shared/[token]/ancestral-lands` — the same for a
+  share link, only about places its tree shows (Step 27.9);
+  `lib/ancestral-lands.server.ts` — `landsAtPlace`, what both answer;
+  `components/ancestral-lands.tsx` — the card's lands line and the form's
+  field
 - `lib/person-schema.ts` — shared zod schema; `lib/connections.ts` — chain/edge
   types + `buildChainEdges`; `lib/connection-suggestions.ts` — implied-connection
   detection engine (+ `.server.ts` loader, `.test.ts`); `lib/siblings.ts` — sibling inference; `lib/tree.ts` —
@@ -627,8 +631,9 @@ cessions, not whose land a place is.
   a box captioned "Our database does not contain a distinct ancestral name
   for this land. Please include whose land this is." What's written there
   (`people.ancestral_lands_birth` / `_death`, `pets.ancestral_lands_birth`)
-  is the family's own, and the card shows it. A share link can't ask NLD,
-  so it shows the family's words.
+  is the family's own, and the card shows it. Read-only trees follow the
+  same rule (Step 27.9): a visitor from another tree asks as themselves, and
+  a share link asks through its own route (below).
 - **Credit.** Every card that shows NLD's names says "From Native Land
   Digital"; opening it gives NLD's link, the stewardship acknowledgement,
   and NLD's own disclaimer that the map isn't a legal or official record of
@@ -636,8 +641,12 @@ cessions, not whose land a place is.
 - **What gets asked.** A person's place of birth and death, and a
   companion's place of birth (Step 27.7). Only GeoNames populated places
   with coordinates (`feature_class = 'P'`) are asked about; a hand-added
-  place has none, so it shows only the family's words. A share link never
-  asks (its viewer isn't signed in).
+  place has none, so it shows only the family's words. A share link's
+  viewer isn't signed in, so its cards ask
+  `GET /shared/<token>/ancestral-lands?place=<id>` (Step 27.9), which
+  answers only while the link works and only about a place its cards show
+  (a birth or death place on its tree, or a companion's birthplace), so a
+  link can't be used to ask NLD about anywhere else.
 - **Coverage.** Strong in North America: Toronto gives Anishinabewaki,
   Ho-de-no-sau-nee-ga (Haudenosaunee), Mississauga, Mississaugas of the Credit
   First Nation and Wendake-Nionwentsïo. Checked 2026-09-22: nothing for
@@ -660,6 +669,24 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 27.9 — Ancestral lands on read-only trees too.** A share link's
+  cards, and a visitor's from another tree, showed no ancestral lands at
+  all. The panels asked Native Land Digital only when the tree wasn't
+  read-only, and fell back to the family's words, but since 27.8 those
+  exist only where NLD has no names, so a read-only card had nothing to
+  show (none were stored). Now every card asks. A visitor is signed in, so
+  asks `/api/ancestral-lands` like a member. A share link asks its own
+  route, `/shared/<token>/ancestral-lands`, which answers only while the
+  link works and only about places its cards show; it counts no view.
+  `lib/ancestral-lands.server.ts` holds the answer both routes give. UI and
+  routes only, no migration. **Verified** against the live NLD API with a
+  throwaway share link, signed out: a Toronto card showed NLD's five names
+  and the credit, fetched through the link's route (`no-store`); Nairobi
+  answered no names; Reykjavík, Tokyo and Ulaanbaatar (not on the tree), a
+  bad token and a bad place id were refused. The link was deleted after.
+  4 new tests. The visitor view can't happen yet (one tree), but asks the
+  members' route, unchanged.
 
 - **Step 31.4 — Lineage and Country dropdowns show their labels when
   closed** (UI only). This is the relationship picker's bug from Step 31:

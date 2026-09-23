@@ -33,10 +33,24 @@ import { cn } from "@/lib/utils";
  */
 const lookups = new Map<number, Promise<AncestralLandsAnswer>>();
 
-function lookUpPlace(placeId: number): Promise<AncestralLandsAnswer> {
+/**
+ * Where a card asks: `/api/ancestral-lands` when the viewer is signed in (a
+ * member, or a visitor from another tree), and the link's own route on a
+ * share link, whose viewer isn't (Step 27.9).
+ */
+function lookUpUrl(placeId: number, shareToken: string | null): string {
+  return shareToken
+    ? `/shared/${encodeURIComponent(shareToken)}/ancestral-lands?place=${placeId}`
+    : `/api/ancestral-lands?place=${placeId}`;
+}
+
+function lookUpPlace(
+  placeId: number,
+  shareToken: string | null,
+): Promise<AncestralLandsAnswer> {
   const known = lookups.get(placeId);
   if (known) return known;
-  const pending = fetch(`/api/ancestral-lands?place=${placeId}`, {
+  const pending = fetch(lookUpUrl(placeId, shareToken), {
     cache: "no-store",
   })
     .then(async (res) => {
@@ -54,7 +68,10 @@ function lookUpPlace(placeId: number): Promise<AncestralLandsAnswer> {
 }
 
 /** The lookup for a place; null while it's on its way, or with no place. */
-function useAncestralLands(placeId: number | null): AncestralLandsAnswer | null {
+function useAncestralLands(
+  placeId: number | null,
+  shareToken: string | null = null,
+): AncestralLandsAnswer | null {
   // Keyed by place, so a card opened on someone else never shows the last
   // person's lands while theirs load.
   const [state, setState] = React.useState<{
@@ -65,13 +82,13 @@ function useAncestralLands(placeId: number | null): AncestralLandsAnswer | null 
   React.useEffect(() => {
     if (placeId == null) return;
     let active = true;
-    lookUpPlace(placeId).then((answer) => {
+    lookUpPlace(placeId, shareToken).then((answer) => {
       if (active) setState({ placeId, answer });
     });
     return () => {
       active = false;
     };
-  }, [placeId]);
+  }, [placeId, shareToken]);
 
   return placeId != null && state?.placeId === placeId ? state.answer : null;
 }
@@ -79,20 +96,21 @@ function useAncestralLands(placeId: number | null): AncestralLandsAnswer | null 
 /**
  * Under a place of birth or death on a card (Step 27.8): the territories
  * Native Land Digital maps there, credited to NLD, or, only where NLD maps
- * none or can't be asked, the family's own words. A share link's viewer isn't
- * signed in to ask (`lookUp` off), so it shows the family's words.
+ * none or can't be asked, the family's own words. Read-only trees ask too
+ * (27.9): a visitor as themselves, a share link through `shareToken`.
  */
 export function AncestralLands({
   wording,
   placeId,
-  lookUp,
+  shareToken = null,
 }: {
   wording: string | null;
   placeId: number | null;
-  lookUp: boolean;
+  /** On a share link: its token, since the viewer isn't signed in to ask. */
+  shareToken?: string | null;
 }) {
-  const asking = lookUp && placeId != null;
-  const answer = useAncestralLands(asking ? placeId : null);
+  const asking = placeId != null;
+  const answer = useAncestralLands(placeId, shareToken);
 
   if (asking) {
     // Nothing until NLD answers, so the family's words never flash up before

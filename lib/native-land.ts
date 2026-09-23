@@ -7,8 +7,8 @@
  * source, with Indigenous communities acknowledged as the stewards of the
  * data; and nothing stored or passed on without NLD's permission. So the
  * names are asked for live whenever a card or form shows them
- * (`native-land.server.ts`, behind `app/api/ancestral-lands`) and never
- * saved. Only where NLD maps nothing, or can't be asked, does a family say
+ * (`native-land.server.ts`, behind `app/api/ancestral-lands` and a share
+ * link's `app/shared/[token]/ancestral-lands`) and never saved. Only where NLD maps nothing, or can't be asked, does a family say
  * whose land it is in its own words (`people.ancestral_lands_birth` /
  * `_death`, `pets.ancestral_lands_birth`); where NLD maps the place, its
  * names are what's shown (Step 27.8).
@@ -56,6 +56,12 @@ export function canLookUpPlace(
     Number.isFinite(place.latitude) &&
     Number.isFinite(place.longitude)
   );
+}
+
+/** A lookup's `?place=`: a `places.id`, or null when it isn't one. */
+export function placeIdParam(value: string | null): number | null {
+  const id = Number(value);
+  return Number.isSafeInteger(id) && id > 0 ? id : null;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

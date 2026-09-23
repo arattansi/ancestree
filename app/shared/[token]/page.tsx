@@ -89,6 +89,7 @@ export default async function SharedTreePage({
         panelSuggestions={[]}
         pets={pets}
         readOnly
+        shareToken={link.token}
       />
     </main>
   );

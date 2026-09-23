@@ -89,13 +89,13 @@ function PlaceField({
   place,
   wording,
   placeId,
-  lookUp,
+  shareToken,
 }: {
   label: string;
   place: string | null;
   wording: string | null;
   placeId: number | null;
-  lookUp: boolean;
+  shareToken: string | null;
 }) {
   if (!place) return null;
   return (
@@ -103,7 +103,11 @@ function PlaceField({
       <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
       <dd className="flex flex-col gap-1 text-sm text-foreground">
         <span>{place}</span>
-        <AncestralLands wording={wording} placeId={placeId} lookUp={lookUp} />
+        <AncestralLands
+          wording={wording}
+          placeId={placeId}
+          shareToken={shareToken}
+        />
       </dd>
     </div>
   );
@@ -406,6 +410,7 @@ export function PersonPanel({
   isCreator,
   currentUserId,
   readOnly = false,
+  shareToken = null,
   addRelativeOf = null,
   connectionPrompt = null,
   onClose,
@@ -417,8 +422,10 @@ export function PersonPanel({
   /** Everyone on the canvas, so a new companion can be shared with them. */
   people: CompanionOption[];
   onSelectPet: (petId: string) => void;
-  /** Public view-only mode — hide every editing / moderation affordance. */
+  /** View-only (a share link, or a visitor) — hide every editing / moderation affordance. */
   readOnly?: boolean;
+  /** On a share link: how its cards ask whose land a place is (Step 27.9). */
+  shareToken?: string | null;
   /** Pending implied connections involving this person the viewer can resolve. */
   suggestions: PanelSuggestion[];
   /** This person's parent / child / spouse links (spouse rows carry dates). */
@@ -769,7 +776,7 @@ export function PersonPanel({
                   }
                   wording={person.ancestral_lands_birth}
                   placeId={person.place_id_birth}
-                  lookUp={!readOnly}
+                  shareToken={shareToken}
                 />
                 {person.is_deceased ? (
                   <>
@@ -787,7 +794,7 @@ export function PersonPanel({
                       }
                       wording={person.ancestral_lands_death}
                       placeId={person.place_id_death}
-                      lookUp={!readOnly}
+                      shareToken={shareToken}
                     />
                   </>
                 ) : null}

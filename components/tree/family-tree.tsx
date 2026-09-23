@@ -462,8 +462,16 @@ type Props = {
   panelSuggestions: PanelSuggestion[];
   /** Companion animals, hung off the people they belong to (never relatives). */
   pets: TreePet[];
-  /** Public share-link view: render the canvas without any editing controls. */
+  /**
+   * Render the canvas without any editing controls: a share link, or a
+   * visitor from another tree (Step 25.4), who is signed in.
+   */
   readOnly?: boolean;
+  /**
+   * The share link being viewed, if this is one: its cards ask whose land a
+   * place is through it, since its viewer isn't signed in (Step 27.9).
+   */
+  shareToken?: string;
   /** A visitor from another tree (Step 25.4): said once, above the canvas. */
   visitorNote?: string | null;
 };
@@ -667,6 +675,7 @@ function Canvas({
   panelSuggestions,
   pets: allPets,
   readOnly = false,
+  shareToken,
 }: Props) {
   // Companions stay off the canvas until the viewer switches them on (Step
   // 23). Off the canvas only: a person's details still list theirs, and
@@ -1950,6 +1959,7 @@ function Canvas({
         canAddCompanions={accountType.companions !== "none"}
         lockedNote={lockedEntryNote(accountType)}
         readOnly={readOnly}
+        shareToken={shareToken}
         claimable={!!selectedPerson && claimableIds.has(selectedPerson.id)}
         isCreator={selectedPerson?.created_by === currentUserId}
         currentUserId={currentUserId}
@@ -1989,6 +1999,7 @@ function Canvas({
         currentUserId={currentUserId}
         isAdmin={isAdmin}
         readOnly={readOnly}
+        shareToken={shareToken}
         onClose={() => setSelectedPetId(null)}
         onSelectPerson={selectPerson}
       />

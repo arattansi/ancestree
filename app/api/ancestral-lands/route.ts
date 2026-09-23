@@ -1,18 +1,16 @@
 import { type NextRequest, NextResponse } from "next/server";
 
+import { landsAtPlace, landsResponse } from "@/lib/ancestral-lands.server";
 import { getProfile } from "@/lib/auth";
-import {
-  canLookUpPlace,
-  LANDS_UNAVAILABLE,
-  type AncestralLandsAnswer,
-} from "@/lib/native-land";
-import { territoriesAt } from "@/lib/native-land.server";
+import { placeIdParam } from "@/lib/native-land";
 import { createClient } from "@/lib/supabase/server";
 
 /**
  * `GET /api/ancestral-lands?place=<places.id>`: the territories Native Land
- * Digital maps at a place of birth or death (Step 27). Members only; a share
- * link shows just what the family wrote.
+ * Digital maps at a place of birth or death (Step 27), for anyone signed in:
+ * a tree's members, and visitors from another tree (27.9). A share link's
+ * viewer isn't signed in, so asks through the link instead
+ * (`app/shared/[token]/ancestral-lands`).
  *
  * A route handler rather than a server action because the client sends
  * server actions one at a time, so a slow answer from NLD would hold up every
@@ -24,28 +22,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Sign in to see this." }, { status: 401 });
   }
 
-  const placeId = Number(request.nextUrl.searchParams.get("place"));
-  if (!Number.isSafeInteger(placeId) || placeId <= 0) {
+  const placeId = placeIdParam(request.nextUrl.searchParams.get("place"));
+  if (placeId == null) {
     return NextResponse.json({ error: "Which place?" }, { status: 400 });
   }
 
-  const supabase = await createClient();
-  const { data: place } = await supabase
-    .from("places")
-    .select("latitude, longitude, feature_class")
-    .eq("id", placeId)
-    .maybeSingle();
-
-  // Nothing NLD could be asked about (no coordinates, or a whole region):
-  // say so, rather than "no territories here".
-  if (!place || !canLookUpPlace(place)) return answer(LANDS_UNAVAILABLE);
-
-  const territories = await territoriesAt(place.latitude, place.longitude);
-  return answer(
-    territories ? { territories, available: true } : LANDS_UNAVAILABLE,
-  );
-}
-
-function answer(body: AncestralLandsAnswer) {
-  return NextResponse.json(body, { headers: { "Cache-Control": "no-store" } });
+  return landsResponse(await landsAtPlace(await createClient(), placeId));
 }

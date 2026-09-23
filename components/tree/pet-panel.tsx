@@ -81,6 +81,7 @@ export function PetPanel({
   currentUserId,
   isAdmin,
   readOnly = false,
+  shareToken = null,
   onClose,
   onSelectPerson,
 }: {
@@ -92,6 +93,8 @@ export function PetPanel({
   currentUserId: string;
   isAdmin: boolean;
   readOnly?: boolean;
+  /** On a share link: how the panel asks whose land a place is (Step 27.9). */
+  shareToken?: string | null;
   onClose: () => void;
   onSelectPerson: (personId: string) => void;
 }) {
@@ -341,7 +344,7 @@ export function PetPanel({
                             <AncestralLands
                               wording={pet.ancestral_lands_birth}
                               placeId={pet.place_id_birth}
-                              lookUp={!readOnly}
+                              shareToken={shareToken}
                             />
                           </dd>
                         </>
