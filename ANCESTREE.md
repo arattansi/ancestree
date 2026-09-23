@@ -1110,6 +1110,67 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 42 — A member can't make someone else's entry their own**
+  (ad-hoc security fix, found during Step 41.5; migration
+  `20260923160000_members_cant_set_own_entry`, live since 2026-09-23; its
+  file reached main only after Step 51). `authenticated` held INSERT
+  and UPDATE on every column of `profiles`, and `profiles_update` only asked
+  that the row be the member's own. So any member could set their own
+  `self_person_id` to any entry's id, and everything that asks "is this the
+  person themselves" (`private.self_person_id()`) believed it:
+  `can_edit_person` let them edit that entry on any tree they're on;
+  `document_rule_in` (so `can_see_document` and the documents bucket) let
+  them read its private documents, and the photo policies let them replace
+  or delete its photo, on any tree at all, given its id; and
+  `profiles_seed_self_email` copied their address onto it. They could set
+  `invited_by_user_id` too, and a signed-in account with no profile could
+  insert one naming any entry and any inviter. **Now** a member may update
+  only `display_name` (`updateDisplayName`) and `relatives_can_ask`
+  (`setRelativesCanAsk`) on their own row, and can't insert a profile at
+  all (`profiles_insert` dropped; `redeem_invite` and `ensure_profile` make
+  them). Behind the grants, `profiles_guard` refuses a change to
+  `self_person_id` or `invited_by_user_id`, or an insert, made as
+  `authenticated` or `anon`, so the links hold even if a grant comes back.
+  It tells writers apart by `current_user`, not the
+  `ancestree.privileged_profile_write` flag: the RPCs that set the links
+  (`add_people_with_connections`, `claim_person_as_self` and
+  `private.claim_as_self`, `claim_person`, `redeem_invite`, `resolve_claim`,
+  `delete_tree`) are security definer and run as their owner, and `on
+  delete set null` runs as the table's owner, while most of them never set
+  the flag. So no RPC changed, and no journey's taps or fields change.
+  **Verified:** rehearsed rolled back on live in three phases (before,
+  grants only, all), 32 checks each. Before: a Leaf pointed their own entry
+  at a relative a Root had added, renamed it and had their address seeded
+  onto it, and read its private document; a member of another tree only
+  read that document too and passed `can_edit_person` for it; a signed-in
+  account with no profile inserted one naming it. Grants only: all
+  refused, but with UPDATE granted back the takeover worked again. All:
+  refused even then (`OWN_ENTRY`). In every phase renaming, the relatives
+  box, onboarding (adding yourself, "that's me"), accepting a plain, claim
+  or founder invite, "This is me", the co-admin sign-in, reversing a claim,
+  deleting a tree, a Root deleting a member's own entry, removing a member
+  and the service role deleting a profile (the last two clearing
+  `invited_by_user_id`) worked as before. Applied and recorded under the
+  file's version; the guard's md5 matches the file, the writer RPCs are
+  unchanged, and the suite re-run on live matched. Through the live REST
+  API with throwaway `delivered+42-*@resend.dev` accounts, renaming and the
+  box answered 204, and setting either link (alone or with a rename) or
+  inserting a profile answered 403 `42501`. **Audit:** nothing on live shows
+  the hole was used. Every member's own entry is one they made and own
+  (onboarding) or hold an approved claim on (Ashif, Aly, Rehan; Aly's and
+  Rehan's with the invite's vouch). No entry is two members', every entry
+  carrying a member's address is their own, and every `invited_by_user_id`
+  matches the membership its invite made (Lucan White's names Aalim, who
+  sent his founder invite; as his tree's founder, his membership names
+  nobody). The API log (its last 24 hours) shows profile writes only from
+  the app's server. `profiles` keeps no history, so a link set and set back
+  on an entry that already had an address would leave no trace. 784 tests
+  pass. Found on the way and left for its own step (fixed in Step 45):
+  `remove_tree_member` fails for any member who has added an entry ("Only a
+  card's position can be changed here"). It hands their
+  `tree_placements.placed_by` to the Root without the privileged flag,
+  which `tree_placements_guard` refuses, with or without this step.
+
 - **Step 51 — An emailed invite joins only the address it was sent to**
   (ad-hoc; migration `20260925120000_emailed_invite_joins_its_address`).
   An invite emailed to someone was bound to that address only when it was
