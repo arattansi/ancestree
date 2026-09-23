@@ -591,7 +591,10 @@ mirror it for the UI.
   every invite form says the newcomer joins as a Leaf (`JoinsAsNote`). The add-relative form asks
   for the new relative's email too (Step 31) and, once the entry is saved,
   sends this same invite for it, unless they're deceased. `/join/<token>`
-  tells them what a Leaf is before they sign up.
+  tells them what a Leaf is before they sign up. Like a direct invite, it
+  keeps a "Sent invites" record for the home tree's Roots, named after the
+  entry (`claimInviteRecordName`, `lib/claim-invites.ts`), and the entry's
+  card lists who sent it and when (Step 38, below).
 - **Invite requests** (`public.invite_requests`): anyone can ask from `/`
   ("request access") or `/request-invite` with first name, last name, and
   email. Without a tree in hand, `findFamilyTree` looks for one first
@@ -670,7 +673,22 @@ mirror it for the UI.
   `invites` row so it can show whether the link was ever used, is still
   active, expired, or was revoked, and whether the email actually sent
   (`email_sent`, best-effort — a `false` doesn't mean it bounced, just that
-  Resend's API call didn't return success).
+  Resend's API call didn't return success). Every path that emails an
+  invite writes that row: direct and founder invites, approvals, and since
+  Step 38 claim invites. Each row says who sent it (`reviewed_by`, or who
+  answered a request) and when, and "Claims …" when accepting claims an
+  entry; resending a claim invite keeps the claim wording
+  (`claimInviteEmail`).
+- **Claim invites on the card** (Step 38, `lib/claim-invites.ts` +
+  `.server.ts`): an entry's card lists the invites out to claim it — "Aalim
+  Rattansi sent an invite on 23 Sep 2026. The link works until 7 Oct 2026."
+  — every live one, newest first, or else the latest that expired unused.
+  Every member of the tree sees who sent one and when; the address shows
+  only to a Root and to its sender. RLS shows an invite only to a Root, its
+  sender and whoever accepted it, so `listClaimInvites` reads them with the
+  service role for a member's canvas (never a share link's or a visitor's)
+  and hands on only those fields. With a live invite out, the card's button
+  reads "Send another".
 - **Share links** (`public.share_links`): admins mint any number of view-only
   links `"/shared/<token>"` from `/admin` (server actions `createShareLink` /
   `revokeShareLink`, each optionally 30-day-expiring and independently

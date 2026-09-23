@@ -179,6 +179,15 @@ tree only, who see the whole tree anyway). Approving the ask as one of them
 makes the invite a claim invite for it, so accepting claims it; approving
 without one leaves them to find or add themselves on onboarding.
 
+Every emailed invite keeps a record in its tree's "Sent invites", which only
+that tree's Roots see: who it went to, who sent it and when, whether the
+email went, and the entry it claims, if any (Step 38). A claim invite — from
+the entry's card, the add-relative form, or a Root approving an ask as that
+entry — is also shown on the entry's card to every member of the tree: who
+sent it and when, and until when it works, or that it expired unused. The
+address it went to shows there only to a Root and to whoever sent it. A
+share link or a visitor from another tree sees none of it.
+
 Someone who signs in without an invite is sent on by the address they've
 just verified, and by nothing else (Step 30.8): to an invite emailed to it,
 whose page asks for the privacy tick before it redeems anything; else to
