@@ -93,7 +93,8 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `components/admin/admin-console.tsx`),
   `/request-invite` (public; `?tree=<slug>` asks that tree's Roots, and
   without one it's the request-access search),
-  `/shared/[token]` (public read-only canvas), `/privacy`
+  `/shared/[token]` (public read-only canvas; its **Ask to join** opens the
+  `?tree=` form in a dialog over it, Step 41.4), `/privacy`
 - `app/actions/` — server actions (`auth.ts`: magic link (+ consent gate
   when it carries an invite), an emailed invite's accept and, for an
   address that's a member's already, its sign-in link back to the invite
@@ -112,7 +113,8 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   action takes a `treeId` and checks the caller's role _there_
   (`lib/tree-context#membershipOf` / `rootOf`);
   `invite-requests.ts`: `requestInvite` (public, service-role write; a new
-  request emails the tree's Roots, Step 30.1) /
+  request emails the tree's Roots, Step 30.1; pages are drawn again only for
+  a signed-in asker, Step 41.4) /
   `approveInviteRequest` (mints the link, naming the entry the requester's
   name matched when the Root approves them as one, Step 30.3) /
   `declineInviteRequest`;
@@ -546,7 +548,8 @@ mirror it for the UI.
   the token holder becomes that address, only a Root or the service role may
   set `invited_email` (`invites_guard`); a bare link (`createInvite`) has no
   address and still asks for one and verifies it by email. The privacy
-  checkbox sits on `/request-invite` for people who ask, on both waitlist
+  checkbox sits on the ask-to-join form (`/request-invite`, and a share
+  link's dialog, Step 41.4) for people who ask, on both waitlist
   forms for people who'll get a founder invite (Step 30.6), and on the
   accept page for people invited cold.
 - **The name someone joins by (Step 30.7, `lib/joining-name.ts`)**: an
@@ -640,11 +643,18 @@ mirror it for the UI.
   they ask that tree's Roots; not found, they can ask a relative who's on
   ancestree (below), or join the waitlist to start a tree, which first says
   that a new tree starts empty (Step 30.5). A share
-  link's button names its tree (`?tree=<slug>`) and skips the search;
-  `requestInvite` no longer falls back to the first tree. The row is written
+  link's **Ask to join** names its tree by slug and skips the search: since
+  Step 41.4 it opens the form in a dialog over the canvas
+  (`RequestInviteDialog`), so the viewer keeps their place, and
+  `/request-invite?tree=<slug>` still shows the same form as a page, for
+  emails and older links; `requestInvite` no longer falls back to the first
+  tree. The row is written
   by the `requestInvite` server action using the service-role client, so the
   table needs no `anon` grant or insert policy and cannot be read or enumerated
-  from the browser. Admins review pending requests on `/admin`; approving mints
+  from the browser. It refreshes pages only for a signed-in asker, whose
+  `/join` then says where the request stands (Step 30.8): anyone else's page
+  shows nothing of it, and redrawing a share link's page would re-measure
+  every card behind the dialog (Step 41.4). Admins review pending requests on `/admin`; approving mints
   a normal single-use invite link (attributed to the reviewing admin) and
   emails it to the requester via Resend (`lib/email.ts` +
   `lib/emails/invite-approved.ts`, needs `RESEND_API_KEY`) — if the send
@@ -746,14 +756,19 @@ mirror it for the UI.
   revocable). The `/shared/[token]` route resolves the token with the
   service-role client (`lib/share-links.server.ts`) — RLS is admins-only, no
   `anon` grant — and renders `<FamilyTree readOnly>` (no drag-persist, no add /
-  claim / flag / comment / manage affordances) with a "request edit access" CTA
-  pointing at `/request-invite`. Each view is counted once the page has gone
+  claim / flag / comment / manage affordances). Its corner card's **Ask to
+  join** opens the request form in a dialog over the canvas (Step 41.4); a
+  visitor from another tree gets the same button, less the dialog's "Sign
+  in". Each view is counted once the page has gone
   out: `after()` calls `record_share_link_view` (service role only), which
   adds one in SQL (Step 33). Only a browser's visit counts: a link preview
   (iMessage, WhatsApp, Slack…) or another bot gets the page but no view
-  (33.7, `countsAsView`). The admin console shows the count and the date of
+  (33.7, `countsAsView`), and neither does a server action's reply, which
+  draws the page again (41.4, `viewerUserAgent`: Next marks it `Next-Action`).
+  The admin console shows the count and the date of
   the last view (33.6). `lib/share-links.ts` holds the pure
-  usable/expired/revoked logic and `countsAsView` (`.test.ts`).
+  usable/expired/revoked logic, `countsAsView` and `viewerUserAgent`
+  (`.test.ts`).
 - **Starting a tree is by request during the beta** (Step 28,
   `public.tree_requests`): a signed-in member presses "start a tree
   (beta)" (home page, `/trees`, `/trees/new`) and `request_tree` files one
