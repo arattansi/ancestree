@@ -232,7 +232,9 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   only), the caps, the email (`.test.ts`); `lib/emails/invite-relayed.ts`;
   `lib/relay-candidates.server.ts` — the entries an ask's name matches on
   each of the member's trees (`invite_relay_candidates`, Step 41.1;
-  `.test.ts`); `components/relay-invites.tsx` — the invite filled in, on
+  `.test.ts`); `lib/opened-relay.ts` / `.server.ts` — what settings says
+  about the ask the email named once it isn't waiting (`.test.ts`);
+  `components/relay-invites.tsx` — the invite filled in, on
   the member's account settings, with those entries to invite them as
 - `lib/supabase/` — `client.ts` (browser), `server.ts` (RSC/actions), `middleware.ts` (session refresh), `admin.ts` (service role, server-only)
 - `lib/database.types.ts` — generated Supabase types (regenerate after schema changes)
@@ -708,7 +710,12 @@ mirror it for the UI.
   claims the entry and opens the canvas on it (Step 30.2), with no
   onboarding. "None of these, invite without an entry" sends the plain
   invite, as does "Send invite" when nothing is listed. Either way the ask
-  is answered once an invite is made. RLS shows an ask only to the member it
+  is answered once an invite is made. Opened from the email once it's no
+  longer waiting — including just after sending or dismissing it from its
+  card, whose refresh keeps the address — settings says what the member did
+  with it: "You’ve invited <name> to <tree>." or that they dismissed it
+  (`lib/opened-relay.ts`). Anyone the ask isn't theirs to read gets only
+  "That request has already been answered." RLS shows an ask only to the member it
   went to, who may change only its answer. Caps are counted from the rows after filing, so two at once
   can't both slip under: 3 a day per address asking, 2 a day and 5 a week per
   member, 10 an hour and 30 a day across the site. An ask past one is
@@ -952,6 +959,25 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 41.1, follow-up — Settings says what became of the ask its email
+  named** (no migration). Sending or dismissing an ask from its card
+  refreshes the page at the email's address (`&relay=<id>`), and settings
+  then said "That request has already been answered." about the answer the
+  member had just given. Aalim asked for it fixed. The page now reads the ask
+  back (`loadOpenedRelay`; RLS shows it only to its member) and says what
+  they did with it (`openedRelayNote`, `lib/opened-relay.ts`): "You’ve
+  invited Zed Qadri to <tree>." or "You’ve dismissed Zed Qadri’s request.
+  They aren’t told." The same line meets them if they open the email again
+  later. Anyone else, or an ask that's gone, still gets "That request has
+  already been answered." **Verified:** 762 tests pass (8 new). On a dev
+  server with a throwaway Root and Leaf and two asks: after "Send invite" on
+  the ask the address named, its line read "You’ve invited Zed Qadri to Zz
+  Step 41.1 note tree." with the other ask still listed. Dismissing the
+  other one from its own link read "You’ve dismissed Nadia Qadri’s request.
+  They aren’t told." Reopening the first link gave the same "invited" line,
+  and the Leaf opening it saw only "That request has already been
+  answered." Throwaway rows deleted; counts back to the baseline.
 
 - **Step 41.4 — Ask to join from a share link without leaving the canvas**
   (Step 41, first-time journey follow-ups; no migration). A share link's
