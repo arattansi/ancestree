@@ -953,6 +953,50 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 41.4 — Ask to join from a share link without leaving the canvas**
+  (Step 41, first-time journey follow-ups; no migration). A share link's
+  corner card said "Request edit access" and left the canvas for
+  `/request-invite?tree=<slug>`, so the viewer lost their place, and "edit
+  access" undersold it: they aren't a member at all. The button now reads
+  **Ask to join** (sentence case: an action on the canvas, not a way to
+  another page; `docs/design-system.md`) and opens the same form in a
+  dialog over the canvas (`RequestInviteDialog`, as the home page's request
+  access does): first name, last name and email, the privacy tick
+  (`InviteConsent`), **Request an invite**, `requestInvite`'s answers and
+  its alert to the tree's Roots, and "Already have an invite? Sign in".
+  Taller than the screen, it scrolls inside itself. `/request-invite?tree=`
+  still shows the form as a page, for emails and older links, sharing the
+  dialog's intro (`REQUEST_INVITE_INTRO`) and sign-in line. A visitor from
+  another tree sees the same card, so the same dialog, less "Sign in"; their
+  old link led to a page that sends anyone signed in back to `/tree`.
+  Nothing new is exposed: the dialog carries only the tree's slug, as the
+  link did. J6 stays at 5 taps and 3 fields; the first tap no longer leaves
+  the canvas. An action that revalidates draws the page it came from again
+  in its reply, so asking re-rendered the share page: it counted another
+  view, and re-seeded the canvas, hiding every card behind the dialog until
+  each was measured again. `requestInvite` now refreshes pages only for a
+  signed-in asker, whose `/join` says where the request stands (Step 30.8),
+  and the share page counts no view for a server action's reply
+  (`viewerUserAgent`), for a signed-in viewer who asks. **Verified:** 754
+  tests pass (3 new). In the browser, signed out, on a throwaway tree whose
+  only Root was `delivered+41-4-root@resend.dev`, through a share link made
+  from a throwaway row (its token never printed; a one-shot redirect on
+  127.0.0.1 handed it to the pane): the card read "Ask to join", and the
+  dialog opened with the canvas's camera, the page's scroll and the cards
+  where they were. At 375×667 it fit; at 375×500 it scrolled inside itself
+  to its last line while the page stayed put. A bad address kept what was
+  typed and the tick. Asking as `delivered+41-4-new@resend.dev` answered
+  "Request sent", filed the request on that tree, and the Root's alert
+  ("Zz414 Newcomer asked to join Zz41-4 Share Test on ancestree") was
+  delivered, read back through Resend. Before the action change that reply
+  re-rendered the share page (logged) and left every card hidden; after it,
+  nothing re-rendered, no card hid, and the camera never moved. Asking again
+  filed nothing and emailed nobody; closing gave focus back to the button,
+  and reopening started afresh. The view count moved for page loads only.
+  `/request-invite?tree=` and `/request-invite` render as before. The
+  throwaway rows and account were deleted, and counts are back to the
+  baseline.
+
 - **Step 41.1 — A relayed invite can claim the newcomer's entry** (Step 41,
   first-time journey follow-ups; migration
   `20260923151000_invite_relay_candidates`). Someone reaches "Ask a
