@@ -729,6 +729,39 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 30.1 — Roots and reviewers hear the moment someone asks**
+  (Step 30, first-time journeys; migration
+  `20260923075000_request_alert_recipients`). Requests to join a tree and
+  to start one reached nobody: approvers saw a count beside "account" the
+  next time they opened ancestree, and it took them 4 taps to reach the
+  request. Now a new request to join (`requestInvite`) emails every Root of
+  that tree who asked and which tree, with a "Review the request" button.
+  A new waitlist sign-up (`joinBetaWaitlist`), or a member's first ask to
+  start a tree (`requestNewTree`, which compares `my_tree_request` before
+  and after, since `request_tree` answers "pending" to a repeat too),
+  emails each beta reviewer who runs a tree. Asking again emails nobody.
+  Alerts go out through `after()`, so they never slow or fail the form,
+  one email per approver, from addresses read with the service role
+  (`tree_root_emails`, `beta_reviewer_emails`; anon and signed-in users are
+  refused). Caps, counted from pending rows: 5 an hour and 20 a day per tree
+  for requests to join; 10 an hour and 30 a day for the waitlist; the alert
+  that reaches a cap says so, and requests past it still wait in the queue.
+  The button opens `GET /account/admin?tree=…&section=…`, which switches a
+  Root to that tree and lands on its card (it spends no token, so a mail
+  scanner opening it is harmless). Signed out, proxy.ts now sends a members'
+  link to `/join?next=…`, the sign-in email carries `next`, and signing in
+  lands back on it; `safeNext` (now `lib/safe-next.ts`) refuses anything
+  that could leave the site. The header's count is its own button beside
+  **account**, opening the tree and card that are waiting. **Verified:**
+  rehearsed in a rolled-back transaction on live, applied, function bodies
+  md5-match the file. On a dev server with a throwaway tree and Root: the
+  share-link form and request access each sent one alert (Resend reported
+  it delivered), a repeat sent none, the fifth request in an hour carried
+  the cap note and the sixth sent nothing but still queued; the email's
+  link switched trees signed in, and went through sign-in signed out; one
+  tap on the header count opened the other tree's requests. Reviewer alerts
+  weren't sent live; their recipients were checked in rolled-back SQL.
+  559 tests pass. All throwaway rows were deleted.
 - **Step 29.8 — Getting Started starts collapsed on phones** (UI only).
   On a phone the founder's checklist opened over the top of the tree. Below
   Tailwind's `sm` (640px) it now starts collapsed to its one-line header,
