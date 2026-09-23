@@ -57,7 +57,6 @@ export function AcceptInviteForm({
         >
           <Checkbox
             id="consent"
-            name="consent"
             checked={consented}
             onCheckedChange={(value) => setConsented(value === true)}
             className="mt-0.5"
@@ -74,6 +73,12 @@ export function AcceptInviteForm({
             </Link>
             .
           </span>
+          {/* React resets the form once its action has run, which unticked
+              the checkbox's own input while the box still showed ticked, so
+              a second try (after "Could not sign you in", say) was refused.
+              This one follows what the box shows, as in `MagicLinkForm`
+              (Step 30.7) and `InviteConsent` (Step 30.5). */}
+          {consented ? <input type="hidden" name="consent" value="on" /> : null}
         </Label>
       )}
 
