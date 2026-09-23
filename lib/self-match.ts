@@ -1,3 +1,5 @@
+import { namePrefill } from "@/lib/first-tree";
+import type { JoiningName } from "@/lib/joining-name";
 import { personDisplayName, personLifespan } from "@/lib/person-name";
 
 /**
@@ -24,6 +26,63 @@ export function normalizeTypedName(value: string): string {
 export function canSearchName(first: string, last: string): boolean {
   return normalizeTypedName(first).length > 0 && normalizeTypedName(last).length > 0;
 }
+
+/**
+ * The name onboarding opens with, from what we already know (Step 30.7):
+ * the halves they joined by (`lib/joining-name.ts`) while those still make
+ * up their display name — they may have renamed themselves since — else the
+ * display name split as a founder's is (`namePrefill`). A display name that
+ * is just their address's local part, which an account opened without a
+ * name is given, is no name at all.
+ */
+export function onboardingName({
+  displayName,
+  email,
+  joinedAs,
+}: {
+  displayName: string | null | undefined;
+  email: string | null | undefined;
+  joinedAs: JoiningName | null;
+}): JoiningName {
+  const shown = normalizeTypedName(displayName ?? "");
+  if (
+    joinedAs &&
+    normalizeTypedName(`${joinedAs.first_name} ${joinedAs.last_name}`) === shown
+  ) {
+    return joinedAs;
+  }
+  const localPart = (email ?? "").split("@")[0].toLowerCase();
+  if (localPart && shown.toLowerCase() === localPart) {
+    return { first_name: "", last_name: "" };
+  }
+  return namePrefill(shown);
+}
+
+/**
+ * How onboarding opens (Step 30.7). With both halves of their name known,
+ * it searches as the page opens and shows what it found; on a tree nobody
+ * is on yet there is nobody to find, so it opens on adding themselves;
+ * otherwise it asks their name first.
+ */
+export function onboardingOpening({
+  name,
+  treeHasEntries,
+}: {
+  name: JoiningName;
+  treeHasEntries: boolean;
+}): "search" | "add" | "name" {
+  if (!treeHasEntries) return "add";
+  return canSearchName(name.first_name, name.last_name) ? "search" : "name";
+}
+
+/** Where onboarding opens, worked out on the server before it renders. */
+export type OnboardingStart = {
+  /** Their name as far as we know it: searched for, and carried into adding themselves. */
+  name: JoiningName;
+  step: "name" | "results" | "add";
+  /** What the search found, when it opens on `results`. */
+  candidates: SelfCandidate[];
+};
 
 /**
  * Near-certain matches are shown first and plainly; weaker ones get a

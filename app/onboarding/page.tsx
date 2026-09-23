@@ -5,6 +5,7 @@ import { FirstTreeOnboarding } from "@/components/first-tree/first-tree-onboardi
 import { OnboardingSelfFlow } from "@/components/onboarding-self-flow";
 import { Card, CardContent } from "@/components/ui/card";
 import { isFounder } from "@/lib/first-tree.server";
+import { onboardingStart } from "@/lib/self-match.server";
 import { createClient } from "@/lib/supabase/server";
 import { listTreeMembers } from "@/lib/tree";
 import { currentAccess, requireTreeMember } from "@/lib/tree-context";
@@ -61,6 +62,15 @@ export default async function OnboardingPage({
 
   const members = await listTreeMembers(tree.id);
   const hasOwnEntryElsewhere = !!profile.self_person_id;
+  // The name they joined by, and the search for it, before the page renders:
+  // it opens on what the search found, not an empty form (Step 30.7).
+  const start = hasOwnEntryElsewhere
+    ? null
+    : await onboardingStart({
+        treeId: tree.id,
+        displayName: profile.display_name,
+        treeHasEntries: members.length > 0,
+      });
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 py-10">
@@ -90,6 +100,7 @@ export default async function OnboardingPage({
               treeId={tree.id}
               isAdmin={isRoot}
               members={members}
+              start={start}
             />
           </CardContent>
         </Card>

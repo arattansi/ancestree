@@ -15,31 +15,46 @@ import {
   candidateSummary,
   canSearchName,
   matchConfidence,
+  type OnboardingStart,
   type SelfCandidate,
 } from "@/lib/self-match";
 
-type Step = "name" | "results" | "add";
+type Step = OnboardingStart["step"];
+
+const ASK_NAME: OnboardingStart = {
+  name: { first_name: "", last_name: "" },
+  step: "name",
+  candidates: [],
+};
 
 /**
  * First-run onboarding (Step 15). A new member types just their name; we look
  * for an unclaimed entry a relative already added — tolerating misspellings —
  * so they can take ownership of it instead of creating a duplicate. Only if
- * nothing fits do they fill in the full add-yourself form.
+ * nothing fits do they fill in the full add-yourself form. When we already
+ * know their name, the page has searched for it and the flow opens on what
+ * it found (Step 30.7).
  */
 export function OnboardingSelfFlow({
   treeId,
   isAdmin,
   members,
+  start,
 }: {
   treeId: string;
   isAdmin: boolean;
   members: TreeMemberOption[];
+  /** Where to open (`onboardingStart`); without it, on an empty name form. */
+  start?: OnboardingStart | null;
 }) {
   const router = useRouter();
-  const [step, setStep] = React.useState<Step>("name");
-  const [first, setFirst] = React.useState("");
-  const [last, setLast] = React.useState("");
-  const [candidates, setCandidates] = React.useState<SelfCandidate[]>([]);
+  const initial = start ?? ASK_NAME;
+  const [step, setStep] = React.useState<Step>(initial.step);
+  const [first, setFirst] = React.useState(initial.name.first_name);
+  const [last, setLast] = React.useState(initial.name.last_name);
+  const [candidates, setCandidates] = React.useState<SelfCandidate[]>(
+    initial.candidates,
+  );
   const [searching, setSearching] = React.useState(false);
   const [claimingId, setClaimingId] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
@@ -80,14 +95,19 @@ export function OnboardingSelfFlow({
   }
 
   if (step === "add") {
+    // A tree nobody is on yet opens here (Step 30.7): there's no one to
+    // connect to, and nothing to search.
+    const treeIsEmpty = members.length === 0;
     return (
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
           <h2 className="text-base font-semibold">Add yourself</h2>
-          <p className="text-sm text-muted-foreground">
-            You&rsquo;ll pick how you connect to someone already on the tree —
-            and can add any missing relatives in between.
-          </p>
+          {treeIsEmpty ? null : (
+            <p className="text-sm text-muted-foreground">
+              You&rsquo;ll pick how you connect to someone already on the tree —
+              and can add any missing relatives in between.
+            </p>
+          )}
         </div>
         <AddPersonFlow
           mode="self"
@@ -96,13 +116,15 @@ export function OnboardingSelfFlow({
           members={members}
           initialName={{ first_name: first, last_name: last }}
         />
-        <button
-          type="button"
-          className="self-start text-sm text-muted-foreground underline underline-offset-2"
-          onClick={() => setStep(candidates.length > 0 ? "results" : "name")}
-        >
-          Back to the search
-        </button>
+        {treeIsEmpty ? null : (
+          <button
+            type="button"
+            className="self-start text-sm text-muted-foreground underline underline-offset-2"
+            onClick={() => setStep(candidates.length > 0 ? "results" : "name")}
+          >
+            Back to the search
+          </button>
+        )}
       </div>
     );
   }

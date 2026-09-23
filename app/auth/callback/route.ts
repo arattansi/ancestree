@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 
+import { joiningDisplayName, readJoiningName } from "@/lib/joining-name";
 import { establishMembership, safeNext } from "@/lib/sign-in.server";
 import { createClient } from "@/lib/supabase/server";
 
@@ -24,11 +25,16 @@ export async function GET(request: NextRequest) {
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.exchangeCodeForSession(code);
+  const { data, error } = await supabase.auth.exchangeCodeForSession(code);
   if (error) {
     return NextResponse.redirect(new URL("/auth/auth-code-error", origin));
   }
 
-  const destination = await establishMembership(supabase, { invite, next });
+  // Named after what a bare invite link's form asked, as on /auth/confirm (Step 30.7).
+  const destination = await establishMembership(supabase, {
+    invite,
+    next,
+    displayName: joiningDisplayName(readJoiningName(data.user?.user_metadata)),
+  });
   return NextResponse.redirect(new URL(destination, origin));
 }

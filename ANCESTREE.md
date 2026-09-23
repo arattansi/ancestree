@@ -57,7 +57,8 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   too; `lib/tree-context.ts#currentAccess` resolves it, falling back to the
   member's home tree): `/tree` (React Flow canvas), `/tree/review`,
   `/people/new`, `/people/[id]/edit`, `/onboarding` (first-run on that
-  tree: a member finds or adds themselves; the tree's founder gets four
+  tree: a member finds or adds themselves, opening on the search for the
+  name they joined by when we know it, Step 30.7; the tree's founder gets four
   steps instead, `?step=invite|you|name|family` — `components/first-tree/`,
   Step 29); `/admin` redirects to the account page's Admin view, and
   `/account/admin?tree=<id>&section=<card>` is an alert email's button — a
@@ -469,6 +470,21 @@ mirror it for the UI.
   address and still asks for one and verifies it by email. The privacy
   checkbox sits on `/request-invite` for people who ask, and on the accept
   page for people invited cold.
+- **The name someone joins by (Step 30.7, `lib/joining-name.ts`)**: an
+  emailed invite's request row goes when it's redeemed, so the new auth
+  account keeps its first and last name (`user_metadata`, set by
+  `signInWithInvite`'s `createUser`). A bare link's form asks for a first
+  and last name beside the email (checked as the request forms check them)
+  and `signInWithOtp` keeps them the same way (`options.data`, written only
+  for a new account); `completeEmailSignIn` reads them back and names the
+  new profile after them rather than the address. `/onboarding` then opens
+  on what it already knows (`onboardingStart` in
+  `lib/self-match.server.ts`): those halves while they still make up the
+  display name, else the display name split (`namePrefill`), never an
+  address's local part — and with both halves it searches on the server and
+  opens on "Is one of these you?" or "We couldn't find you". On a tree
+  nobody is on yet it opens on adding themselves, since there's nobody to
+  find.
 - **Invite tokens** (`public.invites`): whoever may invite mints a
   single-use, 14-day link `"/join/<token>"` by inserting a row directly under RLS
   (`can_invite_as`). `redeem_invite` (SECURITY DEFINER) creates the member

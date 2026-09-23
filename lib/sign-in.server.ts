@@ -3,6 +3,11 @@ import "server-only";
 import type { EmailOtpType } from "@supabase/supabase-js";
 
 import { setCurrentTreeCookie } from "@/lib/current-tree.server";
+import {
+  joiningDisplayName,
+  readJoiningName,
+  type JoiningName,
+} from "@/lib/joining-name";
 import { signInLanding } from "@/lib/open-console.server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -101,24 +106,38 @@ export async function completeEmailSignIn({
   next: string;
 }): Promise<string> {
   const supabase = await createClient();
-  const { error } = await supabase.auth.verifyOtp({ type, token_hash: tokenHash });
+  const { data, error } = await supabase.auth.verifyOtp({ type, token_hash: tokenHash });
+  let user = data.user;
 
   if (error) {
     // A second tap on a link this browser already spent: they are signed in,
     // so carry on rather than telling them the link is used up.
     const {
-      data: { user },
+      data: { user: signedIn },
     } = await supabase.auth.getUser();
-    if (!user) return "/auth/auth-code-error";
+    if (!signedIn) return "/auth/auth-code-error";
+    user = signedIn;
   }
 
-  return establishMembership(supabase, { invite, next });
+  // A bare invite link's form kept their name on the new account: the
+  // profile the invite makes is named after it, not the address (Step 30.7).
+  return establishMembership(supabase, {
+    invite,
+    next,
+    displayName: joiningDisplayName(readJoiningName(user?.user_metadata)),
+  });
 }
 
 export type InviteRecipient = {
   email: string;
   /** "First Last" when the invite was sent to a named person. */
   name: string | null;
+  /**
+   * The same name in its halves, for their new account to keep: the request
+   * row goes when the invite is redeemed, and onboarding searches by it
+   * (Step 30.7).
+   */
+  joiningName: JoiningName | null;
   /** True when they asked to join — they accepted the privacy notice then. */
   requested: boolean;
 };
@@ -156,7 +175,12 @@ export async function getInviteRecipient(
   const name = request
     ? `${request.first_name} ${request.last_name}`.trim() || null
     : null;
-  return { email, name, requested: request?.source === "request" };
+  return {
+    email,
+    name,
+    joiningName: readJoiningName(request),
+    requested: request?.source === "request",
+  };
 }
 
 export type InviteSignInResult =
@@ -185,10 +209,12 @@ export async function signInWithInvite(token: string): Promise<InviteSignInResul
   const admin = createAdminClient();
 
   // Make sure the account exists and is confirmed. An address that has signed
-  // in before comes back as "already registered", which is fine.
+  // in before comes back as "already registered", which is fine. A new one
+  // keeps the name the invite was sent to, for onboarding (Step 30.7).
   await admin.auth.admin.createUser({
     email: recipient.email,
     email_confirm: true,
+    user_metadata: recipient.joiningName ?? undefined,
   });
 
   const { data: link, error: linkError } = await admin.auth.admin.generateLink({

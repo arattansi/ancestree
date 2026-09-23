@@ -5,6 +5,8 @@ import {
   canSearchName,
   matchConfidence,
   normalizeTypedName,
+  onboardingName,
+  onboardingOpening,
   toSelfCandidate,
   type SelfCandidate,
 } from "@/lib/self-match";
@@ -78,5 +80,85 @@ describe("toSelfCandidate", () => {
       parents: "Karim & Zainab",
       score: 0.92,
     });
+  });
+});
+
+describe("onboardingName", () => {
+  const nothing = { first_name: "", last_name: "" };
+
+  it("takes the halves they joined by, split where they were", () => {
+    expect(
+      onboardingName({
+        displayName: "Mary Ann Smith",
+        email: "mas@example.com",
+        joinedAs: { first_name: "Mary Ann", last_name: "Smith" },
+      }),
+    ).toEqual({ first_name: "Mary Ann", last_name: "Smith" });
+  });
+
+  it("splits the display name when there are no halves to go by", () => {
+    expect(
+      onboardingName({ displayName: "Zahra Suleman", email: "zs@example.com", joinedAs: null }),
+    ).toEqual({ first_name: "Zahra", last_name: "Suleman" });
+  });
+
+  it("goes by the display name once they've renamed themselves", () => {
+    expect(
+      onboardingName({
+        displayName: "Mary Jones",
+        email: "mas@example.com",
+        joinedAs: { first_name: "Mary Ann", last_name: "Smith" },
+      }),
+    ).toEqual({ first_name: "Mary", last_name: "Jones" });
+  });
+
+  it("minds only the spacing when matching the halves to the display name", () => {
+    expect(
+      onboardingName({
+        displayName: " Mary  Ann Smith ",
+        email: null,
+        joinedAs: { first_name: "Mary Ann", last_name: "Smith" },
+      }),
+    ).toEqual({ first_name: "Mary Ann", last_name: "Smith" });
+  });
+
+  it("knows no name from an address, even one that reads like a word", () => {
+    expect(
+      onboardingName({ displayName: "mgarcia", email: "MGarcia@example.com", joinedAs: null }),
+    ).toEqual(nothing);
+    expect(
+      onboardingName({ displayName: "jdoe84", email: "jdoe84@example.com", joinedAs: null }),
+    ).toEqual(nothing);
+    expect(onboardingName({ displayName: null, email: null, joinedAs: null })).toEqual(nothing);
+  });
+
+  it("keeps a lone name as the first name, to finish by hand", () => {
+    expect(
+      onboardingName({ displayName: "Cher", email: "c@example.com", joinedAs: null }),
+    ).toEqual({ first_name: "Cher", last_name: "" });
+  });
+});
+
+describe("onboardingOpening", () => {
+  const known = { first_name: "Zahra", last_name: "Suleman" };
+
+  it("searches as it opens once both halves are known", () => {
+    expect(onboardingOpening({ name: known, treeHasEntries: true })).toBe("search");
+  });
+
+  it("asks their name when half of it is missing", () => {
+    expect(
+      onboardingOpening({ name: { first_name: "Cher", last_name: "" }, treeHasEntries: true }),
+    ).toBe("name");
+    expect(
+      onboardingOpening({ name: { first_name: "", last_name: "" }, treeHasEntries: true }),
+    ).toBe("name");
+  });
+
+  it("opens on adding themselves on a tree nobody is on yet, name or not", () => {
+    expect(onboardingOpening({ name: known, treeHasEntries: false })).toBe("add");
+    expect(
+      onboardingOpening({ name: { first_name: "", last_name: "" }, treeHasEntries: false }),
+    ).toBe("add");
   });
 });

@@ -3,19 +3,15 @@
 import { revalidatePath } from "next/cache";
 
 import { requireProfile } from "@/lib/auth";
-import {
-  canSearchName,
-  normalizeTypedName,
-  toSelfCandidate,
-  type SelfCandidate,
-} from "@/lib/self-match";
+import { normalizeTypedName, type SelfCandidate } from "@/lib/self-match";
+import { searchSelfCandidates } from "@/lib/self-match.server";
 import { createClient } from "@/lib/supabase/server";
 import { revalidateTreePages } from "@/lib/revalidate";
 
 /**
- * Unclaimed entries on one tree that look like the name a new member typed.
- * Spelling mistakes, accents, nicknames and phonetic variants all still match
- * — the scoring lives in `search_self_candidates` (Step 15).
+ * Unclaimed entries on one tree that look like the name a new member typed
+ * (Step 15) — the same search onboarding runs as it opens, when it already
+ * knows their name (Step 30.7).
  */
 export async function findSelfCandidates(
   treeId: string,
@@ -23,21 +19,7 @@ export async function findSelfCandidates(
   last: string,
 ): Promise<{ candidates: SelfCandidate[]; error?: string }> {
   await requireProfile();
-  if (!canSearchName(first, last)) {
-    return { candidates: [], error: "Enter both your first and last name." };
-  }
-
-  const supabase = await createClient();
-  const { data, error } = await supabase.rpc("search_self_candidates", {
-    p_first: normalizeTypedName(first),
-    p_last: normalizeTypedName(last),
-    p_tree: treeId,
-  });
-
-  if (error) {
-    return { candidates: [], error: "Couldn't search the tree. Try again." };
-  }
-  return { candidates: (data ?? []).map(toSelfCandidate) };
+  return searchSelfCandidates(treeId, first, last);
 }
 
 function friendlyClaimError(message: string | undefined): string {

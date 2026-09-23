@@ -81,7 +81,7 @@ export default async function InvitePage({
                   ? "You’re signed in, so accepting adds it to your trees."
                   : recipient
                     ? "Accepting signs you in — there is nothing else to set up."
-                    : "Enter your email to get a sign-in link — opening it accepts the invite."}
+                    : "Enter your name and email to get a sign-in link — opening it accepts the invite."}
               </CardDescription>
             </CardHeader>
             <CardContent>

@@ -17,7 +17,9 @@ vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => admin }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: async () => server }));
 
 import {
+  completeEmailSignIn,
   establishMembership,
+  getInviteRecipient,
   redeemInvite,
   signInWithInvite,
 } from "@/lib/sign-in.server";
@@ -29,20 +31,45 @@ function redeemed(extra: Record<string, unknown>) {
   return { data: { ...TREE, ...extra }, error: null };
 }
 
-function fakeServer(rpc: { data: unknown; error: unknown }) {
+/**
+ * The cookie-bound client: `rpc` answers the redeem, and the token signs in
+ * someone whose account keeps `metadata` (Step 30.7) — or, with
+ * `spent`, was already used by this browser, which is signed in as them.
+ */
+function fakeServer(
+  rpc: { data: unknown; error: unknown },
+  { metadata = {}, spent = false }: { metadata?: Record<string, unknown>; spent?: boolean } = {},
+) {
+  const user = { id: "u1", user_metadata: metadata };
   return {
     rpc: vi.fn(async () => rpc),
-    auth: { verifyOtp: vi.fn(async () => ({ error: null })) },
+    auth: {
+      verifyOtp: vi.fn(async () =>
+        spent
+          ? { data: { user: null, session: null }, error: { message: "Token has expired or is invalid" } }
+          : { data: { user, session: {} }, error: null },
+      ),
+      getUser: vi.fn(async () => ({ data: { user } })),
+    },
   };
 }
 
-/** A live invite emailed to newcomer@example.com, and no account for them yet. */
-function fakeAdmin({ hasProfile = false } = {}) {
+/** A request row as the invite embeds it. */
+type RequestRow = { first_name: string; last_name: string; email: string; source: string };
+
+/**
+ * A live invite emailed to newcomer@example.com — from `request`, when it
+ * came from one — and no account for them yet.
+ */
+function fakeAdmin({
+  hasProfile = false,
+  request = null,
+}: { hasProfile?: boolean; request?: RequestRow | null } = {}) {
   const invite = {
     status: "active",
     expires_at: null,
     invited_email: "newcomer@example.com",
-    invite_requests: null,
+    invite_requests: request,
   };
   return {
     from: (table: string) => ({
@@ -151,5 +178,84 @@ describe("signInWithInvite", () => {
       reason: "already_member",
     });
     expect(server.rpc).not.toHaveBeenCalled();
+  });
+});
+
+describe("the name someone joins by (Step 30.7)", () => {
+  const approved: RequestRow = {
+    first_name: "Mary Ann",
+    last_name: "Smith",
+    email: "newcomer@example.com",
+    source: "request",
+  };
+
+  it("hands back the invite's name in halves too", async () => {
+    admin = fakeAdmin({ request: approved });
+    expect(await getInviteRecipient("tok")).toEqual({
+      email: "newcomer@example.com",
+      name: "Mary Ann Smith",
+      joiningName: { first_name: "Mary Ann", last_name: "Smith" },
+      requested: true,
+    });
+  });
+
+  it("keeps an emailed invite's name on the account it opens", async () => {
+    admin = fakeAdmin({ request: approved });
+    server = fakeServer(redeemed({ self_person_id: null, self_placed: false }));
+    await signInWithInvite("tok");
+    expect(admin.auth.admin.createUser).toHaveBeenCalledWith({
+      email: "newcomer@example.com",
+      email_confirm: true,
+      user_metadata: { first_name: "Mary Ann", last_name: "Smith" },
+    });
+    expect(server.rpc).toHaveBeenCalledWith("redeem_invite_tree", {
+      p_token: "tok",
+      p_display_name: "Mary Ann Smith",
+    });
+  });
+
+  it("opens an account with no name for an invite that had none", async () => {
+    server = fakeServer(redeemed({ self_person_id: null, self_placed: false }));
+    await signInWithInvite("tok");
+    expect(admin.auth.admin.createUser).toHaveBeenCalledWith({
+      email: "newcomer@example.com",
+      email_confirm: true,
+      user_metadata: undefined,
+    });
+  });
+
+  it("names the profile a bare link makes after the name its form kept", async () => {
+    server = fakeServer(redeemed({ self_person_id: null, self_placed: false }), {
+      metadata: { first_name: "Zahra", last_name: "Suleman" },
+    });
+    expect(
+      await completeEmailSignIn({ tokenHash: "hash", type: "email", invite: "tok", next: "/tree" }),
+    ).toBe("/onboarding");
+    expect(server.rpc).toHaveBeenCalledWith("redeem_invite_tree", {
+      p_token: "tok",
+      p_display_name: "Zahra Suleman",
+    });
+  });
+
+  it("reads the name off the signed-in account on a second tap", async () => {
+    server = fakeServer(redeemed({ self_person_id: null, self_placed: false }), {
+      metadata: { first_name: "Zahra", last_name: "Suleman" },
+      spent: true,
+    });
+    await completeEmailSignIn({ tokenHash: "hash", type: "email", invite: "tok", next: "/tree" });
+    expect(server.auth.getUser).toHaveBeenCalled();
+    expect(server.rpc).toHaveBeenCalledWith("redeem_invite_tree", {
+      p_token: "tok",
+      p_display_name: "Zahra Suleman",
+    });
+  });
+
+  it("leaves the naming to the address when the account kept no name", async () => {
+    server = fakeServer(redeemed({ self_person_id: null, self_placed: false }));
+    await completeEmailSignIn({ tokenHash: "hash", type: "email", invite: "tok", next: "/tree" });
+    expect(server.rpc).toHaveBeenCalledWith("redeem_invite_tree", {
+      p_token: "tok",
+      p_display_name: undefined,
+    });
   });
 });
