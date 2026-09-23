@@ -5,15 +5,27 @@ import {
   ACCOUNT_TYPE_KEYS,
   ASSIGNABLE_ACCOUNT_TYPES,
   BRANCH,
+  BRANCHES_PER_ROOT,
+  BRANCH_LIMIT_REFUSAL,
   INVITED_AS,
   LEAF,
   ROOT,
+  ROOTS_PER_TREE,
+  ROOT_LIMIT_REFUSAL,
   accountTypeOf,
   branchSideLabel,
+  countOf,
   describeAccess,
+  inWords,
   isAccountTypeKey,
   isAssignable,
+  isBranchLimitRefusal,
   isOwnLineRefusal,
+  isRootLimitRefusal,
+  rootPlacesAfter,
+  treeRoomLine,
+  unavailableTypes,
+  whyUnavailable,
   type Reach,
 } from "@/lib/account-types";
 
@@ -146,6 +158,121 @@ describe("describeAccess", () => {
         "Ones they added, until someone else builds on them",
       );
     }
+  });
+
+  it("says how many a tree can have", () => {
+    expect(valueOf(ROOT, "How many a tree can have")).toBe("Up to two");
+    expect(valueOf(BRANCH, "How many a tree can have")).toBe(
+      "Up to four for each Root",
+    );
+    expect(valueOf(LEAF, "How many a tree can have")).toBe("Any number");
+  });
+});
+
+describe("limits (Step 39)", () => {
+  const room = (roots: number, branchesMade: number) => ({
+    roots,
+    branchesMade,
+  });
+
+  it("holds a tree to two Roots and each Root to four Branches", () => {
+    expect(ROOTS_PER_TREE).toBe(2);
+    expect(BRANCHES_PER_ROOT).toBe(4);
+    expect(ROOT.limit).toEqual({ count: 2, per: "tree" });
+    expect(BRANCH.limit).toEqual({ count: 4, per: "root" });
+    expect(LEAF.limit).toBeNull();
+  });
+
+  it("says the limits in every description a Root reads", () => {
+    expect(ROOT.description).toContain("two at most");
+    expect(ROOT.description).toContain("up to four Leaves Branches");
+    expect(BRANCH.description).toContain("up to four Branches");
+  });
+
+  it("spells small counts out", () => {
+    expect(inWords(2)).toBe("two");
+    expect(inWords(4)).toBe("four");
+    expect(inWords(11)).toBe("11");
+  });
+
+  it("offers a Root while the tree has room for one", () => {
+    expect(whyUnavailable("admin", "member", room(1, 0))).toBeNull();
+    expect(whyUnavailable("admin", "member", room(2, 0))).toBe(
+      "This tree has its two Roots",
+    );
+    expect(whyUnavailable("admin", "branch_admin", room(2, 0))).toBe(
+      "This tree has its two Roots",
+    );
+  });
+
+  it("offers a Branch until the viewing Root has made four", () => {
+    expect(whyUnavailable("branch_admin", "member", room(1, 3))).toBeNull();
+    expect(whyUnavailable("branch_admin", "member", room(1, 4))).toBe(
+      "You’ve made your four Branches",
+    );
+    // Taken over from a departing Root, past four: still no more.
+    expect(whyUnavailable("branch_admin", "member", room(1, 5))).not.toBeNull();
+  });
+
+  it("never refuses keeping someone as they are, or making them a Leaf", () => {
+    const full = room(2, 4);
+    expect(whyUnavailable("branch_admin", "branch_admin", full)).toBeNull();
+    expect(whyUnavailable("member", "branch_admin", full)).toBeNull();
+    expect(whyUnavailable("member", "member", full)).toBeNull();
+  });
+
+  it("lists what the picker can't offer, by key", () => {
+    expect(unavailableTypes("member", room(1, 0))).toEqual({});
+    expect(unavailableTypes("member", room(2, 4))).toEqual({
+      admin: "This tree has its two Roots",
+      branch_admin: "You’ve made your four Branches",
+    });
+    expect(unavailableTypes("branch_admin", room(2, 4))).toEqual({
+      admin: "This tree has its two Roots",
+    });
+  });
+
+  it("counts against the limit, and says when someone is past it", () => {
+    expect(countOf(1, 4)).toBe("1 of 4");
+    expect(countOf(4, 4)).toBe("4 of 4");
+    expect(countOf(5, 4)).toBe("5 (four at most)");
+  });
+
+  it("says what making a Root leaves", () => {
+    expect(rootPlacesAfter(1)).toBe(
+      "A tree has at most two Roots, so this is its last place.",
+    );
+  });
+
+  it("sums up the tree for the members table, the viewer first", () => {
+    expect(
+      treeRoomLine([
+        { name: "Raiya Suleman", isYou: false, branchesMade: 0 },
+        { name: "Aalim Rattansi", isYou: true, branchesMade: 1 },
+      ]),
+    ).toBe(
+      "Roots: 2 of 2. Branches you’ve made: 1 of 4 (Raiya Suleman: 0 of 4).",
+    );
+    expect(
+      treeRoomLine([{ name: "Aalim Rattansi", isYou: true, branchesMade: 0 }]),
+    ).toBe("Roots: 1 of 2. Branches you’ve made: 0 of 4.");
+  });
+
+  it("knows the database's limit refusals from other failures", () => {
+    expect(
+      isRootLimitRefusal("ROOT_LIMIT: a tree has at most 2 Roots"),
+    ).toBe(true);
+    expect(
+      isBranchLimitRefusal(
+        "BRANCH_LIMIT: a Root makes at most 4 Branches on a tree",
+      ),
+    ).toBe(true);
+    expect(isRootLimitRefusal("ROOT_IS_PERMANENT: a Root stays a Root")).toBe(
+      false,
+    );
+    expect(isBranchLimitRefusal(undefined)).toBe(false);
+    expect(ROOT_LIMIT_REFUSAL).toContain("two Roots");
+    expect(BRANCH_LIMIT_REFUSAL).toContain("four Branches");
   });
 });
 

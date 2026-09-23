@@ -30,7 +30,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { accountTypeOf, branchSideLabel } from "@/lib/account-types";
+import {
+  BRANCHES_PER_ROOT,
+  accountTypeOf,
+  branchSideLabel,
+  countOf,
+} from "@/lib/account-types";
 import { getUser, requireProfile, type Profile } from "@/lib/auth";
 import { getBranchSides } from "@/lib/branch.server";
 import { listNotifications } from "@/lib/claims";
@@ -211,25 +216,39 @@ async function SettingsView({
   const user = await getUser();
 
   const supabase = await createClient();
-  const [notifications, { data: directory }, { data: relayRows }] =
-    await Promise.all([
-      user ? listNotifications(user.id) : Promise.resolve([]),
-      supabase
-        .from("member_directory")
-        .select("tree_id, invited_by_name")
-        .eq("auth_user_id", profile.auth_user_id),
-      // Asks passed on to them from request access (Step 30.5): RLS shows
-      // each only to the member it went to.
-      supabase
-        .from("invite_relays")
-        .select("id, first_name, last_name, email, created_at")
-        .eq("recipient_user_id", profile.auth_user_id)
-        .eq("status", "pending")
-        .order("created_at", { ascending: true }),
-    ]);
+  const [
+    notifications,
+    { data: directory },
+    { data: relayRows },
+    { data: madeBranches },
+  ] = await Promise.all([
+    user ? listNotifications(user.id) : Promise.resolve([]),
+    supabase
+      .from("member_directory")
+      .select("tree_id, invited_by_name")
+      .eq("auth_user_id", profile.auth_user_id),
+    // Asks passed on to them from request access (Step 30.5): RLS shows
+    // each only to the member it went to.
+    supabase
+      .from("invite_relays")
+      .select("id, first_name, last_name, email, created_at")
+      .eq("recipient_user_id", profile.auth_user_id)
+      .eq("status", "pending")
+      .order("created_at", { ascending: true }),
+    // The Branches they've made, tree by tree: each Root makes up to four
+    // (Step 39).
+    supabase
+      .from("tree_members")
+      .select("tree_id")
+      .eq("branch_granted_by", profile.auth_user_id),
+  ]);
   const invitedByTree = new Map(
     (directory ?? []).map((d) => [d.tree_id, d.invited_by_name]),
   );
+  const branchesMadeByTree = new Map<string, number>();
+  for (const { tree_id } of madeBranches ?? []) {
+    branchesMadeByTree.set(tree_id, (branchesMadeByTree.get(tree_id) ?? 0) + 1);
+  }
   const relays: PendingRelay[] = (relayRows ?? []).map((r) => ({
     id: r.id,
     firstName: r.first_name,
@@ -397,6 +416,17 @@ async function SettingsView({
                   </dd>
                   <dt>Invite rights</dt>
                   <dd className="text-foreground">As Leaves</dd>
+                  {t.type.runsTree ? (
+                    <>
+                      <dt>Branches made</dt>
+                      <dd className="text-foreground">
+                        {countOf(
+                          branchesMadeByTree.get(t.id) ?? 0,
+                          BRANCHES_PER_ROOT,
+                        )}
+                      </dd>
+                    </>
+                  ) : null}
                   {t.type.addRelatives === "line" ? (
                     <>
                       <dt>Adds relatives</dt>
@@ -487,7 +517,10 @@ async function SettingsView({
             .
           </p>
           <div>
-            <DeleteAccount soleRootTrees={soleRootTrees} />
+            <DeleteAccount
+              soleRootTrees={soleRootTrees}
+              madeBranches={branchesMadeByTree.size > 0}
+            />
           </div>
         </CardContent>
       </Card>

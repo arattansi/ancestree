@@ -2,7 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 
-import { isAssignable, ROOT } from "@/lib/account-types";
+import {
+  BRANCH_LIMIT_REFUSAL,
+  isAssignable,
+  isBranchLimitRefusal,
+  isRootLimitRefusal,
+  ROOT,
+  ROOT_LIMIT_REFUSAL,
+} from "@/lib/account-types";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { revalidateTreeAndAccount } from "@/lib/revalidate";
@@ -11,6 +18,9 @@ import { rootOf } from "@/lib/tree-context";
 /**
  * Root: give a member an account type on one tree (Step 25). Making them a
  * Root is for good — nobody demotes or removes a Root (`tree_members_guard`).
+ * A tree has at most two Roots, and each Root makes up to four Branches
+ * (Step 39): the database refuses a promotion past either, and records which
+ * Root made each Branch (`tree_members_limits`).
  */
 export async function setAccountType(
   treeId: string,
@@ -45,6 +55,10 @@ export async function setAccountType(
   if (error || data !== key) {
     if (error?.message.includes("ROOT_IS_PERMANENT")) {
       return { error: "A Root stays a Root. Their account type can't change." };
+    }
+    if (isRootLimitRefusal(error?.message)) return { error: ROOT_LIMIT_REFUSAL };
+    if (isBranchLimitRefusal(error?.message)) {
+      return { error: BRANCH_LIMIT_REFUSAL };
     }
     return { error: "Couldn't change that account type. Try again." };
   }

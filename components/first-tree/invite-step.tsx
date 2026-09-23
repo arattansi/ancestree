@@ -27,7 +27,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   ACCOUNT_TYPES,
+  BRANCHES_PER_ROOT,
   ROOT,
+  ROOTS_PER_TREE,
+  inWords,
   type AccountTypeKey,
 } from "@/lib/account-types";
 import type { TreeInvite } from "@/lib/first-tree";
@@ -36,14 +39,13 @@ import { cn } from "@/lib/utils";
 /**
  * How each account type comes to someone, beside what it is: the founder
  * is the Root, an invite makes someone a Leaf, and a Branch (or another Root)
- * is given to someone who has already joined.
+ * is given to someone who has already joined — within the limits (Step 39).
  */
 const HOW_THEY_GET_IT: Record<AccountTypeKey, string> = {
-  admin: "That’s you. You run the tree and decide what everyone else can do.",
-  branch_admin:
-    "For someone who knows one side of the family best. Make a Leaf a Branch once they’ve joined.",
+  admin: `That’s you. You run the tree and decide what everyone else can do. A tree has at most ${inWords(ROOTS_PER_TREE)} Roots: you, and ${inWords(ROOTS_PER_TREE - 1)} more you can choose once they’ve joined.`,
+  branch_admin: `For someone who knows one side of the family best. Make a Leaf a Branch once they’ve joined — you can make up to ${inWords(BRANCHES_PER_ROOT)}.`,
   member:
-    "Everyone you invite joins as a Leaf, to add family on their own line and fill in the details.",
+    "Everyone you invite joins as a Leaf, to add family on their own line and fill in the details. Invite as many as you like.",
 };
 
 type Row = {

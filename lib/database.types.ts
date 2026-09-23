@@ -1538,6 +1538,7 @@ export type Database = {
       }
       tree_members: {
         Row: {
+          branch_granted_by: string | null
           created_at: string
           invited_by_user_id: string | null
           role: string
@@ -1546,6 +1547,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          branch_granted_by?: string | null
           created_at?: string
           invited_by_user_id?: string | null
           role?: string
@@ -1554,6 +1556,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          branch_granted_by?: string | null
           created_at?: string
           invited_by_user_id?: string | null
           role?: string
@@ -1562,6 +1565,20 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "tree_members_branch_granted_by_fkey"
+            columns: ["branch_granted_by"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "tree_members_branch_granted_by_fkey"
+            columns: ["branch_granted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
           {
             foreignKeyName: "tree_members_invited_by_user_id_fkey"
             columns: ["invited_by_user_id"]
@@ -1864,6 +1881,8 @@ export type Database = {
       member_directory: {
         Row: {
           auth_user_id: string | null
+          branch_granted_by: string | null
+          branch_granted_by_name: string | null
           created_at: string | null
           display_name: string | null
           invited_by_name: string | null
@@ -1880,6 +1899,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "people"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tree_members_branch_granted_by_fkey"
+            columns: ["branch_granted_by"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "tree_members_branch_granted_by_fkey"
+            columns: ["branch_granted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
           },
           {
             foreignKeyName: "tree_members_invited_by_user_id_fkey"

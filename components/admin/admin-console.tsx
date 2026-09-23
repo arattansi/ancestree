@@ -40,7 +40,18 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { branchSideLabel } from "@/lib/account-types";
+import {
+  BRANCH,
+  BRANCHES_PER_ROOT,
+  ROOT,
+  ROOTS_PER_TREE,
+  accountTypeOf,
+  branchSideLabel,
+  inWords,
+  treeRoomLine,
+  unavailableTypes,
+  type TreeRoom,
+} from "@/lib/account-types";
 import { getBranchSides } from "@/lib/branch.server";
 import { buildAdminActionItems } from "@/lib/admin-notifications";
 import { listDisputedClaims } from "@/lib/claims";
@@ -153,6 +164,37 @@ export async function AdminConsole({
       ? `Tends their part of ${side}`
       : "Related to no Root, so tends no side";
   };
+  // Where the tree stands against the limits (Step 39): its Roots, and the
+  // Branches each Root has made, counted against whoever made them one.
+  const roots = members.filter((m) => m.role === ROOT.key);
+  const branchesMadeBy = new Map<string, number>();
+  for (const m of members) {
+    if (m.role !== BRANCH.key || !m.branch_granted_by) continue;
+    branchesMadeBy.set(
+      m.branch_granted_by,
+      (branchesMadeBy.get(m.branch_granted_by) ?? 0) + 1,
+    );
+  }
+  const room: TreeRoom = {
+    roots: roots.length,
+    branchesMade: branchesMadeBy.get(currentAdmin.auth_user_id) ?? 0,
+  };
+  const roomLine = treeRoomLine(
+    roots.map((r) => ({
+      name: r.display_name ?? "The other Root",
+      isYou: r.auth_user_id === currentAdmin.auth_user_id,
+      branchesMade: branchesMadeBy.get(r.auth_user_id) ?? 0,
+    })),
+  );
+  const madeBranchBy = (
+    grantedBy: string | null,
+    grantedByName: string | null,
+  ): string | null =>
+    !grantedBy
+      ? null
+      : grantedBy === currentAdmin.auth_user_id
+        ? "Made a Branch by you"
+        : `Made a Branch by ${grantedByName ?? "another Root"}`;
   const people = peopleRes.data ?? [];
   const disputedClaims = await listDisputedClaims(tree.id);
   // Before listing, so a link that lapsed since the last visit lands in
@@ -337,7 +379,11 @@ export async function AdminConsole({
         description={`${members.length} member${members.length === 1 ? "" : "s"} — their account type on this tree, who invited them, and entries created.`}
         sectionIds={["members", "account-types"]}
       >
-        <AdminSubsection id="members" title="Who’s on the Tree">
+        <AdminSubsection
+          id="members"
+          title="Who’s on the Tree"
+          description={roomLine}
+        >
           <div className="-mx-(--card-spacing) overflow-x-auto">
             <table className="w-full text-sm">
               <caption className="sr-only">
@@ -380,12 +426,30 @@ export async function AdminConsole({
                             userId={member.auth_user_id}
                             role={member.role ?? "member"}
                             name={member.display_name ?? "This member"}
+                            roots={room.roots}
+                            unavailable={unavailableTypes(
+                              accountTypeOf(member.role).key,
+                              room,
+                            )}
                           />
-                          {member.role === "branch_admin" ? (
-                            <span className="text-xs text-muted-foreground">
-                              {branchCaption(member.auth_user_id)}
-                            </span>
-                          ) : null}
+                          {member.role === "branch_admin"
+                            ? [
+                                branchCaption(member.auth_user_id),
+                                madeBranchBy(
+                                  member.branch_granted_by,
+                                  member.branch_granted_by_name,
+                                ),
+                              ]
+                                .filter((line): line is string => !!line)
+                                .map((line) => (
+                                  <span
+                                    key={line}
+                                    className="text-xs text-muted-foreground"
+                                  >
+                                    {line}
+                                  </span>
+                                ))
+                            : null}
                         </div>
                       ) : (
                         <AccountTypeBadge role={member.role} />
@@ -422,7 +486,7 @@ export async function AdminConsole({
           id="account-types"
           collapsible
           title="Account Types"
-          description="What each kind of member can reach on this tree. New members join as Leaves, who add relatives on their own line. Anyone who isn’t a Root can be switched between Leaf and Branch from the table above, or made a Root — which is for good: a Root is never demoted or removed. A member’s type on another tree is that tree’s business. A Branch tends the part of a Root’s side they’re related through — a Root’s father’s family, say, not their mother’s — and a child of two Roots tends their part of both."
+          description={`What each kind of member can reach on this tree. New members join as Leaves, who add relatives on their own line. Anyone who isn’t a Root can be switched between Leaf and Branch from the table above, or made a Root — which is for good: a Root is never demoted or removed. A tree has at most ${inWords(ROOTS_PER_TREE)} Roots, and each Root can make up to ${inWords(BRANCHES_PER_ROOT)} Branches; a Branch counts toward the Root who made them one, until they’re a Leaf again. A member’s type on another tree is that tree’s business. A Branch tends the part of a Root’s side they’re related through — a Root’s father’s family, say, not their mother’s — and a child of two Roots tends their part of both.`}
         >
           <AccountTypeGuide />
         </AdminSubsection>

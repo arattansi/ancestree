@@ -36,12 +36,16 @@ export type SoleRootTree = {
 /**
  * Deletes the signed-in member's account. For every tree they are the only
  * Root of (Step 25), they must first choose who takes over there: that
- * member is made a Root, for good, and inherits what the Root added.
+ * member is made a Root, for good, and inherits what the Root added — the
+ * Branches they made too, which count toward the new Root's four (Step 39).
  */
 export function DeleteAccount({
   soleRootTrees = [],
+  madeBranches = false,
 }: {
   soleRootTrees?: readonly SoleRootTree[];
+  /** They've made someone a Branch on a tree, who passes to a Root there. */
+  madeBranches?: boolean;
 }) {
   const [busy, setBusy] = React.useState(false);
   const [successors, setSuccessors] = React.useState<Record<string, string>>({});
@@ -71,8 +75,8 @@ export function DeleteAccount({
           <DialogTitle>Delete your account?</DialogTitle>
           <DialogDescription>
             {handingOver
-              ? "You're the only Root of a tree, so someone has to take over before you go. They become a Root — for good — and the entries and relationships you added there pass to them. This permanently removes your sign-in and profile from every tree, and cannot be undone."
-              : "This permanently removes your sign-in and profile from every tree you belong to. Entries and relationships you added stay on each tree under a Root’s stewardship. To have those removed too, ask a Root before deleting. This cannot be undone."}
+              ? `You're the only Root of a tree, so someone has to take over before you go. They become a Root — for good — and the entries and relationships you added there pass to them${madeBranches ? ", along with the Branches you made" : ""}. This permanently removes your sign-in and profile from every tree, and cannot be undone.`
+              : `This permanently removes your sign-in and profile from every tree you belong to. Entries and relationships you added stay on each tree under a Root’s stewardship${madeBranches ? ", and the Branches you made pass to that Root" : ""}. To have those removed too, ask a Root before deleting. This cannot be undone.`}
           </DialogDescription>
         </DialogHeader>
 

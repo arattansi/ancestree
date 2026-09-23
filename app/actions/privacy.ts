@@ -203,8 +203,10 @@ export type DeleteAccountInput = {
  *
  * A Root may leave too, but never leave a tree without one: where they are
  * the only Root they must name a successor — another member of that tree —
- * who is made a Root first and takes over what they added. A Root stays a
- * Root (Step 22.5), so that promotion stands even if the deletion then fails.
+ * who is made a Root first and takes over what they added, and the Branches
+ * they made (Step 39). A Root stays a Root (Step 22.5), so that promotion
+ * stands even if the deletion then fails. With only one Root to replace, the
+ * tree never passes its two.
  */
 export async function deleteAccount(
   input?: DeleteAccountInput | string,
@@ -288,6 +290,9 @@ export async function deleteAccount(
       // letting the profile cascade take the household dog with it.
       db.from("pets").update({ created_by: steward }).eq("created_by", user.id).eq("tree_id", m.tree_id),
       db.from("tree_placements").update({ placed_by: steward }).eq("placed_by", user.id).eq("tree_id", m.tree_id),
+      // The Branches they made count toward the steward's four now (Step 39),
+      // even past four; only the service role may name who made a Branch.
+      db.from("tree_members").update({ branch_granted_by: steward }).eq("branch_granted_by", user.id).eq("tree_id", m.tree_id),
     ]);
     if (results.some((r) => r.error)) {
       return { error: "Couldn't hand off your entries. Try again." };
