@@ -6,12 +6,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // cookie, the service-role client (the invite and the new account) and the
 // cookie-bound client (verifying the token, redeeming).
 const setCurrentTreeCookie = vi.fn();
+// The invite waiting for a first-timer's address (Step 30.8), as
+// `lib/first-timer.server.ts` finds it; its own tests cover the finding.
+const waitingInviteHref = vi.fn();
 let admin: ReturnType<typeof fakeAdmin>;
 let server: ReturnType<typeof fakeServer>;
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/current-tree.server", () => ({
   setCurrentTreeCookie: (treeId: string) => setCurrentTreeCookie(treeId),
+}));
+vi.mock("@/lib/first-timer.server", () => ({
+  waitingInviteHref: (email: string) => waitingInviteHref(email),
 }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => admin }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: async () => server }));
@@ -32,15 +38,21 @@ function redeemed(extra: Record<string, unknown>) {
 }
 
 /**
- * The cookie-bound client: `rpc` answers the redeem, and the token signs in
- * someone whose account keeps `metadata` (Step 30.7) — or, with
- * `spent`, was already used by this browser, which is signed in as them.
+ * The cookie-bound client: `rpc` answers the redeem (or `ensure_profile`),
+ * and the token signs in someone at newcomer@example.com, now verified,
+ * whose account keeps `metadata` (Step 30.7) — or, with `spent`, was
+ * already used by this browser, which is signed in as them.
  */
 function fakeServer(
   rpc: { data: unknown; error: unknown },
   { metadata = {}, spent = false }: { metadata?: Record<string, unknown>; spent?: boolean } = {},
 ) {
-  const user = { id: "u1", user_metadata: metadata };
+  const user = {
+    id: "u1",
+    email: "newcomer@example.com",
+    email_confirmed_at: "2026-09-23T07:00:00Z",
+    user_metadata: metadata,
+  };
   return {
     rpc: vi.fn(async () => rpc),
     auth: {
@@ -53,6 +65,9 @@ function fakeServer(
     },
   };
 }
+
+/** `ensure_profile` refusing someone who isn't on the admin allowlist. */
+const NEEDS_INVITE = { data: null, error: { message: "needs_invite" } };
 
 /** A request row as the invite embeds it. */
 type RequestRow = { first_name: string; last_name: string; email: string; source: string };
@@ -100,6 +115,8 @@ function fakeAdmin({
 
 beforeEach(() => {
   setCurrentTreeCookie.mockReset();
+  waitingInviteHref.mockReset();
+  waitingInviteHref.mockResolvedValue(null);
   admin = fakeAdmin();
 });
 
@@ -144,6 +161,62 @@ describe("establishMembership", () => {
       await establishMembership(server as never, { invite: "tok", next: "/tree" }),
     ).toBe("/join?error=invite");
     expect(setCurrentTreeCookie).not.toHaveBeenCalled();
+  });
+});
+
+describe("a plain sign-in by someone who isn't a member (Step 30.8)", () => {
+  it("opens the invite emailed to the address they've just verified", async () => {
+    server = fakeServer(NEEDS_INVITE);
+    waitingInviteHref.mockResolvedValue("/join/waiting");
+    expect(
+      await establishMembership(server as never, {
+        next: "/tree",
+        email: "newcomer@example.com",
+      }),
+    ).toBe("/join/waiting");
+    expect(waitingInviteHref).toHaveBeenCalledWith("newcomer@example.com");
+    // Opened, not redeemed: its page asks for the privacy agreement (Step 30.4).
+    expect(server.rpc).toHaveBeenCalledTimes(1);
+    expect(server.rpc).toHaveBeenCalledWith("ensure_profile", {});
+  });
+
+  it("leaves someone with no invite waiting on /join", async () => {
+    server = fakeServer(NEEDS_INVITE);
+    expect(
+      await establishMembership(server as never, {
+        next: "/tree",
+        email: "newcomer@example.com",
+      }),
+    ).toBe("/join?status=pending");
+  });
+
+  it("looks nothing up without a verified address", async () => {
+    server = fakeServer(NEEDS_INVITE);
+    expect(
+      await establishMembership(server as never, { next: "/tree", email: null }),
+    ).toBe("/join?status=pending");
+    expect(waitingInviteHref).not.toHaveBeenCalled();
+  });
+
+  it("lands a member where they were going, never on an invite of theirs", async () => {
+    server = fakeServer({ data: { auth_user_id: "u1" }, error: null });
+    waitingInviteHref.mockResolvedValue("/join/waiting");
+    expect(
+      await establishMembership(server as never, {
+        next: "/join/theirs",
+        email: "newcomer@example.com",
+      }),
+    ).toBe("/join/theirs");
+    expect(waitingInviteHref).not.toHaveBeenCalled();
+  });
+
+  it("looks up the address the emailed token verified", async () => {
+    server = fakeServer(NEEDS_INVITE);
+    waitingInviteHref.mockResolvedValue("/join/waiting");
+    expect(
+      await completeEmailSignIn({ tokenHash: "hash", type: "email", invite: null, next: "/tree" }),
+    ).toBe("/join/waiting");
+    expect(waitingInviteHref).toHaveBeenCalledWith("newcomer@example.com");
   });
 });
 

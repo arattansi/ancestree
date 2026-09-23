@@ -3,12 +3,15 @@ import "server-only";
 import type { EmailOtpType } from "@supabase/supabase-js";
 
 import { setCurrentTreeCookie } from "@/lib/current-tree.server";
+import { verifiedEmail } from "@/lib/first-timer";
+import { waitingInviteHref } from "@/lib/first-timer.server";
 import {
   joiningDisplayName,
   readJoiningName,
   type JoiningName,
 } from "@/lib/joining-name";
 import { signInLanding } from "@/lib/open-console.server";
+import { PENDING_HREF } from "@/lib/sign-in-links";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { joinedTreeHref } from "@/lib/tree-links";
@@ -68,6 +71,11 @@ export async function redeemInvite(
  * allowlisted admin. Returns where to send them — an invite lands on their
  * own entry once the joined tree shows it (a claim invite claims it on the
  * way in), else on that tree's onboarding, to find or add themselves there.
+ *
+ * Anyone else is a first-timer (Step 30.8): an invite emailed to the
+ * address they've just verified (`email`) opens on its own page, whose
+ * accept form asks for the privacy agreement a plain sign-in doesn't (Step
+ * 30.4). With none, /join says where their request stands, or offers one.
  */
 export async function establishMembership(
   supabase: ServerClient,
@@ -75,7 +83,14 @@ export async function establishMembership(
     invite,
     next,
     displayName,
-  }: { invite?: string | null; next: string; displayName?: string },
+    email,
+  }: {
+    invite?: string | null;
+    next: string;
+    displayName?: string;
+    /** The account's verified address (`verifiedEmail`). */
+    email?: string | null;
+  },
 ): Promise<string> {
   if (invite) {
     const joined = await redeemInvite(supabase, invite, displayName);
@@ -83,7 +98,8 @@ export async function establishMembership(
   }
   const { error } = await supabase.rpc("ensure_profile", {});
   // An alert email's button, opened while signed out, lands on its card.
-  return error ? "/join?status=pending" : signInLanding(next);
+  if (!error) return signInLanding(next);
+  return (email ? await waitingInviteHref(email) : null) ?? PENDING_HREF;
 }
 
 /**
@@ -125,6 +141,7 @@ export async function completeEmailSignIn({
     invite,
     next,
     displayName: joiningDisplayName(readJoiningName(user?.user_metadata)),
+    email: user ? verifiedEmail(user) : null,
   });
 }
 

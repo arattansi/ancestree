@@ -2,6 +2,7 @@ import "server-only";
 
 import { redirect } from "next/navigation";
 
+import { PENDING_HREF } from "@/lib/sign-in-links";
 import { createClient } from "@/lib/supabase/server";
 import type { Tables } from "@/lib/database.types";
 
@@ -38,13 +39,14 @@ export async function getProfile(): Promise<Profile | null> {
 
 /**
  * Require a member profile for a route. Redirects unauthenticated users to
- * `/join`, and authenticated-but-not-a-member users to `/join?status=pending`.
+ * `/join`, and authenticated-but-not-a-member users to `/join?status=pending`,
+ * which opens an invite waiting for their address (Step 30.8).
  */
 export async function requireProfile(): Promise<Profile> {
   const profile = await getProfile();
   if (!profile) {
     const user = await getUser();
-    redirect(user ? "/join?status=pending" : "/join");
+    redirect(user ? PENDING_HREF : "/join");
   }
   return profile;
 }

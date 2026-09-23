@@ -179,6 +179,12 @@ tree only, who see the whole tree anyway). Approving the ask as one of them
 makes the invite a claim invite for it, so accepting claims it; approving
 without one leaves them to find or add themselves on onboarding.
 
+Someone who signs in without an invite is sent on by the address they've
+just verified, and by nothing else (Step 30.8): to an invite emailed to it,
+whose page asks for the privacy tick before it redeems anything; else to
+where their request to join stands; else to request access, with that
+address filled in.
+
 ## 8. Accounts that span trees
 
 - `/account` lists every tree the member belongs to with their type in each,

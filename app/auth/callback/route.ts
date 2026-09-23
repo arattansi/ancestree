@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 
+import { verifiedEmail } from "@/lib/first-timer";
 import { joiningDisplayName, readJoiningName } from "@/lib/joining-name";
 import { establishMembership, safeNext } from "@/lib/sign-in.server";
 import { createClient } from "@/lib/supabase/server";
@@ -30,11 +31,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/auth/auth-code-error", origin));
   }
 
-  // Named after what a bare invite link's form asked, as on /auth/confirm (Step 30.7).
+  // Named after what a bare invite link's form asked, and a first-timer
+  // sent to the invite waiting for them, as on /auth/confirm (Steps 30.7, 30.8).
   const destination = await establishMembership(supabase, {
     invite,
     next,
     displayName: joiningDisplayName(readJoiningName(data.user?.user_metadata)),
+    email: data.user ? verifiedEmail(data.user) : null,
   });
   return NextResponse.redirect(new URL(destination, origin));
 }

@@ -27,7 +27,9 @@ page's view toggle **profile**, **admin**, **settings**. The tree switcher
 shows a tree's name, which keeps its own capitalisation.
 
 Buttons that *do* something — **Save**, **Rename**, **Start my tree**,
-**Sign out** — are sentence case, like any other button.
+**Sign out** — are sentence case, like any other button. That includes the
+header's **Sign out**, which replaces **sign in** for someone signed in who
+isn't a member yet (Step 30.8).
 
 The home page's calls to action count as navigation, so they're lower-case
 too — **view your tree**, **sign in**, **request access**, **start a tree

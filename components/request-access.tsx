@@ -61,8 +61,12 @@ export function RequestAccessDialog({
  * ask that tree's Roots for an invite — choosing which, when more than one
  * has them. Not found (or "not me"), they can ask a relative to invite them
  * directly, or join the waitlist to start a tree of their own.
+ *
+ * On /join, for someone signed in who isn't a member yet, `email` is the
+ * address they've just verified (Step 30.8): it's filled in and fixed, so
+ * they type only their name, and everything after asks with it.
  */
-export function RequestAccessFlow() {
+export function RequestAccessFlow({ email }: { email?: string }) {
   const [search, searchAction, searching] = useActionState(
     findFamilyTree,
     INITIAL_SEARCH,
@@ -92,6 +96,7 @@ export function RequestAccessFlow() {
         idPrefix="request-access"
         state={search}
         errorId={search.error ? "request-access-error" : undefined}
+        email={email}
       />
       {search.error ? (
         <p id="request-access-error" role="alert" className="text-sm text-destructive">
@@ -101,12 +106,15 @@ export function RequestAccessFlow() {
       <Button type="submit" disabled={searching}>
         {searching ? "Looking…" : "Find my family’s tree"}
       </Button>
-      <p className="text-sm text-muted-foreground">
-        Already on ancestree?{" "}
-        <Link href="/join" className="underline underline-offset-4">
-          Sign in
-        </Link>
-      </p>
+      {/* Signed in already, on /join: signing in would come straight back. */}
+      {email === undefined ? (
+        <p className="text-sm text-muted-foreground">
+          Already on ancestree?{" "}
+          <Link href="/join" className="underline underline-offset-4">
+            Sign in
+          </Link>
+        </p>
+      ) : null}
     </form>
   );
 }

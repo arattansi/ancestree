@@ -69,7 +69,10 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   access** / **start a tree (beta)**, the last two in dialogs —
   `components/request-access.tsx`, `beta-waitlist-dialog.tsx`,
   `start-tree-button.tsx`), `/join` (`?next=` is where a signed-out visit
-  was going, carried through the sign-in email and back; Step 30.1) (+
+  was going, carried through the sign-in email and back; Step 30.1; signed
+  in without a profile, it opens the invite waiting for their address, else
+  says where their request stands or offers request access with the
+  address filled in, Step 30.8) (+
   `/join/[token]` invite accept — signed in, it adds a
   tree), `/auth/callback` + `/auth/confirm` + `/auth/auth-code-error`,
   `/trees` (every tree you're on, your type in each), `/trees/new` (found a
@@ -91,7 +94,8 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   without one it's the request-access search),
   `/shared/[token]` (public read-only canvas), `/privacy`
 - `app/actions/` — server actions (`auth.ts`: magic link (+ consent gate
-  when it carries an invite) + sign out; `privacy.ts`: `exportTreeData` (admin JSON export) / `deletePerson`
+  when it carries an invite) + sign out (`next` lets /join's "Use another
+  email" come back to its form, Step 30.8); `privacy.ts`: `exportTreeData` (admin JSON export) / `deletePerson`
   (admin erasure + storage cleanup) / `deleteAccount` (self-serve, reassigns
   contributions to a founding admin);
   `trees.ts`: `foundTree` / `renameTree` / `deleteTree`, `placePeople` /
@@ -463,6 +467,25 @@ mirror it for the UI.
   there — an alert email's console button is opened on the spot
   (`signInLanding`). Authenticated users without a member profile →
   `/join?status=pending`.
+- **Signing in without an invite (Step 30.8, `lib/first-timer.ts` +
+  `.server.ts`)**: someone whose verified address has no profile behind it
+  (`ensure_profile` → `needs_invite`) is looked up by that address alone,
+  with the service role, in this order. An invite bound to it (active,
+  unexpired, unarchived; the newest) opens on its own page,
+  `/join/<token>`, straight from the confirm tap (`establishMembership`)
+  and from `/join` itself (so `requireProfile`'s redirect gets there too):
+  it isn't redeemed on the spot, because its accept form asks for the
+  privacy tick a plain sign-in no longer does (Step 30.4), and it says
+  they're already signed in with that address. Else, a pending
+  `invite_requests` row: `/join` says which tree it waits on and that its
+  Roots have been told. Else, `/join` opens request access right there
+  (`RequestAccessFlow` with `email`), the verified address filled in and
+  read-only, so they type only their name; someone on the waitlist is told
+  so above it. `/join` offers "Use another email" (`signOut` with `next`),
+  and the header shows **Sign out** instead of a **sign in** that would
+  only come back here. Only the address the account verified is ever
+  looked up (`verifiedEmail` needs `email_confirmed_at`), and only its own
+  token, tree name and waitlist yes/no reach the page.
 - **`/auth/callback`** exchanges a `code`, then either `redeem_invite(token)`
   (invite flow) or `ensure_profile()` (admin bootstrap). The link in our
   sign-in emails carries a `token_hash` instead, and for that the callback
@@ -681,7 +704,8 @@ mirror it for the UI.
   co-admins (Aalim Rattansi, Raiya Suleman). First login by an
   allowlisted email runs `ensure_profile`, which creates the single shared
   `trees` row and an `admin` profile. Non-allowlisted users
-  without an invite get `needs_invite`.
+  without an invite get `needs_invite`, and go to the invite waiting for
+  their address, or `/join`'s pending state (Step 30.8, above).
 - **`profiles_protect_role`** trigger still pins the role for
   non-admins; the SECURITY DEFINER helpers set a `LOCAL`
   `ancestree.privileged_profile_write` GUC to bypass it during bootstrap only.

@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { signOut } from "@/app/actions/auth";
 import { switchTreeForm } from "@/app/actions/current-tree";
 import { LogoMark } from "@/components/logo-mark";
 import { SiteHeaderHeight } from "@/components/site-header-height";
@@ -27,12 +28,16 @@ import { countPendingTreeRequests } from "@/lib/tree-requests.server";
  * browser remembers, so it's known here without reading the address.
  * While a node's details sheet is open on the canvas, the header moves
  * aside for it so these buttons stay in reach (globals.css).
+ *
+ * Someone signed in who isn't a member yet gets a way to sign out, not
+ * "sign in", which would only take them back to /join (Step 30.8).
  */
 export async function SiteHeader() {
   const profile = await getProfile();
   const [user, trees, access] = profile
     ? await Promise.all([getUser(), listMyTrees(), currentAccess()])
     : [null, [], null];
+  const signedInNotMember = profile ? false : Boolean(await getUser());
 
   const currentMembership =
     access?.kind === "member" ? access.membership : null;
@@ -128,6 +133,14 @@ export async function SiteHeader() {
               </span>
               <SiteNotifications items={notifications} />
             </>
+          ) : signedInNotMember ? (
+            // It does something rather than go somewhere, so sentence case
+            // (docs/design-system.md).
+            <form action={signOut}>
+              <SubmitButton size="sm" variant="outline">
+                Sign out
+              </SubmitButton>
+            </form>
           ) : (
             <Button
               nativeButton={false}

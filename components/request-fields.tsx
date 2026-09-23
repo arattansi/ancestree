@@ -16,17 +16,24 @@ import type { RequestFormState } from "@/lib/request-forms";
  * Each input remounts when the value it restores changes: Base UI's input
  * warns when its default changes after it has mounted. Every default is a
  * string, so a field sent back empty doesn't change it from none to "".
+ *
+ * Given `email`, an address the person has already verified by signing in
+ * (Step 30.8), that field shows it, read-only, and still sends it with the
+ * form: they type only their name.
  */
 export function NameEmailFields({
   idPrefix,
   state,
   errorId,
+  email,
 }: {
   idPrefix: string;
   /** The last submit's result: what they typed, and which field was wrong. */
   state: RequestFormState;
   /** The id of the error message, when one shows. */
   errorId?: string;
+  /** Their verified address, fixed: see above. */
+  email?: string;
 }) {
   const badName = state.errorField === "name";
   const badEmail = state.errorField === "email";
@@ -62,19 +69,36 @@ export function NameEmailFields({
       </div>
       <div className="flex flex-col gap-2">
         <Label htmlFor={`${idPrefix}-email`}>Email address</Label>
-        <Input
-          key={state.email ?? ""}
-          id={`${idPrefix}-email`}
-          name="email"
-          type="email"
-          autoComplete="email"
-          inputMode="email"
-          required
-          defaultValue={state.email ?? ""}
-          placeholder="you@example.com"
-          aria-invalid={badEmail || undefined}
-          aria-describedby={badEmail ? errorId : undefined}
-        />
+        {email !== undefined ? (
+          <>
+            <Input
+              id={`${idPrefix}-email`}
+              name="email"
+              type="email"
+              readOnly
+              value={email}
+              className="bg-muted/50"
+              aria-describedby={`${idPrefix}-email-note`}
+            />
+            <p id={`${idPrefix}-email-note`} className="text-xs text-muted-foreground">
+              The address you signed in with.
+            </p>
+          </>
+        ) : (
+          <Input
+            key={state.email ?? ""}
+            id={`${idPrefix}-email`}
+            name="email"
+            type="email"
+            autoComplete="email"
+            inputMode="email"
+            required
+            defaultValue={state.email ?? ""}
+            placeholder="you@example.com"
+            aria-invalid={badEmail || undefined}
+            aria-describedby={badEmail ? errorId : undefined}
+          />
+        )}
       </div>
     </>
   );

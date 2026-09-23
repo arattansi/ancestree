@@ -10,6 +10,8 @@ import {
   readNameAndEmail,
   type RequestFormState,
 } from "@/lib/request-forms";
+import { sameOriginPath } from "@/lib/safe-next";
+import { signInCallbackUrl } from "@/lib/sign-in-links";
 import {
   completeEmailSignIn,
   safeNext,
@@ -60,9 +62,7 @@ export async function requestMagicLink(
 
   // The magic-link template builds on this address (`{{ .RedirectTo }}`),
   // so `next` rides along to /auth/confirm and on to `confirmSignIn`.
-  const callback = new URL("/auth/callback", getSiteUrl());
-  callback.searchParams.set("next", next);
-  if (inviteToken) callback.searchParams.set("invite", inviteToken);
+  const callback = signInCallbackUrl(getSiteUrl(), { next, invite: inviteToken });
 
   const name: JoiningName | undefined = asksName
     ? { first_name: entered.firstName, last_name: entered.lastName }
@@ -72,7 +72,7 @@ export async function requestMagicLink(
   const { error } = await supabase.auth.signInWithOtp({
     email,
     options: {
-      emailRedirectTo: callback.toString(),
+      emailRedirectTo: callback,
       shouldCreateUser: true,
       data: name,
     },
@@ -152,8 +152,13 @@ export async function acceptInvite(
   return { error: "Could not sign you in. Try again shortly." };
 }
 
-export async function signOut() {
+/**
+ * Sign out, landing home, or wherever the form's `next` says: "Use another
+ * email" on /join goes back to its sign-in form (Step 30.8).
+ */
+export async function signOut(formData?: FormData) {
+  const next = sameOriginPath(String(formData?.get("next") ?? ""));
   const supabase = await createClient();
   await supabase.auth.signOut();
-  redirect("/");
+  redirect(next ?? "/");
 }

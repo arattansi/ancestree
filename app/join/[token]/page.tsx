@@ -13,7 +13,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { LEAF, ROOT } from "@/lib/account-types";
-import { getProfile } from "@/lib/auth";
+import { getProfile, getUser } from "@/lib/auth";
+import { verifiedEmail } from "@/lib/first-timer";
 import { getInviteRecipient } from "@/lib/sign-in.server";
 import { createClient } from "@/lib/supabase/server";
 import { treesHref } from "@/lib/tree-links";
@@ -41,6 +42,12 @@ export default async function InvitePage({
   // email. A bare link has no address on it, so it still asks for one.
   const recipient =
     preview?.valid && !profile ? await getInviteRecipient(token) : null;
+  // Signed in as that address already, but no member yet: signing in sent
+  // them here, to the invite waiting for them (Step 30.8).
+  const user = recipient ? await getUser() : null;
+  const signedInAsRecipient = Boolean(
+    user && recipient && verifiedEmail(user) === recipient.email,
+  );
   const founds = preview?.founds_tree === true;
 
   return (
@@ -79,9 +86,11 @@ export default async function InvitePage({
                 .{" "}
                 {profile
                   ? "You’re signed in, so accepting adds it to your trees."
-                  : recipient
-                    ? "Accepting signs you in — there is nothing else to set up."
-                    : "Enter your name and email to get a sign-in link — opening it accepts the invite."}
+                  : signedInAsRecipient
+                    ? "You’re signed in with the address it was sent to — there is nothing else to set up."
+                    : recipient
+                      ? "Accepting signs you in — there is nothing else to set up."
+                      : "Enter your name and email to get a sign-in link — opening it accepts the invite."}
               </CardDescription>
             </CardHeader>
             <CardContent>
