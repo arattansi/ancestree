@@ -18,24 +18,32 @@ export type InviteHistoryItem = {
   expiresAt: string | null;
   /** A founder invite: redeeming starts a tree of their own (Step 25). */
   foundsTree: boolean;
+  /**
+   * Who sent it (`reviewed_by`) — or, for a request, the Root who answered
+   * it. Null if they have no display name.
+   */
+  sentByName: string | null;
+  /** The entry accepting it claims, if it names one (Step 38). */
+  claimsEntryName: string | null;
 };
 
 const HISTORY_LIMIT = 50;
 
 /**
- * Every invite that has gone out and been reviewed — both a public request an
- * admin approved/declined, and one an admin sent directly — newest first.
- * Drives the "Sent invites" history on /admin; the pending queue is a
- * separate, unrelated query (status = 'pending'). Joined invites are gone
- * (`redeem_invite` deletes them) and archived ones are left to
- * `listArchivedInvites`, so what's here is still waiting on someone.
+ * Every invite that has gone out and been reviewed — a public request a Root
+ * approved or declined, and one sent directly: from the console or an
+ * account page, or to claim an entry from its card or the add-relative form
+ * (Step 38) — newest first. Drives the "Sent invites" history on /admin; the
+ * pending queue is a separate, unrelated query (status = 'pending'). Joined
+ * invites are gone (`redeem_invite` deletes them) and archived ones are left
+ * to `listArchivedInvites`, so what's here is still waiting on someone.
  */
 export async function listInviteHistory(treeId: string): Promise<InviteHistoryItem[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("invite_requests")
     .select(
-      "id, first_name, last_name, email, source, status, email_sent, reviewed_at, invites(token, status, expires_at, archived_at, founds_tree)",
+      "id, first_name, last_name, email, source, status, email_sent, reviewed_at, profiles!invite_requests_reviewed_by_fkey(display_name), invites(token, status, expires_at, archived_at, founds_tree, people(first_name, preferred_name, last_name))",
     )
     .eq("tree_id", treeId)
     .neq("status", "pending")
@@ -43,10 +51,12 @@ export async function listInviteHistory(treeId: string): Promise<InviteHistoryIt
     .limit(HISTORY_LIMIT);
 
   return (data ?? []).flatMap((r) => {
-    // Supabase infers this embed as an array even though invite_id -> invites.id
-    // is one-to-one; a request can also have never been approved (no invite).
+    // Supabase infers these embeds as arrays even though each FK is
+    // one-to-one; a request can also have never been approved (no invite).
     const invite = Array.isArray(r.invites) ? r.invites[0] : r.invites;
     if (invite?.archived_at) return [];
+    const sender = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles;
+    const entry = Array.isArray(invite?.people) ? invite.people[0] : invite?.people;
     return [{
       id: r.id,
       firstName: r.first_name,
@@ -60,6 +70,8 @@ export async function listInviteHistory(treeId: string): Promise<InviteHistoryIt
       inviteStatus: (invite?.status as InviteHistoryItem["inviteStatus"]) ?? null,
       expiresAt: invite?.expires_at ?? null,
       foundsTree: invite?.founds_tree ?? false,
+      sentByName: sender?.display_name ?? null,
+      claimsEntryName: entry ? personDisplayName(entry) : null,
     }];
   });
 }

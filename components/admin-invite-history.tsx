@@ -1,9 +1,15 @@
+"use client";
+
 import type { InviteHistoryItem } from "@/lib/invites";
 import { DeleteInviteButton } from "@/components/delete-invite-button";
 import { ResendInviteButton } from "@/components/resend-invite-button";
 import { Badge } from "@/components/ui/badge";
 
-/** "Sent invites" history on /admin — read-only apart from deleting a row. */
+/**
+ * "Sent invites" history on /admin — read-only apart from resending or
+ * deleting a row. A client component so its dates read in the viewer's own
+ * locale and time zone, as the bare and archived lists' do.
+ */
 export function AdminInviteHistory({ items }: { items: InviteHistoryItem[] }) {
   if (items.length === 0) {
     return (
@@ -22,7 +28,9 @@ export function AdminInviteHistory({ items }: { items: InviteHistoryItem[] }) {
             <p className="font-medium">
               {item.firstName} {item.lastName}
             </p>
-            <p className="text-muted-foreground">{item.email}</p>
+            <p className="text-muted-foreground">
+              {[item.email, sentBy(item)].filter(Boolean).join(" · ")}
+            </p>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
             <Badge variant="secondary">
@@ -31,6 +39,15 @@ export function AdminInviteHistory({ items }: { items: InviteHistoryItem[] }) {
             {/* A founder invite doesn't join this tree; it plants their own. */}
             {item.foundsTree ? (
               <Badge variant="secondary">Starts a tree</Badge>
+            ) : null}
+            {/* Accepting claims an entry: sent from its card, or a request
+                approved as it (Step 38). */}
+            {item.claimsEntryName ? (
+              <Badge variant="secondary">
+                {item.claimsEntryName === `${item.firstName} ${item.lastName}`
+                  ? "Claims their entry"
+                  : `Claims ${item.claimsEntryName}`}
+              </Badge>
             ) : null}
             <StatusBadge item={item} />
             {canResend(item) && (
@@ -51,6 +68,32 @@ export function AdminInviteHistory({ items }: { items: InviteHistoryItem[] }) {
       ))}
     </ul>
   );
+}
+
+/**
+ * Who sent it and when — for a request, who answered it. Invites go out from
+ * every member's account page and from entries' cards too, so a Root can't
+ * assume it was them (Step 38).
+ */
+function sentBy(item: InviteHistoryItem) {
+  const verb =
+    item.source === "direct"
+      ? "Sent"
+      : item.status === "declined"
+        ? "Declined"
+        : "Approved";
+  const who = item.sentByName ?? "a former member";
+  return item.reviewedAt
+    ? `${verb} by ${who} on ${formatDate(item.reviewedAt)}`
+    : `${verb} by ${who}`;
+}
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 /** An invite is worth resending while it still exists and can still be used. */
@@ -85,7 +128,11 @@ function StatusBadge({ item }: { item: InviteHistoryItem }) {
   }
 
   if (item.emailSent === false) {
-    return <Badge variant="destructive">Approved, email failed</Badge>;
+    return (
+      <Badge variant="destructive">
+        {item.source === "direct" ? "Email failed" : "Approved, email failed"}
+      </Badge>
+    );
   }
 
   switch (item.inviteStatus) {

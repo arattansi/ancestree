@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 
 import { sendEmail } from "@/lib/email";
+import { claimInviteEmail } from "@/lib/emails/claim-invite";
 import { founderApprovedEmail } from "@/lib/emails/founder-approved";
 import { founderInviteEmail } from "@/lib/emails/founder-invite";
 import { inviteApprovedEmail } from "@/lib/emails/invite-approved";
@@ -258,20 +259,21 @@ export async function resendInviteEmail(
   // Keep the original wording: nobody asked for a direct invite, so it must
   // not come back claiming their request was approved; a founder invite
   // starts a tree of their own, so it must not read as joining this one; and
-  // a request approved as an entry names it again (Step 30.3).
+  // an invite naming an entry names it again — a request approved as one
+  // (Step 30.3), or one sent from the entry's card (Step 38).
   const input = { firstName: request.first_name, inviterName, url };
   const direct = request.source === "direct";
   const entry = invite.people;
+  const entryName = entry ? personDisplayName(entry) : null;
   const { subject, html } = invite.founds_tree
     ? direct
       ? founderInviteEmail(input)
       : founderApprovedEmail(input)
     : direct
-      ? inviteSentEmail(input)
-      : inviteApprovedEmail({
-          ...input,
-          entryName: entry ? personDisplayName(entry) : null,
-        });
+      ? entryName
+        ? claimInviteEmail({ ...input, entryName })
+        : inviteSentEmail(input)
+      : inviteApprovedEmail({ ...input, entryName });
 
   const sent = await sendEmail({ to: request.email, subject, html });
 

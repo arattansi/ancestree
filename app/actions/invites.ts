@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { INVITED_AS, accountTypeOf } from "@/lib/account-types";
 import { requireProfile } from "@/lib/auth";
+import { claimInviteRecordName } from "@/lib/claim-invites";
 import { sendEmail } from "@/lib/email";
 import { claimInviteEmail } from "@/lib/emails/claim-invite";
 import { inviteSentEmail } from "@/lib/emails/invite-sent";
@@ -250,7 +251,8 @@ export type ClaimInviteState = {
  * Open to whoever could edit the entry (`private.can_invite_to_claim`, Step
  * 22.1), judged on the entry's home tree: a Root anywhere on it, a Branch on
  * their side, a Leaf on what they added. The newcomer joins the home tree as
- * a Leaf.
+ * a Leaf. Like a direct invite it keeps a "Sent invites" record for the
+ * home tree's Roots, and the entry's card says who sent it (Step 38).
  */
 export async function sendClaimInvite(
   personId: string,
@@ -312,7 +314,8 @@ export async function sendClaimInvite(
   // Bound to the address, so opening it signs them straight in. Only a Root
   // or the service role may bind one (`invites_guard`), hence the service-role
   // write, as in `sendDirectInvites`: the inviter's right was checked above.
-  const { data: invite, error } = await createAdminClient()
+  const admin = createAdminClient();
+  const { data: invite, error } = await admin
     .from("invites")
     .insert({
       tree_id: person.tree_id,
@@ -323,7 +326,7 @@ export async function sendClaimInvite(
       person_id: personId,
       invited_email: address,
     })
-    .select("token")
+    .select("id, token")
     .single();
 
   if (error || !invite) {
@@ -339,15 +342,32 @@ export async function sendClaimInvite(
   });
   const sent = await sendEmail({ to: address, subject, html });
 
+  // Its "Sent invites" record, as a direct invite keeps (Step 38): without
+  // one the Roots never saw it in the admin console, where it can be resent
+  // or deleted. Named after the entry, the only name the card asks for.
+  // Best-effort, as there: the invite is valid either way, and the entry's
+  // card shows it from the invite itself.
+  await admin.from("invite_requests").insert({
+    tree_id: person.tree_id,
+    ...claimInviteRecordName(person),
+    email: address,
+    source: "direct",
+    status: "approved",
+    reviewed_by: inviter.auth_user_id,
+    reviewed_at: new Date().toISOString(),
+    invite_id: invite.id,
+    email_sent: sent.ok,
+  });
+  revalidateTreeAndAccount();
+
   if (!sent.ok) {
     return {
       error: accountTypeOf(role).runsTree
-        ? "The link was created but the email didn't send. Try again, or share the link from the admin page."
-        : "The link was created but the email didn't send. Try again in a moment.",
+        ? "The invite was created but the email didn't send. Resend it from Sent Invites on the admin page."
+        : "The invite was created but the email didn't send. Try again in a moment.",
     };
   }
 
-  revalidateTreeAndAccount();
   return { email: address };
 }
 

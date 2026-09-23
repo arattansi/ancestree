@@ -547,7 +547,7 @@ export async function AdminConsole({
           id="sent-invites"
           collapsible
           title="Sent Invites"
-          description={`Invites still waiting on someone, however they started — the last ${inviteHistory.length}. An invite disappears once they join, and moves to Archived if it expires first. Deleting one also kills its link.`}
+          description={`Invites still waiting on someone, however they started — sent from here, a member’s account page or an entry’s card, or a request a Root approved — the last ${inviteHistory.length}, with who sent each. An invite disappears once they join, and moves to Archived if it expires first. Deleting one also kills its link.`}
         >
           <AdminInviteHistory items={inviteHistory} />
         </AdminSubsection>
