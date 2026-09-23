@@ -769,6 +769,33 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 30.9 — Accepting an invite shows your own entry on that tree**
+  (Step 30, first-time journeys; migration
+  `20260923073000_place_own_entry_on_join`, live since 2026-09-22). A
+  member who already had their own entry and accepted an invite to another
+  tree joined it and nothing more: the entry stayed off the new canvas,
+  onboarding told them a Root could bring it over, with nothing to press,
+  and nobody on that tree knew to. Now `redeem_invite` places the entry on
+  the tree they've joined, active, since accepting is their say-so, with
+  themselves as `placed_by`; a pending placement from an earlier request
+  becomes active. They land on it (`self_placed`). Every Root of the tree
+  gets a `placed_on_join` notice ("… accepted your invite to …", or "…
+  joined … with an invite from …") with **View in admin**, which switches
+  to that tree and opens "Who This Tree Shows", where they can take it off.
+  A claim invite keeps just the vouch (Step 30.2), a founder brings their
+  entry over on the first run (Step 29), and if placing fails they still
+  join. The 30.9 agent stopped mid-step; its optional part, a "Sign in
+  instead" link that carries the invite through sign-in, was unfinished
+  and is left for a follow-up (30.7 is changing the same sign-in code).
+  **Verified:** rehearsed on live in a rolled-back transaction: an
+  ordinary invite placed the entry and told both Roots; a claim invite, a
+  new user, an entry already shown, a forced placement failure and a
+  founder invite behaved as before; a pending placement became active. On
+  a dev server with throwaway accounts: the member pressed Join and landed
+  on the new tree's canvas, opened on their entry, whose home stayed put;
+  the Root, looking at another tree, saw the notice, and View in admin
+  switched trees and opened "Who This Tree Shows" listing the entry with
+  Remove. 612 tests pass. All throwaway rows were deleted.
 - **Step 36 — "This is me" can't swallow a member's own entry** (ad-hoc
   fix, found in Step 30.3's end-to-end check; migration
   `20260923100000_claim_merges_only_placeholders`). The canvas's "Is one of
