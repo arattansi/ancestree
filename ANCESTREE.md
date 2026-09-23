@@ -84,7 +84,8 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   a hidden address from everyone but the entry's owner), one inbox per
   tree, delete-account; settings opens on **Relatives Asking for an
   Invite** when a newcomer's ask was passed on to them (Step 30.5,
-  `&relay=<id>` from the email) — and, with `?view=admin`, the **admin console**
+  `&relay=<id>` from the email), each listing the entries on the picked tree
+  that the newcomer's name matches, to invite them as (Step 41.1) — and, with `?view=admin`, the **admin console**
   of the current tree, or the first you run: stats, members, people from
   other trees, requests, disputes, requests to start a tree (beta
   reviewers only), invites incl. founder invites, share
@@ -106,7 +107,8 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `listPersonTrees` (Step 25);
   `invites.ts`: mint invite link, `sendDirectInvites` (bulk name+email
   invites), `sendFounderInvites` (Roots: someone founds a tree of their own),
-  `sendClaimInvite` (invite someone to claim one entry); every tree-scoped
+  `sendClaimInvite` (invite someone to claim one entry; into another tree
+  that shows it when a relayed ask picked one, Step 41.1); every tree-scoped
   action takes a `treeId` and checks the caller's role _there_
   (`lib/tree-context#membershipOf` / `rootOf`);
   `invite-requests.ts`: `requestInvite` (public, service-role write; a new
@@ -116,7 +118,8 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `declineInviteRequest`;
   `invite-relays.ts` (Step 30.5): `askRelative` (public; a newcomer with no
   match asks a relative, passed on after the answer) /
-  `sendRelayedInvite` / `dismissRelay` (the member it was passed to);
+  `sendRelayedInvite` / `sendRelayedClaimInvite` (as an entry the name
+  matches, Step 41.1) / `dismissRelay` (the member it was passed to);
   `tree-requests.ts` (Step 28): `requestNewTree` (a member asks to start a
   tree), `joinBetaWaitlist` / `findFamilyTree` (public, service-role; a new
   ask or sign-up emails the beta reviewers, Step 30.1; the waitlist needs
@@ -225,8 +228,10 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `lib/invite-relays.server.ts` — `passOnRelay`, run after the newcomer's
   answer: the member by address (`invite_relay_recipient`, service role
   only), the caps, the email (`.test.ts`); `lib/emails/invite-relayed.ts`;
-  `components/relay-invites.tsx` — the invite filled in, on the member's
-  account settings
+  `lib/relay-candidates.server.ts` — the entries an ask's name matches on
+  each of the member's trees (`invite_relay_candidates`, Step 41.1;
+  `.test.ts`); `components/relay-invites.tsx` — the invite filled in, on
+  the member's account settings, with those entries to invite them as
 - `lib/supabase/` — `client.ts` (browser), `server.ts` (RSC/actions), `middleware.ts` (session refresh), `admin.ts` (service role, server-only)
 - `lib/database.types.ts` — generated Supabase types (regenerate after schema changes)
 - `supabase/` — local CLI project linked to `kkmemshpkxrzogijxgnb` (`Product-Ancestree`)
@@ -612,13 +617,18 @@ mirror it for the UI.
   address (`invited_email`) and signs it in. A Root approving a request for
   access can also make it a claim invite (Step 30.3): for an entry placed on
   the request's tree that the requester's name matches (see Invite requests
-  below). Roots invite from
+  below). So can the member a relative's ask went to (Step 41.1, see Asking
+  a relative below): `sendClaimInvite`'s optional `treeId` sends it into
+  the tree they picked instead of the entry's home, once it has checked they
+  are on it and it shows the entry, which is where accepting claims it.
+  Roots invite from
   `/admin`; everyone else gets an "Invite a relative" card on `/account`, and
   every invite form says the newcomer joins as a Leaf (`JoinsAsNote`). The add-relative form asks
   for the new relative's email too (Step 31) and, once the entry is saved,
   sends this same invite for it, unless they're deceased. `/join/<token>`
   tells them what a Leaf is before they sign up. Like a direct invite, it
-  keeps a "Sent invites" record for the home tree's Roots, named after the
+  keeps a "Sent invites" record for the Roots of the tree it joins (the home
+  tree, unless a relayed ask picked another), named after the
   entry (`claimInviteRecordName`, `lib/claim-invites.ts`), and the entry's
   card lists who sent it and when (Step 38, below).
 - **Invite requests** (`public.invite_requests`): anyone can ask from `/`
@@ -673,8 +683,23 @@ mirror it for the UI.
   tree to send it into (every tree they're on; the one they're looking at to
   begin with); one tap sends it through `sendDirectInvites`, as any invite
   they send, joining as a Leaf, or they dismiss it and the newcomer isn't
-  told. RLS shows an ask only to the member it went to, who may change only
-  its answer. Caps are counted from the rows after filing, so two at once
+  told. A newcomer with no strong match is often on the tree under another
+  spelling (a married surname, a nickname), so the card also lists the
+  entries on the picked tree that their name matches (Step 41.1,
+  `public.invite_relay_candidates`, loaded for each of the member's trees by
+  `lib/relay-candidates.server.ts`): onboarding's scoring, living entries
+  placed there that nobody is behind yet, best five — and only those the
+  member may invite someone to claim (`private.can_invite_to_claim`, judged
+  on the entry's home tree), so a Leaf sees only what they added, often
+  nothing. Only the ask's member may ask, of a tree they're on, while it
+  waits. "Invite as <name>" (`sendRelayedClaimInvite`) asks the list again,
+  then sends a claim invite through `sendClaimInvite` into the picked tree,
+  to the address in the form, keeping its "Sent invites" record: accepting
+  claims the entry and opens the canvas on it (Step 30.2), with no
+  onboarding. "None of these, invite without an entry" sends the plain
+  invite, as does "Send invite" when nothing is listed. Either way the ask
+  is answered once an invite is made. RLS shows an ask only to the member it
+  went to, who may change only its answer. Caps are counted from the rows after filing, so two at once
   can't both slip under: 3 a day per address asking, 2 a day and 5 a week per
   member, 10 an hour and 30 a day across the site. An ask past one is
   dropped without a word, and one that's open or dismissed stops the same

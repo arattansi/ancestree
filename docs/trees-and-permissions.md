@@ -147,7 +147,7 @@ belongs to, or a Root of the entry's home tree.
 | Kind | Who may send | What redeeming does |
 |---|---|---|
 | Join as a Leaf | Any member: Root, Branch or Leaf | Adds a membership in the inviter's tree. An existing member of another tree gains a second membership; no second profile. If they have their own entry, it's shown on this tree too, active, since accepting is their say-so; every Root of the tree is told (`placed_on_join`) and can take it off from "Who This Tree Shows" (Step 30.9). They land on it. |
-| Claim an entry | As Step 22.1, evaluated in the entry's home tree; or a Root approving a request to join as an entry on their tree that the name matches (Step 30.3) | As above, plus the vouch for that entry. Someone with no entry of their own claims it there and then and lands on it (Step 30.2); if it's spoken for by then, onboarding as usual. A member who already has an entry keeps the vouch, to claim it from the canvas. |
+| Claim an entry | As Step 22.1, evaluated in the entry's home tree; or a Root approving a request to join as an entry on their tree that the name matches (Step 30.3); or the member a relative's ask went to, as an entry the newcomer's name matches on the tree they picked, where Step 22.1 lets them (Step 41.1) | As above, plus the vouch for that entry. Someone with no entry of their own claims it there and then and lands on it (Step 30.2); if it's spoken for by then, onboarding as usual. A member who already has an entry keeps the vouch, to claim it from the canvas. |
 | **Founder** | Any Root | Creates a brand-new tree (“Family” until they rename it; `private.default_tree_name`), makes them its Root, and sends them to onboarding on it. Refused if the address already founded a tree. |
 
 The beta is "by invite only" because only these paths create trees: there is
@@ -188,11 +188,23 @@ tree only, who see the whole tree anyway). Approving the ask as one of them
 makes the invite a claim invite for it, so accepting claims it; approving
 without one leaves them to find or add themselves on onboarding.
 
+The member a relative's ask went to gets the same list (Step 41.1), since a
+newcomer with no strong match is often on the tree under another spelling:
+once they've picked a tree, the entries on it that the newcomer's name
+matches, scored the same way (`invite_relay_candidates`). Only that member
+may ask, of a tree they're on, and only entries they could invite someone to
+claim anyway are listed (Step 22.1's rule, judged on the entry's home tree),
+so a Leaf sees only what they added, and nobody who has died or is claimed.
+"Invite as <name>" sends a claim invite into the tree they picked, which
+must show the entry: accepting claims it and opens the canvas on it.
+"None of these, invite without an entry" sends the plain invite as before.
+
 Every emailed invite keeps a record in its tree's "Sent invites", which only
 that tree's Roots see: who it went to, who sent it and when, whether the
 email went, and the entry it claims, if any (Step 38). A claim invite — from
-the entry's card, the add-relative form, or a Root approving an ask as that
-entry — is also shown on the entry's card to every member of the tree: who
+the entry's card, the add-relative form, a Root approving an ask as that
+entry, or a member answering a relative's ask as it (Step 41.1) — is also
+shown on the entry's card to every member of the tree: who
 sent it and when, and until when it works, or that it expired unused. The
 address it went to shows there only to a Root and to whoever sent it. A
 share link or a visitor from another tree sees none of it.
