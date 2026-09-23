@@ -16,11 +16,14 @@ export function DeleteInviteButton({
   name,
   confirmText,
   disabled,
+  onDeleted,
 }: {
   id: string;
   name: string;
   confirmText: string;
   disabled?: boolean;
+  /** For a row the page keeps on screen itself, which a refresh won't drop. */
+  onDeleted?: () => void;
 }) {
   const router = useRouter();
   const [busy, setBusy] = React.useState(false);
@@ -42,6 +45,7 @@ export function DeleteInviteButton({
       toast.error(res.error);
       return;
     }
+    onDeleted?.();
     toast.success("Deleted.");
   }
 

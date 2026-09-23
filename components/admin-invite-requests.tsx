@@ -11,6 +11,7 @@ import {
 import { DeleteInviteButton } from "@/components/delete-invite-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { requestRows } from "@/lib/request-rows";
 import {
   candidateSummary,
   matchConfidence,
@@ -30,7 +31,13 @@ export type PendingInviteRequest = {
   candidates: SelfCandidate[];
 };
 
-type Approved = { url: string; emailed: boolean; entryName: string | null };
+type Approved = {
+  /** The request as it was when approved, to keep its row (`requestRows`). */
+  request: PendingInviteRequest;
+  url: string;
+  emailed: boolean;
+  entryName: string | null;
+};
 
 /** Which button is working: a request, approved as an entry or without one. */
 type Busy = { id: string; personId: string | null };
@@ -44,7 +51,15 @@ export function AdminInviteRequests({
   const [busy, setBusy] = React.useState<Busy | null>(null);
   const [approved, setApproved] = React.useState<Record<string, Approved>>({});
 
-  if (requests.length === 0) {
+  // Approving refreshes the page around this list (the header's count, Sent
+  // Invites), which drops the request from `requests`. Its row stays, so the
+  // admin can see the outcome and copy the link as a fallback.
+  const rows = requestRows(
+    requests,
+    Object.values(approved).map((a) => a.request),
+  );
+
+  if (rows.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
         No invite requests to review.
@@ -56,7 +71,8 @@ export function AdminInviteRequests({
    * Approve, as one of the entries their name matches or (`personId` null)
    * without one: then they find or add themselves on onboarding, as before.
    */
-  async function onApprove(id: string, email: string, personId: string | null) {
+  async function onApprove(request: PendingInviteRequest, personId: string | null) {
+    const { id, email } = request;
     setBusy({ id, personId });
     let res: Awaited<ReturnType<typeof approveInviteRequest>>;
     try {
@@ -73,12 +89,15 @@ export function AdminInviteRequests({
       toast.error(res.error);
       return;
     }
-    // Deliberately no router.refresh() here: the row has to stay on screen so
-    // the admin can see the outcome and copy the link as a fallback.
     if (res.url) {
       setApproved((prev) => ({
         ...prev,
-        [id]: { url: res.url!, emailed: !!res.emailed, entryName: res.entryName ?? null },
+        [id]: {
+          request,
+          url: res.url!,
+          emailed: !!res.emailed,
+          entryName: res.entryName ?? null,
+        },
       }));
     }
     if (res.emailed) {
@@ -113,6 +132,15 @@ export function AdminInviteRequests({
     router.refresh();
   }
 
+  /** Let a kept row go once its record is deleted. */
+  function forget(id: string) {
+    setApproved((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  }
+
   async function copy(url: string) {
     try {
       await navigator.clipboard.writeText(url);
@@ -127,7 +155,7 @@ export function AdminInviteRequests({
 
   return (
     <ul className="flex flex-col gap-3">
-      {requests.map((r) => {
+      {rows.map((r) => {
         const result = approved[r.id];
         const matched = r.candidates.length > 0;
         return (
@@ -174,6 +202,7 @@ export function AdminInviteRequests({
                     id={r.id}
                     name={`${r.firstName} ${r.lastName}`}
                     confirmText={`Delete this record and kill the invite link you just sent ${r.email}? If they haven't used it yet, it will stop working. This cannot be undone.`}
+                    onDeleted={() => forget(r.id)}
                   />
                 </div>
               </div>
@@ -211,7 +240,7 @@ export function AdminInviteRequests({
                           <Button
                             size="sm"
                             disabled={busy !== null}
-                            onClick={() => onApprove(r.id, r.email, c.id)}
+                            onClick={() => onApprove(r, c.id)}
                           >
                             {working(r.id, c.id) ? "Working…" : `Approve as ${c.name}`}
                           </Button>
@@ -225,7 +254,7 @@ export function AdminInviteRequests({
                     size="sm"
                     variant={matched ? "outline" : "default"}
                     disabled={busy !== null}
-                    onClick={() => onApprove(r.id, r.email, null)}
+                    onClick={() => onApprove(r, null)}
                   >
                     {working(r.id, null)
                       ? "Working…"
