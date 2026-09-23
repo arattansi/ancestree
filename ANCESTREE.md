@@ -906,6 +906,49 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 39 — A tree has at most two Roots, and each Root makes up to four
+  Branches** (ad-hoc; migration `20260923130000_root_and_branch_limits`).
+  Aalim asked for both rules, reflected everywhere, onboarding included, and
+  chose to count Branches per Root rather than pooled across the tree. The
+  database holds them: `private.tree_members_limits` refuses a third Root
+  (`ROOT_LIMIT`) or a fifth Branch for one Root (`BRANCH_LIMIT`) from every
+  caller — the picker's RPC, a Root's direct write, and the RPCs' own
+  inserts — locking the tree's row before it counts, and records who made
+  each Branch one in the new `tree_members.branch_granted_by` (never chosen:
+  a Root naming the other Root is overruled; a Branch made a Leaf or a Root
+  frees the place). A limit only stops a promotion, so nothing on live
+  moved: the Family Tree already had two Roots and one Branch, Arzu, now
+  credited to Aalim, who invited her. A Root who deletes their account
+  hands their Branches to their successor (or the other Root) with their
+  entries, past four if need be. The co-admin allowlist's sign-in
+  (`ensure_profile`), which made its user a Root of the first tree, now
+  joins as a Leaf once that tree has its two. In the app,
+  `lib/account-types.ts` mirrors the numbers (`ROOTS_PER_TREE`,
+  `BRANCHES_PER_ROOT`, each type's `limit`): the /admin picker greys out a
+  type the tree has no room for and says why; the members table reads
+  "Roots: 2 of 2. Branches you’ve made: 1 of 4 (…)" and says who made each
+  Branch one; making a Root says it takes the tree's last place; the
+  account-type cards gain "How many a tree can have"; the founder's first
+  run ("Who Can Do What") and the Root and Branch descriptions say the
+  limits; `/account` shows a Root's "Branches made"; the delete dialog says
+  their Branches pass on. **Verified:** 740 tests pass (12 new). The
+  migration was rehearsed rolled back on live in three phases — before,
+  with only the limits, and whole — over 19 checks as throwaway Roots and
+  members: every way to a third Root refused; RB1's fifth Branch refused
+  while RB2 made one from their own four; freeing a place, or removing a
+  Branch, let RB1 make another; forging or re-crediting who made a Branch
+  was overruled; the service-role handoff reached five and then blocked a
+  sixth; a Root still stays a Root. The middle phase showed the allowlist
+  sign-in failing outright without its change, and joining as a Leaf with
+  it. Then applied, recorded under the file's version (`db push
+  --dry-run`: up to date), every new function body md5-identical to the
+  file, and the 19 checks re-run on live with the same results. In the
+  browser, on a throwaway page of the real components: the picker's Root
+  and Branch greyed out with their reasons, the Root confirm's wording
+  (declining it changed nothing), the new card row, the first run's copy
+  and the delete dialog. Not exercised: the admin console itself signed in
+  as a Root.
+
 - **Step 40 — Ancestral lands only where Native Land Digital has a match**
   (ad-hoc; no migration). Aalim asked for the ancestral-lands box to go
   where there's no match. Since Step 27.8 the form had offered one wherever
