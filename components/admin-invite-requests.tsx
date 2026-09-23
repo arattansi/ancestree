@@ -11,6 +11,11 @@ import {
 import { DeleteInviteButton } from "@/components/delete-invite-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  candidateSummary,
+  matchConfidence,
+  type SelfCandidate,
+} from "@/lib/self-match";
 
 export type PendingInviteRequest = {
   id: string;
@@ -18,9 +23,17 @@ export type PendingInviteRequest = {
   lastName: string;
   email: string;
   createdAt: string;
+  /**
+   * Entries on the tree the requester's name matches, best first
+   * (`invite_request_candidates`, Step 30.3). Empty when none do.
+   */
+  candidates: SelfCandidate[];
 };
 
-type Approved = { url: string; emailed: boolean };
+type Approved = { url: string; emailed: boolean; entryName: string | null };
+
+/** Which button is working: a request, approved as an entry or without one. */
+type Busy = { id: string; personId: string | null };
 
 export function AdminInviteRequests({
   requests,
@@ -28,7 +41,7 @@ export function AdminInviteRequests({
   requests: PendingInviteRequest[];
 }) {
   const router = useRouter();
-  const [busyId, setBusyId] = React.useState<string | null>(null);
+  const [busy, setBusy] = React.useState<Busy | null>(null);
   const [approved, setApproved] = React.useState<Record<string, Approved>>({});
 
   if (requests.length === 0) {
@@ -39,18 +52,22 @@ export function AdminInviteRequests({
     );
   }
 
-  async function onApprove(id: string, email: string) {
-    setBusyId(id);
+  /**
+   * Approve, as one of the entries their name matches or (`personId` null)
+   * without one: then they find or add themselves on onboarding, as before.
+   */
+  async function onApprove(id: string, email: string, personId: string | null) {
+    setBusy({ id, personId });
     let res: Awaited<ReturnType<typeof approveInviteRequest>>;
     try {
-      res = await approveInviteRequest(id);
+      res = await approveInviteRequest(id, personId);
     } catch {
       // Never strand the row on "Working…" — a rejected action (stale action
       // id after a deploy, dropped connection) has to be recoverable.
       toast.error("Couldn't reach the server — reload the page and try again.");
       return;
     } finally {
-      setBusyId(null);
+      setBusy(null);
     }
     if (res.error) {
       toast.error(res.error);
@@ -59,10 +76,17 @@ export function AdminInviteRequests({
     // Deliberately no router.refresh() here: the row has to stay on screen so
     // the admin can see the outcome and copy the link as a fallback.
     if (res.url) {
-      setApproved((prev) => ({ ...prev, [id]: { url: res.url!, emailed: !!res.emailed } }));
+      setApproved((prev) => ({
+        ...prev,
+        [id]: { url: res.url!, emailed: !!res.emailed, entryName: res.entryName ?? null },
+      }));
     }
     if (res.emailed) {
-      toast.success(`Approved — invite emailed to ${email}.`);
+      toast.success(
+        res.entryName
+          ? `Approved as ${res.entryName} — invite emailed to ${email}.`
+          : `Approved — invite emailed to ${email}.`,
+      );
     } else {
       toast.warning(
         `Approved, but the email didn't send${res.emailError ? ` (${res.emailError})` : ""} — copy the link below and send it yourself.`,
@@ -71,7 +95,7 @@ export function AdminInviteRequests({
   }
 
   async function onDecline(id: string) {
-    setBusyId(id);
+    setBusy({ id, personId: null });
     let res: { error?: string };
     try {
       res = await declineInviteRequest(id);
@@ -79,7 +103,7 @@ export function AdminInviteRequests({
       toast.error("Couldn't reach the server — reload the page and try again.");
       return;
     } finally {
-      setBusyId(null);
+      setBusy(null);
     }
     if (res.error) {
       toast.error(res.error);
@@ -98,10 +122,14 @@ export function AdminInviteRequests({
     }
   }
 
+  const working = (id: string, personId: string | null) =>
+    busy?.id === id && busy.personId === personId;
+
   return (
     <ul className="flex flex-col gap-3">
       {requests.map((r) => {
         const result = approved[r.id];
+        const matched = r.candidates.length > 0;
         return (
           <li
             key={r.id}
@@ -136,6 +164,11 @@ export function AdminInviteRequests({
                     Copy
                   </Button>
                 </div>
+                {result.entryName ? (
+                  <p className="text-muted-foreground">
+                    Accepting it claims the entry for {result.entryName}.
+                  </p>
+                ) : null}
                 <div>
                   <DeleteInviteButton
                     id={r.id}
@@ -145,29 +178,77 @@ export function AdminInviteRequests({
                 </div>
               </div>
             ) : (
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  disabled={busyId !== null}
-                  onClick={() => onApprove(r.id, r.email)}
-                >
-                  {busyId === r.id ? "Working…" : "Approve & send invite"}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={busyId !== null}
-                  onClick={() => onDecline(r.id)}
-                >
-                  Decline
-                </Button>
-                <DeleteInviteButton
-                  id={r.id}
-                  name={`${r.firstName} ${r.lastName}`}
-                  disabled={busyId !== null}
-                  confirmText={`Delete ${r.firstName} ${r.lastName}'s invite request outright? Unlike declining, it leaves no record and they can ask again. This cannot be undone.`}
-                />
-              </div>
+              <>
+                {matched ? (
+                  // The entries their name matches (Step 30.3): approving as
+                  // one hands it to them when they accept, so they needn't
+                  // search for it again on onboarding.
+                  <div className="flex flex-col gap-2">
+                    <p className="text-muted-foreground">
+                      Their name matches{" "}
+                      {r.candidates.length === 1 ? "this entry" : "these entries"}{" "}
+                      on the tree:
+                    </p>
+                    <ul className="flex flex-col gap-2">
+                      {r.candidates.map((c) => (
+                        <li
+                          key={c.id}
+                          className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border p-3"
+                        >
+                          <div className="min-w-0">
+                            <p className="flex items-center gap-2 font-medium">
+                              <span className="truncate">{c.name}</span>
+                              {matchConfidence(c.score) === "close" ? (
+                                <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-normal text-muted-foreground">
+                                  close match
+                                </span>
+                              ) : null}
+                            </p>
+                            <p className="truncate text-xs text-muted-foreground">
+                              {candidateSummary(c)}
+                            </p>
+                          </div>
+                          <Button
+                            size="sm"
+                            disabled={busy !== null}
+                            onClick={() => onApprove(r.id, r.email, c.id)}
+                          >
+                            {working(r.id, c.id) ? "Working…" : `Approve as ${c.name}`}
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant={matched ? "outline" : "default"}
+                    disabled={busy !== null}
+                    onClick={() => onApprove(r.id, r.email, null)}
+                  >
+                    {working(r.id, null)
+                      ? "Working…"
+                      : matched
+                        ? "Approve without an entry"
+                        : "Approve & send invite"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={busy !== null}
+                    onClick={() => onDecline(r.id)}
+                  >
+                    Decline
+                  </Button>
+                  <DeleteInviteButton
+                    id={r.id}
+                    name={`${r.firstName} ${r.lastName}`}
+                    disabled={busy !== null}
+                    confirmText={`Delete ${r.firstName} ${r.lastName}'s invite request outright? Unlike declining, it leaves no record and they can ask again. This cannot be undone.`}
+                  />
+                </div>
+              </>
             )}
           </li>
         );

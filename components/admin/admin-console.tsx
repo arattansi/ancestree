@@ -51,6 +51,7 @@ import {
   listInviteHistory,
 } from "@/lib/invites";
 import { listNicknameGroups } from "@/lib/nicknames.server";
+import { listRequestCandidates } from "@/lib/request-candidates.server";
 import {
   listForeignPlacements,
   listPlacementCandidates,
@@ -157,6 +158,7 @@ export async function AdminConsole({
   // Before listing, so a link that lapsed since the last visit lands in
   // "Archived invites" rather than lingering among the live ones.
   await archiveExpiredInvites(tree.id);
+  const pendingRequests = inviteRequestsRes.data ?? [];
   const [
     inviteHistory,
     bareInvites,
@@ -164,6 +166,7 @@ export async function AdminConsole({
     candidates,
     foreign,
     reviewer,
+    requestCandidates,
   ] = await Promise.all([
     listInviteHistory(tree.id),
     listBareInvites(tree.id),
@@ -171,6 +174,8 @@ export async function AdminConsole({
     listPlacementCandidates(tree.id),
     listForeignPlacements(tree.id),
     isBetaReviewer(),
+    // Who on the tree each requester's name matches (Step 30.3).
+    listRequestCandidates(pendingRequests.map((r) => r.id)),
   ]);
   // Requests to start a tree (Step 28) are the site's, not this tree's: the
   // same queue shows on every console a beta reviewer runs.
@@ -179,14 +184,13 @@ export async function AdminConsole({
     (r) => r.status === "pending",
   ).length;
   const nicknameGroups = await listNicknameGroups();
-  const inviteRequests: PendingInviteRequest[] = (
-    inviteRequestsRes.data ?? []
-  ).map((r) => ({
+  const inviteRequests: PendingInviteRequest[] = pendingRequests.map((r) => ({
     id: r.id,
     firstName: r.first_name,
     lastName: r.last_name,
     email: r.email,
     createdAt: r.created_at,
+    candidates: requestCandidates.get(r.id) ?? [],
   }));
 
   const shareLinks: ShareLinkRow[] = (shareLinksRes.data ?? []).map((l) => ({
@@ -472,7 +476,7 @@ export async function AdminConsole({
           collapsible
           defaultOpen={inviteRequests.length > 0}
           title="Requests for Access"
-          description={`${inviteRequests.length} awaiting review. Approving mints a single-use link and emails it to the person who asked — if the email fails to send, you can still copy the link yourself. Declining keeps a record; deleting leaves none and lets them ask again.`}
+          description={`${inviteRequests.length} awaiting review. Approving mints a single-use link and emails it to the person who asked — if the email fails to send, you can still copy the link yourself. Where their name matches someone on the tree, approve them as that entry and it’s theirs the moment they accept; approve without one and they find or add themselves when they join. Declining keeps a record; deleting leaves none and lets them ask again.`}
         >
           <AdminInviteRequests requests={inviteRequests} />
         </AdminSubsection>

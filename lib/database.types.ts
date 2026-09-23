@@ -2174,6 +2174,23 @@ export type Database = {
           valid: boolean
         }[]
       }
+      invite_request_candidates: {
+        Args: { p_request: string }
+        Returns: {
+          city_of_birth: string
+          country_of_birth: string
+          date_of_birth: string
+          date_of_death: string
+          first_name: string
+          id: string
+          is_deceased: boolean
+          last_name: string
+          maiden_name: string
+          parent_names: string
+          preferred_name: string
+          score: number
+        }[]
+      }
       is_beta_reviewer: { Args: never; Returns: boolean }
       my_growth_rights: { Args: { p_tree?: string }; Returns: Json }
       my_tree_request: { Args: never; Returns: string }

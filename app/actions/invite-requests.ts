@@ -8,12 +8,16 @@ import { founderApprovedEmail } from "@/lib/emails/founder-approved";
 import { founderInviteEmail } from "@/lib/emails/founder-invite";
 import { inviteApprovedEmail } from "@/lib/emails/invite-approved";
 import { inviteSentEmail } from "@/lib/emails/invite-sent";
+import { personDisplayName } from "@/lib/person-name";
+import { chosenCandidate } from "@/lib/request-candidates";
+import { getRequestCandidates } from "@/lib/request-candidates.server";
 import {
   problemState,
   readNameAndEmail,
   type RequestFormState,
 } from "@/lib/request-forms";
 import { alertRootsOfAccessRequest } from "@/lib/request-alerts.server";
+import type { SelfCandidate } from "@/lib/self-match";
 import { getSiteUrl } from "@/lib/site-url";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -96,10 +100,24 @@ export async function requestInvite(
  * is also returned so the Root can copy it as a fallback — if the email fails
  * to send, `emailError` is set but the approval itself is not rolled back;
  * the invite is already valid either way.
+ *
+ * With `personId` the Root approves them as that entry (Step 30.3): the
+ * invite names it (`person_id`), so accepting claims it and lands them on it
+ * (Step 30.2), and the email says whose entry it is. It has to be one of the
+ * entries the request's name matches, asked again here rather than taken on
+ * the browser's word.
  */
 export async function approveInviteRequest(
   id: string,
-): Promise<{ url?: string; emailed?: boolean; emailError?: string; error?: string }> {
+  personId?: string | null,
+): Promise<{
+  url?: string;
+  emailed?: boolean;
+  emailError?: string;
+  /** The entry the invite claims, when approved as one. */
+  entryName?: string;
+  error?: string;
+}> {
   const admin = await requireProfile();
   const supabase = await createClient();
 
@@ -116,6 +134,19 @@ export async function approveInviteRequest(
   const { error: notRoot } = await rootOf(request.tree_id);
   if (notRoot) return { error: notRoot };
 
+  let entry: SelfCandidate | null = null;
+  if (personId) {
+    const candidates = await getRequestCandidates(request.id);
+    if (!candidates) return { error: "Couldn't check that entry. Try again." };
+    entry = chosenCandidate(candidates, personId);
+    if (!entry) {
+      return {
+        error:
+          "Their name no longer matches that entry, or someone has claimed it. Reload to see who’s left.",
+      };
+    }
+  }
+
   const expiresAt = new Date(
     Date.now() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000,
   ).toISOString();
@@ -129,6 +160,8 @@ export async function approveInviteRequest(
       expires_at: expiresAt,
       // The link signs this address in — see `signInWithInvite`.
       invited_email: request.email.trim().toLowerCase(),
+      // Accepting claims this entry (Step 30.2); `invites_guard` lets a Root.
+      person_id: entry?.id ?? null,
     })
     .select("id, token")
     .single();
@@ -142,6 +175,7 @@ export async function approveInviteRequest(
     firstName: request.first_name,
     inviterName: admin.display_name ?? "A family member",
     url,
+    entryName: entry?.name,
   });
   const sent = await sendEmail({ to: request.email, subject, html });
 
@@ -166,6 +200,7 @@ export async function approveInviteRequest(
     url,
     emailed: sent.ok,
     emailError: sent.ok ? undefined : sent.error,
+    entryName: entry?.name,
   };
 }
 
@@ -185,10 +220,13 @@ export async function resendInviteEmail(
   const admin = await requireProfile();
   const supabase = await createClient();
 
-  // RLS shows a request only to a Root of its tree.
+  // RLS shows a request only to a Root of its tree, and them the entry an
+  // approval named (Step 30.3), which is on that tree.
   const { data: request } = await supabase
     .from("invite_requests")
-    .select("id, status, source, first_name, email, invites(token, status, expires_at, founds_tree)")
+    .select(
+      "id, status, source, first_name, email, invites(token, status, expires_at, founds_tree, people(first_name, preferred_name, last_name))",
+    )
     .eq("id", id)
     .maybeSingle();
 
@@ -218,17 +256,22 @@ export async function resendInviteEmail(
   const inviterName = admin.display_name ?? "A family member";
   const url = `${getSiteUrl()}/join/${invite.token}`;
   // Keep the original wording: nobody asked for a direct invite, so it must
-  // not come back claiming their request was approved; and a founder invite
-  // starts a tree of their own, so it must not read as joining this one.
+  // not come back claiming their request was approved; a founder invite
+  // starts a tree of their own, so it must not read as joining this one; and
+  // a request approved as an entry names it again (Step 30.3).
   const input = { firstName: request.first_name, inviterName, url };
   const direct = request.source === "direct";
+  const entry = invite.people;
   const { subject, html } = invite.founds_tree
     ? direct
       ? founderInviteEmail(input)
       : founderApprovedEmail(input)
     : direct
       ? inviteSentEmail(input)
-      : inviteApprovedEmail(input);
+      : inviteApprovedEmail({
+          ...input,
+          entryName: entry ? personDisplayName(entry) : null,
+        });
 
   const sent = await sendEmail({ to: request.email, subject, html });
 

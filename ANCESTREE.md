@@ -102,7 +102,9 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   (`lib/tree-context#membershipOf` / `rootOf`);
   `invite-requests.ts`: `requestInvite` (public, service-role write; a new
   request emails the tree's Roots, Step 30.1) /
-  `approveInviteRequest` (mints the link) / `declineInviteRequest`;
+  `approveInviteRequest` (mints the link, naming the entry the requester's
+  name matched when the Root approves them as one, Step 30.3) /
+  `declineInviteRequest`;
   `tree-requests.ts` (Step 28): `requestNewTree` (a member asks to start a
   tree), `joinBetaWaitlist` / `findFamilyTree` (public, service-role; a new
   ask or sign-up emails the beta reviewers, Step 30.1),
@@ -495,7 +497,10 @@ mirror it for the UI.
   picks Canopy or Leaf; from anyone else it joins as a Leaf, enforced by
   `invites_guard`. `sendClaimInvite` asks `public.can_invite_to_claim` as the
   inviter, then writes with the service role, since the link is bound to the
-  address (`invited_email`) and signs it in. Roots choose on
+  address (`invited_email`) and signs it in. A Root approving a request for
+  access can also make it a claim invite (Step 30.3): for an entry placed on
+  the request's tree that the requester's name matches (see Invite requests
+  below). Roots choose on
   `/admin` (both invite forms, `JoinsAsChoice`); everyone else who can invite
   gets an "Invite a relative" card on `/account`. The add-relative form asks
   for the new relative's email too (Step 31) and, once the entry is saved,
@@ -526,7 +531,20 @@ mirror it for the UI.
   with `after()` so the form never waits or fails on it), with a button to
   that tree's "Requests for Access"; asking again emails nobody. The form is
   public, so alerts are capped at 5 an hour and 20 a day per tree, counted
-  from pending rows; past that requests still queue, silently.
+  from pending rows; past that requests still queue, silently. Each pending
+  request also lists the entries on its tree that the requester's name
+  matches (Step 30.3, `public.invite_request_candidates`, Roots of that tree
+  only): onboarding's scoring (`private.self_candidate_score`), living
+  entries placed on the tree that nobody is behind yet, best five, each with
+  onboarding's lifespan, birthplace and parents to recognise them by.
+  "Approve as <name>" makes the invite a claim invite for that entry
+  (`person_id`, which `invites_guard` lets a Root set), after
+  `approveInviteRequest` has asked the list again
+  (`lib/request-candidates.server.ts`), so an entry claimed or gone since
+  can't be named. Accepting claims it and lands them on it (Step 30.2); the
+  join page says so, and the approval email and a resend name the entry.
+  "Approve without an entry" (just "Approve & send invite" when nothing
+  matches) works as before: they find or add themselves on onboarding.
 - **Direct invites**: from the same `/admin` card — and, since Step 20, from
   the "Invite a relative" card on `/account` for anyone who may invite, as
   whatever `invitableTypes` lets them give — the inviter can skip the
