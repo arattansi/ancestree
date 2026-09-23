@@ -85,7 +85,9 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   tree, delete-account; settings opens on **Relatives Asking for an
   Invite** when a newcomer's ask was passed on to them (Step 30.5,
   `&relay=<id>` from the email), each listing the entries on the picked tree
-  that the newcomer's name matches, to invite them as (Step 41.1) — and, with `?view=admin`, the **admin console**
+  that the newcomer's name matches, to invite them as (Step 41.1), and the
+  date it lapses (Step 41.5); its Privacy card has the **Relatives can ask
+  me to invite them** box (on unless they untick it, Step 41.5) — and, with `?view=admin`, the **admin console**
   of the current tree, or the first you run: stats, members, people from
   other trees, requests, disputes, requests to start a tree (beta
   reviewers only), invites incl. founder invites, share
@@ -121,7 +123,9 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `invite-relays.ts` (Step 30.5): `askRelative` (public; a newcomer with no
   match asks a relative, passed on after the answer) /
   `sendRelayedInvite` / `sendRelayedClaimInvite` (as an entry the name
-  matches, Step 41.1) / `dismissRelay` (the member it was passed to);
+  matches, Step 41.1) / `dismissRelay` (the member it was passed to, while
+  it hasn't lapsed) / `setRelativesCanAsk` (the member's opt-out, Step
+  41.5);
   `tree-requests.ts` (Step 28): `requestNewTree` (a member asks to start a
   tree), `joinBetaWaitlist` / `findFamilyTree` (public, service-role; a new
   ask or sign-up emails the beta reviewers, Step 30.1; the waitlist needs
@@ -225,17 +229,21 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   goes (`pickQueueTarget`) and the emails' button (`openConsoleHref`,
   `.test.ts`); `lib/safe-next.ts` — the same-origin `next` a signed-out
   visit carries through sign-in (`.test.ts`)
-- Asking a relative (Step 30.5): `lib/invite-relays.ts` — the caps, the
-  form's checks and words, the member's link (`relayHref`; `.test.ts`);
-  `lib/invite-relays.server.ts` — `passOnRelay`, run after the newcomer's
-  answer: the member by address (`invite_relay_recipient`, service role
-  only), the caps, the email (`.test.ts`); `lib/emails/invite-relayed.ts`;
+- Asking a relative (Step 30.5): `lib/invite-relays.ts` — the caps (on
+  every ask, `askWithinCaps`, and on a member, `memberWithinCaps`), when an
+  ask lapses (`relayLapsed`, Step 41.5), the form's checks and words, the
+  member's link (`relayHref`; `.test.ts`); `lib/invite-relays.server.ts` —
+  `passOnRelay`, run after the newcomer's answer: clearing old notes and
+  lapsed asks, noting and counting the ask (`invite_relay_asks`, Step
+  41.5), the member by address (`invite_relay_recipient`, service role
+  only), their caps, the email (`.test.ts`); `lib/emails/invite-relayed.ts`;
   `lib/relay-candidates.server.ts` — the entries an ask's name matches on
   each of the member's trees (`invite_relay_candidates`, Step 41.1;
   `.test.ts`); `lib/opened-relay.ts` / `.server.ts` — what settings says
   about the ask the email named once it isn't waiting (`.test.ts`);
   `components/relay-invites.tsx` — the invite filled in, on
-  the member's account settings, with those entries to invite them as
+  the member's account settings, with those entries to invite them as;
+  `components/relatives-can-ask.tsx` — the member's opt-out box (Step 41.5)
 - `lib/supabase/` — `client.ts` (browser), `server.ts` (RSC/actions), `middleware.ts` (session refresh), `admin.ts` (service role, server-only)
 - `lib/database.types.ts` — generated Supabase types (regenerate after schema changes)
 - `supabase/` — local CLI project linked to `kkmemshpkxrzogijxgnb` (`Product-Ancestree`)
@@ -259,14 +267,15 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `tree_members`           | **The account type, per tree** (Step 25): `(tree_id, user_id, role)`, `role` ∈ `admin` \| `branch_admin` \| `member` (Root / Branch / Leaf; `leaf` retired in Step 34). Written by RPCs (`join_tree`, `set_member_role`, `remove_tree_member`) behind `tree_members_guard` (Roots set types; Root is permanent per tree) and `tree_members_limits` (Step 39: at most two Roots a tree, four Branches a Root). `branch_granted_by` = the Root who made them a Branch, whose four they count toward — set by the trigger, never chosen, null unless a Branch |
 | `tree_placements`        | Which trees show a person, and where the card sits there: `(tree_id, person_id, status active\|pending\|declined, pos_*)`. The home tree always has one (trigger); others come from `place_people`, and a member's own entry waits `pending` for their yes (`respond_to_placement`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `tree_visibility`        | A Root opens their tree, read-only, to the members of another tree they're on: `(tree_id, viewer_tree_id)`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| `profiles`               | `auth.users` row: `display_name`, `self_person_id` (one entry, wherever it's shown). No account type here: that is `tree_members.role`, per tree (the pre-Step-25 `profiles.role` was dropped in Step 25.6)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `profiles`               | `auth.users` row: `display_name`, `self_person_id` (one entry, wherever it's shown), `relatives_can_ask` (whether a newcomer's ask may reach them, on unless they untick it; Step 41.5). No account type here: that is `tree_members.role`, per tree (the pre-Step-25 `profiles.role` was dropped in Step 25.6)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `people`                 | Demographic nodes, **one row per person across all trees**. `tree_id` is the person's **home tree** — whose rules govern their details (Step 25; moved by `set_home_tree`). `hidden_from_visitors` blurs them to visitors. Card positions live on `tree_placements`, not here (the pre-Step-25 `people.pos_*` were dropped in Step 25.6). `owner_user_id` starts as `created_by` and moves on claim. `date_of_birth_precision` / `date_of_death_precision` (`day` \| `month` \| `year`, Step 17) say how much of each date is known — a partial date is stored on the first day of its period, CHECK-enforced, so year-only readers need no change. `place_id_birth` / `place_id_death` → `places(id)` (Step 4.5b; nullable, backfilled — legacy `city_of_birth` / `country_of_birth` / `place_of_death` text kept until reconciled). Nothing about ancestral lands is stored: a card shows Native Land Digital's names, looked up live, or nothing (Step 40; Step 27's `ancestral_lands_birth` / `ancestral_lands_death`, the family's own words, were never used and were dropped in Step 40.5) |
 | `relationships`          | A fact about two people, not a tree (Step 25): a tree draws it when both ends are placed there; `tree_id` records the tree it was drawn on, and uniqueness ignores it. Directed `parent` edges; undirected `spouse` pairs (optional `marriage_date` / `is_divorced` / `divorce_date`, spouse-only by CHECK); siblings inferred                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `connection_suggestions` | Implied-connection prompts surfaced by the add-person flow (`suggested_type` spouse/parent/sibling_check, `source`, `status` pending/accepted/dismissed); UNIQUE (subject, related, type, source) = no re-prompt                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `invites`                | Shareable tokens into one tree (`active` \| `accepted` \| `revoked`); `founds_tree` (Step 25) makes it a founder invite — redeeming plants a new tree with the redeemer as Root                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `invite_requests`        | Public invite asks — first/last name + email, `pending` \| `approved` \| `declined`, `invite_id` of the link minted on approval. Admin-only RLS; inserted server-side with the service role (no `anon` grant). One pending row per email                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `tree_requests`          | Asks to start a tree during the beta (Step 28): a member's (`user_id`) or a waitlist sign-up's (name + email only), `pending` \| `approved` \| `declined`, answered by a beta reviewer (`private.beta_reviewers`). A member's approval is their permission to `found_tree`; a sign-up's approval mints a founder invite (`invite_id`). Reviewers see and answer every row, a member only their own; members ask through `request_tree`, the waitlist is written with the service role. One pending ask per member and per waitlist address                                                                                                                                                                                                                                                                   |
-| `invite_relays`          | Asks a newcomer with no match passed on to a relative (Step 30.5): their typed first/last name + email and the member it went to (`recipient_user_id`), `pending` \| `invited` \| `dismissed`, the tree they were invited to, `email_sent`. Only that member reads and answers it (RLS; update granted on the answer's columns only); filed by the server with the service role, and the rows are what the caps count. One open or dismissed ask per address and member |
+| `invite_relays`          | Asks a newcomer with no match passed on to a relative (Step 30.5): their typed first/last name + email and the member it went to (`recipient_user_id`), `pending` \| `invited` \| `dismissed`, the tree they were invited to, `email_sent`. Only that member reads and answers it (RLS; update granted on the answer's columns only); filed by the server with the service role, and the rows are what the member's caps count. One open or dismissed ask per address and member. A pending ask lapses after 30 days, and is deleted as new asks come in (Step 41.5) |
+| `invite_relay_asks`      | A note of every ask to a relative, whoever the address belongs to (Step 41.5): the address asking and `created_at`, never the relative's. What the caps per address and across the site count, before anyone is looked up. Service role only (RLS on, no policies, no grants to `anon`/`authenticated`); an ask past a cap leaves no note, and notes older than a day are deleted as new asks come in |
 | `claims`                 | Auto-approve / dispute / reject a person entry (`dispute_reason`, `resolved_by`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `notifications`          | In-app notices, **one inbox per tree** (`tree_id`, Step 25; `placement_requested` \| `placement_accepted` \| `placement_declined` added; `tree_request_approved`, Step 28; `placed_on_join`, Step 30.9, and what a claim invite did, Step 41.3); recipient-scoped RLS                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `entry_comments`         | Comments and flags, **one board per tree** (`tree_id`, Step 25) (`is_flag`, `open` \| `resolved`, `resolved_by`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
@@ -706,8 +715,9 @@ mirror it for the UI.
   passed your request on" — so it never tells anyone who's a member:
   `askRelative` only checks the typing (a valid address, not their own) and
   does the rest in `after()` (`passOnRelay`). If the address is a member's
-  (`invite_relay_recipient`: a profile on at least one tree, service role
-  only), the ask is filed and that member emailed
+  who lets relatives ask (`invite_relay_recipient`: a profile on at least
+  one tree, with `profiles.relatives_can_ask` on; service role only), the
+  ask is filed and that member emailed
   (`lib/emails/invite-relayed.ts`) a button to `/account?view=settings&relay=<id>`
   — only the ask's id is in the address. There, **Relatives Asking for an
   Invite** shows an invite filled in with the name and email as typed, and a
@@ -732,14 +742,29 @@ mirror it for the UI.
   is answered once an invite is made. Opened from the email once it's no
   longer waiting — including just after sending or dismissing it from its
   card, whose refresh keeps the address — settings says what the member did
-  with it: "You’ve invited <name> to <tree>." or that they dismissed it
-  (`lib/opened-relay.ts`). Anyone the ask isn't theirs to read gets only
-  "That request has already been answered." RLS shows an ask only to the member it
-  went to, who may change only its answer. Caps are counted from the rows after filing, so two at once
-  can't both slip under: 3 a day per address asking, 2 a day and 5 a week per
-  member, 10 an hour and 30 a day across the site. An ask past one is
-  dropped without a word, and one that's open or dismissed stops the same
-  address asking the same member again. Logs never carry a name or address.
+  with it: "You’ve invited <name> to <tree>.", that they dismissed it, or
+  that it lapsed (Step 41.5) (`lib/opened-relay.ts`). Anyone the ask isn't
+  theirs to read gets only "That request has already been answered, or it
+  lapsed after 30 days." RLS shows an ask only to the member it
+  went to, who may change only its answer. Every ask is noted first, whoever
+  the address belongs to (Step 41.5, `public.invite_relay_asks`: the address
+  asking and when, never the relative's; service role only), and the caps on
+  the address asking (3 a day) and across the site (10 an hour, 30 a day) are
+  counted from the notes before anyone is looked up, so an ask past one
+  looks nobody up and its note is taken back. An ask for a member is then
+  filed and counted against theirs (2 a day, 5 a week). Each count comes
+  after the write, so two at once can't both slip under. An ask past a cap
+  is dropped without a word, and one that's open or dismissed stops the same
+  address asking the same member again. A member who unticks **Relatives
+  can ask me to invite them** (settings, Privacy card; `setRelativesCanAsk`)
+  is found by nobody, so the newcomer's answer is the same and nothing is
+  filed or sent; asks already waiting stay. An ask left pending for 30 days
+  lapses (Step 41.5): the card shows the date each ask waits until and
+  drops it then, the actions refuse it (`RELAY_ANSWERED` covers answered and
+  lapsed), and the email says so.
+  With no schedule (pg_cron isn't enabled), each new ask first deletes
+  lapsed asks, which lets the same address ask again, and notes older than
+  a day. Logs never carry a name or address.
 - **Direct invites**: from the same `/admin` card — and, since Step 20, from
   the "Invite a relative" card on `/account` for anyone who may invite, as
   whatever `invitableTypes` lets them give — the inviter can skip the

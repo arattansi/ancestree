@@ -166,7 +166,12 @@ they're on — as a Leaf, like any invite — or dismiss. The screen answers the
 same whether the address belongs to anyone, so it never says who's a member,
 and the asks are capped (3 a day per address asking, 2 a day and 5 a week
 per member, 10 an hour and 30 a day across the site), past which they're
-dropped silently. Or they join the waitlist, which says first that a new
+dropped silently. Every ask counts toward the caps on the address and the
+site, whoever it was to, and those are checked before anyone is looked up
+(Step 41.5). A member can untick "Relatives can ask me to invite them" on
+their settings, and then nobody's ask reaches them, while the newcomer is
+told the same as ever; an ask they leave for 30 days lapses. Or the
+newcomer joins the waitlist, which says first that a new
 tree starts empty. Both waitlist forms take the same privacy tick as asking
 to join (Step 30.6), since the founder invite a reviewer's yes sends doesn't
 ask again.
