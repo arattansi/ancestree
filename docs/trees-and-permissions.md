@@ -29,7 +29,7 @@ round trip.
 | Founding | A member founds a tree from `/trees/new` once a **beta reviewer** has approved their request (Step 28, "start a tree (beta)" on the home page or `/trees`), or a newcomer founds one by redeeming a **founder invite** — from any Root, or from a reviewer approving them off the waitlist. A founder is that tree's first Root. Either way they land on the founder's first run (Step 29): invite, their own entry (added, or brought over from another tree), the tree's name, their close family. |
 | Beta requests | `tree_requests`, answered by the addresses in `private.beta_reviewers` (the build owner and Raiya Suleman). A member's approval is their permission to found; `found_tree` refuses anyone else. A reviewer may always found. Only reviewers see the queue; a member sees their own ask. |
 | One each | A member may found **one** tree (`trees.created_by` is unique). Being a Root of several trees is fine; founding several is not. |
-| Roots | Every tree has at least one Root, for good. The last Root may leave only by handing the tree to a successor (`deleteAccount(successorId)`, per tree). |
+| Roots | Every tree has at least one Root, for good, and at most two (Step 39). The last Root may leave only by handing the tree to a successor (`deleteAccount(successorId)`, per tree). |
 | Naming | `trees.name` is shown; `trees.slug` is the URL segment (`/t/<slug>/…`). Slugs are unique and only a Root may rename a tree. |
 | Bloodline gate | Per tree (`bloodline_anchors.tree_id`). A founded tree is anchored on its founder's own entry, set when they add, claim or bring themselves there (Step 29: `place_people` anchors the founder's own entry); the first tree keeps its two original anchors. A married-in member on any tree is held to that tree's bloodline, and the refusal points them at founding a tree of their own. |
 | Deleting a tree | A Root may delete a tree they run (`delete_tree`, from the admin page's Data & privacy card). Every person whose home it was moves home to the other tree they were placed on first, or is deleted with the tree if there is none; a member whose own entry goes starts over on their next tree's onboarding. Its boards, banks, companions, invites and share links go with it. |
@@ -55,6 +55,15 @@ Rules that follow:
   Root elsewhere changes nothing here. A Root makes a Leaf a Branch, or a
   Branch a Leaf again.
 - "Root is permanent" holds per tree (`tree_members_guard`).
+- **Limits** (Step 39, `tree_members_limits`), per tree: at most **two
+  Roots**, and up to **four Branches for each Root**, counted by who made
+  them one (`tree_members.branch_granted_by`, recorded by the database, never
+  chosen), so one Root can't spend another's four. Leaves and members are
+  unlimited. A limit only refuses a promotion (`ROOT_LIMIT`, `BRANCH_LIMIT`),
+  from every caller including the RPCs; it never demotes anyone. A Branch
+  made a Leaf or a Root frees their Root's place. The co-admin allowlist's
+  sign-in (`ensure_profile`) joins the first tree as a Leaf once it has its
+  two Roots.
 - A Leaf's own line is measured **on the tree being written to**, once the new
   entries' lines are drawn, so a Leaf can add a great-grandparent and then
   that great-grandparent's other children (`add_people_with_connections`,
@@ -203,7 +212,8 @@ invite, and joining from there is theirs to press.
   the trees they run, pending placement requests, and one inbox tab per tree.
 - Deleting an account: in each tree, the member's contributions pass to a
   Root of that tree; if they were the last Root of a tree they must name a
-  successor there first.
+  successor there first. A Root's Branches pass the same way and count
+  toward the new Root's four, even past four (Step 39).
 - `profiles.self_person_id` is the member's one own entry, wherever it is
   placed.
 

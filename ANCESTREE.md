@@ -247,7 +247,7 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | Table                    | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `trees`                  | A family's canvas (Step 25): `name`, URL `slug` (unique, follows the name), `created_by` = founder — **one founded tree per member** (partial unique index); created only by `found_tree` (once a beta reviewer has approved the member's request, Step 28) / a founder invite / the allowlist bootstrap, deleted only by `delete_tree`                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| `tree_members`           | **The account type, per tree** (Step 25): `(tree_id, user_id, role)`, `role` ∈ `admin` \| `branch_admin` \| `member` (Root / Branch / Leaf; `leaf` retired in Step 34). Written by RPCs (`join_tree`, `set_member_role`, `remove_tree_member`) behind `tree_members_guard` (Roots set types; Root is permanent per tree)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `tree_members`           | **The account type, per tree** (Step 25): `(tree_id, user_id, role)`, `role` ∈ `admin` \| `branch_admin` \| `member` (Root / Branch / Leaf; `leaf` retired in Step 34). Written by RPCs (`join_tree`, `set_member_role`, `remove_tree_member`) behind `tree_members_guard` (Roots set types; Root is permanent per tree) and `tree_members_limits` (Step 39: at most two Roots a tree, four Branches a Root). `branch_granted_by` = the Root who made them a Branch, whose four they count toward — set by the trigger, never chosen, null unless a Branch |
 | `tree_placements`        | Which trees show a person, and where the card sits there: `(tree_id, person_id, status active\|pending\|declined, pos_*)`. The home tree always has one (trigger); others come from `place_people`, and a member's own entry waits `pending` for their yes (`respond_to_placement`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `tree_visibility`        | A Root opens their tree, read-only, to the members of another tree they're on: `(tree_id, viewer_tree_id)`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `profiles`               | `auth.users` row: `display_name`, `self_person_id` (one entry, wherever it's shown). No account type here: that is `tree_members.role`, per tree (the pre-Step-25 `profiles.role` was dropped in Step 25.6)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
@@ -351,8 +351,11 @@ admin-only.
 named for the tree they grow. `lib/account-types.ts` is the model — the only
 place a stored key becomes a name, and where each type's reach is written
 down (`entries`, `connections`, `companions`: `tree` / `branch` / `own`;
-`addRelatives`: `tree` / `line`; `claimInvites`; `deletes`; `runsTree`) — so
-a name or a plan's limits can change without a migration.
+`addRelatives`: `tree` / `line`; `claimInvites`; `deletes`; `runsTree`;
+`limit`) — so a name can change without a migration. The limits (Step 39)
+live in two places that must agree: `ROOTS_PER_TREE` / `BRANCHES_PER_ROOT`
+here, for the UI, and `private.roots_per_tree()` / `branches_per_root()` in
+the database, which enforces them.
 
 | Stored `role`  | Name       | Reach                                                                                                                                                                                                                                                                                              |
 | -------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -378,6 +381,24 @@ the Roots whose sides the Branches tend (`private.root_person_ids`). Who may
 invite follows from the type alone — the per-member `can_invite` grant was
 retired, and the column dropped, in Step 22.1 — and every invite link makes
 someone a Leaf (see **Invites join as Leaves** under Auth & invites).
+
+**How many (Step 39):** a tree has at most **two Roots**, and each Root makes
+up to **four Branches**, counted by who made them one
+(`tree_members.branch_granted_by`), so one Root can't spend another's four.
+Leaves, and members, are unlimited. `private.tree_members_limits`, a trigger
+beside the guard, records the Root whenever someone becomes a Branch (a Root
+can't name another; making them a Leaf or a Root clears it) and refuses a
+third Root (`ROOT_LIMIT`) or a fifth Branch (`BRANCH_LIMIT`) from every
+caller — `set_member_role`, a Root's direct write, and the RPCs' own inserts
+alike — locking the tree's row before it counts. A limit only stops a
+promotion: nobody is ever demoted by one. Roots being permanent, a Root's
+place only opens when one deletes their account; that Root's Branches then
+pass to their successor (or the other Root) with their entries, and may take
+them past four — they just can't make another until they're under. On
+`/admin` the picker shows a type the tree has no room for greyed out, with
+why ("This tree has its two Roots", "You’ve made your four Branches"); the
+members table says "Roots: 2 of 2. Branches you’ve made: 1 of 4 (…)" and
+who made each Branch one; making a Root says it's the tree's last place.
 
 A Leaf's own line is held in the database, not just the UI (Step 34):
 `add_people_with_connections`, the one RPC through which anyone but a Root
@@ -730,14 +751,16 @@ mirror it for the UI.
 - **Admin bootstrap**: `private.admin_allowlist(email)` — seeded with both
   co-admins (Aalim Rattansi, Raiya Suleman). First login by an
   allowlisted email runs `ensure_profile`, which creates the single shared
-  `trees` row and an `admin` profile. Non-allowlisted users
+  `trees` row and an `admin` profile — a Leaf's instead once that first tree
+  has its two Roots (Step 39). Non-allowlisted users
   without an invite get `needs_invite`, and go to the invite waiting for
   their address, or `/join`'s pending state (Step 30.8, above).
 - **`profiles_protect_role`** trigger still pins the role for
   non-admins; the SECURITY DEFINER helpers set a `LOCAL`
   `ancestree.privileged_profile_write` GUC to bypass it during bootstrap only.
 - **`public.member_directory`** view (`security_invoker`) = profiles + resolved
-  `invited_by_name`; drives `/admin` and `/account`.
+  `invited_by_name` and, for a Branch, `branch_granted_by_name` (Step 39);
+  drives `/admin` and `/account`.
 
 **Supabase dashboard config (do once):** Authentication → URL Configuration →
 Site URL `https://ancestree.space`; Redirect URLs allowlist
