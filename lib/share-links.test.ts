@@ -4,6 +4,7 @@ import {
   countsAsView,
   isShareLinkUsable,
   shareLinkState,
+  viewerUserAgent,
 } from "@/lib/share-links";
 
 const now = new Date("2026-08-31T12:00:00Z");
@@ -113,5 +114,26 @@ describe("countsAsView (Step 33.7)", () => {
   it("doesn't count a visit with no user agent", () => {
     expect(countsAsView(null)).toBe(false);
     expect(countsAsView("")).toBe(false);
+  });
+});
+
+describe("viewerUserAgent (Step 41.4)", () => {
+  const safari =
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1";
+
+  it("hands on a visit's user agent", () => {
+    const visit = new Headers({ "user-agent": safari });
+    expect(viewerUserAgent(visit)).toBe(safari);
+    expect(countsAsView(viewerUserAgent(visit))).toBe(true);
+  });
+
+  it("counts no view for asking to join, whose reply draws the page again", () => {
+    const ask = new Headers({ "user-agent": safari, "Next-Action": "7f3a9c" });
+    expect(viewerUserAgent(ask)).toBeNull();
+    expect(countsAsView(viewerUserAgent(ask))).toBe(false);
+  });
+
+  it("has nothing to hand on without a user agent", () => {
+    expect(viewerUserAgent(new Headers())).toBeNull();
   });
 });

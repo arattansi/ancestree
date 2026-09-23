@@ -39,6 +39,11 @@ dialog, titles and buttons go back to sentence case (**Request access**,
 the filled one, for members coming back; the sentence-case line under the
 buttons tells a newcomer that ancestree is invite-only (Step 30.4).
 
+A share link's **Ask to join** (Step 41.4) is sentence case. It sits on the
+read-only canvas and opens the request form in a dialog over it, so it's an
+action there, like **Add a relative** or **Auto-arrange**, rather than a way
+to another page. Its dialog is titled **Ask to join** too.
+
 ## Layout
 
 - Pages sit in a centred column: `max-w-3xl` for the account page and admin

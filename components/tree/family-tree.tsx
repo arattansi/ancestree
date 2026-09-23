@@ -35,6 +35,7 @@ import "@xyflow/react/dist/style.css";
 
 import { autoArrangeTree, setPersonPosition } from "@/app/actions/people";
 import { setPetPosition } from "@/app/actions/pets";
+import { RequestInviteDialog } from "@/components/request-invite-form";
 import { AddRelativeButton } from "@/components/tree/add-relative-button";
 import { CanvasTip } from "@/components/tree/canvas-tip";
 import { ClaimSuggestions } from "@/components/tree/claim-suggestions";
@@ -484,7 +485,7 @@ type Props = {
   people: TreeGraphPerson[];
   relationships: TreeGraphEdge[];
   treeId: string;
-  /** The tree's URL slug, for the public "request access" link. */
+  /** The tree's URL slug, for a read-only canvas's "Ask to join" (Step 41.4). */
   treeSlug: string;
   selfPersonId: string | null;
   /** The founding admins' entries — the tree is centred on them. */
@@ -1856,17 +1857,16 @@ function Canvas({
               <span className="text-xs text-muted-foreground">
                 You&rsquo;re viewing a read-only copy of this family tree.
               </span>
-              <Button
-                nativeButton={false}
-                render={
-                  <Link
-                    href={`/request-invite${treeSlug ? `?tree=${encodeURIComponent(treeSlug)}` : ""}`}
-                  />
-                }
+              {/* In a dialog over the canvas, so asking keeps their place
+                  (Step 41.4). An action here, not a way to another page,
+                  so sentence case (docs/design-system.md). */}
+              <RequestInviteDialog
+                treeSlug={treeSlug}
+                signedIn={currentUserId !== ""}
                 size="sm"
               >
-                Request edit access
-              </Button>
+                Ask to join
+              </RequestInviteDialog>
             </div>
           ) : (
             <AddRelativeButton

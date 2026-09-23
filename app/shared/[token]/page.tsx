@@ -11,6 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { viewerUserAgent } from "@/lib/share-links";
 import { resolveShareLink } from "@/lib/share-links.server";
 import { getTreePets } from "@/lib/pets";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -28,11 +29,10 @@ export default async function SharedTreePage({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
-  // A link preview gets the page too, but only a browser's visit is a view.
-  const link = await resolveShareLink(
-    token,
-    (await headers()).get("user-agent"),
-  );
+  // A link preview gets the page too, and so may asking to join, whose reply
+  // draws the page again for someone signed in (Step 41.4); only a browser's
+  // visit is a view.
+  const link = await resolveShareLink(token, viewerUserAgent(await headers()));
 
   if (!link) {
     return (

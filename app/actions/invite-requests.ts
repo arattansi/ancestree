@@ -23,7 +23,7 @@ import { getSiteUrl } from "@/lib/site-url";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { revalidateTreePages } from "@/lib/revalidate";
-import { requireProfile } from "@/lib/auth";
+import { getUser, requireProfile } from "@/lib/auth";
 import { rootOf } from "@/lib/tree-context";
 
 const INVITE_TTL_DAYS = 14;
@@ -34,8 +34,8 @@ export type RequestInviteState = RequestFormState & { ok?: boolean };
  * Public: ask a tree's Roots for an invite. Written with the service-role
  * client because the requester is not signed in and `invite_requests` is not
  * reachable from `anon`. `tree` names the tree by its slug: from a share
- * link's "request access" button, or from the tree the request-access search
- * found them on (`findFamilyTree`, Step 28). There's no default tree any
+ * link's "Ask to join" dialog (Step 41.4), or from the tree the request-access
+ * search found them on (`findFamilyTree`, Step 28). There's no default tree any
  * more — with several families on the site, a request without one would be
  * guessing whose it is. A new request emails the tree's Roots once the
  * requester has their answer (Step 30.1); asking again emails nobody.
@@ -89,7 +89,11 @@ export async function requestInvite(
       lastName: entered.lastName,
     }),
   );
-  revalidateTreePages();
+  // Only someone signed in has a page showing their request: /join says
+  // where it stands (Step 30.8). Anyone else's page would be drawn again for
+  // nothing, and a share link's canvas, behind its "Ask to join" dialog,
+  // would re-measure every card (Step 41.4).
+  if (await getUser()) revalidateTreePages();
   return { ok: true, ...entered };
 }
 

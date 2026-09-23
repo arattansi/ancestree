@@ -43,6 +43,19 @@ export function countsAsView(userAgent: string | null): boolean {
   return !NOT_A_PERSON.test(userAgent);
 }
 
+/**
+ * The user agent a request for a share link's page counts a view by
+ * (`countsAsView`), or `null` when it isn't anyone opening the link. Asking
+ * to join from the page's dialog (Step 41.4) runs a server action, and an
+ * action that revalidates — `requestInvite` does, for someone signed in —
+ * gets the page it was sent from rendered again in its reply; Next marks
+ * that request with a `Next-Action` header.
+ */
+export function viewerUserAgent(headers: Pick<Headers, "get">): string | null {
+  if (headers.get("next-action")) return null;
+  return headers.get("user-agent");
+}
+
 export type ShareLinkState = "active" | "revoked" | "expired";
 
 export function shareLinkState(

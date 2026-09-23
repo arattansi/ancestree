@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { RequestAccessFlow } from "@/components/request-access";
-import { RequestInviteForm } from "@/components/request-invite-form";
+import { RequestInviteForm, SignInInstead } from "@/components/request-invite-form";
 import {
   Card,
   CardContent,
@@ -12,7 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getProfile } from "@/lib/auth";
-import { REQUEST_ACCESS_INTRO } from "@/lib/request-forms";
+import { REQUEST_ACCESS_INTRO, REQUEST_INVITE_INTRO } from "@/lib/request-forms";
 
 export const metadata: Metadata = {
   title: "request access",
@@ -20,9 +19,10 @@ export const metadata: Metadata = {
 };
 
 /**
- * Asking to join. With `?tree=<slug>` (a share link's "request access", a
- * visitor's "request edit access") the request goes straight to that tree's
- * Roots. Without one it's the home page's request-access flow: find the
+ * Asking to join. With `?tree=<slug>` the request goes straight to that
+ * tree's Roots: the share link's "Ask to join" form, which opens in a dialog
+ * over the canvas since Step 41.4, kept here as a page for emails and older
+ * links. Without one it's the home page's request-access flow: find the
  * family's tree first (Step 28).
  */
 export default async function RequestInvitePage({
@@ -39,21 +39,14 @@ export default async function RequestInvitePage({
         <CardHeader>
           <CardTitle>{treeSlug ? "Request an Invite" : "Request Access"}</CardTitle>
           <CardDescription>
-            {treeSlug
-              ? "ancestree is invite-only. Tell us who you are and an admin will review your request."
-              : REQUEST_ACCESS_INTRO}
+            {treeSlug ? REQUEST_INVITE_INTRO : REQUEST_ACCESS_INTRO}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           {treeSlug ? (
             <>
               <RequestInviteForm treeSlug={treeSlug} />
-              <p className="text-sm text-muted-foreground">
-                Already have an invite?{" "}
-                <Link href="/join" className="underline underline-offset-4">
-                  Sign in
-                </Link>
-              </p>
+              <SignInInstead />
             </>
           ) : (
             <RequestAccessFlow />
