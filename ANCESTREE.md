@@ -865,6 +865,42 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 30.8 — Signing in does something for a first-timer** (Step 30,
+  first-time journeys; migration `20260923077000_address_has_profile`).
+  Someone who signed in without being a member landed on "Almost There",
+  which told them to open an invite or request one elsewhere, had no way
+  to sign out, and whose header "sign in" led straight back to it. Now,
+  looked up by the address they've just verified and nothing else
+  (`lib/first-timer.ts`, `.server.ts`, service role): an invite emailed to
+  that address opens on its own page, with its privacy tick, from the
+  confirm tap, from `/join` and from any members' page that bounces them
+  there, and is never redeemed without that tap; a pending request shows
+  "Waiting for an Invite", naming the tree and saying its Roots have been
+  told; with nothing waiting, request access opens right on `/join` with
+  the address filled in and fixed, so they type only their name (and a
+  line says so if they're on the waitlist). `/join` has "Use another
+  email", and the header offers "Sign out" instead of "sign in". Left over
+  from 30.9: an emailed invite whose address already has an account now
+  offers "Email me a sign-in link", sent only to the invite's own address,
+  whose `next` brings them back to the invite signed in, one tap from
+  joining (where 30.9 places their entry). `signInWithInvite` now asks
+  `address_has_profile` (service role only) before minting a token, since
+  minting stamps the account and Supabase then refused to email that
+  address the sign-in link for a minute. The accept form's privacy tick
+  now survives a retry after an error, as the other forms' do since 30.5
+  and 30.7. **Verified:** 722 tests pass; the migration was rehearsed
+  rolled back on live and the applied function md5-matches the file. On a
+  dev server with throwaway accounts: a plain `/join` sign-in with an
+  invite bound to the address landed on the invite, and accepting reached
+  onboarding; a pending request showed its status; nothing waiting showed
+  request access with the address locked, and a request made there
+  flipped the page to its status; both sign-outs worked; `/tree` and
+  `/join` sent a first-timer to their invite; a member who pressed
+  "Email me a sign-in link" got a real email whose link carried
+  `next=/join/<token>`, landed on the invite signed in, and joining opened
+  the canvas on their placed entry; a failed accept then a retry went
+  through with the tick. All throwaway rows were deleted.
+
 - **Steps 30.5 + 30.6 — With no match, ask a relative; the waitlist asks
   for the privacy tick** (Step 30, first-time journeys; migration
   `20260923074000_invite_relays`). Request access's no-match screen told
