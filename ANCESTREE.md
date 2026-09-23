@@ -753,6 +753,36 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 30.3 — Approve a request as the entry it matched** (Step 30,
+  first-time journeys; migration `20260923071000_approve_request_as_claim`).
+  Request access had already matched a newcomer to an entry on the tree,
+  yet once a Root approved them they typed their name again at onboarding
+  and searched for that same entry. Now each pending request on the admin
+  console lists the entries on its tree that the requester's name matches
+  (`public.invite_request_candidates`, Roots of that tree only):
+  onboarding's scoring (`private.self_candidate_score`), living entries
+  placed on the tree that nobody is behind yet, best five, with the
+  lifespan, birthplace and parents onboarding shows ("close match" below
+  0.85). "Approve as <name>" makes the invite a claim invite for that entry
+  (`person_id`) once `approveInviteRequest` has asked the list again, so an
+  entry claimed or gone since is refused. Accepting claims it and lands
+  them on it (Step 30.2); the join page says so, and the approval email and
+  a resend name the entry. "Approve without an entry" (plain "Approve &
+  send invite" when nothing matches) is as before. Also: approving
+  refreshes the whole page, which had dropped the approved row at once, so
+  its link to copy when the email fails was never seen; the row now stays
+  until the page is reloaded (`lib/request-rows.ts`). **Verified:**
+  rehearsed rolled back on live, applied, function body md5-matches the
+  file; rolled back again, the Root sees the match while a Canopy member
+  and another tree's Root are refused and anon can't call it. On a dev
+  server with a throwaway tree and Root: a request listed the living entry
+  (with its parents) and a close match, not a deceased namesake; "Approve
+  as" minted a claim invite bound to the requester, whose join page named
+  the entry, and one Accept signed them in and landed them on it, claimed;
+  a stale "Approve as" for that entry was then refused; approving without
+  an entry and as the close match worked, a resend named the entry
+  (checked in Resend), and deleting a kept row removed it. 594 tests pass.
+  All throwaway rows were deleted.
 - **Step 35 — Root-only checks refuse people who aren't on the tree**
   (ad-hoc security fix; migration
   `20260923080500_role_checks_refuse_outsiders`). `private.role_in(tree)`
