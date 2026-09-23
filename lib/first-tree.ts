@@ -163,7 +163,6 @@ export type TreeInvite = {
   id: string;
   name: string;
   email: string;
-  joinsAs: string;
   /** The entry they're invited to take over, for an invite to claim one. */
   claims: string | null;
   /** `false` when the invite email is known not to have gone. */

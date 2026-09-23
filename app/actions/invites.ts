@@ -2,11 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import {
-  INVITABLE_ACCOUNT_TYPES,
-  invitableTypes,
-  isInvitableKey,
-} from "@/lib/account-types";
+import { INVITED_AS, accountTypeOf } from "@/lib/account-types";
 import { requireProfile } from "@/lib/auth";
 import { sendEmail } from "@/lib/email";
 import { claimInviteEmail } from "@/lib/emails/claim-invite";
@@ -34,25 +30,14 @@ export type CreateInviteState = {
 };
 
 /**
- * Mint a fresh, inviter-attributed, single-use invite link into one tree that
- * joins as `joinsAs` — Canopy (`member`) or Leaf (`leaf`), whichever the
- * inviter may give there (`invitableTypes`; `private.can_invite_as` decides).
+ * Mint a fresh, inviter-attributed, single-use invite link into one tree. It
+ * joins as a Leaf, whoever sends it (Step 34; `private.can_invite_as`).
  */
 export async function createInvite(
   treeId: string,
-  joinsAs: string = "member",
 ): Promise<CreateInviteState> {
   const { membership, error: notMember } = await membershipOf(treeId);
   if (notMember || !membership) return { error: notMember };
-  const allowed = invitableTypes(membership.role);
-  if (allowed.length === 0) {
-    return { error: "You don't have permission to create invites." };
-  }
-  if (!allowed.some((t) => t.key === joinsAs)) {
-    return {
-      error: `You can invite relatives as ${allowed.map((t) => t.name).join(" or ")} only.`,
-    };
-  }
 
   const supabase = await createClient();
   const { data: invite, error } = await supabase
@@ -62,7 +47,7 @@ export async function createInvite(
       created_by: membership.profile.auth_user_id,
       status: "active",
       expires_at: expiry(),
-      joins_as: joinsAs,
+      joins_as: INVITED_AS.key,
     })
     .select("token")
     .single();
@@ -132,8 +117,8 @@ function checkRows(rows: DirectInviteRow[]): { rows?: DirectInviteRow[]; error?:
 
 /**
  * Mint an invite into one tree for each row and email it directly to that
- * person — no public request involved. Open to anyone who may invite there,
- * as whatever they may give (`invitableTypes`). Each row also becomes an
+ * person — no public request involved. Open to any member there, and each
+ * joins as a Leaf. Each row also becomes an
  * `invite_requests` row (source = 'direct', pre-approved) purely so it shows
  * up in the Roots' "Sent invites" history alongside request-driven approvals.
  *
@@ -146,25 +131,10 @@ function checkRows(rows: DirectInviteRow[]): { rows?: DirectInviteRow[]; error?:
 export async function sendDirectInvites(
   treeId: string,
   rows: DirectInviteRow[],
-  joinsAs: string = "member",
 ): Promise<SendDirectInvitesState> {
   const { membership, error: notMember } = await membershipOf(treeId);
   if (notMember || !membership) return { error: notMember };
   const inviter = membership.profile;
-  if (!isInvitableKey(joinsAs)) {
-    return {
-      error: `An invite can only make someone ${INVITABLE_ACCOUNT_TYPES.map((t) => t.name).join(" or ")}.`,
-    };
-  }
-  const allowed = invitableTypes(membership.role);
-  if (allowed.length === 0) {
-    return { error: "You don't have permission to send invites." };
-  }
-  if (!allowed.some((t) => t.key === joinsAs)) {
-    return {
-      error: `You can invite relatives as ${allowed.map((t) => t.name).join(" or ")} only.`,
-    };
-  }
 
   const checked = checkRows(rows);
   if (checked.error || !checked.rows) return { error: checked.error };
@@ -180,7 +150,7 @@ export async function sendDirectInvites(
         created_by: inviter.auth_user_id,
         status: "active",
         expires_at: expiry(),
-        joins_as: joinsAs,
+        joins_as: INVITED_AS.key,
         // The link signs this address in — see `signInWithInvite`.
         invited_email: row.email,
       })
@@ -279,13 +249,12 @@ export type ClaimInviteState = {
  *
  * Open to whoever could edit the entry (`private.can_invite_to_claim`, Step
  * 22.1), judged on the entry's home tree: a Root anywhere on it, a Branch on
- * their side, Canopy on what they added. A Root chooses what the newcomer
- * joins as; from anyone else it is a Leaf. The newcomer joins the home tree.
+ * their side, a Leaf on what they added. The newcomer joins the home tree as
+ * a Leaf.
  */
 export async function sendClaimInvite(
   personId: string,
   email: string,
-  joinsAs: string = "leaf",
 ): Promise<ClaimInviteState> {
   const inviter = await requireProfile();
   const supabase = await createClient();
@@ -299,14 +268,8 @@ export async function sendClaimInvite(
   if (!person) return { error: "That entry no longer exists." };
 
   const role = await getRoleIn(person.tree_id);
-  const allowed = invitableTypes(role);
-  if (allowed.length === 0) {
+  if (!role) {
     return { error: "You don't have permission to send invites for this entry." };
-  }
-  if (!allowed.some((t) => t.key === joinsAs)) {
-    return {
-      error: `You can invite relatives as ${allowed.map((t) => t.name).join(" or ")} only.`,
-    };
   }
 
   const address = email.trim().toLowerCase();
@@ -356,7 +319,7 @@ export async function sendClaimInvite(
       created_by: inviter.auth_user_id,
       status: "active",
       expires_at: expiry(),
-      joins_as: joinsAs,
+      joins_as: INVITED_AS.key,
       person_id: personId,
       invited_email: address,
     })
@@ -378,7 +341,7 @@ export async function sendClaimInvite(
 
   if (!sent.ok) {
     return {
-      error: allowed.length > 1
+      error: accountTypeOf(role).runsTree
         ? "The link was created but the email didn't send. Try again, or share the link from the admin page."
         : "The link was created but the email didn't send. Try again in a moment.",
     };

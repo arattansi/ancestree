@@ -17,7 +17,7 @@ round trip.
    about a tree. A tree draws a connection when both people are placed on it.
 4. A **member** is an account. An account has one profile and one own entry,
    and a separate **account type in each tree** it belongs to: Root in one,
-   Canopy in another.
+   Leaf in another.
 5. A person's **details** are governed by their home tree's rules and by the
    person themselves. What a tree may do with a placed person is governed by
    that tree's rules.
@@ -37,27 +37,31 @@ round trip.
 ## 3. Membership and account types
 
 `tree_members (tree_id, user_id, role)` is the only place an account type is
-stored. The four keys are unchanged (`admin`, `branch_admin`, `member`,
-`leaf`), shown as **Root / Branch / Canopy / Leaf**, and mean what they meant
-in Step 18 **within that tree**:
+stored. Three since Step 34, stored as `admin`, `branch_admin` and `member`
+and shown as **Root / Branch / Leaf**, each **within that tree**. `member`
+was Canopy's key: Step 34 retired the first Leaf (`leaf`, their own entry
+and nothing more), moved everyone who was one up to `member`, and gave
+Canopy the name.
 
 | Type | In this tree they can |
 |---|---|
 | **Root** | Edit every entry whose home is this tree, and any connection drawn between two people placed on it. Run the tree: members and their types, invites (including founder invites), share links, placements, cross-tree viewing, deletes, lineage, verification. |
 | **Branch** | Tend their part of a Root's side, measured on this tree's people only. Everything else as Step 22. |
-| **Canopy** | What they add here, the lines they draw, and their own entry. |
-| **Leaf** | Their own entry; read, comment, flag and claim. |
+| **Leaf** | Add relatives on their own line — their ancestors, everyone descended from them, and the people those relatives married (`private.line_ids`) — and edit what they add here, the lines they draw, and their own entry. |
 
 Rules that follow:
 
 - A type is set by a Root **of that tree** and applies only there. Becoming a
-  Root elsewhere changes nothing here.
-- "Root is permanent" holds per tree (`tree_members_protect_role`).
-- The Leaf guards look at the role **in the tree being written to** — the tree
-  a person is being added to, or a connection is being drawn on.
-- A member joins a tree through an invite (as Canopy or Leaf), by founding it
-  (as Root), or by accepting a placement of their own entry (as Canopy, so
-  they can keep their own entry up to date there; a Root may change that).
+  Root elsewhere changes nothing here. A Root makes a Leaf a Branch, or a
+  Branch a Leaf again.
+- "Root is permanent" holds per tree (`tree_members_guard`).
+- A Leaf's own line is measured **on the tree being written to**, once the new
+  entries' lines are drawn, so a Leaf can add a great-grandparent and then
+  that great-grandparent's other children (`add_people_with_connections`,
+  `OWN_LINE`). The bloodline gate applies on top.
+- A member joins a tree through an invite (as a Leaf), by founding it (as
+  Root), or by accepting a placement of their own entry (as a Leaf, so they
+  can keep their own entry up to date there; a Root may change that).
 
 ## 4. People: home trees and placements
 
@@ -80,8 +84,8 @@ other placement is added by a Root of the receiving tree.
 
 1. A Root of `h`.
 2. The person themselves (`self_person_id`, or an approved claim).
-3. A Branch or Canopy member **in `h`** who owns the entry, or who created it
-   while it is still unclaimed.
+3. A Branch or a Leaf **in `h`** who owns the entry, or who created it while
+   it is still unclaimed.
 4. A Branch **in `h`** on whose part of a Root's side the entry sits, unless
    it is another member's own entry.
 
@@ -133,7 +137,7 @@ belongs to, or a Root of the entry's home tree.
 
 | Kind | Who may send | What redeeming does |
 |---|---|---|
-| Join as Canopy / Leaf | Root (either); Branch or Canopy (Leaf only) | Adds a membership in the inviter's tree. An existing member of another tree gains a second membership; no second profile. |
+| Join as a Leaf | Any member: Root, Branch or Leaf | Adds a membership in the inviter's tree. An existing member of another tree gains a second membership; no second profile. |
 | Claim an entry | As Step 22.1, evaluated in the entry's home tree; or a Root approving a request to join as an entry on their tree that the name matches (Step 30.3) | As above, plus the vouch for that entry. Someone with no entry of their own claims it there and then and lands on it (Step 30.2); if it's spoken for by then, onboarding as usual. A member who already has an entry keeps the vouch, to claim it from the canvas. |
 | **Founder** | Any Root | Creates a brand-new tree (“Family” until they rename it; `private.default_tree_name`), makes them its Root, and sends them to onboarding on it. Refused if the address already founded a tree. |
 

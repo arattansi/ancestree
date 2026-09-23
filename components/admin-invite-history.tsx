@@ -1,5 +1,3 @@
-import { AccountTypeBadge } from "@/components/account-type-badge";
-import { LEAF } from "@/lib/account-types";
 import type { InviteHistoryItem } from "@/lib/invites";
 import { DeleteInviteButton } from "@/components/delete-invite-button";
 import { ResendInviteButton } from "@/components/resend-invite-button";
@@ -33,9 +31,6 @@ export function AdminInviteHistory({ items }: { items: InviteHistoryItem[] }) {
             {/* A founder invite doesn't join this tree; it plants their own. */}
             {item.foundsTree ? (
               <Badge variant="secondary">Starts a tree</Badge>
-            ) : item.joinsAs === LEAF.key ? (
-              // Canopy is what every invite used to make; only a Leaf is news.
-              <AccountTypeBadge role={item.joinsAs} />
             ) : null}
             <StatusBadge item={item} />
             {canResend(item) && (

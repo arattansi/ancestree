@@ -23,8 +23,8 @@ const ITEMS = ASSIGNABLE_ACCOUNT_TYPES.map((t) => ({
 }));
 
 /**
- * Root, on /admin: switch a member between Branch, Canopy and Leaf, or make
- * them a Root. Saves on pick, and puts the old type back if the save doesn't
+ * Root, on /admin: switch a member between Leaf and Branch, or make them a
+ * Root. Saves on pick, and puts the old type back if the save doesn't
  * take. Making a Root asks first: it can't be undone, by anyone (Step 22.5).
  */
 export function AccountTypePicker({

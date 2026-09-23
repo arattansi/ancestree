@@ -187,7 +187,7 @@ function StepHeading({
   return (
     <div className="flex flex-col gap-1">
       {eyebrow ? (
-        <p className="text-sm font-medium text-account-canopy">{eyebrow}</p>
+        <p className="text-sm font-medium text-canopy">{eyebrow}</p>
       ) : null}
       <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
       <p className="text-sm text-muted-foreground">{lead}</p>

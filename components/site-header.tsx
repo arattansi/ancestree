@@ -43,8 +43,7 @@ export async function SiteHeader() {
   const [notifications, openConnections, queues, treeRequests] =
     await Promise.all([
       user ? listNotifications(user.id) : [],
-      // A Leaf can't answer connection prompts, so isn't pointed at them.
-      currentMembership && currentMembership.type.connections !== "none"
+      currentMembership
         ? countOpenConnectionSuggestions(currentMembership.tree.id)
         : 0,
       Promise.all(runs.map((t) => countAdminQueue(t.id))),

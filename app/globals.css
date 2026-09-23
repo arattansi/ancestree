@@ -43,8 +43,8 @@
   --color-card: var(--card);
   --color-account-root: var(--account-root);
   --color-account-branch: var(--account-branch);
-  --color-account-canopy: var(--account-canopy);
   --color-account-leaf: var(--account-leaf);
+  --color-canopy: var(--canopy);
   --color-brand-green: var(--brand-green);
   --color-brand-brown: var(--brand-brown);
   --radius-sm: calc(var(--radius) * 0.6);
@@ -93,13 +93,14 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
-  /* Account types (Step 18), from the ground up: bark, heartwood, crown,
-     new growth. Text-weight colours — each clears WCAG AA on its own 10%
-     tint over the page background. */
+  /* Account types (Step 18; three since Step 34), from the ground up: bark,
+     heartwood, new growth. Text-weight colours — each clears WCAG AA on its
+     own 10% tint over the page background. The crown's green was Canopy's
+     until Step 34 and stays as the colour of things done. */
   --account-root: oklch(0.42 0.07 50);
   --account-branch: oklch(0.47 0.09 68);
-  --account-canopy: oklch(0.45 0.11 150);
   --account-leaf: oklch(0.49 0.13 128);
+  --canopy: oklch(0.45 0.11 150);
 }
 
 .dark {
@@ -136,8 +137,8 @@
   --sidebar-ring: oklch(0.556 0 0);
   --account-root: oklch(0.79 0.05 64);
   --account-branch: oklch(0.83 0.09 75);
-  --account-canopy: oklch(0.8 0.12 150);
   --account-leaf: oklch(0.87 0.15 125);
+  --canopy: oklch(0.8 0.12 150);
 }
 
 @layer base {

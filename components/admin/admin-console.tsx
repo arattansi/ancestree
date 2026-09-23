@@ -40,7 +40,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { branchSideLabel, invitableTypes } from "@/lib/account-types";
+import { branchSideLabel } from "@/lib/account-types";
 import { getBranchSides } from "@/lib/branch.server";
 import { buildAdminActionItems } from "@/lib/admin-notifications";
 import { listDisputedClaims } from "@/lib/claims";
@@ -71,7 +71,7 @@ export async function AdminConsole({
 }: {
   membership: TreeMembership;
 }) {
-  const { tree, profile: currentAdmin, role } = membership;
+  const { tree, profile: currentAdmin } = membership;
 
   const supabase = await createClient();
   const [
@@ -334,15 +334,15 @@ export async function AdminConsole({
 
       <AdminGroup
         title="Members"
-        description={`${members.length} member${members.length === 1 ? "" : "s"} — their account type on this tree, who invited them, entries created, and invite permissions.`}
+        description={`${members.length} member${members.length === 1 ? "" : "s"} — their account type on this tree, who invited them, and entries created.`}
         sectionIds={["members", "account-types"]}
       >
         <AdminSubsection id="members" title="Who’s on the Tree">
           <div className="-mx-(--card-spacing) overflow-x-auto">
             <table className="w-full text-sm">
               <caption className="sr-only">
-                Members, their account type, who invited them, entries created,
-                and invite permissions
+                Members, their account type, who invited them, and entries
+                created
               </caption>
               <thead>
                 <tr className="border-b border-border text-left text-muted-foreground">
@@ -357,9 +357,6 @@ export async function AdminConsole({
                   </th>
                   <th scope="col" className="px-4 py-2 font-medium">
                     Entries
-                  </th>
-                  <th scope="col" className="px-4 py-2 font-medium">
-                    Invites as
                   </th>
                   <th scope="col" className="px-4 py-2 font-medium">
                     <span className="sr-only">Remove</span>
@@ -401,11 +398,6 @@ export async function AdminConsole({
                     <td className="px-4 py-3 tabular-nums text-muted-foreground">
                       {entryCountByCreator.get(member.auth_user_id) ?? 0}
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {invitableTypes(member.role)
-                        .map((t) => t.name)
-                        .join(" or ") || "—"}
-                    </td>
                     <td className="px-4 py-3 text-right">
                       {member.role !== "admin" &&
                       member.auth_user_id !== currentAdmin.auth_user_id ? (
@@ -430,7 +422,7 @@ export async function AdminConsole({
           id="account-types"
           collapsible
           title="Account Types"
-          description="What each kind of member can reach on this tree. Anyone who isn’t a Root can be switched between Branch, Canopy and Leaf from the table above, or made a Root — which is for good: a Root is never demoted or removed. New members join as Canopy. A member’s type on another tree is that tree’s business. A Branch tends the part of a Root’s side they’re related through — a Root’s father’s family, say, not their mother’s — and a child of two Roots tends their part of both."
+          description="What each kind of member can reach on this tree. New members join as Leaves, who add relatives on their own line. Anyone who isn’t a Root can be switched between Leaf and Branch from the table above, or made a Root — which is for good: a Root is never demoted or removed. A member’s type on another tree is that tree’s business. A Branch tends the part of a Root’s side they’re related through — a Root’s father’s family, say, not their mother’s — and a child of two Roots tends their part of both."
         >
           <AccountTypeGuide />
         </AdminSubsection>
@@ -519,15 +511,12 @@ export async function AdminConsole({
         <AdminSubsection
           id="invite"
           title="Invite a Relative"
-          description="Each link is tied to you, works once, and expires after 14 days. Send by name and email and it’s emailed for you — that link signs them straight in, nothing to set up. Or mint a bare link to send yourself; it asks for their email first. Either way, choose whether they join as Canopy or as a Leaf; Branches and Canopy members invite Leaves from their account page. Someone who already has an account on another tree joins this one with the same link."
+          description="Each link is tied to you, works once, and expires after 14 days. Send by name and email and it’s emailed for you — that link signs them straight in, nothing to set up. Or mint a bare link to send yourself; it asks for their email first. Either way they join as a Leaf, and you can make them a Branch from the members table once they’re in; Branches and Leaves invite relatives from their account page. Someone who already has an account on another tree joins this one with the same link."
         >
           <div className="flex flex-col gap-6">
             <DirectInviteForm treeId={tree.id} />
             <div className="border-t border-border pt-6">
-              <InviteMinter
-                treeId={tree.id}
-                options={invitableTypes(role).map((t) => t.key)}
-              />
+              <InviteMinter treeId={tree.id} />
             </div>
           </div>
         </AdminSubsection>

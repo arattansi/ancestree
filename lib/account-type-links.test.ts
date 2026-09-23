@@ -13,10 +13,19 @@ describe("accountTypesByPerson", () => {
 
   it("marks a claimed entry with the claimant's type", () => {
     const map = accountTypesByPerson(
-      [{ auth_user_id: "u2", role: "leaf", self_person_id: null }],
+      [{ auth_user_id: "u2", role: "member", self_person_id: null }],
       [{ person_id: "p2", claimant_user_id: "u2" }],
     );
-    expect(map.get("p2")).toBe("leaf");
+    expect(map.get("p2")).toBe("member");
+  });
+
+  it("leaves a retired type's key unmarked", () => {
+    // `leaf` was the first Leaf's key until Step 34; nobody holds it now.
+    const map = accountTypesByPerson(
+      [{ auth_user_id: "u2", role: "leaf", self_person_id: "p2" }],
+      [],
+    );
+    expect(map.has("p2")).toBe(false);
   });
 
   it("leaves everyone else unmarked", () => {

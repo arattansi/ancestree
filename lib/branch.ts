@@ -1,8 +1,8 @@
 /**
  * Branches, mirrored from `private.branch_ids`, `private.own_branch_ids`,
- * `private.can_edit_person` and `private.can_delete_person` (Steps 17, 18.1,
- * 22.2 and 22.3), and what each account
- * type may edit (Step 18, `lib/account-types`).
+ * `private.line_ids`, `private.can_edit_person` and
+ * `private.can_delete_person` (Steps 17, 18.1, 22.2, 22.3 and 34), and what
+ * each account type may edit (Step 18, `lib/account-types`).
  *
  * A branch is measured from one person with the same up-then-down walk the
  * bloodline gate uses — ancestors, then everyone descending from that whole
@@ -60,6 +60,64 @@ export function relatedRoots(
 }
 
 /**
+ * A person's own line (Step 34), mirroring `private.line_ids`: what a Leaf may
+ * add to. The branch walk from them, except that their brothers and sisters,
+ * and their ancestors', join before the walk down — so a sibling recorded
+ * without the parents they share is on the line, with everyone descended from
+ * them. Only siblings of the person and their ancestors: a cousin's
+ * half-brother through the cousin's other parent is no blood of theirs.
+ */
+export function lineIds(
+  personId: string,
+  edges: readonly BranchEdge[],
+): Set<string> {
+  const parents = new Map<string, string[]>(); // child -> parents
+  const children = new Map<string, string[]>(); // parent -> children
+  const siblings = new Map<string, string[]>();
+  const link = (map: Map<string, string[]>, from: string, to: string) => {
+    const list = map.get(from);
+    if (list) list.push(to);
+    else map.set(from, [to]);
+  };
+  for (const e of edges) {
+    if (e.type === "parent") {
+      link(parents, e.to_person, e.from_person);
+      link(children, e.from_person, e.to_person);
+    } else if (e.type === "sibling") {
+      link(siblings, e.from_person, e.to_person);
+      link(siblings, e.to_person, e.from_person);
+    }
+  }
+
+  const walk = (seed: Iterable<string>, next: Map<string, string[]>) => {
+    const seen = new Set<string>(seed);
+    const queue = [...seen];
+    while (queue.length > 0) {
+      for (const id of next.get(queue.pop()!) ?? []) {
+        if (seen.has(id)) continue;
+        seen.add(id);
+        queue.push(id);
+      }
+    }
+    return seen;
+  };
+
+  const kin = walk(walk([personId], parents), siblings);
+  const line = walk(kin, children);
+
+  // As on a branch: a partner joins because someone on the line married
+  // them, never because they married another partner.
+  const partners = new Set<string>();
+  for (const e of edges) {
+    if (e.type !== "spouse") continue;
+    if (line.has(e.from_person)) partners.add(e.to_person);
+    if (line.has(e.to_person)) partners.add(e.from_person);
+  }
+  for (const id of partners) line.add(id);
+  return line;
+}
+
+/**
  * What a Branch account tends (Step 22.2): the part of a Root's side they are
  * related through — their own branch, kept to the sides of the Roots they are
  * related to, every such Root's for a child of two founders — and nothing when
@@ -93,10 +151,13 @@ export type Viewer = {
   userId: string;
   /** `profiles.role`; `lib/account-types` says what it reaches. */
   role: string;
-  /** Their own entry — all a Leaf may edit. `null` while onboarding. */
+  /** Their own entry. `null` while onboarding. */
   selfPersonId: string | null;
   /** What the viewer tends (`branchReach`), or `null` when not a Branch. */
   branch: ReadonlySet<string> | null;
+  /** Where the viewer may add relatives (`lineIds`) when that is only their
+   *  own line — a Leaf's — and `null` when it is anywhere. */
+  line: ReadonlySet<string> | null;
 };
 
 /** The entry being looked at, as far as permission is concerned. */
@@ -113,15 +174,15 @@ export type EntrySubject = {
 };
 
 /**
- * Mirrors `private.can_edit_person`: a Root; a Leaf on their own entry and
- * nowhere else; otherwise the current owner, the original creator while the
- * entry is still unclaimed — or a Branch anywhere on their own branch, as long
- * as the entry isn't somebody else's own.
+ * Mirrors `private.can_edit_person`: a Root; their own entry; otherwise the
+ * current owner, the original creator while the entry is still unclaimed — or
+ * a Branch anywhere on their own branch, as long as the entry isn't somebody
+ * else's own.
  */
 export function canEditEntry(entry: EntrySubject, viewer: Viewer): boolean {
   const { entries } = accountTypeOf(viewer.role);
   if (entries === "tree") return true;
-  if (entries === "self") return entry.id === viewer.selfPersonId;
+  if (entry.id === viewer.selfPersonId) return true;
   if (entry.owner_user_id === viewer.userId) return true;
   if (
     entry.created_by === viewer.userId &&
@@ -137,12 +198,10 @@ export function canEditEntry(entry: EntrySubject, viewer: Viewer): boolean {
  * Mirrors `private.can_invite_to_claim` (Step 22.1): an entry they can edit
  * that nobody is behind yet — the owner never moved away from whoever created
  * it, no claim stuck, it is no member's own, and they are living. So a Root,
- * anywhere; a Branch, on their side or among their own additions; Canopy,
- * among their own additions; a Leaf, nowhere, since the one entry they edit
- * is theirs.
+ * anywhere; a Branch, on their side or among their own additions; a Leaf,
+ * among their own additions.
  */
 export function canInviteToClaim(entry: EntrySubject, viewer: Viewer): boolean {
-  if (accountTypeOf(viewer.role).claimInvites === "none") return false;
   if (entry.id === viewer.selfPersonId) return false;
   if (entry.isClaimed || entry.isSomeoneElsesOwn) return false;
   if (entry.isDeceased) return false;
@@ -153,15 +212,13 @@ export function canInviteToClaim(entry: EntrySubject, viewer: Viewer): boolean {
 /**
  * Whether to offer "Delete entry" (Step 22.3). Mirrors the half of
  * `private.can_delete_person` the entry itself can answer: a Root, anything;
- * a Branch or Canopy member, an entry they created that is still theirs —
- * unclaimed, nobody's own, not their own. The other half, that nobody else
- * has hung a connection, comment, document or companion on it, is the
- * database's to check when they try; a refusal then says to ask a Root.
+ * a Branch or a Leaf, an entry they created that is still theirs — unclaimed,
+ * nobody's own, not their own. The other half, that nobody else has hung a
+ * connection, comment, document or companion on it, is the database's to
+ * check when they try; a refusal then says to ask a Root.
  */
 export function canOfferDelete(entry: EntrySubject, viewer: Viewer): boolean {
-  const { deletes } = accountTypeOf(viewer.role);
-  if (deletes === "tree") return true;
-  if (deletes === "none") return false;
+  if (accountTypeOf(viewer.role).deletes === "tree") return true;
   if (entry.id === viewer.selfPersonId) return false;
   if (entry.isClaimed || entry.isSomeoneElsesOwn) return false;
   return (
@@ -171,11 +228,10 @@ export function canOfferDelete(entry: EntrySubject, viewer: Viewer): boolean {
 }
 
 /**
- * Mirrors `private.can_edit_relationship`: a Root; never a Leaf, not even a
- * line they drew before they were one; otherwise whoever drew it, or a Branch
- * with both ends on their branch. One end alone would let a Branch redraw the
- * line into someone else's family, which is the leak the walk exists to
- * prevent.
+ * Mirrors `private.can_edit_relationship`: a Root; whoever drew it; or a
+ * Branch with both ends on their branch. One end alone would let a Branch
+ * redraw the line into someone else's family, which is the leak the walk
+ * exists to prevent.
  */
 export function canEditConnection(
   connection: {
@@ -185,9 +241,7 @@ export function canEditConnection(
   },
   viewer: Viewer,
 ): boolean {
-  const { connections } = accountTypeOf(viewer.role);
-  if (connections === "tree") return true;
-  if (connections === "none") return false;
+  if (accountTypeOf(viewer.role).connections === "tree") return true;
   if (connection.created_by === viewer.userId) return true;
   return (
     isOnBranch(connection.from_person, viewer) &&
@@ -198,19 +252,16 @@ export function canEditConnection(
 /**
  * Mirrors `private.can_edit_pet`: a Root, whoever added the companion, or
  * anyone who can already edit one of the people it lives with — looser than an
- * entry on purpose, since a pet carries no ownership or claim weight. A Leaf
- * edits none, even one that lives with them: a pet is its own chip, not part
- * of their entry. Whether one of its people is editable is the caller's to
- * answer (`canEditEntry` needs the full entry, which only the caller has).
+ * entry on purpose, since a pet carries no ownership or claim weight. Whether
+ * one of its people is editable is the caller's to answer (`canEditEntry`
+ * needs the full entry, which only the caller has).
  */
 export function canEditCompanion(
   pet: { created_by: string | null; companions: readonly string[] },
   viewer: Viewer,
   canEditPerson: (personId: string) => boolean,
 ): boolean {
-  const { companions } = accountTypeOf(viewer.role);
-  if (companions === "tree") return true;
-  if (companions === "none") return false;
+  if (accountTypeOf(viewer.role).companions === "tree") return true;
   if (pet.created_by === viewer.userId) return true;
   return pet.companions.some(canEditPerson);
 }
@@ -226,6 +277,18 @@ export function canSeeDocuments(entry: EntrySubject, viewer: Viewer): boolean {
   if (entry.owner_user_id === viewer.userId) return true;
   if (entry.id === viewer.selfPersonId) return true;
   return isOnBranch(entry.id, viewer);
+}
+
+/**
+ * Whether to offer "Add a relative" from this person (Step 34): from anyone,
+ * except that a Leaf adds only on their own line, so only from someone on it.
+ * Mirrors the `OWN_LINE` check in `add_people_with_connections`, which has the
+ * last word: from someone on the line a Leaf can still reach off it — an
+ * in-law's parents, say — and that is refused when it saves.
+ */
+export function canAddRelativeOf(personId: string, viewer: Viewer): boolean {
+  if (accountTypeOf(viewer.role).addRelatives === "tree") return true;
+  return !!viewer.line?.has(personId);
 }
 
 function isOnBranch(personId: string, viewer: Viewer): boolean {

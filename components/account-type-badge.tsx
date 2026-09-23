@@ -7,10 +7,10 @@ import {
 import { cn } from "@/lib/utils";
 
 /**
- * The account types' marks (Step 18): a trunk splitting into roots, a limb in
- * leaf, a spreading crown, a single leaf. Drawn on lucide's 24px grid
- * and 2px stroke so they sit beside the app's other icons, and in
- * `currentColor` so each takes its type's colour from the text around it.
+ * The account types' marks (Step 18; three since Step 34): a trunk splitting
+ * into roots, a limb in leaf, a single leaf. Drawn on lucide's 24px grid and
+ * 2px stroke so they sit beside the app's other icons, and in `currentColor`
+ * so each takes its type's colour from the text around it.
  */
 const GLYPHS: Record<AccountTypeKey, React.ReactNode> = {
   admin: (
@@ -33,12 +33,6 @@ const GLYPHS: Record<AccountTypeKey, React.ReactNode> = {
   ),
   member: (
     <>
-      <path d="M4.85 14.5A4 4 0 0 1 7.02 7.53a5 5 0 0 1 9.96 0 4 4 0 0 1 2.17 6.97Z" />
-      <path d="M12 14.5V21" />
-    </>
-  ),
-  leaf: (
-    <>
       <path d="M5 19C5 10 10 5 19 5c0 9-5 14-14 14Z" />
       <path d="m3 21 11-11" />
     </>
@@ -49,8 +43,7 @@ const GLYPHS: Record<AccountTypeKey, React.ReactNode> = {
 const ACCOUNT_TYPE_INK: Record<AccountTypeKey, string> = {
   admin: "text-account-root",
   branch_admin: "text-account-branch",
-  member: "text-account-canopy",
-  leaf: "text-account-leaf",
+  member: "text-account-leaf",
 };
 
 /** Text, tint and border in the type's own colour. */
@@ -58,8 +51,7 @@ export const ACCOUNT_TYPE_TONE: Record<AccountTypeKey, string> = {
   admin: "border-account-root/30 bg-account-root/10 text-account-root",
   branch_admin:
     "border-account-branch/30 bg-account-branch/10 text-account-branch",
-  member: "border-account-canopy/30 bg-account-canopy/10 text-account-canopy",
-  leaf: "border-account-leaf/30 bg-account-leaf/10 text-account-leaf",
+  member: "border-account-leaf/30 bg-account-leaf/10 text-account-leaf",
 };
 
 export function AccountTypeGlyph({

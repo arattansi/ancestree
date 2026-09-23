@@ -111,7 +111,7 @@ async function treeInvites(treeId: string): Promise<{
     supabase
       .from("invites")
       .select(
-        "id, invited_email, joins_as, invite_requests(first_name, last_name, email_sent), people(first_name, preferred_name, last_name)",
+        "id, invited_email, invite_requests(first_name, last_name, email_sent), people(first_name, preferred_name, last_name)",
       )
       .eq("tree_id", treeId)
       .eq("founds_tree", false)
@@ -136,7 +136,6 @@ async function treeInvites(treeId: string): Promise<{
         id: row.id,
         name: name || row.invited_email,
         email: row.invited_email,
-        joinsAs: row.joins_as,
         claims,
         emailSent: request ? request.email_sent : null,
       },

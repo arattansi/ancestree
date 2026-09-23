@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { FamilyTree } from "@/components/tree/family-tree";
 import { Button } from "@/components/ui/button";
+import { LEAF } from "@/lib/account-types";
 import { getSpokenForEntryIds } from "@/lib/branch.server";
 import { listClaimCandidates } from "@/lib/claims";
 import { auditTreeConnections } from "@/lib/connection-suggestions.server";
@@ -42,7 +43,8 @@ export default async function TreePage() {
           rootIds={[]}
           currentUserId={access.visit.profile.auth_user_id}
           isAdmin={false}
-          role="leaf"
+          // Read-only, so the type offers nothing; the narrowest all the same.
+          role={LEAF.key}
           spokenForIds={[]}
           claimCandidates={[]}
           panelSuggestions={[]}

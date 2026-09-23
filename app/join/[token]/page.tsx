@@ -68,13 +68,6 @@ export default async function InvitePage({
                       {preview.claim_person_name}
                     </span>
                   </>
-                ) : preview.joins_as === LEAF.key ? (
-                  <>
-                    join{" "}
-                    <span className="font-medium text-foreground">
-                      {preview.tree_name}
-                    </span>
-                  </>
                 ) : (
                   <>
                     help build{" "}
@@ -102,19 +95,21 @@ export default async function InvitePage({
                     rename it any time.
                   </p>
                 </div>
-              ) : preview.joins_as === LEAF.key ? (
-                // Say what a Leaf is before they sign up, not after.
+              ) : (
+                // Say what a Leaf is before they sign up, not after. Every
+                // invite into a tree makes one (Step 34).
                 <div className="mb-5 flex items-start gap-3 rounded-lg border border-account-leaf/30 bg-account-leaf/10 p-3 text-sm">
                   <AccountTypeGlyph type={LEAF} tinted className="mt-0.5" />
                   <p className="text-foreground">
                     You&rsquo;ll join as a{" "}
                     <span className="font-medium">Leaf</span>: you can see the
-                    whole tree, keep your own entry up to date — your details,
-                    photo and documents — and comment on or flag anything that
-                    looks wrong.
+                    whole tree, add relatives on your own line — your parents
+                    and grandparents, everyone descended from them, and the
+                    people they married — keep your own entry up to date, and
+                    comment on or flag anything that looks wrong.
                   </p>
                 </div>
-              ) : null}
+              )}
               {profile ? (
                 <JoinTreeButton
                   token={token}

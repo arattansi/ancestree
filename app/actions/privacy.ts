@@ -108,7 +108,7 @@ export async function exportTreeData(treeId: string): Promise<{
  * Permanently remove a person entry, its relationship edges (via cascade), and
  * its stored photo + documents. A Root of the entry's home tree may remove any
  * entry — right-to-erasure requests come through here. Since Step 22.3 a
- * Branch or Canopy member may remove an unclaimed entry they added, as long
+ * Branch or a Leaf may remove an unclaimed entry they added, as long
  * as nobody else has hung a connection, comment, document or companion on it
  * and no other tree shows it (`private.can_delete_person`, enforced by the
  * `people_delete` policy).

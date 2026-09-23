@@ -62,24 +62,27 @@ export default async function EditPersonPage({
     .maybeSingle();
 
   // Details follow the HOME tree's rules (Step 25): who the viewer is there
-  // decides, even when they opened the entry from another tree.
-  const homeRole = (await getRoleIn(homeTreeId)) ?? "leaf";
+  // decides, even when they opened the entry from another tree. Someone who
+  // isn't a member there may edit only their own entry.
+  const homeRole = await getRoleIn(homeTreeId);
   const homeTree = person.is_home ? tree : await getTreeById(homeTreeId);
   const isHomeRoot = homeRole === "admin";
   const [viewer, spokenFor] = await Promise.all([
-    getViewer(profile, homeRole, homeTreeId),
+    homeRole ? getViewer(profile, homeRole, homeTreeId) : null,
     getSpokenForEntryIds(profile.auth_user_id),
   ]);
-  const canEdit = canEditEntry(
-    {
-      id: personId,
-      owner_user_id: person.owner_user_id,
-      created_by: person.created_by,
-      isClaimed: !!approvedClaim,
-      isSomeoneElsesOwn: spokenFor.has(personId),
-    },
-    viewer,
-  );
+  const canEdit = viewer
+    ? canEditEntry(
+        {
+          id: personId,
+          owner_user_id: person.owner_user_id,
+          created_by: person.created_by,
+          isClaimed: !!approvedClaim,
+          isSomeoneElsesOwn: spokenFor.has(personId),
+        },
+        viewer,
+      )
+    : personId === profile.self_person_id;
 
   if (!canEdit) redirect(treeFocusHref(personId));
 
@@ -217,31 +220,19 @@ export default async function EditPersonPage({
         withContact={person.owner_user_id === profile.auth_user_id}
       />
 
-      {type.connections === "none" ? (
-        // A Leaf keeps their entry, not the lines around it (Step 18).
-        <section className="flex flex-col gap-1 rounded-lg border border-border p-4">
-          <h2 className="text-base font-semibold">Connections</h2>
-          <p className="text-sm text-muted-foreground">
-            As a Leaf, you keep your own details up to date and the rest of the
-            family keeps the lines between entries. If one of yours is wrong,
-            flag your entry on the tree and a Branch or Root will fix it.
-          </p>
-        </section>
-      ) : (
-        <EditConnections
-          treeId={tree.id}
-          personId={personId}
-          personName={personDisplayName({
-            ...person,
-            last_name: person.last_name,
-          })}
-          personPartners={
-            allMembers.find((m) => m.id === personId)?.partners ?? []
-          }
-          members={members}
-          connections={connections}
-        />
-      )}
+      <EditConnections
+        treeId={tree.id}
+        personId={personId}
+        personName={personDisplayName({
+          ...person,
+          last_name: person.last_name,
+        })}
+        personPartners={
+          allMembers.find((m) => m.id === personId)?.partners ?? []
+        }
+        members={members}
+        connections={connections}
+      />
     </main>
   );
 }

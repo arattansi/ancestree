@@ -17,7 +17,7 @@ import {
   type SpouseDates,
 } from "@/components/add-person-flow";
 import { CoParentOffer } from "@/components/co-parent-offer";
-import { JoinsAsChoice } from "@/components/joins-as-choice";
+import { JoinsAsNote } from "@/components/joins-as-note";
 import { PersonFields } from "@/components/person-fields";
 import { PhotoPicker } from "@/components/photo-picker";
 import { Button } from "@/components/ui/button";
@@ -31,11 +31,6 @@ import {
 import { Form } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  CANOPY,
-  INVITABLE_ACCOUNT_TYPES,
-  type AccountTypeKey,
-} from "@/lib/account-types";
 import { coParentSelection, type PartnerOption } from "@/lib/connections";
 import {
   closeRelativeEdges,
@@ -70,8 +65,6 @@ const WHERE_THEY_GO: Record<CloseKind, string> = {
 type Named = { id: string; name: string };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-/** What a Root may invite someone in as — the founder is one. */
-const INVITE_AS = INVITABLE_ACCOUNT_TYPES.map((t) => t.key);
 
 type QuickRelativeProps = {
   kind: CloseKind;
@@ -147,7 +140,6 @@ function QuickRelativeForm({
   const [photoBusy, setPhotoBusy] = React.useState(false);
   const [crop, setCrop] = React.useState<CropTransform>(DEFAULT_CROP);
   const [inviteEmail, setInviteEmail] = React.useState("");
-  const [inviteAs, setInviteAs] = React.useState<AccountTypeKey>(CANOPY.key);
   const [error, setError] = React.useState<string | null>(null);
   const deceased = useWatch({ control: form.control, name: "is_deceased" });
 
@@ -225,7 +217,7 @@ function QuickRelativeForm({
     // card on the tree offers the invite again.
     let invited: string | null = null;
     if (address) {
-      const res = await sendClaimInvite(personId, address, inviteAs);
+      const res = await sendClaimInvite(personId, address);
       if (res.error) {
         toast.warning("Added — but the invite didn't send. Send it again from their card.", {
           description: res.error,
@@ -348,14 +340,7 @@ function QuickRelativeForm({
                 link to join the tree and take over this entry.
               </p>
             </div>
-            {inviteEmail.trim() ? (
-              <JoinsAsChoice
-                options={INVITE_AS}
-                value={inviteAs}
-                onChange={setInviteAs}
-                disabled={submitting}
-              />
-            ) : null}
+            {inviteEmail.trim() ? <JoinsAsNote /> : null}
           </div>
         )}
 

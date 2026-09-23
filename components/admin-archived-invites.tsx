@@ -5,9 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { deleteInvite } from "@/app/actions/invites";
-import { AccountTypeBadge } from "@/components/account-type-badge";
 import { Button } from "@/components/ui/button";
-import { LEAF } from "@/lib/account-types";
 import type { ArchivedInvite } from "@/lib/invites";
 
 /**
@@ -68,9 +66,6 @@ export function AdminArchivedInvites({ invites }: { invites: ArchivedInvite[] })
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
-            {invite.joinsAs === LEAF.key ? (
-              <AccountTypeBadge role={invite.joinsAs} />
-            ) : null}
             <Button
               type="button"
               size="sm"

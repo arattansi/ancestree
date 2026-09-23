@@ -1,6 +1,6 @@
 "use server";
 
-import { LEAF_REFUSAL, isLeafRefusal } from "@/lib/account-types";
+import { OWN_LINE_REFUSAL, isOwnLineRefusal } from "@/lib/account-types";
 import { requireProfile } from "@/lib/auth";
 import { toStoredCrop, type CropTransform } from "@/lib/image-crop";
 import {
@@ -46,7 +46,7 @@ const NOT_YOURS_TO_MOVE =
 
 function friendlyError(message: string | undefined): string {
   if (!message) return "Something went wrong. Try again.";
-  if (isLeafRefusal(message)) return LEAF_REFUSAL;
+  if (isOwnLineRefusal(message)) return OWN_LINE_REFUSAL;
   if (message.includes("already exists"))
     return "Your own entry already exists.";
   if (message.toLowerCase().includes("row-level security")) {
@@ -62,7 +62,7 @@ function isBloodlineGate(message: string | undefined): boolean {
 
 function friendlyConnectionError(message: string | undefined): string {
   if (!message) return "Something went wrong. Try again.";
-  if (isLeafRefusal(message)) return LEAF_REFUSAL;
+  if (isOwnLineRefusal(message)) return OWN_LINE_REFUSAL;
   const m = message.toLowerCase();
   if (isBloodlineGate(message)) {
     return "These entries don't connect to the family bloodline.";

@@ -5,20 +5,20 @@ import {
   ACCOUNT_TYPE_KEYS,
   ASSIGNABLE_ACCOUNT_TYPES,
   BRANCH,
-  CANOPY,
+  INVITED_AS,
   LEAF,
   ROOT,
   accountTypeOf,
   branchSideLabel,
   describeAccess,
-  invitableTypes,
   isAccountTypeKey,
   isAssignable,
+  isOwnLineRefusal,
   type Reach,
 } from "@/lib/account-types";
 
 /** Widest first, the order `Reach` promises. */
-const WIDTH: Reach[] = ["tree", "branch", "own", "self", "none"];
+const WIDTH: Reach[] = ["tree", "branch", "own"];
 const width = (r: Reach) => WIDTH.indexOf(r);
 
 describe("account types", () => {
@@ -26,7 +26,6 @@ describe("account types", () => {
     expect(ACCOUNT_TYPES.map((t) => t.name)).toEqual([
       "Root",
       "Branch",
-      "Canopy",
       "Leaf",
     ]);
     expect(ACCOUNT_TYPES.map((t) => t.key)).toEqual([...ACCOUNT_TYPE_KEYS]);
@@ -35,8 +34,7 @@ describe("account types", () => {
   it("maps the stored keys to their names", () => {
     expect(accountTypeOf("admin")).toBe(ROOT);
     expect(accountTypeOf("branch_admin")).toBe(BRANCH);
-    expect(accountTypeOf("member")).toBe(CANOPY);
-    expect(accountTypeOf("leaf")).toBe(LEAF);
+    expect(accountTypeOf("member")).toBe(LEAF);
   });
 
   it("reads anything unrecognised as the narrowest type", () => {
@@ -45,7 +43,11 @@ describe("account types", () => {
     expect(accountTypeOf("")).toBe(LEAF);
     expect(accountTypeOf("root")).toBe(LEAF);
     expect(isAccountTypeKey("root")).toBe(false);
-    expect(isAccountTypeKey("leaf")).toBe(true);
+  });
+
+  it("retires the first Leaf's key, reading it as the Leaf it became", () => {
+    expect(isAccountTypeKey("leaf")).toBe(false);
+    expect(accountTypeOf("leaf")).toBe(LEAF);
   });
 
   it("never lets a type reach further than the one above it", () => {
@@ -66,18 +68,25 @@ describe("account types", () => {
     expect(ACCOUNT_TYPES.filter((t) => t.runsTree)).toEqual([ROOT]);
   });
 
-  it("leaves a Leaf their own entry and nothing that grows the tree", () => {
-    expect(LEAF.entries).toBe("self");
-    expect(LEAF.connections).toBe("none");
-    expect(LEAF.companions).toBe("none");
-    expect(LEAF.addRelatives).toBe(false);
+  it("keeps a Leaf's new entries to their own line, and nobody else's", () => {
+    expect(LEAF.addRelatives).toBe("line");
+    expect(ROOT.addRelatives).toBe("tree");
+    expect(BRANCH.addRelatives).toBe("tree");
+    expect(LEAF.entries).toBe("own");
+    expect(LEAF.connections).toBe("own");
   });
 
   it("offers a Root every type to hand out, Root included", () => {
-    expect(ASSIGNABLE_ACCOUNT_TYPES).toEqual([ROOT, BRANCH, CANOPY, LEAF]);
+    expect(ASSIGNABLE_ACCOUNT_TYPES).toEqual([ROOT, BRANCH, LEAF]);
     expect(isAssignable("admin")).toBe(true);
-    expect(isAssignable("leaf")).toBe(true);
+    expect(isAssignable("branch_admin")).toBe(true);
+    expect(isAssignable("member")).toBe(true);
+    expect(isAssignable("leaf")).toBe(false);
     expect(isAssignable("gardener")).toBe(false);
+  });
+
+  it("brings everyone in by invite as a Leaf", () => {
+    expect(INVITED_AS).toBe(LEAF);
   });
 });
 
@@ -102,34 +111,41 @@ describe("describeAccess", () => {
   it("says how far each type's edits reach", () => {
     expect(valueOf(ROOT, "Edit entries")).toBe(true);
     expect(valueOf(BRANCH, "Edit entries")).toBe("Their part of a Root’s side");
-    expect(valueOf(CANOPY, "Edit entries")).toBe("The ones they added");
-    expect(valueOf(LEAF, "Edit entries")).toBe("Only their own");
+    expect(valueOf(LEAF, "Edit entries")).toBe("The ones they added");
     expect(valueOf(ROOT, "See documents")).toBe(true);
     expect(valueOf(BRANCH, "See documents")).toBe(
       "Their part of a Root’s side",
     );
-    expect(valueOf(CANOPY, "See documents")).toBe("Entries they own");
-    expect(valueOf(LEAF, "See documents")).toBe("Only their own");
-    expect(valueOf(LEAF, "Change connections")).toBe(false);
-    expect(valueOf(LEAF, "Add relatives")).toBe(false);
-    expect(valueOf(LEAF, "Add companions")).toBe(false);
+    expect(valueOf(LEAF, "See documents")).toBe("Entries they own");
+    expect(valueOf(LEAF, "Change connections")).toBe("The ones they drew");
   });
 
-  it("gives a Root invites outright, a Branch Leaves, the rest when allowed", () => {
-    expect(valueOf(ROOT, "Invite relatives")).toBe(true);
-    expect(valueOf(BRANCH, "Invite relatives")).toBe("As Leaves");
-    expect(valueOf(CANOPY, "Invite relatives")).toBe("As Leaves");
-    expect(valueOf(LEAF, "Invite relatives")).toBe(false);
+  it("says where each type adds relatives", () => {
+    expect(valueOf(ROOT, "Add relatives")).toBe(true);
+    expect(valueOf(BRANCH, "Add relatives")).toBe(true);
+    expect(valueOf(LEAF, "Add relatives")).toBe("On their own line");
+    for (const t of ACCOUNT_TYPES) {
+      expect(valueOf(t, "Add companions")).toBe(true);
+    }
   });
 
-  it("lets a Root delete anything, Branch and Canopy their own, a Leaf nothing", () => {
+  it("lets every type invite, and only as Leaves", () => {
+    for (const t of ACCOUNT_TYPES) {
+      expect(valueOf(t, "Invite relatives")).toBe("As Leaves");
+    }
+    expect(valueOf(ROOT, "Invite someone to claim an entry")).toBe(true);
+    expect(valueOf(LEAF, "Invite someone to claim an entry")).toBe(
+      "The ones they added",
+    );
+  });
+
+  it("lets a Root delete anything, a Branch and a Leaf their own", () => {
     expect(valueOf(ROOT, "Delete entries")).toBe(true);
-    for (const t of [BRANCH, CANOPY]) {
+    for (const t of [BRANCH, LEAF]) {
       expect(valueOf(t, "Delete entries")).toBe(
         "Ones they added, until someone else builds on them",
       );
     }
-    expect(valueOf(LEAF, "Delete entries")).toBe(false);
   });
 });
 
@@ -150,27 +166,14 @@ describe("branchSideLabel", () => {
   });
 });
 
-describe("invitableTypes", () => {
-  const names = (role: string) => invitableTypes(role).map((t) => t.name);
-
-  it("lets a Root invite as Canopy or Leaf", () => {
-    expect(names("admin")).toEqual(["Canopy", "Leaf"]);
-  });
-
-  it("lets a Branch and Canopy bring in Leaves, and nothing wider", () => {
-    expect(names("branch_admin")).toEqual(["Leaf"]);
-    expect(names("member")).toEqual(["Leaf"]);
-  });
-
-  it("never lets a Leaf invite", () => {
-    expect(names("leaf")).toEqual([]);
-  });
-
-  it("never offers Root or Branch by link", () => {
-    for (const role of ["admin", "branch_admin", "member", "leaf"]) {
-      for (const t of invitableTypes(role)) {
-        expect(["member", "leaf"]).toContain(t.key);
-      }
-    }
+describe("isOwnLineRefusal", () => {
+  it("knows the database's own-line refusal from other failures", () => {
+    expect(
+      isOwnLineRefusal("OWN_LINE: a Leaf adds relatives on their own line"),
+    ).toBe(true);
+    expect(isOwnLineRefusal("BLOODLINE_GATE: new entries must connect")).toBe(
+      false,
+    );
+    expect(isOwnLineRefusal(undefined)).toBe(false);
   });
 });

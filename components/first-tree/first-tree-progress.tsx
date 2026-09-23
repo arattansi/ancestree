@@ -40,7 +40,7 @@ export function FirstTreeProgress({
                   isCurrent
                     ? "border-primary bg-primary text-primary-foreground"
                     : done
-                      ? "border-account-canopy/40 bg-account-canopy/10 text-account-canopy"
+                      ? "border-canopy/40 bg-canopy/10 text-canopy"
                       : "border-border text-muted-foreground",
                 )}
               >

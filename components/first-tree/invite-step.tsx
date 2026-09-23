@@ -26,18 +26,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   ACCOUNT_TYPES,
-  CANOPY,
-  INVITABLE_ACCOUNT_TYPES,
   ROOT,
-  accountTypeOf,
   type AccountTypeKey,
 } from "@/lib/account-types";
 import type { TreeInvite } from "@/lib/first-tree";
@@ -45,15 +35,15 @@ import { cn } from "@/lib/utils";
 
 /**
  * How each account type comes to someone, beside what it is: the founder
- * is the Root, an invite makes someone Canopy or a Leaf, and a Branch (or
- * another Root) is given to someone who has already joined.
+ * is the Root, an invite makes someone a Leaf, and a Branch (or another Root)
+ * is given to someone who has already joined.
  */
 const HOW_THEY_GET_IT: Record<AccountTypeKey, string> = {
   admin: "That’s you. You run the tree and decide what everyone else can do.",
   branch_admin:
-    "For someone who knows one side of the family best. Make a member a Branch once they’ve joined.",
-  member: "For relatives who’ll add family and fill in the details.",
-  leaf: "For relatives who’d rather look: they keep their own entry up to date and can comment on the rest.",
+    "For someone who knows one side of the family best. Make a Leaf a Branch once they’ve joined.",
+  member:
+    "Everyone you invite joins as a Leaf, to add family on their own line and fill in the details.",
 };
 
 type Row = {
@@ -61,20 +51,16 @@ type Row = {
   firstName: string;
   lastName: string;
   email: string;
-  joinsAs: AccountTypeKey;
 };
 
 function blankRow(key: string): Row {
-  return { key, firstName: "", lastName: "", email: "", joinsAs: CANOPY.key };
+  return { key, firstName: "", lastName: "", email: "" };
 }
-
-
 
 /**
  * The founder's first step (Step 29): who can do what on a tree, then an
- * invite for anyone they'd like to help. Each person gets their own account
- * type; the rows are sent one type at a time, as `sendDirectInvites` takes
- * them. Skippable — the canvas's "Getting started" list keeps it.
+ * invite for anyone they'd like to help, each joining as a Leaf (Step 34).
+ * Skippable — the canvas's "Getting started" list keeps it.
  */
 export function InviteStep({
   treeId,
@@ -113,26 +99,21 @@ export function InviteStep({
     }
 
     setPending(true);
-    const results: DirectInviteResult[] = [];
+    let results: DirectInviteResult[] = [];
     try {
-      for (const type of INVITABLE_ACCOUNT_TYPES) {
-        const group = filled.filter((r) => r.joinsAs === type.key);
-        if (group.length === 0) continue;
-        const res = await sendDirectInvites(
-          treeId,
-          group.map(({ firstName, lastName, email }) => ({
-            firstName,
-            lastName,
-            email,
-          })),
-          type.key,
-        );
-        if (res.error) {
-          toast.error(res.error);
-          return;
-        }
-        results.push(...(res.results ?? []));
+      const res = await sendDirectInvites(
+        treeId,
+        filled.map(({ firstName, lastName, email }) => ({
+          firstName,
+          lastName,
+          email,
+        })),
+      );
+      if (res.error) {
+        toast.error(res.error);
+        return;
       }
+      results = res.results ?? [];
     } catch {
       // A rejected server action (stale id after a deploy, dropped
       // connection) mustn't leave the button on "Sending…".
@@ -174,7 +155,7 @@ export function InviteStep({
         <CardHeader>
           <CardTitle>Who Can Do What</CardTitle>
           <CardDescription>
-            Four account types, named for the parts of a tree.
+            Three account types, named for the parts of a tree.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
@@ -234,32 +215,25 @@ export function InviteStep({
             <div className="flex flex-col gap-2">
               <p className="text-sm font-medium">Invited so far</p>
               <ul className="flex flex-col gap-1.5">
-                {invites.map((invite) => {
-                  const type = accountTypeOf(invite.joinsAs);
-                  return (
-                    <li
-                      key={invite.id}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2 text-sm"
-                    >
-                      <span className="min-w-0">
-                        <span className="font-medium text-foreground">{invite.name}</span>{" "}
-                        <span className="text-muted-foreground">{invite.email}</span>
-                        {invite.claims ? (
-                          <span className="block text-xs text-muted-foreground">
-                            To take over the entry for {invite.claims}
-                          </span>
-                        ) : null}
-                      </span>
-                      <span className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <AccountTypeGlyph type={type} tinted />
-                          {type.name}
+                {invites.map((invite) => (
+                  <li
+                    key={invite.id}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2 text-sm"
+                  >
+                    <span className="min-w-0">
+                      <span className="font-medium text-foreground">{invite.name}</span>{" "}
+                      <span className="text-muted-foreground">{invite.email}</span>
+                      {invite.claims ? (
+                        <span className="block text-xs text-muted-foreground">
+                          To take over the entry for {invite.claims}
                         </span>
-                        {invite.emailSent === false ? "· email didn’t send" : "· emailed"}
-                      </span>
-                    </li>
-                  );
-                })}
+                      ) : null}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {invite.emailSent === false ? "Email didn’t send" : "Emailed"}
+                    </span>
+                  </li>
+                ))}
               </ul>
             </div>
           ) : null}
@@ -269,7 +243,7 @@ export function InviteStep({
               {rows.map((row, i) => (
                 <fieldset
                   key={row.key}
-                  className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_1.4fr_8.5rem_auto] sm:items-end"
+                  className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_1.4fr_auto] sm:items-end"
                 >
                   <legend className="sr-only">Person {i + 1}</legend>
                   <div className="flex flex-col gap-1.5">
@@ -306,42 +280,6 @@ export function InviteStep({
                       placeholder="name@example.com"
                       autoComplete="off"
                     />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor={`${row.key}-type`} className={cn(i > 0 && "sm:sr-only")}>
-                      Joins as
-                    </Label>
-                    <Select
-                      value={row.joinsAs}
-                      onValueChange={(v) => {
-                        const type = INVITABLE_ACCOUNT_TYPES.find((t) => t.key === v);
-                        if (type) update(row.key, { joinsAs: type.key });
-                      }}
-                    >
-                      <SelectTrigger id={`${row.key}-type`} className="w-full">
-                        <SelectValue>
-                          {(value: string) => {
-                            const type = accountTypeOf(value);
-                            return (
-                              <span className="flex items-center gap-1.5">
-                                <AccountTypeGlyph type={type} tinted />
-                                {type.name}
-                              </span>
-                            );
-                          }}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {INVITABLE_ACCOUNT_TYPES.map((type) => (
-                          <SelectItem key={type.key} value={type.key}>
-                            <span className="flex items-center gap-1.5">
-                              <AccountTypeGlyph type={type} tinted />
-                              {type.name}
-                            </span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
                   </div>
                   <Button
                     type="button"

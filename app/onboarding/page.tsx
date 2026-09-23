@@ -29,7 +29,7 @@ export default async function OnboardingPage({
   searchParams,
 }: PageProps<"/onboarding">) {
   const membership = await requireTreeMember();
-  const { tree, profile, type, isRoot } = membership;
+  const { tree, profile, isRoot } = membership;
 
   // The tree's founder has nobody to find: their first run walks them
   // through inviting, adding themselves, naming it and their close family
@@ -90,8 +90,6 @@ export default async function OnboardingPage({
               treeId={tree.id}
               isAdmin={isRoot}
               members={members}
-              // A Leaf may add their own entry and nothing else (Step 18.2).
-              selfOnly={!type.addRelatives}
             />
           </CardContent>
         </Card>

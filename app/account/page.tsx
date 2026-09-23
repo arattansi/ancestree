@@ -29,11 +29,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  accountTypeOf,
-  branchSideLabel,
-  invitableTypes,
-} from "@/lib/account-types";
+import { accountTypeOf, branchSideLabel } from "@/lib/account-types";
 import { getUser, requireProfile, type Profile } from "@/lib/auth";
 import { getBranchSides } from "@/lib/branch.server";
 import { listNotifications } from "@/lib/claims";
@@ -270,11 +266,9 @@ async function SettingsView({
     });
   }
 
-  // Inviting from here: trees where they may invite but don't run the tree
-  // (Roots invite from the admin page).
-  const inviteFrom = trees.filter(
-    (t) => !t.type.runsTree && invitableTypes(t.role).length > 0,
-  );
+  // Inviting from here: every tree they don't run (Roots invite from the
+  // admin page). Whoever they invite joins as a Leaf.
+  const inviteFrom = trees.filter((t) => !t.type.runsTree);
   const founded = trees.some((t) => t.founded);
 
   return (
@@ -339,13 +333,16 @@ async function SettingsView({
                           : "Unknown")}
                   </dd>
                   <dt>Invite rights</dt>
-                  <dd className="text-foreground">
-                    {invitableTypes(t.role).length === 0
-                      ? "No"
-                      : invitableTypes(t.role).length === 1
-                        ? `As ${invitableTypes(t.role)[0].name}s`
-                        : "Yes"}
-                  </dd>
+                  <dd className="text-foreground">As Leaves</dd>
+                  {t.type.addRelatives === "line" ? (
+                    <>
+                      <dt>Adds relatives</dt>
+                      <dd className="text-foreground">
+                        On your own line. A Root can make you a Branch, to look
+                        after more of the family.
+                      </dd>
+                    </>
+                  ) : null}
                   {t.type.entries === "branch" ? (
                     <>
                       <dt>Tends</dt>
@@ -433,7 +430,6 @@ async function SettingsView({
       </Card>
 
       {inviteFrom.map((t) => {
-        const options = invitableTypes(t.role);
         return (
           <Card key={t.id}>
             <CardHeader>
@@ -447,15 +443,9 @@ async function SettingsView({
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-6">
-              <DirectInviteForm
-                treeId={t.id}
-                options={options.map((o) => o.key)}
-              />
+              <DirectInviteForm treeId={t.id} />
               <div className="border-t border-border pt-6">
-                <InviteMinter
-                  treeId={t.id}
-                  options={options.map((o) => o.key)}
-                />
+                <InviteMinter treeId={t.id} />
               </div>
             </CardContent>
           </Card>

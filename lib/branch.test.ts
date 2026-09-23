@@ -3,12 +3,14 @@ import { describe, expect, it } from "vitest";
 import {
   branchIds,
   branchReach,
+  canAddRelativeOf,
   canEditCompanion,
   canEditConnection,
   canEditEntry,
   canInviteToClaim,
   canOfferDelete,
   canSeeDocuments,
+  lineIds,
   relatedRoots,
   type BranchEdge,
   type EntrySubject,
@@ -24,6 +26,11 @@ const spouse = (a: string, b: string): BranchEdge => ({
   from_person: a,
   to_person: b,
   type: "spouse",
+});
+const sibling = (a: string, b: string): BranchEdge => ({
+  from_person: a,
+  to_person: b,
+  type: "sibling",
 });
 
 /**
@@ -199,6 +206,77 @@ describe("branchReach", () => {
   });
 });
 
+describe("lineIds", () => {
+  it("is the branch walk from them when no sibling stands alone", () => {
+    expect(lineIds("rehan", family)).toEqual(branchIds("rehan", family));
+    expect(lineIds("aalim", family)).toEqual(branchIds("aalim", family));
+  });
+
+  it("grows as a Leaf adds ancestors, and their other children after", () => {
+    // Aly, Aalim's sister, adds their great-grandparent, then a great-uncle.
+    const edges = [
+      ...family,
+      parent("minaz", "aly"),
+      parent("hussein-dad", "hussein"),
+      parent("hussein-dad", "great-uncle"),
+    ];
+    const line = lineIds("aly", edges);
+    expect(line.has("hussein-dad")).toBe(true);
+    expect(line.has("great-uncle")).toBe(true);
+    // Her brother, and the wife he married, are on it too.
+    expect(line.has("aalim")).toBe(true);
+    expect(line.has("raiya")).toBe(true);
+  });
+
+  it("stops at a partner instead of walking into their family", () => {
+    const line = lineIds("aalim", family);
+    expect(line.has("raiya")).toBe(true);
+    expect(line.has("ashif")).toBe(false);
+    expect(line.has("safia")).toBe(false);
+    expect(line.has("fatehali")).toBe(false);
+  });
+
+  it("counts a brother or sister recorded without the parents they share", () => {
+    const edges = [
+      ...family,
+      sibling("aalim", "aly"),
+      parent("aly", "aly-son"),
+      spouse("aly", "aly-husband"),
+    ];
+    const line = lineIds("aalim", edges);
+    expect(line.has("aly")).toBe(true);
+    expect(line.has("aly-son")).toBe(true);
+    expect(line.has("aly-husband")).toBe(true);
+    // From Aly it reaches her brother, but never climbs through him: nothing
+    // says his mother is hers too, and a half-brother's needn't be.
+    expect(lineIds("aly", edges).has("aalim")).toBe(true);
+    expect(lineIds("aly", edges).has("minaz")).toBe(false);
+  });
+
+  it("counts an ancestor's brothers and sisters, and their families", () => {
+    const edges = [
+      ...family,
+      sibling("hussein", "great-aunt"),
+      parent("great-aunt", "second-cousin-parent"),
+    ];
+    const line = lineIds("aalim", edges);
+    expect(line.has("great-aunt")).toBe(true);
+    expect(line.has("second-cousin-parent")).toBe(true);
+  });
+
+  it("keeps a cousin's half-brother through their other parent off it", () => {
+    // Raiya is Rehan's cousin. A brother of hers recorded only as a sibling
+    // might be Safia's son alone: no blood of Rehan's.
+    const edges = [...family, sibling("raiya", "raiya-half-brother")];
+    expect(lineIds("rehan", edges).has("raiya-half-brother")).toBe(false);
+    expect(lineIds("raiya", edges).has("raiya-half-brother")).toBe(true);
+  });
+
+  it("gives a person with no connections a line of one", () => {
+    expect(lineIds("nobody", family)).toEqual(new Set(["nobody"]));
+  });
+});
+
 const entry = (over: Partial<EntrySubject> = {}): EntrySubject => ({
   id: "fatehali",
   owner_user_id: "raiya-user",
@@ -213,24 +291,22 @@ const branchAdmin: Viewer = {
   role: "branch_admin",
   selfPersonId: "arzu",
   branch: branchReach("arzu", roots, family),
+  line: null,
 };
+/** Arzu as a Leaf: what they added, their own entry, and their own line to grow. */
 const member: Viewer = {
   userId: "arzu-user",
   role: "member",
   selfPersonId: "arzu",
   branch: null,
-};
-const leaf: Viewer = {
-  userId: "arzu-user",
-  role: "leaf",
-  selfPersonId: "arzu",
-  branch: null,
+  line: lineIds("arzu", family),
 };
 const admin: Viewer = {
   userId: "a",
   role: "admin",
   selfPersonId: null,
   branch: null,
+  line: null,
 };
 
 describe("canEditEntry", () => {
@@ -286,33 +362,28 @@ describe("canEditEntry", () => {
     expect(canEditEntry(entry({ isSomeoneElsesOwn: true }), admin)).toBe(true);
   });
 
-  it("lets a Leaf edit their own entry and nothing else", () => {
-    expect(canEditEntry(entry({ id: "arzu" }), leaf)).toBe(true);
-    expect(canEditEntry(entry(), leaf)).toBe(false);
+  it("lets everyone edit their own entry, whoever added it", () => {
+    for (const viewer of [branchAdmin, member]) {
+      expect(canEditEntry(entry({ id: "arzu" }), viewer)).toBe(true);
+    }
+    expect(canEditEntry(entry(), member)).toBe(false);
   });
 
-  it("takes a Leaf's creator rights away with the rest", () => {
-    // Added while they were Canopy: still theirs by owner and creator, but a
-    // Leaf reaches their own entry alone.
-    const addedEarlier = entry({
-      id: "rehan",
-      owner_user_id: "arzu-user",
-      created_by: "arzu-user",
-    });
-    expect(canEditEntry(addedEarlier, member)).toBe(true);
-    expect(canEditEntry(addedEarlier, leaf)).toBe(false);
-  });
-
-  it("gives a Leaf still onboarding nothing to edit", () => {
-    const onboarding = { ...leaf, selfPersonId: null };
+  it("gives a member still onboarding only what they added", () => {
+    const onboarding = { ...member, selfPersonId: null, line: null };
     expect(canEditEntry(entry({ id: "arzu" }), onboarding)).toBe(false);
+    const mine = entry({ owner_user_id: "arzu-user", created_by: "arzu-user" });
+    expect(canEditEntry(mine, onboarding)).toBe(true);
   });
 
-  it("reads an unknown role as a Leaf", () => {
-    const unknown = { ...member, role: "gardener" };
-    expect(canEditEntry(entry({ id: "arzu" }), unknown)).toBe(true);
-    const addedEarlier = entry({ id: "rehan", owner_user_id: "arzu-user" });
-    expect(canEditEntry(addedEarlier, unknown)).toBe(false);
+  it("reads an unknown role, like the retired Leaf's, as a Leaf", () => {
+    for (const role of ["gardener", "leaf"]) {
+      const unknown = { ...member, role };
+      expect(canEditEntry(entry({ id: "arzu" }), unknown)).toBe(true);
+      const addedEarlier = entry({ id: "rehan", owner_user_id: "arzu-user" });
+      expect(canEditEntry(addedEarlier, unknown)).toBe(true);
+      expect(canEditEntry(entry(), unknown)).toBe(false);
+    }
   });
 });
 
@@ -334,14 +405,10 @@ describe("canInviteToClaim", () => {
     expect(canInviteToClaim(mine, branchAdmin)).toBe(true);
   });
 
-  it("keeps Canopy to the entries they added", () => {
+  it("keeps a Leaf to the entries they added", () => {
     expect(canInviteToClaim(mine, member)).toBe(true);
     expect(canInviteToClaim(entry(), member)).toBe(false);
-  });
-
-  it("gives a Leaf none, not even what they added earlier", () => {
-    expect(canInviteToClaim(mine, leaf)).toBe(false);
-    expect(canInviteToClaim(entry({ id: "arzu" }), leaf)).toBe(false);
+    expect(canInviteToClaim(entry({ id: "arzu" }), member)).toBe(false);
   });
 
   it("refuses an entry somebody is already behind", () => {
@@ -385,7 +452,7 @@ describe("canOfferDelete", () => {
     expect(canOfferDelete(entry({ isClaimed: true }), admin)).toBe(true);
   });
 
-  it("offers Branch and Canopy only the entries they added", () => {
+  it("offers a Branch and a Leaf only the entries they added", () => {
     for (const viewer of [branchAdmin, member]) {
       expect(canOfferDelete(mine, viewer)).toBe(true);
       // On the Branch's side, but a Root added it: editable, not deletable.
@@ -403,9 +470,10 @@ describe("canOfferDelete", () => {
     ).toBe(false);
   });
 
-  it("never offers a Leaf, or anyone their own entry", () => {
-    expect(canOfferDelete(mine, leaf)).toBe(false);
-    expect(canOfferDelete({ ...mine, id: "arzu" }, member)).toBe(false);
+  it("never offers anyone their own entry", () => {
+    for (const viewer of [branchAdmin, member]) {
+      expect(canOfferDelete({ ...mine, id: "arzu" }, viewer)).toBe(false);
+    }
   });
 });
 
@@ -441,12 +509,8 @@ describe("canEditConnection", () => {
   it("keeps the creator's own rights", () => {
     const mine = { ...line("noorali", "amyn"), created_by: "arzu-user" };
     expect(canEditConnection(mine, member)).toBe(true);
-  });
-
-  it("gives a Leaf no lines, not even ones they drew", () => {
     const drawn = { ...line("fatehali", "arzu"), created_by: "arzu-user" };
     expect(canEditConnection(drawn, member)).toBe(true);
-    expect(canEditConnection(drawn, leaf)).toBe(false);
   });
 });
 
@@ -479,10 +543,9 @@ describe("canEditCompanion", () => {
     ).toBe(false);
   });
 
-  it("gives a Leaf no companions, even one that lives with them", () => {
-    const theirs = { created_by: "arzu-user", companions: ["arzu"] };
+  it("lets a Leaf edit a companion that lives with them", () => {
+    const theirs = { created_by: "raiya-user", companions: ["arzu"] };
     expect(canEditCompanion(theirs, member, editable(member))).toBe(true);
-    expect(canEditCompanion(theirs, leaf, editable(leaf))).toBe(false);
   });
 
   it("gives an admin every companion", () => {
@@ -499,13 +562,11 @@ describe("canSeeDocuments", () => {
   it("shows the owner, and the member whose own entry it is", () => {
     const mine = entry({ id: "rehan", owner_user_id: "arzu-user" });
     expect(canSeeDocuments(mine, member)).toBe(true);
-    expect(canSeeDocuments(mine, leaf)).toBe(true);
-    expect(canSeeDocuments(entry({ id: "arzu" }), leaf)).toBe(true);
+    expect(canSeeDocuments(entry({ id: "arzu" }), member)).toBe(true);
   });
 
-  it("hides them from Canopy and Leaf members who don't own the entry", () => {
+  it("hides them from a Leaf who doesn't own the entry", () => {
     expect(canSeeDocuments(entry(), member)).toBe(false);
-    expect(canSeeDocuments(entry(), leaf)).toBe(false);
   });
 
   it("shows a Branch their part of the Root's side, including members' own entries", () => {
@@ -519,7 +580,7 @@ describe("canSeeDocuments", () => {
 
   it("covers everyone who can edit the entry", () => {
     const ids = ["fatehali", "noorali", "minaz", "arzu", "rehan", "raiya"];
-    for (const viewer of [admin, branchAdmin, member, leaf]) {
+    for (const viewer of [admin, branchAdmin, member]) {
       for (const id of ids) {
         for (const owner of ["raiya-user", "arzu-user"]) {
           const e = entry({ id, owner_user_id: owner, created_by: owner });
@@ -529,5 +590,29 @@ describe("canSeeDocuments", () => {
         }
       }
     }
+  });
+});
+
+describe("canAddRelativeOf", () => {
+  it("lets a Root or a Branch add from anyone", () => {
+    for (const viewer of [admin, branchAdmin]) {
+      expect(canAddRelativeOf("hussein", viewer)).toBe(true);
+      expect(canAddRelativeOf("noorali", viewer)).toBe(true);
+    }
+  });
+
+  it("keeps a Leaf to their own line", () => {
+    // Arzu's line: their blood, and whoever it married, Aalim included.
+    expect(canAddRelativeOf("karmali", member)).toBe(true);
+    expect(canAddRelativeOf("rehan", member)).toBe(true);
+    expect(canAddRelativeOf("aalim", member)).toBe(true);
+    // Aalim's mother and Safia's father are someone else's line.
+    expect(canAddRelativeOf("minaz", member)).toBe(false);
+    expect(canAddRelativeOf("noorali", member)).toBe(false);
+  });
+
+  it("offers a Leaf nothing to add from until their own entry is on the tree", () => {
+    const onboarding = { ...member, selfPersonId: null, line: null };
+    expect(canAddRelativeOf("arzu", onboarding)).toBe(false);
   });
 });

@@ -226,7 +226,7 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | Table                    | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `trees`                  | A family's canvas (Step 25): `name`, URL `slug` (unique, follows the name), `created_by` = founder — **one founded tree per member** (partial unique index); created only by `found_tree` (once a beta reviewer has approved the member's request, Step 28) / a founder invite / the allowlist bootstrap, deleted only by `delete_tree`                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| `tree_members`           | **The account type, per tree** (Step 25): `(tree_id, user_id, role)`, `role` ∈ `admin` \| `branch_admin` \| `member` \| `leaf` (Root / Branch / Canopy / Leaf). Written by RPCs (`join_tree`, `set_member_role`, `remove_tree_member`) behind `tree_members_guard` (Roots set types; Root is permanent per tree)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `tree_members`           | **The account type, per tree** (Step 25): `(tree_id, user_id, role)`, `role` ∈ `admin` \| `branch_admin` \| `member` (Root / Branch / Leaf; `leaf` retired in Step 34). Written by RPCs (`join_tree`, `set_member_role`, `remove_tree_member`) behind `tree_members_guard` (Roots set types; Root is permanent per tree)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `tree_placements`        | Which trees show a person, and where the card sits there: `(tree_id, person_id, status active\|pending\|declined, pos_*)`. The home tree always has one (trigger); others come from `place_people`, and a member's own entry waits `pending` for their yes (`respond_to_placement`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `tree_visibility`        | A Root opens their tree, read-only, to the members of another tree they're on: `(tree_id, viewer_tree_id)`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `profiles`               | `auth.users` row: `display_name`, `self_person_id` (one entry, wherever it's shown). No account type here: that is `tree_members.role`, per tree (the pre-Step-25 `profiles.role` was dropped in Step 25.6)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
@@ -267,12 +267,13 @@ a person entry uses, but optional), and a plain `pet_comments` thread (no flags,
 resolve, or notifications) — none of which touch the chip or its dimensions.
 
 **Trees (Step 25):** every rule below now reads _on a tree_. "A Root" means a
-Root of the tree in question (`private.is_root_of(tree)`), and a Leaf is a Leaf
-in the tree being written to (`is_leaf_in`). For someone not on the tree the
-role checks answer false, never null (Step 35), so a guard can safely say
-`if not private.is_root_of(x) then raise`; only `is_leaf_in` stays null for
-them, which `can_edit_relationship` and `can_edit_pet` rely on to refuse
-someone who has left. A person's **details** follow
+Root of the tree in question (`private.is_root_of(tree)`), and a Leaf adds on
+their own line as the tree being written to draws it (`private.line_ids`,
+Step 34). For someone not on the tree the role checks answer false, never
+null (Step 35), with no exception, so a guard can safely say
+`if not private.is_root_of(x) then raise`; `can_edit_relationship` and
+`can_edit_pet` ask `is_tree_member` to refuse someone who has left. A
+person's **details** follow
 their **home tree** (`private.home_tree`): its Roots and Branches, plus the
 person themselves — who controls their own entry on every tree. What another
 tree may do with a person it shows is place and arrange the card, keep its
@@ -290,12 +291,12 @@ the per-tree matrix: [`docs/trees-and-permissions.md`](docs/trees-and-permission
 `profiles.auth_user_id = auth.uid()`. Person edits (`private.can_edit_person`):
 current `owner_user_id`, an admin, the original `created_by` while the entry is
 still unclaimed (owner unchanged, no approved claim), **or** a branch admin
-anywhere on their own branch (Step 17). A Leaf (Step 18) gets none of that:
-only their own `self_person_id` entry. Deletes (`private.can_delete_person`,
-Step 22.3): a Root anything; a Branch or Canopy member an entry they created
-that is still theirs — owner unchanged, no claim of any status, nobody's own
-entry, not their own — and only while every connection, comment, document and
-companion on it is theirs too; otherwise "ask a Root". A Leaf deletes nothing.
+anywhere on their own branch (Step 17); and anyone their own `self_person_id`
+entry. Deletes (`private.can_delete_person`, Step 22.3): a Root anything; a
+Branch or a Leaf an entry they created that is still theirs — owner
+unchanged, no claim of any status, nobody's own entry, not their own — and
+only while every connection, comment, document and companion on it is theirs
+too; otherwise "ask a Root".
 A claim moves
 `owner_user_id` to the claimant, so the creator then loses edit rights until an
 admin reverses the claim.
@@ -312,7 +313,7 @@ entry on it, by blood or marriage (`private.root_person_ids` →
 `private.own_branch_ids`; `lib/branch.ts#branchReach`). So Arzu tends Raiya's
 father's family, not her mother's, and a Branch's own in-laws' families never
 come in. Related to both Roots (their child), they tend their part of both
-sides; related to none, they tend nothing and edit like Canopy. (18.1 had
+sides; related to none, they tend nothing and edit like a Leaf. (18.1 had
 given a Branch the Root's whole side; 22.2 took the other grandparents'
 families back out.) Two limits: another member's own entry (`self_person_id` or a
 settled claim) is never theirs to edit, and a connection needs **both** ends on
@@ -324,23 +325,26 @@ what others added, setting `lineage_type` and the admin console stay
 admin-only.
 `lib/branch.ts` mirrors the rule for the UI; the database decides.
 
-**Account types (Step 18):** four kinds of member, named for the tree they
-grow. `lib/account-types.ts` is the model — the only place a stored key becomes
-a name, and where each type's reach is written down (`entries`, `connections`,
-`companions`: `tree` / `branch` / `own` / `self` / `none`; `addRelatives`;
-`runsTree`) — so a name or a plan's limits can change without a migration.
+**Account types (Step 18; three since Step 34):** three kinds of member,
+named for the tree they grow. `lib/account-types.ts` is the model — the only
+place a stored key becomes a name, and where each type's reach is written
+down (`entries`, `connections`, `companions`: `tree` / `branch` / `own`;
+`addRelatives`: `tree` / `line`; `claimInvites`; `deletes`; `runsTree`) — so
+a name or a plan's limits can change without a migration.
 
-| Stored `role`  | Name       | Reach                                                                                                                                                                                             |
-| -------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `admin`        | **Root**   | Everything, plus running the tree: members and their account types, invites, share links, deletes, lineage, verification                                                                          |
-| `branch_admin` | **Branch** | Every entry and connection on their part of the side of the Root they're related to (see **Branches**); invites relatives as Leaves, and invites someone to claim an unclaimed entry on that side |
-| `member`       | **Canopy** | What they add, the lines they draw, and their own entry. Invites relatives as Leaves, and invites someone to claim an entry they added. New members join as Canopy                                |
-| `leaf`         | **Leaf**   | Their own entry (details, photo, documents, card position). Read, comment, flag, claim — nothing that grows or reshapes the tree                                                                  |
+| Stored `role`  | Name       | Reach                                                                                                                                                                                                                                                                                              |
+| -------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `admin`        | **Root**   | Everything, plus running the tree: members and their account types, invites, share links, deletes, lineage, verification                                                                                                                                                                           |
+| `branch_admin` | **Branch** | Every entry and connection on their part of the side of the Root they're related to (see **Branches**); invites relatives as Leaves, and invites someone to claim an unclaimed entry on that side                                                                                                  |
+| `member`       | **Leaf**   | Adds relatives on their own line — their ancestors, everyone descended from them, and the people those relatives married; edits what they add, the lines they draw, and their own entry. Invites relatives as Leaves, and invites someone to claim an entry they added. New members join as Leaves |
 
 The keys kept their old values on purpose: renaming them would rewrite every
-`role = 'admin'` test in the database for no visible change. A Root switches
-anyone else between Branch, Canopy and Leaf on `/admin` (`AccountTypePicker` →
-`setAccountType`), or makes them a Root (Step 22.5, after a confirm). A Root
+`role = 'admin'` test in the database for no visible change. So `member`,
+Canopy's key in Step 18, is the Leaf's now: Step 34 retired the first Leaf
+(`leaf`, their own entry and nothing more), moved everyone who was one up to
+`member`, and gave Canopy the name. A Root switches anyone else between Leaf
+and Branch on `/admin` (`AccountTypePicker` → `setAccountType`), or makes
+them a Root (Step 22.5, after a confirm). A Root
 is for good: nobody demotes or removes one, another Root or themselves —
 `profiles_protect_role` raises `ROOT_IS_PERMANENT` on any change to a Root's
 role, `profiles_delete` excludes Root rows, and `admin_delete_member` already
@@ -350,29 +354,33 @@ take over (`DeleteAccount` → `deleteAccount(successorId)`), who is made a
 Root — for good — and inherits what the departing Root added. A new Root also becomes one of
 the Roots whose sides the Branches tend (`private.root_person_ids`). Who may
 invite follows from the type alone — the per-member `can_invite` grant was
-retired, and the column dropped, in Step 22.1 — and an invite link can make someone Canopy or Leaf (see
-**Invite as a Leaf** under Auth & invites).
+retired, and the column dropped, in Step 22.1 — and every invite link makes
+someone a Leaf (see **Invites join as Leaves** under Auth & invites).
 
-A Leaf is held to their entry in the database, not just the UI:
-`can_edit_person` / `can_edit_relationship` / `can_edit_pet` and the
-`pets_insert` policy check `private.is_leaf()`, and because people and lines
-are mostly written by SECURITY DEFINER RPCs that RLS never sees, two table
-triggers (`people_leaf_guard`, `relationships_leaf_guard`) refuse a Leaf's
-insert with `LEAF_ACCOUNT`. The one exception is onboarding: a Leaf with no
-entry yet may add one person — themselves — and the lines that place that
-entry (remembered in the transaction-local `ancestree.leaf_seed`). Claiming
-(`claim_person`) still works: it only moves lines that already run through the
-Leaf's own entry. The UI follows the same model: no "Add a relative", no
-connection prompts or `/tree/review`, no companions, no connection editor, and
-a locked entry says why in the viewer's own terms (`lockedEntryNote`).
+A Leaf's own line is held in the database, not just the UI (Step 34):
+`add_people_with_connections`, the one RPC through which anyone but a Root
+adds people, measures the Leaf's line once the call's lines are drawn
+(`private.line_ids`) and refuses any new entry off it with `OWN_LINE`.
+Measured after, a Leaf can add a great-grandparent above a grandparent on
+their line, and then that great-grandparent's other children. The line is
+the Step 17 branch walk from the Leaf's own entry, with the brothers and
+sisters of the Leaf and their ancestors counted when a sibling line was
+recorded without the parents they share; the bloodline gate still applies
+on top. A Leaf with no entry yet adds only through the onboarding call that
+creates it. The UI mirrors the rule (`lib/branch.ts#lineIds`,
+`canAddRelativeOf`): "Add a relative of …" only from someone on their line,
+and `/people/new` offers only them to connect from and says why
+(`OWN_LINE_REFUSAL` when the database refuses anyway: from a cousin a new
+child is on the line, a new parent isn't).
 
 The brand lives in `components/account-type-badge.tsx` (a mark per type on
-lucide's 24px grid — a trunk splitting into roots, a limb in leaf, a crown, a
-leaf — and `AccountTypeBadge`) and `components/account-type-guide.tsx` (a card
-per type listing what it can do, read off `describeAccess`), coloured by the
-`--account-{root,branch,canopy,leaf}` tokens in `globals.css` (bark,
-heartwood, crown, new growth; each ≥ 5:1 on its own tint in both themes).
-`/account` shows the member's own card; `/admin` → Members shows all four.
+lucide's 24px grid — a trunk splitting into roots, a limb in leaf, a leaf —
+and `AccountTypeBadge`) and `components/account-type-guide.tsx` (a card per
+type listing what it can do, read off `describeAccess`), coloured by the
+`--account-{root,branch,leaf}` tokens in `globals.css` (bark, heartwood, new
+growth; each ≥ 5:1 on its own tint in both themes). Canopy's crown green
+stays as `--canopy`, the colour of things done. `/account` shows the
+member's own card; `/admin` → Members shows all three.
 
 **Storage:** private buckets `photos` and `documents`. Object path
 `{tree_id}/{person_id}/{filename}`, served only through signed URLs. Photos are
@@ -386,11 +394,12 @@ entry, which the Branch can't edit (`private.can_see_documents`, on
 which a delete also needs. Others see a one-line "private" note in the panel
 rather than an empty list.
 
-Helpers live in the unexposed `private` schema (`is_admin`, `is_branch_admin`,
-`is_leaf`, `is_tree_member`, `can_edit_person`, `branch_ids`,
-`root_person_ids`, `own_branch_ids`, `is_on_own_branch`, `can_see_documents`, `person_is_someones_own`, `can_edit_relationship`,
-`can_edit_pet`, `can_delete_person`, `leaf_guard_people`, `leaf_guard_relationships`,
-`revision_fields`, `notify_edit`, `member_label`).
+Helpers live in the unexposed `private` schema (`role_in`, `is_root_of`,
+`is_branch_of`, `is_tree_member`, `can_edit_person`, `branch_ids`,
+`line_ids`, `root_person_ids`, `own_branch_ids`, `is_on_own_branch`,
+`can_see_documents`, `person_is_someones_own`, `can_edit_relationship`,
+`can_edit_pet`, `can_delete_person`, `revision_fields`, `notify_edit`,
+`member_label`).
 
 **Branch edits and the Root's undo (Step 22.4):** there is no approval queue.
 When a Branch edits an entry that a Root created or owns (and that isn't the
@@ -407,26 +416,27 @@ Roots only. Connections, companions and card positions aren't revisioned —
 a Branch can only draw a line with both ends on their side, and the
 notification still says what changed.
 
-**Permissions matrix (Step 22):** the whole picture in one place. The
+**Permissions matrix (Step 22; three types since Step 34):** the whole
+picture in one place. The
 database enforces every row; `lib/account-types.ts` (`describeAccess`, shown
 by the account-type cards on `/account` and `/admin`) and `lib/branch.ts`
 mirror it for the UI.
 
-|                                                    | Root                                                                                                            | Branch                                                                       | Canopy                               | Leaf                           |
-| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------ | ------------------------------ |
-| See the tree, comment, flag, claim their own entry | ✓                                                                                                               | ✓                                                                            | ✓                                    | ✓                              |
-| Edit entries                                       | Every entry                                                                                                     | Their part of a Root's side (not another member's own), plus what they added | What they added, and their own       | Only their own                 |
-| Branch edits to a Root's entries                   | Told; one-click undo                                                                                            | Publish at once                                                              | —                                    | —                              |
-| Change connections                                 | Any                                                                                                             | Both ends on their side, or ones they drew                                   | Ones they drew                       | None                           |
-| Companions                                         | Any                                                                                                             | On their side, or ones they added                                            | Ones they added                      | None                           |
-| Add relatives                                      | ✓ (bloodline gate)                                                                                              | ✓ (bloodline gate)                                                           | ✓ (bloodline gate)                   | Only themselves, at onboarding |
-| See documents                                      | Every entry                                                                                                     | Their side, members' own entries included                                    | Entries they own                     | Only their own                 |
-| Delete entries                                     | Any                                                                                                             | Unclaimed ones they added, while nobody else has built on them               | Same as Branch                       | None                           |
-| Invite relatives                                   | As Canopy or Leaf                                                                                               | As Leaves                                                                    | As Leaves                            | None                           |
-| Invite someone to claim an entry                   | Any unclaimed, living entry; picks Canopy or Leaf                                                               | Unclaimed on their side, as Leaves                                           | Unclaimed ones they added, as Leaves | None                           |
-| Change account types                               | Anyone not a Root: Branch, Canopy, Leaf, or Root (for good)                                                     | —                                                                            | —                                    | —                              |
-| Demote or remove a Root                            | Never, themselves included; a Root may delete their own account, handing over to a new Root if they're the last | —                                                                            | —                                    | —                              |
-| Admin console, lineage, verification, share links  | ✓                                                                                                               | —                                                                            | —                                    | —                              |
+|                                                    | Root                                                                                                            | Branch                                                                       | Leaf                                 |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------ |
+| See the tree, comment, flag, claim their own entry | ✓                                                                                                               | ✓                                                                            | ✓                                    |
+| Edit entries                                       | Every entry                                                                                                     | Their part of a Root's side (not another member's own), plus what they added | What they added, and their own       |
+| Branch edits to a Root's entries                   | Told; one-click undo                                                                                            | Publish at once                                                              | —                                    |
+| Change connections                                 | Any                                                                                                             | Both ends on their side, or ones they drew                                   | Ones they drew                       |
+| Companions                                         | Any                                                                                                             | On their side, or ones they added                                            | Ones they added                      |
+| Add relatives                                      | ✓                                                                                                               | ✓ (bloodline gate)                                                           | On their own line (bloodline gate)   |
+| See documents                                      | Every entry                                                                                                     | Their side, members' own entries included                                    | Entries they own                     |
+| Delete entries                                     | Any                                                                                                             | Unclaimed ones they added, while nobody else has built on them               | Same as Branch                       |
+| Invite relatives                                   | As Leaves                                                                                                       | As Leaves                                                                    | As Leaves                            |
+| Invite someone to claim an entry                   | Any unclaimed, living entry, as a Leaf                                                                          | Unclaimed on their side, as Leaves                                           | Unclaimed ones they added, as Leaves |
+| Change account types                               | Anyone not a Root: Leaf, Branch, or Root (for good)                                                             | —                                                                            | —                                    |
+| Demote or remove a Root                            | Never, themselves included; a Root may delete their own account, handing over to a new Root if they're the last | —                                                                            | —                                    |
+| Admin console, lineage, verification, share links  | ✓                                                                                                               | —                                                                            | —                                    |
 
 ## Auth & invites (Step 3)
 
@@ -464,15 +474,13 @@ mirror it for the UI.
   (`can_invite_as`). `redeem_invite` (SECURITY DEFINER) creates the member
   `profiles` row with `invited_by_user_id = invite.created_by` and flips the
   invite to `accepted`. `invite_preview(token)` is the only pre-auth RPC.
-- **Invite as a Leaf (Step 18.2)**: every invite carries `invites.joins_as`
-  (`member` | `leaf`, default `member`) and `redeem_invite` creates the
-  profile with that role. Who may mint which is `private.can_invite_as`
-  (mirrored by `lib/account-types#invitableTypes`): a Root either; a Branch or
-  a Canopy member Leaves; a Leaf nobody (Step 22.1 — before it, Canopy needed a
-  Root's `can_invite` grant, which also widened a Branch to Canopy). Branch and
-  Root are never given by link. The `invites_guard` trigger keeps changing a
-  link's `joins_as` or claim target (`person_id`) to Roots, so nobody can mint
-  a Leaf link and widen it afterwards, or aim a link at someone else's entry.
+- **Invites join as Leaves (Step 18.2; one type since Step 34)**: every
+  invite carries `invites.joins_as`, always `member` — the Leaf — and
+  `redeem_invite` joins the tree with it. Anyone on the tree may mint one:
+  a Root, a Branch or a Leaf (`private.can_invite_as`). Branch and Root are
+  never given by link, only by a Root afterwards. The `invites_guard`
+  trigger keeps changing a link's claim target (`person_id`) to Roots, so
+  nobody can aim a link at someone else's entry.
 - **Invite someone to claim an entry** (`20260904100000_invite_to_claim_entry`,
   widened in Step 22.1): an invite with
   `person_id` set names the entry on `/join/<token>` and lets whoever redeems
@@ -492,23 +500,19 @@ mirror it for the UI.
   says whose entry that may be: one the inviter can edit (`can_edit_person`)
   that nobody is behind yet — owner still the creator, no approved claim, no
   member's own — and whose person is living. So a Root anywhere, a Branch on
-  their side or among their additions, Canopy among their additions, a Leaf
-  nowhere; `lib/branch#canInviteToClaim` mirrors it for the entry panel. A Root
-  picks Canopy or Leaf; from anyone else it joins as a Leaf, enforced by
-  `invites_guard`. `sendClaimInvite` asks `public.can_invite_to_claim` as the
+  their side or among their additions, a Leaf among their additions;
+  `lib/branch#canInviteToClaim` mirrors it for the entry panel. Whoever
+  accepts joins as a Leaf. `sendClaimInvite` asks `public.can_invite_to_claim` as the
   inviter, then writes with the service role, since the link is bound to the
   address (`invited_email`) and signs it in. A Root approving a request for
   access can also make it a claim invite (Step 30.3): for an entry placed on
   the request's tree that the requester's name matches (see Invite requests
-  below). Roots choose on
-  `/admin` (both invite forms, `JoinsAsChoice`); everyone else who can invite
-  gets an "Invite a relative" card on `/account`. The add-relative form asks
+  below). Roots invite from
+  `/admin`; everyone else gets an "Invite a relative" card on `/account`, and
+  every invite form says the newcomer joins as a Leaf (`JoinsAsNote`). The add-relative form asks
   for the new relative's email too (Step 31) and, once the entry is saved,
-  sends this same invite for it, unless they're deceased. `/join/<token>` tells a Leaf
-  what that means before they sign up, and a Leaf's onboarding form offers no
-  in-between people and only the suggestions about them (`selfOnly`), since
-  the Leaf guards would refuse anything else. Leaf links are marked in
-  `/admin`'s sent-invites and bare-links lists.
+  sends this same invite for it, unless they're deceased. `/join/<token>`
+  tells them what a Leaf is before they sign up.
 - **Invite requests** (`public.invite_requests`): anyone can ask from `/`
   ("request access") or `/request-invite` with first name, last name, and
   email. Without a tree in hand, `findFamilyTree` looks for one first

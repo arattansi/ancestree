@@ -21,7 +21,7 @@ const ROWS: Record<string, unknown[]> = {
   places: [],
   member_directory: [
     { auth_user_id: "u1", role: "admin", self_person_id: "p1" },
-    { auth_user_id: "u2", role: "leaf", self_person_id: "p2" },
+    { auth_user_id: "u2", role: "member", self_person_id: "p2" },
   ],
 };
 
@@ -65,7 +65,7 @@ describe("getTreeGraph account types (Step 19.1)", () => {
     const { people } = await getTreeGraph("t1", client, {
       withAccountTypes: true,
     });
-    expect(people.map((p) => p.account_type)).toEqual(["admin", "leaf"]);
+    expect(people.map((p) => p.account_type)).toEqual(["admin", "member"]);
     expect(read).toContain("member_directory");
   });
 });

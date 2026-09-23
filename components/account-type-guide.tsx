@@ -64,7 +64,7 @@ export function AccountTypeCard({
             <dd className="text-right font-medium text-foreground">
               {a.value === true ? (
                 <>
-                  <Check aria-hidden className="size-4 text-account-canopy" />
+                  <Check aria-hidden className="size-4 text-canopy" />
                   <span className="sr-only">Yes</span>
                 </>
               ) : a.value === false ? (

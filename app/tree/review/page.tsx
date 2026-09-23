@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 
 import { ConnectionReview } from "@/components/tree/connection-review";
 import { Button } from "@/components/ui/button";
@@ -14,9 +13,7 @@ export const metadata: Metadata = {
 };
 
 export default async function ConnectionReviewPage() {
-  const { tree, type } = await requireTreeSelfPerson();
-  // Every answer here draws or dismisses a line, and a Leaf draws none.
-  if (type.connections === "none") redirect(treeHref());
+  const { tree } = await requireTreeSelfPerson();
   const suggestions = await auditTreeConnections(tree.id);
 
   const duplicates = suggestions.filter(

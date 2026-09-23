@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 
 import { AddPersonFlow } from "@/components/add-person-flow";
 import {
@@ -10,11 +9,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { invitableTypes } from "@/lib/account-types";
+import { getOwnLine } from "@/lib/branch.server";
 import { getGrowthRights } from "@/lib/growth-rights.server";
 import { listTreeMembers } from "@/lib/tree";
 import { requireTreeSelfPerson } from "@/lib/tree-context";
-import { newTreeHref, treeHref, validRelatedTo } from "@/lib/tree-links";
+import { newTreeHref, validRelatedTo } from "@/lib/tree-links";
 
 export const metadata: Metadata = {
   title: "add a relative",
@@ -24,20 +23,26 @@ export const metadata: Metadata = {
 export default async function NewPersonPage({
   searchParams,
 }: PageProps<"/people/new">) {
-  const { tree, type, role, isRoot } = await requireTreeSelfPerson();
-  // A Leaf's account adds nothing but their own entry, which they already have.
-  if (!type.addRelatives) redirect(treeHref());
+  const { tree, type, profile, isRoot } = await requireTreeSelfPerson();
 
-  const members = await listTreeMembers(tree.id);
+  // A Leaf adds on their own line (Step 34), so connects new entries from
+  // someone on it; the database judges the result at submit.
+  const [members, rights, line] = await Promise.all([
+    listTreeMembers(tree.id),
+    getGrowthRights(tree.id),
+    type.addRelatives === "line" && profile.self_person_id
+      ? getOwnLine(tree.id, profile.self_person_id)
+      : null,
+  ]);
   // "Add a relative" with someone selected on the canvas (Step 19.2): start
-  // the flow connected to them. Only an id on this tree is honoured; the
-  // growth rights and the bloodline gate still judge the result at submit.
+  // the flow connected to them. Only an id on this tree they may add from is
+  // honoured; the growth rights and the bloodline gate still judge the result
+  // at submit.
   const { relatedTo } = await searchParams;
   const initialAnchorId = validRelatedTo(
     relatedTo,
-    members.map((m) => m.id),
+    members.flatMap((m) => (!line || line.has(m.id) ? [m.id] : [])),
   );
-  const rights = await getGrowthRights(tree.id);
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 py-10">
@@ -61,6 +66,13 @@ export default async function NewPersonPage({
             </Link>{" "}
             and bring anyone from here along with you.
           </p>
+        ) : line ? (
+          <p className="mt-2 text-sm text-muted-foreground">
+            As a Leaf, you add relatives on your own line: your parents and
+            grandparents as far back as you know, everyone descended from them,
+            and the people they married. A Branch or a Root can add anyone
+            else.
+          </p>
         ) : null}
       </div>
 
@@ -79,9 +91,10 @@ export default async function NewPersonPage({
             isAdmin={isRoot}
             members={members}
             initialAnchorId={initialAnchorId}
+            anchorable={line}
             // Whoever may add a relative may invite them to claim the entry
             // they add, as `sendClaimInvite` allows (Step 22.1).
-            inviteOptions={invitableTypes(role).map((t) => t.key)}
+            canInvite
           />
         </CardContent>
       </Card>

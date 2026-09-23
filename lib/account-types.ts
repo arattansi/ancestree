@@ -1,31 +1,27 @@
 /**
- * Account types (Step 18): what a member's `profiles.role` is called, and
- * what it lets them reach.
+ * Account types (Step 18, three since Step 34): what a member's role on a
+ * tree is called, and what it lets them reach.
  *
- * Four, named for the tree they grow, from the ground up:
+ * Three, named for the tree they grow, from the ground up:
  *
  *   Root    admin          the whole tree, and running it
  *   Branch  branch_admin   their part of the side of the Root they're related to
- *   Canopy  member         what they add, and their own entry
- *   Leaf    leaf           their own entry; the rest is theirs to read
+ *   Leaf    member         their own line to grow, what they add, their own entry
  *
- * The stored keys predate the names and stay as they are. This module is the
- * only place that turns one into the other, so a name can change, or be sold
- * as a plan, without a migration. Each type is described by how far its rights
- * reach rather than by a list of screens, which is what a plan would sell.
+ * The stored keys predate the names and stay as they are. `member` was
+ * Canopy's until Step 34 retired the first Leaf (`leaf`, their own entry and
+ * nothing more) and gave its name to Canopy. This module is the only place
+ * that turns one into the other, so a name can change, or be sold as a plan,
+ * without a migration. Each type is described by how far its rights reach
+ * rather than by a list of screens, which is what a plan would sell.
  *
  * The database enforces these rules (`private.can_edit_person`,
- * `can_edit_relationship`, `can_edit_pet`, and the Leaf guards on `people` and
- * `relationships`). This module describes them so the UI knows what to offer,
- * and `lib/branch.ts` reads it to mirror them per entry.
+ * `can_edit_relationship`, `can_edit_pet`, and the own-line check in
+ * `add_people_with_connections`). This module describes them so the UI knows
+ * what to offer, and `lib/branch.ts` reads it to mirror them per entry.
  */
 
-export const ACCOUNT_TYPE_KEYS = [
-  "admin",
-  "branch_admin",
-  "member",
-  "leaf",
-] as const;
+export const ACCOUNT_TYPE_KEYS = ["admin", "branch_admin", "member"] as const;
 
 export type AccountTypeKey = (typeof ACCOUNT_TYPE_KEYS)[number];
 
@@ -36,45 +32,44 @@ export type AccountTypeKey = (typeof ACCOUNT_TYPE_KEYS)[number];
  * - `tree`   everything on the tree
  * - `branch` the part of a Root's side they are related through (`lib/branch.ts#branchReach`)
  * - `own`    what they added, and their own entry
- * - `self`   their own entry only
- * - `none`   nothing
  */
-export type Reach = "tree" | "branch" | "own" | "self" | "none";
+export type Reach = "tree" | "branch" | "own";
 
 export type AccountType = {
-  /** What `profiles.role` stores. */
+  /** What `tree_members.role` stores. */
   key: AccountTypeKey;
-  name: "Root" | "Branch" | "Canopy" | "Leaf";
+  name: "Root" | "Branch" | "Leaf";
   /** One line under the name. */
   tagline: string;
   /** Who it's for and what it can do, for whoever is choosing one. */
   description: string;
   /** Whose entries they can edit. */
   entries: Reach;
-  /** Whose connections they can draw, change or remove — and so whether they
-   *  can answer the tree's "are these two connected?" prompts at all. */
+  /** Whose connections they can change or remove. Anyone may draw a new one,
+   *  and answer the tree's "are these two connected?" prompts. */
   connections: Reach;
-  /** Whose companions (pets) they can add and edit. */
+  /** Whose companions (pets) they can edit. Anyone may add one to an entry
+   *  they can edit. */
   companions: Reach;
-  /** Add new relatives to the tree. */
-  addRelatives: boolean;
   /**
-   * Who they can invite: `any` (as Canopy or Leaf), `leaves` (as Leaves only),
-   * or `none`. Nothing wider than a Leaf comes in without a Root.
+   * Where they can add new relatives (Step 34): `tree`, anywhere they connect
+   * to it — a member who married in is still held to the bloodline gate — or
+   * `line`, only on their own line (`lib/branch.ts#lineIds`): their ancestors,
+   * everyone descended from them, and the people those relatives married.
    */
-  invites: "any" | "leaves" | "none";
+  addRelatives: "tree" | "line";
   /**
    * Whose unclaimed entries they can invite someone to claim — the entries
-   * they can edit (`lib/branch.ts#canInviteToClaim`). `none` for a Leaf, whose
-   * one entry is already their own.
+   * they can edit (`lib/branch.ts#canInviteToClaim`). Whoever accepts joins
+   * as a Leaf.
    */
   claimInvites: Reach;
   /**
    * Which entries they can delete (Step 22.3): `tree` for a Root; `own` —
    * unclaimed entries they created, while nobody else has built on them
-   * (`private.can_delete_person`); `none` for a Leaf.
+   * (`private.can_delete_person`).
    */
-  deletes: "tree" | "own" | "none";
+  deletes: "tree" | "own";
   /** The admin console: members and their account types, invites, share
    *  links, deleting entries, lineage, verification, auto-arrange. */
   runsTree: boolean;
@@ -85,12 +80,11 @@ export const ROOT: AccountType = {
   name: "Root",
   tagline: "Holds the whole tree",
   description:
-    "The tree’s founders. A Root can edit every entry and connection, and runs the tree: members and their account types, invites, share links, and removing entries. A Root is told when a Branch changes an entry they added, and can undo it. A Root can make another member a Root; nobody can undo that.",
+    "The tree’s founders. A Root can edit every entry and connection, and runs the tree: members and their account types, invites, share links, and removing entries. A Root is told when a Branch changes an entry they added, and can undo it. A Root can make a Leaf a Branch, or make another member a Root; nobody can undo that.",
   entries: "tree",
   connections: "tree",
   companions: "tree",
-  addRelatives: true,
-  invites: "any",
+  addRelatives: "tree",
   claimInvites: "tree",
   deletes: "tree",
   runsTree: true,
@@ -105,47 +99,29 @@ export const BRANCH: AccountType = {
   entries: "branch",
   connections: "branch",
   companions: "branch",
-  addRelatives: true,
-  invites: "leaves",
+  addRelatives: "tree",
   claimInvites: "branch",
   deletes: "own",
   runsTree: false,
 };
 
-export const CANOPY: AccountType = {
+export const LEAF: AccountType = {
   key: "member",
-  name: "Canopy",
-  tagline: "Grows the tree",
+  name: "Leaf",
+  tagline: "Grows their own line",
   description:
-    "Where most of the family sits. Canopy members add relatives, and edit the entries and connections they added themselves. They bring relatives in as Leaves, can invite someone to claim an entry they added, and can delete one while nobody else has built on it.",
+    "Where most of the family sits. A Leaf adds relatives on their own line — their parents and grandparents, everyone descended from them, and the people those relatives married — and edits the entries and connections they added, and their own entry. They bring relatives in as Leaves, can invite someone to claim an entry they added, and can delete one while nobody else has built on it. A Root can make them a Branch.",
   entries: "own",
   connections: "own",
   companions: "own",
-  addRelatives: true,
-  invites: "leaves",
+  addRelatives: "line",
   claimInvites: "own",
   deletes: "own",
   runsTree: false,
 };
 
-export const LEAF: AccountType = {
-  key: "leaf",
-  name: "Leaf",
-  tagline: "Their own entry, and the view",
-  description:
-    "One person’s place on the tree. A Leaf keeps their own entry up to date (details, photo, documents) and can read, comment on and flag everything else.",
-  entries: "self",
-  connections: "none",
-  companions: "none",
-  addRelatives: false,
-  invites: "none",
-  claimInvites: "none",
-  deletes: "none",
-  runsTree: false,
-};
-
 /** Every account type, from the ground up. */
-export const ACCOUNT_TYPES: readonly AccountType[] = [ROOT, BRANCH, CANOPY, LEAF];
+export const ACCOUNT_TYPES: readonly AccountType[] = [ROOT, BRANCH, LEAF];
 
 const BY_KEY = new Map<string, AccountType>(
   ACCOUNT_TYPES.map((t) => [t.key, t]),
@@ -164,14 +140,14 @@ export function accountTypeOf(role: string | null | undefined): AccountType {
 }
 
 /**
- * What a Root can set from /admin, for anyone who isn't a Root yet. Making
- * someone a Root is on offer (Step 22.5) but is for good: a Root is never
- * demoted or removed, by another Root or themselves (`profiles_protect_role`).
+ * What a Root can set from /admin, for anyone who isn't a Root yet: a Leaf
+ * made a Branch, a Branch back to a Leaf. Making someone a Root is on offer
+ * (Step 22.5) but is for good: a Root is never demoted or removed, by another
+ * Root or themselves (`tree_members_guard`).
  */
 export const ASSIGNABLE_ACCOUNT_TYPES: readonly AccountType[] = [
   ROOT,
   BRANCH,
-  CANOPY,
   LEAF,
 ];
 
@@ -179,24 +155,12 @@ export function isAssignable(key: unknown): key is AccountTypeKey {
   return ASSIGNABLE_ACCOUNT_TYPES.some((t) => t.key === key);
 }
 
-/** What an invite link can make someone: Canopy or Leaf, never more. */
-export const INVITABLE_ACCOUNT_TYPES: readonly AccountType[] = [CANOPY, LEAF];
-
 /**
- * The account types someone can invite a relative in as, widest first.
- * Mirrors `private.can_invite_as`: a Root, either; a Branch or a Canopy
- * member, Leaves; a Leaf, nobody.
+ * What an invite makes someone (Step 34): a Leaf, whoever sends it — Root,
+ * Branch or Leaf (`private.can_invite_as`). Nothing wider comes in by link;
+ * a Root makes a Branch or a Root afterwards.
  */
-export function invitableTypes(role: string | null | undefined): AccountType[] {
-  const type = accountTypeOf(role);
-  if (type.invites === "any") return [CANOPY, LEAF];
-  if (type.invites === "leaves") return [LEAF];
-  return [];
-}
-
-export function isInvitableKey(key: unknown): key is "member" | "leaf" {
-  return INVITABLE_ACCOUNT_TYPES.some((t) => t.key === key);
-}
+export const INVITED_AS: AccountType = LEAF;
 
 /** One line of what an account type can do: yes, no, or how far. */
 export type Access = {
@@ -205,82 +169,60 @@ export type Access = {
   value: boolean | string;
 };
 
-const ENTRY_REACH: Record<Reach, string | false> = {
-  tree: "Every entry",
+const ENTRY_REACH: Record<Reach, string | true> = {
+  tree: true,
   branch: "Their part of a Root’s side",
   own: "The ones they added",
-  self: "Only their own",
-  none: false,
 };
 
-const DOCUMENT_REACH: Record<Reach, string | false> = {
-  tree: "Every entry",
+const DOCUMENT_REACH: Record<Reach, string | true> = {
+  tree: true,
   branch: "Their part of a Root’s side",
   own: "Entries they own",
-  self: "Only their own",
-  none: false,
 };
 
-const CLAIM_INVITE_REACH: Record<Reach, string | false> = {
-  tree: "Any unclaimed entry",
-  branch: "On their part of a Root’s side, as Leaves",
-  own: "The ones they added, as Leaves",
-  self: false,
-  none: false,
+const CLAIM_INVITE_REACH: Record<Reach, string | true> = {
+  tree: true,
+  branch: "On their part of a Root’s side",
+  own: "The ones they added",
 };
 
-const CONNECTION_REACH: Record<Reach, string | false> = {
-  tree: "Any",
+const CONNECTION_REACH: Record<Reach, string | true> = {
+  tree: true,
   branch: "Within that side",
   own: "The ones they drew",
-  self: "Only their own",
-  none: false,
 };
-
-function reach(table: Record<Reach, string | false>, r: Reach): boolean | string {
-  // "Every" is a plain yes; the narrower reaches say how far.
-  return r === "tree" ? true : table[r];
-}
 
 /**
  * What an account type can do, in the order a person would ask: can I see it,
- * can I change it, can I grow it, can I run it.
+ * can I change it, can I grow it, can I run it. "Every" is a plain yes; the
+ * narrower reaches say how far.
  */
 export function describeAccess(type: AccountType): Access[] {
   return [
     { label: "See the whole tree", value: true },
     { label: "Comment on and flag entries", value: true },
-    { label: "Edit entries", value: reach(ENTRY_REACH, type.entries) },
+    { label: "Edit entries", value: ENTRY_REACH[type.entries] },
     // Documents follow the same reach as editing, except that a Branch also
     // sees members' own entries on their side (`private.can_see_documents`).
-    { label: "See documents", value: reach(DOCUMENT_REACH, type.entries) },
+    { label: "See documents", value: DOCUMENT_REACH[type.entries] },
+    { label: "Change connections", value: CONNECTION_REACH[type.connections] },
     {
-      label: "Change connections",
-      value: reach(CONNECTION_REACH, type.connections),
+      label: "Add relatives",
+      value: type.addRelatives === "tree" ? true : "On their own line",
     },
-    { label: "Add relatives", value: type.addRelatives },
-    { label: "Add companions", value: type.companions !== "none" },
-    {
-      label: "Invite relatives",
-      value:
-        type.invites === "any"
-          ? true
-          : type.invites === "leaves"
-            ? "As Leaves"
-            : false,
-    },
+    { label: "Add companions", value: true },
+    { label: "Invite relatives", value: "As Leaves" },
     {
       label: "Invite someone to claim an entry",
-      value: reach(CLAIM_INVITE_REACH, type.claimInvites),
+      value: CLAIM_INVITE_REACH[type.claimInvites],
     },
     {
       label: "Delete entries",
       value:
         type.deletes === "tree"
           ? true
-          : type.deletes === "own"
-            ? "Ones they added, until someone else builds on them"
-            : false,
+          : "Ones they added, until someone else builds on them",
     },
     { label: "Run the tree", value: type.runsTree },
   ];
@@ -300,21 +242,18 @@ export function branchSideLabel(rootNames: readonly string[]): string | null {
     : `${owners.join(", ")} and ${last} sides`;
 }
 
-/** Why an entry is closed to the viewer, put in terms of their own account. */
-export function lockedEntryNote(viewer: AccountType): string {
-  return viewer.entries === "self"
-    ? "As a Leaf, you edit only your own entry. Flag this one if something’s wrong."
-    : "Only this entry’s owner, a Branch for this side of the family, or a Root can edit it.";
-}
+/** Why an entry is closed to the viewer, when it is. */
+export const LOCKED_ENTRY_NOTE =
+  "Only this entry’s owner, a Branch for this side of the family, or a Root can edit it.";
 
 /**
- * What a write the Leaf guards refused says. The database marks those
- * refusals `LEAF_ACCOUNT` (`private.leaf_guard_people` /
- * `leaf_guard_relationships`), so actions can tell them from other failures.
+ * What a new entry off a Leaf's own line is refused with. The database marks
+ * that refusal `OWN_LINE` (`add_people_with_connections`), so actions can
+ * tell it from other failures.
  */
-export const LEAF_REFUSAL =
-  "A Leaf account changes only its own entry. Ask a Root if you need to add relatives or connections.";
+export const OWN_LINE_REFUSAL =
+  "As a Leaf, you add relatives on your own line: your parents and grandparents, everyone descended from them, and the people they married. Ask a Branch or a Root to add anyone else.";
 
-export function isLeafRefusal(message: string | undefined): boolean {
-  return (message ?? "").includes("LEAF_ACCOUNT");
+export function isOwnLineRefusal(message: string | undefined): boolean {
+  return (message ?? "").includes("OWN_LINE");
 }

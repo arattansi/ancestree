@@ -21,7 +21,7 @@ import {
 import type { ImpliedConnection } from "@/lib/connection-suggestions";
 import { CoParentOffer } from "@/components/co-parent-offer";
 import { DateField } from "@/components/date-field";
-import { JoinsAsChoice } from "@/components/joins-as-choice";
+import { JoinsAsNote } from "@/components/joins-as-note";
 import { PersonFields } from "@/components/person-fields";
 import { PhotoPicker } from "@/components/photo-picker";
 import {
@@ -48,7 +48,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { AccountTypeKey } from "@/lib/account-types";
 import {
   buildChainEdges,
   coParentSelection,
@@ -256,9 +255,9 @@ export function AddPersonFlow({
   isAdmin,
   members,
   initialName,
-  selfOnly = false,
   initialAnchorId = null,
-  inviteOptions = [],
+  anchorable = null,
+  canInvite = false,
   doneHref,
 }: {
   mode: "self" | "relative";
@@ -266,25 +265,23 @@ export function AddPersonFlow({
   isAdmin: boolean;
   members: TreeMemberOption[];
   /**
-   * What the member may invite the new relative in as, widest first
-   * (`invitableTypes`): with any, the form asks for an email and, once the
-   * entry is saved, invites them to claim it (`sendClaimInvite`). Empty
-   * leaves the question out.
+   * Ask for an email and, once the entry is saved, invite them to claim it
+   * (`sendClaimInvite`). They join as a Leaf.
    */
-  inviteOptions?: readonly AccountTypeKey[];
+  canInvite?: boolean;
   /** Pre-fills the primary person's name — onboarding carries over the name
    *  the member typed into the "is one of these you?" search (Step 15). */
   initialName?: { first_name?: string; last_name?: string };
-  /**
-   * A Leaf onboarding (Step 18.2): they may add their own entry and the lines
-   * that place it, and nothing else, so there are no in-between people to add
-   * and only the suggestions about them are asked — anything else would be
-   * refused when it saved (`private.leaf_guard_*`).
-   */
-  selfOnly?: boolean;
   /** Who they're connecting to, already picked — the canvas's Add button
    *  passes whoever was selected (Step 19.2). Must be one of `members`. */
   initialAnchorId?: string | null;
+  /**
+   * Whom a new entry may be connected from, when not everyone: a Leaf's own
+   * line (Step 34). The database has the last word, since how they connect
+   * matters too — from a cousin, a new child is on the line, a new parent
+   * isn't.
+   */
+  anchorable?: ReadonlySet<string> | null;
   /** Where to go once saved, in place of the canvas opened on the new
    *  entry — a founder's first run carries on to its next step (Step 29). */
   doneHref?: string;
@@ -307,12 +304,10 @@ export function AddPersonFlow({
   } | null>(null);
   const [saving, setSaving] = React.useState(false);
   const [addingMore, setAddingMore] = React.useState(false);
-  const [inviteJoinsAs, setInviteJoinsAs] =
-    React.useState<AccountTypeKey | null>(null);
-  // Widest first, so a Root's choice opens on Canopy, as on the entry panel.
-  const joinsAs =
-    inviteOptions.find((key) => key === inviteJoinsAs) ?? inviteOptions[0];
-  const asksInvite = mode === "relative" && inviteOptions.length > 0;
+  const asksInvite = mode === "relative" && canInvite;
+  const anchorMembers = anchorable
+    ? members.filter((m) => anchorable.has(m.id))
+    : members;
 
   const form = useForm<FlowValues>({
     resolver: zodResolver(flowSchema),
@@ -476,7 +471,7 @@ export function AddPersonFlow({
     const address = asksInvite ? inviteAddress(values) : "";
     let invited: string | null = null;
     if (address && primaryId) {
-      const res = await sendClaimInvite(primaryId, address, joinsAs);
+      const res = await sendClaimInvite(primaryId, address);
       if (res.error) {
         toast.warning(
           "Saved — but the invite didn't send. Send it again from their card.",
@@ -607,12 +602,7 @@ export function AddPersonFlow({
       pendingEdges: edges,
     });
 
-    // A Leaf can only answer for lines through their own entry (new:0).
-    const askable = (detected.suggestions ?? []).filter(
-      (s) =>
-        !selfOnly ||
-        [s.subject, s.related].some((r) => r.kind === "new" && r.index === 0),
-    );
+    const askable = detected.suggestions ?? [];
     if (askable.length > 0) {
       setSuggestions(askable);
       setPendingSave({ values, edges });
@@ -713,14 +703,7 @@ export function AddPersonFlow({
                   </FormItem>
                 )}
               />
-              {invitesOnSave ? (
-                <JoinsAsChoice
-                  options={inviteOptions}
-                  value={joinsAs}
-                  onChange={setInviteJoinsAs}
-                  disabled={submitting}
-                />
-              ) : null}
+              {invitesOnSave ? <JoinsAsNote /> : null}
             </div>
           ) : null}
         </section>
@@ -734,8 +717,8 @@ export function AddPersonFlow({
                 Connect to the family tree
               </h2>
               <p className="text-sm text-muted-foreground">
-                {selfOnly
-                  ? "Pick a relative already on the tree and say how you're related."
+                {anchorable
+                  ? "Connect them to someone on your own line — your parents and grandparents, everyone descended from them, or someone they married. If the person in between isn't here yet, add them below."
                   : mustConnect
                     ? "Every entry must connect to someone already in the tree. If the person in between isn't here yet, add them below."
                     : "A Root can add someone without connecting them to anyone."}
@@ -756,7 +739,7 @@ export function AddPersonFlow({
             {showChain ? (
               <div className="flex flex-col gap-4">
                 <RelationshipPicker
-                  members={members}
+                  members={anchorMembers}
                   value={anchorId}
                   onChange={(id) =>
                     form.setValue("anchorId", id, {
@@ -894,25 +877,21 @@ export function AddPersonFlow({
                       );
                     })}
 
-                    {selfOnly ? null : (
-                      <>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="self-start"
-                          onClick={addIntermediate}
-                        >
-                          Add someone in between
-                        </Button>
-                        <p className="text-xs text-muted-foreground">
-                          Reads top to bottom:{" "}
-                          {primaryFallback === "You" ? "you" : "the new entry"}{" "}
-                          connect{primaryFallback === "You" ? "" : "s"} through
-                          each person to {anchorLabel}.
-                        </p>
-                      </>
-                    )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="self-start"
+                      onClick={addIntermediate}
+                    >
+                      Add someone in between
+                    </Button>
+                    <p className="text-xs text-muted-foreground">
+                      Reads top to bottom:{" "}
+                      {primaryFallback === "You" ? "you" : "the new entry"}{" "}
+                      connect{primaryFallback === "You" ? "" : "s"} through
+                      each person to {anchorLabel}.
+                    </p>
 
                     <div className="flex flex-col gap-3 border-t border-border pt-4">
                       <label className="flex items-center gap-3 text-sm">

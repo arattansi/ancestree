@@ -16,8 +16,6 @@ export type InviteHistoryItem = {
   inviteToken: string | null;
   inviteStatus: "active" | "revoked" | null;
   expiresAt: string | null;
-  /** The account type the link makes someone (`invites.joins_as`). */
-  joinsAs: string | null;
   /** A founder invite: redeeming starts a tree of their own (Step 25). */
   foundsTree: boolean;
 };
@@ -37,7 +35,7 @@ export async function listInviteHistory(treeId: string): Promise<InviteHistoryIt
   const { data } = await supabase
     .from("invite_requests")
     .select(
-      "id, first_name, last_name, email, source, status, email_sent, reviewed_at, invites(token, status, expires_at, joins_as, archived_at, founds_tree)",
+      "id, first_name, last_name, email, source, status, email_sent, reviewed_at, invites(token, status, expires_at, archived_at, founds_tree)",
     )
     .eq("tree_id", treeId)
     .neq("status", "pending")
@@ -61,7 +59,6 @@ export async function listInviteHistory(treeId: string): Promise<InviteHistoryIt
       inviteToken: invite?.token ?? null,
       inviteStatus: (invite?.status as InviteHistoryItem["inviteStatus"]) ?? null,
       expiresAt: invite?.expires_at ?? null,
-      joinsAs: invite?.joins_as ?? null,
       foundsTree: invite?.founds_tree ?? false,
     }];
   });
@@ -75,8 +72,6 @@ export type BareInvite = {
   expiresAt: string | null;
   /** Null if the minter's profile has no display name set. */
   createdByName: string | null;
-  /** The account type the link makes someone (`invites.joins_as`). */
-  joinsAs: string;
 };
 
 /**
@@ -99,7 +94,7 @@ export async function listBareInvites(treeId: string): Promise<BareInvite[]> {
   const { data } = await supabase
     .from("invites")
     .select(
-      "id, token, status, created_at, expires_at, joins_as, profiles!invites_created_by_fkey(display_name), invite_requests(id)",
+      "id, token, status, created_at, expires_at, profiles!invites_created_by_fkey(display_name), invite_requests(id)",
     )
     .eq("tree_id", treeId)
     .is("archived_at", null)
@@ -126,7 +121,6 @@ export async function listBareInvites(treeId: string): Promise<BareInvite[]> {
         createdAt: i.created_at,
         expiresAt: i.expires_at,
         createdByName: creator?.display_name ?? null,
-        joinsAs: i.joins_as,
       };
     });
 }
@@ -160,7 +154,6 @@ export type ArchivedInvite = {
   createdByName: string | null;
   expiresAt: string | null;
   archivedAt: string;
-  joinsAs: string;
 };
 
 const ARCHIVED_LIMIT = 50;
@@ -171,7 +164,7 @@ export async function listArchivedInvites(treeId: string): Promise<ArchivedInvit
   const { data } = await supabase
     .from("invites")
     .select(
-      "id, invited_email, expires_at, archived_at, joins_as, profiles!invites_created_by_fkey(display_name), invite_requests(first_name, last_name, email), people(first_name, preferred_name, last_name)",
+      "id, invited_email, expires_at, archived_at, profiles!invites_created_by_fkey(display_name), invite_requests(first_name, last_name, email), people(first_name, preferred_name, last_name)",
     )
     .eq("tree_id", treeId)
     .not("archived_at", "is", null)
@@ -195,7 +188,6 @@ export async function listArchivedInvites(treeId: string): Promise<ArchivedInvit
       createdByName: creator?.display_name ?? null,
       expiresAt: i.expires_at,
       archivedAt: i.archived_at as string,
-      joinsAs: i.joins_as,
     };
   });
 }

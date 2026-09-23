@@ -124,7 +124,7 @@ export function GettingStarted({
             <li key={item.key} className="flex items-center gap-2">
               {item.done ? (
                 <>
-                  <Check aria-hidden className="size-4 shrink-0 text-account-canopy" />
+                  <Check aria-hidden className="size-4 shrink-0 text-canopy" />
                   <span className="text-muted-foreground">
                     {item.label}
                     <span className="sr-only">, done</span>

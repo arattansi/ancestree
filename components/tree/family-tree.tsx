@@ -59,19 +59,17 @@ import {
   type TreeFilter,
 } from "@/lib/tree-search";
 import { Button } from "@/components/ui/button";
-import {
-  accountTypeOf,
-  invitableTypes,
-  lockedEntryNote,
-} from "@/lib/account-types";
+import { accountTypeOf } from "@/lib/account-types";
 import {
   branchReach,
+  canAddRelativeOf,
   canEditCompanion,
   canEditConnection,
   canEditEntry,
   canInviteToClaim,
   canOfferDelete,
   canSeeDocuments,
+  lineIds,
   type EntrySubject,
   type Viewer,
 } from "@/lib/branch";
@@ -740,21 +738,25 @@ function Canvas({
   );
 
   // Who the viewer is for permission purposes. A Branch tends the part of a
-  // Root's side they're related through, worked out from the edges already on
-  // the canvas — `lib/branch` mirrors `private.own_branch_ids`, which is what decides.
-  const accountType = React.useMemo(() => accountTypeOf(role), [role]);
-  const viewer = React.useMemo<Viewer>(
-    () => ({
+  // Root's side they're related through, and a Leaf grows their own line, both
+  // worked out from the edges already on the canvas — `lib/branch` mirrors
+  // `private.own_branch_ids` and `private.line_ids`, which are what decide.
+  const viewer = React.useMemo<Viewer>(() => {
+    const type = accountTypeOf(role);
+    return {
       userId: currentUserId,
       role,
       selfPersonId,
       branch:
-        accountTypeOf(role).entries === "branch" && selfPersonId
+        type.entries === "branch" && selfPersonId
           ? branchReach(selfPersonId, rootIds, relationships)
           : null,
-    }),
-    [currentUserId, role, selfPersonId, rootIds, relationships],
-  );
+      line:
+        type.addRelatives === "line" && selfPersonId
+          ? lineIds(selfPersonId, relationships)
+          : null,
+    };
+  }, [currentUserId, role, selfPersonId, rootIds, relationships]);
   const spokenFor = React.useMemo(() => new Set(spokenForIds), [spokenForIds]);
   const entrySubject = React.useCallback(
     (person: TreeGraphPerson): EntrySubject => ({
@@ -1680,8 +1682,9 @@ function Canvas({
     }
     onConnectionChange({ from: selectedId, to: toId });
   };
-  // Whose relative the Add button adds (Step 19.2): whoever is selected.
-  const addTarget = selectedPerson
+  // The selected person, by the name the Add button and the connection prompt
+  // call them.
+  const selectedTarget = selectedPerson
     ? {
         id: selectedPerson.id,
         name:
@@ -1690,6 +1693,12 @@ function Canvas({
           personDisplayName(selectedPerson),
       }
     : null;
+  // Whose relative the Add button adds (Step 19.2): whoever is selected, as
+  // long as the viewer may add from them — a Leaf, only on their own line.
+  const addTarget =
+    selectedTarget && canAddRelativeOf(selectedTarget.id, viewer)
+      ? selectedTarget
+      : null;
   const selectedPet = allPets.find((pet) => pet.id === selectedPetId) ?? null;
 
   const peopleOptions = React.useMemo(
@@ -1827,12 +1836,12 @@ function Canvas({
                 Request edit access
               </Button>
             </div>
-          ) : accountType.addRelatives ? (
+          ) : (
             <AddRelativeButton
               relatedTo={addTarget}
               labelFrom={selectedPerson ? "lg" : "sm"}
             />
-          ) : null}
+          )}
           {!readOnly && isAdmin ? (
             <Button
               size="sm"
@@ -1984,39 +1993,30 @@ function Canvas({
           setSelectedId(null);
           setSelectedPetId(petId);
         }}
-        // Answering a prompt draws a line, which a Leaf can't.
-        suggestions={
-          accountType.connections === "none"
-            ? []
-            : panelSuggestions.filter(
-                (s) =>
-                  s.subjectPersonId === selectedId ||
-                  s.relatedPersonId === selectedId,
-              )
-        }
+        suggestions={panelSuggestions.filter(
+          (s) =>
+            s.subjectPersonId === selectedId ||
+            s.relatedPersonId === selectedId,
+        )}
         relations={relations}
         isAdmin={isAdmin}
         isSelf={selectedPerson?.id === selfPersonId}
         canEdit={canEdit}
         canSeeDocuments={canSeeDocs}
         canDelete={canDelete}
-        claimInviteOptions={
-          canInvite ? invitableTypes(viewer.role).map((t) => t.key) : []
-        }
-        canAddCompanions={accountType.companions !== "none"}
-        lockedNote={lockedEntryNote(accountType)}
+        canInviteToClaim={canInvite}
         readOnly={readOnly}
         shareToken={shareToken}
         claimable={!!selectedPerson && claimableIds.has(selectedPerson.id)}
         isCreator={selectedPerson?.created_by === currentUserId}
         currentUserId={currentUserId}
-        addRelativeOf={accountType.addRelatives ? addTarget : null}
+        addRelativeOf={addTarget}
         connectionPrompt={
           selectedPerson && selectedPerson.id === searchedId ? (
             <section className="flex flex-col gap-2 rounded-lg border border-dashed border-border bg-muted/40 p-3">
               <h2 className="flex items-center gap-1.5 text-sm font-semibold">
                 <Route className="size-3.5 text-muted-foreground" />
-                How is {addTarget?.name} connected to…
+                How is {selectedTarget?.name} connected to…
               </h2>
               <PersonPicker
                 people={people}
@@ -2026,7 +2026,7 @@ function Canvas({
                 }}
                 excludeId={selectedPerson.id}
                 placeholder="Search a second person…"
-                label={`Second person, to show their connection to ${addTarget?.name}`}
+                label={`Second person, to show their connection to ${selectedTarget?.name}`}
               />
               <p className="text-xs text-muted-foreground">
                 Pick someone and the line between the two lights up on the

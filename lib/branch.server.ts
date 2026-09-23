@@ -1,7 +1,12 @@
 import "server-only";
 
 import { accountTypeOf, type AccountTypeKey } from "@/lib/account-types";
-import { branchReach, relatedRoots, type Viewer } from "@/lib/branch";
+import {
+  branchReach,
+  lineIds,
+  relatedRoots,
+  type Viewer,
+} from "@/lib/branch";
 import { personDisplayName } from "@/lib/person-name";
 import { createClient } from "@/lib/supabase/server";
 import { getRootEntryIds } from "@/lib/tree";
@@ -52,11 +57,12 @@ async function treeEdges(treeId: string) {
 
 /**
  * Who the viewer is for permission purposes on one tree, with what they tend
- * resolved when their account type there calls for it. Mirrors
+ * or grow resolved when their account type there calls for it. Mirrors
  * `private.is_on_own_branch(person, tree)`: a Branch tends the part of a
  * Root's side they are related through (Step 22.2), measured on that tree's
  * people, and one still in onboarding, with no entry of their own, is related
- * to no one.
+ * to no one. A Leaf's own line (`private.line_ids`, Step 34) is measured the
+ * same way.
  */
 export async function getViewer(
   profile: Profile,
@@ -68,19 +74,33 @@ export async function getViewer(
     role,
     selfPersonId: profile.self_person_id,
   };
-  if (accountTypeOf(role).entries !== "branch" || !profile.self_person_id) {
-    return { ...base, branch: null };
-  }
+  const self = profile.self_person_id;
+  const type = accountTypeOf(role);
+  const tends = type.entries === "branch" && !!self;
+  const grows = type.addRelatives === "line" && !!self;
+  if (!self || (!tends && !grows)) return { ...base, branch: null, line: null };
 
   const [rootIds, edges] = await Promise.all([
-    getRootEntryIds(treeId),
+    tends ? getRootEntryIds(treeId) : [],
     treeEdges(treeId),
   ]);
 
   return {
     ...base,
-    branch: branchReach(profile.self_person_id, rootIds, edges),
+    branch: tends ? branchReach(self, rootIds, edges) : null,
+    line: grows ? lineIds(self, edges) : null,
   };
+}
+
+/**
+ * Everyone on `personId`'s own line on one tree (`lib/branch.ts#lineIds`):
+ * where a Leaf may add relatives (Step 34).
+ */
+export async function getOwnLine(
+  treeId: string,
+  personId: string,
+): Promise<Set<string>> {
+  return lineIds(personId, await treeEdges(treeId));
 }
 
 /**
