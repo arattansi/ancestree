@@ -183,7 +183,10 @@ Someone who signs in without an invite is sent on by the address they've
 just verified, and by nothing else (Step 30.8): to an invite emailed to it,
 whose page asks for the privacy tick before it redeems anything; else to
 where their request to join stands; else to request access, with that
-address filled in.
+address filled in. Someone whose address is a member's already, opening an
+invite emailed to it while signed out, isn't signed in on the invite's
+say-so: the page emails that address a sign-in link that comes back to the
+invite, and joining from there is theirs to press.
 
 ## 8. Accounts that span trees
 

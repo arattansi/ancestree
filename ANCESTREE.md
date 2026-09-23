@@ -94,8 +94,10 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   without one it's the request-access search),
   `/shared/[token]` (public read-only canvas), `/privacy`
 - `app/actions/` — server actions (`auth.ts`: magic link (+ consent gate
-  when it carries an invite) + sign out (`next` lets /join's "Use another
-  email" come back to its form, Step 30.8); `privacy.ts`: `exportTreeData` (admin JSON export) / `deletePerson`
+  when it carries an invite), an emailed invite's accept and, for an
+  address that's a member's already, its sign-in link back to the invite
+  (`sendInviteSignInLink`, Step 30.8) + sign out (`next` lets /join's "Use
+  another email" come back to its form); `privacy.ts`: `exportTreeData` (admin JSON export) / `deletePerson`
   (admin erasure + storage cleanup) / `deleteAccount` (self-serve, reassigns
   contributions to a founding admin);
   `trees.ts`: `foundTree` / `renameTree` / `deleteTree`, `placePeople` /
@@ -502,7 +504,14 @@ mirror it for the UI.
   auth user, mints a one-time token (`auth.admin.generateLink`), spends it on
   the spot with the cookie-bound client, and redeems the invite with the
   recipient's name — no second email. It refuses an address that already has
-  a profile, so an invite is never a 14-day key to a live account. Because
+  a profile, so an invite is never a 14-day key to a live account: it asks
+  `public.address_has_profile` (service role only, Step 30.8,
+  `20260923077000`) before minting anything, since minting stamps the
+  account and Supabase then won't email it a sign-in link for a minute.
+  Instead the page offers that address an ordinary sign-in link
+  (`sendInviteSignInLink` → `emailInviteSignInLink`: `signInWithOtp`, never
+  creating an account, `next` = the invite), which brings them back to the
+  invite signed in, where **Join <Tree>** places their entry (Step 30.9). Because
   the token holder becomes that address, only a Root or the service role may
   set `invited_email` (`invites_guard`); a bare link (`createInvite`) has no
   address and still asks for one and verifies it by email. The privacy

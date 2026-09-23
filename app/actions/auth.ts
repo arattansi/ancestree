@@ -14,6 +14,7 @@ import { sameOriginPath } from "@/lib/safe-next";
 import { signInCallbackUrl } from "@/lib/sign-in-links";
 import {
   completeEmailSignIn,
+  emailInviteSignInLink,
   safeNext,
   signInWithInvite,
 } from "@/lib/sign-in.server";
@@ -113,7 +114,10 @@ export async function confirmSignIn(formData: FormData) {
 
 export type AcceptInviteState = {
   error?: string;
-  /** The address already has an account — offer the ordinary sign-in. */
+  /**
+   * The address already has an account: offer a sign-in link that comes
+   * back to the invite (`sendInviteSignInLink`, Step 30.8).
+   */
   alreadyMember?: boolean;
 };
 
@@ -150,6 +154,34 @@ export async function acceptInvite(
     };
   }
   return { error: "Could not sign you in. Try again shortly." };
+}
+
+export type InviteSignInLinkState = {
+  error?: string;
+  /** The invite's address, once the link is on its way. */
+  sentTo?: string;
+};
+
+/**
+ * The invite page's answer once `acceptInvite` finds the address already
+ * has an account (Step 30.8): email it a sign-in link that brings them back
+ * to the invite signed in, one tap from joining. It goes to the address
+ * the invite names, never one typed here (`emailInviteSignInLink`).
+ */
+export async function sendInviteSignInLink(
+  _prev: InviteSignInLinkState,
+  formData: FormData,
+): Promise<InviteSignInLinkState> {
+  const token = String(formData.get("inviteToken") ?? "").trim();
+  const result = await emailInviteSignInLink(token);
+  if (result.ok) return { sentTo: result.email };
+  if (result.reason === "invalid") {
+    return {
+      error:
+        "This invite is no longer valid. Ask the relative who invited you for a fresh one.",
+    };
+  }
+  return { error: "Could not send the sign-in link. Try again shortly." };
 }
 
 /**

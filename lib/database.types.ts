@@ -2170,6 +2170,7 @@ export type Database = {
         }
         Returns: Json
       }
+      address_has_profile: { Args: { p_email: string }; Returns: boolean }
       beta_reviewer_emails: { Args: never; Returns: string[] }
       can_delete_person: { Args: { p_person_id: string }; Returns: boolean }
       can_invite_to_claim: { Args: { p_person_id: string }; Returns: boolean }

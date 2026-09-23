@@ -11,7 +11,8 @@ import {
   type JoiningName,
 } from "@/lib/joining-name";
 import { signInLanding } from "@/lib/open-console.server";
-import { PENDING_HREF } from "@/lib/sign-in-links";
+import { inviteHref, PENDING_HREF, signInCallbackUrl } from "@/lib/sign-in-links";
+import { getSiteUrl } from "@/lib/site-url";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { joinedTreeHref } from "@/lib/tree-links";
@@ -220,13 +221,24 @@ export type InviteSignInResult =
  * prove — so we mint the one-time token ourselves and spend it on the spot
  * instead of mailing a second link. Refuses an address that is already a
  * member: their invite must not double as a 14-day key to a live account —
- * a member joins another tree from the invite page while signed in.
+ * a member joins another tree from the invite page while signed in, and
+ * `emailInviteSignInLink` sends one who isn't a link back to it.
  */
 export async function signInWithInvite(token: string): Promise<InviteSignInResult> {
   const recipient = await getInviteRecipient(token);
   if (!recipient) return { ok: false, reason: "invalid" };
 
   const admin = createAdminClient();
+
+  // A member's address is refused before anything is minted for it: minting
+  // a token stamps the account, and Supabase then won't email it the
+  // sign-in link the invite page offers instead for a minute (Step 30.8).
+  const { data: member, error: memberError } = await admin.rpc(
+    "address_has_profile",
+    { p_email: recipient.email },
+  );
+  if (memberError) return { ok: false, reason: "failed" };
+  if (member) return { ok: false, reason: "already_member" };
 
   // Make sure the account exists and is confirmed. An address that has signed
   // in before comes back as "already registered", which is fine. A new one
@@ -245,6 +257,7 @@ export async function signInWithInvite(token: string): Promise<InviteSignInResul
     return { ok: false, reason: "failed" };
   }
 
+  // Checked again by the account itself, in case it became a member since.
   const { data: existing } = await admin
     .from("profiles")
     .select("auth_user_id")
@@ -263,4 +276,36 @@ export async function signInWithInvite(token: string): Promise<InviteSignInResul
   if (!joined) return { ok: false, reason: "invalid" };
 
   return { ok: true, treeId: joined.treeId, next: joinedTreeHref(joined) };
+}
+
+export type InviteSignInLinkResult =
+  | { ok: true; email: string }
+  | { ok: false; reason: "invalid" | "failed" };
+
+/**
+ * An emailed invite opened by someone whose address already has an account
+ * (Step 30.8, left over from 30.9): `signInWithInvite` won't sign them in on
+ * the invite's say-so, so this emails that address an ordinary sign-in link
+ * that lands back on the invite, signed in and a tap from joining, where
+ * joining brings their own entry (Step 30.9). Only ever to the invite's own
+ * address, and only to an account that exists already: a newcomer accepts
+ * with the one button. No privacy tick: it's a plain sign-in (Step 30.4),
+ * and a member's join button asks for none.
+ */
+export async function emailInviteSignInLink(
+  token: string,
+): Promise<InviteSignInLinkResult> {
+  const recipient = await getInviteRecipient(token);
+  if (!recipient) return { ok: false, reason: "invalid" };
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.signInWithOtp({
+    email: recipient.email,
+    options: {
+      emailRedirectTo: signInCallbackUrl(getSiteUrl(), { next: inviteHref(token) }),
+      shouldCreateUser: false,
+    },
+  });
+  if (error) return { ok: false, reason: "failed" };
+  return { ok: true, email: recipient.email };
 }

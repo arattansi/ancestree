@@ -24,6 +24,7 @@ vi.mock("@/lib/supabase/server", () => ({ createClient: async () => server }));
 
 import {
   completeEmailSignIn,
+  emailInviteSignInLink,
   establishMembership,
   getInviteRecipient,
   redeemInvite,
@@ -41,11 +42,20 @@ function redeemed(extra: Record<string, unknown>) {
  * The cookie-bound client: `rpc` answers the redeem (or `ensure_profile`),
  * and the token signs in someone at newcomer@example.com, now verified,
  * whose account keeps `metadata` (Step 30.7) — or, with `spent`, was
- * already used by this browser, which is signed in as them.
+ * already used by this browser, which is signed in as them. `otpError`
+ * makes sending a sign-in email fail.
  */
 function fakeServer(
   rpc: { data: unknown; error: unknown },
-  { metadata = {}, spent = false }: { metadata?: Record<string, unknown>; spent?: boolean } = {},
+  {
+    metadata = {},
+    spent = false,
+    otpError = null,
+  }: {
+    metadata?: Record<string, unknown>;
+    spent?: boolean;
+    otpError?: { message: string } | null;
+  } = {},
 ) {
   const user = {
     id: "u1",
@@ -62,6 +72,7 @@ function fakeServer(
           : { data: { user, session: {} }, error: null },
       ),
       getUser: vi.fn(async () => ({ data: { user } })),
+      signInWithOtp: vi.fn(async () => ({ data: {}, error: otpError })),
     },
   };
 }
@@ -74,19 +85,34 @@ type RequestRow = { first_name: string; last_name: string; email: string; source
 
 /**
  * A live invite emailed to newcomer@example.com — from `request`, when it
- * came from one — and no account for them yet.
+ * came from one — and no account for them yet. `member` is what
+ * `address_has_profile` answers for the address (Step 30.8; `null` for a
+ * failed lookup), and `hasProfile` what the account the minted token
+ * belongs to has. `live: false` is an invite that's been used up.
  */
 function fakeAdmin({
+  member = false,
   hasProfile = false,
   request = null,
-}: { hasProfile?: boolean; request?: RequestRow | null } = {}) {
+  live = true,
+}: {
+  member?: boolean | null;
+  hasProfile?: boolean;
+  request?: RequestRow | null;
+  live?: boolean;
+} = {}) {
   const invite = {
-    status: "active",
+    status: live ? "active" : "accepted",
     expires_at: null,
     invited_email: "newcomer@example.com",
     invite_requests: request,
   };
   return {
+    rpc: vi.fn(async () =>
+      member === null
+        ? { data: null, error: { message: "boom" } }
+        : { data: member, error: null },
+    ),
     from: (table: string) => ({
       select: () => ({
         eq: () => ({
@@ -244,13 +270,44 @@ describe("signInWithInvite", () => {
   });
 
   it("still refuses an address that already has an account", async () => {
-    admin = fakeAdmin({ hasProfile: true });
+    admin = fakeAdmin({ member: true });
     server = fakeServer(redeemed({ self_person_id: "p1", self_placed: true }));
     expect(await signInWithInvite("tok")).toEqual({
       ok: false,
       reason: "already_member",
     });
+    expect(admin.rpc).toHaveBeenCalledWith("address_has_profile", {
+      p_email: "newcomer@example.com",
+    });
     expect(server.rpc).not.toHaveBeenCalled();
+  });
+
+  it("mints nothing for a member's address, so their sign-in email can go at once (Step 30.8)", async () => {
+    admin = fakeAdmin({ member: true });
+    server = fakeServer(redeemed({ self_person_id: "p1", self_placed: true }));
+    await signInWithInvite("tok");
+    expect(admin.auth.admin.createUser).not.toHaveBeenCalled();
+    expect(admin.auth.admin.generateLink).not.toHaveBeenCalled();
+    expect(server.auth.verifyOtp).not.toHaveBeenCalled();
+  });
+
+  it("still refuses an account that became a member since the lookup", async () => {
+    admin = fakeAdmin({ member: false, hasProfile: true });
+    server = fakeServer(redeemed({ self_person_id: "p1", self_placed: true }));
+    expect(await signInWithInvite("tok")).toEqual({
+      ok: false,
+      reason: "already_member",
+    });
+    expect(server.auth.verifyOtp).not.toHaveBeenCalled();
+    expect(server.rpc).not.toHaveBeenCalled();
+  });
+
+  it("signs nobody in when it can't tell whether the address is a member's", async () => {
+    admin = fakeAdmin({ member: null });
+    server = fakeServer(redeemed({ self_person_id: "p1", self_placed: true }));
+    expect(await signInWithInvite("tok")).toEqual({ ok: false, reason: "failed" });
+    expect(admin.auth.admin.generateLink).not.toHaveBeenCalled();
+    expect(server.auth.verifyOtp).not.toHaveBeenCalled();
   });
 });
 
@@ -330,5 +387,40 @@ describe("the name someone joins by (Step 30.7)", () => {
       p_token: "tok",
       p_display_name: undefined,
     });
+  });
+});
+
+describe("emailInviteSignInLink (Step 30.8)", () => {
+  it("emails the invite's own address a sign-in link back to the invite", async () => {
+    admin = fakeAdmin({ member: true });
+    server = fakeServer({ data: null, error: null });
+    expect(await emailInviteSignInLink("tok")).toEqual({
+      ok: true,
+      email: "newcomer@example.com",
+    });
+    expect(server.auth.signInWithOtp).toHaveBeenCalledTimes(1);
+    const [{ email, options }] = server.auth.signInWithOtp.mock.calls[0] as unknown as [
+      { email: string; options: { emailRedirectTo: string; shouldCreateUser: boolean } },
+    ];
+    expect(email).toBe("newcomer@example.com");
+    // An account that exists already: never a new one on an invite's say-so.
+    expect(options.shouldCreateUser).toBe(false);
+    const callback = new URL(options.emailRedirectTo);
+    expect(callback.pathname).toBe("/auth/callback");
+    // Lands on the invite, signed in: joining there is theirs to press.
+    expect(callback.searchParams.get("next")).toBe("/join/tok");
+    expect(callback.searchParams.has("invite")).toBe(false);
+  });
+
+  it("sends nothing for an invite that's no longer valid", async () => {
+    admin = fakeAdmin({ live: false });
+    server = fakeServer({ data: null, error: null });
+    expect(await emailInviteSignInLink("tok")).toEqual({ ok: false, reason: "invalid" });
+    expect(server.auth.signInWithOtp).not.toHaveBeenCalled();
+  });
+
+  it("says so when the email can't be sent", async () => {
+    server = fakeServer({ data: null, error: null }, { otpError: { message: "rate limited" } });
+    expect(await emailInviteSignInLink("tok")).toEqual({ ok: false, reason: "failed" });
   });
 });
