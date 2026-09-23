@@ -266,7 +266,11 @@ resolve, or notifications) — none of which touch the chip or its dimensions.
 
 **Trees (Step 25):** every rule below now reads _on a tree_. "A Root" means a
 Root of the tree in question (`private.is_root_of(tree)`), and a Leaf is a Leaf
-in the tree being written to (`is_leaf_in`). A person's **details** follow
+in the tree being written to (`is_leaf_in`). For someone not on the tree the
+role checks answer false, never null (Step 35), so a guard can safely say
+`if not private.is_root_of(x) then raise`; only `is_leaf_in` stays null for
+them, which `can_edit_relationship` and `can_edit_pet` rely on to refuse
+someone who has left. A person's **details** follow
 their **home tree** (`private.home_tree`): its Roots and Branches, plus the
 person themselves — who controls their own entry on every tree. What another
 tree may do with a person it shows is place and arrange the card, keep its
@@ -731,6 +735,39 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 35 — Root-only checks refuse people who aren't on the tree**
+  (ad-hoc security fix; migration
+  `20260923080500_role_checks_refuse_outsiders`). `private.role_in(tree)`
+  is null for someone with no `tree_members` row there, so
+  `private.is_root_of(tree)` was null for them too, and every guard written
+  `if not private.is_root_of(x) then raise` let them through: `not null` is
+  null. Anyone signed in who had a tree's id (a visitor, an ex-member) could
+  rename or delete it, change its members' account types, bring people onto
+  it, resolve its claims and flags, and verify or revert its entries.
+  Members who aren't Roots were always refused. Found by the Step 30.3
+  agent. The yes/no checks built on `role_in` (`is_root_of`,
+  `is_branch_of`, `can_invite_as`, `can_edit_person`, `can_delete_person`,
+  `can_invite_to_claim`) now answer false instead of null. In RLS and in
+  `if check() then`, null already meant no, and no `not check()` on live
+  relied on it. `is_leaf_in` keeps its null: `can_edit_relationship` and
+  `can_edit_pet` count on it to refuse someone who has left. Three more
+  holes closed with it: through `can_edit_person`'s null, a member without
+  their own entry could resolve any flag and invite someone to claim an
+  entry they couldn't edit; `set_home_tree` let anyone signed in move an
+  unclaimed entry's home to another tree showing it; and `documents_guard`
+  let a member without their own entry share a document across trees,
+  which only the person or a Root of their home tree may do.
+  `tree_members_guard` now lets a departing member's profile clear
+  `invited_by_user_id` on trees the removing Root isn't on, so
+  `remove_tree_member` keeps working. No app code changed. **Verified:**
+  rehearsed in a rolled-back transaction on live with throwaway users and
+  trees, running the same 42 checks before, with only the helpers changed,
+  and with the whole migration. Before, an outsider got through all 13
+  Root-only actions; after, each is refused (42501) and the Root's 12 still
+  succeed. With only the helpers, `remove_tree_member` failed, which the
+  guard change fixes. Applied; all 9 function bodies md5-match the file and
+  grants are unchanged; the checks re-run against live gave the same
+  answers, and nothing was left behind.
 - **Step 33.7 — Link previews don't count as views** (no migration).
   iMessage, WhatsApp, Slack and the like fetch a share link to draw its
   preview whenever it's pasted or sent, and each fetch counted as a view.
