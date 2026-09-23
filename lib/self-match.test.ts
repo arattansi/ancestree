@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   candidateSummary,
   canSearchName,
+  friendlySelfClaimError,
   matchConfidence,
   normalizeTypedName,
   onboardingName,
@@ -39,6 +40,47 @@ describe("matchConfidence", () => {
     expect(matchConfidence(1)).toBe("strong");
     expect(matchConfidence(0.85)).toBe("strong");
     expect(matchConfidence(0.84)).toBe("close");
+  });
+});
+
+describe("friendlySelfClaimError", () => {
+  // `private.claim_as_self`'s refusals, word for word.
+  it("says why someone who has died can't be them (Step 37)", () => {
+    expect(friendlySelfClaimError("That entry is marked as having died")).toBe(
+      "That entry is marked as having died, so it can't be yours.",
+    );
+  });
+
+  it("keeps the refusals it already explained", () => {
+    expect(
+      friendlySelfClaimError("Too many claims in the last day. Try again later."),
+    ).toBe("You've made too many claims today. Try again tomorrow.");
+    expect(friendlySelfClaimError("Someone has already claimed that entry")).toBe(
+      "That entry has already been claimed. Refresh and try again.",
+    );
+    expect(friendlySelfClaimError("You already have your own entry")).toBe(
+      "That entry has already been claimed. Refresh and try again.",
+    );
+    expect(
+      friendlySelfClaimError(
+        "That entry does not match your name closely enough to claim",
+      ),
+    ).toBe("That entry doesn't match the name you entered closely enough.");
+    expect(friendlySelfClaimError("That entry is on a different tree")).toBe(
+      "That entry isn't available to claim. Refresh and try again.",
+    );
+    expect(friendlySelfClaimError("That entry no longer exists")).toBe(
+      "That entry isn't available to claim. Refresh and try again.",
+    );
+  });
+
+  it("falls back on anything else", () => {
+    expect(friendlySelfClaimError("You are not a member of this tree")).toBe(
+      "Couldn't claim that entry. Try again.",
+    );
+    expect(friendlySelfClaimError(undefined)).toBe(
+      "Something went wrong. Try again.",
+    );
   });
 });
 

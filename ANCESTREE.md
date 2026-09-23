@@ -179,7 +179,8 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   sibling set runs oldest→youngest. Also emits generation bands and per-couple
   descent points (`descentGeometry`, shared with the canvas so the drawn line
   and the laid-out one follow one rule); `lib/person-name.ts` — display
-  name + lifespan + initials; `lib/image.ts` — client-side photo downscale;
+  name + lifespan + initials, and whether someone has died
+  (`personHasDied`); `lib/image.ts` — client-side photo downscale;
   `lib/first-tree.ts` — a founder's first run (Step 29): the steps and
   where each opens, the "Getting started" items, the founder's close family
   from a tree's lines, and the lines a quick-added relative gets
@@ -484,7 +485,8 @@ mirror it for the UI.
   address's local part — and with both halves it searches on the server and
   opens on "Is one of these you?" or "We couldn't find you". On a tree
   nobody is on yet it opens on adding themselves, since there's nobody to
-  find.
+  find. Nobody who has died is listed there or can be claimed as "you"
+  (Step 37), as on the canvas (Step 36).
 - **Invite tokens** (`public.invites`): whoever may invite mints a
   single-use, 14-day link `"/join/<token>"` by inserting a row directly under RLS
   (`can_invite_as`). `redeem_invite` (SECURITY DEFINER) creates the member
@@ -519,15 +521,17 @@ mirror it for the UI.
   in for the name match, names a new profile after the entry, and they land
   on it (`/tree?person=<entry>`, `joinedTreeHref` reading
   `redeem_invite_tree`'s `self_placed`, from every accept path). If the entry
-  has meanwhile been claimed, deleted or taken off the tree, they join anyway
-  and land on onboarding, where `search_self_candidates` lists a vouched
-  entry first and `claim_person_as_self` takes it without the name match. A
+  has meanwhile been claimed, deleted, taken off the tree or marked as having
+  died (Step 37), they join anyway and land on onboarding, where
+  `search_self_candidates` lists a vouched entry first (never someone who has
+  died) and `claim_person_as_self` takes it without the name match. A
   member who already has an entry keeps just the vouch (`private.claim_vouches`,
   honoured by the canvas's `claim_person` while their own entry is a
   placeholder they added, Step 36). `private.can_invite_to_claim`
   says whose entry that may be: one the inviter can edit (`can_edit_person`)
   that nobody is behind yet — owner still the creator, no approved claim, no
-  member's own — and whose person is living. So a Root anywhere, a Branch on
+  member's own — and whose person is living: not marked as having died, and
+  no date of death (Step 37). So a Root anywhere, a Branch on
   their side or among their additions, a Leaf among their additions;
   `lib/branch#canInviteToClaim` mirrors it for the entry panel. Whoever
   accepts joins as a Leaf. `sendClaimInvite` asks `public.can_invite_to_claim` as the

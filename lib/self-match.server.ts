@@ -16,8 +16,9 @@ import { createClient } from "@/lib/supabase/server";
 /**
  * Unclaimed entries on one tree that look like a name. Spelling mistakes,
  * accents, nicknames and phonetic variants all still match — the scoring
- * lives in `search_self_candidates` (Step 15). Onboarding's search button
- * (`findSelfCandidates`) and the search it runs as it opens both come here.
+ * lives in `search_self_candidates` (Step 15), which lists nobody who has
+ * died (Step 37). Onboarding's search button (`findSelfCandidates`) and the
+ * search it runs as it opens both come here.
  */
 export async function searchSelfCandidates(
   treeId: string,

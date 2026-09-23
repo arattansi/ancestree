@@ -48,6 +48,18 @@ export function personLifespan(p: {
   return null;
 }
 
+/**
+ * Whether someone has died: marked so, or given a date of death. The
+ * database's claim checks read it the same way (Steps 36–37), so what the
+ * canvas offers matches what they allow.
+ */
+export function personHasDied(p: {
+  is_deceased?: boolean | null;
+  date_of_death?: string | null;
+}): boolean {
+  return p.is_deceased === true || !!p.date_of_death;
+}
+
 /** Two-letter initials for the avatar fallback. */
 export function personInitials(p: NamedPerson): string {
   const first = (p.preferred_name || p.first_name || "").trim();

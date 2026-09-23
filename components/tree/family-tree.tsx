@@ -105,7 +105,7 @@ import {
 } from "@/lib/tree-layout";
 import { layoutPets } from "@/lib/pet-layout";
 import type { TreePet } from "@/lib/pets";
-import { personDisplayName } from "@/lib/person-name";
+import { personDisplayName, personHasDied } from "@/lib/person-name";
 import type { TreeGraphEdge, TreeGraphPerson } from "@/lib/tree";
 import type { PersonRelation } from "@/components/tree/person-panel";
 
@@ -782,7 +782,7 @@ function Canvas({
       created_by: person.created_by,
       isClaimed: person.claim_status === "approved",
       isSomeoneElsesOwn: spokenFor.has(person.id),
-      isDeceased: person.is_deceased,
+      isDeceased: personHasDied(person),
     }),
     [spokenFor],
   );

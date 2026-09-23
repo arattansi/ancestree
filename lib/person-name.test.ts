@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   nodeDisplayName,
   personDisplayName,
+  personHasDied,
   preferredCopiesFirst,
 } from "@/lib/person-name";
 
@@ -48,5 +49,22 @@ describe("preferredCopiesFirst", () => {
   it("treats an empty preferred name as nothing to follow", () => {
     expect(preferredCopiesFirst("", "")).toBe(false);
     expect(preferredCopiesFirst(null, "Selena")).toBe(false);
+  });
+});
+
+describe("personHasDied", () => {
+  it("reads the flag or a date of death, as the claim checks do", () => {
+    expect(personHasDied({ is_deceased: true, date_of_death: null })).toBe(true);
+    expect(
+      personHasDied({ is_deceased: false, date_of_death: "1990-05-01" }),
+    ).toBe(true);
+    expect(
+      personHasDied({ is_deceased: true, date_of_death: "1990-05-01" }),
+    ).toBe(true);
+  });
+
+  it("takes neither for living", () => {
+    expect(personHasDied({ is_deceased: false, date_of_death: null })).toBe(false);
+    expect(personHasDied({})).toBe(false);
   });
 });

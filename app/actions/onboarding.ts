@@ -3,15 +3,19 @@
 import { revalidatePath } from "next/cache";
 
 import { requireProfile } from "@/lib/auth";
-import { normalizeTypedName, type SelfCandidate } from "@/lib/self-match";
+import {
+  friendlySelfClaimError,
+  normalizeTypedName,
+  type SelfCandidate,
+} from "@/lib/self-match";
 import { searchSelfCandidates } from "@/lib/self-match.server";
 import { createClient } from "@/lib/supabase/server";
 import { revalidateTreePages } from "@/lib/revalidate";
 
 /**
  * Unclaimed entries on one tree that look like the name a new member typed
- * (Step 15) — the same search onboarding runs as it opens, when it already
- * knows their name (Step 30.7).
+ * (Step 15), never of someone who has died (Step 37) — the same search
+ * onboarding runs as it opens, when it already knows their name (Step 30.7).
  */
 export async function findSelfCandidates(
   treeId: string,
@@ -22,28 +26,11 @@ export async function findSelfCandidates(
   return searchSelfCandidates(treeId, first, last);
 }
 
-function friendlyClaimError(message: string | undefined): string {
-  if (!message) return "Something went wrong. Try again.";
-  const m = message.toLowerCase();
-  if (m.includes("too many claims")) {
-    return "You've made too many claims today. Try again tomorrow.";
-  }
-  if (m.includes("already claimed") || m.includes("already have")) {
-    return "That entry has already been claimed. Refresh and try again.";
-  }
-  if (m.includes("match your name")) {
-    return "That entry doesn't match the name you entered closely enough.";
-  }
-  if (m.includes("different tree") || m.includes("no longer exists")) {
-    return "That entry isn't available to claim. Refresh and try again.";
-  }
-  return "Couldn't claim that entry. Try again.";
-}
-
 /**
  * First-run claim: take ownership of an entry a relative already added, in
  * place of creating your own. Auto-approves and notifies the entry's creator,
- * who can dispute it (same path as `claim_person`).
+ * who can dispute it (same path as `claim_person`). Never someone who has
+ * died (Step 37).
  */
 export async function claimSelfCandidate(
   treeId: string,
@@ -59,7 +46,7 @@ export async function claimSelfCandidate(
     p_last: normalizeTypedName(last),
     p_tree: treeId,
   });
-  if (error || !data) return { error: friendlyClaimError(error?.message) };
+  if (error || !data) return { error: friendlySelfClaimError(error?.message) };
 
   revalidateTreePages();
   revalidatePath("/account");

@@ -92,6 +92,32 @@ export function matchConfidence(score: number): "strong" | "close" {
   return score >= 0.85 ? "strong" : "close";
 }
 
+/**
+ * What onboarding says when `claim_person_as_self` refuses a claim. Someone
+ * who has died is nobody's own entry (Step 37): the search no longer lists
+ * them, so that refusal meets only an entry marked so after the list showed.
+ */
+export function friendlySelfClaimError(message: string | undefined): string {
+  if (!message) return "Something went wrong. Try again.";
+  const m = message.toLowerCase();
+  if (m.includes("too many claims")) {
+    return "You've made too many claims today. Try again tomorrow.";
+  }
+  if (m.includes("already claimed") || m.includes("already have")) {
+    return "That entry has already been claimed. Refresh and try again.";
+  }
+  if (m.includes("match your name")) {
+    return "That entry doesn't match the name you entered closely enough.";
+  }
+  if (m.includes("having died")) {
+    return "That entry is marked as having died, so it can't be yours.";
+  }
+  if (m.includes("different tree") || m.includes("no longer exists")) {
+    return "That entry isn't available to claim. Refresh and try again.";
+  }
+  return "Couldn't claim that entry. Try again.";
+}
+
 /** One-line context under a candidate's name: dates, birthplace, parents. */
 export function candidateSummary(c: SelfCandidate): string {
   const parts = [

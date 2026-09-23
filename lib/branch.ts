@@ -169,7 +169,8 @@ export type EntrySubject = {
   isClaimed: boolean;
   /** It is another member's own entry — theirs to edit, nobody else's. */
   isSomeoneElsesOwn: boolean;
-  /** They have died. Bears on claiming only: there is nobody to invite. */
+  /** They have died (`personHasDied`: marked so, or given a date of death).
+   *  Bears on claiming only: there is nobody to invite. */
   isDeceased?: boolean;
 };
 
