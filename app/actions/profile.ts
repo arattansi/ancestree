@@ -9,8 +9,9 @@ const MAX_NAME = 60;
 
 /**
  * Change the name a member is shown under across the app (their profile
- * `display_name`). Role and invite rights are untouchable here — the
- * `profiles_protect_role` trigger pins those for non-admins regardless.
+ * `display_name`). With `relatives_can_ask`, it's all a member may write on
+ * their profile: their own entry and who invited them are set by the RPCs
+ * alone (Step 42, the column grants and `profiles_guard`).
  */
 export async function updateDisplayName(
   name: string,
