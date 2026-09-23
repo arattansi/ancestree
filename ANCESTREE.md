@@ -789,6 +789,48 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 37 — Onboarding never offers or accepts someone who has died as
+  "you"** (ad-hoc follow-up to Step 36; migration
+  `20260923110000_self_claims_refuse_the_dead`). Step 36 kept the canvas's
+  "Is one of these you?" card and "This is me" away from anyone marked as
+  having died or given a death date, but onboarding's find-yourself search
+  didn't follow: `search_self_candidates` listed every unclaimed entry the
+  name matched, the dead included, and `claim_person_as_self`
+  (`private.claim_as_self`) made the one picked the newcomer's own entry.
+  Nothing was deleted on that path, but a newcomer named after a late
+  grandparent was offered the grandparent (since Step 30.7, as onboarding
+  opened, with nothing typed) and one tap made them the grandparent. A
+  claim invite accepted after its entry was marked as having died did the
+  same through `redeem_invite`. Now the search lists nobody who has died,
+  vouched or not (a vouched entry still comes first), and `claim_as_self`
+  refuses one with `claim_person`'s message, which onboarding words as
+  "That entry is marked as having died, so it can't be yours."
+  (`friendlySelfClaimError`, moved into `lib/self-match.ts` to be tested).
+  Such a claim invite still joins them to the tree, for onboarding to take
+  from there. `private.can_invite_to_claim` refuses a death date as well as
+  the flag (no entry on live has one without the other), and the entry
+  panel's mirror reads both (`personHasDied`). **Verified:** rehearsed
+  rolled back on live in three phases (live functions, the search alone,
+  the whole migration) with throwaway members and a living namesake, one
+  marked as died, one with only a death date, vouched entries living and
+  dead, and claim invites. Before, the search listed all three namesakes,
+  each could be claimed, as could the vouched dead one, and accepting a
+  claim invite whose entry had since died made the newcomer that person;
+  the search alone still let a direct claim through, so both halves are
+  needed. After, only the living are listed, vouched first; the dead and
+  the death-dated are refused, a dead entry on another tree still answers
+  "on a different tree", the invite joins them without the claim, and
+  neither a Root nor a Leaf can invite anyone to claim a death-dated entry
+  (a Leaf's direct invite insert is refused too). The same 19 checks pass
+  against the applied functions, whose bodies md5-match the file. On a dev
+  server, a throwaway newcomer who accepted an invite to a throwaway tree
+  holding three of their namesakes (living, marked as died, a death date
+  only) was shown just the living one; marking it as died under the open
+  list made "This is me" answer with the message above and a new search
+  find nobody, and once it was living again the claim went through to
+  `/tree`. 644 tests pass. Nothing from the rehearsal persisted, and every
+  throwaway row was deleted.
+
 - **Step 30.7 — Onboarding opens on the name we already have** (Step 30,
   first-time journeys; no migration). Onboarding asked everyone to type
   their first and last name and tap Search, though the invite, request or
