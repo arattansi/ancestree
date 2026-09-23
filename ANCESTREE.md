@@ -1004,6 +1004,65 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 41.5 — Asking a relative: every ask counts, members can opt out,
+  asks lapse** (Step 41, first-time journey follow-ups; migration
+  `20260923155000_relay_caps_opt_out_expiry`). Step 30.5 left three gaps in
+  "Ask a relative who's on ancestree". An ask to an address that wasn't a
+  member's was never stored, so it counted toward no cap, and the lookup ran
+  for every address anyone tried. A member couldn't opt out. An ask nobody
+  answered waited for ever. Aalim chose the defaults. **Every ask counts:**
+  `passOnRelay` first notes it in `public.invite_relay_asks` (the address
+  asking and when, never the relative's; RLS on with no policies and no
+  grants, so the service role alone reads it). The caps on the address
+  asking (3 a day) and across the site (10 an hour, 30 a day) count those
+  notes before anyone is looked up (`askWithinCaps`), so an ask past one
+  looks nobody up and its note is taken back. The member's own caps (2 a
+  day, 5 a week) still count the asks filed for them (`memberWithinCaps`).
+  One trade-off: junk asks can now use up the site's 30 a day. **Opt-out:**
+  a **Relatives can ask me to invite them** box in settings' Privacy card
+  (`profiles.relatives_can_ask`, on by default; `setRelativesCanAsk`). When
+  it's off, `invite_relay_recipient` finds nobody at that address, so the
+  newcomer's answer is unchanged and nothing is filed or sent. Asks already
+  waiting stay. **Lapsing:** an ask pending for 30 days leaves the card,
+  which now shows the date each ask waits until. `sendRelayedInvite`,
+  `sendRelayedClaimInvite` and `dismissRelay` refuse it with "That request
+  has already been answered, or it lapsed after 30 days." pg_cron isn't
+  enabled, so each new ask first deletes lapsed asks (so the same address
+  may ask again) and notes older than a day. The email says the request
+  lapses after 30 days and names the box to untick. The privacy notice now
+  covers the notes, the lapse and the new choice. The newcomer's answer,
+  and how long it takes, still don't depend on whose address it is: all of
+  this runs in `after()`. No journey's taps or fields change; opting out is
+  one tap in settings. **Verified:** 772 tests pass (21 new). The migration
+  was rehearsed rolled back on live in three phases (before, table and flag
+  only, all). With the table and flag but the old lookup, an opted-out
+  member was still found; with all of it, nobody was. Anon and members
+  couldn't read or write notes, or call the lookup. The service role could
+  write and clear notes, and the address checks held. A member could set
+  only their own flag, and existing profiles start on. It was then applied
+  and recorded under the file's version, and the lookup's md5 matches the
+  file. In the browser, on a dev server, with a throwaway member on a
+  throwaway tree and every typed address a `delivered+41-5-*@resend.dev`
+  inbox:
+  - One newcomer's four asks to non-member addresses all got the same
+    answer, in 11–20 ms on the server. Three notes were kept, and the
+    fourth was "over a cap, so dropped before the lookup". The API log
+    showed four notes written and three lookups.
+  - The member unticked the box (the toast said so, and it stayed unticked
+    after a reload). A second newcomer's ask to them got the same answer,
+    with nothing filed or emailed.
+  - With the box ticked again, a third newcomer's ask was filed and
+    emailed. Resend showed that one email to the member, with the lapse and
+    opt-out lines, and none from the opted-out ask.
+  - Backdated 31 days, that ask left the card. Dismiss and Send invite on
+    the stale card were refused, and no invite was minted. The email's
+    link said it was answered or lapsed.
+  - The next ask deleted the lapsed ask and a note backdated two days, and
+    the same newcomer could then ask that member again.
+
+  Throwaway rows and the account were deleted. Totals differ from the
+  baseline only by Step 41.3's own test rows.
+
 - **Step 41.3 — A claim invite accepted by someone who already has an
   entry** (Step 41, first-time journey follow-ups; migration
   `20260923153000_claim_invite_merges_into_own_entry`). A member with their
