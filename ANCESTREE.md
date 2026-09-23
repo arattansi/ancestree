@@ -758,6 +758,50 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 36 — "This is me" can't swallow a member's own entry** (ad-hoc
+  fix, found in Step 30.3's end-to-end check; migration
+  `20260923100000_claim_merges_only_placeholders`). The canvas's "Is one of
+  these you?" card (`person_claim_candidates`) offered a member who already
+  has their own entry every unclaimed same-name entry on a tree they share,
+  the dead included, and "This is me" (`claim_person`) merged their entry
+  into the one they picked and deleted it. That merge was built for a
+  placeholder made at onboarding, but since Steps 30.2 and 30.3 a member's
+  entry is usually one a Root made, with their family on it. Reproduced on
+  live (rolled back): a member who had accepted a claim invite was offered
+  their late namesake grandparent, and one tap moved their child and spouse
+  onto the grandparent, dropped their own parent line (it doubled the
+  grandparent's) and deleted their entry; a reversed dispute can't bring it
+  back. 7 of the 8 members with an entry were exposed, though none had a
+  namesake yet. Now `private.is_own_placeholder` says whether an entry is one
+  the member made for themselves that nobody else has built on (every line,
+  document, note, companion, bloodline anchor and placement on it theirs, no
+  edit or claim by anyone else: `can_delete_person`'s "built on" test).
+  `claim_person` merges only such a placeholder, never into an entry marked
+  as having died or given a death date, and `person_claim_candidates`
+  offers nothing otherwise and nobody who has died, so the card and the
+  panel's "This is me — claim it" (both read it) appear only where the
+  claim would go through. The merge also carries the placeholder's
+  companions and bloodline anchors now; deleting it used to unlink its pets
+  (deleting any it was the only person of) and drop a founder's anchor.
+  "This is me" asks first, in the card and the panel alike, naming who
+  moves (`lib/claim-merge.ts`: "Your parents … and your partner … will be
+  connected to this entry instead, and the entry you added for yourself
+  will be removed. This can't be undone."), and a refusal points to a Root
+  for a duplicate. **Verified:** rehearsed rolled back on live in three
+  phases (live functions, the card half alone, the whole migration) with a
+  member holding a claimed Root-made entry, one with a bare placeholder and
+  one whose placeholder the Root had built on. The card half alone still
+  let a direct `claim_person` delete a real entry, so both halves are
+  needed; with both, real entries are refused and untouched, the dead and
+  the death-dated refused, and a real duplicate merges with its lines, dog
+  and anchor. The placeholder test turns false for each kind of row anyone
+  else made and stays true for the member's own; anon can call neither
+  RPC and nobody can call the helper. Applied, recorded version fixed, all
+  three function bodies md5-match the file; the suite re-run against live
+  gave the same answers, and as each live member the card still offers
+  nobody anything. On a dev server with a temporary fixture page (deleted),
+  the card and the panel both asked first, named the parents and partner,
+  and Cancel backed out. 612 tests pass. Nothing was kept on live.
 - **Step 34 — Three account types: Root, Branch and Leaf** (ad-hoc
   request; migrations `20260923090000_three_account_types`, and
   `20260923091000_retire_leaf_key` once this code is serving). The first
