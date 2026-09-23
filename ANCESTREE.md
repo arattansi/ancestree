@@ -1028,12 +1028,15 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   `sendRelayedClaimInvite` and `dismissRelay` refuse it with "That request
   has already been answered, or it lapsed after 30 days." pg_cron isn't
   enabled, so each new ask first deletes lapsed asks (so the same address
-  may ask again) and notes older than a day. The email says the request
-  lapses after 30 days and names the box to untick. The privacy notice now
+  may ask again) and notes older than a day. Opened from the email, a
+  lapsed ask says "<name>’s request lapsed after 30 days without an
+  answer." (41.1's `openedRelayNote` now reads the ask's date). The email
+  says the request lapses after 30 days and names the box to untick. The
+  privacy notice now
   covers the notes, the lapse and the new choice. The newcomer's answer,
   and how long it takes, still don't depend on whose address it is: all of
   this runs in `after()`. No journey's taps or fields change; opting out is
-  one tap in settings. **Verified:** 772 tests pass (21 new). The migration
+  one tap in settings. **Verified:** 784 tests pass (22 new). The migration
   was rehearsed rolled back on live in three phases (before, table and flag
   only, all). With the table and flag but the old lookup, an opted-out
   member was still found; with all of it, nobody was. Anon and members
@@ -1055,13 +1058,16 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
     emailed. Resend showed that one email to the member, with the lapse and
     opt-out lines, and none from the opted-out ask.
   - Backdated 31 days, that ask left the card. Dismiss and Send invite on
-    the stale card were refused, and no invite was minted. The email's
-    link said it was answered or lapsed.
+    the stale card were refused, and no invite was minted.
   - The next ask deleted the lapsed ask and a note backdated two days, and
     the same newcomer could then ask that member again.
+  - After rebasing onto 41.1's answered-ask line, a second throwaway
+    member's card kept an ask 29 days old ("waits until" the next day) and
+    left out one 31 days old, whose email link said it "lapsed after 30 days
+    without an answer". Unticking the box kept the waiting ask on the card.
 
-  Throwaway rows and the account were deleted. Totals differ from the
-  baseline only by Step 41.3's own test rows.
+  Throwaway rows and both accounts were deleted, and counts are back to the
+  baseline.
 
 - **Step 41.3 — A claim invite accepted by someone who already has an
   entry** (Step 41, first-time journey follow-ups; migration
