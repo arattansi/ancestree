@@ -40,9 +40,10 @@ export default function PrivacyPage() {
             comments, flags, and in-app notifications.
           </li>
           <li>
-            If you ask to join a tree, or join the waitlist to start one, the
-            name and email you give — kept only so a relative or the site
-            owner can answer you, and deleted on request.
+            If you ask to join a tree, ask a relative on ancestree to invite
+            you, or join the waitlist to start one, the name and email you
+            give — kept only so a relative or the site owner can answer you,
+            and deleted on request.
           </li>
         </ul>
       </Section>
