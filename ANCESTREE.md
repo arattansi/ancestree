@@ -785,6 +785,31 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 30.7 — Onboarding opens on the name we already have** (Step 30,
+  first-time journeys; no migration). Onboarding asked everyone to type
+  their first and last name and tap Search, though the invite, request or
+  waitlist row usually held it (and the profile was named from it one
+  screen earlier). Now the name is kept on the new auth account
+  (`user_metadata`), since the request row goes when the invite is
+  redeemed: `signInWithInvite` stores the request's name, and a bare invite
+  link's form asks for first and last name beside the email
+  (`signInWithOtp` `options.data`; a plain sign-in stays email-only).
+  `completeEmailSignIn` and `/auth/callback` read it back
+  (`lib/joining-name.ts`), so a bare link's profile is named after the
+  person, not the address. Onboarding prefills that name (or splits the
+  display name with `namePrefill`, never an email's local part) and, when
+  it has both halves, searches on the server before the page renders
+  (`lib/self-match.server.ts#onboardingStart`), so it opens on "Is one of
+  these you?" or "We couldn't find you", with nothing typed. An empty tree
+  opens straight on adding yourself, and a non-Root there reads that a Root
+  adds the first person. The bare-link form keeps its privacy tick through
+  a retry after an error. **Verified:** 639 tests pass; on a dev server with
+  throwaway accounts, an approved-request invite opened on the match with
+  nothing typed ("This is me" → /tree), and a bare invite asked for name and
+  email, carried them through the email loop (token minted for the throwaway
+  address) and greeted them by name with the match shown. All throwaway rows
+  were deleted.
+
 - **Step 30.9 — Accepting an invite shows your own entry on that tree**
   (Step 30, first-time journeys; migration
   `20260923073000_place_own_entry_on_join`, live since 2026-09-22). A
@@ -1015,6 +1040,7 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   tap on the header count opened the other tree's requests. Reviewer alerts
   weren't sent live; their recipients were checked in rolled-back SQL.
   559 tests pass. All throwaway rows were deleted.
+
 - **Step 29.8 — Getting Started starts collapsed on phones** (UI only).
   On a phone the founder's checklist opened over the top of the tree. Below
   Tailwind's `sm` (640px) it now starts collapsed to its one-line header,
