@@ -22,7 +22,9 @@ const INITIAL_LINK: InviteSignInLinkState = {};
  * reaching their inbox is the verification, so there is no second email.
  * `consentGiven` skips the checkbox for people who ticked it when they asked
  * to join. An address that already has an account is offered a sign-in
- * link instead, which comes back here (Step 30.8).
+ * link instead, which comes back here (Step 30.8). Signed out, the page
+ * opens on that link for such an address (Step 41.2), so this only finds
+ * one that became a member's after the page loaded.
  */
 export function AcceptInviteForm({
   inviteToken,
@@ -100,9 +102,11 @@ export function AcceptInviteForm({
  * its own say-so (`signInWithInvite`). Rather than send them to /join to
  * type it again and lose the invite on the way, email that address a
  * sign-in link that comes back here, signed in and a tap from joining
- * (Step 30.8).
+ * (Step 30.8). The invite page opens on it for someone signed out
+ * (`opensOnSignInLink`, Step 41.2): no privacy tick, since a member's join
+ * asks for none.
  */
-function SignInToAccept({
+export function SignInToAccept({
   inviteToken,
   email,
 }: {

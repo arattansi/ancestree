@@ -204,6 +204,39 @@ export async function getInviteRecipient(
   };
 }
 
+/**
+ * Whether an address already belongs to a member (`address_has_profile`,
+ * service role only, Step 30.8), or `null` when the lookup fails. A lookup
+ * and nothing more: no token minted, no email sent.
+ */
+export async function addressHasProfile(email: string): Promise<boolean | null> {
+  const { data, error } = await createAdminClient().rpc("address_has_profile", {
+    p_email: email,
+  });
+  if (error) return null;
+  return data === true;
+}
+
+/**
+ * Whether an emailed invite's page opens on "Email me a sign-in link"
+ * instead of the accept form (Step 41.2): for someone signed out, when the
+ * invite's address has an account already. Accepting would only find that
+ * out and offer the link, after a privacy tick a member's join doesn't ask
+ * for. The page is a GET that mail scanners open too, so this only looks
+ * up; a failed lookup keeps the accept form, which asks again when tapped.
+ * It tells the page nothing it didn't show before: the address is on it,
+ * and accepting said the address has an account.
+ */
+export async function opensOnSignInLink(
+  recipient: InviteRecipient | null,
+  { signedIn }: { signedIn: boolean },
+): Promise<boolean> {
+  // Signed in, the page stays as it was: a member joins with one tap, and a
+  // first-timer keeps the accept form (Step 30.8).
+  if (!recipient || signedIn) return false;
+  return (await addressHasProfile(recipient.email)) === true;
+}
+
 export type InviteSignInResult =
   | {
       ok: true;
@@ -228,17 +261,14 @@ export async function signInWithInvite(token: string): Promise<InviteSignInResul
   const recipient = await getInviteRecipient(token);
   if (!recipient) return { ok: false, reason: "invalid" };
 
-  const admin = createAdminClient();
-
   // A member's address is refused before anything is minted for it: minting
   // a token stamps the account, and Supabase then won't email it the
   // sign-in link the invite page offers instead for a minute (Step 30.8).
-  const { data: member, error: memberError } = await admin.rpc(
-    "address_has_profile",
-    { p_email: recipient.email },
-  );
-  if (memberError) return { ok: false, reason: "failed" };
+  const member = await addressHasProfile(recipient.email);
+  if (member === null) return { ok: false, reason: "failed" };
   if (member) return { ok: false, reason: "already_member" };
+
+  const admin = createAdminClient();
 
   // Make sure the account exists and is confirmed. An address that has signed
   // in before comes back as "already registered", which is fine. A new one

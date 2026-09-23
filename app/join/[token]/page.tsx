@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { AcceptInviteForm } from "@/components/accept-invite-form";
+import { AcceptInviteForm, SignInToAccept } from "@/components/accept-invite-form";
 import { AccountTypeGlyph } from "@/components/account-type-badge";
 import { JoinTreeButton } from "@/components/join-tree-button";
 import { MagicLinkForm } from "@/components/magic-link-form";
@@ -15,7 +15,7 @@ import {
 import { LEAF, ROOT } from "@/lib/account-types";
 import { getProfile, getUser } from "@/lib/auth";
 import { verifiedEmail } from "@/lib/first-timer";
-import { getInviteRecipient } from "@/lib/sign-in.server";
+import { getInviteRecipient, opensOnSignInLink } from "@/lib/sign-in.server";
 import { createClient } from "@/lib/supabase/server";
 import { treesHref } from "@/lib/tree-links";
 
@@ -48,6 +48,11 @@ export default async function InvitePage({
   const signedInAsRecipient = Boolean(
     user && recipient && verifiedEmail(user) === recipient.email,
   );
+  // Signed out, to an address that has an account already: open on its
+  // sign-in link, with no tick to spend first (Step 41.2).
+  const signInFirst = await opensOnSignInLink(recipient, {
+    signedIn: Boolean(user),
+  });
   const founds = preview?.founds_tree === true;
 
   return (
@@ -88,9 +93,11 @@ export default async function InvitePage({
                   ? "You’re signed in, so accepting adds it to your trees."
                   : signedInAsRecipient
                     ? "You’re signed in with the address it was sent to — there is nothing else to set up."
-                    : recipient
-                      ? "Accepting signs you in — there is nothing else to set up."
-                      : "Enter your name and email to get a sign-in link — opening it accepts the invite."}
+                    : signInFirst
+                      ? "Once you’re signed in, accepting adds it to your trees."
+                      : recipient
+                        ? "Accepting signs you in — there is nothing else to set up."
+                        : "Enter your name and email to get a sign-in link — opening it accepts the invite."}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -124,6 +131,8 @@ export default async function InvitePage({
                   token={token}
                   label={founds ? "Start my tree" : `Join ${preview.tree_name}`}
                 />
+              ) : recipient && signInFirst ? (
+                <SignInToAccept inviteToken={token} email={recipient.email} />
               ) : recipient ? (
                 <AcceptInviteForm
                   inviteToken={token}

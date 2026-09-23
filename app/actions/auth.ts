@@ -163,10 +163,11 @@ export type InviteSignInLinkState = {
 };
 
 /**
- * The invite page's answer once `acceptInvite` finds the address already
- * has an account (Step 30.8): email it a sign-in link that brings them back
- * to the invite signed in, one tap from joining. It goes to the address
- * the invite names, never one typed here (`emailInviteSignInLink`).
+ * The invite page's answer for an address that already has an account —
+ * at once for someone signed out (Step 41.2), or once `acceptInvite` finds
+ * it (Step 30.8): email it a sign-in link that brings them back to the
+ * invite signed in, one tap from joining. It goes to the address the
+ * invite names, never one typed here (`emailInviteSignInLink`).
  */
 export async function sendInviteSignInLink(
   _prev: InviteSignInLinkState,

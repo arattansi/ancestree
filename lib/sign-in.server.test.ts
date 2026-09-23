@@ -23,12 +23,15 @@ vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => admin }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: async () => server }));
 
 import {
+  addressHasProfile,
   completeEmailSignIn,
   emailInviteSignInLink,
   establishMembership,
   getInviteRecipient,
+  opensOnSignInLink,
   redeemInvite,
   signInWithInvite,
+  type InviteRecipient,
 } from "@/lib/sign-in.server";
 
 const TREE = { tree_id: "t1", tree_slug: "the-tree", tree_name: "The Tree" };
@@ -422,5 +425,67 @@ describe("emailInviteSignInLink (Step 30.8)", () => {
   it("says so when the email can't be sent", async () => {
     server = fakeServer({ data: null, error: null }, { otpError: { message: "rate limited" } });
     expect(await emailInviteSignInLink("tok")).toEqual({ ok: false, reason: "failed" });
+  });
+});
+
+describe("an emailed invite opened signed out (Step 41.2)", () => {
+  /** The invite's recipient, as `getInviteRecipient` hands it to the page. */
+  const RECIPIENT: InviteRecipient = {
+    email: "member@example.com",
+    name: null,
+    joiningName: null,
+    requested: false,
+  };
+
+  beforeEach(() => {
+    server = fakeServer({ data: null, error: null });
+  });
+
+  it("opens on the sign-in link when the address has an account", async () => {
+    admin = fakeAdmin({ member: true });
+    expect(await opensOnSignInLink(RECIPIENT, { signedIn: false })).toBe(true);
+    expect(admin.rpc).toHaveBeenCalledWith("address_has_profile", {
+      p_email: "member@example.com",
+    });
+  });
+
+  it("keeps the accept form for a newcomer", async () => {
+    admin = fakeAdmin({ member: false });
+    expect(await opensOnSignInLink(RECIPIENT, { signedIn: false })).toBe(false);
+  });
+
+  it("only looks up: the page's GET mints and sends nothing, as mail scanners open it", async () => {
+    admin = fakeAdmin({ member: true });
+    await opensOnSignInLink(RECIPIENT, { signedIn: false });
+    expect(admin.auth.admin.createUser).not.toHaveBeenCalled();
+    expect(admin.auth.admin.generateLink).not.toHaveBeenCalled();
+    expect(server.auth.signInWithOtp).not.toHaveBeenCalled();
+    expect(server.auth.verifyOtp).not.toHaveBeenCalled();
+  });
+
+  it("leaves the page as it was for someone signed in", async () => {
+    admin = fakeAdmin({ member: true });
+    expect(await opensOnSignInLink(RECIPIENT, { signedIn: true })).toBe(false);
+    expect(admin.rpc).not.toHaveBeenCalled();
+  });
+
+  it("leaves a bare link alone", async () => {
+    admin = fakeAdmin({ member: true });
+    expect(await opensOnSignInLink(null, { signedIn: false })).toBe(false);
+    expect(admin.rpc).not.toHaveBeenCalled();
+  });
+
+  it("keeps the accept form, which asks again, when the lookup fails", async () => {
+    admin = fakeAdmin({ member: null });
+    expect(await opensOnSignInLink(RECIPIENT, { signedIn: false })).toBe(false);
+  });
+
+  it("tells an address with an account from one without, or a failed lookup", async () => {
+    admin = fakeAdmin({ member: true });
+    expect(await addressHasProfile("member@example.com")).toBe(true);
+    admin = fakeAdmin({ member: false });
+    expect(await addressHasProfile("member@example.com")).toBe(false);
+    admin = fakeAdmin({ member: null });
+    expect(await addressHasProfile("member@example.com")).toBeNull();
   });
 });
