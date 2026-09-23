@@ -6,6 +6,7 @@ import { FamilyTree } from "@/components/tree/family-tree";
 import { Button } from "@/components/ui/button";
 import { LEAF } from "@/lib/account-types";
 import { getSpokenForEntryIds } from "@/lib/branch.server";
+import { listClaimInvites } from "@/lib/claim-invites.server";
 import { listClaimCandidates } from "@/lib/claims";
 import { auditTreeConnections } from "@/lib/connection-suggestions.server";
 import { getGettingStarted } from "@/lib/first-tree.server";
@@ -78,6 +79,7 @@ export default async function TreePage() {
     rootIds,
     pets,
     spokenFor,
+    claimInvites,
   ] = await Promise.all([
     getTreeGraph(tree.id, undefined, { withAccountTypes: true }),
     listClaimCandidates(),
@@ -86,6 +88,8 @@ export default async function TreePage() {
     getRootEntryIds(tree.id),
     getTreePets(tree.id),
     getSpokenForEntryIds(profile.auth_user_id),
+    // Who has invited whom to claim their entry, for the cards (Step 38).
+    listClaimInvites(tree.id, { userId: profile.auth_user_id, isRoot }),
   ]);
   // The founder's "Getting started" list (Step 29), read off the same graph.
   const gettingStarted = await getGettingStarted(access.membership, relationships);
@@ -122,6 +126,7 @@ export default async function TreePage() {
         panelSuggestions={panelSuggestions}
         pets={pets}
         gettingStarted={gettingStarted}
+        claimInvites={claimInvites}
       />
     </main>
   );

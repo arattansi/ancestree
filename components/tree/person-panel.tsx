@@ -13,6 +13,7 @@ import {
   updateRelationshipMarriage,
 } from "@/app/actions/people";
 import { deletePerson } from "@/app/actions/privacy";
+import { describeClaimInvite, type EntryInvite } from "@/lib/claim-invites";
 import type { PanelSuggestion } from "@/lib/connection-suggestions";
 import { AccountTypeBadge } from "@/components/account-type-badge";
 import { AncestralLands } from "@/components/ancestral-lands";
@@ -390,6 +391,29 @@ function CompanionsSection({
   );
 }
 
+/**
+ * Who has invited this entry's person to claim it, and when (Step 38) — or,
+ * once the last invite has lapsed, that it did.
+ */
+function ClaimInviteRecords({ invites }: { invites: EntryInvite[] }) {
+  if (invites.length === 0) return null;
+  return (
+    <ul className="flex flex-col gap-1 text-xs text-muted-foreground">
+      {invites.map((invite) => (
+        <li key={invite.id}>{describeClaimInvite(invite, formatInviteDate)}</li>
+      ))}
+    </ul>
+  );
+}
+
+function formatInviteDate(iso: string) {
+  return new Date(iso).toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 export function PersonPanel({
   person,
   treeId,
@@ -404,6 +428,7 @@ export function PersonPanel({
   canSeeDocuments,
   canDelete = false,
   canInviteToClaim = false,
+  claimInvites = [],
   claimable,
   claimNote = null,
   isCreator,
@@ -446,6 +471,11 @@ export function PersonPanel({
    * Whoever accepts joins as a Leaf.
    */
   canInviteToClaim?: boolean;
+  /**
+   * Invites out to claim this entry — who sent each and when (Step 38),
+   * shown to every member so nobody sends a second without knowing.
+   */
+  claimInvites?: EntryInvite[];
   currentUserId: string;
   /** This entry looks like the signed-in member and is unclaimed. */
   claimable: boolean;
@@ -473,9 +503,6 @@ export function PersonPanel({
   const [addingCompanion, setAddingCompanion] = React.useState(false);
   const [cropOpen, setCropOpen] = React.useState(false);
   const [claimEmail, setClaimEmail] = React.useState("");
-  const [claimInviteSent, setClaimInviteSent] = React.useState<string | null>(
-    null,
-  );
   const savedCrop = parseCrop(person?.photo_crop);
   const [crop, setCrop] = React.useState<CropTransform>(savedCrop);
   const [prevId, setPrevId] = React.useState(person?.id);
@@ -491,7 +518,6 @@ export function PersonPanel({
     setCropOpen(false);
     setCrop(savedCrop);
     setClaimEmail("");
-    setClaimInviteSent(null);
   }
 
   async function onSaveCrop() {
@@ -527,11 +553,12 @@ export function PersonPanel({
     setBusy(true);
     const res = await sendClaimInvite(person.id, claimEmail);
     setBusy(false);
+    // Either way: an invite whose email failed is still made, and listed.
+    router.refresh();
     if (res.error) {
       toast.error(res.error);
       return;
     }
-    setClaimInviteSent(res.email ?? claimEmail.trim());
     setClaimEmail("");
     toast.success(`Invite sent to ${res.email ?? "them"}.`);
   }
@@ -960,6 +987,7 @@ export function PersonPanel({
                       >
                         Invite {personDisplayName(person)} to claim this entry
                       </Label>
+                      <ClaimInviteRecords invites={claimInvites} />
                       <div className="flex flex-wrap gap-2">
                         <Input
                           id="claim-invite-email"
@@ -977,23 +1005,23 @@ export function PersonPanel({
                           onClick={onSendClaimInvite}
                           disabled={busy || claimEmail.trim().length === 0}
                         >
-                          {busy ? "Sending…" : "Send invite"}
+                          {busy
+                            ? "Sending…"
+                            : claimInvites.some((i) => i.live)
+                              ? "Send another"
+                              : "Send invite"}
                         </Button>
                       </div>
                       <JoinsAsNote />
-                      {claimInviteSent ? (
-                        <p className="text-xs text-muted-foreground">
-                          Sent to {claimInviteSent}. Opening the link lets them
-                          join and take over this entry.
-                        </p>
-                      ) : (
-                        <p className="text-xs text-muted-foreground">
-                          Emails them a single-use link, good for 14 days. It
-                          names this entry, and claiming it hands them the
-                          record to keep up to date.
-                        </p>
-                      )}
+                      <p className="text-xs text-muted-foreground">
+                        Emails them a single-use link, good for 14 days. It
+                        names this entry, and claiming it hands them the
+                        record to keep up to date.
+                      </p>
                     </div>
+                  ) : claimInvites.length > 0 ? (
+                    // Everyone else on the tree still sees that it's in hand.
+                    <ClaimInviteRecords invites={claimInvites} />
                   ) : null}
 
                   {person.verified_at ? (

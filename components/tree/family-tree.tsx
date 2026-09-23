@@ -73,6 +73,7 @@ import {
   type EntrySubject,
   type Viewer,
 } from "@/lib/branch";
+import type { EntryInvite } from "@/lib/claim-invites";
 import { mergeConfirmation, relativesThatMove } from "@/lib/claim-merge";
 import type { ClaimCandidate } from "@/lib/claims";
 import { connectionLabel, connectionPath } from "@/lib/connection-path";
@@ -476,6 +477,7 @@ const edgeTypes = {
 const nodeTypes = { person: PersonNode, pet: PetNode };
 
 const NO_PETS: TreePet[] = [];
+const NO_INVITES: EntryInvite[] = [];
 const NOBODY: ReadonlySet<string> = new Set();
 
 type Props = {
@@ -516,6 +518,11 @@ type Props = {
   visitorNote?: string | null;
   /** What's left of the founder's first run (Step 29), for the tree's founder. */
   gettingStarted?: GettingStartedItem[] | null;
+  /**
+   * Invites out to claim entries here, for their cards to say who sent one
+   * (Step 38). A member's canvas only: never a share link's or a visitor's.
+   */
+  claimInvites?: EntryInvite[];
 };
 
 /** Which way a bloodline spotlight runs from the person who was clicked. */
@@ -719,6 +726,7 @@ function Canvas({
   readOnly = false,
   shareToken,
   gettingStarted = null,
+  claimInvites = NO_INVITES,
 }: Props) {
   // Companions stay off the canvas until the viewer switches them on (Step
   // 23). Off the canvas only: a person's details still list theirs, and
@@ -1770,6 +1778,13 @@ function Canvas({
     !!selectedPerson && canInviteToClaim(entrySubject(selectedPerson), viewer);
   const canDelete =
     !!selectedPerson && canOfferDelete(entrySubject(selectedPerson), viewer);
+  const selectedInvites = React.useMemo(
+    () =>
+      selectedId && !readOnly
+        ? claimInvites.filter((i) => i.personId === selectedId)
+        : NO_INVITES,
+    [claimInvites, selectedId, readOnly],
+  );
 
   return (
     <>
@@ -2025,6 +2040,7 @@ function Canvas({
         canSeeDocuments={canSeeDocs}
         canDelete={canDelete}
         canInviteToClaim={canInvite}
+        claimInvites={selectedInvites}
         readOnly={readOnly}
         shareToken={shareToken}
         claimable={!!selectedPerson && claimableIds.has(selectedPerson.id)}
