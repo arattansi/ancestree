@@ -73,7 +73,7 @@ other placement is added by a Root of the receiving tree.
 | | Rule |
 |---|---|
 | Bringing people over | When a member founds a tree, or later from the "People from other trees" card on `/t/<slug>/admin`, a Root picks anyone they can see on a tree they belong to. Each pick becomes a placement. |
-| Consent | If the person is a member's own entry (their `self_person_id` or a settled claim) and that member is not the one placing them, the placement is **pending** until they accept (`placement_requested` notification, accept or decline on `/account`). Pending placements are not drawn. Anyone else's entry (an unclaimed relative, a grandparent) is placed at once. |
+| Consent | If the person is a member's own entry (their `self_person_id` or a settled claim) and that member is not the one placing them, the placement is **pending** until they accept (`placement_requested` notification, accept or decline on `/account`). Accepting an invite to the tree counts as saying yes (Step 30.9). Pending placements are not drawn. Anyone else's entry (an unclaimed relative, a grandparent) is placed at once. |
 | Home tree choice | A member chooses which of the trees they are placed on is their home (`/account` → Your entry). A Root of the current home tree may also move an unclaimed entry's home to another tree it is placed on. |
 | Leaving | A person may withdraw their own entry from any tree that is not their home. A Root may remove any placement from their tree. Removing a placement never deletes the person or their connections. |
 | Removing from the home tree | Not possible directly: change the home first, or delete the entry. |
@@ -137,7 +137,7 @@ belongs to, or a Root of the entry's home tree.
 
 | Kind | Who may send | What redeeming does |
 |---|---|---|
-| Join as a Leaf | Any member: Root, Branch or Leaf | Adds a membership in the inviter's tree. An existing member of another tree gains a second membership; no second profile. |
+| Join as a Leaf | Any member: Root, Branch or Leaf | Adds a membership in the inviter's tree. An existing member of another tree gains a second membership; no second profile. If they have their own entry, it's shown on this tree too, active, since accepting is their say-so; every Root of the tree is told (`placed_on_join`) and can take it off from "Who This Tree Shows" (Step 30.9). They land on it. |
 | Claim an entry | As Step 22.1, evaluated in the entry's home tree; or a Root approving a request to join as an entry on their tree that the name matches (Step 30.3) | As above, plus the vouch for that entry. Someone with no entry of their own claims it there and then and lands on it (Step 30.2); if it's spoken for by then, onboarding as usual. A member who already has an entry keeps the vouch, to claim it from the canvas. |
 | **Founder** | Any Root | Creates a brand-new tree (“Family” until they rename it; `private.default_tree_name`), makes them its Root, and sends them to onboarding on it. Refused if the address already founded a tree. |
 

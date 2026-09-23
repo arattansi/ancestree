@@ -12,7 +12,7 @@ import { respondToPlacement } from "@/app/actions/trees";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { NotificationItem } from "@/lib/claims";
-import { newTreeHref, treeFocusHref } from "@/lib/tree-links";
+import { adminHref, newTreeHref, treeFocusHref } from "@/lib/tree-links";
 
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -140,6 +140,23 @@ export function NotificationsList({
               >
                 <Button type="submit" size="sm" variant="ghost">
                   View on tree
+                </Button>
+              </form>
+            ) : null}
+
+            {n.type === "placed_on_join" && n.treeId ? (
+              // Step 30.9: joining brought a member's own entry onto this
+              // tree. A Root keeps it, or takes it off in "Who This Tree
+              // Shows" — on the tree the notice is about.
+              <form
+                action={switchTreeForm.bind(
+                  null,
+                  n.treeId,
+                  adminHref("placements"),
+                )}
+              >
+                <Button type="submit" size="sm" variant="outline">
+                  View in admin
                 </Button>
               </form>
             ) : null}
