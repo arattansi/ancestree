@@ -963,7 +963,9 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   does. Accepting claims the entry and opens the canvas on it (Step 30.2),
   with no onboarding: J5 goes from 7 taps and 4 fields (10 and 6 when
   onboarding finds nobody) to 6 and 4. "None of these, invite without an
-  entry" sends the plain invite as before. **Verified:** rehearsed rolled
+  entry" sends the plain invite as before, but only when pressed: with
+  entries listed, Enter in a field sends nothing, so it can't choose "none
+  of these" for the member. **Verified:** rehearsed rolled
   back on live, eleven role checks before and after (a Root sees the close
   matches but not the dead, claimed, unmatched or other-tree entries; a
   Leaf sees none until they add one; someone else's ask, a tree they're not
@@ -980,8 +982,11 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   `/tree?person=` for Zahid Qadri, claimed, as a Leaf, and the Root was
   told. A Leaf's card showed only the plain invite, which still sends.
   Picking a second tree that shows an entry homed on the first listed it
-  there, and that invite joined the second tree. Throwaway rows deleted,
-  and counts are back to the baseline. 751 tests pass (4 new).
+  there, and that invite joined the second tree. On a temporary signed-out
+  page rendering the card, with server actions parked, Enter sent nothing
+  from a card listing an entry and sent the plain invite from one listing
+  none, and pressing "None of these" sent it. Throwaway rows deleted, and
+  counts are back to the baseline. 751 tests pass (4 new).
 
 - **Step 41.2 — A member who opens an emailed invite signed out gets the
   sign-in link at once** (Step 41, first-time journey follow-ups; no

@@ -94,8 +94,16 @@ function RelayInviteForm({
   const tree = trees.find((t) => t.id === treeId);
   const matches = relay.matches[treeId] ?? [];
 
-  async function onSend(e: React.FormEvent) {
+  /**
+   * Enter in a field submits the form. With entries listed that would answer
+   * "none of these" for them, so then only the button itself sends it.
+   */
+  function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (matches.length === 0) void onSend();
+  }
+
+  async function onSend() {
     setBusy({ kind: "send" });
     let res: Awaited<ReturnType<typeof sendRelayedInvite>>;
     try {
@@ -177,7 +185,7 @@ function RelayInviteForm({
 
   return (
     <form
-      onSubmit={onSend}
+      onSubmit={onSubmit}
       className="flex flex-col gap-4 rounded-lg border border-border p-4"
     >
       <div className="flex flex-col gap-1">
@@ -316,7 +324,10 @@ function RelayInviteForm({
 
       <div className="flex flex-wrap gap-2">
         <Button
-          type="submit"
+          // Not the form's submit while entries are listed, so Enter in a
+          // field can't choose "none of these" (`onSubmit`).
+          type={matches.length > 0 ? "button" : "submit"}
+          onClick={matches.length > 0 ? () => void onSend() : undefined}
           size="sm"
           variant={matches.length > 0 ? "outline" : "default"}
           disabled={busy !== null || !treeId}
