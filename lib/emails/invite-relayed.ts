@@ -1,6 +1,7 @@
 import { INVITED_AS } from "@/lib/account-types";
 import { escapeHtml } from "@/lib/email";
 import { oneLine, renderEmail } from "@/lib/emails/shared";
+import { RELATIVES_CAN_ASK_LABEL, RELAY_LAPSE_DAYS } from "@/lib/invite-relays";
 
 /**
  * "Someone is looking for their family" — to a member whose address a
@@ -8,7 +9,8 @@ import { oneLine, renderEmail } from "@/lib/emails/shared";
  * (Step 30.5). Not an invite: the button opens the member's account page,
  * where the invite waits filled in, and signs nobody in, so a mail scanner
  * opening it spends nothing. The name and address are the ones the newcomer
- * typed; the member decides whether they're family.
+ * typed; the member decides whether they're family. It says how long the
+ * ask waits and how to stop asks reaching them (Step 41.5).
  */
 export function inviteRelayedEmail(input: {
   firstName: string;
@@ -31,13 +33,15 @@ export function inviteRelayedEmail(input: {
                   who&rsquo;s here. If you know them, we&rsquo;ve filled in an
                   invite to ${emailHtml} for you: one tap sends it, and they
                   join as a ${INVITED_AS.name}. If you don&rsquo;t, ignore this
-                  email.`,
+                  email: their request lapses after ${RELAY_LAPSE_DAYS} days.`,
     cta: { label: "Invite them", url: input.url },
     footnoteHtml: `They typed your address on ancestree&rsquo;s request access
                   form. We haven&rsquo;t told them whether you&rsquo;re on
                   ancestree, and nothing reaches them unless you invite
                   them. If you&rsquo;re signed out, sign in with this address
-                  first.`,
+                  first. To stop relatives asking you, untick
+                  &ldquo;${escapeHtml(RELATIVES_CAN_ASK_LABEL)}&rdquo; in your
+                  account&rsquo;s settings.`,
   });
 
   return { subject: `${name} asked you to invite them to ancestree`, html };

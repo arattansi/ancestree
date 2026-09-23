@@ -2,15 +2,24 @@ import { describe, expect, it } from "vitest";
 
 import {
   NEW_TREE_STARTS_EMPTY,
+  RELATIVES_CAN_ASK_LABEL,
+  RELAY_ANSWERED,
   RELAY_CAPS,
+  RELAY_LAPSE_DAYS,
   RELAY_NOTE,
+  RELAY_NOTE_KEPT_MS,
+  RELAY_SPAN_MS,
+  askWithinCaps,
+  memberWithinCaps,
   readRelativeEmail,
   readRelayParam,
   relativeEmailProblem,
   relayAnswer,
   relayHref,
-  relayWithinCaps,
-  type RelayArrivals,
+  relayLapseCutoff,
+  relayLapsed,
+  relayLapsesAt,
+  type AskArrivals,
 } from "@/lib/invite-relays";
 
 const NOW = new Date("2026-09-23T12:00:00.000Z");
@@ -20,71 +29,50 @@ const daysAgo = (d: number) => hoursAgo(d * 24);
 /** `n` asks, `step` minutes apart, the first just now. */
 const asks = (n: number, step = 1) => Array.from({ length: n }, (_, i) => minutesAgo(i * step));
 
-/** One ask just filed, with nothing before it, unless a count says otherwise. */
-function arrivals(over: Partial<RelayArrivals> = {}): RelayArrivals {
+/** One ask just noted, with nothing before it, unless a count says otherwise. */
+function arrivals(over: Partial<AskArrivals> = {}): AskArrivals {
   return {
     fromRequester: [minutesAgo(0)],
-    toRecipient: [minutesAgo(0)],
     overall: [minutesAgo(0)],
     ...over,
   };
 }
 
-describe("relayWithinCaps (Step 30.5)", () => {
+describe("askWithinCaps (Steps 30.5, 41.5)", () => {
   it("passes on the first ask", () => {
-    expect(relayWithinCaps(arrivals(), NOW)).toBe(true);
+    expect(askWithinCaps(arrivals(), NOW)).toBe(true);
   });
 
   it("lets one address ask three relatives a day, and drops the fourth", () => {
     expect(RELAY_CAPS.perRequester.perDay).toBe(3);
-    expect(relayWithinCaps(arrivals({ fromRequester: asks(3, 60) }), NOW)).toBe(true);
-    expect(relayWithinCaps(arrivals({ fromRequester: asks(4, 60) }), NOW)).toBe(false);
+    expect(askWithinCaps(arrivals({ fromRequester: asks(3, 60) }), NOW)).toBe(true);
+    expect(askWithinCaps(arrivals({ fromRequester: asks(4, 60) }), NOW)).toBe(false);
   });
 
   it("forgets an address's asks after a day", () => {
     const old = [daysAgo(1.1), daysAgo(1.5), daysAgo(2)];
-    expect(
-      relayWithinCaps(arrivals({ fromRequester: [minutesAgo(0), ...old] }), NOW),
-    ).toBe(true);
-  });
-
-  it("never floods a member: two a day, however many addresses ask", () => {
-    expect(RELAY_CAPS.perRecipient.perDay).toBe(2);
-    expect(relayWithinCaps(arrivals({ toRecipient: asks(2, 30) }), NOW)).toBe(true);
-    expect(relayWithinCaps(arrivals({ toRecipient: asks(3, 30) }), NOW)).toBe(false);
-  });
-
-  it("and five a week, for a drip that stays under the daily cap", () => {
-    expect(RELAY_CAPS.perRecipient.perWeek).toBe(5);
-    const week = (n: number) => [minutesAgo(0), ...Array.from({ length: n - 1 }, (_, i) => daysAgo(i + 1.2))];
-    expect(relayWithinCaps(arrivals({ toRecipient: week(5) }), NOW)).toBe(true);
-    expect(relayWithinCaps(arrivals({ toRecipient: week(6) }), NOW)).toBe(false);
-  });
-
-  it("forgets a member's asks after a week", () => {
-    const old = [daysAgo(7.1), daysAgo(8), daysAgo(9), daysAgo(10), daysAgo(11)];
-    expect(relayWithinCaps(arrivals({ toRecipient: [minutesAgo(0), ...old] }), NOW)).toBe(true);
+    expect(askWithinCaps(arrivals({ fromRequester: [minutesAgo(0), ...old] }), NOW)).toBe(true);
   });
 
   it("caps the whole site at ten an hour and thirty a day", () => {
     expect(RELAY_CAPS.overall).toEqual({ perHour: 10, perDay: 30 });
-    expect(relayWithinCaps(arrivals({ overall: asks(10, 5) }), NOW)).toBe(true);
-    expect(relayWithinCaps(arrivals({ overall: asks(11, 5) }), NOW)).toBe(false);
+    expect(askWithinCaps(arrivals({ overall: asks(10, 5) }), NOW)).toBe(true);
+    expect(askWithinCaps(arrivals({ overall: asks(11, 5) }), NOW)).toBe(false);
     // Thirty spread over the day stay under the hourly cap, but not the daily one.
-    expect(relayWithinCaps(arrivals({ overall: asks(30, 45) }), NOW)).toBe(true);
-    expect(relayWithinCaps(arrivals({ overall: asks(31, 45) }), NOW)).toBe(false);
+    expect(askWithinCaps(arrivals({ overall: asks(30, 45) }), NOW)).toBe(true);
+    expect(askWithinCaps(arrivals({ overall: asks(31, 45) }), NOW)).toBe(false);
   });
 
   it("counts an ask that looks a moment younger than now, as clocks differ", () => {
     const ahead = new Date(NOW.getTime() + 2_000).toISOString();
     expect(
-      relayWithinCaps(arrivals({ toRecipient: [ahead, minutesAgo(5), minutesAgo(9)] }), NOW),
+      askWithinCaps(arrivals({ fromRequester: [ahead, minutesAgo(5), minutesAgo(9), minutesAgo(0)] }), NOW),
     ).toBe(false);
   });
 
   it("skips a timestamp it can't read", () => {
     expect(
-      relayWithinCaps(arrivals({ toRecipient: ["not a date", "", minutesAgo(0)] }), NOW),
+      askWithinCaps(arrivals({ fromRequester: ["not a date", "", minutesAgo(0)] }), NOW),
     ).toBe(true);
   });
 
@@ -94,8 +82,72 @@ describe("relayWithinCaps (Step 30.5)", () => {
       perRecipient: { perDay: 1, perWeek: 1 },
       overall: { perHour: 1, perDay: 1 },
     };
-    expect(relayWithinCaps(arrivals(), NOW, tight)).toBe(true);
-    expect(relayWithinCaps(arrivals({ overall: asks(2) }), NOW, tight)).toBe(false);
+    expect(askWithinCaps(arrivals(), NOW, tight)).toBe(true);
+    expect(askWithinCaps(arrivals({ overall: asks(2) }), NOW, tight)).toBe(false);
+  });
+
+  it("keeps a note only as long as a cap counts it", () => {
+    // The longest span a note-counting cap looks back is a day.
+    expect(RELAY_NOTE_KEPT_MS).toBe(RELAY_SPAN_MS.day);
+  });
+});
+
+describe("memberWithinCaps (Steps 30.5, 41.5)", () => {
+  it("passes on the first ask to a member", () => {
+    expect(memberWithinCaps([minutesAgo(0)], NOW)).toBe(true);
+  });
+
+  it("never floods a member: two a day, however many addresses ask", () => {
+    expect(RELAY_CAPS.perRecipient.perDay).toBe(2);
+    expect(memberWithinCaps(asks(2, 30), NOW)).toBe(true);
+    expect(memberWithinCaps(asks(3, 30), NOW)).toBe(false);
+  });
+
+  it("and five a week, for a drip that stays under the daily cap", () => {
+    expect(RELAY_CAPS.perRecipient.perWeek).toBe(5);
+    const week = (n: number) => [minutesAgo(0), ...Array.from({ length: n - 1 }, (_, i) => daysAgo(i + 1.2))];
+    expect(memberWithinCaps(week(5), NOW)).toBe(true);
+    expect(memberWithinCaps(week(6), NOW)).toBe(false);
+  });
+
+  it("forgets a member's asks after a week", () => {
+    const old = [daysAgo(7.1), daysAgo(8), daysAgo(9), daysAgo(10), daysAgo(11)];
+    expect(memberWithinCaps([minutesAgo(0), ...old], NOW)).toBe(true);
+  });
+
+  it("counts an ask that looks a moment younger than now, as clocks differ", () => {
+    const ahead = new Date(NOW.getTime() + 2_000).toISOString();
+    expect(memberWithinCaps([ahead, minutesAgo(5), minutesAgo(9)], NOW)).toBe(false);
+  });
+
+  it("skips a timestamp it can't read", () => {
+    expect(memberWithinCaps(["not a date", "", minutesAgo(0)], NOW)).toBe(true);
+  });
+});
+
+describe("an ask lapsing (Step 41.5)", () => {
+  it("waits thirty days for the member's answer", () => {
+    expect(RELAY_LAPSE_DAYS).toBe(30);
+    expect(relayLapsesAt(daysAgo(0)).toISOString()).toBe("2026-10-23T12:00:00.000Z");
+  });
+
+  it("is still waiting until then, and lapsed from then on", () => {
+    expect(relayLapsed(daysAgo(29.9), NOW)).toBe(false);
+    expect(relayLapsed(daysAgo(30), NOW)).toBe(true);
+    expect(relayLapsed(daysAgo(45), NOW)).toBe(true);
+  });
+
+  it("counts an ask whose date can't be read as lapsed, so it can't wait for ever", () => {
+    expect(relayLapsed("not a date", NOW)).toBe(true);
+  });
+
+  it("gives queries the same line: waiting after the cutoff, lapsed at or before it", () => {
+    const cutoff = relayLapseCutoff(NOW);
+    expect(cutoff).toBe(daysAgo(30));
+    // Just after the cutoff is waiting; the cutoff itself has lapsed.
+    const justAfter = new Date(Date.parse(cutoff) + 1).toISOString();
+    expect(relayLapsed(justAfter, NOW)).toBe(false);
+    expect(relayLapsed(cutoff, NOW)).toBe(true);
   });
 });
 
@@ -187,5 +239,17 @@ describe("relayHref / readRelayParam", () => {
     expect(readRelayParam("not-an-id")).toBeNull();
     expect(readRelayParam([ID, ID])).toBeNull();
     expect(readRelayParam(`${ID}&view=admin`)).toBeNull();
+  });
+});
+
+describe("what the member is told (Step 41.5)", () => {
+  it("says an ask that's gone was answered or lapsed", () => {
+    expect(RELAY_ANSWERED).toBe(
+      "That request has already been answered, or it lapsed after 30 days.",
+    );
+  });
+
+  it("names the box that lets asks reach them in its own words", () => {
+    expect(RELATIVES_CAN_ASK_LABEL).toBe("Relatives can ask me to invite them");
   });
 });

@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 
 import {
@@ -14,6 +15,8 @@ import {
   RELAY_ANSWERED,
   readRelativeEmail,
   relativeEmailProblem,
+  relayLapseCutoff,
+  relayLapsed,
 } from "@/lib/invite-relays";
 import { passOnRelay } from "@/lib/invite-relays.server";
 import { getRelayCandidates } from "@/lib/relay-candidates.server";
@@ -53,17 +56,20 @@ export async function askRelative(
   return { ok: true, relativeEmail };
 }
 
-/** Whether the ask is still waiting. Only the member it went to sees it (RLS). */
+/**
+ * Whether the ask is still waiting: not answered, and not lapsed (Step
+ * 41.5). Only the member it went to sees it (RLS).
+ */
 async function relayIsPending(
   supabase: ServerClient,
   relayId: string,
 ): Promise<boolean> {
   const { data: relay } = await supabase
     .from("invite_relays")
-    .select("id, status")
+    .select("id, status, created_at")
     .eq("id", relayId)
     .maybeSingle();
-  return relay?.status === "pending";
+  return relay?.status === "pending" && !relayLapsed(relay.created_at, new Date());
 }
 
 /**
@@ -150,21 +156,46 @@ export async function sendRelayedClaimInvite(
 /**
  * Member: dismiss an ask from someone they don't know (Step 30.5). The
  * newcomer isn't told, and the same address can't ask them again; the
- * record stays, as a declined request's does.
+ * record stays, as a declined request's does. One that has lapsed is gone
+ * already (Step 41.5).
  */
 export async function dismissRelay(relayId: string): Promise<{ error?: string }> {
   await requireProfile();
   const supabase = await createClient();
 
+  const now = new Date();
   const { data, error } = await supabase
     .from("invite_relays")
-    .update({ status: "dismissed", answered_at: new Date().toISOString() })
+    .update({ status: "dismissed", answered_at: now.toISOString() })
     .eq("id", relayId)
     .eq("status", "pending")
+    .gt("created_at", relayLapseCutoff(now))
     .select("id");
   if (error) return { error: "Couldn't dismiss that request. Try again." };
   if (!data || data.length === 0) return { error: RELAY_ANSWERED };
 
   revalidateTreeAndAccount();
+  return {};
+}
+
+/**
+ * Member: whether relatives may ask them for an invite (Step 41.5), the
+ * "Relatives can ask me to invite them" box on settings. Off,
+ * `invite_relay_recipient` finds nobody at their address, so a newcomer's
+ * ask goes no further and they're told what everyone is told. Asks already
+ * waiting stay until they're answered or lapse.
+ */
+export async function setRelativesCanAsk(on: boolean): Promise<{ error?: string }> {
+  const profile = await requireProfile();
+  if (typeof on !== "boolean") return { error: "Couldn't save that. Try again." };
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ relatives_can_ask: on })
+    .eq("auth_user_id", profile.auth_user_id);
+  if (error) return { error: "Couldn't save that. Try again." };
+
+  revalidatePath("/account");
   return {};
 }

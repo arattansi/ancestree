@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { INVITED_AS } from "@/lib/account-types";
+import { relayLapsesAt } from "@/lib/invite-relays";
 import {
   candidateSummary,
   matchConfidence,
@@ -43,6 +44,14 @@ type Busy =
   | { kind: "send" }
   | { kind: "claim"; personId: string }
   | { kind: "dismiss" };
+
+function shortDate(date: Date) {
+  return date.toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
 
 /**
  * The asks passed on to this member (Step 30.5), each an invite filled in
@@ -193,13 +202,10 @@ function RelayInviteForm({
           {relay.firstName} {relay.lastName} asked you to invite them
         </p>
         <p className="text-sm text-muted-foreground">
+          {/* Unanswered, it lapses after 30 days (Step 41.5). */}
           <span suppressHydrationWarning>
-            Asked{" "}
-            {new Date(relay.createdAt).toLocaleDateString(undefined, {
-              day: "numeric",
-              month: "short",
-              year: "numeric",
-            })}
+            Asked {shortDate(new Date(relay.createdAt))}, and waits until{" "}
+            {shortDate(relayLapsesAt(relay.createdAt))}
           </span>
           . Their details are as they typed them, so put anything right before
           you send.

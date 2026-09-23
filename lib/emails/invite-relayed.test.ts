@@ -41,6 +41,18 @@ describe("inviteRelayedEmail (Step 30.5)", () => {
     expect(html).toContain("We haven&rsquo;t told them whether you&rsquo;re on");
   });
 
+  it("says an ask left unanswered lapses after 30 days (Step 41.5)", () => {
+    const { html } = inviteRelayedEmail(base);
+    expect(html).toContain("their request lapses after 30 days.");
+  });
+
+  it("says how to stop relatives asking, in the box's own words (Step 41.5)", () => {
+    const { html } = inviteRelayedEmail(base);
+    expect(html).toMatch(
+      /To stop relatives asking you, untick\s+&ldquo;Relatives can ask me to invite them&rdquo; in your\s+account&rsquo;s settings\./,
+    );
+  });
+
   it("escapes what the newcomer typed, in the HTML and nowhere else", () => {
     const { subject, html } = inviteRelayedEmail({
       ...base,

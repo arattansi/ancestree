@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { RELATIVES_CAN_ASK_LABEL, RELAY_LAPSE_DAYS } from "@/lib/invite-relays";
+
 export const metadata: Metadata = {
   title: "privacy",
   description:
@@ -45,6 +47,14 @@ export default function PrivacyPage() {
             give — kept only so a relative or the site owner can answer you,
             and deleted on request.
           </li>
+          <li>
+            When you ask a relative on ancestree to invite you, a note of your
+            email and when you asked, whoever your relative is, used only to
+            limit how often one address can ask. Your relative&rsquo;s address
+            is never kept. Notes older than a day, and asks a relative
+            leaves unanswered for {RELAY_LAPSE_DAYS} days, are deleted as new
+            asks come in.
+          </li>
         </ul>
       </Section>
 
@@ -81,6 +91,18 @@ export default function PrivacyPage() {
           <li>
             <strong>Delete an entry.</strong> Ask an admin to remove an entry and
             its photos and documents.
+          </li>
+          <li>
+            <strong>Stop relatives asking.</strong> Untick &ldquo;
+            {RELATIVES_CAN_ASK_LABEL}&rdquo; in{" "}
+            <Link
+              href="/account?view=settings"
+              className="underline underline-offset-4"
+            >
+              your account&rsquo;s settings
+            </Link>
+            , and nobody&rsquo;s ask for an invite reaches you. They
+            aren&rsquo;t told you&rsquo;ve turned it off.
           </li>
           <li>
             <strong>Delete your account.</strong> From{" "}

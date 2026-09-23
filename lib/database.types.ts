@@ -522,6 +522,24 @@ export type Database = {
           },
         ]
       }
+      invite_relay_asks: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+        }
+        Relationships: []
+      }
       invite_relays: {
         Row: {
           answered_at: string | null
@@ -1328,6 +1346,7 @@ export type Database = {
           created_at: string
           display_name: string | null
           invited_by_user_id: string | null
+          relatives_can_ask: boolean
           self_person_id: string | null
           updated_at: string
         }
@@ -1336,6 +1355,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           invited_by_user_id?: string | null
+          relatives_can_ask?: boolean
           self_person_id?: string | null
           updated_at?: string
         }
@@ -1344,6 +1364,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           invited_by_user_id?: string | null
+          relatives_can_ask?: boolean
           self_person_id?: string | null
           updated_at?: string
         }
@@ -2230,6 +2251,7 @@ export type Database = {
           created_at: string
           display_name: string | null
           invited_by_user_id: string | null
+          relatives_can_ask: boolean
           self_person_id: string | null
           updated_at: string
         }
@@ -2371,6 +2393,7 @@ export type Database = {
           created_at: string
           display_name: string | null
           invited_by_user_id: string | null
+          relatives_can_ask: boolean
           self_person_id: string | null
           updated_at: string
         }

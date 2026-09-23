@@ -20,6 +20,7 @@ import { HomeTreePicker } from "@/components/home-tree-picker";
 import { InviteMinter } from "@/components/invite-minter";
 import { NotificationsList } from "@/components/notifications-list";
 import { PersonForm } from "@/components/person-form";
+import { RelativesCanAsk } from "@/components/relatives-can-ask";
 import { RelayInvites, type PendingRelay } from "@/components/relay-invites";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
@@ -39,7 +40,7 @@ import {
 import { getUser, requireProfile, type Profile } from "@/lib/auth";
 import { getBranchSides } from "@/lib/branch.server";
 import { listNotifications } from "@/lib/claims";
-import { readRelayParam } from "@/lib/invite-relays";
+import { readRelayParam, relayLapseCutoff } from "@/lib/invite-relays";
 import { openedRelayNote } from "@/lib/opened-relay";
 import { loadOpenedRelay } from "@/lib/opened-relay.server";
 import { loadOwnEntry, type OwnEntry } from "@/lib/own-entry.server";
@@ -231,12 +232,14 @@ async function SettingsView({
       .select("tree_id, invited_by_name")
       .eq("auth_user_id", profile.auth_user_id),
     // Asks passed on to them from request access (Step 30.5): RLS shows
-    // each only to the member it went to.
+    // each only to the member it went to. One left for 30 days has lapsed
+    // (Step 41.5).
     supabase
       .from("invite_relays")
       .select("id, first_name, last_name, email, created_at")
       .eq("recipient_user_id", profile.auth_user_id)
       .eq("status", "pending")
+      .gt("created_at", relayLapseCutoff(new Date()))
       .order("created_at", { ascending: true }),
     // The Branches they've made, tree by tree: each Root makes up to four
     // (Step 39).
@@ -266,8 +269,8 @@ async function SettingsView({
     createdAt: r.created_at,
     matches: relayMatches.get(r.id) ?? {},
   }));
-  // Opened from the email after it was answered (or signed in as someone
-  // else): say so, rather than show nothing.
+  // Opened from the email after it was answered or lapsed (or signed in as
+  // someone else): say so, rather than show nothing.
   const openedRelayGone =
     openedRelayId !== null && !relays.some((r) => r.id === openedRelayId);
   // Sending or dismissing it from its card refreshes this same address, so
@@ -533,6 +536,7 @@ async function SettingsView({
             </Link>
             .
           </p>
+          <RelativesCanAsk on={profile.relatives_can_ask} />
           <div>
             <DeleteAccount
               soleRootTrees={soleRootTrees}
