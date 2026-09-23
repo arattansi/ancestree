@@ -1,5 +1,7 @@
 import "server-only";
 
+import { after } from "next/server";
+
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isShareLinkUsable } from "@/lib/share-links";
 
@@ -13,7 +15,8 @@ export type ResolvedShareLink = {
 /**
  * Look up a share-link token with the service role (the visitor is
  * unauthenticated) and return the tree it points at, or `null` when the token
- * is unknown, revoked, or expired. Records the view as a side effect.
+ * is unknown, revoked, or expired. Records the view as a side effect, once
+ * the response has gone out.
  */
 export async function resolveShareLink(
   token: string,
@@ -23,7 +26,7 @@ export async function resolveShareLink(
   const admin = createAdminClient();
   const { data: link } = await admin
     .from("share_links")
-    .select("id, token, tree_id, revoked_at, expires_at, view_count")
+    .select("id, token, tree_id, revoked_at, expires_at")
     .eq("token", token)
     .maybeSingle();
 
@@ -37,14 +40,16 @@ export async function resolveShareLink(
 
   if (!tree) return null;
 
-  // Fire-and-forget view accounting; never block the render on it.
-  void admin
-    .from("share_links")
-    .update({
-      last_viewed_at: new Date().toISOString(),
-      view_count: (link.view_count ?? 0) + 1,
-    })
-    .eq("id", link.id);
+  // Count the view once the page has gone out, so it never holds up the
+  // render (`after` keeps a serverless function alive until it's done). Await
+  // the call: a Supabase query is only sent when awaited, so `void` on one
+  // sends nothing. The database adds the one, so no view is lost to a race.
+  after(async () => {
+    const { error } = await admin.rpc("record_share_link_view", {
+      p_link_id: link.id,
+    });
+    if (error) console.warn(`Share-link view not recorded: ${error.message}`);
+  });
 
   return {
     id: link.id,

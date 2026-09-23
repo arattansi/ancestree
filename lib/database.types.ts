@@ -2226,6 +2226,10 @@ export type Database = {
           placement_status: string
         }[]
       }
+      record_share_link_view: {
+        Args: { p_link_id: string }
+        Returns: undefined
+      }
       redeem_invite: {
         Args: { p_display_name?: string; p_token: string }
         Returns: {

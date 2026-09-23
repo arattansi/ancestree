@@ -504,8 +504,11 @@ mirror it for the UI.
   service-role client (`lib/share-links.server.ts`) — RLS is admins-only, no
   `anon` grant — and renders `<FamilyTree readOnly>` (no drag-persist, no add /
   claim / flag / comment / manage affordances) with a "request edit access" CTA
-  pointing at `/request-invite`. `lib/share-links.ts` holds the pure
-  usable/expired/revoked logic (`.test.ts`).
+  pointing at `/request-invite`. Each view is counted once the page has gone
+  out: `after()` calls `record_share_link_view` (service role only), which
+  adds one in SQL (Step 30), and the admin console shows the count.
+  `lib/share-links.ts` holds the pure usable/expired/revoked logic
+  (`.test.ts`).
 - **Starting a tree is by request during the beta** (Step 28,
   `public.tree_requests`): a signed-in member presses "start a tree
   (beta)" (home page, `/trees`, `/trees/new`) and `request_tree` files one
@@ -670,6 +673,30 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 30 — Share-link views are counted** (ad-hoc; migration
+  `20260923061500_record_share_link_view`). A share link never recorded a
+  view: both live links showed 0 views and no last view though they had
+  been opened, and the admin console shows Roots that count.
+  `resolveShareLink` wrote the view with `void admin.from("share_links")
+  .update(...)`, but a Supabase query is only sent inside `then()`, so
+  `void` built the update and sent nothing. Now `after()` counts the view
+  once the page has gone out: the render never waits on it, and on Vercel
+  `waitUntil` keeps the function alive until it's done. It calls
+  `public.record_share_link_view(p_link_id)`, one `update` that sets
+  `view_count = view_count + 1` and `last_viewed_at = now()`, so visitors
+  arriving together can't lose a view, as a read-then-write could. It runs
+  with the caller's rights, and only the service role may call it. Earlier
+  views were never recorded, so the counts start from this release.
+  **Verified:** the migration was rehearsed in a rolled-back transaction on
+  live (anon and a Root were refused; two service-role calls counted two),
+  then applied, and its body md5-matched the file. On a dev server against
+  a throwaway link, one visit counted 1 and ten at once counted exactly 10
+  more. A signed-out browser visit counted 1, and opening a person's panel
+  counted nothing. Revoked, the link showed "Link not available" and
+  counted nothing. The throwaway link was deleted; the two real links were
+  untouched. 4 new tests (`lib/share-links.server.test.ts`) fail if the
+  call is only built and never awaited, or is awaited during the render.
 
 - **Step 32 — Generation titles legible at any zoom** (ad-hoc). The
   generation lanes are drawn in canvas units, so a lane's title shrank with
