@@ -304,7 +304,10 @@ function AddPlaceDialog({
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="add-place-country">Country</Label>
             <Select
-              value={country || undefined}
+              // The value is a country code; this shows the name when closed.
+              items={countries.map((c) => ({ value: c.code, label: c.name }))}
+              // null, not undefined, so it's controlled before the first pick.
+              value={country || null}
               onValueChange={(v) => setCountry(v ?? "")}
             >
               <SelectTrigger id="add-place-country" className="w-full">

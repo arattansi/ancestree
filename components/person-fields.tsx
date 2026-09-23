@@ -35,7 +35,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { SEX_LABELS, SEX_VALUES, LINEAGE_TYPES } from "@/lib/person-schema";
+import {
+  SEX_LABELS,
+  SEX_VALUES,
+  LINEAGE_LABELS,
+  LINEAGE_TYPES,
+} from "@/lib/person-schema";
 
 /** The mark on a label whose field has to be filled in. */
 function RequiredMark() {
@@ -512,7 +517,11 @@ export function PersonFields<T extends FieldValues>({
             <FormItem>
               <FormLabel>Lineage</FormLabel>
               <Select
-                value={field.value ?? undefined}
+                // Without its labels, the closed button shows the stored key.
+                items={LINEAGE_LABELS}
+                // null, not undefined: "not set" still counts as controlled,
+                // so picking one doesn't flip the Select to controlled.
+                value={field.value ?? null}
                 onValueChange={(v) => field.onChange(v || undefined)}
               >
                 <FormControl>
@@ -523,7 +532,7 @@ export function PersonFields<T extends FieldValues>({
                 <SelectContent>
                   {LINEAGE_TYPES.map((t) => (
                     <SelectItem key={t} value={t}>
-                      {t[0].toUpperCase() + t.slice(1)}
+                      {LINEAGE_LABELS[t]}
                     </SelectItem>
                   ))}
                 </SelectContent>

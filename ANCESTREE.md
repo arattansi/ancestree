@@ -661,6 +661,19 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 31.4 — Lineage and Country dropdowns show their labels when
+  closed** (UI only). This is the relationship picker's bug from Step 31:
+  a Base UI `Select` without its labels shows the stored value on its
+  closed button. Lineage now shows "Biological", not "biological"
+  (`LINEAGE_LABELS` in `lib/person-schema.ts`). The Country in "Can't find
+  it? Add a place" shows "Canada", not "CA". Both are also controlled from
+  the first render, with `null` for "not set" instead of `undefined`. That
+  ends Base UI's dev warning about a Select "changing the uncontrolled
+  value state" when the first value was picked. Every other `Select`
+  already had its labels or a renderer. **Verified** on the signed-in dev
+  server, with nothing saved: after a fresh load, both show the picked
+  label and log no errors. The Add a place dialog was cancelled.
+
 - **Step 31 — Shorter relationship words; invite someone as you add
   them** (ad-hoc; UI only, no migration). **Picker:** it now says only
   the relationship: **is parent of**, **is child of**, **is spouse /
