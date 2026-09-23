@@ -7,7 +7,11 @@ import { toast } from "sonner";
 import { connectExistingPeople, removeRelationship } from "@/app/actions/people";
 import { CoParentOffer } from "@/components/co-parent-offer";
 import { DateField } from "@/components/date-field";
-import { coParentSelection, type PartnerOption } from "@/lib/connections";
+import {
+  coParentSelection,
+  KIND_STATEMENT,
+  type PartnerOption,
+} from "@/lib/connections";
 import { marriageDateProblems, toStoredDate } from "@/lib/partial-date";
 import {
   RelationshipPicker,
@@ -29,13 +33,6 @@ export type ConnectionKind = "parent" | "child" | "spouse" | "sibling";
 export type Partner = PartnerOption;
 
 const KINDS: ConnectionKind[] = ["child", "parent", "spouse", "sibling"];
-
-const KIND_STATEMENT: Record<ConnectionKind, string> = {
-  parent: "is a parent of",
-  child: "is a child of",
-  spouse: "is the spouse / partner of",
-  sibling: "is a sibling of",
-};
 
 const KIND_LABEL: Record<ConnectionKind, string> = {
   parent: "Parent of",
@@ -238,10 +235,11 @@ export function EditConnections({
             <div className="flex flex-wrap items-center gap-2 text-sm">
               <span className="font-medium">{personName}</span>
               <Select
+                items={KIND_STATEMENT}
                 value={kind}
                 onValueChange={(v) => setKind(v as ConnectionKind)}
               >
-                <SelectTrigger className="w-auto">
+                <SelectTrigger className="w-48">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

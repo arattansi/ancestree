@@ -17,12 +17,17 @@ export const RELATIONSHIP_KINDS = [
 ] as const;
 export type RelationshipKind = (typeof RELATIONSHIP_KINDS)[number];
 
-/** "{subject} is the {…} of {object}" for the relationship picker. */
+/**
+ * The relationship picker's words, both in its list and on its closed button.
+ * The names sit either side of the picker already, so it says only the verb:
+ * "{subject} [is child of] {object}". Pass it as the `Select`'s `items`, or
+ * the closed button shows the bare key.
+ */
 export const KIND_STATEMENT: Record<RelationshipKind, string> = {
-  parent: "is a parent of",
-  child: "is a child of",
-  spouse: "is the spouse / partner of",
-  sibling: "is a sibling of",
+  parent: "is parent of",
+  child: "is child of",
+  spouse: "is spouse / partner of",
+  sibling: "is sibling of",
 };
 
 export type PersonRef =

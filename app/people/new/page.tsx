@@ -10,6 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { invitableTypes } from "@/lib/account-types";
 import { getGrowthRights } from "@/lib/growth-rights.server";
 import { listTreeMembers } from "@/lib/tree";
 import { requireTreeSelfPerson } from "@/lib/tree-context";
@@ -23,7 +24,7 @@ export const metadata: Metadata = {
 export default async function NewPersonPage({
   searchParams,
 }: PageProps<"/people/new">) {
-  const { tree, type, isRoot } = await requireTreeSelfPerson();
+  const { tree, type, role, isRoot } = await requireTreeSelfPerson();
   // A Leaf's account adds nothing but their own entry, which they already have.
   if (!type.addRelatives) redirect(treeHref());
 
@@ -78,6 +79,9 @@ export default async function NewPersonPage({
             isAdmin={isRoot}
             members={members}
             initialAnchorId={initialAnchorId}
+            // Whoever may add a relative may invite them to claim the entry
+            // they add, as `sendClaimInvite` allows (Step 22.1).
+            inviteOptions={invitableTypes(role).map((t) => t.key)}
           />
         </CardContent>
       </Card>

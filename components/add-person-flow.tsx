@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { z } from "zod";
 
+import { sendClaimInvite } from "@/app/actions/invites";
 import {
   addPeopleWithConnections,
   detectConnections,
@@ -20,6 +21,7 @@ import {
 import type { ImpliedConnection } from "@/lib/connection-suggestions";
 import { CoParentOffer } from "@/components/co-parent-offer";
 import { DateField } from "@/components/date-field";
+import { JoinsAsChoice } from "@/components/joins-as-choice";
 import { PersonFields } from "@/components/person-fields";
 import { PhotoPicker } from "@/components/photo-picker";
 import {
@@ -28,7 +30,16 @@ import {
 } from "@/components/relationship-picker";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Form } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -37,6 +48,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import type { AccountTypeKey } from "@/lib/account-types";
 import {
   buildChainEdges,
   coParentSelection,
@@ -212,8 +224,29 @@ const flowSchema = z.object({
         seen.add(key);
       });
     }),
+  /** Invite the new person to claim their entry once it's saved. */
+  inviteEmail: z.string().optional(),
+}).superRefine((values, ctx) => {
+  // Only asked, and only sent, while they're living.
+  const address = inviteAddress(values);
+  if (address && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) {
+    ctx.addIssue({
+      code: "custom",
+      message: "That doesn't look like an email address.",
+      path: ["inviteEmail"],
+    });
+  }
 });
 type FlowValues = z.infer<typeof flowSchema>;
+
+/** Where the invite goes, or "" for none: a deceased person gets no invite. */
+function inviteAddress(values: {
+  people: { is_deceased: boolean }[];
+  inviteEmail?: string;
+}): string {
+  if (values.people[0]?.is_deceased) return "";
+  return (values.inviteEmail ?? "").trim();
+}
 
 export function AddPersonFlow({
   mode,
@@ -223,11 +256,19 @@ export function AddPersonFlow({
   initialName,
   selfOnly = false,
   initialAnchorId = null,
+  inviteOptions = [],
 }: {
   mode: "self" | "relative";
   treeId: string;
   isAdmin: boolean;
   members: TreeMemberOption[];
+  /**
+   * What the member may invite the new relative in as, widest first
+   * (`invitableTypes`): with any, the form asks for an email and, once the
+   * entry is saved, invites them to claim it (`sendClaimInvite`). Empty
+   * leaves the question out.
+   */
+  inviteOptions?: readonly AccountTypeKey[];
   /** Pre-fills the primary person's name — onboarding carries over the name
    *  the member typed into the "is one of these you?" search (Step 15). */
   initialName?: { first_name?: string; last_name?: string };
@@ -260,6 +301,12 @@ export function AddPersonFlow({
   } | null>(null);
   const [saving, setSaving] = React.useState(false);
   const [addingMore, setAddingMore] = React.useState(false);
+  const [inviteJoinsAs, setInviteJoinsAs] =
+    React.useState<AccountTypeKey | null>(null);
+  // Widest first, so a Root's choice opens on Canopy, as on the entry panel.
+  const joinsAs =
+    inviteOptions.find((key) => key === inviteJoinsAs) ?? inviteOptions[0];
+  const asksInvite = mode === "relative" && inviteOptions.length > 0;
 
   const form = useForm<FlowValues>({
     resolver: zodResolver(flowSchema),
@@ -275,6 +322,7 @@ export function AddPersonFlow({
       anchorId: initialAnchorId ?? "",
       links: [{ kind: "child" }],
       extraLinks: [],
+      inviteEmail: "",
     },
   });
 
@@ -294,6 +342,13 @@ export function AddPersonFlow({
   );
   const anchorId = useWatch({ control: form.control, name: "anchorId" }) ?? "";
   const watchedLinks = useWatch({ control: form.control, name: "links" }) ?? [];
+  const watchedInviteEmail =
+    useWatch({ control: form.control, name: "inviteEmail" }) ?? "";
+  const primaryDeceased = watchedPeople[0]?.is_deceased ?? false;
+  const invitesOnSave =
+    asksInvite &&
+    inviteAddress({ people: watchedPeople, inviteEmail: watchedInviteEmail })
+      .length > 0;
 
   const showChain = mustConnect || connecting;
   const needAnchor = showChain;
@@ -409,8 +464,29 @@ export function AddPersonFlow({
       }
     }
 
+    // Asked for with the entry, so sent once it exists: an invite to claim it.
+    // The entry stays saved whatever happens here, and the card they land on
+    // offers the same invite again.
+    const address = asksInvite ? inviteAddress(values) : "";
+    let invited: string | null = null;
+    if (address && primaryId) {
+      const res = await sendClaimInvite(primaryId, address, joinsAs);
+      if (res.error) {
+        toast.warning(
+          "Saved — but the invite didn't send. Send it again from their card.",
+          { description: res.error },
+        );
+      } else {
+        invited = res.email ?? address;
+      }
+    }
+
     toast.success(
-      mode === "self" ? "You're in the family tree." : "Relative added.",
+      mode === "self"
+        ? "You're in the family tree."
+        : invited
+          ? `Relative added. Invite sent to ${invited}.`
+          : "Relative added.",
     );
     // Land on the person they set out to add, with their own tree pulled
     // out (Step 19.2). `personIds[0]` is always that person: the RPC returns
@@ -597,6 +673,47 @@ export function AddPersonFlow({
             disabled={form.formState.isSubmitting || saving}
             hint="Optional. JPEG, PNG, or WebP; cropped and resized on your device."
           />
+
+          {/* Nobody can be invited to claim a deceased person's entry
+              (`private.can_invite_to_claim`), so the question goes with them. */}
+          {asksInvite && !primaryDeceased ? (
+            <div className="flex flex-col gap-3">
+              <FormField
+                control={form.control}
+                name="inviteEmail"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Invite them by email</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="email"
+                        inputMode="email"
+                        // Not "email": that would fill in the member's own.
+                        autoComplete="off"
+                        placeholder="them@example.com"
+                        {...field}
+                        value={field.value ?? ""}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Optional. Once they&rsquo;re added, we&rsquo;ll email
+                      them a single-use link, good for 14 days, to join the tree
+                      and take over this entry.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              {invitesOnSave ? (
+                <JoinsAsChoice
+                  options={inviteOptions}
+                  value={joinsAs}
+                  onChange={setInviteJoinsAs}
+                  disabled={submitting}
+                />
+              ) : null}
+            </div>
+          ) : null}
         </section>
 
         <section className="flex flex-col gap-4 border-t border-border pt-6">
@@ -649,6 +766,7 @@ export function AddPersonFlow({
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-medium">{linkSubject(i)}</span>
                         <Select
+                          items={KIND_STATEMENT}
                           value={watchedLinks[i]?.kind ?? "child"}
                           onValueChange={(v) =>
                             form.setValue(
@@ -658,14 +776,13 @@ export function AddPersonFlow({
                             )
                           }
                         >
-                          <SelectTrigger className="w-[210px]">
+                          <SelectTrigger className="w-48">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
                             {RELATIONSHIP_KINDS.map((k) => (
                               <SelectItem key={k} value={k}>
-                                {linkSubject(i)} {KIND_STATEMENT[k]}{" "}
-                                {linkObject(i)}
+                                {KIND_STATEMENT[k]}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -830,6 +947,7 @@ export function AddPersonFlow({
                                 {primaryLabel}
                               </span>
                               <Select
+                                items={KIND_STATEMENT}
                                 value={watchedExtra[i]?.kind ?? "child"}
                                 onValueChange={(v) =>
                                   form.setValue(
@@ -839,13 +957,13 @@ export function AddPersonFlow({
                                   )
                                 }
                               >
-                                <SelectTrigger className="w-[210px]">
+                                <SelectTrigger className="w-48">
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
                                   {RELATIONSHIP_KINDS.map((k) => (
                                     <SelectItem key={k} value={k}>
-                                      {primaryLabel} {KIND_STATEMENT[k]}
+                                      {KIND_STATEMENT[k]}
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
@@ -959,7 +1077,9 @@ export function AddPersonFlow({
             ? "Saving…"
             : mode === "self"
               ? "Add me to the tree"
-              : "Add relative"}
+              : invitesOnSave
+                ? "Add relative & send invite"
+                : "Add relative"}
         </Button>
       </form>
 

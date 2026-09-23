@@ -446,7 +446,9 @@ mirror it for the UI.
   inviter, then writes with the service role, since the link is bound to the
   address (`invited_email`) and signs it in. Roots choose on
   `/admin` (both invite forms, `JoinsAsChoice`); everyone else who can invite
-  gets an "Invite a relative" card on `/account`. `/join/<token>` tells a Leaf
+  gets an "Invite a relative" card on `/account`. The add-relative form asks
+  for the new relative's email too (Step 31) and, once the entry is saved,
+  sends this same invite for it, unless they're deceased. `/join/<token>` tells a Leaf
   what that means before they sign up, and a Leaf's onboarding form offers no
   in-between people and only the suggestions about them (`selfOnly`), since
   the Leaf guards would refuse anything else. Leaf links are marked in
@@ -658,6 +660,37 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 31 — Shorter relationship words; invite someone as you add
+  them** (ad-hoc; UI only, no migration). **Picker:** it now says only
+  the relationship: **is parent of**, **is child of**, **is spouse /
+  partner of**, **is sibling of**. That wording shows in the list and on
+  the closed button. The button used to show the bare key ("child"),
+  because the `Select` was never given its labels (`items`). The names
+  already sit either side of the picker, and repeating them in every
+  option got the list cut off. One wording (`lib/connections#KIND_STATEMENT`)
+  now serves the add-relative form's chain, its extra connections and the
+  edit page's "Add a connection". All three are 12rem wide, enough for the
+  longest. **Invite as you add:** under the photo, the add-relative form
+  asks "Invite them by email", for anyone who may invite (every account
+  type that can add relatives). Once the entry is saved, `AddPersonFlow`
+  sends the entry panel's claim invite for it (`sendClaimInvite`). A Root
+  picks Canopy or Leaf; from anyone else they join as a Leaf. With an
+  address typed, the button reads "Add relative & send invite". The
+  question is hidden for a deceased person, whom `can_invite_to_claim`
+  refuses. If the invite fails, the entry stays saved and a toast says
+  so; the panel they land on offers the invite again. The address isn't
+  written to the entry: that's the owner's to set, and claiming seeds it
+  from the address they sign in with, which is this one. **Verified:** on
+  the signed-in dev server, without submitting: the new words in the list
+  and on the button, the invalid-address message, a Root's Canopy/Leaf
+  choice, and ticking "deceased" hiding the question (unticking brings the
+  typed address back). In a rolled-back transaction on live, a Canopy
+  member, a Branch and a Root each added a living and a deceased child of
+  their own entry. `can_invite_to_claim` said yes for the living child and
+  no for the deceased one, for all three, and nothing was kept. **Not
+  exercised:** a real submit that sends the email. That would have put a
+  test entry on the family tree and notified its Roots.
 
 - **Step 28 — The home page's calls to action** (ad-hoc; migration
   `20260923040000_tree_requests_and_waitlist`). **Signed in:** "view your
