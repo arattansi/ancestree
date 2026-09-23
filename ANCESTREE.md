@@ -883,6 +883,36 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 38 — Invites sent from the tree show in Sent Invites and on the
+  card** (ad-hoc; migration `20260923120000_claim_invites_in_sent_invites`).
+  Aalim sent invites from the tree and none showed in the admin console's
+  "Sent invites". They were claim invites, from an entry's card and the
+  add-relative form's email box, and `sendClaimInvite` never wrote the
+  `invite_requests` record that direct, founder and approved invites keep,
+  which is what "Sent invites" lists. With no record, the console filed them
+  under "Bare links", with no name or address, and nothing said an entry had
+  been invited already: two relatives have two each. Now `sendClaimInvite`
+  writes the record (source `direct`,
+  named after the entry, `email_sent` kept), and the migration adds one for
+  each claim invite already out: 9 on live, 6 of them still usable. "Sent
+  invites" says who sent each invite and when, or who approved it, and
+  "Claims …" for a claim invite; a failed direct email reads "Email failed";
+  resending a claim invite keeps its claim wording. Asked for along the way:
+  the entry's card now lists the invites out to claim it — who sent each and
+  when, until when it works, or that it expired unused — to every member of
+  the tree, with the address only for a Root and the sender
+  (`lib/claim-invites.ts`, `listClaimInvites` with the service role, since
+  RLS hides others' invites from a member). With one live, the button reads
+  "Send another". **Verified:** 735 tests pass (13 new); the migration was
+  rehearsed rolled back on live, where a Root's "Sent invites" went from 0
+  to 6 and "Bare links" from 6 to 0, then applied and recorded under the
+  file's version (`db push --dry-run`: up to date). On a dev server signed
+  in as a Root: "Sent invites" listed the 6 with "Sent by Aalim Rattansi"
+  and "Claims their entry", "Bare links" was empty, "Archived" named the 3
+  expired ones, and a card with two invites out listed both, with the
+  address and expiry, above "Send another". Not exercised: a fresh send
+  from a card, which emails and writes to the family's tree.
+
 - **Step 30.8 — Signing in does something for a first-timer** (Step 30,
   first-time journeys; migration `20260923077000_address_has_profile`).
   Someone who signed in without being a member landed on "Almost There",
