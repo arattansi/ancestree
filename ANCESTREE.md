@@ -832,6 +832,48 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Steps 30.5 + 30.6 — With no match, ask a relative; the waitlist asks
+  for the privacy tick** (Step 30, first-time journeys; migration
+  `20260923074000_invite_relays`). Request access's no-match screen told
+  people to ask a relative to invite them but gave no way to, and its
+  waitlist led to a new, empty tree rather than the family's own. Now "Ask
+  a relative who's on ancestree" takes the relative's address and says the
+  newcomer's name and email will be passed on. Every ask gets the same
+  answer ("If they're on ancestree, we've passed your request on…"):
+  `askRelative` only checks the typing and does the lookup, the caps and
+  the email in `after()` (`passOnRelay`), so neither the answer nor its
+  timing says who's a member. For a member's address
+  (`invite_relay_recipient`, service role only) the ask is filed
+  (`public.invite_relays`, read and answered only by that member) and the
+  member emailed (`lib/emails/invite-relayed.ts`) a button to **Relatives
+  Asking for an Invite** on `/account?view=settings&relay=<id>`: an invite
+  filled in from what the newcomer typed, into a tree they pick, sent
+  through `sendDirectInvites` — or dismissed, and the newcomer isn't told.
+  Caps, counted from the rows after filing: 3 a day per address asking, 2 a
+  day and 5 a week per member, 10 an hour and 30 a day across the site; an
+  ask past one, or a repeat of an open or dismissed ask, is dropped without
+  a word. The waitlist says first that a new tree starts empty. Step 30.6:
+  both waitlist forms carry request access's privacy tick, and
+  `joinBetaWaitlist` refuses a sign-up without it, since a reviewer's yes
+  sends a founder invite whose join page takes the box as ticked.
+  `InviteConsent` sends `consent` from a hidden input that follows the box
+  (as `MagicLinkForm` does since Step 30.7), so a retry after an error
+  keeps the agreement on request access, `/request-invite` and both
+  waitlist forms. The privacy notice names asking a relative among the asks
+  whose name and email are kept. **Verified:** 683 tests pass; the
+  migration was rehearsed rolled back on live (the recipient read their
+  ask, other members and anon couldn't, the duplicate and field checks
+  held) and the applied function md5-matches the file. On a dev server
+  with a throwaway member on two throwaway trees, the member's address, a
+  non-member's, a repeat and an over-cap ask all got the same answer, and
+  only the member's first two asks that day emailed them (test inboxes
+  only); signed out, the email's button went through sign-in to the
+  filled-in card; sending into the second tree emailed the invite and
+  marked the ask invited; dismissing blocked a re-ask. Both waitlist forms
+  keep the button disabled until the box is ticked, a forced unticked
+  submit was refused, and a retry after a missing last name went through.
+  All throwaway rows were deleted.
+
 - **Step 37 — Onboarding never offers or accepts someone who has died as
   "you"** (ad-hoc follow-up to Step 36; migration
   `20260923110000_self_claims_refuse_the_dead`). Step 36 kept the canvas's
