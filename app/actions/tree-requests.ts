@@ -1,5 +1,7 @@
 "use server";
 
+import { after } from "next/server";
+
 import { requireProfile } from "@/lib/auth";
 import { sendEmail } from "@/lib/email";
 import { treeRequestApprovedEmail } from "@/lib/emails/tree-request-approved";
@@ -9,6 +11,8 @@ import {
   readNameAndEmail,
   type RequestFormState,
 } from "@/lib/request-forms";
+import { askedAfresh } from "@/lib/request-alerts";
+import { alertReviewersOfTreeRequest } from "@/lib/request-alerts.server";
 import { revalidateTreePages } from "@/lib/revalidate";
 import { getSiteUrl } from "@/lib/site-url";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -23,17 +27,26 @@ import { isBetaReviewer } from "@/lib/tree-requests.server";
  * beta a new tree is by request (`found_tree` refuses anyone a reviewer
  * hasn't approved); asking again changes nothing. Answers where the ask
  * stands afterwards, so someone approved in the meantime can go straight on.
+ * A new ask emails the beta reviewers (Step 30.1). `request_tree` answers
+ * "pending" to a repeat too, so where the ask stood before tells them apart.
  */
 export async function requestNewTree(): Promise<{
   status?: TreeRequestStatus;
   error?: string;
 }> {
-  await requireProfile();
+  const profile = await requireProfile();
   const supabase = await createClient();
+  const { data: before } = await supabase.rpc("my_tree_request");
   const { data, error } = await supabase.rpc("request_tree");
   if (error) return { error: "Couldn't send your request. Try again." };
+  const status = toTreeRequestStatus(data);
+  if (askedAfresh(before, status)) {
+    after(() =>
+      alertReviewersOfTreeRequest({ kind: "member", userId: profile.auth_user_id }),
+    );
+  }
   revalidateTreePages();
-  return { status: toTreeRequestStatus(data) };
+  return { status };
 }
 
 export type WaitlistState = RequestFormState & { ok?: boolean };
@@ -42,6 +55,8 @@ export type WaitlistState = RequestFormState & { ok?: boolean };
  * Public: join the waitlist to start a tree (Step 28). Written with the
  * service role, because the person isn't signed in and `tree_requests` isn't
  * reachable from anon. A reviewer answers with a founder invite by email.
+ * A new sign-up emails the reviewers once the person has their answer (Step
+ * 30.1); signing up again emails nobody.
  */
 export async function joinBetaWaitlist(
   _prev: WaitlistState,
@@ -61,6 +76,14 @@ export async function joinBetaWaitlist(
     return { error: "Couldn't add you to the waitlist. Try again shortly.", ...entered };
   }
 
+  // After the response, so the email never slows or fails the form.
+  after(() =>
+    alertReviewersOfTreeRequest({
+      kind: "waitlist",
+      firstName: entered.firstName,
+      lastName: entered.lastName,
+    }),
+  );
   revalidateTreePages();
   return { ok: true, ...entered };
 }

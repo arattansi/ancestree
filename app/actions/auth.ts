@@ -25,7 +25,8 @@ export type MagicLinkState = {
  * redeem that invite on first sign-in; otherwise the callback provisions the
  * profile (admins only — invited members must use their link). Only the
  * invite case needs the privacy agreement, since that's someone joining
- * (Step 30.4).
+ * (Step 30.4). `next` is where the sign-in lands: the page proxy.ts sent
+ * them here from (Step 30.1).
  */
 export async function requestMagicLink(
   _prev: MagicLinkState,
@@ -33,6 +34,7 @@ export async function requestMagicLink(
 ): Promise<MagicLinkState> {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const inviteToken = String(formData.get("inviteToken") ?? "").trim();
+  const next = safeNext(String(formData.get("next") ?? ""));
   const consent = formData.get("consent");
 
   if (!EMAIL_RE.test(email)) {
@@ -46,8 +48,10 @@ export async function requestMagicLink(
     };
   }
 
+  // The magic-link template builds on this address (`{{ .RedirectTo }}`),
+  // so `next` rides along to /auth/confirm and on to `confirmSignIn`.
   const callback = new URL("/auth/callback", getSiteUrl());
-  callback.searchParams.set("next", inviteToken ? "/tree" : "/tree");
+  callback.searchParams.set("next", next);
   if (inviteToken) callback.searchParams.set("invite", inviteToken);
 
   const supabase = await createClient();

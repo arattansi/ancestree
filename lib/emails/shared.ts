@@ -1,3 +1,5 @@
+import { escapeHtml } from "@/lib/email";
+import type { AlertCap } from "@/lib/request-alerts";
 import { getSiteUrl } from "@/lib/site-url";
 
 /**
@@ -6,7 +8,8 @@ import { getSiteUrl } from "@/lib/site-url";
  * pipeline — see supabase/templates/_shared.md). One renderer keeps every
  * message visually identical; the invites differ only in their body
  * paragraph (`renderInviteEmail`), and a message that isn't an invite —
- * "you can start your tree" — brings its own heading, button and small print.
+ * "you can start your tree", the alerts to approvers — brings its own
+ * heading, button and small print.
  */
 export function renderEmail(input: {
   /** The document title. Already HTML-safe. */
@@ -17,12 +20,17 @@ export function renderEmail(input: {
   heading: string;
   /** Pre-built HTML for the paragraph under the greeting — caller escapes any interpolated names. */
   bodyHtml: string;
-  /** The button. `url` is our own address — never user-supplied text, safe to interpolate raw. */
+  /**
+   * The button. `url` is our own address — never user-supplied text — but
+   * escaped here all the same: a query string's `&` would otherwise read as
+   * the start of an entity (`&sect…` shows as "§" in the pasteable copy).
+   */
   cta: { label: string; url: string };
   /** The small print under the divider. Already HTML-safe. */
   footnoteHtml: string;
 }): string {
   const { title, preheader, heading, bodyHtml, cta, footnoteHtml } = input;
+  const href = escapeHtml(cta.url);
 
   return `<!doctype html>
 <html lang="en">
@@ -59,7 +67,7 @@ export function renderEmail(input: {
                 <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 0;">
                   <tr>
                     <td style="border-radius:10px;background-color:#171717;">
-                      <a href="${cta.url}" style="display:inline-block;padding:12px 22px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;font-weight:500;line-height:1;color:#fafafa;text-decoration:none;border-radius:10px;">${cta.label}</a>
+                      <a href="${href}" style="display:inline-block;padding:12px 22px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;font-weight:500;line-height:1;color:#fafafa;text-decoration:none;border-radius:10px;">${cta.label}</a>
                     </td>
                   </tr>
                 </table>
@@ -74,7 +82,7 @@ export function renderEmail(input: {
 
                 <p style="margin:16px 0 0;font-size:13px;line-height:1.6;color:#737373;">
                   If the button doesn&rsquo;t work, paste this into your browser:<br />
-                  <a href="${cta.url}" style="color:#737373;word-break:break-all;">${cta.url}</a>
+                  <a href="${href}" style="color:#737373;word-break:break-all;">${href}</a>
                 </p>
 
               </td>
@@ -117,3 +125,30 @@ export function renderInviteEmail(input: {
 
 /** Plain text — subject lines aren't HTML, so a real apostrophe, not &rsquo;. */
 export const INVITE_EMAIL_SUBJECT = "You’re invited to ancestree";
+
+/**
+ * Text someone typed — a name, a tree's name — on one line, for a subject
+ * line or a heading. A subject is plain text, so it's never escaped; the
+ * HTML copies are (`escapeHtml`).
+ */
+export function oneLine(text: string): string {
+  return text.replace(/\s+/g, " ").trim();
+}
+
+/**
+ * The small print on an alert that used up its cap (Step 30.1): why the
+ * emails stop for a while, and that nothing is lost. `what` is already
+ * HTML-safe and plural — "requests to join it".
+ */
+export function alertCapNoteHtml(
+  lastFor: "hour" | "day" | null | undefined,
+  cap: AlertCap,
+  what: string,
+): string {
+  if (!lastFor) return "";
+  const count = lastFor === "hour" ? cap.perHour : cap.perDay;
+  const span = lastFor === "hour" ? "an hour" : "a day";
+  return ` That&rsquo;s ${count} ${what} in ${span}, so we&rsquo;ll hold off
+                  emailing about more for now &mdash; any that follow still
+                  wait for you in the admin console.`;
+}

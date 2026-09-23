@@ -49,19 +49,27 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
 
 - `app/` — App Router pages. **Tree pages have plain addresses** and read
   the tree from a cookie (`lib/current-tree.server.ts`; the header's
-  switcher, a notification's "View on tree" and "Also on" links set it via
-  `app/actions/current-tree.ts`, and joining or founding a tree sets it
+  switcher, the header's admin count beside **account** (it opens the card
+  that's waiting, on whichever tree it's on; Step 30.1), a notification's
+  "View on tree" and "Also on" links set it via
+  `app/actions/current-tree.ts`, an alert email's button sets it through
+  `/account/admin`, and joining or founding a tree sets it
   too; `lib/tree-context.ts#currentAccess` resolves it, falling back to the
   member's home tree): `/tree` (React Flow canvas), `/tree/review`,
   `/people/new`, `/people/[id]/edit`, `/onboarding` (first-run on that
   tree: a member finds or adds themselves; the tree's founder gets four
   steps instead, `?step=invite|you|name|family` — `components/first-tree/`,
-  Step 29); `/admin` redirects to the account page's Admin view. Site-wide: `/`
+  Step 29); `/admin` redirects to the account page's Admin view, and
+  `/account/admin?tree=<id>&section=<card>` is an alert email's button — a
+  route that switches to that tree for a Root of it and opens its console
+  at the card (Step 30.1, `lib/open-console.server.ts`). Site-wide: `/`
   landing (Step 28: signed in, **view your tree** / **start a tree
   (beta)**, which asks a beta reviewer; signed out, **sign in** / **request
   access** / **start a tree (beta)**, the last two in dialogs —
   `components/request-access.tsx`, `beta-waitlist-dialog.tsx`,
-  `start-tree-button.tsx`), `/join` (+ `/join/[token]` invite accept — signed in, it adds a
+  `start-tree-button.tsx`), `/join` (`?next=` is where a signed-out visit
+  was going, carried through the sign-in email and back; Step 30.1) (+
+  `/join/[token]` invite accept — signed in, it adds a
   tree), `/auth/callback` + `/auth/confirm` + `/auth/auth-code-error`,
   `/trees` (every tree you're on, your type in each), `/trees/new` (found a
   tree of your own, once a beta reviewer has approved it), `/account` (sign-in address and display name under the
@@ -92,10 +100,12 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `sendClaimInvite` (invite someone to claim one entry); every tree-scoped
   action takes a `treeId` and checks the caller's role _there_
   (`lib/tree-context#membershipOf` / `rootOf`);
-  `invite-requests.ts`: `requestInvite` (public, service-role write) /
+  `invite-requests.ts`: `requestInvite` (public, service-role write; a new
+  request emails the tree's Roots, Step 30.1) /
   `approveInviteRequest` (mints the link) / `declineInviteRequest`;
   `tree-requests.ts` (Step 28): `requestNewTree` (a member asks to start a
-  tree), `joinBetaWaitlist` / `findFamilyTree` (public, service-role),
+  tree), `joinBetaWaitlist` / `findFamilyTree` (public, service-role; a new
+  ask or sign-up emails the beta reviewers, Step 30.1),
   `approveTreeRequest` / `declineTreeRequest` / `deleteTreeRequest` (beta
   reviewers);
   `people.ts`: `addPeopleWithConnections` (transactional multi-person + edge
@@ -185,6 +195,15 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `components/ui/skeleton.tsx` + `loading.tsx` skeletons
 - `lib/auth.ts` — `getUser` / `getProfile` / `requireProfile` / `requireSelfPerson` (server-only; roles are per tree, see `lib/tree-context.ts`)
 - `lib/site-url.ts` — `getSiteUrl()` for magic-link redirects and invite links
+- Request alerts (Step 30.1): `lib/request-alerts.ts` — the caps and the
+  new-ask test (`.test.ts`); `lib/request-alerts.server.ts` — emails a
+  tree's Roots or the beta reviewers after the response, their addresses
+  from `tree_root_emails` / `beta_reviewer_emails` (service role only);
+  `lib/emails/access-requested.ts` / `tree-requested.ts`;
+  `lib/admin-queue.ts` — the console's queue cards, where the header's count
+  goes (`pickQueueTarget`) and the emails' button (`openConsoleHref`,
+  `.test.ts`); `lib/safe-next.ts` — the same-origin `next` a signed-out
+  visit carries through sign-in (`.test.ts`)
 - `lib/supabase/` — `client.ts` (browser), `server.ts` (RSC/actions), `middleware.ts` (session refresh), `admin.ts` (service role, server-only)
 - `lib/database.types.ts` — generated Supabase types (regenerate after schema changes)
 - `supabase/` — local CLI project linked to `kkmemshpkxrzogijxgnb` (`Product-Ancestree`)
@@ -406,8 +425,12 @@ mirror it for the UI.
 ## Auth & invites (Step 3)
 
 - **Magic-link only** (`supabase.auth.signInWithOtp`). `proxy.ts` redirects
-  unauthenticated visits to protected routes → `/join`; authenticated users
-  without a member profile → `/join?status=pending`.
+  unauthenticated visits to protected routes → `/join?next=<where they were
+  going>` (Step 30.1: `lib/safe-next.ts` takes only a same-origin path); the
+  magic link carries `next` through `/auth/confirm`, so signing in lands
+  there — an alert email's console button is opened on the spot
+  (`signInLanding`). Authenticated users without a member profile →
+  `/join?status=pending`.
 - **`/auth/callback`** exchanges a `code`, then either `redeem_invite(token)`
   (invite flow) or `ensure_profile()` (admin bootstrap). The link in our
   sign-in emails carries a `token_hash` instead, and for that the callback
@@ -494,7 +517,12 @@ mirror it for the UI.
   emails it to the requester via Resend (`lib/email.ts` +
   `lib/emails/invite-approved.ts`, needs `RESEND_API_KEY`) — if the send
   fails, the invite is still valid and the admin can copy the link and send it
-  themselves; declining just closes the request.
+  themselves; declining just closes the request. A new request emails every
+  Root of the tree at once (Step 30.1, `lib/emails/access-requested.ts`, sent
+  with `after()` so the form never waits or fails on it), with a button to
+  that tree's "Requests for Access"; asking again emails nobody. The form is
+  public, so alerts are capped at 5 an hour and 20 a day per tree, counted
+  from pending rows; past that requests still queue, silently.
 - **Direct invites**: from the same `/admin` card — and, since Step 20, from
   the "Invite a relative" card on `/account` for anyone who may invite, as
   whatever `invitableTypes` lets them give — the inviter can skip the
@@ -536,7 +564,10 @@ mirror it for the UI.
   (email): the build owner and, since `20260923043000`, Raiya Suleman; add
   a row (by migration) to share the queue further —
   answer both from "Requests to Start a Tree" on any admin console they run,
-  counted in the header badge. Approving a member lets `found_tree` through
+  counted in the header badge — and emailed to every reviewer who runs a tree
+  the moment a new one lands (Step 30.1, `lib/emails/tree-requested.ts`;
+  the waitlist capped at 10 an hour and 30 a day, members not at all, since
+  each has one ask and an account). Approving a member lets `found_tree` through
   for them (it raises `TREE_REQUEST_NEEDED` otherwise), puts
   `tree_request_approved` in their inbox (trigger) and emails them
   (`lib/emails/tree-request-approved.ts`, via the general `renderEmail`

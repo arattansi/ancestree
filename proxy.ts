@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+import { signInNext } from "@/lib/safe-next";
 import { isSupabaseConfigured, updateSession } from "@/lib/supabase/middleware";
 
 // Routes reachable without an authenticated session.
@@ -26,8 +27,16 @@ export async function proxy(request: NextRequest) {
     PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 
   if (!user && !isPublic) {
+    // To sign in, and back here after (Step 30.1): an alert email's button
+    // opened while signed out, or any other members' link.
     const url = request.nextUrl.clone();
     url.pathname = "/join";
+    url.search = "";
+    const next =
+      request.method === "GET"
+        ? signInNext(pathname, request.nextUrl.search)
+        : null;
+    if (next) url.searchParams.set("next", next);
     return NextResponse.redirect(url);
   }
 

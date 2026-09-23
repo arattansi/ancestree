@@ -11,6 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getProfile, getUser } from "@/lib/auth";
+import { DEFAULT_NEXT, sameOriginPath } from "@/lib/safe-next";
 
 export const metadata: Metadata = {
   title: "join",
@@ -20,10 +21,13 @@ export const metadata: Metadata = {
 export default async function JoinPage({
   searchParams,
 }: PageProps<"/join">) {
-  const { status, error } = await searchParams;
+  const { status, error, next: nextParam } = await searchParams;
+  // Where they were going when proxy.ts sent them here — an alert email's
+  // button, say — so signing in takes them back to it (Step 30.1).
+  const next = sameOriginPath(typeof nextParam === "string" ? nextParam : null);
 
   const profile = await getProfile();
-  if (profile) redirect("/tree");
+  if (profile) redirect(next ?? DEFAULT_NEXT);
 
   const user = await getUser();
   const pending = status === "pending" || Boolean(user);
@@ -63,7 +67,7 @@ export default async function JoinPage({
             </p>
           ) : (
             <>
-              <MagicLinkForm />
+              <MagicLinkForm next={next ?? undefined} />
               {/* Signing in without an invite goes round the whole email loop
                   only to land on "Almost There", so say it's invite-only
                   before they send one (Step 30.4), as the home page does. */}

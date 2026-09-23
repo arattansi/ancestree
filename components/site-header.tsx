@@ -1,26 +1,30 @@
 import Link from "next/link";
 
+import { switchTreeForm } from "@/app/actions/current-tree";
 import { LogoMark } from "@/components/logo-mark";
 import { SiteHeaderHeight } from "@/components/site-header-height";
 import { SiteNavLink } from "@/components/site-nav-link";
 import { SiteNotifications } from "@/components/site-notifications";
+import { SubmitButton } from "@/components/submit-button";
 import { TreeSwitcher } from "@/components/tree-switcher";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { countAdminActionItems } from "@/lib/admin-notifications";
+import { countAdminQueue } from "@/lib/admin-notifications";
+import { pickQueueTarget, queueCountLabel } from "@/lib/admin-queue";
 import { getProfile, getUser } from "@/lib/auth";
 import { listNotifications } from "@/lib/claims";
 import { countOpenConnectionSuggestions } from "@/lib/connection-suggestions.server";
 import { currentAccess, listMyTrees } from "@/lib/tree-context";
-import { reviewHref, treeHref } from "@/lib/tree-links";
+import { adminHref, reviewHref, treeHref } from "@/lib/tree-links";
 import { countPendingTreeRequests } from "@/lib/tree-requests.server";
 
 /**
  * The site-wide header. Left, the mark; centre, the tree switcher for
  * anyone with more than one tree to look at; right, the tree's pages, the
- * account — with a badge for anything waiting in the admin consoles they
- * run — and notifications across every tree. The current tree is the one
- * the browser remembers, so it's known here without reading the address.
+ * account — beside it, a count of anything waiting in the admin consoles
+ * they run, which opens the card it's waiting on (Step 30.1) — and
+ * notifications across every tree. The current tree is the one the
+ * browser remembers, so it's known here without reading the address.
  * While a node's details sheet is open on the canvas, the header moves
  * aside for it so these buttons stay in reach (globals.css).
  */
@@ -35,22 +39,27 @@ export async function SiteHeader() {
   const visiting =
     access?.kind === "visitor" ? { name: access.visit.tree.name } : null;
 
-  const runsATree = trees.some((t) => t.type.runsTree);
-  const [notifications, openConnections, adminCounts, treeRequests] =
+  const runs = trees.filter((t) => t.type.runsTree);
+  const [notifications, openConnections, queues, treeRequests] =
     await Promise.all([
       user ? listNotifications(user.id) : [],
       // A Leaf can't answer connection prompts, so isn't pointed at them.
       currentMembership && currentMembership.type.connections !== "none"
         ? countOpenConnectionSuggestions(currentMembership.tree.id)
         : 0,
-      Promise.all(
-        trees.map((t) => (t.type.runsTree ? countAdminActionItems(t.id) : 0)),
-      ),
+      Promise.all(runs.map((t) => countAdminQueue(t.id))),
       // A beta reviewer answers from an admin console, so has a tree to run.
-      runsATree ? countPendingTreeRequests() : 0,
+      runs.length > 0 ? countPendingTreeRequests() : 0,
     ]);
   const adminItems =
-    adminCounts.reduce((sum, n) => sum + n, 0) + treeRequests;
+    queues.reduce((sum, q) => sum + q.inviteRequests + q.disputedClaims, 0) +
+    treeRequests;
+  // One tap from the count to what's waiting, on whichever tree it's on.
+  const queue = pickQueueTarget({
+    trees: queues,
+    treeRequests,
+    currentTreeId: currentMembership?.tree.id ?? null,
+  });
   const showSwitcher =
     trees.length > 1 || (visiting !== null && trees.length > 0);
 
@@ -96,14 +105,28 @@ export async function SiteHeader() {
                   </Badge>
                 </SiteNavLink>
               ) : null}
-              <SiteNavLink href="/account">
-                account
-                {adminItems > 0 ? (
-                  <Badge variant="destructive" className="ml-1.5">
-                    {adminItems}
-                  </Badge>
+              <span className="flex items-center gap-1">
+                <SiteNavLink href="/account">account</SiteNavLink>
+                {queue ? (
+                  <form
+                    action={switchTreeForm.bind(
+                      null,
+                      queue.treeId,
+                      adminHref(queue.section),
+                    )}
+                  >
+                    <SubmitButton
+                      size="sm"
+                      variant="destructive"
+                      aria-label={queueCountLabel(adminItems)}
+                      title={queueCountLabel(adminItems)}
+                      className="tabular-nums"
+                    >
+                      {adminItems}
+                    </SubmitButton>
+                  </form>
                 ) : null}
-              </SiteNavLink>
+              </span>
               <SiteNotifications items={notifications} />
             </>
           ) : (

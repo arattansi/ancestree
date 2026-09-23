@@ -49,6 +49,11 @@ buttons tells a newcomer that ancestree is invite-only (Step 30.4).
 - The header is three columns: the mark, the tree switcher centred (only
   for someone with more than one tree to look at), and the navigation
   buttons right-aligned.
+- A count that leads somewhere other than the button it sits by is a button
+  of its own beside it, never inside it (a control can't hold another): the
+  red count next to **account** opens what's waiting in the admin consoles
+  you run, while **account** still opens the account page. Its label says
+  what it counts ("3 need attention in admin").
 - A node's details sheet (a person's or a companion's) never covers the
   header's buttons. From `sm` up the header moves aside and lays out to the
   left of the 24rem sheet, the wordmark giving way to the mark where that's

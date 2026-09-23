@@ -116,11 +116,20 @@ export function AdminSubsection({
   const [open, setOpen] = React.useState(defaultOpen || !collapsible);
 
   React.useEffect(() => {
-    if (!collapsible) return;
     function reveal() {
       setOpen(true);
     }
-    if (window.location.hash.slice(1) === id) reveal();
+    // Opened at this block from outside the console — the header's count or
+    // an alert email (Step 30.1) — so bring it into view: a router
+    // navigation doesn't scroll to a #fragment, and a block in a closed
+    // group isn't on the page until the group opens.
+    if (window.location.hash.slice(1) === id) {
+      reveal();
+      requestAnimationFrame(() =>
+        document.getElementById(id)?.scrollIntoView({ block: "start" }),
+      );
+    }
+    if (!collapsible) return;
 
     function onNavigate(event: Event) {
       if ((event as CustomEvent<string>).detail === id) reveal();

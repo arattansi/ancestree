@@ -3,17 +3,16 @@ import "server-only";
 import type { EmailOtpType } from "@supabase/supabase-js";
 
 import { setCurrentTreeCookie } from "@/lib/current-tree.server";
+import { signInLanding } from "@/lib/open-console.server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { joinedTreeHref } from "@/lib/tree-links";
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>;
 
-/** Only allow same-origin relative redirect targets. */
-export function safeNext(next: string | null | undefined): string {
-  if (next && next.startsWith("/") && !next.startsWith("//")) return next;
-  return "/tree";
-}
+// Anyone can type a `next` into /join's address now (Step 30.1), so the
+// check lives in a pure module with its tests.
+export { safeNext } from "@/lib/safe-next";
 
 export type RedeemedTree = {
   treeId: string;
@@ -78,7 +77,8 @@ export async function establishMembership(
     return joined ? joinedTreeHref(joined) : "/join?error=invite";
   }
   const { error } = await supabase.rpc("ensure_profile", {});
-  return error ? "/join?status=pending" : next;
+  // An alert email's button, opened while signed out, lands on its card.
+  return error ? "/join?status=pending" : signInLanding(next);
 }
 
 /**

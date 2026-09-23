@@ -1,5 +1,6 @@
 import "server-only";
 
+import type { TreeQueue } from "@/lib/admin-queue";
 import { createClient } from "@/lib/supabase/server";
 
 export type AdminActionItem = {
@@ -42,10 +43,11 @@ export function buildAdminActionItems(counts: {
 }
 
 /**
- * Items waiting for an admin decision — cheap count-only query for the header
- * badge. The own-tree register is a soft signal and left out of this count.
+ * Items waiting for an admin decision — cheap count-only queries for the
+ * header badge, kept apart so the badge can open the card they're on (Step
+ * 30.1). The own-tree register is a soft signal and left out of this count.
  */
-export async function countAdminActionItems(treeId: string): Promise<number> {
+export async function countAdminQueue(treeId: string): Promise<TreeQueue> {
   const supabase = await createClient();
   const [reqs, disputes] = await Promise.all([
     supabase
@@ -60,5 +62,9 @@ export async function countAdminActionItems(treeId: string): Promise<number> {
       .eq("status", "disputed")
       .eq("people.tree_id", treeId),
   ]);
-  return (reqs.count ?? 0) + (disputes.count ?? 0);
+  return {
+    treeId,
+    inviteRequests: reqs.count ?? 0,
+    disputedClaims: disputes.count ?? 0,
+  };
 }

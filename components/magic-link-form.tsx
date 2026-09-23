@@ -21,9 +21,12 @@ const INITIAL: MagicLinkState = {};
  */
 export function MagicLinkForm({
   inviteToken,
+  next,
   submitLabel = "Email me a sign-in link",
 }: {
   inviteToken?: string;
+  /** A same-origin path to land on once signed in (Step 30.1). */
+  next?: string;
   submitLabel?: string;
 }) {
   const [state, formAction, pending] = useActionState(requestMagicLink, INITIAL);
@@ -51,6 +54,7 @@ export function MagicLinkForm({
       {inviteToken ? (
         <input type="hidden" name="inviteToken" value={inviteToken} />
       ) : null}
+      {next ? <input type="hidden" name="next" value={next} /> : null}
       <div className="flex flex-col gap-2">
         <Label htmlFor="email">Email address</Label>
         <Input

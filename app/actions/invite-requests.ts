@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 
 import { sendEmail } from "@/lib/email";
 import { founderApprovedEmail } from "@/lib/emails/founder-approved";
@@ -12,6 +13,7 @@ import {
   readNameAndEmail,
   type RequestFormState,
 } from "@/lib/request-forms";
+import { alertRootsOfAccessRequest } from "@/lib/request-alerts.server";
 import { getSiteUrl } from "@/lib/site-url";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -30,7 +32,8 @@ export type RequestInviteState = RequestFormState & { ok?: boolean };
  * link's "request access" button, or from the tree the request-access search
  * found them on (`findFamilyTree`, Step 28). There's no default tree any
  * more — with several families on the site, a request without one would be
- * guessing whose it is.
+ * guessing whose it is. A new request emails the tree's Roots once the
+ * requester has their answer (Step 30.1); asking again emails nobody.
  */
 export async function requestInvite(
   _prev: RequestInviteState,
@@ -52,7 +55,7 @@ export async function requestInvite(
   const supabase = createAdminClient();
   const { data: tree } = await supabase
     .from("trees")
-    .select("id")
+    .select("id, name")
     .eq("slug", treeSlug)
     .maybeSingle();
   if (!tree) {
@@ -72,6 +75,15 @@ export async function requestInvite(
     return { error: "Could not send your request. Try again shortly.", ...entered };
   }
 
+  // After the response, so the email never slows or fails the form.
+  after(() =>
+    alertRootsOfAccessRequest({
+      treeId: tree.id,
+      treeName: tree.name,
+      firstName: entered.firstName,
+      lastName: entered.lastName,
+    }),
+  );
   revalidateTreePages();
   return { ok: true, ...entered };
 }

@@ -15,7 +15,10 @@ directly (`lib/email.ts`), since the link it carries is our own
 recipient's address, and accepting it signs them in on the spot
 (`signInWithInvite` in `lib/sign-in.server.ts`) — they never see the
 templates here until their next sign-in. Same palette, same layout, different pipeline — edit it in that file,
-not here, and it needs no push step since it's sent by app code.
+not here, and it needs no push step since it's sent by app code. The same
+goes for the rest of `lib/emails/` — founder invites, "you can start your
+tree", and the alerts that tell Roots and beta reviewers someone asked (Step
+30.1), all through `renderEmail` in `lib/emails/shared.ts`.
 
 Which template fires for our magic-link sign-in (`signInWithOtp`):
 

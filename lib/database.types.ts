@@ -2099,6 +2099,7 @@ export type Database = {
         }
         Returns: Json
       }
+      beta_reviewer_emails: { Args: never; Returns: string[] }
       can_delete_person: { Args: { p_person_id: string }; Returns: boolean }
       can_invite_to_claim: { Args: { p_person_id: string }; Returns: boolean }
       claim_person: { Args: { p_person_id: string }; Returns: Json }
@@ -2329,6 +2330,7 @@ export type Database = {
         Args: { p_role: string; p_tree: string; p_user: string }
         Returns: string
       }
+      tree_root_emails: { Args: { p_tree_id: string }; Returns: string[] }
       trees_matching_name: {
         Args: { p_first: string; p_last: string }
         Returns: {
