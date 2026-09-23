@@ -938,6 +938,51 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 41.1 — A relayed invite can claim the newcomer's entry** (Step 41,
+  first-time journey follow-ups; migration
+  `20260923151000_invite_relay_candidates`). Someone reaches "Ask a
+  relative who's on ancestree" (Step 30.5) when request access finds no
+  strong name match, often because they're on the tree under another
+  spelling, and the relative's invite was a plain one, so onboarding's
+  search could miss them again. Now the relative's **Relatives Asking for
+  an Invite** card lists the entries on the tree they've picked that the
+  newcomer's name matches (`public.invite_relay_candidates`, modelled on
+  Step 30.3's `invite_request_candidates`): onboarding's scoring, living
+  entries placed on that tree that nobody is behind yet, best five, with
+  onboarding's lifespan, birthplace and parents. Only the member the ask
+  went to may ask, of a tree they're on, while it waits, and only entries
+  they may invite someone to claim are listed (`can_invite_to_claim`: a
+  Root anywhere, a Branch on their side, a Leaf on what they added), so a
+  Leaf without that right sees only the plain invite. Nobody who has died
+  or is claimed is listed. "Invite as <name>" (`sendRelayedClaimInvite`)
+  asks the list again on the server, then sends through `sendClaimInvite`,
+  keeping its Sent Invites record; its new optional `treeId` sends the
+  invite into the picked tree when that tree shows the entry but isn't its
+  home. The ask is answered once an invite is made
+  (`ClaimInviteState.minted`), even if its email fails, as the plain path
+  does. Accepting claims the entry and opens the canvas on it (Step 30.2),
+  with no onboarding: J5 goes from 7 taps and 4 fields (10 and 6 when
+  onboarding finds nobody) to 6 and 4. "None of these, invite without an
+  entry" sends the plain invite as before. **Verified:** rehearsed rolled
+  back on live, eleven role checks before and after (a Root sees the close
+  matches but not the dead, claimed, unmatched or other-tree entries; a
+  Leaf sees none until they add one; someone else's ask, a tree they're not
+  on, anon, the service role and no user are refused; an answered ask lists
+  nothing), then applied and recorded under the file's version (`db push
+  --dry-run`: up to date; the body's md5 matches the file). In the browser,
+  on a throwaway tree where the newcomer typed "Zed Qadri" and is on it as
+  "Zahid Qadri" (request access: no match), the Root's card listed Zahid
+  Qadri and a cousin hidden from visitors, but not a dead Zaid or a claimed
+  Zayd, both stronger matches. "Invite as Zahid Qadri" emailed a claim
+  invite naming the entry (delivered, read back through Resend) with its
+  Sent Invites record, and answered the ask. The newcomer
+  (`delivered+41-1-new@resend.dev`) ticked, accepted and landed on
+  `/tree?person=` for Zahid Qadri, claimed, as a Leaf, and the Root was
+  told. A Leaf's card showed only the plain invite, which still sends.
+  Picking a second tree that shows an entry homed on the first listed it
+  there, and that invite joined the second tree. Throwaway rows deleted,
+  and counts are back to the baseline. 751 tests pass (4 new).
+
 - **Step 41.2 — A member who opens an emailed invite signed out gets the
   sign-in link at once** (Step 41, first-time journey follow-ups; no
   migration). A member invited to a second tree who opened the invite
