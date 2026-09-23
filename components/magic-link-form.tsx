@@ -102,7 +102,6 @@ export function MagicLinkForm({
         >
           <Checkbox
             id="consent"
-            name="consent"
             checked={consented}
             onCheckedChange={(value) => setConsented(value === true)}
             className="mt-0.5"
@@ -119,6 +118,11 @@ export function MagicLinkForm({
             </Link>
             .
           </span>
+          {/* React resets the form once its action has run, which unticks the
+              checkbox's own input while the box still shows ticked, so a
+              second try (after a missing name, say) was refused. This one
+              follows what the box shows (Step 30.7). */}
+          {consented ? <input type="hidden" name="consent" value="on" /> : null}
         </Label>
       ) : (
         <p className="text-xs text-muted-foreground">

@@ -14,7 +14,8 @@ import type { RequestFormState } from "@/lib/request-forms";
  * `idPrefix` keeps ids apart where two of these forms share a page.
  *
  * Each input remounts when the value it restores changes: Base UI's input
- * warns when its default changes after it has mounted.
+ * warns when its default changes after it has mounted. Every default is a
+ * string, so a field sent back empty doesn't change it from none to "".
  */
 export function NameEmailFields({
   idPrefix,
@@ -40,7 +41,7 @@ export function NameEmailFields({
             name="firstName"
             autoComplete="given-name"
             required
-            defaultValue={state.firstName}
+            defaultValue={state.firstName ?? ""}
             aria-invalid={badName || undefined}
             aria-describedby={badName ? errorId : undefined}
           />
@@ -53,7 +54,7 @@ export function NameEmailFields({
             name="lastName"
             autoComplete="family-name"
             required
-            defaultValue={state.lastName}
+            defaultValue={state.lastName ?? ""}
             aria-invalid={badName || undefined}
             aria-describedby={badName ? errorId : undefined}
           />
@@ -69,7 +70,7 @@ export function NameEmailFields({
           autoComplete="email"
           inputMode="email"
           required
-          defaultValue={state.email}
+          defaultValue={state.email ?? ""}
           placeholder="you@example.com"
           aria-invalid={badEmail || undefined}
           aria-describedby={badEmail ? errorId : undefined}
