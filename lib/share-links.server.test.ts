@@ -61,6 +61,11 @@ const LINK = {
   expires_at: null,
 };
 const TREE = { id: "t1", name: "Test tree" };
+// A relative opening the link, and iMessage drawing its preview (Step 33.7).
+const SAFARI =
+  "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1";
+const IMESSAGE_PREVIEW =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_1) AppleWebKit/601.2.4 (KHTML, like Gecko) Version/9.0.1 Safari/601.2.4 facebookexternalhit/1.1 Facebot Twitterbot/1.0";
 
 /** Run what the page handed to `after`, as Next does once the response is out. */
 async function afterResponse() {
@@ -74,7 +79,7 @@ describe("resolveShareLink (Step 33)", () => {
   });
 
   it("returns the tree, then counts the view once the page has gone out", async () => {
-    expect(await resolveShareLink(TOKEN)).toEqual({
+    expect(await resolveShareLink(TOKEN, SAFARI)).toEqual({
       id: "l1",
       token: TOKEN,
       treeId: "t1",
@@ -98,14 +103,21 @@ describe("resolveShareLink (Step 33)", () => {
       { ...LINK, expires_at: "2000-01-01T00:00:00Z" },
     ]) {
       admin = fakeAdmin({ share_links: link, trees: TREE });
-      expect(await resolveShareLink(TOKEN)).toBeNull();
+      expect(await resolveShareLink(TOKEN, SAFARI)).toBeNull();
     }
     expect(afterTasks).toEqual([]);
   });
 
+  it("gives a link preview the tree, but counts no view", async () => {
+    expect(await resolveShareLink(TOKEN, IMESSAGE_PREVIEW)).not.toBeNull();
+    expect(await resolveShareLink(TOKEN, null)).not.toBeNull();
+    expect(afterTasks).toEqual([]);
+    expect(admin.sent).toEqual([]);
+  });
+
   it("counts no view when the tree is gone", async () => {
     admin = fakeAdmin({ share_links: LINK, trees: null });
-    expect(await resolveShareLink(TOKEN)).toBeNull();
+    expect(await resolveShareLink(TOKEN, SAFARI)).toBeNull();
     expect(afterTasks).toEqual([]);
   });
 
@@ -116,7 +128,7 @@ describe("resolveShareLink (Step 33)", () => {
       { message: "permission denied for function record_share_link_view" },
     );
 
-    expect(await resolveShareLink(TOKEN)).not.toBeNull();
+    expect(await resolveShareLink(TOKEN, SAFARI)).not.toBeNull();
     await afterResponse();
 
     expect(admin.sent).toHaveLength(1);

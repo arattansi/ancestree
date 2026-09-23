@@ -3,7 +3,7 @@ import "server-only";
 import { after } from "next/server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { isShareLinkUsable } from "@/lib/share-links";
+import { countsAsView, isShareLinkUsable } from "@/lib/share-links";
 
 export type ResolvedShareLink = {
   id: string;
@@ -16,10 +16,12 @@ export type ResolvedShareLink = {
  * Look up a share-link token with the service role (the visitor is
  * unauthenticated) and return the tree it points at, or `null` when the token
  * is unknown, revoked, or expired. Records the view as a side effect, once
- * the response has gone out.
+ * the response has gone out, unless `userAgent` is a link preview or another
+ * bot (`countsAsView`).
  */
 export async function resolveShareLink(
   token: string,
+  userAgent: string | null,
 ): Promise<ResolvedShareLink | null> {
   if (!token) return null;
 
@@ -44,12 +46,14 @@ export async function resolveShareLink(
   // render (`after` keeps a serverless function alive until it's done). Await
   // the call: a Supabase query is only sent when awaited, so `void` on one
   // sends nothing. The database adds the one, so no view is lost to a race.
-  after(async () => {
-    const { error } = await admin.rpc("record_share_link_view", {
-      p_link_id: link.id,
+  if (countsAsView(userAgent)) {
+    after(async () => {
+      const { error } = await admin.rpc("record_share_link_view", {
+        p_link_id: link.id,
+      });
+      if (error) console.warn(`Share-link view not recorded: ${error.message}`);
     });
-    if (error) console.warn(`Share-link view not recorded: ${error.message}`);
-  });
+  }
 
   return {
     id: link.id,

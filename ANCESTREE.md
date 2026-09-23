@@ -553,9 +553,11 @@ mirror it for the UI.
   claim / flag / comment / manage affordances) with a "request edit access" CTA
   pointing at `/request-invite`. Each view is counted once the page has gone
   out: `after()` calls `record_share_link_view` (service role only), which
-  adds one in SQL (Step 33). The admin console shows the count and the
-  date of the last view (33.6). `lib/share-links.ts` holds the pure
-  usable/expired/revoked logic (`.test.ts`).
+  adds one in SQL (Step 33). Only a browser's visit counts: a link preview
+  (iMessage, WhatsApp, Slack…) or another bot gets the page but no view
+  (33.7, `countsAsView`). The admin console shows the count and the date of
+  the last view (33.6). `lib/share-links.ts` holds the pure
+  usable/expired/revoked logic and `countsAsView` (`.test.ts`).
 - **Starting a tree is by request during the beta** (Step 28,
   `public.tree_requests`): a signed-in member presses "start a tree
   (beta)" (home page, `/trees`, `/trees/new`) and `request_tree` files one
@@ -728,6 +730,22 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 33.7 — Link previews don't count as views** (no migration).
+  iMessage, WhatsApp, Slack and the like fetch a share link to draw its
+  preview whenever it's pasted or sent, and each fetch counted as a view.
+  Now only a browser's visit counts (`countsAsView` in `lib/share-links.ts`,
+  given the user agent by `/shared/[token]`). A user agent must start
+  "Mozilla/" (so no curl, WhatsApp or Slack) and name no preview service or
+  headless browser (iMessage adds "facebookexternalhit … Twitterbot" to a
+  Safari one), nor carry a URL, a crawler's calling card. Previews still
+  get the page, since they need its title. In-app browsers (Facebook,
+  Instagram) are people and count; a "CUBOT" phone isn't taken for a bot.
+  **Verified:** 19 new tests from real user agents, and a check through the
+  running page with a temporary log of the decision (since removed). For
+  requests to an unknown link, Safari and the browser pane would have
+  counted; iMessage, WhatsApp, Slack and Node's fetch wouldn't. No test
+  link was made on live; the counting itself was verified in Step 33.
 
 - **Step 30.1 — Roots and reviewers hear the moment someone asks**
   (Step 30, first-time journeys; migration

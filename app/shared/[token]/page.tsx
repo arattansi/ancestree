@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import Link from "next/link";
 
 import { FamilyTree } from "@/components/tree/family-tree";
@@ -27,7 +28,11 @@ export default async function SharedTreePage({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
-  const link = await resolveShareLink(token);
+  // A link preview gets the page too, but only a browser's visit is a view.
+  const link = await resolveShareLink(
+    token,
+    (await headers()).get("user-agent"),
+  );
 
   if (!link) {
     return (
