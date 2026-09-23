@@ -69,3 +69,6 @@ buttons tells a newcomer that ancestree is invite-only (Step 30.4).
   like any other action. Everything but the one step the flow can't do
   without can be skipped, and whatever's left is offered again where the
   flow ends (the canvas's **Getting Started** list).
+- A list like that, laid over the canvas, starts collapsed to its header
+  on a phone (below `sm`), so it never covers the top of the tree, and open
+  anywhere wider.

@@ -698,6 +698,19 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 29.8 — Getting Started starts collapsed on phones** (UI only).
+  On a phone the founder's checklist opened over the top of the tree. Below
+  Tailwind's `sm` (640px) it now starts collapsed to its one-line header,
+  "Getting Started · 4 of 5", with a chevron to open it. Anywhere wider it
+  starts open as before. Once the viewer opens or collapses it, it stays
+  that way until the page reloads; closing it for good still works as
+  before. The width is read with `matchMedia` through
+  `useSyncExternalStore` (`components/tree/getting-started.tsx`), so turning
+  a phone to landscape opens it too. **Verified** in the browser on a
+  founder's tree with one item left: collapsed at 385px wide, with the
+  title unclipped and `aria-expanded="false"`; one tap opened all five
+  items; open on a fresh load at 1280px.
+
 - **Step 33.6 — When each share link was last viewed** (UI only). A
   link's line on the admin console now says when it was last opened, in
   the viewer's time zone: "12 views · last viewed Sep 21, 2026 · expires
