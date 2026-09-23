@@ -697,6 +697,40 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 30.2 — Accepting a claim invite claims the entry** (Step 30,
+  first-time journeys; migration `20260923070000_claim_invite_claims_on_accept`).
+  A claim invite (the entry panel's, and since Step 31 the add-relative
+  form's) left only a vouch behind, and onboarding's search and claim
+  ignored it. So a newcomer whose name didn't match the entry (a married
+  surname, a nickname: the case the vouch exists for) was told "We couldn't
+  find you", filled in the whole add-yourself form (a throwaway entry, and a
+  "was added" notice to every Root), then claimed the entry again from the
+  canvas: 9 taps where 3 should do. Now someone with no entry of their own
+  who accepts a claim invite claims its entry as they redeem it.
+  `private.claim_as_self` holds all of `claim_person_as_self`'s checks and
+  effects (the daily limit, a Root's bloodline anchor, the notice that lets
+  the entry's creator dispute it), with the vouch standing in for the name
+  match. Their new profile is named after the entry rather than their
+  email, and they land on `/tree?person=<entry>`
+  (`lib/tree-links#joinedTreeHref`, used by the emailed-invite button, a
+  bare link through `/auth/confirm` and a signed-in member's Join;
+  `redeem_invite_tree` also returns `self_placed`). If the entry has gone to
+  someone else, been deleted or left the tree, they still join and land on
+  onboarding. A member who already has an entry keeps just the vouch, and
+  ordinary and founder invites are unchanged (a founder still reaches
+  Step 29's first run). Onboarding honours a vouch too: the entry is listed
+  first and claims without the name match. **Verified:** rehearsed in a
+  rolled-back transaction on live (every case, the daily limit, the dispute
+  path, `authenticated` refused the private function), applied, and all
+  five function bodies md5-match the file. With main's code, accepting
+  already reached the claimed entry by way of onboarding; with this change,
+  Accept landed on `/tree?person=` with the entry claimed and nothing
+  typed, a mismatched name included. An invite whose entry was already
+  claimed fell back to onboarding; a signed-in member's Join and a bare link
+  through `/auth/confirm` landed on the entry. 495 tests pass (new
+  `lib/sign-in.server.test.ts`). The throwaway accounts, tree and entries
+  were deleted; the family's tree is untouched.
+
 - **Step 29 — A founder's first run: invite, you, name, close family**
   (ad-hoc; migration `20260923062000_founder_anchor_on_placement`).
   Someone who has just started a tree now gets four short steps on
