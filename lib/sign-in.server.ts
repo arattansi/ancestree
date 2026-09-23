@@ -30,7 +30,8 @@ export type RedeemedTree = {
   selfPersonId: string | null;
   /**
    * Their own entry is on the tree they joined: a claim invite claims its
-   * entry as it's redeemed (Step 30.2), or it was there already.
+   * entry as it's redeemed (Step 30.2), accepting placed theirs (Step 30.9,
+   * and for a claim invite Step 41.3), or it was there already.
    */
   selfPlaced: boolean;
 };

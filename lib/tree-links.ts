@@ -58,7 +58,8 @@ export function onboardingStepHref(step: string): string {
 /**
  * Where accepting an invite lands (Step 30.2): the canvas opened on their own
  * entry when the tree they joined shows it — a claim invite claims its entry
- * as it's accepted — else that tree's onboarding, to find or add themselves.
+ * as it's accepted, and a member's own entry comes with them (Steps 30.9 and
+ * 41.3) — else that tree's onboarding, to find or add themselves.
  */
 export function joinedTreeHref(joined: {
   selfPersonId: string | null;

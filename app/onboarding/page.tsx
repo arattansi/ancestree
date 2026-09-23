@@ -47,7 +47,9 @@ export default async function OnboardingPage({
 
   // Already on this tree: nothing to find. A member who has an entry on
   // another tree but not this one is placed here by the tree's Root, not by
-  // adding themselves twice — so they are sent to the canvas as well.
+  // adding themselves twice — so they are sent to the canvas as well. Any
+  // invite they accept brings it with them (Steps 30.9 and 41.3), so the
+  // card below is for one a Root has since taken off this tree.
   if (profile.self_person_id) {
     const supabase = await createClient();
     const { data: placed } = await supabase

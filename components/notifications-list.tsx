@@ -146,8 +146,9 @@ export function NotificationsList({
 
             {n.type === "placed_on_join" && n.treeId ? (
               // Step 30.9: joining brought a member's own entry onto this
-              // tree. A Root keeps it, or takes it off in "Who This Tree
-              // Shows" — on the tree the notice is about.
+              // tree, and with a claim invite perhaps folded the entry it
+              // named into theirs (Step 41.3). A Root keeps it, or takes it
+              // off in "Who This Tree Shows" — on the tree the notice is about.
               <form
                 action={switchTreeForm.bind(
                   null,
