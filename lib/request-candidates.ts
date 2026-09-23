@@ -5,7 +5,9 @@ import type { SelfCandidate } from "@/lib/self-match";
  * still matches it: `candidates` is `invite_request_candidates` asked again
  * just before the invite is minted. `null` refuses the approval — the entry
  * was claimed, died or left the tree since the queue was drawn, or was never
- * one the requester's name matched.
+ * one the requester's name matched. A relayed ask's member inviting someone
+ * as an entry is checked the same way, against `invite_relay_candidates`
+ * (Step 41.1).
  */
 export function chosenCandidate(
   candidates: readonly SelfCandidate[],

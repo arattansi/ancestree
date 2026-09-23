@@ -2268,6 +2268,23 @@ export type Database = {
           valid: boolean
         }[]
       }
+      invite_relay_candidates: {
+        Args: { p_relay: string; p_tree: string }
+        Returns: {
+          city_of_birth: string
+          country_of_birth: string
+          date_of_birth: string
+          date_of_death: string
+          first_name: string
+          id: string
+          is_deceased: boolean
+          last_name: string
+          maiden_name: string
+          parent_names: string
+          preferred_name: string
+          score: number
+        }[]
+      }
       invite_relay_recipient: {
         Args: { p_email: string }
         Returns: {

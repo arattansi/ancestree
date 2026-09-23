@@ -3,7 +3,9 @@
 import { after } from "next/server";
 
 import {
+  sendClaimInvite,
   sendDirectInvites,
+  type ClaimInviteState,
   type DirectInviteRow,
   type SendDirectInvitesState,
 } from "@/app/actions/invites";
@@ -14,9 +16,13 @@ import {
   relativeEmailProblem,
 } from "@/lib/invite-relays";
 import { passOnRelay } from "@/lib/invite-relays.server";
+import { getRelayCandidates } from "@/lib/relay-candidates.server";
+import { chosenCandidate } from "@/lib/request-candidates";
 import { readNameAndEmail } from "@/lib/request-forms";
 import { revalidateTreeAndAccount } from "@/lib/revalidate";
 import { createClient } from "@/lib/supabase/server";
+
+type ServerClient = Awaited<ReturnType<typeof createClient>>;
 
 export type AskRelativeState = {
   ok?: boolean;
@@ -47,6 +53,40 @@ export async function askRelative(
   return { ok: true, relativeEmail };
 }
 
+/** Whether the ask is still waiting. Only the member it went to sees it (RLS). */
+async function relayIsPending(
+  supabase: ServerClient,
+  relayId: string,
+): Promise<boolean> {
+  const { data: relay } = await supabase
+    .from("invite_relays")
+    .select("id, status")
+    .eq("id", relayId)
+    .maybeSingle();
+  return relay?.status === "pending";
+}
+
+/**
+ * Answer the ask once an invite has been made for it, whether or not its
+ * email went, so it leaves their list. It names the tree the invite is to.
+ */
+async function markRelayInvited(
+  supabase: ServerClient,
+  relayId: string,
+  treeId: string,
+): Promise<void> {
+  await supabase
+    .from("invite_relays")
+    .update({
+      status: "invited",
+      tree_id: treeId,
+      answered_at: new Date().toISOString(),
+    })
+    .eq("id", relayId)
+    .eq("status", "pending");
+  revalidateTreeAndAccount();
+}
+
 /**
  * Member: send the invite an ask filled in (Step 30.5). It goes as any
  * invite they send (`sendDirectInvites`, which checks they're on `treeId`
@@ -62,27 +102,48 @@ export async function sendRelayedInvite(
   await requireProfile();
   const supabase = await createClient();
 
-  // Only the member it was passed to can see it (RLS).
-  const { data: relay } = await supabase
-    .from("invite_relays")
-    .select("id, status")
-    .eq("id", relayId)
-    .maybeSingle();
-  if (!relay || relay.status !== "pending") return { error: RELAY_ANSWERED };
+  if (!(await relayIsPending(supabase, relayId))) return { error: RELAY_ANSWERED };
 
   const res = await sendDirectInvites(treeId, [row]);
   if (res.error || !res.results?.some((r) => r.minted)) return res;
 
-  await supabase
-    .from("invite_relays")
-    .update({
-      status: "invited",
-      tree_id: treeId,
-      answered_at: new Date().toISOString(),
-    })
-    .eq("id", relayId)
-    .eq("status", "pending");
-  revalidateTreeAndAccount();
+  await markRelayInvited(supabase, relayId, treeId);
+  return res;
+}
+
+/**
+ * Member: send the ask as an invite to claim one of the entries its name
+ * matches on `treeId` (Step 41.1): the newcomer, on the tree under another
+ * spelling. Accepting it claims the entry and opens the tree on it (Step
+ * 30.2), so onboarding's search, which could miss them again, never comes
+ * into it. The entry is asked about again here (`invite_relay_candidates`)
+ * rather than taken on the browser's word: still living, nobody's, placed
+ * on that tree, matched by the ask's name and theirs to hand over. It goes
+ * as any claim invite they send (`sendClaimInvite`), into that tree and to
+ * the address in the form, and the ask is answered once the invite is made.
+ */
+export async function sendRelayedClaimInvite(
+  relayId: string,
+  treeId: string,
+  personId: string,
+  email: string,
+): Promise<ClaimInviteState> {
+  await requireProfile();
+  const supabase = await createClient();
+
+  if (!(await relayIsPending(supabase, relayId))) return { error: RELAY_ANSWERED };
+
+  const candidates = await getRelayCandidates(relayId, treeId);
+  if (!candidates) return { error: "Couldn't check that entry. Try again." };
+  if (!chosenCandidate(candidates, personId)) {
+    return {
+      error:
+        "Their name no longer matches that entry, or someone has claimed it. Reload to see who’s left.",
+    };
+  }
+
+  const res = await sendClaimInvite(personId, email, treeId);
+  if (res.minted) await markRelayInvited(supabase, relayId, treeId);
   return res;
 }
 

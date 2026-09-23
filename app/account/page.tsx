@@ -41,6 +41,7 @@ import { getBranchSides } from "@/lib/branch.server";
 import { listNotifications } from "@/lib/claims";
 import { RELAY_ANSWERED, readRelayParam } from "@/lib/invite-relays";
 import { loadOwnEntry, type OwnEntry } from "@/lib/own-entry.server";
+import { listRelayCandidates } from "@/lib/relay-candidates.server";
 import { createClient } from "@/lib/supabase/server";
 import {
   currentAccess,
@@ -249,12 +250,19 @@ async function SettingsView({
   for (const { tree_id } of madeBranches ?? []) {
     branchesMadeByTree.set(tree_id, (branchesMadeByTree.get(tree_id) ?? 0) + 1);
   }
+  // The entries each ask's name matches on each of their trees, which they
+  // may invite the newcomer to claim instead (Step 41.1).
+  const relayMatches = await listRelayCandidates(
+    (relayRows ?? []).map((r) => r.id),
+    trees.map((t) => t.id),
+  );
   const relays: PendingRelay[] = (relayRows ?? []).map((r) => ({
     id: r.id,
     firstName: r.first_name,
     lastName: r.last_name,
     email: r.email,
     createdAt: r.created_at,
+    matches: relayMatches.get(r.id) ?? {},
   }));
   // Opened from the email after it was answered (or signed in as someone
   // else): say so, rather than show nothing.

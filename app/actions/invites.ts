@@ -235,6 +235,11 @@ export async function sendFounderInvites(
 export type ClaimInviteState = {
   /** The address the link went to, for the confirmation message. */
   email?: string;
+  /**
+   * The invite was made. It stands even when its email didn't send (then
+   * `error` says so), and a relayed ask is answered by it (Step 41.1).
+   */
+  minted?: boolean;
   error?: string;
 };
 
@@ -253,10 +258,17 @@ export type ClaimInviteState = {
  * their side, a Leaf on what they added. The newcomer joins the home tree as
  * a Leaf. Like a direct invite it keeps a "Sent invites" record for the
  * home tree's Roots, and the entry's card says who sent it (Step 38).
+ *
+ * With `treeId` the newcomer joins that tree instead, where the entry must
+ * be placed and the inviter a member — the tree a relayed ask's member
+ * picked (Step 41.1), as a request approved as an entry joins the request's
+ * tree (Step 30.3). The right to hand the entry over is still judged on its
+ * home tree, and the record goes to the Roots of the tree they join.
  */
 export async function sendClaimInvite(
   personId: string,
   email: string,
+  treeId?: string,
 ): Promise<ClaimInviteState> {
   const inviter = await requireProfile();
   const supabase = await createClient();
@@ -269,9 +281,21 @@ export async function sendClaimInvite(
 
   if (!person) return { error: "That entry no longer exists." };
 
-  const role = await getRoleIn(person.tree_id);
+  // The tree they'll join: the entry's home, or another it's placed on.
+  const joinTreeId = treeId ?? person.tree_id;
+  const role = await getRoleIn(joinTreeId);
   if (!role) {
     return { error: "You don't have permission to send invites for this entry." };
+  }
+  if (joinTreeId !== person.tree_id) {
+    const { data: placed } = await supabase
+      .from("tree_placements")
+      .select("id")
+      .eq("tree_id", joinTreeId)
+      .eq("person_id", personId)
+      .eq("status", "active")
+      .maybeSingle();
+    if (!placed) return { error: "That entry isn't on that tree." };
   }
 
   const address = email.trim().toLowerCase();
@@ -318,7 +342,7 @@ export async function sendClaimInvite(
   const { data: invite, error } = await admin
     .from("invites")
     .insert({
-      tree_id: person.tree_id,
+      tree_id: joinTreeId,
       created_by: inviter.auth_user_id,
       status: "active",
       expires_at: expiry(),
@@ -348,7 +372,7 @@ export async function sendClaimInvite(
   // Best-effort, as there: the invite is valid either way, and the entry's
   // card shows it from the invite itself.
   await admin.from("invite_requests").insert({
-    tree_id: person.tree_id,
+    tree_id: joinTreeId,
     ...claimInviteRecordName(person),
     email: address,
     source: "direct",
@@ -362,13 +386,14 @@ export async function sendClaimInvite(
 
   if (!sent.ok) {
     return {
+      minted: true,
       error: accountTypeOf(role).runsTree
         ? "The invite was created but the email didn't send. Resend it from Sent Invites on the admin page."
         : "The invite was created but the email didn't send. Try again in a moment.",
     };
   }
 
-  return { email: address };
+  return { email: address, minted: true };
 }
 
 /**
