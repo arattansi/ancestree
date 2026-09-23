@@ -525,9 +525,9 @@ mirror it for the UI.
   claim / flag / comment / manage affordances) with a "request edit access" CTA
   pointing at `/request-invite`. Each view is counted once the page has gone
   out: `after()` calls `record_share_link_view` (service role only), which
-  adds one in SQL (Step 33), and the admin console shows the count.
-  `lib/share-links.ts` holds the pure usable/expired/revoked logic
-  (`.test.ts`).
+  adds one in SQL (Step 33). The admin console shows the count and the
+  date of the last view (33.6). `lib/share-links.ts` holds the pure
+  usable/expired/revoked logic (`.test.ts`).
 - **Starting a tree is by request during the beta** (Step 28,
   `public.tree_requests`): a signed-in member presses "start a tree
   (beta)" (home page, `/trees`, `/trees/new`) and `request_tree` files one
@@ -697,6 +697,18 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 33.6 — When each share link was last viewed** (UI only). A
+  link's line on the admin console now says when it was last opened, in
+  the viewer's time zone: "12 views · last viewed Sep 21, 2026 · expires
+  Oct 20, 2026". The expiry uses the admin console's short date, where it
+  said "10/20/2026". On a phone the line breaks between its parts, never
+  inside a date. A link opened only before Step 33 shows no last view,
+  since those views were never recorded. **Verified** on a fixture page
+  with the real `ShareLinkManager`, at desktop and phone widths, with no
+  console errors. The fixtures were never viewed, viewed on a Pacific
+  evening (the next day in UTC, shown as the evening's date), viewed with
+  an expiry, expired, and revoked (not listed).
 
 - **Step 32.3 — Generation titles pinned to the canvas's left edge**
   (ad-hoc). Zoomed in on the middle of a wide tree, a lane's title sat at

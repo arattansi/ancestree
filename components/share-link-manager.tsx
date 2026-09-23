@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { Fragment, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { createShareLink, revokeShareLink } from "@/app/actions/share-links";
@@ -28,6 +28,14 @@ async function copy(text: string) {
   } catch {
     toast.error("Couldn't copy — select and copy the link manually");
   }
+}
+
+function shortDate(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 export function ShareLinkManager({
@@ -129,12 +137,26 @@ export function ShareLinkManager({
                       {link.label || "Untitled link"}
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      {link.viewCount} view{link.viewCount === 1 ? "" : "s"}
-                      {link.expiresAt
-                        ? state === "expired"
-                          ? " · expired"
-                          : ` · expires ${new Date(link.expiresAt).toLocaleDateString()}`
-                        : " · no expiry"}
+                      {[
+                        `${link.viewCount} view${link.viewCount === 1 ? "" : "s"}`,
+                        link.lastViewedAt
+                          ? `last viewed ${shortDate(link.lastViewedAt)}`
+                          : null,
+                        link.expiresAt
+                          ? state === "expired"
+                            ? "expired"
+                            : `expires ${shortDate(link.expiresAt)}`
+                          : "no expiry",
+                      ]
+                        .filter(Boolean)
+                        .map((part, i) => (
+                          // A narrow screen breaks the line between parts,
+                          // never inside a date.
+                          <Fragment key={i}>
+                            {i > 0 ? "\u00a0· " : null}
+                            <span className="whitespace-nowrap">{part}</span>
+                          </Fragment>
+                        ))}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
