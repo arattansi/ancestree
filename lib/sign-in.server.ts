@@ -138,7 +138,10 @@ export type InviteRecipient = {
    * (Step 30.7).
    */
   joiningName: JoiningName | null;
-  /** True when they asked to join — they accepted the privacy notice then. */
+  /**
+   * True when they asked — to join, or to start a tree from the waitlist
+   * (Step 30.6) — and so accepted the privacy notice then.
+   */
   requested: boolean;
 };
 

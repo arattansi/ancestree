@@ -79,7 +79,9 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   which lives on your entry (`people.email`, seeded from the sign-in address
   and private unless `people.email_visible`; the `tree_people` view withholds
   a hidden address from everyone but the entry's owner), one inbox per
-  tree, delete-account — and, with `?view=admin`, the **admin console**
+  tree, delete-account; settings opens on **Relatives Asking for an
+  Invite** when a newcomer's ask was passed on to them (Step 30.5,
+  `&relay=<id>` from the email) — and, with `?view=admin`, the **admin console**
   of the current tree, or the first you run: stats, members, people from
   other trees, requests, disputes, requests to start a tree (beta
   reviewers only), invites incl. founder invites, share
@@ -106,9 +108,13 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `approveInviteRequest` (mints the link, naming the entry the requester's
   name matched when the Root approves them as one, Step 30.3) /
   `declineInviteRequest`;
+  `invite-relays.ts` (Step 30.5): `askRelative` (public; a newcomer with no
+  match asks a relative, passed on after the answer) /
+  `sendRelayedInvite` / `dismissRelay` (the member it was passed to);
   `tree-requests.ts` (Step 28): `requestNewTree` (a member asks to start a
   tree), `joinBetaWaitlist` / `findFamilyTree` (public, service-role; a new
-  ask or sign-up emails the beta reviewers, Step 30.1),
+  ask or sign-up emails the beta reviewers, Step 30.1; the waitlist needs
+  the privacy tick, Step 30.6),
   `approveTreeRequest` / `declineTreeRequest` / `deleteTreeRequest` (beta
   reviewers);
   `people.ts`: `addPeopleWithConnections` (transactional multi-person + edge
@@ -208,6 +214,13 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   goes (`pickQueueTarget`) and the emails' button (`openConsoleHref`,
   `.test.ts`); `lib/safe-next.ts` — the same-origin `next` a signed-out
   visit carries through sign-in (`.test.ts`)
+- Asking a relative (Step 30.5): `lib/invite-relays.ts` — the caps, the
+  form's checks and words, the member's link (`relayHref`; `.test.ts`);
+  `lib/invite-relays.server.ts` — `passOnRelay`, run after the newcomer's
+  answer: the member by address (`invite_relay_recipient`, service role
+  only), the caps, the email (`.test.ts`); `lib/emails/invite-relayed.ts`;
+  `components/relay-invites.tsx` — the invite filled in, on the member's
+  account settings
 - `lib/supabase/` — `client.ts` (browser), `server.ts` (RSC/actions), `middleware.ts` (session refresh), `admin.ts` (service role, server-only)
 - `lib/database.types.ts` — generated Supabase types (regenerate after schema changes)
 - `supabase/` — local CLI project linked to `kkmemshpkxrzogijxgnb` (`Product-Ancestree`)
@@ -238,6 +251,7 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `invites`                | Shareable tokens into one tree (`active` \| `accepted` \| `revoked`); `founds_tree` (Step 25) makes it a founder invite — redeeming plants a new tree with the redeemer as Root                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `invite_requests`        | Public invite asks — first/last name + email, `pending` \| `approved` \| `declined`, `invite_id` of the link minted on approval. Admin-only RLS; inserted server-side with the service role (no `anon` grant). One pending row per email                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `tree_requests`          | Asks to start a tree during the beta (Step 28): a member's (`user_id`) or a waitlist sign-up's (name + email only), `pending` \| `approved` \| `declined`, answered by a beta reviewer (`private.beta_reviewers`). A member's approval is their permission to `found_tree`; a sign-up's approval mints a founder invite (`invite_id`). Reviewers see and answer every row, a member only their own; members ask through `request_tree`, the waitlist is written with the service role. One pending ask per member and per waitlist address                                                                                                                                                                                                                                                                   |
+| `invite_relays`          | Asks a newcomer with no match passed on to a relative (Step 30.5): their typed first/last name + email and the member it went to (`recipient_user_id`), `pending` \| `invited` \| `dismissed`, the tree they were invited to, `email_sent`. Only that member reads and answers it (RLS; update granted on the answer's columns only); filed by the server with the service role, and the rows are what the caps count. One open or dismissed ask per address and member |
 | `claims`                 | Auto-approve / dispute / reject a person entry (`dispute_reason`, `resolved_by`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `notifications`          | In-app notices, **one inbox per tree** (`tree_id`, Step 25; `placement_requested` \| `placement_accepted` \| `placement_declined` added; `tree_request_approved`, Step 28; `placed_on_join`, Step 30.9); recipient-scoped RLS                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `entry_comments`         | Comments and flags, **one board per tree** (`tree_id`, Step 25) (`is_flag`, `open` \| `resolved`, `resolved_by`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
@@ -469,8 +483,9 @@ mirror it for the UI.
   the token holder becomes that address, only a Root or the service role may
   set `invited_email` (`invites_guard`); a bare link (`createInvite`) has no
   address and still asks for one and verifies it by email. The privacy
-  checkbox sits on `/request-invite` for people who ask, and on the accept
-  page for people invited cold.
+  checkbox sits on `/request-invite` for people who ask, on both waitlist
+  forms for people who'll get a founder invite (Step 30.6), and on the
+  accept page for people invited cold.
 - **The name someone joins by (Step 30.7, `lib/joining-name.ts`)**: an
   emailed invite's request row goes when it's redeemed, so the new auth
   account keeps its first and last name (`user_metadata`, set by
@@ -551,8 +566,9 @@ mirror it for the UI.
   (Step 28, `public.trees_matching_name`, service role only): a strong
   name match (onboarding's 0.85) on a living, unclaimed entry nobody has
   hidden from visitors, returning the **trees**, never the person. Found,
-  they ask that tree's Roots; not found, they're told to ask a relative to
-  invite them directly, or to join the waitlist to start a tree. A share
+  they ask that tree's Roots; not found, they can ask a relative who's on
+  ancestree (below), or join the waitlist to start a tree, which first says
+  that a new tree starts empty (Step 30.5). A share
   link's button names its tree (`?tree=<slug>`) and skips the search;
   `requestInvite` no longer falls back to the first tree. The row is written
   by the `requestInvite` server action using the service-role client, so the
@@ -581,6 +597,27 @@ mirror it for the UI.
   join page says so, and the approval email and a resend name the entry.
   "Approve without an entry" (just "Approve & send invite" when nothing
   matches) works as before: they find or add themselves on onboarding.
+- **Asking a relative (Step 30.5, `public.invite_relays`)**: with no match,
+  the newcomer can type a relative's address ("Ask a relative who's on
+  ancestree"); the form says their name and email will be passed on. The
+  screen answers every ask the same way — "If they're on ancestree, we've
+  passed your request on" — so it never tells anyone who's a member:
+  `askRelative` only checks the typing (a valid address, not their own) and
+  does the rest in `after()` (`passOnRelay`). If the address is a member's
+  (`invite_relay_recipient`: a profile on at least one tree, service role
+  only), the ask is filed and that member emailed
+  (`lib/emails/invite-relayed.ts`) a button to `/account?view=settings&relay=<id>`
+  — only the ask's id is in the address. There, **Relatives Asking for an
+  Invite** shows an invite filled in with the name and email as typed, and a
+  tree to send it into (every tree they're on; the one they're looking at to
+  begin with); one tap sends it through `sendDirectInvites`, as any invite
+  they send, joining as a Leaf, or they dismiss it and the newcomer isn't
+  told. RLS shows an ask only to the member it went to, who may change only
+  its answer. Caps are counted from the rows after filing, so two at once
+  can't both slip under: 3 a day per address asking, 2 a day and 5 a week per
+  member, 10 an hour and 30 a day across the site. An ask past one is
+  dropped without a word, and one that's open or dismissed stops the same
+  address asking the same member again. Logs never carry a name or address.
 - **Direct invites**: from the same `/admin` card — and, since Step 20, from
   the "Invite a relative" card on `/account` for anyone who may invite, as
   whatever `invitableTypes` lets them give — the inviter can skip the
@@ -619,8 +656,10 @@ mirror it for the UI.
 - **Starting a tree is by request during the beta** (Step 28,
   `public.tree_requests`): a signed-in member presses "start a tree
   (beta)" (home page, `/trees`, `/trees/new`) and `request_tree` files one
-  ask; a signed-out visitor joins the waitlist with a name and email
-  (`joinBetaWaitlist`). **Beta reviewers** — `private.beta_reviewers`
+  ask; a signed-out visitor joins the waitlist with a name, an email and
+  the privacy tick request access has (`joinBetaWaitlist`, which refuses a
+  sign-up without it; Step 30.6), from the home page's dialog or request
+  access's no-match screen. **Beta reviewers** — `private.beta_reviewers`
   (email): the build owner and, since `20260923043000`, Raiya Suleman; add
   a row (by migration) to share the queue further —
   answer both from "Requests to Start a Tree" on any admin console they run,
@@ -661,13 +700,17 @@ Family data (living people, DOB, photos, documents) is treated as sensitive PII;
 Canadian context → PIPEDA-minded.
 
 - **Consent where someone joins**: a required checkbox linking to `/privacy`
-  sits on each way into a tree — asking to join (`requestInvite`), accepting
-  an emailed invite (`acceptInvite`; already given by someone who asked), and
-  the sign-in form a bare invite link shows (`requestMagicLink` with an
-  invite). A plain sign-in doesn't ask (Step 30.4,
-  `lib/privacy-consent.ts`): it's a member coming back, so the form only
-  links to the notice. `/privacy` is in `proxy.ts`'s public prefixes so it is
-  readable pre-auth.
+  sits on each way into a tree — asking to join (`requestInvite`), joining
+  the waitlist to start one (`joinBetaWaitlist`, both forms, Step 30.6),
+  accepting an emailed invite (`acceptInvite`; already given by someone who
+  asked — a request's invite, or a waitlist founder's, filed as `request`),
+  and the sign-in form a bare invite link shows (`requestMagicLink` with an
+  invite). Each action refuses a form without it, and the ask and waitlist
+  forms send it from a hidden input that follows the box (`InviteConsent`,
+  as `MagicLinkForm` does), so a second try after an error keeps it. A plain
+  sign-in doesn't ask (Step 30.4, `lib/privacy-consent.ts`): it's a member
+  coming back, so the form only links to the notice. `/privacy` is in
+  `proxy.ts`'s public prefixes so it is readable pre-auth.
 - **All PII behind auth + RLS**: every table is RLS-scoped by tree membership;
   nothing is public or indexed. Photos/documents live in private buckets and are
   only ever served through short-lived signed URLs (unchanged from Step 2).

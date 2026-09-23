@@ -149,8 +149,18 @@ a founder invite; signed in it asks for the permission `found_tree` checks.
 Asking to join works the same way. A share link's "request access" names its
 tree; the home page's "request access" first looks for one showing a living,
 unclaimed entry that strongly matches the name typed, and tells the person
-which tree, never which entry. With no match, it points them at a relative
-who can invite them directly, or at the waitlist.
+which tree, never which entry. With no match, they can ask a relative who's
+on ancestree (Step 30.5): they type the relative's address, and if it's a
+member's, that member alone is emailed and finds an invite filled in with
+the newcomer's name and email on their account page, to send into any tree
+they're on — as a Leaf, like any invite — or dismiss. The screen answers the
+same whether the address belongs to anyone, so it never says who's a member,
+and the asks are capped (3 a day per address asking, 2 a day and 5 a week
+per member, 10 an hour and 30 a day across the site), past which they're
+dropped silently. Or they join the waitlist, which says first that a new
+tree starts empty. Both waitlist forms take the same privacy tick as asking
+to join (Step 30.6), since the founder invite a reviewer's yes sends doesn't
+ask again.
 
 Whoever answers hears at once (Step 30.1). A new request to join emails every
 Root of that tree, and a new request to start one — from the waitlist or a

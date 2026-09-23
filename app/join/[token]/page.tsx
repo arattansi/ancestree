@@ -125,7 +125,8 @@ export default async function InvitePage({
                 <MagicLinkForm inviteToken={token} submitLabel="Accept &amp; sign in" />
               )}
               {recipient?.requested ? (
-                // They ticked the privacy notice when they asked to join.
+                // They ticked the privacy notice when they asked to join, or
+                // to start a tree from the waitlist (Step 30.6).
                 <p className="mt-4 text-xs text-muted-foreground">
                   By joining you agree to share your family details with other
                   members of this private tree.
