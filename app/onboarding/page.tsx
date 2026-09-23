@@ -79,8 +79,12 @@ export default async function OnboardingPage({
           Welcome{profile.display_name ? `, ${profile.display_name}` : ""}
         </h1>
         <p className="text-sm text-muted-foreground">
+          {/* Onboarding opens on adding themselves here (Step 30.7), and only a
+              Root may add the first person. */}
           {members.length === 0
-            ? `${tree.name} is empty so far. Start it with your own entry.`
+            ? isRoot
+              ? `${tree.name} is empty so far. Start it with your own entry.`
+              : `${tree.name} is empty so far. Once a Root has added the first person, you can add yourself.`
             : `Let’s find you on ${tree.name} — or add you to it.`}
         </p>
       </div>
