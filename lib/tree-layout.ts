@@ -1538,3 +1538,42 @@ function buildBands(
       };
     });
 }
+
+/** A lane title's line, in its own px: `text-xs leading-none` in `family-tree.tsx`. */
+export const LANE_TITLE_H = 12;
+/** Where the title sits at life size, in canvas units from the lane's top (`top-2`). */
+const LANE_TITLE_TOP = 8;
+/** Room kept between a magnified title and its row's cards, in the title's own px. */
+const LANE_TITLE_CLEAR = 4;
+/**
+ * As large as the gap between two rows of cards holds. A lane starts halfway
+ * across that gap, so a title this size reaches up to the row above's cards
+ * and no further.
+ */
+export const LANE_TITLE_MAX_SCALE = ROW_GAP / (LANE_TITLE_H + LANE_TITLE_CLEAR);
+
+/**
+ * A generation lane's title, sized for the zoom (Step 32). The lane is drawn
+ * in canvas units, so zoomed out its title shrank with it until it couldn't be
+ * read. Below life size it is magnified back to its life size on screen, where
+ * it has always sat near the lane's top-left. Where that would run it into its
+ * row's cards, it rises into the gap above them, and it never grows past what
+ * that gap holds, so it covers no card and no other lane's title. Only a
+ * whole-tree view framed below the canvas's own minimum zoom (a wide tree on a
+ * phone) has less room than that; there it shrinks with everything else.
+ *
+ * `scale` magnifies the title about its top-left corner; `top` is in canvas
+ * units from the lane's top.
+ */
+export function laneTitleFit(zoom: number): { scale: number; top: number } {
+  const scale =
+    Number.isFinite(zoom) && zoom > 0
+      ? Math.min(Math.max(1, 1 / zoom), LANE_TITLE_MAX_SCALE)
+      : 1;
+  // The lane's cards start halfway down the gap between rows.
+  const top = Math.min(
+    LANE_TITLE_TOP,
+    ROW_GAP / 2 - (LANE_TITLE_H + LANE_TITLE_CLEAR) * scale,
+  );
+  return { scale, top };
+}

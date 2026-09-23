@@ -91,6 +91,7 @@ import {
   leafBranchPath,
   trunkStep,
   layoutTree,
+  laneTitleFit,
   NODE_H,
   NODE_W,
   type CardRect,
@@ -396,6 +397,10 @@ function GenerationLane({
   /** A tree has been pulled out; these lanes belong to the one left behind. */
   faded?: boolean;
 }) {
+  // Legible at any zoom (Step 32): magnified back to life size when the canvas
+  // is zoomed out, rising clear of its row's cards (`laneTitleFit`).
+  const zoom = useStore((state: ReactFlowState) => state.transform[2]);
+  const title = laneTitleFit(zoom);
   return (
     <div
       className={cn(
@@ -414,7 +419,10 @@ function GenerationLane({
           band.generation % 2 === 0 ? "bg-muted/25" : "bg-transparent",
         )}
       />
-      <div className="absolute top-2 left-4 flex items-baseline gap-2 text-xs">
+      <div
+        className="absolute left-4 flex origin-top-left items-baseline gap-2 text-xs leading-none whitespace-nowrap"
+        style={{ top: title.top, transform: `scale(${title.scale})` }}
+      >
         <span className="font-medium text-muted-foreground">{band.label}</span>
         {band.sublabel ? (
           <span className="text-muted-foreground/60">{band.sublabel}</span>

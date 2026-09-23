@@ -102,7 +102,8 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `markNotificationsRead`; `entry-comments.ts`: `getEntryComments` /
   `addEntryComment` / `resolveEntryFlag` / `setEntryVerified`)
 - `components/tree/` — `family-tree.tsx` React Flow canvas (generation lanes
-  behind the cards; a child's descent line starts from a junction _derived from
+  behind the cards, whose titles stay life-size when zoomed out —
+  `laneTitleFit`; a child's descent line starts from a junction _derived from
   its parents' live positions_ — not a node — so it follows them as they are
   dragged, and all of a couple's children bend at a shared horizontal bus, so a
   marriage shows one trunk rather than one line per parent; admin
@@ -669,6 +670,22 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 32 — Generation titles legible at any zoom** (ad-hoc). The
+  generation lanes are drawn in canvas units, so a lane's title shrank with
+  the canvas: about 1.5px tall in the opening view of the family's tree.
+  `lib/tree-layout.ts#laneTitleFit` now magnifies it back to life size
+  whenever the canvas is zoomed out, in every view: a member's, a
+  visitor's, a share link's, and a pulled-out tree (where the lanes stay
+  faded, as before). It sits where it always did until a bigger title would
+  reach its row's cards. Then it rises into the gap above them, never past
+  the row above, so it covers no card and no other title. Only a whole-tree
+  view framed below the canvas's minimum zoom (a wide tree on a phone) has
+  less room than that; there it shrinks with everything else. From life
+  size up it grows with the canvas as before. UI only. **Verified** on the
+  live tree: the titles read at 12px at zooms 0.12 (the opening view), 0.18,
+  0.31 and 0.54, and 13.4px at 1.1, covering no card and no other title. 5
+  new tests.
 
 - **Step 27.9 — Ancestral lands on read-only trees too.** A share link's
   cards, and a visitor's from another tree, showed no ancestral lands at

@@ -3,6 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   COUPLE_GAP,
   GUTTER,
+  LANE_TITLE_H,
+  LANE_TITLE_MAX_SCALE,
+  laneTitleFit,
   NODE_H,
   NODE_W,
   ROW_GAP,
@@ -468,6 +471,46 @@ describe("generation bands", () => {
     expect(generationLabel(-12)).toBe("Generation Twelve");
     expect(generationLabel(-13)).toBe("Generation 13");
     expect(generationLabel(13)).toBe("Generation minus 13");
+  });
+});
+
+describe("lane titles at any zoom", () => {
+  // On screen, a title's line is its own height × its magnification × zoom.
+  const onScreen = (zoom: number) => LANE_TITLE_H * laneTitleFit(zoom).scale * zoom;
+  const zooms = Array.from({ length: 200 }, (_, i) => 0.01 * (i + 1));
+
+  it("keeps its life size and place from life size up", () => {
+    for (const zoom of [1, 1.25, 1.75]) {
+      expect(laneTitleFit(zoom)).toEqual({ scale: 1, top: 8 });
+    }
+  });
+
+  it("reads at life size however far the canvas can be zoomed out", () => {
+    // 0.15 is the canvas's own minimum; the opening view of a wide tree on a
+    // laptop frames a little further out still.
+    for (const zoom of [0.9, 0.5, 0.3, 0.2, 0.15, 0.125]) {
+      expect(onScreen(zoom)).toBeCloseTo(LANE_TITLE_H);
+    }
+  });
+
+  it("stays where it was until it would reach its row's cards", () => {
+    expect(laneTitleFit(0.5)).toEqual({ scale: 2, top: 8 });
+    expect(laneTitleFit(0.2).top).toBeLessThan(0);
+  });
+
+  it("never covers its row's cards, nor reaches past the row above", () => {
+    for (const zoom of zooms) {
+      const { scale, top } = laneTitleFit(zoom);
+      // The lane starts halfway across the gap above its row.
+      expect(top + LANE_TITLE_H * scale).toBeLessThan(ROW_GAP / 2);
+      expect(top).toBeGreaterThanOrEqual(-ROW_GAP / 2 - 1e-9);
+    }
+  });
+
+  it("shrinks with the canvas only where the gap between rows can't hold it", () => {
+    // A wide tree framed whole on a phone.
+    expect(laneTitleFit(0.034).scale).toBe(LANE_TITLE_MAX_SCALE);
+    expect(onScreen(0.034)).toBeLessThan(LANE_TITLE_H);
   });
 });
 
