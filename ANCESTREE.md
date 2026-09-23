@@ -532,7 +532,12 @@ mirror it for the UI.
   Instead the page offers that address an ordinary sign-in link
   (`sendInviteSignInLink` → `emailInviteSignInLink`: `signInWithOtp`, never
   creating an account, `next` = the invite), which brings them back to the
-  invite signed in, where **Join <Tree>** places their entry (Step 30.9). Because
+  invite signed in, where **Join <Tree>** places their entry (Step 30.9).
+  Opened signed out, the page asks `address_has_profile` as it renders
+  (`opensOnSignInLink`, Step 41.2) and opens straight on **Email me a
+  sign-in link**, with no tick; it only looks up, since mail scanners open
+  the page too. Accepting still falls back to the link for an address that
+  got an account after the page loaded. Because
   the token holder becomes that address, only a Root or the service role may
   set `invited_email` (`invites_guard`); a bare link (`createInvite`) has no
   address and still asks for one and verifies it by email. The privacy
@@ -783,7 +788,9 @@ Canadian context → PIPEDA-minded.
   forms send it from a hidden input that follows the box (`InviteConsent`,
   as `MagicLinkForm` does), so a second try after an error keeps it. A plain
   sign-in doesn't ask (Step 30.4, `lib/privacy-consent.ts`): it's a member
-  coming back, so the form only links to the notice. `/privacy` is in
+  coming back, so the form only links to the notice. Nor does a member's
+  invite to another tree: signed in they press Join, and signed out the
+  invite opens on a sign-in link back to it (Step 41.2). `/privacy` is in
   `proxy.ts`'s public prefixes so it is readable pre-auth.
 - **All PII behind auth + RLS**: every table is RLS-scoped by tree membership;
   nothing is public or indexed. Photos/documents live in private buckets and are
