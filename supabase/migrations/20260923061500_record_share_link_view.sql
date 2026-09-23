@@ -1,4 +1,4 @@
--- Step 30 — Count a share-link view with one atomic update.
+-- Step 33 — Count a share-link view with one atomic update.
 --
 -- /shared/<token> records each view once the page has gone out
 -- (lib/share-links.server.ts). The database adds the one, so two visitors

@@ -506,7 +506,7 @@ mirror it for the UI.
   claim / flag / comment / manage affordances) with a "request edit access" CTA
   pointing at `/request-invite`. Each view is counted once the page has gone
   out: `after()` calls `record_share_link_view` (service role only), which
-  adds one in SQL (Step 30), and the admin console shows the count.
+  adds one in SQL (Step 33), and the admin console shows the count.
   `lib/share-links.ts` holds the pure usable/expired/revoked logic
   (`.test.ts`).
 - **Starting a tree is by request during the beta** (Step 28,
@@ -674,7 +674,7 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
-- **Step 30 — Share-link views are counted** (ad-hoc; migration
+- **Step 33 — Share-link views are counted** (ad-hoc; migration
   `20260923061500_record_share_link_view`). A share link never recorded a
   view: both live links showed 0 views and no last view though they had
   been opened, and the admin console shows Roots that count.

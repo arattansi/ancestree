@@ -67,7 +67,7 @@ async function afterResponse() {
   for (const task of afterTasks.splice(0)) await task();
 }
 
-describe("resolveShareLink (Step 30)", () => {
+describe("resolveShareLink (Step 33)", () => {
   beforeEach(() => {
     afterTasks.length = 0;
     admin = fakeAdmin({ share_links: LINK, trees: TREE });
