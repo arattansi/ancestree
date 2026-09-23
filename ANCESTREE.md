@@ -979,6 +979,60 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 41.3 — A claim invite accepted by someone who already has an
+  entry** (Step 41, first-time journey follow-ups; migration
+  `20260923153000_claim_invite_merges_into_own_entry`). A member with their
+  own entry who accepted a claim invite to another tree joined it and
+  nothing more: `redeem_invite` kept only the vouch (Step 30.2), since
+  placing their entry too (Step 30.9) would show two entries for one
+  person. They landed on onboarding's "A Root of <tree> can bring it onto
+  this one", with nothing to press (the canvas sends them back there), and
+  no Root was told: the gap left on J10. Aalim chose to fold the invite's
+  entry into theirs where that's safe, and otherwise show theirs beside it.
+  `redeem_invite` now runs `private.merge_invited_entry` when that entry is
+  a placeholder only its maker has built on (`is_own_placeholder`, Step
+  36's test), nobody is behind it, and it's on the invite's tree alone. It
+  never runs when either of them is marked as having died (Step 37), a line
+  joins them (a parent with the same name), or they were born more than a
+  year apart. Their entry takes its place and its card's spot on that
+  canvas, with its lines (less any that would double up), notes, documents
+  (no longer shared across trees), companions and bloodline anchors; then
+  it's deleted, and their own details stay as they were. `documents_guard`
+  lets a document change entries only inside that merge (the privileged
+  flag); its tree never changes. Anything else shows their entry beside the
+  invite's, as an ordinary invite does. Every Root is told which
+  (`placed_on_join`): "… has taken that entry's place on <tree>, with
+  everything that was on it", or "<tree> now shows both. If they're the
+  same person, you can delete the entry you invited them to claim, …",
+  whose **View on tree** opens that entry. A maker who isn't a Root hears
+  of a merge too (`claim_approved`, with nothing to dispute). Either way
+  they land on their own entry: J10 with a claim invite takes 2 taps signed
+  in and 5 signed out, no fields, and no longer ends on the onboarding
+  card. Nobody on live was stranded, and no live claim invite is affected
+  (the one sent to a member names their own entry). **Verified:**
+  rehearsed rolled back on live in three phases, 17 checks each. Before:
+  every claim case landed on onboarding with no notice. With the merge but
+  not the guard change: a document blocked the merge, which fell back to
+  placing. With all of it: bare entries merged (lines, note, document, pet,
+  card spot; an entry already on the tree kept its spot; a Root's
+  unanswered placement kept its `placed_by`), the six unsafe cases fell
+  back, and an ordinary invite, a newcomer's claim and an invite naming
+  their own entry behaved as before; a Root still can't refile a document,
+  and a member can't call the merge. Applied and recorded under the file's
+  version; all three bodies' md5s match the file, and the suite re-run on
+  live matched. In the browser, with throwaway accounts
+  `delivered+41-3-*@resend.dev`: a member opened a claim invite signed out,
+  emailed themselves the sign-in link (read back through Resend), signed
+  in, pressed **Join** and landed on `/tree?person=` for their own entry,
+  where the invite's had been, with its parent. The Root's bell read the
+  merge notice, with **View on tree** and **View in admin**. A second claim
+  invite, for an entry a Leaf had commented on, landed them on their entry
+  again with both shown; the Root's **View on tree** opened the invited
+  entry. Throwaway rows deleted, and the family's rows match the baseline.
+  762 tests pass. Found on the way and left for its own step: Step 36's
+  "This is me" is refused when the member's placeholder has a document
+  (`documents_guard`).
+
 - **Step 41.1, follow-up — Settings says what became of the ask its email
   named** (no migration). Sending or dismissing an ask from its card
   refreshes the page at the email's address (`&relay=<id>`), and settings
