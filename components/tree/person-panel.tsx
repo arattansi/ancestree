@@ -405,6 +405,7 @@ export function PersonPanel({
   canDelete = false,
   canInviteToClaim = false,
   claimable,
+  claimNote = null,
   isCreator,
   currentUserId,
   readOnly = false,
@@ -448,6 +449,9 @@ export function PersonPanel({
   currentUserId: string;
   /** This entry looks like the signed-in member and is unclaimed. */
   claimable: boolean;
+  /** Who claiming it moves off the member's own entry, which it merges
+   *  away (Step 36), asked before "This is me" goes ahead. */
+  claimNote?: string | null;
   /** The signed-in member originally created this entry. */
   isCreator: boolean;
   /** Offer "Add a relative of …" here too, for a phone, where this sheet
@@ -463,6 +467,7 @@ export function PersonPanel({
   const open = person !== null;
   const [busy, setBusy] = React.useState(false);
   const [disputing, setDisputing] = React.useState(false);
+  const [confirmingClaim, setConfirmingClaim] = React.useState(false);
   const [reason, setReason] = React.useState("");
   const [photoOpen, setPhotoOpen] = React.useState(false);
   const [addingCompanion, setAddingCompanion] = React.useState(false);
@@ -479,6 +484,7 @@ export function PersonPanel({
   if (person?.id !== prevId) {
     setPrevId(person?.id);
     setDisputing(false);
+    setConfirmingClaim(false);
     setReason("");
     setPhotoOpen(false);
     setAddingCompanion(false);
@@ -511,7 +517,7 @@ export function PersonPanel({
       toast.error(res.error);
       return;
     }
-    toast.success("Claimed — this is now your entry.");
+    toast.success("Merged — this is now your entry.");
     onClose();
     router.refresh();
   }
@@ -878,9 +884,16 @@ export function PersonPanel({
                       </Button>
                     ) : null}
 
-                    {!isSelf && claimable && !person.claim_status ? (
-                      <Button size="sm" onClick={onClaim} disabled={busy}>
-                        {busy ? "Claiming…" : "This is me — claim it"}
+                    {!isSelf &&
+                    claimable &&
+                    !person.claim_status &&
+                    !confirmingClaim ? (
+                      <Button
+                        size="sm"
+                        onClick={() => setConfirmingClaim(true)}
+                        disabled={busy}
+                      >
+                        This is me — claim it
                       </Button>
                     ) : null}
 
@@ -909,6 +922,32 @@ export function PersonPanel({
                       </Button>
                     ) : null}
                   </div>
+
+                  {/* Claiming merges the viewer's own entry into this one and
+                      deletes it, so it asks first (Step 36). */}
+                  {!isSelf &&
+                  claimable &&
+                  !person.claim_status &&
+                  confirmingClaim ? (
+                    <div className="flex flex-col gap-2 rounded-md border border-border p-3">
+                      <p className="text-xs text-muted-foreground">
+                        {claimNote}
+                      </p>
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={onClaim} disabled={busy}>
+                          {busy ? "Merging…" : "Yes, merge"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setConfirmingClaim(false)}
+                          disabled={busy}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
 
                   {/* Nobody is behind this entry yet, and it is the viewer's to
                       hand over (`canInviteToClaim`). The server asks the

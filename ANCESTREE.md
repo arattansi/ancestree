@@ -496,7 +496,8 @@ mirror it for the UI.
   and land on onboarding, where `search_self_candidates` lists a vouched
   entry first and `claim_person_as_self` takes it without the name match. A
   member who already has an entry keeps just the vouch (`private.claim_vouches`,
-  honoured by the canvas's `claim_person`). `private.can_invite_to_claim`
+  honoured by the canvas's `claim_person` while their own entry is a
+  placeholder they added, Step 36). `private.can_invite_to_claim`
   says whose entry that may be: one the inviter can edit (`can_edit_person`)
   that nobody is behind yet — owner still the creator, no approved claim, no
   member's own — and whose person is living. So a Root anywhere, a Branch on

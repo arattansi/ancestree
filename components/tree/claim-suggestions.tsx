@@ -10,15 +10,22 @@ import type { ClaimCandidate } from "@/lib/claims";
 
 /**
  * "Is this you?" prompt shown on the tree canvas when unclaimed entries match
- * the signed-in member's name. Claiming auto-approves (see `claim_person`).
+ * the signed-in member's name. Claiming auto-approves and merges the entry the
+ * member added for themselves into the one they pick (see `claim_person`), so
+ * the list only comes while theirs is a placeholder nobody else has built on,
+ * and "This is me" asks first, naming who moves (Step 36).
  */
 export function ClaimSuggestions({
   candidates,
+  notes,
 }: {
   candidates: ClaimCandidate[];
+  /** What claiming each candidate moves, by id (`mergeConfirmation`). */
+  notes: ReadonlyMap<string, string>;
 }) {
   const router = useRouter();
   const [dismissed, setDismissed] = React.useState(false);
+  const [confirmingId, setConfirmingId] = React.useState<string | null>(null);
   const [busyId, setBusyId] = React.useState<string | null>(null);
 
   if (dismissed || candidates.length === 0) return null;
@@ -31,7 +38,8 @@ export function ClaimSuggestions({
       toast.error(res.error);
       return;
     }
-    toast.success("Claimed — this is now your entry.");
+    setConfirmingId(null);
+    toast.success("Merged — this is now your entry.");
     router.refresh();
   }
 
@@ -48,7 +56,8 @@ export function ClaimSuggestions({
         </button>
       </div>
       <p className="mt-1 text-xs text-muted-foreground">
-        These entries match your name. Claim yours to take ownership.
+        These entries match your name. If one is you, claim it and the entry
+        you added for yourself merges into it.
       </p>
       <ul className="mt-3 flex flex-col gap-2">
         {candidates.map((c) => (
@@ -63,14 +72,39 @@ export function ClaimSuggestions({
                   "No other details"}
               </p>
             </div>
-            <Button
-              size="sm"
-              className="self-start"
-              onClick={() => onClaim(c.id)}
-              disabled={busyId !== null}
-            >
-              {busyId === c.id ? "Claiming…" : "This is me"}
-            </Button>
+            {confirmingId === c.id ? (
+              <>
+                <p className="text-xs text-muted-foreground">
+                  {notes.get(c.id)}
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => onClaim(c.id)}
+                    disabled={busyId !== null}
+                  >
+                    {busyId === c.id ? "Merging…" : "Yes, merge"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setConfirmingId(null)}
+                    disabled={busyId !== null}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <Button
+                size="sm"
+                className="self-start"
+                onClick={() => setConfirmingId(c.id)}
+                disabled={busyId !== null}
+              >
+                This is me
+              </Button>
+            )}
           </li>
         ))}
       </ul>

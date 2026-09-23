@@ -73,6 +73,7 @@ import {
   type EntrySubject,
   type Viewer,
 } from "@/lib/branch";
+import { mergeConfirmation, relativesThatMove } from "@/lib/claim-merge";
 import type { ClaimCandidate } from "@/lib/claims";
 import { connectionLabel, connectionPath } from "@/lib/connection-path";
 import type { PanelSuggestion } from "@/lib/connection-suggestions";
@@ -727,6 +728,22 @@ function Canvas({
   const claimableIds = React.useMemo(
     () => new Set(claimCandidates.map((c) => c.id)),
     [claimCandidates],
+  );
+  // "This is me" merges the member's own entry into the one they pick, so it
+  // asks first, naming who moves (Step 36).
+  const claimNotes = React.useMemo(
+    () =>
+      new Map(
+        claimCandidates.map((c) => [
+          c.id,
+          mergeConfirmation(
+            selfPersonId
+              ? relativesThatMove(selfPersonId, c.id, people, relationships)
+              : [],
+          ),
+        ]),
+      ),
+    [claimCandidates, selfPersonId, people, relationships],
   );
   const graph = React.useMemo(
     () => buildGraph(people, relationships, pets, selfPersonId, anchorIds),
@@ -1973,7 +1990,10 @@ function Canvas({
             onShowCompanionsChange={setShowCompanions}
           />
           {!readOnly && claimCandidates.length > 0 ? (
-            <ClaimSuggestions candidates={claimCandidates} />
+            <ClaimSuggestions
+              candidates={claimCandidates}
+              notes={claimNotes}
+            />
           ) : null}
           {!readOnly && gettingStarted ? (
             <GettingStarted treeId={treeId} items={gettingStarted} />
@@ -2008,6 +2028,9 @@ function Canvas({
         readOnly={readOnly}
         shareToken={shareToken}
         claimable={!!selectedPerson && claimableIds.has(selectedPerson.id)}
+        claimNote={
+          selectedPerson ? (claimNotes.get(selectedPerson.id) ?? null) : null
+        }
         isCreator={selectedPerson?.created_by === currentUserId}
         currentUserId={currentUserId}
         addRelativeOf={addTarget}

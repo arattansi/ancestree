@@ -11,9 +11,11 @@ export type ClaimCandidate = {
 };
 
 /**
- * Unclaimed entries already on the tree that look like the signed-in member
- * (same last name + a matching first/preferred name). Drives the
- * "Is this you? Claim it." prompt. Empty until the member has a self entry.
+ * Unclaimed, living entries already on the tree that look like the signed-in
+ * member (same last name + a matching first/preferred name, or an invite
+ * vouches for it). Drives the "Is this you? Claim it." prompt. Empty unless
+ * the member's own entry is a placeholder they added that nobody else has
+ * built on, since claiming merges it away (Step 36).
  */
 export async function listClaimCandidates(): Promise<ClaimCandidate[]> {
   const supabase = await createClient();

@@ -20,13 +20,24 @@ function friendlyClaimError(message: string | undefined): string {
   if (m.includes("add your own entry")) {
     return "Add your own entry before claiming another.";
   }
+  if (m.includes("placeholder you added")) {
+    return "You already have your own entry on the tree, and it can't be merged into this one. If this is another entry for you, ask a Root to sort out the duplicate.";
+  }
+  if (m.includes("having died")) {
+    return "That entry is marked as having died, so it can't be yours.";
+  }
   if (m.includes("different tree") || m.includes("no longer exists")) {
     return "That entry isn't available to claim. Refresh and try again.";
   }
   return "Couldn't complete that claim. Try again.";
 }
 
-/** Claim an existing entry as yourself. Auto-approves and merges your stub. */
+/**
+ * Claim an existing entry as yourself. Auto-approves and merges the
+ * placeholder you added for yourself into it; `claim_person` refuses when
+ * your own entry is more than that, or the entry is of someone who has died
+ * (Step 36).
+ */
 export async function claimPerson(
   personId: string,
 ): Promise<{ error?: string; personId?: string }> {
