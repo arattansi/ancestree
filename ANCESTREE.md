@@ -906,6 +906,26 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 40.5 — Drop the unused ancestral-lands columns** (migration
+  `20260923141000_drop_ancestral_lands_columns`). Aalim asked for the
+  columns Step 40 left unused to go too: `people.ancestral_lands_birth` /
+  `_death` and `pets.ancestral_lands_birth`, which held the family's own
+  words and were never written (none had a value, and no entry revision
+  mentioned them). Everything that named them is back exactly as it was
+  before Step 27: `tree_people` (dropped and made again, since a view
+  can't lose a column in place), `private.revision_fields()` (what a Root
+  can undo) and `private.person_edit_notify()` (no "ancestral lands" in an
+  edit notice). No app code had read them since Step 40;
+  `lib/database.types.ts` drops them too. **Verified:** rehearsed rolled
+  back on live, then applied and recorded under the file's version
+  (`db push --dry-run`: up to date). On live, the three columns and their
+  checks are gone and nothing names them; both functions hash to their
+  pre-Step-27 bodies, and the edit trigger still fires (a rehearsed edit
+  noticed "was updated: name."); `tree_people` has its 38 columns with the
+  same grants, options and owner, and the same 98 rows (65 as a member).
+  The app's own selects on `tree_people`, `people` and `pets` answer 200,
+  and a dropped column 400. 740 tests pass.
+
 - **Step 39 — A tree has at most two Roots, and each Root makes up to four
   Branches** (ad-hoc; migration `20260923130000_root_and_branch_limits`).
   Aalim asked for both rules, reflected everywhere, onboarding included, and
