@@ -103,7 +103,10 @@ other placement is added by a Root of the receiving tree.
 `private.can_edit_person(p)` reads the person's **home tree** `h`:
 
 1. A Root of `h`.
-2. The person themselves (`self_person_id`, or an approved claim).
+2. The person themselves (`self_person_id`, or an approved claim). This rule
+   doesn't ask which trees they're on, and neither do the documents and
+   photos rules that trust it, so only the steps in section 8 may set
+   `self_person_id` (Step 42).
 3. A Branch or a Leaf **in `h`** who owns the entry, or who created it while
    it is still unclaimed.
 4. A Branch **in `h`** on whose part of a Root's side the entry sits, unless
@@ -256,7 +259,16 @@ invite, and joining from there is theirs to press.
   successor there first. A Root's Branches pass the same way and count
   toward the new Root's four, even past four (Step 39).
 - `profiles.self_person_id` is the member's one own entry, wherever it is
-  placed.
+  placed. Only these set it: adding themselves on onboarding or the
+  founder's first run, "that's me" on onboarding, "This is me" on an entry,
+  and accepting a claim invite. It's cleared when that entry is deleted, a
+  Root reverses the claim, or its tree is deleted. `invited_by_user_id` is
+  set once, by the invite that made the profile.
+- A member can change only their name and whether relatives can ask them
+  to invite them. They can't set their own entry or who invited them, and
+  can't make a profile themselves: accepting an invite or the co-admin
+  sign-in does (Step 42). The column grants say so, and `profiles_guard`
+  holds both links even if a grant comes back.
 
 ## 9. What was removed
 
