@@ -24,7 +24,8 @@ function one(value: string | string[] | undefined): string {
  * Where the link in a sign-in email lands. The one-time token is only spent
  * when the button is pressed: mail scanners open every link in a message, and
  * if opening it signed someone in, the recipient's own click would find the
- * link already used.
+ * link already used. So the page can't yet say the email is confirmed, and
+ * the link may be someone's first, so no "Welcome back" (Step 30.4).
  */
 export default async function ConfirmSignInPage({
   searchParams,
@@ -41,10 +42,8 @@ export default async function ConfirmSignInPage({
     <main className="flex flex-1 flex-col items-center justify-center gap-6 px-6 py-24">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>{invite ? "Join the family tree" : "Welcome back"}</CardTitle>
-          <CardDescription>
-            Your email is confirmed. One more tap and you&rsquo;re in.
-          </CardDescription>
+          <CardTitle>{invite ? "Join the Family Tree" : "Finish Signing In"}</CardTitle>
+          <CardDescription>One more tap and you&rsquo;re in.</CardDescription>
         </CardHeader>
         <CardContent>
           <form action={confirmSignIn} className="flex flex-col">

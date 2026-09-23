@@ -15,6 +15,10 @@ import { getTreeRequestStatus } from "@/lib/tree-requests.server";
  * family's tree first), or join the waitlist to start one. New trees are by
  * request during the beta. The buttons are navigation, so lower-case
  * (docs/design-system.md), even the ones that open a dialog.
+ *
+ * Sign in stays the filled button, for members coming back; the line under
+ * the buttons tells a newcomer they need an invite before sign in sends
+ * them round the email loop to find out (Step 30.4).
  */
 export default async function Home() {
   const profile = await getProfile();
@@ -37,28 +41,41 @@ export default async function Home() {
           </p>
         </div>
       </div>
-      <div className="flex w-full max-w-xs flex-col gap-3 sm:w-auto sm:max-w-none sm:flex-row">
-        {profile ? (
-          <>
-            <Button nativeButton={false} render={<Link href={treeHref()} />} size="lg">
-              view your tree
-            </Button>
-            <StartTreeButton status={treeRequest ?? "none"} size="lg" variant="outline">
-              start a tree (beta)
-            </StartTreeButton>
-          </>
-        ) : (
-          <>
-            <Button nativeButton={false} render={<Link href="/join" />} size="lg">
-              sign in
-            </Button>
-            <RequestAccessDialog size="lg" variant="outline">
-              request access
-            </RequestAccessDialog>
-            <BetaWaitlistDialog size="lg" variant="outline">
-              start a tree (beta)
-            </BetaWaitlistDialog>
-          </>
+      <div className="flex w-full flex-col items-center gap-4">
+        <div className="flex w-full max-w-xs flex-col gap-3 sm:w-auto sm:max-w-none sm:flex-row">
+          {profile ? (
+            <>
+              <Button nativeButton={false} render={<Link href={treeHref()} />} size="lg">
+                view your tree
+              </Button>
+              <StartTreeButton status={treeRequest ?? "none"} size="lg" variant="outline">
+                start a tree (beta)
+              </StartTreeButton>
+            </>
+          ) : (
+            <>
+              <Button nativeButton={false} render={<Link href="/join" />} size="lg">
+                sign in
+              </Button>
+              <RequestAccessDialog size="lg" variant="outline">
+                request access
+              </RequestAccessDialog>
+              <BetaWaitlistDialog size="lg" variant="outline">
+                start a tree (beta)
+              </BetaWaitlistDialog>
+            </>
+          )}
+        </div>
+        {profile ? null : (
+          // Body copy, so sentence case. "request access" names the button
+          // just above, so it isn't linked a second time. Neither it nor
+          // "invite-only" is split across two lines on a phone.
+          <p className="max-w-sm text-sm text-balance text-muted-foreground">
+            New here? ancestree is{" "}
+            <span className="whitespace-nowrap">invite-only:</span>{" "}
+            <span className="whitespace-nowrap">request access</span>, or open
+            the invite a relative emailed you.
+          </p>
         )}
       </div>
     </main>

@@ -3,6 +3,7 @@
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 
+import { signInNeedsConsent } from "@/lib/privacy-consent";
 import {
   completeEmailSignIn,
   safeNext,
@@ -23,7 +24,9 @@ export type MagicLinkState = {
 /**
  * Send a magic-link email. When `inviteToken` is present the callback will
  * redeem that invite on first sign-in; otherwise the callback provisions the
- * profile (admins only — invited members must use their link).
+ * profile (admins only — invited members must use their link). Only the
+ * invite case needs the privacy agreement, since that's someone joining
+ * (Step 30.4).
  */
 export async function requestMagicLink(
   _prev: MagicLinkState,
@@ -37,7 +40,7 @@ export async function requestMagicLink(
     return { error: "Enter a valid email address.", email };
   }
 
-  if (consent !== "on" && consent !== "true") {
+  if (signInNeedsConsent(inviteToken) && consent !== "on" && consent !== "true") {
     return {
       error: "Please accept the privacy notice to continue.",
       email,

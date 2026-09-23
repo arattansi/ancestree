@@ -32,7 +32,7 @@ export default async function JoinPage({
     <main className="flex flex-1 flex-col items-center justify-center gap-6 px-6 py-24">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>{pending ? "Almost there" : "Sign in to ancestree"}</CardTitle>
+          <CardTitle>{pending ? "Almost There" : "Sign In to ancestree"}</CardTitle>
           <CardDescription>
             {pending
               ? "Your email is verified, but it is not linked to a family invite yet. Open the invite a relative emailed you, or ask to join below."
@@ -62,7 +62,22 @@ export default async function JoinPage({
               .
             </p>
           ) : (
-            <MagicLinkForm />
+            <>
+              <MagicLinkForm />
+              {/* Signing in without an invite goes round the whole email loop
+                  only to land on "Almost There", so say it's invite-only
+                  before they send one (Step 30.4), as the home page does. */}
+              <p className="text-sm text-muted-foreground">
+                New here? ancestree is invite-only:{" "}
+                <Link
+                  href="/request-invite"
+                  className="whitespace-nowrap underline underline-offset-4"
+                >
+                  request access
+                </Link>
+                , or open the invite a relative emailed you.
+              </p>
+            </>
           )}
 
           <p className="text-sm text-muted-foreground">

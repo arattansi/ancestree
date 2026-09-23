@@ -77,8 +77,8 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `/request-invite` (public; `?tree=<slug>` asks that tree's Roots, and
   without one it's the request-access search),
   `/shared/[token]` (public read-only canvas), `/privacy`
-- `app/actions/` — server actions (`auth.ts`: magic link (+ consent gate) +
-  sign out; `privacy.ts`: `exportTreeData` (admin JSON export) / `deletePerson`
+- `app/actions/` — server actions (`auth.ts`: magic link (+ consent gate
+  when it carries an invite) + sign out; `privacy.ts`: `exportTreeData` (admin JSON export) / `deletePerson`
   (admin erasure + storage cleanup) / `deleteAccount` (self-serve, reassigns
   contributions to a founding admin);
   `trees.ts`: `foundTree` / `renameTree` / `deleteTree`, `placePeople` /
@@ -550,9 +550,14 @@ tier ~3–4/hour) — swap to an SMTP provider before wider testing.
 Family data (living people, DOB, photos, documents) is treated as sensitive PII;
 Canadian context → PIPEDA-minded.
 
-- **Consent at registration**: the magic-link form has a required consent
-  checkbox linking to `/privacy`; `requestMagicLink` rejects the request without
-  it. `/privacy` is in `proxy.ts`'s public prefixes so it is readable pre-auth.
+- **Consent where someone joins**: a required checkbox linking to `/privacy`
+  sits on each way into a tree — asking to join (`requestInvite`), accepting
+  an emailed invite (`acceptInvite`; already given by someone who asked), and
+  the sign-in form a bare invite link shows (`requestMagicLink` with an
+  invite). A plain sign-in doesn't ask (Step 30.4,
+  `lib/privacy-consent.ts`): it's a member coming back, so the form only
+  links to the notice. `/privacy` is in `proxy.ts`'s public prefixes so it is
+  readable pre-auth.
 - **All PII behind auth + RLS**: every table is RLS-scoped by tree membership;
   nothing is public or indexed. Photos/documents live in private buckets and are
   only ever served through short-lived signed URLs (unchanged from Step 2).

@@ -33,7 +33,9 @@ The home page's calls to action count as navigation, so they're lower-case
 too — **view your tree**, **sign in**, **request access**, **start a tree
 (beta)** — even the ones that open a dialog rather than a page. Inside the
 dialog, titles and buttons go back to sentence case (**Request access**,
-**Join the waitlist**), as dialog titles are everywhere.
+**Join the waitlist**), as dialog titles are everywhere. **sign in** stays
+the filled one, for members coming back; the sentence-case line under the
+buttons tells a newcomer that ancestree is invite-only (Step 30.4).
 
 ## Layout
 

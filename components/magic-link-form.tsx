@@ -9,9 +9,16 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { signInNeedsConsent } from "@/lib/privacy-consent";
 
 const INITIAL: MagicLinkState = {};
 
+/**
+ * Asks for an email and sends a one-time sign-in link. Given `inviteToken`,
+ * it's a bare invite link's form: that person is joining the tree, so they
+ * agree to the privacy notice here. A plain sign-in only links to the notice
+ * (Step 30.4).
+ */
 export function MagicLinkForm({
   inviteToken,
   submitLabel = "Email me a sign-in link",
@@ -21,6 +28,7 @@ export function MagicLinkForm({
 }) {
   const [state, formAction, pending] = useActionState(requestMagicLink, INITIAL);
   const [consented, setConsented] = useState(false);
+  const needsConsent = signInNeedsConsent(inviteToken);
 
   if (state.ok) {
     return (
@@ -63,20 +71,34 @@ export function MagicLinkForm({
           </p>
         ) : null}
       </div>
-      <Label
-        htmlFor="consent"
-        className="group/field-label flex items-start gap-2.5 text-sm font-normal text-muted-foreground"
-      >
-        <Checkbox
-          id="consent"
-          name="consent"
-          checked={consented}
-          onCheckedChange={(value) => setConsented(value === true)}
-          className="mt-0.5"
-        />
-        <span>
-          I agree that my family details, photos, and documents will be shared
-          with other members of this private tree, and I have read the{" "}
+      {needsConsent ? (
+        <Label
+          htmlFor="consent"
+          className="group/field-label flex items-start gap-2.5 text-sm font-normal text-muted-foreground"
+        >
+          <Checkbox
+            id="consent"
+            name="consent"
+            checked={consented}
+            onCheckedChange={(value) => setConsented(value === true)}
+            className="mt-0.5"
+          />
+          <span>
+            I agree that my family details, photos, and documents will be shared
+            with other members of this private tree, and I have read the{" "}
+            <Link
+              href="/privacy"
+              target="_blank"
+              className="underline underline-offset-4"
+            >
+              privacy notice
+            </Link>
+            .
+          </span>
+        </Label>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          Read how your family&rsquo;s data is stored and protected in the{" "}
           <Link
             href="/privacy"
             target="_blank"
@@ -85,10 +107,10 @@ export function MagicLinkForm({
             privacy notice
           </Link>
           .
-        </span>
-      </Label>
+        </p>
+      )}
 
-      <Button type="submit" disabled={pending || !consented}>
+      <Button type="submit" disabled={pending || (needsConsent && !consented)}>
         {pending ? "Sending…" : submitLabel}
       </Button>
     </form>
