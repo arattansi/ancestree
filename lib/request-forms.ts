@@ -78,3 +78,12 @@ export function problemState(
 ): RequestFormState {
   return { error: problem.message, errorField: problem.field, ...entered };
 }
+
+/**
+ * Whether an address, already trimmed and lower-cased, passes the check
+ * these forms give theirs — for another address on one of them, like a
+ * relative's (Step 30.5).
+ */
+export function isEmailAddress(email: string): boolean {
+  return email.length <= MAX_EMAIL_LENGTH && EMAIL_RE.test(email);
+}

@@ -522,6 +522,77 @@ export type Database = {
           },
         ]
       }
+      invite_relays: {
+        Row: {
+          answered_at: string | null
+          created_at: string
+          email: string
+          email_sent: boolean | null
+          first_name: string
+          id: string
+          last_name: string
+          recipient_user_id: string
+          status: string
+          tree_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          answered_at?: string | null
+          created_at?: string
+          email: string
+          email_sent?: boolean | null
+          first_name: string
+          id?: string
+          last_name: string
+          recipient_user_id: string
+          status?: string
+          tree_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          answered_at?: string | null
+          created_at?: string
+          email?: string
+          email_sent?: boolean | null
+          first_name?: string
+          id?: string
+          last_name?: string
+          recipient_user_id?: string
+          status?: string
+          tree_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invite_relays_recipient_user_id_fkey"
+            columns: ["recipient_user_id"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "invite_relays_recipient_user_id_fkey"
+            columns: ["recipient_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "invite_relays_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "my_trees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invite_relays_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invite_requests: {
         Row: {
           created_at: string
@@ -2172,6 +2243,13 @@ export type Database = {
           joins_as: string
           tree_name: string
           valid: boolean
+        }[]
+      }
+      invite_relay_recipient: {
+        Args: { p_email: string }
+        Returns: {
+          email: string
+          user_id: string
         }[]
       }
       invite_request_candidates: {

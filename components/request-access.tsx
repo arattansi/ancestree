@@ -4,6 +4,7 @@ import * as React from "react";
 import { useActionState } from "react";
 import Link from "next/link";
 
+import { askRelative, type AskRelativeState } from "@/app/actions/invite-relays";
 import { requestInvite, type RequestInviteState } from "@/app/actions/invite-requests";
 import {
   findFamilyTree,
@@ -21,13 +22,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { NEW_TREE_STARTS_EMPTY, RELAY_NOTE, relayAnswer } from "@/lib/invite-relays";
 import { REQUEST_ACCESS_INTRO } from "@/lib/request-forms";
 import { waitlistReceived } from "@/lib/tree-requests";
 
 const INITIAL_SEARCH: FindTreeState = {};
 const INITIAL_REQUEST: RequestInviteState = {};
 const INITIAL_WAITLIST: WaitlistState = {};
+const INITIAL_ASK: AskRelativeState = {};
 
 /** The home page's "request access" (Step 28): the flow, in a dialog. */
 export function RequestAccessDialog({
@@ -204,8 +209,9 @@ function AskToJoin({
 }
 
 /**
- * Not found: ask a relative to invite them directly, or join the waitlist to
- * start a tree of their own with what they've already typed.
+ * Not found: ask a relative who's on ancestree to invite them (Step 30.5),
+ * or join the waitlist to start a tree of their own, with what they've
+ * already typed.
  */
 function Unmatched({
   search,
@@ -214,10 +220,8 @@ function Unmatched({
   search: FindTreeState;
   onBack: () => void;
 }) {
-  const [state, formAction, pending] = useActionState(
-    joinBetaWaitlist,
-    INITIAL_WAITLIST,
-  );
+  // Each ask starts a fresh form, so "Ask another relative" clears the last.
+  const [asks, setAsks] = React.useState(0);
 
   return (
     <div className="flex flex-col gap-4 text-sm">
@@ -231,45 +235,140 @@ function Unmatched({
         </p>
       </div>
 
-      <div className="flex flex-col gap-1 rounded-lg border border-border p-3">
-        <p className="font-medium text-foreground">Ask to be invited</p>
-        <p className="text-muted-foreground">
-          If someone in your family is already on ancestree, ask them, or the
-          Root who runs your family&rsquo;s tree, to invite you directly. Their
-          invite signs you straight in.
-        </p>
-      </div>
+      <AskRelative
+        key={asks}
+        search={search}
+        onAskAnother={() => setAsks((n) => n + 1)}
+      />
 
-      <div className="flex flex-col gap-2 rounded-lg border border-border p-3">
-        <p className="font-medium text-foreground">Start your family&rsquo;s tree</p>
-        {state.ok && state.email ? (
-          <p role="status" className="text-muted-foreground">
-            {waitlistReceived(state.email)}
-          </p>
-        ) : (
-          <form action={formAction} className="flex flex-col gap-2">
-            <input type="hidden" name="firstName" value={search.firstName ?? ""} />
-            <input type="hidden" name="lastName" value={search.lastName ?? ""} />
-            <input type="hidden" name="email" value={search.email ?? ""} />
-            <p className="text-muted-foreground">
-              New trees are in beta. Join the waitlist, and we&rsquo;ll email{" "}
-              {search.email} when you can start building yours.
-            </p>
-            {state.error ? (
-              <p role="alert" className="text-destructive">
-                {state.error}
-              </p>
-            ) : null}
-            <Button type="submit" size="sm" className="self-start" disabled={pending}>
-              {pending ? "Sending…" : "Join the beta waitlist"}
-            </Button>
-          </form>
-        )}
-      </div>
+      <StartATree search={search} />
 
       <Button type="button" variant="ghost" className="self-start" onClick={onBack}>
         Try a different spelling
       </Button>
+    </div>
+  );
+}
+
+/**
+ * Ask a relative who's on ancestree (Step 30.5): their address, and if it's
+ * a member's, the newcomer's name and email are passed on with an invite
+ * filled in for them to send. The answer is the same either way, so the
+ * form never tells anyone who's a member.
+ */
+function AskRelative({
+  search,
+  onAskAnother,
+}: {
+  search: FindTreeState;
+  onAskAnother: () => void;
+}) {
+  const [state, formAction, pending] = useActionState(askRelative, INITIAL_ASK);
+  const errorId = state.error ? "request-access-relative-error" : undefined;
+
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border border-border p-3">
+      <p className="font-medium text-foreground">
+        Ask a relative who&rsquo;s on ancestree
+      </p>
+      {state.ok ? (
+        <div role="status" className="flex flex-col gap-2">
+          <p className="text-muted-foreground">{relayAnswer(search.email ?? "")}</p>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="self-start"
+            onClick={onAskAnother}
+          >
+            Ask another relative
+          </Button>
+        </div>
+      ) : (
+        <form action={formAction} className="flex flex-col gap-2" noValidate>
+          <input type="hidden" name="firstName" value={search.firstName ?? ""} />
+          <input type="hidden" name="lastName" value={search.lastName ?? ""} />
+          <input type="hidden" name="email" value={search.email ?? ""} />
+          <p className="text-muted-foreground">{RELAY_NOTE}</p>
+          <Label htmlFor="request-access-relative" className="mt-1">
+            Your relative&rsquo;s email
+          </Label>
+          <Input
+            key={state.relativeEmail ?? ""}
+            id="request-access-relative"
+            name="relativeEmail"
+            type="email"
+            autoComplete="off"
+            inputMode="email"
+            required
+            defaultValue={state.relativeEmail ?? ""}
+            placeholder="them@example.com"
+            aria-invalid={state.error ? true : undefined}
+            aria-describedby={errorId}
+          />
+          {state.error ? (
+            <p id={errorId} role="alert" className="text-destructive">
+              {state.error}
+            </p>
+          ) : null}
+          <Button type="submit" size="sm" className="self-start" disabled={pending}>
+            {pending ? "Sending…" : "Ask them to invite me"}
+          </Button>
+        </form>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The waitlist, to start a tree of their own. A new tree starts empty, so
+ * it says so before the button (Step 30.5), and it takes the privacy
+ * agreement, as asking to join does (Step 30.6).
+ */
+function StartATree({ search }: { search: FindTreeState }) {
+  const [state, formAction, pending] = useActionState(
+    joinBetaWaitlist,
+    INITIAL_WAITLIST,
+  );
+  const [consented, setConsented] = React.useState(false);
+
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border border-border p-3">
+      <p className="font-medium text-foreground">Start your family&rsquo;s tree</p>
+      {state.ok && state.email ? (
+        <p role="status" className="text-muted-foreground">
+          {waitlistReceived(state.email)}
+        </p>
+      ) : (
+        <form action={formAction} className="flex flex-col gap-3">
+          <input type="hidden" name="firstName" value={search.firstName ?? ""} />
+          <input type="hidden" name="lastName" value={search.lastName ?? ""} />
+          <input type="hidden" name="email" value={search.email ?? ""} />
+          <p className="text-muted-foreground">
+            {NEW_TREE_STARTS_EMPTY} New trees are in beta: join the waitlist,
+            and we&rsquo;ll email {search.email} when you can start building
+            yours.
+          </p>
+          {state.error ? (
+            <p role="alert" className="text-destructive">
+              {state.error}
+            </p>
+          ) : null}
+          <InviteConsent
+            id="request-access-waitlist-consent"
+            checked={consented}
+            onCheckedChange={setConsented}
+          />
+          <Button
+            type="submit"
+            size="sm"
+            className="self-start"
+            disabled={pending || !consented}
+          >
+            {pending ? "Sending…" : "Join the beta waitlist"}
+          </Button>
+        </form>
+      )}
     </div>
   );
 }

@@ -20,6 +20,7 @@ import { HomeTreePicker } from "@/components/home-tree-picker";
 import { InviteMinter } from "@/components/invite-minter";
 import { NotificationsList } from "@/components/notifications-list";
 import { PersonForm } from "@/components/person-form";
+import { RelayInvites, type PendingRelay } from "@/components/relay-invites";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,6 +34,7 @@ import { accountTypeOf, branchSideLabel } from "@/lib/account-types";
 import { getUser, requireProfile, type Profile } from "@/lib/auth";
 import { getBranchSides } from "@/lib/branch.server";
 import { listNotifications } from "@/lib/claims";
+import { RELAY_ANSWERED, readRelayParam } from "@/lib/invite-relays";
 import { loadOwnEntry, type OwnEntry } from "@/lib/own-entry.server";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -69,11 +71,13 @@ export async function generateMetadata({
  * form — then, for a Root, the admin console (`?view=admin`) of the tree
  * they're looking at, or of the first tree they run when the current one
  * isn't theirs to run; and settings (`?view=settings`) for everything else.
+ * The email about a relative's ask opens settings (`&relay=<id>`, Step
+ * 30.5), where the invite waits filled in.
  */
 export default async function AccountPage({
   searchParams,
 }: PageProps<"/account">) {
-  const { view: requested } = await searchParams;
+  const { view: requested, relay } = await searchParams;
   const profile = await requireProfile();
   const [user, trees, access, ownEntry] = await Promise.all([
     getUser(),
@@ -123,7 +127,14 @@ export default async function AccountPage({
       {view === "admin" && console ? (
         <AdminConsole membership={console} />
       ) : view === "settings" ? (
-        <SettingsView profile={profile} trees={trees} />
+        <SettingsView
+          profile={profile}
+          trees={trees}
+          currentTreeId={
+            access?.kind === "member" ? access.membership.tree.id : null
+          }
+          openedRelayId={readRelayParam(relay)}
+        />
       ) : (
         <ProfileView ownEntry={ownEntry} />
       )}
@@ -180,30 +191,56 @@ function ProfileView({ ownEntry }: { ownEntry: OwnEntry | null }) {
 }
 
 /**
- * Settings: your trees, your entry across them, appearance, privacy, invites
- * you may send, your inbox, and signing out — cards in two columns, the wide
- * ones spanning both.
+ * Settings: relatives asking you for an invite, your trees, your entry
+ * across them, appearance, privacy, invites you may send, your inbox, and
+ * signing out — cards in two columns, the wide ones spanning both.
  */
 async function SettingsView({
   profile,
   trees,
+  currentTreeId,
+  openedRelayId,
 }: {
   profile: Profile;
   trees: MyTree[];
+  /** The tree they're looking at, if they're a member of it. */
+  currentTreeId: string | null;
+  /** The ask named by the email's button (`relayHref`), if that's how they came. */
+  openedRelayId: string | null;
 }) {
   const user = await getUser();
 
   const supabase = await createClient();
-  const [notifications, { data: directory }] = await Promise.all([
-    user ? listNotifications(user.id) : Promise.resolve([]),
-    supabase
-      .from("member_directory")
-      .select("tree_id, invited_by_name")
-      .eq("auth_user_id", profile.auth_user_id),
-  ]);
+  const [notifications, { data: directory }, { data: relayRows }] =
+    await Promise.all([
+      user ? listNotifications(user.id) : Promise.resolve([]),
+      supabase
+        .from("member_directory")
+        .select("tree_id, invited_by_name")
+        .eq("auth_user_id", profile.auth_user_id),
+      // Asks passed on to them from request access (Step 30.5): RLS shows
+      // each only to the member it went to.
+      supabase
+        .from("invite_relays")
+        .select("id, first_name, last_name, email, created_at")
+        .eq("recipient_user_id", profile.auth_user_id)
+        .eq("status", "pending")
+        .order("created_at", { ascending: true }),
+    ]);
   const invitedByTree = new Map(
     (directory ?? []).map((d) => [d.tree_id, d.invited_by_name]),
   );
+  const relays: PendingRelay[] = (relayRows ?? []).map((r) => ({
+    id: r.id,
+    firstName: r.first_name,
+    lastName: r.last_name,
+    email: r.email,
+    createdAt: r.created_at,
+  }));
+  // Opened from the email after it was answered (or signed in as someone
+  // else): say so, rather than show nothing.
+  const openedRelayGone =
+    openedRelayId !== null && !relays.some((r) => r.id === openedRelayId);
 
   // The member's own entry across trees: where it lives, where it shows.
   let home: { id: string; name: string } | null = null;
@@ -273,6 +310,32 @@ async function SettingsView({
 
   return (
     <div className="grid gap-6 md:grid-cols-2">
+      {relays.length > 0 || openedRelayGone ? (
+        <Card id="relatives-asking" className="md:col-span-2">
+          <CardHeader>
+            <CardTitle>Relatives Asking for an Invite</CardTitle>
+            <CardDescription>
+              They couldn&rsquo;t find themselves on a tree, so they gave us
+              your address. If you know them, send the invite: it&rsquo;s
+              filled in from what they typed. If you don&rsquo;t, dismiss it;
+              they aren&rsquo;t told either way.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            {openedRelayGone ? (
+              <p className="text-sm text-muted-foreground">{RELAY_ANSWERED}</p>
+            ) : null}
+            {relays.length > 0 ? (
+              <RelayInvites
+                relays={relays}
+                trees={trees.map((t) => ({ id: t.id, name: t.name }))}
+                defaultTreeId={currentTreeId}
+              />
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
+
       <Card>
         <CardHeader>
           <CardTitle>Your Trees</CardTitle>
