@@ -11,7 +11,7 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidateTreeAndAccount } from "@/lib/revalidate";
 import { redeemInvite } from "@/lib/sign-in.server";
 import { membershipOf, rootOf } from "@/lib/tree-context";
-import { onboardingHref, treesHref } from "@/lib/tree-links";
+import { joinedTreeHref, treesHref } from "@/lib/tree-links";
 
 const MAX_TREE_NAME = 80;
 
@@ -270,9 +270,10 @@ export async function setTreeVisibility(
 
 /**
  * A signed-in member accepts an invite to another tree (Step 25). Lands on
- * that tree's onboarding, which sends them on to the canvas when their own
- * entry is already shown there — and walks a founder invite's new Root
- * through their first run (Step 29).
+ * their own entry on that tree's canvas when the tree shows it — a claim
+ * invite claims its entry as it's accepted (Step 30.2) — else on its
+ * onboarding, which walks a founder invite's new Root through their first
+ * run (Step 29).
  */
 export async function joinTreeWithInvite(token: string): Promise<{ error?: string }> {
   await requireProfile();
@@ -280,7 +281,7 @@ export async function joinTreeWithInvite(token: string): Promise<{ error?: strin
   const joined = await redeemInvite(supabase, token);
   if (!joined) return { error: "That invite is invalid, used up, or expired." };
   revalidateTreeAndAccount();
-  redirect(onboardingHref());
+  redirect(joinedTreeHref(joined));
 }
 
 export type PersonTreeLink = {

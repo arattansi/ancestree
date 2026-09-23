@@ -4,6 +4,7 @@ import {
   addRelativeHref,
   adminHref,
   editPersonHref,
+  joinedTreeHref,
   onboardingHref,
   onboardingStepHref,
   reviewHref,
@@ -41,6 +42,26 @@ describe("treeFocusHref", () => {
 
   it("encodes the id", () => {
     expect(treeFocusHref("a&b=c")).toBe("/tree?person=a%26b%3Dc");
+  });
+});
+
+describe("joinedTreeHref", () => {
+  it("opens the canvas on the entry a claim invite just claimed", () => {
+    expect(joinedTreeHref({ selfPersonId: "p1", selfPlaced: true })).toBe(
+      "/tree?person=p1",
+    );
+  });
+
+  it("sends someone with no entry yet to onboarding", () => {
+    expect(joinedTreeHref({ selfPersonId: null, selfPlaced: false })).toBe(
+      "/onboarding",
+    );
+  });
+
+  it("sends a member whose entry is on another tree to onboarding", () => {
+    expect(joinedTreeHref({ selfPersonId: "p1", selfPlaced: false })).toBe(
+      "/onboarding",
+    );
   });
 });
 

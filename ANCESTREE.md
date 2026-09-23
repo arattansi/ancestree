@@ -446,7 +446,19 @@ mirror it for the UI.
 - **Invite someone to claim an entry** (`20260904100000_invite_to_claim_entry`,
   widened in Step 22.1): an invite with
   `person_id` set names the entry on `/join/<token>` and lets whoever redeems
-  it claim that entry without the name match. `private.can_invite_to_claim`
+  it claim that entry without the name match. Since Step 30.2
+  (`20260923070000`), redeeming it claims the entry there and then for
+  someone with no entry of their own: `redeem_invite` runs
+  `private.claim_as_self` — the checks and effects of `claim_person_as_self`,
+  creator's notice and dispute included — with the invite's vouch standing
+  in for the name match, names a new profile after the entry, and they land
+  on it (`/tree?person=<entry>`, `joinedTreeHref` reading
+  `redeem_invite_tree`'s `self_placed`, from every accept path). If the entry
+  has meanwhile been claimed, deleted or taken off the tree, they join anyway
+  and land on onboarding, where `search_self_candidates` lists a vouched
+  entry first and `claim_person_as_self` takes it without the name match. A
+  member who already has an entry keeps just the vouch (`private.claim_vouches`,
+  honoured by the canvas's `claim_person`). `private.can_invite_to_claim`
   says whose entry that may be: one the inviter can edit (`can_edit_person`)
   that nobody is behind yet — owner still the creator, no approved claim, no
   member's own — and whose person is living. So a Root anywhere, a Branch on

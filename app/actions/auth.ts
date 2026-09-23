@@ -10,7 +10,6 @@ import {
   signInWithInvite,
 } from "@/lib/sign-in.server";
 import { createClient } from "@/lib/supabase/server";
-import { onboardingHref } from "@/lib/tree-links";
 import { getSiteUrl } from "@/lib/site-url";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -101,8 +100,9 @@ export type AcceptInviteState = {
 
 /**
  * The button on an emailed invite: sign straight in as the address the invite
- * went to and join the tree — no second email. Bare links (no recipient) go
- * through `requestMagicLink` instead.
+ * went to and join the tree — no second email — landing on their own entry
+ * when a claim invite claimed it (Step 30.2), else on onboarding. Bare links
+ * (no recipient) go through `requestMagicLink` instead.
  */
 export async function acceptInvite(
   _prev: AcceptInviteState,
@@ -116,7 +116,7 @@ export async function acceptInvite(
   }
 
   const result = await signInWithInvite(token);
-  if (result.ok) redirect(onboardingHref());
+  if (result.ok) redirect(result.next);
 
   if (result.reason === "already_member") {
     return {
