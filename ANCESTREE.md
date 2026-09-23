@@ -883,6 +883,27 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 40 — Ancestral lands only where Native Land Digital has a match**
+  (ad-hoc; no migration). Aalim asked for the ancestral-lands box to go
+  where there's no match. Since Step 27.8 the form had offered one wherever
+  Native Land Digital maps no territory, or can't be asked (a hand-added
+  place, or NLD unreachable), captioned "Our database does not contain a
+  distinct ancestral name for this land. Please include whose land this
+  is." Now the form and the card show nothing there, and nothing while NLD
+  is being asked (no more "Checking Native Land Digital…"), so a place
+  without names never flashes up a line. Where NLD has names, both show
+  them as before. The family's words went with the box: none had been
+  saved (0 of 98 people and 0 of 7 companions on live), so the forms,
+  actions and loaders no longer read or write
+  `people.ancestral_lands_birth` / `_death` or `pets.ancestral_lands_birth`,
+  and the columns stay, unused. **Verified:** 728 tests pass (the 7 about
+  the family's words went with them). On a fixture page answered in the
+  route's own shape (the pane was signed out), a Toronto birthplace showed
+  its names and credit in the form and on a card; a Kampala place of death
+  (no names), a Nairobi companion (NLD can't be asked) and a card with no
+  place showed nothing, with no box or caption anywhere; and with every
+  lookup held for 8 seconds, nothing showed until the names arrived.
+
 - **Step 38 — Invites sent from the tree show in Sent Invites and on the
   card** (ad-hoc; migration `20260923120000_claim_invites_in_sent_invites`).
   Aalim sent invites from the tree and none showed in the admin console's
