@@ -1577,3 +1577,44 @@ export function laneTitleFit(zoom: number): { scale: number; top: number } {
   );
   return { scale, top };
 }
+
+/** A title's inset from its lane's left end, in canvas units. */
+export const LANE_TITLE_LEFT = 16;
+/**
+ * How far in from the canvas's left edge a pinned title sits, in screen px:
+ * in line with the Search & filters button above it (React Flow's 15px panel
+ * margin).
+ */
+export const LANE_TITLE_PIN = 16;
+
+/**
+ * Where a lane's title sits along the lane (Step 32.3), in canvas units from
+ * the lane's left end. It sits at its inset while the lane's start is on
+ * screen. Once the reader pans past that, it's pinned just inside the
+ * canvas's left edge, so each row's title stays in view however far along
+ * the tree they are. It never runs past the lane's far end.
+ *
+ * `viewLeft` is the canvas x at the canvas's left edge (the viewport's
+ * `-x / zoom`); `width` is the title's width in canvas units, magnification
+ * included.
+ */
+export function laneTitleLeft({
+  laneLeft,
+  laneWidth,
+  viewLeft,
+  zoom,
+  width,
+}: {
+  laneLeft: number;
+  laneWidth: number;
+  viewLeft: number;
+  zoom: number;
+  width: number;
+}): number {
+  if (!(Number.isFinite(zoom) && zoom > 0 && Number.isFinite(viewLeft))) {
+    return LANE_TITLE_LEFT;
+  }
+  const pinned = viewLeft + LANE_TITLE_PIN / zoom - laneLeft;
+  const furthest = laneWidth - LANE_TITLE_LEFT - width;
+  return Math.max(LANE_TITLE_LEFT, Math.min(pinned, furthest));
+}

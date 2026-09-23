@@ -4,8 +4,11 @@ import {
   COUPLE_GAP,
   GUTTER,
   LANE_TITLE_H,
+  LANE_TITLE_LEFT,
   LANE_TITLE_MAX_SCALE,
+  LANE_TITLE_PIN,
   laneTitleFit,
+  laneTitleLeft,
   NODE_H,
   NODE_W,
   ROW_GAP,
@@ -511,6 +514,44 @@ describe("lane titles at any zoom", () => {
     // A wide tree framed whole on a phone.
     expect(laneTitleFit(0.034).scale).toBe(LANE_TITLE_MAX_SCALE);
     expect(onScreen(0.034)).toBeLessThan(LANE_TITLE_H);
+  });
+});
+
+describe("lane titles along the row", () => {
+  // A lane from canvas x -1000 to 3000, and a title 300 canvas units wide.
+  const lane = { laneLeft: -1000, laneWidth: 4000, width: 300 };
+  // Where the title's left edge lands on screen, from the canvas's left edge.
+  const onScreen = (viewLeft: number, zoom: number) =>
+    (lane.laneLeft + laneTitleLeft({ ...lane, viewLeft, zoom }) - viewLeft) * zoom;
+
+  it("sits at its inset while the lane's start is on screen", () => {
+    expect(laneTitleLeft({ ...lane, viewLeft: -1500, zoom: 1 })).toBe(LANE_TITLE_LEFT);
+    // Just before the pin takes over.
+    expect(laneTitleLeft({ ...lane, viewLeft: -1000, zoom: 1 })).toBe(LANE_TITLE_LEFT);
+  });
+
+  it("stays just inside the canvas's left edge once the lane's start is past it", () => {
+    for (const zoom of [0.2, 0.5, 1, 1.75]) {
+      for (const viewLeft of [-500, 0, 1200]) {
+        expect(onScreen(viewLeft, zoom)).toBeCloseTo(LANE_TITLE_PIN);
+      }
+    }
+  });
+
+  it("never runs past the lane's far end", () => {
+    const furthest = lane.laneWidth - LANE_TITLE_LEFT - lane.width;
+    expect(laneTitleLeft({ ...lane, viewLeft: 2900, zoom: 1 })).toBe(furthest);
+    expect(laneTitleLeft({ ...lane, viewLeft: 10_000, zoom: 1 })).toBe(furthest);
+  });
+
+  it("keeps a title wider than its lane at the inset", () => {
+    expect(
+      laneTitleLeft({ laneLeft: 0, laneWidth: 200, width: 300, viewLeft: 100, zoom: 1 }),
+    ).toBe(LANE_TITLE_LEFT);
+  });
+
+  it("falls back to the inset before the canvas has a camera", () => {
+    expect(laneTitleLeft({ ...lane, viewLeft: Number.NaN, zoom: 0 })).toBe(LANE_TITLE_LEFT);
   });
 });
 

@@ -105,7 +105,8 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `addEntryComment` / `resolveEntryFlag` / `setEntryVerified`)
 - `components/tree/` — `family-tree.tsx` React Flow canvas (generation lanes
   behind the cards, whose titles stay life-size when zoomed out —
-  `laneTitleFit`; a child's descent line starts from a junction _derived from
+  `laneTitleFit` — and pinned inside the canvas's left edge — `laneTitleLeft`;
+  a child's descent line starts from a junction _derived from
   its parents' live positions_ — not a node — so it follows them as they are
   dragged, and all of a couple's children bend at a shared horizontal bus, so a
   marriage shows one trunk rather than one line per parent; admin
@@ -696,6 +697,21 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 32.3 — Generation titles pinned to the canvas's left edge**
+  (ad-hoc). Zoomed in on the middle of a wide tree, a lane's title sat at
+  the lane's far left, off screen. Once the reader pans past a lane's
+  start, its title now stays 16px inside the canvas's left edge, in line
+  with the Search & filters button (`lib/tree-layout.ts#laneTitleLeft`).
+  It still rides up and down with its row, and it never runs past the
+  lane's far end, so at the tree's right end it slides off with the lane.
+  The panels at the top left (search, claim suggestions, Getting started)
+  cover it where they overlap. UI only. **Verified** on the live tree in
+  the browser, with nothing saved: at the opening view the titles sit at
+  their usual inset; zoomed to 1.18 over the right of the tree, all five
+  sit 16px from the edge; with 200px of the lanes left on screen they stop
+  at the lanes' end; at zoom 0.31 they're pinned and still 12px. 5 new
+  tests.
 
 - **Step 30.2 — Accepting a claim invite claims the entry** (Step 30,
   first-time journeys; migration `20260923070000_claim_invite_claims_on_accept`).

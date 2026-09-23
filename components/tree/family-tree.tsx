@@ -94,6 +94,7 @@ import {
   trunkStep,
   layoutTree,
   laneTitleFit,
+  laneTitleLeft,
   NODE_H,
   NODE_W,
   type CardRect,
@@ -403,6 +404,31 @@ function GenerationLane({
   // is zoomed out, rising clear of its row's cards (`laneTitleFit`).
   const zoom = useStore((state: ReactFlowState) => state.transform[2]);
   const title = laneTitleFit(zoom);
+  // And in view along the row (32.3): pinned inside the canvas's left edge
+  // once the lane's start is panned off it (`laneTitleLeft`), which needs the
+  // canvas x of that edge and the title's own width.
+  const viewLeft = useStore(
+    (state: ReactFlowState) => -state.transform[0] / state.transform[2],
+  );
+  const titleRef = React.useRef<HTMLDivElement>(null);
+  const [titleWidth, setTitleWidth] = React.useState(0);
+  React.useEffect(() => {
+    const el = titleRef.current;
+    if (!el) return;
+    // Layout width, before the magnification: a font arriving late moves it.
+    const measure = () => setTitleWidth(el.offsetWidth);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  const titleLeft = laneTitleLeft({
+    laneLeft: minX,
+    laneWidth: maxX - minX,
+    viewLeft,
+    zoom,
+    width: titleWidth * title.scale,
+  });
   return (
     <div
       className={cn(
@@ -422,8 +448,13 @@ function GenerationLane({
         )}
       />
       <div
-        className="absolute left-4 flex origin-top-left items-baseline gap-2 text-xs leading-none whitespace-nowrap"
-        style={{ top: title.top, transform: `scale(${title.scale})` }}
+        ref={titleRef}
+        className="absolute flex origin-top-left items-baseline gap-2 text-xs leading-none whitespace-nowrap"
+        style={{
+          left: titleLeft,
+          top: title.top,
+          transform: `scale(${title.scale})`,
+        }}
       >
         <span className="font-medium text-muted-foreground">{band.label}</span>
         {band.sublabel ? (
