@@ -82,7 +82,15 @@ export function NameEmailFields({
 
 /**
  * The agreement an invite request needs: approval leads straight into the
- * tree, so this is where they agree to what that shares.
+ * tree, so this is where they agree to what that shares. The waitlist asks
+ * for it too (Step 30.6): a reviewer's yes sends a founder invite, and the
+ * join page takes the box as ticked here.
+ *
+ * `consent` goes from a hidden input that follows the box, not the box's
+ * own: React resets a form once its action has run, which unticked the
+ * box's input while the box still showed ticked, so a second try (after a
+ * missing name, say) was refused for want of the agreement. As
+ * `MagicLinkForm` does since Step 30.7.
  */
 export function InviteConsent({
   id,
@@ -100,7 +108,6 @@ export function InviteConsent({
     >
       <Checkbox
         id={id}
-        name="consent"
         checked={checked}
         onCheckedChange={(value) => onCheckedChange(value === true)}
         className="mt-0.5"
@@ -114,6 +121,7 @@ export function InviteConsent({
         </Link>
         .
       </span>
+      {checked ? <input type="hidden" name="consent" value="on" /> : null}
     </Label>
   );
 }

@@ -6,6 +6,7 @@ import { requireProfile } from "@/lib/auth";
 import { sendEmail } from "@/lib/email";
 import { treeRequestApprovedEmail } from "@/lib/emails/tree-request-approved";
 import { mintFounderInvite } from "@/lib/founder-invites.server";
+import { CONSENT_NEEDED, consentGiven } from "@/lib/privacy-consent";
 import {
   problemState,
   readNameAndEmail,
@@ -57,6 +58,10 @@ export type WaitlistState = RequestFormState & { ok?: boolean };
  * reachable from anon. A reviewer answers with a founder invite by email.
  * A new sign-up emails the reviewers once the person has their answer (Step
  * 30.1); signing up again emails nobody.
+ *
+ * It needs the privacy agreement (Step 30.6): the founder invite is filed
+ * as a request (`mintFounderInvite`), and the join page skips the box for a
+ * request, taking it as ticked when they asked.
  */
 export async function joinBetaWaitlist(
   _prev: WaitlistState,
@@ -64,6 +69,7 @@ export async function joinBetaWaitlist(
 ): Promise<WaitlistState> {
   const { entered, problem } = readNameAndEmail(formData);
   if (problem) return problemState(problem, entered);
+  if (!consentGiven(formData)) return { error: CONSENT_NEEDED, ...entered };
 
   const { error } = await createAdminClient().from("tree_requests").insert({
     first_name: entered.firstName,

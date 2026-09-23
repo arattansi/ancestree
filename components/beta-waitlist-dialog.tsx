@@ -1,10 +1,9 @@
 "use client";
 
-import { useActionState } from "react";
-import Link from "next/link";
+import { useActionState, useState } from "react";
 
 import { joinBetaWaitlist, type WaitlistState } from "@/app/actions/tree-requests";
-import { NameEmailFields } from "@/components/request-fields";
+import { InviteConsent, NameEmailFields } from "@/components/request-fields";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -42,6 +41,9 @@ export function BetaWaitlistDialog({
 
 function WaitlistForm() {
   const [state, formAction, pending] = useActionState(joinBetaWaitlist, INITIAL);
+  // The founder invite a yes sends skips the box on the join page, so it's
+  // ticked here, as when asking to join a tree (Step 30.6).
+  const [consented, setConsented] = useState(false);
 
   if (state.ok && state.email) {
     return (
@@ -75,17 +77,18 @@ function WaitlistForm() {
             {state.error}
           </p>
         ) : null}
-        <p className="text-xs text-muted-foreground">
-          We only use your name and email to tell you when you can start. See
-          the{" "}
-          <Link href="/privacy" target="_blank" className="underline underline-offset-4">
-            privacy notice
-          </Link>
-          .
-        </p>
-        <Button type="submit" disabled={pending}>
+        <InviteConsent
+          id="waitlist-consent"
+          checked={consented}
+          onCheckedChange={setConsented}
+        />
+        <Button type="submit" disabled={pending || !consented}>
           {pending ? "Sending…" : "Join the waitlist"}
         </Button>
+        <p className="text-xs text-muted-foreground">
+          Until then we only use your name and email to tell you when you can
+          start.
+        </p>
       </form>
     </>
   );
