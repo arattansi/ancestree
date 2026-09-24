@@ -1022,6 +1022,67 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 45 — A Root can remove a member who has added entries** (ad-hoc,
+  found during Step 42; migration
+  `20260923173000_remove_member_who_added_entries`). The admin console's
+  **Remove** (`remove_tree_member`) failed for anyone who had ever added an
+  entry: "Only a card's position can be changed here" (42501), shown as
+  "Couldn't remove that member. Try again." Each entry a member adds gets
+  its home placement with them as `placed_by` (`people_home_placement`),
+  and the function handed those to the Root before it set
+  `ancestree.privileged_profile_write`, which it set only around the
+  membership delete. `tree_placements_guard` lets `placed_by` change only
+  as a privileged write, so the whole removal rolled back. Only a member
+  who had added nothing could be removed; on live, 2 of the 4 Leaf and
+  Branch memberships couldn't have been. A second path failed the same
+  way: on a member's last tree, deleting their profile clears `placed_by`
+  (on delete set null) on any card they placed on a tree they had already
+  left, and that ran with the Root's claims too. (A member can leave a
+  tree through the API, though no screen offers it.) **Now**
+  `remove_tree_member` hands over the placements and drops the membership
+  under the flag, saving its value first and putting it back after, as
+  `join_tree` and `merge_invited_entry` do. Every check stays: Roots only,
+  never yourself, never a Root, and the profile goes with their last tree.
+  `tree_placements_guard` lets through clearing a placer whose profile is
+  gone, with nothing else about the card changing, as `tree_members_guard`
+  does for `invited_by_user_id` (Step 35). Outside that cascade `placed_by`
+  always names a profile that exists (a foreign key), so a member can't use
+  it. A card left that way keeps its spot, with nobody recorded as placing
+  it. No journey's taps or fields change. **Verified:** rehearsed rolled
+  back on live in three phases (as live, the function alone, all of it),
+  23 checks each, with throwaway Roots, Leaves and a Branch on two
+  throwaway trees:
+  - As live, a Root removing a Leaf or a Branch who had added an entry was
+    refused, on their last tree or not, and so was the tree's second Root.
+    A Leaf who had added nothing was removed.
+  - The function alone let those through. The entry, its card, a line, a
+    comment, an invite, a document, a companion and its comment all went to
+    the Root, and the inviter link of someone they'd invited was cleared.
+    Removing someone from a tree that wasn't their last left their cards
+    and entries on the other tree alone. It still failed for a member with
+    a card on a tree they'd left, whether that was all they had added or
+    they'd left through the API with entries here too.
+  - In full those went through as well, the card keeping its spot with no
+    placer, and the flag was left as found (on stayed on, where the old
+    function cleared it).
+  - In every phase a Leaf, a Branch and a Root of another tree were refused
+    (`not_authorized`), a Root couldn't remove themselves or another Root
+    (`ROOT_IS_PERMANENT`), someone not on the tree was "member not found",
+    and signed out it couldn't be called. A member or a Root still couldn't
+    clear or change who placed a card, a member could still move theirs,
+    and a home placement still couldn't be deleted. A profile deleted with
+    a Root's claims now clears a placer; the service role always could.
+
+  Applied and recorded under the file's version. Both functions' md5 match
+  the file, with grants, security definer and search path unchanged, and
+  the suite re-run on live matched. Through the live REST API with
+  throwaway `delivered+45-*@resend.dev` accounts, a Root removed a Leaf who
+  had added an entry (200 `true`): the entry and its card became the
+  Root's and the Leaf's profile went. The Leaf removing the Root answered
+  403 `not_authorized`, and the Root removing themselves 400. Throwaway
+  rows and accounts were deleted, and counts are back to the baseline.
+  816 tests pass; tsc and lint are clean.
+
 - **Step 44 — A shorter "Add a relative" form, and relatives who fill in
   what's missing** (ad-hoc; migration
   `20260923170000_fill_blanks_and_optional_birthplace`). Feedback from
