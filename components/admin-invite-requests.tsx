@@ -201,7 +201,7 @@ export function AdminInviteRequests({
                   <DeleteInviteButton
                     id={r.id}
                     name={`${r.firstName} ${r.lastName}`}
-                    confirmText={`Delete this record and kill the invite link you just sent ${r.email}? If they haven't used it yet, it will stop working. This cannot be undone.`}
+                    confirmText={`Delete this and cancel the invite you just sent ${r.email}?`}
                     onDeleted={() => forget(r.id)}
                   />
                 </div>
@@ -274,7 +274,7 @@ export function AdminInviteRequests({
                     id={r.id}
                     name={`${r.firstName} ${r.lastName}`}
                     disabled={busy !== null}
-                    confirmText={`Delete ${r.firstName} ${r.lastName}'s invite request outright? Unlike declining, it leaves no record and they can ask again. This cannot be undone.`}
+                    confirmText={`Delete ${r.firstName} ${r.lastName}’s request? It leaves no record, so they can ask again.`}
                   />
                 </div>
               </>

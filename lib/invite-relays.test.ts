@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  NEW_TREE_STARTS_EMPTY,
   RELATIVES_CAN_ASK_LABEL,
   RELAY_ANSWERED,
   RELAY_CAPS,
@@ -202,22 +201,17 @@ describe("relativeEmailProblem", () => {
 
 describe("what the newcomer is told", () => {
   it("says up front that their name and email are passed on", () => {
-    expect(RELAY_NOTE).toContain("we’ll pass your name and email on to them");
-    expect(RELAY_NOTE).toContain("we won’t say whether they’re on ancestree");
+    expect(RELAY_NOTE).toContain("We’ll pass your name and email on");
+    expect(RELAY_NOTE).toContain("we won’t say whether they’re here");
   });
 
   it("answers every ask the same way, never saying whether it reached anyone", () => {
     const answer = relayAnswer("zahra@example.com");
     expect(answer).toBe(
-      "If they’re on ancestree, we’ve passed your request on. If they know you, their invite will come to zahra@example.com.",
+      "If they’re on ancestree, we’ve passed it on. Their invite will come to zahra@example.com.",
     );
     // It depends on nothing but their own address.
     expect(relayAnswer("zahra@example.com")).toBe(answer);
-  });
-
-  it("says a new tree starts empty before offering the waitlist", () => {
-    expect(NEW_TREE_STARTS_EMPTY).toMatch(/^A new tree starts empty\./);
-    expect(NEW_TREE_STARTS_EMPTY).toContain("ask them to invite you instead");
   });
 });
 

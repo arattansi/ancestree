@@ -56,8 +56,7 @@ export function ClaimSuggestions({
         </button>
       </div>
       <p className="mt-1 text-xs text-muted-foreground">
-        These entries match your name. If one is you, claim it and the entry
-        you added for yourself merges into it.
+        These match your name. Claim yours and your own entry merges into it.
       </p>
       <ul className="mt-3 flex flex-col gap-2">
         {candidates.map((c) => (
@@ -74,7 +73,7 @@ export function ClaimSuggestions({
             </div>
             {confirmingId === c.id ? (
               <>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs whitespace-pre-line text-muted-foreground">
                   {notes.get(c.id)}
                 </p>
                 <div className="flex gap-2">

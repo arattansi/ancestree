@@ -272,13 +272,14 @@ export function countOf(count: number, limit: number): string {
 
 /**
  * Said as someone is made a Root: whether the tree has room left after them
- * (Step 39). With room for two, that's always its last place.
+ * (Step 39), as the start of a sentence the confirm finishes. With room for
+ * two, that's always its last place.
  */
 export function rootPlacesAfter(roots: number): string {
   const left = ROOTS_PER_TREE - roots - 1;
   return left <= 0
-    ? `A tree has at most ${inWords(ROOTS_PER_TREE)} Roots, so this is its last place.`
-    : `A tree has at most ${inWords(ROOTS_PER_TREE)} Roots, so that leaves room for ${inWords(left)} more.`;
+    ? "It’s the tree’s last Root place"
+    : `It leaves room for ${inWords(left)} more`;
 }
 
 /**
@@ -386,11 +387,11 @@ export function branchSideLabel(rootNames: readonly string[]): string | null {
 
 /** Why an entry is closed to the viewer, when it is. */
 export const LOCKED_ENTRY_NOTE =
-  "Only this entry’s owner, a Branch for this side of the family, or a Root can edit it.";
+  "Only its owner, a Branch for this side, or a Root can edit this.";
 
 /** What the viewer can do with an entry they may fill in (Step 44). */
 export const FILL_ENTRY_NOTE =
-  "You can fill in what’s missing here. Only this entry’s owner, a Branch for this side of the family, or a Root can change what’s already filled in.";
+  "You can fill in what’s missing. Only its owner, a Branch for this side, or a Root can change the rest.";
 
 /**
  * What a new entry off a Leaf's own line is refused with. The database marks

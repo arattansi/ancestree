@@ -143,7 +143,7 @@ export function FamilyStep({
                   id={siblingHint}
                   className="max-w-44 text-center text-xs text-muted-foreground sm:text-right"
                 >
-                  Add a parent first, so siblings sit together under them.
+                  Add a parent first.
                 </p>
               ) : null}
             </li>
@@ -169,7 +169,7 @@ export function FamilyStep({
           Done — open my tree
         </Button>
         <p className="text-xs text-muted-foreground">
-          Grandparents, cousins and everyone else you can add from the tree.
+          Add everyone else from the tree.
         </p>
       </div>
 
@@ -314,8 +314,8 @@ function BringRelatives({
       <CardHeader>
         <CardTitle>Already on {listNames(from)}</CardTitle>
         <CardDescription>
-          Bring them across rather than adding them again: they keep their one
-          entry. Anyone who&rsquo;s a member is asked first.
+          Bring them across instead of adding them again. Members are asked
+          first.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">

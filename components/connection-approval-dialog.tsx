@@ -75,10 +75,7 @@ export function ConnectionApprovalDialog({
       >
         <DialogHeader>
           <DialogTitle>A few connections to check</DialogTitle>
-          <DialogDescription>
-            Adding this person suggests some links we&apos;re not sure about.
-            Answer each one to save the entry.
-          </DialogDescription>
+          <DialogDescription>Answer each one to save the entry.</DialogDescription>
         </DialogHeader>
 
         <ul className="flex flex-col gap-4">

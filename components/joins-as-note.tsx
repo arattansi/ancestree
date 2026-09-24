@@ -11,8 +11,7 @@ export function JoinsAsNote() {
       <AccountTypeGlyph type={INVITED_AS} tinted className="mt-0.5" />
       <span>
         They&rsquo;ll join as a{" "}
-        <span className="font-medium text-foreground">{INVITED_AS.name}</span>,
-        adding relatives on their own line. A Root can make them a Branch later.
+        <span className="font-medium text-foreground">{INVITED_AS.name}</span>.
       </span>
     </p>
   );

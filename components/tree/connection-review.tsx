@@ -24,30 +24,22 @@ export function ConnectionReview({
 
   if (high.length + medium.length + duplicates.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">
-        Nothing to review. Every connection the tree implies is already
-        recorded, or has been answered.
-      </p>
+      <p className="text-sm text-muted-foreground">Nothing to review.</p>
     );
   }
 
   return (
     <div className="flex flex-col gap-8">
-      <Section
-        title="Missing connections"
-        blurb="The tree already implies these. Each one has a single likely reading."
-        items={high}
-        onResolved={refresh}
-      />
+      <Section title="Missing connections" items={high} onResolved={refresh} />
       <Section
         title="Worth checking"
-        blurb="These have a plausible second reading — a step-parent, a half-sibling — so they're worth a look rather than a reflex yes."
+        blurb="Could be a step-parent or half-sibling, so check before saying yes."
         items={medium}
         onResolved={refresh}
       />
       <Section
         title="Possible duplicates"
-        blurb="Two entries with similar names sitting in the same place in the tree. Confirming one flags it for an admin; nothing is merged automatically."
+        blurb="Similar names in the same place on the tree."
         items={duplicates}
         onResolved={refresh}
       />
@@ -62,7 +54,7 @@ function Section({
   onResolved,
 }: {
   title: string;
-  blurb: string;
+  blurb?: string;
   items: PanelSuggestion[];
   onResolved: () => void;
 }) {
@@ -76,7 +68,7 @@ function Section({
             ({items.length})
           </span>
         </h2>
-        <p className="text-sm text-muted-foreground">{blurb}</p>
+        {blurb ? <p className="text-sm text-muted-foreground">{blurb}</p> : null}
       </div>
       <ConnectionPromptList suggestions={items} onResolved={onResolved} />
     </section>

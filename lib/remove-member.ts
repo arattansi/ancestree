@@ -27,15 +27,17 @@ export function removeMemberConfirm({
 }: Removal & { entryCount: number; onlyTree: boolean | null }): string {
   const login =
     onlyTree === null
-      ? "If it’s their only tree, their login is deleted too and they can’t return without a new invite."
+      ? "If it’s their only tree, their login goes too."
       : onlyTree
-        ? "It’s their only tree, so their login is deleted too and they can’t return without a new invite."
-        : "They keep their login and stay on their other trees.";
+        ? "It’s their only tree, so their login goes too."
+        : "They stay on their other trees.";
   const entries =
-    entryCount > 0
-      ? ` Their ${entryCount} entr${entryCount === 1 ? "y" : "ies"} and anything else they added become yours.`
-      : "";
-  return `Remove ${name} from ${treeName}? ${login}${entries} This cannot be undone.`;
+    entryCount === 0
+      ? ""
+      : entryCount === 1
+        ? " Their 1 entry becomes yours."
+        : ` Their ${entryCount} entries become yours.`;
+  return `Remove ${name} from ${treeName}? ${login}${entries}\nThis cannot be undone.`;
 }
 
 /**

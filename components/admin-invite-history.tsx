@@ -117,9 +117,9 @@ function isExpired(item: InviteHistoryItem) {
 function confirmTextFor(item: InviteHistoryItem) {
   const who = `${item.firstName} ${item.lastName}`;
   if (item.inviteStatus === "active") {
-    return `Delete ${who}'s invite? The link emailed to ${item.email} stops working immediately. This cannot be undone.`;
+    return `Delete ${who}’s invite? The link sent to ${item.email} will be deactivated.`;
   }
-  return `Delete the record of ${who}'s invite? This cannot be undone.`;
+  return `Delete the record of ${who}’s invite?`;
 }
 
 function StatusBadge({ item }: { item: InviteHistoryItem }) {

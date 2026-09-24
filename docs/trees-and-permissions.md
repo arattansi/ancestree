@@ -195,8 +195,8 @@ site, whoever it was to, and those are checked before anyone is looked up
 (Step 41.5). A member can untick "Relatives can ask me to invite them" on
 their settings, and then nobody's ask reaches them, while the newcomer is
 told the same as ever; an ask they leave for 30 days lapses. Or the
-newcomer joins the waitlist, which says first that a new
-tree starts empty. Both waitlist forms take the same privacy tick as asking
+newcomer joins the waitlist, which says it's for starting a tree from
+scratch. Both waitlist forms take the same privacy tick as asking
 to join (Step 30.6), since the founder invite a reviewer's yes sends doesn't
 ask again.
 

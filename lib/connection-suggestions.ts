@@ -431,8 +431,8 @@ function ruleCoParent({ graph, people, emit }: RuleContext) {
           source: "co_parent",
           confidence: "high",
           reason:
-            `${people.label(p)} and ${people.label(q)} are both parents of ` +
-            `${people.label(child)}, but they aren't connected to each other.`,
+            `Are ${people.label(p)} and ${people.label(q)} partners? ` +
+            `They’re both parents of ${people.label(child)}.`,
         });
       }
     }
@@ -471,14 +471,14 @@ function ruleMissingCoParent({ graph, people, emit }: RuleContext) {
         let caveat = "";
         if (bornYear !== null && marriedYear !== null && bornYear < marriedYear) {
           confidence = "medium";
-          caveat = ` Note that ${people.label(child)} was born in ${bornYear}, before the ${marriedYear} marriage.`;
+          caveat = ` ${people.label(child)} was born in ${bornYear}, before the ${marriedYear} marriage.`;
         } else if (
           bornYear !== null &&
           divorcedYear !== null &&
           bornYear > divorcedYear
         ) {
           confidence = "medium";
-          caveat = ` Note that ${people.label(child)} was born in ${bornYear}, after the ${divorcedYear} divorce.`;
+          caveat = ` ${people.label(child)} was born in ${bornYear}, after the ${divorcedYear} divorce.`;
         }
 
         emit({
@@ -489,9 +489,8 @@ function ruleMissingCoParent({ graph, people, emit }: RuleContext) {
           source: "unlinked_spouse_child",
           confidence,
           reason:
-            `${people.label(partner)} is ${people.label(spouse)}'s partner, and ` +
-            `${people.label(spouse)} is a parent of ${people.label(child)} — but ` +
-            `${people.label(partner)} isn't recorded as a parent.${caveat}`,
+            `Is ${people.label(partner)} also ${people.label(child)}’s parent? ` +
+            `They’re ${people.label(spouse)}’s partner.${caveat}`,
         });
       }
     }
@@ -519,11 +518,9 @@ function ruleSiblingImpliedParents({ graph, people, emit }: RuleContext) {
           // One parent already recorded leaves half-siblings on the table.
           confidence: own.size === 0 ? "high" : "medium",
           reason:
-            `${people.label(person)} is recorded as a sibling of ` +
-            `${people.label(sibling)}, whose parent is ${people.label(parent)}` +
-            (own.size === 0
-              ? `, but ${people.label(person)} has no parents recorded.`
-              : `. They may be half-siblings, or this parent may be missing.`),
+            `Is ${people.label(parent)} also ${people.label(person)}’s parent? ` +
+            `They’re ${people.label(sibling)}’s sibling` +
+            (own.size === 0 ? "." : " — or half-sibling."),
         });
       }
     }
@@ -593,8 +590,8 @@ function ruleStructuralDuplicates({
       const [subject, related] = orderPair(parseRef(person), parseRef(other));
       const overlap =
         shared === 1
-          ? "share a close relative"
-          : `share ${shared} close relatives`;
+          ? "the same close relative"
+          : `the same ${shared} close relatives`;
       emit({
         subject,
         related,
@@ -602,9 +599,8 @@ function ruleStructuralDuplicates({
         source: "shared_neighbours",
         confidence: shared >= 2 ? "high" : "medium",
         reason:
-          `${people.label(person)} and ${people.label(other)} have similar names, ` +
-          `${overlap} in the same way, and aren't connected to each other — ` +
-          `they may be the same person entered twice.`,
+          `Are ${people.label(person)} and ${people.label(other)} the same person? ` +
+          `They have similar names and ${overlap}.`,
       });
     }
   }

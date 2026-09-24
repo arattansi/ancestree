@@ -7,19 +7,19 @@ const arzu = { name: "Arzu", treeName: "Rattansi" };
 describe("removeMemberConfirm", () => {
   it("warns that their login goes when this is their only tree", () => {
     expect(removeMemberConfirm({ ...arzu, entryCount: 3, onlyTree: true })).toBe(
-      "Remove Arzu from Rattansi? It’s their only tree, so their login is deleted too and they can’t return without a new invite. Their 3 entries and anything else they added become yours. This cannot be undone.",
+      "Remove Arzu from Rattansi? It’s their only tree, so their login goes too. Their 3 entries become yours.\nThis cannot be undone.",
     );
   });
 
   it("says they keep their login when they're on another tree", () => {
     expect(removeMemberConfirm({ ...arzu, entryCount: 1, onlyTree: false })).toBe(
-      "Remove Arzu from Rattansi? They keep their login and stay on their other trees. Their 1 entry and anything else they added become yours. This cannot be undone.",
+      "Remove Arzu from Rattansi? They stay on their other trees. Their 1 entry becomes yours.\nThis cannot be undone.",
     );
   });
 
   it("holds either way when the console couldn't tell", () => {
     expect(removeMemberConfirm({ ...arzu, entryCount: 0, onlyTree: null })).toBe(
-      "Remove Arzu from Rattansi? If it’s their only tree, their login is deleted too and they can’t return without a new invite. This cannot be undone.",
+      "Remove Arzu from Rattansi? If it’s their only tree, their login goes too.\nThis cannot be undone.",
     );
   });
 
@@ -27,7 +27,7 @@ describe("removeMemberConfirm", () => {
     for (const onlyTree of [true, false, null]) {
       expect(
         removeMemberConfirm({ ...arzu, entryCount: 0, onlyTree }),
-      ).not.toContain("become yours");
+      ).not.toMatch(/becomes? yours/);
     }
   });
 });

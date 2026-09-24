@@ -69,10 +69,9 @@ export function RequestInviteForm({ treeSlug }: { treeSlug: string }) {
       >
         <p className="font-medium text-foreground">Request sent</p>
         <p className="mt-1 text-muted-foreground">
-          A relative will review it. Once they approve, we&rsquo;ll email{" "}
+          Once a relative approves, we&rsquo;ll email{" "}
           <span className="font-medium text-foreground">{state.email}</span> a
-          link that takes you straight into the tree — nothing more to sign up
-          for.
+          link to the tree.
         </p>
       </div>
     );
@@ -102,11 +101,6 @@ export function RequestInviteForm({ treeSlug }: { treeSlug: string }) {
       <Button type="submit" disabled={pending || !consented}>
         {pending ? "Sending…" : "Request an invite"}
       </Button>
-
-      <p className="text-sm text-muted-foreground">
-        Until then we only store your name and email, so a relative can
-        recognise you.
-      </p>
     </form>
   );
 }

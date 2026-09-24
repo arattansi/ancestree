@@ -22,12 +22,7 @@ import { PersonFields } from "@/components/person-fields";
 import { PhotoPicker } from "@/components/photo-picker";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Form } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -53,13 +48,6 @@ const TITLES: Record<CloseKind, string> = {
   partner: "Add a partner",
   child: "Add a child",
   sibling: "Add a sibling",
-};
-
-const WHERE_THEY_GO: Record<CloseKind, string> = {
-  parent: "They’ll sit above you on the tree.",
-  partner: "They’ll sit beside you, joined to you as partners.",
-  child: "They’ll hang below you on the tree.",
-  sibling: "They’ll sit beside you, under the parents you share.",
 };
 
 type Named = { id: string; name: string };
@@ -95,7 +83,6 @@ export function QuickRelativeDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogTitle>{TITLES[props.kind]}</DialogTitle>
-        <DialogDescription>{WHERE_THEY_GO[props.kind]}</DialogDescription>
         {/* The dialog's contents unmount once it closes, so each opening
             starts this form afresh — no one's values carry over. */}
         <QuickRelativeForm
@@ -260,12 +247,7 @@ function QuickRelativeForm({
               onCheckedChange={(c) => setPartnered(c === true)}
               className="mt-0.5"
             />
-            <span>
-              They and {otherParent.name} were partners.
-              <span className="block text-xs text-muted-foreground">
-                Untick if your parents were never a couple.
-              </span>
-            </span>
+            <span>They and {otherParent.name} were partners.</span>
           </label>
         ) : null}
 
@@ -336,8 +318,8 @@ function QuickRelativeForm({
                 disabled={submitting}
               />
               <p className="text-xs text-muted-foreground">
-                Optional. Once they&rsquo;re added, we&rsquo;ll email them a
-                link to join the tree and take over this entry.
+                Optional. We&rsquo;ll email them a link to join and take over
+                this entry.
               </p>
             </div>
             {inviteEmail.trim() ? <JoinsAsNote /> : null}

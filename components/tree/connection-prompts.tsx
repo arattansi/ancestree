@@ -31,7 +31,7 @@ function acceptLabel(s: PanelSuggestion): string {
  */
 function acceptHint(s: PanelSuggestion): string | null {
   return s.suggestedType === "duplicate_check"
-    ? "Confirming flags the pair for an admin to merge by hand — nothing is deleted or joined automatically."
+    ? "Yes flags them for a Root to merge by hand."
     : null;
 }
 

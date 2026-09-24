@@ -375,7 +375,7 @@ describe("auditTree — sibling-implied parents", () => {
     // Symmetric: each sibling is missing the other's parent.
     expect(out).toHaveLength(2);
     expect(out.map((c) => c.confidence)).toEqual(["medium", "medium"]);
-    expect(out.every((c) => c.reason.includes("half-siblings"))).toBe(true);
+    expect(out.every((c) => c.reason.includes("half-sibling"))).toBe(true);
     expect(ids(out.map((c) => c.subject))).toEqual(
       expect.arrayContaining(["p1", "p2"]),
     );

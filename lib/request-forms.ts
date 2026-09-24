@@ -7,14 +7,14 @@
 
 /** What "request access" says before anything is typed, in its dialog or on its page. */
 export const REQUEST_ACCESS_INTRO =
-  "ancestree is invite-only. Tell us who you are, and we’ll look for your family’s tree.";
+  "Tell us who you are and we’ll look for your family tree.";
 
 /**
  * What asking to join one tree says first: the share link's "Ask to join"
  * dialog, and `/request-invite?tree=` (Step 41.4).
  */
 export const REQUEST_INVITE_INTRO =
-  "ancestree is invite-only. Tell us who you are and an admin will review your request.";
+  "Tell us who you are and a relative on the tree will review it.";
 
 export const MAX_NAME_LENGTH = 80;
 /** The most an address can be (RFC 5321's path limit, less the brackets). */

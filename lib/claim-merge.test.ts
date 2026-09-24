@@ -89,7 +89,7 @@ describe("mergeConfirmation", () => {
   it("names who moves, grouped the way a family reads", () => {
     const moved = relativesThatMove("stub", "claimed", people, lines);
     expect(mergeConfirmation(moved)).toBe(
-      "Your parents Amina Rattansi and Karim Rattansi, your partner Sam Okafor, your sibling Zara Rattansi, and your child Noor Rattansi will be connected to this entry instead, and the entry you added for yourself will be removed. This can't be undone.",
+      "Your parents Amina Rattansi and Karim Rattansi, your partner Sam Okafor, your sibling Zara Rattansi, and your child Noor Rattansi move to this entry, and your old one is removed.\nThis cannot be undone.",
     );
   });
 
@@ -100,14 +100,14 @@ describe("mergeConfirmation", () => {
         { id: "dad", name: "Karim", relation: "parent" },
         { id: "partner", name: "Sam", relation: "partner" },
       ]),
-    ).toMatch(/^Your parents Amina and Karim, and your partner Sam will be/);
+    ).toMatch(/^Your parents Amina and Karim, and your partner Sam move to/);
   });
 
   it("uses the singular for one relative", () => {
     expect(
       mergeConfirmation([{ id: "mum", name: "Amina", relation: "parent" }]),
     ).toBe(
-      "Your parent Amina will be connected to this entry instead, and the entry you added for yourself will be removed. This can't be undone.",
+      "Your parent Amina moves to this entry, and your old one is removed.\nThis cannot be undone.",
     );
   });
 
@@ -118,13 +118,13 @@ describe("mergeConfirmation", () => {
       relation: "child" as const,
     }));
     expect(mergeConfirmation(kids)).toMatch(
-      /^Your children A, B, C and 2 more will be connected/,
+      /^Your children A, B, C and 2 more move to this entry/,
     );
   });
 
   it("still warns when nothing moves", () => {
     expect(mergeConfirmation([])).toBe(
-      "The entry you added for yourself will be removed, and this one becomes yours. This can't be undone.",
+      "This becomes your entry, and your old one is removed.\nThis cannot be undone.",
     );
   });
 });

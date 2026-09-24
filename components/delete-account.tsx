@@ -41,11 +41,8 @@ export type SoleRootTree = {
  */
 export function DeleteAccount({
   soleRootTrees = [],
-  madeBranches = false,
 }: {
   soleRootTrees?: readonly SoleRootTree[];
-  /** They've made someone a Branch on a tree, who passes to a Root there. */
-  madeBranches?: boolean;
 }) {
   const [busy, setBusy] = React.useState(false);
   const [successors, setSuccessors] = React.useState<Record<string, string>>({});
@@ -73,10 +70,13 @@ export function DeleteAccount({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Delete your account?</DialogTitle>
-          <DialogDescription>
-            {handingOver
-              ? `You're the only Root of a tree, so someone has to take over before you go. They become a Root — for good — and the entries and relationships you added there pass to them${madeBranches ? ", along with the Branches you made" : ""}. This permanently removes your sign-in and profile from every tree, and cannot be undone.`
-              : `This permanently removes your sign-in and profile from every tree you belong to. Entries and relationships you added stay on each tree under a Root’s stewardship${madeBranches ? ", and the Branches you made pass to that Root" : ""}. To have those removed too, ask a Root before deleting. This cannot be undone.`}
+          <DialogDescription render={<div />} className="flex flex-col gap-2">
+            <p>
+              {handingOver
+                ? "You’re the only Root of a tree, so choose who takes over. They become a Root and own everything you added there."
+                : "This removes your sign-in and profile from every tree. Everything you added stays, managed by a Root."}
+            </p>
+            <p>This cannot be undone.</p>
           </DialogDescription>
         </DialogHeader>
 
@@ -112,8 +112,8 @@ export function DeleteAccount({
             </div>
           ) : (
             <p key={t.treeId} className="text-sm text-muted-foreground">
-              There&rsquo;s nobody else on {t.treeName} to hand it to yet.
-              Invite someone first, then come back.
+              Nobody else is on {t.treeName} yet. Invite someone to hand it to
+              first.
             </p>
           );
         })}

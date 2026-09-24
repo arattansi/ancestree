@@ -25,13 +25,13 @@ describe("toTreeRequestStatus", () => {
 describe("what an ask says once it's in", () => {
   it("tells a member they'll hear when they can start", () => {
     expect(TREE_REQUEST_RECEIVED).toBe(
-      "Your request has been received. We’ll notify you when you can start building a new tree.",
+      "We’ll let you know when you can start your tree.",
     );
   });
 
   it("tells someone on the waitlist where they'll hear", () => {
     expect(waitlistReceived("zahra@example.com")).toBe(
-      "Your request has been received. We’ll email you at zahra@example.com when you can start building a new tree.",
+      "We’ll email zahra@example.com when you can start your tree.",
     );
   });
 });

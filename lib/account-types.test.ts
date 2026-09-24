@@ -250,9 +250,7 @@ describe("limits (Step 39)", () => {
   });
 
   it("says what making a Root leaves", () => {
-    expect(rootPlacesAfter(1)).toBe(
-      "A tree has at most two Roots, so this is its last place.",
-    );
+    expect(rootPlacesAfter(1)).toBe("It’s the tree’s last Root place");
   });
 
   it("sums up the tree for the members table, the viewer first", () => {

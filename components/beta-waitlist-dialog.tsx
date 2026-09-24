@@ -62,8 +62,9 @@ function WaitlistForm() {
       <DialogHeader>
         <DialogTitle>Start a tree</DialogTitle>
         <DialogDescription>
-          Starting a family tree of your own is in beta. Join the waitlist, and
-          we&rsquo;ll email you when you can start building yours.
+          New trees are in beta.
+          <br />
+          Join the waitlist and we&rsquo;ll email you when you can start.
         </DialogDescription>
       </DialogHeader>
       <form action={formAction} className="flex flex-col gap-4" noValidate>
@@ -85,10 +86,6 @@ function WaitlistForm() {
         <Button type="submit" disabled={pending || !consented}>
           {pending ? "Sending…" : "Join the waitlist"}
         </Button>
-        <p className="text-xs text-muted-foreground">
-          Until then we only use your name and email to tell you when you can
-          start.
-        </p>
       </form>
     </>
   );

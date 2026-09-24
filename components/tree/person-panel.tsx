@@ -586,9 +586,7 @@ export function PersonPanel({
     if (!person) return;
     if (
       !window.confirm(
-        isAdmin
-          ? "Permanently delete this entry, its relationships, photo, and documents? This cannot be undone."
-          : "Permanently delete this entry you added, with its connections, photo and documents? This cannot be undone.",
+        `Delete ${personDisplayName(person)}? Their connections, photo and documents go too. This cannot be undone.`,
       )
     ) {
       return;
@@ -823,14 +821,7 @@ export function PersonPanel({
 
               {(canEdit || fillable) && !person.maiden_name ? (
                 <div className="rounded-md border border-dashed border-border bg-muted/40 px-3 py-2.5 text-xs text-muted-foreground">
-                  No maiden name on this entry yet.{" "}
-                  <Link
-                    href={editPersonHref(person.id)}
-                    className="font-medium text-foreground underline underline-offset-2"
-                  >
-                    Add one
-                  </Link>{" "}
-                  if you know it.
+                  No maiden name yet.
                 </div>
               ) : null}
 
@@ -865,8 +856,8 @@ export function PersonPanel({
                     <div className="flex flex-col gap-1">
                       <h2 className="text-sm font-semibold">Documents</h2>
                       <p className="text-xs text-muted-foreground">
-                        Private to this entry&rsquo;s owner, the Branch for this
-                        side of the family, and the Roots.
+                        Private to this entry&rsquo;s owner, its Branch and the
+                        Roots.
                       </p>
                     </div>
                   )}
@@ -968,7 +959,7 @@ export function PersonPanel({
                   !person.claim_status &&
                   confirmingClaim ? (
                     <div className="flex flex-col gap-2 rounded-md border border-border p-3">
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs whitespace-pre-line text-muted-foreground">
                         {claimNote}
                       </p>
                       <div className="flex gap-2">
@@ -1025,9 +1016,8 @@ export function PersonPanel({
                       </div>
                       <JoinsAsNote />
                       <p className="text-xs text-muted-foreground">
-                        Emails them a single-use link, good for 14 days. It
-                        names this entry, and claiming it hands them the
-                        record to keep up to date.
+                        They&rsquo;ll get a link, good for 14 days, to take
+                        over this entry.
                       </p>
                     </div>
                   ) : claimInvites.length > 0 ? (

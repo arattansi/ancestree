@@ -42,10 +42,9 @@ import { cn } from "@/lib/utils";
  * is given to someone who has already joined — within the limits (Step 39).
  */
 const HOW_THEY_GET_IT: Record<AccountTypeKey, string> = {
-  admin: `That’s you. You run the tree and decide what everyone else can do. A tree has at most ${inWords(ROOTS_PER_TREE)} Roots: you, and ${inWords(ROOTS_PER_TREE - 1)} more you can choose once they’ve joined.`,
-  branch_admin: `For someone who knows one side of the family best. Make a Leaf a Branch once they’ve joined — you can make up to ${inWords(BRANCHES_PER_ROOT)}.`,
-  member:
-    "Everyone you invite joins as a Leaf, to add family on their own line and fill in the details. Invite as many as you like.",
+  admin: `That’s you. You can make ${inWords(ROOTS_PER_TREE - 1)} more Root${ROOTS_PER_TREE - 1 === 1 ? "" : "s"} once they’ve joined.`,
+  branch_admin: `For whoever knows one side best. You can make up to ${inWords(BRANCHES_PER_ROOT)} Branches once they’ve joined.`,
+  member: "Everyone invited joins as a Leaf.",
 };
 
 type Row = {
@@ -67,14 +66,11 @@ function blankRow(key: string): Row {
 export function InviteStep({
   treeId,
   invites,
-  founderEntry,
   nextHref,
 }: {
   treeId: string;
   /** Out from this tree and not yet taken up. */
   invites: TreeInvite[];
-  /** Where the founder's own entry is: on this tree, on another, or nowhere yet. */
-  founderEntry: "here" | "elsewhere" | "none";
   nextHref: string;
 }) {
   const router = useRouter();
@@ -156,9 +152,6 @@ export function InviteStep({
       <Card>
         <CardHeader>
           <CardTitle>Who Can Do What</CardTitle>
-          <CardDescription>
-            Three account types, named for the parts of a tree.
-          </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <ul className="flex flex-col gap-3">
@@ -202,14 +195,7 @@ export function InviteStep({
         <CardHeader>
           <CardTitle>Invite Relatives</CardTitle>
           <CardDescription>
-            Each gets an email that signs them straight in. Their own entries
-            connect to yours
-            {founderEntry === "here"
-              ? ""
-              : founderEntry === "elsewhere"
-                ? ", which you’ll bring across next"
-                : ", which you’ll add next"}
-            .
+            Each gets an email that links them to the tree.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-5">
@@ -325,7 +311,7 @@ export function InviteStep({
           {invites.length > 0 ? "Continue" : "Skip for now"}
         </Button>
         <p className="text-xs text-muted-foreground">
-          You can invite people any time from the admin view of your account.
+          You can invite people later too.
         </p>
       </div>
     </div>

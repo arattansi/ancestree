@@ -62,7 +62,7 @@ export function AccountTypePicker({
     if (
       next === ROOT.key &&
       !window.confirm(
-        `Make ${name} a Root? They'll hold the whole tree, just as you do: every entry and connection, members and invites, deleting entries. ${rootPlacesAfter(roots)} A Root stays a Root — nobody, you included, can change that later.`,
+        `Make ${name} a Root? They’ll hold the whole tree, as you do. ${rootPlacesAfter(roots)}, and it cannot be undone.`,
       )
     ) {
       return;

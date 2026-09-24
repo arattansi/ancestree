@@ -538,10 +538,7 @@ async function SettingsView({
           </p>
           <RelativesCanAsk on={profile.relatives_can_ask} />
           <div>
-            <DeleteAccount
-              soleRootTrees={soleRootTrees}
-              madeBranches={branchesMadeByTree.size > 0}
-            />
+            <DeleteAccount soleRootTrees={soleRootTrees} />
           </div>
         </CardContent>
       </Card>

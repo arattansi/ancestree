@@ -436,8 +436,7 @@ export function AddPersonFlow({
   if (mustConnect && members.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        No one is on the family tree yet. A Root needs to add the first person
-        before you can connect your entry.
+        The tree is empty. A Root needs to add someone first.
       </p>
     );
   }
@@ -715,8 +714,8 @@ export function AddPersonFlow({
   const submitting = form.formState.isSubmitting || photoBusy || saving;
 
   const inBetweenHint = details
-    ? "If the person in between isn't here yet, add them below."
-    : "If the person in between isn't here yet, you can add them under “Add more details”.";
+    ? "Missing someone in between? Add them below."
+    : "Missing someone in between? Add them under “Add more details”.";
 
   const photoField = (
     <PhotoPicker
@@ -789,9 +788,8 @@ export function AddPersonFlow({
                       />
                     </FormControl>
                     <FormDescription>
-                      Optional. Once they&rsquo;re added, we&rsquo;ll email
-                      them a single-use link, good for 14 days, to join the tree
-                      and take over this entry.
+                      Optional. We&rsquo;ll email them a link to join and take
+                      over this entry.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -812,10 +810,10 @@ export function AddPersonFlow({
               </h2>
               <p className="text-sm text-muted-foreground">
                 {anchorable
-                  ? `Connect them to someone on your own line — your parents and grandparents, everyone descended from them, or someone they married. ${inBetweenHint}`
+                  ? `Connect them to someone on your own line. ${inBetweenHint}`
                   : mustConnect
-                    ? `Every entry must connect to someone already in the tree. ${inBetweenHint}`
-                    : "A Root can add someone without connecting them to anyone."}
+                    ? `Connect them to someone already on the tree. ${inBetweenHint}`
+                    : "Optional for Roots."}
               </p>
             </div>
 
@@ -1163,9 +1161,7 @@ export function AddPersonFlow({
               >
                 More details
               </h2>
-              <p className="text-sm text-muted-foreground">
-                All optional. Anything left out can be filled in later.
-              </p>
+              <p className="text-sm text-muted-foreground">All optional.</p>
             </div>
             <PersonDetailFields
               control={form.control}

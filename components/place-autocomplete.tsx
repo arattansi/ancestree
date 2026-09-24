@@ -288,8 +288,7 @@ function AddPlaceDialog({
         <DialogHeader>
           <DialogTitle>Add a place</DialogTitle>
           <DialogDescription>
-            Only do this when the place genuinely isn’t in the list — a small
-            village, or a name that has since changed.
+            Only if it isn’t in the list — a small village, or an old name.
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-4">

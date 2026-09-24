@@ -166,16 +166,12 @@ export function relativeEmailProblem(
 
 /** What the form says before anything is sent: whose details go where. */
 export const RELAY_NOTE =
-  "If someone in your family is already on ancestree, we’ll pass your name and email on to them, so they can invite you. For their privacy, we won’t say whether they’re on ancestree.";
+  "We’ll pass your name and email on so they can invite you. For their privacy, we won’t say whether they’re here.";
 
 /** The answer to every ask, whoever the address belongs to. */
 export function relayAnswer(ownEmail: string): string {
-  return `If they’re on ancestree, we’ve passed your request on. If they know you, their invite will come to ${ownEmail}.`;
+  return `If they’re on ancestree, we’ve passed it on. Their invite will come to ${ownEmail}.`;
 }
-
-/** Said before the waitlist's button: a new tree is no way into the family's own. */
-export const NEW_TREE_STARTS_EMPTY =
-  "A new tree starts empty. If your family is already on ancestree, ask them to invite you instead.";
 
 /**
  * The member's way in, from the email: their account's settings, where the

@@ -63,16 +63,9 @@ export async function FirstTreeOnboarding({
           <StepHeading
             eyebrow="Your tree is planted"
             title="Build It Together"
-            lead="The people who know your family best can help it grow. Everyone you invite joins with an account type, which decides what they can do on the tree."
+            lead="Invite the relatives who know your family best."
           />
-          <InviteStep
-            treeId={tree.id}
-            invites={data.invites}
-            founderEntry={
-              state.selfPlaced ? "here" : founder ? "elsewhere" : "none"
-            }
-            nextHref={next}
-          />
+          <InviteStep treeId={tree.id} invites={data.invites} nextHref={next} />
         </>
       ) : null}
 
@@ -82,8 +75,8 @@ export async function FirstTreeOnboarding({
             title="Start With You"
             lead={
               founder && !founder.placedHere
-                ? `You already have an entry${founder.homeTreeName ? ` on ${founder.homeTreeName}` : ""}. Bring it across: it stays one entry, shown on both trees, so a change to your details shows on both.`
-                : "Your entry is where the tree grows from: everyone you add connects back to you."
+                ? `You already have an entry${founder.homeTreeName ? ` on ${founder.homeTreeName}` : ""}. Bring it across — it stays one entry on both trees.`
+                : "Everyone you add connects back to you."
             }
           />
           {founder?.placedHere ? (
@@ -128,7 +121,7 @@ export async function FirstTreeOnboarding({
         <>
           <StepHeading
             title="Name Your Tree"
-            lead="Everyone you invite sees it, so call it what your family calls itself. You can change it any time from the admin view of your account."
+            lead="You can change it later."
           />
           <NameStep
             treeId={tree.id}
@@ -150,7 +143,7 @@ export async function FirstTreeOnboarding({
         <>
           <StepHeading
             title="Your Closest Family"
-            lead="Start with the people around you. Each one takes their place on the tree as you add them — everyone else you can add from the tree itself."
+            lead="Start with the people closest to you."
           />
           <FamilyStep
             treeId={tree.id}

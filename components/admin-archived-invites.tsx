@@ -24,9 +24,7 @@ export function AdminArchivedInvites({ invites }: { invites: ArchivedInvite[] })
 
   async function onDelete(invite: ArchivedInvite) {
     if (
-      !window.confirm(
-        `Delete the record of ${describe(invite)}? The link already stopped working when it expired. This cannot be undone.`,
-      )
+      !window.confirm(`Delete the record of ${describe(invite)}?`)
     ) {
       return;
     }

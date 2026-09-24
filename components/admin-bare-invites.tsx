@@ -107,9 +107,9 @@ export function AdminBareInvites({
 /** Nobody's name is attached to a bare link, so the stakes are all in its state. */
 function confirmTextFor(invite: BareInvite) {
   if (invite.status === "active" && !isExpired(invite)) {
-    return "Delete this link? Anyone holding it — including anywhere you've already sent it — will no longer be able to join. This cannot be undone.";
+    return "Delete this link? It stops working for anyone you’ve sent it to.";
   }
-  return "Delete this link? It can no longer be used to join anyway. This cannot be undone.";
+  return "Delete this link? It no longer works anyway.";
 }
 
 function isExpired(invite: BareInvite) {

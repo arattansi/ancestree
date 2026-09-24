@@ -77,9 +77,9 @@ function listNames(names: string[], max = 3): string {
 
 /**
  * What "This is me" asks before it merges, naming who moves: "Your parents
- * Amina and Karim, and your partner Sam will be connected to this entry
- * instead, and the entry you added for yourself will be removed." A comma
- * before the "and" between groups keeps each group's own "and" readable.
+ * Amina and Karim, and your partner Sam move to this entry, and your old one
+ * is removed." A comma before the "and" between groups keeps each group's
+ * own "and" readable. The warning that it's final sits on a line of its own.
  */
 export function mergeConfirmation(relatives: MergeRelative[]): string {
   const groups = ORDER.flatMap((relation) => {
@@ -90,15 +90,16 @@ export function mergeConfirmation(relatives: MergeRelative[]): string {
     const [one, many] = NOUNS[relation];
     return [`your ${names.length === 1 ? one : many} ${listNames(names)}`];
   });
-  const undo = "This can't be undone.";
+  const undo = "This cannot be undone.";
   if (groups.length === 0) {
-    return `The entry you added for yourself will be removed, and this one becomes yours. ${undo}`;
+    return `This becomes your entry, and your old one is removed.\n${undo}`;
   }
   const who =
     groups.length === 1
       ? groups[0]
       : `${groups.slice(0, -1).join(", ")}, and ${groups[groups.length - 1]}`;
-  return `${who[0].toUpperCase()}${who.slice(1)} will be connected to this entry instead, and the entry you added for yourself will be removed. ${undo}`;
+  const move = relatives.length === 1 ? "moves" : "move";
+  return `${who[0].toUpperCase()}${who.slice(1)} ${move} to this entry, and your old one is removed.\n${undo}`;
 }
 
 /** What `claim_person` answers ("This is me"). */

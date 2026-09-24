@@ -60,10 +60,10 @@ export function CanvasTip() {
       <div className="flex items-start gap-3 rounded-lg border border-border bg-card/95 px-3 py-2 text-xs shadow-md">
         <p className="text-muted-foreground">
           <span className="font-medium text-foreground">
-            Tap or click anyone to pull their own tree out of the family.
+            Tap anyone to see their own tree.
           </span>{" "}
-          On a line, pick near the parents to light up their descendants, or
-          near a child for their ancestors.
+          On a line, tap near the parents for descendants, or near a child for
+          ancestors.
         </p>
         <button
           type="button"

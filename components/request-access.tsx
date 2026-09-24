@@ -25,7 +25,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { NEW_TREE_STARTS_EMPTY, RELAY_NOTE, relayAnswer } from "@/lib/invite-relays";
+import { RELAY_NOTE, relayAnswer } from "@/lib/invite-relays";
 import { REQUEST_ACCESS_INTRO } from "@/lib/request-forms";
 import { waitlistReceived } from "@/lib/tree-requests";
 
@@ -139,10 +139,9 @@ function AskToJoin({
       <div role="status" className="rounded-lg border border-border bg-muted/40 p-4 text-sm">
         <p className="font-medium text-foreground">Request sent</p>
         <p className="mt-1 text-muted-foreground">
-          A Root of {chosen.name} will review it. Once they approve, we&rsquo;ll
-          email <span className="font-medium text-foreground">{state.email}</span>{" "}
-          a link that takes you straight into the tree — nothing more to sign up
-          for.
+          Once a Root of {chosen.name} approves it, we&rsquo;ll email{" "}
+          <span className="font-medium text-foreground">{state.email}</span> a
+          link to the tree.
         </p>
       </div>
     );
@@ -160,19 +159,14 @@ function AskToJoin({
           <p className="font-medium text-foreground">
             We found someone named {name} on {chosen.name}
           </p>
-          <p className="text-muted-foreground">
-            If that&rsquo;s you, ask to join. One of the tree&rsquo;s Roots will
-            review your request.
-          </p>
+          <p className="text-muted-foreground">If that&rsquo;s you, ask to join.</p>
         </div>
       ) : (
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-1 font-medium text-foreground">
             We found someone named {name} on {found.length} trees
           </legend>
-          <p className="text-muted-foreground">
-            Choose the one to ask to join. Its Roots will review your request.
-          </p>
+          <p className="text-muted-foreground">Choose which one to ask.</p>
           <RadioGroup
             value={slug}
             onValueChange={(v) => {
@@ -238,8 +232,8 @@ function Unmatched({
           We couldn&rsquo;t find you on a tree yet
         </p>
         <p className="text-muted-foreground">
-          Families add relatives as they go, so you may not be on yours yet, or
-          you may be there under another spelling.
+          You may not have been added yet, or you&rsquo;re under a different
+          spelling.
         </p>
       </div>
 
@@ -329,9 +323,9 @@ function AskRelative({
 }
 
 /**
- * The waitlist, to start a tree of their own. A new tree starts empty, so
- * it says so before the button (Step 30.5), and it takes the privacy
- * agreement, as asking to join does (Step 30.6).
+ * The waitlist, to start a tree of their own. A new tree starts from
+ * scratch, so it says so before the button (Step 30.5), and it takes the
+ * privacy agreement, as asking to join does (Step 30.6).
  */
 function StartATree({ search }: { search: FindTreeState }) {
   const [state, formAction, pending] = useActionState(
@@ -342,7 +336,7 @@ function StartATree({ search }: { search: FindTreeState }) {
 
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-border p-3">
-      <p className="font-medium text-foreground">Start your family&rsquo;s tree</p>
+      <p className="font-medium text-foreground">Start a new tree</p>
       {state.ok && state.email ? (
         <p role="status" className="text-muted-foreground">
           {waitlistReceived(state.email)}
@@ -353,9 +347,8 @@ function StartATree({ search }: { search: FindTreeState }) {
           <input type="hidden" name="lastName" value={search.lastName ?? ""} />
           <input type="hidden" name="email" value={search.email ?? ""} />
           <p className="text-muted-foreground">
-            {NEW_TREE_STARTS_EMPTY} New trees are in beta: join the waitlist,
-            and we&rsquo;ll email {search.email} when you can start building
-            yours.
+            Join the beta waitlist and we&rsquo;ll email {search.email} when you
+            can start a tree from scratch.
           </p>
           {state.error ? (
             <p role="alert" className="text-destructive">

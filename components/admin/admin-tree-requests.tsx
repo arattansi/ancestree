@@ -222,15 +222,14 @@ function AnswerBadges({ request: r }: { request: TreeRequestItem }) {
 /** Say what deleting costs, which depends on how far the request got. */
 function deleteWarning(r: TreeRequestItem): string {
   const who = fullName(r);
-  let text: string;
   if (r.status === "pending") {
-    text = `Delete ${who}'s request outright? Unlike declining, it leaves no record, and they can ask again.`;
-  } else if (r.status === "approved" && r.kind === "member") {
-    text = `Delete ${who}'s approved request? If they haven't started their tree yet, they'll need to ask again.`;
-  } else if (r.status === "approved" && r.inviteOut) {
-    text = `Delete ${who}'s request? The founder invite emailed to ${r.email} stops working immediately.`;
-  } else {
-    text = `Delete the record of ${who}'s request?`;
+    return `Delete ${who}’s request? It leaves no record, so they can ask again.`;
   }
-  return `${text} This cannot be undone.`;
+  if (r.status === "approved" && r.kind === "member") {
+    return `Delete ${who}’s approved request? If they haven’t started their tree, they’ll have to ask again.`;
+  }
+  if (r.status === "approved" && r.inviteOut) {
+    return `Delete ${who}’s request? The invite sent to ${r.email} stops working.`;
+  }
+  return `Delete the record of ${who}’s request?`;
 }

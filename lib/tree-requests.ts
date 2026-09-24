@@ -20,9 +20,9 @@ export function toTreeRequestStatus(raw: unknown): TreeRequestStatus {
 
 /** What an ask says once it's in, signed in or out. */
 export const TREE_REQUEST_RECEIVED =
-  "Your request has been received. We’ll notify you when you can start building a new tree.";
+  "We’ll let you know when you can start your tree.";
 
 /** The same, for someone on the waitlist, who hears by email. */
 export function waitlistReceived(email: string): string {
-  return `Your request has been received. We’ll email you at ${email} when you can start building a new tree.`;
+  return `We’ll email ${email} when you can start your tree.`;
 }

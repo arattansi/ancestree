@@ -203,9 +203,7 @@ export function PetPanel({
   async function onRemove() {
     if (!pet) return;
     if (
-      !window.confirm(
-        `Remove ${pet.name} from the tree? This also deletes their photo.`,
-      )
+      !window.confirm(`Remove ${pet.name} and their photo?`)
     ) {
       return;
     }
@@ -384,10 +382,7 @@ export function PetPanel({
                     })}
                   </ul>
                   <p className="text-xs text-muted-foreground">
-                    A companion can belong to as many people as lived with them.
-                    The primary connection is where {pet.name} sits on the tree
-                    &mdash; under that person, or under the couple if they have a
-                    partner &mdash; leaning towards everyone else on the list.
+                    {pet.name} sits on the tree under their primary companion.
                   </p>
                 </section>
                 </>
@@ -434,8 +429,8 @@ export function PetPanel({
 
               {!readOnly && !canEdit ? (
                 <p className="border-t border-border pt-5 text-xs text-muted-foreground">
-                  Whoever added this companion, an admin, or anyone who can edit
-                  one of their people can make changes here.
+                  Only whoever added {pet.name}, a Root, or someone who can edit
+                  their companions can change this.
                 </p>
               ) : null}
             </div>

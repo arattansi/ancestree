@@ -14,12 +14,7 @@ import {
 } from "@/components/tree/companion-picker";
 import { PhotoPicker } from "@/components/photo-picker";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Form } from "@/components/ui/form";
 import { DEFAULT_CROP, type CropTransform } from "@/lib/image-crop";
 import {
@@ -126,10 +121,6 @@ export function AddCompanionDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-md">
         <DialogTitle>Add a companion</DialogTitle>
-        <DialogDescription>
-          Pets sit alongside the family rather than in it — no lineage, no
-          generation, just who they lived with.
-        </DialogDescription>
 
         <Form {...form}>
           <form

@@ -47,10 +47,8 @@ export function AdminDeleteTree({ treeId, name }: { treeId: string; name: string
         <DialogHeader>
           <DialogTitle>Delete {name}?</DialogTitle>
           <DialogDescription>
-            Everyone whose home this tree is moves to another tree that shows
-            them. Anyone shown nowhere else is deleted with it, along with
-            this tree&rsquo;s comments, documents, companions, invites and
-            share links. Members keep their accounts. This cannot be undone.
+            Everything is deleted, except people who are also on another tree.
+            Members keep their accounts.
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-2">
