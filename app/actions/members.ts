@@ -74,11 +74,12 @@ export async function setAccountType(
  * acting Root (so RESTRICT foreign keys don't block it) and drops their
  * membership. If that was their last tree, their profile goes too and we
  * delete the auth user so they can't sign back in without a fresh invite.
+ * `lastTree` says which, for the console's toast (Step 46).
  */
 export async function deleteMember(
   treeId: string,
   userId: string,
-): Promise<{ error?: string }> {
+): Promise<{ error?: string; lastTree?: boolean }> {
   const { membership, error: notRoot } = await rootOf(treeId);
   if (notRoot || !membership) return { error: notRoot };
 
@@ -117,5 +118,5 @@ export async function deleteMember(
 
   revalidateTreeAndAccount();
   revalidatePath("/trees");
-  return {};
+  return { lastTree: lastTree === true };
 }

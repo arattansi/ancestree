@@ -62,6 +62,7 @@ import {
   listInviteHistory,
 } from "@/lib/invites";
 import { listNicknameGroups } from "@/lib/nicknames.server";
+import { membersOnOtherTrees } from "@/lib/remove-member.server";
 import { listRequestCandidates } from "@/lib/request-candidates.server";
 import {
   listForeignPlacements,
@@ -143,6 +144,9 @@ export async function AdminConsole({
   const members = (membersRes.data ?? []).filter(
     (m): m is typeof m & { auth_user_id: string } => !!m.auth_user_id,
   );
+  // Who you can remove: anyone who isn't a Root, so never yourself.
+  const removable = (m: (typeof members)[number]) =>
+    m.role !== ROOT.key && m.auth_user_id !== currentAdmin.auth_user_id;
   // Whose side each Branch tends part of — the Root their own entry is related
   // to. They tend the part of it they are related through (Step 22.2).
   const selfEntryOf = new Map(
@@ -209,6 +213,7 @@ export async function AdminConsole({
     foreign,
     reviewer,
     requestCandidates,
+    onOtherTrees,
   ] = await Promise.all([
     listInviteHistory(tree.id),
     listBareInvites(tree.id),
@@ -218,6 +223,11 @@ export async function AdminConsole({
     isBetaReviewer(),
     // Who on the tree each requester's name matches (Step 30.3).
     listRequestCandidates(pendingRequests.map((r) => r.id)),
+    // Whether removing each one deletes their login too (Step 46).
+    membersOnOtherTrees(
+      tree.id,
+      members.filter(removable).map((m) => m.auth_user_id),
+    ),
   ]);
   // Requests to start a tree (Step 28) are the site's, not this tree's: the
   // same queue shows on every console a beta reviewer runs.
@@ -463,14 +473,19 @@ export async function AdminConsole({
                       {entryCountByCreator.get(member.auth_user_id) ?? 0}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      {member.role !== "admin" &&
-                      member.auth_user_id !== currentAdmin.auth_user_id ? (
+                      {removable(member) ? (
                         <DeleteMemberButton
                           treeId={tree.id}
+                          treeName={tree.name}
                           userId={member.auth_user_id}
                           name={member.display_name ?? "this member"}
                           entryCount={
                             entryCountByCreator.get(member.auth_user_id) ?? 0
+                          }
+                          onlyTree={
+                            onOtherTrees
+                              ? !onOtherTrees.has(member.auth_user_id)
+                              : null
                           }
                         />
                       ) : null}

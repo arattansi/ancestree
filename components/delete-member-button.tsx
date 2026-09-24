@@ -6,40 +6,46 @@ import { toast } from "sonner";
 
 import { deleteMember } from "@/app/actions/members";
 import { Button } from "@/components/ui/button";
+import { memberRemovedToast, removeMemberConfirm } from "@/lib/remove-member";
 
 /**
- * Removes a member on /admin: reassigns their entries to you and deletes their
- * login. Double-confirmed because it can't be undone.
+ * Removes a member from this tree on the admin console: what they added
+ * here becomes yours, and their login is deleted only if it was their only
+ * tree (Step 46). Confirmed first, because it can't be undone.
  */
 export function DeleteMemberButton({
   treeId,
+  treeName,
   userId,
   name,
   entryCount,
+  onlyTree,
 }: {
   treeId: string;
+  treeName: string;
   userId: string;
   name: string;
   entryCount: number;
+  /**
+   * Whether this is the only tree they're on, so their login goes too; null
+   * when the console couldn't tell.
+   */
+  onlyTree: boolean | null;
 }) {
   const router = useRouter();
   const [busy, setBusy] = React.useState(false);
 
   async function onDelete() {
-    const entries =
-      entryCount > 0
-        ? ` Their ${entryCount} entr${entryCount === 1 ? "y" : "ies"} and anything else they added become yours.`
-        : "";
     if (
       !window.confirm(
-        `Remove ${name}? Their login is deleted and they can't return without a new invite.${entries} This cannot be undone.`,
+        removeMemberConfirm({ name, treeName, entryCount, onlyTree }),
       )
     ) {
       return;
     }
 
     setBusy(true);
-    let res: { error?: string };
+    let res: { error?: string; lastTree?: boolean };
     try {
       res = await deleteMember(treeId, userId);
     } catch {
@@ -53,7 +59,13 @@ export function DeleteMemberButton({
       toast.error(res.error);
       return;
     }
-    toast.success(`${name} removed.`);
+    toast.success(
+      memberRemovedToast({
+        name,
+        treeName,
+        loginDeleted: res.lastTree === true,
+      }),
+    );
   }
 
   return (
