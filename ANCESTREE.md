@@ -219,6 +219,11 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `admin/admin-delete-tree.tsx`, `tree/person-trees.tsx` ("Also on");
   `components/ui/skeleton.tsx` + `loading.tsx` skeletons
 - `lib/auth.ts` — `getUser` / `getProfile` / `requireProfile` / `requireSelfPerson` (server-only; roles are per tree, see `lib/tree-context.ts`)
+- "This is me" (Steps 36, 43): `lib/claim-merge.ts` — who the merge moves
+  and what it asks first (`relativesThatMove`, `mergeConfirmation`), and the
+  photo file it has to move (`claimedPhotoMove`; `.test.ts`);
+  `lib/claim-merge.server.ts` — `moveClaimedPhoto`, which moves it with the
+  service role (`.test.ts`)
 - `lib/site-url.ts` — `getSiteUrl()` for magic-link redirects and invite links
 - Request alerts (Step 30.1): `lib/request-alerts.ts` — the caps and the
   new-ask test (`.test.ts`); `lib/request-alerts.server.ts` — emails a
@@ -279,7 +284,7 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `claims`                 | Auto-approve / dispute / reject a person entry (`dispute_reason`, `resolved_by`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `notifications`          | In-app notices, **one inbox per tree** (`tree_id`, Step 25; `placement_requested` \| `placement_accepted` \| `placement_declined` added; `tree_request_approved`, Step 28; `placed_on_join`, Step 30.9, and what a claim invite did, Step 41.3); recipient-scoped RLS                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `entry_comments`         | Comments and flags, **one board per tree** (`tree_id`, Step 25) (`is_flag`, `open` \| `resolved`, `resolved_by`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| `documents`              | Metadata for private file uploads, **one bank per tree** (`tree_id`); `shared_across_trees` shows it on every tree the person is on — flipped only by the person or a Root of their home tree (`documents_guard`), which also keeps it on its entry except inside Step 41.3's merge                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `documents`              | Metadata for private file uploads, **one bank per tree** (`tree_id`); `shared_across_trees` shows it on every tree the person is on — flipped only by the person or a Root of their home tree (`documents_guard`), which also keeps it on its entry except inside a merge (Step 41.3's claim invite, or "This is me" since Step 43), which leaves it unshared                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `places`                 | GeoNames reference data (populated places + admin areas) for birthplace autocomplete; not tree-scoped — read by any member, written only by the import script                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `historical_names`       | Curated period names for a place/country over a date range (Step 4.5d); matched by `place_id` then `country_code` against a birth/death year. Read by any member; seeded by migration                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `pets`                   | Companion animals — a deliberately thin, non-human entry: name, species (`cat` / `dog` / `other` + `species_label`), `year_born` / `year_died`, an optional exact `birth_date` (must agree with `year_born`) and an optional GeoNames place of birth (`place_id_birth` FK + denormalised `city_of_birth` / `country_of_birth`, exactly like a person; Step 27.7's `ancestral_lands_birth` was dropped in Step 40.5, as on a person), photo, and a `pos_dx` / `pos_dy` nudge. No lineage, claims, documents, or verification                                                                                                                                                                                                                                                                                                                                                                |
@@ -446,6 +451,11 @@ member's own card; `/admin` → Members shows all three.
 **Storage:** private buckets `photos` and `documents`. Object path
 `{tree_id}/{person_id}/{filename}`, served only through signed URLs. Photos are
 readable by every member; only whoever can edit the entry can write either.
+A photo's file must sit under its own entry's id: `storage_photos_select`
+reads the person in the path (a document's reads its row). So when "This is
+me" gives the claimed entry the placeholder's photo, `claimPerson` moves the
+file into the claimed entry's folder with the service role (Step 43,
+`moveClaimedPhoto`), as deleting an entry sweeps its files.
 **Documents are private (Step 18.4):** a document's row and file are readable
 only by a Root, the entry's owner (or the member whose own entry it is), and
 the Branch who tends that side of the tree — including another member's own
@@ -627,7 +637,8 @@ mirror it for the UI.
   line between them, and not born more than a year apart. Theirs then sits
   where it sat on that canvas, with its lines (less any that would double
   up), notes, documents (no longer shared across trees; `documents_guard`
-  lets a document change entries only inside this merge), companions and
+  lets a document change entries only inside a merge: this one, or "This
+  is me" since Step 43), companions and
   bloodline anchors, and it's deleted; their own details stay as they
   were. Otherwise it's left as it is and theirs is placed beside it, as
   for an ordinary invite. Every Root gets a `placed_on_join` notice saying
@@ -1003,6 +1014,67 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 43 — "This is me" works when the placeholder has a document**
+  (ad-hoc, found during Step 41.3; migration
+  `20260923163000_claim_moves_documents_and_photo`). "This is me"
+  (`claim_person`, Step 36) merges a member's own placeholder into the
+  entry they claim, then deletes it. It moved the placeholder's documents
+  with a plain update, and since Step 41.3 `documents_guard` lets a document
+  change entries only under the privileged flag. So the claim was refused
+  whenever the placeholder had a document, even one the member uploaded,
+  and the app said only "Couldn't complete that claim. Try again." It also
+  gave a claimed entry with no photo the placeholder's, but the file stayed
+  in the placeholder's folder, and storage lets someone read a photo only
+  if they can see the entry its path names. Once the placeholder was
+  deleted nobody could, so the claimed entry showed no photo. Now
+  `claim_person` moves the documents under the privileged flag, saving and
+  restoring its value as `merge_invited_entry` does, once the claimed entry
+  is theirs. They stop being shared across trees, as in Step 41.3's merge:
+  the claimed entry may be shown on trees the placeholder never was, so a
+  choice made for the placeholder's trees would reach people nobody chose.
+  The member can share them again, as the person. A document's tree and
+  file don't change, and it downloads as before (storage reads its row).
+  The photo, framing and all, is named under the claimed entry's id
+  instead, and `claimPerson` moves the file there with the service role
+  (`moveClaimedPhoto`, `lib/claim-merge.server.ts`), as deleting an entry
+  already sweeps its files. A photo kept anywhere but the placeholder's own
+  folder stays behind. Step 36's placeholder and has-died guards are
+  unchanged, and no journey's taps or fields change. No live member was
+  caught out: no entry's photo pointed into a deleted placeholder's folder,
+  and the one live placeholder has no photo or document. **Verified:**
+  794 tests pass (10 new). In the browser first, before changing anything,
+  with throwaway accounts `delivered+43-*@resend.dev` on a throwaway tree:
+  a Leaf whose placeholder had a photo and a document pressed "This is me"
+  and "Yes, merge" and was told "Couldn't complete that claim. Try again."
+  Without the document the merge went through, and the claimed card showed
+  initials: its photo named the deleted placeholder's folder, and the
+  Leaf's read of the file there found nothing. The migration was rehearsed
+  rolled back on live in three phases, 24 checks each: as live, with the
+  flag alone, and in full. As live, the claim was refused, and a claimed
+  photo couldn't be read by the member, their Root or another tree's Root.
+  The flag alone let the claim through, but a shared document became
+  visible to the Root of a tree only the claimed entry is on, and the photo
+  stayed unreadable. In full, the three documents moved (trees unchanged,
+  none shared, every file readable), that Root saw none, the member could
+  share one again, the photo moved with its framing and all three could
+  read it, a photo kept elsewhere stayed behind, an entry's own photo was
+  kept, and the flag came back as it was (left on for a caller that had set
+  it). Claiming someone who has died, merging a placeholder someone else
+  has drawn a line to, refiling a document directly (as a member, as a
+  Root, or right after a claim) and calling as anon were refused
+  throughout, and the entry's maker got the same two notices each time.
+  Applied and recorded under the file's version. The live body's md5
+  matches the file, and the suite re-run on live matched. Then in the
+  browser with a fresh placeholder (a photo, a parent line, two documents,
+  one shared): "This is me" asked "Your parent Ines Zz43tester will be
+  connected to this entry instead, …", said "Merged — this is now your
+  entry.", and the claimed card and panel showed the photo, for the Leaf
+  and their Root alike. Nothing was left at the old path, the framing came
+  along, the line moved, and both documents were on the claimed entry,
+  unshared; one downloaded (a PDF, HTTP 200). The Root was told "… was
+  claimed by a relative" and "… was updated: photo.", as before. Throwaway
+  rows, files and accounts deleted, and counts are back to the baseline.
 
 - **Step 41.5 — Asking a relative: every ask counts, members can opt out,
   asks lapse** (Step 41, first-time journey follow-ups; migration

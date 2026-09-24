@@ -126,7 +126,10 @@ be placed there.
 | Claims, revisions | Per person | As before, with "admin" meaning a Root of the home tree |
 
 Who may flip `shared_across_trees` on a document: the person the entry
-belongs to, or a Root of the entry's home tree.
+belongs to, or a Root of the entry's home tree. A merge that moves a document
+onto another entry (a claim invite folding one in, Step 41.3, or "This is
+me", Step 43) leaves it unshared, since that entry may be shown on trees the
+old one never was; the person can share it again.
 
 ## 6. Seeing across trees
 
