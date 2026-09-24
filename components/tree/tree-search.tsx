@@ -1,7 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { PawPrint, Route, Search, SlidersHorizontal, X } from "lucide-react";
+import {
+  ChevronDown,
+  ListFilter,
+  PawPrint,
+  Route,
+  Search,
+  SlidersHorizontal,
+  TreeDeciduous,
+  X,
+} from "lucide-react";
 
 import { PersonPicker } from "@/components/tree/person-picker";
 import { Button } from "@/components/ui/button";
@@ -46,29 +55,129 @@ type Props = {
   connectionMissing: boolean;
   showCompanions: boolean;
   onShowCompanionsChange: (shown: boolean) => void;
+  /**
+   * "Show only your Root's side" (Step 48): on or off, or `null` when the
+   * viewer has no side that leaves anyone out, so there's nothing to offer.
+   */
+  sideOnly: boolean | null;
+  onSideOnlyChange: (on: boolean) => void;
+  /** The viewer is a Root, so the side is their own. */
+  ownSide: boolean;
 };
 
-function SectionHeading({
+type SectionKey = "find" | "connection" | "filters";
+
+/**
+ * One of the card's sections, closed until it's opened (Step 48). A dot on
+ * its heading says something in it is changing the canvas, so a closed
+ * section still owns up to what the tree is showing.
+ */
+function Section({
   icon,
+  title,
+  on,
+  open,
+  onToggle,
   children,
 }: {
   icon: React.ReactNode;
+  title: string;
+  on: boolean;
+  open: boolean;
+  onToggle: () => void;
   children: React.ReactNode;
 }) {
   return (
-    <h3 className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground [&_svg]:size-3.5">
-      {icon}
-      {children}
-    </h3>
+    <section className="flex flex-col gap-2 border-t border-border pt-3">
+      <h3>
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={open}
+          className="flex w-full items-center gap-1.5 text-left text-xs font-medium text-muted-foreground transition-colors hover:text-foreground aria-expanded:text-foreground [&_svg]:size-3.5 [&_svg]:shrink-0"
+        >
+          {icon}
+          {title}
+          {on ? (
+            <span className="size-1.5 rounded-full bg-primary">
+              <span className="sr-only">, on</span>
+            </span>
+          ) : null}
+          <ChevronDown
+            aria-hidden
+            className={cn(
+              "ml-auto text-muted-foreground transition-transform",
+              open && "rotate-180",
+            )}
+          />
+        </button>
+      </h3>
+      {open ? children : null}
+    </section>
+  );
+}
+
+function ClearButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="shrink-0 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+    >
+      Clear
+    </button>
+  );
+}
+
+/** A labelled on/off switch, one row of the Filters section. */
+function SwitchRow({
+  icon,
+  label,
+  on,
+  onChange,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  on: boolean;
+  onChange: (on: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      onClick={() => onChange(!on)}
+      className="group/switch flex w-full items-center justify-between gap-3 text-left text-xs"
+    >
+      <span className="flex items-center gap-1.5 [&_svg]:size-3.5 [&_svg]:shrink-0 [&_svg]:text-muted-foreground">
+        {icon}
+        {label}
+      </span>
+      <span
+        aria-hidden
+        className={cn(
+          "flex h-5 w-9 shrink-0 items-center rounded-full border border-transparent p-0.5 transition-colors group-focus-visible/switch:ring-3 group-focus-visible/switch:ring-ring/50",
+          on ? "bg-primary" : "bg-input",
+        )}
+      >
+        <span
+          className={cn(
+            "size-4 rounded-full bg-background shadow-sm transition-transform",
+            on && "translate-x-4",
+          )}
+        />
+      </span>
+    </button>
   );
 }
 
 /**
  * Everything that changes what the canvas shows, behind one button: finding
- * people, lighting the connection between two of them, and whether pets and
- * companions are drawn at all — they are off until switched on here. Closed,
- * the button counts what is switched on, so a canvas that differs from the
- * plain tree always says why.
+ * a person, lighting the connection between two people, and the filters —
+ * only the viewer's Root's side, and whether pets and companions are drawn at
+ * all (they are off until switched on here). Each section stays closed until
+ * it's opened. Closed, the button counts what is switched on, so a canvas
+ * that differs from the plain tree always says why.
  */
 export function TreeSearch({
   people,
@@ -80,8 +189,21 @@ export function TreeSearch({
   connectionMissing,
   showCompanions,
   onShowCompanionsChange,
+  sideOnly,
+  onSideOnlyChange,
+  ownSide,
 }: Props) {
   const [open, setOpen] = React.useState(false);
+  // Which sections are open, kept while the card closes and opens again.
+  const [expanded, setExpanded] = React.useState<ReadonlySet<SectionKey>>(
+    () => new Set(),
+  );
+  const toggle = (key: SectionKey) =>
+    setExpanded((cur) => {
+      const next = new Set(cur);
+      if (!next.delete(key)) next.add(key);
+      return next;
+    });
   const countries = React.useMemo(() => countryOptions(people), [people]);
   const decades = React.useMemo(() => decadeOptions(people), [people]);
 
@@ -109,10 +231,9 @@ export function TreeSearch({
   };
 
   const connecting = !!connection.from && !!connection.to;
+  const lit = connecting && !connectionMissing;
   const switchedOn =
-    Number(active) +
-    Number(connecting && !connectionMissing) +
-    Number(showCompanions);
+    Number(active) + Number(lit) + Number(showCompanions) + Number(!!sideOnly);
 
   if (!open) {
     return (
@@ -139,7 +260,7 @@ export function TreeSearch({
   }
 
   return (
-    <div className="relative z-10 flex max-h-[calc(100dvh-9rem)] w-[calc(100vw-2rem)] max-w-72 flex-col gap-4 overflow-y-auto rounded-xl border border-border bg-card p-3 shadow-md sm:w-72">
+    <div className="relative z-10 flex max-h-[calc(100dvh-9rem)] w-[calc(100vw-2rem)] max-w-72 flex-col gap-3 overflow-y-auto rounded-xl border border-border bg-card p-3 shadow-md sm:w-72">
       <div className="flex items-center justify-between">
         <h2 className="flex items-center gap-1.5 text-sm font-medium">
           <SlidersHorizontal className="size-3.5 text-muted-foreground" />
@@ -155,24 +276,20 @@ export function TreeSearch({
         </button>
       </div>
 
-      <section className="flex flex-col gap-2">
-        <div className="flex items-center justify-between">
-          <SectionHeading icon={<Search />}>Find people</SectionHeading>
-          {active ? (
-            <button
-              type="button"
-              onClick={() => onFilterChange(EMPTY_FILTER)}
-              className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-            >
-              Clear
-            </button>
-          ) : null}
-        </div>
+      <Section
+        icon={<Search />}
+        title="Find a person"
+        on={active}
+        open={expanded.has("find")}
+        onToggle={() => toggle("find")}
+      >
         <Input
           value={filter.text}
           onChange={(e) => set({ text: e.target.value })}
           placeholder="Name or place…"
           aria-label="Search people by name or place"
+          // Opening the section is asking to search.
+          autoFocus
         />
         <div className="grid grid-cols-2 gap-2">
           <Select
@@ -240,9 +357,12 @@ export function TreeSearch({
 
         {active ? (
           <div>
-            <p className="text-xs text-muted-foreground">
-              {results.length} {results.length === 1 ? "match" : "matches"}
-            </p>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs text-muted-foreground">
+                {results.length} {results.length === 1 ? "match" : "matches"}
+              </p>
+              <ClearButton onClick={() => onFilterChange(EMPTY_FILTER)} />
+            </div>
             <ul className="mt-1.5 flex max-h-48 flex-col gap-0.5 overflow-y-auto">
               {results.map((p) => {
                 const lifespan = personLifespan(p);
@@ -278,21 +398,15 @@ export function TreeSearch({
             </ul>
           </div>
         ) : null}
-      </section>
+      </Section>
 
-      <section className="flex flex-col gap-2 border-t border-border pt-3">
-        <div className="flex items-center justify-between">
-          <SectionHeading icon={<Route />}>Show a connection</SectionHeading>
-          {connection.from || connection.to ? (
-            <button
-              type="button"
-              onClick={() => onConnectionChange(NO_CONNECTION)}
-              className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-            >
-              Clear
-            </button>
-          ) : null}
-        </div>
+      <Section
+        icon={<Route />}
+        title="Show a connection"
+        on={lit}
+        open={expanded.has("connection")}
+        onToggle={() => toggle("connection")}
+      >
         <PersonPicker
           people={people}
           value={connection.from}
@@ -309,48 +423,42 @@ export function TreeSearch({
           placeholder="Second person…"
           label="Second person of the connection"
         />
-        <p className="text-xs text-muted-foreground">
-          {connectionMissing
-            ? "Nothing on the tree joins these two yet."
-            : connecting
-              ? "Their connection is lit on the tree."
-              : "Pick two people to light the line between them."}
-        </p>
-      </section>
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-xs text-muted-foreground">
+            {connectionMissing
+              ? "Nothing on the tree joins these two yet."
+              : connecting
+                ? "Their connection is lit on the tree."
+                : "Pick two people to light the line between them."}
+          </p>
+          {connection.from || connection.to ? (
+            <ClearButton onClick={() => onConnectionChange(NO_CONNECTION)} />
+          ) : null}
+        </div>
+      </Section>
 
-      <section className="border-t border-border pt-3">
-        <button
-          type="button"
-          role="switch"
-          aria-checked={showCompanions}
-          onClick={() => onShowCompanionsChange(!showCompanions)}
-          className="group/switch flex w-full items-center justify-between gap-3 text-left"
-        >
-          <span className="flex flex-col gap-0.5">
-            <SectionHeading icon={<PawPrint />}>
-              Pets &amp; companions
-            </SectionHeading>
-            <span className="text-xs text-muted-foreground/80">
-              {showCompanions ? "Shown on the tree." : "Hidden from the tree."}{" "}
-              Stays this way until you change it.
-            </span>
-          </span>
-          <span
-            aria-hidden
-            className={cn(
-              "flex h-5 w-9 shrink-0 items-center rounded-full border border-transparent p-0.5 transition-colors group-focus-visible/switch:ring-3 group-focus-visible/switch:ring-ring/50",
-              showCompanions ? "bg-primary" : "bg-input",
-            )}
-          >
-            <span
-              className={cn(
-                "size-4 rounded-full bg-background shadow-sm transition-transform",
-                showCompanions && "translate-x-4",
-              )}
-            />
-          </span>
-        </button>
-      </section>
+      <Section
+        icon={<ListFilter />}
+        title="Filters"
+        on={showCompanions || !!sideOnly}
+        open={expanded.has("filters")}
+        onToggle={() => toggle("filters")}
+      >
+        {sideOnly !== null ? (
+          <SwitchRow
+            icon={<TreeDeciduous />}
+            label={ownSide ? "Show only your side" : "Show only your Root’s side"}
+            on={sideOnly}
+            onChange={onSideOnlyChange}
+          />
+        ) : null}
+        <SwitchRow
+          icon={<PawPrint />}
+          label="Pets & companions"
+          on={showCompanions}
+          onChange={onShowCompanionsChange}
+        />
+      </Section>
     </div>
   );
 }

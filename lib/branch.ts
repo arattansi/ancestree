@@ -61,6 +61,40 @@ export function relatedRoots(
 }
 
 /**
+ * The Roots whose side of the tree `personId` is on (Step 48): the Roots they
+ * are blood to, or, if they married in, the Roots whose branch they married
+ * into (`relatedRoots`). Blood comes first because a Root married to the other
+ * Root is on both branches by marriage, but only on their own side.
+ */
+export function ownRoots(
+  personId: string,
+  rootIds: readonly string[],
+  edges: readonly BranchEdge[],
+): string[] {
+  const blood = rootIds.filter((root) =>
+    bloodlineIds([root], edges).has(personId),
+  );
+  return blood.length > 0 ? blood : relatedRoots(personId, rootIds, edges);
+}
+
+/**
+ * Everyone on `personId`'s Root's side (Step 48), for "Show only your Root's
+ * side": the branch of each of their `ownRoots` (both, for a child of two
+ * Roots). Empty when they are related to no Root.
+ */
+export function rootSideIds(
+  personId: string,
+  rootIds: readonly string[],
+  edges: readonly BranchEdge[],
+): Set<string> {
+  const side = new Set<string>();
+  for (const root of ownRoots(personId, rootIds, edges)) {
+    for (const id of branchIds(root, edges)) side.add(id);
+  }
+  return side;
+}
+
+/**
  * A person's own line (Step 34), mirroring `private.line_ids`: what a Leaf may
  * add to. The branch walk from them, except that their brothers and sisters,
  * and their ancestors', join before the walk down — so a sibling recorded

@@ -12,7 +12,9 @@ import {
   canOfferDelete,
   canSeeDocuments,
   lineIds,
+  ownRoots,
   relatedRoots,
+  rootSideIds,
   type BranchEdge,
   type EntrySubject,
   type Viewer,
@@ -143,6 +145,71 @@ describe("relatedRoots", () => {
     ];
     expect(relatedRoots("yasmin", roots, edges)).toEqual(["raiya"]);
     expect(relatedRoots("yasmin-mum", roots, edges)).toEqual([]);
+  });
+});
+
+describe("ownRoots", () => {
+  it("puts a Root on their own side, not their partner's", () => {
+    // Married to each other, each Root is on both branches by marriage.
+    expect(relatedRoots("aalim", roots, family)).toEqual(["raiya", "aalim"]);
+    expect(ownRoots("aalim", roots, family)).toEqual(["aalim"]);
+    expect(ownRoots("raiya", roots, family)).toEqual(["raiya"]);
+  });
+
+  it("finds the Root a relative is blood to", () => {
+    expect(ownRoots("arzu", roots, family)).toEqual(["raiya"]);
+    expect(ownRoots("hussein", roots, family)).toEqual(["aalim"]);
+    // Raiya's mother's brother: blood to Raiya through her mother.
+    expect(ownRoots("amyn", roots, family)).toEqual(["raiya"]);
+  });
+
+  it("falls back to the side someone married into", () => {
+    expect(ownRoots("shireen", roots, family)).toEqual(["raiya"]);
+  });
+
+  it("finds both Roots for their child", () => {
+    const edges = [...family, parent("raiya", "zara"), parent("aalim", "zara")];
+    expect(ownRoots("zara", roots, edges)).toEqual(["raiya", "aalim"]);
+  });
+
+  it("finds none for someone tied on only through an in-law", () => {
+    const edges = [
+      ...family,
+      spouse("amyn", "yasmin"),
+      parent("yasmin-mum", "yasmin"),
+    ];
+    expect(ownRoots("yasmin-mum", roots, edges)).toEqual([]);
+  });
+});
+
+describe("rootSideIds", () => {
+  it("is the branch of the Root they're blood to", () => {
+    expect(rootSideIds("arzu", roots, family)).toEqual(
+      branchIds("raiya", family),
+    );
+    expect(rootSideIds("hussein", roots, family)).toEqual(
+      branchIds("aalim", family),
+    );
+  });
+
+  it("gives a Root their own side, their partner included", () => {
+    expect(rootSideIds("aalim", roots, family)).toEqual(
+      new Set(["aalim", "minaz", "hussein", "raiya"]),
+    );
+    // Not the partner's family.
+    expect(rootSideIds("aalim", roots, family).has("ashif")).toBe(false);
+  });
+
+  it("joins both sides for a child of two Roots", () => {
+    const edges = [...family, parent("raiya", "zara"), parent("aalim", "zara")];
+    const side = rootSideIds("zara", roots, edges);
+    expect(side.has("noorali")).toBe(true);
+    expect(side.has("hussein")).toBe(true);
+  });
+
+  it("is empty when related to no Root", () => {
+    expect(rootSideIds("nobody", roots, family).size).toBe(0);
+    expect(rootSideIds("arzu", [], family).size).toBe(0);
   });
 });
 
