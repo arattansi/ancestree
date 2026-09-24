@@ -1,8 +1,9 @@
 /**
  * Branches, mirrored from `private.branch_ids`, `private.own_branch_ids`,
- * `private.line_ids`, `private.can_edit_person` and
- * `private.can_delete_person` (Steps 17, 18.1, 22.2, 22.3 and 34), and what
- * each account type may edit (Step 18, `lib/account-types`).
+ * `private.line_ids`, `private.can_edit_person`,
+ * `private.can_delete_person` and `private.can_fill_person` (Steps 17, 18.1,
+ * 22.2, 22.3, 34 and 44), and what each account type may edit (Step 18,
+ * `lib/account-types`).
  *
  * A branch is measured from one person with the same up-then-down walk the
  * bloodline gate uses — ancestors, then everyone descending from that whole
@@ -158,6 +159,13 @@ export type Viewer = {
   /** Where the viewer may add relatives (`lineIds`) when that is only their
    *  own line — a Leaf's — and `null` when it is anywhere. */
   line: ReadonlySet<string> | null;
+  /**
+   * The viewer's own line (`lineIds`) when they are a Branch or a Leaf with
+   * an entry of their own: where they may fill in what's missing on an entry
+   * nobody has claimed (Step 44, `canFillEntry`). `null` for a Root, who
+   * edits everything, and for anyone still onboarding.
+   */
+  ownLine: ReadonlySet<string> | null;
 };
 
 /** The entry being looked at, as far as permission is concerned. */
@@ -193,6 +201,20 @@ export function canEditEntry(entry: EntrySubject, viewer: Viewer): boolean {
     return true;
   }
   return isOnBranch(entry.id, viewer) && !entry.isSomeoneElsesOwn;
+}
+
+/**
+ * Mirrors `private.can_fill_person` (Step 44): a Branch or a Leaf may fill in
+ * what's missing — never change what's there — on an entry on their own line
+ * that nobody is behind: no member's own, no approved claim. A Branch
+ * already edits their part of a Root's side, so for them it reaches past it.
+ * Only asked about entries the viewer can't edit (`canEditEntry`), which
+ * leaves a Root out: they edit everything.
+ */
+export function canFillEntry(entry: EntrySubject, viewer: Viewer): boolean {
+  if (accountTypeOf(viewer.role).entries === "tree") return false;
+  if (entry.isClaimed || entry.isSomeoneElsesOwn) return false;
+  return !!viewer.ownLine?.has(entry.id);
 }
 
 /**

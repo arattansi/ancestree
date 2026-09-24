@@ -51,8 +51,8 @@ export default async function NewPersonPage({
           Add a relative
         </h1>
         <p className="text-sm text-muted-foreground">
-          New entries must connect to someone already in the tree. Add any
-          missing people in between as part of the same step.
+          All it takes is their name and how they&apos;re related to someone
+          already on the tree. Anything else can wait.
         </p>
         {rights.isMarriedIn ? (
           // Say the rule up front for a member who married in, rather than
@@ -80,8 +80,7 @@ export default async function NewPersonPage({
         <CardHeader>
           <CardTitle>Relative&apos;s entry</CardTitle>
           <CardDescription>
-            A name and country of birth are required — everything else is
-            optional.
+            Only a name and a connection are required.
           </CardDescription>
         </CardHeader>
         <CardContent>

@@ -21,6 +21,35 @@ const deathIssue = (values: PersonFormValues) =>
     .safeParse(values)
     .error?.issues.find((i) => i.path[0] === "date_of_death")?.message;
 
+describe("personSchema requirements", () => {
+  it("takes a name alone, with no place of birth (Step 44)", () => {
+    const values = person({
+      place_id_birth: null,
+      country_of_birth: "",
+      city_of_birth: "",
+    });
+    expect(personSchema.safeParse(values).success).toBe(true);
+    expect(toPersonPayload(values).country_of_birth).toBe("");
+    expect(toPersonPayload(values).place_id_birth).toBeNull();
+  });
+
+  it("takes a preferred name in place of a first name", () => {
+    const values = person({ first_name: "", preferred_name: "Nana" });
+    expect(personSchema.safeParse(values).success).toBe(true);
+  });
+
+  it("still asks for a first or preferred name, and a last name", () => {
+    const nameless = personSchema.safeParse(
+      person({ first_name: " ", preferred_name: "" }),
+    );
+    expect(nameless.error?.issues[0]?.message).toBe(
+      "Enter a first name or a preferred name.",
+    );
+    const noSurname = personSchema.safeParse(person({ last_name: " " }));
+    expect(noSurname.error?.issues[0]?.message).toBe("Last name is required.");
+  });
+});
+
 describe("personSchema dates", () => {
   it("takes a year, or a month and year, for a date of birth", () => {
     expect(personSchema.safeParse(person({ date_of_birth: "1931" })).success).toBe(true);

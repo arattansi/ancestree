@@ -52,46 +52,43 @@ function RequiredMark() {
 }
 
 /**
- * The shared demographic fieldset for a single person. Works standalone
- * (`prefix` omitted) or as one row of a `people[]` field array (`prefix`
- * e.g. `"people.2"`).
+ * Which fields to show, by name (`first_name`, `place_of_birth`,
+ * `date_of_death`…), or every one when left out. Filling in what's missing
+ * (Step 44) shows only the empty ones (`lib/fill-blanks#blankFields`).
  */
-export function PersonFields<T extends FieldValues>({
-  control,
-  isAdmin,
-  withContact = false,
-  prefix,
-  idPrefix,
-  placeLabels,
-  lineage,
-}: {
-  control: Control<T>;
-  isAdmin: boolean;
-  /**
-   * Show the contact block (email, and whether other members see it): for
-   * the entry's owner editing it. The add flow leaves it for later.
-   */
-  withContact?: boolean;
-  prefix?: string;
-  idPrefix: string;
-  /** Labels for already-selected places, so the edit form shows them on load. */
-  placeLabels?: { birth?: string | null; death?: string | null };
-  /**
-   * Offer the lineage choice (a Root's, about the link to this person's
-   * parent). Defaults to `isAdmin`; the first run's family step asks it only
-   * about a child, whose parent is the founder adding them (Step 29).
-   */
-  lineage?: boolean;
-}) {
-  const { setValue, getValues } = useFormContext<T>();
-  const name = React.useCallback(
+type FieldFilter = ReadonlySet<string> | undefined;
+
+function shows(filter: FieldFilter, field: string): boolean {
+  return !filter || filter.has(field);
+}
+
+/** A field's path, standalone or as one row of a `people[]` field array. */
+function useFieldName<T extends FieldValues>(prefix?: string) {
+  return React.useCallback(
     (field: string) => (prefix ? `${prefix}.${field}` : field) as Path<T>,
     [prefix],
   );
+}
 
-  const isDeceased = useWatch({ control, name: name("is_deceased") });
-  const placeIdBirth = useWatch({ control, name: name("place_id_birth") });
-  const placeIdDeath = useWatch({ control, name: name("place_id_death") });
+/**
+ * A person's names: first and last, with a middle and a preferred name to
+ * reach for. All the add-a-relative form asks up front (Step 44).
+ */
+export function PersonNameFields<T extends FieldValues>({
+  control,
+  prefix,
+  show,
+  required = true,
+}: {
+  control: Control<T>;
+  prefix?: string;
+  show?: FieldFilter;
+  /** Mark what has to be filled in. Filling in what's missing marks nothing:
+   *  the entry already has its name. */
+  required?: boolean;
+}) {
+  const { setValue, getValues } = useFormContext<T>();
+  const name = useFieldName<T>(prefix);
   const preferredName = useWatch({ control, name: name("preferred_name") });
 
   // A middle and a preferred name are there to reach for, not boxes to fill:
@@ -108,6 +105,245 @@ export function PersonFields<T extends FieldValues>({
     setExtraNames((shown) => ({ ...shown, [field]: true }));
     setJustRevealed(field);
   };
+  const offers = (field: "middle_name" | "preferred_name") =>
+    shows(show, field) && !extraNames[field];
+
+  if (
+    !["first_name", "last_name", "middle_name", "preferred_name"].some((f) =>
+      shows(show, f),
+    )
+  ) {
+    return null;
+  }
+
+  return (
+    <>
+      {required ? (
+        <p className="text-xs text-muted-foreground">
+          <span aria-hidden className="text-destructive">
+            *
+          </span>{" "}
+          Required
+        </p>
+      ) : null}
+      <div className="grid gap-4 sm:grid-cols-2">
+        {shows(show, "first_name") ? (
+          <FormField
+            control={control}
+            name={name("first_name")}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>
+                  First name
+                  {!required || String(preferredName ?? "").trim() ? null : (
+                    <RequiredMark />
+                  )}
+                </FormLabel>
+                <FormControl>
+                  <Input
+                    autoComplete="given-name"
+                    {...field}
+                    value={field.value ?? ""}
+                    onChange={(e) => {
+                      // A preferred name that only repeats the first name
+                      // follows it, or the card keeps showing the old spelling.
+                      const preferred = getValues(name("preferred_name"));
+                      if (preferredCopiesFirst(preferred, field.value)) {
+                        setValue(
+                          name("preferred_name"),
+                          e.target.value as never,
+                          { shouldDirty: true },
+                        );
+                      }
+                      field.onChange(e);
+                    }}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        ) : null}
+        {shows(show, "last_name") ? (
+          <FormField
+            control={control}
+            name={name("last_name")}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>
+                  Last name
+                  {required ? <RequiredMark /> : null}
+                </FormLabel>
+                <FormControl>
+                  <Input
+                    autoComplete="family-name"
+                    required={required}
+                    {...field}
+                    value={field.value ?? ""}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        ) : null}
+        {shows(show, "middle_name") && extraNames.middle_name ? (
+          <FormField
+            control={control}
+            name={name("middle_name")}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Middle name</FormLabel>
+                <FormControl>
+                  <Input
+                    autoComplete="additional-name"
+                    autoFocus={justRevealed === "middle_name"}
+                    {...field}
+                    value={field.value ?? ""}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        ) : null}
+        {shows(show, "preferred_name") && extraNames.preferred_name ? (
+          <FormField
+            control={control}
+            name={name("preferred_name")}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Preferred name</FormLabel>
+                <FormControl>
+                  <Input
+                    autoComplete="nickname"
+                    autoFocus={justRevealed === "preferred_name"}
+                    {...field}
+                    value={field.value ?? ""}
+                  />
+                </FormControl>
+                <FormDescription>
+                  Shown on the tree in place of the first name.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        ) : null}
+        {offers("middle_name") || offers("preferred_name") ? (
+          <div className="flex flex-wrap gap-x-4 gap-y-1 sm:col-span-2">
+            {offers("middle_name") ? (
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                className="px-0"
+                onClick={() => reveal("middle_name")}
+              >
+                <Plus />
+                Middle name
+              </Button>
+            ) : null}
+            {offers("preferred_name") ? (
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                className="px-0"
+                onClick={() => reveal("preferred_name")}
+              >
+                <Plus />
+                Preferred name
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    </>
+  );
+}
+
+/** Whether they've died. The add-a-relative form asks it up front, since
+ *  nobody is invited to take over the entry of someone who has (Step 44). */
+export function PersonDiedField<T extends FieldValues>({
+  control,
+  prefix,
+  idPrefix,
+}: {
+  control: Control<T>;
+  prefix?: string;
+  idPrefix: string;
+}) {
+  const name = useFieldName<T>(prefix);
+  return (
+    <FormField
+      control={control}
+      name={name("is_deceased")}
+      render={({ field }) => (
+        <FormItem className="flex-row items-center gap-3">
+          <FormControl>
+            <Checkbox
+              id={`${idPrefix}-is-deceased`}
+              checked={field.value ?? false}
+              onCheckedChange={(checked) => field.onChange(checked === true)}
+            />
+          </FormControl>
+          <FormLabel
+            htmlFor={`${idPrefix}-is-deceased`}
+            className="font-normal"
+          >
+            This person is deceased
+          </FormLabel>
+        </FormItem>
+      )}
+    />
+  );
+}
+
+/**
+ * Everything about a person past their names: maiden name, sex, birth, and
+ * death once they're marked as having died; the contact block and lineage
+ * when asked for.
+ */
+export function PersonDetailFields<T extends FieldValues>({
+  control,
+  isAdmin,
+  withContact = false,
+  withDiedField = false,
+  prefix,
+  idPrefix,
+  placeLabels,
+  lineage,
+  show,
+}: {
+  control: Control<T>;
+  isAdmin: boolean;
+  /**
+   * Show the contact block (email, and whether other members see it): for
+   * the entry's owner editing it. The add flow leaves it for later.
+   */
+  withContact?: boolean;
+  /** Ask whether they've died, between birth and death. Left out where the
+   *  question is asked up front, or isn't anyone's to answer. */
+  withDiedField?: boolean;
+  prefix?: string;
+  idPrefix: string;
+  /** Labels for already-selected places, so the edit form shows them on load. */
+  placeLabels?: { birth?: string | null; death?: string | null };
+  /**
+   * Offer the lineage choice (a Root's, about the link to this person's
+   * parent). Defaults to `isAdmin`; the first run's family step asks it only
+   * about a child, whose parent is the founder adding them (Step 29).
+   */
+  lineage?: boolean;
+  show?: FieldFilter;
+}) {
+  const { setValue } = useFormContext<T>();
+  const name = useFieldName<T>(prefix);
+
+  const isDeceased = useWatch({ control, name: name("is_deceased") });
+  const placeIdBirth = useWatch({ control, name: name("place_id_birth") });
+  const placeIdDeath = useWatch({ control, name: name("place_id_death") });
 
   const setPlace = React.useCallback(
     (
@@ -143,270 +379,68 @@ export function PersonFields<T extends FieldValues>({
     [name, setValue],
   );
 
+  const showsDeath =
+    Boolean(isDeceased) &&
+    (shows(show, "date_of_death") || shows(show, "place_of_death"));
+
   return (
-    <div className="flex flex-col gap-6">
-      <p className="text-xs text-muted-foreground">
-        <span aria-hidden className="text-destructive">
-          *
-        </span>{" "}
-        Required
-      </p>
-      <div className="grid gap-4 sm:grid-cols-2">
+    <>
+      {shows(show, "maiden_name") ? (
         <FormField
           control={control}
-          name={name("first_name")}
+          name={name("maiden_name")}
           render={({ field }) => (
             <FormItem>
-              <FormLabel>
-                First name
-                {String(preferredName ?? "").trim() ? null : <RequiredMark />}
-              </FormLabel>
+              <FormLabel>Maiden name</FormLabel>
               <FormControl>
-                <Input
-                  autoComplete="given-name"
-                  {...field}
-                  value={field.value ?? ""}
-                  onChange={(e) => {
-                    // A preferred name that only repeats the first name
-                    // follows it, or the card keeps showing the old spelling.
-                    const preferred = getValues(name("preferred_name"));
-                    if (preferredCopiesFirst(preferred, field.value)) {
-                      setValue(
-                        name("preferred_name"),
-                        e.target.value as never,
-                        { shouldDirty: true },
-                      );
-                    }
-                    field.onChange(e);
-                  }}
-                />
+                <Input {...field} value={field.value ?? ""} />
               </FormControl>
+              <FormDescription>
+                Optional. A last name at birth, before any change on marriage.
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
-        <FormField
-          control={control}
-          name={name("last_name")}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>
-                Last name
-                <RequiredMark />
-              </FormLabel>
-              <FormControl>
-                <Input
-                  autoComplete="family-name"
-                  required
-                  {...field}
-                  value={field.value ?? ""}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        {extraNames.middle_name ? (
-          <FormField
-            control={control}
-            name={name("middle_name")}
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Middle name</FormLabel>
-                <FormControl>
-                  <Input
-                    autoComplete="additional-name"
-                    autoFocus={justRevealed === "middle_name"}
-                    {...field}
-                    value={field.value ?? ""}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        ) : null}
-        {extraNames.preferred_name ? (
-          <FormField
-            control={control}
-            name={name("preferred_name")}
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Preferred name</FormLabel>
-                <FormControl>
-                  <Input
-                    autoComplete="nickname"
-                    autoFocus={justRevealed === "preferred_name"}
-                    {...field}
-                    value={field.value ?? ""}
-                  />
-                </FormControl>
-                <FormDescription>
-                  Shown on the tree in place of the first name.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        ) : null}
-        {extraNames.middle_name && extraNames.preferred_name ? null : (
-          <div className="flex flex-wrap gap-x-4 gap-y-1 sm:col-span-2">
-            {extraNames.middle_name ? null : (
-              <Button
-                type="button"
-                variant="link"
-                size="sm"
-                className="px-0"
-                onClick={() => reveal("middle_name")}
-              >
-                <Plus />
-                Middle name
-              </Button>
-            )}
-            {extraNames.preferred_name ? null : (
-              <Button
-                type="button"
-                variant="link"
-                size="sm"
-                className="px-0"
-                onClick={() => reveal("preferred_name")}
-              >
-                <Plus />
-                Preferred name
-              </Button>
-            )}
-          </div>
-        )}
-      </div>
-
-      <FormField
-        control={control}
-        name={name("maiden_name")}
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Maiden name</FormLabel>
-            <FormControl>
-              <Input {...field} value={field.value ?? ""} />
-            </FormControl>
-            <FormDescription>
-              Optional. A last name at birth, before any change on marriage.
-            </FormDescription>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      <FormField
-        control={control}
-        name={name("sex")}
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Sex</FormLabel>
-            <FormControl>
-              <RadioGroup
-                value={field.value ?? null}
-                onValueChange={(v) => field.onChange(v || undefined)}
-              >
-                {SEX_VALUES.map((s) => (
-                  <label
-                    key={s}
-                    className="flex items-center gap-3 text-sm font-normal"
-                  >
-                    <RadioGroupItem value={s} />
-                    {SEX_LABELS[s]}
-                  </label>
-                ))}
-              </RadioGroup>
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <FormField
-          control={control}
-          name={name("date_of_birth")}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Date of birth</FormLabel>
-              <FormControl>
-                <DateField
-                  value={field.value ?? ""}
-                  onChange={field.onChange}
-                  onBlur={field.onBlur}
-                />
-              </FormControl>
-              <FormDescription>A year on its own is fine.</FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-      </div>
-
-      <FormField
-        control={control}
-        name={name("place_id_birth")}
-        render={({ fieldState }) => (
-          <FormItem>
-            <FormLabel htmlFor={`${idPrefix}-place-birth`}>
-              Place of birth
-              <RequiredMark />
-            </FormLabel>
-            <FormControl>
-              <PlaceAutocomplete
-                id={`${idPrefix}-place-birth`}
-                value={typeof placeIdBirth === "number" ? placeIdBirth : null}
-                initialLabel={placeLabels?.birth}
-                isAdmin={isAdmin}
-                invalid={Boolean(fieldState.error)}
-                placeholder="Search for a city, town, or village…"
-                onChange={(place) => setPlace("birth", place)}
-              />
-            </FormControl>
-            <FormDescription>
-              Pick the closest match — you can’t enter a place that isn’t
-              listed.
-            </FormDescription>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      {typeof placeIdBirth === "number" ? (
-        <AncestralLandsField placeId={placeIdBirth} />
       ) : null}
 
-      <FormField
-        control={control}
-        name={name("is_deceased")}
-        render={({ field }) => (
-          <FormItem className="flex-row items-center gap-3">
-            <FormControl>
-              <Checkbox
-                id={`${idPrefix}-is-deceased`}
-                checked={field.value ?? false}
-                onCheckedChange={(checked) => field.onChange(checked === true)}
-              />
-            </FormControl>
-            <FormLabel
-              htmlFor={`${idPrefix}-is-deceased`}
-              className="font-normal"
-            >
-              This person is deceased
-            </FormLabel>
-          </FormItem>
-        )}
-      />
+      {shows(show, "sex") ? (
+        <FormField
+          control={control}
+          name={name("sex")}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Sex</FormLabel>
+              <FormControl>
+                <RadioGroup
+                  value={field.value ?? null}
+                  onValueChange={(v) => field.onChange(v || undefined)}
+                >
+                  {SEX_VALUES.map((s) => (
+                    <label
+                      key={s}
+                      className="flex items-center gap-3 text-sm font-normal"
+                    >
+                      <RadioGroupItem value={s} />
+                      {SEX_LABELS[s]}
+                    </label>
+                  ))}
+                </RadioGroup>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      ) : null}
 
-      {isDeceased ? (
-        <div className="grid gap-4 rounded-lg border border-border p-4 sm:grid-cols-2">
+      {shows(show, "date_of_birth") ? (
+        <div className="grid gap-4 sm:grid-cols-2">
           <FormField
             control={control}
-            name={name("date_of_death")}
+            name={name("date_of_birth")}
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Date of death</FormLabel>
+                <FormLabel>Date of birth</FormLabel>
                 <FormControl>
                   <DateField
                     value={field.value ?? ""}
@@ -419,35 +453,106 @@ export function PersonFields<T extends FieldValues>({
               </FormItem>
             )}
           />
+        </div>
+      ) : null}
+
+      {shows(show, "place_of_birth") ? (
+        <>
           <FormField
             control={control}
-            name={name("place_id_death")}
-            render={() => (
+            name={name("place_id_birth")}
+            render={({ fieldState }) => (
               <FormItem>
-                <FormLabel htmlFor={`${idPrefix}-place-death`}>
-                  Place of death
+                <FormLabel htmlFor={`${idPrefix}-place-birth`}>
+                  Place of birth
                 </FormLabel>
                 <FormControl>
                   <PlaceAutocomplete
-                    id={`${idPrefix}-place-death`}
+                    id={`${idPrefix}-place-birth`}
                     value={
-                      typeof placeIdDeath === "number" ? placeIdDeath : null
+                      typeof placeIdBirth === "number" ? placeIdBirth : null
                     }
-                    initialLabel={placeLabels?.death}
+                    initialLabel={placeLabels?.birth}
                     isAdmin={isAdmin}
-                    placeholder="Search for a place…"
-                    onChange={(place) => setPlace("death", place)}
+                    invalid={Boolean(fieldState.error)}
+                    placeholder="Search for a city, town, or village…"
+                    onChange={(place) => setPlace("birth", place)}
                   />
                 </FormControl>
+                <FormDescription>
+                  Pick the closest match — you can’t enter a place that isn’t
+                  listed.
+                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
           />
-          {typeof placeIdDeath === "number" ? (
-            <AncestralLandsField
-              placeId={placeIdDeath}
-              className="sm:col-span-2"
+
+          {typeof placeIdBirth === "number" ? (
+            <AncestralLandsField placeId={placeIdBirth} />
+          ) : null}
+        </>
+      ) : null}
+
+      {withDiedField ? (
+        <PersonDiedField control={control} prefix={prefix} idPrefix={idPrefix} />
+      ) : null}
+
+      {showsDeath ? (
+        <div className="grid gap-4 rounded-lg border border-border p-4 sm:grid-cols-2">
+          {shows(show, "date_of_death") ? (
+            <FormField
+              control={control}
+              name={name("date_of_death")}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Date of death</FormLabel>
+                  <FormControl>
+                    <DateField
+                      value={field.value ?? ""}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                    />
+                  </FormControl>
+                  <FormDescription>A year on its own is fine.</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
+          ) : null}
+          {shows(show, "place_of_death") ? (
+            <>
+              <FormField
+                control={control}
+                name={name("place_id_death")}
+                render={() => (
+                  <FormItem>
+                    <FormLabel htmlFor={`${idPrefix}-place-death`}>
+                      Place of death
+                    </FormLabel>
+                    <FormControl>
+                      <PlaceAutocomplete
+                        id={`${idPrefix}-place-death`}
+                        value={
+                          typeof placeIdDeath === "number" ? placeIdDeath : null
+                        }
+                        initialLabel={placeLabels?.death}
+                        isAdmin={isAdmin}
+                        placeholder="Search for a place…"
+                        onChange={(place) => setPlace("death", place)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              {typeof placeIdDeath === "number" ? (
+                <AncestralLandsField
+                  placeId={placeIdDeath}
+                  className="sm:col-span-2"
+                />
+              ) : null}
+            </>
           ) : null}
         </div>
       ) : null}
@@ -538,6 +643,55 @@ export function PersonFields<T extends FieldValues>({
           )}
         />
       ) : null}
+    </>
+  );
+}
+
+/**
+ * The shared demographic fieldset for a single person. Works standalone
+ * (`prefix` omitted) or as one row of a `people[]` field array (`prefix`
+ * e.g. `"people.2"`).
+ */
+export function PersonFields<T extends FieldValues>({
+  control,
+  isAdmin,
+  withContact = false,
+  prefix,
+  idPrefix,
+  placeLabels,
+  lineage,
+}: {
+  control: Control<T>;
+  isAdmin: boolean;
+  /**
+   * Show the contact block (email, and whether other members see it): for
+   * the entry's owner editing it. The add flow leaves it for later.
+   */
+  withContact?: boolean;
+  prefix?: string;
+  idPrefix: string;
+  /** Labels for already-selected places, so the edit form shows them on load. */
+  placeLabels?: { birth?: string | null; death?: string | null };
+  /**
+   * Offer the lineage choice (a Root's, about the link to this person's
+   * parent). Defaults to `isAdmin`; the first run's family step asks it only
+   * about a child, whose parent is the founder adding them (Step 29).
+   */
+  lineage?: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-6">
+      <PersonNameFields control={control} prefix={prefix} />
+      <PersonDetailFields
+        control={control}
+        isAdmin={isAdmin}
+        withContact={withContact}
+        withDiedField
+        prefix={prefix}
+        idPrefix={idPrefix}
+        placeLabels={placeLabels}
+        lineage={lineage}
+      />
     </div>
   );
 }

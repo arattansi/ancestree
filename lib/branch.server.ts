@@ -62,7 +62,8 @@ async function treeEdges(treeId: string) {
  * Root's side they are related through (Step 22.2), measured on that tree's
  * people, and one still in onboarding, with no entry of their own, is related
  * to no one. A Leaf's own line (`private.line_ids`, Step 34) is measured the
- * same way.
+ * same way, and so is a Branch's, where they fill in what's missing past
+ * their side (Step 44).
  */
 export async function getViewer(
   profile: Profile,
@@ -78,17 +79,22 @@ export async function getViewer(
   const type = accountTypeOf(role);
   const tends = type.entries === "branch" && !!self;
   const grows = type.addRelatives === "line" && !!self;
-  if (!self || (!tends && !grows)) return { ...base, branch: null, line: null };
+  const fills = type.entries !== "tree" && !!self;
+  if (!self || !fills) {
+    return { ...base, branch: null, line: null, ownLine: null };
+  }
 
   const [rootIds, edges] = await Promise.all([
     tends ? getRootEntryIds(treeId) : [],
     treeEdges(treeId),
   ]);
+  const ownLine = lineIds(self, edges);
 
   return {
     ...base,
     branch: tends ? branchReach(self, rootIds, edges) : null,
-    line: grows ? lineIds(self, edges) : null,
+    line: grows ? ownLine : null,
+    ownLine,
   };
 }
 

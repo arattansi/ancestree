@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
+import { PersonFillForm } from "@/components/person-fill-form";
 import { PersonForm } from "@/components/person-form";
 import {
   EditConnections,
@@ -9,8 +10,14 @@ import {
   type ExistingConnection,
 } from "@/components/tree/edit-connections";
 import { Button } from "@/components/ui/button";
-import { canEditConnection, canEditEntry } from "@/lib/branch";
+import {
+  canEditConnection,
+  canEditEntry,
+  canFillEntry,
+  type EntrySubject,
+} from "@/lib/branch";
 import { getSpokenForEntryIds, getViewer } from "@/lib/branch.server";
+import { blankFields } from "@/lib/fill-blanks";
 import { toPartialIso } from "@/lib/partial-date";
 import { personDisplayName } from "@/lib/person-name";
 import { formatPlaceLabel, getPlacesByIds } from "@/lib/places";
@@ -71,20 +78,104 @@ export default async function EditPersonPage({
     homeRole ? getViewer(profile, homeRole, homeTreeId) : null,
     getSpokenForEntryIds(profile.auth_user_id),
   ]);
+  const subject: EntrySubject = {
+    id: personId,
+    owner_user_id: person.owner_user_id,
+    created_by: person.created_by,
+    isClaimed: !!approvedClaim,
+    isSomeoneElsesOwn: spokenFor.has(personId),
+  };
   const canEdit = viewer
-    ? canEditEntry(
-        {
-          id: personId,
-          owner_user_id: person.owner_user_id,
-          created_by: person.created_by,
-          isClaimed: !!approvedClaim,
-          isSomeoneElsesOwn: spokenFor.has(personId),
-        },
-        viewer,
-      )
+    ? canEditEntry(subject, viewer)
     : personId === profile.self_person_id;
+  // Not theirs to change, but theirs to fill in where it's blank (Step 44).
+  const canFill = !canEdit && !!viewer && canFillEntry(subject, viewer);
 
-  if (!canEdit) redirect(treeFocusHref(personId));
+  if (!canEdit && !canFill) redirect(treeFocusHref(personId));
+
+  const values: PersonFormValues = {
+    first_name: person.first_name ?? "",
+    middle_name: person.middle_name ?? "",
+    preferred_name: person.preferred_name ?? "",
+    maiden_name: person.maiden_name ?? "",
+    last_name: person.last_name,
+    // A partial date opens as just what's known ("1931", "1931-03").
+    date_of_birth: toPartialIso(
+      person.date_of_birth,
+      person.date_of_birth_precision ?? "day",
+    ),
+    place_id_birth: person.place_id_birth ?? null,
+    city_of_birth: person.city_of_birth ?? "",
+    country_of_birth: person.country_of_birth ?? "",
+    is_deceased: person.is_deceased ?? false,
+    date_of_death: toPartialIso(
+      person.date_of_death,
+      person.date_of_death_precision ?? "day",
+    ),
+    place_id_death: person.place_id_death ?? null,
+    place_of_death: person.place_of_death ?? "",
+    sex: (person.sex as PersonFormValues["sex"]) ?? undefined,
+    lineage_type:
+      (person.lineage_type as PersonFormValues["lineage_type"]) ?? undefined,
+    email: person.email ?? "",
+    email_visible: person.email_visible ?? false,
+  };
+  const displayName = personDisplayName({
+    ...person,
+    last_name: person.last_name,
+  });
+
+  if (canFill) {
+    const blanks = blankFields({
+      first_name: person.first_name,
+      middle_name: person.middle_name,
+      preferred_name: person.preferred_name,
+      maiden_name: person.maiden_name,
+      sex: person.sex,
+      date_of_birth: person.date_of_birth,
+      place_id_birth: person.place_id_birth,
+      city_of_birth: person.city_of_birth,
+      country_of_birth: person.country_of_birth,
+      is_deceased: person.is_deceased ?? false,
+      date_of_death: person.date_of_death,
+      place_id_death: person.place_id_death,
+      place_of_death: person.place_of_death,
+      photo_path: person.photo_path,
+    });
+    return (
+      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 py-10">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              Fill in {displayName}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {blanks.length > 0
+                ? "Add what you know that nobody has filled in yet. What’s already here stays as it is, and whoever added this entry is told what you add."
+                : "Everything you could add here is filled in. Only this entry’s owner, a Branch for this side of the family, or a Root can change it."}
+            </p>
+          </div>
+          <Button
+            nativeButton={false}
+            render={<Link href={treeFocusHref(personId)} />}
+            size="sm"
+            variant="outline"
+          >
+            Back to tree
+          </Button>
+        </div>
+
+        {blanks.length > 0 ? (
+          <PersonFillForm
+            treeId={tree.id}
+            personId={personId}
+            values={values}
+            blanks={blanks}
+          />
+        ) : null}
+      </main>
+    );
+  }
 
   let photoUrl: string | null = null;
   if (person.photo_path) {
@@ -153,40 +244,12 @@ export default async function EditPersonPage({
     ];
   });
 
-  const values: PersonFormValues = {
-    first_name: person.first_name ?? "",
-    middle_name: person.middle_name ?? "",
-    preferred_name: person.preferred_name ?? "",
-    maiden_name: person.maiden_name ?? "",
-    last_name: person.last_name,
-    // A partial date opens as just what's known ("1931", "1931-03").
-    date_of_birth: toPartialIso(
-      person.date_of_birth,
-      person.date_of_birth_precision ?? "day",
-    ),
-    place_id_birth: person.place_id_birth ?? null,
-    city_of_birth: person.city_of_birth ?? "",
-    country_of_birth: person.country_of_birth ?? "",
-    is_deceased: person.is_deceased ?? false,
-    date_of_death: toPartialIso(
-      person.date_of_death,
-      person.date_of_death_precision ?? "day",
-    ),
-    place_id_death: person.place_id_death ?? null,
-    place_of_death: person.place_of_death ?? "",
-    sex: (person.sex as PersonFormValues["sex"]) ?? undefined,
-    lineage_type:
-      (person.lineage_type as PersonFormValues["lineage_type"]) ?? undefined,
-    email: person.email ?? "",
-    email_visible: person.email_visible ?? false,
-  };
-
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 py-10">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">
-            Edit {personDisplayName({ ...person, last_name: person.last_name })}
+            Edit {displayName}
           </h1>
           <p className="text-sm text-muted-foreground">
             {person.is_home
@@ -221,10 +284,7 @@ export default async function EditPersonPage({
       <EditConnections
         treeId={tree.id}
         personId={personId}
-        personName={personDisplayName({
-          ...person,
-          last_name: person.last_name,
-        })}
+        personName={displayName}
         personPartners={
           allMembers.find((m) => m.id === personId)?.partners ?? []
         }

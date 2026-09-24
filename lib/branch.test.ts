@@ -7,6 +7,7 @@ import {
   canEditCompanion,
   canEditConnection,
   canEditEntry,
+  canFillEntry,
   canInviteToClaim,
   canOfferDelete,
   canSeeDocuments,
@@ -292,6 +293,7 @@ const branchAdmin: Viewer = {
   selfPersonId: "arzu",
   branch: branchReach("arzu", roots, family),
   line: null,
+  ownLine: lineIds("arzu", family),
 };
 /** Arzu as a Leaf: what they added, their own entry, and their own line to grow. */
 const member: Viewer = {
@@ -300,6 +302,7 @@ const member: Viewer = {
   selfPersonId: "arzu",
   branch: null,
   line: lineIds("arzu", family),
+  ownLine: lineIds("arzu", family),
 };
 const admin: Viewer = {
   userId: "a",
@@ -307,6 +310,7 @@ const admin: Viewer = {
   selfPersonId: null,
   branch: null,
   line: null,
+  ownLine: null,
 };
 
 describe("canEditEntry", () => {
@@ -370,7 +374,12 @@ describe("canEditEntry", () => {
   });
 
   it("gives a member still onboarding only what they added", () => {
-    const onboarding = { ...member, selfPersonId: null, line: null };
+    const onboarding = {
+      ...member,
+      selfPersonId: null,
+      line: null,
+      ownLine: null,
+    };
     expect(canEditEntry(entry({ id: "arzu" }), onboarding)).toBe(false);
     const mine = entry({ owner_user_id: "arzu-user", created_by: "arzu-user" });
     expect(canEditEntry(mine, onboarding)).toBe(true);
@@ -612,7 +621,69 @@ describe("canAddRelativeOf", () => {
   });
 
   it("offers a Leaf nothing to add from until their own entry is on the tree", () => {
-    const onboarding = { ...member, selfPersonId: null, line: null };
+    const onboarding = {
+      ...member,
+      selfPersonId: null,
+      line: null,
+      ownLine: null,
+    };
     expect(canAddRelativeOf("arzu", onboarding)).toBe(false);
+  });
+});
+
+describe("canFillEntry (Step 44)", () => {
+  it("lets a Leaf fill in an unclaimed entry on their own line", () => {
+    // Fatehali, Arzu's father, added by Raiya: not Arzu's to edit.
+    expect(canEditEntry(entry(), member)).toBe(false);
+    expect(canFillEntry(entry(), member)).toBe(true);
+    // Safia married Arzu's brother, so she is on the line too.
+    expect(canFillEntry(entry({ id: "safia" }), member)).toBe(true);
+  });
+
+  it("keeps a Leaf to their own line", () => {
+    // Safia's father and Aalim's mother are someone else's line.
+    expect(canFillEntry(entry({ id: "noorali" }), member)).toBe(false);
+    expect(canFillEntry(entry({ id: "minaz" }), member)).toBe(false);
+  });
+
+  it("leaves a claimed entry, or a member's own, to them", () => {
+    expect(canFillEntry(entry({ isClaimed: true }), member)).toBe(false);
+    const raiya = entry({ id: "raiya", isSomeoneElsesOwn: true });
+    expect(canFillEntry(raiya, member)).toBe(false);
+    expect(canFillEntry(raiya, branchAdmin)).toBe(false);
+  });
+
+  it("lets a Branch fill in past their side, on their own line", () => {
+    // Rehan as a Branch tends Raiya's father's family. His mother Shireen
+    // married in, so her mother is on his line but not on Raiya's side.
+    const edges = [...family, parent("shireen-mum", "shireen")];
+    const rehan: Viewer = {
+      userId: "rehan-user",
+      role: "branch_admin",
+      selfPersonId: "rehan",
+      branch: branchReach("rehan", roots, edges),
+      line: null,
+      ownLine: lineIds("rehan", edges),
+    };
+    const shireenMum = entry({ id: "shireen-mum" });
+    expect(canEditEntry(shireenMum, rehan)).toBe(false);
+    expect(canFillEntry(shireenMum, rehan)).toBe(true);
+    // Off his line, still nothing.
+    expect(canFillEntry(entry({ id: "noorali" }), rehan)).toBe(false);
+  });
+
+  it("gives a Root nothing to fill in: they edit everything", () => {
+    expect(canFillEntry(entry(), admin)).toBe(false);
+    expect(canEditEntry(entry(), admin)).toBe(true);
+  });
+
+  it("offers nothing until their own entry is on the tree", () => {
+    const onboarding = {
+      ...member,
+      selfPersonId: null,
+      line: null,
+      ownLine: null,
+    };
+    expect(canFillEntry(entry(), onboarding)).toBe(false);
   });
 });

@@ -67,6 +67,7 @@ import {
   canEditCompanion,
   canEditConnection,
   canEditEntry,
+  canFillEntry,
   canInviteToClaim,
   canOfferDelete,
   canSeeDocuments,
@@ -767,8 +768,13 @@ function Canvas({
   // Root's side they're related through, and a Leaf grows their own line, both
   // worked out from the edges already on the canvas — `lib/branch` mirrors
   // `private.own_branch_ids` and `private.line_ids`, which are what decide.
+  // Either fills in what's missing on their own line (Step 44).
   const viewer = React.useMemo<Viewer>(() => {
     const type = accountTypeOf(role);
+    const ownLine =
+      type.entries !== "tree" && selfPersonId
+        ? lineIds(selfPersonId, relationships)
+        : null;
     return {
       userId: currentUserId,
       role,
@@ -777,10 +783,8 @@ function Canvas({
         type.entries === "branch" && selfPersonId
           ? branchReach(selfPersonId, rootIds, relationships)
           : null,
-      line:
-        type.addRelatives === "line" && selfPersonId
-          ? lineIds(selfPersonId, relationships)
-          : null,
+      line: type.addRelatives === "line" ? ownLine : null,
+      ownLine,
     };
   }, [currentUserId, role, selfPersonId, rootIds, relationships]);
   const spokenFor = React.useMemo(() => new Set(spokenForIds), [spokenForIds]);
@@ -1773,6 +1777,11 @@ function Canvas({
   }, [selectedId, relationships, people, viewer]);
   const canEdit =
     !!selectedPerson && canEditEntry(entrySubject(selectedPerson), viewer);
+  // Not theirs to edit, but theirs to fill in where it's blank (Step 44).
+  const canFill =
+    !!selectedPerson &&
+    !canEdit &&
+    canFillEntry(entrySubject(selectedPerson), viewer);
   const canSeeDocs =
     !!selectedPerson && canSeeDocuments(entrySubject(selectedPerson), viewer);
   const canInvite =
@@ -2037,6 +2046,7 @@ function Canvas({
         isAdmin={isAdmin}
         isSelf={selectedPerson?.id === selfPersonId}
         canEdit={canEdit}
+        canFill={canFill}
         canSeeDocuments={canSeeDocs}
         canDelete={canDelete}
         canInviteToClaim={canInvite}

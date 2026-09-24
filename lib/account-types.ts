@@ -17,8 +17,9 @@
  * rather than by a list of screens, which is what a plan would sell.
  *
  * The database enforces these rules (`private.can_edit_person`,
- * `can_edit_relationship`, `can_edit_pet`, the own-line check in
- * `add_people_with_connections`, and the limits in `tree_members_limits`).
+ * `can_edit_relationship`, `can_edit_pet`, `can_fill_person` with
+ * `fill_person_blanks`, the own-line check in `add_people_with_connections`,
+ * and the limits in `tree_members_limits`).
  * This module describes them so the UI knows what to offer, and
  * `lib/branch.ts` reads it to mirror them per entry.
  */
@@ -77,6 +78,13 @@ export type AccountType = {
   description: string;
   /** Whose entries they can edit. */
   entries: Reach;
+  /**
+   * Where they can fill in what's missing on an entry nobody has claimed,
+   * without changing what's there (Step 44): `tree` for a Root, who edits
+   * everything anyway, or `line`, their own line, past what they can edit
+   * (`lib/branch.ts#canFillEntry`, `private.can_fill_person`).
+   */
+  fillsBlanks: "tree" | "line";
   /** Whose connections they can change or remove. Anyone may draw a new one,
    *  and answer the tree's "are these two connected?" prompts. */
   connections: Reach;
@@ -116,8 +124,9 @@ export const ROOT: AccountType = {
   key: "admin",
   name: "Root",
   tagline: "Holds the whole tree",
-  description: `The tree’s founders, ${inWords(ROOTS_PER_TREE)} at most. A Root can edit every entry and connection, and runs the tree: members and their account types, invites, share links, and removing entries. A Root is told when a Branch changes an entry they added, and can undo it. Each Root can make up to ${inWords(BRANCHES_PER_ROOT)} Leaves Branches, and make another member a Root while the tree has room for one — which nobody can undo.`,
+  description: `The tree’s founders, ${inWords(ROOTS_PER_TREE)} at most. A Root can edit every entry and connection, and runs the tree: members and their account types, invites, share links, and removing entries. A Root is told when a Branch changes an entry they added, or someone fills in what’s missing on it, and can undo it. Each Root can make up to ${inWords(BRANCHES_PER_ROOT)} Leaves Branches, and make another member a Root while the tree has room for one — which nobody can undo.`,
   entries: "tree",
+  fillsBlanks: "tree",
   connections: "tree",
   companions: "tree",
   addRelatives: "tree",
@@ -131,8 +140,9 @@ export const BRANCH: AccountType = {
   key: "branch_admin",
   name: "Branch",
   tagline: "Tends their part of a Root’s side",
-  description: `A Branch looks after the part of a Root’s side of the family they’re related through: their own ancestors on that side, everyone descended from them, and the people those relatives married — so a Root’s father’s family, say, but not their mother’s, when that is how the Branch is related. They can edit any entry and connection there, except another member’s own entry. A Root is told when they change an entry that Root added, and can undo it. They bring relatives in as Leaves, can invite someone to claim an unclaimed entry on that side, and can delete an entry they added while nobody else has built on it. Each Root can make up to ${inWords(BRANCHES_PER_ROOT)} Branches.`,
+  description: `A Branch looks after the part of a Root’s side of the family they’re related through: their own ancestors on that side, everyone descended from them, and the people those relatives married — so a Root’s father’s family, say, but not their mother’s, when that is how the Branch is related. They can edit any entry and connection there, except another member’s own entry, and past that side they fill in what’s missing on their own line, as a Leaf does. A Root is told when they change an entry that Root added, and can undo it. They bring relatives in as Leaves, can invite someone to claim an unclaimed entry on that side, and can delete an entry they added while nobody else has built on it. Each Root can make up to ${inWords(BRANCHES_PER_ROOT)} Branches.`,
   entries: "branch",
+  fillsBlanks: "line",
   connections: "branch",
   companions: "branch",
   addRelatives: "tree",
@@ -147,8 +157,9 @@ export const LEAF: AccountType = {
   name: "Leaf",
   tagline: "Grows their own line",
   description:
-    "Where most of the family sits. A Leaf adds relatives on their own line — their parents and grandparents, everyone descended from them, and the people those relatives married — and edits the entries and connections they added, and their own entry. They bring relatives in as Leaves, can invite someone to claim an entry they added, and can delete one while nobody else has built on it. A Root can make them a Branch.",
+    "Where most of the family sits. A Leaf adds relatives on their own line — their parents and grandparents, everyone descended from them, and the people those relatives married — and edits the entries and connections they added, and their own entry. On that line they can also fill in what’s missing on an entry nobody has claimed, a photo included, without changing what’s there. They bring relatives in as Leaves, can invite someone to claim an entry they added, and can delete one while nobody else has built on it. A Root can make them a Branch.",
   entries: "own",
+  fillsBlanks: "line",
   connections: "own",
   companions: "own",
   addRelatives: "line",
@@ -318,6 +329,13 @@ export function describeAccess(type: AccountType): Access[] {
     { label: "See the whole tree", value: true },
     { label: "Comment on and flag entries", value: true },
     { label: "Edit entries", value: ENTRY_REACH[type.entries] },
+    {
+      label: "Fill in what’s missing",
+      value:
+        type.fillsBlanks === "tree"
+          ? true
+          : "Unclaimed entries on their own line",
+    },
     // Documents follow the same reach as editing, except that a Branch also
     // sees members' own entries on their side (`private.can_see_documents`).
     { label: "See documents", value: DOCUMENT_REACH[type.entries] },
@@ -369,6 +387,10 @@ export function branchSideLabel(rootNames: readonly string[]): string | null {
 /** Why an entry is closed to the viewer, when it is. */
 export const LOCKED_ENTRY_NOTE =
   "Only this entry’s owner, a Branch for this side of the family, or a Root can edit it.";
+
+/** What the viewer can do with an entry they may fill in (Step 44). */
+export const FILL_ENTRY_NOTE =
+  "You can fill in what’s missing here. Only this entry’s owner, a Branch for this side of the family, or a Root can change what’s already filled in.";
 
 /**
  * What a new entry off a Leaf's own line is refused with. The database marks

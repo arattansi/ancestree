@@ -14,6 +14,7 @@ import {
   type RelationshipKind,
 } from "@/lib/connections";
 import { detectImpliedConnections } from "@/lib/connection-suggestions.server";
+import { fillFields } from "@/lib/fill-blanks";
 import type {
   ImpliedConnection,
   NewPersonInput,
@@ -488,6 +489,51 @@ export async function updatePerson(
 
   revalidateTreePages();
   return { personId };
+}
+
+/** What a refused fill says (Step 44), by the `FILL_BLANKS` reason. */
+function friendlyFillError(message: string): string {
+  if (message.includes("not yours to fill in")) {
+    return "This entry isn't yours to fill in any more. Someone may have claimed it; refresh and look again.";
+  }
+  if (message.includes("photo")) {
+    return "The photo didn't reach this entry. Try adding it again.";
+  }
+  if (message.includes("longer than")) {
+    return "One of those is too long. Keep names under 120 characters.";
+  }
+  return friendlyError(message);
+}
+
+/**
+ * Fill in what's missing on an entry the caller can't edit (Step 44): a
+ * Branch or a Leaf, on an unclaimed entry on their own line. The
+ * `fill_person_blanks` RPC decides who may, and sets only what's empty — it
+ * never changes or clears a value, so sending the whole form is safe. A photo
+ * is uploaded into the entry's folder first (the storage policy allows that
+ * while it has none) and named here. Returns what was filled in.
+ */
+export async function fillPersonBlanks(
+  personId: string,
+  values: PersonFormValues,
+  photo?: { path: string; crop: CropTransform } | null,
+): Promise<{ filled?: string[]; error?: string }> {
+  await requireProfile();
+  const parsed = personSchema.safeParse(values);
+  if (!parsed.success) {
+    return { error: "Please fix the highlighted fields and try again." };
+  }
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("fill_person_blanks", {
+    p_person: personId,
+    p_fields: fillFields(
+      toPersonPayload(parsed.data),
+      photo ? { path: photo.path, crop: toStoredCrop(photo.crop) } : null,
+    ),
+  });
+  if (error) return { error: friendlyFillError(error.message) };
+  revalidateTreePages();
+  return { filled: data ?? [] };
 }
 
 /**

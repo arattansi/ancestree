@@ -46,9 +46,10 @@ const optionalDate = z
   });
 
 /**
- * Shared person schema. Required: (first OR preferred) AND last name AND
- * country of birth AND an explicit living/deceased answer. Death fields only
- * apply when `is_deceased` is true.
+ * Shared person schema. Required: (first OR preferred) AND last name AND an
+ * explicit living/deceased answer. A place of birth is optional since Step 44
+ * (the database's `people_required_identity` agrees). Death fields only apply
+ * when `is_deceased` is true.
  */
 export const personSchema = z
   .object({
@@ -91,10 +92,6 @@ export const personSchema = z
   .refine((v) => Boolean(v.first_name?.trim() || v.preferred_name?.trim()), {
     message: "Enter a first name or a preferred name.",
     path: ["first_name"],
-  })
-  .refine((v) => v.place_id_birth != null, {
-    message: "Choose a place of birth from the list.",
-    path: ["place_id_birth"],
   })
   .refine(
     // Only as finely as the vaguer of the two is known: died "1990" is fine

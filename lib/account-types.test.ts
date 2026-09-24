@@ -132,6 +132,17 @@ describe("describeAccess", () => {
     expect(valueOf(LEAF, "Change connections")).toBe("The ones they drew");
   });
 
+  it("lets a Branch and a Leaf fill in what's missing on their own line (Step 44)", () => {
+    expect(valueOf(ROOT, "Fill in what’s missing")).toBe(true);
+    for (const t of [BRANCH, LEAF]) {
+      expect(t.fillsBlanks).toBe("line");
+      expect(valueOf(t, "Fill in what’s missing")).toBe(
+        "Unclaimed entries on their own line",
+      );
+      expect(t.description).toContain("fill in what’s missing");
+    }
+  });
+
   it("says where each type adds relatives", () => {
     expect(valueOf(ROOT, "Add relatives")).toBe(true);
     expect(valueOf(BRANCH, "Add relatives")).toBe(true);

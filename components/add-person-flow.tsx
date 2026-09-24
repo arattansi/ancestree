@@ -2,7 +2,13 @@
 
 import { useRouter } from "next/navigation";
 import * as React from "react";
-import { useFieldArray, useForm, useWatch } from "react-hook-form";
+import {
+  useFieldArray,
+  useForm,
+  useWatch,
+  type Control,
+} from "react-hook-form";
+import { Plus } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -22,7 +28,12 @@ import type { ImpliedConnection } from "@/lib/connection-suggestions";
 import { CoParentOffer } from "@/components/co-parent-offer";
 import { DateField } from "@/components/date-field";
 import { JoinsAsNote } from "@/components/joins-as-note";
-import { PersonFields } from "@/components/person-fields";
+import {
+  PersonDetailFields,
+  PersonDiedField,
+  PersonFields,
+  PersonNameFields,
+} from "@/components/person-fields";
 import { PhotoPicker } from "@/components/photo-picker";
 import {
   RelationshipPicker,
@@ -168,6 +179,62 @@ export function SpouseDatesFields({
   );
 }
 
+/**
+ * Someone in between, added in the same step. On the add-a-relative form
+ * their name comes first and the rest on request, as for the person being
+ * added (Step 44).
+ */
+function InBetweenFields({
+  control,
+  isAdmin,
+  index,
+  compact,
+}: {
+  control: Control<FlowValues>;
+  isAdmin: boolean;
+  index: number;
+  compact: boolean;
+}) {
+  const [open, setOpen] = React.useState(!compact);
+  const prefix = `people.${index}`;
+  const idPrefix = `intermediate-${index}`;
+  if (!compact) {
+    return (
+      <PersonFields
+        control={control}
+        isAdmin={isAdmin}
+        prefix={prefix}
+        idPrefix={idPrefix}
+      />
+    );
+  }
+  return (
+    <div className="flex flex-col gap-6">
+      <PersonNameFields control={control} prefix={prefix} />
+      {open ? (
+        <PersonDetailFields
+          control={control}
+          isAdmin={isAdmin}
+          withDiedField
+          prefix={prefix}
+          idPrefix={idPrefix}
+        />
+      ) : (
+        <Button
+          type="button"
+          variant="link"
+          size="sm"
+          className="self-start px-0"
+          onClick={() => setOpen(true)}
+        >
+          <Plus />
+          More about them
+        </Button>
+      )}
+    </div>
+  );
+}
+
 const flowSchema = z.object({
   people: z.array(personSchema).min(1),
   anchorId: z.string(),
@@ -304,6 +371,17 @@ export function AddPersonFlow({
   } | null>(null);
   const [saving, setSaving] = React.useState(false);
   const [addingMore, setAddingMore] = React.useState(false);
+  // Adding a relative asks their name, how they connect and an invite up
+  // front, and keeps everything else behind "Add more details" at the
+  // bottom (Step 44). Adding yourself still shows it all.
+  const compact = mode === "relative";
+  const [moreDetails, setMoreDetails] = React.useState(false);
+  const details = !compact || moreDetails;
+  const detailsHeading = React.useRef<HTMLHeadingElement>(null);
+  // Opened from the bottom of the form: take the reader to what opened.
+  React.useEffect(() => {
+    if (moreDetails) detailsHeading.current?.focus();
+  }, [moreDetails]);
   const asksInvite = mode === "relative" && canInvite;
   const anchorMembers = anchorable
     ? members.filter((m) => anchorable.has(m.id))
@@ -636,6 +714,23 @@ export function AddPersonFlow({
 
   const submitting = form.formState.isSubmitting || photoBusy || saving;
 
+  const inBetweenHint = details
+    ? "If the person in between isn't here yet, add them below."
+    : "If the person in between isn't here yet, you can add them under “Add more details”.";
+
+  const photoField = (
+    <PhotoPicker
+      id="primary-photo"
+      value={photoFile}
+      onChange={setPhotoFile}
+      crop={crop}
+      onCropChange={setCrop}
+      onBusyChange={setPhotoBusy}
+      disabled={form.formState.isSubmitting || saving}
+      hint="Optional. JPEG, PNG, or WebP; cropped and resized on your device."
+    />
+  );
+
   return (
     <Form {...form}>
       <form
@@ -644,34 +739,33 @@ export function AddPersonFlow({
         noValidate
       >
         <section className="flex flex-col gap-6">
-          <div>
-            <h2 className="text-base font-semibold">
-              {mode === "self" ? "Your details" : "Their details"}
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              A name and country of birth are required.
-            </p>
-          </div>
-          <PersonFields
-            control={form.control}
-            isAdmin={isAdmin}
-            // Lineage describes the link to a parent; the first person on an
-            // empty tree has none to describe (Step 29).
-            lineage={members.length > 0 ? undefined : false}
-            prefix="people.0"
-            idPrefix="primary"
-          />
-
-          <PhotoPicker
-            id="primary-photo"
-            value={photoFile}
-            onChange={setPhotoFile}
-            crop={crop}
-            onCropChange={setCrop}
-            onBusyChange={setPhotoBusy}
-            disabled={form.formState.isSubmitting || saving}
-            hint="Optional. JPEG, PNG, or WebP; cropped and resized on your device."
-          />
+          <h2 className="text-base font-semibold">
+            {mode === "self" ? "Your details" : "Their details"}
+          </h2>
+          {compact ? (
+            <>
+              <PersonNameFields control={form.control} prefix="people.0" />
+              {/* Up front, since it decides whether to ask for an invite. */}
+              <PersonDiedField
+                control={form.control}
+                prefix="people.0"
+                idPrefix="primary"
+              />
+            </>
+          ) : (
+            <>
+              <PersonFields
+                control={form.control}
+                isAdmin={isAdmin}
+                // Lineage describes the link to a parent; the first person on
+                // an empty tree has none to describe (Step 29).
+                lineage={members.length > 0 ? undefined : false}
+                prefix="people.0"
+                idPrefix="primary"
+              />
+              {photoField}
+            </>
+          )}
 
           {/* Nobody can be invited to claim a deceased person's entry
               (`private.can_invite_to_claim`), so the question goes with them. */}
@@ -718,9 +812,9 @@ export function AddPersonFlow({
               </h2>
               <p className="text-sm text-muted-foreground">
                 {anchorable
-                  ? "Connect them to someone on your own line — your parents and grandparents, everyone descended from them, or someone they married. If the person in between isn't here yet, add them below."
+                  ? `Connect them to someone on your own line — your parents and grandparents, everyone descended from them, or someone they married. ${inBetweenHint}`
                   : mustConnect
-                    ? "Every entry must connect to someone already in the tree. If the person in between isn't here yet, add them below."
+                    ? `Every entry must connect to someone already in the tree. ${inBetweenHint}`
                     : "A Root can add someone without connecting them to anyone."}
               </p>
             </div>
@@ -784,7 +878,7 @@ export function AddPersonFlow({
                           </Select>
                           <span className="font-medium">{linkObject(i)}</span>
                         </div>
-                        {watchedLinks[i]?.kind === "spouse" ? (
+                        {details && watchedLinks[i]?.kind === "spouse" ? (
                           <SpouseDatesFields
                             idBase={`link-${i}`}
                             value={watchedLinks[i] ?? {}}
@@ -867,190 +961,236 @@ export function AddPersonFlow({
                               </button>
                             ) : null}
                           </div>
-                          <PersonFields
+                          <InBetweenFields
                             control={form.control}
                             isAdmin={isAdmin}
-                            prefix={`people.${j}`}
-                            idPrefix={`intermediate-${j}`}
+                            index={j}
+                            compact={compact}
                           />
                         </div>
                       );
                     })}
 
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="self-start"
-                      onClick={addIntermediate}
-                    >
-                      Add someone in between
-                    </Button>
-                    <p className="text-xs text-muted-foreground">
-                      Reads top to bottom:{" "}
-                      {primaryFallback === "You" ? "you" : "the new entry"}{" "}
-                      connect{primaryFallback === "You" ? "" : "s"} through
-                      each person to {anchorLabel}.
-                    </p>
-
-                    <div className="flex flex-col gap-3 border-t border-border pt-4">
-                      <label className="flex items-center gap-3 text-sm">
-                        <Checkbox
-                          id="more-connections-toggle"
-                          checked={addingMore}
-                          onCheckedChange={(c) => {
-                            const on = c === true;
-                            setAddingMore(on);
-                            if (on && extraLinks.fields.length === 0) {
-                              extraLinks.append({ targetId: "", kind: "child" });
-                            }
-                            if (!on) extraLinks.replace([]);
-                          }}
-                        />
-                        <span>
-                          {mode === "self"
-                            ? "You connect"
-                            : "This person connects"}{" "}
-                          to more people on the tree
-                        </span>
-                      </label>
-
-                      {addingMore
-                        ? extraLinks.fields.map((field, i) => (
-                            <div
-                              key={field.id}
-                              className="flex flex-col gap-2 rounded-md border border-border p-3"
-                            >
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs font-medium text-muted-foreground">
-                                  Connection {i + 1}
-                                </span>
-                                <button
-                                  type="button"
-                                  className="text-xs text-destructive underline underline-offset-2"
-                                  onClick={() => extraLinks.remove(i)}
-                                >
-                                  Remove
-                                </button>
-                              </div>
-                              <div className="flex flex-wrap items-center gap-2 text-sm">
-                                <span className="font-medium">
-                                  {primaryLabel}
-                                </span>
-                                <Select
-                                  items={KIND_STATEMENT}
-                                  value={watchedExtra[i]?.kind ?? "child"}
-                                  onValueChange={(v) =>
-                                    form.setValue(
-                                      `extraLinks.${i}.kind`,
-                                      v as RelationshipKind,
-                                      { shouldDirty: true, shouldValidate: true },
-                                    )
-                                  }
-                                >
-                                  <SelectTrigger className="w-48">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {RELATIONSHIP_KINDS.map((k) => (
-                                      <SelectItem key={k} value={k}>
-                                        {KIND_STATEMENT[k]}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              <RelationshipPicker
-                                members={members}
-                                value={watchedExtra[i]?.targetId ?? ""}
-                                onChange={(id) =>
-                                  form.setValue(`extraLinks.${i}.targetId`, id, {
-                                    shouldDirty: true,
-                                    shouldValidate: true,
-                                  })
-                                }
-                              />
-                              {form.formState.errors.extraLinks?.[i]?.targetId ? (
-                                <p className="text-xs font-medium text-destructive">
-                                  {
-                                    form.formState.errors.extraLinks[i]?.targetId
-                                      ?.message
-                                  }
-                                </p>
-                              ) : null}
-                              {watchedExtra[i]?.kind === "child" ? (
-                                <CoParentOffer
-                                  idBase={`extra-${i}`}
-                                  partners={
-                                    members.find(
-                                      (m) => m.id === watchedExtra[i]?.targetId,
-                                    )?.partners ?? []
-                                  }
-                                  chosen={watchedExtra[i]?.coParentIds ?? null}
-                                  parentLabel={
-                                    members.find(
-                                      (m) => m.id === watchedExtra[i]?.targetId,
-                                    )?.label
-                                  }
-                                  onChange={(ids) =>
-                                    form.setValue(
-                                      `extraLinks.${i}.coParentIds`,
-                                      ids,
-                                      { shouldDirty: true },
-                                    )
-                                  }
-                                />
-                              ) : null}
-                              {watchedExtra[i]?.kind === "spouse" ? (
-                                <SpouseDatesFields
-                                  idBase={`extra-${i}`}
-                                  value={watchedExtra[i] ?? {}}
-                                  errors={{
-                                    marriage:
-                                      form.formState.errors.extraLinks?.[i]
-                                        ?.marriage_date?.message,
-                                    divorce:
-                                      form.formState.errors.extraLinks?.[i]
-                                        ?.divorce_date?.message,
-                                  }}
-                                  onPatch={(patch) => {
-                                    for (const [k, v] of Object.entries(patch)) {
-                                      form.setValue(
-                                        `extraLinks.${i}.${k}` as `extraLinks.${number}.marriage_date`,
-                                        v as never,
-                                        {
-                                          shouldDirty: true,
-                                          shouldValidate: true,
-                                        },
-                                      );
-                                    }
-                                  }}
-                                />
-                              ) : null}
-                            </div>
-                          ))
-                        : null}
-
-                      {addingMore &&
-                      extraLinks.fields.length < MAX_EXTRA_CONNECTIONS ? (
+                    {details ? (
+                      <>
                         <Button
                           type="button"
                           variant="outline"
                           size="sm"
                           className="self-start"
-                          onClick={() =>
-                            extraLinks.append({ targetId: "", kind: "child" })
-                          }
+                          onClick={addIntermediate}
                         >
-                          Add another connection
+                          Add someone in between
                         </Button>
-                      ) : null}
-                    </div>
+                        <p className="text-xs text-muted-foreground">
+                          Reads top to bottom:{" "}
+                          {primaryFallback === "You" ? "you" : "the new entry"}{" "}
+                          connect{primaryFallback === "You" ? "" : "s"} through
+                          each person to {anchorLabel}.
+                        </p>
+                      </>
+                    ) : null}
+
+                    {details ? (
+                      <div className="flex flex-col gap-3 border-t border-border pt-4">
+                        <label className="flex items-center gap-3 text-sm">
+                          <Checkbox
+                            id="more-connections-toggle"
+                            checked={addingMore}
+                            onCheckedChange={(c) => {
+                              const on = c === true;
+                              setAddingMore(on);
+                              if (on && extraLinks.fields.length === 0) {
+                                extraLinks.append({ targetId: "", kind: "child" });
+                              }
+                              if (!on) extraLinks.replace([]);
+                            }}
+                          />
+                          <span>
+                            {mode === "self"
+                              ? "You connect"
+                              : "This person connects"}{" "}
+                            to more people on the tree
+                          </span>
+                        </label>
+
+                        {addingMore
+                          ? extraLinks.fields.map((field, i) => (
+                              <div
+                                key={field.id}
+                                className="flex flex-col gap-2 rounded-md border border-border p-3"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-medium text-muted-foreground">
+                                    Connection {i + 1}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    className="text-xs text-destructive underline underline-offset-2"
+                                    onClick={() => extraLinks.remove(i)}
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-2 text-sm">
+                                  <span className="font-medium">
+                                    {primaryLabel}
+                                  </span>
+                                  <Select
+                                    items={KIND_STATEMENT}
+                                    value={watchedExtra[i]?.kind ?? "child"}
+                                    onValueChange={(v) =>
+                                      form.setValue(
+                                        `extraLinks.${i}.kind`,
+                                        v as RelationshipKind,
+                                        { shouldDirty: true, shouldValidate: true },
+                                      )
+                                    }
+                                  >
+                                    <SelectTrigger className="w-48">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {RELATIONSHIP_KINDS.map((k) => (
+                                        <SelectItem key={k} value={k}>
+                                          {KIND_STATEMENT[k]}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <RelationshipPicker
+                                  members={members}
+                                  value={watchedExtra[i]?.targetId ?? ""}
+                                  onChange={(id) =>
+                                    form.setValue(`extraLinks.${i}.targetId`, id, {
+                                      shouldDirty: true,
+                                      shouldValidate: true,
+                                    })
+                                  }
+                                />
+                                {form.formState.errors.extraLinks?.[i]?.targetId ? (
+                                  <p className="text-xs font-medium text-destructive">
+                                    {
+                                      form.formState.errors.extraLinks[i]?.targetId
+                                        ?.message
+                                    }
+                                  </p>
+                                ) : null}
+                                {watchedExtra[i]?.kind === "child" ? (
+                                  <CoParentOffer
+                                    idBase={`extra-${i}`}
+                                    partners={
+                                      members.find(
+                                        (m) => m.id === watchedExtra[i]?.targetId,
+                                      )?.partners ?? []
+                                    }
+                                    chosen={watchedExtra[i]?.coParentIds ?? null}
+                                    parentLabel={
+                                      members.find(
+                                        (m) => m.id === watchedExtra[i]?.targetId,
+                                      )?.label
+                                    }
+                                    onChange={(ids) =>
+                                      form.setValue(
+                                        `extraLinks.${i}.coParentIds`,
+                                        ids,
+                                        { shouldDirty: true },
+                                      )
+                                    }
+                                  />
+                                ) : null}
+                                {watchedExtra[i]?.kind === "spouse" ? (
+                                  <SpouseDatesFields
+                                    idBase={`extra-${i}`}
+                                    value={watchedExtra[i] ?? {}}
+                                    errors={{
+                                      marriage:
+                                        form.formState.errors.extraLinks?.[i]
+                                          ?.marriage_date?.message,
+                                      divorce:
+                                        form.formState.errors.extraLinks?.[i]
+                                          ?.divorce_date?.message,
+                                    }}
+                                    onPatch={(patch) => {
+                                      for (const [k, v] of Object.entries(patch)) {
+                                        form.setValue(
+                                          `extraLinks.${i}.${k}` as `extraLinks.${number}.marriage_date`,
+                                          v as never,
+                                          {
+                                            shouldDirty: true,
+                                            shouldValidate: true,
+                                          },
+                                        );
+                                      }
+                                    }}
+                                  />
+                                ) : null}
+                              </div>
+                            ))
+                          : null}
+
+                        {addingMore &&
+                        extraLinks.fields.length < MAX_EXTRA_CONNECTIONS ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="self-start"
+                            onClick={() =>
+                              extraLinks.append({ targetId: "", kind: "child" })
+                            }
+                          >
+                            Add another connection
+                          </Button>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
               </div>
             ) : null}
           </section>
+        ) : null}
+
+        {compact && moreDetails ? (
+          <section className="flex flex-col gap-6 border-t border-border pt-6">
+            <div>
+              <h2
+                ref={detailsHeading}
+                tabIndex={-1}
+                className="text-base font-semibold outline-none"
+              >
+                More details
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                All optional. Anything left out can be filled in later.
+              </p>
+            </div>
+            <PersonDetailFields
+              control={form.control}
+              isAdmin={isAdmin}
+              lineage={members.length > 0 ? undefined : false}
+              prefix="people.0"
+              idPrefix="primary"
+            />
+            {photoField}
+          </section>
+        ) : compact ? (
+          <div className="flex flex-col items-start gap-1.5 border-t border-border pt-6">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setMoreDetails(true)}
+            >
+              <Plus />
+              Add more details
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              Other names, sex, birth and death, a photo, and more ways to
+              connect them.
+            </p>
+          </div>
         ) : null}
 
         {submitError ? (

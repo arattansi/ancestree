@@ -56,7 +56,8 @@ import {
   marriageDateProblems,
   toStoredDate,
 } from "@/lib/partial-date";
-import { LOCKED_ENTRY_NOTE } from "@/lib/account-types";
+import { FILL_ENTRY_NOTE, LOCKED_ENTRY_NOTE } from "@/lib/account-types";
+import { blankFields } from "@/lib/fill-blanks";
 import { SEX_LABELS, type Sex } from "@/lib/person-schema";
 import { PersonTrees } from "@/components/tree/person-trees";
 import { editPersonHref } from "@/lib/tree-links";
@@ -419,6 +420,7 @@ export function PersonPanel({
   isAdmin,
   isSelf,
   canEdit,
+  canFill = false,
   canSeeDocuments,
   canDelete = false,
   canInviteToClaim = false,
@@ -451,6 +453,11 @@ export function PersonPanel({
   isAdmin: boolean;
   isSelf: boolean;
   canEdit: boolean;
+  /**
+   * Not the viewer's to edit, but theirs to fill in where it's blank (Step
+   * 44): an unclaimed entry on their own line (`canFillEntry`).
+   */
+  canFill?: boolean;
   /** Documents are the owner's, their Branch's and the Roots' (Step 18.4). */
   canSeeDocuments: boolean;
   /**
@@ -500,6 +507,9 @@ export function PersonPanel({
   const savedCrop = parseCrop(person?.photo_crop);
   const [crop, setCrop] = React.useState<CropTransform>(savedCrop);
   const [prevId, setPrevId] = React.useState(person?.id);
+  // Something here is blank, and the viewer may fill it in (Step 44).
+  const fillable =
+    !!person && canFill && !readOnly && blankFields(person).length > 0;
 
   // Reset the inline dispute form whenever a different person is selected.
   if (person?.id !== prevId) {
@@ -811,7 +821,7 @@ export function PersonPanel({
                 ) : null}
               </dl>
 
-              {canEdit && !person.maiden_name ? (
+              {(canEdit || fillable) && !person.maiden_name ? (
                 <div className="rounded-md border border-dashed border-border bg-muted/40 px-3 py-2.5 text-xs text-muted-foreground">
                   No maiden name on this entry yet.{" "}
                   <Link
@@ -887,6 +897,15 @@ export function PersonPanel({
                         size="sm"
                       >
                         Edit entry
+                      </Button>
+                    ) : fillable ? (
+                      <Button
+                        nativeButton={false}
+                        render={<Link href={editPersonHref(person.id)} />}
+                        variant="outline"
+                        size="sm"
+                      >
+                        Fill in what&rsquo;s missing
                       </Button>
                     ) : null}
 
@@ -1025,7 +1044,7 @@ export function PersonPanel({
 
                   {!canEdit && !claimable && !isSelf ? (
                     <p className="text-xs text-muted-foreground">
-                      {LOCKED_ENTRY_NOTE}
+                      {fillable ? FILL_ENTRY_NOTE : LOCKED_ENTRY_NOTE}
                     </p>
                   ) : null}
 

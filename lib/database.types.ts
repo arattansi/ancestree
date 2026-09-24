@@ -2262,6 +2262,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      fill_person_blanks: {
+        Args: { p_fields: Json; p_person: string }
+        Returns: string[]
+      }
       found_tree: {
         Args: { p_name: string }
         Returns: {
