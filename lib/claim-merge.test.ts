@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { mergeConfirmation, relativesThatMove } from "@/lib/claim-merge";
+import {
+  claimedPhotoMove,
+  mergeConfirmation,
+  relativesThatMove,
+} from "@/lib/claim-merge";
 
 const person = (id: string, first: string, last = "Rattansi") => ({
   id,
@@ -122,5 +126,53 @@ describe("mergeConfirmation", () => {
     expect(mergeConfirmation([])).toBe(
       "The entry you added for yourself will be removed, and this one becomes yours. This can't be undone.",
     );
+  });
+});
+
+describe("claimedPhotoMove", () => {
+  const claim = (photo_from?: string | null, photo_to?: string | null) => ({
+    claim_id: "c1",
+    person_id: "claimed",
+    photo_from,
+    photo_to,
+  });
+
+  it("moves the placeholder's photo into the claimed entry's folder", () => {
+    expect(
+      claimedPhotoMove(claim("tree/stub/photo.jpg", "tree/claimed/photo.jpg")),
+    ).toEqual({ from: "tree/stub/photo.jpg", to: "tree/claimed/photo.jpg" });
+  });
+
+  it("moves nothing when no photo came along", () => {
+    expect(claimedPhotoMove(claim())).toBeNull();
+    expect(claimedPhotoMove(claim(null, null))).toBeNull();
+    expect(claimedPhotoMove(claim("tree/stub/photo.jpg", null))).toBeNull();
+  });
+
+  it("only moves into the claimed entry's own folder", () => {
+    expect(
+      claimedPhotoMove(claim("tree/stub/photo.jpg", "tree/someone/photo.jpg")),
+    ).toBeNull();
+    expect(
+      claimedPhotoMove(claim("tree/claimed/photo.jpg", "tree/claimed/photo.jpg")),
+    ).toBeNull();
+  });
+
+  it("keeps the tree and the file name", () => {
+    expect(
+      claimedPhotoMove(claim("tree/stub/photo.jpg", "other/claimed/photo.jpg")),
+    ).toBeNull();
+    expect(
+      claimedPhotoMove(claim("tree/stub/photo.jpg", "tree/claimed/other.jpg")),
+    ).toBeNull();
+  });
+
+  it("refuses anything but <tree>/<entry>/<file>", () => {
+    expect(
+      claimedPhotoMove(claim("tree/stub/x/photo.jpg", "tree/claimed/x/photo.jpg")),
+    ).toBeNull();
+    expect(claimedPhotoMove(claim("stub/photo.jpg", "claimed/photo.jpg"))).toBeNull();
+    expect(claimedPhotoMove(claim("tree//photo.jpg", "tree/claimed/photo.jpg"))).toBeNull();
+    expect(claimedPhotoMove(claim("tree/stub/..", "tree/claimed/.."))).toBeNull();
   });
 });

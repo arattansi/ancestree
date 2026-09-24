@@ -100,3 +100,37 @@ export function mergeConfirmation(relatives: MergeRelative[]): string {
       : `${groups.slice(0, -1).join(", ")}, and ${groups[groups.length - 1]}`;
   return `${who[0].toUpperCase()}${who.slice(1)} will be connected to this entry instead, and the entry you added for yourself will be removed. ${undo}`;
 }
+
+/** What `claim_person` answers ("This is me"). */
+export type ClaimResult = {
+  claim_id: string;
+  person_id: string;
+  /** The photo file to move, when the placeholder's came along (Step 43). */
+  photo_from?: string | null;
+  photo_to?: string | null;
+};
+
+/**
+ * The photo file "This is me" has to move (Step 43). Storage lets someone
+ * read a photo only if they can see the entry its path names
+ * (`<tree>/<entry>/<file>`), and the merge deletes the placeholder, so
+ * `claim_person` points the claimed entry at the same file under its own id
+ * and answers both paths. Only that move comes back: the same tree and file,
+ * from another entry's folder into the claimed entry's. Anything else is
+ * null, and nothing moves.
+ */
+export function claimedPhotoMove(
+  result: ClaimResult,
+): { from: string; to: string } | null {
+  const { photo_from: from, photo_to: to, person_id: claimedId } = result;
+  if (!from || !to) return null;
+  const a = from.split("/");
+  const b = to.split("/");
+  if (a.length !== 3 || b.length !== 3) return null;
+  if ([...a, ...b].some((part) => part === "" || part === "." || part === "..")) {
+    return null;
+  }
+  if (a[0] !== b[0] || a[2] !== b[2]) return null;
+  if (b[1] !== claimedId || a[1] === claimedId) return null;
+  return { from, to };
+}

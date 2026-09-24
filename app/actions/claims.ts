@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 
 import { getUser, requireProfile, requireSelfPerson } from "@/lib/auth";
+import type { ClaimResult } from "@/lib/claim-merge";
+import { moveClaimedPhoto } from "@/lib/claim-merge.server";
 import { createClient } from "@/lib/supabase/server";
 
 function friendlyClaimError(message: string | undefined): string {
@@ -34,9 +36,9 @@ function friendlyClaimError(message: string | undefined): string {
 
 /**
  * Claim an existing entry as yourself. Auto-approves and merges the
- * placeholder you added for yourself into it; `claim_person` refuses when
- * your own entry is more than that, or the entry is of someone who has died
- * (Step 36).
+ * placeholder you added for yourself into it, documents and photo included;
+ * `claim_person` refuses when your own entry is more than that, or the entry
+ * is of someone who has died (Step 36).
  */
 export async function claimPerson(
   personId: string,
@@ -48,9 +50,12 @@ export async function claimPerson(
   });
   if (error || !data) return { error: friendlyClaimError(error?.message) };
 
+  // Before the pages redraw, so the claimed entry's photo signs (Step 43).
+  const result = data as ClaimResult;
+  await moveClaimedPhoto(result);
+
   revalidatePath("/tree");
   revalidatePath("/account");
-  const result = data as { person_id: string };
   return { personId: result.person_id };
 }
 
