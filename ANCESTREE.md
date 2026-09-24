@@ -292,8 +292,10 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `pet_comments`           | A plain comment thread on a companion (`pet_id`, `body`, `created_by`). No flags, no open/resolved lifecycle, no verification, no notifications; author or anyone who `can_edit_pet` may delete                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 
 **Checks:** `people` requires first **or** preferred name, last name, and
-`is_deceased` (NOT NULL). The form now requires a **`place_id_birth`** (GeoNames
-`places` FK, Step 4.5c) rather than free-text country; `city_of_birth` /
+`is_deceased` (NOT NULL). A place of birth is optional since Step 44
+(`people_required_identity` no longer needs a country; an entry without one
+holds `''` in `country_of_birth`). When one is picked it's a
+**`place_id_birth`** (GeoNames `places` FK, Step 4.5c), and `city_of_birth` /
 `country_of_birth` are still written (derived from the picked place). `lineage_type` is writable by admins only.
 `middle_name` and `maiden_name` are optional nullable text columns, visible to and
 editable by any member who can already edit the entry.
@@ -337,7 +339,12 @@ the per-tree matrix: [`docs/trees-and-permissions.md`](docs/trees-and-permission
 current `owner_user_id`, an admin, the original `created_by` while the entry is
 still unclaimed (owner unchanged, no approved claim), **or** a branch admin
 anywhere on their own branch (Step 17); and anyone their own `self_person_id`
-entry. Deletes (`private.can_delete_person`, Step 22.3): a Root anything; a
+entry. Filling in what's missing (`private.can_fill_person` +
+`public.fill_person_blanks`, Step 44): a Branch or a Leaf may set the empty
+fields of an entry nobody has claimed on their own line (`private.line_ids`),
+past what they can edit, and a photo where there's none
+(`storage_photos_insert_fill`), but never change or clear a value; the
+`people_update` policy is unchanged. Deletes (`private.can_delete_person`, Step 22.3): a Root anything; a
 Branch or a Leaf an entry they created that is still theirs — owner
 unchanged, no claim of any status, nobody's own entry, not their own — and
 only while every connection, comment, document and companion on it is theirs
@@ -1014,6 +1021,80 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 44 — A shorter "Add a relative" form, and relatives who fill in
+  what's missing** (ad-hoc; migration
+  `20260923170000_fill_blanks_and_optional_birthplace`). Feedback from
+  outside: the add-a-relative form was too overwhelming. **The form** now
+  shows a first (or preferred) name, a last name, how they connect, and the
+  email to invite them, which goes away when "This person is deceased" is
+  ticked (so that tick stays up front too). The names keep their "+ Middle
+  name" and "+ Preferred name" links. Everything else sits behind **Add more
+  details** at the bottom: maiden name, sex, date and place of birth, a
+  death's date and place, the photo, and lineage for a Root. That button
+  opens a More details section where it was, and the extra connection
+  controls (marriage dates, someone in between, more connections) where
+  they act. Someone in between gets their name, with the rest behind "More
+  about them". **A place of birth is no longer required**, in the form
+  (`personSchema`) or the database (`people_required_identity` no longer
+  needs a country; an entry without one holds `''`). That holds wherever the
+  person form appears; adding yourself in onboarding and the founder's
+  close-family dialog keep their full layout. `PersonFields` is now
+  `PersonNameFields`, `PersonDiedField` and `PersonDetailFields`, composed
+  as before. **Filling in what's missing.** Aalim asked that a Canopy
+  member (a Leaf since Step 34) fill empty fields on unclaimed entries they
+  are connected to, with a Branch's rights unchanged. Aalim's answers:
+  connected = their own line (`private.line_ids`, where they add relatives); a Branch
+  may do the same past their side, so a Branch can always do what a Leaf
+  can; and a missing photo counts. `private.can_fill_person`: a Leaf or a
+  Branch of the home tree, the entry on their own line and nobody's own
+  (`private.person_is_someones_own`). `public.fill_person_blanks` sets only
+  what's empty: first, middle, preferred and maiden names, sex, date and
+  place of birth (a place only where no older free-text one is recorded), a
+  death's date and place for someone already marked as having died, and a
+  photo where there's none, already uploaded into that entry's folder. It
+  never changes or clears a value, and leaves the last name, whether they've
+  died, lineage and contact details alone. `people_update` is unchanged, so
+  nothing else is writable. `storage_photos_insert_fill` lets them upload
+  into the entry's folder while it has no photo; replacing or deleting one
+  still needs edit rights. `private.person_edit_notify` records a fill of an
+  entry a Root owns or added as it does a Branch's edit, so the Root's
+  notification names who filled it in and carries the undo. In the app,
+  `canFillEntry` and `Viewer.ownLine` (`lib/branch.ts`) mirror the rule, and
+  `lib/fill-blanks.ts` says what's blank. The panel offers **Fill in what's
+  missing**, with its own note and the maiden-name nudge, and the edit page
+  shows such a member `PersonFillForm`, with only the blank fields.
+  Account types gain `fillsBlanks` and a "Fill in what's missing" row, and
+  their descriptions say so. **Verified:** 816 tests pass (22 new). The
+  migration was rehearsed rolled back on live, before and after, with a
+  throwaway Root, Leaf, Branch, member and outsider. Before: an entry with
+  no country was refused, and a Leaf could neither update the grandparent
+  nor upload into its folder. After: an entry with no country saved (still
+  refused with no name), and a Leaf added a child with no birthplace. A Leaf
+  could fill their grandparent, and an aunt, but not the in-law's father
+  off their line, the Root's own entry or a member's own; an outsider
+  couldn't. A Branch could fill the in-law's father past their side, and
+  still not edit him. A fill ignored the last name, lineage and "deceased",
+  set death details only for someone who has died, never overwrote a second
+  time, and refused a bad date, a bad precision, a long name, a photo from
+  another entry's folder and a path with no file. A photo went up once, and
+  a second upload, a replacement and a delete were refused. The Root's
+  notice read "Leaf Zz updated Gran Zz: family name, sex." with an undo that
+  put both back. A direct update by the Leaf still changed nothing, and anon
+  can't call the RPC. Applied, recorded under the file's version, and every
+  function's md5 matches the file (`person_edit_notify` matched the
+  expected old body before). In the browser, as a throwaway Leaf on a
+  throwaway tree: the form showed names, the deceased tick, the invite and
+  the connection, listing only people on their line. The tick hid the
+  invite and brought up the death fields; "Add more details" opened the
+  rest, with no required mark on the place of birth. A child saved with a
+  name and a connection alone. The grandparent's card offered "Fill in
+  what's missing". Its page asked only the blanks, and filling maiden name,
+  sex, birth year and a photo toasted "Added their maiden name, sex, date of
+  birth and photo". The Root got an undo, and the page then asked only
+  what was still blank. The in-law's father and the Root's own card offered
+  nothing, and the in-law's father's edit address sent the Leaf back to the
+  tree. The photo, tree, profiles and both accounts were deleted afterwards.
 
 - **Step 43 — "This is me" works when the placeholder has a document**
   (ad-hoc, found during Step 41.3; migration

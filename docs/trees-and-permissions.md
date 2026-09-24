@@ -46,8 +46,8 @@ Canopy the name.
 | Type | In this tree they can |
 |---|---|
 | **Root** | Edit every entry whose home is this tree, and any connection drawn between two people placed on it. Run the tree: members and their types, invites (including founder invites), share links, placements, cross-tree viewing, deletes, lineage, verification. |
-| **Branch** | Tend their part of a Root's side, measured on this tree's people only. Everything else as Step 22. |
-| **Leaf** | Add relatives on their own line — their ancestors, everyone descended from them, and the people those relatives married (`private.line_ids`) — and edit what they add here, the lines they draw, and their own entry. |
+| **Branch** | Tend their part of a Root's side, measured on this tree's people only. Past it, fill in what's missing on their own line as a Leaf does (Step 44). Everything else as Step 22. |
+| **Leaf** | Add relatives on their own line — their ancestors, everyone descended from them, and the people those relatives married (`private.line_ids`) — and edit what they add here, the lines they draw, and their own entry. Fill in what's missing on an unclaimed entry on that line, a photo included (Step 44). |
 
 Rules that follow:
 
@@ -97,6 +97,16 @@ other placement is added by a Root of the receiving tree.
    it is still unclaimed.
 4. A Branch **in `h`** on whose part of a Root's side the entry sits, unless
    it is another member's own entry.
+
+`private.can_fill_person(p)` (Step 44), also read in `h`: a Branch or a Leaf
+**in `h`** may fill in what's missing on an entry on their own line there
+(`private.line_ids`, as for adding relatives) that is nobody's own — no
+member's entry, no approved claim. `fill_person_blanks` sets only empty fields
+(names, sex, date and place of birth, a death's date and place for someone
+already marked as having died, and a photo where there's none) and never
+changes or clears one. For a Branch it reaches past their side. A fill of an
+entry a Root owns or added is recorded for the Root's undo, as a Branch's edit
+is.
 
 So the Root of a founded tree can place and arrange a relative brought from
 another tree, but cannot rewrite their details unless that person moves their
