@@ -1022,6 +1022,42 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 47 — Shorter prompts and dialogs** (ad-hoc, after Step 46; copy
+  only, no migration). Aalim found every prompt and dialog too text-heavy.
+  35 of them (87 pieces of text, about 1,900 words) went on a review page,
+  today's wording beside a shorter one, and Aalim chose or rewrote each, so
+  they're now about half as long. That's the pop-up dialogs: delete a tree,
+  both ways to start one, ask to join, request access and what it says when
+  it does or doesn't find someone, the privacy tick-box, connections to
+  check, delete your account, a close relative in the first run, and adding
+  a companion or a place. Then the are-you-sure boxes: deleting an entry or
+  a companion, making someone a Root (`rootPlacesAfter` now starts the
+  sentence the confirm finishes), removing a member (`removeMemberConfirm`),
+  and the admin console's deletes of links, invites and requests. On the
+  tree: the canvas tip, "Is one of these you?", the "This is me" warning
+  (`mergeConfirmation`), the connection questions, the review page, the
+  person and companion panels' notes, and "They’ll join as a Leaf". Last,
+  the founder's first run and the add-a-relative form. The engine's
+  reasons (`lib/connection-suggestions.ts`) are now questions that fit the
+  Yes / No buttons: "Are A and B partners? They’re both parents of C."
+  "This cannot be undone." stays only where something is really lost, on a
+  line of its own in the account, member and merge warnings, and goes from
+  deleting the records of spent invites and requests. The notes under the
+  request buttons went, since the privacy tick-box says the same. The
+  waitlist box under request access offers "a tree from scratch" instead of
+  opening with "A new tree starts empty" (`NEW_TREE_STARTS_EMPTY` removed).
+  Dropping the Branches clause from delete-account removed its
+  `madeBranches` prop, and the invite step's closing clause its
+  `founderEntry`. The maiden-name nudge is just "No maiden name yet." now,
+  without its link. Toasts and emails are unchanged. **Verified:** 827
+  tests pass (one went with `NEW_TREE_STARTS_EMPTY`; the copy tests are
+  updated); tsc and lint are clean. A throwaway public page showed the
+  dialogs signed out: delete-account's two paragraphs (its description is
+  a `<div>` now), the waitlist's line break, the new tick-box, ask to join,
+  request access, the merge warning's own line (`whitespace-pre-line`),
+  the review page with no blurb under "Missing connections", and the first
+  run's account types, with no console errors. The page was deleted.
+
 - **Step 46 — Removing a member says whether their login goes** (ad-hoc,
   after Step 45; no migration). The admin console's **Remove** always asked
   "Remove <name>? Their login is deleted and they can't return without a
