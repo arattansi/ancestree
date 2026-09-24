@@ -144,7 +144,11 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   its parents' live positions_ — not a node — so it follows them as they are
   dragged, and all of a couple's children bend at a shared horizontal bus, so a
   marriage shows one trunk rather than one line per parent; admin
-  "Auto-arrange" clears every manual nudge), `person-node.tsx`
+  "Auto-arrange" clears every manual nudge; the zoom controls end with
+  **Go to me**, which opens the viewer's own tree and details, Step 48),
+  `tree-search.tsx` the **Search & filters** card (Find a person, Show a
+  connection, Filters: only your Root's side and Pets & companions — each
+  section closed until opened), `person-node.tsx`
   custom node (name, then `née` maiden name / birth year / birthplace;
   open-flag badge + verified `✓`), `person-panel.tsx` detail Sheet
   (edit link + claim / dispute + admin verify), `entry-comments.tsx` (comment /
@@ -376,6 +380,20 @@ Root created or owns, the edit publishes at once and the Root can undo it
 what others added, setting `lineage_type` and the admin console stay
 admin-only.
 `lib/branch.ts` mirrors the rule for the UI; the database decides.
+
+**Your Root's side (Step 48):** the canvas's "Show only your Root's side"
+draws just the side of the tree a member belongs on, laid out again around
+their Root. Their Roots are the ones they're blood to, or, if they married
+in, the ones whose branch they married into (`lib/branch.ts#ownRoots`).
+Blood comes first because two Roots married to each other are each on both
+branches by marriage, but only on their own side. The side is those Roots'
+branches (`rootSideIds`); a Root's switch reads "Show only your side". It
+isn't offered when the side is the whole tree (a child of two Roots, or a
+tree whose people are all on one side). It changes only what the canvas
+draws, searches and lights: permissions and a person's details still read
+the whole tree. It lasts for the visit, and anything that points the canvas
+at someone off the side (a notification's "View on tree", a companion's
+person) switches it off.
 
 **Account types (Step 18; three since Step 34):** three kinds of member,
 named for the tree they grow. `lib/account-types.ts` is the model — the only
@@ -1021,6 +1039,41 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 48 — Go to me, your Root's side, and a tidier Search & filters**
+  (ad-hoc, after Step 47; no migration). Three changes to the tree page.
+  **Go to me:** a fourth button under the canvas's zoom controls (a
+  crosshair) opens the viewer's own tree and their details, as if they'd
+  clicked their card. It aims the camera again even when their card is
+  already open. It shows whenever the viewer's own entry is on the canvas.
+  **Show only your Root's side:** a switch under Filters that draws only
+  the viewer's Root's side, laid out again around that Root (see **Your
+  Root's side**). The existing "related Roots" rule (blood or marriage)
+  wouldn't do: live, the two Roots are married, so each would get the
+  whole tree. Blood first gives every member on live exactly one side, 51
+  people on one and 16 on the other. Search, Show a connection and a
+  clicked line all stay within the side. Permissions still read the whole
+  tree. Switching it clears what was open and frames the new canvas.
+  **Search & filters:** its three sections, Find a person (was "Find
+  people"), Show a connection and Filters, start closed and open on their
+  own. A dot on a closed section's heading says something in it is on.
+  Opening Find a person puts the cursor in the search box. The Clear links
+  moved beside the match count and the connection's status line, since
+  each heading is now a button. Filters holds "Show only your Root's side"
+  (a Root's reads "Show only your side") and Pets & companions, whose "Hidden
+  from the tree. Stays this way until you change it." line is gone.
+  **Verified:** 836 tests pass (9 new for `ownRoots` / `rootSideIds`); tsc
+  and lint are clean. A read-only script over live data (counts only, since
+  deleted) checked the sides. In the browser, a throwaway signed-out page
+  showed the real canvas on fixture families, since deleted. The sections
+  start closed, keep their state when the card closes and opens, and show
+  their dots. Root's side drew 15 of 19 cards for a Branch and 7 for a
+  Root, and wasn't offered to a child of both Roots. The lane counts
+  matched, and a name off the side found nobody in search or connections.
+  Go to me opened "Your entry", pulled out the tree beside the sheet, and
+  brought the camera back after zooming and panning away. Picking a
+  companion's person off the side switched it off. At phone width the card
+  fits (288px, no sideways scroll).
 
 - **Step 47 — Shorter prompts and dialogs** (ad-hoc, after Step 46; copy
   only, no migration). Aalim found every prompt and dialog too text-heavy.
