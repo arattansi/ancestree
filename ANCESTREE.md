@@ -1022,6 +1022,43 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 46 — Removing a member says whether their login goes** (ad-hoc,
+  after Step 45; no migration). The admin console's **Remove** always asked
+  "Remove <name>? Their login is deleted and they can't return without a
+  new invite. …". But `deleteMember` deletes the login only when
+  `remove_tree_member` says it was the member's last tree. A member who is
+  on another tree keeps their login and stays there; they're only taken off
+  this one. Since Step 45 Remove works for members who have added entries,
+  so Roots will see it far more often. Nobody on live is on two trees yet,
+  so no Root has been told anything untrue. **Now** the console first works
+  out which of the members it can remove are on another tree
+  (`membersOnOtherTrees`, `lib/remove-member.server.ts`). A Root sees
+  memberships only of trees they can view, so it asks with the service
+  role, and only a yes or no per member reaches the page, never which
+  trees. The confirm (`removeMemberConfirm`, `lib/remove-member.ts`) then
+  asks "Remove <name> from <tree>? It’s their only tree, so their login is
+  deleted too and they can’t return without a new invite." or "… They keep
+  their login and stay on their other trees.", and keeps "Their N entries
+  and anything else they added become yours." If the lookup fails it says
+  "If it’s their only tree, …", which holds either way. `deleteMember` now
+  returns `lastTree`, so the toast says what did happen, even from a page
+  that was out of date: "Removed <name> from <tree>. Their login was
+  deleted too." or "… They’re still on their other trees."
+  `docs/trees-and-permissions.md` says what the Root learns. No journey's
+  taps or fields change. **Verified:** 828 tests pass (12 new); tsc and
+  lint are clean. In the browser, signed in as a throwaway Root
+  (`delivered+46-*@resend.dev`) of a throwaway tree with two Leaves, one of
+  them also on a second throwaway tree run by another throwaway Root: the
+  page's payload held only `onlyTree` true or false for each Leaf, and
+  nothing of the other tree (its name, slug or id, or its Root). With
+  `window.confirm` stubbed, each Remove asked its own version, and
+  cancelling sent nothing. Confirmed, the Leaf on two trees got "They’re
+  still on their other trees.", and kept their login, profile and the
+  other tree, while their entry here became the Root's. The other Leaf's
+  toast said their login was deleted too, and it was, with their profile;
+  their two entries became the Root's. The throwaway trees, profiles and
+  accounts were deleted, and counts are back to the baseline.
+
 - **Step 45 — A Root can remove a member who has added entries** (ad-hoc,
   found during Step 42; migration
   `20260923173000_remove_member_who_added_entries`). The admin console's
