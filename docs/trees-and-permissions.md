@@ -79,6 +79,9 @@ Rules that follow:
   Root too, and their profile and sign-in go; a card they placed on a tree
   they had already left stays where it is, with nobody recorded as placing
   it. A Root can't be removed, and can't remove themselves (Step 45).
+  Before they confirm, the console tells the Root whether it's the member's
+  only tree, so whether their sign-in goes; it never says which other trees
+  they're on (Step 46).
 
 ## 4. People: home trees and placements
 
