@@ -71,6 +71,14 @@ Rules that follow:
 - A member joins a tree through an invite (as a Leaf), by founding it (as
   Root), or by accepting a placement of their own entry (as a Leaf, so they
   can keep their own entry up to date there; a Root may change that).
+- A Root may remove a Branch or a Leaf from the admin console
+  (`remove_tree_member`). What they added or own whose home is this tree
+  passes to that Root: entries (their own among them), lines, comments,
+  documents, invites, share links, companions, and who placed each card.
+  If it was their last tree, what they left on other trees passes to that
+  Root too, and their profile and sign-in go; a card they placed on a tree
+  they had already left stays where it is, with nobody recorded as placing
+  it. A Root can't be removed, and can't remove themselves (Step 45).
 
 ## 4. People: home trees and placements
 
