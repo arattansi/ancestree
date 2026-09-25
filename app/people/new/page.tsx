@@ -10,7 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getOwnLine } from "@/lib/branch.server";
-import { getGrowthRights } from "@/lib/growth-rights.server";
+import { getBloodline, getGrowthRights } from "@/lib/growth-rights.server";
 import { listTreeMembers } from "@/lib/tree";
 import { requireTreeSelfPerson } from "@/lib/tree-context";
 import { newTreeHref, validRelatedTo } from "@/lib/tree-links";
@@ -26,13 +26,15 @@ export default async function NewPersonPage({
   const { tree, type, profile, isRoot } = await requireTreeSelfPerson();
 
   // A Leaf adds on their own line (Step 34), so connects new entries from
-  // someone on it; the database judges the result at submit.
-  const [members, rights, line] = await Promise.all([
+  // someone on it; the database judges the result at submit. The bloodline
+  // lets the form warn of a missing blood tie before then (Step 55).
+  const [members, rights, line, bloodline] = await Promise.all([
     listTreeMembers(tree.id),
     getGrowthRights(tree.id),
     type.addRelatives === "line" && profile.self_person_id
       ? getOwnLine(tree.id, profile.self_person_id)
       : null,
+    getBloodline(tree.id),
   ]);
   // "Add a relative" with someone selected on the canvas (Step 19.2): start
   // the flow connected to them. Only an id on this tree they may add from is
@@ -58,9 +60,9 @@ export default async function NewPersonPage({
           // Say the rule up front for a member who married in, rather than
           // letting them fill the whole form and meet the gate at submit.
           <p className="mt-2 text-sm text-muted-foreground">
-            You married into this family, so you can add your children and your
-            partner&apos;s relatives here. Your own side of the family belongs
-            on a tree of your own —{" "}
+            You married into this family, so you can add your partner&apos;s
+            relatives and the children you share. Your own side of the family
+            belongs on a tree of your own —{" "}
             <Link href={newTreeHref()} className="underline underline-offset-4">
               start one
             </Link>{" "}
@@ -91,6 +93,7 @@ export default async function NewPersonPage({
             members={members}
             initialAnchorId={initialAnchorId}
             anchorable={line}
+            bloodline={bloodline}
             // Whoever may add a relative may invite them to claim the entry
             // they add, as `sendClaimInvite` allows (Step 22.1).
             canInvite

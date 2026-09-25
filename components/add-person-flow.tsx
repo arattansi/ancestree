@@ -60,8 +60,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  bloodTieWarning,
+  newWithoutBloodTie,
+  type Bloodline,
+} from "@/lib/bloodline";
+import {
   buildChainEdges,
-  coParentSelection,
+  flowEdges,
   KIND_STATEMENT,
   RELATIONSHIP_KINDS,
   type PersonRef,
@@ -326,6 +331,7 @@ export function AddPersonFlow({
   anchorable = null,
   canInvite = false,
   doneHref,
+  bloodline = null,
 }: {
   mode: "self" | "relative";
   treeId: string;
@@ -352,9 +358,18 @@ export function AddPersonFlow({
   /** Where to go once saved, in place of the canvas opened on the new
    *  entry — a founder's first run carries on to its next step (Step 29). */
   doneHref?: string;
+  /**
+   * The tree's anchors and lines, to foresee a refusal for want of a blood
+   * tie (Step 55) and say so before submit. Without it the form stays quiet
+   * and the database still refuses.
+   */
+  bloodline?: Bloodline | null;
 }) {
   const router = useRouter();
-  const mustConnect = !isAdmin;
+  // A tree with anchors refuses anyone with no blood tie (Step 55), a Root's
+  // unconnected entry included, so there connecting isn't optional for anyone.
+  const gateActive = (bloodline?.anchors.length ?? 0) > 0;
+  const mustConnect = !isAdmin || gateActive;
   const [connecting, setConnecting] = React.useState(
     mustConnect || members.length > 0,
   );
@@ -362,8 +377,6 @@ export function AddPersonFlow({
   const [photoBusy, setPhotoBusy] = React.useState(false);
   const [crop, setCrop] = React.useState<CropTransform>(DEFAULT_CROP);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
-  // The bloodline gate refused this branch (Step 14) — answer with the prompt
-  // rather than leaving a dead-end error under the button.
   const [suggestions, setSuggestions] = React.useState<ImpliedConnection[]>([]);
   const [pendingSave, setPendingSave] = React.useState<{
     values: FlowValues;
@@ -456,6 +469,37 @@ export function AddPersonFlow({
   const primaryFallback = mode === "self" ? "You" : "this person";
   const primaryLabel = mode === "self" ? "You" : nameOf(0, "This person");
 
+  // What's on the form, judged as the database will judge it (Step 55), so
+  // they hear the rule before it refuses. Only a warning: a question at
+  // submit ("is their partner also a parent?") can still draw the line it's
+  // missing.
+  const tieWarning = (() => {
+    if (!bloodline || !gateActive || !showChain || !anchorId) return null;
+    const pending = flowEdges({
+      anchorId,
+      inBetween: intermediateCount,
+      links: watchedLinks,
+      extraLinks: watchedExtra,
+      members,
+    });
+    const [first] = newWithoutBloodTie(
+      intermediateCount + 1,
+      pending,
+      bloodline,
+    );
+    if (first === undefined) return null;
+    return bloodTieWarning({
+      name: nameOf(
+        first,
+        first === 0 ? "this person" : `in-between person ${first}`,
+      ),
+      self: mode === "self" && first === 0,
+      // The first in the chain hangs off the anchor alone.
+      nonBloodAnchor:
+        first === (intermediateCount > 0 ? 1 : 0) ? anchorLabel : null,
+    });
+  })();
+
   // nodes = [anchor, intermediate_1 … intermediate_k, primary]
   const linkObject = (i: number) =>
     i === 0 ? anchorLabel : nameOf(i, `Person ${i}`);
@@ -519,14 +563,7 @@ export function AddPersonFlow({
     });
 
     if (result.error || !result.personIds) {
-      if (result.bloodlineGate) {
-        // They married in: their own side belongs on a tree of their own
-        // (Step 25), which they can start from their account.
-        setSubmitError(
-          "These entries hang off you alone, so they belong on a tree of your own. Start one from the tree switcher or your account, and bring anyone from here along.",
-        );
-        return false;
-      }
+      // Without a blood tie (Step 55) the error names who needs one.
       setSubmitError(result.error ?? "Couldn't save these entries.");
       return false;
     }
@@ -583,89 +620,18 @@ export function AddPersonFlow({
       return;
     }
 
-    let edges: ReturnType<typeof buildChainEdges> = [];
-    if (showChain && values.anchorId) {
-      const chainRefs: PersonRef[] = [];
-      for (let i = 1; i <= intermediateCount; i += 1) {
-        chainRefs.push({ kind: "new", index: i });
-      }
-      chainRefs.push({ kind: "new", index: 0 });
-      edges = buildChainEdges(
-        values.anchorId,
-        chainRefs,
-        values.links.map((l) => l.kind),
-      );
-      // buildChainEdges emits one edge per link, in order — carry the optional
-      // marriage/divorce fields onto the spouse ones (Step 11.5).
-      edges = edges.map((e, i) =>
-        e.type === "spouse" ? { ...e, ...spouseDates(values.links[i]) } : e,
-      );
-
-      // "is a sibling of" the anchor + "also link to their parents": add a
-      // parent edge from each of the anchor's known parents to the first chain
-      // person, so the two actually render side by side as siblings.
-      const firstLink = values.links[0];
-      const anchorMember = members.find((m) => m.id === values.anchorId);
-      if (
-        firstLink?.kind === "sibling" &&
-        firstLink.linkToParents &&
-        anchorMember?.parents?.length
-      ) {
-        for (const parent of anchorMember.parents) {
-          edges.push({
-            type: "parent",
-            a: { kind: "existing", id: parent.id },
-            b: chainRefs[0],
-          });
-        }
-      }
-
-      // "is a child of" the anchor + the anchor's partners the member left
-      // ticked: one parent edge each, so the child arrives with both parents
-      // rather than hanging off one of them.
-      if (firstLink?.kind === "child") {
-        for (const id of coParentSelection(
-          firstLink.coParentIds,
-          anchorMember?.partners ?? [],
-        )) {
-          edges.push({
-            type: "parent",
-            a: { kind: "existing", id },
-            b: chainRefs[0],
-          });
-        }
-      }
-    }
-
-    // Task 11.4 — additional connections from the primary new person to other
-    // existing members. `members` is already scoped to this tree, and the RPC
-    // re-checks every target belongs to the tree (rejects cross-tree rows).
-    for (const row of values.extraLinks) {
-      if (!row.targetId) continue;
-      const [edge] = buildChainEdges(
-        row.targetId,
-        [{ kind: "new", index: 0 }],
-        [row.kind],
-      );
-      edges = edges.concat(
-        edge.type === "spouse" ? { ...edge, ...spouseDates(row) } : edge,
-      );
-
-      // "is a child of" this target: their partners become parents too.
-      if (row.kind === "child") {
-        const target = members.find((m) => m.id === row.targetId);
-        for (const id of coParentSelection(
-          row.coParentIds,
-          target?.partners ?? [],
-        )) {
-          edges = edges.concat({
-            type: "parent",
-            a: { kind: "existing", id },
-            b: { kind: "new", index: 0 },
-          });
-        }
-      }
-    }
+    // The chain, a new sibling's parents, ticked co-parents and further
+    // connections: the same lines the blood-tie warning judges (Step 55).
+    // `members` is already scoped to this tree, and the RPC re-checks that
+    // every target belongs to it (rejects cross-tree rows).
+    const edges = flowEdges({
+      anchorId: showChain ? values.anchorId : "",
+      inBetween: intermediateCount,
+      links: values.links,
+      extraLinks: values.extraLinks,
+      members,
+      spouseFields: spouseDates,
+    });
 
     const detected = await detectConnections({
       treeId,
@@ -1144,6 +1110,15 @@ export function AddPersonFlow({
                           </Button>
                         ) : null}
                       </div>
+                    ) : null}
+
+                    {tieWarning ? (
+                      <p
+                        role="status"
+                        className="rounded-lg border border-border bg-muted/40 p-3 text-sm"
+                      >
+                        {tieWarning}
+                      </p>
                     ) : null}
                   </div>
                 ) : null}

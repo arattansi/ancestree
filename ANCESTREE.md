@@ -381,8 +381,9 @@ admin reverses the claim.
 
 **Branches (Step 17, re-anchored in 18.1, narrowed in 22.2):** a
 `branch_admin` curates their part of one Root's side of the tree. A branch is
-measured from one person by the same up-then-down walk as the bloodline gate
-(`private.branch_ids`): climb `parent` edges to every ancestor, descend from
+measured from one person by the bloodline gate's first up-then-down walk
+(`private.branch_ids`, which takes no sibling lines, as the bloodline has
+since Step 55): climb `parent` edges to every ancestor, descend from
 that whole set, then add the partners those people married — one step, never
 walked through. So a spouse is on the branch and a spouse's parents are not. A
 Branch tends **the part of a Root's side they are related through**: their own
@@ -547,7 +548,7 @@ mirror it for the UI.
 | Branch edits to a Root's entries                   | Told; one-click undo                                                                                            | Publish at once                                                              | —                                    |
 | Change connections                                 | Any                                                                                                             | Both ends on their side, or ones they drew                                   | Ones they drew                       |
 | Companions                                         | Any                                                                                                             | On their side, or ones they added                                            | Ones they added                      |
-| Add relatives                                      | ✓                                                                                                               | ✓ (bloodline gate)                                                           | On their own line (bloodline gate)   |
+| Add relatives                                      | ✓ (bloodline gate)                                                                                              | ✓ (bloodline gate)                                                           | On their own line (bloodline gate)   |
 | See documents                                      | Every entry                                                                                                     | Their side, members' own entries included                                    | Entries they own                     |
 | Delete entries                                     | Any                                                                                                             | Unclaimed ones they added, while nobody else has built on them               | Same as Branch                       |
 | Invite relatives                                   | As Leaves                                                                                                       | As Leaves                                                                    | As Leaves                            |
@@ -1179,6 +1180,106 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 55.1 — The add form warns before a missing blood tie** (ad-hoc,
+  after Step 55; no migration). "Add a relative" and adding yourself on
+  onboarding now say it under **How they connect** as soon as what's on
+  the form would be refused: "Only blood relatives and their partners can
+  be added. {Picked} isn't a blood relative, so connect {name} to someone
+  who is, too." when {name} hangs off the person they picked, or "Connect
+  {name} to someone born into this family, too." further down a chain, and
+  "Connect yourself to someone born
+  into this family, as their child, parent, sibling or partner." for the
+  member's own entry. It goes as soon as the form would pass. Aalim's
+  choices: both forms, the rule first, never blocking. It judges the exact
+  lines the submit sends, by the rule the database uses:
+  `lib/connections.ts#flowEdges` now builds them for both (the chain, a new
+  sibling's parents, ticked co-parents, further connections),
+  `lib/bloodline.ts#newWithoutBloodTie` runs Step 55's check over the tree's
+  anchors and lines plus those, and `bloodTieWarning` words it. The pages
+  load the tree with `getBloodline`: every anchor (not the canvas's first
+  two) and `tree_edges`; if either can't be read the form says nothing. The
+  Add button still works, since a question at submit ("Is {partner} also a
+  parent?") can draw the missing line and the database has the last word.
+  On a tree with anchors, connecting a new entry is no longer optional for
+  a Root, as Step 55 refuses an unconnected one: the toggle and "Optional
+  for Roots." are gone there. The founder's first run is unchanged, as
+  their tree has no anchors until they add themselves. **Verified:** in the
+  app in Chromium, run signed out with dummy Supabase keys, on a throwaway
+  preview page (deleted, never committed) showing the form with made-up
+  people: a new entry as the child of someone who married in, with their
+  blood partner ticked, no warning; switched to "is parent of", the
+  warning naming both; switched back, gone. A newcomer as that person's
+  child was fine until the blood partner was unticked, then got the
+  "yourself" wording with **Add me to the tree** still enabled. A Root saw
+  no "Connect this entry…" toggle, and the console showed no errors. Tests:
+  `flowEdges` (6, the submit's lines), `newWithoutBloodTie` (5, the add
+  found on live among them) and `bloodTieWarning` (3). 931 tests pass;
+  tsc and lint are clean.
+
+- **Step 55 — Everyone added needs a blood tie** (ad-hoc bug fix; migration
+  `20260925223750_everyone_added_needs_a_blood_tie`, whose comments call it
+  Step 53, the number it had when it was applied; Steps 53 and 54 reached
+  main first). A Root added someone as the mother of a person who married
+  into the family, with no line to anyone born into it. On another tree,
+  its Root had added someone as the child of a woman who married in, the
+  same way. The bloodline gate (Step 14) held only a member who had
+  married in themselves, so Roots, blood members and a newcomer adding
+  themselves could hang anyone off an in-law. Aalim's rule: a direct
+  bloodline tie first, whoever is adding, Roots included. **Now** every new
+  entry on a tree with anchors must, once its lines are drawn, be blood or
+  have a line straight to someone who is: a partner, or the other parent of
+  a blood child (`private.without_blood_tie`). Anyone reachable only through
+  someone who married in is refused — their parents, siblings, a child from
+  another relationship, a later partner — and so is a Root seeding someone
+  with no lines at all. Bringing people over from another tree
+  (`place_people`) is held to it across the whole batch, a member's own
+  entry that waits for their yes counting as there; the placement made on
+  accepting an invite isn't. A sibling line now carries blood
+  (`private.blood_ids`, read by `private.bloodline_ids`): a blood relative's
+  brother or sister is blood, so their partner and children can follow.
+  Branches still walk parent lines only (`lib/bloodline.ts#upThenDownIds`,
+  for `lib/branch.ts`, as `private.branch_ids`). Step 14.2's allowance for
+  a married-in member's own descendants, whoever the other parent, goes:
+  their child is blood once the blood partner is named too, which the add
+  flow ticks for a current partner. The refusal, `BLOODLINE_GATE: <name> has
+  no blood tie to this tree` with the detail saying which new entry or
+  which id, is read by `lib/bloodline.ts#readBloodTieRefusal`: "{Name} isn't
+  connected to anyone born into this family. Connect them to a blood
+  relative too."; "Connect yourself to someone born into this family, as
+  their child, parent, sibling or partner." for a member adding themselves;
+  and, bringing people over, "… Bring them with a blood relative they're
+  connected to." The add flow's old "tree of your own" answer went, and
+  `/people/new` still says so up front to a member who married in, now as
+  "your partner's relatives and the children you share". On live, the
+  mother first added and her daughter became blood through the sibling
+  line the Root drew afterwards from her to a blood ancestor (the first
+  tree's blood count 58 → 60), and no member's growth rights changed. The
+  child on the other tree is the only entry on any tree without a blood
+  tie, left for that tree's Root.
+  **Verified:** rehearsed on live in one statement that raised at the end,
+  so nothing was kept (no record, functions or entries left): 26 cases run
+  as real members before and after, the rehearsed bodies' md5 matching the
+  file. 13 went from allowed to refused: the add found on live as it
+  happened (the later sibling line taken out first), a Root seeding, an
+  in-law's parent, partner and child alone, a child of a new partner
+  alone, a Branch, a newcomer adding themselves under an in-law, the other
+  tree's case and a partner for its married-in mother, and three
+  placements (that child again, and two people brought from the first
+  tree alone). A Leaf's in-law went from `OWN_LINE`
+  to the new refusal. The other 12 came out the same: partners and
+  co-parents of blood relatives, a child with the blood parent named, a
+  sibling and then their child, a newcomer as a partner, a Leaf's own
+  child, and batches tied by a relative in the same batch, one a member
+  still to say yes. The same cases passed first on a local Postgres 16 copy
+  with live's shapes and helpers. Then applied: `apply_migration` recorded
+  it as `20260925223750`, not the name's version, so the file is renamed to
+  match; bodies md5-matched, grants unchanged. The migration's opening
+  comment was reworded afterwards to leave relatives' names out of this
+  public repo; its SQL is as applied. Tests:
+  `lib/bloodline.test.ts` (35, both cases found on live among them), and
+  the Branch suite passes unchanged. 917 tests pass; tsc and lint are
+  clean.
 
 - **Step 54 — A yellow "Add someone in between" button** (ad-hoc; no
   migration). Aalim missed the button that adds the people between a new

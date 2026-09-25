@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { TreeMemberOption } from "@/components/relationship-picker";
+import type { Bloodline } from "@/lib/bloodline";
 import { welcomeHref } from "@/lib/tree-links";
 import {
   candidateSummary,
@@ -39,12 +40,15 @@ export function OnboardingSelfFlow({
   isAdmin,
   members,
   start,
+  bloodline = null,
 }: {
   treeId: string;
   isAdmin: boolean;
   members: TreeMemberOption[];
   /** Where to open (`onboardingStart`); without it, on an empty name form. */
   start?: OnboardingStart | null;
+  /** For the add form's blood-tie warning (Step 55). */
+  bloodline?: Bloodline | null;
 }) {
   const router = useRouter();
   const initial = start ?? ASK_NAME;
@@ -114,6 +118,7 @@ export function OnboardingSelfFlow({
           isAdmin={isAdmin}
           members={members}
           initialName={{ first_name: first, last_name: last }}
+          bloodline={bloodline}
         />
         {treeIsEmpty ? null : (
           <button
