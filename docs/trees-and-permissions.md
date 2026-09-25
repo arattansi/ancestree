@@ -31,7 +31,7 @@ round trip.
 | One each | A member may found **one** tree (`trees.created_by` is unique). Being a Root of several trees is fine; founding several is not. |
 | Roots | Every tree has at least one Root, for good, and at most two (Step 39). The last Root may leave only by handing the tree to a successor (`deleteAccount(successorId)`, per tree). |
 | Naming | `trees.name` is shown; `trees.slug` is the URL segment (`/t/<slug>/…`). Slugs are unique and only a Root may rename a tree. |
-| Bloodline gate | Per tree (`bloodline_anchors.tree_id`). A founded tree is anchored on its founder's own entry, set when they add, claim or bring themselves there (Step 29: `place_people` anchors the founder's own entry); the first tree keeps its two original anchors. A married-in member on any tree is held to that tree's bloodline, and the refusal points them at founding a tree of their own. |
+| Bloodline gate | Per tree (`bloodline_anchors.tree_id`). A founded tree is anchored on its founder's own entry, set when they add, claim or bring themselves there (Step 29: `place_people` anchors the founder's own entry); the first tree keeps its two original anchors. The bloodline climbs every parent line from the anchors, then comes down parent lines and across sibling lines (Step 53), so a partner who married in stays out. Everyone added needs a blood tie (Step 53): once their lines are drawn they are blood, or have a line straight to someone who is, as a partner or the other parent of a blood child. Nobody joins only through someone who married in — their parents, siblings, a child from another relationship, a later partner — whoever is adding, a Root or a newcomer adding themselves included, and the refusal names who. A member who married in can't add their own side of the family, which belongs on a tree of their own. |
 | Deleting a tree | A Root may delete a tree they run (`delete_tree`, from the admin page's Data & privacy card). Every person whose home it was moves home to the other tree they were placed on first, or is deleted with the tree if there is none; a member whose own entry goes starts over on their next tree's onboarding. Its boards, banks, companions, invites and share links go with it. |
 
 ## 3. Membership and account types
@@ -67,7 +67,7 @@ Rules that follow:
 - A Leaf's own line is measured **on the tree being written to**, once the new
   entries' lines are drawn, so a Leaf can add a great-grandparent and then
   that great-grandparent's other children (`add_people_with_connections`,
-  `OWN_LINE`). The bloodline gate applies on top.
+  `OWN_LINE`). The bloodline gate applies on top, as it does to everyone.
 - A member joins a tree through an invite (as a Leaf), by founding it (as
   Root), or by accepting a placement of their own entry (as a Leaf, so they
   can keep their own entry up to date there; a Root may change that).
@@ -92,7 +92,7 @@ other placement is added by a Root of the receiving tree.
 
 | | Rule |
 |---|---|
-| Bringing people over | When a member founds a tree, or later from the "People from other trees" card on `/t/<slug>/admin`, a Root picks anyone they can see on a tree they belong to. Each pick becomes a placement. |
+| Bringing people over | When a member founds a tree, or later from the "People from other trees" card on `/t/<slug>/admin`, a Root picks anyone they can see on a tree they belong to. Each pick becomes a placement. Everyone brought over needs a blood tie on this tree, judged across the whole batch, with a member's own entry counted as there while it waits for their yes (Step 53). |
 | Consent | If the person is a member's own entry (their `self_person_id` or a settled claim) and that member is not the one placing them, the placement is **pending** until they accept (`placement_requested` notification, accept or decline on `/account`). Accepting an invite to the tree counts as saying yes (Step 30.9), a claim invite included (Step 41.3). Pending placements are not drawn. Anyone else's entry (an unclaimed relative, a grandparent) is placed at once. |
 | Home tree choice | A member chooses which of the trees they are placed on is their home (`/account` → Your entry). A Root of the current home tree may also move an unclaimed entry's home to another tree it is placed on. |
 | Leaving | A person may withdraw their own entry from any tree that is not their home. A Root may remove any placement from their tree. Removing a placement never deletes the person or their connections. |
@@ -131,7 +131,8 @@ shown. The Root's undo of a Branch edit (Step 22.4) applies to Branches of
 `private.can_edit_relationship(r)`: the member who drew it, a Root of any
 tree on which **both** ends are actively placed, or a Branch of such a tree
 with both ends on their side there. Drawing a new line requires the same of
-the tree it is drawn on, plus the bloodline gate of that tree.
+the tree it is drawn on. The bloodline gate asks a blood tie of new entries
+and of people brought over, not of a line between two people already there.
 
 `private.can_delete_person(p)`: a Root of `h`; otherwise the Step 22.3 rule
 for the creator, evaluated in `h`.

@@ -373,8 +373,9 @@ admin reverses the claim.
 
 **Branches (Step 17, re-anchored in 18.1, narrowed in 22.2):** a
 `branch_admin` curates their part of one Root's side of the tree. A branch is
-measured from one person by the same up-then-down walk as the bloodline gate
-(`private.branch_ids`): climb `parent` edges to every ancestor, descend from
+measured from one person by the bloodline gate's first up-then-down walk
+(`private.branch_ids`, which takes no sibling lines, as the bloodline has
+since Step 53): climb `parent` edges to every ancestor, descend from
 that whole set, then add the partners those people married — one step, never
 walked through. So a spouse is on the branch and a spouse's parents are not. A
 Branch tends **the part of a Root's side they are related through**: their own
@@ -539,7 +540,7 @@ mirror it for the UI.
 | Branch edits to a Root's entries                   | Told; one-click undo                                                                                            | Publish at once                                                              | —                                    |
 | Change connections                                 | Any                                                                                                             | Both ends on their side, or ones they drew                                   | Ones they drew                       |
 | Companions                                         | Any                                                                                                             | On their side, or ones they added                                            | Ones they added                      |
-| Add relatives                                      | ✓                                                                                                               | ✓ (bloodline gate)                                                           | On their own line (bloodline gate)   |
+| Add relatives                                      | ✓ (bloodline gate)                                                                                              | ✓ (bloodline gate)                                                           | On their own line (bloodline gate)   |
 | See documents                                      | Every entry                                                                                                     | Their side, members' own entries included                                    | Entries they own                     |
 | Delete entries                                     | Any                                                                                                             | Unclaimed ones they added, while nobody else has built on them               | Same as Branch                       |
 | Invite relatives                                   | As Leaves                                                                                                       | As Leaves                                                                    | As Leaves                            |
@@ -1109,6 +1110,66 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 53 — Everyone added needs a blood tie** (ad-hoc bug fix; migration
+  `20260925223750_everyone_added_needs_a_blood_tie`; numbered after Step 52,
+  the family link, which reached live first). Raiya, a Root, added Rosy
+  Tejpar (née Kassum) as the mother of Shireen Suleman, who married into the
+  family, with no line to anyone born into it. On The White Family, Lucan
+  White had added Brandon Nichols as the son of Beth Nichols, who married
+  in, the same way. The bloodline gate (Step 14) held only a member who had
+  married in themselves, so Roots, blood members and a newcomer adding
+  themselves could hang anyone off an in-law. Aalim's rule: a direct
+  bloodline tie first, whoever is adding, Roots included. **Now** every new
+  entry on a tree with anchors must, once its lines are drawn, be blood or
+  have a line straight to someone who is: a partner, or the other parent of
+  a blood child (`private.without_blood_tie`). Anyone reachable only through
+  someone who married in is refused — their parents, siblings, a child from
+  another relationship, a later partner — and so is a Root seeding someone
+  with no lines at all. Bringing people over from another tree
+  (`place_people`) is held to it across the whole batch, a member's own
+  entry that waits for their yes counting as there; the placement made on
+  accepting an invite isn't. A sibling line now carries blood
+  (`private.blood_ids`, read by `private.bloodline_ids`): a blood relative's
+  brother or sister is blood, so their partner and children can follow.
+  Branches still walk parent lines only (`lib/bloodline.ts#upThenDownIds`,
+  for `lib/branch.ts`, as `private.branch_ids`). Step 14.2's allowance for
+  a married-in member's own descendants, whoever the other parent, goes:
+  their child is blood once the blood partner is named too, which the add
+  flow ticks for a current partner. The refusal, `BLOODLINE_GATE: <name> has
+  no blood tie to this tree` with the detail saying which new entry or
+  which id, is read by `lib/bloodline.ts#readBloodTieRefusal`: "{Name} isn't
+  connected to anyone born into this family. Connect them to a blood
+  relative too."; "Connect yourself to someone born into this family, as
+  their child, parent, sibling or partner." for a member adding themselves;
+  and, bringing people over, "… Bring them with a blood relative they're
+  connected to." The add flow's old "tree of your own" answer went, and
+  `/people/new` still says so up front to a member who married in, now as
+  "your partner's relatives and the children you share". On live, Rosy and
+  Shireen became blood through the sibling line Raiya drew from Rosy to
+  Hassanali Kassum, Kulsum Mohamed's father (the first tree's blood count
+  58 → 60), and no member's growth rights changed. Brandon is the only
+  entry on any tree without a blood tie, left for The White Family's Root.
+  **Verified:** rehearsed on live in one statement that raised at the end,
+  so nothing was kept (no record, functions or entries left): 26 cases run
+  as real members before and after, the rehearsed bodies' md5 matching the
+  file. 13 went from allowed to refused: Rosy's add as it happened (her
+  sibling line taken out first), a Root seeding, an in-law's parent,
+  partner and child alone, a child of a new partner alone, a Branch, a
+  newcomer adding themselves under an in-law, Brandon's case, Beth's
+  partner, and three placements (Brandon again, and an in-law and Shireen
+  brought from the first tree alone). A Leaf's in-law went from `OWN_LINE`
+  to the new refusal. The other 12 came out the same: partners and
+  co-parents of blood relatives, a child with the blood parent named, a
+  sibling and then their child, a newcomer as a partner, a Leaf's own
+  child, and batches tied by a relative in the same batch, one a member
+  still to say yes. The same cases passed first on a local Postgres 16 copy
+  with live's shapes and helpers. Then applied: `apply_migration` recorded
+  it as `20260925223750`, not the name's version, so the file is renamed to
+  match; bodies md5-matched, grants unchanged. Tests:
+  `lib/bloodline.test.ts` (35, the Rosy and Brandon cases among them), and
+  the Branch suite passes unchanged. 896 tests pass; tsc and lint are
+  clean.
 
 - **Step 42 — A member can't make someone else's entry their own**
   (ad-hoc security fix, found during Step 41.5; migration
