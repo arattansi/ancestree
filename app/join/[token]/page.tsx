@@ -132,10 +132,10 @@ export default async function InvitePage({
                   : signedInAsRecipient
                     ? "You’re signed in with the address it was sent to — there is nothing else to set up."
                     : signInFirst
-                      ? "Once you’re signed in, accepting adds it to your trees."
+                      ? "Signing in adds it to your trees."
                       : recipient
                         ? "Accepting signs you in — there is nothing else to set up."
-                        : "Enter your name and email to get a sign-in link — opening it accepts the invite."}
+                        : "Enter your name and email, and we’ll email you a code to join."}
               </CardDescription>
             </CardHeader>
             <CardContent>

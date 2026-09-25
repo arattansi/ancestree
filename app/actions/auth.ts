@@ -11,10 +11,18 @@ import {
   type RequestFormState,
 } from "@/lib/request-forms";
 import { sameOriginPath } from "@/lib/safe-next";
+import {
+  isWholeSignInCode,
+  readSignInCode,
+  sendCodeRefusal,
+  SIGN_IN_CODE_LENGTH,
+  signInCodeRefusal,
+} from "@/lib/sign-in-code";
 import { signInCallbackUrl } from "@/lib/sign-in-links";
 import {
+  completeCodeSignIn,
   completeEmailSignIn,
-  emailInviteSignInLink,
+  emailInviteSignInCode,
   safeNext,
   signInWithInvite,
 } from "@/lib/sign-in.server";
@@ -23,18 +31,29 @@ import { getSiteUrl } from "@/lib/site-url";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** The entry as typed — a name too, on a bare invite link — and how it went. */
-export type MagicLinkState = RequestFormState & { ok?: boolean };
+/**
+ * The entry as typed — a name too, on a bare invite link — and how it went.
+ * Once a code is on its way, `sentAt` tells one sending from the next, and a
+ * second send ("Send a new code") says how it went in `resent` or
+ * `resendError` without leaving the code box.
+ */
+export type MagicLinkState = RequestFormState & {
+  ok?: boolean;
+  sentAt?: number;
+  resent?: boolean;
+  resendError?: string;
+};
 
 /**
- * Send a magic-link email. When `inviteToken` is present the callback will
- * redeem that invite on first sign-in; otherwise the callback provisions the
- * profile (admins only — invited members must use their link). Only the
- * invite case needs the privacy agreement, since that's someone joining
- * (Step 30.4), and a name, read as the request forms read it: a new account
- * keeps it (`options.data`), to name the profile the invite makes and search
- * the tree for as onboarding opens (Step 30.7). `next` is where the sign-in
- * lands: the page proxy.ts sent them here from (Step 30.1).
+ * Email a sign-in code (a link until Step 53). When `inviteToken` is present
+ * entering the code redeems that invite; otherwise it provisions the profile
+ * (admins only — invited members must use their link). Only the invite case
+ * needs the privacy agreement, since that's someone joining (Step 30.4), and
+ * a name, read as the request forms read it: a new account keeps it
+ * (`options.data`), to name the profile the invite makes and search the tree
+ * for as onboarding opens (Step 30.7). `next` is where the sign-in lands:
+ * the page proxy.ts sent them here from (Step 30.1). `resend` is the code
+ * box asking again, with everything the first send had.
  */
 export async function requestMagicLink(
   _prev: MagicLinkState,
@@ -48,6 +67,7 @@ export async function requestMagicLink(
   const email = entered.email;
   // What goes back to the form beside an error, to show again.
   const typed: MagicLinkState = asksName ? entered : { email };
+  const resend = formData.get("resend") === "1";
 
   if (asksName && problem) return problemState(problem, entered);
   if (!asksName && !EMAIL_RE.test(email)) {
@@ -61,8 +81,8 @@ export async function requestMagicLink(
     };
   }
 
-  // The magic-link template builds on this address (`{{ .RedirectTo }}`),
-  // so `next` rides along to /auth/confirm and on to `confirmSignIn`.
+  // Only a stock template would link anywhere; ours carries the code alone,
+  // and the code box keeps `next` and the invite itself.
   const callback = signInCallbackUrl(getSiteUrl(), { next, invite: inviteToken });
 
   const name: JoiningName | undefined = asksName
@@ -80,10 +100,40 @@ export async function requestMagicLink(
   });
 
   if (error) {
-    return { error: "Could not send the sign-in link. Try again shortly.", ...typed };
+    // Asked again from the code box: stay on it, the first code still good.
+    if (resend) {
+      const sentAt = Number(formData.get("sentAt")) || Date.now();
+      return { ok: true, ...typed, sentAt, resendError: sendCodeRefusal(error.code) };
+    }
+    return { error: sendCodeRefusal(error.code), ...typed };
   }
 
-  return { ok: true, ...typed };
+  return { ok: true, ...typed, sentAt: Date.now(), resent: resend };
+}
+
+export type SignInCodeState = { error?: string };
+
+/**
+ * The code box (Step 53): check the emailed code for that address and go
+ * where the email's link would have — the invite it was sent for redeemed
+ * (`inviteToken`), else `next`. It sends itself once the code is whole.
+ */
+export async function verifySignInCode(
+  _prev: SignInCodeState,
+  formData: FormData,
+): Promise<SignInCodeState> {
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const code = readSignInCode(String(formData.get("code") ?? ""));
+  const invite = String(formData.get("inviteToken") ?? "").trim() || null;
+  const next = safeNext(String(formData.get("next") ?? ""));
+
+  if (!EMAIL_RE.test(email) || !isWholeSignInCode(code)) {
+    return { error: `Enter the ${SIGN_IN_CODE_LENGTH}-digit code from the email.` };
+  }
+
+  const result = await completeCodeSignIn({ email, code, invite, next });
+  if (!result.ok) return { error: signInCodeRefusal(result.errorCode) };
+  redirect(result.next);
 }
 
 const EMAIL_OTP_TYPES: EmailOtpType[] = [
@@ -115,8 +165,8 @@ export async function confirmSignIn(formData: FormData) {
 export type AcceptInviteState = {
   error?: string;
   /**
-   * The address already has an account: offer a sign-in link that comes
-   * back to the invite (`sendInviteSignInLink`, Step 30.8).
+   * The address already has an account: offer to email it a sign-in code
+   * (`sendInviteSignInCode`, Step 30.8).
    */
   alreadyMember?: boolean;
 };
@@ -156,33 +206,45 @@ export async function acceptInvite(
   return { error: "Could not sign you in. Try again shortly." };
 }
 
-export type InviteSignInLinkState = {
+export type InviteSignInCodeState = {
   error?: string;
-  /** The invite's address, once the link is on its way. */
+  /** The invite's address, once the code is on its way. */
   sentTo?: string;
+  /** As `MagicLinkState`'s: one sending from the next, and a second send. */
+  sentAt?: number;
+  resent?: boolean;
+  resendError?: string;
 };
 
 /**
  * The invite page's answer for an address that already has an account —
  * at once for someone signed out (Step 41.2), or once `acceptInvite` finds
- * it (Step 30.8): email it a sign-in link that brings them back to the
- * invite signed in, one tap from joining. It goes to the address the
- * invite names, never one typed here (`emailInviteSignInLink`).
+ * it (Step 30.8): email it a sign-in code, which accepts the invite once
+ * entered on the page (Step 53). It goes to the address the invite names,
+ * never one typed here (`emailInviteSignInCode`).
  */
-export async function sendInviteSignInLink(
-  _prev: InviteSignInLinkState,
+export async function sendInviteSignInCode(
+  _prev: InviteSignInCodeState,
   formData: FormData,
-): Promise<InviteSignInLinkState> {
+): Promise<InviteSignInCodeState> {
   const token = String(formData.get("inviteToken") ?? "").trim();
-  const result = await emailInviteSignInLink(token);
-  if (result.ok) return { sentTo: result.email };
+  const resend = formData.get("resend") === "1";
+  const result = await emailInviteSignInCode(token);
+  if (result.ok) return { sentTo: result.email, sentAt: Date.now(), resent: resend };
   if (result.reason === "invalid") {
     return {
       error:
         "This invite is no longer valid. Ask the relative who invited you for a fresh one.",
     };
   }
-  return { error: "Could not send the sign-in link. Try again shortly." };
+  if (resend) {
+    return {
+      sentTo: String(formData.get("sentTo") ?? ""),
+      sentAt: Number(formData.get("sentAt")) || Date.now(),
+      resendError: sendCodeRefusal(result.errorCode),
+    };
+  }
+  return { error: sendCodeRefusal(result.errorCode) };
 }
 
 /**

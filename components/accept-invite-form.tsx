@@ -6,25 +6,26 @@ import Link from "next/link";
 
 import {
   acceptInvite,
-  sendInviteSignInLink,
+  sendInviteSignInCode,
   type AcceptInviteState,
-  type InviteSignInLinkState,
+  type InviteSignInCodeState,
 } from "@/app/actions/auth";
+import { SignInCodeForm } from "@/components/sign-in-code-form";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 
 const INITIAL: AcceptInviteState = {};
-const INITIAL_LINK: InviteSignInLinkState = {};
+const INITIAL_CODE: InviteSignInCodeState = {};
 
 /**
  * One-button accept for an invite that was emailed to someone: the link
  * reaching their inbox is the verification, so there is no second email.
  * `consentGiven` skips the checkbox for people who ticked it when they asked
  * to join. An address that already has an account is offered a sign-in
- * link instead, which comes back here (Step 30.8). Signed out, the page
- * opens on that link for such an address (Step 41.2), so this only finds
- * one that became a member's after the page loaded.
+ * code instead (Step 30.8). Signed out, the page opens on that for such an
+ * address (Step 41.2), so this only finds one that became a member's after
+ * the page loaded.
  */
 export function AcceptInviteForm({
   inviteToken,
@@ -101,10 +102,10 @@ export function AcceptInviteForm({
  * The address already has an account, which the invite won't sign in on
  * its own say-so (`signInWithInvite`). Rather than send them to /join to
  * type it again and lose the invite on the way, email that address a
- * sign-in link that comes back here, signed in and a tap from joining
- * (Step 30.8). The invite page opens on it for someone signed out
- * (`opensOnSignInLink`, Step 41.2): no privacy tick, since a member's join
- * asks for none.
+ * sign-in code; entering it here signs them in and joins (Step 53; a link
+ * back here, a tap from joining, until then). The invite page opens on it
+ * for someone signed out (`opensOnSignInLink`, Step 41.2): no privacy
+ * tick, since a member's join asks for none.
  */
 export function SignInToAccept({
   inviteToken,
@@ -114,24 +115,25 @@ export function SignInToAccept({
   email: string;
 }) {
   const [state, formAction, pending] = useActionState(
-    sendInviteSignInLink,
-    INITIAL_LINK,
+    sendInviteSignInCode,
+    INITIAL_CODE,
   );
 
   if (state.sentTo) {
     return (
-      <div
-        role="status"
-        className="rounded-lg border border-border bg-muted/40 p-4 text-sm"
-      >
-        <p className="font-medium text-foreground">Check your email</p>
-        <p className="mt-1 text-muted-foreground">
-          We sent a sign-in link to{" "}
-          <span className="font-medium text-foreground">{state.sentTo}</span>.
-          Open it on this device: it signs you in and brings you back to this
-          invite, to accept it with one tap.
-        </p>
-      </div>
+      <SignInCodeForm
+        key={state.sentAt}
+        email={state.sentTo}
+        inviteToken={inviteToken}
+        resendAction={formAction}
+        resendFields={{
+          inviteToken,
+          sentTo: state.sentTo,
+          sentAt: state.sentAt ? String(state.sentAt) : undefined,
+        }}
+        resent={state.resent}
+        resendError={state.resendError}
+      />
     );
   }
 
@@ -142,10 +144,7 @@ export function SignInToAccept({
         <p className="font-medium break-words text-foreground">
           {email} already has an ancestree account
         </p>
-        <p className="text-muted-foreground">
-          Sign in with it to accept this invite. We&rsquo;ll email you a link
-          that brings you back here, signed in.
-        </p>
+        <p className="text-muted-foreground">Sign in with it to accept this invite.</p>
       </div>
       {state.error ? (
         <p role="alert" className="text-sm text-destructive">
@@ -153,7 +152,7 @@ export function SignInToAccept({
         </p>
       ) : null}
       <Button type="submit" disabled={pending}>
-        {pending ? "Sending…" : "Email me a sign-in link"}
+        {pending ? "Sending…" : "Email me a code"}
       </Button>
     </form>
   );

@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { EmailOtpType } from "@supabase/supabase-js";
+import type { EmailOtpType, User } from "@supabase/supabase-js";
 
 import { setCurrentTreeCookie } from "@/lib/current-tree.server";
 import { verifiedEmail } from "@/lib/first-timer";
@@ -139,7 +139,9 @@ export async function establishMembership(
 }
 
 /**
- * Spend the one-time token from a sign-in email and return where to go next.
+ * Spend the one-time token from a sign-in email's link and return where to
+ * go next. The emails carry a code instead since Step 53
+ * (`completeCodeSignIn`); this is for links sent before then.
  *
  * Only ever called from a POST (the button on /auth/confirm), never from the
  * GET the email links to: mail scanners — Outlook Safe Links above all — open
@@ -171,8 +173,61 @@ export async function completeEmailSignIn({
     user = signedIn;
   }
 
-  // A bare invite link's form kept their name on the new account: the
-  // profile the invite makes is named after it, not the address (Step 30.7).
+  return finishEmailSignIn(supabase, user, { invite, next });
+}
+
+export type CodeSignInResult =
+  | { ok: true; next: string }
+  | { ok: false; errorCode: string | undefined };
+
+/**
+ * Check the code from a sign-in email (Step 53) and return where to go next,
+ * as the email's link did: the invite its form was for redeemed, else the
+ * page it was asked for from. The code is typed where it was asked for, so
+ * a mail scanner opening the email spends nothing, and there's no second
+ * page to press a button on.
+ */
+export async function completeCodeSignIn({
+  email,
+  code,
+  invite,
+  next,
+}: {
+  email: string;
+  code: string;
+  invite?: string | null;
+  next: string;
+}): Promise<CodeSignInResult> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.verifyOtp({ type: "email", email, token: code });
+  let user = data.user;
+
+  if (error) {
+    // The box sends itself once it's full, and Enter or the button can send
+    // it again: the code is spent by then, but this browser is signed in as
+    // that address, so carry on.
+    const {
+      data: { user: signedIn },
+    } = await supabase.auth.getUser();
+    if (!signedIn || signedIn.email?.toLowerCase() !== email.toLowerCase()) {
+      return { ok: false, errorCode: error.code };
+    }
+    user = signedIn;
+  }
+
+  return { ok: true, next: await finishEmailSignIn(supabase, user, { invite, next }) };
+}
+
+/**
+ * A fresh email sign-in made a member. A bare invite link's form kept their
+ * name on the new account: the profile the invite makes is named after it,
+ * not the address (Step 30.7).
+ */
+function finishEmailSignIn(
+  supabase: ServerClient,
+  user: User | null,
+  { invite, next }: { invite?: string | null; next: string },
+): Promise<string> {
   return establishMembership(supabase, {
     invite,
     next,
@@ -268,14 +323,15 @@ export async function addressHasProfile(email: string): Promise<boolean | null> 
 }
 
 /**
- * Whether an emailed invite's page opens on "Email me a sign-in link"
+ * Whether an emailed invite's page opens on "Email me a code"
  * instead of the accept form (Step 41.2): for someone signed out, when the
  * invite's address has an account already. Accepting would only find that
  * out and offer the link, after a privacy tick a member's join doesn't ask
  * for. The page is a GET that mail scanners open too, so this only looks
  * up; a failed lookup keeps the accept form, which asks again when tapped.
  * It tells the page nothing it didn't show before: the address is on it,
- * and accepting said the address has an account.
+ * and accepting said the address has an account. (Named for the link the
+ * email carried until Step 53.)
  */
 export async function opensOnSignInLink(
   recipient: InviteRecipient | null,
@@ -305,7 +361,7 @@ export type InviteSignInResult =
  * instead of mailing a second link. Refuses an address that is already a
  * member: their invite must not double as a 14-day key to a live account —
  * a member joins another tree from the invite page while signed in, and
- * `emailInviteSignInLink` sends one who isn't a link back to it.
+ * `emailInviteSignInCode` sends one who isn't a sign-in code instead.
  */
 export async function signInWithInvite(token: string): Promise<InviteSignInResult> {
   const recipient = await getInviteRecipient(token);
@@ -313,7 +369,7 @@ export async function signInWithInvite(token: string): Promise<InviteSignInResul
 
   // A member's address is refused before anything is minted for it: minting
   // a token stamps the account, and Supabase then won't email it the
-  // sign-in link the invite page offers instead for a minute (Step 30.8).
+  // sign-in code the invite page offers instead for a minute (Step 30.8).
   const member = await addressHasProfile(recipient.email);
   if (member === null) return { ok: false, reason: "failed" };
   if (member) return { ok: false, reason: "already_member" };
@@ -359,23 +415,23 @@ export async function signInWithInvite(token: string): Promise<InviteSignInResul
   return { ok: true, treeId: joined.treeId, next: joinedTreeHref(joined) };
 }
 
-export type InviteSignInLinkResult =
+export type InviteSignInCodeResult =
   | { ok: true; email: string }
-  | { ok: false; reason: "invalid" | "failed" };
+  | { ok: false; reason: "invalid" | "failed"; errorCode?: string };
 
 /**
  * An emailed invite opened by someone whose address already has an account
  * (Step 30.8, left over from 30.9): `signInWithInvite` won't sign them in on
- * the invite's say-so, so this emails that address an ordinary sign-in link
- * that lands back on the invite, signed in and a tap from joining, where
- * joining brings their own entry (Step 30.9). Only ever to the invite's own
- * address, and only to an account that exists already: a newcomer accepts
- * with the one button. No privacy tick: it's a plain sign-in (Step 30.4),
- * and a member's join button asks for none.
+ * the invite's say-so, so this emails that address an ordinary sign-in
+ * code. Entering it on the invite's page signs them in and joins, bringing
+ * their own entry (Step 30.9), with no second tap since Step 53. Only ever
+ * to the invite's own address, and only to an account that exists already:
+ * a newcomer accepts with the one button. No privacy tick: it's a plain
+ * sign-in (Step 30.4), and a member's join button asks for none.
  */
-export async function emailInviteSignInLink(
+export async function emailInviteSignInCode(
   token: string,
-): Promise<InviteSignInLinkResult> {
+): Promise<InviteSignInCodeResult> {
   const recipient = await getInviteRecipient(token);
   if (!recipient) return { ok: false, reason: "invalid" };
 
@@ -383,10 +439,11 @@ export async function emailInviteSignInLink(
   const { error } = await supabase.auth.signInWithOtp({
     email: recipient.email,
     options: {
+      // Only a stock template would use it: ours carries the code alone.
       emailRedirectTo: signInCallbackUrl(getSiteUrl(), { next: inviteHref(token) }),
       shouldCreateUser: false,
     },
   });
-  if (error) return { ok: false, reason: "failed" };
+  if (error) return { ok: false, reason: "failed", errorCode: error.code };
   return { ok: true, email: recipient.email };
 }

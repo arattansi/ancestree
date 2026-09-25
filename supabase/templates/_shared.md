@@ -2,11 +2,11 @@
 
 Source of truth for the branded Supabase Auth emails. These files are wired
 into `supabase/config.toml` for local development; for the hosted project they
-must also be pasted into the Dashboard (Authentication → Emails → Templates)
-or pushed with the Management API — Supabase does not read them from the repo.
+are pushed with the Management API (`npm run email:push`, never pasted into
+the Dashboard) — Supabase does not read them from the repo.
 
-**This is only sign-in mail**, which returning members and people holding a
-bare invite link get. The other branded email ancestree sends — the "you're
+**This is only sign-in mail** (a code since Step 53), which returning
+members and people holding a bare or family link get. The other branded email ancestree sends — the "you're
 invited" message when an admin approves an invite request or invites someone
 by name — is not a Supabase Auth template at all. It's authored in
 `lib/emails/invite-approved.ts` and sent by `approveInviteRequest` via Resend
@@ -41,24 +41,23 @@ Design notes:
   so a template that points at a new image must not be pushed before the
   deploy carrying that image is live, or the header shows a broken image.
   `npm run brand:build` regenerates it along with the rest of the brand files.
-- **The link is built by hand, not with `{{ .ConfirmationURL }}`.** That
-  variable points at `<project-ref>.supabase.co/auth/v1/verify?...`, so the
-  address the recipient sees (and hovers) is a Supabase URL, not ours. Instead:
-
-      {{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=email
-
-  `{{ .RedirectTo }}` is the `emailRedirectTo` we passed to `signInWithOtp`,
-  already carrying `?next=/tree` and, for an invited relative, `&invite=<token>`
-  — which is why it has to be the base rather than `{{ .SiteURL }}`, and why
-  the extra params are appended with `&`.
-- **Opening the link never signs anyone in; pressing the button does.**
-  `/auth/callback` forwards a `token_hash` link to `/auth/confirm`, whose
-  button POSTs to `confirmSignIn`, and only that calls `verifyOtp`. Mail
-  scanners (Outlook/Hotmail Safe Links above all) open every link in a message
-  before the recipient does; when the GET itself verified, the scanner spent
-  the one-time token and the real click got "link already used" — on every
-  fresh link, forever. Do not move `verifyOtp` back into a GET.
-- Either way the recipient must open the link in the browser that requested it
-  (PKCE keeps the code verifier in a cookie). That is unchanged from before.
+- **The email carries a code, not a link (Step 53).** `{{ .Token }}`, the
+  one-time code, sits in the subject ("{{ .Token }} is your ancestree code",
+  set by `scripts/push-email-templates.ts`, so it can be read off a
+  notification) and once in the body, unbroken, monospace, with
+  `user-select: all` so one tap or click selects exactly the digits
+  (letter-spacing adds none). There's no link and no button: nothing a mail
+  scanner opens can spend it (Outlook/Hotmail Safe Links spent every link
+  before the recipient's click until Step 20 moved verifying behind a
+  button). Email apps run no scripts, so a "copy" button isn't possible.
+  The code is entered where it was asked for (`SignInCodeForm`), which
+  also takes a paste however it's spaced and Safari's one-time-code offer
+  from Apple Mail.
+- Its length is the hosted project's `mailer_otp_length` (8 digits), which
+  `SIGN_IN_CODE_LENGTH` in `lib/sign-in-code.ts` must match.
+- **Push only once the deploy with the code box is live.** Before it, the
+  pages still say to open a link.
+- Links in emails sent before Step 53 still work: `/auth/callback`
+  forwards a `token_hash` to `/auth/confirm`, whose button spends it.
 - Inline styles + table layout only — email clients strip `<style>` blocks and
   ignore flex/grid.

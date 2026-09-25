@@ -6,6 +6,7 @@ import Link from "next/link";
 
 import { requestMagicLink, type MagicLinkState } from "@/app/actions/auth";
 import { NameEmailFields } from "@/components/request-fields";
+import { SignInCodeForm } from "@/components/sign-in-code-form";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -16,17 +17,18 @@ import { signInNeedsConsent } from "@/lib/privacy-consent";
 const INITIAL: MagicLinkState = {};
 
 /**
- * Asks for an email and sends a one-time sign-in link. Given `inviteToken`,
- * it's a bare invite link's form: that person is joining the tree, so they
- * agree to the privacy notice here (Step 30.4), and give their name beside
- * the email, which names their account and is what onboarding searches the
- * tree for (Step 30.7). A plain sign-in asks for the email alone and only
- * links to the notice.
+ * Asks for an email and sends a one-time sign-in code, then takes the code
+ * (Step 53; a link until then). Given `inviteToken`, it's a bare invite
+ * link's form: that person is joining the tree, so they agree to the
+ * privacy notice here (Step 30.4), and give their name beside the email,
+ * which names their account and is what onboarding searches the tree for
+ * (Step 30.7). A plain sign-in asks for the email alone and only links to
+ * the notice.
  */
 export function MagicLinkForm({
   inviteToken,
   next,
-  submitLabel = "Email me a sign-in link",
+  submitLabel = "Email me a code",
 }: {
   inviteToken?: string;
   /** A same-origin path to land on once signed in (Step 30.1). */
@@ -35,22 +37,34 @@ export function MagicLinkForm({
 }) {
   const [state, formAction, pending] = useActionState(requestMagicLink, INITIAL);
   const [consented, setConsented] = useState(false);
+  // "Use another email" goes back to the form, filled in as it was, until
+  // it sends again and a new state comes back.
+  const [changingFrom, setChangingFrom] = useState<MagicLinkState | null>(null);
   const needsConsent = signInNeedsConsent(inviteToken);
   const asksName = signInAsksName(inviteToken);
 
-  if (state.ok) {
+  if (state.ok && state.email && changingFrom !== state) {
     return (
-      <div
-        role="status"
-        className="rounded-lg border border-border bg-muted/40 p-4 text-sm"
-      >
-        <p className="font-medium text-foreground">Check your email</p>
-        <p className="mt-1 text-muted-foreground">
-          We sent a sign-in link to{" "}
-          <span className="font-medium text-foreground">{state.email}</span>. Open
-          it on this device to continue.
-        </p>
-      </div>
+      <SignInCodeForm
+        // A new code, a fresh box.
+        key={state.sentAt}
+        email={state.email}
+        inviteToken={inviteToken}
+        next={next}
+        resendAction={formAction}
+        resendFields={{
+          email: state.email,
+          firstName: state.firstName,
+          lastName: state.lastName,
+          inviteToken,
+          next,
+          consent: needsConsent ? "on" : undefined,
+          sentAt: state.sentAt ? String(state.sentAt) : undefined,
+        }}
+        resent={state.resent}
+        resendError={state.resendError}
+        onChangeEmail={() => setChangingFrom(state)}
+      />
     );
   }
 

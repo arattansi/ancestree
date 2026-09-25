@@ -10,6 +10,10 @@
  *   SUPABASE_ACCESS_TOKEN=sbp_... npm run email:push
  *
  * Add --dry-run to print what would be sent without writing anything.
+ *
+ * The subjects carry the code too, so it can be read off a notification.
+ * Push only once the deploy with the code box (Step 53) is live: before it,
+ * a code has nowhere to go.
  * The project ref is derived from NEXT_PUBLIC_SUPABASE_URL.
  */
 import { readFileSync } from "node:fs";
@@ -24,14 +28,14 @@ const TEMPLATES = [
     file: "supabase/templates/magic-link.html",
     subjectKey: "mailer_subjects_magic_link",
     contentKey: "mailer_templates_magic_link_content",
-    subject: "Your ancestree sign-in link",
+    subject: "{{ .Token }} is your ancestree code",
   },
   {
     label: "Confirm signup",
     file: "supabase/templates/confirm-signup.html",
     subjectKey: "mailer_subjects_confirmation",
     contentKey: "mailer_templates_confirmation_content",
-    subject: "Confirm your email for ancestree",
+    subject: "{{ .Token }} is your ancestree code",
   },
 ] as const;
 
@@ -56,8 +60,9 @@ async function main() {
   const body: Record<string, string> = {};
   for (const t of TEMPLATES) {
     const html = readFileSync(join(ROOT, t.file), "utf8");
-    if (!html.includes("{{ .TokenHash }}")) {
-      throw new Error(`${t.file} has no {{ .TokenHash }} — the link would not work`);
+    // The code is the sign-in (Step 53): without it the email is no use.
+    if (!html.includes("{{ .Token }}")) {
+      throw new Error(`${t.file} has no {{ .Token }} — there'd be no code to enter`);
     }
     body[t.subjectKey] = t.subject;
     body[t.contentKey] = html;

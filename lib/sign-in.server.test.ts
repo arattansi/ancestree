@@ -24,8 +24,9 @@ vi.mock("@/lib/supabase/server", () => ({ createClient: async () => server }));
 
 import {
   addressHasProfile,
+  completeCodeSignIn,
   completeEmailSignIn,
-  emailInviteSignInLink,
+  emailInviteSignInCode,
   establishMembership,
   getInviteRecipient,
   opensOnSignInLink,
@@ -79,7 +80,10 @@ function fakeServer(
     auth: {
       verifyOtp: vi.fn(async () =>
         spent
-          ? { data: { user: null, session: null }, error: { message: "Token has expired or is invalid" } }
+          ? {
+              data: { user: null, session: null },
+              error: { message: "Token has expired or is invalid", code: "otp_expired" },
+            }
           : { data: { user, session: {} }, error: null },
       ),
       getUser: vi.fn(async () => ({ data: { user } })),
@@ -479,11 +483,11 @@ describe("the name someone joins by (Step 30.7)", () => {
   });
 });
 
-describe("emailInviteSignInLink (Step 30.8)", () => {
-  it("emails the invite's own address a sign-in link back to the invite", async () => {
+describe("emailInviteSignInCode (Step 30.8)", () => {
+  it("emails the invite's own address a sign-in code", async () => {
     admin = fakeAdmin({ member: true });
     server = fakeServer({ data: null, error: null });
-    expect(await emailInviteSignInLink("tok")).toEqual({
+    expect(await emailInviteSignInCode("tok")).toEqual({
       ok: true,
       email: "newcomer@example.com",
     });
@@ -496,7 +500,7 @@ describe("emailInviteSignInLink (Step 30.8)", () => {
     expect(options.shouldCreateUser).toBe(false);
     const callback = new URL(options.emailRedirectTo);
     expect(callback.pathname).toBe("/auth/callback");
-    // Lands on the invite, signed in: joining there is theirs to press.
+    // Only a stock template would link anywhere: back to the invite.
     expect(callback.searchParams.get("next")).toBe("/join/tok");
     expect(callback.searchParams.has("invite")).toBe(false);
   });
@@ -504,13 +508,70 @@ describe("emailInviteSignInLink (Step 30.8)", () => {
   it("sends nothing for an invite that's no longer valid", async () => {
     admin = fakeAdmin({ live: false });
     server = fakeServer({ data: null, error: null });
-    expect(await emailInviteSignInLink("tok")).toEqual({ ok: false, reason: "invalid" });
+    expect(await emailInviteSignInCode("tok")).toEqual({ ok: false, reason: "invalid" });
     expect(server.auth.signInWithOtp).not.toHaveBeenCalled();
   });
 
   it("says so when the email can't be sent", async () => {
     server = fakeServer({ data: null, error: null }, { otpError: { message: "rate limited" } });
-    expect(await emailInviteSignInLink("tok")).toEqual({ ok: false, reason: "failed" });
+    expect(await emailInviteSignInCode("tok")).toEqual({ ok: false, reason: "failed" });
+  });
+});
+
+describe("completeCodeSignIn (Step 53)", () => {
+  const CODE = { email: "newcomer@example.com", code: "12345678" };
+
+  it("checks the code against the address it went to and joins as the link did", async () => {
+    server = fakeServer(redeemed({ self_person_id: null, self_placed: false }), {
+      metadata: { first_name: "Zahra", last_name: "Suleman" },
+    });
+    expect(await completeCodeSignIn({ ...CODE, invite: "tok", next: "/tree" })).toEqual({
+      ok: true,
+      next: "/onboarding",
+    });
+    expect(server.auth.verifyOtp).toHaveBeenCalledWith({
+      type: "email",
+      email: "newcomer@example.com",
+      token: "12345678",
+    });
+    expect(server.rpc).toHaveBeenCalledWith("redeem_invite_tree", {
+      p_token: "tok",
+      p_display_name: "Zahra Suleman",
+    });
+  });
+
+  it("lands a plain sign-in where it was asked for from", async () => {
+    server = fakeServer({ data: null, error: null });
+    expect(await completeCodeSignIn({ ...CODE, next: "/tree" })).toEqual({
+      ok: true,
+      next: "/tree",
+    });
+    expect(server.rpc).toHaveBeenCalledWith("ensure_profile", {});
+  });
+
+  it("refuses a wrong or stale code, and joins nothing", async () => {
+    server = fakeServer(redeemed({}), { spent: true });
+    server.auth.getUser.mockResolvedValueOnce({ data: { user: null } } as never);
+    expect(await completeCodeSignIn({ ...CODE, invite: "tok", next: "/tree" })).toEqual({
+      ok: false,
+      errorCode: "otp_expired",
+    });
+    expect(server.rpc).not.toHaveBeenCalled();
+  });
+
+  it("carries on when this browser already spent the code as that address", async () => {
+    server = fakeServer(redeemed({ self_person_id: null, self_placed: false }), { spent: true });
+    expect(
+      await completeCodeSignIn({ ...CODE, email: "Newcomer@Example.com", invite: "tok", next: "/tree" }),
+    ).toEqual({ ok: true, next: "/onboarding" });
+  });
+
+  it("won't carry on as someone else signed in here", async () => {
+    server = fakeServer(redeemed({}), { spent: true });
+    expect(
+      await completeCodeSignIn({ ...CODE, email: "other@example.com", invite: "tok", next: "/tree" }),
+    ).toEqual({ ok: false, errorCode: "otp_expired" });
+    expect(server.rpc).not.toHaveBeenCalled();
   });
 });
 
