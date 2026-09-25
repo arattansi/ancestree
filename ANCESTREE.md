@@ -144,14 +144,16 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   its parents' live positions_ — not a node — so it follows them as they are
   dragged, and all of a couple's children bend at a shared horizontal bus, so a
   marriage shows one trunk rather than one line per parent; admin
-  "Auto-arrange" clears every manual nudge; the zoom controls end with
+  "Auto-arrange" clears every manual nudge; on a touch screen no card can be
+  dragged, so a finger on one pans, Step 49; the zoom controls end with
   **Go to me**, which opens the viewer's own tree and details, Step 48),
   `tree-search.tsx` the **Search & filters** card (Find a person, Show a
   connection, Filters: only your Root's side and Pets & companions — each
   section closed until opened), `person-node.tsx`
   custom node (name, then `née` maiden name / birth year / birthplace;
   open-flag badge + verified `✓`), `person-panel.tsx` detail Sheet
-  (edit link + claim / dispute + admin verify), `entry-comments.tsx` (comment /
+  (edit link + claim / dispute + admin verify; **Minimize** folds it into a
+  card at the foot of the canvas, Step 49), `entry-comments.tsx` (comment /
   flag thread + resolve), `claim-suggestions.tsx` "Is this you?" canvas prompt
 - `components/tree/pet-node.tsx` — the companion chip (a third the height of a
   person card, a pill, led by a species glyph, joined by a dotted lead) +
@@ -1039,6 +1041,42 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 49 — Cards stay put on a touch screen; details minimize to a
+  card** (ad-hoc, after Step 48; no migration). Two changes to the tree
+  page. **No dragging on a touch screen:** on a phone or tablet (a coarse
+  pointer, `(pointer: coarse)`), no card can be dragged, so a finger on a
+  card pans the canvas and nobody moves one by accident. Saved positions
+  still apply, a mouse still drags as before, and the setting follows the
+  device live. **Minimize:** a person's details sheet has a Minimize
+  button beside its close button (on the photo, when there is one). It
+  folds the sheet into a card at the foot of the canvas, in place of the
+  "…'s tree" pill: photo or initials, name, and the sheet's own subtitle
+  ("b. 1988 · Your entry"). Their tree gets the whole canvas and the
+  camera frames it there. Pressing the card brings the sheet back and
+  frames the tree beside it again; its ✕ closes the details. The sheet
+  stays mounted while minimized (`keepMounted` on `SheetContent`), so
+  whatever was typed in it is kept, and focus moves to the card. It stays
+  minimized as the reader opens other people or presses Go to me, and
+  resets once nobody's open; a `?person=` link opens someone in full. A
+  share link's read-only sheet has it too. A blurred card has no details,
+  so it keeps the pill, and the Add and Auto-arrange buttons no longer
+  leave room for a sheet that isn't there. A companion's sheet doesn't
+  minimize: it has no tree to show. **Verified:** 836 tests pass; tsc and
+  lint are clean. A throwaway signed-out page, since deleted, showed the
+  real canvas on a fixture family. At phone size with touch emulated, no
+  card was draggable: a simulated finger slide on a card panned the canvas
+  by exactly its travel, the card stayed put and no save was sent.
+  Switching the device to touch mid-visit took effect without a reload.
+  With a mouse, a drag still moved a card and sent its save (held in the
+  page, never reaching the server). Minimize showed the tree and the card
+  on a phone and at 1280px, in both themes. On the wide screen it
+  recentred the tree on the full canvas and put the header back, and
+  expanding restored the first framing exactly. A typed claim-invite email
+  survived minimize and expand. Opening another person, and Go to me, kept
+  it minimized; a tap on the empty canvas closed it, and the next person
+  opened in full. The read-only view and a visitor's blurred card behaved
+  as above.
 
 - **Step 48 — Go to me, your Root's side, and a tidier Search & filters**
   (ad-hoc, after Step 47; no migration). Three changes to the tree page.

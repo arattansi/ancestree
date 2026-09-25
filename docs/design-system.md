@@ -67,6 +67,13 @@ to another page. Its dialog is titled **Ask to join** too.
   tight; on a phone the sheet starts under the header. Mark any new sheet
   that sits beside the canvas `data-docked-sheet` to get the same
   (`app/globals.css`).
+- A person's details sheet can be minimized (Step 49), on a phone or a
+  wide screen: it folds into a card at the foot of the canvas that shows
+  whose details are open (photo or initials, name, the sheet's own
+  subtitle), in place of the "…'s tree" pill, and their tree gets the
+  whole canvas. Pressing the card brings the sheet back as it was; its ✕
+  closes the details. It stays minimized while the reader opens other
+  people, until nobody is open.
 
 ## Step-by-step flows
 
