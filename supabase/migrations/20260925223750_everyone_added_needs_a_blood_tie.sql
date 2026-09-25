@@ -1,8 +1,8 @@
 -- Step 53 — Everyone added needs a blood tie
 --
--- Found on live (2026-09-25): a Root added Rosy Tejpar as the mother of
--- Shireen Suleman, who married into the family, and nothing tied Rosy to
--- anyone born into it. The bloodline gate (Steps 14 and 14.2) held only a
+-- Found on live (2026-09-25): a Root added someone as the mother of a
+-- person who married into the family, and nothing tied her to anyone born
+-- into it. The bloodline gate (Steps 14 and 14.2) held only a
 -- member who had married in themselves, so Roots, blood members and a
 -- newcomer adding themselves could hang anyone off an in-law. Aalim's rule:
 -- a direct bloodline tie first, whoever is adding, Roots included.

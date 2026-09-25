@@ -178,73 +178,73 @@ describe("isBloodline", () => {
 });
 
 describe("withoutBloodTie", () => {
-  // The Family Tree as it stood on 2026-09-25, cut down: Raiya is the anchor,
-  // Kulsum her grandmother, Hassanali Kulsum's father. Arzu is blood and
-  // married Shireen, who married in; their son Bijhan is blood.
+  // The case found on live (2026-09-25), cut down: the anchor, their mum,
+  // gran and great-grandpa; the anchor's brother, who is blood and married
+  // someone who married in; and their son, who is blood too.
   const family = [
-    parent("hassanali", "kulsum"),
-    parent("kulsum", "safia"),
-    parent("safia", "raiya"),
-    parent("safia", "arzu"),
-    spouse("arzu", "shireen"),
-    parent("arzu", "bijhan"),
-    parent("shireen", "bijhan"),
+    parent("great-grandpa", "gran"),
+    parent("gran", "mum"),
+    parent("mum", "anchor"),
+    parent("mum", "brother"),
+    spouse("brother", "in-law"),
+    parent("brother", "nephew"),
+    parent("in-law", "nephew"),
   ];
-  const anchors = ["raiya"];
+  const anchors = ["anchor"];
 
-  it("refuses Rosy added only as Shireen's mother — the bug found on live", () => {
-    const edges = [...family, parent("rosy", "shireen")];
-    expect(withoutBloodTie(["rosy"], anchors, edges)).toEqual(["rosy"]);
+  it("refuses someone added only as a married-in partner's mother — the bug found on live", () => {
+    const edges = [...family, parent("in-laws-mum", "in-law")];
+    expect(withoutBloodTie(["in-laws-mum"], anchors, edges)).toEqual(["in-laws-mum"]);
   });
 
-  it("takes Rosy once she's also Hassanali's sister, and makes her blood", () => {
+  it("takes her once she's also a blood ancestor's sister, and makes her blood", () => {
     const edges = [
       ...family,
-      parent("rosy", "shireen"),
-      sibling("rosy", "hassanali"),
+      parent("in-laws-mum", "in-law"),
+      sibling("in-laws-mum", "great-grandpa"),
     ];
-    expect(withoutBloodTie(["rosy"], anchors, edges)).toEqual([]);
-    // A blood relative's daughter is blood too, so Shireen no longer counts
-    // as married in.
-    expect(bloodlineIds(anchors, edges).has("shireen")).toBe(true);
+    expect(withoutBloodTie(["in-laws-mum"], anchors, edges)).toEqual([]);
+    // A blood relative's daughter is blood too, so the in-law no longer
+    // counts as married in.
+    expect(bloodlineIds(anchors, edges).has("in-law")).toBe(true);
   });
 
   it("takes a partner of a blood relative", () => {
-    const edges = [...family, spouse("bijhan", "bijhans-wife")];
-    expect(withoutBloodTie(["bijhans-wife"], anchors, edges)).toEqual([]);
+    const edges = [...family, spouse("nephew", "nephews-wife")];
+    expect(withoutBloodTie(["nephews-wife"], anchors, edges)).toEqual([]);
   });
 
   it("takes the other parent of a blood child, with no marriage recorded", () => {
-    const edges = [...family, parent("arzu", "rehan"), parent("rehans-mum", "rehan")];
-    expect(withoutBloodTie(["rehans-mum"], anchors, edges)).toEqual([]);
+    const edges = [...family, parent("brother", "niece"), parent("nieces-mum", "niece")];
+    expect(withoutBloodTie(["nieces-mum"], anchors, edges)).toEqual([]);
   });
 
   it("refuses the married-in partner's parents, siblings and later partners", () => {
     const edges = [
       ...family,
-      parent("shireens-dad", "shireen"),
-      sibling("shireen", "shireens-sister"),
-      spouse("shireen", "shireens-next-partner"),
+      parent("in-laws-dad", "in-law"),
+      sibling("in-law", "in-laws-sister"),
+      spouse("in-law", "in-laws-next-partner"),
     ];
     expect(
       withoutBloodTie(
-        ["shireens-dad", "shireens-sister", "shireens-next-partner"],
+        ["in-laws-dad", "in-laws-sister", "in-laws-next-partner"],
         anchors,
         edges,
       ),
-    ).toEqual(["shireens-dad", "shireens-sister", "shireens-next-partner"]);
+    ).toEqual(["in-laws-dad", "in-laws-sister", "in-laws-next-partner"]);
   });
 
   it("refuses a child from another relationship, until the blood parent is named", () => {
-    // Brandon, added as Beth's son alone; Beth married Kipchoge, who is
-    // blood as the anchor Tobi's father.
-    const white = [parent("kipchoge", "tobi"), spouse("kipchoge", "beth")];
-    const bethsOnly = [...white, parent("beth", "brandon")];
-    expect(withoutBloodTie(["brandon"], ["tobi"], bethsOnly)).toEqual([
-      "brandon",
+    // The stepmum's son, added as hers alone; she married the anchor's dad,
+    // who is blood.
+    const blended = [parent("their-dad", "anchor"), spouse("their-dad", "stepmum")];
+    const stepmumsOnly = [...blended, parent("stepmum", "stepbrother")];
+    expect(withoutBloodTie(["stepbrother"], ["anchor"], stepmumsOnly)).toEqual([
+      "stepbrother",
     ]);
-    const both = [...bethsOnly, parent("kipchoge", "brandon")];
-    expect(withoutBloodTie(["brandon"], ["tobi"], both)).toEqual([]);
+    const both = [...stepmumsOnly, parent("their-dad", "stepbrother")];
+    expect(withoutBloodTie(["stepbrother"], ["anchor"], both)).toEqual([]);
   });
 
   it("refuses someone connected to nobody, as a Root once could seed them", () => {
@@ -252,22 +252,22 @@ describe("withoutBloodTie", () => {
   });
 
   it("judges a chain once its lines are drawn — new grandparents through a new parent", () => {
-    // Raiya's father and his mother, both new in one call.
+    // The anchor's dad and his mum, both new in one call.
     const edges = [
       ...family,
-      parent("raiyas-dad", "raiya"),
-      parent("raiyas-gran", "raiyas-dad"),
+      parent("anchors-dad", "anchor"),
+      parent("anchors-gran", "anchors-dad"),
     ];
-    expect(withoutBloodTie(["raiyas-gran", "raiyas-dad"], anchors, edges)).toEqual(
+    expect(withoutBloodTie(["anchors-gran", "anchors-dad"], anchors, edges)).toEqual(
       [],
     );
   });
 
   it("refuses the end of a chain that runs through a new partner only", () => {
-    // Bijhan's new wife, then a child of hers alone.
+    // The nephew's new wife, then a child of hers alone.
     const edges = [
       ...family,
-      spouse("bijhan", "wife"),
+      spouse("nephew", "wife"),
       parent("wife", "her-child"),
     ];
     expect(withoutBloodTie(["wife", "her-child"], anchors, edges)).toEqual([
@@ -276,8 +276,8 @@ describe("withoutBloodTie", () => {
   });
 
   it("keeps the order it was given", () => {
-    const edges = [...family, parent("x", "shireen"), sibling("y", "shireen")];
-    expect(withoutBloodTie(["y", "bijhan", "x"], anchors, edges)).toEqual([
+    const edges = [...family, parent("x", "in-law"), sibling("y", "in-law")];
+    expect(withoutBloodTie(["y", "nephew", "x"], anchors, edges)).toEqual([
       "y",
       "x",
     ]);
@@ -292,20 +292,20 @@ describe("readBloodTieRefusal", () => {
   it("reads who was refused, from adding people", () => {
     expect(
       readBloodTieRefusal({
-        message: "BLOODLINE_GATE: Rosy Tejpar has no blood tie to this tree",
+        message: "BLOODLINE_GATE: Jane Doe has no blood tie to this tree",
         details: "new:0",
       }),
-    ).toEqual({ name: "Rosy Tejpar", index: 0, personId: null });
+    ).toEqual({ name: "Jane Doe", index: 0, personId: null });
   });
 
   it("reads who was refused, from bringing people over", () => {
     expect(
       readBloodTieRefusal({
-        message: "BLOODLINE_GATE: Brandon Nichols has no blood tie to this tree",
+        message: "BLOODLINE_GATE: John Doe has no blood tie to this tree",
         details: "1f0c1c3e-8f6a-4a3e-9d7e-2d7b5f0e9a11",
       }),
     ).toEqual({
-      name: "Brandon Nichols",
+      name: "John Doe",
       index: null,
       personId: "1f0c1c3e-8f6a-4a3e-9d7e-2d7b5f0e9a11",
     });
@@ -326,20 +326,20 @@ describe("readBloodTieRefusal", () => {
 });
 
 describe("bloodTieRefusal", () => {
-  const rosy = { name: "Rosy Tejpar", index: 1, personId: null };
+  const jane = { name: "Jane Doe", index: 1, personId: null };
 
   it("names who needs a blood tie", () => {
-    expect(bloodTieRefusal(rosy)).toBe(
-      "Rosy Tejpar isn't connected to anyone born into this family. Connect them to a blood relative too.",
+    expect(bloodTieRefusal(jane)).toBe(
+      "Jane Doe isn't connected to anyone born into this family. Connect them to a blood relative too.",
     );
   });
 
   it("speaks to a member adding themselves", () => {
-    expect(bloodTieRefusal({ ...rosy, index: 0 }, 0)).toBe(
+    expect(bloodTieRefusal({ ...jane, index: 0 }, 0)).toBe(
       "Connect yourself to someone born into this family, as their child, parent, sibling or partner.",
     );
     // Someone else in their chain is named as usual.
-    expect(bloodTieRefusal(rosy, 0)).toMatch(/^Rosy Tejpar isn't/);
+    expect(bloodTieRefusal(jane, 0)).toMatch(/^Jane Doe isn't/);
   });
 
   it("falls back when the database gave no name", () => {
@@ -350,26 +350,26 @@ describe("bloodTieRefusal", () => {
 
   it("tells a Root bringing people over what to bring", () => {
     expect(
-      bloodTiePlacementRefusal({ name: "Brandon Nichols", index: null, personId: "b" }),
+      bloodTiePlacementRefusal({ name: "John Doe", index: null, personId: "b" }),
     ).toBe(
-      "Brandon Nichols isn't connected to anyone born into this family. Bring them with a blood relative they're connected to.",
+      "John Doe isn't connected to anyone born into this family. Bring them with a blood relative they're connected to.",
     );
   });
 });
 
 describe("newWithoutBloodTie", () => {
-  // Raiya is the anchor; Arzu is blood and married Shireen, who married in;
-  // Bijhan is their son.
+  // The anchor's brother is blood and married someone who married in; the
+  // nephew is their son.
   const bloodline = {
-    anchors: ["raiya"],
+    anchors: ["anchor"],
     edges: [
-      parent("hassanali", "kulsum"),
-      parent("kulsum", "safia"),
-      parent("safia", "raiya"),
-      parent("safia", "arzu"),
-      spouse("arzu", "shireen"),
-      parent("arzu", "bijhan"),
-      parent("shireen", "bijhan"),
+      parent("great-grandpa", "gran"),
+      parent("gran", "mum"),
+      parent("mum", "anchor"),
+      parent("mum", "brother"),
+      spouse("brother", "in-law"),
+      parent("brother", "nephew"),
+      parent("in-law", "nephew"),
     ],
   };
   const newP = (index: number): PersonRef => ({ kind: "new", index });
@@ -380,19 +380,19 @@ describe("newWithoutBloodTie", () => {
     b: PersonRef,
   ): ConnectionEdge => ({ type, a, b });
 
-  it("foresees Rosy's add as it happened: Shireen's mother, nothing else", () => {
+  it("foresees the add found on live: a married-in partner's mother, nothing else", () => {
     expect(
-      newWithoutBloodTie(1, [line("parent", newP(0), on("shireen"))], bloodline),
+      newWithoutBloodTie(1, [line("parent", newP(0), on("in-law"))], bloodline),
     ).toEqual([0]);
   });
 
-  it("clears once she's also Hassanali's sister", () => {
+  it("clears once she's also a blood ancestor's sister", () => {
     expect(
       newWithoutBloodTie(
         1,
         [
-          line("parent", newP(0), on("shireen")),
-          line("sibling", on("hassanali"), newP(0)),
+          line("parent", newP(0), on("in-law")),
+          line("sibling", on("great-grandpa"), newP(0)),
         ],
         bloodline,
       ),
@@ -400,35 +400,35 @@ describe("newWithoutBloodTie", () => {
   });
 
   it("needs the blood parent ticked on a child of someone who married in", () => {
-    const shireensChild = line("parent", on("shireen"), newP(0));
-    expect(newWithoutBloodTie(1, [shireensChild], bloodline)).toEqual([0]);
+    const inLawsChild = line("parent", on("in-law"), newP(0));
+    expect(newWithoutBloodTie(1, [inLawsChild], bloodline)).toEqual([0]);
     expect(
       newWithoutBloodTie(
         1,
-        [shireensChild, line("parent", on("arzu"), newP(0))],
+        [inLawsChild, line("parent", on("brother"), newP(0))],
         bloodline,
       ),
     ).toEqual([]);
   });
 
   it("points at the right person in a chain", () => {
-    // Bijhan's new wife (in between), then a child of hers alone.
+    // The nephew's new wife (in between), then a child of hers alone.
     expect(
       newWithoutBloodTie(
         2,
         [
-          line("spouse", on("bijhan"), newP(1)),
+          line("spouse", on("nephew"), newP(1)),
           line("parent", newP(1), newP(0)),
         ],
         bloodline,
       ),
     ).toEqual([0]);
-    // A new blood child of Arzu, then their partner: both fine.
+    // A new child of the brother's, then their partner: both fine.
     expect(
       newWithoutBloodTie(
         2,
         [
-          line("parent", on("arzu"), newP(1)),
+          line("parent", on("brother"), newP(1)),
           line("spouse", newP(1), newP(0)),
         ],
         bloodline,
@@ -446,21 +446,21 @@ describe("newWithoutBloodTie", () => {
 describe("bloodTieWarning", () => {
   it("names who they'd hang off when that's why", () => {
     expect(
-      bloodTieWarning({ name: "Rosy Tejpar", nonBloodAnchor: "Shireen Suleman" }),
+      bloodTieWarning({ name: "Jane Doe", nonBloodAnchor: "Mary Roe" }),
     ).toBe(
-      "Only blood relatives and their partners can be added. Shireen Suleman isn't a blood relative, so connect Rosy Tejpar to someone who is, too.",
+      "Only blood relatives and their partners can be added. Mary Roe isn't a blood relative, so connect Jane Doe to someone who is, too.",
     );
   });
 
   it("asks for a blood relative otherwise", () => {
-    expect(bloodTieWarning({ name: "Rosy Tejpar" })).toBe(
-      "Only blood relatives and their partners can be added. Connect Rosy Tejpar to someone born into this family, too.",
+    expect(bloodTieWarning({ name: "Jane Doe" })).toBe(
+      "Only blood relatives and their partners can be added. Connect Jane Doe to someone born into this family, too.",
     );
   });
 
   it("speaks to a member adding themselves", () => {
     expect(
-      bloodTieWarning({ name: "Rosy", self: true, nonBloodAnchor: "Shireen" }),
+      bloodTieWarning({ name: "Jane", self: true, nonBloodAnchor: "Mary" }),
     ).toBe(
       "Only blood relatives and their partners can be added. Connect yourself to someone born into this family, as their child, parent, sibling or partner.",
     );

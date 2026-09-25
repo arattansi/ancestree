@@ -471,7 +471,8 @@ export function AddPersonFlow({
 
   // What's on the form, judged as the database will judge it (Step 55), so
   // they hear the rule before it refuses. Only a warning: a question at
-  // submit ("is Arzu also a parent?") can still draw the line it's missing.
+  // submit ("is their partner also a parent?") can still draw the line it's
+  // missing.
   const tieWarning = (() => {
     if (!bloodline || !gateActive || !showChain || !anchorId) return null;
     const pending = flowEdges({

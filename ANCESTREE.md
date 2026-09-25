@@ -1185,9 +1185,10 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   after Step 55; no migration). "Add a relative" and adding yourself on
   onboarding now say it under **How they connect** as soon as what's on
   the form would be refused: "Only blood relatives and their partners can
-  be added. Shireen Suleman isn't a blood relative, so connect Rosy Tejpar
-  to someone who is, too." — or "Connect {name} to someone born into this
-  family, too." further down a chain, and "Connect yourself to someone born
+  be added. {Picked} isn't a blood relative, so connect {name} to someone
+  who is, too." when {name} hangs off the person they picked, or "Connect
+  {name} to someone born into this family, too." further down a chain, and
+  "Connect yourself to someone born
   into this family, as their child, parent, sibling or partner." for the
   member's own entry. It goes as soon as the form would pass. Aalim's
   choices: both forms, the rule first, never blocking. It judges the exact
@@ -1198,7 +1199,7 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   anchors and lines plus those, and `bloodTieWarning` words it. The pages
   load the tree with `getBloodline`: every anchor (not the canvas's first
   two) and `tree_edges`; if either can't be read the form says nothing. The
-  Add button still works, since a question at submit ("Is Arzu also a
+  Add button still works, since a question at submit ("Is {partner} also a
   parent?") can draw the missing line and the database has the last word.
   On a tree with anchors, connecting a new entry is no longer optional for
   a Root, as Step 55 refuses an unconnected one: the toggle and "Optional
@@ -1206,23 +1207,23 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   their tree has no anchors until they add themselves. **Verified:** in the
   app in Chromium, run signed out with dummy Supabase keys, on a throwaway
   preview page (deleted, never committed) showing the form with made-up
-  people: Rosy as Shireen's child with Arzu ticked, no warning; switched to
-  "is parent of", the warning naming both; switched back, gone. A newcomer
-  as Shireen's child was fine until Arzu was unticked, then got the
+  people: a new entry as the child of someone who married in, with their
+  blood partner ticked, no warning; switched to "is parent of", the
+  warning naming both; switched back, gone. A newcomer as that person's
+  child was fine until the blood partner was unticked, then got the
   "yourself" wording with **Add me to the tree** still enabled. A Root saw
   no "Connect this entry…" toggle, and the console showed no errors. Tests:
-  `flowEdges` (6, the submit's lines), `newWithoutBloodTie` (5, Rosy's add
-  as it happened among them) and `bloodTieWarning` (3). 931 tests pass;
+  `flowEdges` (6, the submit's lines), `newWithoutBloodTie` (5, the add
+  found on live among them) and `bloodTieWarning` (3). 931 tests pass;
   tsc and lint are clean.
 
 - **Step 55 — Everyone added needs a blood tie** (ad-hoc bug fix; migration
   `20260925223750_everyone_added_needs_a_blood_tie`, whose comments call it
   Step 53, the number it had when it was applied; Steps 53 and 54 reached
-  main first). Raiya, a Root, added Rosy
-  Tejpar (née Kassum) as the mother of Shireen Suleman, who married into the
-  family, with no line to anyone born into it. On The White Family, Lucan
-  White had added Brandon Nichols as the son of Beth Nichols, who married
-  in, the same way. The bloodline gate (Step 14) held only a member who had
+  main first). A Root added someone as the mother of a person who married
+  into the family, with no line to anyone born into it. On another tree,
+  its Root had added someone as the child of a woman who married in, the
+  same way. The bloodline gate (Step 14) held only a member who had
   married in themselves, so Roots, blood members and a newcomer adding
   themselves could hang anyone off an in-law. Aalim's rule: a direct
   bloodline tie first, whoever is adding, Roots included. **Now** every new
@@ -1250,20 +1251,22 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   and, bringing people over, "… Bring them with a blood relative they're
   connected to." The add flow's old "tree of your own" answer went, and
   `/people/new` still says so up front to a member who married in, now as
-  "your partner's relatives and the children you share". On live, Rosy and
-  Shireen became blood through the sibling line Raiya drew from Rosy to
-  Hassanali Kassum, Kulsum Mohamed's father (the first tree's blood count
-  58 → 60), and no member's growth rights changed. Brandon is the only
-  entry on any tree without a blood tie, left for The White Family's Root.
+  "your partner's relatives and the children you share". On live, the
+  mother first added and her daughter became blood through the sibling
+  line the Root drew afterwards from her to a blood ancestor (the first
+  tree's blood count 58 → 60), and no member's growth rights changed. The
+  child on the other tree is the only entry on any tree without a blood
+  tie, left for that tree's Root.
   **Verified:** rehearsed on live in one statement that raised at the end,
   so nothing was kept (no record, functions or entries left): 26 cases run
   as real members before and after, the rehearsed bodies' md5 matching the
-  file. 13 went from allowed to refused: Rosy's add as it happened (her
-  sibling line taken out first), a Root seeding, an in-law's parent,
-  partner and child alone, a child of a new partner alone, a Branch, a
-  newcomer adding themselves under an in-law, Brandon's case, Beth's
-  partner, and three placements (Brandon again, and an in-law and Shireen
-  brought from the first tree alone). A Leaf's in-law went from `OWN_LINE`
+  file. 13 went from allowed to refused: the add found on live as it
+  happened (the later sibling line taken out first), a Root seeding, an
+  in-law's parent, partner and child alone, a child of a new partner
+  alone, a Branch, a newcomer adding themselves under an in-law, the other
+  tree's case and a partner for its married-in mother, and three
+  placements (that child again, and two people brought from the first
+  tree alone). A Leaf's in-law went from `OWN_LINE`
   to the new refusal. The other 12 came out the same: partners and
   co-parents of blood relatives, a child with the blood parent named, a
   sibling and then their child, a newcomer as a partner, a Leaf's own
@@ -1271,8 +1274,10 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   still to say yes. The same cases passed first on a local Postgres 16 copy
   with live's shapes and helpers. Then applied: `apply_migration` recorded
   it as `20260925223750`, not the name's version, so the file is renamed to
-  match; bodies md5-matched, grants unchanged. Tests:
-  `lib/bloodline.test.ts` (35, the Rosy and Brandon cases among them), and
+  match; bodies md5-matched, grants unchanged. The migration's opening
+  comment was reworded afterwards to leave relatives' names out of this
+  public repo; its SQL is as applied. Tests:
+  `lib/bloodline.test.ts` (35, both cases found on live among them), and
   the Branch suite passes unchanged. 917 tests pass; tsc and lint are
   clean.
 
