@@ -1180,6 +1180,17 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 54 — A yellow "Add someone in between" button** (ad-hoc; no
+  migration). Aalim missed the button that adds the people between a new
+  entry and the relative it connects to (a parent between you and your
+  grandfather), on the add-yourself form and under the add-a-relative
+  form's **Add more details**: an outline button among outline boxes. It's
+  now yolk yellow with dark amber text, from a new `--attention` token pair
+  in `globals.css` (over 8:1 in both themes) and the Button's `attention`
+  variant. Yellow, not red: red means delete, and the in-between person's
+  **Remove** sits beside it in red. Checked in both themes on a throwaway
+  fixture page, since deleted.
+
 - **Step 53 — Sign in with an emailed code instead of a link** (ad-hoc; no
   migration). Aalim asked why a family-link joiner had to tap "Accept &
   open the tree" on `/auth/confirm` before the welcome: that button kept

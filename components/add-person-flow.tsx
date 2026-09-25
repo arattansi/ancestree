@@ -971,9 +971,10 @@ export function AddPersonFlow({
 
                     {details ? (
                       <>
+                        {/* Yellow: it was easy to miss (Step 54). */}
                         <Button
                           type="button"
-                          variant="outline"
+                          variant="attention"
                           size="sm"
                           className="self-start"
                           onClick={addIntermediate}
