@@ -102,10 +102,11 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   without one it's the request-access search),
   `/shared/[token]` (public read-only canvas; its **Ask to join** opens the
   `?tree=` form in a dialog over it, Step 41.4), `/privacy`
-- `app/actions/` — server actions (`auth.ts`: magic link (+ consent gate
-  when it carries an invite), an emailed invite's accept and, for an
-  address that's a member's already, its sign-in link back to the invite
-  (`sendInviteSignInLink`, Step 30.8) + sign out (`next` lets /join's "Use
+- `app/actions/` — server actions (`auth.ts`: emailing a sign-in code (+
+  consent gate when it carries an invite) and checking it
+  (`verifySignInCode`, Step 53), an emailed invite's accept and, for an
+  address that's a member's already, its sign-in code
+  (`sendInviteSignInCode`, Step 30.8) + sign out (`next` lets /join's "Use
   another email" come back to its form); `privacy.ts`: `exportTreeData` (admin JSON export) / `deletePerson`
   (admin erasure + storage cleanup) / `deleteAccount` (self-serve, reassigns
   contributions to a founding admin);
@@ -557,11 +558,11 @@ mirror it for the UI.
 
 ## Auth & invites (Step 3)
 
-- **Magic-link only** (`supabase.auth.signInWithOtp`). `proxy.ts` redirects
-  unauthenticated visits to protected routes → `/join?next=<where they were
-  going>` (Step 30.1: `lib/safe-next.ts` takes only a same-origin path); the
-  magic link carries `next` through `/auth/confirm`, so signing in lands
-  there — an alert email's console button is opened on the spot
+- **Emailed codes only** (`supabase.auth.signInWithOtp`; a magic link
+  until Step 53). `proxy.ts` redirects unauthenticated visits to protected
+  routes → `/join?next=<where they were going>` (Step 30.1:
+  `lib/safe-next.ts` takes only a same-origin path); the code box carries
+  `next`, so signing in lands there — an alert email's console button is opened on the spot
   (`signInLanding`). Authenticated users without a member profile →
   `/join?status=pending`.
 - **Signing in without an invite (Step 30.8, `lib/first-timer.ts` +
@@ -583,14 +584,39 @@ mirror it for the UI.
   only come back here. Only the address the account verified is ever
   looked up (`verifiedEmail` needs `email_confirmed_at`), and only its own
   token, tree name and waitlist yes/no reach the page.
+- **A sign-in email carries a code, not a link (Step 53).** The subject
+  says "{code} is your ancestree code" (readable off a notification) and
+  the body shows it once, unbroken and `user-select: all`; there's no link
+  and no button, so a mail scanner opening it spends nothing. Its length is
+  the hosted project's `mailer_otp_length` (8), mirrored in
+  `SIGN_IN_CODE_LENGTH` (`lib/sign-in-code.ts`) and `supabase/config.toml`:
+  keep all three equal. The form that sent it turns into the code box
+  (`SignInCodeForm`, from `MagicLinkForm` and the invite page's
+  `SignInToAccept`): one `inputMode=numeric` field with
+  `autocomplete=one-time-code` (Safari offers the code from Apple Mail),
+  which keeps only the digits of a paste and sends itself once whole; a
+  wrong code stays in the box, focused, and isn't resent until changed.
+  `verifySignInCode` → `completeCodeSignIn` runs `verifyOtp({type:
+  'email', email, token})` with the cookie client, then
+  `establishMembership` as the link did: a bare or family link's invite
+  redeemed (a newcomer lands on onboarding), an emailed invite's
+  existing account joined at once (it came back to the invite a tap from
+  **Join** before), else `next`. **Send a new code** re-posts the first
+  send's fields (a minute apart, Supabase's `smtp_max_frequency`: "Wait a
+  minute before asking for another code."), **Use another email** returns
+  to the filled-in form. Email apps run no scripts, so the email can't
+  have a copy button. A code can't be safer than the link's `token_hash`
+  against guessing: every link email always carried a code too, checkable
+  at `/auth/v1/verify` with the public key, so GoTrue's per-IP limit
+  (`rate_limit_verify`) and the hour's expiry are the guard either way.
 - **`/auth/callback`** exchanges a `code`, then either `redeem_invite(token)`
-  (invite flow) or `ensure_profile()` (admin bootstrap). The link in our
-  sign-in emails carries a `token_hash` instead, and for that the callback
-  only forwards to **`/auth/confirm`**, whose button POSTs to `confirmSignIn`
-  — the one place `verifyOtp` runs. Opening the link must never spend the
-  token: mail scanners (Outlook/Hotmail Safe Links) open every link before
-  the recipient does, which is what left Raiya with "link already used" on
-  every fresh link (Step 20).
+  (invite flow) or `ensure_profile()` (admin bootstrap). The link in sign-in
+  emails sent before Step 53 carries a `token_hash` instead, and for that
+  the callback only forwards to **`/auth/confirm`**, whose button POSTs to
+  `confirmSignIn`. Opening a link must never spend the token: mail scanners
+  (Outlook/Hotmail Safe Links) open every link before the recipient does,
+  which is what left Raiya with "link already used" on every fresh link
+  (Step 20).
 - **An emailed invite is the sign-in link (Step 20)**: approving a request,
   a direct invite, and a claim invite all set `invites.invited_email`.
   `/join/<token>` then shows one "Accept & open the tree" button
@@ -602,16 +628,16 @@ mirror it for the UI.
   a profile, so an invite is never a 14-day key to a live account: it asks
   `public.address_has_profile` (service role only, Step 30.8,
   `20260923077000`) before minting anything, since minting stamps the
-  account and Supabase then won't email it a sign-in link for a minute.
-  Instead the page offers that address an ordinary sign-in link
-  (`sendInviteSignInLink` → `emailInviteSignInLink`: `signInWithOtp`, never
-  creating an account, `next` = the invite), which brings them back to the
-  invite signed in, where **Join <Tree>** places their entry (Step 30.9).
-  Opened signed out, the page asks `address_has_profile` as it renders
-  (`opensOnSignInLink`, Step 41.2) and opens straight on **Email me a
-  sign-in link**, with no tick; it only looks up, since mail scanners open
-  the page too. Accepting still falls back to the link for an address that
-  got an account after the page loaded. Because
+  account and Supabase then won't email it a sign-in code for a minute.
+  Instead the page offers that address an ordinary sign-in code
+  (`sendInviteSignInCode` → `emailInviteSignInCode`: `signInWithOtp`,
+  never creating an account); entering it on the page signs them in and
+  joins, placing their entry (Step 30.9; since Step 53 with no **Join <Tree>**
+  tap after). Opened signed out, the page asks `address_has_profile` as it
+  renders (`opensOnSignInLink`, Step 41.2) and opens straight on **Email me
+  a code**, with no tick; it only looks up, since mail scanners open the
+  page too. Accepting still falls back to the code for an address that got
+  an account after the page loaded. Because
   the token holder becomes that address, only a Root or the service role may
   set `invited_email` (`invites_guard`); the family link (Step 52, below),
   like the bare links before it, has no address and still asks for one and
@@ -636,8 +662,8 @@ mirror it for the UI.
   and claim the entry for {name}. You're signed in as {yours}. Only
   {address} can accept it." with **Sign out** (`signOut`, `next` = the
   invite), which comes back signed out to the usual path for that address:
-  the one-tap accept for a newcomer, **Email me a sign-in link** for an
-  address with an account. A refusal that gets past the page is named
+  the one-tap accept for a newcomer, **Email me a code** for an address
+  with an account. A refusal that gets past the page is named
   (`redeemInvite` answers `another_address`, `lib/invite-address.ts`):
   **Join** toasts "This invite was sent to another email address." and
   redraws the page (`refresh()`), and a sign-in link carrying the invite
@@ -1153,6 +1179,31 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 53 — Sign in with an emailed code instead of a link** (ad-hoc; no
+  migration). Aalim asked why a family-link joiner had to tap "Accept &
+  open the tree" on `/auth/confirm` before the welcome: that button kept
+  mail scanners from spending the link (Step 20). Sign-in emails now carry
+  an 8-digit code (the project's `mailer_otp_length`) instead: in the
+  subject ("{code} is your ancestree code") and once in the body, unbroken
+  and selectable in one tap, with no link or button. He asked for a copy
+  button in the email; email apps run no scripts, so instead the page's
+  code box (`SignInCodeForm`) takes a paste however it's spaced, offers
+  Safari's one-time-code fill from Apple Mail, and sends itself once the
+  code is whole. `/join`, a bare or family link's form and the invite
+  page's **Email me a code** (for an address with an account) all turn
+  into it after sending; **Send a new code** and **Use another email**
+  sit under it. Entering it does what the link did
+  (`completeCodeSignIn` → `establishMembership`): a family-link newcomer
+  lands on onboarding, and an existing account accepting an emailed invite
+  joins at once instead of coming back to **Join <Tree>**. Links already
+  sent still work through `/auth/confirm`. Checked on the live project
+  with throwaway accounts: family link → name and email → code → "Welcome,
+  {name}" as a Leaf (1 of 5 counted and logged); a wrong code refused in
+  place; an emailed invite to an existing account joined from the code;
+  `/join` → code → the Root's first run; the one-a-minute limit worded on
+  the form and on the code box. Templates pushed with `npm run
+  email:push` after the deploy.
 
 - **Step 52 — A family link for Roots: capped, rotatable, tracks who
   joined** (ad-hoc; migration `20260925150000_family_link`). The
