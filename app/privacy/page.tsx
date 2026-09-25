@@ -29,7 +29,7 @@ export default function PrivacyPage() {
       <Section title="What we collect">
         <ul className="list-disc space-y-1 pl-5">
           <li>
-            Your email address, used only to send one-time sign-in links and to
+            Your email address, used only to send one-time sign-in codes and to
             identify your account.
           </li>
           <li>

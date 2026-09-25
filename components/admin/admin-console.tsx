@@ -25,9 +25,9 @@ import {
   type ViewerTreeOption,
 } from "@/components/admin/admin-tree-settings";
 import { AdminDeleteTree } from "@/components/admin/admin-delete-tree";
+import { AdminFamilyLink } from "@/components/admin/admin-family-link";
 import { DeleteMemberButton } from "@/components/delete-member-button";
 import { DirectInviteForm } from "@/components/direct-invite-form";
-import { InviteMinter } from "@/components/invite-minter";
 import { ThemeToggle } from "@/components/theme-toggle";
 import {
   ShareLinkManager,
@@ -55,6 +55,8 @@ import {
 import { getBranchSides } from "@/lib/branch.server";
 import { buildAdminActionItems } from "@/lib/admin-notifications";
 import { listDisputedClaims } from "@/lib/claims";
+import { FAMILY_LINK_MAX_USES } from "@/lib/family-link";
+import { getFamilyLink, listFamilyLinkJoins } from "@/lib/family-link.server";
 import {
   archiveExpiredInvites,
   listArchivedInvites,
@@ -209,6 +211,7 @@ export async function AdminConsole({
     inviteHistory,
     bareInvites,
     archivedInvites,
+    familyLink,
     candidates,
     foreign,
     reviewer,
@@ -218,6 +221,7 @@ export async function AdminConsole({
     listInviteHistory(tree.id),
     listBareInvites(tree.id),
     listArchivedInvites(tree.id),
+    getFamilyLink(tree.id),
     listPlacementCandidates(tree.id),
     listForeignPlacements(tree.id),
     isBetaReviewer(),
@@ -232,6 +236,8 @@ export async function AdminConsole({
   // Requests to start a tree (Step 28) are the site's, not this tree's: the
   // same queue shows on every console a beta reviewer runs.
   const treeRequests = reviewer ? await listTreeRequests() : [];
+  // Who joined with the family link, this one or an earlier one (Step 52).
+  const familyLinkJoins = await listFamilyLinkJoins(tree.id, familyLink?.id ?? null);
   const openTreeRequests = treeRequests.filter(
     (r) => r.status === "pending",
   ).length;
@@ -327,10 +333,14 @@ export async function AdminConsole({
       label: "Invites",
       items: [
         { id: "invite", label: "Invite a Relative" },
+        { id: "family-link", label: "Family Link" },
         { id: "found", label: "Invite Someone to Start a Tree" },
         { id: "share", label: "Share a Link" },
         { id: "sent-invites", label: "Sent Invites" },
-        { id: "bare-invites", label: "Bare Links" },
+        // Single-use bare links went with Step 52; shown while any are left.
+        ...(bareInvites.length > 0
+          ? [{ id: "bare-invites", label: "Bare Links" }]
+          : []),
         { id: "archived-invites", label: "Archived" },
       ],
     },
@@ -577,27 +587,37 @@ export async function AdminConsole({
 
       <AdminGroup
         title="Invites"
-        description="Bring relatives in, start someone on a tree of their own, and share this tree read-only."
+        description="Bring relatives in by email or the family link, start someone on a tree of their own, and share this tree read-only."
         sectionIds={[
           "invite",
+          "family-link",
           "found",
           "share",
           "sent-invites",
-          "bare-invites",
+          ...(bareInvites.length > 0 ? ["bare-invites"] : []),
           "archived-invites",
         ]}
       >
         <AdminSubsection
           id="invite"
           title="Invite a Relative"
-          description="Each link is tied to you, works once, and expires after 14 days. Send by name and email and it’s emailed for you — that link signs them straight in, nothing to set up. Or mint a bare link to send yourself; it asks for their email first. Either way they join as a Leaf, and you can make them a Branch from the members table once they’re in; Branches and Leaves invite relatives from their account page. Someone who already has an account on another tree joins this one with the same link."
+          description="Send by name and email and it’s emailed for you: the link signs them straight in, works once, and expires after 14 days. They join as a Leaf, and you can make them a Branch from the members table once they’re in; Branches and Leaves invite relatives from their account page. Someone who already has an account on another tree joins this one with the same link."
         >
-          <div className="flex flex-col gap-6">
-            <DirectInviteForm treeId={tree.id} />
-            <div className="border-t border-border pt-6">
-              <InviteMinter treeId={tree.id} />
-            </div>
-          </div>
+          <DirectInviteForm treeId={tree.id} />
+        </AdminSubsection>
+
+        <AdminSubsection
+          id="family-link"
+          title="Family Link"
+          description={`One link for a family group chat. Anyone who opens it joins as a Leaf, up to ${FAMILY_LINK_MAX_USES} people. Rotate it for a new link and a new count; the old one stops working. Each Root is told who joins.`}
+        >
+          <AdminFamilyLink
+            treeId={tree.id}
+            treeName={tree.name}
+            link={familyLink}
+            joins={familyLinkJoins}
+            baseUrl={getSiteUrl()}
+          />
         </AdminSubsection>
 
         <AdminSubsection
@@ -631,14 +651,16 @@ export async function AdminConsole({
           <AdminInviteHistory items={inviteHistory} />
         </AdminSubsection>
 
-        <AdminSubsection
-          id="bare-invites"
-          collapsible
-          title="Bare Invite Links"
-          description="Links minted without a name attached, so they never show up under “Sent invites”. Copy one to send it on, or delete it to stop it working — including wherever you’ve already sent it."
-        >
-          <AdminBareInvites invites={bareInvites} baseUrl={getSiteUrl()} />
-        </AdminSubsection>
+        {bareInvites.length > 0 ? (
+          <AdminSubsection
+            id="bare-invites"
+            collapsible
+            title="Bare Invite Links"
+            description="Single-use links made before the family link replaced them. Each works once until it expires. Delete one to stop it working."
+          >
+            <AdminBareInvites invites={bareInvites} baseUrl={getSiteUrl()} />
+          </AdminSubsection>
+        ) : null}
 
         <AdminSubsection
           id="archived-invites"

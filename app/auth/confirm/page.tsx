@@ -26,6 +26,9 @@ function one(value: string | string[] | undefined): string {
  * if opening it signed someone in, the recipient's own click would find the
  * link already used. So the page can't yet say the email is confirmed, and
  * the link may be someone's first, so no "Welcome back" (Step 30.4).
+ *
+ * Since Step 53 the emails carry a code, entered where it was asked for,
+ * so only links sent before then (and tests that mint a token) land here.
  */
 export default async function ConfirmSignInPage({
   searchParams,

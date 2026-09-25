@@ -162,6 +162,22 @@ export function NotificationsList({
               </form>
             ) : null}
 
+            {n.type === "joined_by_link" && n.treeId ? (
+              // Step 52: someone joined with the family link. Who else has,
+              // and how full it is, are on its card.
+              <form
+                action={switchTreeForm.bind(
+                  null,
+                  n.treeId,
+                  adminHref("family-link"),
+                )}
+              >
+                <Button type="submit" size="sm" variant="outline">
+                  View family link
+                </Button>
+              </form>
+            ) : null}
+
             {n.type === "tree_request_approved" ? (
               // Step 28: a reviewer said yes; naming the tree is the next step.
               <Button

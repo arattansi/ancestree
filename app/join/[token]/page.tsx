@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { signOut } from "@/app/actions/auth";
+import { switchTreeForm } from "@/app/actions/current-tree";
 import { AcceptInviteForm, SignInToAccept } from "@/components/accept-invite-form";
 import { AccountTypeGlyph } from "@/components/account-type-badge";
 import { JoinTreeButton } from "@/components/join-tree-button";
@@ -19,9 +20,14 @@ import { getProfile, getUser } from "@/lib/auth";
 import { verifiedEmail } from "@/lib/first-timer";
 import { sentToAnotherAddress } from "@/lib/invite-address";
 import { inviteHref } from "@/lib/sign-in-links";
-import { getInviteRecipient, opensOnSignInLink } from "@/lib/sign-in.server";
+import {
+  getInviteRecipient,
+  inviteTreeId,
+  opensOnSignInLink,
+} from "@/lib/sign-in.server";
 import { createClient } from "@/lib/supabase/server";
-import { treesHref } from "@/lib/tree-links";
+import { listMyTrees } from "@/lib/tree-context";
+import { treeHref, treesHref } from "@/lib/tree-links";
 
 export const metadata: Metadata = {
   title: "accept invite",
@@ -63,6 +69,17 @@ export default async function InvitePage({
     signedIn: Boolean(user),
   });
   const founds = preview?.founds_tree === true;
+  // A member already on the tree it joins (Step 52): a family link goes
+  // round a group chat, most of whom may be. There's nothing for them to
+  // accept, so the page says so instead of "You'll join as a Leaf". A claim
+  // invite still has an entry to hand over, and a founder invite a tree.
+  const onTreeId =
+    profile && preview?.valid && !founds && !preview.claim_person_name && !forAnotherAddress
+      ? await inviteTreeId(token)
+      : null;
+  const alreadyOn = onTreeId
+    ? (await listMyTrees()).some((t) => t.id === onTreeId)
+    : false;
 
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-6 px-6 py-24">
@@ -77,6 +94,8 @@ export default async function InvitePage({
             sentTo={recipient.email}
             signedInAs={signedInAs ?? user?.email ?? ""}
           />
+        ) : preview?.valid && alreadyOn && onTreeId ? (
+          <AlreadyOnTree treeId={onTreeId} treeName={preview.tree_name} />
         ) : preview?.valid ? (
           <>
             <CardHeader>
@@ -113,10 +132,10 @@ export default async function InvitePage({
                   : signedInAsRecipient
                     ? "You’re signed in with the address it was sent to — there is nothing else to set up."
                     : signInFirst
-                      ? "Once you’re signed in, accepting adds it to your trees."
+                      ? "Signing in adds it to your trees."
                       : recipient
                         ? "Accepting signs you in — there is nothing else to set up."
-                        : "Enter your name and email to get a sign-in link — opening it accepts the invite."}
+                        : "Enter your name and email, and we’ll email you a code to join."}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -198,6 +217,29 @@ export default async function InvitePage({
         )}
       </Card>
     </main>
+  );
+}
+
+/**
+ * An invite opened by a member already on the tree it joins (Step 52): no
+ * joining, just the way in. Opening switches to the tree without touching
+ * the invite, so a family link keeps its place for someone new.
+ */
+function AlreadyOnTree({ treeId, treeName }: { treeId: string; treeName: string }) {
+  return (
+    <>
+      <CardHeader>
+        <CardTitle>You&rsquo;re already on {treeName}</CardTitle>
+        <CardDescription>This link is for relatives who aren&rsquo;t on it yet.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form action={switchTreeForm.bind(null, treeId, treeHref())}>
+          <SubmitButton className="w-full" pendingLabel="Opening…">
+            Open {treeName}
+          </SubmitButton>
+        </form>
+      </CardContent>
+    </>
   );
 }
 

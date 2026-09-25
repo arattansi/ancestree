@@ -231,8 +231,9 @@ enable_confirmations = false
 secure_password_change = false
 # Controls the minimum amount of time that must pass before sending another signup confirmation or password reset email.
 max_frequency = "1s"
-# Number of characters used in the email OTP.
-otp_length = 6
+# Number of characters used in the email OTP. The hosted project's is 8, and
+# the code box's length (lib/sign-in-code.ts) must match it (Step 53).
+otp_length = 8
 # Number of seconds before the email OTP expires (defaults to 1 hour).
 otp_expiry = 3600
 
@@ -246,16 +247,16 @@ otp_expiry = 3600
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
 
-# Branded auth emails. Local dev reads these files; the hosted project needs the
-# same HTML pasted into Dashboard -> Authentication -> Emails. See
+# Branded auth emails. Local dev reads these files; the hosted project gets the
+# same HTML and subjects from `npm run email:push`. See
 # supabase/templates/_shared.md.
 [auth.email.template.magic_link]
-subject = "Your ancestree sign-in link"
+subject = "{{ `{{ .Token }}` }} is your ancestree code"
 content_path = "./supabase/templates/magic-link.html"
 
 # First-time sign-ins hit this one, not magic_link.
 [auth.email.template.confirmation]
-subject = "Confirm your email for ancestree"
+subject = "{{ `{{ .Token }}` }} is your ancestree code"
 content_path = "./supabase/templates/confirm-signup.html"
 
 # Uncomment to customize email template

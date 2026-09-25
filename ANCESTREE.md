@@ -94,17 +94,19 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   me to invite them** box (on unless they untick it, Step 41.5) — and, with `?view=admin`, the **admin console**
   of the current tree, or the first you run: stats, members, people from
   other trees, requests, disputes, requests to start a tree (beta
-  reviewers only), invites incl. founder invites, share
+  reviewers only), invites incl. founder invites and the family link
+  (Step 52, `components/admin/admin-family-link.tsx`), share
   links, tree name, who else may view, export, delete the tree;
   `components/admin/admin-console.tsx`),
   `/request-invite` (public; `?tree=<slug>` asks that tree's Roots, and
   without one it's the request-access search),
   `/shared/[token]` (public read-only canvas; its **Ask to join** opens the
   `?tree=` form in a dialog over it, Step 41.4), `/privacy`
-- `app/actions/` — server actions (`auth.ts`: magic link (+ consent gate
-  when it carries an invite), an emailed invite's accept and, for an
-  address that's a member's already, its sign-in link back to the invite
-  (`sendInviteSignInLink`, Step 30.8) + sign out (`next` lets /join's "Use
+- `app/actions/` — server actions (`auth.ts`: emailing a sign-in code (+
+  consent gate when it carries an invite) and checking it
+  (`verifySignInCode`, Step 53), an emailed invite's accept and, for an
+  address that's a member's already, its sign-in code
+  (`sendInviteSignInCode`, Step 30.8) + sign out (`next` lets /join's "Use
   another email" come back to its form); `privacy.ts`: `exportTreeData` (admin JSON export) / `deletePerson`
   (admin erasure + storage cleanup) / `deleteAccount` (self-serve, reassigns
   contributions to a founding admin);
@@ -112,10 +114,12 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `respondToPlacement` / `removePlacement`, `setHomeTree`,
   `setHiddenFromVisitors`, `setTreeVisibility`, `joinTreeWithInvite`,
   `listPersonTrees` (Step 25);
-  `invites.ts`: mint invite link, `sendDirectInvites` (bulk name+email
+  `invites.ts`: `sendDirectInvites` (bulk name+email
   invites), `sendFounderInvites` (Roots: someone founds a tree of their own),
   `sendClaimInvite` (invite someone to claim one entry; into another tree
-  that shows it when a relayed ask picked one, Step 41.1); every tree-scoped
+  that shows it when a relayed ask picked one, Step 41.1);
+  `family-link.ts` (Step 52, Roots): `rotateFamilyLink` (make or rotate),
+  `setFamilyLinkCap`, `turnOffFamilyLink`; every tree-scoped
   action takes a `treeId` and checks the caller's role _there_
   (`lib/tree-context#membershipOf` / `rootOf`);
   `invite-requests.ts`: `requestInvite` (public, service-role write; a new
@@ -251,7 +255,11 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   visit carries through sign-in (`.test.ts`); `lib/invite-address.ts` —
   whether an emailed invite is someone else's for the signed-in address
   (`sentToAnotherAddress`) and `redeem_invite`'s refusal of it
-  (`isAnotherAddressRefusal`; Step 51, `.test.ts`)
+  (`isAnotherAddressRefusal`; Step 51, `.test.ts`); `lib/family-link.ts`
+  — the family link's cap (`FAMILY_LINK_MAX_USES`, which
+  `private.family_link_max_uses()` must match), full or not, its count and
+  WhatsApp link (Step 52, `.test.ts`); `lib/family-link.server.ts` — the
+  tree's link and who joined with it (`family_link_joins`)
 - Asking a relative (Step 30.5): `lib/invite-relays.ts` — the caps (on
   every ask, `askWithinCaps`, and on a member, `memberWithinCaps`), when an
   ask lapses (`relayLapsed`, Step 41.5), the form's checks and words, the
@@ -294,13 +302,13 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `people`                 | Demographic nodes, **one row per person across all trees**. `tree_id` is the person's **home tree** — whose rules govern their details (Step 25; moved by `set_home_tree`). `hidden_from_visitors` blurs them to visitors. Card positions live on `tree_placements`, not here (the pre-Step-25 `people.pos_*` were dropped in Step 25.6). `owner_user_id` starts as `created_by` and moves on claim. `date_of_birth_precision` / `date_of_death_precision` (`day` \| `month` \| `year`, Step 17) say how much of each date is known — a partial date is stored on the first day of its period, CHECK-enforced, so year-only readers need no change. `place_id_birth` / `place_id_death` → `places(id)` (Step 4.5b; nullable, backfilled — legacy `city_of_birth` / `country_of_birth` / `place_of_death` text kept until reconciled). Nothing about ancestral lands is stored: a card shows Native Land Digital's names, looked up live, or nothing (Step 40; Step 27's `ancestral_lands_birth` / `ancestral_lands_death`, the family's own words, were never used and were dropped in Step 40.5) |
 | `relationships`          | A fact about two people, not a tree (Step 25): a tree draws it when both ends are placed there; `tree_id` records the tree it was drawn on, and uniqueness ignores it. Directed `parent` edges; undirected `spouse` pairs (optional `marriage_date` / `is_divorced` / `divorce_date`, spouse-only by CHECK); siblings inferred                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `connection_suggestions` | Implied-connection prompts surfaced by the add-person flow (`suggested_type` spouse/parent/sibling_check, `source`, `status` pending/accepted/dismissed); UNIQUE (subject, related, type, source) = no re-prompt                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| `invites`                | Shareable tokens into one tree (`active` \| `accepted` \| `revoked`); `founds_tree` (Step 25) makes it a founder invite — redeeming plants a new tree with the redeemer as Root                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `invites`                | Shareable tokens into one tree (`active` \| `accepted` \| `revoked`); `founds_tree` (Step 25) makes it a founder invite — redeeming plants a new tree with the redeemer as Root. `max_uses` set (1–20) makes it the tree's **family link** (Step 52): one per tree, open to anyone who has it, counted in `use_count` and kept after each join; made, rotated and re-capped only through `rotate_family_link` / `set_family_link_cap` (`family_link_guard`). Who joined with it: `private.family_link_joins` (read by Roots through `family_link_joins`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `invite_requests`        | Public invite asks — first/last name + email, `pending` \| `approved` \| `declined`, `invite_id` of the link minted on approval. Admin-only RLS; inserted server-side with the service role (no `anon` grant). One pending row per email                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `tree_requests`          | Asks to start a tree during the beta (Step 28): a member's (`user_id`) or a waitlist sign-up's (name + email only), `pending` \| `approved` \| `declined`, answered by a beta reviewer (`private.beta_reviewers`). A member's approval is their permission to `found_tree`; a sign-up's approval mints a founder invite (`invite_id`). Reviewers see and answer every row, a member only their own; members ask through `request_tree`, the waitlist is written with the service role. One pending ask per member and per waitlist address                                                                                                                                                                                                                                                                   |
 | `invite_relays`          | Asks a newcomer with no match passed on to a relative (Step 30.5): their typed first/last name + email and the member it went to (`recipient_user_id`), `pending` \| `invited` \| `dismissed`, the tree they were invited to, `email_sent`. Only that member reads and answers it (RLS; update granted on the answer's columns only); filed by the server with the service role, and the rows are what the member's caps count. One open or dismissed ask per address and member. A pending ask lapses after 30 days, and is deleted as new asks come in (Step 41.5) |
 | `invite_relay_asks`      | A note of every ask to a relative, whoever the address belongs to (Step 41.5): the address asking and `created_at`, never the relative's. What the caps per address and across the site count, before anyone is looked up. Service role only (RLS on, no policies, no grants to `anon`/`authenticated`); an ask past a cap leaves no note, and notes older than a day are deleted as new asks come in |
 | `claims`                 | Auto-approve / dispute / reject a person entry (`dispute_reason`, `resolved_by`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| `notifications`          | In-app notices, **one inbox per tree** (`tree_id`, Step 25; `placement_requested` \| `placement_accepted` \| `placement_declined` added; `tree_request_approved`, Step 28; `placed_on_join`, Step 30.9, and what a claim invite did, Step 41.3); recipient-scoped RLS                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `notifications`          | In-app notices, **one inbox per tree** (`tree_id`, Step 25; `placement_requested` \| `placement_accepted` \| `placement_declined` added; `tree_request_approved`, Step 28; `placed_on_join`, Step 30.9, and what a claim invite did, Step 41.3; `joined_by_link`, Step 52); recipient-scoped RLS                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `entry_comments`         | Comments and flags, **one board per tree** (`tree_id`, Step 25) (`is_flag`, `open` \| `resolved`, `resolved_by`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `documents`              | Metadata for private file uploads, **one bank per tree** (`tree_id`); `shared_across_trees` shows it on every tree the person is on — flipped only by the person or a Root of their home tree (`documents_guard`), which also keeps it on its entry except inside a merge (Step 41.3's claim invite, or "This is me" since Step 43), which leaves it unshared                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `places`                 | GeoNames reference data (populated places + admin areas) for birthplace autocomplete; not tree-scoped — read by any member, written only by the import script                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
@@ -551,11 +559,11 @@ mirror it for the UI.
 
 ## Auth & invites (Step 3)
 
-- **Magic-link only** (`supabase.auth.signInWithOtp`). `proxy.ts` redirects
-  unauthenticated visits to protected routes → `/join?next=<where they were
-  going>` (Step 30.1: `lib/safe-next.ts` takes only a same-origin path); the
-  magic link carries `next` through `/auth/confirm`, so signing in lands
-  there — an alert email's console button is opened on the spot
+- **Emailed codes only** (`supabase.auth.signInWithOtp`; a magic link
+  until Step 53). `proxy.ts` redirects unauthenticated visits to protected
+  routes → `/join?next=<where they were going>` (Step 30.1:
+  `lib/safe-next.ts` takes only a same-origin path); the code box carries
+  `next`, so signing in lands there — an alert email's console button is opened on the spot
   (`signInLanding`). Authenticated users without a member profile →
   `/join?status=pending`.
 - **Signing in without an invite (Step 30.8, `lib/first-timer.ts` +
@@ -577,14 +585,39 @@ mirror it for the UI.
   only come back here. Only the address the account verified is ever
   looked up (`verifiedEmail` needs `email_confirmed_at`), and only its own
   token, tree name and waitlist yes/no reach the page.
+- **A sign-in email carries a code, not a link (Step 53).** The subject
+  says "{code} is your ancestree code" (readable off a notification) and
+  the body shows it once, unbroken and `user-select: all`; there's no link
+  and no button, so a mail scanner opening it spends nothing. Its length is
+  the hosted project's `mailer_otp_length` (8), mirrored in
+  `SIGN_IN_CODE_LENGTH` (`lib/sign-in-code.ts`) and `supabase/config.toml`:
+  keep all three equal. The form that sent it turns into the code box
+  (`SignInCodeForm`, from `MagicLinkForm` and the invite page's
+  `SignInToAccept`): one `inputMode=numeric` field with
+  `autocomplete=one-time-code` (Safari offers the code from Apple Mail),
+  which keeps only the digits of a paste and sends itself once whole; a
+  wrong code stays in the box, focused, and isn't resent until changed.
+  `verifySignInCode` → `completeCodeSignIn` runs `verifyOtp({type:
+  'email', email, token})` with the cookie client, then
+  `establishMembership` as the link did: a bare or family link's invite
+  redeemed (a newcomer lands on onboarding), an emailed invite's
+  existing account joined at once (it came back to the invite a tap from
+  **Join** before), else `next`. **Send a new code** re-posts the first
+  send's fields (a minute apart, Supabase's `smtp_max_frequency`: "Wait a
+  minute before asking for another code."), **Use another email** returns
+  to the filled-in form. Email apps run no scripts, so the email can't
+  have a copy button. A code can't be safer than the link's `token_hash`
+  against guessing: every link email always carried a code too, checkable
+  at `/auth/v1/verify` with the public key, so GoTrue's per-IP limit
+  (`rate_limit_verify`) and the hour's expiry are the guard either way.
 - **`/auth/callback`** exchanges a `code`, then either `redeem_invite(token)`
-  (invite flow) or `ensure_profile()` (admin bootstrap). The link in our
-  sign-in emails carries a `token_hash` instead, and for that the callback
-  only forwards to **`/auth/confirm`**, whose button POSTs to `confirmSignIn`
-  — the one place `verifyOtp` runs. Opening the link must never spend the
-  token: mail scanners (Outlook/Hotmail Safe Links) open every link before
-  the recipient does, which is what left Raiya with "link already used" on
-  every fresh link (Step 20).
+  (invite flow) or `ensure_profile()` (admin bootstrap). The link in sign-in
+  emails sent before Step 53 carries a `token_hash` instead, and for that
+  the callback only forwards to **`/auth/confirm`**, whose button POSTs to
+  `confirmSignIn`. Opening a link must never spend the token: mail scanners
+  (Outlook/Hotmail Safe Links) open every link before the recipient does,
+  which is what left Raiya with "link already used" on every fresh link
+  (Step 20).
 - **An emailed invite is the sign-in link (Step 20)**: approving a request,
   a direct invite, and a claim invite all set `invites.invited_email`.
   `/join/<token>` then shows one "Accept & open the tree" button
@@ -596,19 +629,20 @@ mirror it for the UI.
   a profile, so an invite is never a 14-day key to a live account: it asks
   `public.address_has_profile` (service role only, Step 30.8,
   `20260923077000`) before minting anything, since minting stamps the
-  account and Supabase then won't email it a sign-in link for a minute.
-  Instead the page offers that address an ordinary sign-in link
-  (`sendInviteSignInLink` → `emailInviteSignInLink`: `signInWithOtp`, never
-  creating an account, `next` = the invite), which brings them back to the
-  invite signed in, where **Join <Tree>** places their entry (Step 30.9).
-  Opened signed out, the page asks `address_has_profile` as it renders
-  (`opensOnSignInLink`, Step 41.2) and opens straight on **Email me a
-  sign-in link**, with no tick; it only looks up, since mail scanners open
-  the page too. Accepting still falls back to the link for an address that
-  got an account after the page loaded. Because
+  account and Supabase then won't email it a sign-in code for a minute.
+  Instead the page offers that address an ordinary sign-in code
+  (`sendInviteSignInCode` → `emailInviteSignInCode`: `signInWithOtp`,
+  never creating an account); entering it on the page signs them in and
+  joins, placing their entry (Step 30.9; since Step 53 with no **Join <Tree>**
+  tap after). Opened signed out, the page asks `address_has_profile` as it
+  renders (`opensOnSignInLink`, Step 41.2) and opens straight on **Email me
+  a code**, with no tick; it only looks up, since mail scanners open the
+  page too. Accepting still falls back to the code for an address that got
+  an account after the page loaded. Because
   the token holder becomes that address, only a Root or the service role may
-  set `invited_email` (`invites_guard`); a bare link (`createInvite`) has no
-  address and still asks for one and verifies it by email. The privacy
+  set `invited_email` (`invites_guard`); the family link (Step 52, below),
+  like the bare links before it, has no address and still asks for one and
+  verifies it by email. The privacy
   checkbox sits on the ask-to-join form (`/request-invite`, and a share
   link's dialog, Step 41.4) for people who ask, on both waitlist
   forms for people who'll get a founder invite (Step 30.6), and on the
@@ -623,23 +657,56 @@ mirror it for the UI.
   invite they'd sent joined in the recipient's place, and a claim invite
   gave them its entry (claimed, or folded into their own). The RPC is
   callable directly and any sign-in link can be given an `invite=`, so the
-  database is what enforces it. A bare link still joins whoever opens it.
+  database is what enforces it. The family link still joins whoever opens it.
   `/join/<token>` now looks the recipient up for a signed-in member too.
   At another address it says "{Inviter} invited {address} to join {tree}
   and claim the entry for {name}. You're signed in as {yours}. Only
   {address} can accept it." with **Sign out** (`signOut`, `next` = the
   invite), which comes back signed out to the usual path for that address:
-  the one-tap accept for a newcomer, **Email me a sign-in link** for an
-  address with an account. A refusal that gets past the page is named
+  the one-tap accept for a newcomer, **Email me a code** for an address
+  with an account. A refusal that gets past the page is named
   (`redeemInvite` answers `another_address`, `lib/invite-address.ts`):
   **Join** toasts "This invite was sent to another email address." and
   redraws the page (`refresh()`), and a sign-in link carrying the invite
   lands on its page rather than "invalid". Someone signed in with no
   profile keeps the accept form, which signs in the invite's own address.
+- **The family link (Step 52, `20260925150000_family_link`)**: one open
+  invite per tree for a family group chat, which only a Root makes
+  (admin console → Invites → **Family Link**). It's an `invites` row with
+  `max_uses` set, so `/join/<token>` and sign-in take it as they took a
+  bare link: signed out, the name-and-email form and its sign-in email;
+  signed in, **Join <Tree>**. Whoever opens it joins as a Leaf, invited by
+  the Root who made it. The Root picks a cap, 1 to 20
+  (`FAMILY_LINK_MAX_USES` = `private.family_link_max_uses()`); once that many
+  have joined, `invite_preview` and `redeem_invite` treat it as used up
+  until a Root raises the cap (`set_family_link_cap`, never past 20) or
+  rotates it. **Rotate** (`rotate_family_link`) is like rotating an API key:
+  the row is replaced, with a fresh token and count, attributed to that
+  Root, and the old link stops working at once. **Turn off** deletes it. It
+  never expires (Aalim, 2026-09-25). `redeem_invite` counts a newcomer
+  under the row lock, logs them in `private.family_link_joins` (which
+  outlives rotations: its `invite_id` says which link) and keeps the row;
+  someone already on the tree goes through uncounted, and the page tells
+  them "You're already on {tree}" with **Open {tree}**, which switches to
+  it without touching the invite (not for a claim or founder invite). Each
+  Root gets a `joined_by_link` notice, "{Name} joined {tree} with the
+  family link (3 of 20)" (", now full" at the cap) with **View family
+  link**, or, when joining brought their own entry, the `placed_on_join`
+  notice worded the same way. The card lists who joined, newest first, with
+  their account type there now (**Left** once gone) and "earlier link"
+  for one since rotated. Through the API nobody, a Root included, can make
+  one, change its cap, count or token, or turn an invite into one
+  (`family_link_guard`, security invoker on `current_user`, like
+  `profiles_guard`); a unique index keeps one per tree. The single-use
+  bare link it replaces ("Create invite link") is gone from the admin
+  console and the account page, and a Branch or Leaf can no longer make
+  one; the ones already out work until they expire, listed under **Bare
+  Invite Links** while any are left.
 - **The name someone joins by (Step 30.7, `lib/joining-name.ts`)**: an
   emailed invite's request row goes when it's redeemed, so the new auth
   account keeps its first and last name (`user_metadata`, set by
-  `signInWithInvite`'s `createUser`). A bare link's form asks for a first
+  `signInWithInvite`'s `createUser`). The family link's form (a bare
+  link's, before Step 52) asks for a first
   and last name beside the email (checked as the request forms check them)
   and `signInWithOtp` keeps them the same way (`options.data`, written only
   for a new account); `completeEmailSignIn` reads them back and names the
@@ -652,15 +719,18 @@ mirror it for the UI.
   nobody is on yet it opens on adding themselves, since there's nobody to
   find. Nobody who has died is listed there or can be claimed as "you"
   (Step 37), as on the canvas (Step 36).
-- **Invite tokens** (`public.invites`): whoever may invite mints a
-  single-use, 14-day link `"/join/<token>"` by inserting a row directly under RLS
-  (`can_invite_as`). `redeem_invite` (SECURITY DEFINER) creates the member
+- **Invite tokens** (`public.invites`): an invite is a single-use, 14-day
+  link `"/join/<token>"`. Emailed ones are written with the service role
+  once the server has checked the sender; a Root may also insert one under
+  RLS (`can_invite_as`), but since Step 52 nobody else may make one open to
+  anyone (`invites_guard`): that is the family link's job, and a Root's. `redeem_invite` (SECURITY DEFINER) creates the member
   `profiles` row with `invited_by_user_id = invite.created_by` and flips the
   invite to `accepted`. `invite_preview(token)` is the only pre-auth RPC.
 - **Invites join as Leaves (Step 18.2; one type since Step 34)**: every
   invite carries `invites.joins_as`, always `member` — the Leaf — and
-  `redeem_invite` joins the tree with it. Anyone on the tree may mint one:
-  a Root, a Branch or a Leaf (`private.can_invite_as`). Branch and Root are
+  `redeem_invite` joins the tree with it. Anyone on the tree may invite
+  someone by email: a Root, a Branch or a Leaf (`private.can_invite_as`);
+  only a Root makes the family link (Step 52). Branch and Root are
   never given by link, only by a Root afterwards. The `invites_guard`
   trigger keeps changing a link's claim target (`person_id`) to Roots, so
   nobody can aim a link at someone else's entry.
@@ -868,8 +938,8 @@ mirror it for the UI.
   request queue and send invites straight to people they already know — a
   `useFieldArray` row-per-person form (first name, last name, email;
   `components/direct-invite-form.tsx`) posting to `sendDirectInvites`
-  (`app/actions/invites.ts`). Each row mints an invite the same way
-  `createInvite` does, emails it with `lib/emails/invite-sent.ts` (same visual
+  (`app/actions/invites.ts`). Each row mints a single-use, 14-day invite
+  bound to its address, emails it with `lib/emails/invite-sent.ts` (same visual
   shell as `invite-approved.ts`, via `lib/emails/shared.ts`, but worded for
   "you were invited" rather than "your request was approved"), and — purely so
   it shows up in the same history — inserts an already-`approved`,
@@ -1205,6 +1275,96 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   the Branch suite passes unchanged. 896 tests pass; tsc and lint are
   clean.
 
+- **Step 54 — A yellow "Add someone in between" button** (ad-hoc; no
+  migration). Aalim missed the button that adds the people between a new
+  entry and the relative it connects to (a parent between you and your
+  grandfather), on the add-yourself form and under the add-a-relative
+  form's **Add more details**: an outline button among outline boxes. It's
+  now yolk yellow with dark amber text, from a new `--attention` token pair
+  in `globals.css` (over 8:1 in both themes) and the Button's `attention`
+  variant. Yellow, not red: red means delete, and the in-between person's
+  **Remove** sits beside it in red. Checked in both themes on a throwaway
+  fixture page, since deleted.
+
+- **Step 53 — Sign in with an emailed code instead of a link** (ad-hoc; no
+  migration). Aalim asked why a family-link joiner had to tap "Accept &
+  open the tree" on `/auth/confirm` before the welcome: that button kept
+  mail scanners from spending the link (Step 20). Sign-in emails now carry
+  an 8-digit code (the project's `mailer_otp_length`) instead: in the
+  subject ("{code} is your ancestree code") and once in the body, unbroken
+  and selectable in one tap, with no link or button. He asked for a copy
+  button in the email; email apps run no scripts, so instead the page's
+  code box (`SignInCodeForm`) takes a paste however it's spaced, offers
+  Safari's one-time-code fill from Apple Mail, and sends itself once the
+  code is whole. `/join`, a bare or family link's form and the invite
+  page's **Email me a code** (for an address with an account) all turn
+  into it after sending; **Send a new code** and **Use another email**
+  sit under it. Entering it does what the link did
+  (`completeCodeSignIn` → `establishMembership`): a family-link newcomer
+  lands on onboarding, and an existing account accepting an emailed invite
+  joins at once instead of coming back to **Join <Tree>**. Links already
+  sent still work through `/auth/confirm`. Checked on the live project
+  with throwaway accounts: family link → name and email → code → "Welcome,
+  {name}" as a Leaf (1 of 5 counted and logged); a wrong code refused in
+  place; an emailed invite to an existing account joined from the code;
+  `/join` → code → the Root's first run; the one-a-minute limit worded on
+  the form and on the code box. Templates pushed with `npm run
+  email:push` after the deploy.
+
+- **Step 52 — A family link for Roots: capped, rotatable, tracks who
+  joined** (ad-hoc; migration `20260925150000_family_link`). The
+  single-use bare link ("Create invite link", open to every member) is
+  replaced by a **family link**: one open link per tree that only a Root
+  makes, meant to be dropped into a family WhatsApp group for everyone to
+  join from. Aalim asked for it capped by the Root, at most 20 joins before
+  it must be rotated, rotatable like an API key, and tracking who used it;
+  his answers: no expiry, and every Root is told of each join. The admin
+  console's **Family Link** card (Invites) makes it with a cap of 1 to 20,
+  shows "3 of 20 joined · made by {Root} on {date}", **Copy**,
+  **WhatsApp** (opens `wa.me` with "Join {tree} on ancestree: {link}"),
+  the cap picker, **Rotate** (fresh token and count; the old link dies at
+  once) and **Turn off**, and lists who joined with it (account type there
+  now, **Left** once gone, "earlier link" after a rotation). Full, it says
+  so and nobody else gets in until the cap is raised or it's rotated.
+  Joining works as a bare link did (the name-and-email form signed out,
+  **Join** signed in, as a Leaf invited by that Root); a member already on
+  the tree isn't counted and is told "You're already on {tree}" with
+  **Open {tree}**. Each Root gets "{Name} joined {tree} with the family
+  link (1 of 3)." with **View family link**. Branches and Leaves now invite
+  by email only ("For a link to share in a family group chat, ask a
+  Root."), and `invites_guard` refuses an open invite from anyone but a
+  Root; links already out work until they expire (**Bare Invite Links**
+  shows while any are left). DB: `invites.max_uses` / `use_count` (checks,
+  one per tree), `private.family_link_joins`, `rotate_family_link`,
+  `set_family_link_cap`, `family_link_joins`, `family_link_guard`
+  (security invoker: no API write makes, re-caps, recounts or re-tokens
+  one), `invite_preview` hides a full one, `redeem_invite` counts, logs and
+  keeps it (otherwise Step 51's body, address check included), and the
+  `joined_by_link` notice. **Verified:** rehearsed rolled back on live
+  with throwaway users, 6 checks before and after and 54 after: a bare
+  link, an emailed invite at another address, a Root's bare insert and
+  archiving came out the same, and a Leaf's bare insert went from allowed
+  to refused.
+  A Leaf, another tree's Root and anon couldn't rotate or re-cap; caps 0,
+  21 and 25 were refused; every direct write (insert, count, cap, token,
+  turning one back into a single-use invite) was refused even for a Root;
+  a second link and one bound to an address broke the index and check. A
+  member redeemed uncounted, three newcomers filled a cap of 3 (the last
+  "now full"), a member from another tree was placed with the reworded
+  `placed_on_join` notice, a fourth was refused with nothing written until
+  the cap was raised, rotating killed the old token and credited the
+  rotating Root, turning off kept the log, and only Roots read it. Applied
+  and recorded under the file's version (stored SQL md5 = the file's);
+  all eight function bodies md5-match. In the browser with throwaway
+  accounts, since deleted: a Root made a link (cap 3); a newcomer opened it
+  signed out on a fresh host, filled the form, and the real sign-in email
+  (read back from Resend) joined them as a Leaf on onboarding, counted 1
+  of 3, with the Root's notice and its button landing on the card; their
+  account page offered only the email invite; the Root opening their own
+  link saw "You're already on" and stayed uncounted; cap 1 showed Full and
+  the link "Invite not available"; raising the cap reopened it; Rotate
+  killed the old link; Turn off kept the list; a phone-width card fit.
+  883 tests pass (`lib/family-link.test.ts` new).
 - **Step 42 — A member can't make someone else's entry their own**
   (ad-hoc security fix, found during Step 41.5; migration
   `20260923160000_members_cant_set_own_entry`, live since 2026-09-23; its

@@ -61,8 +61,8 @@ export default async function JoinPage({
             <CardHeader>
               <CardTitle>Sign In to ancestree</CardTitle>
               <CardDescription>
-                ancestree is a private family tree. Enter your email and we
-                will send you a one-time sign-in link.
+                ancestree is a private family tree. Enter your email and
+                we&rsquo;ll send you a sign-in code.
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
