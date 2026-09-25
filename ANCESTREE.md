@@ -60,7 +60,10 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   tree: a member finds or adds themselves, opening on the search for the
   name they joined by when we know it, Step 30.7; the tree's founder gets four
   steps instead, `?step=invite|you|name|family` — `components/first-tree/`,
-  Step 29); `/admin` redirects to the account page's Admin view, and
+  Step 29), `/welcome` (where a claim invite, or claiming an entry on
+  onboarding, lands: their entry, with a photo and what's missing asked up
+  front; `?returning=1` only greets a member who brought their own —
+  `components/welcome/`, `lib/welcome.ts`, Step 50); `/admin` redirects to the account page's Admin view, and
   `/account/admin?tree=<id>&section=<card>` is an alert email's button — a
   route that switches to that tree for a Root of it and opens its console
   at the card (Step 30.1, `lib/open-console.server.ts`). Site-wide: `/`
@@ -213,6 +216,10 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   where each opens, the "Getting started" items, the founder's close family
   from a tree's lines, and the lines a quick-added relative gets
   (`closeRelativeEdges`; `.server.ts` loads it, `.test.ts`);
+  `lib/welcome.ts` — the welcome (Step 50): what it asks for
+  (`welcomeAsks`, `welcomeAsk`) and the line under their name
+  (`enteredLine`; `.test.ts`); `lib/welcome.server.ts` — who invited them
+  onto the tree (`inviterName`, `.test.ts`);
   `lib/tree-context.ts` — the per-tree context (Step 25): `requireTreeMember`
   / `requireTreeRoot` / `requireTreeSelfPerson` / `requireTreeAccess` (member
   or visitor) for pages, `membershipOf` / `rootOf` for actions, `listMyTrees`,
@@ -650,8 +657,9 @@ mirror it for the UI.
   `private.claim_as_self` — the checks and effects of `claim_person_as_self`,
   creator's notice and dispute included — with the invite's vouch standing
   in for the name match, names a new profile after the entry, and they land
-  on it (`/tree?person=<entry>`, `joinedTreeHref` reading
-  `redeem_invite_tree`'s `self_placed`, from every accept path). If the entry
+  on the welcome (Step 50, below), then on it (`/tree?person=<entry>`;
+  `joinedTreeHref` reads `redeem_invite_tree`'s `self_placed`, from every
+  accept path). If the entry
   has meanwhile been claimed, deleted, taken off the tree or marked as having
   died (Step 37), they join anyway and land on onboarding, where
   `search_self_candidates` lists a vouched entry first (never someone who has
@@ -674,7 +682,9 @@ mirror it for the UI.
   was on it", about their entry, or "<tree> now shows both. If they're the
   same person, you can delete the entry …", about the invite's. Whoever
   made a merged entry, if not a Root, gets a `claim_approved` notice with
-  no dispute (no claim is made). They land on their own entry either way.
+  no dispute (no claim is made). They land on their own entry either way,
+  greeted on `/welcome?returning=1` first when the tree is new to them
+  (Step 50).
   The vouch (`private.claim_vouches`) outlives the invite, and the canvas's
   `claim_person` still honours it while their own entry is a placeholder
   they added (Step 36). `private.can_invite_to_claim`
@@ -703,6 +713,26 @@ mirror it for the UI.
   tree, unless a relayed ask picked another), named after the
   entry (`claimInviteRecordName`, `lib/claim-invites.ts`), and the entry's
   card lists who sent it and when (Step 38, below).
+- **The welcome** (Step 50, `20260925090000_redeem_says_what_it_claimed`):
+  someone whose entry a relative made, and who has just made it theirs,
+  lands on `/welcome` before the tree. That's accepting a claim invite with
+  no entry of their own, and claiming an entry on onboarding (it used to
+  toast "Welcome back" and open the tree). The page says "Welcome, {name}"
+  and who added them to the tree (`tree_members.invited_by_user_id`, named
+  as notifications name members: their entry's name, else their display
+  name; `lib/welcome.server.ts`). Below that, their entry as it stands
+  (photo or initials, name, "née …, born 12 March 1960 in Kampala,
+  Uganda") with **Change**, then a photo and whatever else is empty
+  (`blankFields`; a middle or preferred name is offered, never "missing").
+  Change opens every name and birth field. **Save and see the tree** (one
+  `updatePerson` for the details, `setPersonPhoto` for a photo) or **Skip
+  for now** opens the tree on them. A member who brings their own entry to
+  a claim invite's tree (Step 41.3) gets `/welcome?returning=1` instead:
+  "Welcome to {tree}", who added them, their entry, and **See the tree**,
+  with nothing to fill in; none at all on a tree they were on already.
+  `redeem_invite_tree` says which, as things stood before it redeemed the
+  invite: `claim_invite`, `had_entry`, `was_member`. Plain and founder
+  invites land where they did.
 - **Invite requests** (`public.invite_requests`): anyone can ask from `/`
   ("request access") or `/request-invite` with first name, last name, and
   email. Without a tree in hand, `findFamilyTree` looks for one first
@@ -1042,6 +1072,46 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 50 — A welcome, then your details, after claiming your entry**
+  (ad-hoc; migration `20260925090000_redeem_says_what_it_claimed`). Aalim
+  asked that someone added to a tree and invited to claim their entry be
+  welcomed first, and asked to add details. Accepting a claim invite used
+  to drop them straight onto the canvas. Now it lands on `/welcome`: "Welcome,
+  {name}", "{Inviter} added you to {tree}. Add a photo and what's
+  missing." Under that is their entry as the relative left it: photo or
+  initials, name, and "née …, born 12 March 1960 in Kampala, Uganda", with
+  **Change** to correct any of it. Below come a photo and whatever else is
+  empty; a middle or preferred name is offered as a link, never counted
+  missing. **Save and see the tree** saves and opens the tree on them;
+  **Skip for now** just opens it. The line at the top follows what they
+  type and the photo they pick. Aalim's choices: a page before the tree
+  (not a box over it, or a line in their panel); the photo and blanks up
+  front with the rest behind Change; no reminder later; and the welcome
+  also for newcomers who claim their entry on onboarding (which used to
+  toast "Welcome back") and for members who accept a claim invite. Those
+  bring their own entry (Step 41.3), so they're only greeted:
+  `/welcome?returning=1`, "Welcome to {tree}", their entry and **See the
+  tree**. There's no welcome on a tree they were already on.
+  `redeem_invite_tree` now says `claim_invite`, `had_entry` and
+  `was_member` as things stood before redeeming; nothing else in it
+  changed. **Also fixed:** Step 44's fill-in form (and the new one) kept
+  its button disabled when only a photo was added. It read `isValid` only
+  after `||` had already short-circuited, so react-hook-form never worked it
+  out. A Leaf adding only a missing photo couldn't save it. **Verified:**
+  rehearsed in a rolled-back transaction on live (newcomer, member on a
+  new tree, member on the same tree, plain invite, used link), applied,
+  md5-matched, grants unchanged. With throwaway accounts and trees on live,
+  since deleted: a newcomer's claim invite landed on the welcome. Change,
+  a maiden name, sex and a photo saved to their entry, the photo in its
+  own folder, birth details and email untouched. The tree opened on them.
+  Back on the page it read "Check your details". A member with their own
+  entry was greeted and "See the tree" opened on it. A plain invite still
+  reached onboarding, whose claim now lands on the welcome. Skip for now
+  opened the tree; a photo alone saved. Before the fix, the fill form's
+  button stayed disabled on a photo alone; with it, "Added their photo."
+  Checked at 375px and in dark mode. 865 tests pass (29 new); tsc and lint
+  are clean.
 
 - **Step 49.4 — Tablets drag cards again; only phones keep them fixed**
   (UI only). Aalim wanted Step 49's no-dragging kept to phones. A phone is

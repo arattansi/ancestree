@@ -91,3 +91,9 @@ to another page. Its dialog is titled **Ask to join** too.
 - A list like that, laid over the canvas, starts collapsed to its header
   on a phone (below `sm`), so it never covers the top of the tree, and open
   anywhere wider.
+- A first run that asks someone to fill in an entry a relative made (the
+  welcome, Step 50) is one page, not steps. It shows the entry as it stands
+  at the top, as a line under their name with **Change** to open every
+  field, and asks below it only for a photo and what's empty. A middle or
+  preferred name is offered as a link, never counted as missing. Its
+  buttons are **Save and see the tree** and **Skip for now**.
