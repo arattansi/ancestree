@@ -11,7 +11,7 @@ type DbClient = SupabaseClient<Database>;
 /** What the signed-in member is allowed to grow on one tree, per `my_growth_rights(tree)`. */
 export type GrowthRights = {
   /** False when signed out or not on the tree. Married-in members keep the
-   *  affordance — anyone with a blood tie can still be added (Step 53). */
+   *  affordance — anyone with a blood tie can still be added (Step 55). */
   canAdd: boolean;
   /** They married into this family: their own side has no blood tie here, so
    *  "Add a relative" points them at a tree of their own (Step 25). */
@@ -20,7 +20,7 @@ export type GrowthRights = {
   gateActive: boolean;
   selfPersonId: string | null;
   /** No self entry on this tree yet. Adding themselves still needs a blood tie
-   *  (Step 53), as their child, parent, sibling or partner. */
+   *  (Step 55), as their child, parent, sibling or partner. */
   onboarding: boolean;
 };
 
@@ -54,7 +54,7 @@ export async function getGrowthRights(
 
 /**
  * A tree's bloodline, for the add flow to foresee a refusal for want of a
- * blood tie (Step 53, `lib/bloodline.ts#newWithoutBloodTie`): every anchor,
+ * blood tie (Step 55, `lib/bloodline.ts#newWithoutBloodTie`): every anchor,
  * which the gate counts from, and every line the tree draws. Null when either
  * can't be read, so the form stays quiet rather than warn wrongly.
  */

@@ -47,7 +47,7 @@ export function OnboardingSelfFlow({
   members: TreeMemberOption[];
   /** Where to open (`onboardingStart`); without it, on an empty name form. */
   start?: OnboardingStart | null;
-  /** For the add form's blood-tie warning (Step 53). */
+  /** For the add form's blood-tie warning (Step 55). */
   bloodline?: Bloodline | null;
 }) {
   const router = useRouter();

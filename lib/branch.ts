@@ -8,7 +8,7 @@
  * A branch is measured from one person with the up-then-down walk the
  * bloodline was first measured with (Step 14, `upThenDownIds`) — ancestors,
  * then everyone descending from that whole set — plus, one step only, the
- * partners those people married. Unlike the bloodline since Step 53, it
+ * partners those people married. Unlike the bloodline since Step 55, it
  * doesn't follow sibling lines, as `private.branch_ids` doesn't. A Branch
  * account tends the part of a Root's side they are related through
  * (`branchReach`): their own branch, kept to the sides of the Roots they are

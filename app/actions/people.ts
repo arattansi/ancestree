@@ -93,7 +93,7 @@ export type AddPeopleResult = {
  * in a single transaction. Used by first-run onboarding (`selfIndex` set) and
  * by "add a relative" (`selfIndex` null). Non-admin entries must connect to an
  * existing tree member, and everyone's to someone born into the family (Step
- * 53, `lib/bloodline.ts`); the DB RPC enforces both and guards against cycles.
+ * 55, `lib/bloodline.ts`); the DB RPC enforces both and guards against cycles.
  */
 export async function addPeopleWithConnections(
   input: AddPeopleInput,
@@ -170,7 +170,7 @@ export async function addPeopleWithConnections(
   });
 
   if (error || !data) {
-    // No blood tie (Step 53): say who, so they know whom to connect.
+    // No blood tie (Step 55): say who, so they know whom to connect.
     const refusal = readBloodTieRefusal(error);
     return {
       error: refusal

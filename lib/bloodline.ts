@@ -1,16 +1,16 @@
 /**
- * The bloodline, mirrored from `private.blood_ids` (Steps 14 and 53).
+ * The bloodline, mirrored from `private.blood_ids` (Steps 14 and 55).
  *
  * From the tree's anchors, climb every `parent` edge upward to all ancestors,
  * then descend from that whole set: down every `parent` edge, and across every
  * `sibling` line, since a blood relative's brother or sister is blood too
- * (Step 53). Direction is the whole point: walking parent edges *undirected*
+ * (Step 55). Direction is the whole point: walking parent edges *undirected*
  * leaks — from a blood member down to their child, then back up to the
  * child's other parent, and every partner who married in lands inside the
  * bloodline. Up-then-down keeps cousins, great-aunts and half-siblings in
  * while keeping married-in partners out.
  *
- * Everyone added to a tree needs a blood tie (Step 53, `withoutBloodTie`):
+ * Everyone added to a tree needs a blood tie (Step 55, `withoutBloodTie`):
  * they are blood, or a line joins them straight to someone who is — a
  * partner, or the other parent of a blood child. Nobody joins only through
  * someone who married in, whoever is adding.
@@ -110,7 +110,7 @@ export function isBloodline(
 }
 
 /**
- * Of `people`, in order, everyone with no blood tie (Step 53): not blood, and
+ * Of `people`, in order, everyone with no blood tie (Step 55): not blood, and
  * no line of any kind to someone who is. `edges` are the tree's lines once
  * the new ones are drawn. Mirrors `private.without_blood_tie`; empty for a
  * tree with no anchors.

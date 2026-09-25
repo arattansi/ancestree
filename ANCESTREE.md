@@ -383,7 +383,7 @@ admin reverses the claim.
 `branch_admin` curates their part of one Root's side of the tree. A branch is
 measured from one person by the bloodline gate's first up-then-down walk
 (`private.branch_ids`, which takes no sibling lines, as the bloodline has
-since Step 53): climb `parent` edges to every ancestor, descend from
+since Step 55): climb `parent` edges to every ancestor, descend from
 that whole set, then add the partners those people married — one step, never
 walked through. So a spouse is on the branch and a spouse's parents are not. A
 Branch tends **the part of a Root's side they are related through**: their own
@@ -1181,8 +1181,8 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
-- **Step 53.1 — The add form warns before a missing blood tie** (ad-hoc,
-  after Step 53; no migration). "Add a relative" and adding yourself on
+- **Step 55.1 — The add form warns before a missing blood tie** (ad-hoc,
+  after Step 55; no migration). "Add a relative" and adding yourself on
   onboarding now say it under **How they connect** as soon as what's on
   the form would be refused: "Only blood relatives and their partners can
   be added. Shireen Suleman isn't a blood relative, so connect Rosy Tejpar
@@ -1194,14 +1194,14 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   lines the submit sends, by the rule the database uses:
   `lib/connections.ts#flowEdges` now builds them for both (the chain, a new
   sibling's parents, ticked co-parents, further connections),
-  `lib/bloodline.ts#newWithoutBloodTie` runs Step 53's check over the tree's
+  `lib/bloodline.ts#newWithoutBloodTie` runs Step 55's check over the tree's
   anchors and lines plus those, and `bloodTieWarning` words it. The pages
   load the tree with `getBloodline`: every anchor (not the canvas's first
   two) and `tree_edges`; if either can't be read the form says nothing. The
   Add button still works, since a question at submit ("Is Arzu also a
   parent?") can draw the missing line and the database has the last word.
   On a tree with anchors, connecting a new entry is no longer optional for
-  a Root, as Step 53 refuses an unconnected one: the toggle and "Optional
+  a Root, as Step 55 refuses an unconnected one: the toggle and "Optional
   for Roots." are gone there. The founder's first run is unchanged, as
   their tree has no anchors until they add themselves. **Verified:** in the
   app in Chromium, run signed out with dummy Supabase keys, on a throwaway
@@ -1212,12 +1212,13 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   "yourself" wording with **Add me to the tree** still enabled. A Root saw
   no "Connect this entry…" toggle, and the console showed no errors. Tests:
   `flowEdges` (6, the submit's lines), `newWithoutBloodTie` (5, Rosy's add
-  as it happened among them) and `bloodTieWarning` (3). 910 tests pass;
+  as it happened among them) and `bloodTieWarning` (3). 931 tests pass;
   tsc and lint are clean.
 
-- **Step 53 — Everyone added needs a blood tie** (ad-hoc bug fix; migration
-  `20260925223750_everyone_added_needs_a_blood_tie`; numbered after Step 52,
-  the family link, which reached live first). Raiya, a Root, added Rosy
+- **Step 55 — Everyone added needs a blood tie** (ad-hoc bug fix; migration
+  `20260925223750_everyone_added_needs_a_blood_tie`, whose comments call it
+  Step 53, the number it had when it was applied; Steps 53 and 54 reached
+  main first). Raiya, a Root, added Rosy
   Tejpar (née Kassum) as the mother of Shireen Suleman, who married into the
   family, with no line to anyone born into it. On The White Family, Lucan
   White had added Brandon Nichols as the son of Beth Nichols, who married
@@ -1272,7 +1273,7 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   it as `20260925223750`, not the name's version, so the file is renamed to
   match; bodies md5-matched, grants unchanged. Tests:
   `lib/bloodline.test.ts` (35, the Rosy and Brandon cases among them), and
-  the Branch suite passes unchanged. 896 tests pass; tsc and lint are
+  the Branch suite passes unchanged. 917 tests pass; tsc and lint are
   clean.
 
 - **Step 54 — A yellow "Add someone in between" button** (ad-hoc; no

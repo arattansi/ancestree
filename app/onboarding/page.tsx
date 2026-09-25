@@ -65,7 +65,7 @@ export default async function OnboardingPage({
 
   const hasOwnEntryElsewhere = !!profile.self_person_id;
   // The bloodline lets the form warn of a missing blood tie before submit
-  // (Step 53); someone with an entry elsewhere adds nobody here.
+  // (Step 55); someone with an entry elsewhere adds nobody here.
   const [members, bloodline] = await Promise.all([
     listTreeMembers(tree.id),
     hasOwnEntryElsewhere ? null : getBloodline(tree.id),

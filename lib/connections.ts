@@ -162,7 +162,7 @@ type SpouseFields = Pick<
  * new person, the anchor's parents for a new sibling who asked for them, the
  * partners left ticked on a "child of" link, and each further connection with
  * its own ticked partners. `anchorId` is empty when the entry isn't chained to
- * anyone. Both the submit and the blood-tie warning (Step 53) read it, so the
+ * anyone. Both the submit and the blood-tie warning (Step 55) read it, so the
  * warning judges exactly what would be sent.
  */
 export function flowEdges<L extends FlowLink, X extends FlowExtraLink>({

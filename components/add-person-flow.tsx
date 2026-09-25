@@ -360,13 +360,13 @@ export function AddPersonFlow({
   doneHref?: string;
   /**
    * The tree's anchors and lines, to foresee a refusal for want of a blood
-   * tie (Step 53) and say so before submit. Without it the form stays quiet
+   * tie (Step 55) and say so before submit. Without it the form stays quiet
    * and the database still refuses.
    */
   bloodline?: Bloodline | null;
 }) {
   const router = useRouter();
-  // A tree with anchors refuses anyone with no blood tie (Step 53), a Root's
+  // A tree with anchors refuses anyone with no blood tie (Step 55), a Root's
   // unconnected entry included, so there connecting isn't optional for anyone.
   const gateActive = (bloodline?.anchors.length ?? 0) > 0;
   const mustConnect = !isAdmin || gateActive;
@@ -469,7 +469,7 @@ export function AddPersonFlow({
   const primaryFallback = mode === "self" ? "You" : "this person";
   const primaryLabel = mode === "self" ? "You" : nameOf(0, "This person");
 
-  // What's on the form, judged as the database will judge it (Step 53), so
+  // What's on the form, judged as the database will judge it (Step 55), so
   // they hear the rule before it refuses. Only a warning: a question at
   // submit ("is Arzu also a parent?") can still draw the line it's missing.
   const tieWarning = (() => {
@@ -562,7 +562,7 @@ export function AddPersonFlow({
     });
 
     if (result.error || !result.personIds) {
-      // Without a blood tie (Step 53) the error names who needs one.
+      // Without a blood tie (Step 55) the error names who needs one.
       setSubmitError(result.error ?? "Couldn't save these entries.");
       return false;
     }
@@ -620,7 +620,7 @@ export function AddPersonFlow({
     }
 
     // The chain, a new sibling's parents, ticked co-parents and further
-    // connections: the same lines the blood-tie warning judges (Step 53).
+    // connections: the same lines the blood-tie warning judges (Step 55).
     // `members` is already scoped to this tree, and the RPC re-checks that
     // every target belongs to it (rejects cross-tree rows).
     const edges = flowEdges({

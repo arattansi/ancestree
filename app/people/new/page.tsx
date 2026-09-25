@@ -27,7 +27,7 @@ export default async function NewPersonPage({
 
   // A Leaf adds on their own line (Step 34), so connects new entries from
   // someone on it; the database judges the result at submit. The bloodline
-  // lets the form warn of a missing blood tie before then (Step 53).
+  // lets the form warn of a missing blood tie before then (Step 55).
   const [members, rights, line, bloodline] = await Promise.all([
     listTreeMembers(tree.id),
     getGrowthRights(tree.id),

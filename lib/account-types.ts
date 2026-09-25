@@ -95,7 +95,7 @@ export type AccountType = {
    * Where they can add new relatives (Step 34): `tree`, anywhere they connect
    * to it, or `line`, only on their own line (`lib/branch.ts#lineIds`): their
    * ancestors, everyone descended from them, and the people those relatives
-   * married. Either way, only someone with a blood tie (Step 53,
+   * married. Either way, only someone with a blood tie (Step 55,
    * `lib/bloodline.ts`), whatever their type.
    */
   addRelatives: "tree" | "line";

@@ -82,7 +82,7 @@ export type PlacementOutcome = { personId: string; status: string };
 /**
  * Root: bring people onto a tree (Step 25). Anyone the Root can see on a tree
  * they belong to, with a blood tie here once the whole batch is placed (Step
- * 53). Another member's own entry waits for that member to accept
+ * 55). Another member's own entry waits for that member to accept
  * (`placement_requested`); everyone else is shown at once.
  */
 export async function placePeople(
@@ -103,7 +103,7 @@ export async function placePeople(
     if (error.message.toLowerCase().includes("only bring people you can see")) {
       return { error: "You can only bring people you can see on a tree you belong to." };
     }
-    // Someone in the batch has no blood tie here (Step 53): nothing was placed.
+    // Someone in the batch has no blood tie here (Step 55): nothing was placed.
     const refusal = readBloodTieRefusal(error);
     if (refusal) return { error: bloodTiePlacementRefusal(refusal) };
     return { error: friendlyTreeError(error.message) };
