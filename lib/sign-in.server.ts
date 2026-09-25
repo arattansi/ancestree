@@ -5,6 +5,7 @@ import type { EmailOtpType } from "@supabase/supabase-js";
 import { setCurrentTreeCookie } from "@/lib/current-tree.server";
 import { verifiedEmail } from "@/lib/first-timer";
 import { waitingInviteHref } from "@/lib/first-timer.server";
+import { isAnotherAddressRefusal } from "@/lib/invite-address";
 import {
   joiningDisplayName,
   readJoiningName,
@@ -43,37 +44,56 @@ export type RedeemedTree = {
 };
 
 /**
+ * Why an invite wasn't redeemed: it was emailed to another address, which
+ * alone may accept it (Step 51), or it isn't live — used, expired, revoked,
+ * or never was.
+ */
+export type RedeemRefusal = "another_address" | "invalid";
+
+export type RedeemResult =
+  | { ok: true; joined: RedeemedTree }
+  | { ok: false; reason: RedeemRefusal };
+
+/**
  * Redeem an invite as the signed-in user (Step 25): a profile if they have
  * none, a membership in the invite's tree — or, for a founder invite, a
  * brand-new tree with them as Root. Says which tree was joined, and makes
- * it the one their browser is looking at. Only from a server action or
- * route handler, since it writes a cookie.
+ * it the one their browser is looking at, or why it wasn't. Only from a
+ * server action or route handler, since it writes a cookie.
  */
 export async function redeemInvite(
   supabase: ServerClient,
   token: string,
   displayName?: string,
-): Promise<RedeemedTree | null> {
+): Promise<RedeemResult> {
   const { data, error } = await supabase.rpc("redeem_invite_tree", {
     p_token: token,
     p_display_name: displayName,
   });
-  if (error || !data) return null;
+  if (error || !data) {
+    return {
+      ok: false,
+      reason: isAnotherAddressRefusal(error?.message) ? "another_address" : "invalid",
+    };
+  }
   const row = data as Record<string, unknown>;
   if (typeof row.tree_id !== "string" || typeof row.tree_slug !== "string") {
-    return null;
+    return { ok: false, reason: "invalid" };
   }
   await setCurrentTreeCookie(row.tree_id);
   return {
-    treeId: row.tree_id,
-    treeSlug: row.tree_slug,
-    treeName: typeof row.tree_name === "string" ? row.tree_name : "",
-    selfPersonId:
-      typeof row.self_person_id === "string" ? row.self_person_id : null,
-    selfPlaced: row.self_placed === true,
-    claimInvite: row.claim_invite === true,
-    hadEntry: row.had_entry === true,
-    wasMember: row.was_member === true,
+    ok: true,
+    joined: {
+      treeId: row.tree_id,
+      treeSlug: row.tree_slug,
+      treeName: typeof row.tree_name === "string" ? row.tree_name : "",
+      selfPersonId:
+        typeof row.self_person_id === "string" ? row.self_person_id : null,
+      selfPlaced: row.self_placed === true,
+      claimInvite: row.claim_invite === true,
+      hadEntry: row.had_entry === true,
+      wasMember: row.was_member === true,
+    },
   };
 }
 
@@ -88,6 +108,9 @@ export async function redeemInvite(
  * address they've just verified (`email`) opens on its own page, whose
  * accept form asks for the privacy agreement a plain sign-in doesn't (Step
  * 30.4). With none, /join says where their request stands, or offers one.
+ *
+ * An invite emailed to another address isn't theirs to redeem (Step 51):
+ * its page says whose it is, as it does for any member at another address.
  */
 export async function establishMembership(
   supabase: ServerClient,
@@ -105,8 +128,9 @@ export async function establishMembership(
   },
 ): Promise<string> {
   if (invite) {
-    const joined = await redeemInvite(supabase, invite, displayName);
-    return joined ? joinedTreeHref(joined) : "/join?error=invite";
+    const redeemed = await redeemInvite(supabase, invite, displayName);
+    if (redeemed.ok) return joinedTreeHref(redeemed.joined);
+    return redeemed.reason === "another_address" ? inviteHref(invite) : "/join?error=invite";
   }
   const { error } = await supabase.rpc("ensure_profile", {});
   // An alert email's button, opened while signed out, lands on its card.
@@ -313,9 +337,10 @@ export async function signInWithInvite(token: string): Promise<InviteSignInResul
   });
   if (verifyError) return { ok: false, reason: "failed" };
 
-  const joined = await redeemInvite(supabase, token, recipient.name ?? undefined);
-  if (!joined) return { ok: false, reason: "invalid" };
+  const redeemed = await redeemInvite(supabase, token, recipient.name ?? undefined);
+  if (!redeemed.ok) return { ok: false, reason: "invalid" };
 
+  const { joined } = redeemed;
   return { ok: true, treeId: joined.treeId, next: joinedTreeHref(joined) };
 }
 

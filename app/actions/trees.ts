@@ -1,5 +1,6 @@
 "use server";
 
+import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireProfile } from "@/lib/auth";
@@ -274,15 +275,24 @@ export async function setTreeVisibility(
  * brings it there, a claim invite's entry folded into it where it can be
  * (Steps 30.9 and 41.3), and a claim invite greets them there first (Step
  * 50) — else on its onboarding, which walks a founder invite's new Root
- * through their first run (Step 29).
+ * through their first run (Step 29). An invite emailed to another address
+ * is refused (Step 51); the page only offers the button to its address, so
+ * that means they've signed in as someone else since it loaded.
  */
 export async function joinTreeWithInvite(token: string): Promise<{ error?: string }> {
   await requireProfile();
   const supabase = await createClient();
-  const joined = await redeemInvite(supabase, token);
-  if (!joined) return { error: "That invite is invalid, used up, or expired." };
+  const redeemed = await redeemInvite(supabase, token);
+  if (!redeemed.ok) {
+    if (redeemed.reason === "another_address") {
+      // Drawn again for whoever is signed in now, it says whose invite it is.
+      refresh();
+      return { error: "This invite was sent to another email address." };
+    }
+    return { error: "That invite is invalid, used up, or expired." };
+  }
   revalidateTreeAndAccount();
-  redirect(joinedTreeHref(joined));
+  redirect(joinedTreeHref(redeemed.joined));
 }
 
 export type PersonTreeLink = {

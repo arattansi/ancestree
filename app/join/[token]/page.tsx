@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { signOut } from "@/app/actions/auth";
 import { AcceptInviteForm, SignInToAccept } from "@/components/accept-invite-form";
 import { AccountTypeGlyph } from "@/components/account-type-badge";
 import { JoinTreeButton } from "@/components/join-tree-button";
 import { MagicLinkForm } from "@/components/magic-link-form";
+import { SubmitButton } from "@/components/submit-button";
 import {
   Card,
   CardContent,
@@ -15,6 +17,8 @@ import {
 import { LEAF, ROOT } from "@/lib/account-types";
 import { getProfile, getUser } from "@/lib/auth";
 import { verifiedEmail } from "@/lib/first-timer";
+import { sentToAnotherAddress } from "@/lib/invite-address";
+import { inviteHref } from "@/lib/sign-in-links";
 import { getInviteRecipient, opensOnSignInLink } from "@/lib/sign-in.server";
 import { createClient } from "@/lib/supabase/server";
 import { treesHref } from "@/lib/tree-links";
@@ -39,15 +43,20 @@ export default async function InvitePage({
   const preview = data?.[0];
 
   // An invite emailed to someone is their sign-in link: one button, no second
-  // email. A bare link has no address on it, so it still asks for one.
-  const recipient =
-    preview?.valid && !profile ? await getInviteRecipient(token) : null;
+  // email. A bare link has no address on it, so it still asks for one. Only
+  // that address may accept it (Step 51), so a member's page looks it up too.
+  const recipient = preview?.valid ? await getInviteRecipient(token) : null;
+  const user = recipient ? await getUser() : null;
+  const signedInAs = user ? verifiedEmail(user) : null;
   // Signed in as that address already, but no member yet: signing in sent
   // them here, to the invite waiting for them (Step 30.8).
-  const user = recipient ? await getUser() : null;
   const signedInAsRecipient = Boolean(
-    user && recipient && verifiedEmail(user) === recipient.email,
+    recipient && !sentToAnotherAddress(recipient.email, signedInAs),
   );
+  // A member at another address (Step 51): a forwarded email, a shared
+  // device, a Root checking one they sent. The database would refuse them,
+  // so the page says whose it is instead of offering to join.
+  const forAnotherAddress = Boolean(profile && recipient && !signedInAsRecipient);
   // Signed out, to an address that has an account already: open on its
   // sign-in link, with no tick to spend first (Step 41.2).
   const signInFirst = await opensOnSignInLink(recipient, {
@@ -58,7 +67,17 @@ export default async function InvitePage({
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-6 px-6 py-24">
       <Card className="w-full max-w-md">
-        {preview?.valid ? (
+        {preview?.valid && recipient && forAnotherAddress ? (
+          <ForAnotherAddress
+            token={token}
+            inviterName={preview.inviter_name}
+            treeName={preview.tree_name}
+            claimName={preview.claim_person_name}
+            founds={founds}
+            sentTo={recipient.email}
+            signedInAs={signedInAs ?? user?.email ?? ""}
+          />
+        ) : preview?.valid ? (
           <>
             <CardHeader>
               <CardTitle>You&rsquo;re invited</CardTitle>
@@ -142,7 +161,7 @@ export default async function InvitePage({
               ) : (
                 <MagicLinkForm inviteToken={token} submitLabel="Accept &amp; sign in" />
               )}
-              {recipient?.requested ? (
+              {!profile && recipient?.requested ? (
                 // They ticked the privacy notice when they asked to join, or
                 // to start a tree from the waitlist (Step 30.6).
                 <p className="mt-4 text-xs text-muted-foreground">
@@ -179,5 +198,74 @@ export default async function InvitePage({
         )}
       </Card>
     </main>
+  );
+}
+
+/**
+ * An invite emailed to someone else, opened by a member signed in at
+ * another address (Step 51): who it went to, and Sign out, which comes back
+ * here signed out, where the usual path for that address takes over.
+ */
+function ForAnotherAddress({
+  token,
+  inviterName,
+  treeName,
+  claimName,
+  founds,
+  sentTo,
+  signedInAs,
+}: {
+  token: string;
+  inviterName: string;
+  treeName: string;
+  claimName: string | null;
+  founds: boolean;
+  sentTo: string;
+  signedInAs: string;
+}) {
+  const address = (email: string) => (
+    <span className="font-medium break-words text-foreground">{email}</span>
+  );
+  return (
+    <>
+      <CardHeader>
+        <CardTitle>You&rsquo;re invited</CardTitle>
+        <CardDescription>
+          <span className="font-medium text-foreground">{inviterName}</span>{" "}
+          invited {address(sentTo)} to{" "}
+          {founds ? (
+            <>start a family tree of their own</>
+          ) : claimName ? (
+            <>
+              join <span className="font-medium text-foreground">{treeName}</span>{" "}
+              and claim the entry for{" "}
+              <span className="font-medium text-foreground">{claimName}</span>
+            </>
+          ) : (
+            <>
+              help build <span className="font-medium text-foreground">{treeName}</span>
+            </>
+          )}
+          .
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        <p className="text-sm text-muted-foreground">
+          You&rsquo;re signed in as {address(signedInAs)}. Only {address(sentTo)}{" "}
+          can accept it.
+        </p>
+        <form action={signOut}>
+          <input type="hidden" name="next" value={inviteHref(token)} />
+          <SubmitButton className="w-full" pendingLabel="Signing out…">
+            Sign out
+          </SubmitButton>
+        </form>
+        <p className="text-xs text-muted-foreground">
+          <Link href={treesHref()} className="underline underline-offset-4">
+            Your trees
+          </Link>
+        </p>
+      </CardContent>
+    </>
   );
 }

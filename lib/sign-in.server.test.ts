@@ -41,6 +41,14 @@ function redeemed(extra: Record<string, unknown>) {
   return { data: { ...TREE, ...extra }, error: null };
 }
 
+/** `redeem_invite` refusing an account at another address (Step 51). */
+const ANOTHER_ADDRESS = {
+  data: null,
+  error: {
+    message: "INVITE_FOR_ANOTHER_ADDRESS: this invite was sent to another email address",
+  },
+};
+
 /**
  * The cookie-bound client: `rpc` answers the redeem (or `ensure_profile`),
  * and the token signs in someone at newcomer@example.com, now verified,
@@ -161,32 +169,53 @@ describe("redeemInvite", () => {
       }),
     );
     expect(await redeemInvite(server as never, "tok")).toEqual({
-      treeId: "t1",
-      treeSlug: "the-tree",
-      treeName: "The Tree",
-      selfPersonId: "p1",
-      selfPlaced: true,
-      claimInvite: true,
-      hadEntry: false,
-      wasMember: false,
+      ok: true,
+      joined: {
+        treeId: "t1",
+        treeSlug: "the-tree",
+        treeName: "The Tree",
+        selfPersonId: "p1",
+        selfPlaced: true,
+        claimInvite: true,
+        hadEntry: false,
+        wasMember: false,
+      },
     });
     expect(setCurrentTreeCookie).toHaveBeenCalledWith("t1");
   });
 
   it("takes an answer without `self_placed` as not placed", async () => {
     server = fakeServer(redeemed({ self_person_id: "p1" }));
-    const joined = await redeemInvite(server as never, "tok");
-    expect(joined?.selfPlaced).toBe(false);
+    expect(await redeemInvite(server as never, "tok")).toMatchObject({
+      ok: true,
+      joined: { selfPlaced: false },
+    });
   });
 
   it("takes an answer from before Step 50 as an ordinary invite", async () => {
     server = fakeServer(redeemed({ self_person_id: "p1", self_placed: true }));
-    const joined = await redeemInvite(server as never, "tok");
-    expect(joined).toMatchObject({
-      claimInvite: false,
-      hadEntry: false,
-      wasMember: false,
+    expect(await redeemInvite(server as never, "tok")).toMatchObject({
+      ok: true,
+      joined: { claimInvite: false, hadEntry: false, wasMember: false },
     });
+  });
+
+  it("says when the invite was emailed to another address (Step 51)", async () => {
+    server = fakeServer(ANOTHER_ADDRESS);
+    expect(await redeemInvite(server as never, "tok")).toEqual({
+      ok: false,
+      reason: "another_address",
+    });
+    expect(setCurrentTreeCookie).not.toHaveBeenCalled();
+  });
+
+  it("calls any other refusal invalid", async () => {
+    server = fakeServer({ data: null, error: { message: "invalid_or_expired_invite" } });
+    expect(await redeemInvite(server as never, "tok")).toEqual({
+      ok: false,
+      reason: "invalid",
+    });
+    expect(setCurrentTreeCookie).not.toHaveBeenCalled();
   });
 });
 
@@ -225,6 +254,14 @@ describe("establishMembership", () => {
     expect(
       await establishMembership(server as never, { invite: "tok", next: "/tree" }),
     ).toBe("/join?error=invite");
+    expect(setCurrentTreeCookie).not.toHaveBeenCalled();
+  });
+
+  it("sends an invite emailed to another address back to its page, which says whose it is (Step 51)", async () => {
+    server = fakeServer(ANOTHER_ADDRESS);
+    expect(
+      await establishMembership(server as never, { invite: "tok", next: "/tree" }),
+    ).toBe("/join/tok");
     expect(setCurrentTreeCookie).not.toHaveBeenCalled();
   });
 });
@@ -355,6 +392,11 @@ describe("signInWithInvite", () => {
     expect(await signInWithInvite("tok")).toEqual({ ok: false, reason: "failed" });
     expect(admin.auth.admin.generateLink).not.toHaveBeenCalled();
     expect(server.auth.verifyOtp).not.toHaveBeenCalled();
+  });
+
+  it("calls a redeem the database refused invalid", async () => {
+    server = fakeServer(ANOTHER_ADDRESS);
+    expect(await signInWithInvite("tok")).toEqual({ ok: false, reason: "invalid" });
   });
 });
 
