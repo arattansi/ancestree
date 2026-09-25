@@ -1111,6 +1111,40 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 53.1 — The add form warns before a missing blood tie** (ad-hoc,
+  after Step 53; no migration). "Add a relative" and adding yourself on
+  onboarding now say it under **How they connect** as soon as what's on
+  the form would be refused: "Only blood relatives and their partners can
+  be added. Shireen Suleman isn't a blood relative, so connect Rosy Tejpar
+  to someone who is, too." — or "Connect {name} to someone born into this
+  family, too." further down a chain, and "Connect yourself to someone born
+  into this family, as their child, parent, sibling or partner." for the
+  member's own entry. It goes as soon as the form would pass. Aalim's
+  choices: both forms, the rule first, never blocking. It judges the exact
+  lines the submit sends, by the rule the database uses:
+  `lib/connections.ts#flowEdges` now builds them for both (the chain, a new
+  sibling's parents, ticked co-parents, further connections),
+  `lib/bloodline.ts#newWithoutBloodTie` runs Step 53's check over the tree's
+  anchors and lines plus those, and `bloodTieWarning` words it. The pages
+  load the tree with `getBloodline`: every anchor (not the canvas's first
+  two) and `tree_edges`; if either can't be read the form says nothing. The
+  Add button still works, since a question at submit ("Is Arzu also a
+  parent?") can draw the missing line and the database has the last word.
+  On a tree with anchors, connecting a new entry is no longer optional for
+  a Root, as Step 53 refuses an unconnected one: the toggle and "Optional
+  for Roots." are gone there. The founder's first run is unchanged, as
+  their tree has no anchors until they add themselves. **Verified:** in the
+  app in Chromium, run signed out with dummy Supabase keys, on a throwaway
+  preview page (deleted, never committed) showing the form with made-up
+  people: Rosy as Shireen's child with Arzu ticked, no warning; switched to
+  "is parent of", the warning naming both; switched back, gone. A newcomer
+  as Shireen's child was fine until Arzu was unticked, then got the
+  "yourself" wording with **Add me to the tree** still enabled. A Root saw
+  no "Connect this entry…" toggle, and the console showed no errors. Tests:
+  `flowEdges` (6, the submit's lines), `newWithoutBloodTie` (5, Rosy's add
+  as it happened among them) and `bloodTieWarning` (3). 910 tests pass;
+  tsc and lint are clean.
+
 - **Step 53 — Everyone added needs a blood tie** (ad-hoc bug fix; migration
   `20260925223750_everyone_added_needs_a_blood_tie`; numbered after Step 52,
   the family link, which reached live first). Raiya, a Root, added Rosy
