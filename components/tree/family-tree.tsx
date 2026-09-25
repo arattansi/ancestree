@@ -720,13 +720,29 @@ function ColumnsIcon() {
   );
 }
 
-// A touch screen: a phone or a tablet, driven by a finger.
+// A phone: driven by a finger, with a screen under 600px on its short side,
+// Android's own line between a phone and a tablet. The short side, so a
+// phone on its side is still a phone; the screen's, not the window's, so a
+// tablet in split view is still a tablet.
 const TOUCH = "(pointer: coarse)";
+const PHONE_SHORT_SIDE = 600;
 
-function subscribeToPointer(onChange: () => void) {
+function isPhone() {
+  return (
+    window.matchMedia(TOUCH).matches &&
+    Math.min(window.screen.width, window.screen.height) < PHONE_SHORT_SIDE
+  );
+}
+
+function subscribeToDevice(onChange: () => void) {
   const query = window.matchMedia(TOUCH);
   query.addEventListener("change", onChange);
-  return () => query.removeEventListener("change", onChange);
+  // A foldable opening out into a tablet resizes the window as it goes.
+  window.addEventListener("resize", onChange);
+  return () => {
+    query.removeEventListener("change", onChange);
+    window.removeEventListener("resize", onChange);
+  };
 }
 
 /**
@@ -1000,13 +1016,14 @@ function Canvas({
   // The canvas's own pixel size, for framing the pulled-out tree by hand.
   const paneWidth = useStore((state: ReactFlowState) => state.width);
   const paneHeight = useStore((state: ReactFlowState) => state.height);
-  // On a touch screen the cards stay where the tree puts them (Step 49): a
-  // finger on a card pans the canvas, which is what sliding one on a phone
-  // nearly always means, so nothing is moved by accident. The server says
-  // "no touch"; nothing can be dragged before hydration anyway.
-  const touch = React.useSyncExternalStore(
-    subscribeToPointer,
-    () => window.matchMedia(TOUCH).matches,
+  // On a phone the cards stay where the tree puts them (Step 49): a finger
+  // on a card pans the canvas, which is what sliding one on a phone nearly
+  // always means, so nothing is moved by accident. A tablet has room to aim
+  // at a card, and drags (49.4). The server says "not a phone"; nothing can
+  // be dragged before hydration anyway.
+  const phone = React.useSyncExternalStore(
+    subscribeToDevice,
+    isPhone,
     () => false,
   );
 
@@ -2041,9 +2058,9 @@ function Canvas({
         proOptions={{ hideAttribution: true }}
         nodesConnectable={false}
         // A card that has been pulled out of the tree is not where the reader
-        // put it, so dragging is off until the spotlight closes; on a touch
-        // screen it's off altogether (Step 49).
-        nodesDraggable={!readOnly && !spotlight && !touch}
+        // put it, so dragging is off until the spotlight closes; on a phone
+        // it's off altogether (Step 49).
+        nodesDraggable={!readOnly && !spotlight && !phone}
       >
         <ViewportPortal>
           {graph.layout.bands.map((band) => (
