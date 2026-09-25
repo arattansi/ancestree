@@ -42,6 +42,7 @@ function SheetContent({
   side = "right",
   showCloseButton = true,
   showOverlay = true,
+  keepMounted = false,
   ...props
 }: SheetPrimitive.Popup.Props & {
   side?: "top" | "right" | "bottom" | "left"
@@ -51,9 +52,14 @@ function SheetContent({
    * something the reader is meant to keep looking at, rather than over it.
    */
   showOverlay?: boolean
+  /**
+   * Keep the sheet's contents mounted, hidden, while it's closed, so what
+   * was typed in it is still there when it opens again.
+   */
+  keepMounted?: boolean
 }) {
   return (
-    <SheetPortal>
+    <SheetPortal keepMounted={keepMounted}>
       {showOverlay ? <SheetOverlay /> : null}
       <SheetPrimitive.Popup
         data-slot="sheet-content"

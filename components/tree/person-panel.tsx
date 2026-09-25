@@ -3,6 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Minimize2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { claimPerson, disputeClaim } from "@/app/actions/claims";
@@ -433,6 +434,9 @@ export function PersonPanel({
   shareToken = null,
   addRelativeOf = null,
   connectionPrompt = null,
+  minimized = false,
+  onMinimize,
+  minimizedFocus,
   onClose,
 }: {
   person: TreeGraphPerson | null;
@@ -492,10 +496,20 @@ export function PersonPanel({
   /** Shown first when this person was opened from a search: the canvas's
    *  offer to light their connection to somebody else. */
   connectionPrompt?: React.ReactNode;
+  /**
+   * Folded away to a card on the canvas (Step 49), so the tree they belong
+   * to can be seen. The sheet closes but stays mounted, so nothing typed in
+   * it is lost before it comes back.
+   */
+  minimized?: boolean;
+  /** Offers "Minimize", which folds the details away. */
+  onMinimize?: () => void;
+  /** Where focus goes once they're folded away: the card. */
+  minimizedFocus?: React.RefObject<HTMLElement | null>;
   onClose: () => void;
 }) {
   const router = useRouter();
-  const open = person !== null;
+  const open = person !== null && !minimized;
   const [busy, setBusy] = React.useState(false);
   const [disputing, setDisputing] = React.useState(false);
   const [confirmingClaim, setConfirmingClaim] = React.useState(false);
@@ -640,10 +654,38 @@ export function PersonPanel({
         // pale patch of photograph and disappear; with a photo the panel
         // brings its own.
         showCloseButton={!person?.photo_url}
+        keepMounted={minimized}
+        finalFocus={minimized ? minimizedFocus : undefined}
         className="w-full gap-0 overflow-y-auto sm:max-w-md"
       >
         {person ? (
           <>
+            {/* Beside the close button, and on the photo like it when there
+                is one (Step 49). */}
+            {onMinimize ? (
+              person.photo_url ? (
+                <button
+                  type="button"
+                  onClick={onMinimize}
+                  aria-label="Minimize"
+                  title="Minimize"
+                  className="absolute top-3 right-13 z-10 flex size-8 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-sm transition-colors hover:bg-black/65 focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:outline-none"
+                >
+                  <Minimize2 aria-hidden className="size-4" />
+                </button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={onMinimize}
+                  aria-label="Minimize"
+                  title="Minimize"
+                  className="absolute top-3 right-11"
+                >
+                  <Minimize2 aria-hidden />
+                </Button>
+              )
+            ) : null}
             {/* With a photo, the panel opens on the person's face: a portrait
                 across the full width of the sheet, with the name over the foot
                 of it. The old inline avatar was a 48px circle wedged between
@@ -698,7 +740,8 @@ export function PersonPanel({
                   </SheetDescription>
                 </>
               ) : (
-                <div className="flex items-center gap-3">
+                // Clear of the minimize and close buttons.
+                <div className="flex items-center gap-3 pr-16">
                   <Avatar size="lg">
                     <AvatarFallback>{personInitials(person)}</AvatarFallback>
                   </Avatar>

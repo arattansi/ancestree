@@ -29,7 +29,7 @@ import {
   type OnNodeDrag,
   type ReactFlowState,
 } from "@xyflow/react";
-import { LocateFixed, Route } from "lucide-react";
+import { LocateFixed, Maximize2, Route } from "lucide-react";
 import { toast } from "sonner";
 
 import "@xyflow/react/dist/style.css";
@@ -60,6 +60,7 @@ import {
   petMatchesFilter,
   type TreeFilter,
 } from "@/lib/tree-search";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { accountTypeOf } from "@/lib/account-types";
 import {
@@ -84,6 +85,7 @@ import type { ClaimCandidate } from "@/lib/claims";
 import { connectionLabel, connectionPath } from "@/lib/connection-path";
 import type { PanelSuggestion } from "@/lib/connection-suggestions";
 import type { GettingStartedItem } from "@/lib/first-tree";
+import { cropStyle, parseCrop } from "@/lib/image-crop";
 import { nativeLeaf } from "@/lib/native-leaf";
 import { personSpotlight, spotlightPeople } from "@/lib/person-spotlight";
 import { onboardingHref } from "@/lib/tree-links";
@@ -111,7 +113,12 @@ import {
 } from "@/lib/tree-layout";
 import { layoutPets } from "@/lib/pet-layout";
 import type { TreePet } from "@/lib/pets";
-import { personDisplayName, personHasDied } from "@/lib/person-name";
+import {
+  personDisplayName,
+  personHasDied,
+  personInitials,
+  personLifespan,
+} from "@/lib/person-name";
 import type { TreeGraphEdge, TreeGraphPerson } from "@/lib/tree";
 import type { PersonRelation } from "@/components/tree/person-panel";
 
@@ -713,6 +720,87 @@ function ColumnsIcon() {
   );
 }
 
+// A touch screen: a phone or a tablet, driven by a finger.
+const TOUCH = "(pointer: coarse)";
+
+function subscribeToPointer(onChange: () => void) {
+  const query = window.matchMedia(TOUCH);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+}
+
+/**
+ * A person's details, minimized (Step 49). The sheet covers the right of the
+ * canvas, and most of it on a phone, so it can be put away while the reader
+ * looks at the tree it belongs to. This card is what's left of it, the
+ * sheet's own heading: whose details are open. Pressing it brings them back;
+ * ✕ closes them. It takes the place of the "…'s tree" pill.
+ */
+function FoldedDetails({
+  person,
+  isSelf,
+  onExpand,
+  onClose,
+  expandRef,
+}: {
+  person: TreeGraphPerson;
+  isSelf: boolean;
+  onExpand: () => void;
+  onClose: () => void;
+  expandRef: React.Ref<HTMLButtonElement>;
+}) {
+  const name = personDisplayName(person);
+  return (
+    <div
+      className="flex w-full items-center gap-1 rounded-2xl border bg-card p-1.5 text-sm shadow-md"
+      style={{
+        borderColor: `color-mix(in srgb, ${SPOTLIGHT_BROWN} 33%, transparent)`,
+      }}
+    >
+      <button
+        ref={expandRef}
+        type="button"
+        onClick={onExpand}
+        aria-label={`Show ${name}’s details`}
+        title="Show details"
+        className="flex min-w-0 flex-1 items-center gap-3 rounded-xl p-1 text-left outline-none hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring/50"
+      >
+        <Avatar className="size-9 overflow-hidden">
+          {person.photo_url ? (
+            <AvatarImage
+              src={person.photo_url}
+              alt=""
+              style={cropStyle(parseCrop(person.photo_crop))}
+            />
+          ) : null}
+          <AvatarFallback className="text-xs">
+            {personInitials(person)}
+          </AvatarFallback>
+        </Avatar>
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="truncate font-medium text-foreground">{name}</span>
+          <span className="truncate text-xs text-muted-foreground">
+            {personLifespan(person) ?? "Living"}
+            {isSelf ? " · Your entry" : ""}
+          </span>
+        </span>
+        <Maximize2
+          aria-hidden
+          className="size-4 shrink-0 text-muted-foreground"
+        />
+      </button>
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Close"
+        className="flex size-8 shrink-0 items-center justify-center text-muted-foreground/60 hover:text-foreground"
+      >
+        ✕
+      </button>
+    </div>
+  );
+}
+
 function Canvas({
   people,
   relationships,
@@ -869,6 +957,13 @@ function Canvas({
   const focusable =
     focusId && people.some((p) => p.id === focusId) ? focusId : null;
   const [selectedId, setSelectedId] = React.useState<string | null>(focusable);
+  // The details minimized to a card on the canvas (Step 49), so the tree
+  // they belong to has the canvas to itself. It holds while the reader goes
+  // from one person to the next, and goes once nobody's open.
+  const [minimized, setMinimized] = React.useState(false);
+  if (minimized && !selectedId) setMinimized(false);
+  // The card's button, which takes focus from the sheet as it goes.
+  const foldedRef = React.useRef<HTMLButtonElement>(null);
   // Seeded once per `person`, not once per mount (Step 19.2): after an add the
   // new entry can arrive a render after the canvas does, and a notification
   // can point a canvas that is already open at someone else. Closing the
@@ -877,6 +972,8 @@ function Canvas({
   if (focusable && focusable !== seededFocus) {
     setSeededFocus(focusable);
     setSelectedId(focusable);
+    // Sent here to see somebody: their details open in full.
+    setMinimized(false);
     // Pointed at somebody off the Root's side: the whole tree comes back, so
     // their card is there to open.
     if (side && !side.ids.has(focusable)) setSideOnly(false);
@@ -903,6 +1000,15 @@ function Canvas({
   // The canvas's own pixel size, for framing the pulled-out tree by hand.
   const paneWidth = useStore((state: ReactFlowState) => state.width);
   const paneHeight = useStore((state: ReactFlowState) => state.height);
+  // On a touch screen the cards stay where the tree puts them (Step 49): a
+  // finger on a card pans the canvas, which is what sliding one on a phone
+  // nearly always means, so nothing is moved by accident. The server says
+  // "no touch"; nothing can be dragged before hydration anyway.
+  const touch = React.useSyncExternalStore(
+    subscribeToPointer,
+    () => window.matchMedia(TOUCH).matches,
+    () => false,
+  );
 
   // React Flow's own `colorMode="system"` reads the OS preference while it
   // renders, so the server said "light", the client said "dark", and hydration
@@ -1607,12 +1713,21 @@ function Canvas({
     frame([...graph.layout.positions.values()], 0, 1, 0);
   }, [canvasReady, paneWidth, selectedId, graph.layout.positions, frame]);
 
+  // Whether a person's details sheet covers the right of the canvas: not for
+  // a blurred card, which has none, nor once it's minimized (Step 49), when
+  // the tree gets the whole canvas.
+  const sheetOut =
+    !!selectedId && !minimized && !personById.get(selectedId)?.blurred;
+
   React.useEffect(() => {
     if (!canvasReady || !paneWidth || !paneHeight) return;
-    // One person's tree, or the connection between two.
+    // One person's tree, framed again when their details are minimized or
+    // brought back (Step 49), or the connection between two.
     const framedKey = path
       ? `${path.people[0]}~${path.people[path.people.length - 1]}`
-      : selectedId;
+      : selectedId
+        ? `${selectedId}${sheetOut ? "+sheet" : ""}`
+        : null;
     if (!framedKey || !spotlight) {
       if (!framedRef.current) return;
       framedRef.current = null;
@@ -1631,7 +1746,7 @@ function Canvas({
     // more than a third of the canvas, or the strip left over is too thin to
     // put a family in.
     const panel =
-      selectedId && paneWidth >= 640 ? Math.min(448, paneWidth / 3) : 0;
+      sheetOut && paneWidth >= 640 ? Math.min(448, paneWidth / 3) : 0;
     const spots = pulled
       ? [...spotlight.people].flatMap((id) => {
           const spot = pulled.get(id);
@@ -1653,6 +1768,7 @@ function Canvas({
     canvasReady,
     path,
     selectedId,
+    sheetOut,
     spotlight,
     pulled,
     paneWidth,
@@ -1765,6 +1881,9 @@ function Canvas({
   }, [treeId]);
 
   const selectedPerson = people.find((p) => p.id === selectedId) ?? null;
+  // Minimized to the card that stands in for the "…'s tree" pill. Never
+  // for a blurred card: it has no details to bring back.
+  const folded = minimized && !!selectedPerson && !selectedPerson.blurred;
 
   // What the lit connection is called, for the pill under it.
   const pathSummary = React.useMemo(() => {
@@ -1922,8 +2041,9 @@ function Canvas({
         proOptions={{ hideAttribution: true }}
         nodesConnectable={false}
         // A card that has been pulled out of the tree is not where the reader
-        // put it, so dragging is off until the spotlight closes.
-        nodesDraggable={!readOnly && !spotlight}
+        // put it, so dragging is off until the spotlight closes; on a touch
+        // screen it's off altogether (Step 49).
+        nodesDraggable={!readOnly && !spotlight && !touch}
       >
         <ViewportPortal>
           {graph.layout.bands.map((band) => (
@@ -1961,11 +2081,11 @@ function Canvas({
           className={cn(
             "flex max-w-[45vw] flex-col items-end gap-2 sm:max-w-none",
             // Beside the details sheet rather than under it (Step 19.2) — a
-            // person's, or a companion's since it stopped being modal. The
-            // sheet renders 24rem wide from `sm` up (its base `max-w-sm` wins
-            // over the panel's `max-w-md`); below that it covers the canvas
-            // and carries its own Add button.
-            (selectedPerson || selectedPet) && "sm:!mr-[calc(24rem+15px)]",
+            // person's, unless it's minimized, or a companion's since it
+            // stopped being modal. The sheet renders 24rem wide from `sm` up
+            // (its base `max-w-sm` wins over the panel's `max-w-md`); below
+            // that it covers the canvas and carries its own Add button.
+            (sheetOut || selectedPet) && "sm:!mr-[calc(24rem+15px)]",
           )}
         >
           {readOnly ? (
@@ -1987,7 +2107,7 @@ function Canvas({
           ) : (
             <AddRelativeButton
               relatedTo={addTarget}
-              labelFrom={selectedPerson ? "lg" : "sm"}
+              labelFrom={sheetOut ? "lg" : "sm"}
             />
           )}
           {!readOnly && isAdmin ? (
@@ -2045,37 +2165,51 @@ function Canvas({
         ) : spotlight && selectedPerson ? (
           <Panel
             position="bottom-center"
-            className="flex flex-col items-center gap-1.5"
+            className={cn(
+              "flex flex-col items-center gap-1.5",
+              // Clear of the zoom controls, as the tip is.
+              folded && "w-[min(24rem,calc(100%-7rem))]",
+            )}
           >
-            <div
-              className="flex items-center gap-3 rounded-full border bg-card px-4 py-2 text-sm shadow-md"
-              style={{
-                borderColor: `color-mix(in srgb, ${SPOTLIGHT_BROWN} 33%, transparent)`,
-              }}
-            >
-              <span aria-hidden style={{ color: SPOTLIGHT_GREEN }}>
-                🌿
-              </span>
-              <span className="font-medium text-foreground">
-                {personDisplayName(selectedPerson)}&rsquo;s tree
-              </span>
-              <span className="text-muted-foreground">
-                {spotlight.ancestors}{" "}
-                {spotlight.ancestors === 1 ? "ancestor" : "ancestors"}
-                <span className="mx-1.5 text-muted-foreground/50">·</span>
-                {spotlight.descendants}{" "}
-                {spotlight.descendants === 1 ? "descendant" : "descendants"}
-              </span>
-              <button
-                type="button"
-                className="text-muted-foreground/60 hover:text-foreground"
-                onClick={() => setSelectedId(null)}
-                aria-label="Show the whole tree again"
+            {folded ? (
+              <FoldedDetails
+                person={selectedPerson}
+                isSelf={selectedPerson.id === selfPersonId}
+                onExpand={() => setMinimized(false)}
+                onClose={() => setSelectedId(null)}
+                expandRef={foldedRef}
+              />
+            ) : (
+              <div
+                className="flex items-center gap-3 rounded-full border bg-card px-4 py-2 text-sm shadow-md"
+                style={{
+                  borderColor: `color-mix(in srgb, ${SPOTLIGHT_BROWN} 33%, transparent)`,
+                }}
               >
-                ✕
-              </button>
-            </div>
-            <span className="rounded-full bg-card/80 px-2 py-0.5 text-[11px] text-muted-foreground">
+                <span aria-hidden style={{ color: SPOTLIGHT_GREEN }}>
+                  🌿
+                </span>
+                <span className="font-medium text-foreground">
+                  {personDisplayName(selectedPerson)}&rsquo;s tree
+                </span>
+                <span className="text-muted-foreground">
+                  {spotlight.ancestors}{" "}
+                  {spotlight.ancestors === 1 ? "ancestor" : "ancestors"}
+                  <span className="mx-1.5 text-muted-foreground/50">·</span>
+                  {spotlight.descendants}{" "}
+                  {spotlight.descendants === 1 ? "descendant" : "descendants"}
+                </span>
+                <button
+                  type="button"
+                  className="text-muted-foreground/60 hover:text-foreground"
+                  onClick={() => setSelectedId(null)}
+                  aria-label="Show the whole tree again"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+            <span className="rounded-full bg-card/80 px-2 py-0.5 text-center text-[11px] text-muted-foreground">
               Each leaf is a tree that grows where that person was born.
             </span>
           </Panel>
@@ -2194,6 +2328,9 @@ function Canvas({
             </section>
           ) : null
         }
+        minimized={minimized}
+        onMinimize={() => setMinimized(true)}
+        minimizedFocus={foldedRef}
         onClose={() => setSelectedId(null)}
       />
 
