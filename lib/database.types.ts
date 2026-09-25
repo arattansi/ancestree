@@ -706,11 +706,13 @@ export type Database = {
           id: string
           invited_email: string | null
           joins_as: string
+          max_uses: number | null
           person_id: string | null
           status: string
           token: string
           tree_id: string
           updated_at: string
+          use_count: number
         }
         Insert: {
           accepted_by_user_id?: string | null
@@ -722,11 +724,13 @@ export type Database = {
           id?: string
           invited_email?: string | null
           joins_as?: string
+          max_uses?: number | null
           person_id?: string | null
           status?: string
           token?: string
           tree_id: string
           updated_at?: string
+          use_count?: number
         }
         Update: {
           accepted_by_user_id?: string | null
@@ -738,11 +742,13 @@ export type Database = {
           id?: string
           invited_email?: string | null
           joins_as?: string
+          max_uses?: number | null
           person_id?: string | null
           status?: string
           token?: string
           tree_id?: string
           updated_at?: string
+          use_count?: number
         }
         Relationships: [
           {
@@ -2262,6 +2268,16 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      family_link_joins: {
+        Args: { p_tree: string }
+        Returns: {
+          display_name: string
+          invite_id: string
+          joined_at: string
+          role: string
+          user_id: string
+        }[]
+      }
       fill_person_blanks: {
         Args: { p_fields: Json; p_person: string }
         Returns: string[]
@@ -2461,6 +2477,10 @@ export type Database = {
         Returns: undefined
       }
       revert_entry_edit: { Args: { p_revision_id: string }; Returns: string[] }
+      rotate_family_link: {
+        Args: { p_max_uses: number; p_tree: string }
+        Returns: string
+      }
       search_self_candidates: {
         Args: { p_first: string; p_last: string; p_tree?: string }
         Returns: {
@@ -2480,6 +2500,10 @@ export type Database = {
       }
       set_entry_verified: {
         Args: { p_person_id: string; p_verified?: boolean }
+        Returns: undefined
+      }
+      set_family_link_cap: {
+        Args: { p_max_uses: number; p_tree: string }
         Returns: undefined
       }
       set_home_tree: {

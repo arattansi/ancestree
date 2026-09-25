@@ -240,6 +240,21 @@ export async function getInviteRecipient(
 }
 
 /**
+ * The tree an invite joins, or `null` for no such invite (Step 52). The
+ * invite page asks so that a member already on it is told so rather than
+ * offered to join as a Leaf: a family link goes round a group chat most of
+ * whose members may be on the tree. Service role, as `getInviteRecipient`.
+ */
+export async function inviteTreeId(token: string): Promise<string | null> {
+  const { data } = await createAdminClient()
+    .from("invites")
+    .select("tree_id")
+    .eq("token", token)
+    .maybeSingle();
+  return data?.tree_id ?? null;
+}
+
+/**
  * Whether an address already belongs to a member (`address_has_profile`,
  * service role only, Step 30.8), or `null` when the lookup fails. A lookup
  * and nothing more: no token minted, no email sent.

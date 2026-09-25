@@ -17,7 +17,6 @@ import { DeleteAccount, type SoleRootTree } from "@/components/delete-account";
 import { DirectInviteForm } from "@/components/direct-invite-form";
 import { EditDisplayName } from "@/components/edit-display-name";
 import { HomeTreePicker } from "@/components/home-tree-picker";
-import { InviteMinter } from "@/components/invite-minter";
 import { NotificationsList } from "@/components/notifications-list";
 import { PersonForm } from "@/components/person-form";
 import { RelativesCanAsk } from "@/components/relatives-can-ask";
@@ -550,17 +549,13 @@ async function SettingsView({
               <CardTitle>Invite a Relative to {t.name}</CardTitle>
               <CardDescription>
                 Email them an invite and the link signs them straight in —
-                nothing for them to set up. Or create a link to send yourself,
-                by message or WhatsApp; that one asks for their email first.
-                Either way it is tied to you, works once, and expires after 14
-                days.
+                nothing for them to set up. It is tied to you, works once, and
+                expires after 14 days. For a link to share in a family group
+                chat, ask a Root.
               </CardDescription>
             </CardHeader>
-            <CardContent className="flex flex-col gap-6">
+            <CardContent>
               <DirectInviteForm treeId={t.id} />
-              <div className="border-t border-border pt-6">
-                <InviteMinter treeId={t.id} />
-              </div>
             </CardContent>
           </Card>
         );

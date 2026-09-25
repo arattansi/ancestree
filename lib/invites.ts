@@ -99,7 +99,9 @@ const BARE_LIMIT = 50;
  * Invite links minted with no recipient attached — the "create invite link"
  * button rather than a name-and-email send or an approved request. They have
  * no `invite_requests` row, so they never surface in `listInviteHistory`;
- * without this they'd be invisible and impossible to kill.
+ * without this they'd be invisible and impossible to kill. The button went
+ * with Step 52, so these are the ones left from before; the family link,
+ * which has no recipient either, has its own card.
  */
 export async function listBareInvites(treeId: string): Promise<BareInvite[]> {
   const supabase = await createClient();
@@ -110,6 +112,7 @@ export async function listBareInvites(treeId: string): Promise<BareInvite[]> {
     )
     .eq("tree_id", treeId)
     .is("archived_at", null)
+    .is("max_uses", null)
     .order("created_at", { ascending: false })
     .limit(BARE_SCAN_LIMIT);
 

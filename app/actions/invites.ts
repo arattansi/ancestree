@@ -25,42 +25,6 @@ function expiry(): string {
   return new Date(Date.now() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString();
 }
 
-export type CreateInviteState = {
-  url?: string;
-  error?: string;
-};
-
-/**
- * Mint a fresh, inviter-attributed, single-use invite link into one tree. It
- * joins as a Leaf, whoever sends it (Step 34; `private.can_invite_as`).
- */
-export async function createInvite(
-  treeId: string,
-): Promise<CreateInviteState> {
-  const { membership, error: notMember } = await membershipOf(treeId);
-  if (notMember || !membership) return { error: notMember };
-
-  const supabase = await createClient();
-  const { data: invite, error } = await supabase
-    .from("invites")
-    .insert({
-      tree_id: treeId,
-      created_by: membership.profile.auth_user_id,
-      status: "active",
-      expires_at: expiry(),
-      joins_as: INVITED_AS.key,
-    })
-    .select("token")
-    .single();
-
-  if (error || !invite) {
-    return { error: "Could not create an invite link. Try again." };
-  }
-
-  revalidateTreeAndAccount();
-  return { url: `${getSiteUrl()}/join/${invite.token}` };
-}
-
 export type DirectInviteRow = {
   firstName: string;
   lastName: string;
