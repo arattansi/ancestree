@@ -144,8 +144,9 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   its parents' live positions_ — not a node — so it follows them as they are
   dragged, and all of a couple's children bend at a shared horizontal bus, so a
   marriage shows one trunk rather than one line per parent; admin
-  "Auto-arrange" clears every manual nudge; on a touch screen no card can be
-  dragged, so a finger on one pans, Step 49; the zoom controls end with
+  "Auto-arrange" clears every manual nudge; on a phone no card can be
+  dragged (a tablet's can), so a finger on one pans, Step 49; the zoom
+  controls end with
   **Go to me**, which opens the viewer's own tree and details, Step 48),
   `tree-search.tsx` the **Search & filters** card (Find a person, Show a
   connection, Filters: only your Root's side and Pets & companions — each
@@ -1041,6 +1042,22 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 49.4 — Tablets drag cards again; only phones keep them fixed**
+  (UI only). Aalim wanted Step 49's no-dragging kept to phones. A phone is
+  now a touch screen (`(pointer: coarse)`) whose short side is under
+  600px, Android's own line between a phone and a tablet (`isPhone` in
+  `family-tree.tsx`). The short side keeps a phone on its side a phone;
+  it's the screen's, not the window's, so a tablet in split view still
+  drags. It's checked again when the window resizes, which covers a
+  foldable opening out into a tablet. **Verified** on a throwaway
+  signed-out page, since deleted. No card was draggable on a 375×812 phone
+  or on one on its side (740×360), where a finger slide panned the canvas
+  and saved nothing. All were on a 744×1133 touch tablet, where a finger
+  dragged a card and sent its save (held in the page, never reaching the
+  server), and with a mouse at 1280px. Switching the same page between
+  tablet and phone flipped it both ways without a reload. 836 tests pass;
+  tsc and lint are clean.
 
 - **Step 49 — Cards stay put on a touch screen; details minimize to a
   card** (ad-hoc, after Step 48; no migration). Two changes to the tree
