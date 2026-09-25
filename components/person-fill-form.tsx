@@ -51,8 +51,12 @@ export function PersonFillForm({
     mode: "onChange",
     defaultValues: values,
   });
-  const submitting = form.formState.isSubmitting || photoBusy;
-  const somethingToAdd = form.formState.isDirty || photoFile !== null;
+  // Read up front, not inside the button's `||`: react-hook-form only works
+  // out `isValid` once it has been read, and a photo on its own dirties no
+  // field to make it look again (Step 50).
+  const { isDirty, isSubmitting, isValid } = form.formState;
+  const submitting = isSubmitting || photoBusy;
+  const somethingToAdd = isDirty || photoFile !== null;
 
   async function onSubmit(next: PersonFormValues) {
     setSubmitError(null);
@@ -127,7 +131,7 @@ export function PersonFillForm({
 
         <Button
           type="submit"
-          disabled={submitting || !somethingToAdd || !form.formState.isValid}
+          disabled={submitting || !somethingToAdd || !isValid}
         >
           {submitting ? "Saving…" : "Add these details"}
         </Button>

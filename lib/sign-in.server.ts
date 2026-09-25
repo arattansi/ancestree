@@ -34,6 +34,12 @@ export type RedeemedTree = {
    * and for a claim invite Step 41.3), or it was there already.
    */
   selfPlaced: boolean;
+  /** The invite named an entry to claim (Step 50). */
+  claimInvite: boolean;
+  /** They had an entry of their own before it was redeemed (Step 50). */
+  hadEntry: boolean;
+  /** They were on its tree before it was redeemed (Step 50). */
+  wasMember: boolean;
 };
 
 /**
@@ -65,6 +71,9 @@ export async function redeemInvite(
     selfPersonId:
       typeof row.self_person_id === "string" ? row.self_person_id : null,
     selfPlaced: row.self_placed === true,
+    claimInvite: row.claim_invite === true,
+    hadEntry: row.had_entry === true,
+    wasMember: row.was_member === true,
   };
 }
 
@@ -72,7 +81,8 @@ export async function redeemInvite(
  * Turn a fresh session into a member: redeem the invite, or provision an
  * allowlisted admin. Returns where to send them — an invite lands on their
  * own entry once the joined tree shows it (a claim invite claims it on the
- * way in), else on that tree's onboarding, to find or add themselves there.
+ * way in, and goes by the welcome first, Step 50), else on that tree's
+ * onboarding, to find or add themselves there.
  *
  * Anyone else is a first-timer (Step 30.8): an invite emailed to the
  * address they've just verified (`email`) opens on its own page, whose

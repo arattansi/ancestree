@@ -272,8 +272,9 @@ export async function setTreeVisibility(
  * A signed-in member accepts an invite to another tree (Step 25). Lands on
  * their own entry on that tree's canvas when the tree shows it — accepting
  * brings it there, a claim invite's entry folded into it where it can be
- * (Steps 30.9 and 41.3) — else on its onboarding, which walks a founder
- * invite's new Root through their first run (Step 29).
+ * (Steps 30.9 and 41.3), and a claim invite greets them there first (Step
+ * 50) — else on its onboarding, which walks a founder invite's new Root
+ * through their first run (Step 29).
  */
 export async function joinTreeWithInvite(token: string): Promise<{ error?: string }> {
   await requireProfile();

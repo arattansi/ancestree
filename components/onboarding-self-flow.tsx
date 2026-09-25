@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import * as React from "react";
-import { toast } from "sonner";
 
 import { claimSelfCandidate, findSelfCandidates } from "@/app/actions/onboarding";
 import { AddPersonFlow } from "@/components/add-person-flow";
@@ -10,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { TreeMemberOption } from "@/components/relationship-picker";
-import { treeHref } from "@/lib/tree-links";
+import { welcomeHref } from "@/lib/tree-links";
 import {
   candidateSummary,
   canSearchName,
@@ -89,8 +88,8 @@ export function OnboardingSelfFlow({
       setError(res.error);
       return;
     }
-    toast.success("Welcome back — that entry is yours now.");
-    router.replace(treeHref());
+    // A relative made it, so the welcome asks for what's missing (Step 50).
+    router.replace(welcomeHref());
     router.refresh();
   }
 

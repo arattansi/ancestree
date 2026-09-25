@@ -11,6 +11,7 @@ import {
   treeFocusHref,
   treeHref,
   validRelatedTo,
+  welcomeHref,
 } from "@/lib/tree-links";
 
 describe("tree paths", () => {
@@ -45,11 +46,89 @@ describe("treeFocusHref", () => {
   });
 });
 
+describe("welcomeHref", () => {
+  it("asks a newcomer for their details, and only greets a returning member", () => {
+    expect(welcomeHref()).toBe("/welcome");
+    expect(welcomeHref({ returning: true })).toBe("/welcome?returning=1");
+  });
+});
+
 describe("joinedTreeHref", () => {
-  it("opens the canvas on the entry a claim invite just claimed", () => {
+  it("opens the canvas on their own entry after an ordinary invite", () => {
     expect(joinedTreeHref({ selfPersonId: "p1", selfPlaced: true })).toBe(
       "/tree?person=p1",
     );
+  });
+
+  it("welcomes someone whose claim invite has just made its entry theirs", () => {
+    expect(
+      joinedTreeHref({
+        selfPersonId: "p1",
+        selfPlaced: true,
+        claimInvite: true,
+        hadEntry: false,
+        wasMember: false,
+      }),
+    ).toBe("/welcome");
+    // On the tree already, but with no entry until now: theirs is new too.
+    expect(
+      joinedTreeHref({
+        selfPersonId: "p1",
+        selfPlaced: true,
+        claimInvite: true,
+        hadEntry: false,
+        wasMember: true,
+      }),
+    ).toBe("/welcome");
+  });
+
+  it("greets a member who brings their own entry to a claim invite's tree", () => {
+    expect(
+      joinedTreeHref({
+        selfPersonId: "own",
+        selfPlaced: true,
+        claimInvite: true,
+        hadEntry: true,
+        wasMember: false,
+      }),
+    ).toBe("/welcome?returning=1");
+  });
+
+  it("skips the welcome on a tree they were on already", () => {
+    expect(
+      joinedTreeHref({
+        selfPersonId: "own",
+        selfPlaced: true,
+        claimInvite: true,
+        hadEntry: true,
+        wasMember: true,
+      }),
+    ).toBe("/tree?person=own");
+  });
+
+  it("skips the welcome for an ordinary invite, entry or not", () => {
+    expect(
+      joinedTreeHref({
+        selfPersonId: "own",
+        selfPlaced: true,
+        claimInvite: false,
+        hadEntry: true,
+        wasMember: false,
+      }),
+    ).toBe("/tree?person=own");
+  });
+
+  it("sends a claim invite whose claim didn't happen to onboarding", () => {
+    // The entry went to someone else, or left the tree, meanwhile.
+    expect(
+      joinedTreeHref({
+        selfPersonId: null,
+        selfPlaced: false,
+        claimInvite: true,
+        hadEntry: false,
+        wasMember: false,
+      }),
+    ).toBe("/onboarding");
   });
 
   it("sends someone with no entry yet to onboarding", () => {

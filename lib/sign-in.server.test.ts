@@ -151,13 +151,24 @@ beforeEach(() => {
 
 describe("redeemInvite", () => {
   it("reads whether their own entry is on the tree they joined", async () => {
-    server = fakeServer(redeemed({ self_person_id: "p1", self_placed: true }));
+    server = fakeServer(
+      redeemed({
+        self_person_id: "p1",
+        self_placed: true,
+        claim_invite: true,
+        had_entry: false,
+        was_member: false,
+      }),
+    );
     expect(await redeemInvite(server as never, "tok")).toEqual({
       treeId: "t1",
       treeSlug: "the-tree",
       treeName: "The Tree",
       selfPersonId: "p1",
       selfPlaced: true,
+      claimInvite: true,
+      hadEntry: false,
+      wasMember: false,
     });
     expect(setCurrentTreeCookie).toHaveBeenCalledWith("t1");
   });
@@ -167,10 +178,35 @@ describe("redeemInvite", () => {
     const joined = await redeemInvite(server as never, "tok");
     expect(joined?.selfPlaced).toBe(false);
   });
+
+  it("takes an answer from before Step 50 as an ordinary invite", async () => {
+    server = fakeServer(redeemed({ self_person_id: "p1", self_placed: true }));
+    const joined = await redeemInvite(server as never, "tok");
+    expect(joined).toMatchObject({
+      claimInvite: false,
+      hadEntry: false,
+      wasMember: false,
+    });
+  });
 });
 
 describe("establishMembership", () => {
-  it("opens the canvas on the entry a claim invite claimed", async () => {
+  it("welcomes someone a claim invite has just made the entry's owner", async () => {
+    server = fakeServer(
+      redeemed({
+        self_person_id: "p1",
+        self_placed: true,
+        claim_invite: true,
+        had_entry: false,
+        was_member: false,
+      }),
+    );
+    expect(
+      await establishMembership(server as never, { invite: "tok", next: "/tree" }),
+    ).toBe("/welcome");
+  });
+
+  it("opens the canvas on their own entry after an ordinary invite", async () => {
     server = fakeServer(redeemed({ self_person_id: "p1", self_placed: true }));
     expect(
       await establishMembership(server as never, { invite: "tok", next: "/tree" }),
@@ -250,12 +286,20 @@ describe("a plain sign-in by someone who isn't a member (Step 30.8)", () => {
 });
 
 describe("signInWithInvite", () => {
-  it("lands a claim invite on the entry it claimed", async () => {
-    server = fakeServer(redeemed({ self_person_id: "p1", self_placed: true }));
+  it("lands a claim invite on the welcome, the entry it claimed theirs (Step 50)", async () => {
+    server = fakeServer(
+      redeemed({
+        self_person_id: "p1",
+        self_placed: true,
+        claim_invite: true,
+        had_entry: false,
+        was_member: false,
+      }),
+    );
     expect(await signInWithInvite("tok")).toEqual({
       ok: true,
       treeId: "t1",
-      next: "/tree?person=p1",
+      next: "/welcome",
     });
     expect(server.auth.verifyOtp).toHaveBeenCalledWith({
       type: "email",

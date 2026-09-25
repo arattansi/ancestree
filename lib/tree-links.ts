@@ -56,18 +56,40 @@ export function onboardingStepHref(step: string): string {
 }
 
 /**
- * Where accepting an invite lands (Step 30.2): the canvas opened on their own
- * entry when the tree they joined shows it — a claim invite claims its entry
- * as it's accepted, and a member's own entry comes with them (Steps 30.9 and
- * 41.3) — else that tree's onboarding, to find or add themselves.
+ * The welcome on a tree (Step 50). Someone whose entry a relative made, and
+ * who has just made it theirs, is asked for a photo and what's missing;
+ * `returning` is a member who brought their own entry, and is only greeted.
+ */
+export function welcomeHref({
+  returning = false,
+}: { returning?: boolean } = {}): string {
+  return returning ? "/welcome?returning=1" : "/welcome";
+}
+
+/**
+ * Where accepting an invite lands (Step 30.2): their own entry when the tree
+ * they joined shows it — a claim invite claims its entry as it's accepted,
+ * and a member's own entry comes with them (Steps 30.9 and 41.3) — else that
+ * tree's onboarding, to find or add themselves. A claim invite goes by the
+ * welcome first (Step 50): with its entry theirs now, to fill it in; with
+ * their own entry brought onto a tree they weren't on, to be greeted there.
  */
 export function joinedTreeHref(joined: {
   selfPersonId: string | null;
   selfPlaced: boolean;
+  /** The invite named an entry to claim. */
+  claimInvite?: boolean;
+  /** They had an entry of their own before accepting. */
+  hadEntry?: boolean;
+  /** They were on the invite's tree before accepting. */
+  wasMember?: boolean;
 }): string {
-  return joined.selfPersonId && joined.selfPlaced
-    ? treeFocusHref(joined.selfPersonId)
-    : onboardingHref();
+  if (!joined.selfPersonId || !joined.selfPlaced) return onboardingHref();
+  if (joined.claimInvite && !joined.hadEntry) return welcomeHref();
+  if (joined.claimInvite && !joined.wasMember) {
+    return welcomeHref({ returning: true });
+  }
+  return treeFocusHref(joined.selfPersonId);
 }
 
 /** The member's trees, and starting one. */
