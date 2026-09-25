@@ -10,15 +10,16 @@ type DbClient = SupabaseClient<Database>;
 /** What the signed-in member is allowed to grow on one tree, per `my_growth_rights(tree)`. */
 export type GrowthRights = {
   /** False when signed out or not on the tree. Married-in members keep the
-   *  affordance — additions that land inside the bloodline are still allowed. */
+   *  affordance — anyone with a blood tie can still be added (Step 53). */
   canAdd: boolean;
-  /** They married into this family: additions that hang off them alone are
-   *  refused, and the prompt points them at a tree of their own (Step 25). */
+  /** They married into this family: their own side has no blood tie here, so
+   *  "Add a relative" points them at a tree of their own (Step 25). */
   isMarriedIn: boolean;
   /** The tree has anchors configured; with none, the gate is off entirely. */
   gateActive: boolean;
   selfPersonId: string | null;
-  /** No self entry on this tree yet — never gated, or they could not create themselves. */
+  /** No self entry on this tree yet. Adding themselves still needs a blood tie
+   *  (Step 53), as their child, parent, sibling or partner. */
   onboarding: boolean;
 };
 

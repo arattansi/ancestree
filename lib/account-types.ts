@@ -93,9 +93,10 @@ export type AccountType = {
   companions: Reach;
   /**
    * Where they can add new relatives (Step 34): `tree`, anywhere they connect
-   * to it — a member who married in is still held to the bloodline gate — or
-   * `line`, only on their own line (`lib/branch.ts#lineIds`): their ancestors,
-   * everyone descended from them, and the people those relatives married.
+   * to it, or `line`, only on their own line (`lib/branch.ts#lineIds`): their
+   * ancestors, everyone descended from them, and the people those relatives
+   * married. Either way, only someone with a blood tie (Step 53,
+   * `lib/bloodline.ts`), whatever their type.
    */
   addRelatives: "tree" | "line";
   /**

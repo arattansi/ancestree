@@ -58,9 +58,9 @@ export default async function NewPersonPage({
           // Say the rule up front for a member who married in, rather than
           // letting them fill the whole form and meet the gate at submit.
           <p className="mt-2 text-sm text-muted-foreground">
-            You married into this family, so you can add your children and your
-            partner&apos;s relatives here. Your own side of the family belongs
-            on a tree of your own —{" "}
+            You married into this family, so you can add your partner&apos;s
+            relatives and the children you share. Your own side of the family
+            belongs on a tree of your own —{" "}
             <Link href={newTreeHref()} className="underline underline-offset-4">
               start one
             </Link>{" "}

@@ -2,6 +2,7 @@
 
 import { OWN_LINE_REFUSAL, isOwnLineRefusal } from "@/lib/account-types";
 import { requireProfile } from "@/lib/auth";
+import { bloodTieRefusal, readBloodTieRefusal } from "@/lib/bloodline";
 import { toStoredCrop, type CropTransform } from "@/lib/image-crop";
 import {
   personSchema,
@@ -56,18 +57,10 @@ function friendlyError(message: string | undefined): string {
   return "Couldn't save this entry. Check the fields and try again.";
 }
 
-/** The RPC's marker for a refusal the "start your own canvas" prompt answers. */
-function isBloodlineGate(message: string | undefined): boolean {
-  return (message ?? "").includes("BLOODLINE_GATE");
-}
-
 function friendlyConnectionError(message: string | undefined): string {
   if (!message) return "Something went wrong. Try again.";
   if (isOwnLineRefusal(message)) return OWN_LINE_REFUSAL;
   const m = message.toLowerCase();
-  if (isBloodlineGate(message)) {
-    return "These entries don't connect to the family bloodline.";
-  }
   if (m.includes("already in the tree")) {
     return "These entries don't connect to the tree yet — pick someone already on it, or add the people in between.";
   }
@@ -93,17 +86,14 @@ export type AddPeopleResult = {
   personIds?: string[];
   selfId?: string | null;
   error?: string;
-  /** The bloodline gate refused this branch (Step 14): the caller married into
-   *  the family and these entries hang off them alone. The UI answers with the
-   *  "start your own canvas" prompt rather than a plain error. */
-  bloodlineGate?: true;
 };
 
 /**
  * Create one or more people plus the parent/spouse edges that connect them,
  * in a single transaction. Used by first-run onboarding (`selfIndex` set) and
  * by "add a relative" (`selfIndex` null). Non-admin entries must connect to an
- * existing tree member; the DB RPC enforces that and guards against cycles.
+ * existing tree member, and everyone's to someone born into the family (Step
+ * 53, `lib/bloodline.ts`); the DB RPC enforces both and guards against cycles.
  */
 export async function addPeopleWithConnections(
   input: AddPeopleInput,
@@ -180,11 +170,12 @@ export async function addPeopleWithConnections(
   });
 
   if (error || !data) {
+    // No blood tie (Step 53): say who, so they know whom to connect.
+    const refusal = readBloodTieRefusal(error);
     return {
-      error: friendlyConnectionError(error?.message),
-      ...(isBloodlineGate(error?.message)
-        ? { bloodlineGate: true as const }
-        : {}),
+      error: refusal
+        ? bloodTieRefusal(refusal, input.selfIndex)
+        : friendlyConnectionError(error?.message),
     };
   }
 

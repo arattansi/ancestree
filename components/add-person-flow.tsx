@@ -362,8 +362,6 @@ export function AddPersonFlow({
   const [photoBusy, setPhotoBusy] = React.useState(false);
   const [crop, setCrop] = React.useState<CropTransform>(DEFAULT_CROP);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
-  // The bloodline gate refused this branch (Step 14) — answer with the prompt
-  // rather than leaving a dead-end error under the button.
   const [suggestions, setSuggestions] = React.useState<ImpliedConnection[]>([]);
   const [pendingSave, setPendingSave] = React.useState<{
     values: FlowValues;
@@ -519,14 +517,7 @@ export function AddPersonFlow({
     });
 
     if (result.error || !result.personIds) {
-      if (result.bloodlineGate) {
-        // They married in: their own side belongs on a tree of their own
-        // (Step 25), which they can start from their account.
-        setSubmitError(
-          "These entries hang off you alone, so they belong on a tree of your own. Start one from the tree switcher or your account, and bring anyone from here along.",
-        );
-        return false;
-      }
+      // Without a blood tie (Step 53) the error names who needs one.
       setSubmitError(result.error ?? "Couldn't save these entries.");
       return false;
     }

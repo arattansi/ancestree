@@ -5,9 +5,11 @@
  * 22.2, 22.3, 34 and 44), and what each account type may edit (Step 18,
  * `lib/account-types`).
  *
- * A branch is measured from one person with the same up-then-down walk the
- * bloodline gate uses — ancestors, then everyone descending from that whole
- * set — plus, one step only, the partners those people married. A Branch
+ * A branch is measured from one person with the up-then-down walk the
+ * bloodline was first measured with (Step 14, `upThenDownIds`) — ancestors,
+ * then everyone descending from that whole set — plus, one step only, the
+ * partners those people married. Unlike the bloodline since Step 53, it
+ * doesn't follow sibling lines, as `private.branch_ids` doesn't. A Branch
  * account tends the part of a Root's side they are related through
  * (`branchReach`): their own branch, kept to the sides of the Roots they are
  * related to. The tree is its Roots' families joined, and a Branch keeps
@@ -23,7 +25,7 @@
  */
 
 import { accountTypeOf } from "@/lib/account-types";
-import { bloodlineIds, type ParentEdge } from "@/lib/bloodline";
+import { upThenDownIds, type ParentEdge } from "@/lib/bloodline";
 
 export type BranchEdge = ParentEdge;
 
@@ -32,7 +34,7 @@ export function branchIds(
   root: string,
   edges: readonly BranchEdge[],
 ): Set<string> {
-  const line = bloodlineIds([root], edges);
+  const line = upThenDownIds([root], edges);
 
   // Collected first, added after: a partner joins because someone on the line
   // married them, never because they married another partner.
@@ -72,7 +74,7 @@ export function ownRoots(
   edges: readonly BranchEdge[],
 ): string[] {
   const blood = rootIds.filter((root) =>
-    bloodlineIds([root], edges).has(personId),
+    upThenDownIds([root], edges).has(personId),
   );
   return blood.length > 0 ? blood : relatedRoots(personId, rootIds, edges);
 }

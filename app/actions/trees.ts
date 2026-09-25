@@ -4,6 +4,7 @@ import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireProfile } from "@/lib/auth";
+import { bloodTiePlacementRefusal, readBloodTieRefusal } from "@/lib/bloodline";
 import {
   clearCurrentTreeCookie,
   setCurrentTreeCookie,
@@ -80,7 +81,8 @@ export type PlacementOutcome = { personId: string; status: string };
 
 /**
  * Root: bring people onto a tree (Step 25). Anyone the Root can see on a tree
- * they belong to. Another member's own entry waits for that member to accept
+ * they belong to, with a blood tie here once the whole batch is placed (Step
+ * 53). Another member's own entry waits for that member to accept
  * (`placement_requested`); everyone else is shown at once.
  */
 export async function placePeople(
@@ -101,6 +103,9 @@ export async function placePeople(
     if (error.message.toLowerCase().includes("only bring people you can see")) {
       return { error: "You can only bring people you can see on a tree you belong to." };
     }
+    // Someone in the batch has no blood tie here (Step 53): nothing was placed.
+    const refusal = readBloodTieRefusal(error);
+    if (refusal) return { error: bloodTiePlacementRefusal(refusal) };
     return { error: friendlyTreeError(error.message) };
   }
   revalidateTreeAndAccount();
@@ -128,7 +133,13 @@ export async function bringOwnEntry(treeId: string): Promise<{ error?: string }>
     p_tree: treeId,
     p_person_ids: [selfId],
   });
-  if (error) return { error: friendlyTreeError(error.message) };
+  if (error) {
+    return {
+      error: readBloodTieRefusal(error)
+        ? "Your entry isn't connected to anyone born into this family, so it can't be shown here."
+        : friendlyTreeError(error.message),
+    };
+  }
   revalidateTreeAndAccount();
   return {};
 }
