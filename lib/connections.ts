@@ -127,6 +127,124 @@ export function coParentSelection(
   return picked.filter((id) => partners.some((p) => p.id === id));
 }
 
+/** One link in the add flow's chain, as its form holds it. */
+export type FlowLink = {
+  kind: RelationshipKind;
+  /** Sibling links only — also connect to the anchor's parents. */
+  linkToParents?: boolean;
+  /** Child links only — the anchor's partners to record as a parent too. */
+  coParentIds?: readonly string[] | null;
+};
+
+/** One of the add flow's further connections from the new person. */
+export type FlowExtraLink = {
+  targetId: string;
+  kind: RelationshipKind;
+  /** Child links only — the target's partners to record as a parent too. */
+  coParentIds?: readonly string[] | null;
+};
+
+/** Someone already on the tree, as the add flow knows them. */
+export type FlowMember = {
+  id: string;
+  parents?: readonly { id: string }[];
+  partners?: readonly PartnerOption[];
+};
+
+type SpouseFields = Pick<
+  ConnectionEdge,
+  "marriage_date" | "is_divorced" | "divorce_date"
+>;
+
+/**
+ * Every line one submit of the add flow draws, before any implied connection
+ * is asked about: the chain from the anchor through anyone in between to the
+ * new person, the anchor's parents for a new sibling who asked for them, the
+ * partners left ticked on a "child of" link, and each further connection with
+ * its own ticked partners. `anchorId` is empty when the entry isn't chained to
+ * anyone. Both the submit and the blood-tie warning (Step 53) read it, so the
+ * warning judges exactly what would be sent.
+ */
+export function flowEdges<L extends FlowLink, X extends FlowExtraLink>({
+  anchorId,
+  inBetween,
+  links,
+  extraLinks,
+  members,
+  spouseFields = () => ({}),
+}: {
+  anchorId: string;
+  /** How many people the chain runs through before the new one. */
+  inBetween: number;
+  links: readonly L[];
+  extraLinks: readonly X[];
+  members: readonly FlowMember[];
+  /** A spouse line's marriage and divorce, from the link that asks for it. */
+  spouseFields?: (link: L | X) => SpouseFields;
+}): ConnectionEdge[] {
+  const primary: PersonRef = { kind: "new", index: 0 };
+  const edges: ConnectionEdge[] = [];
+
+  if (anchorId) {
+    // nodes = [anchor, in-between 1 … in-between k, primary]
+    const chain: PersonRef[] = [];
+    for (let i = 1; i <= inBetween; i += 1) {
+      chain.push({ kind: "new", index: i });
+    }
+    chain.push(primary);
+    // One edge per link, in order: each spouse edge takes its link's dates.
+    buildChainEdges(anchorId, chain, links.map((l) => l.kind)).forEach((e, i) =>
+      edges.push(e.type === "spouse" ? { ...e, ...spouseFields(links[i]) } : e),
+    );
+
+    const first = links[0];
+    const anchor = members.find((m) => m.id === anchorId);
+    // "is a sibling of" the anchor + "also link to their parents": a parent
+    // edge from each of the anchor's parents, so the two sit side by side.
+    if (first?.kind === "sibling" && first.linkToParents) {
+      for (const parent of anchor?.parents ?? []) {
+        edges.push({
+          type: "parent",
+          a: { kind: "existing", id: parent.id },
+          b: chain[0],
+        });
+      }
+    }
+    // "is a child of" the anchor: the partners left ticked are parents too.
+    if (first?.kind === "child") {
+      for (const id of coParentSelection(
+        first.coParentIds,
+        anchor?.partners ?? [],
+      )) {
+        edges.push({
+          type: "parent",
+          a: { kind: "existing", id },
+          b: chain[0],
+        });
+      }
+    }
+  }
+
+  for (const row of extraLinks) {
+    if (!row.targetId) continue;
+    const [edge] = buildChainEdges(row.targetId, [primary], [row.kind]);
+    edges.push(
+      edge.type === "spouse" ? { ...edge, ...spouseFields(row) } : edge,
+    );
+    // "is a child of" this target: their ticked partners become parents too.
+    if (row.kind === "child") {
+      const target = members.find((m) => m.id === row.targetId);
+      for (const id of coParentSelection(
+        row.coParentIds,
+        target?.partners ?? [],
+      )) {
+        edges.push({ type: "parent", a: { kind: "existing", id }, b: primary });
+      }
+    }
+  }
+  return edges;
+}
+
 export function refToString(ref: PersonRef): string {
   return ref.kind === "new" ? `new:${ref.index}` : `existing:${ref.id}`;
 }

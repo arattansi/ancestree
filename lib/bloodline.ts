@@ -16,8 +16,10 @@
  * someone who married in, whoever is adding.
  *
  * The database is the enforcement point; this is the tested statement of the
- * rule, and reads and words its refusal.
+ * rule, reads and words its refusal, and lets the add flow warn before it.
  */
+
+import type { ConnectionEdge, PersonRef } from "@/lib/connections";
 
 export type ParentEdge = {
   /** The parent; either end of a spouse or sibling line. */
@@ -126,6 +128,60 @@ export function withoutBloodTie(
     if (blood.has(e.to_person)) tied.add(e.from_person);
   }
   return people.filter((id) => !tied.has(id));
+}
+
+/** A tree's bloodline as the add flow needs it: every anchor, every line. */
+export type Bloodline = {
+  anchors: readonly string[];
+  edges: readonly ParentEdge[];
+};
+
+/**
+ * Of the `count` people an add would create, the places of those who would
+ * have no blood tie once `pending` is drawn on the tree: what the database
+ * would refuse, foreseen so the form can say so first.
+ */
+export function newWithoutBloodTie(
+  count: number,
+  pending: readonly ConnectionEdge[],
+  bloodline: Bloodline,
+): number[] {
+  const id = (ref: PersonRef) =>
+    ref.kind === "new" ? `new:${ref.index}` : ref.id;
+  const drawn = pending.map((e) => ({
+    from_person: id(e.a),
+    to_person: id(e.b),
+    type: e.type,
+  }));
+  const people = Array.from({ length: count }, (_, i) => `new:${i}`);
+  return withoutBloodTie(people, bloodline.anchors, [
+    ...bloodline.edges,
+    ...drawn,
+  ]).map((p) => Number(p.slice("new:".length)));
+}
+
+/**
+ * What the add flow says while the form would be refused for want of a blood
+ * tie: the rule, then what to do. `self` when it's the member's own entry;
+ * `nonBloodAnchor` names who they'd hang off, when that's the whole story.
+ */
+export function bloodTieWarning({
+  name,
+  self = false,
+  nonBloodAnchor = null,
+}: {
+  name: string;
+  self?: boolean;
+  nonBloodAnchor?: string | null;
+}): string {
+  const rule = "Only blood relatives and their partners can be added.";
+  if (self) {
+    return `${rule} Connect yourself to someone born into this family, as their child, parent, sibling or partner.`;
+  }
+  if (nonBloodAnchor) {
+    return `${rule} ${nonBloodAnchor} isn't a blood relative, so connect ${name} to someone who is, too.`;
+  }
+  return `${rule} Connect ${name} to someone born into this family, too.`;
 }
 
 /**

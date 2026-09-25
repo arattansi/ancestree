@@ -5,6 +5,7 @@ import { FirstTreeOnboarding } from "@/components/first-tree/first-tree-onboardi
 import { OnboardingSelfFlow } from "@/components/onboarding-self-flow";
 import { Card, CardContent } from "@/components/ui/card";
 import { isFounder } from "@/lib/first-tree.server";
+import { getBloodline } from "@/lib/growth-rights.server";
 import { onboardingStart } from "@/lib/self-match.server";
 import { createClient } from "@/lib/supabase/server";
 import { listTreeMembers } from "@/lib/tree";
@@ -62,8 +63,13 @@ export default async function OnboardingPage({
     if (placed) redirect(treeHref());
   }
 
-  const members = await listTreeMembers(tree.id);
   const hasOwnEntryElsewhere = !!profile.self_person_id;
+  // The bloodline lets the form warn of a missing blood tie before submit
+  // (Step 53); someone with an entry elsewhere adds nobody here.
+  const [members, bloodline] = await Promise.all([
+    listTreeMembers(tree.id),
+    hasOwnEntryElsewhere ? null : getBloodline(tree.id),
+  ]);
   // The name they joined by, and the search for it, before the page renders:
   // it opens on what the search found, not an empty form (Step 30.7).
   const start = hasOwnEntryElsewhere
@@ -107,6 +113,7 @@ export default async function OnboardingPage({
               isAdmin={isRoot}
               members={members}
               start={start}
+              bloodline={bloodline}
             />
           </CardContent>
         </Card>

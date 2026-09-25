@@ -2,6 +2,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import type { Bloodline } from "@/lib/bloodline";
 import type { Database } from "@/lib/database.types";
 import { createClient } from "@/lib/supabase/server";
 
@@ -48,5 +49,37 @@ export async function getGrowthRights(
     gateActive: row.gate_active === true,
     selfPersonId: (row.self_person_id as string | null) ?? null,
     onboarding: row.onboarding === true,
+  };
+}
+
+/**
+ * A tree's bloodline, for the add flow to foresee a refusal for want of a
+ * blood tie (Step 53, `lib/bloodline.ts#newWithoutBloodTie`): every anchor,
+ * which the gate counts from, and every line the tree draws. Null when either
+ * can't be read, so the form stays quiet rather than warn wrongly.
+ */
+export async function getBloodline(
+  treeId: string,
+  db?: DbClient,
+): Promise<Bloodline | null> {
+  const supabase = db ?? (await createClient());
+  const [anchors, edges] = await Promise.all([
+    supabase
+      .from("bloodline_anchors")
+      .select("person_id")
+      .eq("tree_id", treeId),
+    supabase
+      .from("tree_edges")
+      .select("from_person, to_person, type")
+      .eq("tree_id", treeId),
+  ]);
+  if (anchors.error || edges.error) return null;
+  return {
+    anchors: anchors.data.map((a) => a.person_id),
+    edges: edges.data.flatMap((e) =>
+      e.from_person && e.to_person && e.type
+        ? [{ from_person: e.from_person, to_person: e.to_person, type: e.type }]
+        : [],
+    ),
   };
 }

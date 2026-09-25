@@ -4,12 +4,15 @@ import {
   bloodlineIds,
   bloodTiePlacementRefusal,
   bloodTieRefusal,
+  bloodTieWarning,
   isBloodline,
+  newWithoutBloodTie,
   readBloodTieRefusal,
   upThenDownIds,
   withoutBloodTie,
   type ParentEdge,
 } from "@/lib/bloodline";
+import type { ConnectionEdge, PersonRef } from "@/lib/connections";
 
 const parent = (from: string, to: string): ParentEdge => ({
   from_person: from,
@@ -350,6 +353,116 @@ describe("bloodTieRefusal", () => {
       bloodTiePlacementRefusal({ name: "Brandon Nichols", index: null, personId: "b" }),
     ).toBe(
       "Brandon Nichols isn't connected to anyone born into this family. Bring them with a blood relative they're connected to.",
+    );
+  });
+});
+
+describe("newWithoutBloodTie", () => {
+  // Raiya is the anchor; Arzu is blood and married Shireen, who married in;
+  // Bijhan is their son.
+  const bloodline = {
+    anchors: ["raiya"],
+    edges: [
+      parent("hassanali", "kulsum"),
+      parent("kulsum", "safia"),
+      parent("safia", "raiya"),
+      parent("safia", "arzu"),
+      spouse("arzu", "shireen"),
+      parent("arzu", "bijhan"),
+      parent("shireen", "bijhan"),
+    ],
+  };
+  const newP = (index: number): PersonRef => ({ kind: "new", index });
+  const on = (id: string): PersonRef => ({ kind: "existing", id });
+  const line = (
+    type: ConnectionEdge["type"],
+    a: PersonRef,
+    b: PersonRef,
+  ): ConnectionEdge => ({ type, a, b });
+
+  it("foresees Rosy's add as it happened: Shireen's mother, nothing else", () => {
+    expect(
+      newWithoutBloodTie(1, [line("parent", newP(0), on("shireen"))], bloodline),
+    ).toEqual([0]);
+  });
+
+  it("clears once she's also Hassanali's sister", () => {
+    expect(
+      newWithoutBloodTie(
+        1,
+        [
+          line("parent", newP(0), on("shireen")),
+          line("sibling", on("hassanali"), newP(0)),
+        ],
+        bloodline,
+      ),
+    ).toEqual([]);
+  });
+
+  it("needs the blood parent ticked on a child of someone who married in", () => {
+    const shireensChild = line("parent", on("shireen"), newP(0));
+    expect(newWithoutBloodTie(1, [shireensChild], bloodline)).toEqual([0]);
+    expect(
+      newWithoutBloodTie(
+        1,
+        [shireensChild, line("parent", on("arzu"), newP(0))],
+        bloodline,
+      ),
+    ).toEqual([]);
+  });
+
+  it("points at the right person in a chain", () => {
+    // Bijhan's new wife (in between), then a child of hers alone.
+    expect(
+      newWithoutBloodTie(
+        2,
+        [
+          line("spouse", on("bijhan"), newP(1)),
+          line("parent", newP(1), newP(0)),
+        ],
+        bloodline,
+      ),
+    ).toEqual([0]);
+    // A new blood child of Arzu, then their partner: both fine.
+    expect(
+      newWithoutBloodTie(
+        2,
+        [
+          line("parent", on("arzu"), newP(1)),
+          line("spouse", newP(1), newP(0)),
+        ],
+        bloodline,
+      ),
+    ).toEqual([]);
+  });
+
+  it("warns of nothing on a tree with no anchors", () => {
+    expect(
+      newWithoutBloodTie(1, [], { anchors: [], edges: bloodline.edges }),
+    ).toEqual([]);
+  });
+});
+
+describe("bloodTieWarning", () => {
+  it("names who they'd hang off when that's why", () => {
+    expect(
+      bloodTieWarning({ name: "Rosy Tejpar", nonBloodAnchor: "Shireen Suleman" }),
+    ).toBe(
+      "Only blood relatives and their partners can be added. Shireen Suleman isn't a blood relative, so connect Rosy Tejpar to someone who is, too.",
+    );
+  });
+
+  it("asks for a blood relative otherwise", () => {
+    expect(bloodTieWarning({ name: "Rosy Tejpar" })).toBe(
+      "Only blood relatives and their partners can be added. Connect Rosy Tejpar to someone born into this family, too.",
+    );
+  });
+
+  it("speaks to a member adding themselves", () => {
+    expect(
+      bloodTieWarning({ name: "Rosy", self: true, nonBloodAnchor: "Shireen" }),
+    ).toBe(
+      "Only blood relatives and their partners can be added. Connect yourself to someone born into this family, as their child, parent, sibling or partner.",
     );
   });
 });
