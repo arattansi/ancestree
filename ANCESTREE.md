@@ -77,7 +77,8 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   says where their request stands or offers request access with the
   address filled in, Step 30.8) (+
   `/join/[token]` invite accept — signed in, it adds a
-  tree), `/auth/callback` + `/auth/confirm` + `/auth/auth-code-error`,
+  tree; an emailed one only for the address it was sent to, and anyone
+  else is told whose it is, Step 51), `/auth/callback` + `/auth/confirm` + `/auth/auth-code-error`,
   `/trees` (every tree you're on, your type in each), `/trees/new` (found a
   tree of your own, once a beta reviewer has approved it), `/account` (sign-in address and display name under the
   title, then two-column cards: your trees, your entry's home and visitor
@@ -247,7 +248,10 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `lib/admin-queue.ts` — the console's queue cards, where the header's count
   goes (`pickQueueTarget`) and the emails' button (`openConsoleHref`,
   `.test.ts`); `lib/safe-next.ts` — the same-origin `next` a signed-out
-  visit carries through sign-in (`.test.ts`)
+  visit carries through sign-in (`.test.ts`); `lib/invite-address.ts` —
+  whether an emailed invite is someone else's for the signed-in address
+  (`sentToAnotherAddress`) and `redeem_invite`'s refusal of it
+  (`isAnotherAddressRefusal`; Step 51, `.test.ts`)
 - Asking a relative (Step 30.5): `lib/invite-relays.ts` — the caps (on
   every ask, `askWithinCaps`, and on a member, `memberWithinCaps`), when an
   ask lapses (`relayLapsed`, Step 41.5), the form's checks and words, the
@@ -608,6 +612,29 @@ mirror it for the UI.
   link's dialog, Step 41.4) for people who ask, on both waitlist
   forms for people who'll get a founder invite (Step 30.6), and on the
   accept page for people invited cold.
+- **Only the address it was sent to (Step 51,
+  `20260925120000_emailed_invite_joins_its_address`)**: `redeem_invite`
+  refuses an invite with `invited_email` for any account whose own address,
+  verified (`auth.users.email` with `email_confirmed_at`, any case), isn't
+  that one: `INVITE_FOR_ANOTHER_ADDRESS`, 42501, before anything is written.
+  Until then only the signed-out path bound it. A member who opened a
+  forwarded email, anyone on a shared device, or a Root checking a claim
+  invite they'd sent joined in the recipient's place, and a claim invite
+  gave them its entry (claimed, or folded into their own). The RPC is
+  callable directly and any sign-in link can be given an `invite=`, so the
+  database is what enforces it. A bare link still joins whoever opens it.
+  `/join/<token>` now looks the recipient up for a signed-in member too.
+  At another address it says "{Inviter} invited {address} to join {tree}
+  and claim the entry for {name}. You're signed in as {yours}. Only
+  {address} can accept it." with **Sign out** (`signOut`, `next` = the
+  invite), which comes back signed out to the usual path for that address:
+  the one-tap accept for a newcomer, **Email me a sign-in link** for an
+  address with an account. A refusal that gets past the page is named
+  (`redeemInvite` answers `another_address`, `lib/invite-address.ts`):
+  **Join** toasts "This invite was sent to another email address." and
+  redraws the page (`refresh()`), and a sign-in link carrying the invite
+  lands on its page rather than "invalid". Someone signed in with no
+  profile keeps the accept form, which signs in the invite's own address.
 - **The name someone joins by (Step 30.7, `lib/joining-name.ts`)**: an
   emailed invite's request row goes when it's redeemed, so the new auth
   account keeps its first and last name (`user_metadata`, set by
@@ -1073,6 +1100,46 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 51 — An emailed invite joins only the address it was sent to**
+  (ad-hoc; migration `20260925120000_emailed_invite_joins_its_address`).
+  An invite emailed to someone was bound to that address only when it was
+  opened signed out. Signed in with a profile, `/join/<token>` offered
+  **Join** without comparing addresses, and `redeem_invite` didn't look
+  either, so whoever was signed in took it: a member who opened a
+  forwarded email, anyone on a shared device, a Root checking a claim
+  invite they'd sent. For a claim invite that meant its entry, claimed
+  outright (Step 30.2) or folded into their own (Step 41.3). The rehearsal
+  showed a Root doing it silently merged the invitee's entry into their
+  own. Aalim's choice: only the invited address may accept, and anyone
+  else sees whose it is, with **Sign out**. Now `redeem_invite` refuses any
+  other account, verified address compared in any case, before it writes
+  anything. Its body is otherwise Step 41.3's, and `redeem_invite_tree` is
+  unchanged. The page shows a member at another address "{Inviter} invited
+  {address} to join {tree} and claim the entry for {name}. You're signed in
+  as {yours}. Only {address} can accept it." and **Sign out**, which comes
+  back to the invite signed out, where the usual path for that address
+  takes over. A stale **Join** says "This invite was sent to another email
+  address." and redraws the page. A sign-in link with `invite=` added
+  lands on the invite's page. Bare links, founder invites to their own
+  address and every accept path at the right address work as before.
+  **Verified:** rehearsed in a rolled-back transaction on live, 19 checks
+  before and after. Another newcomer, another member, the Root who sent it,
+  a founder invite at another address, an unverified address and a direct
+  `redeem_invite` call went from allowed to refused. The 30.2 claim, 41.3
+  merge and beside, 30.9 placement, founder, bare links, a mixed-case
+  address, notices and `redeem_invite_tree`'s keys came out the same, and
+  a refusal left nothing behind. Then applied, md5-matched, grants
+  unchanged. With a real session on live, both RPCs answered 403 `42501`.
+  In the browser with throwaway accounts, since deleted: a doctored
+  sign-in link landed on the card with the invite still live, a bare link
+  still offered **Join**, and a stale **Join** after switching accounts
+  toasted and redrew as the card. **Sign out** led to "Email me a sign-in
+  link" for an address with an account and the accept form for a
+  newcomer. The matching member's **Join** merged into their entry and
+  greeted them on `/welcome?returning=1`, and the newcomer's accept
+  claimed their entry and landed on `/welcome`. Tests:
+  `lib/invite-address.test.ts`, and `lib/sign-in.server.test.ts` for the
+  refusal's reason and where it lands.
 - **Step 50 — A welcome, then your details, after claiming your entry**
   (ad-hoc; migration `20260925090000_redeem_says_what_it_claimed`). Aalim
   asked that someone added to a tree and invited to claim their entry be
