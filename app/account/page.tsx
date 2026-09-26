@@ -13,6 +13,7 @@ import {
 import { AdminConsole } from "@/components/admin/admin-console";
 import { BackToTop } from "@/components/back-to-top";
 import { ClearNotificationsButton } from "@/components/clear-notifications-button";
+import { EngagementDashboard } from "@/components/dashboard/engagement-dashboard";
 import { DeleteAccount, type SoleRootTree } from "@/components/delete-account";
 import { DirectInviteForm } from "@/components/direct-invite-form";
 import { EditDisplayName } from "@/components/edit-display-name";
@@ -52,6 +53,7 @@ import {
   type MyTree,
   type TreeMembership,
 } from "@/lib/tree-context";
+import { isBetaReviewer } from "@/lib/tree-requests.server";
 import {
   adminHref,
   newTreeHref,
@@ -70,28 +72,33 @@ export async function generateMetadata({
       description: "Manage members, invites, disputes, and entry counts.",
     };
   }
+  if (view === "dashboard" && (await isBetaReviewer())) {
+    return { title: "dashboard" };
+  }
   if (view === "settings") return { title: "settings" };
   return { title: "your account" };
 }
 
 /**
- * The account page, in three views: your profile — your own entry, as a
+ * The account page, in four views: your profile — your own entry, as a
  * form — then, for a Root, the admin console (`?view=admin`) of the tree
  * they're looking at, or of the first tree they run when the current one
- * isn't theirs to run; and settings (`?view=settings`) for everything else.
- * The email about a relative's ask opens settings (`&relay=<id>`, Step
- * 30.5), where the invite waits filled in.
+ * isn't theirs to run; for a beta reviewer, the engagement dashboard
+ * (`?view=dashboard`, Step 56); and settings (`?view=settings`) for
+ * everything else. The email about a relative's ask opens settings
+ * (`&relay=<id>`, Step 30.5), where the invite waits filled in.
  */
 export default async function AccountPage({
   searchParams,
 }: PageProps<"/account">) {
   const { view: requested, relay } = await searchParams;
   const profile = await requireProfile();
-  const [user, trees, access, ownEntry] = await Promise.all([
+  const [user, trees, access, ownEntry, reviewer] = await Promise.all([
     getUser(),
     listMyTrees(),
     currentAccess(),
     loadOwnEntry(profile),
+    isBetaReviewer(),
   ]);
 
   const runs = trees.filter((t) => t.type.runsTree);
@@ -105,9 +112,11 @@ export default async function AccountPage({
   }
   const view: AccountView = console
     ? "admin"
-    : requested === "settings"
-      ? "settings"
-      : "profile";
+    : requested === "dashboard" && reviewer
+      ? "dashboard"
+      : requested === "settings"
+        ? "settings"
+        : "profile";
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-10">
@@ -129,11 +138,14 @@ export default async function AccountPage({
           view={view}
           consoleTreeId={console?.tree.id ?? runs[0]?.id ?? null}
           adminTrees={runs}
+          dashboard={reviewer}
         />
       </div>
 
       {view === "admin" && console ? (
         <AdminConsole membership={console} />
+      ) : view === "dashboard" ? (
+        <EngagementDashboard />
       ) : view === "settings" ? (
         <SettingsView
           profile={profile}

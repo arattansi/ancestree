@@ -2250,6 +2250,7 @@ export type Database = {
         Args: { p_claim_id: string; p_reason?: string }
         Returns: undefined
       }
+      engagement_dashboard: { Args: never; Returns: Json }
       ensure_profile: {
         Args: { p_display_name?: string }
         Returns: {
@@ -2354,6 +2355,7 @@ export type Database = {
       is_beta_reviewer: { Args: never; Returns: boolean }
       my_growth_rights: { Args: { p_tree?: string }; Returns: Json }
       my_tree_request: { Args: never; Returns: string }
+      note_active_day: { Args: never; Returns: boolean }
       person_claim_candidates: {
         Args: never
         Returns: {

@@ -42,6 +42,11 @@ export default function PrivacyPage() {
             comments, flags, and in-app notifications.
           </li>
           <li>
+            The days you use ancestree — the date only, not what you looked
+            at — so the site&rsquo;s owners can see how much it&rsquo;s used.
+            They go when your account does.
+          </li>
+          <li>
             If you ask to join a tree, ask a relative on ancestree to invite
             you, or join the waitlist to start one, the name and email you
             give — kept only so a relative or the site owner can answer you,
@@ -63,6 +68,10 @@ export default function PrivacyPage() {
           <li>
             Access is invite-only. Every database row is protected by row-level
             security so only members of your tree can read it.
+          </li>
+          <li>
+            The site&rsquo;s owners see each tree&rsquo;s name and its counts —
+            members, entries, days used — never its entries or who anyone is.
           </li>
           <li>
             Photos and documents live in private storage and are only ever served

@@ -1,7 +1,11 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
 
 import { signInNext } from "@/lib/safe-next";
-import { isSupabaseConfigured, updateSession } from "@/lib/supabase/middleware";
+import {
+  isSupabaseConfigured,
+  noteActiveDay,
+  updateSession,
+} from "@/lib/supabase/middleware";
 
 // Routes reachable without an authenticated session.
 const PUBLIC_PREFIXES = [
@@ -13,14 +17,18 @@ const PUBLIC_PREFIXES = [
   "/shared",
 ];
 
-export async function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest, event: NextFetchEvent) {
   // Before Supabase env is wired (Step 1 pre-config), do nothing so the app boots.
   if (!isSupabaseConfigured()) {
     return NextResponse.next({ request });
   }
 
-  const { supabaseResponse, user } = await updateSession(request);
+  const { supabaseResponse, user, supabase } = await updateSession(request);
   const { pathname } = request.nextUrl;
+
+  // A day they used ancestree, for the beta reviewers' dashboard (Step 56),
+  // noted in the background so no page waits on it.
+  if (user) event.waitUntil(noteActiveDay(supabase, user.id));
 
   const isPublic =
     pathname === "/" ||
