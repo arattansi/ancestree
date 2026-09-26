@@ -11,6 +11,7 @@ import {
   canInviteToClaim,
   canOfferDelete,
   canSeeDocuments,
+  descendantIds,
   lineIds,
   ownRoots,
   relatedRoots,
@@ -210,6 +211,53 @@ describe("rootSideIds", () => {
   it("is empty when related to no Root", () => {
     expect(rootSideIds("nobody", roots, family).size).toBe(0);
     expect(rootSideIds("arzu", [], family).size).toBe(0);
+  });
+});
+
+describe("descendantIds (Step 57.2)", () => {
+  it("is the person, everyone descended from them, and who those married", () => {
+    expect(descendantIds(["fatehali"], family)).toEqual(
+      new Set([
+        "fatehali",
+        "roshen", // his wife
+        "arzu",
+        "shireen",
+        "rehan",
+        "ashif",
+        "safia",
+        "raiya",
+        "aalim",
+      ]),
+    );
+  });
+
+  it("leaves a partner's own family out", () => {
+    const line = descendantIds(["fatehali"], family);
+    // Safia married in: her parents and brother aren't his descendants.
+    for (const id of ["noorali", "kulsum", "amyn"]) expect(line.has(id)).toBe(false);
+    // Nor are Aalim's mother and grandfather.
+    for (const id of ["minaz", "hussein"]) expect(line.has(id)).toBe(false);
+    // Nor his own parents.
+    for (const id of ["karmali", "sonbhai"]) expect(line.has(id)).toBe(false);
+  });
+
+  it("gives two people's families at once", () => {
+    expect(descendantIds(["arzu", "noorali"], family)).toEqual(
+      new Set(["arzu", "shireen", "rehan", "noorali", "safia", "ashif", "amyn", "raiya", "aalim"]),
+    );
+  });
+
+  it("is only the couple for someone with no children", () => {
+    expect(descendantIds(["raiya"], family)).toEqual(new Set(["raiya", "aalim"]));
+  });
+
+  it("doesn't follow sibling lines", () => {
+    const edges = [...family, sibling("rehan", "zayn")];
+    expect(descendantIds(["arzu"], edges).has("zayn")).toBe(false);
+  });
+
+  it("is empty with nobody picked", () => {
+    expect(descendantIds([], family).size).toBe(0);
   });
 });
 

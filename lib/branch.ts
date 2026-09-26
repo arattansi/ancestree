@@ -29,24 +29,31 @@ import { upThenDownIds, type ParentEdge } from "@/lib/bloodline";
 
 export type BranchEdge = ParentEdge;
 
-/** Everyone on `root`'s branch: their blood line, plus who it married. */
-export function branchIds(
-  root: string,
+/**
+ * `line`, plus — one step only — the partners anyone on it married. Collected
+ * first, added after: a partner joins because someone on the line married
+ * them, never because they married another partner.
+ */
+function withPartners(
+  line: Set<string>,
   edges: readonly BranchEdge[],
 ): Set<string> {
-  const line = upThenDownIds([root], edges);
-
-  // Collected first, added after: a partner joins because someone on the line
-  // married them, never because they married another partner.
   const partners = new Set<string>();
   for (const e of edges) {
     if (e.type !== "spouse") continue;
     if (line.has(e.from_person)) partners.add(e.to_person);
     if (line.has(e.to_person)) partners.add(e.from_person);
   }
-
   for (const id of partners) line.add(id);
   return line;
+}
+
+/** Everyone on `root`'s branch: their blood line, plus who it married. */
+export function branchIds(
+  root: string,
+  edges: readonly BranchEdge[],
+): Set<string> {
+  return withPartners(upThenDownIds([root], edges), edges);
 }
 
 /**
@@ -140,18 +147,39 @@ export function lineIds(
   };
 
   const kin = walk(walk([personId], parents), siblings);
-  const line = walk(kin, children);
+  // As on a branch, with the partners the line married.
+  return withPartners(walk(kin, children), edges);
+}
 
-  // As on a branch: a partner joins because someone on the line married
-  // them, never because they married another partner.
-  const partners = new Set<string>();
+/**
+ * Everyone "Only descendants of" draws (Step 57.2): the one or two people
+ * picked, everyone descended from them down every parent line, and — one step
+ * only, as on a branch — the partners any of them married, so a family hangs
+ * from both its parents while a partner's own family stays out. Sibling lines
+ * aren't followed: a brother recorded without the parents he shares isn't
+ * known to descend from them. Two people give both their families at once.
+ */
+export function descendantIds(
+  roots: readonly string[],
+  edges: readonly BranchEdge[],
+): Set<string> {
+  const children = new Map<string, string[]>();
   for (const e of edges) {
-    if (e.type !== "spouse") continue;
-    if (line.has(e.from_person)) partners.add(e.to_person);
-    if (line.has(e.to_person)) partners.add(e.from_person);
+    if (e.type !== "parent") continue;
+    const list = children.get(e.from_person);
+    if (list) list.push(e.to_person);
+    else children.set(e.from_person, [e.to_person]);
   }
-  for (const id of partners) line.add(id);
-  return line;
+  const line = new Set<string>(roots);
+  const queue = [...line];
+  while (queue.length > 0) {
+    for (const child of children.get(queue.pop()!) ?? []) {
+      if (line.has(child)) continue;
+      line.add(child);
+      queue.push(child);
+    }
+  }
+  return withPartners(line, edges);
 }
 
 /**

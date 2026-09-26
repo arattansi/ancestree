@@ -52,7 +52,9 @@ import {
   TreeSearch,
   type ConnectionEnds,
 } from "@/components/tree/tree-search";
+import { UpcomingFeed } from "@/components/tree/upcoming-feed";
 import { useShowCompanions } from "@/components/tree/use-show-companions";
+import { useToday } from "@/components/tree/use-today";
 import {
   EMPTY_FILTER,
   isFilterActive,
@@ -73,6 +75,7 @@ import {
   canInviteToClaim,
   canOfferDelete,
   canSeeDocuments,
+  descendantIds,
   lineIds,
   ownRoots,
   rootSideIds,
@@ -87,6 +90,7 @@ import type { PanelSuggestion } from "@/lib/connection-suggestions";
 import type { GettingStartedItem } from "@/lib/first-tree";
 import { cropStyle, parseCrop } from "@/lib/image-crop";
 import { nativeLeaf } from "@/lib/native-leaf";
+import { upcomingOccasions } from "@/lib/occasions";
 import { personSpotlight, spotlightPeople } from "@/lib/person-spotlight";
 import { onboardingHref } from "@/lib/tree-links";
 import { cn } from "@/lib/utils";
@@ -549,13 +553,15 @@ function buildGraph(
   pets: TreePet[],
   selfPersonId: string | null,
   anchorIds: string[],
+  /** Rows fixed from a fuller canvas (`LayoutOptions.generations`). */
+  generations?: ReadonlyMap<string, number>,
 ): {
   nodes: Node[];
   edges: Edge[];
   layout: TreeLayout;
   petPositions: Map<string, { x: number; y: number }>;
 } {
-  const layout = layoutTree(people, relationships, { anchorIds });
+  const layout = layoutTree(people, relationships, { anchorIds, generations });
   const { positions, unions } = layout;
   const ids = new Set(people.map((p) => p.id));
 
@@ -875,11 +881,11 @@ function Canvas({
   }, [selfPersonId, rootIds, relationships, people]);
   const [sideOnly, setSideOnly] = React.useState(false);
   const side = sideOnly ? rootSide : null;
-  const shownPeople = React.useMemo(
+  const sidePeople = React.useMemo(
     () => (side ? people.filter((p) => side.ids.has(p.id)) : people),
     [people, side],
   );
-  const shownRelationships = React.useMemo(
+  const sideRelationships = React.useMemo(
     () =>
       side
         ? relationships.filter(
@@ -888,6 +894,45 @@ function Canvas({
         : relationships,
     [relationships, side],
   );
+  // Only the descendants of one or two people (Step 57.2), within the side
+  // when that's on too: them, their descendants and whom those married, laid
+  // out around them. Like the side, it cuts only what the canvas draws,
+  // searches and lights, and lasts for the visit.
+  const [descendantsOf, setDescendantsOf] = React.useState<string[]>([]);
+  const descent = React.useMemo(() => {
+    const onSide = new Set(sidePeople.map((p) => p.id));
+    const roots = descendantsOf.filter((id) => onSide.has(id));
+    if (roots.length === 0) return null;
+    return { ids: descendantIds(roots, sideRelationships), anchorIds: roots };
+  }, [descendantsOf, sidePeople, sideRelationships]);
+  const shownPeople = React.useMemo(
+    () =>
+      descent ? sidePeople.filter((p) => descent.ids.has(p.id)) : sidePeople,
+    [sidePeople, descent],
+  );
+  const shownRelationships = React.useMemo(
+    () =>
+      descent
+        ? sideRelationships.filter(
+            (r) =>
+              descent.ids.has(r.from_person) && descent.ids.has(r.to_person),
+          )
+        : sideRelationships,
+    [sideRelationships, descent],
+  );
+  const sideAnchorIds = side ? side.anchorIds : anchorIds;
+  // A row keeps the number, and so the name, it has on the canvas without
+  // the descendants filter, however few of it are left, or the people picked
+  // would always read as the founders' generation.
+  const rows = React.useMemo(
+    () =>
+      descent
+        ? layoutTree(sidePeople, sideRelationships, {
+            anchorIds: sideAnchorIds,
+          }).generations
+        : undefined,
+    [descent, sidePeople, sideRelationships, sideAnchorIds],
+  );
   const graph = React.useMemo(
     () =>
       buildGraph(
@@ -895,9 +940,22 @@ function Canvas({
         shownRelationships,
         pets,
         selfPersonId,
-        side ? side.anchorIds : anchorIds,
+        descent ? descent.anchorIds : sideAnchorIds,
+        rows,
       ),
-    [shownPeople, shownRelationships, pets, selfPersonId, side, anchorIds],
+    [
+      shownPeople,
+      shownRelationships,
+      pets,
+      selfPersonId,
+      descent,
+      sideAnchorIds,
+      rows,
+    ],
+  );
+  const shownIds = React.useMemo(
+    () => new Set(shownPeople.map((p) => p.id)),
+    [shownPeople],
   );
   const nameById = React.useMemo(
     () => new Map(people.map((p) => [p.id, personDisplayName(p)])),
@@ -990,9 +1048,13 @@ function Canvas({
     setSelectedId(focusable);
     // Sent here to see somebody: their details open in full.
     setMinimized(false);
-    // Pointed at somebody off the Root's side: the whole tree comes back, so
-    // their card is there to open.
-    if (side && !side.ids.has(focusable)) setSideOnly(false);
+    // Pointed at somebody the filters leave off (the Root's side, or the
+    // descendants picked): the whole tree comes back, so their card is there
+    // to open.
+    if (!shownIds.has(focusable)) {
+      setSideOnly(false);
+      setDescendantsOf([]);
+    }
   }
   const [selectedPetId, setSelectedPetId] = React.useState<string | null>(null);
   // The spotlighted connection, plus which way along it the click pointed.
@@ -1068,6 +1130,31 @@ function Canvas({
       shownPeople.filter((p) => matchesFilter(p, filter)).map((p) => p.id),
     );
   }, [shownPeople, filter, filterActive]);
+
+  // Birthdays and anniversaries coming up (Step 57.1), among the people the
+  // canvas draws and, while a search is on, the ones it leaves lit: a couple
+  // stays when either of them is. A member's canvas only.
+  const today = useToday();
+  const occasions = React.useMemo(() => {
+    if (readOnly || !today) return null;
+    const all = upcomingOccasions(shownPeople, shownRelationships, today, {
+      nameOf: (id) => nameById.get(id) ?? "",
+    });
+    return matchingIds
+      ? all.filter((o) => o.people.some((id) => matchingIds.has(id)))
+      : all;
+  }, [
+    readOnly,
+    today,
+    shownPeople,
+    shownRelationships,
+    nameById,
+    matchingIds,
+  ]);
+  // Which of the top-left cards is open: one at a time, so they never pile up.
+  const [openCard, setOpenCard] = React.useState<"search" | "upcoming" | null>(
+    null,
+  );
 
   // Clicking a person: their own tree — the line above and below them, plus
   // the partners along it, and their brothers and sisters beside them (Step
@@ -1635,10 +1722,13 @@ function Canvas({
       setSelectedPetId(null);
       setConnectionEnds(NO_CONNECTION);
       setSelectedId(personId);
-      // A companion's person off the Root's side: the whole tree comes back.
-      if (side && !side.ids.has(personId)) setSideOnly(false);
+      // A companion's person the filters leave off: the whole tree comes back.
+      if (!shownIds.has(personId)) {
+        setSideOnly(false);
+        setDescendantsOf([]);
+      }
     },
-    [side],
+    [shownIds],
   );
 
   // Opening someone from a search result: their details go on to ask who to
@@ -1822,10 +1912,9 @@ function Canvas({
     setAimTick((n) => n + 1);
   }, [selfPersonId, selectPerson]);
 
-  // Switching the Root's side on or off starts afresh on what's drawn:
-  // nobody open, nothing lit, the camera on all of it.
-  const onSideOnlyChange = React.useCallback((on: boolean) => {
-    setSideOnly(on);
+  // Switching a filter starts afresh on what's drawn: nobody open, nothing
+  // lit, the camera on all of it.
+  const startAfresh = React.useCallback(() => {
     setSelectedId(null);
     setSelectedPetId(null);
     setSelectedEdgeId(null);
@@ -1833,6 +1922,24 @@ function Canvas({
     setSearchedId(null);
     setWholeTick((n) => n + 1);
   }, []);
+  const onSideOnlyChange = React.useCallback(
+    (on: boolean) => {
+      setSideOnly(on);
+      // Anyone picked for "Only descendants of" off the side is let go, so a
+      // filter that's on always shows.
+      if (on && rootSide)
+        setDescendantsOf((cur) => cur.filter((id) => rootSide.ids.has(id)));
+      startAfresh();
+    },
+    [rootSide, startAfresh],
+  );
+  const onDescendantsOfChange = React.useCallback(
+    (ids: string[]) => {
+      setDescendantsOf(ids);
+      startAfresh();
+    },
+    [startAfresh],
+  );
 
   const onNodeClick = React.useCallback<NodeMouseHandler>((_, node) => {
     setSelectedEdgeId(null);
@@ -2258,22 +2365,45 @@ function Canvas({
           </Panel>
         ) : null}
         <Panel position="top-left" className="flex flex-col items-start gap-2">
-          <TreeSearch
-            people={shownPeople}
-            filter={filter}
-            onFilterChange={setFilter}
-            onPick={onPick}
-            connection={connectionEnds}
-            onConnectionChange={onConnectionChange}
-            connectionMissing={
-              !!connectionEnds.from && !!connectionEnds.to && !path
-            }
-            showCompanions={showCompanions}
-            onShowCompanionsChange={setShowCompanions}
-            sideOnly={rootSide ? sideOnly : null}
-            onSideOnlyChange={onSideOnlyChange}
-            ownSide={!!selfPersonId && rootIds.includes(selfPersonId)}
-          />
+          <div className="flex items-start gap-2">
+            {/* Hidden, not unmounted, while Upcoming is open: the card keeps
+                which of its sections were open. */}
+            <div className={openCard === "upcoming" ? "hidden" : "contents"}>
+              <TreeSearch
+                open={openCard === "search"}
+                onOpenChange={(open) => setOpenCard(open ? "search" : null)}
+                people={shownPeople}
+                filter={filter}
+                onFilterChange={setFilter}
+                onPick={onPick}
+                connection={connectionEnds}
+                onConnectionChange={onConnectionChange}
+                connectionMissing={
+                  !!connectionEnds.from && !!connectionEnds.to && !path
+                }
+                showCompanions={showCompanions}
+                onShowCompanionsChange={setShowCompanions}
+                sideOnly={rootSide ? sideOnly : null}
+                onSideOnlyChange={onSideOnlyChange}
+                ownSide={!!selfPersonId && rootIds.includes(selfPersonId)}
+                descendantsOf={descendantsOf}
+                onDescendantsOfChange={onDescendantsOfChange}
+                descendantChoices={sidePeople}
+              />
+            </div>
+            {!readOnly && openCard !== "search" ? (
+              <UpcomingFeed
+                occasions={occasions}
+                today={today}
+                personById={personById}
+                filtered={!!side || !!descent || filterActive}
+                open={openCard === "upcoming"}
+                onOpenChange={(open) => setOpenCard(open ? "upcoming" : null)}
+                onPickPerson={selectPerson}
+                onPickCouple={(a, b) => onConnectionChange({ from: a, to: b })}
+              />
+            ) : null}
+          </div>
           {!readOnly && claimCandidates.length > 0 ? (
             <ClaimSuggestions
               candidates={claimCandidates}

@@ -143,6 +143,15 @@ export type LayoutOptions = {
    * is exactly the overview one.
    */
   centreFamilies?: boolean;
+  /**
+   * Each person's row, fixed from outside (Step 57.2): a canvas showing only
+   * part of the tree passes the whole tree's `generations`, so every row
+   * keeps its place and its name ("Generation Two") however little of it is
+   * left, while `anchorIds` still says whom to centre on. Anyone it leaves
+   * out takes their row from their relatives. Absent, rows are counted from
+   * the anchors as always.
+   */
+  generations?: ReadonlyMap<string, number>;
 };
 
 const FAR_FUTURE = "9999-12-31";
@@ -257,12 +266,12 @@ export function layoutTree(
   const anchors = (options.anchorIds ?? []).filter((id) => ids.has(id));
   const compact = options.compactIds;
   const sizeOf: SizeOf = (id) => (compact?.has(id) ? PILL : FULL_CARD);
-  const generations = assignGenerations(people, anchors, {
-    childrenOf,
-    parentsOf,
-    spousesOf,
-    degree,
-  });
+  const generations = assignGenerations(
+    people,
+    anchors,
+    { childrenOf, parentsOf, spousesOf, degree },
+    options.generations,
+  );
   const atoms = buildAtoms(people, coupleMembers, uf, {
     generations,
     degree,
@@ -491,12 +500,23 @@ function assignGenerations(
     spousesOf: Map<string, string[]>;
     degree: Map<string, number>;
   },
+  preset?: ReadonlyMap<string, number>,
 ): Map<string, number> {
   const { childrenOf, parentsOf, spousesOf, degree } = graph;
   const generation = new Map<string, number>();
 
+  // Rows fixed from outside (`LayoutOptions.generations`) are kept, and anyone
+  // they leave out is placed relative to them, before any anchor is asked.
+  const fixed: string[] = [];
+  for (const p of people) {
+    const g = preset?.get(p.id);
+    if (g === undefined) continue;
+    generation.set(p.id, g);
+    fixed.push(p.id);
+  }
+
   const walk = (seeds: string[]) => {
-    const queue: string[] = [];
+    const queue: string[] = [...fixed.splice(0)];
     for (const seed of seeds) {
       if (generation.has(seed)) continue;
       generation.set(seed, 0);
