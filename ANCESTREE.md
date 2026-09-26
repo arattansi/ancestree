@@ -99,9 +99,10 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   links, tree name, who else may view, export, delete the tree;
   `components/admin/admin-console.tsx`; and, with `?view=dashboard`, for a
   beta reviewer only, the **engagement dashboard** (Step 56): counts across
-  every tree — members and who's active, members active each week, how far
-  members have got, what they did this week and last, each tree — from
-  `engagement_dashboard()`; `components/dashboard/`, `lib/dashboard.ts`),
+  every tree — members, who's active, trees and entries, members active
+  each week, how far members have got, what they did this week and last,
+  each tree — from `engagement_dashboard()`; `components/dashboard/`,
+  `lib/dashboard.ts`),
   `/request-invite` (public; `?tree=<slug>` asks that tree's Roots, and
   without one it's the request-access search),
   `/shared/[token]` (public read-only canvas; its **Ask to join** opens the
@@ -1200,6 +1201,20 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 56.5 — Trees on the dashboard's Overview** (ad-hoc, after Step
+  56; no migration). Aalim asked to replace "Active in the last 30 days"
+  with the number of trees. The Overview's third tile is now **Trees**:
+  how many there are, and how many were founded in the last 7 days
+  ("1 new in the last 7 days"), read off the Trees card's rows
+  (`headlineTiles`). The 30-day count is gone from the app's shapes
+  (`readDashboard`); `engagement_dashboard()` still sends `active_30`,
+  unread, until the function next changes. **Verified:** on a throwaway
+  preview page (deleted, never committed) the Overview read Members 9,
+  Active in the last 7 days 9, Trees 2 ("1 new in the last 7 days"),
+  Entries 101. Tests: the tiles, and which trees count as new (the day 7
+  days back does, the day before doesn't). 954 tests pass; tsc and lint
+  are clean.
 
 - **Step 56 — An engagement dashboard for the beta reviewers** (ad-hoc;
   migration `20260926030000_engagement_dashboard`). Aalim asked for a
