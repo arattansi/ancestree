@@ -21,6 +21,7 @@ import {
   useNodesState,
   useReactFlow,
   useStore,
+  useStoreApi,
   useUpdateNodeInternals,
   type Edge,
   type EdgeProps,
@@ -55,6 +56,8 @@ import {
 import { UpcomingFeed } from "@/components/tree/upcoming-feed";
 import { useShowCompanions } from "@/components/tree/use-show-companions";
 import { useToday } from "@/components/tree/use-today";
+import { useTreeRoom } from "@/components/tree/use-tree-room";
+import { LiveCursors, PresenceFaces } from "@/components/tree/live-cursors";
 import {
   EMPTY_FILTER,
   isFilterActive,
@@ -123,6 +126,12 @@ import {
   personInitials,
   personLifespan,
 } from "@/lib/person-name";
+import {
+  anchorPoint,
+  placePoint,
+  presenceColours,
+  type Peer,
+} from "@/lib/presence";
 import type { TreeGraphEdge, TreeGraphPerson } from "@/lib/tree";
 import type { PersonRelation } from "@/components/tree/person-panel";
 
@@ -1073,7 +1082,8 @@ function Canvas({
   const [aimTick, setAimTick] = React.useState(0);
   const [wholeTick, setWholeTick] = React.useState(0);
   const [arranging, setArranging] = React.useState(false);
-  const { getNode, screenToFlowPosition, setCenter } = useReactFlow();
+  const { getNode, getInternalNode, screenToFlowPosition, setCenter } =
+    useReactFlow();
   const updateNodeInternals = useUpdateNodeInternals();
   // The canvas's own pixel size, for framing the pulled-out tree by hand.
   const paneWidth = useStore((state: ReactFlowState) => state.width);
@@ -1912,6 +1922,79 @@ function Canvas({
     setAimTick((n) => n + 1);
   }, [selfPersonId, selectPerson]);
 
+  // Who else has the tree open, and their pointers (Step 57.3): members on
+  // their own tree only, never a share link or a visitor.
+  const selfEntry = selfPersonId ? personById.get(selfPersonId) : undefined;
+  const roomMe = React.useMemo(
+    () =>
+      readOnly || !currentUserId
+        ? null
+        : {
+            person: selfPersonId,
+            name: selfEntry
+              ? (selfEntry.preferred_name || selfEntry.first_name || "").trim() ||
+                personDisplayName(selfEntry)
+              : "",
+          },
+    [readOnly, currentUserId, selfPersonId, selfEntry],
+  );
+  const room = useTreeRoom(treeId, currentUserId, roomMe);
+  const roomColours = React.useMemo(
+    () =>
+      presenceColours([currentUserId, ...room.peers.map((p) => p.userId)]),
+    [currentUserId, room.peers],
+  );
+  const flowStore = useStoreApi();
+  const { sendCursor } = room;
+  const onCanvasPointerMove = React.useCallback(
+    (event: React.PointerEvent) => {
+      if (!roomMe || event.pointerType === "touch") return;
+      // Over a card of controls rather than the tree: off the canvas.
+      if ((event.target as Element).closest(".react-flow__panel")) {
+        sendCursor(null);
+        return;
+      }
+      const at = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+      const cards = [...flowStore.getState().nodeLookup.values()].flatMap(
+        (n) =>
+          n.hidden
+            ? []
+            : [
+                {
+                  id: n.id,
+                  ...n.internals.positionAbsolute,
+                  width: n.measured.width ?? NODE_W,
+                  height: n.measured.height ?? NODE_H,
+                },
+              ],
+      );
+      sendCursor(anchorPoint(at, cards));
+    },
+    [roomMe, screenToFlowPosition, flowStore, sendCursor],
+  );
+  const goToPeer = React.useCallback(
+    (peer: Peer) => {
+      const zoom = flowStore.getState().transform[2];
+      const cardAt = (id: string) => {
+        const node = getInternalNode(id);
+        return node && !node.hidden ? node.internals.positionAbsolute : null;
+      };
+      const point = room.cursors.get().get(peer.userId);
+      const pointer = point ? placePoint(point, cardAt) : null;
+      if (pointer) {
+        void setCenter(pointer.x, pointer.y, { zoom, duration: 500 });
+        return;
+      }
+      const card = peer.person ? cardAt(peer.person) : null;
+      if (card)
+        void setCenter(card.x + NODE_W / 2, card.y + NODE_H / 2, {
+          zoom,
+          duration: 500,
+        });
+    },
+    [flowStore, getInternalNode, room.cursors, setCenter],
+  );
+
   // Switching a filter starts afresh on what's drawn: nobody open, nothing
   // lit, the camera on all of it.
   const startAfresh = React.useCallback(() => {
@@ -2168,6 +2251,8 @@ function Canvas({
         // put it, so dragging is off until the spotlight closes; on a phone
         // it's off altogether (Step 49).
         nodesDraggable={!readOnly && !spotlight && !phone}
+        onPointerMove={roomMe ? onCanvasPointerMove : undefined}
+        onPointerLeave={roomMe ? () => sendCursor(null) : undefined}
       >
         <ViewportPortal>
           {graph.layout.bands.map((band) => (
@@ -2180,6 +2265,13 @@ function Canvas({
             />
           ))}
         </ViewportPortal>
+        {roomMe ? (
+          <LiveCursors
+            cursors={room.cursors}
+            peers={room.peers}
+            colours={roomColours}
+          />
+        ) : null}
         <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
         <Controls showInteractive={false}>
           {selfOnCanvas ? (
@@ -2212,6 +2304,12 @@ function Canvas({
             (sheetOut || selectedPet) && "sm:!mr-[calc(24rem+15px)]",
           )}
         >
+          <PresenceFaces
+            peers={room.peers}
+            colours={roomColours}
+            personById={personById}
+            onGoTo={goToPeer}
+          />
           {readOnly ? (
             <div className="flex max-w-[15rem] flex-col items-end gap-1.5 rounded-lg border border-border bg-card/95 p-3 text-right shadow-md">
               <span className="text-xs text-muted-foreground">

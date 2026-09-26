@@ -178,7 +178,7 @@ export function UpcomingFeed({
                       className="flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left hover:bg-accent"
                     >
                       {couple ? (
-                        <span className="flex shrink-0 -space-x-2.5">
+                        <span className="flex shrink-0 -space-x-1.5">
                           <Face person={a} className="ring-2 ring-card" />
                           <Face person={b} className="ring-2 ring-card" />
                         </span>
