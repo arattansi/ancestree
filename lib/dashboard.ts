@@ -93,7 +93,6 @@ export type Dashboard = {
   active7: number;
   /** Active in the seven days before the last seven. */
   activePrev7: number;
-  active30: number;
   entries: number;
   entriesNew: number;
   /** Twelve weeks, oldest first. */
@@ -142,7 +141,6 @@ export function readDashboard(raw: unknown): Dashboard | null {
     membersNew: count(d.members_new),
     active7: count(d.active_7),
     activePrev7: count(d.active_prev_7),
-    active30: count(d.active_30),
     entries: count(d.entries),
     entriesNew: count(d.entries_new),
     weeks: list(d.weeks)
@@ -320,9 +318,11 @@ export function headlineTiles(d: Dashboard): HeadlineTile[] {
       note: againstWeekBefore(d.active7, d.activePrev7),
     },
     {
-      label: "Active in the last 30 days",
-      value: d.active30,
-      note: `Of ${d.members} ${d.members === 1 ? "member" : "members"}`,
+      label: "Trees",
+      value: d.trees.length,
+      note: newInLastWeek(
+        d.trees.filter((t) => t.founded >= addDays(d.today, -6)).length,
+      ),
     },
     { label: "Entries", value: d.entries, note: newInLastWeek(d.entriesNew) },
   ];

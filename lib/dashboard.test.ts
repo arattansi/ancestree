@@ -74,7 +74,6 @@ describe("readDashboard (Step 56)", () => {
       membersNew: 6,
       active7: 9,
       activePrev7: 2,
-      active30: 9,
       entries: 101,
       entriesNew: 73,
       progress: { ownEntry: 8, addedRelative: 5, invited: 1, cameBack: 5 },
@@ -256,7 +255,7 @@ describe("wording (Step 56)", () => {
     expect(percentOf(12, 9)).toBe(100);
   });
 
-  it("leads with members, who's active, and entries", () => {
+  it("leads with members, who's active, trees, and entries", () => {
     const d = readDashboard(ANSWER);
     if (!d) throw new Error("no dashboard");
     expect(headlineTiles(d)).toEqual([
@@ -266,13 +265,34 @@ describe("wording (Step 56)", () => {
         value: 9,
         note: "Up 7 on the week before",
       },
-      { label: "Active in the last 30 days", value: 9, note: "Of 9 members" },
+      { label: "Trees", value: 2, note: "1 new in the last 7 days" },
       { label: "Entries", value: 101, note: "73 new in the last 7 days" },
     ]);
     expect(headlineTiles({ ...d, members: 1, membersNew: 0 })[0].note).toBe(
       "None new in the last 7 days",
     );
-    expect(headlineTiles({ ...d, members: 1 })[2].note).toBe("Of 1 member");
+  });
+
+  it("counts a tree as new when it was founded in the last 7 days", () => {
+    const d = readDashboard(ANSWER);
+    if (!d) throw new Error("no dashboard");
+    const founded = (days: string[]) =>
+      headlineTiles({
+        ...d,
+        trees: days.map((day, i) => ({ ...d.trees[0], id: `t${i}`, founded: day })),
+      })[2];
+    // Today is 26 Sep, so the last 7 days start on the 20th.
+    expect(founded(["2026-09-20", "2026-09-26", "2026-09-19"])).toEqual({
+      label: "Trees",
+      value: 3,
+      note: "2 new in the last 7 days",
+    });
+    expect(founded(["2026-08-30"]).note).toBe("None new in the last 7 days");
+    expect(founded([])).toEqual({
+      label: "Trees",
+      value: 0,
+      note: "None new in the last 7 days",
+    });
   });
 
   it("gives every kind of activity one row", () => {
