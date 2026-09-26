@@ -23,7 +23,7 @@ Descriptions, labels, buttons, hints and body copy stay in sentence case.
 
 Buttons that move you between pages or views are all lower-case: the
 header's **tree**, **connections**, **account** and **sign in**; the account
-page's view toggle **profile**, **admin**, **settings**. The tree switcher
+page's view toggle **profile**, **admin**, **dashboard**, **settings**. The tree switcher
 shows a tree's name, which keeps its own capitalisation.
 
 Buttons that *do* something — **Save**, **Rename**, **Start my tree**,
@@ -74,6 +74,31 @@ to another page. Its dialog is titled **Ask to join** too.
   whole canvas. Pressing the card brings the sheet back as it was; its ✕
   closes the details. It stays minimized while the reader opens other
   people, until nobody is open.
+
+## Charts
+
+The first is the dashboard's members active each week (Step 56,
+`components/dashboard/weekly-active-chart.tsx`).
+
+- One series wears `--chart-1`, a blue nothing else here means. Its light
+  and dark steps are the data-viz reference palette's first slot (#2a78d6,
+  #3987e5), and each clears 3:1 on the card. A second series takes the next
+  slot of that palette, run through its validator first; never an account
+  type's colour, `--canopy` or `--destructive`, which already mean something.
+- A single series has no legend: the card's title names it.
+- Columns are at most 24px wide with 4px rounded tops, rising from one
+  baseline. Gridlines are solid hairlines in `--border`, a whole round step
+  apart (`lib/dashboard.ts#countAxis`), labelled on the left.
+- Only the newest column carries its number. Hovering or focusing a column
+  shows its week and count, and a table under the chart (**Show the
+  numbers**) has every value, so nothing needs a hover.
+- On a phone, labels under the columns thin to every other one, counted
+  back from the newest; each stays centred on its column.
+- A share of something (how many members have done each thing) is a bar
+  in `--chart-1` on a track of the same blue at 15%, with the count beside
+  it in words ("8 of 9").
+- Figures in a table are `tabular-nums` and right-aligned; a headline number
+  on its own isn't.
 
 ## Step-by-step flows
 

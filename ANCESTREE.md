@@ -97,7 +97,11 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   reviewers only), invites incl. founder invites and the family link
   (Step 52, `components/admin/admin-family-link.tsx`), share
   links, tree name, who else may view, export, delete the tree;
-  `components/admin/admin-console.tsx`),
+  `components/admin/admin-console.tsx`; and, with `?view=dashboard`, for a
+  beta reviewer only, the **engagement dashboard** (Step 56): counts across
+  every tree — members and who's active, members active each week, how far
+  members have got, what they did this week and last, each tree — from
+  `engagement_dashboard()`; `components/dashboard/`, `lib/dashboard.ts`),
   `/request-invite` (public; `?tree=<slug>` asks that tree's Roots, and
   without one it's the request-access search),
   `/shared/[token]` (public read-only canvas; its **Ask to join** opens the
@@ -260,6 +264,14 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `private.family_link_max_uses()` must match), full or not, its count and
   WhatsApp link (Step 52, `.test.ts`); `lib/family-link.server.ts` — the
   tree's link and who joined with it (`family_link_joins`)
+- Engagement (Step 56): `lib/dashboard.ts` — what `engagement_dashboard()`
+  answers, read and worded for the tab, and the chart's axis
+  (`countAxis`; `.test.ts`); `lib/dashboard.server.ts` — `loadDashboard`,
+  for a beta reviewer only; `lib/active-days.ts` — the UTC day and
+  `NotedToday`, which keeps the proxy to one `note_active_day()` call a
+  member a day on each server (`.test.ts`), called from `proxy.ts` through
+  `lib/supabase/middleware.ts#noteActiveDay` in the background
+  (`event.waitUntil`)
 - Asking a relative (Step 30.5): `lib/invite-relays.ts` — the caps (on
   every ask, `askWithinCaps`, and on a member, `memberWithinCaps`), when an
   ask lapses (`relayLapsed`, Step 41.5), the form's checks and words, the
@@ -995,7 +1007,8 @@ mirror it for the UI.
   sign-up without it; Step 30.6), from the home page's dialog or request
   access's no-match screen. **Beta reviewers** — `private.beta_reviewers`
   (email): the build owner and, since `20260923043000`, Raiya Suleman; add
-  a row (by migration) to share the queue further —
+  a row (by migration) to share the queue further, which also shares the
+  account page's **dashboard** tab (Step 56) —
   answer both from "Requests to Start a Tree" on any admin console they run,
   counted in the header badge — and emailed to every reviewer who runs a tree
   the moment a new one lands (Step 30.1, `lib/emails/tree-requested.ts`;
@@ -1076,8 +1089,15 @@ Canadian context → PIPEDA-minded.
 - **Free-tier headroom**: photos are downscaled client-side to ≤1280px JPEG
   (`lib/image.ts#compressImage`, wired in the add + edit forms); documents are
   capped at 10MB/file client-side (`person-documents.tsx`), well under the
-  Supabase Free limits (50MB/file, 1GB storage, 500MB DB). No `console.*` calls
-  anywhere in `app/` `lib/` `components/` — no PII in logs.
+  Supabase Free limits (50MB/file, 1GB storage, 500MB DB). No PII in logs:
+  the few `console.*` calls, all server-side, log a tag with an error code
+  or a count.
+- **Days active** (Step 56): `private.active_days` holds a row for each UTC
+  day a member used the site — the date, nothing else — noted by the proxy
+  (`note_active_day()`) and deleted with their profile. Only
+  `engagement_dashboard()` reads it, for the beta reviewers' dashboard,
+  which shows each tree's name and counts, never a person. `/privacy` says
+  both, under what we collect and how it's protected.
 
 ## Reference data — GeoNames `places`
 
@@ -1180,6 +1200,52 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 56 — An engagement dashboard for the beta reviewers** (ad-hoc;
+  migration `20260926030000_engagement_dashboard`). Aalim asked for a
+  dashboard of high-level engagement, on its own tab of the account page,
+  for Aalim's and Raiya's accounts. **Now** the account page has a
+  **dashboard** view (`?view=dashboard`) for the beta reviewers
+  (`private.beta_reviewers`, who are those two), between admin and
+  settings; for anyone else the tab isn't there and the address shows
+  their profile. It counts across every tree and never names a person:
+  members, active in the last 7 and 30 days (against the week before),
+  entries; members active each week, as columns with the numbers in a table
+  under them; how many members have their own entry, added a relative,
+  invited someone, came back another day; what members did in the last 7
+  days, the 7 before and ever (entries, connections, photos, documents,
+  comments, companions, claims, invites, joins, requests); and each tree's
+  members, active members, entries, additions and last active day.
+  `engagement_dashboard()` builds it in one call (about 30 ms) and refuses
+  anyone but a reviewer (`NOT_A_REVIEWER`). Nothing recorded who used the
+  site on a given day, so **`private.active_days`** does now: the proxy
+  notes a signed-in member's day through `note_active_day()` in the
+  background, once a day on each server (`NotedToday`), and the days before
+  were rebuilt from sign-ins, token refreshes and every kind of addition or
+  answer, so a week before 26 Sep only counts days someone signed in or did
+  something. A member's days go with their profile. `/privacy` names the
+  record and what the site's owners see. Days, weeks and "the last 7 days"
+  run in UTC, ending today. The chart's one series is blue, `--chart-1`
+  (both themes clear 3:1 on the card; `docs/design-system.md`, Charts).
+  Defaults, not yet Aalim's choices: the reviewers' list decides who sees
+  it, so a reviewer added later does too; tree names are shown (request
+  access already reveals them), people never are. **Verified:** rehearsed
+  in a rolled-back transaction (a reviewer reads it; a member is refused
+  `42501`; neither function answers signed out; a member is noted once a
+  day, someone without a profile not at all; a reviewer still can't read
+  the table), applied, recorded row renamed, and every function body's md5
+  matches the file. In the app in Chromium, on a throwaway page (deleted,
+  never committed) with numbers from the rehearsal: light, dark and a
+  375 px phone, where every other week keeps its label and the page never
+  scrolls sideways, and a column's tooltip on hover. A throwaway member
+  (`delivered+step56@resend.dev`, a profile and no tree) signed in: the
+  proxy noted their day, the toggle showed only profile and settings,
+  `?view=dashboard` showed their profile (the dashboard wasn't in the RSC
+  payload either), and over PostgREST with their own token the dashboard
+  answered 403 `NOT_A_REVIEWER` and `note_active_day` 200 `true`; signed
+  out, both 401. All of it deleted after. Tests: `readDashboard` and the
+  wording (18), `NotedToday` and `utcDay` (4). 953 tests pass; tsc and
+  lint are clean.
 
 - **Step 55.1 — The add form warns before a missing blood tie** (ad-hoc,
   after Step 55; no migration). "Add a relative" and adding yourself on
