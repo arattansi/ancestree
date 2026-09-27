@@ -466,7 +466,6 @@ export function AddPersonFlow({
   // overwhelmingly likely other parent, so it is pre-ticked; a former one is
   // offered but left for the member to decide.
   const anchorPartners = anchorMember?.partners ?? [];
-  const primaryFallback = mode === "self" ? "You" : "this person";
   const primaryLabel = mode === "self" ? "You" : nameOf(0, "This person");
 
   // What's on the form, judged as the database will judge it (Step 55), so
@@ -679,10 +678,6 @@ export function AddPersonFlow({
 
   const submitting = form.formState.isSubmitting || photoBusy || saving;
 
-  const inBetweenHint = details
-    ? "Missing someone in between? Add them below."
-    : "Missing someone in between? Add them under “Add more details”.";
-
   const photoField = (
     <PhotoPicker
       id="primary-photo"
@@ -692,7 +687,6 @@ export function AddPersonFlow({
       onCropChange={setCrop}
       onBusyChange={setPhotoBusy}
       disabled={form.formState.isSubmitting || saving}
-      hint="Optional. JPEG, PNG, or WebP; cropped and resized on your device."
     />
   );
 
@@ -703,10 +697,9 @@ export function AddPersonFlow({
         className="flex flex-col gap-8"
         noValidate
       >
+        {/* No heading over the names and no line explaining the form: the
+            labels say it (Step 58). */}
         <section className="flex flex-col gap-6">
-          <h2 className="text-base font-semibold">
-            {mode === "self" ? "Your details" : "Their details"}
-          </h2>
           {compact ? (
             <>
               <PersonNameFields control={form.control} prefix="people.0" />
@@ -770,18 +763,9 @@ export function AddPersonFlow({
             connect to, so there's nothing to ask (Step 29). */}
         {mustConnect || members.length > 0 ? (
           <section className="flex flex-col gap-4 border-t border-border pt-6">
-            <div>
-              <h2 id="connect-heading" className="text-base font-semibold">
-                Connect to the family tree
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                {anchorable
-                  ? `Connect them to someone on your own line. ${inBetweenHint}`
-                  : mustConnect
-                    ? `Connect them to someone already on the tree. ${inBetweenHint}`
-                    : "Optional for Roots."}
-              </p>
-            </div>
+            <h2 id="connect-heading" className="text-base font-semibold">
+              Connect to the family tree
+            </h2>
 
             {!mustConnect ? (
               <label className="flex items-center gap-3 text-sm">
@@ -896,8 +880,7 @@ export function AddPersonFlow({
                             <span>
                               Also connect to {anchorLabel}&rsquo;s parent
                               {anchorParents.length > 1 ? "s" : ""} (
-                              {anchorParents.map((p) => p.label).join(" & ")}) so
-                              they appear together as siblings.
+                              {anchorParents.map((p) => p.label).join(" & ")}).
                             </span>
                           </label>
                         ) : null}
@@ -936,24 +919,16 @@ export function AddPersonFlow({
                     })}
 
                     {details ? (
-                      <>
-                        {/* Yellow: it was easy to miss (Step 54). */}
-                        <Button
-                          type="button"
-                          variant="attention"
-                          size="sm"
-                          className="self-start"
-                          onClick={addIntermediate}
-                        >
-                          Add someone in between
-                        </Button>
-                        <p className="text-xs text-muted-foreground">
-                          Reads top to bottom:{" "}
-                          {primaryFallback === "You" ? "you" : "the new entry"}{" "}
-                          connect{primaryFallback === "You" ? "" : "s"} through
-                          each person to {anchorLabel}.
-                        </p>
-                      </>
+                      // Yellow: it was easy to miss (Step 54).
+                      <Button
+                        type="button"
+                        variant="attention"
+                        size="sm"
+                        className="self-start"
+                        onClick={addIntermediate}
+                      >
+                        Add someone in between
+                      </Button>
                     ) : null}
 
                     {details ? (
@@ -1129,16 +1104,10 @@ export function AddPersonFlow({
 
         {compact && moreDetails ? (
           <section className="flex flex-col gap-6 border-t border-border pt-6">
-            <div>
-              <h2
-                ref={detailsHeading}
-                tabIndex={-1}
-                className="text-base font-semibold outline-none"
-              >
-                More details
-              </h2>
-              <p className="text-sm text-muted-foreground">All optional.</p>
-            </div>
+            {/* Heard, not seen: where focus lands once it opens. */}
+            <h2 ref={detailsHeading} tabIndex={-1} className="sr-only">
+              More details
+            </h2>
             <PersonDetailFields
               control={form.control}
               isAdmin={isAdmin}
@@ -1149,7 +1118,7 @@ export function AddPersonFlow({
             {photoField}
           </section>
         ) : compact ? (
-          <div className="flex flex-col items-start gap-1.5 border-t border-border pt-6">
+          <div className="border-t border-border pt-6">
             <Button
               type="button"
               variant="outline"
@@ -1158,10 +1127,6 @@ export function AddPersonFlow({
               <Plus />
               Add more details
             </Button>
-            <p className="text-xs text-muted-foreground">
-              Other names, sex, birth and death, a photo, and more ways to
-              connect them.
-            </p>
           </div>
         ) : null}
 

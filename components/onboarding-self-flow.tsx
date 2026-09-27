@@ -103,15 +103,7 @@ export function OnboardingSelfFlow({
     const treeIsEmpty = members.length === 0;
     return (
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1">
-          <h2 className="text-base font-semibold">Add yourself</h2>
-          {treeIsEmpty ? null : (
-            <p className="text-sm text-muted-foreground">
-              You&rsquo;ll pick how you connect to someone already on the tree —
-              and can add any missing relatives in between.
-            </p>
-          )}
-        </div>
+        <h2 className="text-base font-semibold">Add yourself</h2>
         <AddPersonFlow
           mode="self"
           treeId={treeId}

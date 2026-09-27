@@ -2,13 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { AddPersonFlow } from "@/components/add-person-flow";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { getOwnLine } from "@/lib/branch.server";
 import { getBloodline, getGrowthRights } from "@/lib/growth-rights.server";
 import { listTreeMembers } from "@/lib/tree";
@@ -48,43 +42,32 @@ export default async function NewPersonPage({
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 py-10">
+      {/* No line under the title on what the form asks; the form shows it
+          (Step 58). Only a member who can't add just anyone is told the rule. */}
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
           Add a relative
         </h1>
-        <p className="text-sm text-muted-foreground">
-          All it takes is their name and how they&apos;re related to someone
-          already on the tree. Anything else can wait.
-        </p>
         {rights.isMarriedIn ? (
           // Say the rule up front for a member who married in, rather than
           // letting them fill the whole form and meet the gate at submit.
-          <p className="mt-2 text-sm text-muted-foreground">
-            You married into this family, so you can add your partner&apos;s
-            relatives and the children you share. Your own side of the family
-            belongs on a tree of your own —{" "}
+          <p className="text-sm text-muted-foreground">
+            You can add your partner&apos;s relatives and the children you
+            share. Your own side belongs on{" "}
             <Link href={newTreeHref()} className="underline underline-offset-4">
-              start one
-            </Link>{" "}
-            and bring anyone from here along with you.
+              a tree of your own
+            </Link>
+            .
           </p>
         ) : line ? (
-          <p className="mt-2 text-sm text-muted-foreground">
-            As a Leaf, you add relatives on your own line: your parents and
-            grandparents as far back as you know, everyone descended from them,
-            and the people they married. A Branch or a Root can add anyone
-            else.
+          <p className="text-sm text-muted-foreground">
+            As a Leaf, you can add your direct ancestors, anyone descended from
+            them, and the people they married.
           </p>
         ) : null}
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Relative&apos;s entry</CardTitle>
-          <CardDescription>
-            Only a name and a connection are required.
-          </CardDescription>
-        </CardHeader>
         <CardContent>
           <AddPersonFlow
             mode="relative"

@@ -52,10 +52,14 @@ export function addedYou(inviter: string | null, treeName: string): string {
 }
 
 /**
- * A middle or a preferred name is there to reach for, not a box to fill
- * (`PersonNameFields` offers them as links), so it's never "missing".
+ * A middle, a preferred or a maiden name is there to reach for, not a box to
+ * fill (`PersonNameFields` offers them as links), so it's never "missing".
  */
-const OFFERED: readonly Fillable[] = ["middle_name", "preferred_name"];
+const OFFERED: readonly Fillable[] = [
+  "middle_name",
+  "preferred_name",
+  "maiden_name",
+];
 
 /** Whether anything is missing past a name to reach for. */
 export function missesAnything(asks: readonly Fillable[]): boolean {

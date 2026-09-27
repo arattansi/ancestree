@@ -149,11 +149,13 @@ export default async function EditPersonPage({
             <h1 className="text-2xl font-semibold tracking-tight">
               Fill in {displayName}
             </h1>
-            <p className="text-sm text-muted-foreground">
-              {blanks.length > 0
-                ? "Add what you know that nobody has filled in yet. What’s already here stays as it is, and whoever added this entry is told what you add."
-                : "Everything you could add here is filled in. Only this entry’s owner, a Branch for this side of the family, or a Root can change it."}
-            </p>
+            {/* The form shows only what's empty, so it needs no line saying
+                so (Step 58); with nothing empty, there's no form at all. */}
+            {blanks.length > 0 ? null : (
+              <p className="text-sm text-muted-foreground">
+                Nothing left to fill in.
+              </p>
+            )}
           </div>
           <Button
             nativeButton={false}
@@ -251,11 +253,13 @@ export default async function EditPersonPage({
           <h1 className="text-2xl font-semibold tracking-tight">
             Edit {displayName}
           </h1>
-          <p className="text-sm text-muted-foreground">
-            {person.is_home
-              ? "Changes are visible on every tree this entry appears on."
-              : `This entry’s home is ${homeTree?.name ?? "another tree"}; changes show there and on every tree it appears on.`}
-          </p>
+          {/* Said only when the entry's home is another tree (Step 58). */}
+          {person.is_home ? null : (
+            <p className="text-sm text-muted-foreground">
+              This entry’s home is {homeTree?.name ?? "another tree"}; changes
+              show there and on every tree it appears on.
+            </p>
+          )}
         </div>
         <Button
           nativeButton={false}
