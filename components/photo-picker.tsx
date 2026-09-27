@@ -16,6 +16,8 @@ const ACCEPT = "image/jpeg,image/png,image/webp";
  * Pick a photo and position it inside the round thumbnail. Photos upload
  * uncropped and the framing is stored alongside them, so the same editor works
  * on a photo that was uploaded long ago — nothing is re-uploaded to re-frame.
+ * No line on file types or resizing (Step 58): the file dialog offers only
+ * what's accepted, and anything else is refused with a toast.
  */
 export function PhotoPicker({
   id,
@@ -25,7 +27,6 @@ export function PhotoPicker({
   onCropChange,
   currentUrl,
   label = "Photo",
-  hint = "JPEG, PNG, or WebP. Resized on your device before upload.",
   disabled = false,
   onBusyChange,
 }: {
@@ -36,7 +37,6 @@ export function PhotoPicker({
   onCropChange: (crop: CropTransform) => void;
   currentUrl?: string | null;
   label?: string;
-  hint?: string;
   disabled?: boolean;
   onBusyChange?: (busy: boolean) => void;
 }) {
@@ -109,7 +109,6 @@ export function PhotoPicker({
             onChange={handlePick}
             disabled={disabled || busy}
           />
-          <p className="text-xs text-muted-foreground">{hint}</p>
           <div className="flex gap-3">
             {thumbUrl && !editing ? (
               <button

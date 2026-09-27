@@ -20,7 +20,6 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -71,8 +70,21 @@ function useFieldName<T extends FieldValues>(prefix?: string) {
 }
 
 /**
- * A person's names: first and last, with a middle and a preferred name to
- * reach for. All the add-a-relative form asks up front (Step 44).
+ * Names only some people have, offered as links rather than boxes (Step 44):
+ * offered as fields, the first name gets typed into all of them. The maiden
+ * name joined them from the details below (Step 58).
+ */
+const EXTRA_NAMES = [
+  { key: "middle_name", label: "Middle name", autoComplete: "additional-name" },
+  { key: "preferred_name", label: "Preferred name", autoComplete: "nickname" },
+  // Not "family-name": that would fill in the member's own.
+  { key: "maiden_name", label: "Maiden name", autoComplete: "off" },
+] as const;
+type ExtraName = (typeof EXTRA_NAMES)[number]["key"];
+
+/**
+ * A person's names: first and last, with a middle, a preferred and a maiden
+ * name to reach for. All the add-a-relative form asks up front (Step 44).
  */
 export function PersonNameFields<T extends FieldValues>({
   control,
@@ -91,26 +103,27 @@ export function PersonNameFields<T extends FieldValues>({
   const name = useFieldName<T>(prefix);
   const preferredName = useWatch({ control, name: name("preferred_name") });
 
-  // A middle and a preferred name are there to reach for, not boxes to fill:
-  // offered as fields, the first name gets typed into all of them. One that
+  // The extra names are there to reach for, not boxes to fill. One that
   // already holds a name is shown.
-  const [extraNames, setExtraNames] = React.useState(() => ({
-    middle_name: Boolean(String(getValues(name("middle_name")) ?? "").trim()),
-    preferred_name: Boolean(
-      String(getValues(name("preferred_name")) ?? "").trim(),
-    ),
-  }));
+  const [extraNames, setExtraNames] = React.useState(
+    () =>
+      Object.fromEntries(
+        EXTRA_NAMES.map(({ key }) => [
+          key,
+          Boolean(String(getValues(name(key)) ?? "").trim()),
+        ]),
+      ) as Record<ExtraName, boolean>,
+  );
   const [justRevealed, setJustRevealed] = React.useState<string | null>(null);
-  const reveal = (field: "middle_name" | "preferred_name") => {
+  const reveal = (field: ExtraName) => {
     setExtraNames((shown) => ({ ...shown, [field]: true }));
     setJustRevealed(field);
   };
-  const offers = (field: "middle_name" | "preferred_name") =>
-    shows(show, field) && !extraNames[field];
+  const offers = (field: ExtraName) => shows(show, field) && !extraNames[field];
 
   if (
-    !["first_name", "last_name", "middle_name", "preferred_name"].some((f) =>
-      shows(show, f),
+    !["first_name", "last_name", ...EXTRA_NAMES.map(({ key }) => key)].some(
+      (f) => shows(show, f),
     )
   ) {
     return null;
@@ -187,75 +200,46 @@ export function PersonNameFields<T extends FieldValues>({
             )}
           />
         ) : null}
-        {shows(show, "middle_name") && extraNames.middle_name ? (
-          <FormField
-            control={control}
-            name={name("middle_name")}
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Middle name</FormLabel>
-                <FormControl>
-                  <Input
-                    autoComplete="additional-name"
-                    autoFocus={justRevealed === "middle_name"}
-                    {...field}
-                    value={field.value ?? ""}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        ) : null}
-        {shows(show, "preferred_name") && extraNames.preferred_name ? (
-          <FormField
-            control={control}
-            name={name("preferred_name")}
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Preferred name</FormLabel>
-                <FormControl>
-                  <Input
-                    autoComplete="nickname"
-                    autoFocus={justRevealed === "preferred_name"}
-                    {...field}
-                    value={field.value ?? ""}
-                  />
-                </FormControl>
-                <FormDescription>
-                  Shown on the tree in place of the first name.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        ) : null}
-        {offers("middle_name") || offers("preferred_name") ? (
+        {EXTRA_NAMES.map(({ key, label, autoComplete }) =>
+          shows(show, key) && extraNames[key] ? (
+            <FormField
+              key={key}
+              control={control}
+              name={name(key)}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{label}</FormLabel>
+                  <FormControl>
+                    <Input
+                      autoComplete={autoComplete}
+                      autoFocus={justRevealed === key}
+                      {...field}
+                      value={field.value ?? ""}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          ) : null,
+        )}
+        {EXTRA_NAMES.some(({ key }) => offers(key)) ? (
           <div className="flex flex-wrap gap-x-4 gap-y-1 sm:col-span-2">
-            {offers("middle_name") ? (
-              <Button
-                type="button"
-                variant="link"
-                size="sm"
-                className="px-0"
-                onClick={() => reveal("middle_name")}
-              >
-                <Plus />
-                Middle name
-              </Button>
-            ) : null}
-            {offers("preferred_name") ? (
-              <Button
-                type="button"
-                variant="link"
-                size="sm"
-                className="px-0"
-                onClick={() => reveal("preferred_name")}
-              >
-                <Plus />
-                Preferred name
-              </Button>
-            ) : null}
+            {EXTRA_NAMES.map(({ key, label }) =>
+              offers(key) ? (
+                <Button
+                  key={key}
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  className="px-0"
+                  onClick={() => reveal(key)}
+                >
+                  <Plus />
+                  {label}
+                </Button>
+              ) : null,
+            )}
           </div>
         ) : null}
       </div>
@@ -301,9 +285,9 @@ export function PersonDiedField<T extends FieldValues>({
 }
 
 /**
- * Everything about a person past their names: maiden name, sex, birth, and
- * death once they're marked as having died; the contact block and lineage
- * when asked for.
+ * Everything about a person past their names: sex, birth, and death once
+ * they're marked as having died; the contact block and lineage when asked
+ * for. Labels only, with no line under a field explaining it (Step 58).
  */
 export function PersonDetailFields<T extends FieldValues>({
   control,
@@ -385,25 +369,6 @@ export function PersonDetailFields<T extends FieldValues>({
 
   return (
     <>
-      {shows(show, "maiden_name") ? (
-        <FormField
-          control={control}
-          name={name("maiden_name")}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Maiden name</FormLabel>
-              <FormControl>
-                <Input {...field} value={field.value ?? ""} />
-              </FormControl>
-              <FormDescription>
-                Optional. A last name at birth, before any change on marriage.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-      ) : null}
-
       {shows(show, "sex") ? (
         <FormField
           control={control}
@@ -448,7 +413,6 @@ export function PersonDetailFields<T extends FieldValues>({
                     onBlur={field.onBlur}
                   />
                 </FormControl>
-                <FormDescription>A year on its own is fine.</FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -479,10 +443,6 @@ export function PersonDetailFields<T extends FieldValues>({
                     onChange={(place) => setPlace("birth", place)}
                   />
                 </FormControl>
-                <FormDescription>
-                  Pick the closest match — you can’t enter a place that isn’t
-                  listed.
-                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -514,7 +474,6 @@ export function PersonDetailFields<T extends FieldValues>({
                       onBlur={field.onBlur}
                     />
                   </FormControl>
-                  <FormDescription>A year on its own is fine.</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -574,9 +533,6 @@ export function PersonDetailFields<T extends FieldValues>({
                     value={field.value ?? ""}
                   />
                 </FormControl>
-                <FormDescription>
-                  Kept private unless you choose to show it below.
-                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -635,9 +591,6 @@ export function PersonDetailFields<T extends FieldValues>({
                   ))}
                 </SelectContent>
               </Select>
-              <FormDescription>
-                Admin only. How this person connects to their parent.
-              </FormDescription>
               <FormMessage />
             </FormItem>
           )}

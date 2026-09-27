@@ -119,7 +119,6 @@ export function PersonFillForm({
             onCropChange={setCrop}
             onBusyChange={setPhotoBusy}
             disabled={form.formState.isSubmitting}
-            hint="Optional. JPEG, PNG, or WebP; cropped and resized on your device."
           />
         ) : null}
 

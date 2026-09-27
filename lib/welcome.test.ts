@@ -102,7 +102,7 @@ describe("addedYou", () => {
 
 describe("welcomeAsk", () => {
   it("asks for a photo and the rest in one line", () => {
-    expect(welcomeAsk(["maiden_name", "photo"])).toBe(
+    expect(welcomeAsk(["sex", "photo"])).toBe(
       "Add a photo and what’s missing.",
     );
   });
@@ -112,11 +112,11 @@ describe("welcomeAsk", () => {
     expect(welcomeAsk(["sex"])).toBe("Add what’s missing.");
   });
 
-  it("never counts a middle or preferred name as missing", () => {
-    expect(welcomeAsk(["middle_name", "preferred_name", "photo"])).toBe(
-      "Add a photo.",
-    );
-    expect(welcomeAsk(["middle_name", "preferred_name"])).toBe(
+  it("never counts a middle, preferred or maiden name as missing", () => {
+    expect(
+      welcomeAsk(["middle_name", "preferred_name", "maiden_name", "photo"]),
+    ).toBe("Add a photo.");
+    expect(welcomeAsk(["middle_name", "preferred_name", "maiden_name"])).toBe(
       "Check your details.",
     );
   });
@@ -129,6 +129,7 @@ describe("welcomeAsk", () => {
 describe("missesAnything", () => {
   it("is anything empty past a name to reach for", () => {
     expect(missesAnything(["middle_name", "preferred_name"])).toBe(false);
+    expect(missesAnything(["maiden_name"])).toBe(false);
     expect(missesAnything(["middle_name", "photo"])).toBe(true);
     expect(missesAnything(["sex"])).toBe(true);
     expect(missesAnything([])).toBe(false);
