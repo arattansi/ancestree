@@ -54,7 +54,10 @@ what a preferred name does, where a hidden option lives. A line stays only
 where someone can't act rightly without it — what an invite sends, a rule
 limiting what this member may add, a warning before a refusal — and then as
 one short sentence. Names only some people have (middle, preferred, maiden)
-are **+** links beside the first and last name, not boxes.
+are **+** links beside the first and last name, not boxes. The browser
+fills in names only on the member's own entry; a relative's name boxes
+turn autocomplete off, or every relative is offered the member's own name
+(Step 61).
 
 ## Layout
 
@@ -94,6 +97,17 @@ are **+** links beside the first and last name, not boxes.
   buttons. A failed save's message sits by them. They stay at the end of
   the form in the page's order, so the keyboard reaches them after the
   fields (`components/floating-form-actions.tsx`).
+- While a page loads it shows its own shape (Step 61): the same column
+  and layout, grey where its content will go
+  (`components/page-skeletons.tsx`), so a click answers at once and
+  nothing jumps when the page arrives. A page under another route gets its
+  own rather than borrowing its parent's (`/tree/review`, `/trees/new`).
+- The header streams in on its own: until its buttons are known it's the
+  same bar with only the mark (`SiteHeaderShell`), so no page waits for it
+  and nothing moves when it arrives.
+- A page that fails says **Something Went Wrong**, with **Try again** and
+  **Back to tree**, the header kept; a missing one says **Page Not Found**,
+  with **Back to tree** (Step 61).
 
 ## Charts
 

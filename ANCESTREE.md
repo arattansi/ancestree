@@ -107,6 +107,14 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   without one it's the request-access search),
   `/shared/[token]` (public read-only canvas; its **Ask to join** opens the
   `?tree=` form in a dialog over it, Step 41.4), `/privacy`
+- Loading and failure (Step 61): each page a member moves to has a
+  `loading.tsx` shaped like it (`components/page-skeletons.tsx`), so a
+  click answers at once; `app/error.tsx` keeps the header when a page
+  fails (**Try again**, **Back to tree**), `app/global-error.tsx` when the
+  root layout does, and `app/not-found.tsx` covers a missing page or an
+  entry on another of the member's trees. The header streams in on its own
+  (a Suspense boundary in `app/layout.tsx`, `SiteHeaderShell` meanwhile),
+  so no page waits for its counts
 - `app/actions/` — server actions (`auth.ts`: emailing a sign-in code (+
   consent gate when it carries an invite) and checking it
   (`verifySignInCode`, Step 53), an emailed invite's accept and, for an
@@ -245,15 +253,23 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   / `requireTreeRoot` / `requireTreeSelfPerson` / `requireTreeAccess` (member
   or visitor) for pages, `membershipOf` / `rootOf` for actions, `listMyTrees`,
   `defaultTreeSlug`; `lib/tree-links.ts` — every tree path (`treeHref`,
-  `adminHref`, `editPersonHref`, …); `lib/revalidate.ts` — revalidate the
-  `/t/[slug]` layout after a write; `lib/placements.server.ts` — who a Root
-  could bring over, and who they have
-- `components/tree-bar.tsx` (tree switcher + account type + tree nav),
-  `found-tree-form.tsx`, `home-tree-picker.tsx`, `join-tree-button.tsx`,
-  `admin/admin-placements.tsx`, `admin/admin-tree-settings.tsx`,
-  `admin/admin-delete-tree.tsx`, `tree/person-trees.tsx` ("Also on");
-  `components/ui/skeleton.tsx` + `loading.tsx` skeletons
-- `lib/auth.ts` — `getUser` / `getProfile` / `requireProfile` / `requireSelfPerson` (server-only; roles are per tree, see `lib/tree-context.ts`)
+  `adminHref`, `editPersonHref`, …); `lib/revalidate.ts` —
+  `revalidateTreePages()`, the one call after a write: the action's reply
+  carries the page it was sent from, drawn again, and pages visited
+  earlier are fetched afresh (Step 61); `lib/placements.server.ts` — who a
+  Root could bring over, and who they have
+- `components/site-header.tsx` (the mark, the tree switcher, **tree**,
+  **connections**, **account**, the bell; `lib/nav-active.ts` says which is
+  lit, Step 61), `found-tree-form.tsx`, `home-tree-picker.tsx`,
+  `join-tree-button.tsx`, `admin/admin-placements.tsx`,
+  `admin/admin-tree-settings.tsx`, `admin/admin-delete-tree.tsx`,
+  `tree/person-trees.tsx` ("Also on"); `components/page-skeletons.tsx` +
+  `components/ui/skeleton.tsx` for the `loading.tsx` skeletons
+- `lib/auth.ts` — `getSessionUser` (who the session's token names, checked
+  on the server against the project's signing key, Step 61) / `getUser`
+  (the Auth server's user, for a confirmed address) / `getProfile` /
+  `requireProfile` / `requireSelfPerson`, each read once per render
+  (server-only; roles are per tree, see `lib/tree-context.ts`)
 - "This is me" (Steps 36, 43): `lib/claim-merge.ts` — who the merge moves
   and what it asks first (`relativesThatMove`, `mergeConfirmation`), and the
   photo file it has to move (`claimedPhotoMove`; `.test.ts`);
@@ -1254,6 +1270,88 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 61 — Efficiency audit, phase 1: auth checked once, one render per
+  save, loading and error pages, the audit's bug fixes** (ad-hoc; no
+  migration). Aalim asked for an audit of efficiency gaps, redundancies and
+  the feel of buttons and page changes ([Ancestree Efficiency
+  Audit](https://claude.ai/artifact/MGmcpvsEkFnhWrQ24Xvyjo), 49 findings,
+  a four-phase plan), then "take on Phase 1 as the next step".
+  **Auth once per request:** `getUser` and `getProfile` asked the Auth
+  server each time, uncached: six Auth calls and three reads of one profile
+  per load of `/tree`. `getSessionUser` (`lib/auth.ts`) now reads who the
+  session's token names with `auth.getClaims()`, which checks it on the
+  server against the project's ES256 key (auth-js keeps the key set 10
+  minutes), and the proxy does the same; each helper runs once per render
+  (`cache()`). `getUser` stays, cached, for what only the Auth server
+  knows (a confirmed address on the join pages, the name they joined by).
+  **One render per save:** an action that revalidates already sends the
+  page back drawn again, and 53 `router.refresh()` calls drew it a second
+  time; they're gone, and so is the refresh after Add a relative's
+  navigation. Three stay, where the action changed nothing but the page
+  may be stale: relay invites answered elsewhere. Nothing is drawn again
+  where no page shows the change: opening the bell (the badge clears itself,
+  and the account page's list tells it so; `NOTIFICATIONS_READ_EVENT`),
+  documents (their list reads itself), and plain comments on entries and
+  companions (a flag still redraws its card's count). `revalidatePath`
+  stays the tool rather than `refresh()`: it also has pages visited
+  earlier fetched afresh when gone back to. `revalidateTreeAndAccount`
+  folded into `revalidateTreePages`; `revalidatePath("/admin")`, a redirect
+  stub that in 16.3 still redrew the page the action came from, became
+  that helper; narrower calls after it went; `deleteInvite` redraws even
+  when only the invite's record went.
+  **The header streams in on its own** (a Suspense boundary in the root
+  layout, with the bar and the mark as its fallback, `SiteHeaderShell`), so
+  no page waits for its counts and a page's `loading.tsx` shows at once; a
+  failure to read them leaves that bar rather than an error page.
+  **Loading, error and not-found pages:** the forms under `/people`,
+  `/onboarding`, `/welcome`, `/trees`, `/trees/new`, an invite, a share link
+  and `/tree/review` each get a `loading.tsx` shaped like them
+  (`components/page-skeletons.tsx`; the review list no longer borrows the
+  canvas's), and `/account`'s is now its width with its two columns.
+  `app/error.tsx` keeps the header (**Try again**, **Back to tree**, a
+  reference matching the server's log), `app/global-error.tsx` covers the
+  root layout, and `app/not-found.tsx` says "It doesn't exist, or it's on
+  another of your trees."
+  **Share links stop showing who has an account:** a share link's read
+  (`getTreeGraph` / `getTreePets` with `forPublic`) skips claims and open
+  flags and sends no user ids, addresses or storage paths (`NOBODY`, the
+  nil UUID, stands in for the ids). Before, a card on a share link showed
+  **Claimed**, against Step 19.1, and the claims were read for the whole
+  database through the admin client.
+  **Bugs:** a save that fails from Add a relative's connection check says
+  why in that dialog (it sat behind it), and its button stays busy until
+  the tree opens, so a second press can't save twice; a relative's name
+  boxes no longer offer the member's own name (only their own entry uses
+  the name autocomplete tokens, `self`); the edit page's **Back to tree**
+  opens the canvas on that person; `/trees/new` sends a founder to their
+  tree's console through the route that switches to it (the link ended in
+  `#<slug>`, which matched nothing); **tree** isn't lit beside
+  **connections** on `/tree/review` (`lib/nav-active.ts`); the canvas and
+  its skeleton fill the screen below the header whatever its height
+  (`--site-header-height`; a phone's two-row header had pushed the canvas's
+  bottom 26 px below the fold); Add a relative's and the companion picker's
+  searches ignore accents like the canvas's ("jose" finds José;
+  `foldSearchText`), each list with its own id; `zod` is declared in
+  `package.json`. **Verified:** in the app in Chromium, as a throwaway Root
+  of a two-person throwaway tree on live (deleted after, with its claim,
+  notifications, share link, profile and auth user): the session's token is
+  ES256, and a load of `/tree` ran one token check in the proxy and one in
+  the page, one profile query and no Auth-server call (a temporary log,
+  removed); `/tree`'s first chunk of HTML carries the header's bar and the
+  canvas skeleton, and the header and page stream in after; **Mark
+  verified** sends one request, whose reply redraws the card; a plain
+  comment one request with a 329-byte reply, listed at once; opening the
+  bell clears "3 unread" with replies of 139 bytes; **Edit entry** shows
+  "Loading the form…" on the way; its **Back to tree** opens the canvas on
+  the person; the member's own entry autofills, a relative's and a new
+  relative's don't; "jose nunez" finds José Núñez; `/trees/new` lands on
+  the console with no stray fragment; a bad entry id gives the not-found
+  page, header kept; a temporary throwing page (deleted) gives the error
+  page; at 320 px the header is 82 px and the canvas ends at the screen's
+  foot; the share link's page payload holds no user id, claim or address;
+  the account skeleton matches the page's width. 1003 tests pass (5 new);
+  tsc, lint and `next build` are clean.
 
 - **Step 60 — Search & filters under Add a relative, who's here above
   Upcoming** (ad-hoc; no migration). Aalim asked to "move search and
