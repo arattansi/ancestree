@@ -44,6 +44,18 @@ read-only canvas and opens the request form in a dialog over it, so it's an
 action there, like **Add a relative** or **Auto-arrange**, rather than a way
 to another page. Its dialog is titled **Ask to join** too.
 
+### Forms: labels, not explanations
+
+A form is its labels (Step 58; dialogs and prompts had the same pass in
+Step 47). No line under a page or section title saying what the form asks,
+no heading naming what the fields already show (**Their details**), and no
+helper line under a field or button explaining how it works: file types,
+what a preferred name does, where a hidden option lives. A line stays only
+where someone can't act rightly without it — what an invite sends, a rule
+limiting what this member may add, a warning before a refusal — and then as
+one short sentence. Names only some people have (middle, preferred, maiden)
+are **+** links beside the first and last name, not boxes.
+
 ## Layout
 
 - Pages sit in a centred column: `max-w-3xl` for the account page and admin
@@ -119,6 +131,6 @@ The first is the dashboard's members active each week (Step 56,
 - A first run that asks someone to fill in an entry a relative made (the
   welcome, Step 50) is one page, not steps. It shows the entry as it stands
   at the top, as a line under their name with **Change** to open every
-  field, and asks below it only for a photo and what's empty. A middle or
-  preferred name is offered as a link, never counted as missing. Its
+  field, and asks below it only for a photo and what's empty. A middle,
+  preferred or maiden name is offered as a link, never counted as missing. Its
   buttons are **Save and see the tree** and **Skip for now**.

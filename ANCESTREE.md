@@ -834,7 +834,8 @@ mirror it for the UI.
   name; `lib/welcome.server.ts`). Below that, their entry as it stands
   (photo or initials, name, "née …, born 12 March 1960 in Kampala,
   Uganda") with **Change**, then a photo and whatever else is empty
-  (`blankFields`; a middle or preferred name is offered, never "missing").
+  (`blankFields`; a middle, preferred or maiden name is offered, never
+  "missing").
   Change opens every name and birth field. **Save and see the tree** (one
   `updatePerson` for the details, `setPersonPhoto` for a photo) or **Skip
   for now** opens the tree on them. A member who brings their own entry to
@@ -1201,6 +1202,41 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 58 — A plainer entry form** (ad-hoc; no migration). Aalim marked
+  up "Add a relative" and struck its explanations: "this kind of details are
+  exhausting and completely unnecessary. they just take up space and make it
+  more intimidating than it needs to be for a green user". The form is now
+  its title, "* Required", the names, "This person is deceased", the invite
+  (its line kept, as Aalim left it), **Connect to the family tree** with
+  nothing under the heading, and **Add more details**. Gone: the subtitle,
+  the card's "Relative's entry" and "Only a name and a connection are
+  required.", "Their details", "Connect them to someone… Missing someone in
+  between?…" and a Root's "Optional for Roots.", the line under **Add more
+  details**, "All optional.", "Reads top to bottom…" and "so they appear
+  together as siblings". **Add someone in between** still sits behind **Add
+  more details**, now with nothing pointing there. A Leaf's and a
+  married-in member's rule are one sentence each. **Maiden name** is a "+"
+  link beside **Middle name** and **Preferred name**, as Aalim drew it
+  (`PersonNameFields`), not a box among the details, so the welcome (Step
+  50) no longer counts it as missing. Every form sharing these fields lost
+  the same kind of line: under preferred and maiden name, the dates ("A
+  year on its own is fine."), place of birth, email and lineage, and the
+  photo picker's file types (on pets too). Adding yourself loses "Your
+  details" and its intro; the edit page says something only when the
+  entry's home is another tree; filling in shows just the form, or
+  "Nothing left to fill in.". The rule is in `docs/design-system.md`
+  (Wording, "Forms: labels, not explanations"). **Verified:** in the app in
+  Chromium, on a throwaway preview page (deleted, never committed) showing
+  the real components with made-up people: the relative form as a Root, a
+  Leaf and a member who married in; "+ Maiden name" opens its box, focused,
+  and leaves the other two links; a sibling's "Also connect to …'s parents
+  (…)."; **Add more details** puts focus on its heading, now heard and not
+  seen; adding yourself; editing an entry with a maiden name shows the
+  box, and filling one in offers the link; on a 375 px phone the three
+  links wrap and nothing scrolls sideways; no console or server errors.
+  Tests: the welcome's asks, a maiden name never missing. 954 tests pass;
+  tsc and lint are clean.
 
 - **Step 56.5 — Trees on the dashboard's Overview** (ad-hoc, after Step
   56; no migration). Aalim asked to replace "Active in the last 30 days"
