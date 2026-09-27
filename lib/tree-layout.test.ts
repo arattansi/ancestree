@@ -106,6 +106,53 @@ describe("generations", () => {
     expect(positions.get("adminA")!.y - positions.get("gpaA")!.y).toBe(ROW_H);
   });
 
+  it("keeps the whole tree's rows for part of it (Step 57.2)", () => {
+    const { people, relationships } = family();
+    const whole = layoutTree(people, relationships, {
+      anchorIds: ["adminA", "adminB"],
+    });
+    // Only gpaB's descendants: the founders aren't the top any more, but
+    // every row keeps its number, so its lane keeps its name.
+    const part = people.filter((p) =>
+      ["gpaB", "gmaB", "adminB", "adminA", "kid"].includes(p.id),
+    );
+    const { generations, bands } = layoutTree(part, relationships, {
+      anchorIds: ["gpaB"],
+      generations: whole.generations,
+    });
+    expect(generations.get("gpaB")).toBe(-1);
+    expect(generations.get("adminB")).toBe(0);
+    expect(generations.get("kid")).toBe(1);
+    expect(bands.map((b) => b.label)).toEqual([
+      "Generation One",
+      "Founders' generation",
+      "Generation minus One",
+    ]);
+    // Counted from the picked person instead, the rows would be renamed.
+    expect(
+      layoutTree(part, relationships, { anchorIds: ["gpaB"] }).generations.get(
+        "gpaB",
+      ),
+    ).toBe(0);
+  });
+
+  it("places anyone the fixed rows leave out beside their relatives", () => {
+    const { people, relationships } = family();
+    const { generations } = layoutTree(
+      [...people, person("kid2", "1992-01-01")],
+      [...relationships, parent("adminA", "kid2")],
+      {
+        anchorIds: ["gpaA"],
+        generations: new Map([
+          ["gpaA", -1],
+          ["adminA", 0],
+        ]),
+      },
+    );
+    expect(generations.get("kid2")).toBe(1);
+    expect(generations.get("gmaA")).toBe(-1);
+  });
+
   it("seeds a disconnected branch on its own rows rather than dropping it", () => {
     const { positions, generations } = layoutTree(
       [person("a"), person("b"), person("loner")],

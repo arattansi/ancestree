@@ -47,6 +47,12 @@ export default function PrivacyPage() {
             They go when your account does.
           </li>
           <li>
+            While you have a tree open, its other members who have it open too
+            see that you&rsquo;re there and where your pointer is. It&rsquo;s
+            passed between you as it happens and never stored; people viewing
+            through a share link, or from another tree, don&rsquo;t see it.
+          </li>
+          <li>
             If you ask to join a tree, ask a relative on ancestree to invite
             you, or join the waitlist to start one, the name and email you
             give — kept only so a relative or the site owner can answer you,

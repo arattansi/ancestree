@@ -162,8 +162,12 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   controls end with
   **Go to me**, which opens the viewer's own tree and details, Step 48),
   `tree-search.tsx` the **Search & filters** card (Find a person, Show a
-  connection, Filters: only your Root's side and Pets & companions — each
-  section closed until opened), `person-node.tsx`
+  connection, Filters: only your Root's side, only the descendants of one or
+  two people, and Pets & companions — each section closed until opened),
+  `upcoming-feed.tsx` the **Upcoming** card beside it (birthdays and
+  anniversaries, Step 57.1; `use-today.ts` the viewer's own day),
+  `use-tree-room.ts` + `live-cursors.tsx` who else has the tree open and
+  their pointers (Step 57.3), `person-node.tsx`
   custom node (name, then `née` maiden name / birth year / birthplace;
   open-flag badge + verified `✓`), `person-panel.tsx` detail Sheet
   (edit link + claim / dispute + admin verify; **Minimize** folds it into a
@@ -219,7 +223,12 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   minimum gap between cards. Couple partners sit side by side eldest-left and a
   sibling set runs oldest→youngest. Also emits generation bands and per-couple
   descent points (`descentGeometry`, shared with the canvas so the drawn line
-  and the laid-out one follow one rule); `lib/person-name.ts` — display
+  and the laid-out one follow one rule; a `generations` option fixes each
+  row from the whole tree when only part of it is drawn, Step 57.2);
+  `lib/occasions.ts` — upcoming birthdays and anniversaries (Step 57.1,
+  `.test.ts`); `lib/presence.ts` — the tree room's topic, colours, send
+  rate and card-anchored pointers (Step 57.3, `.test.ts`);
+  `lib/person-name.ts` — display
   name + lifespan + initials, and whether someone has died
   (`personHasDied`); `lib/image.ts` — client-side photo downscale;
   `lib/first-tree.ts` — a founder's first run (Step 29): the steps and
@@ -430,6 +439,47 @@ draws, searches and lights: permissions and a person's details still read
 the whole tree. It lasts for the visit, and anything that points the canvas
 at someone off the side (a notification's "View on tree", a companion's
 person) switches it off.
+
+**Only descendants of (Step 57.2):** under Filters, one or two people, and
+the canvas draws only them, everyone descended from them and whom those
+people married (`lib/branch.ts#descendantIds`), laid out around the people
+picked. Two people draw both lines (the union), not only the children they
+share; nobody's brothers or sisters come along. With the Root's side on too,
+it picks from that side and draws within it. Each row keeps the whole
+tree's generation name (`computeTreeLayout`'s `generations`), so a filtered
+row still says "Generation minus Two". Like the side, it changes only what
+the canvas draws, searches and lights, and lasts for the visit.
+
+**Upcoming (Step 57.1):** the card beside Search & filters lists birthdays and
+wedding anniversaries over the next twelve months (`lib/occasions.ts`),
+grouped Today / Tomorrow / This week / by month, in the viewer's own time
+zone (`use-today.ts`). A birthday needs a whole date of birth and a living
+person (29 February falls on the 28th in other years); an anniversary needs
+a wedding date and a couple both living and not divorced. It lists only who
+the canvas draws, and of those who a search leaves lit (a couple while either
+is), so the side and descendants filters narrow it too, with a "Filtered"
+chip. Closed, its button counts the week ahead. A birthday opens the person;
+an anniversary lights the couple's line. Members only: not on a share link or
+for a visitor from another tree.
+
+**Who's here (Step 57.3):** members with the same tree open see each other's
+faces above **Add a relative** and each other's pointers on the canvas. It
+runs on a private Supabase Realtime channel, `tree:<tree id>`
+(`use-tree-room.ts`): Presence (keyed by the member's user id, with their
+entry and short name, and `away` while every tab of theirs is in the
+background) and a `cursor` broadcast. Migration `tree_presence` lets only
+the tree's members join (`private.topic_tree`, policies on
+`realtime.messages`); share links and visitors never try. Nothing is stored.
+A pointer is sent as an offset from the nearest card (`lib/presence.ts`), so
+it lands beside the same person when layouts differ (a filter on, a card
+pulled out), and isn't shown when that card isn't drawn here. It's sent only
+while someone else is here, at most every 80 ms for two people and slower as
+the room grows (the free plan relays 100 messages a second), never for touch,
+and cleared when the pointer leaves the canvas, is over a card of controls,
+or the tab goes to the background. Each person has a colour worked out the
+same way on every screen (`presenceColours`). A face goes to their pointer,
+or their card. Rooms are shared and closed 1.5 s late, since realtime-js
+reuses a same-topic channel even while it's leaving.
 
 **Account types (Step 18; three since Step 34):** three kinds of member,
 named for the tree they grow. `lib/account-types.ts` is the model — the only
@@ -1237,6 +1287,51 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   links wrap and nothing scrolls sideways; no console or server errors.
   Tests: the welcome's asks, a maiden name never missing. 954 tests pass;
   tsc and lint are clean.
+
+- **Step 57 — Upcoming birthdays & anniversaries, a descendants filter, and
+  who's here** (ad-hoc; migration `20260927160740_tree_presence`). Aalim asked for three things on the tree page. **57.1 Upcoming:**
+  a card beside Search & filters listing birthdays and anniversaries over
+  the next twelve months, following the side and descendants filters and a
+  search (see **Upcoming**). **57.2 Only descendants of:** one or two people
+  under Filters; the canvas draws them, their descendants and whom those
+  married, keeping the whole tree's generation names (see **Only descendants
+  of**). **57.3 Who's here:** faces of the other members with the tree open,
+  and their pointers on the canvas, over a members-only private Realtime
+  channel; nothing stored (see **Who's here**); `/privacy` says so. Aalim
+  chose (2026-09-26): twelve months, whole birth dates, the living only,
+  members only; two people draw both lines. **Verified:** in Chromium on a
+  throwaway page with made-up people (deleted, never committed): the feed
+  (today, tomorrow, this week, months; a month-only birth date and the dead
+  left out), the feed and canvas narrowed by the Root's side and by a
+  descendants pick with the "Filtered" chip, a 390 px phone, and the faces
+  and pointers drawn from a faked room (above the cards, beside the right
+  card, a face panning to its pointer, an away face dimmed); with no room
+  reachable the page carries on without errors. Tests: occasions, the
+  descendants walk, the layout's `generations`, and `lib/presence.ts`
+  (colours, send rate, anchoring, parsing, peers). 998 tests pass; tsc and
+  lint are clean. The migration was applied on 27 Sep without a rehearsal:
+  the connector's SQL was read-only that day, so no rolled-back transaction
+  could be run. It adds only a function and two policies (`realtime.messages`
+  had none). The file is named for the version it was recorded under, and
+  the function body's md5 matches it; `authenticated` and `service_role` can
+  call it, `anon` and `public` can't. **Verified end to end** on 27 Sep
+  against the live project, from this branch's dev server, with throwaway
+  accounts and a made-up tree (all deleted afterwards and checked gone;
+  never committed), recorded side by side: two members each saw the other's
+  face; each pointer landed at the same spot on the same card on the other
+  screen; with one member filtered to a person's descendants the other's
+  pointer still sat beside the same card and vanished on a card the filter
+  hid; a pointer over the Search card or off the canvas vanished; a tab put
+  in the background dimmed its face and took its pointer away, and coming
+  back undid both; clicking a face panned to that member's pointer. A
+  signed-in non-member was refused the channel ("Unauthorized: You do not
+  have permissions to read from this Channel topic") and heard nothing.
+  Their REST broadcasts to it, private or public, were accepted (202) but
+  never reached a member, and a member's did. The very first private join on
+  the project failed once with `MissingPartition` while Realtime made the
+  day's `realtime.messages` partition; realtime-js rejoined by itself, and it
+  hasn't recurred. No code change was needed. **Still to do:** consider
+  switching Realtime to private channels only in the dashboard.
 
 - **Step 56.5 — Trees on the dashboard's Overview** (ad-hoc, after Step
   56; no migration). Aalim asked to replace "Active in the last 30 days"

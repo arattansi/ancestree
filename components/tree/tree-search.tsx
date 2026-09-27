@@ -4,6 +4,7 @@ import * as React from "react";
 import {
   ChevronDown,
   ListFilter,
+  ListTree,
   PawPrint,
   Route,
   Search,
@@ -43,6 +44,10 @@ export type ConnectionEnds = { from: string | null; to: string | null };
 export const NO_CONNECTION: ConnectionEnds = { from: null, to: null };
 
 type Props = {
+  /** The card is open, rather than folded to its button. The canvas holds
+   *  this so opening **Upcoming** can close it (Step 57.1). */
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   people: TreeGraphPerson[];
   filter: TreeFilter;
   onFilterChange: (next: TreeFilter) => void;
@@ -63,6 +68,13 @@ type Props = {
   onSideOnlyChange: (on: boolean) => void;
   /** The viewer is a Root, so the side is their own. */
   ownSide: boolean;
+  /**
+   * "Only descendants of" (Step 57.2): the one or two people picked, and
+   * whom the pickers offer — the tree, or the Root's side while that's on.
+   */
+  descendantsOf: string[];
+  onDescendantsOfChange: (ids: string[]) => void;
+  descendantChoices: TreeGraphPerson[];
 };
 
 type SectionKey = "find" | "connection" | "filters";
@@ -174,12 +186,15 @@ function SwitchRow({
 /**
  * Everything that changes what the canvas shows, behind one button: finding
  * a person, lighting the connection between two people, and the filters —
- * only the viewer's Root's side, and whether pets and companions are drawn at
- * all (they are off until switched on here). Each section stays closed until
- * it's opened. Closed, the button counts what is switched on, so a canvas
- * that differs from the plain tree always says why.
+ * only the viewer's Root's side, only the descendants of one or two people,
+ * and whether pets and companions are drawn at all (they are off until
+ * switched on here). Each section stays closed until it's opened. Closed, the
+ * button counts what is switched on, so a canvas that differs from the plain
+ * tree always says why.
  */
 export function TreeSearch({
+  open,
+  onOpenChange: setOpen,
   people,
   filter,
   onFilterChange,
@@ -192,8 +207,10 @@ export function TreeSearch({
   sideOnly,
   onSideOnlyChange,
   ownSide,
+  descendantsOf,
+  onDescendantsOfChange,
+  descendantChoices,
 }: Props) {
-  const [open, setOpen] = React.useState(false);
   // Which sections are open, kept while the card closes and opens again.
   const [expanded, setExpanded] = React.useState<ReadonlySet<SectionKey>>(
     () => new Set(),
@@ -232,8 +249,13 @@ export function TreeSearch({
 
   const connecting = !!connection.from && !!connection.to;
   const lit = connecting && !connectionMissing;
+  const descending = descendantsOf.length > 0;
   const switchedOn =
-    Number(active) + Number(lit) + Number(showCompanions) + Number(!!sideOnly);
+    Number(active) +
+    Number(lit) +
+    Number(showCompanions) +
+    Number(!!sideOnly) +
+    Number(descending);
 
   if (!open) {
     return (
@@ -440,7 +462,7 @@ export function TreeSearch({
       <Section
         icon={<ListFilter />}
         title="Filters"
-        on={showCompanions || !!sideOnly}
+        on={showCompanions || !!sideOnly || descending}
         open={expanded.has("filters")}
         onToggle={() => toggle("filters")}
       >
@@ -452,6 +474,43 @@ export function TreeSearch({
             onChange={onSideOnlyChange}
           />
         ) : null}
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center justify-between gap-3 text-xs">
+            <span className="flex items-center gap-1.5 [&_svg]:size-3.5 [&_svg]:shrink-0 [&_svg]:text-muted-foreground">
+              <ListTree />
+              Only descendants of
+            </span>
+            {descending ? (
+              <ClearButton onClick={() => onDescendantsOfChange([])} />
+            ) : null}
+          </div>
+          <PersonPicker
+            people={descendantChoices}
+            value={descendantsOf[0] ?? null}
+            onChange={(id) =>
+              onDescendantsOfChange(
+                id ? [id, ...descendantsOf.slice(1)] : descendantsOf.slice(1),
+              )
+            }
+            excludeId={descendantsOf[1]}
+            placeholder="Pick a person…"
+            label="Only the descendants of"
+          />
+          {descending ? (
+            <PersonPicker
+              people={descendantChoices}
+              value={descendantsOf[1] ?? null}
+              onChange={(id) =>
+                onDescendantsOfChange(
+                  id ? [descendantsOf[0], id] : [descendantsOf[0]],
+                )
+              }
+              excludeId={descendantsOf[0]}
+              placeholder="And another…"
+              label="And the descendants of"
+            />
+          ) : null}
+        </div>
         <SwitchRow
           icon={<PawPrint />}
           label="Pets & companions"
