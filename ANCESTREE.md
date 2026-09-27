@@ -194,7 +194,8 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   disputed-claim queries; `lib/entry-comments.ts` — comment/flag thread reads
 - `components/ui/` — shadcn primitives (incl. `form` = react-hook-form + zod)
 - `components/person-fields.tsx` — shared demographic fieldset; `person-form.tsx` —
-  edit an existing entry; `add-person-flow.tsx` — self / relative add with chain
+  edit an existing entry (on the edit page its buttons float:
+  `floating-form-actions.tsx`, Step 59); `add-person-flow.tsx` — self / relative add with chain
   connect; `relationship-picker.tsx` — search-select an existing member;
   `place-autocomplete.tsx` — `places`-backed birth/death location picker
   (+ admin "add a place"); `components/person-documents.tsx`
@@ -1252,6 +1253,38 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 59 — Save changes and Back to tree float beside the edit form**
+  (ad-hoc; no migration). Aalim asked for the edit entry form's **Save
+  changes** and **Back to tree** to float on the side of the form, so
+  they can be used wherever in the form someone is. On the edit entry page
+  they now sit together (`FloatingFormActions`): from `lg` up in a column
+  just right of the form, level with the page title, staying there as the
+  page scrolls; on a phone or tablet in a bar pinned to the bottom of the
+  screen, like the header, **Save changes** first. **Back to tree** left
+  the title's row. They stay in reach over Documents and Connections too.
+  A failed save's message shows by them (above the bar's buttons, under
+  the column's), so neither moves. The page ends a bar's height lower so
+  the footer clears it, a field given focus scrolls clear of it
+  (`scroll-padding-bottom`), and toasts rise above it (the Toaster's
+  bottom offsets add `--floating-actions-height`; globals.css). In the
+  page's order they still come right after the photo, so the keyboard
+  reaches them after the fields. The account page's copy of the form, and
+  filling in what's missing, are unchanged. The rule is in
+  `docs/design-system.md` (Layout). **Verified:** in the app in Chromium,
+  on a throwaway preview page (deleted, never committed) showing the real
+  form and connections with made-up people and no server action let
+  through: at 1280 and 1024 px the column sits 24 px right of the form,
+  level with the title, and stays put scrolled to the bottom; on a 375 px
+  phone the bar is 57 px, the buttons line up with the fields, nothing
+  scrolls sideways, and at the bottom the footer ends where the bar
+  begins; a 768 px tablet in dark mode; pressing the floating **Save
+  changes** submits the form ("Saving…"); a toast lands 16 px above the
+  bar; the message leaves the buttons where they were; focusing a field
+  hidden under the bar scrolls it into view; Tab goes photo, **Save
+  changes**, **Back to tree**, Documents; without a way back the form ends
+  with **Save changes** as before; no console or server errors. 954 tests
+  pass (none new: it's layout); tsc and lint are clean.
 
 - **Step 58 — A plainer entry form** (ad-hoc; no migration). Aalim marked
   up "Add a relative" and struck its explanations: "this kind of details are

@@ -86,6 +86,14 @@ are **+** links beside the first and last name, not boxes.
   whole canvas. Pressing the card brings the sheet back as it was; its ✕
   closes the details. It stays minimized while the reader opens other
   people, until nobody is open.
+- A long form's buttons float, so they're in reach wherever someone is in
+  it (Step 59; the edit entry page's **Save changes** and **Back to
+  tree**): from `lg` up in a column just right of the form, level with the
+  page title; below that in a bar along the bottom of the screen, styled
+  like the header. The primary button comes first, as in any row of
+  buttons. A failed save's message sits by them. They stay at the end of
+  the form in the page's order, so the keyboard reaches them after the
+  fields (`components/floating-form-actions.tsx`).
 
 ## Charts
 
