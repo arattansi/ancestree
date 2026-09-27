@@ -1278,8 +1278,23 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   could be run. It adds only a function and two policies (`realtime.messages`
   had none). The file is named for the version it was recorded under, and
   the function body's md5 matches it; `authenticated` and `service_role` can
-  call it, `anon` and `public` can't. **Still to do:** check that two real
-  members see each other and a non-member is refused the channel; consider
+  call it, `anon` and `public` can't. **Verified end to end** on 27 Sep
+  against the live project, from this branch's dev server, with throwaway
+  accounts and a made-up tree (all deleted afterwards and checked gone;
+  never committed), recorded side by side: two members each saw the other's
+  face; each pointer landed at the same spot on the same card on the other
+  screen; with one member filtered to a person's descendants the other's
+  pointer still sat beside the same card and vanished on a card the filter
+  hid; a pointer over the Search card or off the canvas vanished; a tab put
+  in the background dimmed its face and took its pointer away, and coming
+  back undid both; clicking a face panned to that member's pointer. A
+  signed-in non-member was refused the channel ("Unauthorized: You do not
+  have permissions to read from this Channel topic") and heard nothing.
+  Their REST broadcasts to it, private or public, were accepted (202) but
+  never reached a member, and a member's did. The very first private join on
+  the project failed once with `MissingPartition` while Realtime made the
+  day's `realtime.messages` partition; realtime-js rejoined by itself, and it
+  hasn't recurred. No code change was needed. **Still to do:** consider
   switching Realtime to private channels only in the dashboard.
 
 - **Step 56.5 — Trees on the dashboard's Overview** (ad-hoc, after Step
