@@ -41,6 +41,12 @@ const Toaster = ({ ...props }: ToasterProps) => {
           toast: "cn-toast",
         },
       }}
+      // Sonner's own 24px / 16px, plus a form's floating buttons where they
+      // make a bar along the bottom of the screen (globals.css, Step 59).
+      offset={{ bottom: "calc(24px + var(--floating-actions-height, 0px))" }}
+      mobileOffset={{
+        bottom: "calc(16px + var(--floating-actions-height, 0px))",
+      }}
       {...props}
     />
   )

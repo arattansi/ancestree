@@ -248,30 +248,23 @@ export default async function EditPersonPage({
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 py-10">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Edit {displayName}
-          </h1>
-          {/* Said only when the entry's home is another tree (Step 58). */}
-          {person.is_home ? null : (
-            <p className="text-sm text-muted-foreground">
-              This entry’s home is {homeTree?.name ?? "another tree"}; changes
-              show there and on every tree it appears on.
-            </p>
-          )}
-        </div>
-        <Button
-          nativeButton={false}
-          render={<Link href={treeHref()} />}
-          size="sm"
-          variant="outline"
-        >
-          Back to tree
-        </Button>
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          Edit {displayName}
+        </h1>
+        {/* Said only when the entry's home is another tree (Step 58). */}
+        {person.is_home ? null : (
+          <p className="text-sm text-muted-foreground">
+            This entry’s home is {homeTree?.name ?? "another tree"}; changes
+            show there and on every tree it appears on.
+          </p>
+        )}
       </div>
 
+      {/* Back to tree floats with Save changes, in reach all the way down
+          (Step 59). */}
       <PersonForm
+        backHref={treeHref()}
         treeId={tree.id}
         isAdmin={isHomeRoot}
         person={{

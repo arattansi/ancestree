@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { useForm } from "react-hook-form";
@@ -11,6 +12,7 @@ import {
   setPersonPhotoCrop,
   updatePerson,
 } from "@/app/actions/people";
+import { FloatingFormActions } from "@/components/floating-form-actions";
 import { PersonDocuments } from "@/components/person-documents";
 import { PersonFields } from "@/components/person-fields";
 import { PhotoPicker } from "@/components/photo-picker";
@@ -38,6 +40,7 @@ export function PersonForm({
   photoUrl,
   placeLabels,
   withContact = false,
+  backHref,
 }: {
   treeId: string;
   isAdmin: boolean;
@@ -46,6 +49,10 @@ export function PersonForm({
   placeLabels?: { birth?: string | null; death?: string | null };
   /** The viewer owns this entry, so may see and set its contact details. */
   withContact?: boolean;
+  /** Where "Back to tree" goes. Given one (the edit entry page), it and
+   *  Save changes float beside the form (Step 59); without, as on the
+   *  account page, Save changes ends the form. */
+  backHref?: string;
 }) {
   const router = useRouter();
   const [photoFile, setPhotoFile] = React.useState<File | null>(null);
@@ -98,6 +105,12 @@ export function PersonForm({
     router.refresh();
   }
 
+  const save = (
+    <Button type="submit" disabled={submitting || !form.formState.isValid}>
+      {submitting ? "Saving…" : "Save changes"}
+    </Button>
+  );
+
   return (
     <Form {...form}>
       <form
@@ -124,15 +137,27 @@ export function PersonForm({
           disabled={form.formState.isSubmitting}
         />
 
-        {submitError ? (
-          <p role="alert" className="text-sm font-medium text-destructive">
-            {submitError}
-          </p>
-        ) : null}
-
-        <Button type="submit" disabled={submitting || !form.formState.isValid}>
-          {submitting ? "Saving…" : "Save changes"}
-        </Button>
+        {backHref ? (
+          <FloatingFormActions error={submitError}>
+            {save}
+            <Button
+              nativeButton={false}
+              render={<Link href={backHref} />}
+              variant="outline"
+            >
+              Back to tree
+            </Button>
+          </FloatingFormActions>
+        ) : (
+          <>
+            {submitError ? (
+              <p role="alert" className="text-sm font-medium text-destructive">
+                {submitError}
+              </p>
+            ) : null}
+            {save}
+          </>
+        )}
       </form>
 
       <div className="mt-8 border-t border-border pt-6">
