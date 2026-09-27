@@ -36,12 +36,13 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  // IMPORTANT: keep getUser() close to createServerClient to refresh tokens.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // IMPORTANT: keep getClaims() close to createServerClient: it refreshes an
+  // expired session before reading it. It checks the token against the
+  // project's signing key rather than asking the Auth server (Step 61).
+  const { data } = await supabase.auth.getClaims();
+  const userId = data?.claims.sub ?? null;
 
-  return { supabaseResponse, user, supabase };
+  return { supabaseResponse, userId, supabase };
 }
 
 /** Who this server has noted today (Step 56). */
@@ -50,7 +51,7 @@ const notedToday = new NotedToday();
 /**
  * Notes that a signed-in member used ancestree today, for the beta
  * reviewers' dashboard (Step 56): one call on their first request of the
- * day to reach this server, none after. `getUser()` has just refreshed the
+ * day to reach this server, none after. `getClaims()` has just refreshed the
  * session if it needed it, so the call never refreshes it again. A failure
  * is logged and not retried until tomorrow.
  */

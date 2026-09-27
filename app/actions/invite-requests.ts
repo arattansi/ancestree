@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 
 import { sendEmail } from "@/lib/email";
@@ -23,7 +22,7 @@ import { getSiteUrl } from "@/lib/site-url";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { revalidateTreePages } from "@/lib/revalidate";
-import { getUser, requireProfile } from "@/lib/auth";
+import { getSessionUser, requireProfile } from "@/lib/auth";
 import { rootOf } from "@/lib/tree-context";
 
 const INVITE_TTL_DAYS = 14;
@@ -93,7 +92,7 @@ export async function requestInvite(
   // where it stands (Step 30.8). Anyone else's page would be drawn again for
   // nothing, and a share link's canvas, behind its "Ask to join" dialog,
   // would re-measure every card (Step 41.4).
-  if (await getUser()) revalidateTreePages();
+  if (await getSessionUser()) revalidateTreePages();
   return { ok: true, ...entered };
 }
 
@@ -365,6 +364,5 @@ export async function deleteInviteRequest(
   }
 
   revalidateTreePages();
-  revalidatePath("/account");
   return {};
 }

@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/lib/database.types";
 import { createClient } from "@/lib/supabase/server";
+import { NOBODY } from "@/lib/tree";
 
 type DbClient = SupabaseClient<Database>;
 
@@ -43,10 +44,13 @@ const PET_COLUMNS =
  * Every companion in the tree with its people and a signed photo URL. Read
  * separately from `getTreeGraph` on purpose: pets are not part of the family
  * graph and nothing in the layout, bloodline, or claim code should see them.
+ * `forPublic` is the share link's read (Step 61): no user ids or storage
+ * paths, as with `getTreeGraph`.
  */
 export async function getTreePets(
   treeId: string,
   db?: DbClient,
+  { forPublic = false }: { forPublic?: boolean } = {},
 ): Promise<TreePet[]> {
   const supabase = db ?? (await createClient());
 
@@ -90,5 +94,6 @@ export async function getTreePets(
     ...row,
     photo_url: row.photo_path ? (urlByPath.get(row.photo_path) ?? null) : null,
     companions: companionsByPet.get(row.id) ?? [],
+    ...(forPublic ? { created_by: NOBODY, photo_path: null } : {}),
   }));
 }

@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { Public_Sans, Geist_Mono } from "next/font/google";
+import { Suspense } from "react";
 
 import { SiteFooter } from "@/components/site-footer";
-import { SiteHeader } from "@/components/site-header";
+import { SiteHeader, SiteHeaderShell } from "@/components/site-header";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { getSiteUrl } from "@/lib/site-url";
@@ -55,7 +56,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           >
             Skip to content
           </a>
-          <SiteHeader />
+          {/* The header streams in on its own, so the page below never waits
+              for its counts, and a page's loading.tsx shows at once (Step
+              61). */}
+          <Suspense fallback={<SiteHeaderShell />}>
+            <SiteHeader />
+          </Suspense>
           <div id="main-content" className="flex flex-1 flex-col">
             {children}
           </div>

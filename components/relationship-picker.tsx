@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import { Input } from "@/components/ui/input";
+import { foldSearchText } from "@/lib/tree-search";
 import { cn } from "@/lib/utils";
 
 export type TreeMemberOption = {
@@ -40,13 +41,15 @@ export function RelationshipPicker({
   labelId?: string;
 }) {
   const [query, setQuery] = React.useState("");
+  // Its own id, since a form can hold more than one picker (Step 61).
+  const listId = React.useId();
   const selected = members.find((m) => m.id === value) ?? null;
 
   const matches = React.useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = foldSearchText(query.trim());
     if (!q) return members;
     return members.filter((m) =>
-      `${m.label} ${m.maidenName ?? ""}`.toLowerCase().includes(q),
+      foldSearchText(`${m.label} ${m.maidenName ?? ""}`).includes(q),
     );
   }, [members, query]);
 
@@ -78,10 +81,10 @@ export function RelationshipPicker({
             onChange={(e) => setQuery(e.target.value)}
             disabled={disabled}
             aria-labelledby={labelId}
-            aria-controls="relationship-picker-list"
+            aria-controls={listId}
           />
           <ul
-            id="relationship-picker-list"
+            id={listId}
             role="listbox"
             aria-labelledby={labelId}
             className="max-h-56 divide-y divide-border overflow-y-auto rounded-md border border-border"

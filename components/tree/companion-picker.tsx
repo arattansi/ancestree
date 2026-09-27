@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import { Input } from "@/components/ui/input";
+import { foldSearchText } from "@/lib/tree-search";
 import { cn } from "@/lib/utils";
 
 export type CompanionOption = { id: string; label: string };
@@ -37,11 +38,11 @@ export function CompanionPicker({
   );
 
   const matches = React.useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = foldSearchText(query.trim());
     const unpicked = options.filter((o) => !value.includes(o.id));
     if (!q) return unpicked.slice(0, 8);
     return unpicked
-      .filter((o) => o.label.toLowerCase().includes(q))
+      .filter((o) => foldSearchText(o.label).includes(q))
       .slice(0, 8);
   }, [options, value, query]);
 

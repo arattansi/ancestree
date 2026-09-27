@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
@@ -103,7 +102,6 @@ function QuickRelativeForm({
   partners,
   onDone,
 }: QuickRelativeProps & { onDone: () => void }) {
-  const router = useRouter();
   const form = useForm<PersonFormValues>({
     resolver: zodResolver(personSchema),
     mode: "onChange",
@@ -220,7 +218,6 @@ function QuickRelativeForm({
         : `${personDisplayName(values)} is on the tree.`,
     );
     onDone();
-    router.refresh();
   }
 
   return (

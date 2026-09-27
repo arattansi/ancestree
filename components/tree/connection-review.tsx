@@ -1,7 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-
 import { ConnectionPromptList } from "@/components/tree/connection-prompts";
 import type { PanelSuggestion } from "@/lib/connection-suggestions";
 
@@ -19,8 +17,8 @@ export function ConnectionReview({
   medium: PanelSuggestion[];
   duplicates: PanelSuggestion[];
 }) {
-  const router = useRouter();
-  const refresh = () => router.refresh();
+  // Answering one draws the page again from the action's own reply.
+  const onResolved = () => undefined;
 
   if (high.length + medium.length + duplicates.length === 0) {
     return (
@@ -30,18 +28,18 @@ export function ConnectionReview({
 
   return (
     <div className="flex flex-col gap-8">
-      <Section title="Missing connections" items={high} onResolved={refresh} />
+      <Section title="Missing connections" items={high} onResolved={onResolved} />
       <Section
         title="Worth checking"
         blurb="Could be a step-parent or half-sibling, so check before saying yes."
         items={medium}
-        onResolved={refresh}
+        onResolved={onResolved}
       />
       <Section
         title="Possible duplicates"
         blurb="Similar names in the same place on the tree."
         items={duplicates}
-        onResolved={refresh}
+        onResolved={onResolved}
       />
     </div>
   );

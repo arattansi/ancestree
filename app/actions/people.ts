@@ -24,7 +24,6 @@ import type {
   SuggestionSource,
 } from "@/lib/connection-suggestions";
 import {
-  revalidateTreeAndAccount,
   revalidateTreePages,
 } from "@/lib/revalidate";
 import { getRoleIn, rootOf } from "@/lib/tree-context";
@@ -199,7 +198,7 @@ export async function addPeopleWithConnections(
     .filter((q): q is NonNullable<typeof q> => q !== null);
   if (placeUpdates.length > 0) await Promise.all(placeUpdates);
 
-  revalidateTreeAndAccount();
+  revalidateTreePages();
   return { personIds: result.ids, selfId: result.self_id };
 }
 
@@ -644,7 +643,9 @@ export type PersonDocument = {
 /**
  * This tree's bank of documents for an entry (Step 25): the ones uploaded
  * onto it, plus any the person shares across their trees. RLS decides which
- * of those the caller may see.
+ * of those the caller may see. The documents list reads these itself, and no
+ * page draws them, so the actions below change them without drawing any
+ * page again (Step 61).
  */
 export async function listDocuments(
   treeId: string,
@@ -700,7 +701,6 @@ export async function setDocumentShared(
       error: "Only someone who can edit this entry can change its documents.",
     };
   }
-  revalidateTreePages();
   return {};
 }
 
@@ -723,7 +723,6 @@ export async function recordDocument(input: {
     uploaded_by: profile.auth_user_id,
   });
   if (error) return { error: friendlyError(error.message) };
-  revalidateTreePages();
   return {};
 }
 
@@ -756,7 +755,6 @@ export async function removeDocument(
   if (doc?.file_path) {
     await supabase.storage.from("documents").remove([doc.file_path]);
   }
-  revalidateTreePages();
   return {};
 }
 
@@ -810,6 +808,6 @@ export async function revertEntryEdit(
     }
     return { error: friendlyError(error.message) };
   }
-  revalidateTreeAndAccount();
+  revalidateTreePages();
   return { restored: data?.length ?? 0 };
 }

@@ -10,7 +10,7 @@ import {
   setCurrentTreeCookie,
 } from "@/lib/current-tree.server";
 import { createClient } from "@/lib/supabase/server";
-import { revalidateTreeAndAccount } from "@/lib/revalidate";
+import { revalidateTreePages } from "@/lib/revalidate";
 import { redeemInvite } from "@/lib/sign-in.server";
 import { membershipOf, rootOf } from "@/lib/tree-context";
 import { joinedTreeHref, treesHref } from "@/lib/tree-links";
@@ -52,7 +52,7 @@ export async function foundTree(name: string): Promise<FoundTreeResult> {
 
   // Their new tree is the one they're looking at from here on.
   await setCurrentTreeCookie(data.id);
-  revalidateTreeAndAccount();
+  revalidateTreePages();
   return { slug: data.slug };
 }
 
@@ -73,7 +73,7 @@ export async function renameTree(
     p_name: trimmed,
   });
   if (error || !data) return { error: friendlyTreeError(error?.message) };
-  revalidateTreeAndAccount();
+  revalidateTreePages();
   return { slug: data.slug };
 }
 
@@ -108,7 +108,7 @@ export async function placePeople(
     if (refusal) return { error: bloodTiePlacementRefusal(refusal) };
     return { error: friendlyTreeError(error.message) };
   }
-  revalidateTreeAndAccount();
+  revalidateTreePages();
   return {
     placed: (data ?? []).map((r) => ({
       personId: r.placed_person_id ?? "",
@@ -140,7 +140,7 @@ export async function bringOwnEntry(treeId: string): Promise<{ error?: string }>
         : friendlyTreeError(error.message),
     };
   }
-  revalidateTreeAndAccount();
+  revalidateTreePages();
   return {};
 }
 
@@ -162,7 +162,7 @@ export async function respondToPlacement(
     if (m.includes("only the person")) return { error: "Only the person this entry belongs to can answer." };
     return { error: friendlyTreeError(error.message) };
   }
-  revalidateTreeAndAccount();
+  revalidateTreePages();
   return {};
 }
 
@@ -191,7 +191,7 @@ export async function removePlacement(
   if (!data || data.length === 0) {
     return { error: "Only a Root of this tree, or the person themselves, can remove them from it." };
   }
-  revalidateTreeAndAccount();
+  revalidateTreePages();
   return {};
 }
 
@@ -219,7 +219,7 @@ export async function setHomeTree(
     }
     return { error: friendlyTreeError(error.message) };
   }
-  revalidateTreeAndAccount();
+  revalidateTreePages();
   return {};
 }
 
@@ -239,7 +239,7 @@ export async function setHiddenFromVisitors(
   if (!data || data.length === 0) {
     return { error: "Only this person, or whoever can edit their entry, can change that." };
   }
-  revalidateTreeAndAccount();
+  revalidateTreePages();
   return {};
 }
 
@@ -276,7 +276,7 @@ export async function setTreeVisibility(
       .eq("viewer_tree_id", viewerTreeId);
     if (error) return { error: friendlyTreeError(error.message) };
   }
-  revalidateTreeAndAccount();
+  revalidateTreePages();
   return {};
 }
 
@@ -302,7 +302,7 @@ export async function joinTreeWithInvite(token: string): Promise<{ error?: strin
     }
     return { error: "That invite is invalid, used up, or expired." };
   }
-  revalidateTreeAndAccount();
+  revalidateTreePages();
   redirect(joinedTreeHref(redeemed.joined));
 }
 
@@ -349,6 +349,6 @@ export async function deleteTree(treeId: string): Promise<{ error?: string }> {
   const { error } = await supabase.rpc("delete_tree", { p_tree: treeId });
   if (error) return { error: friendlyTreeError(error.message) };
   await clearCurrentTreeCookie();
-  revalidateTreeAndAccount();
+  revalidateTreePages();
   redirect(treesHref());
 }

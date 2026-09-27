@@ -107,6 +107,13 @@ const PERSON_COLUMNS =
   "id, home_tree_id, is_home, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_death, date_of_birth_precision, date_of_death_precision, city_of_birth, country_of_birth, place_id_birth, place_id_death, is_deceased, place_of_death, sex, lineage_type, photo_path, photo_crop, pos_x, pos_y, owner_user_id, created_by, verified_at, pos_dx, pos_dy, hidden_from_visitors, blurred, email, email_visible";
 
 /**
+ * Stands in for the user ids on a public read (`forPublic`): the nil UUID,
+ * which no viewer has, not even a share link's signed-out one (`""`), so it
+ * never makes an entry look like the viewer's own.
+ */
+export const NOBODY = "00000000-0000-0000-0000-000000000000";
+
+/**
  * Everyone placed on the tree plus the connections between them, with signed
  * photo URLs. Both come from the tree views, so a person shown on two trees is
  * read once per canvas, positioned for that canvas.
@@ -114,12 +121,17 @@ const PERSON_COLUMNS =
  * `withAccountTypes` is opt-in and set only by the member canvas (Step 19.1):
  * a share link passes the RLS-bypassing admin client, and a visitor there must
  * never learn who on the tree has an account, let alone what kind. Left off,
- * the member directory isn't even read.
+ * the member directory isn't even read. `forPublic` is the share link's read
+ * (Step 61): no claims (a claimed entry is a member's) and no open flags, and
+ * no user ids, email addresses or storage paths in what reaches the browser.
  */
 export async function getTreeGraph(
   treeId: string,
   db?: DbClient,
-  { withAccountTypes = false }: { withAccountTypes?: boolean } = {},
+  {
+    withAccountTypes = false,
+    forPublic = false,
+  }: { withAccountTypes?: boolean; forPublic?: boolean } = {},
 ): Promise<{
   people: TreeGraphPerson[];
   relationships: TreeGraphEdge[];
@@ -134,17 +146,23 @@ export async function getTreeGraph(
           "id, from_person, to_person, type, created_by, marriage_date, is_divorced, divorce_date",
         )
         .eq("tree_id", treeId),
-      supabase
-        .from("claims")
-        .select("id, person_id, status")
-        .in("status", ["approved", "disputed"]),
-      supabase
-        .from("entry_comments")
-        .select("person_id")
-        .eq("tree_id", treeId)
-        .eq("is_flag", true)
-        .eq("status", "open"),
-      withAccountTypes ? loadAccountTypes(supabase, treeId) : null,
+      forPublic
+        ? { data: null }
+        : supabase
+            .from("claims")
+            .select("id, person_id, status")
+            .in("status", ["approved", "disputed"]),
+      forPublic
+        ? { data: null }
+        : supabase
+            .from("entry_comments")
+            .select("person_id")
+            .eq("tree_id", treeId)
+            .eq("is_flag", true)
+            .eq("status", "open"),
+      withAccountTypes && !forPublic
+        ? loadAccountTypes(supabase, treeId)
+        : null,
     ]);
 
   const openFlagsByPerson = new Map<string, number>();
@@ -228,7 +246,7 @@ export async function getTreeGraph(
             from_person: r.from_person,
             to_person: r.to_person,
             type: r.type,
-            created_by: r.created_by,
+            created_by: forPublic ? NOBODY : r.created_by,
             marriage_date: r.marriage_date,
             is_divorced: r.is_divorced ?? false,
             divorce_date: r.divorce_date,
@@ -311,6 +329,14 @@ export async function getTreeGraph(
       const claim = claimByPerson.get(p.id) ?? null;
       return {
         ...p,
+        ...(forPublic
+          ? {
+              owner_user_id: NOBODY,
+              created_by: NOBODY,
+              email: null,
+              photo_path: null,
+            }
+          : {}),
         // Null on a blurred row (the view's left join); no email, not shown.
         email_visible: p.email_visible ?? false,
         photo_url: p.photo_path ? (urlByPath.get(p.photo_path) ?? null) : null,

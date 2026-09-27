@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import * as React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -40,6 +39,7 @@ export function PersonForm({
   photoUrl,
   placeLabels,
   withContact = false,
+  self = false,
   backHref,
 }: {
   treeId: string;
@@ -49,12 +49,13 @@ export function PersonForm({
   placeLabels?: { birth?: string | null; death?: string | null };
   /** The viewer owns this entry, so may see and set its contact details. */
   withContact?: boolean;
+  /** The viewer's own entry, so the browser may fill in the names. */
+  self?: boolean;
   /** Where "Back to tree" goes. Given one (the edit entry page), it and
    *  Save changes float beside the form (Step 59); without, as on the
    *  account page, Save changes ends the form. */
   backHref?: string;
 }) {
-  const router = useRouter();
   const [photoFile, setPhotoFile] = React.useState<File | null>(null);
   const [photoBusy, setPhotoBusy] = React.useState(false);
   const savedCrop = React.useMemo(
@@ -102,7 +103,6 @@ export function PersonForm({
       return;
     }
     toast.success("Changes saved.");
-    router.refresh();
   }
 
   const save = (
@@ -124,6 +124,7 @@ export function PersonForm({
           idPrefix={`person-${person.id}`}
           placeLabels={placeLabels}
           withContact={withContact}
+          self={self}
         />
 
         <PhotoPicker

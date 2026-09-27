@@ -1,9 +1,8 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
 import { requireAnyRoot } from "@/lib/tree-context";
 import { foldName, nicknameInputError } from "@/lib/nicknames";
+import { revalidateTreePages } from "@/lib/revalidate";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -36,7 +35,7 @@ export async function addNickname(
 
   if (error) return { error: "Couldn't save that nickname. Try again." };
 
-  revalidatePath("/admin");
+  revalidateTreePages();
   return { canonical };
 }
 
@@ -59,7 +58,7 @@ export async function removeNickname(
 
   if (error) return { error: "Couldn't remove that nickname. Try again." };
 
-  revalidatePath("/admin");
+  revalidateTreePages();
   return {};
 }
 
@@ -77,6 +76,6 @@ export async function removeNicknameGroup(
 
   if (error) return { error: "Couldn't remove that group. Try again." };
 
-  revalidatePath("/admin");
+  revalidateTreePages();
   return {};
 }

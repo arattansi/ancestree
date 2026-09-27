@@ -1,7 +1,6 @@
 "use client";
 
 import { Pencil } from "lucide-react";
-import { useRouter } from "next/navigation";
 import * as React from "react";
 import { toast } from "sonner";
 
@@ -15,7 +14,6 @@ import { Label } from "@/components/ui/label";
  * title. Collapsed to a label + pencil until you choose to edit.
  */
 export function EditDisplayName({ name }: { name: string | null }) {
-  const router = useRouter();
   const [editing, setEditing] = React.useState(false);
   const [value, setValue] = React.useState(name ?? "");
   const [saving, setSaving] = React.useState(false);
@@ -32,7 +30,6 @@ export function EditDisplayName({ name }: { name: string | null }) {
     toast.success("Name updated.");
     if (res.displayName) setValue(res.displayName);
     setEditing(false);
-    router.refresh();
   }
 
   if (!editing) {

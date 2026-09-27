@@ -29,7 +29,7 @@ import {
   getTreeById,
   requireTreeSelfPerson,
 } from "@/lib/tree-context";
-import { treeFocusHref, treeHref } from "@/lib/tree-links";
+import { treeFocusHref } from "@/lib/tree-links";
 
 export const metadata: Metadata = { title: "edit entry" };
 
@@ -262,9 +262,9 @@ export default async function EditPersonPage({
       </div>
 
       {/* Back to tree floats with Save changes, in reach all the way down
-          (Step 59). */}
+          (Step 59), and opens the canvas on this person again (Step 61). */}
       <PersonForm
-        backHref={treeHref()}
+        backHref={treeFocusHref(personId)}
         treeId={tree.id}
         isAdmin={isHomeRoot}
         person={{
@@ -276,6 +276,7 @@ export default async function EditPersonPage({
         photoUrl={photoUrl}
         placeLabels={placeLabels}
         withContact={person.owner_user_id === profile.auth_user_id}
+        self={personId === profile.self_person_id}
       />
 
       <EditConnections

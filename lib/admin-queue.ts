@@ -29,15 +29,16 @@ export const OPEN_CONSOLE_PATH = "/account/admin";
  * when the alert is about one tree. A route rather than the console's own
  * address because only a route can switch the tree the browser is looking
  * at, and a fragment never reaches the server. Callers add the site's
- * origin (`getSiteUrl()`).
+ * origin (`getSiteUrl()`). With no `section`, the console opens at its top
+ * (a founder sent to the tree they started, Step 61).
  */
 export function openConsoleHref(
-  section: QueueSection,
+  section: QueueSection | null,
   treeId?: string | null,
 ): string {
   const params = new URLSearchParams();
   if (treeId) params.set("tree", treeId);
-  params.set("section", section);
+  if (section) params.set("section", section);
   return `${OPEN_CONSOLE_PATH}?${params}`;
 }
 

@@ -3,10 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { getUser, requireProfile } from "@/lib/auth";
+import { getSessionUser, requireProfile } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { revalidateTreeAndAccount } from "@/lib/revalidate";
+import { revalidateTreePages } from "@/lib/revalidate";
 import { rootOf } from "@/lib/tree-context";
 
 /**
@@ -180,7 +180,7 @@ export async function deletePerson(
     await db.storage.from("documents").remove(docPaths);
   }
 
-  revalidateTreeAndAccount();
+  revalidateTreePages();
   return {};
 }
 
@@ -212,7 +212,7 @@ export async function deleteAccount(
   input?: DeleteAccountInput | string,
 ): Promise<{ error?: string }> {
   await requireProfile();
-  const user = await getUser();
+  const user = await getSessionUser();
   if (!user) return { error: "You are not signed in." };
 
   // The pre-Step-25 form passed one successor for the one tree.

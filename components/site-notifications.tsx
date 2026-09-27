@@ -5,7 +5,11 @@ import * as React from "react";
 
 import { ClearNotificationsButton } from "@/components/clear-notifications-button";
 import { CloseOnNavigate } from "@/components/close-on-navigate";
-import { NotificationsList } from "@/components/notifications-list";
+import {
+  NOTIFICATIONS_READ_EVENT,
+  NotificationsList,
+  newestNotification,
+} from "@/components/notifications-list";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { NotificationItem } from "@/lib/claims";
@@ -13,15 +17,29 @@ import type { NotificationItem } from "@/lib/claims";
 /**
  * The signed-in member's in-app notifications, reachable from the header on
  * every page — a bell just past Account that drops down the same list the
- * account page shows. Opening it clears the unread badge; once a button in
- * it has led somewhere, it closes rather than hang over the page it led to.
+ * account page shows. Opening it clears the unread badge, and so does the
+ * account page's list marking them read (Step 61); once a button in it has
+ * led somewhere, it closes rather than hang over the page it led to.
  */
 export function SiteNotifications({ items }: { items: NotificationItem[] }) {
   const [open, setOpen] = React.useState(false);
-  const [seen, setSeen] = React.useState(false);
+  // Seen up to when: opening the bell, or a list marking them read, covers
+  // what's there then. One that arrives later, with a later render, counts.
+  const [seenUpTo, setSeenUpTo] = React.useState(0);
   const rootRef = React.useRef<HTMLDivElement>(null);
 
-  const unread = seen ? 0 : items.filter((n) => !n.readAt).length;
+  const unread = items.filter(
+    (n) => !n.readAt && Date.parse(n.createdAt) > seenUpTo,
+  ).length;
+
+  React.useEffect(() => {
+    function onRead(event: Event) {
+      const upTo = (event as CustomEvent<number>).detail;
+      setSeenUpTo((cur) => Math.max(cur, upTo));
+    }
+    window.addEventListener(NOTIFICATIONS_READ_EVENT, onRead);
+    return () => window.removeEventListener(NOTIFICATIONS_READ_EVENT, onRead);
+  }, []);
 
   React.useEffect(() => {
     if (!open) return;
@@ -41,7 +59,7 @@ export function SiteNotifications({ items }: { items: NotificationItem[] }) {
 
   function toggle() {
     setOpen((v) => {
-      if (!v) setSeen(true);
+      if (!v) setSeenUpTo((cur) => Math.max(cur, newestNotification(items)));
       return !v;
     });
   }

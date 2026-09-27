@@ -34,7 +34,6 @@ export function FoundTreeForm({ suggestedName }: { suggestedName: string }) {
     }
     toast.success("Your tree is planted.");
     router.push(onboardingHref());
-    router.refresh();
   }
 
   return (

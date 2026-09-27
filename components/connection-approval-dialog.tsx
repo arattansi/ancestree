@@ -41,17 +41,21 @@ const CHOICES: {
  * Blocking approval modal (Step 11.3). The entry can't save until every implied
  * connection is answered Yes / No / Skip. Not dismissible by outside-click or
  * Esc — the only ways out are "Cancel" (back to the form) or answering them all.
+ * A save that fails from here says why here (`error`, Step 61): the form's
+ * own message would sit behind the modal, out of sight.
  */
 export function ConnectionApprovalDialog({
   open,
   prompts,
   busy,
+  error,
   onCancel,
   onResolve,
 }: {
   open: boolean;
   prompts: SuggestionPrompt[];
   busy?: boolean;
+  error?: string | null;
   onCancel: () => void;
   onResolve: (resolutions: SuggestionResolution[]) => void;
 }) {
@@ -123,6 +127,12 @@ export function ConnectionApprovalDialog({
             </li>
           ))}
         </ul>
+
+        {error ? (
+          <p role="alert" className="text-sm font-medium text-destructive">
+            {error}
+          </p>
+        ) : null}
 
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <Button

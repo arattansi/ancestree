@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import * as React from "react";
 import { toast } from "sonner";
 
@@ -25,7 +24,6 @@ import {
  * of* their root name, not merely one that resembles it.
  */
 export function AdminNicknames({ groups }: { groups: NicknameGroup[] }) {
-  const router = useRouter();
   const [root, setRoot] = React.useState("");
   const [nickname, setNickname] = React.useState("");
   const [query, setQuery] = React.useState("");
@@ -57,7 +55,6 @@ export function AdminNicknames({ groups }: { groups: NicknameGroup[] }) {
     }
     toast.success(`Added to the ${res.canonical} group.`);
     setNickname("");
-    router.refresh();
   }
 
   async function onRemove(canonical: string, variant: string) {
@@ -68,7 +65,6 @@ export function AdminNicknames({ groups }: { groups: NicknameGroup[] }) {
       toast.error(res.error);
       return;
     }
-    router.refresh();
   }
 
   async function onRemoveGroup(canonical: string) {
@@ -80,7 +76,6 @@ export function AdminNicknames({ groups }: { groups: NicknameGroup[] }) {
       return;
     }
     toast.success(`Removed the ${canonical} group.`);
-    router.refresh();
   }
 
   return (

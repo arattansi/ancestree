@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { setHiddenFromVisitors, setHomeTree } from "@/app/actions/trees";
@@ -35,7 +34,6 @@ export function HomeTreePicker({
   options: HomeTreeOption[];
   hiddenFromVisitors: boolean;
 }) {
-  const router = useRouter();
   const [choice, setChoice] = React.useState(homeTreeId);
   const [busy, setBusy] = React.useState(false);
 
@@ -50,7 +48,6 @@ export function HomeTreePicker({
       return;
     }
     toast.success("Your entry has a new home.");
-    router.refresh();
   }
 
   async function onHide(on: boolean) {
@@ -59,7 +56,6 @@ export function HomeTreePicker({
     setBusy(false);
     if (res.error) toast.error(res.error);
     else toast.success(on ? "Hidden from visitors." : "Visible to visitors.");
-    router.refresh();
   }
 
   return (

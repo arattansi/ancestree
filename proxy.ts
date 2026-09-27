@@ -23,18 +23,18 @@ export async function proxy(request: NextRequest, event: NextFetchEvent) {
     return NextResponse.next({ request });
   }
 
-  const { supabaseResponse, user, supabase } = await updateSession(request);
+  const { supabaseResponse, userId, supabase } = await updateSession(request);
   const { pathname } = request.nextUrl;
 
   // A day they used ancestree, for the beta reviewers' dashboard (Step 56),
   // noted in the background so no page waits on it.
-  if (user) event.waitUntil(noteActiveDay(supabase, user.id));
+  if (userId) event.waitUntil(noteActiveDay(supabase, userId));
 
   const isPublic =
     pathname === "/" ||
     PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 
-  if (!user && !isPublic) {
+  if (!userId && !isPublic) {
     // To sign in, and back here after (Step 30.1): an alert email's button
     // opened while signed out, or any other members' link.
     const url = request.nextUrl.clone();

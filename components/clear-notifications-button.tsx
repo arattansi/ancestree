@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { clearNotifications } from "@/app/actions/claims";
@@ -19,7 +18,6 @@ export function ClearNotificationsButton({
   items: NotificationItem[];
   className?: string;
 }) {
-  const router = useRouter();
   const [busy, setBusy] = React.useState(false);
   const clearable = items.filter((n) => !n.placementId).map((n) => n.id);
   if (clearable.length === 0) return null;
@@ -37,7 +35,6 @@ export function ClearNotificationsButton({
         ? "Cleared. Requests waiting on your answer are kept."
         : "Notifications cleared.",
     );
-    router.refresh();
   }
 
   return (

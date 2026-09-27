@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import {
@@ -38,7 +37,6 @@ export function EntryComments({
   currentUserId: string;
   canModerate: boolean;
 }) {
-  const router = useRouter();
   const [state, setState] = React.useState<{
     personId: string;
     items: EntryComment[] | null;
@@ -84,7 +82,6 @@ export function EntryComments({
     setBody("");
     setAsFlag(false);
     toast.success(asFlag ? "Flag raised." : "Comment posted.");
-    router.refresh();
   }
 
   async function onToggleFlag(comment: EntryComment) {
@@ -109,7 +106,6 @@ export function EntryComments({
       );
       return;
     }
-    router.refresh();
   }
 
   const openFlags =

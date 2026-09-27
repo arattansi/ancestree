@@ -37,7 +37,7 @@ import {
   branchSideLabel,
   countOf,
 } from "@/lib/account-types";
-import { getUser, requireProfile, type Profile } from "@/lib/auth";
+import { getSessionUser, requireProfile, type Profile } from "@/lib/auth";
 import { getBranchSides } from "@/lib/branch.server";
 import { listNotifications } from "@/lib/claims";
 import { readRelayParam, relayLapseCutoff } from "@/lib/invite-relays";
@@ -94,7 +94,7 @@ export default async function AccountPage({
   const { view: requested, relay } = await searchParams;
   const profile = await requireProfile();
   const [user, trees, access, ownEntry, reviewer] = await Promise.all([
-    getUser(),
+    getSessionUser(),
     listMyTrees(),
     currentAccess(),
     loadOwnEntry(profile),
@@ -204,6 +204,7 @@ function ProfileView({ ownEntry }: { ownEntry: OwnEntry | null }) {
           photoUrl={ownEntry.photoUrl}
           placeLabels={ownEntry.placeLabels}
           withContact
+          self
         />
       </CardContent>
     </Card>
@@ -228,8 +229,6 @@ async function SettingsView({
   /** The ask named by the email's button (`relayHref`), if that's how they came. */
   openedRelayId: string | null;
 }) {
-  const user = await getUser();
-
   const supabase = await createClient();
   const [
     notifications,
@@ -237,7 +236,7 @@ async function SettingsView({
     { data: relayRows },
     { data: madeBranches },
   ] = await Promise.all([
-    user ? listNotifications(user.id) : Promise.resolve([]),
+    listNotifications(profile.auth_user_id),
     supabase
       .from("member_directory")
       .select("tree_id, invited_by_name")

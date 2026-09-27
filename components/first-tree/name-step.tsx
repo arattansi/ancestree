@@ -54,7 +54,6 @@ export function NameStep({
       toast.success(`Your tree is called ${trimmed}.`);
     }
     router.push(nextHref);
-    router.refresh();
   }
 
   return (

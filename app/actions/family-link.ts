@@ -1,7 +1,7 @@
 "use server";
 
 import { FAMILY_LINK_MAX_USES, parseFamilyLinkCap } from "@/lib/family-link";
-import { revalidateTreeAndAccount } from "@/lib/revalidate";
+import { revalidateTreePages } from "@/lib/revalidate";
 import { createClient } from "@/lib/supabase/server";
 import { rootOf } from "@/lib/tree-context";
 
@@ -30,7 +30,7 @@ export async function rotateFamilyLink(
   });
   if (error) return { error: "Could not make a new family link. Try again." };
 
-  revalidateTreeAndAccount();
+  revalidateTreePages();
   return {};
 }
 
@@ -57,7 +57,7 @@ export async function setFamilyLinkCap(
     };
   }
 
-  revalidateTreeAndAccount();
+  revalidateTreePages();
   return {};
 }
 
@@ -78,6 +78,6 @@ export async function turnOffFamilyLink(treeId: string): Promise<FamilyLinkResul
     .not("max_uses", "is", null);
   if (error) return { error: "Could not turn the family link off. Try again." };
 
-  revalidateTreeAndAccount();
+  revalidateTreePages();
   return {};
 }

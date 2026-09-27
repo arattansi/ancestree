@@ -1,7 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
 import { requireProfile } from "@/lib/auth";
 import { listPetComments, type PetComment } from "@/lib/pet-comments";
 import { createClient } from "@/lib/supabase/server";
@@ -17,7 +15,8 @@ export async function getPetComments(petId: string): Promise<PetComment[]> {
 /**
  * Add a comment to a companion. Any tree member may do this; membership is
  * enforced by `pet_comments` RLS. No notifications — a companion has no owner
- * to tell.
+ * to tell. Nothing a page draws counts the comments (the panel keeps its own
+ * list), so no page is drawn again (Step 61).
  */
 export async function addPetComment(input: {
   petId: string;
@@ -45,7 +44,6 @@ export async function addPetComment(input: {
     return { error: "Couldn't post that. Refresh and try again." };
   }
 
-  revalidatePath("/tree");
   return {
     comment: {
       id: data.id,
@@ -70,6 +68,5 @@ export async function deletePetComment(
   if (error) {
     return { error: "Couldn't delete that comment. Try again." };
   }
-  revalidatePath("/tree");
   return {};
 }

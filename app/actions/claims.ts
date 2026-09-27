@@ -2,9 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 
-import { getUser, requireProfile, requireSelfPerson } from "@/lib/auth";
+import { getSessionUser, requireProfile, requireSelfPerson } from "@/lib/auth";
 import type { ClaimResult } from "@/lib/claim-merge";
 import { moveClaimedPhoto } from "@/lib/claim-merge.server";
+import { revalidateTreePages } from "@/lib/revalidate";
 import { createClient } from "@/lib/supabase/server";
 
 function friendlyClaimError(message: string | undefined): string {
@@ -105,9 +106,7 @@ export async function resolveClaim(
     }
     return { error: "Couldn't resolve that claim. Try again." };
   }
-  revalidatePath("/admin");
-  revalidatePath("/tree");
-  revalidatePath("/account");
+  revalidateTreePages();
   return {};
 }
 
@@ -120,7 +119,7 @@ export async function resolveClaim(
 export async function clearNotifications(
   ids: string[],
 ): Promise<{ cleared?: number; error?: string }> {
-  const user = await getUser();
+  const user = await getSessionUser();
   if (!user) return { error: "You are not signed in." };
   const wanted = [...new Set(ids)].filter(Boolean);
   if (wanted.length === 0) return { cleared: 0 };
@@ -136,8 +135,14 @@ export async function clearNotifications(
   return { cleared: data?.length ?? 0 };
 }
 
+/**
+ * Mark every notification read, once a list of them has been shown. No page
+ * is drawn again for it (Step 61): the list keeps showing which were new
+ * while it's open, and the bell clears its own count
+ * (`NOTIFICATIONS_READ_EVENT`).
+ */
 export async function markNotificationsRead(): Promise<void> {
-  const user = await getUser();
+  const user = await getSessionUser();
   if (!user) return;
   const supabase = await createClient();
   await supabase
@@ -145,5 +150,4 @@ export async function markNotificationsRead(): Promise<void> {
     .update({ read_at: new Date().toISOString() })
     .is("read_at", null)
     .eq("recipient_user_id", user.id);
-  revalidatePath("/account");
 }

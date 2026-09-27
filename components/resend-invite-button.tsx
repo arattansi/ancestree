@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { resendInviteEmail } from "@/app/actions/invite-requests";
@@ -24,7 +23,6 @@ export function ResendInviteButton({
   /** The first send failed, so this is a retry rather than a duplicate. */
   failed?: boolean;
 }) {
-  const router = useRouter();
   const [busy, setBusy] = React.useState(false);
 
   async function onResend() {
@@ -38,7 +36,6 @@ export function ResendInviteButton({
     } finally {
       setBusy(false);
     }
-    router.refresh();
     if (res.error) {
       toast.error(res.error);
       return;

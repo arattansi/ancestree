@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -36,7 +35,6 @@ export function DirectInviteForm({
    */
   founder?: boolean;
 }) {
-  const router = useRouter();
   const [rows, setRows] = React.useState<Row[]>([emptyRow()]);
   const [pending, setPending] = React.useState(false);
 
@@ -111,8 +109,6 @@ export function DirectInviteForm({
     const failedEmails = new Set([...failed, ...notEmailed].map((r) => r.email));
     const remaining = filled.filter((r) => failedEmails.has(r.email.trim().toLowerCase()));
     setRows(remaining.length > 0 ? remaining : [emptyRow()]);
-
-    if (succeeded.length > 0) router.refresh();
   }
 
   return (

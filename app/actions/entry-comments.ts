@@ -1,7 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
 import { listEntryComments, type EntryComment } from "@/lib/entry-comments";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -56,7 +54,9 @@ export async function addEntryComment(input: {
     return { error: "Couldn't post that. Refresh and try again." };
   }
 
-  revalidateTreePages();
+  // A flag shows on the entry's card, so the canvas is drawn again; a plain
+  // comment only shows on the board, which keeps its own list (Step 61).
+  if (input.isFlag) revalidateTreePages();
   return {
     comment: {
       id: data.id,
@@ -95,7 +95,6 @@ export async function resolveEntryFlag(
     return { error: "Couldn't update that flag. Try again." };
   }
   revalidateTreePages();
-  revalidatePath("/account");
   return {};
 }
 
@@ -112,6 +111,5 @@ export async function setEntryVerified(
   });
   if (error) return { error: "Couldn't update verification. Try again." };
   revalidateTreePages();
-  revalidatePath("/account");
   return {};
 }

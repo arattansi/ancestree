@@ -39,7 +39,6 @@ export function BringYourself({
     }
     toast.success(`You're on ${treeName}.`);
     router.push(nextHref);
-    router.refresh();
   }
 
   return (

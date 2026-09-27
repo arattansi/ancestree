@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { placePeople, removePlacement } from "@/app/actions/trees";
@@ -29,7 +28,6 @@ export function AdminPlacements({
   candidates: PlacementCandidate[];
   placed: ForeignPlacement[];
 }) {
-  const router = useRouter();
   const [picked, setPicked] = React.useState<Set<string>>(new Set());
   const [filter, setFilter] = React.useState("");
   const [busy, setBusy] = React.useState(false);
@@ -67,7 +65,6 @@ export function AdminPlacements({
         .join(" · ") || "Done",
     );
     setPicked(new Set());
-    router.refresh();
   }
 
   async function onRemove(p: ForeignPlacement) {
@@ -76,7 +73,6 @@ export function AdminPlacements({
     setBusy(false);
     if (res.error) toast.error(res.error);
     else toast.success(`${p.name} is off this tree.`);
-    router.refresh();
   }
 
   return (

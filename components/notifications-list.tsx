@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { disputeClaim, markNotificationsRead } from "@/app/actions/claims";
@@ -13,6 +12,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { NotificationItem } from "@/lib/claims";
 import { adminHref, newTreeHref, treeFocusHref } from "@/lib/tree-links";
+
+/**
+ * Fired once a list has marked its notifications read, so the header's bell
+ * clears its count without the page being drawn again (Step 61). Its
+ * `detail` is `newestNotification` of the list.
+ */
+export const NOTIFICATIONS_READ_EVENT = "ancestree:notifications-read";
+
+/** When the newest of these arrived, in ms (0 for none). */
+export function newestNotification(items: NotificationItem[]): number {
+  return items.reduce(
+    (max, n) => Math.max(max, Date.parse(n.createdAt) || 0),
+    0,
+  );
+}
 
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -32,15 +46,20 @@ export function NotificationsList({
   /** Name each item's tree — for a list that spans every tree (Step 25). */
   showTree?: boolean;
 }) {
-  const router = useRouter();
   const [disputingId, setDisputingId] = React.useState<string | null>(null);
   const [reason, setReason] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const hasUnread = items.some((n) => !n.readAt);
 
   React.useEffect(() => {
-    if (hasUnread) void markNotificationsRead();
-  }, [hasUnread]);
+    if (!hasUnread) return;
+    void markNotificationsRead();
+    window.dispatchEvent(
+      new CustomEvent(NOTIFICATIONS_READ_EVENT, {
+        detail: newestNotification(items),
+      }),
+    );
+  }, [hasUnread, items]);
 
   if (items.length === 0) {
     return (
@@ -57,7 +76,6 @@ export function NotificationsList({
     } else {
       toast.success("Change undone. The Branch who made it has been told.");
     }
-    router.refresh();
   }
 
   async function onPlacement(placementId: string, accept: boolean) {
@@ -69,7 +87,6 @@ export function NotificationsList({
       return;
     }
     toast.success(accept ? "You're on that tree now." : "Declined.");
-    router.refresh();
   }
 
   async function onDispute(claimId: string) {
@@ -83,7 +100,6 @@ export function NotificationsList({
     toast.success("Dispute sent to an admin.");
     setDisputingId(null);
     setReason("");
-    router.refresh();
   }
 
   return (

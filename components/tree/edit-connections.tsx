@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { connectExistingPeople, removeRelationship } from "@/app/actions/people";
@@ -68,8 +67,6 @@ export function EditConnections({
   members: TreeMemberOption[];
   connections: ExistingConnection[];
 }) {
-  const router = useRouter();
-
   const [otherId, setOtherId] = React.useState("");
   const [kind, setKind] = React.useState<ConnectionKind>("child");
   /** null until the member touches it — see `defaultCoParents`. */
@@ -153,7 +150,6 @@ export function EditConnections({
         );
         setBusy(false);
         resetForm();
-        router.refresh();
         return;
       }
       alsoAdded.push(
@@ -168,7 +164,6 @@ export function EditConnections({
     );
     setBusy(false);
     resetForm();
-    router.refresh();
   }
 
   async function remove(id: string) {
@@ -180,7 +175,6 @@ export function EditConnections({
       return;
     }
     toast.success("Connection removed.");
-    router.refresh();
   }
 
   return (

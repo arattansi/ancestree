@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import {
@@ -55,7 +54,6 @@ export function AdminFamilyLink({
   joins: FamilyLinkJoin[];
   baseUrl: string;
 }) {
-  const router = useRouter();
   const serverCap = link?.maxUses ?? FAMILY_LINK_MAX_USES;
   const [cap, setCap] = React.useState(serverCap);
   const [seenCap, setSeenCap] = React.useState(serverCap);
@@ -87,7 +85,6 @@ export function AdminFamilyLink({
         return;
       }
       toast.success(link ? "New link made. The old one no longer works." : "Family link made.");
-      router.refresh();
     });
   }
 
@@ -113,7 +110,6 @@ export function AdminFamilyLink({
         return;
       }
       toast.success(`Cap set to ${next}.`);
-      router.refresh();
     });
   }
 
@@ -128,7 +124,6 @@ export function AdminFamilyLink({
         return;
       }
       toast.success("Family link turned off.");
-      router.refresh();
     });
   }
 

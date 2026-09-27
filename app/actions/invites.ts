@@ -1,7 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
 import { INVITED_AS, accountTypeOf } from "@/lib/account-types";
 import { requireProfile } from "@/lib/auth";
 import { claimInviteRecordName } from "@/lib/claim-invites";
@@ -13,7 +11,7 @@ import { personDisplayName } from "@/lib/person-name";
 import { getSiteUrl } from "@/lib/site-url";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { revalidateTreeAndAccount } from "@/lib/revalidate";
+import { revalidateTreePages } from "@/lib/revalidate";
 import { getRoleIn, membershipOf, rootOf } from "@/lib/tree-context";
 
 const INVITE_TTL_DAYS = 14;
@@ -158,7 +156,7 @@ export async function sendDirectInvites(
     });
   }
 
-  revalidateTreeAndAccount();
+  revalidateTreePages();
   return { results };
 }
 
@@ -192,7 +190,7 @@ export async function sendFounderInvites(
     });
   }
 
-  revalidateTreeAndAccount();
+  revalidateTreePages();
   return { results };
 }
 
@@ -346,7 +344,7 @@ export async function sendClaimInvite(
     invite_id: invite.id,
     email_sent: sent.ok,
   });
-  revalidateTreeAndAccount();
+  revalidateTreePages();
 
   if (!sent.ok) {
     return {
@@ -383,10 +381,10 @@ export async function deleteInvite(id: string): Promise<{ error?: string }> {
     .delete()
     .eq("id", id)
     .select("id");
+  // Its "Sent invites" record is gone by now, so the page is drawn again
+  // even when the link itself couldn't be deleted (Step 61).
+  revalidateTreePages();
   if (error) return { error: "Could not delete that link. Try again." };
   if (!data || data.length === 0) return { error: "Only a Root of this tree can delete that link." };
-
-  revalidateTreeAndAccount();
-  revalidatePath("/account");
   return {};
 }

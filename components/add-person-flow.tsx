@@ -383,6 +383,9 @@ export function AddPersonFlow({
     edges: ReturnType<typeof buildChainEdges>;
   } | null>(null);
   const [saving, setSaving] = React.useState(false);
+  // Saved and on the way to the tree: the button stays busy until the page
+  // changes, so a second press can't save the same people again (Step 61).
+  const [saved, setSaved] = React.useState(false);
   const [addingMore, setAddingMore] = React.useState(false);
   // Adding a relative asks their name, how they connect and an invite up
   // front, and keeps everything else behind "Add more details" at the
@@ -605,9 +608,10 @@ export function AddPersonFlow({
     // Land on the person they set out to add, with their own tree pulled
     // out (Step 19.2). `personIds[0]` is always that person: the RPC returns
     // ids in the order `people` was sent, and the chain's in-between people
-    // follow the primary one.
+    // follow the primary one. The save already drew the pages again, so
+    // the tree arrives fresh (Step 61).
+    setSaved(true);
     router.replace(doneHref ?? treeFocusHref(primaryId));
-    router.refresh();
     return true;
   }
 
@@ -656,6 +660,7 @@ export function AddPersonFlow({
 
   async function onResolve(resolutions: SuggestionResolution[]) {
     if (!pendingSave) return;
+    setSubmitError(null);
     setSaving(true);
     // A merged prompt stands for several rules; record the answer against each
     // of them, so none of them asks again.
@@ -676,7 +681,8 @@ export function AddPersonFlow({
     }
   }
 
-  const submitting = form.formState.isSubmitting || photoBusy || saving;
+  const submitting =
+    form.formState.isSubmitting || photoBusy || saving || saved;
 
   const photoField = (
     <PhotoPicker
@@ -718,6 +724,7 @@ export function AddPersonFlow({
                 // Lineage describes the link to a parent; the first person on
                 // an empty tree has none to describe (Step 29).
                 lineage={members.length > 0 ? undefined : false}
+                self={mode === "self"}
                 prefix="people.0"
                 idPrefix="primary"
               />
@@ -1155,7 +1162,8 @@ export function AddPersonFlow({
       <ConnectionApprovalDialog
         open={pendingSave !== null}
         prompts={prompts}
-        busy={saving}
+        busy={saving || saved}
+        error={submitError}
         onCancel={() => {
           setPendingSave(null);
           setSuggestions([]);

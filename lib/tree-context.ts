@@ -9,7 +9,12 @@ import {
   type AccountType,
   type AccountTypeKey,
 } from "@/lib/account-types";
-import { getProfile, getUser, requireProfile, type Profile } from "@/lib/auth";
+import {
+  getProfile,
+  getSessionUser,
+  requireProfile,
+  type Profile,
+} from "@/lib/auth";
 import { readCurrentTreeId } from "@/lib/current-tree.server";
 import type { Tables } from "@/lib/database.types";
 import { createClient } from "@/lib/supabase/server";
@@ -51,7 +56,7 @@ export const getTreeById = cache(
 /** The caller's account type on a tree, or `null` when they are not on it. */
 export const getRoleIn = cache(
   async (treeId: string): Promise<AccountTypeKey | null> => {
-    const user = await getUser();
+    const user = await getSessionUser();
     if (!user) return null;
     const supabase = await createClient();
     const { data } = await supabase
@@ -144,7 +149,7 @@ export const currentAccess = cache(async (): Promise<TreeAccess | null> => {
 export async function requireTreeAccess(): Promise<TreeAccess> {
   const profile = await getProfile();
   if (!profile) {
-    const user = await getUser();
+    const user = await getSessionUser();
     redirect(user ? "/join?status=pending" : "/join");
   }
   const access = await currentAccess();
@@ -241,7 +246,7 @@ export type MyTree = {
 
 /** Every tree the caller belongs to, with their account type in each. */
 export const listMyTrees = cache(async (): Promise<MyTree[]> => {
-  const user = await getUser();
+  const user = await getSessionUser();
   if (!user) return [];
   const supabase = await createClient();
   const { data } = await supabase

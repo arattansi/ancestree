@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { EMPTY_FILTER, petMatchesFilter } from "@/lib/tree-search";
+import {
+  EMPTY_FILTER,
+  foldSearchText,
+  petMatchesFilter,
+} from "@/lib/tree-search";
 
 const pet = { name: "Biscuit", companions: ["a", "b"] };
 
@@ -35,5 +39,15 @@ describe("petMatchesFilter", () => {
         new Set(["a"]),
       ),
     ).toBe(true);
+  });
+});
+
+describe("foldSearchText", () => {
+  it("ignores case and accents, as every name search does (Step 61)", () => {
+    expect(foldSearchText("José")).toBe("jose");
+    expect(foldSearchText("Zoë Ångström")).toBe("zoe angstrom");
+    expect(foldSearchText("José Núñez").includes(foldSearchText("nunez"))).toBe(
+      true,
+    );
   });
 });

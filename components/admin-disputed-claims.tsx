@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { resolveClaim } from "@/app/actions/claims";
@@ -9,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import type { DisputedClaim } from "@/lib/claims";
 
 export function AdminDisputedClaims({ claims }: { claims: DisputedClaim[] }) {
-  const router = useRouter();
   const [busyId, setBusyId] = React.useState<string | null>(null);
 
   if (claims.length === 0) {
@@ -31,7 +29,6 @@ export function AdminDisputedClaims({ claims }: { claims: DisputedClaim[] }) {
     toast.success(
       action === "uphold" ? "Claim upheld." : "Claim reversed.",
     );
-    router.refresh();
   }
 
   return (

@@ -32,8 +32,11 @@ export function isFilterActive(f: TreeFilter): boolean {
   );
 }
 
-/** Lowercase and strip diacritics so "Jose" matches "José". */
-function fold(s: string): string {
+/**
+ * Lowercase and strip diacritics so "Jose" matches "José". Every name search
+ * folds the same way, the pickers included (Step 61).
+ */
+export function foldSearchText(s: string): string {
   return s
     .toLowerCase()
     .normalize("NFKD")
@@ -49,8 +52,8 @@ function birthYear(p: TreeGraphPerson): number | null {
 export function matchesFilter(p: TreeGraphPerson, f: TreeFilter): boolean {
   const text = f.text.trim();
   if (text) {
-    const needle = fold(text);
-    const haystack = fold(
+    const needle = foldSearchText(text);
+    const haystack = foldSearchText(
       [
         personDisplayName(p),
         p.first_name,
@@ -89,9 +92,9 @@ export function matchesFilter(p: TreeGraphPerson, f: TreeFilter): boolean {
  * "London" shouldn't offer everyone born there.
  */
 export function matchesName(p: TreeGraphPerson, text: string): boolean {
-  const needle = fold(text.trim());
+  const needle = foldSearchText(text.trim());
   if (!needle) return false;
-  return fold(
+  return foldSearchText(
     [
       personDisplayName(p),
       p.first_name,
@@ -138,6 +141,8 @@ export function petMatchesFilter(
   matchingPeople: Set<string>,
 ): boolean {
   const text = f.text.trim();
-  if (text && fold(pet.name).includes(fold(text))) return true;
+  if (text && foldSearchText(pet.name).includes(foldSearchText(text))) {
+    return true;
+  }
   return pet.companions.some((id) => matchingPeople.has(id));
 }

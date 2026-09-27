@@ -86,12 +86,10 @@ export function PersonFillForm({
     const filled = result.filled ?? [];
     if (filled.length === 0) {
       toast.info("Nothing new to add: someone may have just filled that in.");
-      router.refresh();
       return;
     }
     toast.success(`Added their ${filledPhrase(filled)}.`);
     router.push(treeFocusHref(personId));
-    router.refresh();
   }
 
   return (

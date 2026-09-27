@@ -29,7 +29,6 @@ export function AdminTreeName({ treeId, name }: { treeId: string; name: string }
     }
     toast.success("Renamed.");
     router.replace(adminHref("tree-name"));
-    router.refresh();
   }
 
   return (
@@ -70,7 +69,6 @@ export function AdminTreeVisibility({
   treeId: string;
   viewers: ViewerTreeOption[];
 }) {
-  const router = useRouter();
   const [busy, setBusy] = React.useState<string | null>(null);
 
   async function onToggle(viewer: ViewerTreeOption, on: boolean) {
@@ -79,7 +77,6 @@ export function AdminTreeVisibility({
     setBusy(null);
     if (res.error) toast.error(res.error);
     else toast.success(on ? `Open to ${viewer.name}.` : `Closed to ${viewer.name}.`);
-    router.refresh();
   }
 
   if (viewers.length === 0) {

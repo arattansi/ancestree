@@ -143,7 +143,6 @@ function RelayInviteForm({
         `Link created for ${sent.email}, but the email didn't send${sent.error ? ` (${sent.error})` : ""}.`,
       );
     }
-    router.refresh();
   }
 
   /**
@@ -164,6 +163,9 @@ function RelayInviteForm({
 
     if (!res.minted) {
       toast.error(res.error ?? "Couldn't send that invite. Try again.");
+      // Perhaps answered from elsewhere: show the asks as they stand. A sent
+      // invite needs no refresh, as its action draws the page again.
+      router.refresh();
     } else if (res.error) {
       // Made, but its email didn't go: the ask is answered all the same.
       toast.warning(res.error);
@@ -172,7 +174,6 @@ function RelayInviteForm({
         `Invite emailed to ${res.email} — accepting it claims the entry for ${entry.name}.`,
       );
     }
-    router.refresh();
   }
 
   async function onDismiss() {
@@ -187,9 +188,11 @@ function RelayInviteForm({
       setBusy(null);
     }
 
-    if (res.error) toast.error(res.error);
-    else toast.success(`Dismissed. ${relay.firstName} isn’t told.`);
-    router.refresh();
+    if (res.error) {
+      toast.error(res.error);
+      // Perhaps answered from elsewhere: show the asks as they stand.
+      router.refresh();
+    } else toast.success(`Dismissed. ${relay.firstName} isn’t told.`);
   }
 
   return (

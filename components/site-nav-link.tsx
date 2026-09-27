@@ -4,20 +4,24 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { isNavActive } from "@/lib/nav-active";
 
 /**
  * A header nav button that turns solid black once you're on the page it points
- * at, and stays white with a grey outline everywhere else.
+ * at, and stays white with a grey outline everywhere else. It's lit on the
+ * pages under it too, unless `exact`.
  */
 export function SiteNavLink({
   href,
+  exact = false,
   children,
 }: {
   href: string;
+  exact?: boolean;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const active = pathname === href || pathname.startsWith(`${href}/`);
+  const active = isNavActive(pathname, href, exact);
 
   return (
     <Button

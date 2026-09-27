@@ -1,7 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
 import { requireProfile } from "@/lib/auth";
 import {
   friendlySelfClaimError,
@@ -49,7 +47,6 @@ export async function claimSelfCandidate(
   if (error || !data) return { error: friendlySelfClaimError(error?.message) };
 
   revalidateTreePages();
-  revalidatePath("/account");
   const result = data as { person_id: string };
   return { personId: result.person_id };
 }

@@ -72,13 +72,22 @@ function useFieldName<T extends FieldValues>(prefix?: string) {
 /**
  * Names only some people have, offered as links rather than boxes (Step 44):
  * offered as fields, the first name gets typed into all of them. The maiden
- * name joined them from the details below (Step 58).
+ * name joined them from the details below (Step 58). `selfAutoComplete` is
+ * for the member's own entry only (`self`).
  */
 const EXTRA_NAMES = [
-  { key: "middle_name", label: "Middle name", autoComplete: "additional-name" },
-  { key: "preferred_name", label: "Preferred name", autoComplete: "nickname" },
+  {
+    key: "middle_name",
+    label: "Middle name",
+    selfAutoComplete: "additional-name",
+  },
+  {
+    key: "preferred_name",
+    label: "Preferred name",
+    selfAutoComplete: "nickname",
+  },
   // Not "family-name": that would fill in the member's own.
-  { key: "maiden_name", label: "Maiden name", autoComplete: "off" },
+  { key: "maiden_name", label: "Maiden name", selfAutoComplete: "off" },
 ] as const;
 type ExtraName = (typeof EXTRA_NAMES)[number]["key"];
 
@@ -91,6 +100,7 @@ export function PersonNameFields<T extends FieldValues>({
   prefix,
   show,
   required = true,
+  self = false,
 }: {
   control: Control<T>;
   prefix?: string;
@@ -98,6 +108,12 @@ export function PersonNameFields<T extends FieldValues>({
   /** Mark what has to be filled in. Filling in what's missing marks nothing:
    *  the entry already has its name. */
   required?: boolean;
+  /**
+   * The member's own entry, so the browser may fill in their names. Anyone
+   * else's names are `off`, or it offers the member's own name for every
+   * relative (Step 61).
+   */
+  self?: boolean;
 }) {
   const { setValue, getValues } = useFormContext<T>();
   const name = useFieldName<T>(prefix);
@@ -154,7 +170,7 @@ export function PersonNameFields<T extends FieldValues>({
                 </FormLabel>
                 <FormControl>
                   <Input
-                    autoComplete="given-name"
+                    autoComplete={self ? "given-name" : "off"}
                     {...field}
                     value={field.value ?? ""}
                     onChange={(e) => {
@@ -189,7 +205,7 @@ export function PersonNameFields<T extends FieldValues>({
                 </FormLabel>
                 <FormControl>
                   <Input
-                    autoComplete="family-name"
+                    autoComplete={self ? "family-name" : "off"}
                     required={required}
                     {...field}
                     value={field.value ?? ""}
@@ -200,7 +216,7 @@ export function PersonNameFields<T extends FieldValues>({
             )}
           />
         ) : null}
-        {EXTRA_NAMES.map(({ key, label, autoComplete }) =>
+        {EXTRA_NAMES.map(({ key, label, selfAutoComplete }) =>
           shows(show, key) && extraNames[key] ? (
             <FormField
               key={key}
@@ -211,7 +227,7 @@ export function PersonNameFields<T extends FieldValues>({
                   <FormLabel>{label}</FormLabel>
                   <FormControl>
                     <Input
-                      autoComplete={autoComplete}
+                      autoComplete={self ? selfAutoComplete : "off"}
                       autoFocus={justRevealed === key}
                       {...field}
                       value={field.value ?? ""}
@@ -609,6 +625,7 @@ export function PersonFields<T extends FieldValues>({
   control,
   isAdmin,
   withContact = false,
+  self = false,
   prefix,
   idPrefix,
   placeLabels,
@@ -621,6 +638,12 @@ export function PersonFields<T extends FieldValues>({
    * the entry's owner editing it. The add flow leaves it for later.
    */
   withContact?: boolean;
+  /**
+   * The member's own entry: the browser may fill in their names
+   * (`PersonNameFields`). Not `withContact`: a member also owns the entries
+   * of relatives they added, until those relatives claim them.
+   */
+  self?: boolean;
   prefix?: string;
   idPrefix: string;
   /** Labels for already-selected places, so the edit form shows them on load. */
@@ -634,7 +657,7 @@ export function PersonFields<T extends FieldValues>({
 }) {
   return (
     <div className="flex flex-col gap-6">
-      <PersonNameFields control={control} prefix={prefix} />
+      <PersonNameFields control={control} prefix={prefix} self={self} />
       <PersonDetailFields
         control={control}
         isAdmin={isAdmin}

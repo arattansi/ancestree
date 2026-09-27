@@ -11,9 +11,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { openConsoleHref } from "@/lib/admin-queue";
 import { requireProfile } from "@/lib/auth";
 import { listMyTrees } from "@/lib/tree-context";
-import { adminHref, treesHref } from "@/lib/tree-links";
+import { treesHref } from "@/lib/tree-links";
 import { defaultTreeName } from "@/lib/tree-names";
 import { TREE_REQUEST_RECEIVED } from "@/lib/tree-requests";
 import { getTreeRequestStatus } from "@/lib/tree-requests.server";
@@ -30,9 +31,11 @@ export default async function NewTreePage() {
     getTreeRequestStatus(),
   ]);
 
-  // One founded tree each: a founder is sent to the one they have.
+  // One founded tree each: a founder is sent to the one they have, its
+  // console opened by the route that switches the browser to it first (Step
+  // 61; the console is whichever tree the browser is looking at).
   const founded = trees.find((t) => t.founded);
-  if (founded) redirect(adminHref(founded.slug));
+  if (founded) redirect(openConsoleHref(null, founded.id));
 
   // "My Family Tree" for a first tree, "My Second Tree" after that.
   const suggestedName = defaultTreeName(trees.length);

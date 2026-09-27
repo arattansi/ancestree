@@ -44,6 +44,16 @@ describe("openConsoleHref / readOpenConsole", () => {
     });
   });
 
+  it("opens a tree's console at its top when no card is named", () => {
+    const href = openConsoleHref(null, A);
+    expect(href).toBe(`/account/admin?tree=${A}`);
+    const url = new URL(href, "https://www.ancestree.space");
+    expect(readOpenConsole(url.searchParams)).toEqual({
+      treeId: A,
+      section: null,
+    });
+  });
+
   it("drops a tree that isn't an id and a card that isn't a queue", () => {
     expect(
       readOpenConsole(

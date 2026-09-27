@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 
@@ -277,7 +276,6 @@ function BringRelatives({
   treeId: string;
   options: BringOption[];
 }) {
-  const router = useRouter();
   const [unticked, setUnticked] = React.useState<Set<string>>(new Set());
   const [busy, setBusy] = React.useState(false);
   const picked = options.filter((o) => !unticked.has(o.id));
@@ -306,7 +304,6 @@ function BringRelatives({
         .filter(Boolean)
         .join(", ") + ".",
     );
-    router.refresh();
   }
 
   return (

@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
@@ -97,7 +96,6 @@ export function PetPanel({
   onClose: () => void;
   onSelectPerson: (personId: string) => void;
 }) {
-  const router = useRouter();
   const [editing, setEditing] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   const [photoFile, setPhotoFile] = React.useState<File | null>(null);
@@ -166,7 +164,6 @@ export function PetPanel({
     toast.success("Companion updated.");
     setEditing(false);
     setPhotoFile(null);
-    router.refresh();
   }
 
   async function onAddCompanion(ids: string[]) {
@@ -184,7 +181,6 @@ export function PetPanel({
       toast.error(result.error);
       return;
     }
-    router.refresh();
   }
 
   async function onSetPrimary(personId: string) {
@@ -197,7 +193,6 @@ export function PetPanel({
       return;
     }
     toast.success("Primary connection updated.");
-    router.refresh();
   }
 
   async function onRemove() {
@@ -216,7 +211,6 @@ export function PetPanel({
     }
     toast.success("Companion removed.");
     onClose();
-    router.refresh();
   }
 
   const glyph = pet

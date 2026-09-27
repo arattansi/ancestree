@@ -1,8 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
 import { requireProfile } from "@/lib/auth";
+import { revalidateTreePages } from "@/lib/revalidate";
 import { createClient } from "@/lib/supabase/server";
 
 const MAX_NAME = 60;
@@ -39,8 +38,6 @@ export async function updateDisplayName(
     return { error: "Couldn't save your name. Try again." };
   }
 
-  revalidatePath("/account");
-  revalidatePath("/admin");
-  revalidatePath("/tree");
+  revalidateTreePages();
   return { displayName: trimmed };
 }

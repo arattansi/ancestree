@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { deleteInviteRequest } from "@/app/actions/invite-requests";
@@ -25,7 +24,6 @@ export function DeleteInviteButton({
   /** For a row the page keeps on screen itself, which a refresh won't drop. */
   onDeleted?: () => void;
 }) {
-  const router = useRouter();
   const [busy, setBusy] = React.useState(false);
 
   async function onDelete() {
@@ -40,7 +38,6 @@ export function DeleteInviteButton({
     } finally {
       setBusy(false);
     }
-    router.refresh();
     if (res.error) {
       toast.error(res.error);
       return;

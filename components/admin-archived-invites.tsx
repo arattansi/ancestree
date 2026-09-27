@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { deleteInvite } from "@/app/actions/invites";
@@ -13,7 +12,6 @@ import type { ArchivedInvite } from "@/lib/invites";
  * but out of the live lists. Nothing to do with them but delete for good.
  */
 export function AdminArchivedInvites({ invites }: { invites: ArchivedInvite[] }) {
-  const router = useRouter();
   const [busyId, setBusyId] = React.useState<string | null>(null);
 
   if (invites.length === 0) {
@@ -31,7 +29,6 @@ export function AdminArchivedInvites({ invites }: { invites: ArchivedInvite[] })
     setBusyId(invite.id);
     const res = await deleteInvite(invite.id);
     setBusyId(null);
-    router.refresh();
     if (res.error) {
       toast.error(res.error);
       return;

@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Minimize2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -508,7 +507,6 @@ export function PersonPanel({
   minimizedFocus?: React.RefObject<HTMLElement | null>;
   onClose: () => void;
 }) {
-  const router = useRouter();
   const open = person !== null && !minimized;
   const [busy, setBusy] = React.useState(false);
   const [disputing, setDisputing] = React.useState(false);
@@ -549,7 +547,6 @@ export function PersonPanel({
     }
     setCropOpen(false);
     toast.success("Photo repositioned.");
-    router.refresh();
   }
 
   async function onClaim() {
@@ -563,7 +560,6 @@ export function PersonPanel({
     }
     toast.success("Merged — this is now your entry.");
     onClose();
-    router.refresh();
   }
 
   async function onSendClaimInvite() {
@@ -571,8 +567,8 @@ export function PersonPanel({
     setBusy(true);
     const res = await sendClaimInvite(person.id, claimEmail);
     setBusy(false);
-    // Either way: an invite whose email failed is still made, and listed.
-    router.refresh();
+    // An invite whose email failed is still made, and listed: the action
+    // draws the page again whether or not the email went.
     if (res.error) {
       toast.error(res.error);
       return;
@@ -593,7 +589,6 @@ export function PersonPanel({
     toast.success(
       person.verified_at ? "Verification cleared." : "Entry marked verified.",
     );
-    router.refresh();
   }
 
   async function onDelete() {
@@ -614,7 +609,6 @@ export function PersonPanel({
     }
     toast.success("Entry deleted.");
     onClose();
-    router.refresh();
   }
 
   async function onDispute() {
@@ -629,7 +623,6 @@ export function PersonPanel({
     toast.success("Dispute sent to an admin.");
     setDisputing(false);
     onClose();
-    router.refresh();
   }
 
   return (
@@ -870,7 +863,7 @@ export function PersonPanel({
 
               <FamilySection
                 relations={relations}
-                onChanged={() => router.refresh()}
+                onChanged={() => undefined}
               />
 
               <CompanionsSection
@@ -882,7 +875,7 @@ export function PersonPanel({
 
               <PendingConnectionPrompts
                 suggestions={suggestions}
-                onResolved={() => router.refresh()}
+                onResolved={() => undefined}
               />
 
               {!readOnly ? (

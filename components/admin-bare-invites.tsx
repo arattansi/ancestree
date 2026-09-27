@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { deleteInvite } from "@/app/actions/invites";
@@ -22,7 +21,6 @@ export function AdminBareInvites({
   invites: BareInvite[];
   baseUrl: string;
 }) {
-  const router = useRouter();
   const [busyId, setBusyId] = React.useState<string | null>(null);
 
   if (invites.length === 0) {
@@ -49,7 +47,6 @@ export function AdminBareInvites({
     setBusyId(invite.id);
     const res = await deleteInvite(invite.id);
     setBusyId(null);
-    router.refresh();
     if (res.error) {
       toast.error(res.error);
       return;

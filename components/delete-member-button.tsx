@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { deleteMember } from "@/app/actions/members";
@@ -32,7 +31,6 @@ export function DeleteMemberButton({
    */
   onlyTree: boolean | null;
 }) {
-  const router = useRouter();
   const [busy, setBusy] = React.useState(false);
 
   async function onDelete() {
@@ -54,7 +52,6 @@ export function DeleteMemberButton({
       return;
     }
     setBusy(false);
-    router.refresh();
     if (res.error) {
       toast.error(res.error);
       return;

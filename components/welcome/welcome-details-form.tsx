@@ -190,6 +190,7 @@ export function WelcomeDetailsForm({
           control={form.control}
           show={show}
           required={showAll}
+          self
         />
         <PersonDetailFields
           control={form.control}

@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import {
@@ -38,7 +37,6 @@ export function AdminTreeRequests({
   treeId: string;
   requests: TreeRequestItem[];
 }) {
-  const router = useRouter();
   const [busyId, setBusyId] = React.useState<string | null>(null);
   const open = requests.filter((r) => r.status === "pending");
   const answered = requests.filter((r) => r.status !== "pending");
@@ -57,7 +55,6 @@ export function AdminTreeRequests({
       return null;
     } finally {
       setBusyId(null);
-      router.refresh();
     }
   }
 

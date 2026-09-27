@@ -94,7 +94,6 @@ export function OnboardingSelfFlow({
     }
     // A relative made it, so the welcome asks for what's missing (Step 50).
     router.replace(welcomeHref());
-    router.refresh();
   }
 
   if (step === "add") {

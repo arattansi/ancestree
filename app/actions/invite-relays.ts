@@ -22,7 +22,7 @@ import { passOnRelay } from "@/lib/invite-relays.server";
 import { getRelayCandidates } from "@/lib/relay-candidates.server";
 import { chosenCandidate } from "@/lib/request-candidates";
 import { readNameAndEmail } from "@/lib/request-forms";
-import { revalidateTreeAndAccount } from "@/lib/revalidate";
+import { revalidateTreePages } from "@/lib/revalidate";
 import { createClient } from "@/lib/supabase/server";
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>;
@@ -90,7 +90,7 @@ async function markRelayInvited(
     })
     .eq("id", relayId)
     .eq("status", "pending");
-  revalidateTreeAndAccount();
+  revalidateTreePages();
 }
 
 /**
@@ -174,7 +174,7 @@ export async function dismissRelay(relayId: string): Promise<{ error?: string }>
   if (error) return { error: "Couldn't dismiss that request. Try again." };
   if (!data || data.length === 0) return { error: RELAY_ANSWERED };
 
-  revalidateTreeAndAccount();
+  revalidateTreePages();
   return {};
 }
 

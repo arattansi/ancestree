@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { unstable_rethrow } from "next/navigation";
+import type { ReactNode } from "react";
 
 import { signOut } from "@/app/actions/auth";
 import { switchTreeForm } from "@/app/actions/current-tree";
@@ -12,12 +14,58 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { countAdminQueue } from "@/lib/admin-notifications";
 import { pickQueueTarget, queueCountLabel } from "@/lib/admin-queue";
-import { getProfile, getUser } from "@/lib/auth";
+import { getProfile, getSessionUser } from "@/lib/auth";
 import { listNotifications } from "@/lib/claims";
 import { countOpenConnectionSuggestions } from "@/lib/connection-suggestions.server";
 import { currentAccess, listMyTrees } from "@/lib/tree-context";
 import { adminHref, reviewHref, treeHref } from "@/lib/tree-links";
 import { countPendingTreeRequests } from "@/lib/tree-requests.server";
+
+/**
+ * The header's frame: the mark on the left, then whatever sits in the
+ * centre and on the right. `site-header-bar` and `site-header-wordmark` let
+ * a node's details sheet move the header aside while it's open
+ * (globals.css).
+ */
+function HeaderFrame({
+  center,
+  nav,
+}: {
+  center?: ReactNode;
+  nav?: ReactNode;
+}) {
+  return (
+    <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      <div className="site-header-bar mx-auto grid min-h-14 w-full max-w-5xl grid-cols-[1fr_auto_1fr] items-center gap-x-4 px-4 py-2">
+        <Link
+          href="/"
+          className="flex w-fit items-center gap-2 rounded-sm text-sm font-semibold tracking-tight text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
+          <LogoMark className="size-5" />
+          <span className="site-header-wordmark">ancestree.space</span>
+        </Link>
+        <div className="flex min-w-0 items-center justify-center">{center}</div>
+        <nav
+          aria-label="Primary"
+          className="flex flex-wrap items-center justify-end gap-2"
+        >
+          {nav}
+        </nav>
+      </div>
+      <SiteHeaderHeight />
+    </header>
+  );
+}
+
+/**
+ * The header before its buttons are known: the same bar with only the mark,
+ * so the page below never moves when they arrive (Step 61). The root layout
+ * shows it while `SiteHeader` streams in, and `SiteHeader` falls back to it
+ * if what it reads can't be had.
+ */
+export function SiteHeaderShell() {
+  return <HeaderFrame />;
+}
 
 /**
  * The site-wide header. Left, the mark; centre, the tree switcher for
@@ -31,13 +79,28 @@ import { countPendingTreeRequests } from "@/lib/tree-requests.server";
  *
  * Someone signed in who isn't a member yet gets a way to sign out, not
  * "sign in", which would only take them back to /join (Step 30.8).
+ *
+ * It streams in on its own (a Suspense boundary in the root layout, Step
+ * 61), so no page waits for its counts, and a failure to read them leaves
+ * the bare bar rather than an error page: the root layout's errors skip
+ * every `error.tsx`.
  */
 export async function SiteHeader() {
+  try {
+    return await LoadedHeader();
+  } catch (error) {
+    unstable_rethrow(error);
+    console.error("[site-header] couldn't load the header", error);
+    return <SiteHeaderShell />;
+  }
+}
+
+async function LoadedHeader() {
   const profile = await getProfile();
-  const [user, trees, access] = profile
-    ? await Promise.all([getUser(), listMyTrees(), currentAccess()])
-    : [null, [], null];
-  const signedInNotMember = profile ? false : Boolean(await getUser());
+  const [trees, access] = profile
+    ? await Promise.all([listMyTrees(), currentAccess()])
+    : [[], null];
+  const signedInNotMember = profile ? false : Boolean(await getSessionUser());
 
   const currentMembership =
     access?.kind === "member" ? access.membership : null;
@@ -47,7 +110,7 @@ export async function SiteHeader() {
   const runs = trees.filter((t) => t.type.runsTree);
   const [notifications, openConnections, queues, treeRequests] =
     await Promise.all([
-      user ? listNotifications(user.id) : [],
+      profile ? listNotifications(profile.auth_user_id) : [],
       currentMembership
         ? countOpenConnectionSuggestions(currentMembership.tree.id)
         : 0,
@@ -68,92 +131,81 @@ export async function SiteHeader() {
     trees.length > 1 || (visiting !== null && trees.length > 0);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-      {/* `site-header-bar` and `site-header-wordmark` let a node's details
-          sheet move the header aside while it's open (globals.css). */}
-      <div className="site-header-bar mx-auto grid min-h-14 w-full max-w-5xl grid-cols-[1fr_auto_1fr] items-center gap-x-4 px-4 py-2">
-        <Link
-          href="/"
-          className="flex w-fit items-center gap-2 rounded-sm text-sm font-semibold tracking-tight text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-        >
-          <LogoMark className="size-5" />
-          <span className="site-header-wordmark">ancestree.space</span>
-        </Link>
-        <div className="flex min-w-0 items-center justify-center">
-          {profile && showSwitcher ? (
-            <TreeSwitcher
-              trees={trees.map((t) => ({
-                id: t.id,
-                name: t.name,
-                role: t.role,
-              }))}
-              currentId={currentMembership?.tree.id ?? null}
-              visiting={visiting}
-            />
-          ) : null}
-        </div>
-        <nav
-          aria-label="Primary"
-          className="flex flex-wrap items-center justify-end gap-2"
-        >
-          {profile ? (
-            <>
-              {access ? (
-                <SiteNavLink href={treeHref()}>tree</SiteNavLink>
-              ) : null}
-              {openConnections > 0 ? (
-                <SiteNavLink href={reviewHref()}>
-                  connections
-                  <Badge variant="secondary" className="ml-1.5">
-                    {openConnections}
-                  </Badge>
-                </SiteNavLink>
-              ) : null}
-              <span className="flex items-center gap-1">
-                <SiteNavLink href="/account">account</SiteNavLink>
-                {queue ? (
-                  <form
-                    action={switchTreeForm.bind(
-                      null,
-                      queue.treeId,
-                      adminHref(queue.section),
-                    )}
+    <HeaderFrame
+      center={
+        profile && showSwitcher ? (
+          <TreeSwitcher
+            trees={trees.map((t) => ({
+              id: t.id,
+              name: t.name,
+              role: t.role,
+            }))}
+            currentId={currentMembership?.tree.id ?? null}
+            visiting={visiting}
+          />
+        ) : null
+      }
+      nav={
+        profile ? (
+          <>
+            {access ? (
+              // Exact, so it isn't lit beside **connections** on its
+              // /tree/review page (Step 61).
+              <SiteNavLink href={treeHref()} exact>
+                tree
+              </SiteNavLink>
+            ) : null}
+            {openConnections > 0 ? (
+              <SiteNavLink href={reviewHref()}>
+                connections
+                <Badge variant="secondary" className="ml-1.5">
+                  {openConnections}
+                </Badge>
+              </SiteNavLink>
+            ) : null}
+            <span className="flex items-center gap-1">
+              <SiteNavLink href="/account">account</SiteNavLink>
+              {queue ? (
+                <form
+                  action={switchTreeForm.bind(
+                    null,
+                    queue.treeId,
+                    adminHref(queue.section),
+                  )}
+                >
+                  <SubmitButton
+                    size="sm"
+                    variant="destructive"
+                    aria-label={queueCountLabel(adminItems)}
+                    title={queueCountLabel(adminItems)}
+                    className="tabular-nums"
                   >
-                    <SubmitButton
-                      size="sm"
-                      variant="destructive"
-                      aria-label={queueCountLabel(adminItems)}
-                      title={queueCountLabel(adminItems)}
-                      className="tabular-nums"
-                    >
-                      {adminItems}
-                    </SubmitButton>
-                  </form>
-                ) : null}
-              </span>
-              <SiteNotifications items={notifications} />
-            </>
-          ) : signedInNotMember ? (
-            // It does something rather than go somewhere, so sentence case
-            // (docs/design-system.md).
-            <form action={signOut}>
-              <SubmitButton size="sm" variant="outline">
-                Sign out
-              </SubmitButton>
-            </form>
-          ) : (
-            <Button
-              nativeButton={false}
-              render={<Link href="/join" />}
-              size="sm"
-              variant="outline"
-            >
-              sign in
-            </Button>
-          )}
-        </nav>
-      </div>
-      <SiteHeaderHeight />
-    </header>
+                    {adminItems}
+                  </SubmitButton>
+                </form>
+              ) : null}
+            </span>
+            <SiteNotifications items={notifications} />
+          </>
+        ) : signedInNotMember ? (
+          // It does something rather than go somewhere, so sentence case
+          // (docs/design-system.md).
+          <form action={signOut}>
+            <SubmitButton size="sm" variant="outline">
+              Sign out
+            </SubmitButton>
+          </form>
+        ) : (
+          <Button
+            nativeButton={false}
+            render={<Link href="/join" />}
+            size="sm"
+            variant="outline"
+          >
+            sign in
+          </Button>
+        )
+      }
+    />
   );
 }

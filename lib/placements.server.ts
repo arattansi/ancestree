@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getUser } from "@/lib/auth";
+import { getSessionUser } from "@/lib/auth";
 import { personDisplayName, personLifespan } from "@/lib/person-name";
 import { createClient } from "@/lib/supabase/server";
 
@@ -22,7 +22,7 @@ export type PlacementCandidate = {
 export async function listPlacementCandidates(
   treeId: string,
 ): Promise<PlacementCandidate[]> {
-  const user = await getUser();
+  const user = await getSessionUser();
   if (!user) return [];
   const supabase = await createClient();
 

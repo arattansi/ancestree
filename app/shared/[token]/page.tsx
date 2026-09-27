@@ -66,19 +66,19 @@ export default async function SharedTreePage({
   const admin = createAdminClient();
   const [{ people, relationships }, anchorIds, pets, { data: tree }] =
     await Promise.all([
-      // No `withAccountTypes`: who has an account is for members only, and the
-      // admin client here would read every profile (Step 19.1).
-      getTreeGraph(link.treeId, admin),
+      // The public read: who has an account is for members only (Step
+      // 19.1), so no account types, claims or flags, and no user ids,
+      // addresses or storage paths reach the browser (Step 61).
+      getTreeGraph(link.treeId, admin, { forPublic: true }),
       getTreeAnchors(link.treeId, admin),
-      getTreePets(link.treeId, admin),
+      getTreePets(link.treeId, admin, { forPublic: true }),
       admin.from("trees").select("slug").eq("id", link.treeId).maybeSingle(),
     ]);
 
   return (
     <main className="flex flex-1 flex-col">
       <FamilyTree
-        // Contact details are for members, never for a public link.
-        people={people.map((p) => ({ ...p, email: null }))}
+        people={people}
         relationships={relationships}
         treeId={link.treeId}
         treeSlug={tree?.slug ?? ""}

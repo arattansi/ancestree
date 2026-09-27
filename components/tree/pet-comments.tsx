@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import {
@@ -37,7 +36,6 @@ export function PetComments({
   currentUserId: string;
   canEdit: boolean;
 }) {
-  const router = useRouter();
   const [state, setState] = React.useState<{
     petId: string;
     items: PetComment[] | null;
@@ -80,7 +78,6 @@ export function PetComments({
     setItems((cur) => [res.comment as PetComment, ...(cur ?? [])]);
     setBody("");
     toast.success("Comment posted.");
-    router.refresh();
   }
 
   async function onDelete(comment: PetComment) {
@@ -93,7 +90,6 @@ export function PetComments({
       setItems((cur) => [comment, ...(cur ?? [])]);
       return;
     }
-    router.refresh();
   }
 
   return (

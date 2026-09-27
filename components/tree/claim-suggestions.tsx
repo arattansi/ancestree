@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { claimPerson } from "@/app/actions/claims";
@@ -23,7 +22,6 @@ export function ClaimSuggestions({
   /** What claiming each candidate moves, by id (`mergeConfirmation`). */
   notes: ReadonlyMap<string, string>;
 }) {
-  const router = useRouter();
   const [dismissed, setDismissed] = React.useState(false);
   const [confirmingId, setConfirmingId] = React.useState<string | null>(null);
   const [busyId, setBusyId] = React.useState<string | null>(null);
@@ -40,7 +38,6 @@ export function ClaimSuggestions({
     }
     setConfirmingId(null);
     toast.success("Merged — this is now your entry.");
-    router.refresh();
   }
 
   return (

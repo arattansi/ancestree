@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -73,7 +72,6 @@ export function InviteStep({
   invites: TreeInvite[];
   nextHref: string;
 }) {
-  const router = useRouter();
   // Row ids from `useId`, so the server's first render and the browser's
   // agree; rows added later count on from there.
   const idBase = React.useId();
@@ -144,7 +142,6 @@ export function InviteStep({
     const retry = new Set(failed.map((r) => r.email));
     const left = filled.filter((r) => retry.has(r.email.trim().toLowerCase()));
     setRows(left.length > 0 ? left : [newRow()]);
-    if (sent.length + unsent.length > 0) router.refresh();
   }
 
   return (

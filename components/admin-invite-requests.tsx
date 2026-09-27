@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import {
@@ -47,7 +46,6 @@ export function AdminInviteRequests({
 }: {
   requests: PendingInviteRequest[];
 }) {
-  const router = useRouter();
   const [busy, setBusy] = React.useState<Busy | null>(null);
   const [approved, setApproved] = React.useState<Record<string, Approved>>({});
 
@@ -129,7 +127,6 @@ export function AdminInviteRequests({
       return;
     }
     toast.success("Request declined.");
-    router.refresh();
   }
 
   /** Let a kept row go once its record is deleted. */

@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
@@ -48,7 +47,6 @@ export function AddCompanionDialog({
   startingWith: string;
   isAdmin?: boolean;
 }) {
-  const router = useRouter();
   const [companions, setCompanions] = React.useState<string[]>([startingWith]);
   const [photoFile, setPhotoFile] = React.useState<File | null>(null);
   const [photoBusy, setPhotoBusy] = React.useState(false);
@@ -114,7 +112,6 @@ export function AddCompanionDialog({
 
     toast.success(`${values.name.trim()} added to the tree.`);
     onOpenChange(false);
-    router.refresh();
   }
 
   return (

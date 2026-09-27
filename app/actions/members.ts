@@ -1,7 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
 import {
   BRANCH_LIMIT_REFUSAL,
   isAssignable,
@@ -12,7 +10,7 @@ import {
 } from "@/lib/account-types";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { revalidateTreeAndAccount } from "@/lib/revalidate";
+import { revalidateTreePages } from "@/lib/revalidate";
 import { rootOf } from "@/lib/tree-context";
 
 /**
@@ -63,7 +61,7 @@ export async function setAccountType(
     return { error: "Couldn't change that account type. Try again." };
   }
 
-  revalidateTreeAndAccount();
+  revalidateTreePages();
   return {};
 }
 
@@ -116,7 +114,6 @@ export async function deleteMember(
     }
   }
 
-  revalidateTreeAndAccount();
-  revalidatePath("/trees");
+  revalidateTreePages();
   return { lastTree: lastTree === true };
 }

@@ -45,7 +45,8 @@ export function StartTreeButton({
   const [asked, setAsked] = React.useState(false);
   const [open, setOpen] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
-  // No refresh after asking: the page would re-render around the dialog.
+  // Pending as soon as they've asked, before the page is drawn again with
+  // the ask (the action does that).
   const current: TreeRequestStatus =
     asked && status === "none" ? "pending" : status;
 
@@ -82,7 +83,6 @@ export function StartTreeButton({
       return;
     }
     if (res.status === "founded") {
-      router.refresh();
       return;
     }
     setAsked(true);
