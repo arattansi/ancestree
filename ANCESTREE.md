@@ -1253,9 +1253,7 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 ## Changelog
 
 - **Step 57 — Upcoming birthdays & anniversaries, a descendants filter, and
-  who's here** (ad-hoc; migration `20260926120000_tree_presence`, **not yet
-  applied**: the ancestree Supabase connector was down when this was
-  written). Aalim asked for three things on the tree page. **57.1 Upcoming:**
+  who's here** (ad-hoc; migration `20260927160740_tree_presence`). Aalim asked for three things on the tree page. **57.1 Upcoming:**
   a card beside Search & filters listing birthdays and anniversaries over
   the next twelve months, following the side and descendants filters and a
   search (see **Upcoming**). **57.2 Only descendants of:** one or two people
@@ -1275,10 +1273,14 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   reachable the page carries on without errors. Tests: occasions, the
   descendants walk, the layout's `generations`, and `lib/presence.ts`
   (colours, send rate, anchoring, parsing, peers). 998 tests pass; tsc and
-  lint are clean. **Still to do:** apply the migration (rehearse in a
-  rolled-back transaction first), then check two real members see each
-  other and a non-member is refused the channel; consider switching
-  Realtime to private channels only in the dashboard.
+  lint are clean. The migration was applied on 27 Sep without a rehearsal:
+  the connector's SQL was read-only that day, so no rolled-back transaction
+  could be run. It adds only a function and two policies (`realtime.messages`
+  had none). The file is named for the version it was recorded under, and
+  the function body's md5 matches it; `authenticated` and `service_role` can
+  call it, `anon` and `public` can't. **Still to do:** check that two real
+  members see each other and a non-member is refused the channel; consider
+  switching Realtime to private channels only in the dashboard.
 
 - **Step 56.5 — Trees on the dashboard's Overview** (ad-hoc, after Step
   56; no migration). Aalim asked to replace "Active in the last 30 days"
