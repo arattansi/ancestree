@@ -93,7 +93,7 @@ export function LiveCursors({
 }
 
 /**
- * Who else has the tree open, as a row of faces above **Add a relative**. A
+ * Who else has the tree open, as a row of faces above **Upcoming**. A
  * face goes to their pointer, or to their card while their pointer is off
  * the canvas; someone whose tab is in the background is dimmed.
  */

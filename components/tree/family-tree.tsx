@@ -1161,7 +1161,8 @@ function Canvas({
     nameById,
     matchingIds,
   ]);
-  // Which of the top-left cards is open: one at a time, so they never pile up.
+  // Which card is open, Search & filters (top right) or Upcoming (top left):
+  // one at a time, so on a phone they never pile up.
   const [openCard, setOpenCard] = React.useState<"search" | "upcoming" | null>(
     null,
   );
@@ -2302,14 +2303,12 @@ function Canvas({
             // (its base `max-w-sm` wins over the panel's `max-w-md`); below
             // that it covers the canvas and carries its own Add button.
             (sheetOut || selectedPet) && "sm:!mr-[calc(24rem+15px)]",
+            // React Flow stacks its panels in the order they're drawn, so the
+            // top-left one would cover an open Search & filters card where
+            // they meet (on a phone, or beside the sheet).
+            openCard === "search" && "!z-10",
           )}
         >
-          <PresenceFaces
-            peers={room.peers}
-            colours={roomColours}
-            personById={personById}
-            onGoTo={goToPeer}
-          />
           {readOnly ? (
             <div className="flex max-w-[15rem] flex-col items-end gap-1.5 rounded-lg border border-border bg-card/95 p-3 text-right shadow-md">
               <span className="text-xs text-muted-foreground">
@@ -2332,6 +2331,30 @@ function Canvas({
               labelFrom={sheetOut ? "lg" : "sm"}
             />
           )}
+          {/* Under Add a relative since Step 60, its words showing from the
+              same width as Add's. */}
+          <TreeSearch
+            open={openCard === "search"}
+            onOpenChange={(open) => setOpenCard(open ? "search" : null)}
+            people={shownPeople}
+            filter={filter}
+            onFilterChange={setFilter}
+            onPick={onPick}
+            connection={connectionEnds}
+            onConnectionChange={onConnectionChange}
+            connectionMissing={
+              !!connectionEnds.from && !!connectionEnds.to && !path
+            }
+            showCompanions={showCompanions}
+            onShowCompanionsChange={setShowCompanions}
+            sideOnly={rootSide ? sideOnly : null}
+            onSideOnlyChange={onSideOnlyChange}
+            ownSide={!!selfPersonId && rootIds.includes(selfPersonId)}
+            descendantsOf={descendantsOf}
+            onDescendantsOfChange={onDescendantsOfChange}
+            descendantChoices={sidePeople}
+            labelFrom={sheetOut ? "lg" : "sm"}
+          />
           {!readOnly && isAdmin ? (
             <Button
               size="sm"
@@ -2463,45 +2486,25 @@ function Canvas({
           </Panel>
         ) : null}
         <Panel position="top-left" className="flex flex-col items-start gap-2">
-          <div className="flex items-start gap-2">
-            {/* Hidden, not unmounted, while Upcoming is open: the card keeps
-                which of its sections were open. */}
-            <div className={openCard === "upcoming" ? "hidden" : "contents"}>
-              <TreeSearch
-                open={openCard === "search"}
-                onOpenChange={(open) => setOpenCard(open ? "search" : null)}
-                people={shownPeople}
-                filter={filter}
-                onFilterChange={setFilter}
-                onPick={onPick}
-                connection={connectionEnds}
-                onConnectionChange={onConnectionChange}
-                connectionMissing={
-                  !!connectionEnds.from && !!connectionEnds.to && !path
-                }
-                showCompanions={showCompanions}
-                onShowCompanionsChange={setShowCompanions}
-                sideOnly={rootSide ? sideOnly : null}
-                onSideOnlyChange={onSideOnlyChange}
-                ownSide={!!selfPersonId && rootIds.includes(selfPersonId)}
-                descendantsOf={descendantsOf}
-                onDescendantsOfChange={onDescendantsOfChange}
-                descendantChoices={sidePeople}
-              />
-            </div>
-            {!readOnly && openCard !== "search" ? (
-              <UpcomingFeed
-                occasions={occasions}
-                today={today}
-                personById={personById}
-                filtered={!!side || !!descent || filterActive}
-                open={openCard === "upcoming"}
-                onOpenChange={(open) => setOpenCard(open ? "upcoming" : null)}
-                onPickPerson={selectPerson}
-                onPickCouple={(a, b) => onConnectionChange({ from: a, to: b })}
-              />
-            ) : null}
-          </div>
+          {/* Who's here, above Upcoming (Step 60). */}
+          <PresenceFaces
+            peers={room.peers}
+            colours={roomColours}
+            personById={personById}
+            onGoTo={goToPeer}
+          />
+          {!readOnly ? (
+            <UpcomingFeed
+              occasions={occasions}
+              today={today}
+              personById={personById}
+              filtered={!!side || !!descent || filterActive}
+              open={openCard === "upcoming"}
+              onOpenChange={(open) => setOpenCard(open ? "upcoming" : null)}
+              onPickPerson={selectPerson}
+              onPickCouple={(a, b) => onConnectionChange({ from: a, to: b })}
+            />
+          ) : null}
           {!readOnly && claimCandidates.length > 0 ? (
             <ClaimSuggestions
               candidates={claimCandidates}

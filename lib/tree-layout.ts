@@ -1602,8 +1602,8 @@ export function laneTitleFit(zoom: number): { scale: number; top: number } {
 export const LANE_TITLE_LEFT = 16;
 /**
  * How far in from the canvas's left edge a pinned title sits, in screen px:
- * in line with the Search & filters button above it (React Flow's 15px panel
- * margin).
+ * in line with the controls at the canvas's top left above it (React Flow's
+ * 15px panel margin).
  */
 export const LANE_TITLE_PIN = 16;
 

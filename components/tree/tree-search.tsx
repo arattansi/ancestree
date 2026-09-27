@@ -75,6 +75,11 @@ type Props = {
   descendantsOf: string[];
   onDescendantsOfChange: (ids: string[]) => void;
   descendantChoices: TreeGraphPerson[];
+  /**
+   * The width from which the button's words show; below it, just the symbol.
+   * `lg` beside the details sheet, as for **Add a relative** above it.
+   */
+  labelFrom?: "sm" | "lg";
 };
 
 type SectionKey = "find" | "connection" | "filters";
@@ -210,6 +215,7 @@ export function TreeSearch({
   descendantsOf,
   onDescendantsOfChange,
   descendantChoices,
+  labelFrom = "sm",
 }: Props) {
   // Which sections are open, kept while the card closes and opens again.
   const [expanded, setExpanded] = React.useState<ReadonlySet<SectionKey>>(
@@ -268,7 +274,13 @@ export function TreeSearch({
         aria-expanded={false}
       >
         <SlidersHorizontal />
-        <span className="hidden sm:inline">Search &amp; filters</span>
+        <span
+          className={
+            labelFrom === "lg" ? "hidden lg:inline" : "hidden sm:inline"
+          }
+        >
+          Search &amp; filters
+        </span>
         {switchedOn > 0 ? (
           <span
             className="flex size-4 items-center justify-center rounded-full bg-primary text-[10px] leading-none font-semibold text-primary-foreground"

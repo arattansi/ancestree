@@ -81,9 +81,10 @@ function when(o: Occasion): string {
 
 /**
  * Birthdays and wedding anniversaries coming up over the next year (Step
- * 57.1), beside **Search & filters**. It lists only the people the canvas is
- * drawing, and of those only who a search leaves lit, so switching on "Show
- * only your side" or "Only descendants of" narrows it too; a chip says so.
+ * 57.1), at the canvas's top left under who's here (Step 60). It lists only
+ * the people the canvas is drawing, and of those only who a search leaves
+ * lit, so switching on "Show only your side" or "Only descendants of"
+ * narrows it too; a chip says so.
  * Closed, the button counts the week ahead. A birthday opens that person's
  * details; an anniversary lights the couple's line.
  */
