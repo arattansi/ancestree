@@ -161,13 +161,14 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   dragged (a tablet's can), so a finger on one pans, Step 49; the zoom
   controls end with
   **Go to me**, which opens the viewer's own tree and details, Step 48),
-  `tree-search.tsx` the **Search & filters** card (Find a person, Show a
-  connection, Filters: only your Root's side, only the descendants of one or
-  two people, and Pets & companions — each section closed until opened),
-  `upcoming-feed.tsx` the **Upcoming** card beside it (birthdays and
+  `tree-search.tsx` the **Search & filters** card under **Add a relative**
+  (Find a person, Show a connection, Filters: only your Root's side, only the
+  descendants of one or two people, and Pets & companions — each section
+  closed until opened),
+  `upcoming-feed.tsx` the **Upcoming** card at the top left (birthdays and
   anniversaries, Step 57.1; `use-today.ts` the viewer's own day),
-  `use-tree-room.ts` + `live-cursors.tsx` who else has the tree open and
-  their pointers (Step 57.3), `person-node.tsx`
+  `use-tree-room.ts` + `live-cursors.tsx` who else has the tree open, as
+  faces above **Upcoming**, and their pointers (Step 57.3), `person-node.tsx`
   custom node (name, then `née` maiden name / birth year / birthplace;
   open-flag badge + verified `✓`), `person-panel.tsx` detail Sheet
   (edit link + claim / dispute + admin verify; **Minimize** folds it into a
@@ -451,7 +452,7 @@ tree's generation name (`computeTreeLayout`'s `generations`), so a filtered
 row still says "Generation minus Two". Like the side, it changes only what
 the canvas draws, searches and lights, and lasts for the visit.
 
-**Upcoming (Step 57.1):** the card beside Search & filters lists birthdays and
+**Upcoming (Step 57.1):** the card at the canvas's top left lists birthdays and
 wedding anniversaries over the next twelve months (`lib/occasions.ts`),
 grouped Today / Tomorrow / This week / by month, in the viewer's own time
 zone (`use-today.ts`). A birthday needs a whole date of birth and a living
@@ -464,7 +465,7 @@ an anniversary lights the couple's line. Members only: not on a share link or
 for a visitor from another tree.
 
 **Who's here (Step 57.3):** members with the same tree open see each other's
-faces above **Add a relative** and each other's pointers on the canvas. It
+faces above **Upcoming** and each other's pointers on the canvas. It
 runs on a private Supabase Realtime channel, `tree:<tree id>`
 (`use-tree-room.ts`): Presence (keyed by the member's user id, with their
 entry and short name, and `away` while every tab of theirs is in the
@@ -1253,6 +1254,35 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 60 — Search & filters under Add a relative, who's here above
+  Upcoming** (ad-hoc; no migration). Aalim asked to "move search and
+  filters button to below 'add a relative'. keep 'upcoming' there", then to
+  move "who's online" above **Upcoming**. The canvas's top right now reads
+  **Add a relative**, **Search & filters**, then a Root's **Auto-arrange**;
+  the top left reads the faces of who's here, **Upcoming**, then "Is one of
+  these you?" and Getting started. A share link or a visitor sees Search &
+  filters under the read-only note, and nothing at the top left. Search &
+  filters' words show from the same width as Add's (`lg` beside the details
+  sheet, else `sm`). The two cards still open one at a time, but the other
+  one's button now stays put, and Search & filters keeps which of its
+  sections were open. Opened, Search & filters lies over the top-left cards
+  where they meet (on a phone, or beside the sheet): React Flow stacks its
+  panels in the order they're drawn, so its panel is raised while the card
+  is open. On a phone the details sheet now covers Search & filters, as it
+  already covered Add a relative; closing or minimizing the details brings
+  both back. **Verified:** in the app in Chromium, on a throwaway preview
+  page (deleted, never committed) with made-up people and a faked room, no
+  server action or Realtime reached: at 1024 px the right-hand column lines
+  up; opening Upcoming closes Search & filters and back, its Filters section
+  still open; at 800 px beside the details sheet all three buttons fold to
+  their symbols and the opened card lies over the end of the Upcoming
+  button; on a 375 px phone with "Is one of these you?" and Getting started
+  showing, nothing meets the right-hand column, the opened card lies over
+  the claim card, Upcoming's card clears the buttons, and nothing scrolls
+  sideways; a read-only copy; a Leaf alone (no faces, no Auto-arrange); no
+  console errors. 998 tests pass (none new: it's layout); tsc and lint are
+  clean.
 
 - **Step 59 — Save changes and Back to tree float beside the edit form**
   (ad-hoc; no migration). Aalim asked for the edit entry form's **Save
