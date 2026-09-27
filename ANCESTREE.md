@@ -1283,8 +1283,8 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   bar; the message leaves the buttons where they were; focusing a field
   hidden under the bar scrolls it into view; Tab goes photo, **Save
   changes**, **Back to tree**, Documents; without a way back the form ends
-  with **Save changes** as before; no console or server errors. 954 tests
-  pass (none new: it's layout); tsc and lint are clean.
+  with **Save changes** as before; no console or server errors. On top of
+  Step 57, 998 tests pass (none new: it's layout); tsc and lint are clean.
 
 - **Step 58 — A plainer entry form** (ad-hoc; no migration). Aalim marked
   up "Add a relative" and struck its explanations: "this kind of details are
