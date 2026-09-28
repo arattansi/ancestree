@@ -42,6 +42,14 @@ export function typedPlaceName(typed: string): string {
 }
 
 /**
+ * Letters a search needs before it looks for them anywhere in a place's name
+ * (Step 66.5). The trigram index can't serve fewer than three, so a
+ * two-letter search scanned every place; two letters now only find a place
+ * with that whole name (Bo, Ho, Wa).
+ */
+export const MIN_LETTERS = 3;
+
+/**
  * What the picker says when a search turns up nothing, and — for a Root — the
  * name it offers to add as a new place (Step 64): a small village GeoNames'
  * cities500 left out is added from right there, not only from the link under
@@ -52,9 +60,11 @@ export function unmatchedSearch(
   { canAdd }: { canAdd: boolean },
 ): { note: string; add: string | null } {
   const text = typed.trim();
-  if (text.length < 2) return { note: "Type at least two letters.", add: null };
   if (isLink(text)) return { note: "Type the place’s name, not a link.", add: null };
   const name = typedPlaceName(text);
-  if (name.length < 2) return { note: "Type the place’s name first.", add: null };
+  if (!name && text) return { note: "Type the place’s name first.", add: null };
+  if (name.length < MIN_LETTERS) {
+    return { note: "Type at least three letters.", add: null };
+  }
   return { note: "No matching place.", add: canAdd ? name : null };
 }

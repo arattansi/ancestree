@@ -1,7 +1,7 @@
 import "server-only";
 
 import { countryName } from "@/lib/country-names";
-import { choosePlaces, shapePlaceQuery } from "@/lib/place-search";
+import { choosePlaces, shapePlaceQuery, type PlaceSearch } from "@/lib/place-search";
 import { createClient } from "@/lib/supabase/server";
 
 export { countryName };
@@ -48,18 +48,19 @@ const CANDIDATES = 200;
 /**
  * Fuzzy place search for the autocomplete: trigram-indexed `search_name
  * ILIKE`, shaped and ranked by lib/place-search.ts (the part before a comma
- * is searched, what follows prefers a region; Step 66).
+ * is searched, what follows prefers a region; Step 66). Two letters only
+ * match a whole name, which the index serves (Step 66.5).
  */
 export async function searchPlaces(query: string, limit = 8): Promise<PlaceHit[]> {
   const q = shapePlaceQuery(query);
   if (!q) return [];
 
   const supabase = await createClient();
-  const candidates = async (name: string) => {
+  const candidates = async ({ name, exact }: PlaceSearch) => {
     const { data, error } = await supabase
       .from("places")
       .select("id, name, ascii_name, admin1_code, country_code, population, search_name")
-      .ilike("search_name", `%${name}%`)
+      .ilike("search_name", exact ? name : `%${name}%`)
       .order("population", { ascending: false, nullsFirst: false })
       .limit(CANDIDATES);
     return error || !data ? [] : data;
@@ -68,8 +69,8 @@ export async function searchPlaces(query: string, limit = 8): Promise<PlaceHit[]
   // The fallback goes out alongside the search as typed, so it costs no
   // extra round trip; it's only used when the search as typed finds nothing.
   const [found, rescued] = await Promise.all([
-    candidates(q.name),
-    q.fallback ? candidates(q.fallback.name) : null,
+    candidates(q),
+    q.fallback ? candidates(q.fallback) : null,
   ]);
 
   return choosePlaces(q, found, rescued).slice(0, limit).map((p) => ({

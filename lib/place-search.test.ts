@@ -104,6 +104,7 @@ describe("shapePlaceQuery", () => {
       hints: [],
       within: [],
       whole: "london",
+      exact: false,
       fallback: null,
     });
   });
@@ -137,6 +138,7 @@ describe("shapePlaceQuery", () => {
       hints: ["gujarat"],
       within: [],
       whole: "jamnagar dist., gujarat",
+      exact: false,
     });
     // Only if "state college" itself finds nothing (see choosePlaces).
     expect(query("State College").fallback?.name).toBe("college");
@@ -181,6 +183,18 @@ describe("shapePlaceQuery", () => {
     );
     // Dropping a place-kind word comes first; the spelling stays.
     expect(query("Zürich district").fallback?.name).toBe("zuerich");
+  });
+
+  it("matches two letters only as a whole name, three anywhere in one", () => {
+    // Anywhere in a name, two letters can't use the trigram index (Step 66.5).
+    expect(query("Bo")).toMatchObject({ name: "bo", exact: true, fallback: null });
+    expect(query("Ho, Ghana")).toMatchObject({ name: "ho", hints: ["ghana"], exact: true });
+    expect(query("Bol")).toMatchObject({ name: "bol", exact: false });
+    // A fallback that comes down to two letters is matched whole too.
+    expect(query("Ho Ghana")).toMatchObject({
+      exact: false,
+      fallback: { name: "ho", within: ["ghana"], exact: true },
+    });
   });
 
   it("has nothing to search without two letters before the comma", () => {
@@ -271,6 +285,21 @@ describe("rankPlaces", () => {
 });
 
 describe("choosePlaces", () => {
+  it("finds a place with a two-letter name", () => {
+    const hos = [
+      row(2300379, "Ho", "08", "GH", 130701),
+      row(8340703, "Hồ", "24", "VN", 0, "Ho"),
+    ];
+    const bos = [
+      row(2410048, "Bo", "03", "SL", 233684),
+      row(8551473, "Bo", "25", "VN", 15408),
+      row(3160911, "Bø", "17", "NO", 2522, "Bo"),
+    ];
+    expect(offered("Bo", bos)).toEqual([2410048, 8551473, 3160911]);
+    expect(offered("Bo, Norway", bos)[0]).toBe(3160911);
+    expect(offered("Ho Vietnam", [], hos)).toEqual([8340703]);
+  });
+
   it("finds Zürich as GeoNames spells it, and a plainly spelled name too", () => {
     const zurich = row(2657896, "Zürich", "ZH", "CH", 415367, "Zuerich");
     const lakeZurich = row(4899170, "Lake Zurich", "IL", "US", 19993);

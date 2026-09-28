@@ -91,9 +91,19 @@ describe("unmatchedSearch", () => {
     ).toEqual({ note: "Type the place’s name, not a link.", add: null });
   });
 
-  it("waits for two letters", () => {
+  it("waits for three letters", () => {
     expect(unmatchedSearch("S", { canAdd: true })).toEqual({
-      note: "Type at least two letters.",
+      note: "Type at least three letters.",
+      add: null,
+    });
+    // Two letters only look for a place with that whole name (Bo, Ho), so
+    // finding none says to keep typing, and offers nothing to add yet.
+    expect(unmatchedSearch("Sh", { canAdd: true })).toEqual({
+      note: "Type at least three letters.",
+      add: null,
+    });
+    expect(unmatchedSearch("Xy, Narnia", { canAdd: true })).toEqual({
+      note: "Type at least three letters.",
       add: null,
     });
   });

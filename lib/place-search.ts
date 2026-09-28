@@ -1,4 +1,5 @@
 import { ALPHA2, countryName } from "@/lib/country-names";
+import { MIN_LETTERS } from "@/lib/place-choice";
 import { ADMIN1_NAMES, COUNTRY_OTHER_NAMES } from "@/lib/place-regions";
 
 /**
@@ -12,10 +13,12 @@ import { ADMIN1_NAMES, COUNTRY_OTHER_NAMES } from "@/lib/place-regions";
  * first comma is searched; what follows it names a region, and places there
  * come first. When that finds nothing, the fallback drops words that say what
  * kind of place it is ("Kalavad taluka") and a region named at the end with no
- * comma ("Vancouver BC").
+ * comma ("Vancouver BC"). A name shorter than MIN_LETTERS is only matched
+ * whole (`ILIKE 'bo'`), which the index serves; anywhere in a name it would
+ * scan every place (Step 66.5).
  */
 
-/** Shortest name the search runs for. */
+/** Shortest name the search runs for, matched whole below MIN_LETTERS. */
 const MIN_NAME = 2;
 /** Shortest region hint that counts. */
 const MIN_HINT = 2;
@@ -165,6 +168,8 @@ export type PlaceSearch = {
    * with a comma in it ("Misato, Saitama") typed whole still comes first.
    */
   whole: string;
+  /** `search_name` must be the name itself, not contain it: too short to look inside. */
+  exact: boolean;
 };
 
 export type PlaceQuery = PlaceSearch & {
@@ -178,6 +183,7 @@ export type PlaceQuery = PlaceSearch & {
 };
 
 const parts = (text: string) => text.split(",").map((part) => part.trim());
+const isShort = (name: string) => name.length < MIN_LETTERS;
 
 /** What a typed search looks for; null when there's too little to search. */
 export function shapePlaceQuery(typed: string): PlaceQuery | null {
@@ -193,6 +199,7 @@ export function shapePlaceQuery(typed: string): PlaceQuery | null {
     hints,
     within: [],
     whole,
+    exact: isShort(name),
     fallback: fallbackFor(name, hints, whole) ?? plainSpelling(plain, name, hints, whole),
   };
 }
@@ -213,7 +220,7 @@ function fallbackFor(
   }
   const rest = words.join(" ");
   if (rest === name || rest.length < MIN_NAME) return null;
-  return { name: rest, hints: [...within, ...hints], within, whole };
+  return { name: rest, hints: [...within, ...hints], within, whole, exact: isShort(rest) };
 }
 
 /** The name with ä, ö and ü as plain a, o and u, when it has any ("Nurtingen"). */
@@ -224,7 +231,7 @@ function plainSpelling(
   whole: string,
 ): PlaceSearch | null {
   if (plain === name || plain.length < MIN_NAME) return null;
-  return { name: plain, hints, within: [], whole };
+  return { name: plain, hints, within: [], whole, exact: isShort(plain) };
 }
 
 /** How many words at the end name a region, leaving at least one before them. */
