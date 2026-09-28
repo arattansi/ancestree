@@ -1249,7 +1249,10 @@ with population ≥ 500).
   ("Vancouver BC", which then only takes places in BC). Typed text is folded
   like `search_name` (no accents; ä/ö/ü tried as ae/oe/ue first, as GeoNames
   mostly spells them). Each query is still one trigram-indexed ILIKE, top 200
-  by population (60 until Step 66.4), ranked in JS.
+  by population (60 until Step 66.4), ranked in JS. It looks inside names
+  from three letters (`MIN_LETTERS`); two letters only match a whole name
+  (`ILIKE 'bo'`), since `%bo%` can't use the index and scanned every place
+  (Step 66.5).
 - **Free-tier size:** `places` measures **58 MB** total (table + the two
   `pg_trgm` GIN indexes + the `country_code` btree); whole DB **70 MB**, well
   under the Supabase Free 500 MB limit. **`allCountries` (~13M rows, ~55×) is
@@ -1335,6 +1338,34 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 66.5 — The place search looks inside names from three letters**
+  (ad-hoc, after Step 66.4; no migration). Aalim asked to "start searching
+  at three letters": a two-letter `search_name ILIKE '%xy%'` has no trigram
+  to use, so the database scanned every place (`%an%` about 0.56 s,
+  `%bo%` 0.39 s, a parallel sequential scan), and every search passed
+  through two letters as someone typed. From three letters (`MIN_LETTERS`
+  in `lib/place-choice.ts`) the search looks anywhere in a name, as before.
+  Two letters don't go dark, though: 93 places have two-letter names, 20
+  of them over 10,000 people (Bo, Sierra Leone, 234k; Ho, Ghana, 131k; Wa,
+  Ghana, 78k), and a strict minimum would have left them unfindable and
+  open to a Root adding them again. So two letters match only a place with
+  that whole name (`ILIKE 'bo'`, which the index serves: 4 rows in about
+  17 ms), and so does a fallback that comes down to two letters ("Ho
+  Ghana"). When two letters find no such place, the list says "Type at
+  least three letters." and a Root is offered no **Add** (a Root can still
+  use the link under the field). **Verified:** over PostgREST from here,
+  two-letter searches ("va", "an", "ka", "lo", "bo") took 482–687 ms
+  anywhere in a name and 125–191 ms as a whole name, about a bare round
+  trip. In the pane on this worktree's dev server, as a throwaway Root of
+  its own tree (deleted after, auth user included): "v" and "va" said "Type
+  at least three letters." with no **Add**; "van" listed Van, Türkiye, then
+  Vancouver, Canada, and Vantaa, Finland; "Bo" listed the four places named
+  Bo (Sierra Leone, Vietnam, Bø in Norway, Bő in Hungary) and no Boston or
+  Bogotá; "Ho, Ghana" put Ho, Ghana first; "Kalavad taluka" still found
+  Kālāvad. The edge logs show "va" and "ho" sent as `ilike.va` and
+  `ilike.ho`, with no wildcards. 1080 tests pass (2 new); tsc, lint and
+  `next build` are clean.
 
 - **Step 69 — Decline a suggested change with a reason** (ad-hoc;
   migration `20260928120000_suggestion_decline_reason`, live 2026-09-28,
