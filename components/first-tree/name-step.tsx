@@ -3,13 +3,15 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 
 import { renameTree } from "@/app/actions/trees";
+import { FormError } from "@/components/form-error";
+import { PendingButton } from "@/components/pending-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAction } from "@/components/use-action";
 
 const MAX_TREE_NAME = 80;
 
@@ -32,28 +34,26 @@ export function NameStep({
 }) {
   const router = useRouter();
   const [name, setName] = React.useState(initialName);
-  const [pending, setPending] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
+  const action = useAction({ inline: true });
+  const error = action.error;
 
-  async function onSubmit(event: React.FormEvent) {
+  function onSubmit(event: React.FormEvent) {
     event.preventDefault();
-    setError(null);
     const trimmed = name.trim();
     if (!trimmed) {
-      setError("Give your tree a name.");
+      action.setError("Give your tree a name.");
       return;
     }
-    if (trimmed !== currentName.trim()) {
-      setPending(true);
-      const res = await renameTree(treeId, trimmed);
-      if (res.error) {
-        setPending(false);
-        setError(res.error);
-        return;
-      }
-      toast.success(`Your tree is called ${trimmed}.`);
-    }
-    router.push(nextHref);
+    const unchanged = trimmed === currentName.trim();
+    action.run(
+      "save",
+      async () => (unchanged ? {} : renameTree(treeId, trimmed)),
+      {
+        success: unchanged ? undefined : `Your tree is called ${trimmed}.`,
+        // Busy until the next step is on screen, saved or not.
+        onSuccess: () => router.push(nextHref),
+      },
+    );
   }
 
   return (
@@ -71,20 +71,16 @@ export function NameStep({
               aria-invalid={error ? true : undefined}
               aria-describedby={error ? "first-tree-name-error" : undefined}
             />
-            {error ? (
-              <p
-                id="first-tree-name-error"
-                role="alert"
-                className="text-sm text-destructive"
-              >
-                {error}
-              </p>
-            ) : null}
+            <FormError id="first-tree-name-error">{error}</FormError>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <Button type="submit" disabled={pending}>
-              {pending ? "Saving…" : "Save and continue"}
-            </Button>
+            <PendingButton
+              type="submit"
+              pending={action.pending}
+              pendingLabel="Saving…"
+            >
+              Save and continue
+            </PendingButton>
             <Button
               nativeButton={false}
               render={<Link href={nextHref} />}

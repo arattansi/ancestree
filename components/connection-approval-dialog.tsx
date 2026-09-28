@@ -2,6 +2,7 @@
 
 import * as React from "react";
 
+import { PendingButton } from "@/components/pending-button";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -144,16 +145,18 @@ export function ConnectionApprovalDialog({
           >
             Back to form
           </Button>
-          <Button
+          <PendingButton
             type="button"
             size="sm"
-            disabled={busy || !allAnswered}
+            pending={busy}
+            pendingLabel="Saving…"
+            disabled={!allAnswered}
             onClick={() =>
               onResolve(choices.filter((c): c is SuggestionResolution => c !== null))
             }
           >
-            {busy ? "Saving…" : "Save entry"}
-          </Button>
+            Save entry
+          </PendingButton>
         </div>
       </DialogContent>
     </Dialog>

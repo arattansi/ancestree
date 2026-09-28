@@ -1,12 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "sonner";
 
+import { FormError } from "@/components/form-error";
 import { PhotoCropEditor } from "@/components/photo-crop-editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { firstFocusable, useFocusReturn } from "@/components/use-focus-return";
 import { compressImage } from "@/lib/image";
 import { cropStyle, DEFAULT_CROP, type CropTransform } from "@/lib/image-crop";
 
@@ -17,7 +18,7 @@ const ACCEPT = "image/jpeg,image/png,image/webp";
  * uncropped and the framing is stored alongside them, so the same editor works
  * on a photo that was uploaded long ago — nothing is re-uploaded to re-frame.
  * No line on file types or resizing (Step 58): the file dialog offers only
- * what's accepted, and anything else is refused with a toast.
+ * what's accepted, and anything else is refused in a line under the picker.
  */
 export function PhotoPicker({
   id,
@@ -42,8 +43,18 @@ export function PhotoPicker({
 }) {
   const [editing, setEditing] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
+  // Why the file just picked wasn't taken: by the picker, where a toast
+  // would fade before it's read (Step 70). The next pick clears it.
+  const [problem, setProblem] = React.useState<string | null>(null);
   // The crop as it was when the editor opened, so Cancel can put it back.
   const cropOnOpen = React.useRef<CropTransform>(crop);
+  // The editor and the buttons that open and close it take each other's
+  // place, so focus is handed on rather than dropped to the page.
+  const returnFocus = useFocusReturn();
+  const fileInput = React.useRef<HTMLInputElement>(null);
+  const repositionButton = React.useRef<HTMLButtonElement>(null);
+  const editor = React.useRef<HTMLDivElement>(null);
+  const problemId = `${id}-problem`;
 
   React.useEffect(() => onBusyChange?.(busy), [busy, onBusyChange]);
 
@@ -60,8 +71,9 @@ export function PhotoPicker({
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
+    setProblem(null);
     if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
-      toast.error("Choose a JPEG, PNG, or WebP image.");
+      setProblem("Choose a JPEG, PNG, or WebP image.");
       return;
     }
     setBusy(true);
@@ -75,6 +87,11 @@ export function PhotoPicker({
     cropOnOpen.current = DEFAULT_CROP;
     onCropChange(DEFAULT_CROP);
     setEditing(true);
+  }
+
+  function closeEditor() {
+    setEditing(false);
+    returnFocus(() => repositionButton.current);
   }
 
   const thumbUrl = pickedUrl ?? currentUrl ?? null;
@@ -103,20 +120,26 @@ export function PhotoPicker({
         </div>
         <div className="flex flex-col gap-1">
           <Input
+            ref={fileInput}
             id={id}
             type="file"
             accept={ACCEPT}
             onChange={handlePick}
             disabled={disabled || busy}
+            aria-describedby={problem ? problemId : undefined}
           />
-          <div className="flex gap-3">
+          {/* Spaced from the file box on a touch screen, so the links' 44 px
+              hit areas don't take its lower edge (Step 70). */}
+          <div className="flex gap-3 pointer-coarse:mt-3">
             {thumbUrl && !editing ? (
               <button
+                ref={repositionButton}
                 type="button"
-                className="text-xs underline underline-offset-2"
+                className="relative tap-target text-xs underline underline-offset-2"
                 onClick={() => {
                   cropOnOpen.current = crop;
                   setEditing(true);
+                  returnFocus(() => firstFocusable(editor.current));
                 }}
               >
                 Reposition
@@ -125,11 +148,13 @@ export function PhotoPicker({
             {value ? (
               <button
                 type="button"
-                className="text-xs text-destructive underline underline-offset-2"
+                className="relative tap-target text-xs text-destructive underline underline-offset-2"
                 onClick={() => {
                   setEditing(false);
+                  setProblem(null);
                   onChange(null);
                   onCropChange(cropOnOpen.current);
+                  returnFocus(() => fileInput.current);
                 }}
               >
                 Remove selected photo
@@ -139,19 +164,25 @@ export function PhotoPicker({
         </div>
       </div>
 
+      <FormError id={problemId}>{problem}</FormError>
+
       {editing && thumbUrl ? (
-        <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-muted/30 p-4">
+        <div
+          ref={editor}
+          className="flex flex-col items-center gap-3 rounded-lg border border-border bg-muted/30 p-4"
+        >
           <PhotoCropEditor
             url={thumbUrl}
             crop={crop}
             onCropChange={onCropChange}
             onUnreadable={() => {
-              toast.error("That image couldn't be read. Try another file.");
+              setProblem("That image couldn't be read. Try another file.");
               setEditing(false);
+              returnFocus(() => fileInput.current);
             }}
           />
           <div className="flex gap-2">
-            <Button type="button" size="sm" onClick={() => setEditing(false)}>
+            <Button type="button" size="sm" onClick={closeEditor}>
               Done
             </Button>
             <Button
@@ -160,7 +191,7 @@ export function PhotoPicker({
               variant="outline"
               onClick={() => {
                 onCropChange(cropOnOpen.current);
-                setEditing(false);
+                closeEditor();
               }}
             >
               Cancel

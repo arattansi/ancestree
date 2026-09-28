@@ -1,11 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "sonner";
 
 import { setRelativesCanAsk } from "@/app/actions/invite-relays";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { useAction } from "@/components/use-action";
 import { RELATIVES_CAN_ASK_LABEL } from "@/lib/invite-relays";
 
 /**
@@ -15,42 +15,21 @@ import { RELATIVES_CAN_ASK_LABEL } from "@/lib/invite-relays";
  * shows who has turned it off.
  */
 export function RelativesCanAsk({ on }: { on: boolean }) {
-  const [checked, setChecked] = React.useState(on);
-  const [busy, setBusy] = React.useState(false);
-
-  async function onChange(next: boolean) {
-    setChecked(next);
-    setBusy(true);
-    let res: Awaited<ReturnType<typeof setRelativesCanAsk>>;
-    try {
-      res = await setRelativesCanAsk(next);
-    } catch {
-      setChecked(!next);
-      toast.error("Couldn't reach the server — reload the page and try again.");
-      return;
-    } finally {
-      setBusy(false);
-    }
-
-    if (res.error) {
-      setChecked(!next);
-      toast.error(res.error);
-    } else {
-      toast.success(
-        next
-          ? "Relatives can ask you to invite them."
-          : "Relatives can no longer ask you to invite them.",
-      );
-    }
-  }
+  const action = useAction();
+  // Ticks at once, and goes back by itself if the save doesn't work.
+  const [checked, setChecked] = React.useOptimistic(on);
 
   return (
     <div className="flex items-start gap-3">
       <Checkbox
         id="relatives-can-ask"
         checked={checked}
-        disabled={busy}
-        onCheckedChange={(value) => onChange(value === true)}
+        onCheckedChange={(value) =>
+          action.run("save", async () => {
+            setChecked(value === true);
+            return setRelativesCanAsk(value === true);
+          })
+        }
         aria-describedby="relatives-can-ask-note"
       />
       <div className="flex flex-col gap-1">

@@ -114,6 +114,64 @@ turn autocomplete off, or every relative is offered the member's own name
   **Back to tree**, the header kept; a missing one says **Page Not Found**,
   with **Back to tree** (Step 61).
 
+## Feedback
+
+What a button shows while it works, where a failure goes, and what's asked
+before something is lost (Step 70). The pieces are shared; a new screen
+uses them rather than its own flags and messages.
+
+- **A server action is called through `useAction`**
+  (`components/use-action.ts`), or a button built on it: `ActionButton`
+  for one button and one action, `ConfirmButton` for one that asks first,
+  `SubmitButton` in a `<form action>`. Only the pressed button shows it's
+  busy, with a spinner and its own words ("Deleting…"); the others that
+  would clash are disabled but keep their labels. It stays busy until the
+  page has redrawn, or the next page has arrived, so a second press can't
+  save twice, and it ends however the call went: a failure never leaves a
+  button stuck. A busy button keeps keyboard focus.
+- **A failure shows where the reader is looking.** A form's or a dialog's
+  goes by its button (`FormError`, `role="alert"`) and stays until they
+  try again. A toast is for a button with no form around it, and for what
+  happens off screen: an email sent, a link copied, a change someone else
+  will see. A toast never repeats what the screen already shows ("Comment
+  posted." under the comment).
+- **Toasts** are red for a failure and green for a success, and can be
+  closed; a failure stays up 10 seconds. On a phone they come in at the
+  top, under the header, where they cover none of the canvas's buttons;
+  wider, at the bottom right, left of a docked details sheet.
+- **Ask before a loss**, in a dialog that needs an answer (`ConfirmDialog`,
+  Base UI's AlertDialog): its title is the question naming the thing
+  ("Remove Jane from The Sayanis?"), then only what the reader must know
+  first. **This cannot be undone.** sits on a line of its own, and only
+  where something is really lost. The safe button comes first and has
+  focus; the one that does it is solid red, labelled with the verb, and
+  the only solid red button anywhere. A change that can't be reversed but
+  loses nothing (making someone a Root) asks the same way with a plain
+  confirm. A failure shows inside the dialog, which stays open. Nothing
+  asks before an ordinary decision (Approve, Decline, Dismiss).
+- **Cheap to put back, no question:** unlinking a person from a companion
+  or a name from a nickname group happens at once, with **Undo** in the
+  toast.
+- **Red:** the tinted `destructive` button is for a removal among other
+  buttons (a row's **Delete**); `destructive-solid` only confirms. A count
+  asking for attention (the header's admin count) is `attention`, and a
+  button that sends something (**Send dispute**) is an ordinary one.
+- **Row buttons say which row**: a list's **Delete**, **Remove**, **Copy**
+  or **Download** names its row to a screen reader ("Remove Will.pdf").
+- **A switch moves when it's pressed**, before the server answers, and
+  goes back by itself if the change fails (`useOptimistic`); a removed row
+  leaves the list at once and returns to its place if it fails.
+- **Focus never drops to the page** when the control that had it goes
+  (`components/use-focus-return.ts`): opening an inline form focuses its
+  first field, closing it returns to the button that opened it, and when a
+  row is removed the next row's first button takes focus.
+- **Touch targets:** on a touch screen a small control (a bare ✕, a text
+  link used as a button, the header's buttons, a sheet's or dialog's
+  close) answers to a 44 px square around it (`relative tap-target`, an
+  invisible hit area, so nothing moves), and the canvas's zoom buttons are
+  40 px. A bare ✕ is `text-muted-foreground` at full strength, never faded
+  under 3:1.
+
 ## Charts
 
 The first is the dashboard's members active each week (Step 56,

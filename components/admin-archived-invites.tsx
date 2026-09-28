@@ -1,10 +1,7 @@
 "use client";
 
-import * as React from "react";
-import { toast } from "sonner";
-
 import { deleteInvite } from "@/app/actions/invites";
-import { Button } from "@/components/ui/button";
+import { ConfirmButton } from "@/components/confirm-dialog";
 import type { ArchivedInvite } from "@/lib/invites";
 
 /**
@@ -12,28 +9,10 @@ import type { ArchivedInvite } from "@/lib/invites";
  * but out of the live lists. Nothing to do with them but delete for good.
  */
 export function AdminArchivedInvites({ invites }: { invites: ArchivedInvite[] }) {
-  const [busyId, setBusyId] = React.useState<string | null>(null);
-
   if (invites.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">No archived invites.</p>
     );
-  }
-
-  async function onDelete(invite: ArchivedInvite) {
-    if (
-      !window.confirm(`Delete the record of ${describe(invite)}?`)
-    ) {
-      return;
-    }
-    setBusyId(invite.id);
-    const res = await deleteInvite(invite.id);
-    setBusyId(null);
-    if (res.error) {
-      toast.error(res.error);
-      return;
-    }
-    toast.success("Deleted.");
   }
 
   return (
@@ -61,16 +40,19 @@ export function AdminArchivedInvites({ invites }: { invites: ArchivedInvite[] })
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
-            <Button
-              type="button"
+            <ConfirmButton
               size="sm"
               variant="destructive"
-              disabled={busyId !== null}
-              onClick={() => onDelete(invite)}
               aria-label={`Delete the archived invite for ${describe(invite)}`}
+              confirm={{
+                title: `Delete the record of ${describe(invite)}?`,
+                confirmLabel: "Delete",
+                pendingLabel: "Deleting…",
+                onConfirm: () => deleteInvite(invite.id),
+              }}
             >
-              {busyId === invite.id ? "Deleting…" : "Delete"}
-            </Button>
+              Delete
+            </ConfirmButton>
           </div>
         </li>
       ))}
@@ -79,7 +61,7 @@ export function AdminArchivedInvites({ invites }: { invites: ArchivedInvite[] })
 }
 
 function describe(invite: ArchivedInvite) {
-  if (invite.recipientName) return `${invite.recipientName}'s invite`;
+  if (invite.recipientName) return `${invite.recipientName}’s invite`;
   if (invite.claimPersonName) return `the invite to claim ${invite.claimPersonName}`;
   return "this bare link";
 }

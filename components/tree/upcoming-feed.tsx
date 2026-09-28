@@ -6,6 +6,7 @@ import { Cake, Heart, X } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { FitText } from "@/components/ui/fit-text";
+import { useFocusReturn } from "@/components/use-focus-return";
 import { cropStyle, parseCrop } from "@/lib/image-crop";
 import {
   groupOccasions,
@@ -104,12 +105,27 @@ export function UpcomingFeed({
     [occasions, today],
   );
 
+  // The button and the card take each other's place, so focus is handed
+  // across (Step 70): to the card's ✕ as it opens, and back to the button as
+  // the card closes itself.
+  const returnFocus = useFocusReturn();
+  const openRef = React.useRef<HTMLButtonElement>(null);
+  const closeRef = React.useRef<HTMLButtonElement>(null);
+  const closeCard = () => {
+    returnFocus(() => openRef.current);
+    onOpenChange(false);
+  };
+
   if (!open) {
     return (
       <Button
+        ref={openRef}
         size="sm"
         variant="outline"
-        onClick={() => onOpenChange(true)}
+        onClick={() => {
+          returnFocus(() => closeRef.current);
+          onOpenChange(true);
+        }}
         className="gap-1.5 bg-card shadow-md"
         aria-label="Upcoming birthdays and anniversaries"
         aria-expanded={false}
@@ -129,7 +145,9 @@ export function UpcomingFeed({
   }
 
   return (
-    <div className="relative z-10 flex max-h-[calc(100dvh-9rem)] w-[calc(100vw-2rem)] max-w-72 flex-col gap-3 overflow-y-auto rounded-xl border border-border bg-card p-3 shadow-md sm:w-72">
+    // On a touch screen the ✕'s hit area reaches past the card's padding; it
+    // mustn't make the card scroll sideways.
+    <div className="relative z-10 flex max-h-[calc(100dvh-9rem)] w-[calc(100vw-2rem)] max-w-72 flex-col gap-3 overflow-x-hidden overflow-y-auto rounded-xl border border-border bg-card p-3 shadow-md sm:w-72">
       <div className="flex items-center justify-between gap-2">
         <h2 className="flex items-center gap-1.5 text-sm font-medium">
           <Cake className="size-3.5 text-muted-foreground" />
@@ -141,9 +159,10 @@ export function UpcomingFeed({
           ) : null}
         </h2>
         <button
+          ref={closeRef}
           type="button"
-          onClick={() => onOpenChange(false)}
-          className="text-muted-foreground hover:text-foreground"
+          onClick={closeCard}
+          className="relative tap-target text-muted-foreground hover:text-foreground"
           aria-label="Close upcoming"
         >
           <X className="size-4" />
@@ -172,9 +191,16 @@ export function UpcomingFeed({
                     <button
                       type="button"
                       onClick={() => {
-                        if (couple) onPickCouple(o.people[0], o.people[1]);
-                        else onPickPerson(o.people[0]);
-                        onOpenChange(false);
+                        // Someone's details take focus as they open; a
+                        // couple's line has nothing to take it, so the
+                        // button does.
+                        if (couple) {
+                          onPickCouple(o.people[0], o.people[1]);
+                          closeCard();
+                        } else {
+                          onPickPerson(o.people[0]);
+                          onOpenChange(false);
+                        }
                       }}
                       className="flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left hover:bg-accent"
                     >

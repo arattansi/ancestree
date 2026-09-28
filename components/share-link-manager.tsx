@@ -1,13 +1,17 @@
 "use client";
 
-import { Fragment, useState, useTransition } from "react";
+import { Fragment, useState } from "react";
 import { toast } from "sonner";
 
 import { createShareLink, revokeShareLink } from "@/app/actions/share-links";
+import { ConfirmButton } from "@/components/confirm-dialog";
+import { FormError } from "@/components/form-error";
+import { PendingButton } from "@/components/pending-button";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toastError, useAction } from "@/components/use-action";
 import { shareLinkState } from "@/lib/share-links";
 
 export type ShareLinkRow = {
@@ -21,12 +25,13 @@ export type ShareLinkRow = {
   viewCount: number;
 };
 
-async function copy(text: string) {
+/** `quiet`: no word when it worked, for a panel that already says so. */
+async function copy(text: string, { quiet = false } = {}) {
   try {
     await navigator.clipboard.writeText(text);
-    toast.success("Share link copied");
+    if (!quiet) toast.success("Share link copied");
   } catch {
-    toast.error("Couldn't copy — select and copy the link manually");
+    toastError("Couldn't copy — select and copy the link manually");
   }
 }
 
@@ -52,19 +57,17 @@ export function ShareLinkManager({
   const [label, setLabel] = useState("");
   const [withExpiry, setWithExpiry] = useState(false);
   const [freshUrl, setFreshUrl] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
+  const action = useAction({ inline: true });
 
   function mint() {
-    startTransition(async () => {
-      const result = await createShareLink({ treeId, label, withExpiry });
-      if (result.error) {
-        toast.error(result.error);
-        return;
-      }
-      setFreshUrl(result.url ?? null);
-      setLabel("");
-      setWithExpiry(false);
-      if (result.url) await copy(result.url);
+    action.run("create", () => createShareLink({ treeId, label, withExpiry }), {
+      onSuccess: (result) => {
+        setFreshUrl(result.url ?? null);
+        setLabel("");
+        setWithExpiry(false);
+        // The panel it opens says it's copied.
+        if (result.url) void copy(result.url, { quiet: true });
+      },
     });
   }
 
@@ -94,9 +97,16 @@ export function ShareLinkManager({
           />
           Expire this link after 30 days
         </Label>
-        <Button type="button" onClick={mint} disabled={pending} className="self-start">
-          {pending ? "Creating…" : "Create share link"}
-        </Button>
+        <FormError>{action.error}</FormError>
+        <PendingButton
+          type="button"
+          onClick={mint}
+          pending={action.pending}
+          pendingLabel="Creating…"
+          className="self-start"
+        >
+          Create share link
+        </PendingButton>
       </div>
 
       {freshUrl ? (
@@ -127,6 +137,9 @@ export function ShareLinkManager({
                 revoked_at: link.revokedAt,
                 expires_at: link.expiresAt,
               });
+              // What a screen reader hears on the row's buttons, to tell
+              // one link from another.
+              const which = link.label ? `the “${link.label}” link` : "the untitled link";
               return (
                 <li
                   key={link.id}
@@ -165,20 +178,25 @@ export function ShareLinkManager({
                       variant="outline"
                       size="sm"
                       onClick={() => copy(shareUrl(link.token))}
+                      aria-label={`Copy ${which}`}
                     >
                       Copy
                     </Button>
-                    <form action={revokeShareLink}>
-                      <input type="hidden" name="id" value={link.id} />
-                      <Button
-                        type="submit"
-                        variant="outline"
-                        size="sm"
-                        className="text-destructive"
-                      >
-                        Revoke
-                      </Button>
-                    </form>
+                    <ConfirmButton
+                      variant="outline"
+                      size="sm"
+                      className="text-destructive"
+                      aria-label={`Revoke ${which}`}
+                      confirm={{
+                        title: link.label ? `Revoke “${link.label}”?` : "Revoke this link?",
+                        description: "It stops working for anyone who has it.",
+                        confirmLabel: "Revoke",
+                        pendingLabel: "Revoking…",
+                        onConfirm: () => revokeShareLink(link.id),
+                      }}
+                    >
+                      Revoke
+                    </ConfirmButton>
                   </div>
                 </li>
               );

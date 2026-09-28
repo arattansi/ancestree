@@ -111,7 +111,7 @@ export function GettingStarted({
         </button>
         <button
           type="button"
-          className="text-muted-foreground/60 hover:text-foreground"
+          className="relative tap-target text-muted-foreground hover:text-foreground"
           onClick={dismiss}
           aria-label="Dismiss getting started"
         >

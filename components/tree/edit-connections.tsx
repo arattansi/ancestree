@@ -1,11 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "sonner";
 
 import { connectExistingPeople, removeRelationship } from "@/app/actions/people";
 import { CoParentOffer } from "@/components/co-parent-offer";
+import { ConfirmButton } from "@/components/confirm-dialog";
 import { DateField } from "@/components/date-field";
+import { FormError } from "@/components/form-error";
+import { PendingButton } from "@/components/pending-button";
+import { UNREACHABLE } from "@/lib/action-feedback";
 import {
   coParentSelection,
   KIND_STATEMENT,
@@ -16,7 +19,6 @@ import {
   RelationshipPicker,
   type TreeMemberOption,
 } from "@/components/relationship-picker";
-import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import {
@@ -26,6 +28,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useAction } from "@/components/use-action";
+import { useFocusReturn } from "@/components/use-focus-return";
 /** How the edited person relates to the other person. */
 export type ConnectionKind = "parent" | "child" | "spouse" | "sibling";
 
@@ -47,7 +51,27 @@ export type ExistingConnection = {
   /** How the *edited* person relates to `otherName`. */
   kind: ConnectionKind;
   canRemove: boolean;
+  /**
+   * A spouse line's dates, which go with it when it's removed, so the
+   * question says so first (Step 70). Left out, it says nothing of them.
+   */
+  hasMarriageDate?: boolean;
+  hasDivorceDate?: boolean;
 };
+
+/** What removing a line loses besides the line, said before it goes. */
+function removalNote(c: ExistingConnection): string | undefined {
+  if (c.kind !== "spouse") return undefined;
+  const dates =
+    c.hasMarriageDate && c.hasDivorceDate
+      ? "Their marriage and divorce dates go with it."
+      : c.hasMarriageDate
+        ? "Their marriage date goes with it."
+        : c.hasDivorceDate
+          ? "Their divorce date goes with it."
+          : null;
+  return dates ? `${dates}\nThis cannot be undone.` : undefined;
+}
 
 export function EditConnections({
   treeId,
@@ -74,8 +98,9 @@ export function EditConnections({
   const [marriageDate, setMarriageDate] = React.useState("");
   const [isDivorced, setIsDivorced] = React.useState(false);
   const [divorceDate, setDivorceDate] = React.useState("");
-  const [busy, setBusy] = React.useState(false);
-  const [removingId, setRemovingId] = React.useState<string | null>(null);
+  const add = useAction({ inline: true });
+  const returnFocus = useFocusReturn();
+  const addRef = React.useRef<HTMLDivElement>(null);
 
   const otherMember = members.find((m) => m.id === otherId);
   const otherLabel = otherMember?.label ?? "the other person";
@@ -109,76 +134,86 @@ export function EditConnections({
       : { marriage: null, divorce: null };
   const datesOk = !dateProblems.marriage && !dateProblems.divorce;
 
-  async function add() {
+  function onAdd() {
     if (!otherId) {
-      toast.error("Pick someone already in the tree.");
+      add.setError("Pick someone already in the tree.");
       return;
     }
     if (!datesOk) return;
-    setBusy(true);
     // Padded to ISO: a one-digit day types as "1965-03-5".
     const married = toStoredDate(marriageDate);
-    const res = await connectExistingPeople({
-      treeId,
-      personId,
-      otherId,
-      kind,
-      marriage_date: married.date ?? "",
-      marriage_month: married.withoutYear?.month ?? null,
-      marriage_day: married.withoutYear?.day ?? null,
-      is_divorced: isDivorced,
-      divorce_date: toStoredDate(divorceDate).date ?? "",
-    });
-    if (res.error) {
-      setBusy(false);
-      toast.error(res.error);
-      return;
-    }
-    // The main edge is in. Each ticked partner becomes a parent of the same
-    // child — one call apiece, because `connect_people` writes one edge.
-    const alsoAdded: string[] = [];
-    for (const coParentId of parentSide ? chosenCoParents : []) {
-      const extra = await connectExistingPeople({
-        treeId,
-        personId: coParentId,
-        otherId: parentSide!.childId,
-        kind: "parent",
-      });
-      if (extra.error) {
-        // The main link is saved either way; say what didn't happen.
-        toast.error(
-          `Connected, but couldn't also add ${
-            coParentOffer.find((p) => p.id === coParentId)?.label ??
-            "the other parent"
-          }: ${extra.error}`,
-        );
-        setBusy(false);
-        resetForm();
-        return;
-      }
-      alsoAdded.push(
-        coParentOffer.find((p) => p.id === coParentId)?.label ?? "another parent",
-      );
-    }
-
-    toast.success(
-      alsoAdded.length > 0
-        ? `Connection added, with ${alsoAdded.join(" & ")} as a parent too.`
-        : "Connection added.",
+    const partnersToAdd = parentSide ? chosenCoParents : [];
+    const childId = parentSide?.childId ?? "";
+    add.run(
+      "add",
+      async (): Promise<{
+        error?: string;
+        alsoAdded?: string[];
+        missed?: string;
+      }> => {
+        const res = await connectExistingPeople({
+          treeId,
+          personId,
+          otherId,
+          kind,
+          marriage_date: married.date ?? "",
+          marriage_month: married.withoutYear?.month ?? null,
+          marriage_day: married.withoutYear?.day ?? null,
+          is_divorced: isDivorced,
+          divorce_date: toStoredDate(divorceDate).date ?? "",
+        });
+        if (res.error) return res;
+        // The main edge is in. Each ticked partner becomes a parent of the
+        // same child — one call apiece, because `connect_people` writes one
+        // edge.
+        const alsoAdded: string[] = [];
+        for (const coParentId of partnersToAdd) {
+          const label = coParentOffer.find((p) => p.id === coParentId)?.label;
+          let refused: string | undefined;
+          try {
+            const extra = await connectExistingPeople({
+              treeId,
+              personId: coParentId,
+              otherId: childId,
+              kind: "parent",
+            });
+            refused = extra.error;
+          } catch {
+            refused = UNREACHABLE;
+          }
+          if (refused) {
+            // The main link is saved either way, so the form isn't handed
+            // back to be pressed again: say what didn't happen.
+            return {
+              alsoAdded,
+              missed: `Connected, but couldn't also add ${
+                label ?? "the other parent"
+              }: ${refused}`,
+            };
+          }
+          alsoAdded.push(label ?? "another parent");
+        }
+        return { alsoAdded };
+      },
+      {
+        // Only the partners: the new line itself shows in the list above.
+        success: ({ alsoAdded = [], missed }) =>
+          alsoAdded.length > 0 && !missed
+            ? `Connection added, with ${alsoAdded.join(" & ")} as a parent too.`
+            : null,
+        onSuccess: ({ missed }) => {
+          resetForm();
+          if (missed) add.setError(missed);
+          // The Add button goes with the form: the search for the next
+          // person takes focus.
+          returnFocus(() =>
+            addRef.current?.querySelector<HTMLElement>(
+              'input[type="search"]',
+            ),
+          );
+        },
+      },
     );
-    setBusy(false);
-    resetForm();
-  }
-
-  async function remove(id: string) {
-    setRemovingId(id);
-    const res = await removeRelationship(id);
-    setRemovingId(null);
-    if (res.error) {
-      toast.error(res.error);
-      return;
-    }
-    toast.success("Connection removed.");
   }
 
   return (
@@ -203,14 +238,20 @@ export function EditConnections({
               </span>
               <span className="flex-1 text-foreground">{c.otherName}</span>
               {c.canRemove ? (
-                <button
-                  type="button"
-                  className="text-xs text-destructive underline underline-offset-2 disabled:opacity-50"
-                  disabled={removingId !== null}
-                  onClick={() => remove(c.id)}
+                <ConfirmButton
+                  variant="link"
+                  aria-label={`Remove the connection to ${c.otherName}`}
+                  className="relative tap-target h-auto p-0 text-xs font-normal text-destructive underline underline-offset-2"
+                  confirm={{
+                    title: `Remove the connection to ${c.otherName}?`,
+                    description: removalNote(c),
+                    confirmLabel: "Remove",
+                    pendingLabel: "Removing…",
+                    onConfirm: () => removeRelationship(c.id),
+                  }}
                 >
-                  {removingId === c.id ? "Removing…" : "Remove"}
-                </button>
+                  Remove
+                </ConfirmButton>
               ) : null}
             </li>
           ))}
@@ -219,13 +260,20 @@ export function EditConnections({
         <p className="text-sm text-muted-foreground">No connections yet.</p>
       )}
 
-      <div className="flex flex-col gap-3 border-t border-border pt-4">
+      <div
+        ref={addRef}
+        className="flex flex-col gap-3 border-t border-border pt-4"
+      >
         <p className="text-sm font-medium">Add a connection</p>
 
         <RelationshipPicker
           members={members}
           value={otherId}
-          onChange={setOtherId}
+          onChange={(id) => {
+            setOtherId(id);
+            // Someone else picked: what went wrong before was about the last.
+            add.setError(null);
+          }}
         />
 
         {otherId ? (
@@ -305,13 +353,24 @@ export function EditConnections({
                 ) : null}
               </div>
             ) : null}
-
-            <div>
-              <Button size="sm" onClick={add} disabled={busy || !datesOk}>
-                {busy ? "Adding…" : "Add connection"}
-              </Button>
-            </div>
           </>
+        ) : null}
+
+        {/* Out here, so what didn't happen still shows once the form has
+            closed up (a partner who couldn't also be added). */}
+        <FormError>{add.error}</FormError>
+        {otherId ? (
+          <div>
+            <PendingButton
+              size="sm"
+              onClick={onAdd}
+              pending={add.pending}
+              disabled={!datesOk}
+              pendingLabel="Adding…"
+            >
+              Add connection
+            </PendingButton>
+          </div>
         ) : null}
       </div>
     </section>

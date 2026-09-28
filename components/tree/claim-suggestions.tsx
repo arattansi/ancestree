@@ -1,10 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "sonner";
 
 import { claimPerson } from "@/app/actions/claims";
-import { Button } from "@/components/ui/button";
+import { ConfirmButton } from "@/components/confirm-dialog";
 import type { ClaimCandidate } from "@/lib/claims";
 
 /**
@@ -23,22 +22,8 @@ export function ClaimSuggestions({
   notes: ReadonlyMap<string, string>;
 }) {
   const [dismissed, setDismissed] = React.useState(false);
-  const [confirmingId, setConfirmingId] = React.useState<string | null>(null);
-  const [busyId, setBusyId] = React.useState<string | null>(null);
 
   if (dismissed || candidates.length === 0) return null;
-
-  async function onClaim(id: string) {
-    setBusyId(id);
-    const res = await claimPerson(id);
-    setBusyId(null);
-    if (res.error) {
-      toast.error(res.error);
-      return;
-    }
-    setConfirmingId(null);
-    toast.success("Merged — this is now your entry.");
-  }
 
   return (
     <div className="w-[calc(100vw-2rem)] max-w-72 rounded-xl sm:w-72 border border-border bg-card p-3 shadow-md">
@@ -46,7 +31,7 @@ export function ClaimSuggestions({
         <p className="text-sm font-semibold">Is one of these you?</p>
         <button
           type="button"
-          className="text-xs text-muted-foreground underline underline-offset-2"
+          className="relative tap-target text-xs text-muted-foreground underline underline-offset-2"
           onClick={() => setDismissed(true)}
         >
           Dismiss
@@ -68,39 +53,21 @@ export function ClaimSuggestions({
                   "No other details"}
               </p>
             </div>
-            {confirmingId === c.id ? (
-              <>
-                <p className="text-xs whitespace-pre-line text-muted-foreground">
-                  {notes.get(c.id)}
-                </p>
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    onClick={() => onClaim(c.id)}
-                    disabled={busyId !== null}
-                  >
-                    {busyId === c.id ? "Merging…" : "Yes, merge"}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setConfirmingId(null)}
-                    disabled={busyId !== null}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <Button
-                size="sm"
-                className="self-start"
-                onClick={() => setConfirmingId(c.id)}
-                disabled={busyId !== null}
-              >
-                This is me
-              </Button>
-            )}
+            <ConfirmButton
+              size="sm"
+              className="self-start"
+              confirm={{
+                // Several may be listed: the question names which.
+                title: `Make ${c.name} your entry?`,
+                description: notes.get(c.id),
+                confirmLabel: "Yes, merge",
+                pendingLabel: "Merging…",
+                onConfirm: () => claimPerson(c.id),
+                success: "Merged — this is now your entry.",
+              }}
+            >
+              This is me
+            </ConfirmButton>
           </li>
         ))}
       </ul>

@@ -1,12 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "sonner";
 
 import { resolveImpliedConnection } from "@/app/actions/people";
 import type { PanelSuggestion } from "@/lib/connection-suggestions";
+import { PendingButton } from "@/components/pending-button";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { useAction } from "@/components/use-action";
+import { refocusAfterRemoval } from "@/components/use-focus-return";
 
 /**
  * The one place a derived connection candidate is answered — used by the person
@@ -37,35 +38,44 @@ function acceptHint(s: PanelSuggestion): string | null {
 
 export function ConnectionPrompt({
   suggestion,
+  onAnswer,
   onResolved,
 }: {
   suggestion: PanelSuggestion;
+  /** Takes it off the list at once; a failed answer puts it back. */
+  onAnswer: (id: string) => void;
   onResolved: () => void;
 }) {
-  const [busy, setBusy] = React.useState(false);
+  // Its own handle, so answering one prompt leaves the others free (Step 70).
+  const action = useAction();
 
-  async function resolve(resolution: "accepted" | "dismissed") {
-    setBusy(true);
-    const res = await resolveImpliedConnection({
-      subjectPersonId: suggestion.subjectPersonId,
-      relatedPersonId: suggestion.relatedPersonId,
-      suggestedType: suggestion.suggestedType,
-      sources: [suggestion.source, ...suggestion.alsoFrom],
+  function resolve(resolution: "accepted" | "dismissed", button: HTMLElement) {
+    // It leaves the list at once, and the next prompt takes focus.
+    refocusAfterRemoval(button);
+    action.run(
       resolution,
-    });
-    setBusy(false);
-    if (res.error) {
-      toast.error(res.error);
-      return;
-    }
-    toast.success(
-      resolution === "dismissed"
-        ? "Thanks — we won't ask again."
-        : suggestion.suggestedType === "duplicate_check"
-          ? "Flagged for an admin to merge."
-          : "Connection added.",
+      async () => {
+        onAnswer(suggestion.id);
+        return resolveImpliedConnection({
+          subjectPersonId: suggestion.subjectPersonId,
+          relatedPersonId: suggestion.relatedPersonId,
+          suggestedType: suggestion.suggestedType,
+          sources: [suggestion.source, ...suggestion.alsoFrom],
+          resolution,
+        });
+      },
+      {
+        // A toast only for what the prompt's leaving doesn't say: a
+        // connection added shows on the tree itself.
+        success:
+          resolution === "dismissed"
+            ? "Thanks — we won't ask again."
+            : suggestion.suggestedType === "duplicate_check"
+              ? "Flagged for an admin to merge."
+              : undefined,
+        onSuccess: onResolved,
+      },
     );
-    onResolved();
   }
 
   const hint = acceptHint(suggestion);
@@ -82,17 +92,23 @@ export function ConnectionPrompt({
       </div>
       {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
       <div className="flex flex-wrap gap-2">
-        <Button size="sm" disabled={busy} onClick={() => resolve("accepted")}>
+        <PendingButton
+          size="sm"
+          pending={action.pendingKey === "accepted"}
+          disabled={action.pending}
+          onClick={(e) => resolve("accepted", e.currentTarget)}
+        >
           {acceptLabel(suggestion)}
-        </Button>
-        <Button
+        </PendingButton>
+        <PendingButton
           size="sm"
           variant="outline"
-          disabled={busy}
-          onClick={() => resolve("dismissed")}
+          pending={action.pendingKey === "dismissed"}
+          disabled={action.pending}
+          onClick={(e) => resolve("dismissed", e.currentTarget)}
         >
           No
-        </Button>
+        </PendingButton>
       </div>
     </li>
   );
@@ -105,10 +121,21 @@ export function ConnectionPromptList({
   suggestions: PanelSuggestion[];
   onResolved: () => void;
 }) {
+  // An answered prompt leaves at once, and comes back to its place if the
+  // answer fails (Step 70).
+  const [shown, hide] = React.useOptimistic(
+    suggestions,
+    (list, id: string) => list.filter((s) => s.id !== id),
+  );
   return (
     <ul className="flex flex-col gap-3">
-      {suggestions.map((s) => (
-        <ConnectionPrompt key={s.id} suggestion={s} onResolved={onResolved} />
+      {shown.map((s) => (
+        <ConnectionPrompt
+          key={s.id}
+          suggestion={s}
+          onAnswer={hide}
+          onResolved={onResolved}
+        />
       ))}
     </ul>
   );

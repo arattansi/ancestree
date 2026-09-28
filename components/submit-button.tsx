@@ -3,19 +3,16 @@
 import type { ComponentProps } from "react";
 import { useFormStatus } from "react-dom";
 
-import { Button } from "@/components/ui/button";
+import { PendingButton } from "@/components/pending-button";
 
-/** A submit button that disables itself while its form's action is running. */
-export function SubmitButton({
-  children,
-  pendingLabel,
-  disabled,
-  ...props
-}: ComponentProps<typeof Button> & { pendingLabel?: string }) {
+/**
+ * A submit button that shows its form's action running (spinner,
+ * `pendingLabel`, `aria-busy`) and stays disabled until the action's result,
+ * or the page it redirects to, has arrived.
+ */
+export function SubmitButton(
+  props: Omit<ComponentProps<typeof PendingButton>, "pending" | "type">,
+) {
   const { pending } = useFormStatus();
-  return (
-    <Button type="submit" disabled={pending || disabled} {...props}>
-      {pending && pendingLabel ? pendingLabel : children}
-    </Button>
-  );
+  return <PendingButton type="submit" pending={pending} {...props} />;
 }

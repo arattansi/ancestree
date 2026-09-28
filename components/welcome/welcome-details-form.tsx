@@ -12,6 +12,8 @@ import {
   setPersonPhotoCrop,
   updatePerson,
 } from "@/app/actions/people";
+import { FormError } from "@/components/form-error";
+import { PendingButton } from "@/components/pending-button";
 import {
   PersonDetailFields,
   PersonNameFields,
@@ -19,6 +21,7 @@ import {
 import { PhotoPicker } from "@/components/photo-picker";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
+import { useAction } from "@/components/use-action";
 import { EntrySummary } from "@/components/welcome/entry-summary";
 import type { Fillable } from "@/lib/fill-blanks";
 import { parseCrop, type CropTransform } from "@/lib/image-crop";
@@ -66,7 +69,7 @@ export function WelcomeDetailsForm({
   const [photoBusy, setPhotoBusy] = React.useState(false);
   const savedCrop = React.useMemo(() => parseCrop(photoCrop), [photoCrop]);
   const [crop, setCrop] = React.useState<CropTransform>(savedCrop);
-  const [submitError, setSubmitError] = React.useState<string | null>(null);
+  const action = useAction({ inline: true });
 
   const form = useForm<PersonFormValues>({
     resolver: zodResolver(personSchema),
@@ -96,57 +99,59 @@ export function WelcomeDetailsForm({
   // Read up front, not inside the button's `||`: react-hook-form only works
   // out `isValid` once it has been read, and a photo on its own dirties no
   // field to make it look again.
-  const { isDirty, isSubmitting, isValid } = form.formState;
+  const { isDirty, isValid } = form.formState;
   const reframed = !photoFile && !!photoPath && !sameCrop(crop, savedCrop);
   const somethingToSave = isDirty || photoFile !== null || reframed;
-  const submitting = isSubmitting || photoBusy;
 
-  async function onSubmit(next: PersonFormValues) {
-    setSubmitError(null);
-    const detailsChanged = form.formState.isDirty;
+  const onSubmit = form.handleSubmit((next) =>
+    action.run(
+      "save",
+      async (): Promise<{ error?: string }> => {
+        const detailsChanged = form.formState.isDirty;
 
-    let photoFailed = false;
-    if (photoFile) {
-      try {
-        const path = `${homeTreeId}/${personId}/${crypto.randomUUID()}.jpg`;
-        const { error } = await createClient()
-          .storage.from("photos")
-          .upload(path, photoFile, { contentType: "image/jpeg", upsert: false });
-        if (error) throw error;
-        const res = await setPersonPhoto(personId, path, crop);
-        if (res.error) throw new Error(res.error);
-      } catch {
-        photoFailed = true;
-      }
-    } else if (reframed) {
-      const res = await setPersonPhotoCrop(personId, crop);
-      if (res.error) toast.warning("The photo’s new framing didn’t save.");
-    }
+        let photoFailed = false;
+        if (photoFile) {
+          try {
+            const path = `${homeTreeId}/${personId}/${crypto.randomUUID()}.jpg`;
+            const { error } = await createClient()
+              .storage.from("photos")
+              .upload(path, photoFile, { contentType: "image/jpeg", upsert: false });
+            if (error) throw error;
+            const res = await setPersonPhoto(personId, path, crop);
+            if (res.error) throw new Error(res.error);
+          } catch {
+            photoFailed = true;
+          }
+        } else if (reframed) {
+          const res = await setPersonPhotoCrop(personId, crop);
+          if (res.error) toast.warning("The photo’s new framing didn’t save.");
+        }
 
-    if (detailsChanged) {
-      const result = await updatePerson(personId, next);
-      if (result.error) {
-        setSubmitError(result.error);
-        return;
-      }
-    }
+        if (detailsChanged) {
+          const result = await updatePerson(personId, next);
+          if (result.error) return result;
+        }
 
-    if (photoFailed) {
-      if (!detailsChanged) {
-        setSubmitError("The photo didn’t upload. Try again, or skip it for now.");
-        return;
-      }
-      toast.warning("The photo didn’t upload. The rest is saved.");
-    } else {
-      toast.success("Saved.");
-    }
-    router.push(treeFocusHref(personId));
-  }
+        if (photoFailed) {
+          if (!detailsChanged) {
+            return { error: "The photo didn’t upload. Try again, or skip it for now." };
+          }
+          toast.warning("The photo didn’t upload. The rest is saved.");
+        } else {
+          toast.success("Saved.");
+        }
+        return {};
+      },
+      // Here, so the button stays busy until the tree shows: pressed again
+      // on the way, it would upload the photo a second time.
+      { onSuccess: () => router.push(treeFocusHref(personId)) },
+    ),
+  );
 
   return (
     <Form {...form}>
       <form
-        onSubmit={form.handleSubmit(onSubmit)}
+        onSubmit={onSubmit}
         className="flex flex-col gap-6"
         noValidate
       >
@@ -182,7 +187,7 @@ export function WelcomeDetailsForm({
             onCropChange={setCrop}
             currentUrl={photoUrl}
             onBusyChange={setPhotoBusy}
-            disabled={form.formState.isSubmitting}
+            disabled={action.pending}
           />
         ) : null}
 
@@ -201,19 +206,17 @@ export function WelcomeDetailsForm({
           show={show}
         />
 
-        {submitError ? (
-          <p role="alert" className="text-sm font-medium text-destructive">
-            {submitError}
-          </p>
-        ) : null}
+        <FormError>{action.error}</FormError>
 
         <div className="flex flex-wrap items-center gap-3">
-          <Button
+          <PendingButton
             type="submit"
-            disabled={submitting || !somethingToSave || !isValid}
+            pending={action.pending}
+            pendingLabel="Saving…"
+            disabled={photoBusy || !somethingToSave || !isValid}
           >
-            {submitting ? "Saving…" : "Save and see the tree"}
-          </Button>
+            Save and see the tree
+          </PendingButton>
           <Button
             nativeButton={false}
             render={<Link href={treeFocusHref(personId)} />}

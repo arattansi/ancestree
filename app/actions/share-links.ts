@@ -48,18 +48,22 @@ export async function createShareLink(input: {
   return { url: `${getSiteUrl()}/shared/${link.token}` };
 }
 
-/** Root: revoke a share link so its URL stops working immediately. */
-export async function revokeShareLink(formData: FormData) {
-  const id = String(formData.get("id") ?? "");
-  if (!id) return;
+/**
+ * Root: revoke a share link so its URL stops working immediately. A failure
+ * is said (Step 70); it used to look like success.
+ */
+export async function revokeShareLink(id: string): Promise<{ error?: string }> {
+  if (!id) return { error: "Couldn't revoke that link." };
 
   // RLS lets only a Root of the link's tree update it.
   const supabase = await createClient();
-  await supabase
+  const { error } = await supabase
     .from("share_links")
     .update({ revoked_at: new Date().toISOString() })
     .eq("id", id)
     .is("revoked_at", null);
+  if (error) return { error: "Couldn't revoke that link. Try again." };
 
   revalidateTreePages();
+  return {};
 }

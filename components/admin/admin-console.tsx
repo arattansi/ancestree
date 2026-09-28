@@ -442,7 +442,7 @@ export async function AdminConsole({
                             treeId={tree.id}
                             userId={member.auth_user_id}
                             role={member.role ?? "member"}
-                            name={member.display_name ?? "This member"}
+                            name={member.display_name ?? "this member"}
                             roots={room.roots}
                             unavailable={unavailableTypes(
                               accountTypeOf(member.role).key,

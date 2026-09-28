@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import { Input } from "@/components/ui/input";
+import { useFocusReturn } from "@/components/use-focus-return";
 import { foldSearchText } from "@/lib/tree-search";
 import { cn } from "@/lib/utils";
 
@@ -36,6 +37,20 @@ export function CompanionPicker({
     () => new Map(options.map((o) => [o.id, o.label])),
     [options],
   );
+  const returnFocus = useFocusReturn();
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  // Focus stays in the picker as its buttons go (Step 70): a chip's ✕ hands
+  // it on to the next chip's ✕, or to the search box after the last; a name
+  // picked from the list, to the box. Where the change waits on the server,
+  // the picker is disabled meanwhile, and focus waits for that too.
+  function handOn(gone: Element, next: HTMLButtonElement | null) {
+    returnFocus(() => {
+      if (gone.isConnected) return null;
+      const target = next?.isConnected ? next : inputRef.current;
+      return target && !target.disabled ? target : null;
+    });
+  }
 
   const matches = React.useMemo(() => {
     const q = foldSearchText(query.trim());
@@ -62,8 +77,18 @@ export function CompanionPicker({
                 <button
                   type="button"
                   disabled={disabled}
-                  className="rounded-full px-1 text-muted-foreground hover:text-foreground disabled:opacity-50"
-                  onClick={() => onChange(value.filter((v) => v !== id))}
+                  className="relative tap-target rounded-full px-1 text-muted-foreground hover:text-foreground disabled:opacity-50"
+                  onClick={(event) => {
+                    const chip = event.currentTarget.closest("li");
+                    if (chip) {
+                      handOn(
+                        chip,
+                        chip.nextElementSibling?.querySelector("button") ??
+                          null,
+                      );
+                    }
+                    onChange(value.filter((v) => v !== id));
+                  }}
                   aria-label={`Remove ${labelById.get(id) ?? "this person"}`}
                 >
                   ✕
@@ -79,6 +104,7 @@ export function CompanionPicker({
       )}
 
       <Input
+        ref={inputRef}
         type="search"
         placeholder="Add someone else on the tree…"
         value={query}
@@ -97,7 +123,8 @@ export function CompanionPicker({
                   "w-full px-3 py-1.5 text-left text-sm hover:bg-accent hover:text-accent-foreground",
                   "focus-visible:bg-accent focus-visible:outline-none",
                 )}
-                onClick={() => {
+                onClick={(event) => {
+                  handOn(event.currentTarget, null);
                   onChange([...value, o.id]);
                   setQuery("");
                 }}

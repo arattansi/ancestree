@@ -1,9 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "sonner";
 
 import { deleteAccount } from "@/app/actions/privacy";
+import { FormError } from "@/components/form-error";
+import { PendingButton } from "@/components/pending-button";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -23,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useAction } from "@/components/use-action";
 
 export type SuccessorOption = { userId: string; name: string };
 
@@ -44,22 +46,20 @@ export function DeleteAccount({
 }: {
   soleRootTrees?: readonly SoleRootTree[];
 }) {
-  const [busy, setBusy] = React.useState(false);
+  // Its failure shows in the dialog, by the button. On success the action
+  // redirects, and the button stays busy until the home page arrives.
+  const action = useAction({ inline: true });
   const [successors, setSuccessors] = React.useState<Record<string, string>>({});
   const handingOver = soleRootTrees.length > 0;
   const everyTreeCovered = soleRootTrees.every((t) => !!successors[t.treeId]);
   const stuck = soleRootTrees.some((t) => t.successors.length === 0);
 
-  async function onConfirm() {
-    setBusy(true);
-    const res = await deleteAccount({ successors });
-    // On success the action redirects and this never runs.
-    setBusy(false);
-    if (res?.error) toast.error(res.error);
-  }
-
   return (
-    <Dialog>
+    <Dialog
+      onOpenChange={(open) => {
+        if (open) action.setError(null);
+      }}
+    >
       <DialogTrigger
         render={
           <Button variant="outline" className="text-destructive">
@@ -96,7 +96,7 @@ export function DeleteAccount({
                     return next;
                   })
                 }
-                disabled={busy}
+                disabled={action.pending}
               >
                 <SelectTrigger id={id} className="w-full">
                   <SelectValue placeholder="Choose a member" />
@@ -118,21 +118,23 @@ export function DeleteAccount({
           );
         })}
 
+        <FormError>{action.error}</FormError>
         <DialogFooter>
           <DialogClose
+            disabled={action.pending}
             render={<Button variant="outline">Keep my account</Button>}
           />
-          <Button
-            onClick={onConfirm}
-            disabled={busy || stuck || (handingOver && !everyTreeCovered)}
-            className="bg-destructive text-white hover:bg-destructive/90"
+          <PendingButton
+            variant="destructive-solid"
+            onClick={() =>
+              action.run("delete", () => deleteAccount({ successors }))
+            }
+            pending={action.pending}
+            disabled={stuck || (handingOver && !everyTreeCovered)}
+            pendingLabel="Deleting…"
           >
-            {busy
-              ? "Deleting…"
-              : handingOver
-                ? "Hand over and delete"
-                : "Delete permanently"}
-          </Button>
+            {handingOver ? "Hand over and delete" : "Delete permanently"}
+          </PendingButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>

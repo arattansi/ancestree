@@ -7,13 +7,15 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 
 import { fillPersonBlanks } from "@/app/actions/people";
+import { FormError } from "@/components/form-error";
+import { PendingButton } from "@/components/pending-button";
 import {
   PersonDetailFields,
   PersonNameFields,
 } from "@/components/person-fields";
 import { PhotoPicker } from "@/components/photo-picker";
-import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
+import { useAction } from "@/components/use-action";
 import { filledPhrase, type Fillable } from "@/lib/fill-blanks";
 import { DEFAULT_CROP, type CropTransform } from "@/lib/image-crop";
 import { personSchema, type PersonFormValues } from "@/lib/person-schema";
@@ -44,7 +46,7 @@ export function PersonFillForm({
   const [photoFile, setPhotoFile] = React.useState<File | null>(null);
   const [photoBusy, setPhotoBusy] = React.useState(false);
   const [crop, setCrop] = React.useState<CropTransform>(DEFAULT_CROP);
-  const [submitError, setSubmitError] = React.useState<string | null>(null);
+  const action = useAction({ inline: true });
 
   const form = useForm<PersonFormValues>({
     resolver: zodResolver(personSchema),
@@ -54,48 +56,50 @@ export function PersonFillForm({
   // Read up front, not inside the button's `||`: react-hook-form only works
   // out `isValid` once it has been read, and a photo on its own dirties no
   // field to make it look again (Step 50).
-  const { isDirty, isSubmitting, isValid } = form.formState;
-  const submitting = isSubmitting || photoBusy;
+  const { isDirty, isValid } = form.formState;
   const somethingToAdd = isDirty || photoFile !== null;
 
-  async function onSubmit(next: PersonFormValues) {
-    setSubmitError(null);
-
-    // Into the entry's folder first: the storage policy lets them while it
-    // has no photo, and the fill names the file.
-    let photo: { path: string; crop: CropTransform } | null = null;
-    if (photoFile) {
-      const path = `${treeId}/${personId}/${crypto.randomUUID()}.jpg`;
-      const { error } = await createClient()
-        .storage.from("photos")
-        .upload(path, photoFile, { contentType: "image/jpeg", upsert: false });
-      if (error) {
-        setSubmitError(
-          "The photo didn't upload. Someone may have just added one; refresh and look again, or remove it to save the rest.",
-        );
-        return;
-      }
-      photo = { path, crop };
-    }
-
-    const result = await fillPersonBlanks(personId, next, photo);
-    if (result.error) {
-      setSubmitError(result.error);
-      return;
-    }
-    const filled = result.filled ?? [];
-    if (filled.length === 0) {
-      toast.info("Nothing new to add: someone may have just filled that in.");
-      return;
-    }
-    toast.success(`Added their ${filledPhrase(filled)}.`);
-    router.push(treeFocusHref(personId));
-  }
+  const onSubmit = form.handleSubmit((next) =>
+    action.run(
+      "save",
+      async (): Promise<{ filled?: string[]; error?: string }> => {
+        // Into the entry's folder first: the storage policy lets them while it
+        // has no photo, and the fill names the file.
+        let photo: { path: string; crop: CropTransform } | null = null;
+        if (photoFile) {
+          const path = `${treeId}/${personId}/${crypto.randomUUID()}.jpg`;
+          const { error } = await createClient()
+            .storage.from("photos")
+            .upload(path, photoFile, { contentType: "image/jpeg", upsert: false });
+          if (error) {
+            return {
+              error:
+                "The photo didn't upload. Someone may have just added one; refresh and look again, or remove it to save the rest.",
+            };
+          }
+          photo = { path, crop };
+        }
+        return fillPersonBlanks(personId, next, photo);
+      },
+      {
+        // Here, so the button stays busy until the tree shows: pressed again
+        // on the way, it would upload the photo a second time.
+        onSuccess: ({ filled = [] }) => {
+          if (filled.length === 0) {
+            toast.info("Nothing new to add: someone may have just filled that in.");
+            return;
+          }
+          toast.success(`Added their ${filledPhrase(filled)}.`);
+          router.push(treeFocusHref(personId));
+        },
+      },
+    ),
+  );
 
   return (
     <Form {...form}>
       <form
-        onSubmit={form.handleSubmit(onSubmit)}
+        onSubmit={onSubmit}
         className="flex flex-col gap-6"
         noValidate
       >
@@ -116,22 +120,20 @@ export function PersonFillForm({
             crop={crop}
             onCropChange={setCrop}
             onBusyChange={setPhotoBusy}
-            disabled={form.formState.isSubmitting}
+            disabled={action.pending}
           />
         ) : null}
 
-        {submitError ? (
-          <p role="alert" className="text-sm font-medium text-destructive">
-            {submitError}
-          </p>
-        ) : null}
+        <FormError>{action.error}</FormError>
 
-        <Button
+        <PendingButton
           type="submit"
-          disabled={submitting || !somethingToAdd || !isValid}
+          pending={action.pending}
+          pendingLabel="Saving…"
+          disabled={photoBusy || !somethingToAdd || !isValid}
         >
-          {submitting ? "Saving…" : "Add these details"}
-        </Button>
+          Add these details
+        </PendingButton>
       </form>
     </Form>
   );

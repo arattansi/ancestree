@@ -12,11 +12,14 @@ import {
   updatePerson,
 } from "@/app/actions/people";
 import { FloatingFormActions } from "@/components/floating-form-actions";
+import { FormError } from "@/components/form-error";
+import { PendingButton } from "@/components/pending-button";
 import { PersonDocuments } from "@/components/person-documents";
 import { PersonFields } from "@/components/person-fields";
 import { PhotoPicker } from "@/components/photo-picker";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
+import { useAction } from "@/components/use-action";
 import { parseCrop, type CropTransform } from "@/lib/image-crop";
 import {
   emptyPersonValues,
@@ -63,15 +66,13 @@ export function PersonForm({
     [person.photo_crop],
   );
   const [crop, setCrop] = React.useState<CropTransform>(savedCrop);
-  const [submitError, setSubmitError] = React.useState<string | null>(null);
+  const action = useAction({ inline: true });
 
   const form = useForm<PersonFormValues>({
     resolver: zodResolver(personSchema),
     mode: "onChange",
     defaultValues: { ...emptyPersonValues, ...stripExisting(person) },
   });
-
-  const submitting = form.formState.isSubmitting || photoBusy;
 
   async function uploadPhoto(personId: string, file: File): Promise<string> {
     const supabase = createClient();
@@ -83,38 +84,57 @@ export function PersonForm({
     return path;
   }
 
-  async function onSubmit(values: PersonFormValues) {
-    setSubmitError(null);
-    if (photoFile) {
-      try {
-        const path = await uploadPhoto(person.id, photoFile);
-        const res = await setPersonPhoto(person.id, path, crop);
-        if (res.error) throw new Error(res.error);
-      } catch {
-        toast.warning("The photo didn't upload — other changes still saved.");
-      }
-    } else if (person.photo_path && !sameCrop(crop, savedCrop)) {
-      const res = await setPersonPhotoCrop(person.id, crop);
-      if (res.error) toast.warning("The photo's new framing didn't save.");
-    }
-    const result = await updatePerson(person.id, values);
-    if (result.error) {
-      setSubmitError(result.error);
-      return;
-    }
-    toast.success("Changes saved.");
-  }
+  const onSubmit = form.handleSubmit((values) =>
+    action.run(
+      "save",
+      async () => {
+        // The photo goes first, but what went wrong with it is said only
+        // once the rest has saved: "other changes still saved" can't come
+        // before they are.
+        let photoProblem: string | null = null;
+        if (photoFile) {
+          try {
+            const path = await uploadPhoto(person.id, photoFile);
+            const res = await setPersonPhoto(person.id, path, crop);
+            if (res.error) throw new Error(res.error);
+          } catch {
+            photoProblem = "The photo didn't upload — other changes still saved.";
+          }
+        } else if (person.photo_path && !sameCrop(crop, savedCrop)) {
+          const res = await setPersonPhotoCrop(person.id, crop);
+          if (res.error) photoProblem = "The photo's new framing didn't save.";
+        }
+        const result = await updatePerson(person.id, values);
+        if (!result.error && photoProblem) toast.warning(photoProblem);
+        return { ...result, photoSaved: photoFile !== null && !photoProblem };
+      },
+      {
+        // The page stays put, so this is the only sign it went through.
+        success: "Changes saved.",
+        // Saved, the photo is the entry's now: kept as the one picked, a
+        // second Save would upload it again.
+        onSuccess: ({ photoSaved }) => {
+          if (photoSaved) setPhotoFile(null);
+        },
+      },
+    ),
+  );
 
   const save = (
-    <Button type="submit" disabled={submitting || !form.formState.isValid}>
-      {submitting ? "Saving…" : "Save changes"}
-    </Button>
+    <PendingButton
+      type="submit"
+      pending={action.pending}
+      pendingLabel="Saving…"
+      disabled={photoBusy || !form.formState.isValid}
+    >
+      Save changes
+    </PendingButton>
   );
 
   return (
     <Form {...form}>
       <form
-        onSubmit={form.handleSubmit(onSubmit)}
+        onSubmit={onSubmit}
         className="flex flex-col gap-6"
         noValidate
       >
@@ -135,11 +155,11 @@ export function PersonForm({
           onCropChange={setCrop}
           currentUrl={photoUrl}
           onBusyChange={setPhotoBusy}
-          disabled={form.formState.isSubmitting}
+          disabled={action.pending}
         />
 
         {backHref ? (
-          <FloatingFormActions error={submitError}>
+          <FloatingFormActions error={action.error}>
             {save}
             <Button
               nativeButton={false}
@@ -151,11 +171,7 @@ export function PersonForm({
           </FloatingFormActions>
         ) : (
           <>
-            {submitError ? (
-              <p role="alert" className="text-sm font-medium text-destructive">
-                {submitError}
-              </p>
-            ) : null}
+            <FormError>{action.error}</FormError>
             {save}
           </>
         )}

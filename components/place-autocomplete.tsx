@@ -10,6 +10,8 @@ import {
   searchPlacesAction,
   type PlaceOption,
 } from "@/app/actions/places";
+import { FormError } from "@/components/form-error";
+import { PendingButton } from "@/components/pending-button";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -29,6 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useAction } from "@/components/use-action";
 import {
   chosenPlace,
   isLink,
@@ -117,7 +120,12 @@ export function PlaceAutocomplete({
     setLoading(true);
     timer.current = setTimeout(async () => {
       const mine = ++reqId.current;
-      const hits = await searchPlacesAction(q);
+      let hits: PlaceOption[] = [];
+      try {
+        hits = await searchPlacesAction(q);
+      } catch {
+        // The server out of reach: an empty list, not "Searching…" for good.
+      }
       if (mine !== reqId.current) return;
       setItems(hits.map((h) => ({ value: h.id, label: h.label, place: h })));
       setLoading(false);
@@ -241,9 +249,11 @@ export function PlaceAutocomplete({
       </Combobox.Root>
 
       {isAdmin ? (
+        // On a touch screen its 44 px hit area needs the room below the
+        // search box, or it takes the box's lower edge (Step 70).
         <button
           type="button"
-          className="self-start text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+          className="relative tap-target self-start text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground pointer-coarse:mt-2"
           onClick={() => setAddOpen(true)}
         >
           Can’t find it? Add a place
@@ -287,36 +297,44 @@ function AddPlaceDialog({
   const [name, setName] = React.useState(initialName);
   const [country, setCountry] = React.useState("");
   const [admin1, setAdmin1] = React.useState("");
-  const [busy, setBusy] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
+  const action = useAction({ inline: true });
   const [countries, setCountries] = React.useState<
     { code: string; name: string }[]
   >([]);
 
   React.useEffect(() => {
     let active = true;
-    listCountryOptions().then((c) => {
-      if (active) setCountries(c);
-    });
+    listCountryOptions()
+      .then((c) => {
+        if (active) setCountries(c);
+      })
+      // The server out of reach: no countries to pick, and Add place says
+      // why when it's pressed.
+      .catch(() => undefined);
     return () => {
       active = false;
     };
   }, []);
 
-  async function submit() {
-    setError(null);
-    setBusy(true);
-    const res = await requestNewPlace({
-      name,
-      countryCode: country,
-      admin1: admin1 || null,
-    });
-    setBusy(false);
-    if (res.error || !res.place) {
-      setError(res.error ?? "Couldn't add that place.");
-      return;
-    }
-    onAdded(res.place);
+  function submit() {
+    action.run(
+      "add",
+      async () => {
+        const res = await requestNewPlace({
+          name,
+          countryCode: country,
+          admin1: admin1 || null,
+        });
+        return res.place
+          ? { place: res.place }
+          : { error: res.error ?? "Couldn't add that place." };
+      },
+      {
+        onSuccess: ({ place }) => {
+          if (place) onAdded(place);
+        },
+      },
+    );
   }
 
   return (
@@ -368,11 +386,7 @@ function AddPlaceDialog({
               onChange={(e) => setAdmin1(e.target.value)}
             />
           </div>
-          {error ? (
-            <p role="alert" className="text-sm font-medium text-destructive">
-              {error}
-            </p>
-          ) : null}
+          <FormError>{action.error}</FormError>
         </div>
         <DialogFooter>
           <DialogClose
@@ -382,9 +396,14 @@ function AddPlaceDialog({
               </Button>
             }
           />
-          <Button type="button" onClick={submit} disabled={busy}>
-            {busy ? "Adding…" : "Add place"}
-          </Button>
+          <PendingButton
+            type="button"
+            onClick={submit}
+            pending={action.pending}
+            pendingLabel="Adding…"
+          >
+            Add place
+          </PendingButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>

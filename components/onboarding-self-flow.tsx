@@ -5,10 +5,13 @@ import * as React from "react";
 
 import { claimSelfCandidate, findSelfCandidates } from "@/app/actions/onboarding";
 import { AddPersonFlow } from "@/components/add-person-flow";
+import { FormError } from "@/components/form-error";
+import { PendingButton } from "@/components/pending-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { TreeMemberOption } from "@/components/relationship-picker";
+import { useAction } from "@/components/use-action";
 import type { Bloodline } from "@/lib/bloodline";
 import { welcomeHref } from "@/lib/tree-links";
 import {
@@ -58,42 +61,35 @@ export function OnboardingSelfFlow({
   const [candidates, setCandidates] = React.useState<SelfCandidate[]>(
     initial.candidates,
   );
-  const [searching, setSearching] = React.useState(false);
-  const [claimingId, setClaimingId] = React.useState<string | null>(null);
-  const [error, setError] = React.useState<string | null>(null);
+  // The search and the claims are steps apart, so one handle; what goes
+  // wrong shows on the step, by its buttons.
+  const action = useAction({ inline: true });
+  const error = action.error;
 
-  async function onSearch(event: React.FormEvent) {
+  function onSearch(event: React.FormEvent) {
     event.preventDefault();
-    setError(null);
     if (!canSearchName(first, last)) {
-      setError("Enter both your first and last name.");
+      action.setError("Enter both your first and last name.");
       return;
     }
-
-    setSearching(true);
-    const res = await findSelfCandidates(treeId, first, last);
-    setSearching(false);
-
-    if (res.error) {
-      setError(res.error);
-      return;
-    }
-    setCandidates(res.candidates);
-    setStep("results");
+    action.run("search", () => findSelfCandidates(treeId, first, last), {
+      onSuccess: (res) => {
+        setCandidates(res.candidates);
+        setStep("results");
+      },
+    });
   }
 
-  async function onClaim(candidate: SelfCandidate) {
-    setError(null);
-    setClaimingId(candidate.id);
-    const res = await claimSelfCandidate(treeId, candidate.id, first, last);
-    setClaimingId(null);
-
-    if (res.error) {
-      setError(res.error);
-      return;
-    }
-    // A relative made it, so the welcome asks for what's missing (Step 50).
-    router.replace(welcomeHref());
+  function onClaim(candidate: SelfCandidate) {
+    action.run(
+      `claim:${candidate.id}`,
+      () => claimSelfCandidate(treeId, candidate.id, first, last),
+      {
+        // A relative made it, so the welcome asks for what's missing (Step
+        // 50). Busy until it's there.
+        onSuccess: () => router.replace(welcomeHref()),
+      },
+    );
   }
 
   if (step === "add") {
@@ -160,25 +156,27 @@ export function OnboardingSelfFlow({
                     {candidateSummary(c)}
                   </p>
                 </div>
-                <Button
+                <PendingButton
                   size="sm"
                   onClick={() => onClaim(c)}
-                  disabled={claimingId !== null}
+                  pending={action.pendingKey === `claim:${c.id}`}
+                  disabled={action.pending}
+                  pendingLabel="Claiming…"
                 >
-                  {claimingId === c.id ? "Claiming…" : "This is me"}
-                </Button>
+                  This is me
+                </PendingButton>
               </li>
             ))}
           </ul>
         ) : null}
 
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        <FormError>{error}</FormError>
 
         <div className="flex flex-wrap gap-3">
           <Button
             variant={candidates.length > 0 ? "outline" : "default"}
             onClick={() => setStep("add")}
-            disabled={claimingId !== null}
+            disabled={action.pending}
           >
             {candidates.length > 0
               ? "None of these are me — add me"
@@ -187,10 +185,10 @@ export function OnboardingSelfFlow({
           <Button
             variant="ghost"
             onClick={() => {
-              setError(null);
+              action.setError(null);
               setStep("name");
             }}
-            disabled={claimingId !== null}
+            disabled={action.pending}
           >
             Change my name
           </Button>
@@ -230,11 +228,16 @@ export function OnboardingSelfFlow({
         </div>
       </div>
 
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      <FormError>{error}</FormError>
 
-      <Button type="submit" className="self-start" disabled={searching}>
-        {searching ? "Searching…" : "Search the tree"}
-      </Button>
+      <PendingButton
+        type="submit"
+        className="self-start"
+        pending={action.pending}
+        pendingLabel="Searching…"
+      >
+        Search the tree
+      </PendingButton>
     </form>
   );
 }

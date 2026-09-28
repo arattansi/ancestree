@@ -9,13 +9,17 @@ import {
   sendRelayedClaimInvite,
   sendRelayedInvite,
 } from "@/app/actions/invite-relays";
+import type { DirectInviteResult } from "@/app/actions/invites";
+import { FormError } from "@/components/form-error";
 import { JoinsAsNote } from "@/components/joins-as-note";
-import { Button } from "@/components/ui/button";
+import { PendingButton } from "@/components/pending-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { toastError, useAction } from "@/components/use-action";
+import { refocusAfterRemoval } from "@/components/use-focus-return";
 import { INVITED_AS } from "@/lib/account-types";
-import { relayLapsesAt } from "@/lib/invite-relays";
+import { RELAY_ANSWERED, relayLapsesAt } from "@/lib/invite-relays";
 import {
   candidateSummary,
   matchConfidence,
@@ -39,11 +43,11 @@ export type PendingRelay = {
 
 export type RelayTree = { id: string; name: string };
 
-/** What's working: the plain invite, one entry's invite, or dismissing. */
-type Busy =
-  | { kind: "send" }
-  | { kind: "claim"; personId: string }
-  | { kind: "dismiss" };
+/** How a plain invite went, once its one row has been looked at. */
+type SendOutcome = { error?: string; sent?: DirectInviteResult };
+
+/** How a claim invite went: made, and `warning` if its email didn't go. */
+type ClaimOutcome = { error?: string; warning?: string; email?: string };
 
 function shortDate(date: Date) {
   return date.toLocaleDateString(undefined, {
@@ -98,10 +102,28 @@ function RelayInviteForm({
   const [treeId, setTreeId] = React.useState(
     trees.find((t) => t.id === defaultTreeId)?.id ?? trees[0]?.id ?? "",
   );
-  const [busy, setBusy] = React.useState<Busy | null>(null);
+  // One call at a time for the card: its buttons all answer the same ask.
+  // What goes wrong shows by them.
+  const action = useAction({ inline: true });
+  const formRef = React.useRef<HTMLFormElement>(null);
   const idPrefix = `relay-${relay.id}`;
   const tree = trees.find((t) => t.id === treeId);
   const matches = relay.matches[treeId] ?? [];
+
+  /**
+   * After a refusal, the asks as they stand: this one may have been
+   * answered from elsewhere. If it was, its card goes with the redraw, and
+   * the message by its buttons with it, so that one's a toast.
+   */
+  function redraw(error: string) {
+    router.refresh();
+    if (error === RELAY_ANSWERED) toastError(error);
+  }
+
+  /** Answered, the card goes: focus moves on to the next ask's. */
+  function answered() {
+    refocusAfterRemoval(formRef.current);
+  }
 
   /**
    * Enter in a field submits the form. With entries listed that would answer
@@ -109,94 +131,105 @@ function RelayInviteForm({
    */
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (matches.length === 0) void onSend();
+    if (matches.length === 0) onSend();
   }
 
-  async function onSend() {
-    setBusy({ kind: "send" });
-    let res: Awaited<ReturnType<typeof sendRelayedInvite>>;
-    try {
-      res = await sendRelayedInvite(relay.id, treeId, { firstName, lastName, email });
-    } catch {
-      // A rejected server action (stale action id after a deploy, dropped
-      // connection) must not strand the button on "Sending…".
-      toast.error("Couldn't reach the server — reload the page and try again.");
-      return;
-    } finally {
-      setBusy(null);
-    }
-
-    if (res.error) {
-      toast.error(res.error);
-      router.refresh();
-      return;
-    }
-    const sent = res.results?.[0];
-    if (!sent?.minted) {
-      toast.error(`Couldn't invite ${email}: ${sent?.error ?? "unknown error"}`);
-      return;
-    }
-    if (sent.emailed) {
-      toast.success(`Invite emailed to ${sent.email} — they'll join as a ${INVITED_AS.name}.`);
-    } else {
-      toast.warning(
-        `Link created for ${sent.email}, but the email didn't send${sent.error ? ` (${sent.error})` : ""}.`,
-      );
-    }
+  function onSend() {
+    action.run(
+      "send",
+      async (): Promise<SendOutcome> => {
+        const res = await sendRelayedInvite(relay.id, treeId, {
+          firstName,
+          lastName,
+          email,
+        });
+        if (res.error) {
+          redraw(res.error);
+          return { error: res.error };
+        }
+        const sent = res.results?.[0];
+        if (!sent?.minted) {
+          return {
+            error: `Couldn't invite ${email}: ${sent?.error ?? "unknown error"}`,
+          };
+        }
+        return { sent };
+      },
+      {
+        onSuccess: ({ sent }) => {
+          if (!sent) return;
+          answered();
+          if (sent.emailed) {
+            toast.success(
+              `Invite emailed to ${sent.email} — they'll join as a ${INVITED_AS.name}.`,
+            );
+          } else {
+            toast.warning(
+              `Link created for ${sent.email}, but the email didn't send${sent.error ? ` (${sent.error})` : ""}.`,
+            );
+          }
+        },
+      },
+    );
   }
 
   /**
    * Invite them as one of the entries their name matches: accepting claims
    * it and opens the tree on it (Step 30.2), with no search on onboarding.
    */
-  async function onSendClaim(entry: SelfCandidate) {
-    setBusy({ kind: "claim", personId: entry.id });
-    let res: Awaited<ReturnType<typeof sendRelayedClaimInvite>>;
-    try {
-      res = await sendRelayedClaimInvite(relay.id, treeId, entry.id, email);
-    } catch {
-      toast.error("Couldn't reach the server — reload the page and try again.");
-      return;
-    } finally {
-      setBusy(null);
-    }
-
-    if (!res.minted) {
-      toast.error(res.error ?? "Couldn't send that invite. Try again.");
-      // Perhaps answered from elsewhere: show the asks as they stand. A sent
-      // invite needs no refresh, as its action draws the page again.
-      router.refresh();
-    } else if (res.error) {
-      // Made, but its email didn't go: the ask is answered all the same.
-      toast.warning(res.error);
-    } else {
-      toast.success(
-        `Invite emailed to ${res.email} — accepting it claims the entry for ${entry.name}.`,
-      );
-    }
+  function onSendClaim(entry: SelfCandidate) {
+    action.run(
+      `claim:${entry.id}`,
+      async (): Promise<ClaimOutcome> => {
+        const res = await sendRelayedClaimInvite(
+          relay.id,
+          treeId,
+          entry.id,
+          email,
+        );
+        if (!res.minted) {
+          const error = res.error ?? "Couldn't send that invite. Try again.";
+          // A sent invite needs no redraw, as its action draws the page
+          // again.
+          redraw(error);
+          return { error };
+        }
+        // Made, but its email didn't go: the ask is answered all the same.
+        return { warning: res.error, email: res.email };
+      },
+      {
+        onSuccess: ({ warning, email: sentTo }) => {
+          answered();
+          if (warning) toast.warning(warning);
+          else {
+            toast.success(
+              `Invite emailed to ${sentTo} — accepting it claims the entry for ${entry.name}.`,
+            );
+          }
+        },
+      },
+    );
   }
 
-  async function onDismiss() {
-    setBusy({ kind: "dismiss" });
-    let res: Awaited<ReturnType<typeof dismissRelay>>;
-    try {
-      res = await dismissRelay(relay.id);
-    } catch {
-      toast.error("Couldn't reach the server — reload the page and try again.");
-      return;
-    } finally {
-      setBusy(null);
-    }
-
-    if (res.error) {
-      toast.error(res.error);
-      // Perhaps answered from elsewhere: show the asks as they stand.
-      router.refresh();
-    } else toast.success(`Dismissed. ${relay.firstName} isn’t told.`);
+  function onDismiss() {
+    action.run(
+      "dismiss",
+      async () => {
+        const res = await dismissRelay(relay.id);
+        if (res.error) redraw(res.error);
+        return res;
+      },
+      {
+        // The page can't show that they aren't told.
+        success: `Dismissed. ${relay.firstName} isn’t told.`,
+        onSuccess: answered,
+      },
+    );
   }
 
   return (
     <form
+      ref={formRef}
       onSubmit={onSubmit}
       className="flex flex-col gap-4 rounded-lg border border-border p-4"
     >
@@ -313,16 +346,16 @@ function RelayInviteForm({
                     {candidateSummary(c)}
                   </p>
                 </div>
-                <Button
+                <PendingButton
                   type="button"
                   size="sm"
-                  disabled={busy !== null}
+                  pending={action.pendingKey === `claim:${c.id}`}
+                  disabled={action.pending}
+                  pendingLabel="Sending…"
                   onClick={() => onSendClaim(c)}
                 >
-                  {busy?.kind === "claim" && busy.personId === c.id
-                    ? "Sending…"
-                    : `Invite as ${c.name}`}
-                </Button>
+                  Invite as {c.name}
+                </PendingButton>
               </li>
             ))}
           </ul>
@@ -331,31 +364,34 @@ function RelayInviteForm({
 
       <JoinsAsNote />
 
+      <FormError>{action.error}</FormError>
       <div className="flex flex-wrap gap-2">
-        <Button
+        <PendingButton
           // Not the form's submit while entries are listed, so Enter in a
           // field can't choose "none of these" (`onSubmit`).
           type={matches.length > 0 ? "button" : "submit"}
-          onClick={matches.length > 0 ? () => void onSend() : undefined}
+          onClick={matches.length > 0 ? () => onSend() : undefined}
           size="sm"
           variant={matches.length > 0 ? "outline" : "default"}
-          disabled={busy !== null || !treeId}
+          pending={action.pendingKey === "send"}
+          disabled={action.pending || !treeId}
+          pendingLabel="Sending…"
         >
-          {busy?.kind === "send"
-            ? "Sending…"
-            : matches.length > 0
-              ? "None of these, invite without an entry"
-              : "Send invite"}
-        </Button>
-        <Button
+          {matches.length > 0
+            ? "None of these, invite without an entry"
+            : "Send invite"}
+        </PendingButton>
+        <PendingButton
           type="button"
           size="sm"
           variant="ghost"
-          disabled={busy !== null}
+          pending={action.pendingKey === "dismiss"}
+          disabled={action.pending}
+          pendingLabel="Dismissing…"
           onClick={onDismiss}
         >
-          {busy?.kind === "dismiss" ? "Dismissing…" : "Dismiss"}
-        </Button>
+          Dismiss
+        </PendingButton>
       </div>
     </form>
   );

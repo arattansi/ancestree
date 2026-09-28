@@ -1,19 +1,24 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "sonner";
 
 import {
   addEntryComment,
   getEntryComments,
   resolveEntryFlag,
 } from "@/app/actions/entry-comments";
+import { FormError } from "@/components/form-error";
+import { PendingButton } from "@/components/pending-button";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { useAction } from "@/components/use-action";
+import { useFocusReturn } from "@/components/use-focus-return";
 import type { EntryComment } from "@/lib/entry-comments";
 import { timeAgo } from "@/lib/time-ago";
 import { cn } from "@/lib/utils";
+
+/** What a flag's toggle answers: the flag as the board has it now. */
+type FlagToggled = { error?: string; fresh?: EntryComment };
 
 export function EntryComments({
   personId,
@@ -34,18 +39,35 @@ export function EntryComments({
   }>({ personId, items: null });
   const [body, setBody] = React.useState("");
   const [asFlag, setAsFlag] = React.useState(false);
-  const [busy, setBusy] = React.useState(false);
-  const [pendingId, setPendingId] = React.useState<string | null>(null);
+  const post = useAction({ inline: true });
+  const returnFocus = useFocusReturn();
+  const boxRef = React.useRef<HTMLTextAreaElement>(null);
 
   // Comments for the person currently being viewed; `null` while (re)loading.
   const items = state.personId === personId ? state.items : null;
-  const setItems = React.useCallback(
-    (next: React.SetStateAction<EntryComment[] | null>) =>
-      setState((cur) => ({
-        personId,
-        items: typeof next === "function" ? next(cur.items) : next,
-      })),
-    [personId],
+  // A flag resolved or reopened moves at once, and back by itself if the
+  // call fails (Step 70); the count of open flags moves with it.
+  const [shown, showStatus] = React.useOptimistic(
+    items,
+    (list, change: { id: string; status: EntryComment["status"] }) =>
+      list?.map((c) =>
+        c.id === change.id ? { ...c, status: change.status } : c,
+      ) ?? null,
+  );
+
+  // An answer that lands once the panel has moved on to somebody else leaves
+  // the board it shows now alone.
+  const setItemsFor = React.useCallback(
+    (
+      forPerson: string,
+      next: (items: EntryComment[] | null) => EntryComment[] | null,
+    ) =>
+      setState((cur) =>
+        cur.personId === forPerson
+          ? { personId: forPerson, items: next(cur.items) }
+          : cur,
+      ),
+    [],
   );
 
   React.useEffect(() => {
@@ -58,49 +80,56 @@ export function EntryComments({
     };
   }, [treeId, personId]);
 
-  async function onSubmit(e: React.FormEvent) {
+  function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     const text = body.trim();
-    if (!text || busy) return;
-    setBusy(true);
-    const res = await addEntryComment({ treeId, personId, body: text, isFlag: asFlag });
-    setBusy(false);
-    if (res.error || !res.comment) {
-      toast.error(res.error ?? "Couldn't post that.");
-      return;
-    }
-    setItems((cur) => [res.comment as EntryComment, ...(cur ?? [])]);
-    setBody("");
-    setAsFlag(false);
-    toast.success(asFlag ? "Flag raised." : "Comment posted.");
+    if (!text) return;
+    const forPerson = personId;
+    post.run(
+      "post",
+      () =>
+        addEntryComment({
+          treeId,
+          personId: forPerson,
+          body: text,
+          isFlag: asFlag,
+        }),
+      {
+        onSuccess: ({ comment }) => {
+          if (comment) {
+            setItemsFor(forPerson, (cur) => [comment, ...(cur ?? [])]);
+          }
+          setBody("");
+          setAsFlag(false);
+          // Emptied, the box disables its button, and focus goes back to
+          // the box for the next one, once it's no longer disabled itself.
+          returnFocus(() =>
+            boxRef.current?.disabled ? null : boxRef.current,
+          );
+        },
+      },
+    );
   }
 
-  async function onToggleFlag(comment: EntryComment) {
-    const next = comment.status !== "resolved";
-    setPendingId(comment.id);
-    // optimistic
-    setItems((cur) =>
-      cur?.map((c) =>
-        c.id === comment.id
-          ? { ...c, status: next ? "resolved" : "open" }
-          : c,
-      ) ?? null,
+  // Called in the flag's own toggle's transition, so the flag moves at once.
+  // Who resolved it isn't in the answer: the board, read again, has it.
+  async function toggleFlag(comment: EntryComment): Promise<FlagToggled> {
+    const resolved = comment.status === "open";
+    showStatus({ id: comment.id, status: resolved ? "resolved" : "open" });
+    const res = await resolveEntryFlag(comment.id, resolved);
+    if (res.error) return res;
+    const rows = await getEntryComments(treeId, personId);
+    return { fresh: rows.find((c) => c.id === comment.id) };
+  }
+
+  function onToggled(fresh: EntryComment) {
+    setItemsFor(personId, (cur) =>
+      cur?.map((c) => (c.id === fresh.id ? fresh : c)) ?? null,
     );
-    const res = await resolveEntryFlag(comment.id, next);
-    setPendingId(null);
-    if (res.error) {
-      toast.error(res.error);
-      setItems((cur) =>
-        cur?.map((c) =>
-          c.id === comment.id ? { ...c, status: comment.status } : c,
-        ) ?? null,
-      );
-      return;
-    }
   }
 
   const openFlags =
-    items?.filter((c) => c.isFlag && c.status === "open").length ?? 0;
+    shown?.filter((c) => c.isFlag && c.status === "open").length ?? 0;
 
   return (
     <section className="flex flex-col gap-3" aria-labelledby="comments-heading">
@@ -117,6 +146,7 @@ export function EntryComments({
 
       <form onSubmit={onSubmit} className="flex flex-col gap-2">
         <Textarea
+          ref={boxRef}
           value={body}
           onChange={(e) => setBody(e.target.value)}
           placeholder={
@@ -126,8 +156,9 @@ export function EntryComments({
           }
           rows={3}
           maxLength={2000}
-          disabled={busy}
+          disabled={post.pending}
         />
+        <FormError>{post.error}</FormError>
         <div className="flex items-center justify-between gap-2">
           <label className="flex items-center gap-2 text-xs text-muted-foreground">
             <input
@@ -135,30 +166,32 @@ export function EntryComments({
               className="size-3.5 accent-destructive"
               checked={asFlag}
               onChange={(e) => setAsFlag(e.target.checked)}
-              disabled={busy}
+              disabled={post.pending}
             />
             Raise this as a flag for review
           </label>
-          <Button
+          <PendingButton
             type="submit"
             size="sm"
             variant={asFlag ? "destructive" : "default"}
-            disabled={busy || !body.trim()}
+            pending={post.pending}
+            disabled={!body.trim()}
+            pendingLabel="Posting…"
           >
-            {busy ? "Posting…" : asFlag ? "Raise flag" : "Comment"}
-          </Button>
+            {asFlag ? "Raise flag" : "Comment"}
+          </PendingButton>
         </div>
       </form>
 
-      {items === null ? (
+      {shown === null ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
-      ) : items.length === 0 ? (
+      ) : shown.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           No comments yet. Be the first to add context.
         </p>
       ) : (
         <ul className="flex flex-col gap-2">
-          {items.map((c) => {
+          {shown.map((c) => {
             const canToggle =
               c.isFlag && (canModerate || c.createdBy === currentUserId);
             return (
@@ -193,14 +226,11 @@ export function EntryComments({
                   </p>
                 ) : null}
                 {canToggle ? (
-                  <button
-                    type="button"
-                    className="self-start text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground disabled:opacity-50"
-                    disabled={pendingId === c.id}
-                    onClick={() => onToggleFlag(c)}
-                  >
-                    {c.status === "open" ? "Mark resolved" : "Reopen flag"}
-                  </button>
+                  <FlagToggle
+                    comment={c}
+                    toggle={toggleFlag}
+                    onToggled={onToggled}
+                  />
                 ) : null}
               </li>
             );
@@ -208,5 +238,39 @@ export function EntryComments({
         </ul>
       )}
     </section>
+  );
+}
+
+/**
+ * "Mark resolved" / "Reopen flag", with a handle of its own, so a flag on its
+ * way leaves the others free (Step 70).
+ */
+function FlagToggle({
+  comment,
+  toggle,
+  onToggled,
+}: {
+  comment: EntryComment;
+  toggle: (comment: EntryComment) => Promise<FlagToggled>;
+  onToggled: (fresh: EntryComment) => void;
+}) {
+  const action = useAction();
+  return (
+    <button
+      type="button"
+      className="relative tap-target self-start text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground aria-disabled:opacity-50"
+      // Not `disabled`, which would drop keyboard focus while it runs.
+      aria-disabled={action.pending || undefined}
+      onClick={() => {
+        if (action.pending) return;
+        action.run("flag", () => toggle(comment), {
+          onSuccess: ({ fresh }) => {
+            if (fresh) onToggled(fresh);
+          },
+        });
+      }}
+    >
+      {comment.status === "open" ? "Mark resolved" : "Reopen flag"}
+    </button>
   );
 }

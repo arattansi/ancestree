@@ -30,6 +30,7 @@ export function SiteNavLink({
       size="sm"
       variant={active ? "default" : "outline"}
       aria-current={active ? "page" : undefined}
+      className="relative tap-target"
     >
       {children}
     </Button>

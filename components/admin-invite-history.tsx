@@ -61,7 +61,7 @@ export function AdminInviteHistory({ items }: { items: InviteHistoryItem[] }) {
             <DeleteInviteButton
               id={item.id}
               name={`${item.firstName} ${item.lastName}`}
-              confirmText={confirmTextFor(item)}
+              confirm={confirmFor(item)}
             />
           </div>
         </li>
@@ -114,12 +114,15 @@ function isExpired(item: InviteHistoryItem) {
  * costs: a link nobody has used yet dies with it. (A joined invite is never
  * here — joining deletes it.)
  */
-function confirmTextFor(item: InviteHistoryItem) {
+function confirmFor(item: InviteHistoryItem) {
   const who = `${item.firstName} ${item.lastName}`;
   if (item.inviteStatus === "active") {
-    return `Delete ${who}’s invite? The link sent to ${item.email} will be deactivated.`;
+    return {
+      title: `Delete ${who}’s invite?`,
+      description: `The link sent to ${item.email} stops working.`,
+    };
   }
-  return `Delete the record of ${who}’s invite?`;
+  return { title: `Delete the record of ${who}’s invite?` };
 }
 
 function StatusBadge({ item }: { item: InviteHistoryItem }) {

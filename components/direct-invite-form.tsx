@@ -4,15 +4,14 @@ import * as React from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-import {
-  sendDirectInvites,
-  sendFounderInvites,
-  type SendDirectInvitesState,
-} from "@/app/actions/invites";
+import { sendDirectInvites, sendFounderInvites } from "@/app/actions/invites";
+import { FormError } from "@/components/form-error";
 import { JoinsAsNote } from "@/components/joins-as-note";
+import { PendingButton } from "@/components/pending-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAction } from "@/components/use-action";
 import { INVITED_AS, ROOT } from "@/lib/account-types";
 
 type Row = { key: string; firstName: string; lastName: string; email: string };
@@ -36,7 +35,9 @@ export function DirectInviteForm({
   founder?: boolean;
 }) {
   const [rows, setRows] = React.useState<Row[]>([emptyRow()]);
-  const [pending, setPending] = React.useState(false);
+  // Why each row kept after a send is still there, by row key.
+  const [reasons, setReasons] = React.useState<Record<string, string>>({});
+  const action = useAction({ inline: true });
 
   function updateRow(key: string, field: keyof Omit<Row, "key">, value: string) {
     setRows((prev) => prev.map((r) => (r.key === key ? { ...r, [field]: value } : r)));
@@ -50,125 +51,134 @@ export function DirectInviteForm({
     setRows((prev) => (prev.length === 1 ? prev : prev.filter((r) => r.key !== key)));
   }
 
-  async function onSubmit(e: React.FormEvent) {
+  function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    // They were about the last try.
+    setReasons({});
     const filled = rows.filter((r) => r.firstName.trim() || r.lastName.trim() || r.email.trim());
     if (filled.length === 0) {
-      toast.error("Add at least one person to invite.");
+      action.setError("Add at least one person to invite.");
       return;
     }
 
-    setPending(true);
-    let res: SendDirectInvitesState;
-    try {
-      const rowsToSend = filled.map((r) => ({
-        firstName: r.firstName,
-        lastName: r.lastName,
-        email: r.email,
-      }));
-      res = founder
-        ? await sendFounderInvites(treeId, rowsToSend)
-        : await sendDirectInvites(treeId, rowsToSend);
-    } catch {
-      // A rejected server action (stale action id after a deploy, dropped
-      // connection) must not strand the button on "Sending…" forever.
-      toast.error("Couldn't reach the server — reload the page and try again.");
-      return;
-    } finally {
-      setPending(false);
-    }
+    const rowsToSend = filled.map((r) => ({
+      firstName: r.firstName,
+      lastName: r.lastName,
+      email: r.email,
+    }));
+    action.run(
+      "send",
+      () =>
+        founder
+          ? sendFounderInvites(treeId, rowsToSend)
+          : sendDirectInvites(treeId, rowsToSend),
+      {
+        // The emails are out of sight: say they went.
+        success: (res) => {
+          const succeeded = (res.results ?? []).filter((r) => r.minted && r.emailed);
+          if (succeeded.length === 0) return null;
+          // A founder invite doesn't join this tree: they become the Root of a
+          // tree of their own.
+          const outcome = founder
+            ? `start a tree of their own as its ${ROOT.name}`
+            : `join as a ${INVITED_AS.name}`;
+          return succeeded.length === 1
+            ? `Invite emailed to ${succeeded[0].email} — they'll ${outcome}.`
+            : `${succeeded.length} invites emailed — they'll ${founder ? "each " : ""}${outcome}.`;
+        },
+        onSuccess: (res) => {
+          const results = res.results ?? [];
+          const failed = results.filter((r) => !r.minted);
+          const notEmailed = results.filter((r) => r.minted && !r.emailed);
+          notEmailed.forEach((r) =>
+            toast.warning(`Link created for ${r.email}, but the email didn't send${r.error ? ` (${r.error})` : ""}.`),
+          );
 
-    if (res.error) {
-      toast.error(res.error);
-      return;
-    }
-
-    const results = res.results ?? [];
-    const failed = results.filter((r) => !r.minted);
-    const notEmailed = results.filter((r) => r.minted && !r.emailed);
-    const succeeded = results.filter((r) => r.minted && r.emailed);
-
-    if (succeeded.length > 0) {
-      // A founder invite doesn't join this tree: they become the Root of a
-      // tree of their own.
-      const outcome = founder
-        ? `start a tree of their own as its ${ROOT.name}`
-        : `join as a ${INVITED_AS.name}`;
-      toast.success(
-        succeeded.length === 1
-          ? `Invite emailed to ${succeeded[0].email} — they'll ${outcome}.`
-          : `${succeeded.length} invites emailed — they'll ${founder ? "each " : ""}${outcome}.`,
-      );
-    }
-    notEmailed.forEach((r) =>
-      toast.warning(`Link created for ${r.email}, but the email didn't send${r.error ? ` (${r.error})` : ""}.`),
+          // Drop rows that fully succeeded; keep failures on screen to fix and
+          // retry, each with why under it.
+          const why = new Map<string, string>();
+          for (const r of failed) {
+            why.set(r.email, `Couldn't invite them: ${r.error ?? "unknown error"}`);
+          }
+          for (const r of notEmailed) {
+            why.set(r.email, `The link was made, but the email didn't send${r.error ? ` (${r.error})` : ""}.`);
+          }
+          const reasonFor = (r: Row) => why.get(r.email.trim().toLowerCase());
+          const remaining = filled.filter((r) => reasonFor(r) !== undefined);
+          setRows(remaining.length > 0 ? remaining : [emptyRow()]);
+          setReasons(Object.fromEntries(remaining.map((r) => [r.key, reasonFor(r) ?? ""])));
+        },
+      },
     );
-    failed.forEach((r) => toast.error(`Couldn't invite ${r.email}: ${r.error ?? "unknown error"}`));
-
-    // Drop rows that fully succeeded; keep failures on screen to fix and retry.
-    const failedEmails = new Set([...failed, ...notEmailed].map((r) => r.email));
-    const remaining = filled.filter((r) => failedEmails.has(r.email.trim().toLowerCase()));
-    setRows(remaining.length > 0 ? remaining : [emptyRow()]);
   }
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
       <div className="flex flex-col gap-3">
         {rows.map((row, i) => (
-          <div key={row.key} className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end">
-            <div className="flex flex-col gap-1.5">
-              {i === 0 ? <Label htmlFor={`${row.key}-first`}>First name</Label> : null}
-              <Input
-                id={`${row.key}-first`}
-                value={row.firstName}
-                onChange={(e) => updateRow(row.key, "firstName", e.target.value)}
-                autoComplete="off"
-              />
+          <div key={row.key} className="flex flex-col gap-1.5">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end">
+              <div className="flex flex-col gap-1.5">
+                {i === 0 ? <Label htmlFor={`${row.key}-first`}>First name</Label> : null}
+                <Input
+                  id={`${row.key}-first`}
+                  value={row.firstName}
+                  onChange={(e) => updateRow(row.key, "firstName", e.target.value)}
+                  autoComplete="off"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                {i === 0 ? <Label htmlFor={`${row.key}-last`}>Last name</Label> : null}
+                <Input
+                  id={`${row.key}-last`}
+                  value={row.lastName}
+                  onChange={(e) => updateRow(row.key, "lastName", e.target.value)}
+                  autoComplete="off"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                {i === 0 ? <Label htmlFor={`${row.key}-email`}>Email</Label> : null}
+                <Input
+                  id={`${row.key}-email`}
+                  type="email"
+                  value={row.email}
+                  onChange={(e) => updateRow(row.key, "email", e.target.value)}
+                  placeholder="you@example.com"
+                  autoComplete="off"
+                  aria-describedby={reasons[row.key] ? `${row.key}-why` : undefined}
+                />
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                disabled={rows.length === 1}
+                onClick={() => removeRow(row.key)}
+                aria-label="Remove row"
+              >
+                <Trash2 aria-hidden />
+              </Button>
             </div>
-            <div className="flex flex-col gap-1.5">
-              {i === 0 ? <Label htmlFor={`${row.key}-last`}>Last name</Label> : null}
-              <Input
-                id={`${row.key}-last`}
-                value={row.lastName}
-                onChange={(e) => updateRow(row.key, "lastName", e.target.value)}
-                autoComplete="off"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              {i === 0 ? <Label htmlFor={`${row.key}-email`}>Email</Label> : null}
-              <Input
-                id={`${row.key}-email`}
-                type="email"
-                value={row.email}
-                onChange={(e) => updateRow(row.key, "email", e.target.value)}
-                placeholder="you@example.com"
-                autoComplete="off"
-              />
-            </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              disabled={rows.length === 1}
-              onClick={() => removeRow(row.key)}
-              aria-label="Remove row"
-            >
-              <Trash2 aria-hidden />
-            </Button>
+            {reasons[row.key] ? (
+              <p id={`${row.key}-why`} className="text-sm text-destructive">
+                {reasons[row.key]}
+              </p>
+            ) : null}
           </div>
         ))}
       </div>
 
       {founder ? null : <JoinsAsNote />}
 
+      <FormError>{action.error}</FormError>
       <div className="flex gap-2">
         <Button type="button" variant="outline" size="sm" onClick={addRow}>
           <Plus aria-hidden />
           Add another
         </Button>
-        <Button type="submit" size="sm" disabled={pending}>
-          {pending ? "Sending…" : "Send invites"}
-        </Button>
+        <PendingButton type="submit" size="sm" pending={action.pending} pendingLabel="Sending…">
+          Send invites
+        </PendingButton>
       </div>
     </form>
   );

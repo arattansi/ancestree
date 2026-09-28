@@ -1,13 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import * as React from "react";
-import { toast } from "sonner";
 
 import {
   dismissEntrySuggestion,
   withdrawEntrySuggestion,
 } from "@/app/actions/suggestions";
+import { ActionButton } from "@/components/action-button";
 import { SuggestionAnswer } from "@/components/suggestion-answer";
 import { SuggestionChanges } from "@/components/suggestion-changes";
 import { Badge } from "@/components/ui/badge";
@@ -40,32 +39,11 @@ export function EntrySuggestions({
   /** The entry as it stands, to show what each would change. */
   entry: SuggestionColumns;
 }) {
-  const [busyId, setBusyId] = React.useState<string | null>(null);
-
   if (suggestions.length === 0 && declined.length === 0) return null;
 
-  async function withdraw(id: string) {
-    setBusyId(id);
-    const res = await withdrawEntrySuggestion(id);
-    setBusyId(null);
-    if (res.error) {
-      toast.error(res.error);
-      return;
-    }
-    toast.success("Withdrawn.");
-  }
-
-  async function dismiss(id: string) {
-    setBusyId(id);
-    const res = await dismissEntrySuggestion(id);
-    setBusyId(null);
-    if (res.error) {
-      toast.error(res.error);
-      return;
-    }
-    toast.success("Dismissed.");
-  }
-
+  // Withdraw and Dismiss take their suggestion off the card, which says so
+  // itself; each is busy on its own until it has gone, and focus moves on to
+  // the next one's (Step 70).
   return (
     <section
       className="flex flex-col gap-3"
@@ -95,15 +73,16 @@ export function EntrySuggestions({
               </p>
             ) : null}
             {s.mine ? (
-              <Button
+              <ActionButton
                 size="sm"
                 variant="outline"
                 className="self-start"
-                disabled={busyId === s.id}
-                onClick={() => withdraw(s.id)}
+                action={() => withdrawEntrySuggestion(s.id)}
+                pendingLabel="Withdrawing…"
+                removesRow
               >
                 Withdraw
-              </Button>
+              </ActionButton>
             ) : (
               <SuggestionAnswer suggestionId={s.id} />
             )}
@@ -144,14 +123,15 @@ export function EntrySuggestions({
               >
                 Edit and resend
               </Button>
-              <Button
+              <ActionButton
                 size="sm"
                 variant="ghost"
-                disabled={busyId === d.id}
-                onClick={() => dismiss(d.id)}
+                action={() => dismissEntrySuggestion(d.id)}
+                pendingLabel="Dismissing…"
+                removesRow
               >
                 Dismiss
-              </Button>
+              </ActionButton>
             </div>
           </li>
         ))}

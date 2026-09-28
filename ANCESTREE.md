@@ -202,7 +202,22 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
 - `components/notifications-list.tsx` (account) + `admin-disputed-claims.tsx`
   (admin uphold / reverse); `lib/claims.ts` — claim candidates, notifications,
   disputed-claim queries; `lib/entry-comments.ts` — comment/flag thread reads
-- `components/ui/` — shadcn primitives (incl. `form` = react-hook-form + zod)
+- `components/ui/` — shadcn primitives (incl. `form` = react-hook-form + zod,
+  `alert-dialog` = Base UI's AlertDialog dressed like `dialog`)
+- Feedback (Step 70; the rules are in `docs/design-system.md`, Feedback):
+  `components/use-action.ts` — `useAction`, the one way a client component
+  calls a server action: busy per button until the page's new render (or
+  the next page) has arrived, a refusal or a throw reported as a toast or
+  inline, a redirect counted as done; `toastError` for a 10 s error toast;
+  `pending-button.tsx` (spinner, pending words, `aria-busy`, keeps focus),
+  `action-button.tsx` (one button, one action), `submit-button.tsx` (a
+  `<form action>`'s), `confirm-dialog.tsx` (`ConfirmDialog` /
+  `ConfirmButton`: ask before a loss), `form-error.tsx` (a failure by its
+  button), `use-focus-return.ts` (`useFocusReturn`, `refocusAfterRemoval`:
+  focus kept when its control goes); `lib/action-feedback.ts` — what an
+  action's answer means (`actionError`, `isRedirect`, `UNREACHABLE`;
+  `.test.ts`); `tap-target` in `app/globals.css` — a 44 px hit area on
+  touch screens
 - `components/person-fields.tsx` — shared demographic fieldset; `person-form.tsx` —
   edit an existing entry (on the edit page its buttons float:
   `floating-form-actions.tsx`, Step 59); `add-person-flow.tsx` — self / relative add with chain

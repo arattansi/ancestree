@@ -15,16 +15,20 @@ type Removal = {
 };
 
 /**
- * What the Root is asked before removing someone. `onlyTree` is whether this
- * is the only tree they're on, or null when the console couldn't tell; the
- * words then hold either way.
+ * What the Root is asked before removing someone: the dialog's question, and
+ * what it costs, a sentence a line (`ConfirmDialog`). `onlyTree` is whether
+ * this is the only tree they're on, or null when the console couldn't tell;
+ * the words then hold either way.
  */
 export function removeMemberConfirm({
   name,
   treeName,
   entryCount,
   onlyTree,
-}: Removal & { entryCount: number; onlyTree: boolean | null }): string {
+}: Removal & { entryCount: number; onlyTree: boolean | null }): {
+  title: string;
+  description: string;
+} {
   const login =
     onlyTree === null
       ? "If it’s their only tree, their login goes too."
@@ -33,11 +37,16 @@ export function removeMemberConfirm({
         : "They stay on their other trees.";
   const entries =
     entryCount === 0
-      ? ""
+      ? null
       : entryCount === 1
-        ? " Their 1 entry becomes yours."
-        : ` Their ${entryCount} entries become yours.`;
-  return `Remove ${name} from ${treeName}? ${login}${entries}\nThis cannot be undone.`;
+        ? "Their 1 entry becomes yours."
+        : `Their ${entryCount} entries become yours.`;
+  return {
+    title: `Remove ${name} from ${treeName}?`,
+    description: [login, entries, "This cannot be undone."]
+      .filter((line): line is string => line !== null)
+      .join("\n"),
+  };
 }
 
 /**

@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { switchTreeForm } from "@/app/actions/current-tree";
 import { AccountTypeBadge } from "@/components/account-type-badge";
 import { StartTreeButton } from "@/components/start-tree-button";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/submit-button";
 import {
   Card,
   CardContent,
@@ -69,15 +69,15 @@ export default async function TreesPage() {
                 </CardHeader>
                 <CardContent className="flex flex-wrap gap-2">
                   <form action={switchTreeForm.bind(null, t.id, treeHref())}>
-                    <Button type="submit" size="sm">
+                    <SubmitButton size="sm" pendingLabel="Opening…">
                       Open the tree
-                    </Button>
+                    </SubmitButton>
                   </form>
                   {t.type.runsTree ? (
                     <form action={switchTreeForm.bind(null, t.id, adminHref())}>
-                      <Button type="submit" size="sm" variant="outline">
+                      <SubmitButton size="sm" variant="outline">
                         Admin
-                      </Button>
+                      </SubmitButton>
                     </form>
                   ) : null}
                 </CardContent>

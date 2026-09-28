@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "sonner";
 
 import {
   listDocuments,
@@ -10,9 +9,13 @@ import {
   signDocument,
   type PersonDocument,
 } from "@/app/actions/people";
-import { Button } from "@/components/ui/button";
+import { ConfirmButton } from "@/components/confirm-dialog";
+import { FormError } from "@/components/form-error";
+import { PendingButton } from "@/components/pending-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAction } from "@/components/use-action";
+import { useFocusReturn } from "@/components/use-focus-return";
 import { fileExtension } from "@/lib/image";
 import { createClient } from "@/lib/supabase/client";
 
@@ -39,8 +42,11 @@ export function PersonDocuments({
   canEdit: boolean;
 }) {
   const [docs, setDocs] = React.useState<PersonDocument[] | null>(null);
-  const [busy, setBusy] = React.useState(false);
-  const [pendingId, setPendingId] = React.useState<string | null>(null);
+  // What went wrong with the last files picked shows under the picker, one
+  // line a file, until the next pick (Step 70).
+  const upload = useAction({ inline: true });
+  const returnFocus = useFocusReturn();
+  const pickerRef = React.useRef<HTMLInputElement>(null);
 
   const refresh = React.useCallback(() => {
     listDocuments(treeId, personId).then(setDocs);
@@ -50,75 +56,57 @@ export function PersonDocuments({
     refresh();
   }, [refresh]);
 
-  async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
+  function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
     e.target.value = "";
     if (files.length === 0) return;
 
-    setBusy(true);
-    const supabase = createClient();
-    try {
-      for (const file of files) {
-        if (!ALLOWED.test(file.type)) {
-          toast.error(`${file.name}: only PDF, JPG, or PNG files.`);
-          continue;
+    // The picker is disabled while they go up, which drops focus: it takes
+    // it back once it's free again, however the upload went.
+    const refocus = () =>
+      returnFocus(() =>
+        pickerRef.current?.disabled ? null : pickerRef.current,
+      );
+    upload.run(
+      "upload",
+      async () => {
+        const problems: string[] = [];
+        const supabase = createClient();
+        for (const file of files) {
+          if (!ALLOWED.test(file.type)) {
+            problems.push(`${file.name}: only PDF, JPG, or PNG files.`);
+            continue;
+          }
+          if (file.size > MAX_BYTES) {
+            problems.push(`${file.name}: files must be 10MB or smaller.`);
+            continue;
+          }
+          const path = `${treeId}/${personId}/${crypto.randomUUID()}.${fileExtension(file)}`;
+          const { error } = await supabase.storage
+            .from("documents")
+            .upload(path, file, { contentType: file.type, upsert: false });
+          if (error) {
+            problems.push(`${file.name}: upload failed.`);
+            continue;
+          }
+          const recorded = await recordDocument({
+            treeId,
+            personId,
+            filePath: path,
+            fileName: file.name,
+            mimeType: file.type,
+          });
+          if (recorded.error) {
+            problems.push(`${file.name}: ${recorded.error}`);
+            await supabase.storage.from("documents").remove([path]);
+          }
         }
-        if (file.size > MAX_BYTES) {
-          toast.error(`${file.name}: files must be 10MB or smaller.`);
-          continue;
-        }
-        const path = `${treeId}/${personId}/${crypto.randomUUID()}.${fileExtension(file)}`;
-        const { error } = await supabase.storage
-          .from("documents")
-          .upload(path, file, { contentType: file.type, upsert: false });
-        if (error) {
-          toast.error(`${file.name}: upload failed.`);
-          continue;
-        }
-        const recorded = await recordDocument({
-          treeId,
-          personId,
-          filePath: path,
-          fileName: file.name,
-          mimeType: file.type,
-        });
-        if (recorded.error) {
-          toast.error(`${file.name}: ${recorded.error}`);
-          await supabase.storage.from("documents").remove([path]);
-        }
-      }
-      refresh();
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function onDownload(id: string) {
-    setPendingId(id);
-    try {
-      const { url, error } = await signDocument(id);
-      if (error || !url) {
-        toast.error(error ?? "Couldn't prepare the download.");
-        return;
-      }
-      window.open(url, "_blank", "noopener,noreferrer");
-    } finally {
-      setPendingId(null);
-    }
-  }
-
-  async function onRemove(id: string) {
-    setPendingId(id);
-    try {
-      const { error } = await removeDocument(id);
-      if (error) {
-        toast.error(error);
-        return;
-      }
-      setDocs((current) => current?.filter((d) => d.id !== id) ?? null);
-    } finally {
-      setPendingId(null);
-    }
+        refresh();
+        // Every file's problem, a line each; none, and it worked.
+        return { error: problems.join("\n") };
+      },
+      { onSuccess: refocus, onError: refocus },
+    );
   }
 
   return (
@@ -131,13 +119,15 @@ export function PersonDocuments({
         <div className="flex flex-col gap-1">
           <Label htmlFor="documents">Add documents</Label>
           <Input
+            ref={pickerRef}
             id="documents"
             type="file"
             accept={ACCEPT}
             multiple
             onChange={onPick}
-            disabled={busy}
+            disabled={upload.pending}
           />
+          <FormError className="whitespace-pre-line">{upload.error}</FormError>
           <p className="text-xs text-muted-foreground">
             PDF, JPG, or PNG. Only this entry&rsquo;s owner, the Branch for
             this side of the family, and the Roots can see them.
@@ -152,37 +142,90 @@ export function PersonDocuments({
       ) : (
         <ul className="flex flex-col divide-y divide-border rounded-lg border border-border">
           {docs.map((doc) => (
-            <li
+            <DocumentRow
               key={doc.id}
-              className="flex items-center justify-between gap-3 px-3 py-2 text-sm"
-            >
-              <span className="truncate font-medium">{doc.file_name}</span>
-              <span className="flex shrink-0 gap-1">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  disabled={pendingId === doc.id}
-                  onClick={() => onDownload(doc.id)}
-                >
-                  Download
-                </Button>
-                {canEdit ? (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    disabled={pendingId === doc.id}
-                    onClick={() => onRemove(doc.id)}
-                  >
-                    Remove
-                  </Button>
-                ) : null}
-              </span>
-            </li>
+              doc={doc}
+              canEdit={canEdit}
+              onRemoved={() =>
+                setDocs(
+                  (current) => current?.filter((d) => d.id !== doc.id) ?? null,
+                )
+              }
+            />
           ))}
         </ul>
       )}
     </section>
+  );
+}
+
+/**
+ * One document, with its own handle, so preparing one download leaves the
+ * other rows free (Step 70).
+ */
+function DocumentRow({
+  doc,
+  canEdit,
+  onRemoved,
+}: {
+  doc: PersonDocument;
+  canEdit: boolean;
+  /** It's gone: the list is this component's own, so it drops the row. */
+  onRemoved: () => void;
+}) {
+  const download = useAction();
+
+  function onDownload() {
+    download.run(
+      "download",
+      async (): Promise<{ url?: string; error?: string }> => {
+        const res = await signDocument(doc.id);
+        return res.url
+          ? res
+          : { error: res.error ?? "Couldn't prepare the download." };
+      },
+      {
+        onSuccess: ({ url }) => {
+          if (url) window.open(url, "_blank", "noopener,noreferrer");
+        },
+      },
+    );
+  }
+
+  return (
+    <li className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+      <span className="truncate font-medium">{doc.file_name}</span>
+      <span className="flex shrink-0 gap-1">
+        <PendingButton
+          type="button"
+          size="sm"
+          variant="outline"
+          aria-label={`Download ${doc.file_name}`}
+          pending={download.pending}
+          pendingLabel="Opening…"
+          onClick={onDownload}
+        >
+          Download
+        </PendingButton>
+        {canEdit ? (
+          <ConfirmButton
+            size="sm"
+            variant="ghost"
+            aria-label={`Remove ${doc.file_name}`}
+            disabled={download.pending}
+            confirm={{
+              title: `Remove ${doc.file_name}?`,
+              description: "This cannot be undone.",
+              confirmLabel: "Remove",
+              pendingLabel: "Removing…",
+              onConfirm: () => removeDocument(doc.id),
+              onSuccess: onRemoved,
+            }}
+          >
+            Remove
+          </ConfirmButton>
+        ) : null}
+      </span>
+    </li>
   );
 }

@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 
 import { FitText } from "@/components/ui/fit-text";
 import { Input } from "@/components/ui/input";
+import { useFocusReturn } from "@/components/use-focus-return";
 import { personDisplayName, personLifespan } from "@/lib/person-name";
 import { matchesName } from "@/lib/tree-search";
 import type { TreeGraphPerson } from "@/lib/tree";
@@ -21,6 +22,9 @@ type Props = {
   label: string;
   /** Somebody who can't be picked here — the other end of the connection. */
   excludeId?: string | null;
+  /** The search box, for a parent that hands focus back to it once it has
+   *  cleared the choice itself. */
+  inputRef?: React.RefObject<HTMLInputElement | null>;
 };
 
 /**
@@ -35,9 +39,17 @@ export function PersonPicker({
   placeholder,
   label,
   excludeId,
+  inputRef,
 }: Props) {
   const [text, setText] = React.useState("");
   const chosen = value ? (people.find((p) => p.id === value) ?? null) : null;
+  // The box and the chosen name take each other's place, so focus follows to
+  // whichever is there now (Step 70): the name's Clear after a pick, the box
+  // after Clear.
+  const returnFocus = useFocusReturn();
+  const ownInputRef = React.useRef<HTMLInputElement>(null);
+  const boxRef = inputRef ?? ownInputRef;
+  const clearRef = React.useRef<HTMLButtonElement>(null);
 
   const suggestions = React.useMemo(
     () =>
@@ -58,9 +70,13 @@ export function PersonPicker({
           {personDisplayName(chosen)}
         </FitText>
         <button
+          ref={clearRef}
           type="button"
-          onClick={() => onChange(null)}
-          className="text-muted-foreground hover:text-foreground"
+          onClick={() => {
+            returnFocus(() => boxRef.current);
+            onChange(null);
+          }}
+          className="relative tap-target text-muted-foreground hover:text-foreground"
           aria-label={`Clear ${personDisplayName(chosen)}`}
         >
           <X className="size-3.5" />
@@ -71,12 +87,16 @@ export function PersonPicker({
 
   const pick = (personId: string) => {
     setText("");
+    // Where the parent only passes the pick on, the box stays, and takes
+    // focus back from the suggestion that was pressed.
+    returnFocus(() => clearRef.current ?? boxRef.current);
     onChange(personId);
   };
 
   return (
     <div className="flex flex-col gap-1">
       <Input
+        ref={boxRef}
         value={text}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => {

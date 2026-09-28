@@ -23,10 +23,15 @@ import type { NotificationItem } from "@/lib/claims";
  */
 export function SiteNotifications({ items }: { items: NotificationItem[] }) {
   const [open, setOpen] = React.useState(false);
+  // Clear's question is open over the panel: a click or Escape there is
+  // the dialog's, not a reason to close the panel under it.
+  const [asking, setAsking] = React.useState(false);
   // Seen up to when: opening the bell, or a list marking them read, covers
   // what's there then. One that arrives later, with a later render, counts.
   const [seenUpTo, setSeenUpTo] = React.useState(0);
   const rootRef = React.useRef<HTMLDivElement>(null);
+  const bellRef = React.useRef<HTMLButtonElement>(null);
+  const panelRef = React.useRef<HTMLDivElement>(null);
 
   const unread = items.filter(
     (n) => !n.readAt && Date.parse(n.createdAt) > seenUpTo,
@@ -42,12 +47,18 @@ export function SiteNotifications({ items }: { items: NotificationItem[] }) {
   }, []);
 
   React.useEffect(() => {
-    if (!open) return;
+    if (!open || asking) return;
     function onPointer(event: MouseEvent) {
       if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
     }
     function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key !== "Escape") return;
+      // Focus in the panel would go with it, to the page's start: it goes
+      // back to the bell instead (Step 70).
+      if (panelRef.current?.contains(document.activeElement)) {
+        bellRef.current?.focus();
+      }
+      setOpen(false);
     }
     document.addEventListener("mousedown", onPointer);
     document.addEventListener("keydown", onKey);
@@ -55,20 +66,23 @@ export function SiteNotifications({ items }: { items: NotificationItem[] }) {
       document.removeEventListener("mousedown", onPointer);
       document.removeEventListener("keydown", onKey);
     };
-  }, [open]);
+  }, [open, asking]);
 
   function toggle() {
     setOpen((v) => {
       if (!v) setSeenUpTo((cur) => Math.max(cur, newestNotification(items)));
       return !v;
     });
+    setAsking(false);
   }
 
   return (
     <div ref={rootRef} className="relative">
       <Button
+        ref={bellRef}
         size="sm"
         variant="ghost"
+        className="relative tap-target"
         onClick={toggle}
         aria-expanded={open}
         aria-label={
@@ -84,10 +98,16 @@ export function SiteNotifications({ items }: { items: NotificationItem[] }) {
       </Button>
 
       {open ? (
-        <div className="absolute top-full right-0 z-50 mt-2 max-h-[70vh] w-[min(22rem,90vw)] overflow-y-auto rounded-lg border border-border bg-card p-3 text-left shadow-md">
+        <div
+          ref={panelRef}
+          className="absolute top-full right-0 z-50 mt-2 max-h-[70vh] w-[min(22rem,90vw)] overflow-y-auto rounded-lg border border-border bg-card p-3 text-left shadow-md"
+        >
           <div className="mb-2 flex items-center justify-between gap-2">
-            <p className="font-heading text-sm font-medium">Notifications</p>
-            <ClearNotificationsButton items={items} />
+            {/* Focus lands here once Clear has gone with the items. */}
+            <p tabIndex={-1} className="font-heading text-sm font-medium">
+              Notifications
+            </p>
+            <ClearNotificationsButton items={items} onOpenChange={setAsking} />
           </div>
           <React.Suspense fallback={null}>
             <CloseOnNavigate onNavigate={() => setOpen(false)} />

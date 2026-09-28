@@ -1,13 +1,12 @@
 "use client";
 
-import * as React from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 
 import { bringOwnEntry } from "@/app/actions/trees";
 import { FamilyPersonChip } from "@/components/first-tree/family-person-chip";
-import { Button } from "@/components/ui/button";
+import { PendingButton } from "@/components/pending-button";
 import { Card, CardContent } from "@/components/ui/card";
+import { useAction } from "@/components/use-action";
 import type { FamilyCard } from "@/lib/first-tree";
 
 /**
@@ -27,27 +26,27 @@ export function BringYourself({
   nextHref: string;
 }) {
   const router = useRouter();
-  const [pending, setPending] = React.useState(false);
+  const action = useAction();
 
-  async function onBring() {
-    setPending(true);
-    const res = await bringOwnEntry(treeId);
-    if (res.error) {
-      setPending(false);
-      toast.error(res.error);
-      return;
-    }
-    toast.success(`You're on ${treeName}.`);
-    router.push(nextHref);
+  function onBring() {
+    action.run("bring", () => bringOwnEntry(treeId), {
+      success: `You're on ${treeName}.`,
+      // Busy until the next step is on screen.
+      onSuccess: () => router.push(nextHref),
+    });
   }
 
   return (
     <Card>
       <CardContent className="flex flex-wrap items-center justify-between gap-4">
         <FamilyPersonChip person={entry} highlight />
-        <Button onClick={onBring} disabled={pending}>
-          {pending ? "Bringing you across…" : `Put me on ${treeName}`}
-        </Button>
+        <PendingButton
+          onClick={onBring}
+          pending={action.pending}
+          pendingLabel="Bringing you across…"
+        >
+          Put me on {treeName}
+        </PendingButton>
       </CardContent>
     </Card>
   );

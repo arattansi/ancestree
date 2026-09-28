@@ -14,6 +14,9 @@ import {
   updatePet,
 } from "@/app/actions/pets";
 import { AncestralLands } from "@/components/ancestral-lands";
+import { ConfirmButton } from "@/components/confirm-dialog";
+import { FormError } from "@/components/form-error";
+import { PendingButton } from "@/components/pending-button";
 import { CompanionFields } from "@/components/tree/companion-fields";
 import {
   CompanionPicker,
@@ -31,6 +34,9 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { toastError, useAction } from "@/components/use-action";
+import { useFocusReturn } from "@/components/use-focus-return";
+import { UNREACHABLE } from "@/lib/action-feedback";
 import {
   cropStyle,
   DEFAULT_CROP,
@@ -62,6 +68,24 @@ const toFormValues = (pet: TreePet): PetFormValues => ({
   is_deceased: pet.is_deceased,
   year_died: pet.year_died ? String(pet.year_died) : "",
 });
+
+const NO_COMPANIONS: string[] = [];
+
+/**
+ * `useOptimistic` for something of the companion that's open, so a change
+ * still on its way for one companion never shows on the next one opened
+ * (the sheet stays up while another is picked on the canvas).
+ */
+function useOptimisticFor<T>(petId: string | undefined, value: T) {
+  const [state, setState] = React.useOptimistic({ petId, value });
+  const shown = state.petId === petId ? state.value : value;
+  return [shown, (next: T) => setState({ petId, value: next })] as const;
+}
+
+/** Whether an event came from a toast (the Toaster's own region). */
+function inToast(target: EventTarget | null | undefined): boolean {
+  return target instanceof Element && !!target.closest("[data-sonner-toaster]");
+}
 
 /**
  * A companion's detail sheet.
@@ -97,7 +121,6 @@ export function PetPanel({
   onSelectPerson: (personId: string) => void;
 }) {
   const [editing, setEditing] = React.useState(false);
-  const [busy, setBusy] = React.useState(false);
   const [photoFile, setPhotoFile] = React.useState<File | null>(null);
   const [photoBusy, setPhotoBusy] = React.useState(false);
   const savedCrop = parseCrop(pet?.photo_crop);
@@ -137,80 +160,110 @@ export function PetPanel({
     [people],
   );
 
-  async function onSave(values: PetFormValues) {
+  // A handle each for the edit form, the links and the primary, so one of
+  // them running doesn't hold up the others (Step 70).
+  const edit = useAction({ inline: true });
+  const links = useAction();
+  const primary = useAction();
+  // The chips and the Primary badge move at once; a call that fails puts
+  // them back by itself.
+  const [companionIds, setCompanionIds] = useOptimisticFor(
+    pet?.id,
+    pet?.companions ?? NO_COMPANIONS,
+  );
+  const [primaryId, setPrimaryId] = useOptimisticFor(
+    pet?.id,
+    pet?.primary_person_id ?? null,
+  );
+  const returnFocus = useFocusReturn();
+  const editButtonRef = React.useRef<HTMLButtonElement>(null);
+
+  function onSave(values: PetFormValues) {
     if (!pet) return;
-    if (photoFile) {
-      try {
-        const supabase = createClient();
-        const path = `${treeId}/pets/${pet.id}/${crypto.randomUUID()}.jpg`;
-        const { error } = await supabase.storage
-          .from("photos")
-          .upload(path, photoFile, {
-            contentType: "image/jpeg",
-            upsert: false,
-          });
-        if (error) throw error;
-        const res = await setPetPhoto(pet.id, path, crop);
-        if (res.error) throw new Error(res.error);
-      } catch {
-        toast.warning("The photo didn't upload — other changes still saved.");
-      }
-    }
-    const result = await updatePet(pet.id, values);
-    if (result.error) {
-      toast.error(result.error);
-      return;
-    }
-    toast.success("Companion updated.");
-    setEditing(false);
-    setPhotoFile(null);
+    const petId = pet.id;
+    const file = photoFile;
+    edit.run(
+      "save",
+      async () => {
+        if (file) {
+          try {
+            const supabase = createClient();
+            const path = `${treeId}/pets/${petId}/${crypto.randomUUID()}.jpg`;
+            const { error } = await supabase.storage
+              .from("photos")
+              .upload(path, file, {
+                contentType: "image/jpeg",
+                upsert: false,
+              });
+            if (error) throw error;
+            const res = await setPetPhoto(petId, path, crop);
+            if (res.error) throw new Error(res.error);
+          } catch {
+            toast.warning(
+              "The photo didn't upload — other changes still saved.",
+            );
+          }
+        }
+        return updatePet(petId, values);
+      },
+      {
+        onSuccess: () => {
+          returnFocus(() => editButtonRef.current);
+          setEditing(false);
+          setPhotoFile(null);
+        },
+      },
+    );
   }
 
-  async function onAddCompanion(ids: string[]) {
+  function onCompanionsChange(ids: string[]) {
     if (!pet) return;
-    const added = ids.find((id) => !pet.companions.includes(id));
-    const dropped = pet.companions.find((id) => !ids.includes(id));
-    setBusy(true);
-    const result = added
-      ? await addPetCompanion(pet.id, added)
-      : dropped
-        ? await removePetCompanion(pet.id, dropped)
-        : {};
-    setBusy(false);
-    if (result.error) {
-      toast.error(result.error);
-      return;
+    const petId = pet.id;
+    const added = ids.find((id) => !companionIds.includes(id));
+    const dropped = companionIds.find((id) => !ids.includes(id));
+    if (added) {
+      links.run("link", async () => {
+        setCompanionIds(ids);
+        return addPetCompanion(petId, added);
+      });
+    } else if (dropped) {
+      const name = labelById.get(dropped) ?? "Someone on the tree";
+      links.run(
+        "link",
+        async () => {
+          setCompanionIds(ids);
+          return removePetCompanion(petId, dropped);
+        },
+        {
+          // Quick to put back, so it's undone rather than asked about first.
+          onSuccess: () => {
+            toast(`${name} unlinked.`, {
+              action: {
+                label: "Undo",
+                onClick: () => {
+                  void addPetCompanion(petId, dropped).then(
+                    (r) => r?.error && toastError(r.error),
+                    () => toastError(UNREACHABLE),
+                  );
+                },
+              },
+            });
+          },
+        },
+      );
     }
   }
 
-  async function onSetPrimary(personId: string) {
-    if (!pet || personId === pet.primary_person_id) return;
-    setBusy(true);
-    const result = await setPetPrimaryCompanion(pet.id, personId);
-    setBusy(false);
-    if (result.error) {
-      toast.error(result.error);
-      return;
-    }
-    toast.success("Primary connection updated.");
-  }
-
-  async function onRemove() {
-    if (!pet) return;
-    if (
-      !window.confirm(`Remove ${pet.name} and their photo?`)
-    ) {
-      return;
-    }
-    setBusy(true);
-    const result = await removePet(pet.id);
-    setBusy(false);
-    if (result.error) {
-      toast.error(result.error);
-      return;
-    }
-    toast.success("Companion removed.");
-    onClose();
+  function onSetPrimary(personId: string, row: HTMLElement | null) {
+    if (!pet || personId === primaryId) return;
+    const petId = pet.id;
+    // The badge takes the link's place: focus goes to the name beside it.
+    const name = row?.querySelector("button");
+    if (name) returnFocus(() => name);
+    primary.run("primary", async () => {
+      setPrimaryId(personId);
+      return setPetPrimaryCompanion(petId, personId);
+    });
   }
 
   const glyph = pet
@@ -224,7 +277,20 @@ export function PetPanel({
     <Sheet
       open={pet !== null}
       modal={false}
-      onOpenChange={(next) => {
+      onOpenChange={(next, details) => {
+        // A toast's own button (Undo) sits outside the sheet but is about
+        // what's in it: pressing it, or focus going to it, leaves the sheet
+        // open (Step 70).
+        if (
+          !next &&
+          (details.reason === "outside-press" ||
+            details.reason === "focus-out") &&
+          (inToast(details.event.target) ||
+            inToast((details.event as FocusEvent).relatedTarget))
+        ) {
+          details.cancel();
+          return;
+        }
         if (!next) onClose();
       }}
     >
@@ -269,7 +335,7 @@ export function PetPanel({
               {editing ? (
                 <Form {...form}>
                   <form
-                    onSubmit={form.handleSubmit(onSave)}
+                    onSubmit={(event) => void form.handleSubmit(onSave)(event)}
                     className="flex flex-col gap-5"
                   >
                     <CompanionFields
@@ -285,25 +351,29 @@ export function PetPanel({
                       onCropChange={setCrop}
                       currentUrl={pet.photo_url}
                       label="Photo"
-                      disabled={form.formState.isSubmitting}
+                      disabled={edit.pending}
                       onBusyChange={setPhotoBusy}
                     />
+                    <FormError>{edit.error}</FormError>
                     <div className="flex gap-2">
-                      <Button
+                      <PendingButton
                         type="submit"
                         size="sm"
-                        disabled={form.formState.isSubmitting || photoBusy}
+                        pending={edit.pending}
+                        pendingLabel="Saving…"
+                        disabled={photoBusy}
                       >
-                        {form.formState.isSubmitting ? "Saving…" : "Save"}
-                      </Button>
+                        Save
+                      </PendingButton>
                       <Button
                         type="button"
                         size="sm"
                         variant="ghost"
-                        disabled={form.formState.isSubmitting}
+                        disabled={edit.pending}
                         onClick={() => {
                           form.reset(toFormValues(pet));
                           setPhotoFile(null);
+                          returnFocus(() => editButtonRef.current);
                           setEditing(false);
                         }}
                       >
@@ -345,8 +415,8 @@ export function PetPanel({
                 <section className="flex flex-col gap-3">
                   <h2 className="text-sm font-semibold">Companion to</h2>
                   <ul className="flex flex-col gap-1.5">
-                    {pet.companions.map((id) => {
-                      const isPrimary = id === pet.primary_person_id;
+                    {companionIds.map((id) => {
+                      const isPrimary = id === primaryId;
                       return (
                         <li
                           key={id}
@@ -364,9 +434,14 @@ export function PetPanel({
                           ) : !readOnly && canEdit ? (
                             <button
                               type="button"
-                              className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground disabled:opacity-50"
-                              onClick={() => onSetPrimary(id)}
-                              disabled={busy}
+                              className="relative tap-target text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground disabled:opacity-50"
+                              onClick={(event) =>
+                                onSetPrimary(
+                                  id,
+                                  event.currentTarget.closest("li"),
+                                )
+                              }
+                              disabled={primary.pending}
                             >
                               Make primary
                             </button>
@@ -394,29 +469,42 @@ export function PetPanel({
                 <section className="flex flex-col gap-4 border-t border-border pt-5">
                   <CompanionPicker
                     options={people}
-                    value={pet.companions}
-                    onChange={onAddCompanion}
-                    disabled={busy}
+                    value={companionIds}
+                    onChange={onCompanionsChange}
+                    disabled={links.pending}
                     label="Add or remove people"
                   />
                   <div className="flex flex-wrap gap-2">
                     <Button
+                      ref={editButtonRef}
                       size="sm"
                       variant="outline"
-                      onClick={() => setEditing(true)}
-                      disabled={busy}
+                      onClick={() => {
+                        edit.setError(null);
+                        returnFocus(() =>
+                          document.getElementById(`pet-${pet.id}-name`),
+                        );
+                        setEditing(true);
+                      }}
                     >
                       Edit companion
                     </Button>
-                    <Button
+                    <ConfirmButton
                       size="sm"
                       variant="outline"
                       className="text-destructive"
-                      onClick={onRemove}
-                      disabled={busy}
+                      confirm={{
+                        title: `Remove ${pet.name}?`,
+                        description:
+                          "Their photo and comments go too.\nThis cannot be undone.",
+                        confirmLabel: "Remove",
+                        pendingLabel: "Removing…",
+                        onConfirm: () => removePet(pet.id),
+                        onSuccess: () => onClose(),
+                      }}
                     >
                       Remove
-                    </Button>
+                    </ConfirmButton>
                   </div>
                 </section>
               ) : null}

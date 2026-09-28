@@ -175,10 +175,12 @@ async function LoadedHeader() {
                 >
                   <SubmitButton
                     size="sm"
-                    variant="destructive"
+                    // Yellow: it opens what's waiting. Red is for removing
+                    // (Step 70).
+                    variant="attention"
                     aria-label={queueCountLabel(adminItems)}
                     title={queueCountLabel(adminItems)}
-                    className="tabular-nums"
+                    className="relative tap-target tabular-nums"
                   >
                     {adminItems}
                   </SubmitButton>
@@ -191,7 +193,11 @@ async function LoadedHeader() {
           // It does something rather than go somewhere, so sentence case
           // (docs/design-system.md).
           <form action={signOut}>
-            <SubmitButton size="sm" variant="outline">
+            <SubmitButton
+              size="sm"
+              variant="outline"
+              className="relative tap-target"
+            >
               Sign out
             </SubmitButton>
           </form>
@@ -201,6 +207,7 @@ async function LoadedHeader() {
             render={<Link href="/join" />}
             size="sm"
             variant="outline"
+            className="relative tap-target"
           >
             sign in
           </Button>

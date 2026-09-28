@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { switchTreeForm } from "@/app/actions/current-tree";
+import { SubmitButton } from "@/components/submit-button";
 import { Button } from "@/components/ui/button";
 import { adminHref } from "@/lib/tree-links";
 
@@ -67,14 +68,13 @@ export function AccountViewToggle({
               key={t.id}
               action={switchTreeForm.bind(null, t.id, adminHref())}
             >
-              <Button
-                type="submit"
+              <SubmitButton
                 size="xs"
                 variant={t.id === consoleTreeId ? "secondary" : "ghost"}
                 aria-current={t.id === consoleTreeId ? "page" : undefined}
               >
                 {t.name}
-              </Button>
+              </SubmitButton>
             </form>
           ))}
         </nav>

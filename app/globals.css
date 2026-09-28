@@ -163,6 +163,36 @@
   }
 }
 
+/* A small control's hit area grown to 44 × 44 px on a touch screen (Step
+   70, audit B8): an invisible ::before, so nothing moves. The control must
+   be positioned (`relative`, or the `absolute` that places it). */
+@utility tap-target {
+  @media (pointer: coarse) {
+    &::before {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: max(100%, 2.75rem);
+      height: max(100%, 2.75rem);
+      transform: translate(-50%, -50%);
+    }
+  }
+}
+
+/* React Flow's zoom buttons are 26 px; on a touch screen, 40. Two classes,
+   so this wins over @xyflow/react's own sheet wherever it loads. */
+@media (pointer: coarse) {
+  .react-flow__controls .react-flow__controls-button {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+  .react-flow__controls .react-flow__controls-button svg {
+    max-width: 1rem;
+    max-height: 1rem;
+  }
+}
+
 /* Lift a node above its siblings while hovered so the expanded photo
    preview in PersonNode isn't clipped by neighbouring cards. */
 .react-flow__node:hover {
@@ -192,6 +222,10 @@
    beside it, so it starts under the header instead, whose height
    SiteHeaderHeight keeps in `--site-header-height`. */
 @media (width >= 40rem) {
+  /* The Toaster keeps its toasts left of the sheet (Step 70). */
+  :root:has([data-docked-sheet][data-open]) {
+    --docked-sheet-width: 24rem;
+  }
   .site-header-bar {
     transition: padding-right 200ms ease-in-out;
   }

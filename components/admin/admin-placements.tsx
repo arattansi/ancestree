@@ -1,13 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "sonner";
 
 import { placePeople, removePlacement } from "@/app/actions/trees";
+import { ConfirmButton } from "@/components/confirm-dialog";
+import { PendingButton } from "@/components/pending-button";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { useAction } from "@/components/use-action";
 import type {
   ForeignPlacement,
   PlacementCandidate,
@@ -30,7 +31,7 @@ export function AdminPlacements({
 }) {
   const [picked, setPicked] = React.useState<Set<string>>(new Set());
   const [filter, setFilter] = React.useState("");
-  const [busy, setBusy] = React.useState(false);
+  const bring = useAction();
 
   const shown = candidates.filter((c) =>
     c.name.toLowerCase().includes(filter.trim().toLowerCase()),
@@ -45,34 +46,22 @@ export function AdminPlacements({
     });
   }
 
-  async function onBring() {
+  function onBring() {
     if (picked.size === 0) return;
-    setBusy(true);
-    const res = await placePeople(treeId, [...picked]);
-    setBusy(false);
-    if (res.error) {
-      toast.error(res.error);
-      return;
-    }
-    const pending = (res.placed ?? []).filter((p) => p.status === "pending").length;
-    const active = (res.placed ?? []).length - pending;
-    toast.success(
-      [
-        active > 0 ? `${active} now on the tree` : null,
-        pending > 0 ? `${pending} waiting for their yes` : null,
-      ]
-        .filter(Boolean)
-        .join(" · ") || "Done",
-    );
-    setPicked(new Set());
-  }
-
-  async function onRemove(p: ForeignPlacement) {
-    setBusy(true);
-    const res = await removePlacement(treeId, p.personId);
-    setBusy(false);
-    if (res.error) toast.error(res.error);
-    else toast.success(`${p.name} is off this tree.`);
+    bring.run("bring", () => placePeople(treeId, [...picked]), {
+      // How many are on the tree now, and how many have still to say yes.
+      success: (res) => {
+        const pending = (res.placed ?? []).filter((p) => p.status === "pending").length;
+        const active = (res.placed ?? []).length - pending;
+        return [
+          active > 0 ? `${active} now on the tree` : null,
+          pending > 0 ? `${pending} waiting for their yes` : null,
+        ]
+          .filter(Boolean)
+          .join(" · ");
+      },
+      onSuccess: () => setPicked(new Set()),
+    });
   }
 
   return (
@@ -80,9 +69,15 @@ export function AdminPlacements({
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-sm font-semibold">Bring people over</h3>
-          <Button size="sm" onClick={onBring} disabled={busy || picked.size === 0}>
-            {busy ? "Bringing…" : `Bring ${picked.size || ""} over`.trim()}
-          </Button>
+          <PendingButton
+            size="sm"
+            onClick={onBring}
+            pending={bring.pending}
+            pendingLabel="Bringing…"
+            disabled={picked.size === 0}
+          >
+            {`Bring ${picked.size || ""} over`.trim()}
+          </PendingButton>
         </div>
         {candidates.length === 0 ? (
           <p className="text-sm text-muted-foreground">
@@ -154,9 +149,19 @@ export function AdminPlacements({
                   ) : p.status === "declined" ? (
                     <Badge variant="outline">Declined</Badge>
                   ) : null}
-                  <Button size="sm" variant="ghost" disabled={busy} onClick={() => onRemove(p)}>
+                  <ConfirmButton
+                    size="sm"
+                    variant="ghost"
+                    aria-label={`Remove ${p.name}`}
+                    confirm={{
+                      title: `Take ${p.name} off this tree?`,
+                      confirmLabel: "Remove",
+                      pendingLabel: "Removing…",
+                      onConfirm: () => removePlacement(treeId, p.personId),
+                    }}
+                  >
                     Remove
-                  </Button>
+                  </ConfirmButton>
                 </div>
               </li>
             ))}

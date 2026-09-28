@@ -1,12 +1,13 @@
 "use client";
 
-import * as React from "react";
 import { toast } from "sonner";
 
 import { deleteInvite } from "@/app/actions/invites";
+import { ConfirmButton } from "@/components/confirm-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { toastError } from "@/components/use-action";
 import type { BareInvite } from "@/lib/invites";
 
 /**
@@ -21,8 +22,6 @@ export function AdminBareInvites({
   invites: BareInvite[];
   baseUrl: string;
 }) {
-  const [busyId, setBusyId] = React.useState<string | null>(null);
-
   if (invites.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
@@ -38,75 +37,78 @@ export function AdminBareInvites({
       await navigator.clipboard.writeText(urlFor(token));
       toast.success("Invite link copied");
     } catch {
-      toast.error("Couldn't copy — select and copy the link manually");
+      toastError("Couldn't copy — select and copy the link manually");
     }
-  }
-
-  async function onDelete(invite: BareInvite) {
-    if (!window.confirm(confirmTextFor(invite))) return;
-    setBusyId(invite.id);
-    const res = await deleteInvite(invite.id);
-    setBusyId(null);
-    if (res.error) {
-      toast.error(res.error);
-      return;
-    }
-    toast.success("Link deleted.");
   }
 
   return (
     <ul className="flex flex-col gap-3">
-      {invites.map((invite) => (
-        <li
-          key={invite.id}
-          className="flex flex-col gap-2 rounded-md border border-border p-3 text-sm"
-        >
-          <div className="flex flex-wrap items-center gap-1.5">
-            <StatusBadge invite={invite} />
-            <span className="text-muted-foreground">
-              Minted by {invite.createdByName ?? "a former member"} on{" "}
-              {new Date(invite.createdAt).toLocaleDateString(undefined, {
-                day: "numeric",
-                month: "short",
-                year: "numeric",
-              })}
-            </span>
-          </div>
-          <div className="flex gap-2">
-            <Input
-              readOnly
-              value={urlFor(invite.token)}
-              aria-label="Bare invite link"
-              className="font-mono text-xs"
-            />
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => copy(invite.token)}
-            >
-              Copy
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              disabled={busyId !== null}
-              onClick={() => onDelete(invite)}
-            >
-              {busyId === invite.id ? "Deleting…" : "Delete"}
-            </Button>
-          </div>
-        </li>
-      ))}
+      {invites.map((invite) => {
+        const minted = `minted by ${invite.createdByName ?? "a former member"} on ${shortDate(invite.createdAt)}`;
+        return (
+          <li
+            key={invite.id}
+            className="flex flex-col gap-2 rounded-md border border-border p-3 text-sm"
+          >
+            <div className="flex flex-wrap items-center gap-1.5">
+              <StatusBadge invite={invite} />
+              <span className="text-muted-foreground">
+                Minted by {invite.createdByName ?? "a former member"} on{" "}
+                {shortDate(invite.createdAt)}
+              </span>
+            </div>
+            <div className="flex gap-2">
+              <Input
+                readOnly
+                value={urlFor(invite.token)}
+                aria-label="Bare invite link"
+                className="font-mono text-xs"
+              />
+              {/* Nobody's name is on a bare link: it's told apart by who
+                  made it, and when. */}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => copy(invite.token)}
+                aria-label={`Copy the link ${minted}`}
+              >
+                Copy
+              </Button>
+              <ConfirmButton
+                variant="destructive"
+                aria-label={`Delete the link ${minted}`}
+                confirm={{
+                  title: "Delete this link?",
+                  description: consequence(invite),
+                  confirmLabel: "Delete",
+                  pendingLabel: "Deleting…",
+                  onConfirm: () => deleteInvite(invite.id),
+                }}
+              >
+                Delete
+              </ConfirmButton>
+            </div>
+          </li>
+        );
+      })}
     </ul>
   );
 }
 
+function shortDate(iso: string) {
+  return new Date(iso).toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 /** Nobody's name is attached to a bare link, so the stakes are all in its state. */
-function confirmTextFor(invite: BareInvite) {
+function consequence(invite: BareInvite) {
   if (invite.status === "active" && !isExpired(invite)) {
-    return "Delete this link? It stops working for anyone you’ve sent it to.";
+    return "It stops working for anyone you’ve sent it to.";
   }
-  return "Delete this link? It no longer works anyway.";
+  return "It no longer works anyway.";
 }
 
 function isExpired(invite: BareInvite) {

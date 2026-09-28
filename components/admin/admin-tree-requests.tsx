@@ -8,8 +8,11 @@ import {
   declineTreeRequest,
   deleteTreeRequest,
 } from "@/app/actions/tree-requests";
+import { ConfirmButton } from "@/components/confirm-dialog";
+import { PendingButton } from "@/components/pending-button";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { useAction } from "@/components/use-action";
+import { refocusAfterRemoval } from "@/components/use-focus-return";
 import type { TreeRequestItem } from "@/lib/tree-requests.server";
 
 function fullName(r: TreeRequestItem): string {
@@ -37,66 +40,8 @@ export function AdminTreeRequests({
   treeId: string;
   requests: TreeRequestItem[];
 }) {
-  const [busyId, setBusyId] = React.useState<string | null>(null);
   const open = requests.filter((r) => r.status === "pending");
   const answered = requests.filter((r) => r.status !== "pending");
-
-  async function call<T extends { error?: string }>(
-    id: string,
-    action: () => Promise<T>,
-  ): Promise<T | null> {
-    setBusyId(id);
-    try {
-      return await action();
-    } catch {
-      // Never strand the row on "Working…": a rejected action (a stale action
-      // id after a deploy, a dropped connection) has to be recoverable.
-      toast.error("Couldn't reach the server — reload the page and try again.");
-      return null;
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  async function onApprove(r: TreeRequestItem) {
-    const res = await call(r.id, () => approveTreeRequest(r.id, treeId));
-    if (!res) return;
-    if (res.error) {
-      toast.error(res.error);
-      return;
-    }
-    const why = res.emailError ? ` (${res.emailError})` : "";
-    if (r.kind === "member") {
-      if (res.emailed) {
-        toast.success(`Approved. ${fullName(r)} can start a tree now, and we emailed ${r.email}.`);
-      } else {
-        toast.warning(
-          `Approved. ${fullName(r)} will see it in their inbox, but the email didn’t send${why}.`,
-        );
-      }
-    } else if (res.emailed) {
-      toast.success(`Approved. A founder invite is on its way to ${r.email}.`);
-    } else {
-      toast.warning(
-        `Approved, but the invite email didn’t send${why}. Resend it from Sent Invites.`,
-      );
-    }
-  }
-
-  async function onDecline(r: TreeRequestItem) {
-    const res = await call(r.id, () => declineTreeRequest(r.id));
-    if (!res) return;
-    if (res.error) toast.error(res.error);
-    else toast.success("Request declined.");
-  }
-
-  async function onDelete(r: TreeRequestItem) {
-    if (!window.confirm(deleteWarning(r))) return;
-    const res = await call(r.id, () => deleteTreeRequest(r.id));
-    if (!res) return;
-    if (res.error) toast.error(res.error);
-    else toast.success("Deleted.");
-  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -107,48 +52,7 @@ export function AdminTreeRequests({
       ) : (
         <ul className="flex flex-col gap-3">
           {open.map((r) => (
-            <li
-              key={r.id}
-              className="flex flex-col gap-2 rounded-md border border-border p-3 text-sm"
-            >
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="font-medium">{fullName(r)}</p>
-                <KindBadge request={r} />
-              </div>
-              <p className="text-muted-foreground">
-                {r.email} · {shortDate(r.createdAt)}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  disabled={busyId !== null}
-                  onClick={() => onApprove(r)}
-                >
-                  {busyId === r.id
-                    ? "Working…"
-                    : r.kind === "member"
-                      ? "Approve"
-                      : "Approve & send invite"}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={busyId !== null}
-                  onClick={() => onDecline(r)}
-                >
-                  Decline
-                </Button>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  disabled={busyId !== null}
-                  onClick={() => onDelete(r)}
-                  aria-label={`Delete the request from ${fullName(r)}`}
-                >
-                  Delete
-                </Button>
-              </div>
-            </li>
+            <OpenRequest key={r.id} treeId={treeId} request={r} />
           ))}
         </ul>
       )}
@@ -174,15 +78,7 @@ export function AdminTreeRequests({
                 <div className="flex flex-wrap items-center gap-1.5">
                   <KindBadge request={r} />
                   <AnswerBadges request={r} />
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    disabled={busyId !== null}
-                    onClick={() => onDelete(r)}
-                    aria-label={`Delete the request from ${fullName(r)}`}
-                  >
-                    {busyId === r.id ? "Deleting…" : "Delete"}
-                  </Button>
+                  <DeleteRequestButton request={r} />
                 </div>
               </li>
             ))}
@@ -190,6 +86,110 @@ export function AdminTreeRequests({
         </details>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * A request waiting on an answer, with its own calls: answering one doesn't
+ * hold up the others. Answered, it moves down to Answered, and focus goes on
+ * to the next request.
+ */
+function OpenRequest({
+  treeId,
+  request: r,
+}: {
+  treeId: string;
+  request: TreeRequestItem;
+}) {
+  const action = useAction();
+
+  function onApprove(event: React.MouseEvent<HTMLButtonElement>) {
+    const button = event.currentTarget;
+    action.run("approve", () => approveTreeRequest(r.id, treeId), {
+      // The email is out of sight: say it went, or that it didn't.
+      success: (res) => {
+        if (!res.emailed) return null;
+        return r.kind === "member"
+          ? `Approved. ${fullName(r)} can start a tree now, and we emailed ${r.email}.`
+          : `Approved. A founder invite is on its way to ${r.email}.`;
+      },
+      onSuccess: (res) => {
+        refocusAfterRemoval(button);
+        if (res.emailed) return;
+        const why = res.emailError ? ` (${res.emailError})` : "";
+        toast.warning(
+          r.kind === "member"
+            ? `Approved. ${fullName(r)} will see it in their inbox, but the email didn’t send${why}.`
+            : `Approved, but the invite email didn’t send${why}. Resend it from Sent Invites.`,
+        );
+      },
+    });
+  }
+
+  function onDecline(event: React.MouseEvent<HTMLButtonElement>) {
+    const button = event.currentTarget;
+    action.run("decline", () => declineTreeRequest(r.id), {
+      onSuccess: () => refocusAfterRemoval(button),
+    });
+  }
+
+  return (
+    <li className="flex flex-col gap-2 rounded-md border border-border p-3 text-sm">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="font-medium">{fullName(r)}</p>
+        <KindBadge request={r} />
+      </div>
+      <p className="text-muted-foreground">
+        {r.email} · {shortDate(r.createdAt)}
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <PendingButton
+          size="sm"
+          pending={action.pendingKey === "approve"}
+          disabled={action.pending}
+          pendingLabel="Approving…"
+          onClick={onApprove}
+        >
+          {r.kind === "member" ? "Approve" : "Approve & send invite"}
+        </PendingButton>
+        <PendingButton
+          size="sm"
+          variant="outline"
+          pending={action.pendingKey === "decline"}
+          disabled={action.pending}
+          pendingLabel="Declining…"
+          onClick={onDecline}
+        >
+          Decline
+        </PendingButton>
+        <DeleteRequestButton request={r} disabled={action.pending} />
+      </div>
+    </li>
+  );
+}
+
+function DeleteRequestButton({
+  request: r,
+  disabled,
+}: {
+  request: TreeRequestItem;
+  disabled?: boolean;
+}) {
+  return (
+    <ConfirmButton
+      size="sm"
+      variant="destructive"
+      disabled={disabled}
+      aria-label={`Delete the request from ${fullName(r)}`}
+      confirm={{
+        ...deleteConfirm(r),
+        confirmLabel: "Delete",
+        pendingLabel: "Deleting…",
+        onConfirm: () => deleteTreeRequest(r.id),
+      }}
+    >
+      Delete
+    </ConfirmButton>
   );
 }
 
@@ -217,16 +217,25 @@ function AnswerBadges({ request: r }: { request: TreeRequestItem }) {
 }
 
 /** Say what deleting costs, which depends on how far the request got. */
-function deleteWarning(r: TreeRequestItem): string {
+function deleteConfirm(r: TreeRequestItem): { title: string; description?: string } {
   const who = fullName(r);
   if (r.status === "pending") {
-    return `Delete ${who}’s request? It leaves no record, so they can ask again.`;
+    return {
+      title: `Delete ${who}’s request?`,
+      description: "It leaves no record, so they can ask again.",
+    };
   }
   if (r.status === "approved" && r.kind === "member") {
-    return `Delete ${who}’s approved request? If they haven’t started their tree, they’ll have to ask again.`;
+    return {
+      title: `Delete ${who}’s approved request?`,
+      description: "If they haven’t started their tree, they’ll have to ask again.",
+    };
   }
   if (r.status === "approved" && r.inviteOut) {
-    return `Delete ${who}’s request? The invite sent to ${r.email} stops working.`;
+    return {
+      title: `Delete ${who}’s request?`,
+      description: `The invite sent to ${r.email} stops working.`,
+    };
   }
-  return `Delete the record of ${who}’s request?`;
+  return { title: `Delete the record of ${who}’s request?` };
 }

@@ -3,7 +3,6 @@
 import * as React from "react";
 import Link from "next/link";
 import { Lightbulb, Minimize2, Pencil } from "lucide-react";
-import { toast } from "sonner";
 
 import { claimPerson, disputeClaim } from "@/app/actions/claims";
 import { sendClaimInvite } from "@/app/actions/invites";
@@ -16,7 +15,10 @@ import { describeClaimInvite, type EntryInvite } from "@/lib/claim-invites";
 import type { PanelSuggestion } from "@/lib/connection-suggestions";
 import { AccountTypeBadge } from "@/components/account-type-badge";
 import { AncestralLands } from "@/components/ancestral-lands";
+import { ConfirmButton } from "@/components/confirm-dialog";
+import { FormError } from "@/components/form-error";
 import { JoinsAsNote } from "@/components/joins-as-note";
+import { PendingButton } from "@/components/pending-button";
 import { PersonDocuments } from "@/components/person-documents";
 import { ConnectionPromptList } from "@/components/tree/connection-prompts";
 import { AddCompanionDialog } from "@/components/tree/add-companion-dialog";
@@ -26,7 +28,7 @@ import { DateField } from "@/components/date-field";
 import { PhotoCropEditor } from "@/components/photo-crop-editor";
 import { EntryComments } from "@/components/tree/entry-comments";
 import { EntrySuggestions } from "@/components/tree/entry-suggestions";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -40,6 +42,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { toastError, useAction } from "@/components/use-action";
+import { useFocusReturn } from "@/components/use-focus-return";
 import {
   personDisplayName,
   personInitials,
@@ -160,7 +164,11 @@ function SpouseRow({
   const [divorceDate, setDivorceDate] = React.useState(
     relation.divorceDate ?? "",
   );
-  const [busy, setBusy] = React.useState(false);
+  const action = useAction({ inline: true });
+  // The sheet is non-modal, so nothing else keeps focus as the editor opens
+  // and closes (Step 70).
+  const returnFocus = useFocusReturn();
+  const editRef = React.useRef<HTMLButtonElement>(null);
   // Marriage dates have to be whole (no precision column on relationships),
   // or a day and month without the year (Step 63).
   const dateProblems = marriageDateProblems({
@@ -170,26 +178,28 @@ function SpouseRow({
   });
   const datesOk = !dateProblems.marriage && !dateProblems.divorce;
 
-  async function save() {
+  function save() {
     if (!datesOk) return;
-    setBusy(true);
     // Padded to ISO: a one-digit day types as "1965-03-5".
     const married = toStoredDate(marriageDate);
-    const res = await updateRelationshipMarriage(relation.id, {
-      marriage_date: married.date,
-      marriage_month: married.withoutYear?.month ?? null,
-      marriage_day: married.withoutYear?.day ?? null,
-      is_divorced: isDivorced,
-      divorce_date: toStoredDate(divorceDate).date,
-    });
-    setBusy(false);
-    if (res.error) {
-      toast.error(res.error);
-      return;
-    }
-    toast.success("Saved.");
-    setEditing(false);
-    onChanged();
+    action.run(
+      "save",
+      () =>
+        updateRelationshipMarriage(relation.id, {
+          marriage_date: married.date,
+          marriage_month: married.withoutYear?.month ?? null,
+          marriage_day: married.withoutYear?.day ?? null,
+          is_divorced: isDivorced,
+          divorce_date: toStoredDate(divorceDate).date,
+        }),
+      {
+        onSuccess: () => {
+          returnFocus(() => editRef.current);
+          setEditing(false);
+          onChanged();
+        },
+      },
+    );
   }
 
   return (
@@ -222,9 +232,16 @@ function SpouseRow({
 
       {!editing && relation.canEdit ? (
         <button
+          ref={editRef}
           type="button"
-          className="self-start text-xs text-foreground underline underline-offset-2"
-          onClick={() => setEditing(true)}
+          className="relative tap-target self-start text-xs text-foreground underline underline-offset-2"
+          onClick={() => {
+            setEditing(true);
+            // The link makes way for the editor: its first box takes focus.
+            returnFocus(() =>
+              document.getElementById(`marriage-${relation.id}`),
+            );
+          }}
         >
           {savedMarriage || relation.isDivorced
             ? "Edit marriage / divorce"
@@ -276,19 +293,28 @@ function SpouseRow({
               ) : null}
             </div>
           ) : null}
+          <FormError>{action.error}</FormError>
           <div className="flex gap-2">
-            <Button size="sm" onClick={save} disabled={busy || !datesOk}>
-              {busy ? "Saving…" : "Save"}
-            </Button>
+            <PendingButton
+              size="sm"
+              onClick={save}
+              pending={action.pending}
+              disabled={!datesOk}
+              pendingLabel="Saving…"
+            >
+              Save
+            </PendingButton>
             <Button
               size="sm"
               variant="ghost"
-              disabled={busy}
+              disabled={action.pending}
               onClick={() => {
+                returnFocus(() => editRef.current);
                 setEditing(false);
                 setMarriageDate(savedMarriage);
                 setIsDivorced(relation.isDivorced);
                 setDivorceDate(relation.divorceDate ?? "");
+                action.setError(null);
               }}
             >
               Cancel
@@ -536,9 +562,18 @@ export function PersonPanel({
   onClose: () => void;
 }) {
   const open = person !== null && !minimized;
-  const [busy, setBusy] = React.useState(false);
+  // A handle each, so one running leaves the others alone: pressing Delete
+  // entry no longer shows the invite as sending (Step 70). Claim and Delete
+  // ask first, and their dialogs carry their own.
+  const cropSave = useAction({ inline: true });
+  const invite = useAction({ inline: true });
+  const dispute = useAction({ inline: true });
+  // The sheet is non-modal, so nothing else keeps focus as its inline forms
+  // open and close.
+  const returnFocus = useFocusReturn();
+  const claimEmailRef = React.useRef<HTMLInputElement>(null);
+  const disputeLinkRef = React.useRef<HTMLButtonElement>(null);
   const [disputing, setDisputing] = React.useState(false);
-  const [confirmingClaim, setConfirmingClaim] = React.useState(false);
   const [reason, setReason] = React.useState("");
   const [photoOpen, setPhotoOpen] = React.useState(false);
   const [addingCompanion, setAddingCompanion] = React.useState(false);
@@ -571,88 +606,54 @@ export function PersonPanel({
   if (person?.id !== prevId) {
     setPrevId(person?.id);
     setDisputing(false);
-    setConfirmingClaim(false);
     setReason("");
     setPhotoOpen(false);
     setAddingCompanion(false);
     setCropOpen(false);
     setCrop(savedCrop);
     setClaimEmail("");
+    // What went wrong for the last one goes with them.
+    cropSave.setError(null);
+    invite.setError(null);
+    dispute.setError(null);
   }
 
-  async function onSaveCrop() {
+  function onSaveCrop() {
     if (!person) return;
-    setBusy(true);
-    const res = await setPersonPhotoCrop(person.id, crop);
-    setBusy(false);
-    if (res.error) {
-      toast.error(res.error);
-      return;
-    }
-    setCropOpen(false);
-    toast.success("Photo repositioned.");
+    const personId = person.id;
+    cropSave.run("save", () => setPersonPhotoCrop(personId, crop), {
+      onSuccess: () => setCropOpen(false),
+    });
   }
 
-  async function onClaim() {
+  function onSendClaimInvite() {
     if (!person) return;
-    setBusy(true);
-    const res = await claimPerson(person.id);
-    setBusy(false);
-    if (res.error) {
-      toast.error(res.error);
-      return;
-    }
-    toast.success("Merged — this is now your entry.");
-    onClose();
-  }
-
-  async function onSendClaimInvite() {
-    if (!person) return;
-    setBusy(true);
-    const res = await sendClaimInvite(person.id, claimEmail);
-    setBusy(false);
+    const personId = person.id;
     // An invite whose email failed is still made, and listed: the action
     // draws the page again whether or not the email went.
-    if (res.error) {
-      toast.error(res.error);
-      return;
-    }
-    setClaimEmail("");
-    toast.success(`Invite sent to ${res.email ?? "them"}.`);
+    invite.run("send", () => sendClaimInvite(personId, claimEmail), {
+      success: (res) => `Invite sent to ${res.email ?? "them"}.`,
+      onSuccess: () => {
+        setClaimEmail("");
+        // Emptied, the box disables its button, and focus goes back to the
+        // box for another address, once it's no longer disabled itself.
+        returnFocus(() =>
+          claimEmailRef.current?.disabled ? null : claimEmailRef.current,
+        );
+      },
+    });
   }
 
-  async function onDelete() {
-    if (!person) return;
-    if (
-      !window.confirm(
-        `Delete ${personDisplayName(person)}? Their connections, photo and documents go too. This cannot be undone.`,
-      )
-    ) {
-      return;
-    }
-    setBusy(true);
-    const res = await deletePerson(person.id);
-    setBusy(false);
-    if (res.error) {
-      toast.error(res.error);
-      return;
-    }
-    toast.success("Entry deleted.");
-    onClose();
-  }
-
-  async function onDispute() {
+  function onDispute() {
     if (!person?.claim_id) return;
-    setBusy(true);
-    const res = await disputeClaim(person.claim_id, reason);
-    setBusy(false);
-    if (res.error) {
-      toast.error(res.error);
-      return;
-    }
-    toast.success("Dispute sent to an admin.");
-    setDisputing(false);
-    onClose();
+    const claimId = person.claim_id;
+    dispute.run("send", () => disputeClaim(claimId, reason), {
+      success: "Dispute sent to an admin.",
+      onSuccess: () => {
+        setDisputing(false);
+        onClose();
+      },
+    });
   }
 
   return (
@@ -986,6 +987,7 @@ export function PersonPanel({
                         variant="outline"
                         onClick={() => {
                           setCrop(savedCrop);
+                          cropSave.setError(null);
                           setCropOpen(true);
                         }}
                       >
@@ -993,51 +995,50 @@ export function PersonPanel({
                       </Button>
                     ) : null}
 
-                    {canClaim && !confirmingClaim ? (
-                      <Button
+                    {/* Claiming merges the viewer's own entry into this one
+                        and deletes it, so it asks first (Step 36). */}
+                    {canClaim ? (
+                      <ConfirmButton
                         size="sm"
-                        onClick={() => setConfirmingClaim(true)}
-                        disabled={busy}
+                        confirm={{
+                          title: "Make this your entry?",
+                          description: claimNote ?? undefined,
+                          confirmLabel: "Yes, merge",
+                          pendingLabel: "Merging…",
+                          onConfirm: () => claimPerson(person.id),
+                          success: "Merged — this is now your entry.",
+                          onSuccess: onClose,
+                        }}
                       >
                         This is me — claim it
-                      </Button>
+                      </ConfirmButton>
                     ) : null}
 
                     {canDelete ? (
-                      <Button
+                      <ConfirmButton
                         size="sm"
                         variant="outline"
                         className="text-destructive"
-                        onClick={onDelete}
-                        disabled={busy}
+                        confirm={{
+                          title: `Delete ${personDisplayName(person)}?`,
+                          description:
+                            "Their connections, photo and documents go too.\nThis cannot be undone.",
+                          confirmLabel: "Delete",
+                          pendingLabel: "Deleting…",
+                          onConfirm: () => deletePerson(person.id),
+                          onSuccess: onClose,
+                          // The sheet closes and their card is gone: focus
+                          // goes on to Add a relative rather than the page.
+                          fallbackFocus: () =>
+                            document.querySelector<HTMLElement>(
+                              "[data-add-relative]",
+                            ),
+                        }}
                       >
                         Delete entry
-                      </Button>
+                      </ConfirmButton>
                     ) : null}
                   </div>
-
-                  {/* Claiming merges the viewer's own entry into this one and
-                      deletes it, so it asks first (Step 36). */}
-                  {canClaim && confirmingClaim ? (
-                    <div className="flex flex-col gap-2 rounded-md border border-border p-3">
-                      <p className="text-xs whitespace-pre-line text-muted-foreground">
-                        {claimNote}
-                      </p>
-                      <div className="flex gap-2">
-                        <Button size="sm" onClick={onClaim} disabled={busy}>
-                          {busy ? "Merging…" : "Yes, merge"}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setConfirmingClaim(false)}
-                          disabled={busy}
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    </div>
-                  ) : null}
 
                   {/* Nobody is behind this entry yet, and it is the viewer's to
                       hand over (`canInviteToClaim`). The server asks the
@@ -1053,6 +1054,7 @@ export function PersonPanel({
                       <ClaimInviteRecords invites={claimInvites} />
                       <div className="flex flex-wrap gap-2">
                         <Input
+                          ref={claimEmailRef}
                           id="claim-invite-email"
                           type="email"
                           inputMode="email"
@@ -1061,20 +1063,21 @@ export function PersonPanel({
                           value={claimEmail}
                           onChange={(e) => setClaimEmail(e.target.value)}
                           placeholder="them@example.com"
-                          disabled={busy}
+                          disabled={invite.pending}
                         />
-                        <Button
+                        <PendingButton
                           size="sm"
                           onClick={onSendClaimInvite}
-                          disabled={busy || claimEmail.trim().length === 0}
+                          pending={invite.pending}
+                          disabled={claimEmail.trim().length === 0}
+                          pendingLabel="Sending…"
                         >
-                          {busy
-                            ? "Sending…"
-                            : claimInvites.some((i) => i.live)
-                              ? "Send another"
-                              : "Send invite"}
-                        </Button>
+                          {claimInvites.some((i) => i.live)
+                            ? "Send another"
+                            : "Send invite"}
+                        </PendingButton>
                       </div>
+                      <FormError>{invite.error}</FormError>
                       <JoinsAsNote />
                       <p className="text-xs text-muted-foreground">
                         They&rsquo;ll get a link, good for 14 days, to take
@@ -1107,20 +1110,25 @@ export function PersonPanel({
                           onChange={(e) => setReason(e.target.value)}
                           placeholder="This isn't the same person…"
                         />
+                        <FormError>{dispute.error}</FormError>
                         <div className="flex gap-2">
-                          <Button
+                          <PendingButton
                             size="sm"
-                            variant="destructive"
                             onClick={onDispute}
-                            disabled={busy}
+                            pending={dispute.pending}
+                            pendingLabel="Sending…"
                           >
-                            {busy ? "Sending…" : "Send dispute"}
-                          </Button>
+                            Send dispute
+                          </PendingButton>
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => setDisputing(false)}
-                            disabled={busy}
+                            onClick={() => {
+                              returnFocus(() => disputeLinkRef.current);
+                              setDisputing(false);
+                              dispute.setError(null);
+                            }}
+                            disabled={dispute.pending}
                           >
                             Cancel
                           </Button>
@@ -1128,9 +1136,17 @@ export function PersonPanel({
                       </div>
                     ) : (
                       <button
+                        ref={disputeLinkRef}
                         type="button"
-                        className="self-start text-xs text-destructive underline underline-offset-2"
-                        onClick={() => setDisputing(true)}
+                        className="relative tap-target self-start text-xs text-destructive underline underline-offset-2"
+                        onClick={() => {
+                          setDisputing(true);
+                          // The link makes way for the form: its box takes
+                          // focus.
+                          returnFocus(() =>
+                            document.getElementById("dispute-reason"),
+                          );
+                        }}
                       >
                         You created this entry — dispute the claim
                       </button>
@@ -1175,14 +1191,20 @@ export function PersonPanel({
                       crop={crop}
                       onCropChange={setCrop}
                       onUnreadable={() => {
-                        toast.error("That photo couldn't be loaded.");
+                        toastError("That photo couldn't be loaded.");
                         setCropOpen(false);
                       }}
                     />
+                    <FormError>{cropSave.error}</FormError>
                     <div className="flex gap-2">
-                      <Button size="sm" onClick={onSaveCrop} disabled={busy}>
-                        {busy ? "Saving…" : "Save"}
-                      </Button>
+                      <PendingButton
+                        size="sm"
+                        onClick={onSaveCrop}
+                        pending={cropSave.pending}
+                        pendingLabel="Saving…"
+                      >
+                        Save
+                      </PendingButton>
                       <Button
                         size="sm"
                         variant="outline"
@@ -1190,7 +1212,7 @@ export function PersonPanel({
                           setCrop(savedCrop);
                           setCropOpen(false);
                         }}
-                        disabled={busy}
+                        disabled={cropSave.pending}
                       >
                         Cancel
                       </Button>
@@ -1198,7 +1220,7 @@ export function PersonPanel({
                         size="sm"
                         variant="ghost"
                         onClick={() => setCrop(DEFAULT_CROP)}
-                        disabled={busy}
+                        disabled={cropSave.pending}
                       >
                         Reset
                       </Button>

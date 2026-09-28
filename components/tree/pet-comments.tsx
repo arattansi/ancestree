@@ -1,15 +1,18 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "sonner";
 
 import {
   addPetComment,
   deletePetComment,
   getPetComments,
 } from "@/app/actions/pet-comments";
-import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { FormError } from "@/components/form-error";
+import { PendingButton } from "@/components/pending-button";
 import { Textarea } from "@/components/ui/textarea";
+import { useAction } from "@/components/use-action";
+import { focusIsLost } from "@/components/use-focus-return";
 import type { PetComment } from "@/lib/pet-comments";
 
 function timeAgo(iso: string): string {
@@ -41,18 +44,34 @@ export function PetComments({
     items: PetComment[] | null;
   }>({ petId, items: null });
   const [body, setBody] = React.useState("");
-  const [busy, setBusy] = React.useState(false);
-  const [pendingId, setPendingId] = React.useState<string | null>(null);
+  const post = useAction({ inline: true });
+  const formRef = React.useRef<HTMLFormElement>(null);
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+  const posted = React.useRef(false);
 
   const items = state.petId === petId ? state.items : null;
   const setItems = React.useCallback(
     (next: React.SetStateAction<PetComment[] | null>) =>
-      setState((cur) => ({
-        petId,
-        items: typeof next === "function" ? next(cur.items) : next,
-      })),
+      setState((cur) =>
+        // A late answer for a companion the sheet has since moved on from
+        // leaves the one it shows now alone.
+        cur.petId !== petId
+          ? cur
+          : {
+              petId,
+              items: typeof next === "function" ? next(cur.items) : next,
+            },
+      ),
     [petId],
   );
+
+  // Another companion opened: a failure to post on the last one isn't
+  // this one's.
+  const [shownPetId, setShownPetId] = React.useState(petId);
+  if (shownPetId !== petId) {
+    setShownPetId(petId);
+    post.setError(null);
+  }
 
   React.useEffect(() => {
     let active = true;
@@ -64,32 +83,27 @@ export function PetComments({
     };
   }, [petId]);
 
-  async function onSubmit(e: React.FormEvent) {
+  // Posted: back to the box for the next one (Step 70), once it takes typing
+  // again, unless focus has gone somewhere else meanwhile.
+  React.useEffect(() => {
+    if (!posted.current || post.pending) return;
+    posted.current = false;
+    if (focusIsLost() || formRef.current?.contains(document.activeElement)) {
+      textareaRef.current?.focus();
+    }
+  });
+
+  function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     const text = body.trim();
-    if (!text || busy) return;
-    setBusy(true);
-    const res = await addPetComment({ petId, body: text });
-    setBusy(false);
-    if (res.error || !res.comment) {
-      toast.error(res.error ?? "Couldn't post that.");
-      return;
-    }
-    setItems((cur) => [res.comment as PetComment, ...(cur ?? [])]);
-    setBody("");
-    toast.success("Comment posted.");
-  }
-
-  async function onDelete(comment: PetComment) {
-    setPendingId(comment.id);
-    setItems((cur) => cur?.filter((c) => c.id !== comment.id) ?? null);
-    const res = await deletePetComment(comment.id);
-    setPendingId(null);
-    if (res.error) {
-      toast.error(res.error);
-      setItems((cur) => [comment, ...(cur ?? [])]);
-      return;
-    }
+    if (!text) return;
+    post.run("post", () => addPetComment({ petId, body: text }), {
+      onSuccess: ({ comment }) => {
+        if (comment) setItems((cur) => [comment, ...(cur ?? [])]);
+        setBody("");
+        posted.current = true;
+      },
+    });
   }
 
   return (
@@ -101,23 +115,27 @@ export function PetComments({
         Comments
       </h2>
 
-      <form onSubmit={onSubmit} className="flex flex-col gap-2">
+      <form ref={formRef} onSubmit={onSubmit} className="flex flex-col gap-2">
         <Textarea
+          ref={textareaRef}
           value={body}
           onChange={(e) => setBody(e.target.value)}
           placeholder="Share a memory or a detail about this companion…"
           rows={3}
           maxLength={2000}
-          disabled={busy}
+          disabled={post.pending}
         />
-        <Button
+        <FormError>{post.error}</FormError>
+        <PendingButton
           type="submit"
           size="sm"
           className="self-end"
-          disabled={busy || !body.trim()}
+          pending={post.pending}
+          pendingLabel="Posting…"
+          disabled={!body.trim()}
         >
-          {busy ? "Posting…" : "Comment"}
-        </Button>
+          Comment
+        </PendingButton>
       </form>
 
       {items === null ? (
@@ -143,14 +161,33 @@ export function PetComments({
                 </div>
                 <p className="whitespace-pre-wrap text-foreground">{c.body}</p>
                 {canRemove ? (
-                  <button
-                    type="button"
-                    className="self-start text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground disabled:opacity-50"
-                    disabled={pendingId === c.id}
-                    onClick={() => onDelete(c)}
-                  >
-                    Delete
-                  </button>
+                  // It leaves the list once the server has deleted it, so a
+                  // failure leaves it where it was.
+                  <ConfirmDialog
+                    trigger={
+                      <button
+                        type="button"
+                        className="relative tap-target self-start text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                        aria-label={
+                          c.createdBy === currentUserId
+                            ? "Delete your comment"
+                            : `Delete the comment from ${c.authorName}`
+                        }
+                      >
+                        Delete
+                      </button>
+                    }
+                    title="Delete this comment?"
+                    description="This cannot be undone."
+                    confirmLabel="Delete"
+                    pendingLabel="Deleting…"
+                    onConfirm={() => deletePetComment(c.id)}
+                    onSuccess={() =>
+                      setItems(
+                        (cur) => cur?.filter((x) => x.id !== c.id) ?? null,
+                      )
+                    }
+                  />
                 ) : null}
               </li>
             );

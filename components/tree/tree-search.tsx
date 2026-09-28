@@ -16,6 +16,7 @@ import {
 import { PersonPicker } from "@/components/tree/person-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useFocusReturn } from "@/components/use-focus-return";
 import { cn } from "@/lib/utils";
 import {
   Select,
@@ -246,11 +247,30 @@ export function TreeSearch({
   const set = (patch: Partial<TreeFilter>) =>
     onFilterChange({ ...filter, ...patch });
 
+  // The button and the card take each other's place, so focus is handed
+  // across (Step 70): to the card's ✕ as it opens (or to the find box, which
+  // takes it itself when its section is open), and back to the button as the
+  // card closes itself. Clear hands it to the box it emptied.
+  const returnFocus = useFocusReturn();
+  const openRef = React.useRef<HTMLButtonElement>(null);
+  const closeRef = React.useRef<HTMLButtonElement>(null);
+  const findRef = React.useRef<HTMLInputElement>(null);
+  const fromRef = React.useRef<HTMLInputElement>(null);
+  const descendantRef = React.useRef<HTMLInputElement>(null);
+  const openCard = () => {
+    returnFocus(() => closeRef.current);
+    setOpen(true);
+  };
+  const closeCard = () => {
+    returnFocus(() => openRef.current);
+    setOpen(false);
+  };
+
   // Once the card has done its job — somebody opened, a connection lit — it
   // gets out of the way of what it just put on the canvas. The button's count
   // still says what is switched on.
   const connect = (next: ConnectionEnds) => {
-    if (onConnectionChange(next)) setOpen(false);
+    if (onConnectionChange(next)) closeCard();
   };
 
   const connecting = !!connection.from && !!connection.to;
@@ -266,9 +286,10 @@ export function TreeSearch({
   if (!open) {
     return (
       <Button
+        ref={openRef}
         size="sm"
         variant="outline"
-        onClick={() => setOpen(true)}
+        onClick={openCard}
         className="gap-1.5 bg-card shadow-md"
         aria-label="Search and filters"
         aria-expanded={false}
@@ -294,16 +315,19 @@ export function TreeSearch({
   }
 
   return (
-    <div className="relative z-10 flex max-h-[calc(100dvh-9rem)] w-[calc(100vw-2rem)] max-w-72 flex-col gap-3 overflow-y-auto rounded-xl border border-border bg-card p-3 shadow-md sm:w-72">
+    // On a touch screen the ✕'s hit area reaches past the card's padding; it
+    // mustn't make the card scroll sideways.
+    <div className="relative z-10 flex max-h-[calc(100dvh-9rem)] w-[calc(100vw-2rem)] max-w-72 flex-col gap-3 overflow-x-hidden overflow-y-auto rounded-xl border border-border bg-card p-3 shadow-md sm:w-72">
       <div className="flex items-center justify-between">
         <h2 className="flex items-center gap-1.5 text-sm font-medium">
           <SlidersHorizontal className="size-3.5 text-muted-foreground" />
           Search &amp; filters
         </h2>
         <button
+          ref={closeRef}
           type="button"
-          onClick={() => setOpen(false)}
-          className="text-muted-foreground hover:text-foreground"
+          onClick={closeCard}
+          className="relative tap-target text-muted-foreground hover:text-foreground"
           aria-label="Close search and filters"
         >
           <X className="size-4" />
@@ -318,6 +342,7 @@ export function TreeSearch({
         onToggle={() => toggle("find")}
       >
         <Input
+          ref={findRef}
           value={filter.text}
           onChange={(e) => set({ text: e.target.value })}
           placeholder="Name or place…"
@@ -395,7 +420,12 @@ export function TreeSearch({
               <p className="text-xs text-muted-foreground">
                 {results.length} {results.length === 1 ? "match" : "matches"}
               </p>
-              <ClearButton onClick={() => onFilterChange(EMPTY_FILTER)} />
+              <ClearButton
+                onClick={() => {
+                  returnFocus(() => findRef.current);
+                  onFilterChange(EMPTY_FILTER);
+                }}
+              />
             </div>
             <ul className="mt-1.5 flex max-h-48 flex-col gap-0.5 overflow-y-auto">
               {results.map((p) => {
@@ -448,6 +478,7 @@ export function TreeSearch({
           excludeId={connection.to}
           placeholder="First person…"
           label="First person of the connection"
+          inputRef={fromRef}
         />
         <PersonPicker
           people={people}
@@ -466,7 +497,12 @@ export function TreeSearch({
                 : "Pick two people to light the line between them."}
           </p>
           {connection.from || connection.to ? (
-            <ClearButton onClick={() => onConnectionChange(NO_CONNECTION)} />
+            <ClearButton
+              onClick={() => {
+                returnFocus(() => fromRef.current);
+                onConnectionChange(NO_CONNECTION);
+              }}
+            />
           ) : null}
         </div>
       </Section>
@@ -493,7 +529,12 @@ export function TreeSearch({
               Only descendants of
             </span>
             {descending ? (
-              <ClearButton onClick={() => onDescendantsOfChange([])} />
+              <ClearButton
+                onClick={() => {
+                  returnFocus(() => descendantRef.current);
+                  onDescendantsOfChange([]);
+                }}
+              />
             ) : null}
           </div>
           <PersonPicker
@@ -507,6 +548,7 @@ export function TreeSearch({
             excludeId={descendantsOf[1]}
             placeholder="Pick a person…"
             label="Only the descendants of"
+            inputRef={descendantRef}
           />
           {descending ? (
             <PersonPicker

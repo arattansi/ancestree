@@ -159,7 +159,9 @@ export default async function EditPersonPage({
     listTreeMembers(tree.id),
     supabase
       .from("tree_edges")
-      .select("id, from_person, to_person, type, created_by")
+      .select(
+        "id, from_person, to_person, type, created_by, marriage_date, marriage_month, divorce_date",
+      )
       .eq("tree_id", tree.id)
       .or(`from_person.eq.${personId},to_person.eq.${personId}`),
   ]);
@@ -192,6 +194,10 @@ export default async function EditPersonPage({
           },
           treeViewer,
         ),
+        // A spouse line's dates go with it; its Remove says so first. A
+        // day and month without a year counts (Step 63).
+        hasMarriageDate: Boolean(r.marriage_date || r.marriage_month),
+        hasDivorceDate: Boolean(r.divorce_date),
       },
     ];
   });

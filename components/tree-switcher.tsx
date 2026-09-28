@@ -1,8 +1,6 @@
 "use client";
 
-import * as React from "react";
 import { CheckIcon, ChevronDownIcon } from "lucide-react";
-import { toast } from "sonner";
 
 import { switchTree } from "@/app/actions/current-tree";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +12,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useAction } from "@/components/use-action";
 import { accountTypeOf, type AccountTypeKey } from "@/lib/account-types";
 import { cn } from "@/lib/utils";
 
@@ -35,23 +34,21 @@ export function TreeSwitcher({
   /** A tree opened to them from another: read-only, not in `trees`. */
   visiting?: { name: string } | null;
 }) {
-  const [pending, startTransition] = React.useTransition();
+  const action = useAction();
   const current = trees.find((t) => t.id === currentId) ?? null;
   const label = visiting?.name ?? current?.name ?? "Your trees";
 
   function choose(tree: SwitcherTree) {
     if (tree.id === currentId) return;
-    startTransition(async () => {
-      const res = await switchTree(tree.id);
-      // A successful switch redirects; only a refusal comes back.
-      if (res?.error) toast.error(res.error);
-    });
+    // A switch redirects, and the menu stays busy until the tree has opened;
+    // only a refusal comes back.
+    action.run("switch", () => switchTree(tree.id));
   }
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        disabled={pending}
+        disabled={action.pending}
         className="flex min-w-0 max-w-[16rem] items-center gap-1 rounded-md px-2 py-1 text-sm font-semibold tracking-tight text-foreground outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
         aria-label={`Tree: ${label}. Switch tree`}
       >

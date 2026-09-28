@@ -1,10 +1,7 @@
 "use client";
 
-import * as React from "react";
-import { toast } from "sonner";
-
 import { deleteMember } from "@/app/actions/members";
-import { Button } from "@/components/ui/button";
+import { ConfirmButton } from "@/components/confirm-dialog";
 import { memberRemovedToast, removeMemberConfirm } from "@/lib/remove-member";
 
 /**
@@ -31,50 +28,27 @@ export function DeleteMemberButton({
    */
   onlyTree: boolean | null;
 }) {
-  const [busy, setBusy] = React.useState(false);
-
-  async function onDelete() {
-    if (
-      !window.confirm(
-        removeMemberConfirm({ name, treeName, entryCount, onlyTree }),
-      )
-    ) {
-      return;
-    }
-
-    setBusy(true);
-    let res: { error?: string; lastTree?: boolean };
-    try {
-      res = await deleteMember(treeId, userId);
-    } catch {
-      toast.error("Couldn't reach the server — reload the page and try again.");
-      setBusy(false);
-      return;
-    }
-    setBusy(false);
-    if (res.error) {
-      toast.error(res.error);
-      return;
-    }
-    toast.success(
-      memberRemovedToast({
-        name,
-        treeName,
-        loginDeleted: res.lastTree === true,
-      }),
-    );
-  }
-
   return (
-    <Button
-      type="button"
+    <ConfirmButton
       size="sm"
       variant="destructive"
-      disabled={busy}
-      onClick={onDelete}
       aria-label={`Remove ${name}`}
+      confirm={{
+        ...removeMemberConfirm({ name, treeName, entryCount, onlyTree }),
+        confirmLabel: "Remove",
+        pendingLabel: "Removing…",
+        onConfirm: () => deleteMember(treeId, userId),
+        // Whether their login went, as the removal found it: nothing on the
+        // page says so.
+        success: (res) =>
+          memberRemovedToast({
+            name,
+            treeName,
+            loginDeleted: res.lastTree === true,
+          }),
+      }}
     >
-      {busy ? "Removing…" : "Remove"}
-    </Button>
+      Remove
+    </ConfirmButton>
   );
 }

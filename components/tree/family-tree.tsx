@@ -37,6 +37,7 @@ import "@xyflow/react/dist/style.css";
 
 import { autoArrangeTree, setPersonPosition } from "@/app/actions/people";
 import { setPetPosition } from "@/app/actions/pets";
+import { ConfirmButton } from "@/components/confirm-dialog";
 import { RequestInviteDialog } from "@/components/request-invite-form";
 import { AddRelativeButton } from "@/components/tree/add-relative-button";
 import { CanvasTip } from "@/components/tree/canvas-tip";
@@ -67,7 +68,9 @@ import {
 } from "@/lib/tree-search";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { toastError } from "@/components/use-action";
 import { accountTypeOf } from "@/lib/account-types";
+import { isRedirect, UNREACHABLE } from "@/lib/action-feedback";
 import {
   branchReach,
   canAddRelativeOf,
@@ -835,7 +838,7 @@ function FoldedDetails({
         type="button"
         onClick={onClose}
         aria-label="Close"
-        className="flex size-8 shrink-0 items-center justify-center text-muted-foreground/60 hover:text-foreground"
+        className="relative tap-target flex size-8 shrink-0 items-center justify-center text-muted-foreground hover:text-foreground"
       >
         ✕
       </button>
@@ -1094,7 +1097,6 @@ function Canvas({
   // what's drawn once the Root's side is switched (Step 48).
   const [aimTick, setAimTick] = React.useState(0);
   const [wholeTick, setWholeTick] = React.useState(0);
-  const [arranging, setArranging] = React.useState(false);
   const { getNode, getInternalNode, screenToFlowPosition, setCenter } =
     useReactFlow();
   const updateNodeInternals = useUpdateNodeInternals();
@@ -2056,17 +2058,28 @@ function Canvas({
   // card keeps its offset as the tree grows instead of freezing in place. A
   // refused move says why and puts the card back where the tree last had it —
   // its seeded position, saved nudges included — rather than leaving it where
-  // it was dropped as though the move had stuck.
+  // it was dropped as though the move had stuck. So does a move that never
+  // reached the server. Nothing waits on the answer: the card is already
+  // where it was dropped.
   const onNodeDragStop = React.useCallback<OnNodeDrag>(
     (_, node) => {
-      const refused = (res: { error?: string }) => {
-        if (!res.error) return;
-        toast.error(res.error);
+      const putBack = (message: string) => {
+        toastError(message);
         const home = graph.nodes.find((n) => n.id === node.id)?.position;
         if (!home) return;
         setNodes((ns) =>
           ns.map((n) => (n.id === node.id ? { ...n, position: home } : n)),
         );
+      };
+      const refused = (res: { error?: string }) => {
+        if (res.error) putBack(res.error);
+      };
+      const unreachable = (thrown: unknown) => {
+        // Signed out meanwhile: the action redirected, and the router is
+        // already on its way there.
+        if (isRedirect(thrown)) return;
+        console.error(thrown);
+        putBack(UNREACHABLE);
       };
       if (node.type === "pet") {
         const spot = graph.petPositions.get(node.id);
@@ -2075,7 +2088,7 @@ function Canvas({
           node.id,
           node.position.x - spot.x,
           node.position.y - spot.y,
-        ).then(refused);
+        ).then(refused, unreachable);
         return;
       }
       if (node.type !== "person") return;
@@ -2086,20 +2099,10 @@ function Canvas({
         node.id,
         node.position.x - auto.x,
         node.position.y - auto.y,
-      ).then(refused);
+      ).then(refused, unreachable);
     },
     [graph, setNodes, treeId],
   );
-
-  const onAutoArrange = React.useCallback(() => {
-    setArranging(true);
-    void autoArrangeTree(treeId)
-      .then((res) => {
-        if (res.error) toast.error(res.error);
-        else toast.success("Tree re-arranged.");
-      })
-      .finally(() => setArranging(false));
-  }, [treeId]);
 
   const selectedPerson = people.find((p) => p.id === selectedId) ?? null;
   // Minimized to the card that stands in for the "…'s tree" pill. Never
@@ -2384,19 +2387,25 @@ function Canvas({
             labelFrom={sheetOut ? "lg" : "sm"}
           />
           {!readOnly && isAdmin ? (
-            <Button
+            // It undoes every move anyone has made by hand, so it asks first
+            // (Step 70); the dialog shows it running.
+            <ConfirmButton
               size="sm"
               variant="outline"
-              onClick={onAutoArrange}
-              disabled={arranging}
               className="group/expand gap-0"
               aria-label="Auto-arrange"
+              confirm={{
+                title: "Auto-arrange the tree?",
+                description:
+                  "Every card moved by hand goes back to its place.\nThis cannot be undone.",
+                confirmLabel: "Auto-arrange",
+                pendingLabel: "Arranging…",
+                onConfirm: () => autoArrangeTree(treeId),
+              }}
             >
               <ColumnsIcon />
-              <ExpandingLabel>
-                {arranging ? "Arranging…" : "Auto-arrange"}
-              </ExpandingLabel>
-            </Button>
+              <ExpandingLabel>Auto-arrange</ExpandingLabel>
+            </ConfirmButton>
           ) : null}
         </Panel>
         {path && pathSummary ? (
@@ -2427,7 +2436,7 @@ function Canvas({
               </span>
               <button
                 type="button"
-                className="text-muted-foreground/60 hover:text-foreground"
+                className="relative tap-target text-muted-foreground hover:text-foreground"
                 onClick={() => setConnectionEnds(NO_CONNECTION)}
                 aria-label="Show the whole tree again"
               >
@@ -2474,7 +2483,7 @@ function Canvas({
                 </span>
                 <button
                   type="button"
-                  className="text-muted-foreground/60 hover:text-foreground"
+                  className="relative tap-target text-muted-foreground hover:text-foreground"
                   onClick={() => setSelectedId(null)}
                   aria-label="Show the whole tree again"
                 >
@@ -2504,7 +2513,7 @@ function Canvas({
               </span>
               <button
                 type="button"
-                className="text-muted-foreground/60 hover:text-foreground"
+                className="relative tap-target text-muted-foreground hover:text-foreground"
                 onClick={() => setSelectedEdgeId(null)}
                 aria-label="Clear connection highlight"
               >

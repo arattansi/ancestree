@@ -9,6 +9,8 @@ import {
   turnOffFamilyLink,
 } from "@/app/actions/family-link";
 import { AccountTypeBadge } from "@/components/account-type-badge";
+import { ConfirmButton } from "@/components/confirm-dialog";
+import { PendingButton } from "@/components/pending-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +22,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { toastError, useAction } from "@/components/use-action";
+import { useFocusReturn } from "@/components/use-focus-return";
 import {
   FAMILY_LINK_CAPS,
   FAMILY_LINK_MAX_USES,
@@ -54,16 +58,19 @@ export function AdminFamilyLink({
   joins: FamilyLinkJoin[];
   baseUrl: string;
 }) {
-  const serverCap = link?.maxUses ?? FAMILY_LINK_MAX_USES;
-  const [cap, setCap] = React.useState(serverCap);
-  const [seenCap, setSeenCap] = React.useState(serverCap);
-  const [pending, startTransition] = React.useTransition();
-
-  // A rotation, or another Root's change, brings a new cap from the server.
-  if (seenCap !== serverCap) {
-    setSeenCap(serverCap);
-    setCap(serverCap);
-  }
+  // Before there's a link, the cap is only picked here, for Make to use.
+  const [draftCap, setDraftCap] = React.useState(FAMILY_LINK_MAX_USES);
+  // With one, a new cap shows as it's picked and saves at once, and goes
+  // back by itself if the save doesn't take.
+  const [cap, setCap] = React.useOptimistic(link ? link.maxUses : draftCap);
+  // Making the link and changing its cap, one at a time. Rotate and Turn off
+  // ask first, and wait for them.
+  const action = useAction();
+  // Making the link and turning it off each swap the buttons for others:
+  // focus goes on to the one that takes their place.
+  const returnFocus = useFocusReturn();
+  const makeRef = React.useRef<HTMLButtonElement>(null);
+  const copyRef = React.useRef<HTMLButtonElement>(null);
 
   const url = link ? `${baseUrl}/join/${link.token}` : null;
   const full = link ? isFamilyLinkFull(link) : false;
@@ -73,57 +80,29 @@ export function AdminFamilyLink({
       await navigator.clipboard.writeText(text);
       if (!silent) toast.success("Family link copied");
     } catch {
-      if (!silent) toast.error("Couldn't copy. Select the link and copy it.");
+      if (!silent) toastError("Couldn't copy. Select the link and copy it.");
     }
   }
 
   function make() {
-    startTransition(async () => {
-      const res = await rotateFamilyLink(treeId, cap);
-      if (res.error) {
-        toast.error(res.error);
-        return;
-      }
-      toast.success(link ? "New link made. The old one no longer works." : "Family link made.");
+    action.run("make", () => rotateFamilyLink(treeId, cap), {
+      onSuccess: () => {
+        // Once turned off, the next link starts from the default again.
+        setDraftCap(FAMILY_LINK_MAX_USES);
+        returnFocus(() => copyRef.current);
+      },
     });
-  }
-
-  function rotate() {
-    if (
-      !window.confirm(
-        "Rotate the family link?\nThe current link stops working and the count starts again.",
-      )
-    ) {
-      return;
-    }
-    make();
   }
 
   function changeCap(next: number) {
-    setCap(next);
-    if (!link || next === link.maxUses) return;
-    startTransition(async () => {
-      const res = await setFamilyLinkCap(treeId, next);
-      if (res.error) {
-        toast.error(res.error);
-        setCap(link.maxUses);
-        return;
-      }
-      toast.success(`Cap set to ${next}.`);
-    });
-  }
-
-  function turnOff() {
-    if (!window.confirm("Turn off the family link?\nIt stops working for anyone who hasn't used it.")) {
+    if (!link) {
+      setDraftCap(next);
       return;
     }
-    startTransition(async () => {
-      const res = await turnOffFamilyLink(treeId);
-      if (res.error) {
-        toast.error(res.error);
-        return;
-      }
-      toast.success("Family link turned off.");
+    if (next === link.maxUses) return;
+    action.run("cap", async () => {
+      setCap(next);
+      return setFamilyLinkCap(treeId, next);
     });
   }
 
@@ -135,7 +114,7 @@ export function AdminFamilyLink({
       <Select
         value={String(cap)}
         onValueChange={(v) => changeCap(Number(v ?? cap))}
-        disabled={pending}
+        disabled={action.pending}
       >
         <SelectTrigger id="family-link-cap" size="sm" className="min-w-16">
           <SelectValue />
@@ -176,7 +155,7 @@ export function AdminFamilyLink({
               onFocus={(e) => e.currentTarget.select()}
             />
             <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={() => copy(url)}>
+              <Button ref={copyRef} type="button" variant="outline" onClick={() => copy(url)}>
                 Copy
               </Button>
               <Button
@@ -204,28 +183,53 @@ export function AdminFamilyLink({
           <div className="flex flex-wrap items-center justify-between gap-3">
             {capPicker}
             <div className="flex gap-2">
-              <Button type="button" variant="outline" size="sm" disabled={pending} onClick={rotate}>
-                {pending ? "Working…" : "Rotate"}
-              </Button>
-              <Button
-                type="button"
+              <ConfirmButton
+                variant="outline"
+                size="sm"
+                disabled={action.pending}
+                confirm={{
+                  title: "Rotate the family link?",
+                  description: "The current link stops working and the count starts again.",
+                  destructive: false,
+                  confirmLabel: "Rotate",
+                  pendingLabel: "Rotating…",
+                  onConfirm: () => rotateFamilyLink(treeId, cap),
+                }}
+              >
+                Rotate
+              </ConfirmButton>
+              <ConfirmButton
                 variant="outline"
                 size="sm"
                 className="text-destructive"
-                disabled={pending}
-                onClick={turnOff}
+                disabled={action.pending}
+                confirm={{
+                  title: "Turn off the family link?",
+                  description: "It stops working for anyone who hasn’t used it.",
+                  confirmLabel: "Turn off",
+                  pendingLabel: "Turning off…",
+                  onConfirm: () => turnOffFamilyLink(treeId),
+                  onSuccess: () => returnFocus(() => makeRef.current),
+                }}
               >
                 Turn off
-              </Button>
+              </ConfirmButton>
             </div>
           </div>
         </div>
       ) : (
         <div className="flex flex-wrap items-center gap-3">
           {capPicker}
-          <Button type="button" onClick={make} disabled={pending}>
-            {pending ? "Making…" : "Make family link"}
-          </Button>
+          <PendingButton
+            ref={makeRef}
+            type="button"
+            onClick={make}
+            pending={action.pendingKey === "make"}
+            disabled={action.pending}
+            pendingLabel="Making…"
+          >
+            Make family link
+          </PendingButton>
         </div>
       )}
 

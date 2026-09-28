@@ -8,14 +8,21 @@ import {
   removeNickname,
   removeNicknameGroup,
 } from "@/app/actions/nicknames";
-import { Button } from "@/components/ui/button";
+import { ConfirmButton } from "@/components/confirm-dialog";
+import { FormError } from "@/components/form-error";
+import { PendingButton } from "@/components/pending-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toastError, useAction } from "@/components/use-action";
+import { refocusAfterRemoval } from "@/components/use-focus-return";
+import { UNREACHABLE } from "@/lib/action-feedback";
 import {
   filterNicknameGroups,
   nicknameInputError,
   type NicknameGroup,
 } from "@/lib/nicknames";
+
+type Removal = { canonical: string; variant: string };
 
 /**
  * Admin panel for the nickname groups behind the onboarding name search
@@ -27,55 +34,36 @@ export function AdminNicknames({ groups }: { groups: NicknameGroup[] }) {
   const [root, setRoot] = React.useState("");
   const [nickname, setNickname] = React.useState("");
   const [query, setQuery] = React.useState("");
-  const [saving, setSaving] = React.useState(false);
-  const [busy, setBusy] = React.useState<string | null>(null);
-  const [error, setError] = React.useState<string | null>(null);
-
-  const visible = React.useMemo(
-    () => filterNicknameGroups(groups, query),
-    [groups, query],
+  const add = useAction({ inline: true });
+  // A nickname leaves its group as soon as its × is pressed, and comes back
+  // by itself if the removal fails.
+  const [shown, hide] = React.useOptimistic(
+    groups,
+    (list: NicknameGroup[], { canonical, variant }: Removal) =>
+      list.map((g) =>
+        g.canonical === canonical
+          ? { ...g, variants: g.variants.filter((v) => v !== variant) }
+          : g,
+      ),
   );
 
-  async function onAdd(event: React.FormEvent) {
+  const visible = React.useMemo(
+    () => filterNicknameGroups(shown, query),
+    [shown, query],
+  );
+
+  function onAdd(event: React.FormEvent) {
     event.preventDefault();
     const invalid = nicknameInputError(root, nickname);
     if (invalid) {
-      setError(invalid);
+      add.setError(invalid);
       return;
     }
-
-    setError(null);
-    setSaving(true);
-    const res = await addNickname(root, nickname);
-    setSaving(false);
-
-    if (res.error) {
-      setError(res.error);
-      return;
-    }
-    toast.success(`Added to the ${res.canonical} group.`);
-    setNickname("");
-  }
-
-  async function onRemove(canonical: string, variant: string) {
-    setBusy(`${canonical}:${variant}`);
-    const res = await removeNickname(canonical, variant);
-    setBusy(null);
-    if (res.error) {
-      toast.error(res.error);
-      return;
-    }
-  }
-
-  async function onRemoveGroup(canonical: string) {
-    setBusy(canonical);
-    const res = await removeNicknameGroup(canonical);
-    setBusy(null);
-    if (res.error) {
-      toast.error(res.error);
-      return;
-    }
-    toast.success(`Removed the ${canonical} group.`);
+    add.run("add", () => addNickname(root, nickname), {
+      // Names the group it joined, as stored: folded, maybe not as typed.
+      success: (res) => `Added to the ${res.canonical} group.`,
+      onSuccess: () => setNickname(""),
+    });
   }
 
   return (
@@ -100,11 +88,11 @@ export function AdminNicknames({ groups }: { groups: NicknameGroup[] }) {
               onChange={(e) => setNickname(e.target.value)}
             />
           </div>
-          <Button type="submit" disabled={saving}>
-            {saving ? "Adding…" : "Add"}
-          </Button>
+          <PendingButton type="submit" pending={add.pending} pendingLabel="Adding…">
+            Add
+          </PendingButton>
         </div>
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        <FormError>{add.error}</FormError>
         <p className="text-xs text-muted-foreground">
           Names are stored lowercase without accents or punctuation. Adding to
           an existing root extends that group; a new root starts one.
@@ -152,36 +140,87 @@ export function AdminNicknames({ groups }: { groups: NicknameGroup[] }) {
                   </span>
                 ) : (
                   g.variants.map((v) => (
-                    <span
-                      key={v}
-                      className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-sm"
-                    >
-                      {v}
-                      <button
-                        type="button"
-                        aria-label={`Remove ${v} from ${g.canonical}`}
-                        className="text-muted-foreground hover:text-destructive"
-                        onClick={() => onRemove(g.canonical, v)}
-                        disabled={busy !== null}
-                      >
-                        ×
-                      </button>
-                    </span>
+                    <Nickname key={v} canonical={g.canonical} variant={v} hide={hide} />
                   ))
                 )}
-                <button
-                  type="button"
-                  className="ml-auto text-xs text-muted-foreground underline underline-offset-2 hover:text-destructive"
-                  onClick={() => onRemoveGroup(g.canonical)}
-                  disabled={busy !== null}
+                <ConfirmButton
+                  variant="link"
+                  className="relative tap-target ml-auto h-auto p-0 text-xs font-normal text-muted-foreground underline underline-offset-2 hover:text-destructive"
+                  confirm={{
+                    title: `Remove the ${g.canonical} group?`,
+                    // A group with no nicknames matches nothing: nothing is lost.
+                    description:
+                      g.variants.length > 0
+                        ? `Search on every tree stops matching ${g.canonical} with its nicknames.\nThis cannot be undone.`
+                        : undefined,
+                    confirmLabel: "Remove",
+                    pendingLabel: "Removing…",
+                    onConfirm: () => removeNicknameGroup(g.canonical),
+                  }}
                 >
-                  {busy === g.canonical ? "Removing…" : "Remove group"}
-                </button>
+                  Remove group
+                </ConfirmButton>
               </li>
             ))}
           </ul>
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * One nickname in its group, with a × that takes it out at once and offers
+ * Undo: it's cheap to put back, so nothing asks first. Each has its own
+ * call, so a second × doesn't wait for the first.
+ */
+function Nickname({
+  canonical,
+  variant,
+  hide,
+}: Removal & { hide: (removal: Removal) => void }) {
+  const action = useAction();
+
+  function onRemove(event: React.MouseEvent<HTMLButtonElement>) {
+    // The name leaves with its ×, which had focus: the next name's × gets it.
+    refocusAfterRemoval(event.currentTarget);
+    action.run(
+      "remove",
+      async () => {
+        hide({ canonical, variant });
+        return removeNickname(canonical, variant);
+      },
+      {
+        onSuccess: () =>
+          toast(`Removed ${variant} from ${canonical}.`, {
+            action: {
+              label: "Undo",
+              onClick: () => {
+                void addNickname(canonical, variant).then(
+                  (res) => res?.error && toastError(res.error),
+                  () => toastError(UNREACHABLE),
+                );
+              },
+            },
+          }),
+      },
+    );
+  }
+
+  return (
+    <span
+      data-row
+      className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-sm"
+    >
+      {variant}
+      <button
+        type="button"
+        aria-label={`Remove ${variant} from ${canonical}`}
+        className="relative tap-target text-muted-foreground hover:text-destructive"
+        onClick={onRemove}
+      >
+        ×
+      </button>
+    </span>
   );
 }

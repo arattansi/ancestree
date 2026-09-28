@@ -5,15 +5,14 @@ import Link from "next/link";
 import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-import {
-  sendDirectInvites,
-  type DirectInviteResult,
-} from "@/app/actions/invites";
+import { sendDirectInvites } from "@/app/actions/invites";
 import {
   ACCOUNT_TYPE_TONE,
   AccountTypeGlyph,
 } from "@/components/account-type-badge";
 import { AccountTypeGuide } from "@/components/account-type-guide";
+import { FormError } from "@/components/form-error";
+import { PendingButton } from "@/components/pending-button";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -24,6 +23,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAction } from "@/components/use-action";
 import {
   ACCOUNT_TYPES,
   BRANCHES_PER_ROOT,
@@ -78,70 +78,73 @@ export function InviteStep({
   const nextRow = React.useRef(1);
   const [rows, setRows] = React.useState<Row[]>(() => [blankRow(`${idBase}-0`)]);
   const newRow = () => blankRow(`${idBase}-${nextRow.current++}`);
-  const [pending, setPending] = React.useState(false);
+  // Why each row kept after a send is still there, by row key.
+  const [reasons, setReasons] = React.useState<Record<string, string>>({});
+  const action = useAction({ inline: true });
 
   function update(key: string, patch: Partial<Omit<Row, "key">>) {
     setRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)));
   }
 
-  async function onSubmit(event: React.FormEvent) {
+  function onSubmit(event: React.FormEvent) {
     event.preventDefault();
+    // They were about the last try.
+    setReasons({});
     const filled = rows.filter(
       (r) => r.firstName.trim() || r.lastName.trim() || r.email.trim(),
     );
     if (filled.length === 0) {
-      toast.error("Add someone to invite, or skip this step for now.");
+      action.setError("Add someone to invite, or skip this step for now.");
       return;
     }
 
-    setPending(true);
-    let results: DirectInviteResult[] = [];
-    try {
-      const res = await sendDirectInvites(
-        treeId,
-        filled.map(({ firstName, lastName, email }) => ({
-          firstName,
-          lastName,
-          email,
-        })),
-      );
-      if (res.error) {
-        toast.error(res.error);
-        return;
-      }
-      results = res.results ?? [];
-    } catch {
-      // A rejected server action (stale id after a deploy, dropped
-      // connection) mustn't leave the button on "Sending…".
-      toast.error("Couldn't reach the server — reload the page and try again.");
-      return;
-    } finally {
-      setPending(false);
-    }
+    action.run(
+      "send",
+      () =>
+        sendDirectInvites(
+          treeId,
+          filled.map(({ firstName, lastName, email }) => ({
+            firstName,
+            lastName,
+            email,
+          })),
+        ),
+      {
+        // The emails are out of sight: say they went.
+        success: (res) => {
+          const sent = (res.results ?? []).filter((r) => r.minted && r.emailed);
+          if (sent.length === 0) return null;
+          return sent.length === 1
+            ? `Invite emailed to ${sent[0].email}.`
+            : `${sent.length} invites emailed.`;
+        },
+        onSuccess: (res) => {
+          const results = res.results ?? [];
+          results
+            .filter((r) => r.minted && !r.emailed)
+            .forEach((r) =>
+              toast.warning(
+                `The invite for ${r.email} is ready, but the email didn't send. Resend it from your account's admin view.`,
+              ),
+            );
 
-    const sent = results.filter((r) => r.minted && r.emailed);
-    const unsent = results.filter((r) => r.minted && !r.emailed);
-    const failed = results.filter((r) => !r.minted);
-    if (sent.length > 0) {
-      toast.success(
-        sent.length === 1
-          ? `Invite emailed to ${sent[0].email}.`
-          : `${sent.length} invites emailed.`,
-      );
-    }
-    unsent.forEach((r) =>
-      toast.warning(
-        `The invite for ${r.email} is ready, but the email didn't send. Resend it from your account's admin view.`,
-      ),
+          // Keep only the rows that failed outright, to fix and try again,
+          // each with why under it.
+          const why = new Map<string, string>();
+          for (const r of results) {
+            if (!r.minted) {
+              why.set(r.email, `Couldn't invite them: ${r.error ?? "unknown error"}`);
+            }
+          }
+          const reasonFor = (r: Row) => why.get(r.email.trim().toLowerCase());
+          const left = filled.filter((r) => reasonFor(r) !== undefined);
+          setRows(left.length > 0 ? left : [newRow()]);
+          setReasons(
+            Object.fromEntries(left.map((r) => [r.key, reasonFor(r) ?? ""])),
+          );
+        },
+      },
     );
-    failed.forEach((r) =>
-      toast.error(`Couldn't invite ${r.email}: ${r.error ?? "unknown error"}`),
-    );
-
-    // Keep only the rows that failed outright, to fix and try again.
-    const retry = new Set(failed.map((r) => r.email));
-    const left = filled.filter((r) => retry.has(r.email.trim().toLowerCase()));
-    setRows(left.length > 0 ? left : [newRow()]);
   }
 
   return (
@@ -264,6 +267,7 @@ export function InviteStep({
                       onChange={(e) => update(row.key, { email: e.target.value })}
                       placeholder="name@example.com"
                       autoComplete="off"
+                      aria-describedby={reasons[row.key] ? `${row.key}-why` : undefined}
                     />
                   </div>
                   <Button
@@ -278,9 +282,18 @@ export function InviteStep({
                   >
                     <Trash2 aria-hidden />
                   </Button>
+                  {reasons[row.key] ? (
+                    <p
+                      id={`${row.key}-why`}
+                      className="text-sm text-destructive sm:col-span-4"
+                    >
+                      {reasons[row.key]}
+                    </p>
+                  ) : null}
                 </fieldset>
               ))}
             </div>
+            <FormError>{action.error}</FormError>
             <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
@@ -291,9 +304,14 @@ export function InviteStep({
                 <Plus aria-hidden />
                 Add another
               </Button>
-              <Button type="submit" size="sm" disabled={pending}>
-                {pending ? "Sending…" : "Send invites"}
-              </Button>
+              <PendingButton
+                type="submit"
+                size="sm"
+                pending={action.pending}
+                pendingLabel="Sending…"
+              >
+                Send invites
+              </PendingButton>
             </div>
           </form>
         </CardContent>

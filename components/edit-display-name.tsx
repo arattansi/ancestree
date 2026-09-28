@@ -2,12 +2,15 @@
 
 import { Pencil } from "lucide-react";
 import * as React from "react";
-import { toast } from "sonner";
 
 import { updateDisplayName } from "@/app/actions/profile";
+import { FormError } from "@/components/form-error";
+import { PendingButton } from "@/components/pending-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAction } from "@/components/use-action";
+import { useFocusReturn } from "@/components/use-focus-return";
 
 /**
  * Inline editor for a member's own display name, shown as the account card
@@ -16,20 +19,24 @@ import { Label } from "@/components/ui/label";
 export function EditDisplayName({ name }: { name: string | null }) {
   const [editing, setEditing] = React.useState(false);
   const [value, setValue] = React.useState(name ?? "");
-  const [saving, setSaving] = React.useState(false);
+  const action = useAction({ inline: true });
+  const returnFocus = useFocusReturn();
+  const pencilRef = React.useRef<HTMLButtonElement>(null);
 
-  async function onSave(event: React.FormEvent) {
-    event.preventDefault();
-    setSaving(true);
-    const res = await updateDisplayName(value);
-    setSaving(false);
-    if (res.error) {
-      toast.error(res.error);
-      return;
-    }
-    toast.success("Name updated.");
-    if (res.displayName) setValue(res.displayName);
+  // Save and Cancel go with the form: focus goes back to the pencil.
+  function close() {
     setEditing(false);
+    returnFocus(() => pencilRef.current);
+  }
+
+  function onSave(event: React.FormEvent) {
+    event.preventDefault();
+    action.run("save", () => updateDisplayName(value), {
+      onSuccess: (res) => {
+        if (res.displayName) setValue(res.displayName);
+        close();
+      },
+    });
   }
 
   if (!editing) {
@@ -37,10 +44,12 @@ export function EditDisplayName({ name }: { name: string | null }) {
       <span className="flex items-center gap-2">
         <span>{name ?? "Member"}</span>
         <Button
+          ref={pencilRef}
           type="button"
           variant="ghost"
           size="icon-xs"
           aria-label="Edit your name"
+          className="relative tap-target"
           onClick={() => setEditing(true)}
         >
           <Pencil />
@@ -62,18 +71,25 @@ export function EditDisplayName({ name }: { name: string | null }) {
         onChange={(e) => setValue(e.target.value)}
         className="text-base font-normal"
       />
+      <FormError>{action.error}</FormError>
       <div className="flex gap-2">
-        <Button type="submit" size="sm" disabled={saving}>
-          {saving ? "Saving…" : "Save"}
-        </Button>
+        <PendingButton
+          type="submit"
+          size="sm"
+          pending={action.pending}
+          pendingLabel="Saving…"
+        >
+          Save
+        </PendingButton>
         <Button
           type="button"
           size="sm"
           variant="ghost"
-          disabled={saving}
+          disabled={action.pending}
           onClick={() => {
             setValue(name ?? "");
-            setEditing(false);
+            action.setError(null);
+            close();
           }}
         >
           Cancel

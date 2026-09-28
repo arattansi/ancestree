@@ -3,11 +3,11 @@
 import * as React from "react";
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { toast } from "sonner";
 
 import { placePeople } from "@/app/actions/trees";
 import { FamilyPersonChip } from "@/components/first-tree/family-person-chip";
 import { QuickRelativeDialog } from "@/components/first-tree/quick-relative-dialog";
+import { PendingButton } from "@/components/pending-button";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -17,6 +17,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useAction } from "@/components/use-action";
 import type { CloseKind, FamilyCard } from "@/lib/first-tree";
 import { cn } from "@/lib/utils";
 
@@ -277,32 +278,32 @@ function BringRelatives({
   options: BringOption[];
 }) {
   const [unticked, setUnticked] = React.useState<Set<string>>(new Set());
-  const [busy, setBusy] = React.useState(false);
+  const action = useAction();
   const picked = options.filter((o) => !unticked.has(o.id));
   const from = [...new Set(options.flatMap((o) => o.fromTrees))];
 
-  async function onBring() {
+  function onBring() {
     if (picked.length === 0) return;
-    setBusy(true);
-    const res = await placePeople(
-      treeId,
-      picked.map((o) => o.id),
-    );
-    setBusy(false);
-    if (res.error) {
-      toast.error(res.error);
-      return;
-    }
-    const placed = res.placed ?? [];
-    const asked = placed.filter((p) => p.status === "pending").length;
-    const shown = placed.length - asked;
-    toast.success(
-      [
-        shown > 0 ? `${shown} brought across` : null,
-        asked > 0 ? `${asked} asked first` : null,
-      ]
-        .filter(Boolean)
-        .join(", ") + ".",
+    action.run(
+      "bring",
+      () => placePeople(treeId, picked.map((o) => o.id)),
+      {
+        // Worth saying in the founder's first run: who came across, and who
+        // was asked first.
+        success: (res) => {
+          const placed = res.placed ?? [];
+          const asked = placed.filter((p) => p.status === "pending").length;
+          const shown = placed.length - asked;
+          return (
+            [
+              shown > 0 ? `${shown} brought across` : null,
+              asked > 0 ? `${asked} asked first` : null,
+            ]
+              .filter(Boolean)
+              .join(", ") + "."
+          );
+        },
+      },
     );
   }
 
@@ -345,17 +346,17 @@ function BringRelatives({
             </li>
           ))}
         </ul>
-        <Button
+        <PendingButton
           onClick={onBring}
-          disabled={busy || picked.length === 0}
+          pending={action.pending}
+          disabled={picked.length === 0}
+          pendingLabel="Bringing them across…"
           className="self-start"
         >
-          {busy
-            ? "Bringing them across…"
-            : picked.length === 1
-              ? "Bring them across"
-              : `Bring ${picked.length} across`}
-        </Button>
+          {picked.length === 1
+            ? "Bring them across"
+            : `Bring ${picked.length} across`}
+        </PendingButton>
       </CardContent>
     </Card>
   );

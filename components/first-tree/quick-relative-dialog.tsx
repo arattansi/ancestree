@@ -16,7 +16,9 @@ import {
   type SpouseDates,
 } from "@/components/add-person-flow";
 import { CoParentOffer } from "@/components/co-parent-offer";
+import { FormError } from "@/components/form-error";
 import { JoinsAsNote } from "@/components/joins-as-note";
+import { PendingButton } from "@/components/pending-button";
 import { PersonFields } from "@/components/person-fields";
 import { PhotoPicker } from "@/components/photo-picker";
 import { Button } from "@/components/ui/button";
@@ -25,6 +27,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Form } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAction } from "@/components/use-action";
 import { coParentSelection, type PartnerOption } from "@/lib/connections";
 import {
   closeRelativeEdges,
@@ -125,7 +128,9 @@ function QuickRelativeForm({
   const [photoBusy, setPhotoBusy] = React.useState(false);
   const [crop, setCrop] = React.useState<CropTransform>(DEFAULT_CROP);
   const [inviteEmail, setInviteEmail] = React.useState("");
-  const [error, setError] = React.useState<string | null>(null);
+  // Busy until the family step has drawn them in; what goes wrong shows by
+  // the button.
+  const action = useAction({ inline: true });
   const deceased = useWatch({ control: form.control, name: "is_deceased" });
 
   const partnerOptions: PartnerOption[] = partners.map((p) => ({
@@ -134,14 +139,14 @@ function QuickRelativeForm({
     isDivorced: p.isDivorced,
   }));
   const otherParent = kind === "parent" && parents.length === 1 ? parents[0] : null;
-  const submitting = form.formState.isSubmitting || photoBusy;
+  const submitting = action.pending || photoBusy;
 
-  async function onSubmit(values: PersonFormValues) {
-    setError(null);
+  function onSubmit(values: PersonFormValues) {
+    action.setError(null);
     // Nobody is invited to take over a deceased person's entry.
     const address = values.is_deceased ? "" : inviteEmail.trim();
     if (address && !EMAIL_RE.test(address)) {
-      setError("That email doesn't look right — fix it, or leave it empty.");
+      action.setError("That email doesn't look right — fix it, or leave it empty.");
       return;
     }
     const links: CloseRelativeLinks = {};
@@ -166,58 +171,67 @@ function QuickRelativeForm({
 
     const problem = closeRelativeProblem(kind, links);
     if (problem) {
-      setError(problem);
+      action.setError(problem);
       return;
     }
 
-    const result = await addPeopleWithConnections({
-      treeId,
-      people: [values],
-      edges: closeRelativeEdges(kind, founder.id, links),
-      selfIndex: null,
-    });
-    const personId = result.personIds?.[0];
-    if (result.error || !personId) {
-      setError(result.error ?? "Couldn't add them. Try again.");
-      return;
-    }
-
-    if (photoFile) {
-      try {
-        const supabase = createClient();
-        const path = `${treeId}/${personId}/${crypto.randomUUID()}.jpg`;
-        const { error: uploadError } = await supabase.storage
-          .from("photos")
-          .upload(path, photoFile, { contentType: "image/jpeg", upsert: false });
-        if (uploadError) throw uploadError;
-        const res = await setPersonPhoto(personId, path, crop);
-        if (res.error) throw new Error(res.error);
-      } catch {
-        toast.warning("Added — but the photo didn't upload. Add it from the tree.");
-      }
-    }
-
-    // Asked for with the entry, so sent once it exists, as the add-relative
-    // form does (Step 31). The entry stays whatever happens here, and their
-    // card on the tree offers the invite again.
-    let invited: string | null = null;
-    if (address) {
-      const res = await sendClaimInvite(personId, address);
-      if (res.error) {
-        toast.warning("Added — but the invite didn't send. Send it again from their card.", {
-          description: res.error,
+    action.run(
+      "add",
+      async (): Promise<{ error?: string; invited?: string }> => {
+        const result = await addPeopleWithConnections({
+          treeId,
+          people: [values],
+          edges: closeRelativeEdges(kind, founder.id, links),
+          selfIndex: null,
         });
-      } else {
-        invited = res.email ?? address;
-      }
-    }
+        const personId = result.personIds?.[0];
+        if (result.error || !personId) {
+          return { error: result.error ?? "Couldn't add them. Try again." };
+        }
 
-    toast.success(
-      invited
-        ? `${personDisplayName(values)} is on the tree. Invite sent to ${invited}.`
-        : `${personDisplayName(values)} is on the tree.`,
+        // They're on the tree from here on: nothing after this may send the
+        // form back to its start, where a second press would add them twice.
+        if (photoFile) {
+          try {
+            const supabase = createClient();
+            const path = `${treeId}/${personId}/${crypto.randomUUID()}.jpg`;
+            const { error: uploadError } = await supabase.storage
+              .from("photos")
+              .upload(path, photoFile, { contentType: "image/jpeg", upsert: false });
+            if (uploadError) throw uploadError;
+            const res = await setPersonPhoto(personId, path, crop);
+            if (res.error) throw new Error(res.error);
+          } catch {
+            toast.warning("Added — but the photo didn't upload. Add it from the tree.");
+          }
+        }
+
+        // Asked for with the entry, so sent once it exists, as the add-relative
+        // form does (Step 31). The entry stays whatever happens here, and their
+        // card on the tree offers the invite again.
+        if (!address) return {};
+        try {
+          const res = await sendClaimInvite(personId, address);
+          if (!res.error) return { invited: res.email ?? address };
+          toast.warning("Added — but the invite didn't send. Send it again from their card.", {
+            description: res.error,
+          });
+        } catch {
+          toast.warning("Added — but the invite didn't send. Send it again from their card.");
+        }
+        return {};
+      },
+      {
+        onSuccess: ({ invited }) => {
+          toast.success(
+            invited
+              ? `${personDisplayName(values)} is on the tree. Invite sent to ${invited}.`
+              : `${personDisplayName(values)} is on the tree.`,
+          );
+          onDone();
+        },
+      },
     );
-    onDone();
   }
 
   return (
@@ -334,16 +348,17 @@ function QuickRelativeForm({
           disabled={submitting}
         />
 
-        {error ? (
-          <p role="alert" className="text-sm font-medium text-destructive">
-            {error}
-          </p>
-        ) : null}
+        <FormError>{action.error}</FormError>
 
         <div className="flex gap-2">
-          <Button type="submit" disabled={submitting}>
-            {submitting ? "Adding…" : TITLES[kind]}
-          </Button>
+          <PendingButton
+            type="submit"
+            pending={action.pending}
+            disabled={photoBusy}
+            pendingLabel="Adding…"
+          >
+            {TITLES[kind]}
+          </PendingButton>
           <Button
             type="button"
             variant="ghost"

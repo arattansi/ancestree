@@ -3,9 +3,9 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 
 import { requestNewTree } from "@/app/actions/tree-requests";
+import { PendingButton } from "@/components/pending-button";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useAction } from "@/components/use-action";
 import { newTreeHref } from "@/lib/tree-links";
 import { TREE_REQUEST_RECEIVED, type TreeRequestStatus } from "@/lib/tree-requests";
 
@@ -44,7 +45,7 @@ export function StartTreeButton({
   const router = useRouter();
   const [asked, setAsked] = React.useState(false);
   const [open, setOpen] = React.useState(false);
-  const [busy, setBusy] = React.useState(false);
+  const action = useAction();
   // Pending as soon as they've asked, before the page is drawn again with
   // the ask (the action does that).
   const current: TreeRequestStatus =
@@ -59,41 +60,46 @@ export function StartTreeButton({
     );
   }
 
-  async function onClick() {
+  function onClick() {
     if (current === "pending") {
       setOpen(true);
       return;
     }
-    setBusy(true);
-    let res: Awaited<ReturnType<typeof requestNewTree>>;
-    try {
-      res = await requestNewTree();
-    } catch {
-      toast.error("Couldn't reach the server — reload the page and try again.");
-      return;
-    } finally {
-      setBusy(false);
-    }
-    if (res.error || !res.status) {
-      toast.error(res.error ?? "Couldn't send your request. Try again.");
-      return;
-    }
-    if (res.status === "approved") {
-      router.push(newTreeHref());
-      return;
-    }
-    if (res.status === "founded") {
-      return;
-    }
-    setAsked(true);
-    setOpen(true);
+    action.run(
+      "ask",
+      async (): Promise<Awaited<ReturnType<typeof requestNewTree>>> => {
+        const res = await requestNewTree();
+        return res.error || !res.status
+          ? { error: res.error ?? "Couldn't send your request. Try again." }
+          : res;
+      },
+      {
+        // Busy until what comes next is on screen, so a second tap can't
+        // ask again.
+        onSuccess: ({ status }) => {
+          if (status === "approved") {
+            router.push(newTreeHref());
+            return;
+          }
+          if (status === "founded") return;
+          setAsked(true);
+          setOpen(true);
+        },
+      },
+    );
   }
 
   return (
     <>
-      <Button type="button" onClick={onClick} disabled={busy} {...look}>
-        {busy ? "Sending…" : current === "pending" && pendingLabel ? pendingLabel : children}
-      </Button>
+      <PendingButton
+        type="button"
+        onClick={onClick}
+        pending={action.pending}
+        pendingLabel="Sending…"
+        {...look}
+      >
+        {current === "pending" && pendingLabel ? pendingLabel : children}
+      </PendingButton>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>

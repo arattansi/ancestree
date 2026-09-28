@@ -1,10 +1,7 @@
 "use client";
 
-import * as React from "react";
-import { toast } from "sonner";
-
 import { deleteInviteRequest } from "@/app/actions/invite-requests";
-import { Button } from "@/components/ui/button";
+import { ConfirmButton } from "@/components/confirm-dialog";
 
 /**
  * Erases an invite record and any link it minted. Shared by the pending
@@ -13,49 +10,33 @@ import { Button } from "@/components/ui/button";
 export function DeleteInviteButton({
   id,
   name,
-  confirmText,
+  confirm,
   disabled,
   onDeleted,
 }: {
   id: string;
   name: string;
-  confirmText: string;
+  /** The dialog's question, and what the reader must know first, if anything. */
+  confirm: { title: string; description?: string };
   disabled?: boolean;
   /** For a row the page keeps on screen itself, which a refresh won't drop. */
   onDeleted?: () => void;
 }) {
-  const [busy, setBusy] = React.useState(false);
-
-  async function onDelete() {
-    if (!window.confirm(confirmText)) return;
-    setBusy(true);
-    let res: { error?: string };
-    try {
-      res = await deleteInviteRequest(id);
-    } catch {
-      toast.error("Couldn't reach the server — reload the page and try again.");
-      return;
-    } finally {
-      setBusy(false);
-    }
-    if (res.error) {
-      toast.error(res.error);
-      return;
-    }
-    onDeleted?.();
-    toast.success("Deleted.");
-  }
-
   return (
-    <Button
-      type="button"
+    <ConfirmButton
       size="sm"
       variant="destructive"
-      disabled={busy || disabled}
-      onClick={onDelete}
+      disabled={disabled}
       aria-label={`Delete the invite record for ${name}`}
+      confirm={{
+        ...confirm,
+        confirmLabel: "Delete",
+        pendingLabel: "Deleting…",
+        onConfirm: () => deleteInviteRequest(id),
+        onSuccess: () => onDeleted?.(),
+      }}
     >
-      {busy ? "Deleting…" : "Delete"}
-    </Button>
+      Delete
+    </ConfirmButton>
   );
 }

@@ -22,6 +22,7 @@ import { NotificationsList } from "@/components/notifications-list";
 import { PersonForm } from "@/components/person-form";
 import { RelativesCanAsk } from "@/components/relatives-can-ask";
 import { RelayInvites, type PendingRelay } from "@/components/relay-invites";
+import { SubmitButton } from "@/components/submit-button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import {
@@ -411,24 +412,25 @@ async function SettingsView({
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <form action={switchTreeForm.bind(null, t.id, treeHref())}>
-                    <button
-                      type="submit"
-                      className="font-medium hover:underline"
+                    <SubmitButton
+                      variant="link"
+                      className="h-auto border-0 p-0 whitespace-normal text-inherit underline-offset-auto"
                     >
                       {t.name}
-                    </button>
+                    </SubmitButton>
                   </form>
                   <span className="flex items-center gap-2">
                     {t.type.runsTree ? (
                       <form
                         action={switchTreeForm.bind(null, t.id, adminHref())}
                       >
-                        <button
-                          type="submit"
-                          className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
+                        <SubmitButton
+                          variant="link"
+                          pendingLabel="Opening…"
+                          className="relative tap-target h-auto border-0 p-0 text-xs font-normal text-muted-foreground underline hover:text-foreground"
                         >
                           Admin console
-                        </button>
+                        </SubmitButton>
                       </form>
                     ) : null}
                     <AccountTypeBadge role={t.role} />
@@ -602,9 +604,9 @@ async function SettingsView({
       </Card>
 
       <form action={signOut} className="md:col-span-2">
-        <Button type="submit" variant="outline">
+        <SubmitButton variant="outline" pendingLabel="Signing out…">
           Sign out
-        </Button>
+        </SubmitButton>
       </form>
     </div>
   );

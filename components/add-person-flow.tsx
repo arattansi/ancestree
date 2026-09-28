@@ -27,7 +27,9 @@ import {
 import type { ImpliedConnection } from "@/lib/connection-suggestions";
 import { CoParentOffer } from "@/components/co-parent-offer";
 import { DateField } from "@/components/date-field";
+import { FormError } from "@/components/form-error";
 import { JoinsAsNote } from "@/components/joins-as-note";
+import { PendingButton } from "@/components/pending-button";
 import {
   PersonDetailFields,
   PersonDiedField,
@@ -59,6 +61,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useAction } from "@/components/use-action";
+import { useFocusReturn } from "@/components/use-focus-return";
 import {
   bloodTieWarning,
   newWithoutBloodTie,
@@ -325,6 +329,21 @@ function inviteAddress(values: {
   return (values.inviteEmail ?? "").trim();
 }
 
+/** The entry saved but its invite didn't go, whether refused or unreachable. */
+const INVITE_UNSENT =
+  "Saved — but the invite didn't send. Send it again from their card.";
+
+/**
+ * How a save went (`persist`); or, before one, the connections its lines
+ * imply, which are asked about first.
+ */
+type SaveOutcome = {
+  error?: string;
+  /** The person they set out to add, once saved. */
+  primaryId?: string;
+  askable?: ImpliedConnection[];
+};
+
 export function AddPersonFlow({
   mode,
   treeId,
@@ -380,16 +399,18 @@ export function AddPersonFlow({
   const [photoFile, setPhotoFile] = React.useState<File | null>(null);
   const [photoBusy, setPhotoBusy] = React.useState(false);
   const [crop, setCrop] = React.useState<CropTransform>(DEFAULT_CROP);
-  const [submitError, setSubmitError] = React.useState<string | null>(null);
+  // The form's save and the connection dialog's go through one handle: the
+  // button pressed stays busy until the page it lands on shows, so a second
+  // press can't save the same people again (Steps 61, 70).
+  const action = useAction({ inline: true });
+  const returnFocus = useFocusReturn();
+  const addInBetweenButton = React.useRef<HTMLButtonElement>(null);
+  const addConnectionButton = React.useRef<HTMLButtonElement>(null);
   const [suggestions, setSuggestions] = React.useState<ImpliedConnection[]>([]);
   const [pendingSave, setPendingSave] = React.useState<{
     values: FlowValues;
     edges: ReturnType<typeof buildChainEdges>;
   } | null>(null);
-  const [saving, setSaving] = React.useState(false);
-  // Saved and on the way to the tree: the button stays busy until the page
-  // changes, so a second press can't save the same people again (Step 61).
-  const [saved, setSaved] = React.useState(false);
   const [addingMore, setAddingMore] = React.useState(false);
   // Adding a relative asks their name, how they connect and an invite up
   // front, and keeps everything else behind "Add more details" at the
@@ -452,6 +473,27 @@ export function AddPersonFlow({
   const showChain = mustConnect || connecting;
   const needAnchor = showChain;
   const intermediateCount = people.fields.length - 1;
+
+  // The engine explains itself; the modal shows that explanation rather than
+  // re-deriving a question from the rule name. Kept while the suggestions
+  // are: the dialog starts its answers afresh whenever this array changes,
+  // and a render while saving would otherwise blank them (Step 70).
+  const prompts: SuggestionPrompt[] = React.useMemo(
+    () =>
+      suggestions.map((s) => ({
+        suggestion: s,
+        question: s.reason,
+        yesLabel:
+          s.suggestedType === "spouse"
+            ? "Yes, they're partners"
+            : s.suggestedType === "parent"
+              ? "Yes, add the parent"
+              : s.suggestedType === "duplicate_check"
+                ? "Yes, same person"
+                : "Yes",
+      })),
+    [suggestions],
+  );
 
   if (mustConnect && members.length === 0) {
     return (
@@ -534,21 +576,25 @@ export function AddPersonFlow({
     links.remove(links.fields.length - 1);
   }
 
-  // The engine explains itself; the modal shows that explanation rather than
-  // re-deriving a question from the rule name.
-  const prompts: SuggestionPrompt[] = suggestions.map((s) => ({
-    suggestion: s,
-    question: s.reason,
-    yesLabel:
-      s.suggestedType === "spouse"
-        ? "Yes, they're partners"
-        : s.suggestedType === "parent"
-          ? "Yes, add the parent"
-          : s.suggestedType === "duplicate_check"
-            ? "Yes, same person"
-            : "Yes",
-  }));
+  // A block's Remove takes the block away, and focus with it: on to the
+  // Remove of the block before, or, with none, to the button that adds one.
+  function focusAfterRemove(
+    previousRemoveId: string | null,
+    add: React.RefObject<HTMLButtonElement | null>,
+  ) {
+    returnFocus(
+      () =>
+        (previousRemoveId && document.getElementById(previousRemoveId)) ||
+        add.current,
+    );
+  }
 
+  /**
+   * Saves the entries, then the photo and the invite. Only the entries can
+   * fail it: once they exist, a photo or an invite that doesn't go through
+   * is a warning, since a failure would bring the button back and a second
+   * press would add everyone again.
+   */
   async function persist(
     values: FlowValues,
     edges: ReturnType<typeof buildChainEdges>,
@@ -559,7 +605,7 @@ export function AddPersonFlow({
       source: ImpliedConnection["source"];
       resolution: SuggestionResolution;
     }[],
-  ): Promise<boolean> {
+  ): Promise<SaveOutcome> {
     const result = await addPeopleWithConnections({
       treeId,
       people: values.people,
@@ -570,8 +616,7 @@ export function AddPersonFlow({
 
     if (result.error || !result.personIds) {
       // Without a blood tie (Step 55) the error names who needs one.
-      setSubmitError(result.error ?? "Couldn't save these entries.");
-      return false;
+      return { error: result.error ?? "Couldn't save these entries." };
     }
 
     const primaryId = result.personIds[0];
@@ -591,14 +636,15 @@ export function AddPersonFlow({
     const address = asksInvite ? inviteAddress(values) : "";
     let invited: string | null = null;
     if (address && primaryId) {
-      const res = await sendClaimInvite(primaryId, address);
-      if (res.error) {
-        toast.warning(
-          "Saved — but the invite didn't send. Send it again from their card.",
-          { description: res.error },
-        );
-      } else {
-        invited = res.email ?? address;
+      try {
+        const res = await sendClaimInvite(primaryId, address);
+        if (res.error) {
+          toast.warning(INVITE_UNSENT, { description: res.error });
+        } else {
+          invited = res.email ?? address;
+        }
+      } catch {
+        toast.warning(INVITE_UNSENT);
       }
     }
 
@@ -609,21 +655,22 @@ export function AddPersonFlow({
           ? `Relative added. Invite sent to ${invited}.`
           : "Relative added.",
     );
-    // Land on the person they set out to add, with their own tree pulled
-    // out (Step 19.2). `personIds[0]` is always that person: the RPC returns
-    // ids in the order `people` was sent, and the chain's in-between people
-    // follow the primary one. The save already drew the pages again, so
-    // the tree arrives fresh (Step 61).
-    setSaved(true);
-    router.replace(doneHref ?? treeFocusHref(primaryId));
-    return true;
+    return { primaryId };
   }
 
-  async function onSubmit(values: FlowValues) {
-    setSubmitError(null);
+  // Land on the person they set out to add, with their own tree pulled
+  // out (Step 19.2). `personIds[0]` is always that person: the RPC returns
+  // ids in the order `people` was sent, and the chain's in-between people
+  // follow the primary one. The save already drew the pages again, so
+  // the tree arrives fresh (Step 61). Called from the save's `onSuccess`,
+  // which keeps its button busy until the page has changed.
+  function land(primaryId: string | undefined) {
+    router.replace(doneHref ?? treeFocusHref(primaryId));
+  }
 
+  const onSubmit = form.handleSubmit((values) => {
     if (needAnchor && !values.anchorId) {
-      setSubmitError("Choose someone already in the tree to connect to.");
+      action.setError("Choose someone already in the tree to connect to.");
       return;
     }
 
@@ -640,32 +687,46 @@ export function AddPersonFlow({
       spouseFields: spouseDates,
     });
 
-    const detected = await detectConnections({
-      treeId,
-      // Names go along so the engine can name people in its explanations.
-      newPeople: values.people.map((p) => ({
-        familyName: p.last_name,
-        dateOfBirth: p.date_of_birth || null,
-        givenName: p.preferred_name || p.first_name || null,
-        label: personDisplayName(p),
-      })),
-      pendingEdges: edges,
-    });
+    // Looking for implied connections, saving and landing are one call: the
+    // button is busy all the way, and a failure anywhere, the server out of
+    // reach included, is said by it.
+    action.run(
+      "save",
+      async (): Promise<SaveOutcome> => {
+        const detected = await detectConnections({
+          treeId,
+          // Names go along so the engine can name people in its explanations.
+          newPeople: values.people.map((p) => ({
+            familyName: p.last_name,
+            dateOfBirth: p.date_of_birth || null,
+            givenName: p.preferred_name || p.first_name || null,
+            label: personDisplayName(p),
+          })),
+          pendingEdges: edges,
+        });
 
-    const askable = detected.suggestions ?? [];
-    if (askable.length > 0) {
-      setSuggestions(askable);
-      setPendingSave({ values, edges });
-      return;
-    }
+        const askable = detected.suggestions ?? [];
+        if (askable.length > 0) return { askable };
 
-    await persist(values, edges, []);
-  }
+        return persist(values, edges, []);
+      },
+      {
+        onSuccess: ({ askable, primaryId }) => {
+          if (askable) {
+            // Asked first; the dialog's answers save it.
+            setSuggestions(askable);
+            setPendingSave({ values, edges });
+            return;
+          }
+          land(primaryId);
+        },
+      },
+    );
+  });
 
-  async function onResolve(resolutions: SuggestionResolution[]) {
+  function onResolve(resolutions: SuggestionResolution[]) {
     if (!pendingSave) return;
-    setSubmitError(null);
-    setSaving(true);
+    const { values, edges } = pendingSave;
     // A merged prompt stands for several rules; record the answer against each
     // of them, so none of them asks again.
     const resolved = suggestions.flatMap((s, i) =>
@@ -677,16 +738,14 @@ export function AddPersonFlow({
         resolution: resolutions[i],
       })),
     );
-    const ok = await persist(pendingSave.values, pendingSave.edges, resolved);
-    setSaving(false);
-    if (ok) {
-      setPendingSave(null);
-      setSuggestions([]);
-    }
+    action.run("save", () => persist(values, edges, resolved), {
+      onSuccess: ({ primaryId }) => {
+        setPendingSave(null);
+        setSuggestions([]);
+        land(primaryId);
+      },
+    });
   }
-
-  const submitting =
-    form.formState.isSubmitting || photoBusy || saving || saved;
 
   const photoField = (
     <PhotoPicker
@@ -696,14 +755,14 @@ export function AddPersonFlow({
       crop={crop}
       onCropChange={setCrop}
       onBusyChange={setPhotoBusy}
-      disabled={form.formState.isSubmitting || saving}
+      disabled={action.pending}
     />
   );
 
   return (
     <Form {...form}>
       <form
-        onSubmit={form.handleSubmit(onSubmit)}
+        onSubmit={onSubmit}
         className="flex flex-col gap-8"
         noValidate
       >
@@ -912,8 +971,18 @@ export function AddPersonFlow({
                             {j === intermediateCount ? (
                               <button
                                 type="button"
-                                className="text-xs text-destructive underline underline-offset-2"
-                                onClick={removeLastIntermediate}
+                                id={`intermediate-${j}-remove`}
+                                aria-label={`Remove in-between person ${j}`}
+                                className="relative tap-target text-xs text-destructive underline underline-offset-2"
+                                onClick={() => {
+                                  removeLastIntermediate();
+                                  // The one before is the last now, with
+                                  // the Remove.
+                                  focusAfterRemove(
+                                    j > 1 ? `intermediate-${j - 1}-remove` : null,
+                                    addInBetweenButton,
+                                  );
+                                }}
                               >
                                 Remove
                               </button>
@@ -932,6 +1001,7 @@ export function AddPersonFlow({
                     {details ? (
                       // Yellow: it was easy to miss (Step 54).
                       <Button
+                        ref={addInBetweenButton}
                         type="button"
                         variant="attention"
                         size="sm"
@@ -977,8 +1047,16 @@ export function AddPersonFlow({
                                   </span>
                                   <button
                                     type="button"
-                                    className="text-xs text-destructive underline underline-offset-2"
-                                    onClick={() => extraLinks.remove(i)}
+                                    id={`extra-${i}-remove`}
+                                    aria-label={`Remove connection ${i + 1}`}
+                                    className="relative tap-target text-xs text-destructive underline underline-offset-2"
+                                    onClick={() => {
+                                      extraLinks.remove(i);
+                                      focusAfterRemove(
+                                        i > 0 ? `extra-${i - 1}-remove` : null,
+                                        addConnectionButton,
+                                      );
+                                    }}
                                   >
                                     Remove
                                   </button>
@@ -1084,6 +1162,7 @@ export function AddPersonFlow({
                         {addingMore &&
                         extraLinks.fields.length < MAX_EXTRA_CONNECTIONS ? (
                           <Button
+                            ref={addConnectionButton}
                             type="button"
                             variant="outline"
                             size="sm"
@@ -1141,33 +1220,29 @@ export function AddPersonFlow({
           </div>
         ) : null}
 
-        {submitError ? (
-          <p role="alert" className="text-sm font-medium text-destructive">
-            {submitError}
-          </p>
-        ) : null}
+        <FormError>{action.error}</FormError>
 
-        <Button
+        <PendingButton
           type="submit"
+          pending={action.pending}
+          pendingLabel="Saving…"
           disabled={
-            submitting || !form.formState.isValid || (needAnchor && !anchorId)
+            photoBusy || !form.formState.isValid || (needAnchor && !anchorId)
           }
         >
-          {submitting
-            ? "Saving…"
-            : mode === "self"
-              ? "Add me to the tree"
-              : invitesOnSave
-                ? "Add relative & send invite"
-                : "Add relative"}
-        </Button>
+          {mode === "self"
+            ? "Add me to the tree"
+            : invitesOnSave
+              ? "Add relative & send invite"
+              : "Add relative"}
+        </PendingButton>
       </form>
 
       <ConnectionApprovalDialog
         open={pendingSave !== null}
         prompts={prompts}
-        busy={saving || saved}
-        error={submitError}
+        busy={action.pending}
+        error={action.error}
         onCancel={() => {
           setPendingSave(null);
           setSuggestions([]);

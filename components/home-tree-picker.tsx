@@ -1,10 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "sonner";
 
 import { setHiddenFromVisitors, setHomeTree } from "@/app/actions/trees";
-import { Button } from "@/components/ui/button";
+import { PendingButton } from "@/components/pending-button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import {
@@ -14,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useAction } from "@/components/use-action";
 
 export type HomeTreeOption = { id: string; name: string };
 
@@ -35,27 +35,17 @@ export function HomeTreePicker({
   hiddenFromVisitors: boolean;
 }) {
   const [choice, setChoice] = React.useState(homeTreeId);
-  const [busy, setBusy] = React.useState(false);
+  // Two settings, each saved on its own.
+  const move = useAction();
+  const hide = useAction();
+  // Ticks at once, and goes back by itself if the save doesn't work.
+  const [hidden, setHidden] = React.useOptimistic(hiddenFromVisitors);
 
-  async function onMove() {
+  function onMove() {
     if (choice === homeTreeId) return;
-    setBusy(true);
-    const res = await setHomeTree(personId, choice);
-    setBusy(false);
-    if (res.error) {
-      toast.error(res.error);
-      setChoice(homeTreeId);
-      return;
-    }
-    toast.success("Your entry has a new home.");
-  }
-
-  async function onHide(on: boolean) {
-    setBusy(true);
-    const res = await setHiddenFromVisitors(personId, on);
-    setBusy(false);
-    if (res.error) toast.error(res.error);
-    else toast.success(on ? "Hidden from visitors." : "Visible to visitors.");
+    move.run("move", () => setHomeTree(personId, choice), {
+      onError: () => setChoice(homeTreeId),
+    });
   }
 
   return (
@@ -83,15 +73,17 @@ export function HomeTreePicker({
               ))}
             </SelectContent>
           </Select>
-          <Button
+          <PendingButton
             size="sm"
             variant="outline"
             className="shrink-0"
             onClick={onMove}
-            disabled={busy || choice === homeTreeId || options.length < 2}
+            pending={move.pending}
+            disabled={choice === homeTreeId || options.length < 2}
+            pendingLabel="Moving…"
           >
             Move home
-          </Button>
+          </PendingButton>
         </div>
         <p className="text-xs text-muted-foreground">
           Your details follow your home tree&rsquo;s rules: its Roots can edit
@@ -103,9 +95,13 @@ export function HomeTreePicker({
       <div className="flex items-start gap-3">
         <Checkbox
           id="hide-visitors"
-          checked={hiddenFromVisitors}
-          disabled={busy}
-          onCheckedChange={(on) => onHide(on === true)}
+          checked={hidden}
+          onCheckedChange={(on) =>
+            hide.run("hide", async () => {
+              setHidden(on === true);
+              return setHiddenFromVisitors(personId, on === true);
+            })
+          }
         />
         <Label htmlFor="hide-visitors" className="font-normal leading-snug">
           Hide my entry from visitors — people viewing a tree I&rsquo;m on from

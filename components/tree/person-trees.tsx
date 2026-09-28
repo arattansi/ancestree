@@ -4,6 +4,7 @@ import * as React from "react";
 
 import { switchTreeForm } from "@/app/actions/current-tree";
 import { listPersonTrees, type PersonTreeLink } from "@/app/actions/trees";
+import { SubmitButton } from "@/components/submit-button";
 import { treeFocusHref } from "@/lib/tree-links";
 
 /**
@@ -52,13 +53,16 @@ export function PersonTrees({
           key={t.id}
           action={switchTreeForm.bind(null, t.id, treeFocusHref(personId))}
         >
-          <button
-            type="submit"
-            className="font-medium text-foreground underline underline-offset-2"
+          {/* Busy until the other tree's canvas has arrived (Step 70). */}
+          <SubmitButton
+            variant="link"
+            size="xs"
+            pendingLabel="Opening…"
+            className="relative tap-target h-auto px-0 whitespace-normal text-foreground underline underline-offset-2"
           >
             {t.name}
             {t.visitor ? " (view only)" : ""}
-          </button>
+          </SubmitButton>
         </form>
       ))}
     </div>

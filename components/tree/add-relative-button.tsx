@@ -41,6 +41,9 @@ export function AddRelativeButton({
       )}
       aria-label={label}
       title={label}
+      // Where focus goes when the details sheet closes on an entry that's
+      // just been deleted, with no card left to return to (Step 70).
+      data-add-relative=""
     >
       <Plus className="size-5" aria-hidden />
       <span

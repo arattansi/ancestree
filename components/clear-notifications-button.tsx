@@ -1,51 +1,83 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "sonner";
 
 import { clearNotifications } from "@/app/actions/claims";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import type { NotificationItem } from "@/lib/claims";
+import { cn } from "@/lib/utils";
 
 /**
- * Clears a list of notifications. A placement request still waiting on an
- * answer stays: it's the one kind of item with nowhere else to answer it.
+ * Clears a list of notifications, once asked. A placement request still
+ * waiting on an answer stays: it's the one kind of item with nowhere else to
+ * answer it.
+ *
+ * Once nothing's left to clear the button goes, so focus moves to the
+ * heading it sits beside rather than drop to the page (Step 70).
  */
 export function ClearNotificationsButton({
   items,
   className,
+  onOpenChange,
 }: {
   items: NotificationItem[];
   className?: string;
+  /** Its question opens or closes, for a dropdown to stay open meanwhile. */
+  onOpenChange?: (open: boolean) => void;
 }) {
-  const [busy, setBusy] = React.useState(false);
+  const trigger = React.useRef<HTMLButtonElement | null>(null);
+  const heading = React.useRef<Element | null>(null);
+  const cleared = React.useRef(false);
+  const setTrigger = React.useCallback((element: HTMLButtonElement | null) => {
+    trigger.current = element;
+    if (element) heading.current = element.previousElementSibling;
+  }, []);
+
   const clearable = items.filter((n) => !n.placementId).map((n) => n.id);
   if (clearable.length === 0) return null;
 
-  async function onClear() {
-    setBusy(true);
-    const res = await clearNotifications(clearable);
-    setBusy(false);
-    if (res.error) {
-      toast.error(res.error);
-      return;
-    }
-    toast.success(
-      clearable.length < items.length
-        ? "Cleared. Requests waiting on your answer are kept."
-        : "Notifications cleared.",
-    );
+  // Where focus goes as the question closes: back to this button, unless
+  // clearing took the button away with the items.
+  function finalFocus() {
+    if (!cleared.current && trigger.current?.isConnected) return true;
+    const target = heading.current;
+    if (!(target instanceof HTMLElement)) return true;
+    // Somewhere for focus to land, not a stop for Tab.
+    if (!target.hasAttribute("tabindex")) target.tabIndex = -1;
+    return target;
   }
 
   return (
-    <Button
-      size="xs"
-      variant="ghost"
-      onClick={onClear}
-      disabled={busy}
-      className={className}
-    >
-      {busy ? "Clearing…" : "Clear"}
-    </Button>
+    <ConfirmDialog
+      title="Clear notifications?"
+      description={
+        clearable.length < items.length
+          ? "Requests waiting on your answer stay."
+          : undefined
+      }
+      confirmLabel="Clear"
+      pendingLabel="Clearing…"
+      onConfirm={() => clearNotifications(clearable)}
+      onSuccess={() => {
+        cleared.current = true;
+      }}
+      onOpenChange={onOpenChange}
+      finalFocus={finalFocus}
+      trigger={
+        <Button
+          ref={setTrigger}
+          type="button"
+          size="xs"
+          variant="ghost"
+          className={cn("relative tap-target", className)}
+          onClick={() => {
+            cleared.current = false;
+          }}
+        >
+          Clear
+        </Button>
+      }
+    />
   );
 }

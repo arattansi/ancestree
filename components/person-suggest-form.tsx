@@ -5,15 +5,16 @@ import { useRouter } from "next/navigation";
 import * as React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { toast } from "sonner";
 
 import { suggestEntryChange } from "@/app/actions/suggestions";
 import { FloatingFormActions } from "@/components/floating-form-actions";
+import { PendingButton } from "@/components/pending-button";
 import { PersonFields } from "@/components/person-fields";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useAction } from "@/components/use-action";
 import { personSchema, type PersonFormValues } from "@/lib/person-schema";
 
 /**
@@ -50,7 +51,7 @@ export function PersonSuggestForm({
 }) {
   const router = useRouter();
   const [note, setNote] = React.useState(startNote);
-  const [submitError, setSubmitError] = React.useState<string | null>(null);
+  const action = useAction({ inline: true });
 
   const form = useForm<PersonFormValues>({
     resolver: zodResolver(personSchema),
@@ -59,7 +60,7 @@ export function PersonSuggestForm({
   });
   // Read up front, not inside the button's `||`: react-hook-form only works
   // out `isValid` once it has been read (Step 50).
-  const { isDirty, isSubmitting, isValid } = form.formState;
+  const { isDirty, isValid } = form.formState;
   // A note alone changes nothing, unless it's the note on one that waits;
   // a declined one can be resent unchanged.
   const somethingToSend =
@@ -67,26 +68,23 @@ export function PersonSuggestForm({
     isDirty ||
     (startsFrom === "pending" && note.trim() !== startNote.trim());
 
-  async function onSubmit(next: PersonFormValues) {
-    setSubmitError(null);
-    const result = await suggestEntryChange({
-      treeId,
-      personId,
-      values: next,
-      note,
-    });
-    if (result.error) {
-      setSubmitError(result.error);
-      return;
-    }
-    toast.success("Suggestion sent.");
-    router.push(backHref);
-  }
+  const onSubmit = form.handleSubmit((next) =>
+    action.run(
+      "send",
+      () => suggestEntryChange({ treeId, personId, values: next, note }),
+      {
+        success: "Suggestion sent.",
+        // Here, so the button stays busy until the tree shows, and a second
+        // press can't send it again on the way.
+        onSuccess: () => router.push(backHref),
+      },
+    ),
+  );
 
   return (
     <Form {...form}>
       <form
-        onSubmit={form.handleSubmit(onSubmit)}
+        onSubmit={onSubmit}
         className="flex flex-col gap-6"
         noValidate
       >
@@ -106,17 +104,19 @@ export function PersonSuggestForm({
             onChange={(e) => setNote(e.target.value)}
             rows={3}
             maxLength={500}
-            disabled={isSubmitting}
+            disabled={action.pending}
           />
         </div>
 
-        <FloatingFormActions error={submitError}>
-          <Button
+        <FloatingFormActions error={action.error}>
+          <PendingButton
             type="submit"
-            disabled={isSubmitting || !somethingToSend || !isValid}
+            pending={action.pending}
+            pendingLabel="Sending…"
+            disabled={!somethingToSend || !isValid}
           >
-            {isSubmitting ? "Sending…" : "Send suggestion"}
-          </Button>
+            Send suggestion
+          </PendingButton>
           <Button
             nativeButton={false}
             render={<Link href={backHref} />}
