@@ -659,7 +659,11 @@ suggestion (the declined one stays). Without `from`, the form offers their
 latest answered suggestion when that was declined. Since Step 72 the entry's
 card shows the suggester their own declined suggestions too, after anything
 waiting, newest first (`listOwnDeclinedSuggestions`, their own only), each
-with who declined it and why and **Edit and resend**. RLS: the
+with who declined it and why and **Edit and resend**, and since Step 73
+**Dismiss**, which sets `dismissed_at` (only on a declined suggestion; a
+column grant and the `entry_suggestions_dismiss` update policy let only its
+suggester set it) and takes it off their card and the form's hint; it stays
+declined, and on everyone's notices. RLS: the
 suggester and whoever may edit the entry read it; the suggester deletes it
 while it waits (withdrawing, which takes its notices with it); nothing else
 writes it. `suggested_by_name` keeps what the suggester was called, as
@@ -1348,6 +1352,34 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 73 — Dismiss a declined suggestion from the card** (ad-hoc;
+  migration `20260928150000_suggestion_dismissed`, live 2026-09-28, before
+  the code). Aalim: "let the suggester dismiss a declined suggestion from the
+  card". Each declined suggestion on its suggester's card (Step 72) has
+  **Dismiss** beside **Edit and resend**. It takes that one off their card
+  ("Dismissed."), and off the form's "Your last suggestion was declined."
+  hint when it was their latest answered one; with nothing left, the card's
+  **Suggested changes** goes. Nothing else changes: it stays declined, the
+  notices of those who were asked still show it, and its own notice still
+  opens it to edit and resend. It isn't deleted, since those notices point
+  at it. `entry_suggestions.dismissed_at` records it, only ever on a declined
+  suggestion (a CHECK); a column grant and the `entry_suggestions_dismiss`
+  update policy let only its suggester set it, on their own declined ones,
+  and set nothing else. **Verified:** rehearsed on live in a rolled-back
+  transaction: the suggester's update marked it dismissed and left it
+  declined with both its notices; a Root, another Leaf, and the suggester
+  on their own pending suggestion updated nothing; the suggester changing
+  the status or the suggested values was refused; the table refused a
+  dismissal on a pending suggestion; answering still worked. Applied: the
+  recorded statement's md5 equals the file's. End to end on live in
+  headless Chrome as a throwaway Leaf and Root of a throwaway tree (deleted
+  after, auth users included): with the 12th and the 13th declined, the
+  card showed both with **Edit and resend** and **Dismiss**; dismissing the
+  13th took it off and left the 12th; the form showed no hint; the 13th's
+  notice still opened it; the Root's notices were unchanged; dismissing the
+  12th took the section away. 1081 tests pass (none new); tsc, lint and
+  `next build` are clean.
 
 - **Step 72 — The suggester sees their declined suggestions on the
   entry's card** (ad-hoc, no migration). Aalim: "let the suggester see their

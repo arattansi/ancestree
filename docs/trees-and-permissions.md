@@ -132,7 +132,8 @@ nobody's own entry) are asked. Anyone who may edit it
 edit, or declines, saying why if they like (Step 69); the suggester is
 told either way, with the reason if one was given, and can open a
 declined one again to change and send it (Step 71), from the notice or the
-entry's card, where only they see their declined ones (Step 72). A member
+entry's card, where only they see their declined ones (Step 72) and can
+dismiss them (Step 73). A member
 has one suggestion waiting per entry: sending another replaces it, and they
 can withdraw it while it waits. Only they and whoever may edit the entry see
 it.
