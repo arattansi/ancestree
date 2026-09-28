@@ -351,7 +351,7 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `notifications`          | In-app notices, **one inbox per tree** (`tree_id`, Step 25; `placement_requested` \| `placement_accepted` \| `placement_declined` added; `tree_request_approved`, Step 28; `placed_on_join`, Step 30.9, and what a claim invite did, Step 41.3; `joined_by_link`, Step 52); recipient-scoped RLS                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `entry_comments`         | Comments and flags, **one board per tree** (`tree_id`, Step 25) (`is_flag`, `open` \| `resolved`, `resolved_by`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `documents`              | Metadata for private file uploads, **one bank per tree** (`tree_id`); `shared_across_trees` shows it on every tree the person is on — flipped only by the person or a Root of their home tree (`documents_guard`), which also keeps it on its entry except inside a merge (Step 41.3's claim invite, or "This is me" since Step 43), which leaves it unshared                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| `places`                 | GeoNames reference data (populated places + admin areas) for birthplace autocomplete; not tree-scoped — read by any member, written only by the import script                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `places`                 | GeoNames reference data (populated places + admin areas) for birthplace autocomplete; not tree-scoped — read by any member, written by the import script and by a Root's **Add a place** (ids from 10,000,000,000)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | `historical_names`       | Curated period names for a place/country over a date range (Step 4.5d); matched by `place_id` then `country_code` against a birth/death year. Read by any member; seeded by migration                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `pets`                   | Companion animals — a deliberately thin, non-human entry: name, species (`cat` / `dog` / `other` + `species_label`), `year_born` / `year_died`, an optional exact `birth_date` (must agree with `year_born`) and an optional GeoNames place of birth (`place_id_birth` FK + denormalised `city_of_birth` / `country_of_birth`, exactly like a person; Step 27.7's `ancestral_lands_birth` was dropped in Step 40.5, as on a person), photo, and a `pos_dx` / `pos_dy` nudge. No lineage, claims or documents                                                                                                                                                                                                                                                                                                                                                                               |
 | `pet_companions`         | Which people a pet lived with (`pet_id` + `person_id`). Many-to-many, undirected, no lineage meaning; a trigger deletes a pet once its last companion goes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
@@ -1205,6 +1205,18 @@ with population ≥ 500).
   multiple GB and must not be imported on the free tier.**
 - `pg_trgm` lives in the `extensions` schema (not `public`), per the Supabase
   linter — migration `20260831040000_places_trgm_extension_schema`.
+- **What cities500 leaves out:** any place GeoNames counts fewer than 500
+  people in, or has no count for — most villages in India (7,109 Indian
+  places are in). Shishang, in
+  Kalavad taluka of Jamnagar, Gujarat, wasn't: GeoNames has it as Sisāng
+  (1256004), with no population. A Root adds such a place from the picker —
+  **Add “…”** in the list when a search finds nothing (Step 64), or **Can’t
+  find it? Add a place** under the field. `requestNewPlace` inserts it with
+  the service role: `feature_code` `PPLX`, no coordinates (so no ancestral
+  lands), whatever was typed as the state, ids from 10,000,000,000 up. The
+  first was Shishang, India (Aalim, 2026-09-28). Known gap:
+  `pets.place_id_birth` is still `integer`, so a hand-added place can't be a
+  companion's birthplace yet.
 
 ## Reference data — Native Land Digital
 
@@ -1272,6 +1284,39 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 64 — Add a missing village from the place search** (ad-hoc, no
+  migration). Aalim "wasn't able to add
+  https://villageinfo.org/village/513810 as a place of birth": Shishang, a
+  village in Kalavad taluka, Jamnagar, Gujarat, where Amarshi Sayani was
+  born. `places` is GeoNames' cities500, which leaves out places under 500
+  people or with no count; GeoNames has this one as Sisāng (1256004), with
+  none, so "Sisaing", "Shishang" and "Kalavad taluka" found nothing, and
+  Amarshi was saved as born in Jamnagar. The one way in for a missing place,
+  a Root's **Can’t find it? Add a place** under the field, went unseen at
+  first (minutes after reporting it Aalim found it, added "Shishang, India"
+  and moved Amarshi and Jiwan Sayani there). Now, when a Root's search comes
+  back empty, the list itself offers **Add “Shishang”**, which closes the
+  list and opens **Add a place** with the name filled in; the link under the
+  field stays. A pasted link (how Aalim pinned the village down) is never
+  searched and never becomes a place's name: the list says "Type the place’s
+  name, not a link." While a place is already chosen the list still shows
+  it, so the note ("No matching place.", or the link one) and **Add** now
+  sit under it, rather than the search looking as if it matched the old
+  place. The rules are `isLink` / `unmatchedSearch` in
+  `lib/place-choice.ts`; the picker's open state is now controlled so
+  **Add** can close the list. Leaves and Branches still see only "No
+  matching place." **Verified:** end to end on live as a throwaway Root
+  (deleted after, auth user included), at desktop and phone size in the
+  pane: a search that found nothing listed "No matching place." and **Add
+  “Zzvillagesixtyfour”**, which opened **Add a place** with that name
+  (cancelled, so nothing reached `places`); with Jamnagar chosen the list
+  showed Jamnagar, the note and **Add**; the villageinfo.org link showed the
+  link note, no **Add** and sent no search, and **Can’t find it?** after it
+  opened the dialog with the name empty; "Shishang" listed Shishang, India
+  and Shishang, China and no **Add**; arrow keys and Enter still pick, and
+  Escape or a click outside still closes the list and puts the chosen place
+  back. 1025 tests pass (6 new); tsc, lint and `next build` are clean.
 
 - **Step 63 — A birthday or a wedding anniversary without its year**
   (ad-hoc; migration `20260928001000_dates_without_a_year`, live
