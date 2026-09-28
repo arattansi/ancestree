@@ -42,6 +42,11 @@ export function editPersonHref(personId: string): string {
   return `/people/${enc(personId)}/edit`;
 }
 
+/** Suggest a change to an entry the viewer can't edit (Step 67). */
+export function suggestChangeHref(personId: string): string {
+  return `/people/${enc(personId)}/suggest`;
+}
+
 /** First-run: find or add yourself on the tree being viewed. */
 export function onboardingHref(): string {
   return "/onboarding";

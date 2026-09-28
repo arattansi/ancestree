@@ -2,6 +2,11 @@ import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
 import { personDisplayName, personLifespan } from "@/lib/person-name";
+import {
+  asSuggestionColumns,
+  suggestionRows,
+  type SuggestionRow,
+} from "@/lib/suggestions";
 
 export type ClaimCandidate = {
   id: string;
@@ -52,7 +57,90 @@ export type NotificationItem = {
   treeSlug: string | null;
   /** A placement waiting on this member's answer (Step 25). */
   placementId: string | null;
+  /**
+   * The suggested change a `change_suggested` notice asks about (Step 67):
+   * what it changes, its note, and whether it's still waiting or who
+   * answered it. `null` once withdrawn, or when the recipient may no longer
+   * edit the entry, and so not answer it.
+   */
+  suggestion: NotificationSuggestion | null;
 };
+
+export type NotificationSuggestion = {
+  id: string;
+  status: "pending" | "accepted" | "declined";
+  rows: SuggestionRow[];
+  note: string | null;
+  /** Who accepted or declined it. */
+  decidedBy: string | null;
+};
+
+/** The entry's columns a suggestion can change, to read it against. */
+const SUGGESTION_ENTRY_COLUMNS =
+  "id, first_name, middle_name, preferred_name, maiden_name, last_name, sex, date_of_birth, date_of_birth_precision, birth_month, birth_day, place_id_birth, city_of_birth, country_of_birth, is_deceased, date_of_death, date_of_death_precision, place_id_death, place_of_death";
+
+/**
+ * The suggested changes some notices ask about (Step 67), keyed by
+ * suggestion. Only those the member may see come back (`entry_suggestions`
+ * RLS): someone who may edit the entry.
+ */
+async function loadNotificationSuggestions(
+  suggestionIds: string[],
+): Promise<Map<string, NotificationSuggestion>> {
+  const found = new Map<string, NotificationSuggestion>();
+  if (suggestionIds.length === 0) return found;
+  const supabase = await createClient();
+  const { data: suggestions } = await supabase
+    .from("entry_suggestions")
+    .select("id, person_id, status, changes, before, note, decided_by")
+    .in("id", suggestionIds);
+  const rows = suggestions ?? [];
+  if (rows.length === 0) return found;
+
+  const waiting = [
+    ...new Set(
+      rows.flatMap((r) => (r.status === "pending" ? [r.person_id] : [])),
+    ),
+  ];
+  const deciders = [
+    ...new Set(rows.flatMap((r) => (r.decided_by ? [r.decided_by] : []))),
+  ];
+  const [{ data: people }, { data: members }] = await Promise.all([
+    waiting.length > 0
+      ? supabase
+          .from("people")
+          .select(SUGGESTION_ENTRY_COLUMNS)
+          .in("id", waiting)
+      : Promise.resolve({ data: [] }),
+    deciders.length > 0
+      ? supabase
+          .from("member_directory")
+          .select("auth_user_id, display_name")
+          .in("auth_user_id", deciders)
+      : Promise.resolve({ data: [] }),
+  ]);
+  const entryById = new Map((people ?? []).map((p) => [p.id, p]));
+  const nameById = new Map(
+    (members ?? []).map((m) => [m.auth_user_id, m.display_name]),
+  );
+
+  for (const r of rows) {
+    const before = asSuggestionColumns(r.before);
+    const status = r.status as NotificationSuggestion["status"];
+    // While it waits, against the entry now (or as it stood when suggested,
+    // if it can't be read); once answered, the change as it was made.
+    const against =
+      status === "pending" ? (entryById.get(r.person_id) ?? before) : before;
+    found.set(r.id, {
+      id: r.id,
+      status,
+      rows: suggestionRows(asSuggestionColumns(r.changes), against),
+      note: r.note,
+      decidedBy: r.decided_by ? (nameById.get(r.decided_by) ?? null) : null,
+    });
+  }
+  return found;
+}
 
 /**
  * Recent in-app notifications for the signed-in member, newest first. With
@@ -67,7 +155,7 @@ export async function listNotifications(
   let query = supabase
     .from("notifications")
     .select(
-      "id, type, body, created_at, read_at, person_id, claim_id, revision_id, tree_id, trees(name, slug)",
+      "id, type, body, created_at, read_at, person_id, claim_id, revision_id, suggestion_id, tree_id, trees(name, slug)",
     )
     .order("created_at", { ascending: false })
     .limit(50);
@@ -75,6 +163,18 @@ export async function listNotifications(
   const { data } = await query;
 
   const rows = data ?? [];
+
+  // Suggested changes a notice asks about (Step 67), looked up alongside
+  // the rest.
+  const suggestionsLoaded = loadNotificationSuggestions([
+    ...new Set(
+      rows.flatMap((n) =>
+        n.type === "change_suggested" && n.suggestion_id
+          ? [n.suggestion_id]
+          : [],
+      ),
+    ),
+  ]);
 
   // Placement requests point at the placement the member must answer.
   const placementByPerson = new Map<string, string>();
@@ -132,6 +232,7 @@ export async function listNotifications(
     for (const r of revisions ?? []) revertible.add(r.id);
   }
 
+  const suggestions = await suggestionsLoaded;
   return rows.map((n) => {
     const tree = Array.isArray(n.trees) ? n.trees[0] : n.trees;
     return {
@@ -152,6 +253,9 @@ export async function listNotifications(
         n.type === "placement_requested" && n.tree_id && n.person_id
           ? placementByPerson.get(`${n.tree_id}:${n.person_id}`) ?? null
           : null,
+      suggestion: n.suggestion_id
+        ? (suggestions.get(n.suggestion_id) ?? null)
+        : null,
     };
   });
 }

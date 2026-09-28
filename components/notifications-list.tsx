@@ -7,10 +7,13 @@ import { toast } from "sonner";
 import { disputeClaim, markNotificationsRead } from "@/app/actions/claims";
 import { switchTreeForm } from "@/app/actions/current-tree";
 import { revertEntryEdit } from "@/app/actions/people";
+import { decideEntrySuggestion } from "@/app/actions/suggestions";
 import { respondToPlacement } from "@/app/actions/trees";
+import { SuggestionChanges } from "@/components/suggestion-changes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { NotificationItem } from "@/lib/claims";
+import { timeAgo } from "@/lib/time-ago";
 import { adminHref, newTreeHref, treeFocusHref } from "@/lib/tree-links";
 
 /**
@@ -26,16 +29,6 @@ export function newestNotification(items: NotificationItem[]): number {
     (max, n) => Math.max(max, Date.parse(n.createdAt) || 0),
     0,
   );
-}
-
-function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.round(diff / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.round(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.round(hrs / 24)}d ago`;
 }
 
 export function NotificationsList({
@@ -89,6 +82,17 @@ export function NotificationsList({
     toast.success(accept ? "You're on that tree now." : "Declined.");
   }
 
+  async function onSuggestion(suggestionId: string, accept: boolean) {
+    setBusy(true);
+    const res = await decideEntrySuggestion(suggestionId, accept);
+    setBusy(false);
+    if (res.error) {
+      toast.error(res.error);
+      return;
+    }
+    toast.success(accept ? "Accepted." : "Declined.");
+  }
+
   async function onDispute(claimId: string) {
     setBusy(true);
     const res = await disputeClaim(claimId, reason);
@@ -123,7 +127,52 @@ export function NotificationsList({
             </span>
           </div>
 
+          {n.suggestion ? (
+            // Step 67: what a relative suggests changing, to answer here.
+            <div className="flex flex-col gap-2 rounded-md bg-muted/40 p-2">
+              <SuggestionChanges rows={n.suggestion.rows} />
+              {n.suggestion.note ? (
+                <p className="text-sm whitespace-pre-wrap text-muted-foreground">
+                  {n.suggestion.note}
+                </p>
+              ) : null}
+              {n.suggestion.status !== "pending" ? (
+                <p className="text-xs text-muted-foreground">
+                  {n.suggestion.status === "accepted" ? "Accepted" : "Declined"}
+                  {n.suggestion.decidedBy
+                    ? ` by ${n.suggestion.decidedBy}`
+                    : ""}
+                  .
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
           <div className="flex flex-wrap items-center gap-2">
+            {n.suggestion?.status === "pending" ? (
+              <>
+                <Button
+                  size="sm"
+                  disabled={busy}
+                  onClick={() =>
+                    n.suggestion && onSuggestion(n.suggestion.id, true)
+                  }
+                >
+                  Accept
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() =>
+                    n.suggestion && onSuggestion(n.suggestion.id, false)
+                  }
+                >
+                  Decline
+                </Button>
+              </>
+            ) : null}
+
             {n.placementId ? (
               <>
                 <Button

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Minimize2, Pencil } from "lucide-react";
+import { Lightbulb, Minimize2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
 import { claimPerson, disputeClaim } from "@/app/actions/claims";
@@ -25,6 +25,7 @@ import type { CompanionOption } from "@/components/tree/companion-picker";
 import { DateField } from "@/components/date-field";
 import { PhotoCropEditor } from "@/components/photo-crop-editor";
 import { EntryComments } from "@/components/tree/entry-comments";
+import { EntrySuggestions } from "@/components/tree/entry-suggestions";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -62,7 +63,8 @@ import { FILL_ENTRY_NOTE, LOCKED_ENTRY_NOTE } from "@/lib/account-types";
 import { blankFields } from "@/lib/fill-blanks";
 import { SEX_LABELS, type Sex } from "@/lib/person-schema";
 import { PersonTrees } from "@/components/tree/person-trees";
-import { editPersonHref } from "@/lib/tree-links";
+import type { EntrySuggestion } from "@/lib/suggestions";
+import { editPersonHref, suggestChangeHref } from "@/lib/tree-links";
 import { cn } from "@/lib/utils";
 import {
   petYears,
@@ -441,6 +443,7 @@ export function PersonPanel({
   canDelete = false,
   canInviteToClaim = false,
   claimInvites = [],
+  changeSuggestions = [],
   claimable,
   claimNote = null,
   isCreator,
@@ -496,6 +499,11 @@ export function PersonPanel({
    * shown to every member so nobody sends a second without knowing.
    */
   claimInvites?: EntryInvite[];
+  /**
+   * Suggested changes to this entry still waiting (Step 67): all of them for
+   * someone who may edit it, to answer; the viewer's own otherwise.
+   */
+  changeSuggestions?: EntrySuggestion[];
   currentUserId: string;
   /** This entry looks like the signed-in member and is unclaimed. */
   claimable: boolean;
@@ -793,18 +801,33 @@ export function PersonPanel({
                 ) : null}
               </div>
               {/* Up here rather than under Manage at the foot of the sheet,
-                  so it's found without scrolling (Step 62). */}
-              {!readOnly && (canEdit || fillable) ? (
-                <Button
-                  nativeButton={false}
-                  render={<Link href={editPersonHref(person.id)} />}
-                  variant="outline"
-                  size="sm"
-                  className="self-start"
-                >
-                  <Pencil aria-hidden />
-                  {canEdit ? "Edit entry" : "Fill in what’s missing"}
-                </Button>
+                  so it's found without scrolling (Step 62). Anyone who can't
+                  edit it can suggest a change (Step 67). */}
+              {!readOnly ? (
+                <div className="flex flex-wrap gap-2">
+                  {canEdit || fillable ? (
+                    <Button
+                      nativeButton={false}
+                      render={<Link href={editPersonHref(person.id)} />}
+                      variant="outline"
+                      size="sm"
+                    >
+                      <Pencil aria-hidden />
+                      {canEdit ? "Edit entry" : "Fill in what’s missing"}
+                    </Button>
+                  ) : null}
+                  {!canEdit ? (
+                    <Button
+                      nativeButton={false}
+                      render={<Link href={suggestChangeHref(person.id)} />}
+                      variant="outline"
+                      size="sm"
+                    >
+                      <Lightbulb aria-hidden />
+                      Suggest a change
+                    </Button>
+                  ) : null}
+                </div>
               ) : null}
               {addRelativeOf && !readOnly ? (
                 <AddRelativeButton
@@ -816,6 +839,12 @@ export function PersonPanel({
 
             <div className="flex flex-col gap-6 px-4 pb-6">
               {connectionPrompt}
+              {!readOnly ? (
+                <EntrySuggestions
+                  suggestions={changeSuggestions}
+                  entry={person}
+                />
+              ) : null}
               {!readOnly ? (
                 <PersonTrees personId={person.id} currentTreeId={treeId} />
               ) : null}

@@ -1,8 +1,10 @@
 import { z } from "zod";
 
 import {
+  asDayMonth,
   dateProblem,
   isBeforeAtSharedPrecision,
+  toPartialIso,
   toStoredDate,
 } from "@/lib/partial-date";
 
@@ -130,6 +132,65 @@ export const emptyPersonValues: PersonFormValues = {
   email: "",
   email_visible: false,
 };
+
+/** A stored entry, as far as its form goes (`tree_people` or `people`). */
+export type PersonRow = {
+  first_name: string | null;
+  middle_name: string | null;
+  preferred_name: string | null;
+  maiden_name: string | null;
+  last_name: string;
+  date_of_birth: string | null;
+  date_of_birth_precision: string | null;
+  birth_month: number | null;
+  birth_day: number | null;
+  place_id_birth: number | null;
+  city_of_birth: string | null;
+  country_of_birth: string | null;
+  is_deceased: boolean | null;
+  date_of_death: string | null;
+  date_of_death_precision: string | null;
+  place_id_death: number | null;
+  place_of_death: string | null;
+  sex: string | null;
+  lineage_type: string | null;
+  email: string | null;
+  email_visible: boolean | null;
+};
+
+/**
+ * What a form opens with for a stored entry. A partial date opens as just
+ * what's known ("1931", "1931-03", or a birthday with no year, "-03-05").
+ */
+export function personFormValues(row: PersonRow): PersonFormValues {
+  return {
+    first_name: row.first_name ?? "",
+    middle_name: row.middle_name ?? "",
+    preferred_name: row.preferred_name ?? "",
+    maiden_name: row.maiden_name ?? "",
+    last_name: row.last_name,
+    date_of_birth: toPartialIso(
+      row.date_of_birth,
+      row.date_of_birth_precision ?? "day",
+      asDayMonth(row.birth_month, row.birth_day),
+    ),
+    place_id_birth: row.place_id_birth ?? null,
+    city_of_birth: row.city_of_birth ?? "",
+    country_of_birth: row.country_of_birth ?? "",
+    is_deceased: row.is_deceased ?? false,
+    date_of_death: toPartialIso(
+      row.date_of_death,
+      row.date_of_death_precision ?? "day",
+    ),
+    place_id_death: row.place_id_death ?? null,
+    place_of_death: row.place_of_death ?? "",
+    sex: (row.sex as PersonFormValues["sex"]) ?? undefined,
+    lineage_type:
+      (row.lineage_type as PersonFormValues["lineage_type"]) ?? undefined,
+    email: row.email ?? "",
+    email_visible: row.email_visible ?? false,
+  };
+}
 
 function trimOrNull(s?: string): string | null {
   const t = (s ?? "").trim();

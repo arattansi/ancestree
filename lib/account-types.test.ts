@@ -113,10 +113,11 @@ describe("describeAccess", () => {
     }
   });
 
-  it("lets everyone see, comment and flag", () => {
+  it("lets everyone see, comment, flag and suggest changes (Step 67)", () => {
     for (const t of ACCOUNT_TYPES) {
       expect(valueOf(t, "See the whole tree")).toBe(true);
       expect(valueOf(t, "Comment on and flag entries")).toBe(true);
+      expect(valueOf(t, "Suggest changes to entries")).toBe(true);
     }
   });
 

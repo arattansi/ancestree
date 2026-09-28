@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   emptyPersonValues,
+  personFormValues,
   personSchema,
   toPersonPayload,
   type PersonFormValues,
+  type PersonRow,
 } from "./person-schema";
 
 const person = (over: Partial<PersonFormValues> = {}): PersonFormValues => ({
@@ -139,5 +141,62 @@ describe("toPersonPayload dates", () => {
     expect(payload.date_of_birth_precision).toBe("day");
     expect(payload.birth_month).toBe(3);
     expect(payload.birth_day).toBe(5);
+  });
+});
+
+describe("personFormValues", () => {
+  const row = (over: Partial<PersonRow> = {}): PersonRow => ({
+    first_name: "Amarshi",
+    middle_name: null,
+    preferred_name: null,
+    maiden_name: null,
+    last_name: "Sayani",
+    date_of_birth: "1931-03-01",
+    date_of_birth_precision: "month",
+    birth_month: null,
+    birth_day: null,
+    place_id_birth: null,
+    city_of_birth: null,
+    country_of_birth: "",
+    is_deceased: true,
+    date_of_death: "1999-01-01",
+    date_of_death_precision: "year",
+    place_id_death: null,
+    place_of_death: null,
+    sex: "male",
+    lineage_type: null,
+    email: null,
+    email_visible: null,
+    ...over,
+  });
+
+  it("opens a partial date as just what's known", () => {
+    const values = personFormValues(row());
+    expect(values.date_of_birth).toBe("1931-03");
+    expect(values.date_of_death).toBe("1999");
+    expect(values.middle_name).toBe("");
+    expect(values.sex).toBe("male");
+    expect(values.lineage_type).toBeUndefined();
+    expect(values.email_visible).toBe(false);
+  });
+
+  it("opens a birthday kept without its year as a day and month (Step 63)", () => {
+    const values = personFormValues(
+      row({ date_of_birth: null, birth_month: 3, birth_day: 5 }),
+    );
+    expect(values.date_of_birth).toBe("-03-05");
+  });
+
+  it("round-trips through the form unchanged", () => {
+    const stored = row({ date_of_birth: "1931-03-05", date_of_birth_precision: "day" });
+    const payload = toPersonPayload(personFormValues(stored));
+    expect(payload).toMatchObject({
+      first_name: "Amarshi",
+      date_of_birth: "1931-03-05",
+      date_of_birth_precision: "day",
+      date_of_death: "1999-01-01",
+      date_of_death_precision: "year",
+      is_deceased: true,
+    });
   });
 });

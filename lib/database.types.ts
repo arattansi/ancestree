@@ -481,6 +481,101 @@ export type Database = {
           },
         ]
       }
+      entry_suggestions: {
+        Row: {
+          before: Json
+          changes: Json
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          id: string
+          note: string | null
+          person_id: string
+          status: string
+          suggested_by: string
+          suggested_by_name: string | null
+          tree_id: string
+        }
+        Insert: {
+          before: Json
+          changes: Json
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          note?: string | null
+          person_id: string
+          status?: string
+          suggested_by: string
+          suggested_by_name?: string | null
+          tree_id: string
+        }
+        Update: {
+          before?: Json
+          changes?: Json
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          note?: string | null
+          person_id?: string
+          status?: string
+          suggested_by?: string
+          suggested_by_name?: string | null
+          tree_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "entry_suggestions_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "entry_suggestions_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "entry_suggestions_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entry_suggestions_suggested_by_fkey"
+            columns: ["suggested_by"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "entry_suggestions_suggested_by_fkey"
+            columns: ["suggested_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "entry_suggestions_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "my_trees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entry_suggestions_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       historical_names: {
         Row: {
           country_code: string | null
@@ -831,6 +926,7 @@ export type Database = {
           read_at: string | null
           recipient_user_id: string
           revision_id: string | null
+          suggestion_id: string | null
           tree_id: string | null
           type: string
         }
@@ -844,6 +940,7 @@ export type Database = {
           read_at?: string | null
           recipient_user_id: string
           revision_id?: string | null
+          suggestion_id?: string | null
           tree_id?: string | null
           type: string
         }
@@ -857,6 +954,7 @@ export type Database = {
           read_at?: string | null
           recipient_user_id?: string
           revision_id?: string | null
+          suggestion_id?: string | null
           tree_id?: string | null
           type?: string
         }
@@ -908,6 +1006,13 @@ export type Database = {
             columns: ["revision_id"]
             isOneToOne: false
             referencedRelation: "entry_revisions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_suggestion_id_fkey"
+            columns: ["suggestion_id"]
+            isOneToOne: false
+            referencedRelation: "entry_suggestions"
             referencedColumns: ["id"]
           },
           {
@@ -2242,6 +2347,10 @@ export type Database = {
         }
         Returns: string
       }
+      decide_entry_suggestion: {
+        Args: { p_accept: boolean; p_suggestion: string }
+        Returns: string[]
+      }
       delete_tree: { Args: { p_tree: string }; Returns: Json }
       dispute_claim: {
         Args: { p_claim_id: string; p_reason?: string }
@@ -2508,6 +2617,15 @@ export type Database = {
       set_member_role: {
         Args: { p_role: string; p_tree: string; p_user: string }
         Returns: string
+      }
+      suggest_entry_change: {
+        Args: {
+          p_note?: string
+          p_person: string
+          p_tree: string
+          p_values: Json
+        }
+        Returns: string[]
       }
       tree_root_emails: { Args: { p_tree_id: string }; Returns: string[] }
       trees_matching_name: {

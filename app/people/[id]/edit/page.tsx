@@ -10,26 +10,17 @@ import {
   type ExistingConnection,
 } from "@/components/tree/edit-connections";
 import { Button } from "@/components/ui/button";
-import {
-  canEditConnection,
-  canEditEntry,
-  canFillEntry,
-  type EntrySubject,
-} from "@/lib/branch";
-import { getSpokenForEntryIds, getViewer } from "@/lib/branch.server";
+import { canEditConnection } from "@/lib/branch";
+import { getViewer } from "@/lib/branch.server";
+import { entryAccess } from "@/lib/entry-access.server";
 import { blankFields } from "@/lib/fill-blanks";
-import { asDayMonth, toPartialIso } from "@/lib/partial-date";
 import { personDisplayName } from "@/lib/person-name";
 import { formatPlaceLabel, getPlacesByIds } from "@/lib/places";
-import type { PersonFormValues } from "@/lib/person-schema";
+import { personFormValues } from "@/lib/person-schema";
 import { createClient } from "@/lib/supabase/server";
 import { listTreeMembers } from "@/lib/tree";
-import {
-  getRoleIn,
-  getTreeById,
-  requireTreeSelfPerson,
-} from "@/lib/tree-context";
-import { treeFocusHref } from "@/lib/tree-links";
+import { getTreeById, requireTreeSelfPerson } from "@/lib/tree-context";
+import { suggestChangeHref, treeFocusHref } from "@/lib/tree-links";
 
 export const metadata: Metadata = { title: "edit entry" };
 
@@ -61,67 +52,23 @@ export default async function EditPersonPage({
   const personId = person.id;
   const homeTreeId = person.home_tree_id;
 
-  const { data: approvedClaim } = await supabase
-    .from("claims")
-    .select("id")
-    .eq("person_id", personId)
-    .eq("status", "approved")
-    .maybeSingle();
-
-  // Details follow the HOME tree's rules (Step 25): who the viewer is there
-  // decides, even when they opened the entry from another tree. Someone who
-  // isn't a member there may edit only their own entry.
-  const homeRole = await getRoleIn(homeTreeId);
-  const homeTree = person.is_home ? tree : await getTreeById(homeTreeId);
-  const isHomeRoot = homeRole === "admin";
-  const [viewer, spokenFor] = await Promise.all([
-    homeRole ? getViewer(profile, homeRole, homeTreeId) : null,
-    getSpokenForEntryIds(profile.auth_user_id),
+  // Not theirs to change, but maybe theirs to fill in where it's blank
+  // (Step 44). Neither, and they can suggest a change instead (Step 67):
+  // "Edit entry" on a card whose home is a tree they don't run lands there.
+  const [{ canEdit, canFill, homeRole }, homeTree] = await Promise.all([
+    entryAccess(profile, {
+      id: personId,
+      home_tree_id: homeTreeId,
+      owner_user_id: person.owner_user_id,
+      created_by: person.created_by,
+    }),
+    person.is_home ? tree : getTreeById(homeTreeId),
   ]);
-  const subject: EntrySubject = {
-    id: personId,
-    owner_user_id: person.owner_user_id,
-    created_by: person.created_by,
-    isClaimed: !!approvedClaim,
-    isSomeoneElsesOwn: spokenFor.has(personId),
-  };
-  const canEdit = viewer
-    ? canEditEntry(subject, viewer)
-    : personId === profile.self_person_id;
-  // Not theirs to change, but theirs to fill in where it's blank (Step 44).
-  const canFill = !canEdit && !!viewer && canFillEntry(subject, viewer);
+  const isHomeRoot = homeRole === "admin";
 
-  if (!canEdit && !canFill) redirect(treeFocusHref(personId));
+  if (!canEdit && !canFill) redirect(suggestChangeHref(personId));
 
-  const values: PersonFormValues = {
-    first_name: person.first_name ?? "",
-    middle_name: person.middle_name ?? "",
-    preferred_name: person.preferred_name ?? "",
-    maiden_name: person.maiden_name ?? "",
-    last_name: person.last_name,
-    // A partial date opens as just what's known ("1931", "1931-03", or a
-    // birthday with no year, "-03-05").
-    date_of_birth: toPartialIso(
-      person.date_of_birth,
-      person.date_of_birth_precision ?? "day",
-      asDayMonth(person.birth_month, person.birth_day),
-    ),
-    place_id_birth: person.place_id_birth ?? null,
-    city_of_birth: person.city_of_birth ?? "",
-    country_of_birth: person.country_of_birth ?? "",
-    is_deceased: person.is_deceased ?? false,
-    date_of_death: toPartialIso(
-      person.date_of_death,
-      person.date_of_death_precision ?? "day",
-    ),
-    place_id_death: person.place_id_death ?? null,
-    place_of_death: person.place_of_death ?? "",
-    sex: (person.sex as PersonFormValues["sex"]) ?? undefined,
-    lineage_type:
-      (person.lineage_type as PersonFormValues["lineage_type"]) ?? undefined,
-    email: person.email ?? "",
-    email_visible: person.email_visible ?? false,
-  };
+  const values = personFormValues({ ...person, last_name: person.last_name });
   const displayName = personDisplayName({
     ...person,
     last_name: person.last_name,

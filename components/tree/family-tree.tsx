@@ -96,6 +96,7 @@ import { nativeLeaf } from "@/lib/native-leaf";
 import { upcomingOccasions } from "@/lib/occasions";
 import { asDayMonth } from "@/lib/partial-date";
 import { personSpotlight, spotlightPeople } from "@/lib/person-spotlight";
+import type { EntrySuggestion } from "@/lib/suggestions";
 import { onboardingHref } from "@/lib/tree-links";
 import { cn } from "@/lib/utils";
 import {
@@ -504,6 +505,7 @@ const nodeTypes = { person: PersonNode, pet: PetNode };
 
 const NO_PETS: TreePet[] = [];
 const NO_INVITES: EntryInvite[] = [];
+const NO_SUGGESTIONS: EntrySuggestion[] = [];
 const NOBODY: ReadonlySet<string> = new Set();
 
 type Props = {
@@ -549,6 +551,11 @@ type Props = {
    * (Step 38). A member's canvas only: never a share link's or a visitor's.
    */
   claimInvites?: EntryInvite[];
+  /**
+   * Suggested changes still waiting that the viewer can see (Step 67): on
+   * entries they may edit, to answer, and their own. A member's canvas only.
+   */
+  changeSuggestions?: EntrySuggestion[];
 };
 
 /** Which way a bloodline spotlight runs from the person who was clicked. */
@@ -852,6 +859,7 @@ function Canvas({
   shareToken,
   gettingStarted = null,
   claimInvites = NO_INVITES,
+  changeSuggestions = NO_SUGGESTIONS,
 }: Props) {
   // Companions stay off the canvas until the viewer switches them on (Step
   // 23). Off the canvas only: a person's details still list theirs, and
@@ -2220,6 +2228,13 @@ function Canvas({
         : NO_INVITES,
     [claimInvites, selectedId, readOnly],
   );
+  const selectedSuggestions = React.useMemo(
+    () =>
+      selectedId && !readOnly
+        ? changeSuggestions.filter((s) => s.personId === selectedId)
+        : NO_SUGGESTIONS,
+    [changeSuggestions, selectedId, readOnly],
+  );
 
   return (
     <>
@@ -2545,6 +2560,7 @@ function Canvas({
         canDelete={canDelete}
         canInviteToClaim={canInvite}
         claimInvites={selectedInvites}
+        changeSuggestions={selectedSuggestions}
         readOnly={readOnly}
         shareToken={shareToken}
         claimable={!!selectedPerson && claimableIds.has(selectedPerson.id)}

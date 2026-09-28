@@ -338,6 +338,8 @@ export function describeAccess(type: AccountType): Access[] {
           ? true
           : "Unclaimed entries on their own line",
     },
+    // Anything they can't edit, to its owner and the Roots (Step 67).
+    { label: "Suggest changes to entries", value: true },
     // Documents follow the same reach as editing, except that a Branch also
     // sees members' own entries on their side (`private.can_see_documents`).
     { label: "See documents", value: DOCUMENT_REACH[type.entries] },
