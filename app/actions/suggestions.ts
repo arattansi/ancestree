@@ -133,23 +133,46 @@ export async function withdrawEntrySuggestion(
 }
 
 /**
- * Take one of the caller's declined suggestions off their card (Step 73).
- * It stays declined, and stays on the notices of those who were asked; the
- * update policy lets only its suggester set this, only on a declined one.
+ * Set or clear `dismissed_at` on one of the caller's declined suggestions.
+ * The update policy lets only its suggester write it, only on a declined
+ * one, so it stays declined either way. Whether a row changed.
  */
-export async function dismissEntrySuggestion(
+async function setDismissed(
   suggestionId: string,
-): Promise<{ error?: string }> {
+  dismissed: boolean,
+): Promise<boolean> {
   await requireProfile();
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("entry_suggestions")
-    .update({ dismissed_at: new Date().toISOString() })
+    .update({ dismissed_at: dismissed ? new Date().toISOString() : null })
     .eq("id", suggestionId)
     .select("id");
-  if (error || !data || data.length === 0) {
-    return { error: "Couldn’t dismiss it. Refresh and try again." };
-  }
+  if (error || !data || data.length === 0) return false;
   revalidateTreePages();
-  return {};
+  return true;
+}
+
+/**
+ * Take one of the caller's declined suggestions off their card (Step 73).
+ * It stays declined, and stays on the notices of those who were asked.
+ */
+export async function dismissEntrySuggestion(
+  suggestionId: string,
+): Promise<{ error?: string }> {
+  return (await setDismissed(suggestionId, true))
+    ? {}
+    : { error: "Couldn’t dismiss it. Refresh and try again." };
+}
+
+/**
+ * Put a declined suggestion the caller dismissed back on their card, and
+ * the form's hint: Dismiss's Undo (Step 74).
+ */
+export async function restoreEntrySuggestion(
+  suggestionId: string,
+): Promise<{ error?: string }> {
+  return (await setDismissed(suggestionId, false))
+    ? {}
+    : { error: "Couldn’t put it back. Refresh and try again." };
 }

@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { toast } from "sonner";
 
 import {
   dismissEntrySuggestion,
+  restoreEntrySuggestion,
   withdrawEntrySuggestion,
 } from "@/app/actions/suggestions";
 import { ActionButton } from "@/components/action-button";
@@ -11,6 +13,8 @@ import { SuggestionAnswer } from "@/components/suggestion-answer";
 import { SuggestionChanges } from "@/components/suggestion-changes";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { toastError } from "@/components/use-action";
+import { UNREACHABLE } from "@/lib/action-feedback";
 import {
   answeredLine,
   suggestionRows,
@@ -22,11 +26,29 @@ import { timeAgo } from "@/lib/time-ago";
 import { suggestChangeHref } from "@/lib/tree-links";
 
 /**
+ * Dismissing a declined suggestion is cheap to put back, so it happens at
+ * once and its toast has Undo, which returns it to the card (Step 74).
+ */
+function toastDismissed(suggestionId: string) {
+  toast("Suggestion dismissed.", {
+    action: {
+      label: "Undo",
+      onClick: () => {
+        void restoreEntrySuggestion(suggestionId).then(
+          (res) => res.error && toastError(res.error),
+          () => toastError(UNREACHABLE),
+        );
+      },
+    },
+  });
+}
+
+/**
  * Suggested changes to this entry still waiting (Step 67). Someone who may
  * edit it sees everyone's, to accept or decline; whoever suggested one sees
  * their own, to withdraw, and after them the ones of theirs that were
- * declined, with why, to edit and resend (Step 72) or dismiss (Step 73).
- * Nobody else sees any.
+ * declined, with why, to edit and resend (Step 72) or dismiss (Step 73),
+ * which the toast can undo (Step 74). Nobody else sees any.
  */
 export function EntrySuggestions({
   suggestions,
@@ -43,7 +65,7 @@ export function EntrySuggestions({
 
   // Withdraw and Dismiss take their suggestion off the card, which says so
   // itself; each is busy on its own until it has gone, and focus moves on to
-  // the next one's (Step 70).
+  // the next one's (Step 70). Dismiss's toast is there for its Undo (Step 74).
   return (
     <section
       className="flex flex-col gap-3"
@@ -129,6 +151,7 @@ export function EntrySuggestions({
                 action={() => dismissEntrySuggestion(d.id)}
                 pendingLabel="Dismissing…"
                 removesRow
+                onSuccess={() => toastDismissed(d.id)}
               >
                 Dismiss
               </ActionButton>
