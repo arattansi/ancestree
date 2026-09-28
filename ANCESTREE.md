@@ -678,9 +678,12 @@ with who declined it and why and **Edit and resend**, and since Step 73
 **Dismiss**, which sets `dismissed_at` (only on a declined suggestion; a
 column grant and the `entry_suggestions_dismiss` update policy let only its
 suggester set it) and takes it off their card and the form's hint; it stays
-declined, and on everyone's notices. RLS: the
+declined, and on everyone's notices. Since Step 74 its toast has **Undo**
+(`restoreEntrySuggestion`), which clears `dismissed_at` through the same
+grant and policy and puts it back. RLS: the
 suggester and whoever may edit the entry read it; the suggester deletes it
-while it waits (withdrawing, which takes its notices with it); nothing else
+while it waits (withdrawing, which takes its notices with it) and sets or
+clears `dismissed_at` on a declined one; nothing else
 writes it. `suggested_by_name` keeps what the suggester was called, as
 `private.member_label` said then, since a reviewer on the home tree may not
 see the profile of a member of another tree the entry is shown on.
@@ -1367,6 +1370,62 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 74 — Undo a dismissed suggestion, and a review of Steps 67–73**
+  (ad-hoc, no migration). Aalim: "review the work done for suggesting
+  changes on uneditable entries. allow for a suggester to undo a dismiss".
+  **Dismiss** on a declined suggestion (Step 73) now says "Suggestion
+  dismissed." with **Undo**, which puts it back on the card, and back in
+  the form's "Your last suggestion was declined." hint when it was the
+  latest answered one. It follows the rule Step 70 wrote into
+  `docs/design-system.md` (cheap to put back: at once, with **Undo** in the
+  toast), like unlinking a companion: a plain toast, no second one once the
+  card shows it back, and the error in a toast if it fails
+  (`toastError`). The Dismiss button is still Step 70's `ActionButton`,
+  focus still moves on to the next suggestion, and its `onSuccess` shows
+  the toast. `restoreEntrySuggestion` clears `dismissed_at`, sharing one
+  update with `dismissEntrySuggestion`; nothing new in the database, since
+  Step 73's column grant and `entry_suggestions_dismiss` policy already let
+  only the suggester write that column, both ways, on their own declined
+  suggestions. The details sheet stays open when the toast is pressed
+  (`disablePointerDismissal`, which Base UI also reads as don't close on
+  focus out). Once the toast has gone, a dismissed suggestion comes back
+  only as a new one, through its notice's **Edit and resend**.
+  **Review of Steps 67–73**, left for Aalim: (1) accepting a suggestion
+  made while an entry was marked as having died, after it has been marked
+  living, puts the suggested date or place of death on a living person:
+  `decide_entry_suggestion` doesn't re-apply `suggest_entry_change`'s rule
+  that the living have no death details, and no CHECK does, so the canvas
+  shows a year of death and the claim checks read them as having died
+  (shown on live in a rolled-back transaction); (2) "Declined by …" on the
+  suggester's card and resend form names the decider from
+  `member_directory` (their display name, and nobody at all when the
+  suggestion was made from another tree, since the view is security
+  invoker), while the notices name them by `private.member_label` (their
+  entry's name), which differs for 5 of the 14 members on live; keeping a
+  `decided_by_name` as `suggested_by_name` is kept would settle both;
+  (3) `listPendingSuggestions` reads every waiting suggestion the viewer may
+  see, so RLS runs `can_edit_person` over all of them, site-wide, on every
+  render of `/tree` (none on live yet). The notes on suggested changes
+  above still said nothing else writes a suggestion, untrue since Step 73's
+  update policy; fixed. **Verified:** in a rolled-back transaction on live, the
+  suggester dismissed and put back their declined suggestion (1 row each),
+  a Root putting it back and the suggester touching one still waiting
+  updated nothing, the suggester setting `status` was refused (42501), and
+  it ended declined, not dismissed, with both notices. End to end in
+  headless Chrome on this worktree's dev server, as a throwaway Leaf of a
+  throwaway Root's tree on live, once before Step 70 landed and again on
+  top of it (everything deleted after, auth users included): with the 12th
+  and the 13th declined, **Dismiss** took the 13th off, focus moved to the
+  12th's **Edit and resend**, and **Undo** put it back, still declined; by
+  keyboard alone (Enter, then Alt+T and Tab to **Undo**) the same; the
+  form's hint went with the dismissal and came back with **Undo**;
+  dismissing both took the section away and the newest toast's **Undo**
+  brought back only the 12th; on a 390 px phone the toast comes in under
+  the header and **Undo** works by tap; with the suggestion deleted behind
+  the page, **Undo** said "Couldn’t put it back. Refresh and try again." in
+  red for 10 s. No page errors. 1088 tests pass (none new); tsc, lint and
+  `next build` are clean.
 
 - **Step 70 — Efficiency audit, phase 2: buttons that never stick, a
   question before a loss, errors where they're looked for** (ad-hoc; no

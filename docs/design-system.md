@@ -149,9 +149,9 @@ uses them rather than its own flags and messages.
   loses nothing (making someone a Root) asks the same way with a plain
   confirm. A failure shows inside the dialog, which stays open. Nothing
   asks before an ordinary decision (Approve, Decline, Dismiss).
-- **Cheap to put back, no question:** unlinking a person from a companion
-  or a name from a nickname group happens at once, with **Undo** in the
-  toast.
+- **Cheap to put back, no question:** unlinking a person from a companion,
+  a name from a nickname group, or dismissing a declined suggestion from its
+  card (Step 74) happens at once, with **Undo** in the toast.
 - **Red:** the tinted `destructive` button is for a removal among other
   buttons (a row's **Delete**); `destructive-solid` only confirms. A count
   asking for attention (the header's admin count) is `attention`, and a
