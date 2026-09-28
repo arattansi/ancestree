@@ -129,8 +129,9 @@ note. The entry's owner, the Roots of its home tree and the Branches there
 who tend it (Step 68: whose part of a Root's side it's on, while it's
 nobody's own entry) are asked. Anyone who may edit it
 (`private.can_edit_person`) accepts, which makes the change as their own
-edit, or declines; the suggester is told either way. A member has
-one suggestion waiting per entry: sending another replaces it, and they can
+edit, or declines, saying why if they like (Step 69); the suggester is
+told either way, with the reason if one was given. A member has one
+suggestion waiting per entry: sending another replaces it, and they can
 withdraw it while it waits. Only they and whoever may edit the entry see it.
 
 So the Root of a founded tree can place and arrange a relative brought from

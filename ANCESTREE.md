@@ -646,7 +646,10 @@ while it's nobody's own), carrying `notifications.suggestion_id`.
 changes as their own edit (so `person_edit_notify` tells the owner and maker,
 and a Branch's change to a Root's entry keeps the Root's undo), or decline it;
 either way the suggester hears (`suggestion_accepted` /
-`suggestion_declined`, in the inbox of the tree they suggested from). RLS: the
+`suggestion_declined`, in the inbox of the tree they suggested from).
+Declining may say why (Step 69): up to 500 characters in `decline_reason`
+(kept only on a declined suggestion), quoted in the suggester's notice and
+shown on the notices of the others who were asked. RLS: the
 suggester and whoever may edit the entry read it; the suggester deletes it
 while it waits (withdrawing, which takes its notices with it); nothing else
 writes it. `suggested_by_name` keeps what the suggester was called, as
@@ -1332,6 +1335,39 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 69 — Decline a suggested change with a reason** (ad-hoc;
+  migration `20260928120000_suggestion_decline_reason`, live 2026-09-28,
+  before the code). Aalim: "let the owner decline with a reason". **Decline**
+  on a suggested change (on the entry's card, or in the notice that asks)
+  now opens a **Reason (optional)** box with **Decline** and **Cancel**,
+  for whoever answers it: the entry's owner, a Root, or a Branch who tends
+  it (Step 68). The suggester's notice quotes it ("… declined your suggested
+  change to Amarshi Sayani: “Her passport says the 5th.”"), and the others
+  who were asked see "Declined by …: “…”" on theirs. Left empty, nothing
+  changes from before. `entry_suggestions.decline_reason` holds it (only on
+  a declined suggestion, up to 500 characters);
+  `decide_entry_suggestion` takes it as a third argument with a default,
+  its two-argument version dropped in the same migration so the app before
+  this still reached it. Accept and Decline are one control now,
+  `components/suggestion-answer.tsx`, on the card and in the notice; the
+  answered line is `answeredLine` (`lib/suggestions.ts`). **Verified:**
+  rehearsed on live in a rolled-back transaction: a reason was stored
+  trimmed and quoted in the notice; accepting kept none, even when sent one;
+  the old two-argument call still declined; a 501-character reason was
+  refused and the suggestion stayed pending; a reason couldn't be written
+  directly, nor kept on a pending suggestion; only the new signature
+  remained, with the same grants. Applied: the recorded statement's md5
+  equals the file's, and the body's md5 matches. End to end on live in
+  headless Chrome as a throwaway Leaf, Branch and Root of a throwaway tree
+  (deleted after, auth users included): the Leaf's suggestion reached the
+  Branch who tends the entry (Step 68 through the app) as well as the
+  Root; the Root pressed **Decline** on the card, **Cancel** put Accept back,
+  and a second **Decline** with "Her passport says the 5th." declined it;
+  the Leaf's notice quoted the reason and the Branch's said "Declined by …:
+  “Her passport says the 5th.”"; a second suggestion, declined by the Branch
+  from the bell with the box left empty, told the Leaf with no reason. 1078
+  tests pass (3 new); tsc, lint and `next build` are clean.
 
 - **Step 66.4 — The place search ranks 200 matches, not 60** (ad-hoc,
   after Step 66; no migration). Aalim asked to "widen the window to 200".
