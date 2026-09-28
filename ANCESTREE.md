@@ -179,7 +179,9 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `use-tree-room.ts` + `live-cursors.tsx` who else has the tree open, as
   faces above **Upcoming**, and their pointers (Step 57.3), `person-node.tsx`
   custom node (name, then `née` maiden name / birth year / birthplace;
-  open-flag badge), `person-panel.tsx` detail Sheet (**Edit entry** in its
+  open-flag badge; in a spotlight `leaf-card.tsx`'s leaf, at most three
+  lines: name, `née` maiden name, "You" with the years, Step 76),
+  `person-panel.tsx` detail Sheet (**Edit entry** in its
   header, Step 62; claim / dispute; **Minimize** folds it into a
   card at the foot of the canvas, Step 49), `entry-comments.tsx` (comment /
   flag thread + resolve), `claim-suggestions.tsx` "Is this you?" canvas prompt
@@ -1370,6 +1372,36 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 76 — Maiden name on the leaf and the hover cards** (ad-hoc, no
+  migration). Aalim: "show maiden name on the leaf and hover over view. make
+  sure that it is formatted to fit cleanly in the UI". A spotlight's leaves
+  now say "née Jaffer" under the name, as the cards already did, and so do
+  both hover cards: the leaf's, and a card's photo preview, which covered
+  the card's own line while hovered. A sibling's partner's pill says it in
+  its tooltip ("Leila Rattansi, née Nathoo · Spouse of Karim"). One helper,
+  `maidenLine` (`lib/person-name.ts`), writes it everywhere, trimmed.
+  **Fitting it in the leaf** (`leaf-card.tsx`): at most three lines, the
+  name, the maiden name, then "You" and the years together ("You · b. 1952";
+  "You" had a line of its own), set tighter (15px under the name, 12px under
+  the others). Three hang from where two put the name rather than centring
+  on it: centred, the name rose into the gaps between the baobab's
+  leaflets, as it already did on the viewer's own baobab leaf. The elliptic
+  blade (Uganda, Zanzibar and 33 more places), a lens pointed at both ends,
+  starts its lines at 58 rather than 52 (`TEXT_LEFT`), where it is deep
+  enough for three. A maiden name stops 110px along, short of the baobab's
+  and the maple's narrow tips, and a long one shrinks (to 8.5px) before it
+  is cut short; the longest on live, 21 letters on a baobab, fits whole.
+  On live, 34 of 174 entries have a maiden name, 7 of them born in
+  Tanzania. **Verified:** on a throwaway page of the real leaf in all seven
+  blades, with two and three lines, long names and long maiden names, an
+  ink check (each line drawn on a canvas, every column of ink tested
+  against the blade's fill) found at least 2px between lettering and
+  outline everywhere except a 17-letter shortened name on a baobab (1.5px);
+  inside the real canvas (a read-only `FamilyTree` of a made-up family,
+  spotlight open) at least 3px. Both hover cards, the pill's tooltip, and
+  light and dark looked right side by side with the old leaf. 1091 tests
+  pass (3 new); tsc, lint and `next build` are clean.
 
 - **Step 74 — Undo a dismissed suggestion, and a review of Steps 67–73**
   (ad-hoc, no migration). Aalim: "review the work done for suggesting
