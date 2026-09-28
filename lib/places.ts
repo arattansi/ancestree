@@ -37,6 +37,15 @@ export function placeLegacyText(place: PlaceHit): {
 }
 
 /**
+ * How many name matches each search pulls, most populous first, for
+ * lib/place-search.ts to rank. With 60, smaller namesakes never got ranked
+ * (Ely, NV for "Ely"), nor a place in a hinted region behind 60 bigger ones.
+ * The database sorts every match whatever the limit, so 200 costs only the
+ * rows sent to the server (Step 66.4).
+ */
+const CANDIDATES = 200;
+
+/**
  * Fuzzy place search for the autocomplete: trigram-indexed `search_name
  * ILIKE`, shaped and ranked by lib/place-search.ts (the part before a comma
  * is searched, what follows prefers a region; Step 66).
@@ -52,7 +61,7 @@ export async function searchPlaces(query: string, limit = 8): Promise<PlaceHit[]
       .select("id, name, ascii_name, admin1_code, country_code, population, search_name")
       .ilike("search_name", `%${name}%`)
       .order("population", { ascending: false, nullsFirst: false })
-      .limit(60);
+      .limit(CANDIDATES);
     return error || !data ? [] : data;
   };
 

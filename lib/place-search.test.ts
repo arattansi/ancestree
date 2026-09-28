@@ -208,6 +208,21 @@ describe("rankPlaces", () => {
     ]);
   });
 
+  it("ranks every exact namesake first, however far down the rows it comes", () => {
+    // Among the most populous "%ely%" matches Ely, NV is the 78th and Ely, MN
+    // the 87th: why the search pulls 200 rows, not 60 (Step 66.4).
+    const elys = [
+      row(1508291, "Chelyabinsk", "13", "RU", 1202371),
+      row(5153207, "Elyria", "OH", "US", 53775),
+      row(2650023, "Ely", "ENG", "GB", 20574),
+      row(5503694, "Ely", "NV", "US", 4134),
+      row(5025627, "Ely", "MN", "US", 3408),
+    ];
+    expect(ids(rankPlaces(elys, query("Ely")))).toEqual([
+      2650023, 5503694, 5025627, 5153207, 1508291,
+    ]);
+  });
+
   it("puts the obvious city first", () => {
     expect(rankPlaces(LONDON, query("London"))[0].id).toBe(2643743);
     expect(rankPlaces(NAIROBI, query("Nairobi"))[0].id).toBe(184745);
