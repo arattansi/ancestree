@@ -339,8 +339,8 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `tree_placements`        | Which trees show a person, and where the card sits there: `(tree_id, person_id, status active\|pending\|declined, pos_*)`. The home tree always has one (trigger); others come from `place_people`, and a member's own entry waits `pending` for their yes (`respond_to_placement`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `tree_visibility`        | A Root opens their tree, read-only, to the members of another tree they're on: `(tree_id, viewer_tree_id)`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `profiles`               | `auth.users` row: `display_name`, `self_person_id` (one entry, wherever it's shown), `relatives_can_ask` (whether a newcomer's ask may reach them, on unless they untick it; Step 41.5). No account type here: that is `tree_members.role`, per tree (the pre-Step-25 `profiles.role` was dropped in Step 25.6). A member writes only `display_name` and `relatives_can_ask`, on their own row, and never inserts one: `self_person_id` and `invited_by_user_id` are set by the security-definer RPCs alone (Step 42: column grants, `profiles_guard`) |
-| `people`                 | Demographic nodes, **one row per person across all trees**. `tree_id` is the person's **home tree** — whose rules govern their details (Step 25; moved by `set_home_tree`). `hidden_from_visitors` blurs them to visitors. Card positions live on `tree_placements`, not here (the pre-Step-25 `people.pos_*` were dropped in Step 25.6). `owner_user_id` starts as `created_by` and moves on claim. `date_of_birth_precision` / `date_of_death_precision` (`day` \| `month` \| `year`, Step 17) say how much of each date is known — a partial date is stored on the first day of its period, CHECK-enforced, so year-only readers need no change. `place_id_birth` / `place_id_death` → `places(id)` (Step 4.5b; nullable, backfilled — legacy `city_of_birth` / `country_of_birth` / `place_of_death` text kept until reconciled). Nothing about ancestral lands is stored: a card shows Native Land Digital's names, looked up live, or nothing (Step 40; Step 27's `ancestral_lands_birth` / `ancestral_lands_death`, the family's own words, were never used and were dropped in Step 40.5) |
-| `relationships`          | A fact about two people, not a tree (Step 25): a tree draws it when both ends are placed there; `tree_id` records the tree it was drawn on, and uniqueness ignores it. Directed `parent` edges; undirected `spouse` pairs (optional `marriage_date` / `is_divorced` / `divorce_date`, spouse-only by CHECK); siblings inferred                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `people`                 | Demographic nodes, **one row per person across all trees**. `tree_id` is the person's **home tree** — whose rules govern their details (Step 25; moved by `set_home_tree`). `hidden_from_visitors` blurs them to visitors. Card positions live on `tree_placements`, not here (the pre-Step-25 `people.pos_*` were dropped in Step 25.6). `owner_user_id` starts as `created_by` and moves on claim. `date_of_birth_precision` / `date_of_death_precision` (`day` \| `month` \| `year`, Step 17) say how much of each date is known — a partial date is stored on the first day of its period, CHECK-enforced, so year-only readers need no change. A birthday with no year is `birth_month` / `birth_day` (Step 63), set only while `date_of_birth` is empty, so they see no year either. `place_id_birth` / `place_id_death` → `places(id)` (Step 4.5b; nullable, backfilled — legacy `city_of_birth` / `country_of_birth` / `place_of_death` text kept until reconciled). Nothing about ancestral lands is stored: a card shows Native Land Digital's names, looked up live, or nothing (Step 40; Step 27's `ancestral_lands_birth` / `ancestral_lands_death`, the family's own words, were never used and were dropped in Step 40.5) |
+| `relationships`          | A fact about two people, not a tree (Step 25): a tree draws it when both ends are placed there; `tree_id` records the tree it was drawn on, and uniqueness ignores it. Directed `parent` edges; undirected `spouse` pairs (optional `marriage_date`, or `marriage_month` / `marriage_day` with no year (Step 63), / `is_divorced` / `divorce_date`, spouse-only by CHECK); siblings inferred |
 | `connection_suggestions` | Implied-connection prompts surfaced by the add-person flow (`suggested_type` spouse/parent/sibling_check, `source`, `status` pending/accepted/dismissed); UNIQUE (subject, related, type, source) = no re-prompt                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `invites`                | Shareable tokens into one tree (`active` \| `accepted` \| `revoked`); `founds_tree` (Step 25) makes it a founder invite — redeeming plants a new tree with the redeemer as Root. `max_uses` set (1–20) makes it the tree's **family link** (Step 52): one per tree, open to anyone who has it, counted in `use_count` and kept after each join; made, rotated and re-capped only through `rotate_family_link` / `set_family_link_cap` (`family_link_guard`). Who joined with it: `private.family_link_joins` (read by Roots through `family_link_joins`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `invite_requests`        | Public invite asks — first/last name + email, `pending` \| `approved` \| `declined`, `invite_id` of the link minted on approval. Admin-only RLS; inserted server-side with the service role (no `anon` grant). One pending row per email                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
@@ -471,9 +471,11 @@ the canvas draws, searches and lights, and lasts for the visit.
 **Upcoming (Step 57.1):** the card at the canvas's top left lists birthdays and
 wedding anniversaries over the next twelve months (`lib/occasions.ts`),
 grouped Today / Tomorrow / This week / by month, in the viewer's own time
-zone (`use-today.ts`). A birthday needs a whole date of birth and a living
-person (29 February falls on the 28th in other years); an anniversary needs
-a wedding date and a couple both living and not divorced. It lists only who
+zone (`use-today.ts`). A birthday needs a whole date of birth, or a day and
+month with no year (Step 63; **Birthday**, with no age), and a living person
+(29 February falls on the 28th in other years); an anniversary needs a
+wedding date, or its day and month (**Anniversary**, no count of years),
+and a couple both living and not divorced. It lists only who
 the canvas draws, and of those who a search leaves lit (a couple while either
 is), so the side and descendants filters narrow it too, with a "Filtered"
 chip. Closed, its button counts the week ahead. A birthday opens the person;
@@ -1271,6 +1273,51 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 63 — A birthday or a wedding anniversary without its year**
+  (ad-hoc; migration `20260928001000_dates_without_a_year`, live
+  2026-09-28, before the code). Aalim asked that someone "should be able to
+  add day and month without year for birthdays/anniversaries". A date of
+  birth, and a marriage date, can now be a day and month with the year box
+  left empty; a month alone asks "Add the day, or the year." (a marriage's,
+  "Add the day."). Death and divorce dates still need their year. A `date`
+  always has a year, so the pair is kept apart, and only while there's no
+  date: `people.birth_month` / `birth_day` and
+  `relationships.marriage_month` / `marriage_day`, CHECKed (both or neither,
+  a day that's in the month, 29 February allowed, spouse lines only). With no
+  `date_of_birth` behind them, everything that reads a birth year
+  (lifespans, search, sibling order, period place names, claim and invite
+  matching) sees none and is unchanged. The details show "Date of birth
+  5 March" and "Married 4 July", the leaf's hover card and the welcome line
+  ("Born 12 March") too, and the forms open them again as day and month.
+  **Upcoming** counts them, titled **Birthday** and **Anniversary** with no
+  age or count of years. Adding, editing, connecting (`connect_people` gains
+  two trailing arguments; the app before it still reaches it) and filling
+  in what's missing (a birthday fills the date of birth, which then isn't
+  blank) all save them; a Root can undo them (`revision_fields`), and
+  changing one is a date-of-birth change in the edit notice. `tree_people`
+  and `tree_edges` carry the pair as trailing columns. The five functions
+  are their live bodies (md5-checked against their files first) with only
+  those lines changed. **Verified:** rehearsed on live in a rolled-back
+  transaction together with Step 62's migration after it: the function
+  bodies matched the file by md5, both views kept their grants, options and
+  owner, a Root saw the same 83 people and 164 lines, and as that Root
+  `add_people_with_connections` stored a 29 February birthday and a 4 July
+  wedding day with no date, `connect_people` a 25 December one (and still
+  took the old arguments alone), `fill_person_blanks` filled 5 March into an
+  empty date of birth and then refused a date (not blank), and the checks
+  refused 30 February, 31 April, a date with a birthday, and wedding fields
+  on a parent line (a first run let a month with no day through: a null
+  comparison passes a check, so both columns are now required by name, and
+  a second rehearsal refused it). Applied, the recorded statement's md5
+  equals the file's. End to end on live, as a throwaway Root of a throwaway
+  two-person tree, in Chrome (all deleted after, auth user included): the
+  edit form said "Add the day, or the year." for a month alone and saved
+  5 March with no year; the details showed it; the spouse row saved "Married
+  4 July"; **Upcoming** listed "Birthday · Fri 5 Mar" (March 2027) and
+  "Anniversary · Sun 4 Jul" (July 2027); Add a relative saved a child born
+  12 December; the edit form reopened 05 / March / no year. 1019 tests pass
+  (16 new); tsc, lint and `next build` are clean.
+
 - **Step 62 — Edit entry in the details sheet's header; verification
   removed** (ad-hoc; migration `20260928002000_remove_entry_verification`,
   applied once this code is live). Aalim asked to "move the edit entry
@@ -1289,7 +1336,8 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   the ✓ after the name on person cards and leaves, the admin console's
   **Unverified** count, and `setEntryVerified`. The migration drops
   `set_entry_verified`, `people.verified_at` / `verified_by` (and
-  `tree_people`'s copy, the view made again without it), the one
+  `tree_people`'s copy, the view made again without it, keeping Step 63's
+  birthday columns), the one
   `entry_verified` notice sent, and that type from
   `notifications_type_check`. Two entries were marked verified on live.
   **Verified:** on a throwaway preview page (deleted, never committed)
