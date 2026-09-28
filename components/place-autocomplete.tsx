@@ -29,7 +29,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { chosenPlace, isLink, unmatchedSearch } from "@/lib/place-choice";
+import {
+  chosenPlace,
+  isLink,
+  typedPlaceName,
+  unmatchedSearch,
+} from "@/lib/place-choice";
 import { cn } from "@/lib/utils";
 
 export type SelectedPlace = {
@@ -249,7 +254,7 @@ export function PlaceAutocomplete({
         <AddPlaceDialog
           key={addOpen ? `open:${query}` : "closed"}
           open={addOpen}
-          initialName={isLink(query) ? "" : query.trim()}
+          initialName={typedPlaceName(query)}
           onOpenChange={setAddOpen}
           onAdded={(place) => {
             const item: Item = { value: place.id, label: place.label, place };

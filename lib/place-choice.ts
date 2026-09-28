@@ -32,6 +32,16 @@ export function isLink(text: string): boolean {
 }
 
 /**
+ * The place's own name in what was typed: the part before the first comma,
+ * since "Sisang, Gujarat" names Sisang, in Gujarat (Step 66). Empty for a link.
+ * It's what a Root is offered to add and what the add dialog starts with.
+ */
+export function typedPlaceName(typed: string): string {
+  const text = typed.trim();
+  return isLink(text) ? "" : text.split(",")[0].trim();
+}
+
+/**
  * What the picker says when a search turns up nothing, and — for a Root — the
  * name it offers to add as a new place (Step 64): a small village GeoNames'
  * cities500 left out is added from right there, not only from the link under
@@ -41,8 +51,10 @@ export function unmatchedSearch(
   typed: string,
   { canAdd }: { canAdd: boolean },
 ): { note: string; add: string | null } {
-  const name = typed.trim();
-  if (name.length < 2) return { note: "Type at least two letters.", add: null };
-  if (isLink(name)) return { note: "Type the place’s name, not a link.", add: null };
+  const text = typed.trim();
+  if (text.length < 2) return { note: "Type at least two letters.", add: null };
+  if (isLink(text)) return { note: "Type the place’s name, not a link.", add: null };
+  const name = typedPlaceName(text);
+  if (name.length < 2) return { note: "Type the place’s name first.", add: null };
   return { note: "No matching place.", add: canAdd ? name : null };
 }

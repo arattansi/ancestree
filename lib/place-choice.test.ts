@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { chosenPlace, isLink, unmatchedSearch } from "./place-choice";
+import { chosenPlace, isLink, typedPlaceName, unmatchedSearch } from "./place-choice";
 
 const abidjan = { value: 2293538, label: "Abidjan, Côte d’Ivoire" };
 const saved = { value: 184745, label: "Nairobi, Kenya" };
@@ -45,11 +45,36 @@ describe("isLink", () => {
   });
 });
 
+describe("typedPlaceName", () => {
+  it("is the part before the first comma", () => {
+    expect(typedPlaceName("  Sisang, Gujarat, India ")).toBe("Sisang");
+    expect(typedPlaceName("Kalavad taluka")).toBe("Kalavad taluka");
+  });
+
+  it("is empty for a link", () => {
+    expect(typedPlaceName("https://villageinfo.org/village/513810")).toBe("");
+  });
+});
+
 describe("unmatchedSearch", () => {
   it("offers a Root the name they typed", () => {
     expect(unmatchedSearch(" Shishang ", { canAdd: true })).toEqual({
       note: "No matching place.",
       add: "Shishang",
+    });
+  });
+
+  it("offers only the name before a comma, not the region after it", () => {
+    expect(unmatchedSearch("Sisang, Gujarat, India", { canAdd: true })).toEqual({
+      note: "No matching place.",
+      add: "Sisang",
+    });
+  });
+
+  it("asks for the name when only a region was typed", () => {
+    expect(unmatchedSearch(", India", { canAdd: true })).toEqual({
+      note: "Type the place’s name first.",
+      add: null,
     });
   });
 

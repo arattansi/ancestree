@@ -1,6 +1,7 @@
 import "server-only";
 
 import { countryName } from "@/lib/country-names";
+import { choosePlaces, shapePlaceQuery } from "@/lib/place-search";
 import { createClient } from "@/lib/supabase/server";
 
 export { countryName };
@@ -36,35 +37,33 @@ export function placeLegacyText(place: PlaceHit): {
 }
 
 /**
- * Fuzzy place search for the autocomplete. Trigram-indexed `search_name ILIKE`,
- * ranked by how closely the whole string matches, then population.
+ * Fuzzy place search for the autocomplete: trigram-indexed `search_name
+ * ILIKE`, shaped and ranked by lib/place-search.ts (the part before a comma
+ * is searched, what follows prefers a region; Step 66).
  */
 export async function searchPlaces(query: string, limit = 8): Promise<PlaceHit[]> {
-  const q = query.trim().toLowerCase();
-  if (q.length < 2) return [];
+  const q = shapePlaceQuery(query);
+  if (!q) return [];
 
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("places")
-    .select("id, name, ascii_name, admin1_code, country_code, population, search_name")
-    .ilike("search_name", `%${q}%`)
-    .order("population", { ascending: false, nullsFirst: false })
-    .limit(60);
+  const candidates = async (name: string) => {
+    const { data, error } = await supabase
+      .from("places")
+      .select("id, name, ascii_name, admin1_code, country_code, population, search_name")
+      .ilike("search_name", `%${name}%`)
+      .order("population", { ascending: false, nullsFirst: false })
+      .limit(60);
+    return error || !data ? [] : data;
+  };
 
-  if (error || !data) return [];
+  // The fallback goes out alongside the search as typed, so it costs no
+  // extra round trip; it's only used when the search as typed finds nothing.
+  const [found, rescued] = await Promise.all([
+    candidates(q.name),
+    q.fallback ? candidates(q.fallback.name) : null,
+  ]);
 
-  const scored = data.map((p) => {
-    const hay = (p.search_name ?? p.ascii_name ?? p.name).toLowerCase();
-    // prefix match > word-boundary match > substring
-    let score = 0;
-    if (hay === q) score = 3;
-    else if (hay.startsWith(q)) score = 2;
-    else if (hay.includes(` ${q}`)) score = 1;
-    return { p, score, pop: p.population ?? 0 };
-  });
-  scored.sort((a, b) => b.score - a.score || b.pop - a.pop);
-
-  return scored.slice(0, limit).map(({ p }) => ({
+  return choosePlaces(q, found, rescued).slice(0, limit).map((p) => ({
     id: p.id,
     name: p.name,
     admin1_code: p.admin1_code,
