@@ -129,6 +129,8 @@ export async function addPeopleWithConnections(
       city_of_birth: p.city_of_birth ?? "",
       date_of_birth: p.date_of_birth ?? "",
       date_of_birth_precision: p.date_of_birth_precision,
+      birth_month: p.birth_month,
+      birth_day: p.birth_day,
       is_deceased: p.is_deceased,
       date_of_death: p.date_of_death ?? "",
       date_of_death_precision: p.date_of_death_precision,
@@ -145,6 +147,8 @@ export async function addPeopleWithConnections(
     ...(e.type === "spouse"
       ? {
           marriage_date: e.marriage_date ?? "",
+          marriage_month: e.marriage_month ?? null,
+          marriage_day: e.marriage_day ?? null,
           is_divorced: e.is_divorced ?? false,
           divorce_date: e.is_divorced ? (e.divorce_date ?? "") : "",
         }
@@ -229,22 +233,28 @@ export async function detectConnections(input: {
  * Update the optional marriage / divorce fields on a spouse relationship.
  * Gated by the `relationships_update` RLS (admin, the edge's `created_by`, or a
  * branch admin with both ends on their branch); the DB CHECKs keep the dates
- * coherent. All fields optional.
+ * coherent. All fields optional; a wedding day without its year is its month
+ * and day, with no date (Step 63).
  */
 export async function updateRelationshipMarriage(
   relationshipId: string,
   input: {
     marriage_date?: string | null;
+    marriage_month?: number | null;
+    marriage_day?: number | null;
     is_divorced: boolean;
     divorce_date?: string | null;
   },
 ): Promise<{ error?: string }> {
   await requireProfile();
   const supabase = await createClient();
+  const marriageDate = input.marriage_date?.trim() ? input.marriage_date : null;
   const { data, error } = await supabase
     .from("relationships")
     .update({
-      marriage_date: input.marriage_date?.trim() ? input.marriage_date : null,
+      marriage_date: marriageDate,
+      marriage_month: marriageDate ? null : (input.marriage_month ?? null),
+      marriage_day: marriageDate ? null : (input.marriage_day ?? null),
       is_divorced: input.is_divorced,
       divorce_date:
         input.is_divorced && input.divorce_date?.trim()
@@ -335,6 +345,9 @@ export async function connectExistingPeople(input: {
   otherId: string;
   kind: RelationshipKind | "sibling";
   marriage_date?: string | null;
+  /** A wedding day without its year, in place of `marriage_date` (Step 63). */
+  marriage_month?: number | null;
+  marriage_day?: number | null;
   is_divorced?: boolean;
   divorce_date?: string | null;
 }): Promise<{ error?: string }> {
@@ -362,14 +375,21 @@ export async function connectExistingPeople(input: {
 
   const isSpouse = type === "spouse";
   const isDivorced = isSpouse && (input.is_divorced ?? false);
+  const marriageDate =
+    isSpouse && input.marriage_date?.trim() ? input.marriage_date : undefined;
 
   const supabase = await createClient();
   const { error } = await supabase.rpc("connect_people", {
     p_from: from,
     p_to: to,
     p_type: type,
-    p_marriage_date:
-      isSpouse && input.marriage_date?.trim() ? input.marriage_date : undefined,
+    p_marriage_date: marriageDate,
+    p_marriage_month:
+      isSpouse && !marriageDate
+        ? (input.marriage_month ?? undefined)
+        : undefined,
+    p_marriage_day:
+      isSpouse && !marriageDate ? (input.marriage_day ?? undefined) : undefined,
     p_is_divorced: isDivorced,
     p_divorce_date:
       isDivorced && input.divorce_date?.trim() ? input.divorce_date : undefined,
@@ -439,6 +459,8 @@ export async function updatePerson(
     last_name: payload.last_name,
     date_of_birth: payload.date_of_birth,
     date_of_birth_precision: payload.date_of_birth_precision,
+    birth_month: payload.birth_month,
+    birth_day: payload.birth_day,
     place_id_birth: payload.place_id_birth,
     city_of_birth: payload.city_of_birth,
     country_of_birth: payload.country_of_birth,

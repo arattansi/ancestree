@@ -33,6 +33,10 @@ export type TreeGraphPerson = {
    *  `formatPartialDate`, never as the raw ISO string. */
   date_of_birth_precision: string;
   date_of_death_precision: string;
+  /** A birthday kept without its year (Step 63): set only while
+   *  `date_of_birth` is empty, as `date_of_birth` always has a year. */
+  birth_month: number | null;
+  birth_day: number | null;
   city_of_birth: string | null;
   country_of_birth: string;
   place_id_birth: number | null;
@@ -93,6 +97,10 @@ export type TreeGraphEdge = {
   created_by: string;
   /** Spouse edges only (Step 11.5). */
   marriage_date: string | null;
+  /** A wedding day kept without its year, set only with no `marriage_date`
+   *  (Step 63). */
+  marriage_month: number | null;
+  marriage_day: number | null;
   is_divorced: boolean;
   divorce_date: string | null;
 };
@@ -103,7 +111,7 @@ export type TreeGraphEdge = {
  * says whether this tree is the one whose rules govern the entry.
  */
 const PERSON_COLUMNS =
-  "id, home_tree_id, is_home, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_death, date_of_birth_precision, date_of_death_precision, city_of_birth, country_of_birth, place_id_birth, place_id_death, is_deceased, place_of_death, sex, lineage_type, photo_path, photo_crop, pos_x, pos_y, owner_user_id, created_by, pos_dx, pos_dy, hidden_from_visitors, blurred, email, email_visible";
+  "id, home_tree_id, is_home, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_death, date_of_birth_precision, date_of_death_precision, birth_month, birth_day, city_of_birth, country_of_birth, place_id_birth, place_id_death, is_deceased, place_of_death, sex, lineage_type, photo_path, photo_crop, pos_x, pos_y, owner_user_id, created_by, pos_dx, pos_dy, hidden_from_visitors, blurred, email, email_visible";
 
 /**
  * Stands in for the user ids on a public read (`forPublic`): the nil UUID,
@@ -142,7 +150,7 @@ export async function getTreeGraph(
       supabase
         .from("tree_edges")
         .select(
-          "id, from_person, to_person, type, created_by, marriage_date, is_divorced, divorce_date",
+          "id, from_person, to_person, type, created_by, marriage_date, marriage_month, marriage_day, is_divorced, divorce_date",
         )
         .eq("tree_id", treeId),
       forPublic
@@ -205,6 +213,8 @@ export async function getTreeGraph(
           date_of_death: null,
           date_of_birth_precision: "day",
           date_of_death_precision: "day",
+          birth_month: null,
+          birth_day: null,
           city_of_birth: null,
           place_id_birth: null,
           place_id_death: null,
@@ -246,6 +256,8 @@ export async function getTreeGraph(
             type: r.type,
             created_by: forPublic ? NOBODY : r.created_by,
             marriage_date: r.marriage_date,
+            marriage_month: r.marriage_month,
+            marriage_day: r.marriage_day,
             is_divorced: r.is_divorced ?? false,
             divorce_date: r.divorce_date,
           },

@@ -39,6 +39,12 @@ describe("blankFields", () => {
     ]);
   });
 
+  it("counts a birthday without its year as a date of birth", () => {
+    expect(
+      blankFields(entry({ birth_month: 3 })),
+    ).not.toContain("date_of_birth");
+  });
+
   it("counts a blank name as missing, and a filled one as there", () => {
     const nana = entry({ first_name: "  ", preferred_name: "Nana" });
     expect(blankFields(nana)).toContain("first_name");
@@ -97,6 +103,13 @@ describe("fillFields", () => {
       date_of_birth: "1931-01-01",
       date_of_birth_precision: "year",
     });
+  });
+
+  it("sends a birthday without its year as a month and day, with no date", () => {
+    const fields = fillFields(payload({ date_of_birth: "-03-05" }));
+    expect(fields).toMatchObject({ birth_month: 3, birth_day: 5 });
+    expect(fields).not.toHaveProperty("date_of_birth");
+    expect(fields).not.toHaveProperty("date_of_birth_precision");
   });
 
   it("sends a birthplace with the city and country it was picked with", () => {

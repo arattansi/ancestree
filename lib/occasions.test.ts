@@ -77,6 +77,34 @@ describe("upcomingOccasions", () => {
     expect(list.map((o) => o.people[0])).toEqual(["whole"]);
   });
 
+  it("finds birthdays kept without the year, with no age", () => {
+    const list = upcomingOccasions(
+      [
+        person("no-year", null, { birth_month: 10, birth_day: 1 }),
+        person("leap", null, { birth_month: 2, birth_day: 29 }),
+        person("today", null, { birth_month: 9, birth_day: 26 }),
+        person("half", null, { birth_month: 10, birth_day: null }),
+        person("bad", null, { birth_month: 4, birth_day: 31 }),
+        person("gone", null, {
+          birth_month: 10,
+          birth_day: 2,
+          is_deceased: true,
+        }),
+      ],
+      [],
+      TODAY,
+    );
+    expect(list.map((o) => [o.people[0], o.date, o.daysAway, o.years])).toEqual(
+      [
+        // Born on this day in an unknown year: still their birthday.
+        ["today", "2026-09-26", 0, null],
+        ["no-year", "2026-10-01", 5, null],
+        // 2027 has no 29 February.
+        ["leap", "2027-02-28", 155, null],
+      ],
+    );
+  });
+
   it("keeps a 29 February birthday on the 28th in a year without one", () => {
     const leapling = [person("leap", "2000-02-29")];
     expect(upcomingOccasions(leapling, [], TODAY)[0]).toMatchObject({
@@ -142,6 +170,30 @@ describe("upcomingOccasions", () => {
         date: "2026-10-10",
         daysAway: 14,
         years: 25,
+      },
+    ]);
+  });
+
+  it("finds anniversaries kept without the year, with no count of years", () => {
+    const list = upcomingOccasions(
+      [person("a", null), person("b", null), person("c", null), person("d", null)],
+      [
+        marriage("a", "b", null, { marriage_month: 9, marriage_day: 26 }),
+        marriage("c", "d", null, {
+          marriage_month: 10,
+          marriage_day: 1,
+          is_divorced: true,
+        }),
+      ],
+      TODAY,
+    );
+    expect(list).toEqual([
+      {
+        kind: "anniversary",
+        people: ["a", "b"],
+        date: "2026-09-26",
+        daysAway: 0,
+        years: null,
       },
     ]);
   });
@@ -237,6 +289,12 @@ describe("wording", () => {
     );
     expect(occasionTitle({ ...base, kind: "anniversary", years: 25 })).toBe(
       "25th anniversary",
+    );
+    expect(occasionTitle({ ...base, kind: "birthday", years: null })).toBe(
+      "Birthday",
+    );
+    expect(occasionTitle({ ...base, kind: "anniversary", years: null })).toBe(
+      "Anniversary",
     );
   });
 

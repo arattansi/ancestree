@@ -40,6 +40,9 @@ export type ConnectionEdge = {
   b: PersonRef;
   /** Spouse edges only — optional marriage/divorce tracking (Step 11.5). */
   marriage_date?: string | null;
+  /** A wedding day kept without its year, in place of a date (Step 63). */
+  marriage_month?: number | null;
+  marriage_day?: number | null;
   is_divorced?: boolean;
   divorce_date?: string | null;
 };
@@ -153,7 +156,11 @@ export type FlowMember = {
 
 type SpouseFields = Pick<
   ConnectionEdge,
-  "marriage_date" | "is_divorced" | "divorce_date"
+  | "marriage_date"
+  | "marriage_month"
+  | "marriage_day"
+  | "is_divorced"
+  | "divorce_date"
 >;
 
 /**

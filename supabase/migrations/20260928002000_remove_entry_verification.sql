@@ -14,7 +14,8 @@
 drop function public.set_entry_verified(uuid, boolean);
 
 -- A view can't lose a column in place, and tree_people names verified_at,
--- so it's dropped and made again without it. Nothing depends on it; the
+-- so it's dropped and made again without it, keeping the birthday columns
+-- Step 63 (20260928001000) put at its end. Nothing depends on it; the
 -- schema's default privileges give it the same grants as before.
 drop view public.tree_people;
 
@@ -65,7 +66,9 @@ select
   case
     when pe.id is not null and (pe.email_visible or pe.owner_user_id = (select auth.uid())) then pe.email
   end as email,
-  pe.email_visible
+  pe.email_visible,
+  pe.birth_month,
+  pe.birth_day
 from public.tree_placements pl
 left join public.people pe on pe.id = pl.person_id
 where pl.status = 'active';

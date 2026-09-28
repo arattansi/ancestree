@@ -101,7 +101,8 @@ export function EditConnections({
     setCoParentIds(null);
   }
 
-  // Marriage dates have to be whole (no precision column on relationships).
+  // Marriage dates have to be whole (no precision column on relationships),
+  // or a day and month without the year (Step 63).
   const dateProblems =
     kind === "spouse"
       ? marriageDateProblems({ marriageDate, isDivorced, divorceDate })
@@ -115,13 +116,16 @@ export function EditConnections({
     }
     if (!datesOk) return;
     setBusy(true);
+    // Padded to ISO: a one-digit day types as "1965-03-5".
+    const married = toStoredDate(marriageDate);
     const res = await connectExistingPeople({
       treeId,
       personId,
       otherId,
       kind,
-      // Padded to ISO: a one-digit day types as "1965-03-5".
-      marriage_date: toStoredDate(marriageDate).date ?? "",
+      marriage_date: married.date ?? "",
+      marriage_month: married.withoutYear?.month ?? null,
+      marriage_day: married.withoutYear?.day ?? null,
       is_divorced: isDivorced,
       divorce_date: toStoredDate(divorceDate).date ?? "",
     });

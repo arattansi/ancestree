@@ -5,7 +5,7 @@ import * as React from "react";
 import { AccountTypeMark } from "@/components/account-type-badge";
 import { cropStyle, parseCrop } from "@/lib/image-crop";
 import { leafLabel, type LeafShape, type NativeLeaf } from "@/lib/native-leaf";
-import { formatPartialDate } from "@/lib/partial-date";
+import { asDayMonth, formatPartialDate } from "@/lib/partial-date";
 import {
   nodeDisplayName,
   personDisplayName,
@@ -164,6 +164,7 @@ function LeafDetail({
   const born = formatPartialDate(
     person.date_of_birth,
     person.date_of_birth_precision,
+    asDayMonth(person.birth_month, person.birth_day),
   );
   const died = formatPartialDate(
     person.date_of_death,

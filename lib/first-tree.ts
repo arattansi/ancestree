@@ -237,6 +237,8 @@ export type CloseRelativeLinks = {
   /** A partner: when they married and whether they parted, already stored-shape. */
   marriage?: {
     marriage_date?: string | null;
+    marriage_month?: number | null;
+    marriage_day?: number | null;
     is_divorced?: boolean;
     divorce_date?: string | null;
   };
@@ -286,6 +288,8 @@ export function closeRelativeEdges(
           a: existing(founderId),
           b: added,
           marriage_date: links.marriage?.marriage_date ?? null,
+          marriage_month: links.marriage?.marriage_month ?? null,
+          marriage_day: links.marriage?.marriage_day ?? null,
           is_divorced: links.marriage?.is_divorced ?? false,
           divorce_date: links.marriage?.is_divorced
             ? (links.marriage?.divorce_date ?? null)

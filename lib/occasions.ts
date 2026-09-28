@@ -3,11 +3,13 @@
  * **Upcoming** card. The canvas hands it the people it is drawing, so the
  * filters that narrow the tree narrow the list with it.
  *
- * Only whole dates count. A birth date known to the month or the year has no
- * day to keep (`date_of_birth_precision`, Step 17); a marriage date is always
- * whole, as it has no precision column. Only the living have birthdays here,
- * and only couples still married, both living, have anniversaries: this is
- * what's coming up to celebrate, not a record of the dead.
+ * Only a date with its day counts. A birth date known to the month or the
+ * year has no day to keep (`date_of_birth_precision`, Step 17); a marriage
+ * date is always whole, as it has no precision column. A day and month kept
+ * without the year counts too (Step 63), with no age or count of years. Only
+ * the living have birthdays here, and only couples still married, both
+ * living, have anniversaries: this is what's coming up to celebrate, not a
+ * record of the dead.
  *
  * Dates are calendar days, `YYYY-MM-DD`, with "today" in the viewer's own
  * time zone (`localDay`), so the list turns over at their midnight.
@@ -21,6 +23,9 @@ export type OccasionPerson = {
   id: string;
   date_of_birth: string | null;
   date_of_birth_precision: string;
+  /** A birthday kept without its year (Step 63). */
+  birth_month?: number | null;
+  birth_day?: number | null;
   date_of_death: string | null;
   is_deceased: boolean;
 };
@@ -31,6 +36,9 @@ export type OccasionEdge = {
   to_person: string;
   type: string;
   marriage_date: string | null;
+  /** A wedding day kept without its year (Step 63). */
+  marriage_month?: number | null;
+  marriage_day?: number | null;
   is_divorced: boolean;
 };
 
@@ -42,8 +50,9 @@ export type Occasion = {
   date: string;
   /** Days from today to `date`: 0 is today. */
   daysAway: number;
-  /** The age they turn, or the years they'll have been married. */
-  years: number;
+  /** The age they turn, or the years they'll have been married; null when
+   *  the year it began isn't known. */
+  years: number | null;
 };
 
 /** How far ahead the card looks: a year, so everyone's next one is on it. */
@@ -55,6 +64,8 @@ export const WEEK_DAYS = 7;
 const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 type Ymd = { y: number; m: number; d: number };
+/** A day that comes round each year, from a year that may not be known. */
+type Recurring = { y: number | null; m: number; d: number };
 
 function parse(iso: string | null | undefined): Ymd | null {
   const match = iso ? ISO_DATE.exec(iso) : null;
@@ -70,6 +81,17 @@ const isLeap = (y: number) => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
 const utc = ({ y, m, d }: Ymd) => Date.UTC(y, m - 1, d);
 const DAY_MS = 86_400_000;
 
+/** A day and month kept without a year, if both are there and real. */
+function withoutYear(
+  m: number | null | undefined,
+  d: number | null | undefined,
+): Recurring | null {
+  if (!m || !d || m < 1 || m > 12 || d < 1) return null;
+  // Checked against a leap year: 29 February is someone's birthday.
+  if (d > new Date(Date.UTC(2000, m, 0)).getUTCDate()) return null;
+  return { y: null, m, d };
+}
+
 /** Today in the viewer's own time zone, as `YYYY-MM-DD`. */
 export function localDay(now: Date = new Date()): string {
   return iso({ y: now.getFullYear(), m: now.getMonth() + 1, d: now.getDate() });
@@ -79,12 +101,12 @@ export function localDay(now: Date = new Date()): string {
  * The day a date comes round again in `year`. Someone born on 29 February
  * keeps it on the 28th in a year without one: still February, still theirs.
  */
-function inYear({ m, d }: Ymd, year: number): Ymd {
+function inYear({ m, d }: Recurring, year: number): Ymd {
   return { y: year, m, d: m === 2 && d === 29 && !isLeap(year) ? 28 : d };
 }
 
 /** When `date` next comes round from `today`, today included. */
-function nextOccurrence(date: Ymd, today: Ymd): Ymd {
+function nextOccurrence(date: Recurring, today: Ymd): Ymd {
   const thisYear = inYear(date, today.y);
   return utc(thisYear) >= utc(today) ? thisYear : inYear(date, today.y + 1);
 }
@@ -92,14 +114,14 @@ function nextOccurrence(date: Ymd, today: Ymd): Ymd {
 function occasion(
   kind: Occasion["kind"],
   people: string[],
-  from: Ymd,
+  from: Recurring,
   today: Ymd,
 ): Occasion | null {
   const next = nextOccurrence(from, today);
-  const years = next.y - from.y;
+  const years = from.y === null ? null : next.y - from.y;
   // The day itself (born today, married today) isn't an anniversary of it,
   // and a date still to come is a mistake in the entry.
-  if (years < 1) return null;
+  if (years !== null && years < 1) return null;
   return {
     kind,
     people,
@@ -133,8 +155,11 @@ export function upcomingOccasions(
 
   const found: Occasion[] = [];
   for (const p of living.values()) {
-    if (asDatePrecision(p.date_of_birth_precision) !== "day") continue;
-    const born = parse(p.date_of_birth);
+    const born = p.date_of_birth
+      ? asDatePrecision(p.date_of_birth_precision) === "day"
+        ? parse(p.date_of_birth)
+        : null
+      : withoutYear(p.birth_month, p.birth_day);
     const birthday = born && occasion("birthday", [p.id], born, day);
     if (birthday) found.push(birthday);
   }
@@ -146,7 +171,9 @@ export function upcomingOccasions(
     // A marriage stored twice, once each way, is still one anniversary.
     const key = [e.from_person, e.to_person].sort().join("~");
     if (couples.has(key)) continue;
-    const married = parse(e.marriage_date);
+    const married = e.marriage_date
+      ? parse(e.marriage_date)
+      : withoutYear(e.marriage_month, e.marriage_day);
     const anniversary =
       married &&
       occasion("anniversary", [e.from_person, e.to_person], married, day);
@@ -233,8 +260,14 @@ export function ordinal(n: number): string {
   }
 }
 
-/** What an occasion is, in the card's words: "Turns 34", "25th anniversary". */
+/**
+ * What an occasion is, in the card's words: "Turns 34", "25th anniversary",
+ * or "Birthday", "Anniversary" when the year it began isn't known.
+ */
 export function occasionTitle(o: Occasion): string {
+  if (o.years === null) {
+    return o.kind === "birthday" ? "Birthday" : "Anniversary";
+  }
   return o.kind === "birthday"
     ? `Turns ${o.years}`
     : `${ordinal(o.years)} anniversary`;

@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { Profile } from "@/lib/auth";
-import { toPartialIso } from "@/lib/partial-date";
+import { asDayMonth, toPartialIso } from "@/lib/partial-date";
 import { personDisplayName } from "@/lib/person-name";
 import type { PersonFormValues } from "@/lib/person-schema";
 import { formatPlaceLabel, getPlacesByIds } from "@/lib/places";
@@ -34,7 +34,7 @@ export async function loadOwnEntry(profile: Profile): Promise<OwnEntry | null> {
   const { data: person } = await supabase
     .from("people")
     .select(
-      "id, tree_id, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_birth_precision, place_id_birth, city_of_birth, country_of_birth, is_deceased, date_of_death, date_of_death_precision, place_id_death, place_of_death, sex, lineage_type, photo_path, photo_crop, email, email_visible",
+      "id, tree_id, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_birth_precision, birth_month, birth_day, place_id_birth, city_of_birth, country_of_birth, is_deceased, date_of_death, date_of_death_precision, place_id_death, place_of_death, sex, lineage_type, photo_path, photo_crop, email, email_visible",
     )
     .eq("id", profile.self_person_id)
     .maybeSingle();
@@ -76,6 +76,7 @@ export async function loadOwnEntry(profile: Profile): Promise<OwnEntry | null> {
       date_of_birth: toPartialIso(
         person.date_of_birth,
         person.date_of_birth_precision ?? "day",
+        asDayMonth(person.birth_month, person.birth_day),
       ),
       place_id_birth: person.place_id_birth ?? null,
       city_of_birth: person.city_of_birth ?? "",

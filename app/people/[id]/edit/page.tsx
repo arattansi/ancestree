@@ -18,7 +18,7 @@ import {
 } from "@/lib/branch";
 import { getSpokenForEntryIds, getViewer } from "@/lib/branch.server";
 import { blankFields } from "@/lib/fill-blanks";
-import { toPartialIso } from "@/lib/partial-date";
+import { asDayMonth, toPartialIso } from "@/lib/partial-date";
 import { personDisplayName } from "@/lib/person-name";
 import { formatPlaceLabel, getPlacesByIds } from "@/lib/places";
 import type { PersonFormValues } from "@/lib/person-schema";
@@ -43,7 +43,7 @@ export default async function EditPersonPage({
   const { data: person } = await supabase
     .from("tree_people")
     .select(
-      "id, home_tree_id, is_home, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_birth_precision, place_id_birth, city_of_birth, country_of_birth, is_deceased, date_of_death, date_of_death_precision, place_id_death, place_of_death, sex, lineage_type, photo_path, photo_crop, owner_user_id, created_by, email, email_visible",
+      "id, home_tree_id, is_home, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_birth_precision, birth_month, birth_day, place_id_birth, city_of_birth, country_of_birth, is_deceased, date_of_death, date_of_death_precision, place_id_death, place_of_death, sex, lineage_type, photo_path, photo_crop, owner_user_id, created_by, email, email_visible",
     )
     .eq("tree_id", tree.id)
     .eq("id", id)
@@ -99,10 +99,12 @@ export default async function EditPersonPage({
     preferred_name: person.preferred_name ?? "",
     maiden_name: person.maiden_name ?? "",
     last_name: person.last_name,
-    // A partial date opens as just what's known ("1931", "1931-03").
+    // A partial date opens as just what's known ("1931", "1931-03", or a
+    // birthday with no year, "-03-05").
     date_of_birth: toPartialIso(
       person.date_of_birth,
       person.date_of_birth_precision ?? "day",
+      asDayMonth(person.birth_month, person.birth_day),
     ),
     place_id_birth: person.place_id_birth ?? null,
     city_of_birth: person.city_of_birth ?? "",
@@ -133,6 +135,7 @@ export default async function EditPersonPage({
       maiden_name: person.maiden_name,
       sex: person.sex,
       date_of_birth: person.date_of_birth,
+      birth_month: person.birth_month,
       place_id_birth: person.place_id_birth,
       city_of_birth: person.city_of_birth,
       country_of_birth: person.country_of_birth,

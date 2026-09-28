@@ -208,8 +208,29 @@ describe("closeRelativeEdges", () => {
         a: me,
         b: added,
         marriage_date: "2001-06-02",
+        marriage_month: null,
+        marriage_day: null,
         is_divorced: false,
         // Not divorced, so no divorce date, whatever the form still holds.
+        divorce_date: null,
+      },
+    ]);
+  });
+
+  it("marries a partner on a day and month with no year", () => {
+    expect(
+      closeRelativeEdges("partner", "me", {
+        marriage: { marriage_date: null, marriage_month: 6, marriage_day: 2 },
+      }),
+    ).toEqual([
+      {
+        type: "spouse",
+        a: me,
+        b: added,
+        marriage_date: null,
+        marriage_month: 6,
+        marriage_day: 2,
+        is_divorced: false,
         divorce_date: null,
       },
     ]);

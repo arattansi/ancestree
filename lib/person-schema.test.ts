@@ -56,6 +56,23 @@ describe("personSchema dates", () => {
     expect(personSchema.safeParse(person({ date_of_birth: "1931-03" })).success).toBe(true);
   });
 
+  it("takes a birthday without its year, but not a death date", () => {
+    expect(personSchema.safeParse(person({ date_of_birth: "-03-05" })).success).toBe(true);
+    expect(
+      deathIssue(person({ is_deceased: true, date_of_death: "-03-05" })),
+    ).toBe("Add the year.");
+    // A death date can't be checked against a birthday with no year.
+    expect(
+      deathIssue(
+        person({
+          is_deceased: true,
+          date_of_birth: "-03-05",
+          date_of_death: "1901",
+        }),
+      ),
+    ).toBeUndefined();
+  });
+
   it("says what's wrong with a half-typed date", () => {
     const result = personSchema.safeParse(person({ date_of_birth: "1931--3" }));
     expect(result.success).toBe(false);
@@ -112,5 +129,15 @@ describe("toPersonPayload dates", () => {
     const payload = toPersonPayload(person({ date_of_birth: "1925-09-04" }));
     expect(payload.date_of_birth).toBe("1925-09-04");
     expect(payload.date_of_birth_precision).toBe("day");
+    expect(payload.birth_month).toBeNull();
+    expect(payload.birth_day).toBeNull();
+  });
+
+  it("stores a birthday without its year as a month and day, with no date", () => {
+    const payload = toPersonPayload(person({ date_of_birth: "-3-05" }));
+    expect(payload.date_of_birth).toBeNull();
+    expect(payload.date_of_birth_precision).toBe("day");
+    expect(payload.birth_month).toBe(3);
+    expect(payload.birth_day).toBe(5);
   });
 });

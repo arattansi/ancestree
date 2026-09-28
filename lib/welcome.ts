@@ -87,14 +87,19 @@ export function welcomeAsk(asks: readonly Fillable[]): string {
 export function enteredLine(
   entry: {
     maiden_name?: string | null;
-    /** As the form holds it: "1950", "1950-05" or "1950-05-03". */
+    /** As the form holds it: "1950", "1950-05", "1950-05-03" or, with no
+     *  year, "-05-03". */
     date_of_birth?: string | null;
   },
   birthPlace: string | null | undefined,
 ): string | null {
   const maiden = entry.maiden_name?.trim();
   const stored = toStoredDate(entry.date_of_birth);
-  const born = formatPartialDate(stored.date, stored.precision);
+  const born = formatPartialDate(
+    stored.date,
+    stored.precision,
+    stored.withoutYear,
+  );
   const place = birthPlace?.trim();
   const birth =
     born && place

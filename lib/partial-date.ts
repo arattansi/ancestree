@@ -1,12 +1,18 @@
 /**
- * Dates the family only partly knows — "1931", "March 1931" — and how they
- * are typed, checked, stored and shown.
+ * Dates the family only partly knows — "1931", "March 1931", "5 March" — and
+ * how they are typed, checked, stored and shown.
  *
  * A date is stored as a `date` plus how much of it is known
  * (`people.date_of_birth_precision`, Step 17), on the first day of its period:
  * "1931" is 1931-01-01 at "year", "March 1931" is 1931-03-01 at "month". So
  * anything that only reads the year needs no change, and anything that shows
  * the whole date has to ask the precision first — which is what this is for.
+ *
+ * A birthday or a wedding anniversary can also be a day and month with no
+ * year (Step 63). A `date` needs a year, so that one is stored apart, as a
+ * `DayMonth` (`people.birth_month` / `birth_day`, `relationships.
+ * marriage_month` / `marriage_day`), with no `date`: whatever reads a year
+ * sees none, as it should.
  */
 
 export const DATE_PRECISIONS = ["day", "month", "year"] as const;
@@ -34,9 +40,29 @@ export const MONTH_NAMES = [
 
 const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
+/** A day and month whose year isn't known (Step 63). */
+export type DayMonth = { month: number; day: number };
+
+/** The day and month two columns hold, or null unless both do. */
+export function asDayMonth(
+  month: number | null | undefined,
+  day: number | null | undefined,
+): DayMonth | null {
+  return month && day ? { month, day } : null;
+}
+
+/** "5 March", or null. */
+export function formatDayMonth(
+  value: DayMonth | null | undefined,
+): string | null {
+  const monthName = value ? MONTH_NAMES[value.month - 1] : undefined;
+  return value && monthName ? `${value.day} ${monthName}` : null;
+}
+
 /**
- * "3 May 1950", "May 1950" or "1950", as much of the date as is known; null
- * when there is no date.
+ * "3 May 1950", "May 1950" or "1950", as much of the date as is known, or
+ * "3 May" for a day and month with no year (`withoutYear`); null when there
+ * is no date.
  *
  * Spelled out from a fixed list rather than `toLocaleDateString`, which reads
  * the browser's locale — "May 3, 1950" in one relative's browser and "03/05/1950"
@@ -45,8 +71,9 @@ const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 export function formatPartialDate(
   iso: string | null | undefined,
   precision?: string | null,
+  withoutYear?: DayMonth | null,
 ): string | null {
-  if (!iso) return null;
+  if (!iso) return formatDayMonth(withoutYear);
   const match = ISO_DATE.exec(iso);
   if (!match) return null;
   const [, year, month, day] = match;
@@ -90,6 +117,9 @@ export function joinDateParts({ year, month, day }: DateParts): string {
 
 const MIN_YEAR = 1000;
 
+/** Any leap year: a day and month with no year may be 29 February. */
+const LEAP_YEAR = 2000;
+
 function daysInMonth(year: number, month: number): number {
   return new Date(Date.UTC(year, month, 0)).getUTCDate();
 }
@@ -99,18 +129,24 @@ function daysInMonth(year: number, month: number): number {
  * fine. Empty is fine: whether a date is required is the form's call.
  *
  * `allowPartial` is off for dates that must be whole (marriage and divorce,
- * which have no precision column yet).
+ * which have no precision column yet). `allowNoYear` lets a birthday or a
+ * wedding anniversary be a day and month alone (Step 63).
  */
 export function dateProblem(
   value: string | null | undefined,
   {
     allowPartial,
+    allowNoYear = false,
     maxYear = new Date().getFullYear(),
-  }: { allowPartial: boolean; maxYear?: number },
+  }: { allowPartial: boolean; allowNoYear?: boolean; maxYear?: number },
 ): string | null {
   const { year, month, day } = splitDateParts(value);
   if (!year && !month && !day) return null;
-  if (!year) return "Add the year.";
+  if (!year) {
+    return allowNoYear
+      ? dayMonthProblem(month, day, allowPartial)
+      : "Add the year.";
+  }
   if (!/^\d{4}$/.test(year)) return "Use a 4-digit year.";
   const y = Number(year);
   if (y < MIN_YEAR || y > maxYear) {
@@ -131,6 +167,24 @@ export function dateProblem(
   return null;
 }
 
+/** What's wrong with a day and month typed without a year, or null. */
+function dayMonthProblem(
+  month: string,
+  day: string,
+  allowPartial: boolean,
+): string | null {
+  if (!month) return "Pick the month, or clear the day.";
+  if (!/^(0?[1-9]|1[0-2])$/.test(month)) return "Pick a month.";
+  // A month alone is half of "5 March", or of "March 1950" where that's allowed.
+  if (!day) return allowPartial ? "Add the day, or the year." : "Add the day.";
+  if (!/^\d{1,2}$/.test(day)) return "Use numbers for the day.";
+  const d = Number(day);
+  if (d < 1 || d > daysInMonth(LEAP_YEAR, Number(month))) {
+    return "That day isn't in that month.";
+  }
+  return null;
+}
+
 function precisionOf({ month, day }: DateParts): DatePrecision {
   if (day) return "day";
   if (month) return "month";
@@ -140,24 +194,44 @@ function precisionOf({ month, day }: DateParts): DatePrecision {
 /**
  * Where a checked value is stored: the first day of its period, plus how much
  * of it is known. "1931" is 1931-01-01 at "year"; nothing is null at "day".
+ * A day and month with no year has no `date`, only `withoutYear`.
  */
 export function toStoredDate(value: string | null | undefined): {
   date: string | null;
   precision: DatePrecision;
+  withoutYear: DayMonth | null;
 } {
   const parts = splitDateParts(value);
-  if (!parts.year) return { date: null, precision: "day" };
+  if (!parts.year) {
+    const withoutYear =
+      /^\d{1,2}$/.test(parts.month) && /^\d{1,2}$/.test(parts.day)
+        ? asDayMonth(Number(parts.month), Number(parts.day))
+        : null;
+    return { date: null, precision: "day", withoutYear };
+  }
   const month = (parts.month || "1").padStart(2, "0");
   const day = (parts.day || "1").padStart(2, "0");
-  return { date: `${parts.year}-${month}-${day}`, precision: precisionOf(parts) };
+  return {
+    date: `${parts.year}-${month}-${day}`,
+    precision: precisionOf(parts),
+    withoutYear: null,
+  };
 }
 
-/** The value a form opens with, for a stored date and its precision. */
+/**
+ * The value a form opens with, for a stored date and its precision, or for a
+ * day and month with no year: "-03-05".
+ */
 export function toPartialIso(
   date: string | null | undefined,
   precision?: string | null,
+  withoutYear?: DayMonth | null,
 ): string {
-  if (!date) return "";
+  if (!date) {
+    if (!withoutYear) return "";
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `-${pad(withoutYear.month)}-${pad(withoutYear.day)}`;
+  }
   const match = ISO_DATE.exec(date);
   if (!match) return "";
   const [, year, month] = match;
@@ -206,8 +280,9 @@ export function isBeforeAtSharedPrecision(
 
 /**
  * What's wrong with a marriage's dates, field by field. They have to be whole
- * — `relationships` has no precision column yet — and a divorce can't come
- * before the marriage it ends.
+ * — `relationships` has no precision column yet — though a marriage may be a
+ * day and month without the year, for its anniversary (Step 63); and a
+ * divorce can't come before the marriage it ends.
  */
 export function marriageDateProblems({
   marriageDate,
@@ -218,7 +293,10 @@ export function marriageDateProblems({
   isDivorced?: boolean | null;
   divorceDate?: string | null;
 }): { marriage: string | null; divorce: string | null } {
-  const marriage = dateProblem(marriageDate, { allowPartial: false });
+  const marriage = dateProblem(marriageDate, {
+    allowPartial: false,
+    allowNoYear: true,
+  });
   const divorce = isDivorced
     ? dateProblem(divorceDate, { allowPartial: false })
     : null;

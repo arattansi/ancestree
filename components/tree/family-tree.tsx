@@ -94,6 +94,7 @@ import type { GettingStartedItem } from "@/lib/first-tree";
 import { cropStyle, parseCrop } from "@/lib/image-crop";
 import { nativeLeaf } from "@/lib/native-leaf";
 import { upcomingOccasions } from "@/lib/occasions";
+import { asDayMonth } from "@/lib/partial-date";
 import { personSpotlight, spotlightPeople } from "@/lib/person-spotlight";
 import { onboardingHref } from "@/lib/tree-links";
 import { cn } from "@/lib/utils";
@@ -2191,6 +2192,7 @@ function Canvas({
             otherName,
             kind,
             marriageDate: r.marriage_date,
+            marriageWithoutYear: asDayMonth(r.marriage_month, r.marriage_day),
             isDivorced: r.is_divorced,
             divorceDate: r.divorce_date,
             canEdit: canEditConnection(r, viewer),

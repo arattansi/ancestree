@@ -35,15 +35,17 @@ const optionalText = (max: number) =>
     .or(z.literal(""));
 
 // A birth or death date may be whole, a month and year, or just the year
-// (Step 17); `DateField` holds it as `year-month-day` with empty parts while
-// it's being typed, and `dateProblem` says what's still wrong with it.
-const optionalDate = z
-  .string()
-  .optional()
-  .superRefine((value, ctx) => {
-    const problem = dateProblem(value, { allowPartial: true });
-    if (problem) ctx.addIssue({ code: "custom", message: problem });
-  });
+// (Step 17), and a birth date a day and month without the year too, a
+// birthday (Step 63); `DateField` holds it as `year-month-day` with empty
+// parts while it's being typed, and `dateProblem` says what's still wrong.
+const optionalDate = (allowNoYear: boolean) =>
+  z
+    .string()
+    .optional()
+    .superRefine((value, ctx) => {
+      const problem = dateProblem(value, { allowPartial: true, allowNoYear });
+      if (problem) ctx.addIssue({ code: "custom", message: problem });
+    });
 
 /**
  * Shared person schema. Required: (first OR preferred) AND last name AND an
@@ -62,7 +64,7 @@ export const personSchema = z
       .trim()
       .min(1, "Last name is required.")
       .max(120, "Keep this under 120 characters."),
-    date_of_birth: optionalDate,
+    date_of_birth: optionalDate(true),
     // Canonical GeoNames place (Step 4.5c). `city_of_birth` / `country_of_birth`
     // are still written alongside it (derived from the picked place) until the
     // legacy text columns are dropped — see Step 4.5b.
@@ -70,7 +72,7 @@ export const personSchema = z
     city_of_birth: optionalText(120),
     country_of_birth: optionalText(120),
     is_deceased: z.boolean(),
-    date_of_death: optionalDate,
+    date_of_death: optionalDate(false),
     place_id_death: z.number().int().positive().nullable(),
     place_of_death: optionalText(160),
     sex: z.enum(SEX_VALUES).optional(),
@@ -140,6 +142,8 @@ export function toPersonPayload(values: PersonFormValues) {
   const death = values.is_deceased
     ? toStoredDate(values.date_of_death)
     : { date: null, precision: "day" as const };
+  // A birthday without its year (Step 63) has no date, only these.
+  const birthday = birth.withoutYear;
   return {
     first_name: trimOrNull(values.first_name),
     middle_name: trimOrNull(values.middle_name),
@@ -148,6 +152,8 @@ export function toPersonPayload(values: PersonFormValues) {
     last_name: values.last_name.trim(),
     date_of_birth: birth.date,
     date_of_birth_precision: birth.precision,
+    birth_month: birthday?.month ?? null,
+    birth_day: birthday?.day ?? null,
     place_id_birth: values.place_id_birth ?? null,
     city_of_birth: trimOrNull(values.city_of_birth),
     country_of_birth: (values.country_of_birth ?? "").trim(),

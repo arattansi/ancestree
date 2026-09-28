@@ -51,9 +51,12 @@ import {
   type CropTransform,
 } from "@/lib/image-crop";
 import {
+  asDayMonth,
   formatPartialDate,
   marriageDateProblems,
+  toPartialIso,
   toStoredDate,
+  type DayMonth,
 } from "@/lib/partial-date";
 import { FILL_ENTRY_NOTE, LOCKED_ENTRY_NOTE } from "@/lib/account-types";
 import { blankFields } from "@/lib/fill-blanks";
@@ -130,6 +133,8 @@ export type PersonRelation = {
   otherName: string;
   kind: "spouse" | "parent" | "child";
   marriageDate: string | null;
+  /** A wedding day kept without its year, when there's no date (Step 63). */
+  marriageWithoutYear: DayMonth | null;
   isDivorced: boolean;
   divorceDate: string | null;
   canEdit: boolean;
@@ -143,15 +148,19 @@ function SpouseRow({
   onChanged: () => void;
 }) {
   const [editing, setEditing] = React.useState(false);
-  const [marriageDate, setMarriageDate] = React.useState(
-    relation.marriageDate ?? "",
+  const savedMarriage = toPartialIso(
+    relation.marriageDate,
+    "day",
+    relation.marriageWithoutYear,
   );
+  const [marriageDate, setMarriageDate] = React.useState(savedMarriage);
   const [isDivorced, setIsDivorced] = React.useState(relation.isDivorced);
   const [divorceDate, setDivorceDate] = React.useState(
     relation.divorceDate ?? "",
   );
   const [busy, setBusy] = React.useState(false);
-  // Marriage dates have to be whole (no precision column on relationships).
+  // Marriage dates have to be whole (no precision column on relationships),
+  // or a day and month without the year (Step 63).
   const dateProblems = marriageDateProblems({
     marriageDate,
     isDivorced,
@@ -162,9 +171,12 @@ function SpouseRow({
   async function save() {
     if (!datesOk) return;
     setBusy(true);
+    // Padded to ISO: a one-digit day types as "1965-03-5".
+    const married = toStoredDate(marriageDate);
     const res = await updateRelationshipMarriage(relation.id, {
-      // Padded to ISO: a one-digit day types as "1965-03-5".
-      marriage_date: toStoredDate(marriageDate).date,
+      marriage_date: married.date,
+      marriage_month: married.withoutYear?.month ?? null,
+      marriage_day: married.withoutYear?.day ?? null,
       is_divorced: isDivorced,
       divorce_date: toStoredDate(divorceDate).date,
     });
@@ -195,9 +207,14 @@ function SpouseRow({
         ) : null}
       </div>
 
-      {relation.marriageDate && !editing ? (
+      {savedMarriage && !editing ? (
         <p className="text-xs text-muted-foreground">
-          Married {formatPartialDate(relation.marriageDate)}
+          Married{" "}
+          {formatPartialDate(
+            relation.marriageDate,
+            "day",
+            relation.marriageWithoutYear,
+          )}
         </p>
       ) : null}
 
@@ -207,7 +224,7 @@ function SpouseRow({
           className="self-start text-xs text-foreground underline underline-offset-2"
           onClick={() => setEditing(true)}
         >
-          {relation.marriageDate || relation.isDivorced
+          {savedMarriage || relation.isDivorced
             ? "Edit marriage / divorce"
             : "Add marriage / divorce dates"}
         </button>
@@ -267,7 +284,7 @@ function SpouseRow({
               disabled={busy}
               onClick={() => {
                 setEditing(false);
-                setMarriageDate(relation.marriageDate ?? "");
+                setMarriageDate(savedMarriage);
                 setIsDivorced(relation.isDivorced);
                 setDivorceDate(relation.divorceDate ?? "");
               }}
@@ -832,6 +849,7 @@ export function PersonPanel({
                   value={formatPartialDate(
                     person.date_of_birth,
                     person.date_of_birth_precision,
+                    asDayMonth(person.birth_month, person.birth_day),
                   )}
                 />
                 <PlaceField

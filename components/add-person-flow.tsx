@@ -90,9 +90,13 @@ export type SpouseDates = {
 
 /** Normalise a spouse link's optional marriage/divorce fields for an edge. */
 export function spouseDates(link: SpouseDates | undefined) {
+  // Whole dates, padded to ISO ("1965-03-5" → "1965-03-05"), or a wedding
+  // day with no year (Step 63).
+  const married = toStoredDate(link?.marriage_date);
   return {
-    // Whole dates, padded to ISO ("1965-03-5" → "1965-03-05").
-    marriage_date: toStoredDate(link?.marriage_date).date,
+    marriage_date: married.date,
+    marriage_month: married.withoutYear?.month ?? null,
+    marriage_day: married.withoutYear?.day ?? null,
     is_divorced: link?.is_divorced ?? false,
     divorce_date: link?.is_divorced
       ? toStoredDate(link?.divorce_date).date

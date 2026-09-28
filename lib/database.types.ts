@@ -928,6 +928,8 @@ export type Database = {
       }
       people: {
         Row: {
+          birth_day: number | null
+          birth_month: number | null
           city_of_birth: string | null
           country_of_birth: string
           created_at: string
@@ -958,6 +960,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          birth_day?: number | null
+          birth_month?: number | null
           city_of_birth?: string | null
           country_of_birth: string
           created_at?: string
@@ -988,6 +992,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          birth_day?: number | null
+          birth_month?: number | null
           city_of_birth?: string | null
           country_of_birth?: string
           created_at?: string
@@ -1387,6 +1393,8 @@ export type Database = {
           id: string
           is_divorced: boolean
           marriage_date: string | null
+          marriage_day: number | null
+          marriage_month: number | null
           to_person: string
           tree_id: string
           type: string
@@ -1400,6 +1408,8 @@ export type Database = {
           id?: string
           is_divorced?: boolean
           marriage_date?: string | null
+          marriage_day?: number | null
+          marriage_month?: number | null
           to_person: string
           tree_id: string
           type: string
@@ -1413,6 +1423,8 @@ export type Database = {
           id?: string
           is_divorced?: boolean
           marriage_date?: string | null
+          marriage_day?: number | null
+          marriage_month?: number | null
           to_person?: string
           tree_id?: string
           type?: string
@@ -2003,6 +2015,8 @@ export type Database = {
           id: string | null
           is_divorced: boolean | null
           marriage_date: string | null
+          marriage_day: number | null
+          marriage_month: number | null
           to_person: string | null
           tree_id: string | null
           type: string | null
@@ -2068,6 +2082,8 @@ export type Database = {
       }
       tree_people: {
         Row: {
+          birth_day: number | null
+          birth_month: number | null
           blurred: boolean | null
           city_of_birth: string | null
           country_of_birth: string | null
@@ -2218,6 +2234,8 @@ export type Database = {
           p_from: string
           p_is_divorced?: boolean
           p_marriage_date?: string
+          p_marriage_day?: number
+          p_marriage_month?: number
           p_to: string
           p_tree?: string
           p_type: string
@@ -2338,6 +2356,8 @@ export type Database = {
       person_claim_candidates: {
         Args: never
         Returns: {
+          birth_day: number | null
+          birth_month: number | null
           city_of_birth: string | null
           country_of_birth: string
           created_at: string

@@ -38,6 +38,8 @@ export type FillableEntry = {
   maiden_name: string | null;
   sex: string | null;
   date_of_birth: string | null;
+  /** A birthday kept without its year (Step 63) fills the date of birth. */
+  birth_month?: number | null;
   place_id_birth: number | null;
   city_of_birth: string | null;
   country_of_birth: string | null;
@@ -62,7 +64,7 @@ export function blankFields(entry: FillableEntry): Fillable[] {
     preferred_name: blank(entry.preferred_name),
     maiden_name: blank(entry.maiden_name),
     sex: !entry.sex,
-    date_of_birth: !entry.date_of_birth,
+    date_of_birth: !entry.date_of_birth && entry.birth_month == null,
     place_of_birth:
       entry.place_id_birth == null &&
       blank(entry.city_of_birth) &&
@@ -97,6 +99,8 @@ export function fillFields(
     date_of_birth_precision: person.date_of_birth
       ? person.date_of_birth_precision
       : null,
+    birth_month: person.birth_month,
+    birth_day: person.birth_day,
     // A place comes with the city and country it was picked with.
     place_id_birth: person.place_id_birth,
     city_of_birth: person.place_id_birth != null ? person.city_of_birth : null,

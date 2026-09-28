@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   asDatePrecision,
+  asDayMonth,
   dateProblem,
+  formatDayMonth,
   formatPartialDate,
   isBeforeAtSharedPrecision,
   joinDateParts,
@@ -43,6 +45,32 @@ describe("formatPartialDate", () => {
     expect(formatPartialDate("", "day")).toBeNull();
     expect(formatPartialDate("1950-13-01", "day")).toBeNull();
     expect(formatPartialDate("May 1950", "month")).toBeNull();
+  });
+
+  it("shows a day and month with no year, and prefers a date that has one", () => {
+    expect(formatPartialDate(null, "day", { month: 3, day: 5 })).toBe("5 March");
+    expect(formatPartialDate(null, "day", { month: 2, day: 29 })).toBe(
+      "29 February",
+    );
+    expect(formatPartialDate("1950-05-03", "day", { month: 3, day: 5 })).toBe(
+      "3 May 1950",
+    );
+    expect(formatPartialDate(null, "day", null)).toBeNull();
+  });
+});
+
+describe("asDayMonth / formatDayMonth", () => {
+  it("needs both columns", () => {
+    expect(asDayMonth(3, 5)).toEqual({ month: 3, day: 5 });
+    expect(asDayMonth(3, null)).toBeNull();
+    expect(asDayMonth(null, 5)).toBeNull();
+    expect(asDayMonth(undefined, undefined)).toBeNull();
+  });
+
+  it("spells the month out", () => {
+    expect(formatDayMonth({ month: 12, day: 25 })).toBe("25 December");
+    expect(formatDayMonth({ month: 13, day: 1 })).toBeNull();
+    expect(formatDayMonth(null)).toBeNull();
   });
 });
 
@@ -95,14 +123,69 @@ describe("dateProblem", () => {
     expect(dateProblem("1950-05-03", whole)).toBeNull();
     expect(dateProblem("", whole)).toBeNull();
   });
+
+  it("takes a day and month without the year where that's allowed", () => {
+    const birthday = { ...partial, allowNoYear: true };
+    const anniversary = { ...whole, allowNoYear: true };
+    for (const opts of [birthday, anniversary]) {
+      expect(dateProblem("-03-05", opts)).toBeNull();
+      expect(dateProblem("-3-5", opts)).toBeNull();
+      // Any year's 29 February, since the year isn't known.
+      expect(dateProblem("-02-29", opts)).toBeNull();
+      expect(dateProblem("-02-30", opts)).toBe("That day isn't in that month.");
+      expect(dateProblem("-04-31", opts)).toBe("That day isn't in that month.");
+      expect(dateProblem("--5", opts)).toBe("Pick the month, or clear the day.");
+      expect(dateProblem("-13-01", opts)).toBe("Pick a month.");
+    }
+    // A month alone: "5 March", or "March 1950" where a month and year will do.
+    expect(dateProblem("-03", birthday)).toBe("Add the day, or the year.");
+    expect(dateProblem("-03", anniversary)).toBe("Add the day.");
+    // Everything with a year is checked as before.
+    expect(dateProblem("1950", birthday)).toBeNull();
+    expect(dateProblem("1950", anniversary)).toBe(
+      "Enter the whole date, or clear it.",
+    );
+  });
+
+  it("still wants the year for any other date", () => {
+    expect(dateProblem("-03-05", partial)).toBe("Add the year.");
+    expect(dateProblem("-03-05", whole)).toBe("Add the year.");
+  });
 });
 
 describe("toStoredDate / toPartialIso", () => {
   it("stores a partial date on the first day of its period", () => {
-    expect(toStoredDate("1931")).toEqual({ date: "1931-01-01", precision: "year" });
-    expect(toStoredDate("1931-3")).toEqual({ date: "1931-03-01", precision: "month" });
-    expect(toStoredDate("1931-03-9")).toEqual({ date: "1931-03-09", precision: "day" });
-    expect(toStoredDate("")).toEqual({ date: null, precision: "day" });
+    expect(toStoredDate("1931")).toEqual({
+      date: "1931-01-01",
+      precision: "year",
+      withoutYear: null,
+    });
+    expect(toStoredDate("1931-3")).toEqual({
+      date: "1931-03-01",
+      precision: "month",
+      withoutYear: null,
+    });
+    expect(toStoredDate("1931-03-9")).toEqual({
+      date: "1931-03-09",
+      precision: "day",
+      withoutYear: null,
+    });
+    expect(toStoredDate("")).toEqual({
+      date: null,
+      precision: "day",
+      withoutYear: null,
+    });
+  });
+
+  it("stores a day and month with no year apart, with no date", () => {
+    expect(toStoredDate("-03-5")).toEqual({
+      date: null,
+      precision: "day",
+      withoutYear: { month: 3, day: 5 },
+    });
+    // Half-typed, it's nothing yet.
+    expect(toStoredDate("-03").withoutYear).toBeNull();
+    expect(toStoredDate("--5").withoutYear).toBeNull();
   });
 
   it("opens a stored date back up at the precision it was saved with", () => {
@@ -113,6 +196,13 @@ describe("toStoredDate / toPartialIso", () => {
     expect(toPartialIso(null, "year")).toBe("");
     // An unrecognised precision is a whole date, as the column's default is.
     expect(toPartialIso("1931-03-09", "fortnight")).toBe("1931-03-09");
+  });
+
+  it("opens a day and month with no year back up", () => {
+    const { date, precision, withoutYear } = toStoredDate("-3-5");
+    expect(toPartialIso(date, precision, withoutYear)).toBe("-03-05");
+    expect(toStoredDate("-03-05").withoutYear).toEqual(withoutYear);
+    expect(toPartialIso(null, "day", null)).toBe("");
   });
 });
 
@@ -131,6 +221,11 @@ describe("isBeforeAtSharedPrecision", () => {
     expect(isBeforeAtSharedPrecision("1950--3", "1990")).toBe(false);
     expect(isBeforeAtSharedPrecision("", "1990")).toBe(false);
   });
+
+  it("can't put a date with no year before or after another", () => {
+    expect(isBeforeAtSharedPrecision("1950", "-03-05")).toBe(false);
+    expect(isBeforeAtSharedPrecision("-03-05", "1990")).toBe(false);
+  });
 });
 
 describe("marriageDateProblems", () => {
@@ -138,6 +233,27 @@ describe("marriageDateProblems", () => {
     expect(
       marriageDateProblems({ marriageDate: "1965", isDivorced: false }),
     ).toEqual({ marriage: "Enter the whole date, or clear it.", divorce: null });
+  });
+
+  it("takes a wedding's day and month without the year, but not a divorce's", () => {
+    expect(
+      marriageDateProblems({ marriageDate: "-06-02", isDivorced: false }),
+    ).toEqual({ marriage: null, divorce: null });
+    expect(
+      marriageDateProblems({
+        marriageDate: "-06-02",
+        isDivorced: true,
+        divorceDate: "-01-05",
+      }),
+    ).toEqual({ marriage: null, divorce: "Add the year." });
+    // Nothing to compare a divorce with.
+    expect(
+      marriageDateProblems({
+        marriageDate: "-06-02",
+        isDivorced: true,
+        divorceDate: "1960-01-05",
+      }),
+    ).toEqual({ marriage: null, divorce: null });
   });
 
   it("only checks a divorce date when they divorced", () => {

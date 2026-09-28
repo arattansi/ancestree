@@ -145,6 +145,7 @@ describe("enteredLine", () => {
       "Born March 1960",
     );
     expect(enteredLine({ date_of_birth: "1960" }, "")).toBe("Born 1960");
+    expect(enteredLine({ date_of_birth: "-03-12" }, null)).toBe("Born 12 March");
     expect(enteredLine({ date_of_birth: "" }, "Kampala, Uganda")).toBe(
       "Born in Kampala, Uganda",
     );
