@@ -956,8 +956,6 @@ export type Database = {
           sex: string | null
           tree_id: string
           updated_at: string
-          verified_at: string | null
-          verified_by: string | null
         }
         Insert: {
           city_of_birth?: string | null
@@ -988,8 +986,6 @@ export type Database = {
           sex?: string | null
           tree_id: string
           updated_at?: string
-          verified_at?: string | null
-          verified_by?: string | null
         }
         Update: {
           city_of_birth?: string | null
@@ -1020,8 +1016,6 @@ export type Database = {
           sex?: string | null
           tree_id?: string
           updated_at?: string
-          verified_at?: string | null
-          verified_by?: string | null
         }
         Relationships: [
           {
@@ -1079,20 +1073,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "trees"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "people_verified_by_fkey"
-            columns: ["verified_by"]
-            isOneToOne: false
-            referencedRelation: "member_directory"
-            referencedColumns: ["auth_user_id"]
-          },
-          {
-            foreignKeyName: "people_verified_by_fkey"
-            columns: ["verified_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["auth_user_id"]
           },
         ]
       }
@@ -2125,7 +2105,6 @@ export type Database = {
           sex: string | null
           tree_id: string | null
           updated_at: string | null
-          verified_at: string | null
         }
         Relationships: [
           {
@@ -2387,8 +2366,6 @@ export type Database = {
           sex: string | null
           tree_id: string
           updated_at: string
-          verified_at: string | null
-          verified_by: string | null
         }[]
         SetofOptions: {
           from: "*"
@@ -2499,10 +2476,6 @@ export type Database = {
           preferred_name: string
           score: number
         }[]
-      }
-      set_entry_verified: {
-        Args: { p_person_id: string; p_verified?: boolean }
-        Returns: undefined
       }
       set_family_link_cap: {
         Args: { p_max_uses: number; p_tree: string }

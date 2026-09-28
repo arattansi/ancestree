@@ -324,9 +324,8 @@ export function LeafCard({
       </svg>
 
       {/* Whose entry this is (Step 19.1): hung centred just under its own
-          leaf, clear of the ✓ after the name. Card and blade box share a
-          scale, so the blade's depth converts to card pixels by the overhang
-          alone. */}
+          leaf. Card and blade box share a scale, so the blade's depth
+          converts to card pixels by the overhang alone. */}
       {person.account_type ? (
         <AccountTypeMark
           typeKey={person.account_type}
@@ -343,16 +342,11 @@ export function LeafCard({
       <div className="absolute inset-0 flex flex-col justify-center pr-8 pl-13">
         <p
           className={cn(
-            "flex items-center gap-1 truncate text-[13px] leading-tight font-medium",
+            "truncate text-[13px] leading-tight font-medium",
             deceased ? "text-muted-foreground" : "text-foreground",
           )}
         >
-          <span className="truncate">{nodeDisplayName(person)}</span>
-          {person.verified_at ? (
-            <span className="shrink-0 text-primary" aria-label="Verified">
-              ✓
-            </span>
-          ) : null}
+          {nodeDisplayName(person)}
         </p>
         {isSelf ? (
           <p className="truncate text-[11px] font-medium text-primary">You</p>

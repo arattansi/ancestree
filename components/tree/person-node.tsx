@@ -241,9 +241,8 @@ function PersonNodeImpl({ data }: NodeProps) {
           <AvatarFallback>{personInitials(person)}</AvatarFallback>
         </Avatar>
 
-        {/* Whose entry this is (Step 19.1). Bottom-right, away from the ✓
-            beside the name and the flag count on the top corner: testers read
-            the ✓ as "this is mine", so the two must not be confusable. */}
+        {/* Whose entry this is (Step 19.1). Bottom-right, away from the flag
+            count on the top corner. */}
         {person.account_type ? (
           <AccountTypeMark
             typeKey={person.account_type}
@@ -254,25 +253,14 @@ function PersonNodeImpl({ data }: NodeProps) {
         <div className={cn("min-w-0 flex-1", person.account_type && "pr-3")}>
           <p
             className={cn(
-              "flex items-center gap-1 truncate text-sm font-medium",
+              "text-sm font-medium",
               deceased ? "text-muted-foreground" : "text-foreground",
             )}
             title={name}
           >
-            {/* Sized to its text rather than the row, so the ✓ sits right
-                after the name. */}
-            <FitText max={14} min={11} className="flex-initial leading-5">
+            <FitText max={14} min={11} className="leading-5">
               {cardName}
             </FitText>
-            {person.verified_at ? (
-              <span
-                className="shrink-0 text-primary"
-                title="Verified by an admin"
-                aria-label="Verified"
-              >
-                ✓
-              </span>
-            ) : null}
           </p>
           {isSelf ? (
             <p className="truncate text-xs font-medium text-primary">You</p>

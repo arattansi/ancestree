@@ -66,9 +66,9 @@ const toFormValues = (pet: TreePet): PetFormValues => ({
 /**
  * A companion's detail sheet.
  *
- * Where a person's panel carries claims, comments, flags, documents,
- * verification, and lineage, this carries a name, an animal, a couple of
- * years, a photo, and the people it belongs to. That gap is the feature: a
+ * Where a person's panel carries claims, comments, flags, documents and
+ * lineage, this carries a name, an animal, a couple of years, a photo, and
+ * the people it belongs to. That gap is the feature: a
  * companion is a warm footnote on the tree, not another record to maintain.
  */
 export function PetPanel({

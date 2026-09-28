@@ -97,19 +97,3 @@ export async function resolveEntryFlag(
   revalidateTreePages();
   return {};
 }
-
-/** Root of the entry's home tree: mark it verified, or clear that. */
-export async function setEntryVerified(
-  personId: string,
-  verified: boolean,
-): Promise<{ error?: string }> {
-  await requireProfile();
-  const supabase = await createClient();
-  const { error } = await supabase.rpc("set_entry_verified", {
-    p_person_id: personId,
-    p_verified: verified,
-  });
-  if (error) return { error: "Couldn't update verification. Try again." };
-  revalidateTreePages();
-  return {};
-}

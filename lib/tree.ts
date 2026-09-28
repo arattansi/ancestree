@@ -60,7 +60,6 @@ export type TreeGraphPerson = {
   pos_dy: number | null;
   owner_user_id: string;
   created_by: string;
-  verified_at: string | null;
   /** The tree whose rules govern this entry (Step 25). */
   home_tree_id: string;
   /** True when the tree being drawn is the entry's home. */
@@ -104,7 +103,7 @@ export type TreeGraphEdge = {
  * says whether this tree is the one whose rules govern the entry.
  */
 const PERSON_COLUMNS =
-  "id, home_tree_id, is_home, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_death, date_of_birth_precision, date_of_death_precision, city_of_birth, country_of_birth, place_id_birth, place_id_death, is_deceased, place_of_death, sex, lineage_type, photo_path, photo_crop, pos_x, pos_y, owner_user_id, created_by, verified_at, pos_dx, pos_dy, hidden_from_visitors, blurred, email, email_visible";
+  "id, home_tree_id, is_home, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_death, date_of_birth_precision, date_of_death_precision, city_of_birth, country_of_birth, place_id_birth, place_id_death, is_deceased, place_of_death, sex, lineage_type, photo_path, photo_crop, pos_x, pos_y, owner_user_id, created_by, pos_dx, pos_dy, hidden_from_visitors, blurred, email, email_visible";
 
 /**
  * Stands in for the user ids on a public read (`forPublic`): the nil UUID,
@@ -214,7 +213,6 @@ export async function getTreeGraph(
           lineage_type: null,
           photo_path: null,
           photo_crop: null,
-          verified_at: null,
           hidden_from_visitors: true,
           blurred: true,
         },

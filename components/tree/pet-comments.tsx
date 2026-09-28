@@ -23,8 +23,8 @@ function timeAgo(iso: string): string {
 }
 
 /**
- * A companion's comment thread. Plain notes only — no flags, no verification —
- * because a pet is a warm footnote, not a record to police.
+ * A companion's comment thread. Plain notes only — no flags — because a pet
+ * is a warm footnote, not a record to police.
  */
 export function PetComments({
   petId,

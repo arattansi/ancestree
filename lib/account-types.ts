@@ -112,7 +112,7 @@ export type AccountType = {
    */
   deletes: "tree" | "own";
   /** The admin console: members and their account types, invites, share
-   *  links, deleting entries, lineage, verification, auto-arrange. */
+   *  links, deleting entries, lineage, auto-arrange. */
   runsTree: boolean;
   /**
    * How many a tree can have (Step 39): so many to a tree, or so many for

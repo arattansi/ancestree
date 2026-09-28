@@ -12,9 +12,9 @@ export type PetComment = {
 
 /**
  * The comment thread on a companion, newest first, with author display names
- * resolved from the member directory. Plain comments only — a pet has no flags,
- * no resolve lifecycle, and no verification. Visible to any tree member
- * (enforced by `pet_comments` RLS).
+ * resolved from the member directory. Plain comments only — a pet has no flags
+ * and no resolve lifecycle. Visible to any tree member (enforced by
+ * `pet_comments` RLS).
  */
 export async function listPetComments(petId: string): Promise<PetComment[]> {
   const supabase = await createClient();

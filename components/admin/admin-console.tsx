@@ -106,7 +106,7 @@ export async function AdminConsole({
       .order("joined_at", { ascending: true }),
     supabase
       .from("tree_people")
-      .select("id, created_by, verified_at, is_home")
+      .select("id, created_by, is_home")
       .eq("tree_id", tree.id),
     supabase
       .from("tree_edges")
@@ -270,7 +270,6 @@ export async function AdminConsole({
     .map((t) => ({ id: t.id, name: t.name, visible: openTo.has(t.id) }));
 
   const entryCountByCreator = new Map<string, number>();
-  let unverified = 0;
   let fromElsewhere = 0;
   for (const p of people) {
     if (p.created_by) {
@@ -279,7 +278,6 @@ export async function AdminConsole({
         (entryCountByCreator.get(p.created_by) ?? 0) + 1,
       );
     }
-    if (!p.verified_at) unverified += 1;
     if (p.is_home === false) fromElsewhere += 1;
   }
 
@@ -300,7 +298,6 @@ export async function AdminConsole({
     { label: "From Other Trees", value: fromElsewhere },
     { label: "Connections", value: relCountRes.count ?? 0 },
     { label: "Claimed", value: approvedClaimsRes.count ?? 0 },
-    { label: "Unverified", value: unverified },
     { label: "Open flags", value: openFlagsRes.count ?? 0 },
     { label: "Disputes", value: disputedClaims.length },
     { label: "Invite requests", value: inviteRequests.length },

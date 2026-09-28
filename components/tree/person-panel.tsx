@@ -2,11 +2,10 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Minimize2 } from "lucide-react";
+import { Minimize2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
 import { claimPerson, disputeClaim } from "@/app/actions/claims";
-import { setEntryVerified } from "@/app/actions/entry-comments";
 import { sendClaimInvite } from "@/app/actions/invites";
 import {
   setPersonPhotoCrop,
@@ -522,6 +521,22 @@ export function PersonPanel({
   // Something here is blank, and the viewer may fill it in (Step 44).
   const fillable =
     !!person && canFill && !readOnly && blankFields(person).length > 0;
+  // What "Manage" offers this viewer. Editing sits in the header (Step 62),
+  // so for some viewers nothing is left there, and the section goes.
+  const canReposition = !readOnly && canEdit && !!person?.photo_url;
+  const canClaim = !isSelf && claimable && !person?.claim_status;
+  const lockedNote = !canEdit && !claimable && !isSelf;
+  const canDispute = person?.claim_status === "approved" && isCreator;
+  const showManage =
+    !readOnly &&
+    (canReposition ||
+      canClaim ||
+      canDelete ||
+      canInviteToClaim ||
+      claimInvites.length > 0 ||
+      lockedNote ||
+      canDispute ||
+      person?.claim_status === "disputed");
 
   // Reset the inline dispute form whenever a different person is selected.
   if (person?.id !== prevId) {
@@ -575,20 +590,6 @@ export function PersonPanel({
     }
     setClaimEmail("");
     toast.success(`Invite sent to ${res.email ?? "them"}.`);
-  }
-
-  async function onToggleVerified() {
-    if (!person) return;
-    setBusy(true);
-    const res = await setEntryVerified(person.id, !person.verified_at);
-    setBusy(false);
-    if (res.error) {
-      toast.error(res.error);
-      return;
-    }
-    toast.success(
-      person.verified_at ? "Verification cleared." : "Entry marked verified.",
-    );
   }
 
   async function onDelete() {
@@ -749,12 +750,9 @@ export function PersonPanel({
                   </div>
                 </div>
               )}
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-1.5 empty:hidden">
                 {person.is_deceased ? (
                   <Badge variant="secondary">Deceased</Badge>
-                ) : null}
-                {person.verified_at ? (
-                  <Badge variant="default">Verified</Badge>
                 ) : null}
                 {person.open_flag_count > 0 ? (
                   <Badge variant="destructive">
@@ -777,6 +775,20 @@ export function PersonPanel({
                   </Badge>
                 ) : null}
               </div>
+              {/* Up here rather than under Manage at the foot of the sheet,
+                  so it's found without scrolling (Step 62). */}
+              {!readOnly && (canEdit || fillable) ? (
+                <Button
+                  nativeButton={false}
+                  render={<Link href={editPersonHref(person.id)} />}
+                  variant="outline"
+                  size="sm"
+                  className="self-start"
+                >
+                  <Pencil aria-hidden />
+                  {canEdit ? "Edit entry" : "Fill in what’s missing"}
+                </Button>
+              ) : null}
               {addRelativeOf && !readOnly ? (
                 <AddRelativeButton
                   relatedTo={addRelativeOf}
@@ -911,32 +923,12 @@ export function PersonPanel({
                 </section>
               ) : null}
 
-              {!readOnly ? (
+              {showManage ? (
                 <section className="flex flex-col gap-3 border-t border-border pt-5">
                   <h2 className="text-sm font-semibold">Manage</h2>
 
-                  <div className="flex flex-wrap gap-2">
-                    {canEdit ? (
-                      <Button
-                        nativeButton={false}
-                        render={<Link href={editPersonHref(person.id)} />}
-                        variant="outline"
-                        size="sm"
-                      >
-                        Edit entry
-                      </Button>
-                    ) : fillable ? (
-                      <Button
-                        nativeButton={false}
-                        render={<Link href={editPersonHref(person.id)} />}
-                        variant="outline"
-                        size="sm"
-                      >
-                        Fill in what&rsquo;s missing
-                      </Button>
-                    ) : null}
-
-                    {canEdit && person.photo_url ? (
+                  <div className="flex flex-wrap gap-2 empty:hidden">
+                    {canReposition ? (
                       <Button
                         size="sm"
                         variant="outline"
@@ -949,10 +941,7 @@ export function PersonPanel({
                       </Button>
                     ) : null}
 
-                    {!isSelf &&
-                    claimable &&
-                    !person.claim_status &&
-                    !confirmingClaim ? (
+                    {canClaim && !confirmingClaim ? (
                       <Button
                         size="sm"
                         onClick={() => setConfirmingClaim(true)}
@@ -962,20 +951,7 @@ export function PersonPanel({
                       </Button>
                     ) : null}
 
-                    {isAdmin ? (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={onToggleVerified}
-                        disabled={busy}
-                      >
-                        {person.verified_at
-                          ? "Clear verified"
-                          : "Mark verified"}
-                      </Button>
-                    ) : null}
-
-                    {canDelete && !readOnly ? (
+                    {canDelete ? (
                       <Button
                         size="sm"
                         variant="outline"
@@ -990,10 +966,7 @@ export function PersonPanel({
 
                   {/* Claiming merges the viewer's own entry into this one and
                       deletes it, so it asks first (Step 36). */}
-                  {!isSelf &&
-                  claimable &&
-                  !person.claim_status &&
-                  confirmingClaim ? (
+                  {canClaim && confirmingClaim ? (
                     <div className="flex flex-col gap-2 rounded-md border border-border p-3">
                       <p className="text-xs whitespace-pre-line text-muted-foreground">
                         {claimNote}
@@ -1061,20 +1034,13 @@ export function PersonPanel({
                     <ClaimInviteRecords invites={claimInvites} />
                   ) : null}
 
-                  {person.verified_at ? (
-                    <p className="text-xs text-muted-foreground">
-                      Verified by an admin on{" "}
-                      {new Date(person.verified_at).toLocaleDateString()}.
-                    </p>
-                  ) : null}
-
-                  {!canEdit && !claimable && !isSelf ? (
+                  {lockedNote ? (
                     <p className="text-xs text-muted-foreground">
                       {fillable ? FILL_ENTRY_NOTE : LOCKED_ENTRY_NOTE}
                     </p>
                   ) : null}
 
-                  {person.claim_status === "approved" && isCreator ? (
+                  {canDispute ? (
                     disputing ? (
                       <div className="flex flex-col gap-2 rounded-md border border-border p-3">
                         <label
