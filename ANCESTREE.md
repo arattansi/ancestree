@@ -214,6 +214,11 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `ALPHA2`; `app/actions/places.ts` — `searchPlacesAction` / `requestNewPlace`
   (admin) / `listCountryOptions`; `lib/historical-names.ts` — pure
   `resolveHistoricalName` / `formatHistoricalPlace` (Step 4.5d, `.test.ts`)
+- `lib/place-search.ts` — pure `shapePlaceQuery` / `rankPlaces` /
+  `choosePlaces`, what the place search looks for and in what order
+  (Step 66, `.test.ts`); `lib/place-regions.ts` — the region names it
+  matches; `lib/place-choice.ts` — the picker's pure helpers (`chosenPlace`,
+  `isLink`, `typedPlaceName`, `unmatchedSearch`, `.test.ts`)
 - Ancestral lands (Step 27): `lib/native-land.ts` — pure parsing and wording
   of Native Land Digital's answer (`.test.ts`); `lib/native-land.server.ts` —
   `territoriesAt(lat, lng)`, the only caller of NLD; `app/api/ancestral-lands`
@@ -1226,7 +1231,19 @@ with population ≥ 500).
   `feature_class = 'P'`; it contains no `'A'` admin areas — those would need the
   full `allCountries` dump or a dedicated admin export). Spot-checked against
   New York, London, Tokyo, Paris, Buenos Aires; trigram fuzzy search verified
-  (e.g. `search_name LIKE '%zurich%'` → index scan, matches `Zürich`).
+  (e.g. `search_name LIKE '%zurich%'` → index scan; it matches Lake Zurich,
+  IL, since GeoNames spells Zürich `Zuerich`, as Step 66 found).
+- **How the picker searches** (Step 66, `lib/place-search.ts`): only the part
+  before the first comma goes into `search_name ILIKE '%…%'`; what follows
+  names a region, and places there come first (country name, ISO code, other
+  names such as UK or Tanganyika, a letter admin1 code, and the Canadian,
+  US, UK and Indian region names in `lib/place-regions.ts`). It never hides
+  a place. A search that finds nothing is tried again, in parallel, without
+  words like "taluka" or "district" and without a region named at its end
+  ("Vancouver BC", which then only takes places in BC). Typed text is folded
+  like `search_name` (no accents; ä/ö/ü tried as ae/oe/ue first, as GeoNames
+  mostly spells them). Each query is still one trigram-indexed ILIKE, top 60
+  by population, ranked in JS.
 - **Free-tier size:** `places` measures **58 MB** total (table + the two
   `pg_trgm` GIN indexes + the `country_code` btree); whole DB **70 MB**, well
   under the Supabase Free 500 MB limit. **`allCountries` (~13M rows, ~55×) is
@@ -1312,6 +1329,71 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 66 — The place search finds "Vancouver, BC" and "Kalavad
+  taluka"** (ad-hoc, no migration). On 2026-09-28 the Supabase edge logs
+  showed Aalim's place searches coming back empty: "vancouver," (a comma
+  alone was enough), "vancouver, b" to "vancouver, british", and "kalavad
+  talu" / "kalavad taluka", though Vancouver and Kālāvad (ascii Kalavad,
+  1268450) are in `places`. The search was `search_name ILIKE '%<everything
+  typed>%'`, so the whole text had to sit inside one name, while the
+  picker's own labels ("Vancouver, WA, United States") invite typing a
+  place with its region. Now, in `lib/place-search.ts` (pure;
+  `searchPlaces` is its thin wrapper): only the part before the first comma
+  is searched, and what follows names a region whose places come first: a
+  country by its name, ISO code or another name (UK, USA, UAE, and older
+  ones family records use: Tanganyika, Zanzibar, Ceylon, Burma, Nyasaland,
+  Rhodesia…), a letter admin1 code (WA, ENG, ZH), the state a Root typed
+  for a place they added (Gujarat), or a name in `lib/place-regions.ts` for
+  Canada's provinces, the US states, the UK's nations and India's states
+  (GeoNames' Canadian and Indian codes are numbers the label never shows;
+  each was checked against the biggest places filed under it). A region
+  only reorders, so a misspelt one hides nothing; the start of one counts
+  while it's typed ("vancouver, brit"), one letter doesn't. A search that
+  finds nothing is tried again without words that say what kind of place
+  it is (taluka, taluk, tehsil, district, county, province, state, city,
+  town, village…) and without a region named at its end with no comma
+  ("Vancouver BC", "London Ontario", "Toronto Ontario Canada"; then only
+  places in that region count, by its whole name). Both searches go out
+  together, so it's still one round trip, and the second counts only when
+  the first finds nothing, so names that really carry such a word (State
+  College, District Heights, Norfolk County) are still found as typed; one
+  `or()` query instead was measured to push 8 such real names out of the
+  60-row window. Typed text is folded the way `search_name` is: accents off
+  ("Kālāvad", as the label shows it), a phone's curly apostrophe and long
+  dashes made plain ("St. John’s"), ILIKE and PostgREST wildcards dropped;
+  ä, ö and ü are tried as ae, oe and ue first, as GeoNames spells most of
+  them ("Zürich" is `Zuerich`, and found nothing before), then plain
+  ("Nürtingen"). A name with a comma in it (40 GeoNames names, e.g.
+  "Misato, Saitama") typed whole still comes first. For a Root, **Add “…”**
+  (Step 64) and the add dialog take only the part before the comma
+  ("Sisang, Gujarat" offers Sisang, not a place named "Sisang, Gujarat"),
+  and a region typed with no name before its comma says "Type the place’s
+  name first." Left as they were: a region only reorders the 60 most
+  populous name matches, so a small place whose name has 60 bigger
+  namesakes can still miss out, and "St Louis" without its dot still misses
+  St. Louis. **Verified:** `EXPLAIN ANALYZE` shows both query shapes on
+  `places_search_name_trgm` (bitmap index scan, under 2 ms). The old and
+  new search side by side on live `places` (a throwaway test, deleted): 477
+  real names and their 3- and 5-letter prefixes, drawn at random, gave
+  identical results; "London" still lists London, ENG, United Kingdom
+  first, "Nairobi" Nairobi, Kenya, "Vancouver, Canada" Vancouver, Canada,
+  and "Kalavad taluka" now Kālāvad, India; each of Aalim's empty searches
+  above now puts Vancouver, Canada first ("kalavad talu" stays empty until
+  the word is whole), "Vancouver, WA" Vancouver, WA, "London, Ontario"
+  London, Canada, "Richmond, BC" Richmond, Canada (ahead of the bigger
+  Richmond, VA), "Dar es Salaam, Tanganyika" Dar es Salaam. In the pane on
+  this worktree's dev server, signed in as a throwaway Root of its own tree
+  (auth user, profile, tree and entry deleted after), the place of birth
+  picker listed the same for "vancouver, british", "Kalavad taluka",
+  "London", "Nairobi", "Vancouver, Canada", "Vancouver BC" (BC places
+  only), "London, Ontario" and "Zürich" (Zürich, ZH, Switzerland); the edge
+  logs show each retry going out within 31 ms of its first search;
+  "Zzvillagesixtysix, Gujarat, India" offered **Add “Zzvillagesixtysix”**,
+  whose dialog opened with that name (cancelled, so nothing reached
+  `places`); ", India" said "Type the place’s name first."; arrow keys and
+  Enter still pick. 1074 tests pass (30 new); tsc, lint and `next build`
+  are clean.
 
 - **Step 67 — Suggest a change to an entry you can't edit** (from the
   Notion backlog; migration `20260928100000_entry_suggestions`, live
