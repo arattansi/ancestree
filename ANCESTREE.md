@@ -180,7 +180,8 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   faces above **Upcoming**, and their pointers (Step 57.3), `person-node.tsx`
   custom node (name, then `née` maiden name / birth year / birthplace;
   open-flag badge; in a spotlight `leaf-card.tsx`'s leaf, at most three
-  lines: name, `née` maiden name, "You" with the years, Step 76),
+  lines: name, "You", the years, or, with a maiden name, name, `née`
+  maiden name, "You" with the years, Steps 76–76.5),
   `person-panel.tsx` detail Sheet (**Edit entry** in its
   header, Step 62; claim / dispute; **Minimize** folds it into a
   card at the foot of the canvas, Step 49), `entry-comments.tsx` (comment /
@@ -1372,6 +1373,20 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 76.5 — "You" keeps its own line on a leaf with no maiden name**
+  (ad-hoc, after Step 76; no migration). Aalim: "keep You on its own line
+  when there's no maiden name". The viewer's own leaf reads "Fatima
+  Rattansi / You / b. 1952" again; only beside a maiden name does "You"
+  share the years' line ("You · b. 1952"), so a leaf still never runs past
+  three lines. Three lines of either kind hang from where two put the
+  name, so "You" on its own line no longer lifts the name into the gaps
+  between the baobab's leaflets, as it did before Step 76.
+  **Verified:** the ink check on a throwaway page of the real leaf, all
+  seven blades with and without a maiden name, "You" and years, found at
+  least 2px between lettering and outline on all 49; side by side with the
+  leaf before Step 76, light and dark. 1091 tests pass; tsc, lint and
+  `next build` are clean.
 
 - **Step 76 — Maiden name on the leaf and the hover cards** (ad-hoc, no
   migration). Aalim: "show maiden name on the leaf and hover over view. make
