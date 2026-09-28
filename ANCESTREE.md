@@ -56,7 +56,8 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `/account/admin`, and joining or founding a tree sets it
   too; `lib/tree-context.ts#currentAccess` resolves it, falling back to the
   member's home tree): `/tree` (React Flow canvas), `/tree/review`,
-  `/people/new`, `/people/[id]/edit`, `/onboarding` (first-run on that
+  `/people/new`, `/people/[id]/edit`, `/people/[id]/suggest` (suggest a
+  change to an entry you can't edit, Step 67), `/onboarding` (first-run on that
   tree: a member finds or adds themselves, opening on the search for the
   name they joined by when we know it, Step 30.7; the tree's founder gets four
   steps instead, `?step=invite|you|name|family` — `components/first-tree/`,
@@ -601,7 +602,7 @@ Helpers live in the unexposed `private` schema (`role_in`, `is_root_of`,
 `line_ids`, `root_person_ids`, `own_branch_ids`, `is_on_own_branch`,
 `can_see_documents`, `person_is_someones_own`, `can_edit_relationship`,
 `can_edit_pet`, `can_delete_person`, `revision_fields`, `notify_edit`,
-`member_label`).
+`member_label`, `suggestion_columns`).
 
 **Branch edits and the Root's undo (Step 22.4):** there is no approval queue.
 When a Branch edits an entry that a Root created or owns (and that isn't the
@@ -618,6 +619,32 @@ Roots only. Connections, companions and card positions aren't revisioned —
 a Branch can only draw a line with both ends on their side, and the
 notification still says what changed.
 
+**Suggested changes (Step 67):** anyone on a tree an entry is shown on who
+can't edit it may suggest a change to its details (`public.entry_suggestions`,
+through `public.suggest_entry_change`): names, sex, date and place of birth,
+whether they've died, date and place of death, never a photo, lineage or
+contact details (`private.suggestion_columns`, mirrored by
+`lib/suggestions.ts#SUGGESTION_DETAILS`). The function keeps only the details
+that differ from the entry, each with the columns that change together (a
+date with its precision and a birthday's day and month, a place with its
+labels), in `changes`, and what they held in `before`; it tries the result
+against every check on `people` and undoes it, so what can't be applied isn't
+stored. It replaces the suggester's earlier suggestion for that entry, if one
+is waiting (one at a time: `entry_suggestions_one_pending`), and sends a
+`change_suggested` notice, in the home tree's inbox, to the entry's owner and
+each Root of its home tree, carrying `notifications.suggestion_id`.
+`public.decide_entry_suggestion` lets anyone who may edit the entry
+(`private.can_edit_person`, the `people_update` rule) accept it, writing the
+changes as their own edit (so `person_edit_notify` tells the owner and maker,
+and a Branch's change to a Root's entry keeps the Root's undo), or decline it;
+either way the suggester hears (`suggestion_accepted` /
+`suggestion_declined`, in the inbox of the tree they suggested from). RLS: the
+suggester and whoever may edit the entry read it; the suggester deletes it
+while it waits (withdrawing, which takes its notices with it); nothing else
+writes it. `suggested_by_name` keeps what the suggester was called, as
+`private.member_label` said then, since a reviewer on the home tree may not
+see the profile of a member of another tree the entry is shown on.
+
 **Permissions matrix (Step 22; three types since Step 34):** the whole
 picture in one place. The
 database enforces every row; `lib/account-types.ts` (`describeAccess`, shown
@@ -629,6 +656,7 @@ mirror it for the UI.
 | See the tree, comment, flag, claim their own entry | ✓                                                                                                               | ✓                                                                            | ✓                                    |
 | Edit entries                                       | Every entry                                                                                                     | Their part of a Root's side (not another member's own), plus what they added | What they added, and their own       |
 | Branch edits to a Root's entries                   | Told; one-click undo                                                                                            | Publish at once                                                              | —                                    |
+| Suggest a change; answer one                       | Suggest where they can't edit; answer on every entry                                                            | Suggest where they can't edit; answer where they can                         | Same as Branch                       |
 | Change connections                                 | Any                                                                                                             | Both ends on their side, or ones they drew                                   | Ones they drew                       |
 | Companions                                         | Any                                                                                                             | On their side, or ones they added                                            | Ones they added                      |
 | Add relatives                                      | ✓ (bloodline gate)                                                                                              | ✓ (bloodline gate)                                                           | On their own line (bloodline gate)   |
@@ -1284,6 +1312,79 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 67 — Suggest a change to an entry you can't edit** (from the
+  Notion backlog; migration `20260928100000_entry_suggestions`, live
+  2026-09-28, before the code). Someone who couldn't edit an entry, and knew
+  a detail was wrong (a date of birth a relative entered, say), could only
+  comment or raise a flag, which reached its owner and whoever made it. Now
+  the details sheet offers **Suggest a change** in its header to anyone who
+  can't edit the entry (beside **Fill in what’s missing** where that
+  applies; never on a share link or to a visitor). It opens
+  `/people/[id]/suggest`: the entry's details (names, sex, date and place of
+  birth, whether they've died, date and place of death) to change as they
+  should read, and a **Note**; **Send suggestion** wakes once something
+  differs. The entry's owner and the Roots of its home tree get a notice
+  ("… suggested a change to Amarshi Sayani: date of birth.") showing each
+  detail as it reads now, struck through, beside what's suggested, with the
+  note and **Accept** / **Decline**; the entry's card shows the same under
+  **Suggested changes** to anyone who may edit it. Accepting makes the
+  change as the accepter's own edit, so the owner and maker are told as of
+  any edit and a Branch accepting a change to a Root's entry leaves the
+  Root the usual undo. Either way the suggester is told ("… accepted your
+  suggested change to …"), and an answered notice says who answered. A
+  suggester sees theirs on the card with **Withdraw**; each member has one
+  waiting per entry, and suggesting again opens the form on it and replaces
+  it. Nothing changes until someone who may edit accepts. **Edit entry** on
+  an entry the viewer can neither edit nor fill in (a card whose home is a
+  tree they don't run) now lands on the suggestion form rather than back on
+  the tree, and the suggestion form sends someone who can edit to the edit
+  page. The account-type cards list "Suggest changes to entries" for every
+  type. Enforced by `public.suggest_entry_change` (a member of a tree the
+  entry is shown on who can't edit it; keeps only what differs, a date with
+  its precision and a place with its labels; tries the result against every
+  check on `people`, then undoes it), `public.decide_entry_suggestion`
+  (`private.can_edit_person`, the `people_update` rule), `entry_suggestions`
+  RLS (read by the suggester and whoever may edit; deleted by the suggester
+  while it waits; written by nothing else) and `notifications.suggestion_id`
+  (a withdrawn or replaced suggestion takes its notices with it). Photos,
+  connections, lineage and contact details aren't suggested. Decided without
+  asking: who's asked (the owner and the home tree's Roots, as the brief
+  says; a Branch who may edit answers from the card), accepting all of a
+  suggestion or none, and the suggester's name kept as it was then (a
+  reviewer on the home tree may not see a member of another tree's profile).
+  `timeAgo` is shared now (`lib/time-ago.ts`), and the edit page's access and
+  form values moved to `entryAccess` and `personFormValues`, which the new
+  page uses too. **Verified:** rehearsed on live in a rolled-back
+  transaction with a throwaway tree of a Root, a Branch, two Leaves and an
+  outsider: suggesting stored only the changed details and what they were,
+  asked the Root once (owner and Root the same person), and the trial left
+  the entry, its notices and revisions untouched; suggesting again replaced
+  it and its notice; thirteen refusals held (their own entry, a Root on
+  their own tree, nothing changed, email, lineage, not a member, a month's
+  precision on the 12th, no name, 30 February, an unknown sex, a missing
+  place, a 501-character note, a direct insert); only the suggester, the
+  Root and the Branch saw it, a Leaf couldn't withdraw another's, and nobody
+  could change it directly; the Root accepting changed the entry and told
+  the suggester; the Branch accepting also left the Root an
+  `entry_updated` notice with the undo; declining changed nothing; an owner
+  who added the entry was asked beside the Root and could accept; an entry
+  changed so the suggestion no longer fit refused it; withdrawing took its
+  notices. Applied: the recorded statement's md5 equals the file's, the
+  three function bodies' md5s match, and the suite ran the same on live,
+  rolled back. End to end on live in headless Chrome as a throwaway Leaf and
+  Root of a throwaway tree (deleted after, auth users included): the Leaf's
+  sheet offered **Fill in what’s missing** and **Suggest a change**, no
+  **Edit entry**; the form sent 5 → 12 March 1931 with a note, and the card
+  showed it with **Withdraw**; the form reopened on it; the Root's bell and
+  card showed it with **Accept** / **Decline**; accepting set 12 March 1931
+  and the Leaf was told; a second suggestion was withdrawn; a third was
+  declined from the bell and the entry kept its name; the answered notices
+  show the change as made and who answered; at 390 px and in dark mode the
+  sheet and the form's bar hold; the Leaf's **Edit entry** address on the
+  Root's own entry landed on the form, and the Root's suggestion address on
+  the edit page. 1044 tests pass (19 new); tsc, lint and `next build` are
+  clean.
 
 - **Step 65 — A hand-added place can be a companion's place of birth**
   (ad-hoc; migration `20260928080000_pets_place_of_birth_bigint`, live

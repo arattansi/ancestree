@@ -122,9 +122,18 @@ changes or clears one. For a Branch it reaches past their side. A fill of an
 entry a Root owns or added is recorded for the Root's undo, as a Branch's edit
 is.
 
+`public.suggest_entry_change` (Step 67): anyone on a tree an entry is shown
+on who can't edit it may suggest a change to its details — names, sex, date
+and place of birth, whether they've died, date and place of death — with a
+note. The entry's owner and the Roots of its home tree are asked. Anyone who
+may edit it (`private.can_edit_person`) accepts, which makes the change as
+their own edit, or declines; the suggester is told either way. A member has
+one suggestion waiting per entry: sending another replaces it, and they can
+withdraw it while it waits. Only they and whoever may edit the entry see it.
+
 So the Root of a founded tree can place and arrange a relative brought from
 another tree, but cannot rewrite their details unless that person moves their
-home over. A person who is their own entry always controls it, wherever it is
+home over; they can suggest a change instead. A person who is their own entry always controls it, wherever it is
 shown. The Root's undo of a Branch edit (Step 22.4) applies to Branches of
 `h`.
 
@@ -145,6 +154,7 @@ be placed there.
 | Thing | Scope | Who sees it |
 |---|---|---|
 | Comments and flags (`entry_comments.tree_id`) | One board per tree per person | Members of that tree |
+| Suggested changes (`entry_suggestions`, Step 67) | Per person, made from one tree | Whoever suggested it, and whoever may edit the entry |
 | Documents (`documents.tree_id`, `shared_across_trees`) | Uploaded onto one tree | Step 18.4 rule evaluated in that tree; when shared, the same rule in every tree the person is placed on |
 | Profile photo | Part of the person | Everyone who can see the person |
 | Notifications (`notifications.tree_id`) | One inbox per tree | The recipient, on that tree's tab of `/account` |
