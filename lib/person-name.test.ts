@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  maidenLine,
   nodeDisplayName,
   personDisplayName,
   personHasDied,
@@ -33,6 +34,26 @@ describe("nodeDisplayName", () => {
     expect(nodeDisplayName({ first_name: "Bartholomewicious" })).toBe(
       "Bartholomewicious",
     );
+  });
+});
+
+describe("maidenLine", () => {
+  it("writes a maiden name as it goes under a name", () => {
+    expect(maidenLine({ maiden_name: "Jaffer" })).toBe("née Jaffer");
+    expect(maidenLine({ maiden_name: "van der Berg" })).toBe(
+      "née van der Berg",
+    );
+  });
+
+  it("trims it", () => {
+    expect(maidenLine({ maiden_name: "  Jaffer " })).toBe("née Jaffer");
+  });
+
+  it("has nothing to say without one", () => {
+    expect(maidenLine({ maiden_name: null })).toBeNull();
+    expect(maidenLine({ maiden_name: "" })).toBeNull();
+    expect(maidenLine({ maiden_name: "   " })).toBeNull();
+    expect(maidenLine({})).toBeNull();
   });
 });
 

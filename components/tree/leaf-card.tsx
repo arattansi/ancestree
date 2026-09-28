@@ -3,10 +3,12 @@
 import * as React from "react";
 
 import { AccountTypeMark } from "@/components/account-type-badge";
+import { FitText } from "@/components/ui/fit-text";
 import { cropStyle, parseCrop } from "@/lib/image-crop";
 import { leafLabel, type LeafShape, type NativeLeaf } from "@/lib/native-leaf";
 import { asDayMonth, formatPartialDate } from "@/lib/partial-date";
 import {
+  maidenLine,
   nodeDisplayName,
   personDisplayName,
   personLifespan,
@@ -75,8 +77,9 @@ const PALMATE_VEINS = LEAFLETS.map(([angle, length]) => {
  * lobes, and pressing them into the height of a card turned it into a star.
  *
  * The band from y 55 to 95 is kept clear in every blade: that is where the
- * name and the lifespan sit, and a silhouette that closes over it is a leaf
- * you cannot read.
+ * name and the lines under it sit, and a silhouette that closes over it is a
+ * leaf you cannot read. A third line reaches down to 99, but it is short, and
+ * the blades are all deeper than that where it runs (see `TEXT_LEFT`).
  */
 const BLADES: Record<LeafShape, string> = {
   ovate:
@@ -131,6 +134,23 @@ export function bladeTop(shape: LeafShape): number {
 const MARK_GAP = 6;
 
 /**
+ * Where a leaf's lines start, in card pixels from the left: at 52, a little
+ * past the end of the stem. The elliptic blade is a lens, pointed at the stem
+ * end as well as the tip, and at 52 it is only 46 deep, too shallow for three
+ * lines; its lines start at 58, where it is 51 deep. Re-measure after
+ * redrawing a blade.
+ */
+const TEXT_LEFT: Record<LeafShape, number> = {
+  ovate: 52,
+  elliptic: 58,
+  cordate: 52,
+  maple: 52,
+  palmate: 52,
+  oak: 52,
+  round: 52,
+};
+
+/**
  * Midrib and side veins, in trunk brown, clipped to whichever blade. The
  * baobab's compound leaf has its own (`PALMATE_VEINS`): one midrib per
  * leaflet, since side veins off a single midrib would cut across its
@@ -175,6 +195,7 @@ function LeafDetail({
       .filter(Boolean)
       .join(", ") || null;
   const label = leafLabel(leaf);
+  const maiden = maidenLine(person);
 
   return (
     <div
@@ -201,6 +222,9 @@ function LeafDetail({
           {person.preferred_name || person.first_name}
           {person.last_name ? ` ${person.last_name}` : ""}
         </p>
+        {maiden ? (
+          <p className="text-xs text-muted-foreground">{maiden}</p>
+        ) : null}
         {born ? (
           <p className="text-xs text-muted-foreground">b. {born}</p>
         ) : null}
@@ -234,9 +258,10 @@ function LeafDetail({
  * 208 × 112 box every other card occupies, repainted as a leaf from a tree
  * that grows where they were born.
  *
- * The leaf carries a name and a lifespan and nothing else — a photo pressed
- * into a blade fights the silhouette, and the shape is already saying where
- * this person came from. Everything else waits for the hover card.
+ * The leaf carries a name, a maiden name and a lifespan and nothing else — a
+ * photo pressed into a blade fights the silhouette, and the shape is already
+ * saying where this person came from. Everything else waits for the hover
+ * card.
  */
 export function LeafCard({
   person,
@@ -253,6 +278,7 @@ export function LeafCard({
   // to render `d={undefined}`, which is a card with no leaf on it at all.
   const blade = BLADES[leaf.shape] ?? BLADES.ovate;
   const lifespan = personLifespan(person);
+  const maiden = maidenLine(person);
   const deceased = person.is_deceased;
   // Ids have to be unique per card: two leaves sharing a clip path would clip
   // to whichever one the browser resolved last.
@@ -340,20 +366,45 @@ export function LeafCard({
         />
       ) : null}
 
-      <div className="absolute inset-0 flex flex-col justify-center pr-8 pl-13">
+      {/* At most three lines: the name, a maiden name, then "You" and the
+          years together. Three hang from where two put the name rather
+          than centring on it, or the name would rise into the gaps between
+          the baobab's leaflets. */}
+      <div
+        className={cn(
+          "absolute inset-0 flex flex-col justify-center pr-8",
+          maiden && (isSelf || lifespan) && "pt-3",
+        )}
+        style={{ paddingLeft: TEXT_LEFT[leaf.shape] ?? TEXT_LEFT.ovate }}
+      >
         <p
           className={cn(
-            "truncate text-[13px] leading-tight font-medium",
+            "truncate text-[13px] leading-[15px] font-medium",
             deceased ? "text-muted-foreground" : "text-foreground",
           )}
         >
           {nodeDisplayName(person)}
         </p>
-        {isSelf ? (
-          <p className="truncate text-[11px] font-medium text-primary">You</p>
+        {/* Stops 110px along, before the baobab's middle leaflet and the
+            maple's end lobe narrow to their points; a long one shrinks to
+            fit before it is cut short. */}
+        {maiden ? (
+          <p className="max-w-27.5">
+            <FitText
+              max={11}
+              min={8.5}
+              className="leading-3 text-muted-foreground"
+            >
+              {maiden}
+            </FitText>
+          </p>
         ) : null}
-        {lifespan ? (
-          <p className="truncate text-[11px] text-muted-foreground">
+        {isSelf || lifespan ? (
+          <p className="truncate text-[11px] leading-3 text-muted-foreground">
+            {isSelf ? (
+              <span className="font-medium text-primary">You</span>
+            ) : null}
+            {isSelf && lifespan ? " · " : null}
             {lifespan}
           </p>
         ) : null}

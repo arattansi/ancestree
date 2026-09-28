@@ -28,6 +28,15 @@ export function nodeDisplayName(p: NamedPerson, limit = 16): string {
   return `${first} ${last[0]}.`;
 }
 
+/**
+ * A maiden name as it's written under a name: "née Jaffer". Null when there
+ * is none, so the line can be left out.
+ */
+export function maidenLine(p: { maiden_name?: string | null }): string | null {
+  const maiden = (p.maiden_name ?? "").trim();
+  return maiden ? `née ${maiden}` : null;
+}
+
 const year = (d?: string | null) => (d ? d.slice(0, 4) : null);
 
 /**

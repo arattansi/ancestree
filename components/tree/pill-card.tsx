@@ -1,6 +1,10 @@
 "use client";
 
-import { nodeDisplayName, personDisplayName } from "@/lib/person-name";
+import {
+  maidenLine,
+  nodeDisplayName,
+  personDisplayName,
+} from "@/lib/person-name";
 import type { TreeGraphPerson } from "@/lib/tree";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +26,12 @@ export function PillCard({
   spouseOf: string;
 }) {
   const label = `Spouse of ${spouseOf}`;
+  // Someone who married in is who most often has a maiden name, and the
+  // tooltip is the only place the pill has room for it.
+  const maiden = maidenLine(person);
+  const who = maiden
+    ? `${personDisplayName(person)}, ${maiden}`
+    : personDisplayName(person);
   return (
     // A real button so it takes focus; the click reaches the canvas's node
     // handler, which moves the spotlight. Enter and Space are turned into
@@ -34,8 +44,8 @@ export function PillCard({
         event.preventDefault();
         event.currentTarget.click();
       }}
-      title={`${personDisplayName(person)} · ${label}`}
-      aria-label={`${personDisplayName(person)}, ${label}`}
+      title={`${who} · ${label}`}
+      aria-label={`${who}, ${label}`}
       className={cn(
         "flex h-9 w-[120px] items-center justify-center rounded-full border border-border bg-muted px-3 shadow-xs",
         "text-[13px] font-medium text-muted-foreground transition-colors hover:border-ring/60 hover:text-foreground",

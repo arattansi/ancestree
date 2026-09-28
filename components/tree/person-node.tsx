@@ -12,6 +12,7 @@ import { cropStyle, parseCrop } from "@/lib/image-crop";
 import { nativeLeaf } from "@/lib/native-leaf";
 import { cn } from "@/lib/utils";
 import {
+  maidenLine,
   nodeDisplayName,
   personDisplayName,
   personInitials,
@@ -60,6 +61,7 @@ function PersonNodeImpl({ data }: NodeProps) {
   // the card itself, where a surname would otherwise be cut off mid-word.
   const name = personDisplayName(person);
   const cardName = nodeDisplayName(person);
+  const maiden = maidenLine(person);
   const deceased = person.is_deceased;
   // Dates on their own line ("1948 – 2019" / "b. 1995"), birthplace on the next,
   // so a deceased person's death year is always visible without crowding out
@@ -173,6 +175,9 @@ function PersonNodeImpl({ data }: NodeProps) {
             >
               {name}
             </FitText>
+            {maiden ? (
+              <p className="truncate text-xs text-muted-foreground">{maiden}</p>
+            ) : null}
             {lifespan ? (
               <p className="truncate text-xs text-muted-foreground">
                 {lifespan}
@@ -265,12 +270,12 @@ function PersonNodeImpl({ data }: NodeProps) {
           {isSelf ? (
             <p className="truncate text-xs font-medium text-primary">You</p>
           ) : null}
-          {person.maiden_name ? (
+          {maiden ? (
             <p
               className="truncate text-xs text-muted-foreground"
-              title={`née ${person.maiden_name}`}
+              title={maiden}
             >
-              née {person.maiden_name}
+              {maiden}
             </p>
           ) : null}
           {lifespan ? (
