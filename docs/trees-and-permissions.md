@@ -45,7 +45,7 @@ Canopy the name.
 
 | Type | In this tree they can |
 |---|---|
-| **Root** | Edit every entry whose home is this tree, and any connection drawn between two people placed on it. Run the tree: members and their types, invites (including founder invites), share links, placements, cross-tree viewing, deletes, lineage, verification. |
+| **Root** | Edit every entry whose home is this tree, and any connection drawn between two people placed on it. Run the tree: members and their types, invites (including founder invites), share links, placements, cross-tree viewing, deletes, lineage. |
 | **Branch** | Tend their part of a Root's side, measured on this tree's people only. Past it, fill in what's missing on their own line as a Leaf does (Step 44). Everything else as Step 22. |
 | **Leaf** | Add relatives on their own line — their ancestors, everyone descended from them, and the people those relatives married (`private.line_ids`) — and edit what they add here, the lines they draw, and their own entry. Fill in what's missing on an unclaimed entry on that line, a photo included (Step 44). |
 

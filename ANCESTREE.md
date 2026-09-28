@@ -157,7 +157,7 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   create), update person, drag-to-pin position, photo + document writes,
   signed URLs; `claims.ts`: `claimPerson` / `disputeClaim` / `resolveClaim` /
   `markNotificationsRead`; `entry-comments.ts`: `getEntryComments` /
-  `addEntryComment` / `resolveEntryFlag` / `setEntryVerified`)
+  `addEntryComment` / `resolveEntryFlag`)
 - `components/tree/` — `family-tree.tsx` React Flow canvas (generation lanes
   behind the cards, whose titles stay life-size when zoomed out —
   `laneTitleFit` — and pinned inside the canvas's left edge — `laneTitleLeft`;
@@ -178,8 +178,8 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `use-tree-room.ts` + `live-cursors.tsx` who else has the tree open, as
   faces above **Upcoming**, and their pointers (Step 57.3), `person-node.tsx`
   custom node (name, then `née` maiden name / birth year / birthplace;
-  open-flag badge + verified `✓`), `person-panel.tsx` detail Sheet
-  (edit link + claim / dispute + admin verify; **Minimize** folds it into a
+  open-flag badge), `person-panel.tsx` detail Sheet (**Edit entry** in its
+  header, Step 62; claim / dispute; **Minimize** folds it into a
   card at the foot of the canvas, Step 49), `entry-comments.tsx` (comment /
   flag thread + resolve), `claim-suggestions.tsx` "Is this you?" canvas prompt
 - `components/tree/pet-node.tsx` — the companion chip (a third the height of a
@@ -188,7 +188,7 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   place of birth, the same picker a person uses / photo / who it belongs to /
   a plain comment thread),
   `pet-comments.tsx` (`pet_comments` — comments only, no flags / resolve /
-  verify / notifications; `lib/pet-comments.ts` + `app/actions/pet-comments.ts`),
+  notifications; `lib/pet-comments.ts` + `app/actions/pet-comments.ts`),
   `companion-fields.tsx`, `companion-picker.tsx` (multi-select
   people), `add-companion-dialog.tsx` (opened from a person's panel);
   `lib/pet-schema.ts` (pure zod + species labels; `birth_date` implies
@@ -353,9 +353,9 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `documents`              | Metadata for private file uploads, **one bank per tree** (`tree_id`); `shared_across_trees` shows it on every tree the person is on — flipped only by the person or a Root of their home tree (`documents_guard`), which also keeps it on its entry except inside a merge (Step 41.3's claim invite, or "This is me" since Step 43), which leaves it unshared                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `places`                 | GeoNames reference data (populated places + admin areas) for birthplace autocomplete; not tree-scoped — read by any member, written only by the import script                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `historical_names`       | Curated period names for a place/country over a date range (Step 4.5d); matched by `place_id` then `country_code` against a birth/death year. Read by any member; seeded by migration                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `pets`                   | Companion animals — a deliberately thin, non-human entry: name, species (`cat` / `dog` / `other` + `species_label`), `year_born` / `year_died`, an optional exact `birth_date` (must agree with `year_born`) and an optional GeoNames place of birth (`place_id_birth` FK + denormalised `city_of_birth` / `country_of_birth`, exactly like a person; Step 27.7's `ancestral_lands_birth` was dropped in Step 40.5, as on a person), photo, and a `pos_dx` / `pos_dy` nudge. No lineage, claims, documents, or verification                                                                                                                                                                                                                                                                                                                                                                |
+| `pets`                   | Companion animals — a deliberately thin, non-human entry: name, species (`cat` / `dog` / `other` + `species_label`), `year_born` / `year_died`, an optional exact `birth_date` (must agree with `year_born`) and an optional GeoNames place of birth (`place_id_birth` FK + denormalised `city_of_birth` / `country_of_birth`, exactly like a person; Step 27.7's `ancestral_lands_birth` was dropped in Step 40.5, as on a person), photo, and a `pos_dx` / `pos_dy` nudge. No lineage, claims or documents                                                                                                                                                                                                                                                                                                                                                                               |
 | `pet_companions`         | Which people a pet lived with (`pet_id` + `person_id`). Many-to-many, undirected, no lineage meaning; a trigger deletes a pet once its last companion goes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| `pet_comments`           | A plain comment thread on a companion (`pet_id`, `body`, `created_by`). No flags, no open/resolved lifecycle, no verification, no notifications; author or anyone who `can_edit_pet` may delete                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `pet_comments`           | A plain comment thread on a companion (`pet_id`, `body`, `created_by`). No flags, no open/resolved lifecycle, no notifications; author or anyone who `can_edit_pet` may delete                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 
 **Checks:** `people` requires first **or** preferred name, last name, and
 `is_deceased` (NOT NULL). A place of birth is optional since Step 44
@@ -511,7 +511,7 @@ the database, which enforces them.
 
 | Stored `role`  | Name       | Reach                                                                                                                                                                                                                                                                                              |
 | -------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `admin`        | **Root**   | Everything, plus running the tree: members and their account types, invites, share links, deletes, lineage, verification                                                                                                                                                                           |
+| `admin`        | **Root**   | Everything, plus running the tree: members and their account types, invites, share links, deletes, lineage                                                                                                                                                                                         |
 | `branch_admin` | **Branch** | Every entry and connection on their part of the side of the Root they're related to (see **Branches**); invites relatives as Leaves, and invites someone to claim an unclaimed entry on that side                                                                                                  |
 | `member`       | **Leaf**   | Adds relatives on their own line — their ancestors, everyone descended from them, and the people those relatives married; edits what they add, the lines they draw, and their own entry. Invites relatives as Leaves, and invites someone to claim an entry they added. New members join as Leaves |
 
@@ -636,7 +636,7 @@ mirror it for the UI.
 | Invite someone to claim an entry                   | Any unclaimed, living entry, as a Leaf                                                                          | Unclaimed on their side, as Leaves                                           | Unclaimed ones they added, as Leaves |
 | Change account types                               | Anyone not a Root: Leaf, Branch, or Root (for good)                                                             | —                                                                            | —                                    |
 | Demote or remove a Root                            | Never, themselves included; a Root may delete their own account, handing over to a new Root if they're the last | —                                                                            | —                                    |
-| Admin console, lineage, verification, share links  | ✓                                                                                                               | —                                                                            | —                                    |
+| Admin console, lineage, share links                | ✓                                                                                                               | —                                                                            | —                                    |
 
 ## Auth & invites (Step 3)
 
@@ -1270,6 +1270,44 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 62 — Edit entry in the details sheet's header; verification
+  removed** (ad-hoc; migration `20260928002000_remove_entry_verification`,
+  applied once this code is live). Aalim asked to "move the edit entry
+  button for the side-panel view to the header of the side panel, delete
+  'verification' altogether." **Edit entry** (a pencil and the words) now
+  sits in the sheet's header, under the name and badges, with or without a
+  photo; a Leaf who may only fill blanks sees **Fill in what's missing**
+  there instead. Before, it was the first button under **Manage**, the last
+  section of the sheet, below documents and comments. **Manage** keeps
+  **Reposition photo**, the claim, **Delete entry**, the claim invite and
+  the notes, and isn't shown when none of it is the viewer's (a member's own
+  entry with no photo had been left a bare heading); the badge row takes no
+  room when there are no badges. The rule is in `docs/design-system.md`
+  (Layout). **Verification is gone**: the details' **Verified** badge,
+  **Mark verified** / **Clear verified** and "Verified by an admin on…",
+  the ✓ after the name on person cards and leaves, the admin console's
+  **Unverified** count, and `setEntryVerified`. The migration drops
+  `set_entry_verified`, `people.verified_at` / `verified_by` (and
+  `tree_people`'s copy, the view made again without it), the one
+  `entry_verified` notice sent, and that type from
+  `notifications_type_check`. Two entries were marked verified on live.
+  **Verified:** on a throwaway preview page (deleted, never committed)
+  showing the real sheet with made-up people and no server action let
+  through, in headless Chrome at 1024 px and on a 375 px phone, light and
+  dark: **Edit entry** sits under the badges (under the photo when there is
+  one), a phone's **Add a relative** below it; a Root's **Manage** holds
+  **Delete entry** (and **Reposition photo** with a photo); the member's own
+  entry without a photo has no **Manage**; a Leaf who can fill blanks sees
+  **Fill in what's missing** in the header and the note under **Manage**; a
+  locked entry shows no edit button; a read-only sheet shows neither; no
+  "verif" anywhere in the sheet. The migration was rehearsed on live in a
+  rolled-back transaction: `tree_people` lost only `verified_at`, with the
+  same grants, options and owner; a member saw the same 77 people on their
+  tree before and after; `person_claim_candidates` still ran; the old type
+  was refused (`23514`) and a current one accepted; an entry still updated
+  and a new one saved. 1003 tests pass (none new: it's layout and removal);
+  tsc and lint are clean.
 
 - **Step 61 — Efficiency audit, phase 1: auth checked once, one render per
   save, loading and error pages, the audit's bug fixes** (ad-hoc; no
