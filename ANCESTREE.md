@@ -1214,9 +1214,9 @@ with population ≥ 500).
   find it? Add a place** under the field. `requestNewPlace` inserts it with
   the service role: `feature_code` `PPLX`, no coordinates (so no ancestral
   lands), whatever was typed as the state, ids from 10,000,000,000 up. The
-  first was Shishang, India (Aalim, 2026-09-28). Known gap:
-  `pets.place_id_birth` is still `integer`, so a hand-added place can't be a
-  companion's birthplace yet.
+  first was Shishang, India (Aalim, 2026-09-28). Every column that holds a
+  place id is `bigint`, so a hand-added place can be a companion's
+  birthplace too (`pets.place_id_birth` was `integer` until Step 65).
 
 ## Reference data — Native Land Digital
 
@@ -1284,6 +1284,34 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 65 — A hand-added place can be a companion's place of birth**
+  (ad-hoc; migration `20260928080000_pets_place_of_birth_bigint`, live
+  2026-09-28; no code change). `pets.place_id_birth` was `integer` (since
+  `20260903130000_companion_birthplace_geonames`), but `places.id` is
+  `bigint` and a Root's **Add a place** numbers from 10,000,000,000, so
+  choosing a hand-added place, such as Shishang (10000000000, Step 64), as
+  a companion's place of birth failed on save: out of range for `integer`
+  (`22003`) in the database, "Couldn't save this companion. Check the
+  fields and try again." in the form. The column is `bigint` now, like
+  every other column holding a place id (a person's two,
+  `historical_names`', `tree_people`'s). Only its FK
+  (`pets_place_id_birth_fkey`, on delete set null) and its
+  index depended on it, and both were rebuilt under their own names; no
+  view, policy, trigger or function names it. The app already sends and
+  reads a plain number (the form's `.int()` takes 10000000000), and the
+  regenerated types are byte-identical (`integer` and `bigint` are both
+  `number`). **Verified:** rehearsed on live in a rolled-back transaction:
+  before it, a bare insert, `addPet`'s insert and `updatePet`'s update as a
+  Root through RLS all failed with `22003`; after it, each stored
+  10000000000, a GeoNames id still saved, the FK refused an id with no
+  place (`23503`), and deleting a place still emptied the pet's.
+  Constraints, indexes, triggers, policies, grants and the md5 of all 8
+  rows were unchanged. Applied through the MCP (its row renamed from
+  `20260928080619`; the recorded statement's md5 equals the file's), then
+  checked again on live, rolled back; `db push --dry-run` is up to date.
+  Through PostgREST, filtering `pets` on 10000000000 answers 200, where an
+  `integer` column still answers `22003`.
 
 - **Step 64 — Add a missing village from the place search** (ad-hoc, no
   migration). Aalim "wasn't able to add
