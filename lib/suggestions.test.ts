@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { emptyPersonValues, toPersonPayload } from "@/lib/person-schema";
 import {
   SUGGESTION_DETAILS,
+  answeredLine,
   asSuggestionColumns,
   describeDetail,
   suggestionRows,
@@ -278,5 +279,39 @@ describe("asSuggestionColumns", () => {
     expect(asSuggestionColumns(null)).toEqual({});
     expect(asSuggestionColumns(["first_name"])).toEqual({});
     expect(asSuggestionColumns("first_name")).toEqual({});
+  });
+});
+
+describe("answeredLine", () => {
+  it("says who answered", () => {
+    expect(answeredLine({ status: "accepted", decidedBy: "Aalim Rattansi" })).toBe(
+      "Accepted by Aalim Rattansi.",
+    );
+    expect(answeredLine({ status: "declined", decidedBy: null })).toBe(
+      "Declined.",
+    );
+  });
+
+  it("quotes why it was declined (Step 69)", () => {
+    expect(
+      answeredLine({
+        status: "declined",
+        decidedBy: "Aalim Rattansi",
+        declineReason: "  Her passport says the 5th. ",
+      }),
+    ).toBe("Declined by Aalim Rattansi: “Her passport says the 5th.”");
+    expect(
+      answeredLine({ status: "declined", decidedBy: null, declineReason: " " }),
+    ).toBe("Declined.");
+  });
+
+  it("never gives a reason for accepting one", () => {
+    expect(
+      answeredLine({
+        status: "accepted",
+        decidedBy: null,
+        declineReason: "stale",
+      }),
+    ).toBe("Accepted.");
   });
 });

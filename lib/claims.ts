@@ -60,8 +60,9 @@ export type NotificationItem = {
   /**
    * The suggested change a `change_suggested` notice asks about (Step 67):
    * what it changes, its note, and whether it's still waiting or who
-   * answered it. `null` once withdrawn, or when the recipient may no longer
-   * edit the entry, and so not answer it.
+   * answered it and, if they declined it, why (Step 69). `null` once
+   * withdrawn, or when the recipient may no longer edit the entry, and so
+   * not answer it.
    */
   suggestion: NotificationSuggestion | null;
 };
@@ -73,6 +74,8 @@ export type NotificationSuggestion = {
   note: string | null;
   /** Who accepted or declined it. */
   decidedBy: string | null;
+  /** Why it was declined, if they said (Step 69). */
+  declineReason: string | null;
 };
 
 /** The entry's columns a suggestion can change, to read it against. */
@@ -92,7 +95,9 @@ async function loadNotificationSuggestions(
   const supabase = await createClient();
   const { data: suggestions } = await supabase
     .from("entry_suggestions")
-    .select("id, person_id, status, changes, before, note, decided_by")
+    .select(
+      "id, person_id, status, changes, before, note, decided_by, decline_reason",
+    )
     .in("id", suggestionIds);
   const rows = suggestions ?? [];
   if (rows.length === 0) return found;
@@ -137,6 +142,7 @@ async function loadNotificationSuggestions(
       rows: suggestionRows(asSuggestionColumns(r.changes), against),
       note: r.note,
       decidedBy: r.decided_by ? (nameById.get(r.decided_by) ?? null) : null,
+      declineReason: r.decline_reason,
     });
   }
   return found;

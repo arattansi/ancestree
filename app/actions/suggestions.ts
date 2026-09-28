@@ -72,18 +72,25 @@ export async function suggestEntryChange(input: {
 
 /**
  * Accept or decline a suggested change (Step 67): anyone who may edit the
- * entry. Accepting makes the change as their own edit. Returns the details
- * it changed.
+ * entry. Accepting makes the change as their own edit; declining may say why
+ * (Step 69), which the suggester reads in the notice. Returns the details it
+ * changed.
  */
 export async function decideEntrySuggestion(
   suggestionId: string,
   accept: boolean,
+  reason?: string,
 ): Promise<{ changed?: string[]; error?: string }> {
   await requireProfile();
+  const why = accept ? "" : (reason ?? "").trim();
+  if (why.length > MAX_NOTE) {
+    return { error: `Keep the reason under ${MAX_NOTE} characters.` };
+  }
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("decide_entry_suggestion", {
     p_suggestion: suggestionId,
     p_accept: accept,
+    ...(why ? { p_reason: why } : {}),
   });
   if (error) {
     const m = error.message;

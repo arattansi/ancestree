@@ -3,10 +3,8 @@
 import * as React from "react";
 import { toast } from "sonner";
 
-import {
-  decideEntrySuggestion,
-  withdrawEntrySuggestion,
-} from "@/app/actions/suggestions";
+import { withdrawEntrySuggestion } from "@/app/actions/suggestions";
+import { SuggestionAnswer } from "@/components/suggestion-answer";
 import { SuggestionChanges } from "@/components/suggestion-changes";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,17 +30,6 @@ export function EntrySuggestions({
   const [busyId, setBusyId] = React.useState<string | null>(null);
 
   if (suggestions.length === 0) return null;
-
-  async function answer(id: string, accept: boolean) {
-    setBusyId(id);
-    const res = await decideEntrySuggestion(id, accept);
-    setBusyId(null);
-    if (res.error) {
-      toast.error(res.error);
-      return;
-    }
-    toast.success(accept ? "Accepted." : "Declined.");
-  }
 
   async function withdraw(id: string) {
     setBusyId(id);
@@ -83,36 +70,19 @@ export function EntrySuggestions({
                 {s.note}
               </p>
             ) : null}
-            <div className="flex flex-wrap gap-2">
-              {s.mine ? (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={busyId === s.id}
-                  onClick={() => withdraw(s.id)}
-                >
-                  Withdraw
-                </Button>
-              ) : (
-                <>
-                  <Button
-                    size="sm"
-                    disabled={busyId === s.id}
-                    onClick={() => answer(s.id, true)}
-                  >
-                    Accept
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={busyId === s.id}
-                    onClick={() => answer(s.id, false)}
-                  >
-                    Decline
-                  </Button>
-                </>
-              )}
-            </div>
+            {s.mine ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="self-start"
+                disabled={busyId === s.id}
+                onClick={() => withdraw(s.id)}
+              >
+                Withdraw
+              </Button>
+            ) : (
+              <SuggestionAnswer suggestionId={s.id} />
+            )}
           </li>
         ))}
       </ul>

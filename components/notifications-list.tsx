@@ -7,12 +7,13 @@ import { toast } from "sonner";
 import { disputeClaim, markNotificationsRead } from "@/app/actions/claims";
 import { switchTreeForm } from "@/app/actions/current-tree";
 import { revertEntryEdit } from "@/app/actions/people";
-import { decideEntrySuggestion } from "@/app/actions/suggestions";
 import { respondToPlacement } from "@/app/actions/trees";
+import { SuggestionAnswer } from "@/components/suggestion-answer";
 import { SuggestionChanges } from "@/components/suggestion-changes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { NotificationItem } from "@/lib/claims";
+import { answeredLine } from "@/lib/suggestions";
 import { timeAgo } from "@/lib/time-ago";
 import { adminHref, newTreeHref, treeFocusHref } from "@/lib/tree-links";
 
@@ -82,17 +83,6 @@ export function NotificationsList({
     toast.success(accept ? "You're on that tree now." : "Declined.");
   }
 
-  async function onSuggestion(suggestionId: string, accept: boolean) {
-    setBusy(true);
-    const res = await decideEntrySuggestion(suggestionId, accept);
-    setBusy(false);
-    if (res.error) {
-      toast.error(res.error);
-      return;
-    }
-    toast.success(accept ? "Accepted." : "Declined.");
-  }
-
   async function onDispute(claimId: string) {
     setBusy(true);
     const res = await disputeClaim(claimId, reason);
@@ -136,43 +126,21 @@ export function NotificationsList({
                   {n.suggestion.note}
                 </p>
               ) : null}
-              {n.suggestion.status !== "pending" ? (
+              {n.suggestion.status === "pending" ? (
+                <SuggestionAnswer suggestionId={n.suggestion.id} />
+              ) : (
                 <p className="text-xs text-muted-foreground">
-                  {n.suggestion.status === "accepted" ? "Accepted" : "Declined"}
-                  {n.suggestion.decidedBy
-                    ? ` by ${n.suggestion.decidedBy}`
-                    : ""}
-                  .
+                  {answeredLine({
+                    status: n.suggestion.status,
+                    decidedBy: n.suggestion.decidedBy,
+                    declineReason: n.suggestion.declineReason,
+                  })}
                 </p>
-              ) : null}
+              )}
             </div>
           ) : null}
 
           <div className="flex flex-wrap items-center gap-2">
-            {n.suggestion?.status === "pending" ? (
-              <>
-                <Button
-                  size="sm"
-                  disabled={busy}
-                  onClick={() =>
-                    n.suggestion && onSuggestion(n.suggestion.id, true)
-                  }
-                >
-                  Accept
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={busy}
-                  onClick={() =>
-                    n.suggestion && onSuggestion(n.suggestion.id, false)
-                  }
-                >
-                  Decline
-                </Button>
-              </>
-            ) : null}
-
             {n.placementId ? (
               <>
                 <Button

@@ -207,6 +207,23 @@ export function withChanges<T extends SuggestionColumns>(
   return next as T;
 }
 
+/**
+ * How an answered suggestion reads on a notice that asked about it:
+ * "Accepted by Aalim Rattansi.", or with the reason it was declined (Step
+ * 69), "Declined by Aalim Rattansi: “Her passport says the 5th.”"
+ */
+export function answeredLine(answer: {
+  status: "accepted" | "declined";
+  decidedBy: string | null;
+  declineReason?: string | null;
+}): string {
+  const said = answer.status === "accepted" ? "Accepted" : "Declined";
+  const by = answer.decidedBy ? ` by ${answer.decidedBy}` : "";
+  const why =
+    answer.status === "declined" ? (answer.declineReason ?? "").trim() : "";
+  return why ? `${said}${by}: “${why}”` : `${said}${by}.`;
+}
+
 /** A stored `changes` or `before`, as columns (anything else is dropped). */
 export function asSuggestionColumns(value: unknown): SuggestionColumns {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};

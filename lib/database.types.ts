@@ -488,6 +488,7 @@ export type Database = {
           created_at: string
           decided_at: string | null
           decided_by: string | null
+          decline_reason: string | null
           id: string
           note: string | null
           person_id: string
@@ -502,6 +503,7 @@ export type Database = {
           created_at?: string
           decided_at?: string | null
           decided_by?: string | null
+          decline_reason?: string | null
           id?: string
           note?: string | null
           person_id: string
@@ -516,6 +518,7 @@ export type Database = {
           created_at?: string
           decided_at?: string | null
           decided_by?: string | null
+          decline_reason?: string | null
           id?: string
           note?: string | null
           person_id?: string
@@ -2348,7 +2351,7 @@ export type Database = {
         Returns: string
       }
       decide_entry_suggestion: {
-        Args: { p_accept: boolean; p_suggestion: string }
+        Args: { p_accept: boolean; p_reason?: string; p_suggestion: string }
         Returns: string[]
       }
       delete_tree: { Args: { p_tree: string }; Returns: Json }
