@@ -58,11 +58,11 @@ export type NotificationItem = {
   /** A placement waiting on this member's answer (Step 25). */
   placementId: string | null;
   /**
-   * The suggested change a `change_suggested` notice asks about (Step 67):
-   * what it changes, its note, and whether it's still waiting or who
-   * answered it and, if they declined it, why (Step 69). `null` once
-   * withdrawn, or when the recipient may no longer edit the entry, and so
-   * not answer it.
+   * The suggested change a `change_suggested` notice asks about (Step 67),
+   * or that a `suggestion_accepted` / `suggestion_declined` one answers for
+   * its suggester (Step 71): what it changes, its note, and whether it's
+   * still waiting or who answered it and, if they declined it, why (Step
+   * 69). `null` once withdrawn, or when the recipient may no longer see it.
    */
   suggestion: NotificationSuggestion | null;
 };
@@ -170,16 +170,10 @@ export async function listNotifications(
 
   const rows = data ?? [];
 
-  // Suggested changes a notice asks about (Step 67), looked up alongside
-  // the rest.
+  // Suggested changes a notice asks about (Step 67), or answers (Step 71),
+  // looked up alongside the rest.
   const suggestionsLoaded = loadNotificationSuggestions([
-    ...new Set(
-      rows.flatMap((n) =>
-        n.type === "change_suggested" && n.suggestion_id
-          ? [n.suggestion_id]
-          : [],
-      ),
-    ),
+    ...new Set(rows.flatMap((n) => (n.suggestion_id ? [n.suggestion_id] : []))),
   ]);
 
   // Placement requests point at the placement the member must answer.

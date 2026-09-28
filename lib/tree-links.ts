@@ -42,9 +42,14 @@ export function editPersonHref(personId: string): string {
   return `/people/${enc(personId)}/edit`;
 }
 
-/** Suggest a change to an entry the viewer can't edit (Step 67). */
-export function suggestChangeHref(personId: string): string {
-  return `/people/${enc(personId)}/suggest`;
+/**
+ * Suggest a change to an entry the viewer can't edit (Step 67); with
+ * `from`, starting from a suggestion of theirs that was declined, to edit
+ * and resend (Step 71).
+ */
+export function suggestChangeHref(personId: string, from?: string): string {
+  const base = `/people/${enc(personId)}/suggest`;
+  return from ? `${base}?from=${enc(from)}` : base;
 }
 
 /** First-run: find or add yourself on the tree being viewed. */

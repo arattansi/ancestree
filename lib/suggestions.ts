@@ -82,6 +82,13 @@ export type EntrySuggestion = {
   before: SuggestionColumns;
 };
 
+/** One of the viewer's suggestions that was declined (Step 71). */
+export type DeclinedSuggestion = EntrySuggestion & {
+  /** Who declined it, as the member directory names them. */
+  declinedBy: string | null;
+  declineReason: string | null;
+};
+
 /**
  * What `suggest_entry_change` takes: every detail the form holds, as the
  * entry's columns. It keeps only what differs from the entry, so sending

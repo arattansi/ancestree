@@ -8,6 +8,7 @@ import {
   onboardingHref,
   onboardingStepHref,
   reviewHref,
+  suggestChangeHref,
   treeFocusHref,
   treeHref,
   validRelatedTo,
@@ -22,6 +23,14 @@ describe("tree paths", () => {
     expect(onboardingStepHref("family")).toBe("/onboarding?step=family");
     expect(editPersonHref("p1")).toBe("/people/p1/edit");
     expect(editPersonHref("a b")).toBe("/people/a%20b/edit");
+    expect(suggestChangeHref("p1")).toBe("/people/p1/suggest");
+  });
+
+  it("opens the suggestion form on a declined suggestion to resend (Step 71)", () => {
+    expect(suggestChangeHref("p1", "s1")).toBe("/people/p1/suggest?from=s1");
+    expect(suggestChangeHref("p 1", "s&1")).toBe(
+      "/people/p%201/suggest?from=s%261",
+    );
   });
 
   it("opens the admin console as the account page's admin view", () => {

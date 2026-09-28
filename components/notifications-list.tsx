@@ -15,7 +15,12 @@ import { Input } from "@/components/ui/input";
 import type { NotificationItem } from "@/lib/claims";
 import { answeredLine } from "@/lib/suggestions";
 import { timeAgo } from "@/lib/time-ago";
-import { adminHref, newTreeHref, treeFocusHref } from "@/lib/tree-links";
+import {
+  adminHref,
+  newTreeHref,
+  suggestChangeHref,
+  treeFocusHref,
+} from "@/lib/tree-links";
 
 /**
  * Fired once a list has marked its notifications read, so the header's bell
@@ -118,25 +123,30 @@ export function NotificationsList({
           </div>
 
           {n.suggestion ? (
-            // Step 67: what a relative suggests changing, to answer here.
+            // What a relative suggests changing, to answer here (Step 67);
+            // on the suggester's answer, what they suggested (Step 71).
             <div className="flex flex-col gap-2 rounded-md bg-muted/40 p-2">
               <SuggestionChanges rows={n.suggestion.rows} />
-              {n.suggestion.note ? (
-                <p className="text-sm whitespace-pre-wrap text-muted-foreground">
-                  {n.suggestion.note}
-                </p>
+              {n.type === "change_suggested" ? (
+                <>
+                  {n.suggestion.note ? (
+                    <p className="text-sm whitespace-pre-wrap text-muted-foreground">
+                      {n.suggestion.note}
+                    </p>
+                  ) : null}
+                  {n.suggestion.status === "pending" ? (
+                    <SuggestionAnswer suggestionId={n.suggestion.id} />
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      {answeredLine({
+                        status: n.suggestion.status,
+                        decidedBy: n.suggestion.decidedBy,
+                        declineReason: n.suggestion.declineReason,
+                      })}
+                    </p>
+                  )}
+                </>
               ) : null}
-              {n.suggestion.status === "pending" ? (
-                <SuggestionAnswer suggestionId={n.suggestion.id} />
-              ) : (
-                <p className="text-xs text-muted-foreground">
-                  {answeredLine({
-                    status: n.suggestion.status,
-                    decidedBy: n.suggestion.decidedBy,
-                    declineReason: n.suggestion.declineReason,
-                  })}
-                </p>
-              )}
             </div>
           ) : null}
 
@@ -159,6 +169,25 @@ export function NotificationsList({
                   Decline
                 </Button>
               </>
+            ) : null}
+
+            {n.type === "suggestion_declined" &&
+            n.suggestion &&
+            n.personId &&
+            n.treeId ? (
+              // Step 71: back into the form with what they suggested, on
+              // the tree they suggested it from.
+              <form
+                action={switchTreeForm.bind(
+                  null,
+                  n.treeId,
+                  suggestChangeHref(n.personId, n.suggestion.id),
+                )}
+              >
+                <Button type="submit" size="sm" variant="outline">
+                  Edit and resend
+                </Button>
+              </form>
             ) : null}
 
             {n.personId && n.treeId ? (

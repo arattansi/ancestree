@@ -28,22 +28,28 @@ export function PersonSuggestForm({
   personId,
   values,
   placeLabels,
-  pendingNote,
+  note: startNote,
+  startsFrom,
   backHref,
 }: {
   treeId: string;
   personId: string;
-  /** The entry as it stands, or with the viewer's earlier suggestion laid
-   *  over it while that waits. */
+  /** The entry as it stands, or with a suggestion of the viewer's laid over
+   *  it (`startsFrom`). */
   values: PersonFormValues;
   placeLabels?: { birth?: string | null; death?: string | null };
-  /** Their earlier suggestion's note, when there is one waiting (`null`
-   *  when there isn't): sending replaces it. */
-  pendingNote: string | null;
+  /** What the note opens with: that suggestion's. */
+  note: string;
+  /**
+   * Where the form starts: the entry; their suggestion still waiting,
+   * which sending replaces; or one that was declined, being resent (Step
+   * 71), which can go again as it is.
+   */
+  startsFrom: "entry" | "pending" | "declined";
   backHref: string;
 }) {
   const router = useRouter();
-  const [note, setNote] = React.useState(pendingNote ?? "");
+  const [note, setNote] = React.useState(startNote);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
 
   const form = useForm<PersonFormValues>({
@@ -54,9 +60,12 @@ export function PersonSuggestForm({
   // Read up front, not inside the button's `||`: react-hook-form only works
   // out `isValid` once it has been read (Step 50).
   const { isDirty, isSubmitting, isValid } = form.formState;
-  // A note alone changes nothing, unless it's the note on one that waits.
+  // A note alone changes nothing, unless it's the note on one that waits;
+  // a declined one can be resent unchanged.
   const somethingToSend =
-    isDirty || (pendingNote !== null && note.trim() !== pendingNote.trim());
+    startsFrom === "declined" ||
+    isDirty ||
+    (startsFrom === "pending" && note.trim() !== startNote.trim());
 
   async function onSubmit(next: PersonFormValues) {
     setSubmitError(null);

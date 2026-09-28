@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { PersonSuggestForm } from "@/components/person-suggest-form";
@@ -7,21 +8,33 @@ import { personDisplayName } from "@/lib/person-name";
 import { personFormValues } from "@/lib/person-schema";
 import { formatPlaceLabel, getPlacesByIds } from "@/lib/places";
 import { createClient } from "@/lib/supabase/server";
-import { withChanges } from "@/lib/suggestions";
-import { getOwnPendingSuggestion } from "@/lib/suggestions.server";
+import { answeredLine, withChanges } from "@/lib/suggestions";
+import {
+  getOwnDeclinedSuggestion,
+  getOwnPendingSuggestion,
+} from "@/lib/suggestions.server";
 import { requireTreeSelfPerson } from "@/lib/tree-context";
-import { editPersonHref, treeFocusHref } from "@/lib/tree-links";
+import {
+  editPersonHref,
+  suggestChangeHref,
+  treeFocusHref,
+} from "@/lib/tree-links";
 
 export const metadata: Metadata = { title: "suggest a change" };
 
 /**
  * Suggest a change to an entry the viewer can't edit (Step 67), from the
  * tree they're looking at. Someone who can edit it is sent to edit it.
+ * `?from=` starts from one of their suggestions that was declined, to edit
+ * and resend (Step 71).
  */
 export default async function SuggestChangePage({
   params,
+  searchParams,
 }: PageProps<"/people/[id]/suggest">) {
   const { id } = await params;
+  const { from } = await searchParams;
+  const fromId = typeof from === "string" ? from : undefined;
   const { tree, profile } = await requireTreeSelfPerson();
 
   const supabase = await createClient();
@@ -45,7 +58,7 @@ export default async function SuggestChangePage({
   }
   const personId = person.id;
 
-  const [{ canEdit }, pending] = await Promise.all([
+  const [{ canEdit }, pending, declined] = await Promise.all([
     entryAccess(profile, {
       id: personId,
       home_tree_id: person.home_tree_id,
@@ -53,13 +66,21 @@ export default async function SuggestChangePage({
       created_by: person.created_by,
     }),
     getOwnPendingSuggestion(personId, profile.auth_user_id),
+    // The one they're resending, or their latest if it was declined.
+    getOwnDeclinedSuggestion(personId, profile.auth_user_id, fromId),
   ]);
   if (canEdit) redirect(editPersonHref(personId));
 
-  // Their earlier suggestion, while it waits, is what the form opens with:
-  // sending again replaces it.
+  // What the form opens with: a declined suggestion they're resending, or
+  // their earlier one while it waits (sending again replaces it), or the
+  // entry as it stands.
+  const resend = fromId ? declined : null;
+  const startsFrom = resend ? "declined" : pending ? "pending" : "entry";
+  const startingFrom = resend ?? pending;
   const entry = { ...person, last_name: person.last_name };
-  const shown = pending ? withChanges(entry, pending.changes) : entry;
+  const shown = startingFrom
+    ? withChanges(entry, startingFrom.changes)
+    : entry;
   const values = personFormValues({
     ...shown,
     lineage_type: null,
@@ -83,14 +104,36 @@ export default async function SuggestChangePage({
         <h1 className="text-2xl font-semibold tracking-tight">
           Suggest a Change to {personDisplayName(entry)}
         </h1>
+        {resend ? (
+          <p className="text-sm text-muted-foreground">
+            {answeredLine({
+              status: "declined",
+              decidedBy: resend.declinedBy,
+              declineReason: resend.declineReason,
+            })}
+          </p>
+        ) : null}
         {pending ? (
           <p className="text-sm text-muted-foreground">
             Your earlier suggestion is still waiting. Sending this replaces it.
+          </p>
+        ) : declined && !resend ? (
+          <p className="text-sm text-muted-foreground">
+            Your last suggestion was declined.{" "}
+            <Link
+              href={suggestChangeHref(personId, declined.id)}
+              className="text-foreground underline underline-offset-2"
+            >
+              Edit and resend it
+            </Link>
           </p>
         ) : null}
       </div>
 
       <PersonSuggestForm
+        // A form keeps what it opened with, so a new starting point (the
+        // hint's link, on this same page) opens a new one.
+        key={startingFrom?.id ?? "entry"}
         treeId={tree.id}
         personId={personId}
         values={values}
@@ -102,7 +145,8 @@ export default async function SuggestChangePage({
             ? formatPlaceLabel(deathPlace)
             : shown.place_of_death,
         }}
-        pendingNote={pending ? (pending.note ?? "") : null}
+        note={startingFrom?.note ?? ""}
+        startsFrom={startsFrom}
         backHref={treeFocusHref(personId)}
       />
     </main>

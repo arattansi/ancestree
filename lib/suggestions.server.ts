@@ -1,7 +1,11 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
-import { asSuggestionColumns, type EntrySuggestion } from "@/lib/suggestions";
+import {
+  asSuggestionColumns,
+  type DeclinedSuggestion,
+  type EntrySuggestion,
+} from "@/lib/suggestions";
 
 const COLUMNS =
   "id, person_id, suggested_by, suggested_by_name, note, created_at, changes, before";
@@ -61,4 +65,42 @@ export async function getOwnPendingSuggestion(
     .eq("status", "pending")
     .maybeSingle();
   return data ? toSuggestion(data, userId) : null;
+}
+
+/**
+ * One of the viewer's own suggestions for an entry that was declined, to
+ * edit and resend (Step 71): the one named, or else their latest answered
+ * one, if that was declined. With who declined it and why.
+ */
+export async function getOwnDeclinedSuggestion(
+  personId: string,
+  userId: string,
+  suggestionId?: string,
+): Promise<DeclinedSuggestion | null> {
+  const supabase = await createClient();
+  let query = supabase
+    .from("entry_suggestions")
+    .select(`${COLUMNS}, status, decided_by, decline_reason`)
+    .eq("person_id", personId)
+    .eq("suggested_by", userId)
+    .neq("status", "pending");
+  if (suggestionId) query = query.eq("id", suggestionId);
+  const { data } = await query
+    .order("decided_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!data || data.status !== "declined") return null;
+  const { data: decider } = data.decided_by
+    ? await supabase
+        .from("member_directory")
+        .select("display_name")
+        .eq("auth_user_id", data.decided_by)
+        .limit(1)
+        .maybeSingle()
+    : { data: null };
+  return {
+    ...toSuggestion(data, userId),
+    declinedBy: decider?.display_name ?? null,
+    declineReason: data.decline_reason,
+  };
 }
