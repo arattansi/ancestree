@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Combobox } from "@base-ui/react/combobox";
-import { CheckIcon, MapPinIcon, SearchIcon } from "lucide-react";
+import { CheckIcon, MapPinIcon, PlusIcon, SearchIcon } from "lucide-react";
 
 import {
   listCountryOptions,
@@ -29,7 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { chosenPlace } from "@/lib/place-choice";
+import { chosenPlace, isLink, unmatchedSearch } from "@/lib/place-choice";
 import { cn } from "@/lib/utils";
 
 export type SelectedPlace = {
@@ -45,7 +45,8 @@ const DEBOUNCE_MS = 200;
 /**
  * Birthplace / place-of-death picker backed by `places`. The field is only
  * valid once a real `places.id` is chosen — there is no free-text fallback.
- * Admins get a "can't find it?" escape hatch that adds a place row.
+ * Admins get an escape hatch that adds a place row: "Add “…”" in the list
+ * when a search finds nothing (Step 64), and "can't find it?" under the field.
  */
 export function PlaceAutocomplete({
   id,
@@ -70,6 +71,7 @@ export function PlaceAutocomplete({
   const [picked, setPicked] = React.useState<Item | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [query, setQuery] = React.useState("");
+  const [open, setOpen] = React.useState(false);
   const [addOpen, setAddOpen] = React.useState(false);
   const timer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const reqId = React.useRef(0);
@@ -99,7 +101,10 @@ export function PlaceAutocomplete({
 
   const runSearch = React.useCallback((q: string) => {
     if (timer.current) clearTimeout(timer.current);
-    if (q.trim().length < 2) {
+    // A link names no place, so there's nothing to ask for; and a search
+    // still in flight mustn't land its results under it.
+    if (q.trim().length < 2 || isLink(q)) {
+      reqId.current++;
       setItems([]);
       setLoading(false);
       return;
@@ -125,12 +130,21 @@ export function PlaceAutocomplete({
     return items;
   }, [items, selected]);
 
+  const unmatched = unmatchedSearch(query, { canAdd: isAdmin });
+  // The search is back with nothing. The list isn't empty while a place is
+  // chosen (it still shows that one), so this can't wait for an empty list.
+  const searchedEmpty =
+    !loading && items.length === 0 && query.trim().length >= 2;
+  const addName = searchedEmpty ? unmatched.add : null;
+
   return (
     <div className="flex flex-col gap-1.5">
       <Combobox.Root
         items={options}
         value={selected}
         filter={null}
+        open={open}
+        onOpenChange={(next: boolean) => setOpen(next)}
         isItemEqualToValue={(a: Item, b: Item) => a.value === b.value}
         onValueChange={(v: Item | null) => {
           // A pick settles it: drop any search still in flight so its results
@@ -179,9 +193,7 @@ export function PlaceAutocomplete({
                 <p className="px-2 py-2 text-sm text-muted-foreground">Searching…</p>
               ) : null}
               <Combobox.Empty className="px-2 py-2 text-sm text-muted-foreground">
-                {query.trim().length < 2
-                  ? "Type at least two letters."
-                  : "No matching place."}
+                {unmatched.note}
               </Combobox.Empty>
               <Combobox.List>
                 {(item: Item) => (
@@ -198,6 +210,26 @@ export function PlaceAutocomplete({
                   </Combobox.Item>
                 )}
               </Combobox.List>
+              {searchedEmpty && selected ? (
+                // Combobox.Empty says nothing while the chosen place is
+                // listed, so the note goes under it.
+                <p className="px-2 py-2 text-sm text-muted-foreground">
+                  {unmatched.note}
+                </p>
+              ) : null}
+              {addName ? (
+                <button
+                  type="button"
+                  className="flex w-full cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground"
+                  onClick={() => {
+                    setOpen(false);
+                    setAddOpen(true);
+                  }}
+                >
+                  <PlusIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                  <span className="flex-1">Add “{addName}”</span>
+                </button>
+              ) : null}
             </Combobox.Popup>
           </Combobox.Positioner>
         </Combobox.Portal>
@@ -217,7 +249,7 @@ export function PlaceAutocomplete({
         <AddPlaceDialog
           key={addOpen ? `open:${query}` : "closed"}
           open={addOpen}
-          initialName={query}
+          initialName={isLink(query) ? "" : query.trim()}
           onOpenChange={setAddOpen}
           onAdded={(place) => {
             const item: Item = { value: place.id, label: place.label, place };

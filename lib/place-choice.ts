@@ -21,3 +21,28 @@ export function chosenPlace<T extends { value: number }>(
   if (picked && picked.value === value) return picked;
   return fallback;
 }
+
+/**
+ * Whether what was typed into the picker is a link — a page about the village
+ * pasted in, say — rather than a name. The search only matches names, so a
+ * link finds nothing, and it mustn't become the name of a new place.
+ */
+export function isLink(text: string): boolean {
+  return /^([a-z][a-z\d+.-]*:\/\/|www\.)/i.test(text.trim());
+}
+
+/**
+ * What the picker says when a search turns up nothing, and — for a Root — the
+ * name it offers to add as a new place (Step 64): a small village GeoNames'
+ * cities500 left out is added from right there, not only from the link under
+ * the field.
+ */
+export function unmatchedSearch(
+  typed: string,
+  { canAdd }: { canAdd: boolean },
+): { note: string; add: string | null } {
+  const name = typed.trim();
+  if (name.length < 2) return { note: "Type at least two letters.", add: null };
+  if (isLink(name)) return { note: "Type the place’s name, not a link.", add: null };
+  return { note: "No matching place.", add: canAdd ? name : null };
+}
