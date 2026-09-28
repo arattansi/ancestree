@@ -1368,6 +1368,99 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 70 — Efficiency audit, phase 2: buttons that never stick, a
+  question before a loss, errors where they're looked for** (ad-hoc; no
+  migration; the audit's Phase 2, findings B1, B2, B5–B8, B10, R1). Aalim:
+  "continue to phase 2" of the [Ancestree Efficiency
+  Audit](https://claude.ai/artifact/MGmcpvsEkFnhWrQ24Xvyjo). An inventory
+  found 92 handlers calling server actions: 47 left their button disabled
+  for good if the call threw (after a deploy, say), 14 made a neighbouring
+  button read "Working…" while it ran, 7 cleared the busy state before the
+  next page arrived so a second press saved twice, and 27 action forms
+  showed nothing at all while they ran.
+  **One way to call an action:** `useAction` (`components/use-action.ts`)
+  runs the call in a React transition, so only the pressed button shows
+  it's busy (a spinner and its own words, "Deleting…"; `PendingButton`),
+  and it stays busy until the page's new render, or the next page, has
+  arrived; it ends however the call went. A refusal or a call that threw
+  ("Couldn't reach the server — reload the page and try again.") is said
+  once, by the button in a form (`FormError`) or in a toast; a `redirect()`
+  from the action counts as done (Next rejects the caller's promise while
+  the router goes there, `lib/action-feedback.ts#isRedirect`), and nothing
+  is remounted to go there twice. `ActionButton` is one button with one
+  action, `SubmitButton` a `<form action>`'s, now with a spinner; every
+  hand-rolled busy flag, try/catch and "Couldn't reach the server" copy is
+  gone. Rows that don't depend on each other have a call each: answering
+  one invite request, notification or tree request no longer disables
+  every other row.
+  **A question before a loss:** `ConfirmDialog` / `ConfirmButton`, on Base
+  UI's AlertDialog, replace all ten `window.confirm`s and ask before what
+  asked nothing: Auto-arrange ("Every card moved by hand goes back to its
+  place."), removing a document, a connection (a spouse line says its
+  dates go with it), a placement, a nickname group, a pet comment,
+  revoking a share link, clearing notifications, upholding or reversing a
+  claim, and "This is me" (the inline merge note is now the dialog's).
+  The question is the title, "This cannot be undone." sits on its own line
+  where something is lost, Cancel comes first with focus, the confirm is
+  the only solid red button (`destructive-solid`); it runs the action
+  itself, stays open busy, and shows a refusal inside. Unlinking a person
+  from a companion, or a nickname from its group, happens at once with
+  **Undo** in the toast; the companion sheet no longer closes when the
+  toast is pressed.
+  **Errors where they're looked for:** forms and dialogs show a failure by
+  their button (the photo picker's and documents' file checks, the invite
+  forms' kept rows with each row's reason, the comment boxes, the marriage
+  editor, the crop, the dispute, the add-a-place dialog…). Toasts are red
+  or green (`richColors`), can be closed, keep a failure up 10 s, come in
+  at the top under the header on a phone (at the bottom they covered the
+  canvas's pill, minimized card and zoom buttons) and stay left of a
+  docked details sheet. About 50 success toasts that repeated the screen
+  ("Comment posted.", "Name updated.", "Deleted.", "Tree re-arranged.")
+  are gone; those for what happens off screen (an email sent, a link
+  copied, who was removed and whether their login went) stay.
+  **Moves at once:** tree visibility, home tree, relatives-can-ask, the
+  family link's cap, account types, a companion's people and its primary,
+  flag toggles, connection prompts and a nickname's × change as they're
+  pressed and go back by themselves if the save fails (`useOptimistic`);
+  a failed pet-comment delete no longer jumps to the top.
+  **Focus kept** (`components/use-focus-return.ts`): a busy button keeps
+  focus; opening an inline form (marriage dates, a dispute, a decline
+  reason, Search & filters, Upcoming) focuses its first field and closing
+  it returns to its button; a removed row hands focus to the next row's,
+  or the section it was in; Escape in the bell's panel returns to the bell.
+  **Touch:** small controls answer to a 44 px square on a touch screen
+  (`tap-target`, an invisible hit area, so nothing moves), the canvas's ✕
+  buttons are no longer faded (2.3:1), and the zoom buttons are 40 px.
+  **Also:** the header's admin count is `attention`, not the red of a
+  removal; "Send dispute" is an ordinary button; row buttons name their
+  row to a screen reader ("Remove Will.pdf"); `revokeShareLink` reports a
+  failure instead of looking like success; Add a relative's connection
+  check no longer blanks its answers when Save is pressed; the edit form
+  no longer uploads the same photo again on a second save; a thrown
+  invite email after a save is a warning, never a second save. Steps 69
+  and 71–73's suggestion answers (decline with a reason, dismiss, withdraw)
+  landed meanwhile and are on the same primitives. **Verified:** in
+  Chrome, headless, on a throwaway page with throwaway server actions
+  (deleted): only the pressed button is busy and it ends with the new
+  render (1.5 s), through a `router.push` and a `redirect()` to a page
+  that takes 1.5 s to draw, with no false error; a refusal and a throw
+  both end it with a red, closable toast still up at 7 s; keyboard focus
+  stays on a busy button; a confirm opens with Cancel focused, Escape
+  returns to its button, and a removal moves focus to the next row's; the
+  hit area is 44 px on touch only; phone toasts sit under the header. As
+  a throwaway Root (and a throwaway Leaf) of throwaway trees on live, all
+  deleted after (users, sessions, rows): Auto-arrange, Delete entry, a
+  spouse line's Remove and a share link's Revoke ask with the words above;
+  marriage dates save with focus in and back and no toast; a comment posts
+  with the box focused again, and a failed network call leaves the text
+  and says so by the button; unlinking a companion is instant and Undo
+  brings it back with the sheet open; Clear asks, and focus lands on the
+  panel's heading; a Leaf's suggestions are declined with a reason
+  (Enter sends it), accepted from the bell, dismissed and withdrawn, each
+  with its own busy words and no toast; nothing scrolls sideways on a
+  390 px phone; no console errors. 1088 tests pass (7 new); tsc, lint and
+  `next build` are clean.
+
 - **Step 73 — Dismiss a declined suggestion from the card** (ad-hoc;
   migration `20260928150000_suggestion_dismissed`, live 2026-09-28, before
   the code). Aalim: "let the suggester dismiss a declined suggestion from the
