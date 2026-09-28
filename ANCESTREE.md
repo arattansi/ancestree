@@ -1245,8 +1245,8 @@ with population ≥ 500).
   words like "taluka" or "district" and without a region named at its end
   ("Vancouver BC", which then only takes places in BC). Typed text is folded
   like `search_name` (no accents; ä/ö/ü tried as ae/oe/ue first, as GeoNames
-  mostly spells them). Each query is still one trigram-indexed ILIKE, top 60
-  by population, ranked in JS.
+  mostly spells them). Each query is still one trigram-indexed ILIKE, top 200
+  by population (60 until Step 66.4), ranked in JS.
 - **Free-tier size:** `places` measures **58 MB** total (table + the two
   `pg_trgm` GIN indexes + the `country_code` btree); whole DB **70 MB**, well
   under the Supabase Free 500 MB limit. **`allCountries` (~13M rows, ~55×) is
@@ -1332,6 +1332,33 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 66.4 — The place search ranks 200 matches, not 60** (ad-hoc,
+  after Step 66; no migration). Aalim asked to "widen the window to 200".
+  Each search pulls its name matches most populous first and ranks them in
+  JS (`CANDIDATES` in `lib/places.ts`). With 60, a smaller namesake was
+  never ranked however exactly it matched (Ely, NV is the 78th most
+  populous "%ely%" match, Ely, MN the 87th), nor was a place in a hinted
+  region behind 60 bigger namesakes. The database finds and sorts every
+  match whatever the limit, so the only cost is the rows sent to the
+  server: about 31 KB instead of 9 KB for a broad name like "san"; the
+  browser still gets 8. **Verified:** on live, the query's database time
+  was the same at 60 and 200 for seven patterns, from `%vancouver%` (5
+  matches) to `%an%` (50,290), and PostgREST round trips from here took
+  111–199 ms either way. Over 502 searches (Step 66's random sample of
+  names and prefixes, plus named ones), 466 gave the same 8 and 36 changed,
+  all short names or 3–5-letter prefixes, each gaining exact or prefix
+  matches the 60 cut off: "Ely" lists Ely, England, then Ely, NV, MN and IA
+  before Elyria; "springs" Springs, NY; "rin" Rincón… and Rinteln rather
+  than names with "rin" inside; "india" now puts India, Gambia first.
+  "London", "Nairobi", "Vancouver, Canada", "Kalavad taluka" and the
+  family's places (Jamnagar, Moshi, Mombasa, Kampala, Zanzibar, Toronto,
+  Surrey…) are unchanged. In the pane on this worktree's dev server, as a
+  throwaway Root of its own tree (deleted after, auth user included), "Ely"
+  listed the four Elys first and those four searches read as before; the
+  edge logs show `limit=200`. Noticed, not changed: a two-letter search
+  can't use the trigram index (`%an%` takes about 0.56 s in the database).
+  1075 tests pass (1 new); tsc, lint and `next build` are clean.
 
 - **Step 68 — Suggested changes reach the Branches who tend the entry**
   (ad-hoc; migration `20260928110000_suggestions_notify_branches`, live
