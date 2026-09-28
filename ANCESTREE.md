@@ -1320,7 +1320,7 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 - **Step 62 — Edit entry in the details sheet's header; verification
   removed** (ad-hoc; migration `20260928002000_remove_entry_verification`,
-  applied once this code is live). Aalim asked to "move the edit entry
+  applied 2026-09-28 once this code was live). Aalim asked to "move the edit entry
   button for the side-panel view to the header of the side panel, delete
   'verification' altogether." **Edit entry** (a pencil and the words) now
   sits in the sheet's header, under the name and badges, with or without a
@@ -1354,8 +1354,11 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   same grants, options and owner; a member saw the same 77 people on their
   tree before and after; `person_claim_candidates` still ran; the old type
   was refused (`23514`) and a current one accepted; an entry still updated
-  and a new one saved. 1003 tests pass (none new: it's layout and removal);
-  tsc and lint are clean.
+  and a new one saved. Applied after the deploy was serving: the recorded
+  statement's md5 equals the file's, the app's reads of `tree_people` and
+  `tree_edges` answer 200 while the old column answers 400 and the function
+  404, and freshly generated types equal `lib/database.types.ts`. 1003 tests
+  pass (none new: it's layout and removal); tsc and lint are clean.
 
 - **Step 61 — Efficiency audit, phase 1: auth checked once, one render per
   save, loading and error pages, the audit's bug fixes** (ad-hoc; no
