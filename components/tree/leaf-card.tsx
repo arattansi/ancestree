@@ -279,6 +279,12 @@ export function LeafCard({
   const blade = BLADES[leaf.shape] ?? BLADES.ovate;
   const lifespan = personLifespan(person);
   const maiden = maidenLine(person);
+  // "You" has a line of its own, except beside a maiden name: there it
+  // shares the years' line, so a leaf never runs past three.
+  const youAlone = isSelf && !maiden;
+  const youWithYears = isSelf && !!maiden;
+  const threeLines =
+    [youAlone, maiden, youWithYears || lifespan].filter(Boolean).length === 2;
   const deceased = person.is_deceased;
   // Ids have to be unique per card: two leaves sharing a clip path would clip
   // to whichever one the browser resolved last.
@@ -366,14 +372,13 @@ export function LeafCard({
         />
       ) : null}
 
-      {/* At most three lines: the name, a maiden name, then "You" and the
-          years together. Three hang from where two put the name rather
-          than centring on it, or the name would rise into the gaps between
-          the baobab's leaflets. */}
+      {/* At most three lines, under the name. Three hang from where two put
+          the name rather than centring on it, or the name would rise into
+          the gaps between the baobab's leaflets. */}
       <div
         className={cn(
           "absolute inset-0 flex flex-col justify-center pr-8",
-          maiden && (isSelf || lifespan) && "pt-3",
+          threeLines && "pt-3",
         )}
         style={{ paddingLeft: TEXT_LEFT[leaf.shape] ?? TEXT_LEFT.ovate }}
       >
@@ -385,6 +390,11 @@ export function LeafCard({
         >
           {nodeDisplayName(person)}
         </p>
+        {youAlone ? (
+          <p className="truncate text-[11px] leading-3 font-medium text-primary">
+            You
+          </p>
+        ) : null}
         {/* Stops 110px along, before the baobab's middle leaflet and the
             maple's end lobe narrow to their points; a long one shrinks to
             fit before it is cut short. */}
@@ -399,12 +409,12 @@ export function LeafCard({
             </FitText>
           </p>
         ) : null}
-        {isSelf || lifespan ? (
+        {youWithYears || lifespan ? (
           <p className="truncate text-[11px] leading-3 text-muted-foreground">
-            {isSelf ? (
+            {youWithYears ? (
               <span className="font-medium text-primary">You</span>
             ) : null}
-            {isSelf && lifespan ? " · " : null}
+            {youWithYears && lifespan ? " · " : null}
             {lifespan}
           </p>
         ) : null}
