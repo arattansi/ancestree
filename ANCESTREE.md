@@ -656,7 +656,10 @@ shows what they suggested and, when it was declined, **Edit and resend**:
 `/people/[id]/suggest?from=<id>` opens the form on it, their changes and
 note, under who declined it and why, to send as it is or changed as a new
 suggestion (the declined one stays). Without `from`, the form offers their
-latest answered suggestion when that was declined. RLS: the
+latest answered suggestion when that was declined. Since Step 72 the entry's
+card shows the suggester their own declined suggestions too, after anything
+waiting, newest first (`listOwnDeclinedSuggestions`, their own only), each
+with who declined it and why and **Edit and resend**. RLS: the
 suggester and whoever may edit the entry read it; the suggester deletes it
 while it waits (withdrawing, which takes its notices with it); nothing else
 writes it. `suggested_by_name` keeps what the suggester was called, as
@@ -1345,6 +1348,28 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 72 — The suggester sees their declined suggestions on the
+  entry's card** (ad-hoc, no migration). Aalim: "let the suggester see their
+  declined suggestions on the entry's card". Until now a declined suggestion
+  left the card, and only its notice said so. Now the card's **Suggested
+  changes** lists the viewer's own declined suggestions after anything still
+  waiting, newest first: "You" with a **Declined** badge and when, what they
+  suggested (against the entry as it was then), their note, "Declined by …"
+  with the reason if one was given, and **Edit and resend** (Step 71's form,
+  `?from=` that suggestion). Nobody else sees them, not even whoever may
+  edit the entry: `listOwnDeclinedSuggestions` asks only for the viewer's
+  own, and the tree page hands the card those on people it shows. **Verified:**
+  end to end on live in headless Chrome as a throwaway Leaf and Root of a
+  throwaway tree (deleted after, auth users included): with two suggestions
+  declined (one with "Check her passport again.") and a third waiting, the
+  Leaf's card listed the waiting one with **Withdraw**, then the 13th
+  (declined, no reason) and the 12th (with its note and the reason), each
+  with **Edit and resend**; the Root's card listed only the waiting one;
+  **Edit and resend** on the 12th opened the form on it, the note and the
+  reason above, and said the waiting one would be replaced; at 390 px the
+  card holds. 1081 tests pass (none new); tsc, lint and `next build` are
+  clean.
 
 - **Step 71 — Edit and resend a declined suggestion** (ad-hoc; migration
   `20260928140000_suggestion_outcome_links`, live 2026-09-28, before the

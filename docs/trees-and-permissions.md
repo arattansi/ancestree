@@ -131,9 +131,11 @@ nobody's own entry) are asked. Anyone who may edit it
 (`private.can_edit_person`) accepts, which makes the change as their own
 edit, or declines, saying why if they like (Step 69); the suggester is
 told either way, with the reason if one was given, and can open a
-declined one again to change and send it (Step 71). A member has one
-suggestion waiting per entry: sending another replaces it, and they can
-withdraw it while it waits. Only they and whoever may edit the entry see it.
+declined one again to change and send it (Step 71), from the notice or the
+entry's card, where only they see their declined ones (Step 72). A member
+has one suggestion waiting per entry: sending another replaces it, and they
+can withdraw it while it waits. Only they and whoever may edit the entry see
+it.
 
 So the Root of a founded tree can place and arrange a relative brought from
 another tree, but cannot rewrite their details unless that person moves their
