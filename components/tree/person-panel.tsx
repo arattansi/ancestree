@@ -45,6 +45,7 @@ import {
 import { toastError, useAction } from "@/components/use-action";
 import { useFocusReturn } from "@/components/use-focus-return";
 import {
+  maidenLine,
   personDisplayName,
   personInitials,
   personLifespan,
@@ -582,6 +583,8 @@ export function PersonPanel({
   const savedCrop = parseCrop(person?.photo_crop);
   const [crop, setCrop] = React.useState<CropTransform>(savedCrop);
   const [prevId, setPrevId] = React.useState(person?.id);
+  // Under the name in the header, as on the person's card and leaf.
+  const maiden = person ? maidenLine(person) : null;
   // Something here is blank, and the viewer may fill it in (Step 44).
   const fillable =
     !!person && canFill && !readOnly && blankFields(person).length > 0;
@@ -738,11 +741,17 @@ export function PersonPanel({
                     className="size-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
                   />
                   {/* The name sits on the photo, over a scrim dark enough to
-                    carry it whatever the picture underneath is doing. */}
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/45 to-transparent px-4 pt-10 pb-3 text-left">
+                    carry it whatever the picture underneath is doing. Its
+                    middle stop is 48px down from the top rather than halfway,
+                    so a maiden name under the name, a line taller, leaves
+                    the name as much shade as ever. */}
+                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/45 via-[calc(100%-48px)] to-transparent px-4 pt-10 pb-3 text-left">
                     <p className="font-heading truncate text-base font-medium text-white">
                       {personDisplayName(person)}
                     </p>
+                    {maiden ? (
+                      <p className="truncate text-sm text-white/80">{maiden}</p>
+                    ) : null}
                     <p className="truncate text-sm text-white/80">
                       {personLifespan(person) ?? "Living"}
                       {isSelf ? " · Your entry" : ""}
@@ -755,10 +764,12 @@ export function PersonPanel({
               {person.photo_url ? (
                 <>
                   {/* The sheet still needs its accessible name and description,
-                      but they are on the photo now. */}
+                      but they are on the photo now, inside a button that
+                      speaks only its label. */}
                   <SheetTitle className="sr-only">
                     {personDisplayName(person)}
                   </SheetTitle>
+                  {maiden ? <p className="sr-only">{maiden}</p> : null}
                   <SheetDescription className="sr-only">
                     {personLifespan(person) ?? "Living"}
                   </SheetDescription>
@@ -773,6 +784,9 @@ export function PersonPanel({
                     <SheetTitle className="truncate">
                       {personDisplayName(person)}
                     </SheetTitle>
+                    {maiden ? (
+                      <p className="text-sm text-muted-foreground">{maiden}</p>
+                    ) : null}
                     <SheetDescription>
                       {personLifespan(person) ?? "Living"}
                       {isSelf ? " · Your entry" : ""}
