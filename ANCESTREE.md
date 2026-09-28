@@ -607,7 +607,7 @@ Helpers live in the unexposed `private` schema (`role_in`, `is_root_of`,
 `line_ids`, `root_person_ids`, `own_branch_ids`, `is_on_own_branch`,
 `can_see_documents`, `person_is_someones_own`, `can_edit_relationship`,
 `can_edit_pet`, `can_delete_person`, `revision_fields`, `notify_edit`,
-`member_label`, `suggestion_columns`).
+`member_label`, `suggestion_columns`, `tending_branches`).
 
 **Branch edits and the Root's undo (Step 22.4):** there is no approval queue.
 When a Branch edits an entry that a Root created or owns (and that isn't the
@@ -636,8 +636,11 @@ labels), in `changes`, and what they held in `before`; it tries the result
 against every check on `people` and undoes it, so what can't be applied isn't
 stored. It replaces the suggester's earlier suggestion for that entry, if one
 is waiting (one at a time: `entry_suggestions_one_pending`), and sends a
-`change_suggested` notice, in the home tree's inbox, to the entry's owner and
-each Root of its home tree, carrying `notifications.suggestion_id`.
+`change_suggested` notice, in the home tree's inbox, to the entry's owner,
+each Root of its home tree and, since Step 68, each Branch there who tends it
+(`private.tending_branches`: whose part of a Root's side it's on, measured
+from their own entry as `private.own_branch_ids` measures it for the caller,
+while it's nobody's own), carrying `notifications.suggestion_id`.
 `public.decide_entry_suggestion` lets anyone who may edit the entry
 (`private.can_edit_person`, the `people_update` rule) accept it, writing the
 changes as their own edit (so `person_edit_notify` tells the owner and maker,
@@ -1329,6 +1332,33 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 68 — Suggested changes reach the Branches who tend the entry**
+  (ad-hoc; migration `20260928110000_suggestions_notify_branches`, live
+  2026-09-28; no app change). Aalim: "let branches get notified of
+  suggestions too". Step 67 asked an entry's owner and the Roots of its home
+  tree; a Branch who may edit the entry could already accept a suggestion
+  from its card but wasn't told. Now the notice also goes to each Branch of
+  the entry's home tree whose part of a Root's side it's on, while it's
+  nobody's own entry: exactly the Branches `private.can_edit_person` lets
+  edit it, so every Branch told can answer. A Branch past their side, who
+  can't edit the entry, isn't told. `private.tending_branches(person)` works
+  that out for everyone at once, measuring each Branch's reach from their
+  own entry as `private.own_branch_ids` does for whoever is signed in;
+  `suggest_entry_change` is Step 67's body with only its list of whom it
+  asks changed (md5-checked against the live body first). **Verified:**
+  rehearsed on live in a rolled-back transaction with two Roots, a Branch on
+  each one's side, a Branch related to no Root and two Leaves: before the
+  change a Leaf's suggestion on the first Root's parent asked only the two
+  Roots; after it, that side's Branch too, and on the second Root's side
+  that side's Branch; a Leaf's own entry asked no Branch; the Branch related
+  to no Root was never asked; and across all 33 Branch–entry pairs
+  `tending_branches` picked exactly the Branches `can_edit_person` lets
+  edit, leaving out their own entries. Applied: the recorded statement's
+  md5 equals the file's, both bodies' md5s match, the grants are as before
+  (`tending_branches` postgres-only), and the same check ran on live after,
+  rolled back. 1074 tests pass (none new: the app is unchanged); tsc, lint
+  and `next build` are clean.
 
 - **Step 66 — The place search finds "Vancouver, BC" and "Kalavad
   taluka"** (ad-hoc, no migration). On 2026-09-28 the Supabase edge logs

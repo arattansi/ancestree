@@ -125,9 +125,11 @@ is.
 `public.suggest_entry_change` (Step 67): anyone on a tree an entry is shown
 on who can't edit it may suggest a change to its details — names, sex, date
 and place of birth, whether they've died, date and place of death — with a
-note. The entry's owner and the Roots of its home tree are asked. Anyone who
-may edit it (`private.can_edit_person`) accepts, which makes the change as
-their own edit, or declines; the suggester is told either way. A member has
+note. The entry's owner, the Roots of its home tree and the Branches there
+who tend it (Step 68: whose part of a Root's side it's on, while it's
+nobody's own entry) are asked. Anyone who may edit it
+(`private.can_edit_person`) accepts, which makes the change as their own
+edit, or declines; the suggester is told either way. A member has
 one suggestion waiting per entry: sending another replaces it, and they can
 withdraw it while it waits. Only they and whoever may edit the entry see it.
 
