@@ -182,8 +182,9 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   open-flag badge; in a spotlight `leaf-card.tsx`'s leaf, at most three
   lines: name, "You", the years, or, with a maiden name, name, `née`
   maiden name, "You" with the years, Steps 76–76.5),
-  `person-panel.tsx` detail Sheet (**Edit entry** in its
-  header, Step 62; claim / dispute; **Minimize** folds it into a
+  `person-panel.tsx` detail Sheet (its header: the name, `née` maiden
+  name and the years, on the photo when there is one, Step 76.6; **Edit
+  entry** in its header, Step 62; claim / dispute; **Minimize** folds it into a
   card at the foot of the canvas, Step 49), `entry-comments.tsx` (comment /
   flag thread + resolve), `claim-suggestions.tsx` "Is this you?" canvas prompt
 - `components/tree/pet-node.tsx` — the companion chip (a third the height of a
@@ -1373,6 +1374,28 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 76.6 — Maiden name in the details sheet header** (ad-hoc, after
+  Step 76.5; no migration). Aalim: "show the maiden name in the details
+  sheet header too". The header reads "Fatima Rattansi / née Jaffer /
+  1925 – 2010", on the photo when there is one and beside the initials
+  when not; the details below still list **Maiden name**. On a phone a
+  long one wraps rather than being cut short. Over a photo, the words sit
+  inside a button that speaks only "View photo of …", so a screen reader
+  gets the maiden name from a hidden line between the sheet's title and
+  description, as it gets those two. The extra line made the photo's
+  scrim taller, which stretched its gradient and left the name on a
+  lighter part of it: on a near-white photo the name's contrast fell from
+  3.2–4.4 to 2.5–3.6. The gradient's middle stop now sits 48px below the
+  top of the scrim instead of halfway (`via-[calc(100%-48px)]`), which is
+  exactly where it was on a scrim without a maiden name, so those are
+  unchanged and the name keeps its shade (3.2–4.1) under a maiden name.
+  The folded card a minimized sheet leaves on the canvas still shows only
+  the name and the years. **Verified:** on a throwaway read-only
+  `FamilyTree` (nothing sent to the server): the photo and no-photo
+  headers, the viewer's own entry, a 21-letter maiden name wrapping on a
+  375px phone, the gradient's computed stops. 1091 tests pass; tsc, lint
+  and `next build` are clean.
 
 - **Step 76.5 — "You" keeps its own line on a leaf with no maiden name**
   (ad-hoc, after Step 76; no migration). Aalim: "keep You on its own line
