@@ -131,3 +131,25 @@ export async function withdrawEntrySuggestion(
   revalidateTreePages();
   return {};
 }
+
+/**
+ * Take one of the caller's declined suggestions off their card (Step 73).
+ * It stays declined, and stays on the notices of those who were asked; the
+ * update policy lets only its suggester set this, only on a declined one.
+ */
+export async function dismissEntrySuggestion(
+  suggestionId: string,
+): Promise<{ error?: string }> {
+  await requireProfile();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("entry_suggestions")
+    .update({ dismissed_at: new Date().toISOString() })
+    .eq("id", suggestionId)
+    .select("id");
+  if (error || !data || data.length === 0) {
+    return { error: "Couldn’t dismiss it. Refresh and try again." };
+  }
+  revalidateTreePages();
+  return {};
+}

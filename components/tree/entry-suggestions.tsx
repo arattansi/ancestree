@@ -4,7 +4,10 @@ import Link from "next/link";
 import * as React from "react";
 import { toast } from "sonner";
 
-import { withdrawEntrySuggestion } from "@/app/actions/suggestions";
+import {
+  dismissEntrySuggestion,
+  withdrawEntrySuggestion,
+} from "@/app/actions/suggestions";
 import { SuggestionAnswer } from "@/components/suggestion-answer";
 import { SuggestionChanges } from "@/components/suggestion-changes";
 import { Badge } from "@/components/ui/badge";
@@ -23,7 +26,8 @@ import { suggestChangeHref } from "@/lib/tree-links";
  * Suggested changes to this entry still waiting (Step 67). Someone who may
  * edit it sees everyone's, to accept or decline; whoever suggested one sees
  * their own, to withdraw, and after them the ones of theirs that were
- * declined, with why, to edit and resend (Step 72). Nobody else sees any.
+ * declined, with why, to edit and resend (Step 72) or dismiss (Step 73).
+ * Nobody else sees any.
  */
 export function EntrySuggestions({
   suggestions,
@@ -49,6 +53,17 @@ export function EntrySuggestions({
       return;
     }
     toast.success("Withdrawn.");
+  }
+
+  async function dismiss(id: string) {
+    setBusyId(id);
+    const res = await dismissEntrySuggestion(id);
+    setBusyId(null);
+    if (res.error) {
+      toast.error(res.error);
+      return;
+    }
+    toast.success("Dismissed.");
   }
 
   return (
@@ -120,15 +135,24 @@ export function EntrySuggestions({
                 declineReason: d.declineReason,
               })}
             </p>
-            <Button
-              nativeButton={false}
-              render={<Link href={suggestChangeHref(d.personId, d.id)} />}
-              size="sm"
-              variant="outline"
-              className="self-start"
-            >
-              Edit and resend
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                nativeButton={false}
+                render={<Link href={suggestChangeHref(d.personId, d.id)} />}
+                size="sm"
+                variant="outline"
+              >
+                Edit and resend
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={busyId === d.id}
+                onClick={() => dismiss(d.id)}
+              >
+                Dismiss
+              </Button>
+            </div>
           </li>
         ))}
       </ul>

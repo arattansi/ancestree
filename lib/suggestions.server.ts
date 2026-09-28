@@ -102,7 +102,7 @@ async function withDeciders(
 /**
  * The viewer's own suggestions that were declined (Step 72), newest
  * first, for the cards of the entries they're on: only their own, never
- * anyone else's.
+ * anyone else's, and not those they've dismissed (Step 73).
  */
 export async function listOwnDeclinedSuggestions(
   userId: string,
@@ -113,6 +113,7 @@ export async function listOwnDeclinedSuggestions(
     .select(`${COLUMNS}, decided_by, decided_at, decline_reason`)
     .eq("suggested_by", userId)
     .eq("status", "declined")
+    .is("dismissed_at", null)
     .order("decided_at", { ascending: false });
   return withDeciders(data ?? [], userId);
 }
@@ -120,7 +121,8 @@ export async function listOwnDeclinedSuggestions(
 /**
  * One of the viewer's own suggestions for an entry that was declined, to
  * edit and resend (Step 71): the one named, or else their latest answered
- * one, if that was declined. With who declined it and why.
+ * one, if that was declined and they haven't dismissed it (Step 73). With
+ * who declined it and why.
  */
 export async function getOwnDeclinedSuggestion(
   personId: string,
@@ -130,7 +132,9 @@ export async function getOwnDeclinedSuggestion(
   const supabase = await createClient();
   let query = supabase
     .from("entry_suggestions")
-    .select(`${COLUMNS}, status, decided_by, decided_at, decline_reason`)
+    .select(
+      `${COLUMNS}, status, decided_by, decided_at, decline_reason, dismissed_at`,
+    )
     .eq("person_id", personId)
     .eq("suggested_by", userId)
     .neq("status", "pending");
@@ -140,6 +144,7 @@ export async function getOwnDeclinedSuggestion(
     .limit(1)
     .maybeSingle();
   if (!data || data.status !== "declined") return null;
+  if (!suggestionId && data.dismissed_at) return null;
   const [declined] = await withDeciders([data], userId);
   return declined ?? null;
 }
