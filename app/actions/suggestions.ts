@@ -39,8 +39,9 @@ function friendlySuggestError(message: string): string {
  * Suggest a change to an entry the caller can't edit (Step 67), from the
  * tree they're looking at: every detail as they think it should read, and a
  * note. `suggest_entry_change` keeps what differs, replaces their earlier
- * suggestion for the entry, and asks its owner and the Roots of its home
- * tree. Returns the details it suggests changing.
+ * suggestion for the entry, and asks its owner, the Roots of its home tree
+ * and the Branches there who tend it (Step 68). Returns the details it
+ * suggests changing.
  */
 export async function suggestEntryChange(input: {
   treeId: string;

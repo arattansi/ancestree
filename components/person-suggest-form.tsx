@@ -19,8 +19,9 @@ import { personSchema, type PersonFormValues } from "@/lib/person-schema";
 /**
  * Suggest a change to an entry the viewer can't edit (Step 67): its details
  * as they stand, to change as they think they should read, and a note. The
- * entry's owner and the Roots of its home tree are asked; nothing changes
- * until one of them, or anyone else who may edit it, accepts.
+ * entry's owner, the Roots of its home tree and the Branches there who tend
+ * it (Step 68) are asked; nothing changes until one of them, or anyone else
+ * who may edit it, accepts.
  */
 export function PersonSuggestForm({
   treeId,

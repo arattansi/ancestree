@@ -2,8 +2,9 @@
  * Suggesting a change to an entry you can't edit (Step 67). A member of a
  * tree the entry is shown on who may not edit it sends the details as they
  * think they should read; `suggest_entry_change` keeps what differs from the
- * entry, and its owner and the Roots of its home tree are asked. Whoever may
- * edit it accepts, which makes the change, or declines.
+ * entry, and its owner, the Roots of its home tree and the Branches there
+ * who tend it (Step 68) are asked. Whoever may edit it accepts, which makes
+ * the change, or declines.
  *
  * A suggestion is kept as the columns it changes (`changes`) and what they
  * held when it was made (`before`), a detail at a time: a date with its
