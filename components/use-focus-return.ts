@@ -6,6 +6,9 @@ import * as React from "react";
 // audit B7). Without these, a keyboard or screen-reader user who presses
 // Edit, Cancel or Delete lands on <body>, at the start of the page.
 
+/** What a list sits in, to land focus on once the list has gone. */
+const SECTION = "section, form, [data-docked-sheet], main";
+
 const FOCUSABLE =
   'button:not([disabled]), a[href], input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
@@ -87,10 +90,17 @@ export function refocusAfterRemoval(
   if (!row) return;
   const next = row.nextElementSibling;
   const previous = row.previousElementSibling;
-  // The last row gone, the list may go too: its section is what's left.
-  const section = row.parentElement?.closest(
-    "section, form, [data-docked-sheet], main",
-  );
+  // The last row gone, the list may go too, and the section it was in: the
+  // nearest of its sections still there is what's left (a details sheet
+  // whose Suggested Changes went with their last one).
+  const sections: Element[] = [];
+  for (
+    let section = row.parentElement?.closest(SECTION);
+    section;
+    section = section.parentElement?.closest(SECTION)
+  ) {
+    sections.push(section);
+  }
   const giveUpAt = performance.now() + 5000;
 
   const check = () => {
@@ -103,7 +113,7 @@ export function refocusAfterRemoval(
       firstFocusable(next?.isConnected ? next : null) ??
       firstFocusable(previous?.isConnected ? previous : null) ??
       fallback?.() ??
-      landingIn(section);
+      landingIn(sections.find((section) => section.isConnected));
     target?.focus();
   };
   requestAnimationFrame(check);
