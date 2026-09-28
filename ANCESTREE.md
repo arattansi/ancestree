@@ -649,7 +649,14 @@ either way the suggester hears (`suggestion_accepted` /
 `suggestion_declined`, in the inbox of the tree they suggested from).
 Declining may say why (Step 69): up to 500 characters in `decline_reason`
 (kept only on a declined suggestion), quoted in the suggester's notice and
-shown on the notices of the others who were asked. RLS: the
+shown on the notices of the others who were asked. Since Step 71 the
+notice telling the suggester carries the suggestion too
+(`decide_entry_suggestion` writes it itself, with `suggestion_id`), so it
+shows what they suggested and, when it was declined, **Edit and resend**:
+`/people/[id]/suggest?from=<id>` opens the form on it, their changes and
+note, under who declined it and why, to send as it is or changed as a new
+suggestion (the declined one stays). Without `from`, the form offers their
+latest answered suggestion when that was declined. RLS: the
 suggester and whoever may edit the entry read it; the suggester deletes it
 while it waits (withdrawing, which takes its notices with it); nothing else
 writes it. `suggested_by_name` keeps what the suggester was called, as
@@ -1338,6 +1345,43 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 71 — Edit and resend a declined suggestion** (ad-hoc; migration
+  `20260928140000_suggestion_outcome_links`, live 2026-09-28, before the
+  code). Aalim: "let the suggester edit and resend a declined suggestion".
+  The notice telling a suggester their suggestion was answered now shows
+  what they suggested (each detail struck through beside what they
+  suggested), and a declined one has **Edit and resend**. It switches to the
+  tree they suggested from and opens the form on that suggestion: their
+  changes and note, under "Declined by …" and the reason if one was given.
+  **Send suggestion** is live at once, so it can go again as it is, or be
+  changed first; either way it's a new suggestion, the owner, the Roots and
+  the Branches who tend the entry are asked again, and the declined one
+  stays as it was. If the notice has been cleared, **Suggest a change** on
+  the entry says "Your last suggestion was declined." with **Edit and
+  resend it**, when their latest answered suggestion there was declined.
+  For that, `decide_entry_suggestion` writes the suggester's notice itself,
+  with `suggestion_id`, rather than through `private.notify`; recipient,
+  type, body and tree are unchanged, and so is its signature. The form page
+  takes `?from=<suggestion>` (`suggestChangeHref(person, from)`), and the
+  form is keyed on where it starts, so following the hint's link on the same
+  page opens it afresh. **Verified:** rehearsed on live in a rolled-back
+  transaction: the declined and accepted notices carried their suggestion,
+  with the same body and tree; resending left the declined one declined and
+  asked the Root again; only the one signature remained, with the same
+  grants. Applied: the recorded statement's md5 equals the file's, and the
+  body's md5 matches. End to end on live in headless Chrome as a throwaway
+  Leaf and Root of a throwaway tree (deleted after, auth users included):
+  the Root declined "5 → 12 March 1931" with "Check her passport again.";
+  the Leaf's notice showed the change and **Edit and resend**, which opened
+  the form on the 12th with the note, the reason above, and **Send
+  suggestion** live; changed to the 13th and sent, the card showed it
+  waiting and the Root's bell asked again beside the declined one; declined
+  once more, **Suggest a change** offered **Edit and resend it**, which
+  opened the form on the 13th (a first run caught the form keeping the
+  entry's values there, fixed by the key), and sending it unchanged made a
+  new suggestion. 1081 tests pass (1 new); tsc, lint and `next build` are
+  clean.
 
 - **Step 66.5 — The place search looks inside names from three letters**
   (ad-hoc, after Step 66.4; no migration). Aalim asked to "start searching
