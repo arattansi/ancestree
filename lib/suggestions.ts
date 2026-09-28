@@ -82,11 +82,12 @@ export type EntrySuggestion = {
   before: SuggestionColumns;
 };
 
-/** One of the viewer's suggestions that was declined (Step 71). */
+/** One of the viewer's suggestions that was declined (Steps 71–72). */
 export type DeclinedSuggestion = EntrySuggestion & {
   /** Who declined it, as the member directory names them. */
   declinedBy: string | null;
   declineReason: string | null;
+  declinedAt: string;
 };
 
 /**

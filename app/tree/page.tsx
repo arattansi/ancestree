@@ -12,7 +12,10 @@ import { auditTreeConnections } from "@/lib/connection-suggestions.server";
 import { getGettingStarted } from "@/lib/first-tree.server";
 import { getTreePets } from "@/lib/pets";
 import { createClient } from "@/lib/supabase/server";
-import { listPendingSuggestions } from "@/lib/suggestions.server";
+import {
+  listOwnDeclinedSuggestions,
+  listPendingSuggestions,
+} from "@/lib/suggestions.server";
 import { getRootEntryIds, getTreeAnchors, getTreeGraph } from "@/lib/tree";
 import { requireTreeAccess } from "@/lib/tree-context";
 import { onboardingHref } from "@/lib/tree-links";
@@ -82,6 +85,7 @@ export default async function TreePage() {
     spokenFor,
     claimInvites,
     changeSuggestions,
+    declinedSuggestions,
   ] = await Promise.all([
     getTreeGraph(tree.id, undefined, { withAccountTypes: true }),
     listClaimCandidates(),
@@ -92,8 +96,10 @@ export default async function TreePage() {
     getSpokenForEntryIds(profile.auth_user_id),
     // Who has invited whom to claim their entry, for the cards (Step 38).
     listClaimInvites(tree.id, { userId: profile.auth_user_id, isRoot }),
-    // Suggested changes waiting on an answer (Step 67).
+    // Suggested changes waiting on an answer (Step 67), and the viewer's
+    // own that were declined (Step 72).
     listPendingSuggestions(profile.auth_user_id),
+    listOwnDeclinedSuggestions(profile.auth_user_id),
   ]);
   // Only this canvas's: a suggestion can be on an entry on another tree.
   const shown = new Set(people.map((p) => p.id));
@@ -134,6 +140,9 @@ export default async function TreePage() {
         gettingStarted={gettingStarted}
         claimInvites={claimInvites}
         changeSuggestions={changeSuggestions.filter((s) =>
+          shown.has(s.personId),
+        )}
+        declinedSuggestions={declinedSuggestions.filter((s) =>
           shown.has(s.personId),
         )}
       />

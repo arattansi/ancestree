@@ -63,7 +63,7 @@ import { FILL_ENTRY_NOTE, LOCKED_ENTRY_NOTE } from "@/lib/account-types";
 import { blankFields } from "@/lib/fill-blanks";
 import { SEX_LABELS, type Sex } from "@/lib/person-schema";
 import { PersonTrees } from "@/components/tree/person-trees";
-import type { EntrySuggestion } from "@/lib/suggestions";
+import type { DeclinedSuggestion, EntrySuggestion } from "@/lib/suggestions";
 import { editPersonHref, suggestChangeHref } from "@/lib/tree-links";
 import { cn } from "@/lib/utils";
 import {
@@ -444,6 +444,7 @@ export function PersonPanel({
   canInviteToClaim = false,
   claimInvites = [],
   changeSuggestions = [],
+  declinedSuggestions = [],
   claimable,
   claimNote = null,
   isCreator,
@@ -504,6 +505,9 @@ export function PersonPanel({
    * someone who may edit it, to answer; the viewer's own otherwise.
    */
   changeSuggestions?: EntrySuggestion[];
+  /** The viewer's own suggestions to this entry that were declined, to see
+   *  why and resend (Step 72). */
+  declinedSuggestions?: DeclinedSuggestion[];
   currentUserId: string;
   /** This entry looks like the signed-in member and is unclaimed. */
   claimable: boolean;
@@ -842,6 +846,7 @@ export function PersonPanel({
               {!readOnly ? (
                 <EntrySuggestions
                   suggestions={changeSuggestions}
+                  declined={declinedSuggestions}
                   entry={person}
                 />
               ) : null}

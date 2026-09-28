@@ -96,7 +96,7 @@ import { nativeLeaf } from "@/lib/native-leaf";
 import { upcomingOccasions } from "@/lib/occasions";
 import { asDayMonth } from "@/lib/partial-date";
 import { personSpotlight, spotlightPeople } from "@/lib/person-spotlight";
-import type { EntrySuggestion } from "@/lib/suggestions";
+import type { DeclinedSuggestion, EntrySuggestion } from "@/lib/suggestions";
 import { onboardingHref } from "@/lib/tree-links";
 import { cn } from "@/lib/utils";
 import {
@@ -506,6 +506,7 @@ const nodeTypes = { person: PersonNode, pet: PetNode };
 const NO_PETS: TreePet[] = [];
 const NO_INVITES: EntryInvite[] = [];
 const NO_SUGGESTIONS: EntrySuggestion[] = [];
+const NO_DECLINED: DeclinedSuggestion[] = [];
 const NOBODY: ReadonlySet<string> = new Set();
 
 type Props = {
@@ -556,6 +557,8 @@ type Props = {
    * entries they may edit, to answer, and their own. A member's canvas only.
    */
   changeSuggestions?: EntrySuggestion[];
+  /** The viewer's own suggestions that were declined (Step 72). */
+  declinedSuggestions?: DeclinedSuggestion[];
 };
 
 /** Which way a bloodline spotlight runs from the person who was clicked. */
@@ -860,6 +863,7 @@ function Canvas({
   gettingStarted = null,
   claimInvites = NO_INVITES,
   changeSuggestions = NO_SUGGESTIONS,
+  declinedSuggestions = NO_DECLINED,
 }: Props) {
   // Companions stay off the canvas until the viewer switches them on (Step
   // 23). Off the canvas only: a person's details still list theirs, and
@@ -2235,6 +2239,13 @@ function Canvas({
         : NO_SUGGESTIONS,
     [changeSuggestions, selectedId, readOnly],
   );
+  const selectedDeclined = React.useMemo(
+    () =>
+      selectedId && !readOnly
+        ? declinedSuggestions.filter((s) => s.personId === selectedId)
+        : NO_DECLINED,
+    [declinedSuggestions, selectedId, readOnly],
+  );
 
   return (
     <>
@@ -2561,6 +2572,7 @@ function Canvas({
         canInviteToClaim={canInvite}
         claimInvites={selectedInvites}
         changeSuggestions={selectedSuggestions}
+        declinedSuggestions={selectedDeclined}
         readOnly={readOnly}
         shareToken={shareToken}
         claimable={!!selectedPerson && claimableIds.has(selectedPerson.id)}

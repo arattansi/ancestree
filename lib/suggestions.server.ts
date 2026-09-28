@@ -67,6 +67,56 @@ export async function getOwnPendingSuggestion(
   return data ? toSuggestion(data, userId) : null;
 }
 
+type DecidedRow = SuggestionRow & {
+  decided_by: string | null;
+  decided_at: string | null;
+  decline_reason: string | null;
+};
+
+/** A declined suggestion with who declined it, by the member directory. */
+async function withDeciders(
+  rows: DecidedRow[],
+  userId: string,
+): Promise<DeclinedSuggestion[]> {
+  const deciders = [
+    ...new Set(rows.flatMap((r) => (r.decided_by ? [r.decided_by] : []))),
+  ];
+  const supabase = await createClient();
+  const { data: members } = deciders.length
+    ? await supabase
+        .from("member_directory")
+        .select("auth_user_id, display_name")
+        .in("auth_user_id", deciders)
+    : { data: [] };
+  const nameById = new Map(
+    (members ?? []).map((m) => [m.auth_user_id, m.display_name]),
+  );
+  return rows.map((r) => ({
+    ...toSuggestion(r, userId),
+    declinedBy: r.decided_by ? (nameById.get(r.decided_by) ?? null) : null,
+    declineReason: r.decline_reason,
+    declinedAt: r.decided_at ?? r.created_at,
+  }));
+}
+
+/**
+ * The viewer's own suggestions that were declined (Step 72), newest
+ * first, for the cards of the entries they're on: only their own, never
+ * anyone else's.
+ */
+export async function listOwnDeclinedSuggestions(
+  userId: string,
+): Promise<DeclinedSuggestion[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("entry_suggestions")
+    .select(`${COLUMNS}, decided_by, decided_at, decline_reason`)
+    .eq("suggested_by", userId)
+    .eq("status", "declined")
+    .order("decided_at", { ascending: false });
+  return withDeciders(data ?? [], userId);
+}
+
 /**
  * One of the viewer's own suggestions for an entry that was declined, to
  * edit and resend (Step 71): the one named, or else their latest answered
@@ -80,7 +130,7 @@ export async function getOwnDeclinedSuggestion(
   const supabase = await createClient();
   let query = supabase
     .from("entry_suggestions")
-    .select(`${COLUMNS}, status, decided_by, decline_reason`)
+    .select(`${COLUMNS}, status, decided_by, decided_at, decline_reason`)
     .eq("person_id", personId)
     .eq("suggested_by", userId)
     .neq("status", "pending");
@@ -90,17 +140,6 @@ export async function getOwnDeclinedSuggestion(
     .limit(1)
     .maybeSingle();
   if (!data || data.status !== "declined") return null;
-  const { data: decider } = data.decided_by
-    ? await supabase
-        .from("member_directory")
-        .select("display_name")
-        .eq("auth_user_id", data.decided_by)
-        .limit(1)
-        .maybeSingle()
-    : { data: null };
-  return {
-    ...toSuggestion(data, userId),
-    declinedBy: decider?.display_name ?? null,
-    declineReason: data.decline_reason,
-  };
+  const [declined] = await withDeciders([data], userId);
+  return declined ?? null;
 }
