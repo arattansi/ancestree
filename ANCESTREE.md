@@ -391,7 +391,7 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `tree_placements`        | Which trees show a person, and where the card sits there: `(tree_id, person_id, status active\|pending\|declined, pos_*)`. The home tree always has one (trigger); others come from `place_people`, and a member's own entry waits `pending` for their yes (`respond_to_placement`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `tree_visibility`        | A Root opens their tree, read-only, to the members of another tree they're on: `(tree_id, viewer_tree_id)`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `profiles`               | `auth.users` row: `display_name`, `self_person_id` (one entry, wherever it's shown), `relatives_can_ask` (whether a newcomer's ask may reach them, on unless they untick it; Step 41.5). No account type here: that is `tree_members.role`, per tree (the pre-Step-25 `profiles.role` was dropped in Step 25.6). A member writes only `display_name` and `relatives_can_ask`, on their own row, and never inserts one: `self_person_id` and `invited_by_user_id` are set by the security-definer RPCs alone (Step 42: column grants, `profiles_guard`) |
-| `people`                 | Demographic nodes, **one row per person across all trees**. `tree_id` is the person's **home tree** — whose rules govern their details (Step 25; moved by `set_home_tree`). `hidden_from_visitors` blurs them to visitors. Card positions live on `tree_placements`, not here (the pre-Step-25 `people.pos_*` were dropped in Step 25.6). `owner_user_id` starts as `created_by` and moves on claim. `date_of_birth_precision` / `date_of_death_precision` (`day` \| `month` \| `year`, Step 17) say how much of each date is known — a partial date is stored on the first day of its period, CHECK-enforced, so year-only readers need no change. A birthday with no year is `birth_month` / `birth_day` (Step 63), set only while `date_of_birth` is empty, so they see no year either. `place_id_birth` / `place_id_death` → `places(id)` (Step 4.5b; nullable, backfilled — legacy `city_of_birth` / `country_of_birth` / `place_of_death` text kept until reconciled). Nothing about ancestral lands is stored: a card shows Native Land Digital's names, looked up live, or nothing (Step 40; Step 27's `ancestral_lands_birth` / `ancestral_lands_death`, the family's own words, were never used and were dropped in Step 40.5) |
+| `people`                 | Demographic nodes, **one row per person across all trees**. `tree_id` is the person's **home tree** — whose rules govern their details (Step 25; moved by `set_home_tree`). `hidden_from_visitors` blurs them to visitors. Card positions live on `tree_placements`, not here (the pre-Step-25 `people.pos_*` were dropped in Step 25.6). `owner_user_id` starts as `created_by` and moves on claim. `date_of_birth_precision` / `date_of_death_precision` (`day` \| `month` \| `year`, Step 17) say how much of each date is known — a partial date is stored on the first day of its period, CHECK-enforced, so year-only readers need no change. A birthday with no year is `birth_month` / `birth_day` (Step 63), set only while `date_of_birth` is empty, so they see no year either. `date_of_birth_circa` / `date_of_death_circa` (Step 81) mark a date as a rough estimate, shown "c. 1950"; each needs its date (CHECK), and `people_before_write` clears it when the date is emptied. `place_id_birth` / `place_id_death` → `places(id)` (Step 4.5b; nullable, backfilled — legacy `city_of_birth` / `country_of_birth` / `place_of_death` text kept until reconciled). Nothing about ancestral lands is stored: a card shows Native Land Digital's names, looked up live, or nothing (Step 40; Step 27's `ancestral_lands_birth` / `ancestral_lands_death`, the family's own words, were never used and were dropped in Step 40.5) |
 | `relationships`          | A fact about two people, not a tree (Step 25): a tree draws it when both ends are placed there; `tree_id` records the tree it was drawn on, and uniqueness ignores it. Directed `parent` edges; undirected `spouse` pairs (optional `marriage_date`, or `marriage_month` / `marriage_day` with no year (Step 63), / `is_divorced` / `divorce_date`, spouse-only by CHECK); siblings inferred |
 | `connection_suggestions` | Implied-connection prompts surfaced by the add-person flow (`suggested_type` spouse/parent/sibling_check, `source`, `status` pending/accepted/dismissed); UNIQUE (subject, related, type, source) = no re-prompt                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `invites`                | Shareable tokens into one tree (`active` \| `accepted` \| `revoked`); `founds_tree` (Step 25) makes it a founder invite — redeeming plants a new tree with the redeemer as Root. `max_uses` set (1–20) makes it the tree's **family link** (Step 52): one per tree, open to anyone who has it, counted in `use_count` and kept after each join; made, rotated and re-capped only through `rotate_family_link` / `set_family_link_cap` (`family_link_guard`). Who joined with it: `private.family_link_joins` (read by Roots through `family_link_joins`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
@@ -1425,6 +1425,52 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 81 — Circa: a rough date of birth or death** (ad-hoc; migration
+  `20260929010000_circa_dates`). Aalim: "when inputting DOB and DOD, allow
+  for the user to select circa for rough estimates". A **Circa** tick sits
+  at the right of each date's label (on a phone too, so the date boxes keep
+  their width), and a date marked so reads "c. 1950" wherever it or its
+  year shows: the details sheet ("c. 3 May 1950" at any precision), the
+  card and its hover ("c. 1950 – c. 1990", "b. c. 1950"), the lifespans in
+  search, the person picker, claims, the first run and placements, a
+  suggestion's rows ("1999" → "c. 1999") and the welcome line ("born
+  c. 1950"). Circa needs the date's year: ticked with none, the date says
+  "Add the year, or untick circa." (and stops saying it once either
+  happens). A circa birthday stays on Upcoming, with no age. In the
+  database, `people.date_of_birth_circa` / `date_of_death_circa` (false by
+  default), a check that each has its date, and `people_before_write`
+  clearing it whenever its date is emptied, so a writer that knows nothing
+  of circa (someone marked as living through a suggestion, an undo) still
+  fits. It goes through every writer that lists a person's columns:
+  `tree_people` (two trailing columns), `fill_person_blanks` (a date fills
+  in with its circa), `suggestion_columns` and `decide_entry_suggestion`
+  (a suggestion can make a date circa), `revision_fields` (a Root's undo)
+  and `person_edit_notify` (changing it is changing the date), each
+  re-created from its latest migration with only those lines changed. The
+  add flow sets it on the new rows afterwards, as it does their places, so
+  `add_people_with_connections` is untouched; so is `suggest_entry_change`,
+  which Step 80's draft also re-creates (its session was told, and put the
+  two columns into its own `tree_people`). Left as it was: the onboarding
+  "Is this you?" list, whose rows `search_self_candidates` returns without
+  them, shows no "c.". **Verified:** rehearsed on live in a rolled-back
+  transaction with throwaway members: a circa date saved and the view
+  carried it; emptying the date cleared circa, and circa alone didn't stay;
+  with the trigger off the check refused it; `fill_person_blanks` filled
+  both dates with circa; a Leaf's suggestion made a Root's date circa and
+  the Root's accept applied it; marking living someone whose death date was
+  circa fitted; the 184 entries were untouched; the six bodies' md5s equal
+  the file's, and the view's grants and options were unchanged. Applied
+  through the MCP (row renamed from `20260929085534`; its statement's md5
+  equals the file's); `db push --dry-run` up to date; the regenerated types
+  add only the two columns. In the pane as a throwaway Root on live:
+  ticking Circa with no year said "Add the year, or untick circa.", typing
+  1950 cleared it; born c. 1950 and died c. 1990 saved both flags; the
+  sheet read "c. 1950" / "c. 1990", the card "c. 1950 – c. 1990", its hover
+  "b. c. 1950" over "d. c. 1990"; a child added as born c. 1975 through **Add a
+  relative** saved circa; the edit page reopened with Circa ticked. The
+  throwaway user, tree and rows were deleted after. 1150 tests pass (13
+  new); tsc, lint and `next build` are clean.
 
 - **Step 79 — A country alone as a place of birth** (ad-hoc; migration
   `20260928190000_country_places`). Aalim: "allow for a user to just put a
