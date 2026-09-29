@@ -1528,6 +1528,39 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 88.1 — A person's details: Edit on the tag row, Family and
+  Companions fold** (the first of Step 88, the person sheet's redesign;
+  ad-hoc, Aalim 2026-09-29; no migration). **Aalim asked for:** no "No
+  maiden name yet." box; Family and Companions, low priority, fold away
+  and start closed; the header's **Edit entry** becomes **Edit**,
+  right-aligned on the account type tag's row and the tag's size. So the
+  dashed box is gone for everyone. **Edit** sits at the end of the badges'
+  row (Deceased, Claimed, the account type…), a `Badge` drawn as a link
+  (`TagLink` in `person-panel.tsx`), 20px like the tag, with a 44px target
+  on a touch screen. Family and Companions go through `SheetFold`
+  (`components/tree/sheet-fold.tsx`): the heading is the button, with a
+  count beside it ("Family 4"), and a chevron. **My calls, not asked:**
+  **Fill in** (was "Fill in what's missing") and **Suggest** (was "Suggest
+  a change") take the same place as **Edit** when they're what applies,
+  their full names as tooltips; a section opened stays open as the reader
+  moves from person to person, until the details close; folded, a
+  section's content stays mounted and hidden, so a marriage date half
+  typed survives folding it; the sections stay where they were in the
+  sheet. **Verified** on live as a throwaway Root and Leaf on a seeded tree
+  (a spouse with a maiden name, two parents, one dead and unclaimed, a
+  child who is the Leaf's own entry, a dog), in the pane on desktop and
+  the `mobile` preset. The Root saw **Edit** on every entry, level with the
+  Root, Leaf and Deceased tags and flush right (the same 20px height,
+  12px type, border and rounding as the tag). The Leaf saw **Fill in** and
+  **Suggest** on the dead parent and only **Suggest** on the Root's own
+  entry, each linking to the right page. Both sections started closed with
+  their content hidden, opened, kept "12" typed in a marriage date across
+  a fold, stayed open onto another person and were closed again after the
+  details closed and reopened. On a phone each target is 44px tall. No
+  maiden-name box anywhere. The throwaway accounts, tree and sessions
+  were deleted after. 1,312 unit tests, `tsc`, `eslint` and `next build`
+  clean.
+
 - **Step 89 — Share the week from Upcoming, and a scope for a family-chat
   bot** (ad-hoc; no migration). After the WhatsApp group bot research
   (Step 17 backlog: Meta's Groups API makes only the business's own
