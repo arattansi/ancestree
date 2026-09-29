@@ -1514,6 +1514,48 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 77.7 — Cache Components spike: left off** (efficiency audit S9
+  and N4, the last of Step 77; no migration, nothing shipped). Tried
+  `cacheComponents: true` on Next 16.3.2 against production builds, the
+  branch's beside main's, as a throwaway Root on live. **Getting it to
+  build** took four things: the footer (it reads the path) in its own
+  `<Suspense>`; `instant = false` on `/`, `/join`, `/request-invite` and
+  `/auth/confirm`, which wait on who's signed in before they draw
+  anything; and the link-preview image's fonts in a `"use cache"` helper
+  (`cacheLife("max")`), or it turned dynamic. Sixteen pages then
+  prerender a shell (the header bar and the page's `loading.tsx`) and
+  stream the rest. **What it gained:** almost nothing. Full loads served
+  their first byte 5–6ms sooner locally (4 against 10–13ms), with first
+  paint and the page's content unchanged: since Step 61 main already
+  streams the same skeleton at once. On Vercel the shell would come from the
+  edge rather than the function, perhaps tens of milliseconds, only on a
+  full load, not measured. Back to the canvas from another page was no
+  faster: 40ms on both with 3 people; with 75, 55–78ms on main against
+  70–81ms, and 190–240ms against 213–277ms with the CPU slowed 4×.
+  Main's router cache and Step 77.3's canvas memory already make Back
+  cheap, and showing a kept canvas again re-measures every card.
+  **What it broke**, since Next now keeps up to three pages hidden
+  (React `<Activity>`) rather than unmounting them: (1) the canvas camera
+  came back at the origin and 1×, because React Flow sets up its pan and
+  zoom afresh when the page is shown again (fixed in the spike by putting
+  the view back from `FamilyTree` after it); (2) **a fresh link** to a kept
+  page, not just Back, brought back its state: the edit page showed a first
+  name typed and never saved instead of the saved one, *Add a relative*
+  its last draft, and account settings the *Delete your account?* dialog
+  still open; (3) Back and Forward brought back open dialogs and the
+  Search & filters card. Saved data was fresh after Back either way (the
+  canvas, the sheet and the edit form all showed the new name). **To ship
+  it later:** key every page's content on `useRouter().bfcacheId` (a small
+  client wrapper, since a root `template.tsx` would reset on Back too), so
+  that only Back and Forward bring a page back; close each dialog, sheet,
+  menu and select on hide (a `useLayoutEffect` cleanup that closes its
+  *own* state: the uncontrolled ones in `components/ui/`, `ConfirmDialog`,
+  and about ten opened from a parent's state, which must never call the
+  parent's `onOpenChange` from a cleanup that also runs on unmount); keep
+  the camera fix; then run the same checks again. Worth it only if the
+  shells measure well on Vercel. The spike's diff and scripts were not
+  kept; the build fixes above are all of it apart from the camera.
+
 - **Step 85 — Two fixes: the invite form's hydration warning, the header
   on a phone** (ad-hoc, Aalim 2026-09-29; no migration; both seen while
   testing Steps 80 to 84). **85.1, the invite form:** every member's
