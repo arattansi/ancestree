@@ -129,7 +129,9 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `setHiddenFromVisitors`, `setTreeVisibility`, `joinTreeWithInvite`,
   `listPersonTrees` (Step 25);
   `invites.ts`: `sendDirectInvites` (bulk name+email
-  invites), `sendFounderInvites` (Roots: someone founds a tree of their own),
+  invites), `sendFounderInvites` (Roots: someone founds a tree of their own)
+  — both made, emailed in one Resend batch and recorded together
+  (`lib/invite-mint.server.ts#mintInvites`, Step 77.5),
   `sendClaimInvite` (invite someone to claim one entry; into another tree
   that shows it when a relayed ask picked one, Step 41.1);
   `family-link.ts` (Step 52, Roots): `rotateFamilyLink` (make or rotate),
@@ -140,7 +142,8 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   request emails the tree's Roots, Step 30.1; pages are drawn again only for
   a signed-in asker, Step 41.4) /
   `approveInviteRequest` (mints the link, naming the entry the requester's
-  name matched when the Root approves them as one, Step 30.3) /
+  name matched when the Root approves them as one, Step 30.3; the request is
+  answered first, so two Roots can't both send one, Step 77.5) /
   `declineInviteRequest`;
   `invite-relays.ts` (Step 30.5): `askRelative` (public; a newcomer with no
   match asks a relative, passed on after the answer) /
@@ -1069,7 +1072,11 @@ mirror it for the UI.
   emails it to the requester via Resend (`lib/email.ts` +
   `lib/emails/invite-approved.ts`, needs `RESEND_API_KEY`) — if the send
   fails, the invite is still valid and the admin can copy the link and send it
-  themselves; declining just closes the request. A new request emails every
+  themselves; declining just closes the request. Several emails at once go
+  as one batch (`sendEmails`, Step 77.5): a batch Resend refuses over one
+  address is sent again one by one, one it didn't answer isn't sent again,
+  and people are told only that an address was refused, never Resend's own
+  words. A new request emails every
   Root of the tree at once (Step 30.1, `lib/emails/access-requested.ts`, sent
   with `after()` so the form never waits or fails on it), with a button to
   that tree's "Requests for Access"; asking again emails nobody. The form is
@@ -1219,7 +1226,7 @@ mirror it for the UI.
   `tree_request_approved` in their inbox (trigger) and emails them
   (`lib/emails/tree-request-approved.ts`, via the general `renderEmail`
   shell). Approving a sign-up mints a founder invite on the reviewer's
-  console tree (`lib/founder-invites.server.ts#mintFounderInvite`, shared
+  console tree (`lib/founder-invites.server.ts#mintFounderInvites`, shared
   with `sendFounderInvites`), recorded in its Sent invites as `request` and
   emailed with `lib/emails/founder-approved.ts`; resending a founder invite
   now keeps founder wording. `my_tree_request()` says where an ask stands
@@ -1450,6 +1457,50 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 77.5 — Efficiency audit, phase 4: one save per press, and invites
+  sent together** (ad-hoc; no migration; the audit's finding S8; the fifth
+  of seven parts). **Saves:** an edit with a new photo is one write, the
+  photo in the same update as the fields (`updatePerson` / `updatePet` take
+  it), so someone else's edit is one notice and one undo, not two. A new
+  parent with their partner as the other parent is one call
+  (`connectExistingPeople` takes the co-parents) and one redraw. Adding a
+  relative looks for implied connections, adds the people and their lines
+  and sends the invite asked for, in one call (`addRelative`; it was
+  detect, add, photo and invite, each but the first redrawing the page); a
+  photo follows in a second call, which does the only redraw. The first
+  run's quick relative uses it too. **Invites:** up to 20 at once — direct,
+  founder, and a claim invite's one — are made in one insert, emailed in
+  one Resend batch and recorded in Sent Invites in one insert
+  (`lib/invite-mint.server.ts`): three round trips however many, where each
+  took three in turn. A batch Resend refuses over one address goes again
+  one by one, so each answers for itself; one Resend didn't answer isn't
+  sent again, as it may have gone; asked too fast, it waits once and asks
+  again. People are told "the address was refused" or nothing, never
+  Resend's own words, which can repeat the address; the logs keep only its
+  status. The alerts to Roots and reviewers go as one batch too.
+  **Approvals:** a request is answered before its invite is made, and put
+  back if the invite can't be, so a second press or a second Root can't
+  send another. **Verified:** in headless Chrome on live as throwaway
+  members of two throwaway trees, against a production build, counting the
+  server actions each press made: an entry's edit with a new photo made one
+  and one notice ("…was updated: name, photo."); a companion's edit with a
+  photo, one save; a relative added with a photo and an invite, the add and
+  its photo, the invite bound to its address and recorded as emailed; a new
+  parent with their partner, one action and both lines; three direct
+  invites, one action (0.6–0.8 s), made in one insert and all emailed; two
+  founder invites, one action; a claim invite from an entry's card, one
+  save, recorded under her name; a resend from Sent Invites went. Two Roots
+  pressing Approve at once: one invite, and the other was told "That
+  request has already been reviewed." — on the code before this step, the
+  same two presses minted two links and sent two emails, one link live but
+  missing from Sent Invites, and neither Root was told. Against Resend
+  itself: two emails in one request; three with an address it refuses,
+  refused whole, then sent one by one — two sent, one refused. No console
+  errors. The throwaway users, trees, photo files and rows were deleted
+  after. A replaced photo's old file still stays in the bucket, as it did
+  before; left for a follow-up. 1196 tests pass (16 new); tsc, lint and
+  `next build` are clean.
 
 - **Step 77.4 — Efficiency audit, phase 4: one copy of each shared piece,
   and the bugs the copies hid** (ad-hoc; no migration; the audit's findings
