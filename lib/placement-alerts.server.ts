@@ -1,6 +1,6 @@
 import "server-only";
 
-import { sendEmail } from "@/lib/email";
+import { sendEmails, unsentSummary } from "@/lib/email";
 import { placementAskedEmail } from "@/lib/emails/placement-asked";
 import { getSiteUrl } from "@/lib/site-url";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -15,7 +15,8 @@ import { asksHref } from "@/lib/tree-links";
  * (`placement_ask_recipients`) and never reach a browser. Nobody is asked
  * twice about the same card, so there is nothing to cap: a tree can send
  * each person one email about their own entry, and one for each batch of
- * entries they may edit.
+ * entries they may edit. They go together in one request (Step 77.5), and
+ * the logs keep how the mail provider answered, never its words.
  */
 export async function alertPlacementAsks(asked: {
   treeId: string;
@@ -35,36 +36,24 @@ export async function alertPlacementAsks(asked: {
     if (error) throw error;
 
     const url = `${getSiteUrl()}${asksHref()}`;
-    let failed = 0;
-    let lastError = "";
-    // One at a time: the mail provider limits how fast a team may send.
-    for (const to of data ?? []) {
-      if (!to.email) continue;
-      const sent = await sendEmail({
-        to: to.email,
+    const to = (data ?? []).filter((r) => r.email);
+    const sent = await sendEmails(
+      to.map((r) => ({
+        to: r.email,
         ...placementAskedEmail({
-          kind: to.kind === "owner" ? "owner" : "steward",
+          kind: r.kind === "owner" ? "owner" : "steward",
           placerName: asked.placerName,
           treeName: asked.treeName,
-          homeTreeName: to.home_tree_name,
-          entries: to.entries,
-          personName: to.person_name,
+          homeTreeName: r.home_tree_name,
+          entries: r.entries,
+          personName: r.person_name,
           url,
         }),
-      });
-      if (!sent.ok) {
-        failed += 1;
-        lastError = sent.error;
-      }
-    }
-    const total = (data ?? []).length;
-    if (failed > 0) {
-      console.error(
-        `[placement-alerts] ${what}: ${failed} of ${total} emails failed to send — ${lastError}`,
-      );
-    } else {
-      console.info(`[placement-alerts] ${what}: emailed ${total}`);
-    }
+      })),
+    );
+    const unsent = unsentSummary(sent);
+    if (unsent) console.error(`[placement-alerts] ${what}: ${unsent}`);
+    else console.info(`[placement-alerts] ${what}: emailed ${to.length}`);
   } catch (err) {
     console.error(`[placement-alerts] ${what}: couldn't email who was asked`, err);
   }

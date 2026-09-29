@@ -1497,7 +1497,8 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   nobody's own entry, whoever may edit it on its home tree: its Roots, the
   Branches who tend it, the Branch or Leaf who added it (one notice
   `placements_requested` and one email each for the batch,
-  `lib/placement-alerts.server.ts`, `lib/emails/placement-asked.ts`).
+  `lib/placement-alerts.server.ts`, `lib/emails/placement-asked.ts`; a
+  call's emails go in one Resend batch, Step 77.5's `sendEmails`).
   **Answering:** **Asked of You**, first on `/account` settings
   (`components/placement-asks.tsx`): Approve or Decline each, or **Approve
   all** a tree asked for; whoever answers first answers for everyone, and
@@ -1536,8 +1537,12 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   brought over, basic cards as a member of the new tree only sees them,
   four emails delivered to Resend's test inbox, approve all, a Branch
   taking one back and giving it again, the Root console's count, removal),
-  then every row and account deleted. 1,205 unit tests (25 new), `tsc`,
-  `eslint` and `next build` clean. Screenshots of the flow are in Notion
+  then every row and account deleted. Run again after rebasing onto Step
+  77.5, as a second throwaway family: 6 brought over, 5 basic cards to
+  the founder and to a member of the new tree alone, the four emails
+  delivered from one batch, both approvals, 7 of 7 in full, no console
+  errors; live's counts the same before and after. 1,221 unit tests (25
+  new), `tsc`, `eslint` and `next build` clean. Screenshots of the flow are in Notion
   (Ancestree Hub → "Start a tree for the other side of the family").
 
 - **Step 77.5 — Efficiency audit, phase 4: one save per press, and invites
