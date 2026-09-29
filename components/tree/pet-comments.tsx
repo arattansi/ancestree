@@ -10,6 +10,7 @@ import {
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { FormError } from "@/components/form-error";
 import { PendingButton } from "@/components/pending-button";
+import { RowCard, RowList } from "@/components/row-card";
 import { Textarea } from "@/components/ui/textarea";
 import { useAction } from "@/components/use-action";
 import { focusIsLost } from "@/components/use-focus-return";
@@ -132,19 +133,16 @@ export function PetComments({
 
       {items === null ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
-      ) : items.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          No comments yet. Be the first to add a memory.
-        </p>
       ) : (
-        <ul className="flex flex-col gap-2">
-          {items.map((c) => {
+        <RowList
+          items={items}
+          empty="No comments yet. Be the first to add a memory."
+          dense
+        >
+          {(c) => {
             const canRemove = canEdit || c.createdBy === currentUserId;
             return (
-              <li
-                key={c.id}
-                className="flex flex-col gap-1 rounded-md border border-border p-3 text-sm"
-              >
+              <RowCard key={c.id} className="gap-1">
                 <div className="flex items-center gap-2">
                   <span className="font-medium">{c.authorName}</span>
                   <span className="text-xs text-muted-foreground">
@@ -181,10 +179,10 @@ export function PetComments({
                     }
                   />
                 ) : null}
-              </li>
+              </RowCard>
             );
-          })}
-        </ul>
+          }}
+        </RowList>
       )}
     </section>
   );

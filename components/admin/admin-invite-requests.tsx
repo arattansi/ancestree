@@ -8,8 +8,10 @@ import {
   declineInviteRequest,
 } from "@/app/actions/invite-requests";
 import { copyText } from "@/components/copy-text";
-import { DeleteInviteButton } from "@/components/delete-invite-button";
+import { DeleteInviteButton } from "@/components/admin/delete-invite-button";
+import { CandidateRow } from "@/components/candidate-row";
 import { PendingButton } from "@/components/pending-button";
+import { RowCard, RowList } from "@/components/row-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAction } from "@/components/use-action";
@@ -19,11 +21,7 @@ import {
 } from "@/components/use-focus-return";
 import { requestRows } from "@/lib/request-rows";
 import { shortDate } from "@/lib/short-date";
-import {
-  candidateSummary,
-  matchConfidence,
-  type SelfCandidate,
-} from "@/lib/self-match";
+import type { SelfCandidate } from "@/lib/self-match";
 
 export type PendingInviteRequest = {
   id: string;
@@ -61,14 +59,6 @@ export function AdminInviteRequests({
     Object.values(approved).map((a) => a.request),
   );
 
-  if (rows.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        No invite requests to review.
-      </p>
-    );
-  }
-
   /** Let a kept row go once its record is deleted. */
   function forget(id: string) {
     setApproved((prev) => {
@@ -79,8 +69,8 @@ export function AdminInviteRequests({
   }
 
   return (
-    <ul className="flex flex-col gap-3">
-      {rows.map((r) => (
+    <RowList items={rows} empty="No invite requests to review.">
+      {(r) => (
         <RequestRow
           key={r.id}
           request={r}
@@ -90,8 +80,8 @@ export function AdminInviteRequests({
           }
           onForget={() => forget(r.id)}
         />
-      ))}
-    </ul>
+      )}
+    </RowList>
   );
 }
 
@@ -161,7 +151,7 @@ function RequestRow({
   }
 
   return (
-    <li className="flex flex-col gap-2 rounded-md border border-border p-3 text-sm">
+    <RowCard>
       <p className="font-medium">{name}</p>
       <p className="text-muted-foreground">
         {r.email} ·{" "}
@@ -221,23 +211,7 @@ function RequestRow({
               </p>
               <ul className="flex flex-col gap-2">
                 {r.candidates.map((c) => (
-                  <li
-                    key={c.id}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border p-3"
-                  >
-                    <div className="min-w-0">
-                      <p className="flex items-center gap-2 font-medium">
-                        <span className="truncate">{c.name}</span>
-                        {matchConfidence(c.score) === "close" ? (
-                          <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-normal text-muted-foreground">
-                            close match
-                          </span>
-                        ) : null}
-                      </p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {candidateSummary(c)}
-                      </p>
-                    </div>
+                  <CandidateRow key={c.id} candidate={c}>
                     <PendingButton
                       size="sm"
                       pending={action.pendingKey === `approve:${c.id}`}
@@ -247,7 +221,7 @@ function RequestRow({
                     >
                       {`Approve as ${c.name}`}
                     </PendingButton>
-                  </li>
+                  </CandidateRow>
                 ))}
               </ul>
             </div>
@@ -285,6 +259,6 @@ function RequestRow({
           </div>
         </>
       )}
-    </li>
+    </RowCard>
   );
 }

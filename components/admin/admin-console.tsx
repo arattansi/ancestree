@@ -1,24 +1,21 @@
 import { AccountTypeBadge } from "@/components/account-type-badge";
 import { AccountTypeGuide } from "@/components/account-type-guide";
-import { AccountTypePicker } from "@/components/account-type-picker";
-import { AdminArchivedInvites } from "@/components/admin-archived-invites";
-import { AdminBareInvites } from "@/components/admin-bare-invites";
-import { AdminDisputedClaims } from "@/components/admin-disputed-claims";
-import { AdminExport } from "@/components/admin-export";
-import { AdminInviteHistory } from "@/components/admin-invite-history";
-import { AdminNicknames } from "@/components/admin-nicknames";
+import { AccountTypePicker } from "@/components/admin/account-type-picker";
+import { AdminArchivedInvites } from "@/components/admin/admin-archived-invites";
+import { AdminBareInvites } from "@/components/admin/admin-bare-invites";
+import { AdminDisputedClaims } from "@/components/admin/admin-disputed-claims";
+import { AdminExport } from "@/components/admin/admin-export";
+import { AdminInviteHistory } from "@/components/admin/admin-invite-history";
+import { AdminNicknames } from "@/components/admin/admin-nicknames";
 import {
   AdminInviteRequests,
   type PendingInviteRequest,
-} from "@/components/admin-invite-requests";
+} from "@/components/admin/admin-invite-requests";
 import { AdminGroup, AdminSubsection } from "@/components/admin/admin-group";
 import { AdminNotifications } from "@/components/admin/admin-notifications";
 import { AdminPlacements } from "@/components/admin/admin-placements";
 import { AdminTreeRequests } from "@/components/admin/admin-tree-requests";
-import {
-  AdminSideNav,
-  type AdminNavGroup,
-} from "@/components/admin/admin-side-nav";
+import { AdminSideNav } from "@/components/admin/admin-side-nav";
 import {
   AdminTreeName,
   AdminTreeVisibility,
@@ -26,13 +23,13 @@ import {
 } from "@/components/admin/admin-tree-settings";
 import { AdminDeleteTree } from "@/components/admin/admin-delete-tree";
 import { AdminFamilyLink } from "@/components/admin/admin-family-link";
-import { DeleteMemberButton } from "@/components/delete-member-button";
+import { DeleteMemberButton } from "@/components/admin/delete-member-button";
 import { DirectInviteForm } from "@/components/direct-invite-form";
 import { ThemeToggle } from "@/components/theme-toggle";
 import {
   ShareLinkManager,
   type ShareLinkRow,
-} from "@/components/share-link-manager";
+} from "@/components/admin/share-link-manager";
 import {
   Card,
   CardContent,
@@ -54,6 +51,12 @@ import {
 } from "@/lib/account-types";
 import { branchSidesOn } from "@/lib/branch.server";
 import { buildAdminActionItems } from "@/lib/admin-notifications";
+import {
+  adminNav,
+  groupSectionIds,
+  sectionShown,
+  type AdminSectionContext,
+} from "@/lib/admin-sections";
 import { listDisputedClaims } from "@/lib/claims";
 import { FAMILY_LINK_MAX_USES } from "@/lib/family-link";
 import { getFamilyLink, listFamilyLinkJoins } from "@/lib/family-link.server";
@@ -314,59 +317,15 @@ export async function AdminConsole({
     { label: "Invite requests", value: inviteRequests.length },
   ];
 
-  const navGroups: AdminNavGroup[] = [
-    {
-      label: null,
-      items: [
-        { id: "overview", label: "Overview" },
-        { id: "members", label: "Members" },
-        { id: "account-types", label: "Account Types" },
-      ],
-    },
-    {
-      label: "People",
-      items: [{ id: "placements", label: "From Other Trees" }],
-    },
-    {
-      label: "Requests & claims",
-      items: [
-        { id: "invite-requests", label: "Requests for Access" },
-        { id: "disputes", label: "Disputed Claims" },
-        ...(reviewer
-          ? [{ id: "tree-requests", label: "Requests to Start a Tree" }]
-          : []),
-      ],
-    },
-    {
-      label: "Invites",
-      items: [
-        { id: "invite", label: "Invite a Relative" },
-        { id: "family-link", label: "Family Link" },
-        { id: "found", label: "Invite Someone to Start a Tree" },
-        { id: "share", label: "Share a Link" },
-        { id: "sent-invites", label: "Sent Invites" },
-        // Single-use bare links went with Step 52; shown while any are left.
-        ...(bareInvites.length > 0
-          ? [{ id: "bare-invites", label: "Bare Links" }]
-          : []),
-        { id: "archived-invites", label: "Archived" },
-      ],
-    },
-    {
-      label: "Settings",
-      items: [
-        { id: "tree-name", label: "Tree Name" },
-        { id: "visibility", label: "Who Else Can View" },
-        { id: "data-privacy", label: "Data & Privacy" },
-        { id: "nicknames", label: "Nicknames" },
-        { id: "view", label: "View" },
-      ],
-    },
-  ];
+  // Which of the console's sections this Root sees (`lib/admin-sections`).
+  const sections: AdminSectionContext = {
+    reviewer,
+    bareInvites: bareInvites.length > 0,
+  };
 
   return (
     <div className="flex flex-col gap-4">
-      <AdminSideNav groups={navGroups} />
+      <AdminSideNav groups={adminNav(sections)} />
 
       <div>
         <h2 className="text-xl font-semibold tracking-tight">{tree.name}</h2>
@@ -405,7 +364,7 @@ export async function AdminConsole({
       <AdminGroup
         title="Members"
         description={`${countOf(members.length, "member")} — their account type on this tree, who invited them, and entries created.`}
-        sectionIds={["members", "account-types"]}
+        sectionIds={groupSectionIds("members", sections)}
       >
         <AdminSubsection
           id="members"
@@ -528,7 +487,7 @@ export async function AdminConsole({
       <AdminGroup
         title="People from Other Trees"
         description="Everyone has one entry. Bring people you can see on your other trees onto this one; their details stay theirs to keep, and each tree arranges them on its own canvas."
-        sectionIds={["placements"]}
+        sectionIds={groupSectionIds("people", sections)}
         badge={pendingPlacements}
         defaultOpen={fromElsewhere === 0 && carry.people.some((p) => !p.here)}
       >
@@ -553,11 +512,7 @@ export async function AdminConsole({
             ? "People asking to join, contesting a claim, or asking to start a tree."
             : "People asking to join, or contesting a claim."
         }
-        sectionIds={[
-          "invite-requests",
-          "disputes",
-          ...(reviewer ? ["tree-requests"] : []),
-        ]}
+        sectionIds={groupSectionIds("requests", sections)}
         badge={requestsBadge}
         defaultOpen={requestsBadge > 0}
       >
@@ -581,7 +536,7 @@ export async function AdminConsole({
           <AdminDisputedClaims claims={disputedClaims} />
         </AdminSubsection>
 
-        {reviewer ? (
+        {sectionShown("tree-requests", sections) ? (
           <AdminSubsection
             id="tree-requests"
             collapsible
@@ -597,15 +552,7 @@ export async function AdminConsole({
       <AdminGroup
         title="Invites"
         description="Bring relatives in by email or the family link, start someone on a tree of their own, and share this tree read-only."
-        sectionIds={[
-          "invite",
-          "family-link",
-          "found",
-          "share",
-          "sent-invites",
-          ...(bareInvites.length > 0 ? ["bare-invites"] : []),
-          "archived-invites",
-        ]}
+        sectionIds={groupSectionIds("invites", sections)}
       >
         <AdminSubsection
           id="invite"
@@ -660,7 +607,7 @@ export async function AdminConsole({
           <AdminInviteHistory items={inviteHistory} />
         </AdminSubsection>
 
-        {bareInvites.length > 0 ? (
+        {sectionShown("bare-invites", sections) ? (
           <AdminSubsection
             id="bare-invites"
             collapsible
@@ -684,13 +631,7 @@ export async function AdminConsole({
       <AdminGroup
         title="Settings"
         description="The tree’s name, who else may view it, data exports, nickname matching, and appearance."
-        sectionIds={[
-          "tree-name",
-          "visibility",
-          "data-privacy",
-          "nicknames",
-          "view",
-        ]}
+        sectionIds={groupSectionIds("settings", sections)}
       >
         <AdminSubsection
           id="tree-name"

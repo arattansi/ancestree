@@ -5,6 +5,7 @@ import * as React from "react";
 
 import { claimSelfCandidate, findSelfCandidates } from "@/app/actions/onboarding";
 import { AddPersonFlow } from "@/components/add-person-flow";
+import { CandidateRow } from "@/components/candidate-row";
 import { FormError } from "@/components/form-error";
 import { PendingButton } from "@/components/pending-button";
 import { Button } from "@/components/ui/button";
@@ -15,9 +16,7 @@ import { useAction } from "@/components/use-action";
 import type { Bloodline } from "@/lib/bloodline";
 import { welcomeHref } from "@/lib/tree-links";
 import {
-  candidateSummary,
   canSearchName,
-  matchConfidence,
   type OnboardingStart,
   type SelfCandidate,
 } from "@/lib/self-match";
@@ -139,23 +138,7 @@ export function OnboardingSelfFlow({
         {candidates.length > 0 ? (
           <ul className="flex flex-col gap-2">
             {candidates.map((c) => (
-              <li
-                key={c.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3"
-              >
-                <div className="min-w-0">
-                  <p className="flex items-center gap-2 text-sm font-medium">
-                    <span className="truncate">{c.name}</span>
-                    {matchConfidence(c.score) === "close" ? (
-                      <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-normal text-muted-foreground">
-                        close match
-                      </span>
-                    ) : null}
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {candidateSummary(c)}
-                  </p>
-                </div>
+              <CandidateRow key={c.id} candidate={c}>
                 <PendingButton
                   size="sm"
                   onClick={() => onClaim(c)}
@@ -165,7 +148,7 @@ export function OnboardingSelfFlow({
                 >
                   This is me
                 </PendingButton>
-              </li>
+              </CandidateRow>
             ))}
           </ul>
         ) : null}

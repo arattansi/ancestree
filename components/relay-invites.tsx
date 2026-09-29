@@ -10,6 +10,7 @@ import {
   sendRelayedInvite,
 } from "@/app/actions/invite-relays";
 import type { DirectInviteResult } from "@/app/actions/invites";
+import { CandidateRow } from "@/components/candidate-row";
 import { FormError } from "@/components/form-error";
 import { JoinsAsNote } from "@/components/joins-as-note";
 import { PendingButton } from "@/components/pending-button";
@@ -20,11 +21,7 @@ import { toastError, useAction } from "@/components/use-action";
 import { refocusAfterRemoval } from "@/components/use-focus-return";
 import { INVITED_AS } from "@/lib/account-types";
 import { RELAY_ANSWERED, relayLapsesAt } from "@/lib/invite-relays";
-import {
-  candidateSummary,
-  matchConfidence,
-  type SelfCandidate,
-} from "@/lib/self-match";
+import type { SelfCandidate } from "@/lib/self-match";
 import { shortDate } from "@/lib/short-date";
 
 /** An ask a newcomer passed on to this member (Step 30.5), as they typed it. */
@@ -321,23 +318,7 @@ function RelayInviteForm({
           </p>
           <ul className="flex flex-col gap-2">
             {matches.map((c) => (
-              <li
-                key={c.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border p-3 text-sm"
-              >
-                <div className="min-w-0">
-                  <p className="flex items-center gap-2 font-medium text-foreground">
-                    <span className="truncate">{c.name}</span>
-                    {matchConfidence(c.score) === "close" ? (
-                      <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-normal text-muted-foreground">
-                        close match
-                      </span>
-                    ) : null}
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {candidateSummary(c)}
-                  </p>
-                </div>
+              <CandidateRow key={c.id} candidate={c}>
                 <PendingButton
                   type="button"
                   size="sm"
@@ -348,7 +329,7 @@ function RelayInviteForm({
                 >
                   Invite as {c.name}
                 </PendingButton>
-              </li>
+              </CandidateRow>
             ))}
           </ul>
         </div>

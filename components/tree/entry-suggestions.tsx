@@ -9,6 +9,7 @@ import {
   withdrawEntrySuggestion,
 } from "@/app/actions/suggestions";
 import { ActionButton } from "@/components/action-button";
+import { RowCard } from "@/components/row-card";
 import { SuggestionAnswer } from "@/components/suggestion-answer";
 import { SuggestionChanges } from "@/components/suggestion-changes";
 import { Badge } from "@/components/ui/badge";
@@ -76,10 +77,7 @@ export function EntrySuggestions({
       </h2>
       <ul className="flex flex-col gap-2">
         {suggestions.map((s) => (
-          <li
-            key={s.id}
-            className="flex flex-col gap-2 rounded-md border border-border p-3 text-sm"
-          >
+          <RowCard key={s.id}>
             <div className="flex items-center gap-2">
               <span className="font-medium">
                 {s.mine ? "You" : s.suggesterName}
@@ -108,13 +106,10 @@ export function EntrySuggestions({
             ) : (
               <SuggestionAnswer suggestionId={s.id} />
             )}
-          </li>
+          </RowCard>
         ))}
         {declined.map((d) => (
-          <li
-            key={d.id}
-            className="flex flex-col gap-2 rounded-md border border-border p-3 text-sm"
-          >
+          <RowCard key={d.id}>
             <div className="flex items-center gap-2">
               <span className="font-medium">You</span>
               <Badge variant="secondary">Declined</Badge>
@@ -156,7 +151,7 @@ export function EntrySuggestions({
                 Dismiss
               </ActionButton>
             </div>
-          </li>
+          </RowCard>
         ))}
       </ul>
     </section>

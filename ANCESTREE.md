@@ -217,8 +217,8 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `app/actions/pets.ts` — add / update / link / unlink / remove / photo /
   position. Pets are read separately from `getTreeGraph` so nothing in the
   layout, bloodline, generation, or claim code ever sees one
-- `components/notifications-list.tsx` (account) + `admin-disputed-claims.tsx`
-  (admin uphold / reverse); `lib/claims.ts` — claim candidates, notifications,
+- `components/notifications-list.tsx` (account) + `admin/admin-disputed-claims.tsx`
+  (a Root upholds / reverses); `lib/claims.ts` — claim candidates, notifications,
   disputed-claim queries; `lib/entry-comments.ts` — comment/flag thread reads
 - `components/ui/` — shadcn primitives (incl. `form` = react-hook-form + zod,
   `alert-dialog` = Base UI's AlertDialog dressed like `dialog`)
@@ -1173,7 +1173,7 @@ mirror it for the UI.
   service-role client after the action has checked the inviter's permission:
   a Branch may not bind an email through RLS, and never sees the token.
 - **Invite history**: `/admin`'s "Sent invites" card (`listInviteHistory` in
-  `lib/invites.ts`, `components/admin-invite-history.tsx`) is every non-
+  `lib/invites.ts`, `components/admin/admin-invite-history.tsx`) is every non-
   pending `invite_requests` row — request-driven or direct — joined to its
   `invites` row so it can show whether the link was ever used, is still
   active, expired, or was revoked, and whether the email actually sent
@@ -1292,7 +1292,7 @@ Canadian context → PIPEDA-minded.
   only ever served through short-lived signed URLs (unchanged from Step 2).
 - **Admin data export**: `/admin` → "Download JSON export"
   (`exportTreeData`, service-role read of every table scoped to the shared tree;
-  `components/admin-export.tsx` streams it as a client-side download).
+  `components/admin/admin-export.tsx` streams it as a client-side download).
 - **Delete a person**: `PersonPanel` → "Delete entry" (admins only,
   `deletePerson`) removes the row (edges cascade) plus its photo and document
   objects from storage.

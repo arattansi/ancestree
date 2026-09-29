@@ -1,31 +1,23 @@
 "use client";
 
 import type { InviteHistoryItem } from "@/lib/invites";
-import { DeleteInviteButton } from "@/components/delete-invite-button";
-import { ResendInviteButton } from "@/components/resend-invite-button";
+import { DeleteInviteButton } from "@/components/admin/delete-invite-button";
+import { ResendInviteButton } from "@/components/admin/resend-invite-button";
+import { RowCard, RowList } from "@/components/row-card";
 import { Badge } from "@/components/ui/badge";
 import { isExpired } from "@/lib/expiry";
 import { shortDate } from "@/lib/short-date";
 
 /**
- * "Sent invites" history on /admin — read-only apart from resending or
- * deleting a row. Its dates read the same everywhere (`shortDate`, Step
- * 77.4), as the bare and archived lists' do.
+ * "Sent invites" history on the Root console — read-only apart from
+ * resending or deleting a row. Its dates read the same everywhere
+ * (`shortDate`, Step 77.4), as the bare and archived lists' do.
  */
 export function AdminInviteHistory({ items }: { items: InviteHistoryItem[] }) {
-  if (items.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">No invites waiting on anyone.</p>
-    );
-  }
-
   return (
-    <ul className="flex flex-col gap-2">
-      {items.map((item) => (
-        <li
-          key={item.id}
-          className="flex flex-col gap-1.5 rounded-md border border-border p-3 text-sm sm:flex-row sm:items-center sm:justify-between"
-        >
+    <RowList items={items} empty="No invites waiting on anyone." dense>
+      {(item) => (
+        <RowCard key={item.id} layout="split">
           <div>
             <p className="font-medium">
               {item.firstName} {item.lastName}
@@ -66,9 +58,9 @@ export function AdminInviteHistory({ items }: { items: InviteHistoryItem[] }) {
               confirm={confirmFor(item)}
             />
           </div>
-        </li>
-      ))}
-    </ul>
+        </RowCard>
+      )}
+    </RowList>
   );
 }
 

@@ -2,27 +2,20 @@
 
 import { deleteInvite } from "@/app/actions/invites";
 import { ConfirmButton } from "@/components/confirm-dialog";
+import { RowCard, RowList } from "@/components/row-card";
 import type { ArchivedInvite } from "@/lib/invites";
 import { shortDate } from "@/lib/short-date";
 
 /**
- * "Archived invites" on /admin — ones that expired unused, kept on record
- * but out of the live lists. Nothing to do with them but delete for good.
+ * "Archived invites" on the Root console — ones that expired unused, kept
+ * on record but out of the live lists. Nothing to do with them but delete
+ * for good.
  */
 export function AdminArchivedInvites({ invites }: { invites: ArchivedInvite[] }) {
-  if (invites.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">No archived invites.</p>
-    );
-  }
-
   return (
-    <ul className="flex flex-col gap-2">
-      {invites.map((invite) => (
-        <li
-          key={invite.id}
-          className="flex flex-col gap-1.5 rounded-md border border-border p-3 text-sm sm:flex-row sm:items-center sm:justify-between"
-        >
+    <RowList items={invites} empty="No archived invites." dense>
+      {(invite) => (
+        <RowCard key={invite.id} layout="split">
           <div>
             <p className="font-medium">
               {invite.recipientName ??
@@ -55,9 +48,9 @@ export function AdminArchivedInvites({ invites }: { invites: ArchivedInvite[] })
               Delete
             </ConfirmButton>
           </div>
-        </li>
-      ))}
-    </ul>
+        </RowCard>
+      )}
+    </RowList>
   );
 }
 

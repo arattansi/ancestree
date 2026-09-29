@@ -10,6 +10,7 @@ import {
 } from "@/app/actions/tree-requests";
 import { ConfirmButton } from "@/components/confirm-dialog";
 import { PendingButton } from "@/components/pending-button";
+import { RowCard, RowList } from "@/components/row-card";
 import { Badge } from "@/components/ui/badge";
 import { useAction } from "@/components/use-action";
 import { refocusAfterRemoval } from "@/components/use-focus-return";
@@ -38,17 +39,9 @@ export function AdminTreeRequests({
 
   return (
     <div className="flex flex-col gap-4">
-      {open.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          No requests to start a tree.
-        </p>
-      ) : (
-        <ul className="flex flex-col gap-3">
-          {open.map((r) => (
-            <OpenRequest key={r.id} treeId={treeId} request={r} />
-          ))}
-        </ul>
-      )}
+      <RowList items={open} empty="No requests to start a tree.">
+        {(r) => <OpenRequest key={r.id} treeId={treeId} request={r} />}
+      </RowList>
 
       {answered.length > 0 ? (
         <details className="text-sm">
@@ -57,10 +50,7 @@ export function AdminTreeRequests({
           </summary>
           <ul className="mt-2 flex flex-col gap-2">
             {answered.map((r) => (
-              <li
-                key={r.id}
-                className="flex flex-col gap-1.5 rounded-md border border-border p-3 sm:flex-row sm:items-center sm:justify-between"
-              >
+              <RowCard key={r.id} layout="split">
                 <div>
                   <p className="font-medium">{fullName(r)}</p>
                   <p className="text-muted-foreground">
@@ -73,7 +63,7 @@ export function AdminTreeRequests({
                   <AnswerBadges request={r} />
                   <DeleteRequestButton request={r} />
                 </div>
-              </li>
+              </RowCard>
             ))}
           </ul>
         </details>
@@ -127,7 +117,7 @@ function OpenRequest({
   }
 
   return (
-    <li className="flex flex-col gap-2 rounded-md border border-border p-3 text-sm">
+    <RowCard>
       <div className="flex flex-wrap items-center gap-2">
         <p className="font-medium">{fullName(r)}</p>
         <KindBadge request={r} />
@@ -157,7 +147,7 @@ function OpenRequest({
         </PendingButton>
         <DeleteRequestButton request={r} disabled={action.pending} />
       </div>
-    </li>
+    </RowCard>
   );
 }
 

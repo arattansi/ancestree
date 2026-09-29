@@ -3,11 +3,8 @@
 import * as React from "react";
 
 import { navigateToAdminSection } from "@/components/admin/nav-event";
+import type { AdminNavGroup } from "@/lib/admin-sections";
 import { cn } from "@/lib/utils";
-
-export type AdminNavItem = { id: string; label: string };
-/** A `label` of `null` renders the items flush, with no group heading. */
-export type AdminNavGroup = { label: string | null; items: AdminNavItem[] };
 
 /**
  * Minimalist floating section nav for the admin page, Notion-style: a thin

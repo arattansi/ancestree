@@ -5,6 +5,7 @@ import * as React from "react";
 import { resolveImpliedConnection } from "@/app/actions/connections";
 import type { PanelSuggestion } from "@/lib/connection-suggestions";
 import { PendingButton } from "@/components/pending-button";
+import { RowCard } from "@/components/row-card";
 import { Badge } from "@/components/ui/badge";
 import { useAction } from "@/components/use-action";
 import { refocusAfterRemoval } from "@/components/use-focus-return";
@@ -81,7 +82,7 @@ export function ConnectionPrompt({
   const hint = acceptHint(suggestion);
 
   return (
-    <li className="flex flex-col gap-2 rounded-md border border-border p-3">
+    <RowCard>
       <div className="flex items-start justify-between gap-2">
         <p className="text-sm">{suggestion.reason}</p>
         {suggestion.confidence === "medium" ? (
@@ -110,7 +111,7 @@ export function ConnectionPrompt({
           No
         </PendingButton>
       </div>
-    </li>
+    </RowCard>
   );
 }
 

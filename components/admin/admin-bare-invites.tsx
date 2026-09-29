@@ -3,6 +3,7 @@
 import { deleteInvite } from "@/app/actions/invites";
 import { ConfirmButton } from "@/components/confirm-dialog";
 import { copyText } from "@/components/copy-text";
+import { RowCard, RowList } from "@/components/row-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,9 +13,9 @@ import { shortDate } from "@/lib/short-date";
 import { inviteHref } from "@/lib/sign-in-links";
 
 /**
- * Bare invite links on the Root console — the ones minted without a recipient, so they
- * have no row in "Sent invites". Copyable (the whole point of a bare link is
- * that you send it yourself) and deletable.
+ * Bare invite links on the Root console — the ones minted without a
+ * recipient, so they have no row in "Sent invites". Copyable (the whole
+ * point of a bare link is that you send it yourself) and deletable.
  */
 export function AdminBareInvites({
   invites,
@@ -23,14 +24,6 @@ export function AdminBareInvites({
   invites: BareInvite[];
   baseUrl: string;
 }) {
-  if (invites.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        No unused bare links.
-      </p>
-    );
-  }
-
   const urlFor = (token: string) => `${baseUrl}${inviteHref(token)}`;
 
   function copy(token: string) {
@@ -38,14 +31,11 @@ export function AdminBareInvites({
   }
 
   return (
-    <ul className="flex flex-col gap-3">
-      {invites.map((invite) => {
+    <RowList items={invites} empty="No unused bare links.">
+      {(invite) => {
         const minted = `minted by ${invite.createdByName ?? "a former member"} on ${shortDate(invite.createdAt)}`;
         return (
-          <li
-            key={invite.id}
-            className="flex flex-col gap-2 rounded-md border border-border p-3 text-sm"
-          >
+          <RowCard key={invite.id}>
             <div className="flex flex-wrap items-center gap-1.5">
               <StatusBadge invite={invite} />
               <span className="text-muted-foreground">
@@ -84,10 +74,10 @@ export function AdminBareInvites({
                 Delete
               </ConfirmButton>
             </div>
-          </li>
+          </RowCard>
         );
-      })}
-    </ul>
+      }}
+    </RowList>
   );
 }
 

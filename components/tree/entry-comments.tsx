@@ -9,6 +9,7 @@ import {
 } from "@/app/actions/entry-comments";
 import { FormError } from "@/components/form-error";
 import { PendingButton } from "@/components/pending-button";
+import { RowCard, RowList } from "@/components/row-card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { useAction } from "@/components/use-action";
@@ -187,23 +188,23 @@ export function EntryComments({
 
       {shown === null ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
-      ) : shown.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          No comments yet. Be the first to add context.
-        </p>
       ) : (
-        <ul className="flex flex-col gap-2">
-          {shown.map((c) => {
+        <RowList
+          items={shown}
+          empty="No comments yet. Be the first to add context."
+          dense
+        >
+          {(c) => {
             const canToggle =
               c.isFlag && (canModerate || c.createdBy === currentUserId);
             return (
-              <li
+              <RowCard
                 key={c.id}
                 className={cn(
-                  "flex flex-col gap-1 rounded-md border p-3 text-sm",
-                  c.isFlag && c.status === "open"
-                    ? "border-destructive/50 bg-destructive/5"
-                    : "border-border",
+                  "gap-1",
+                  c.isFlag &&
+                    c.status === "open" &&
+                    "border-destructive/50 bg-destructive/5",
                 )}
               >
                 <div className="flex items-center gap-2">
@@ -234,10 +235,10 @@ export function EntryComments({
                     onToggled={onToggled}
                   />
                 ) : null}
-              </li>
+              </RowCard>
             );
-          })}
-        </ul>
+          }}
+        </RowList>
       )}
     </section>
   );

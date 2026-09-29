@@ -8,6 +8,7 @@ import { revertEntryEdit } from "@/app/actions/people";
 import { respondToPlacement } from "@/app/actions/trees";
 import { FormError } from "@/components/form-error";
 import { PendingButton } from "@/components/pending-button";
+import { RowCard, RowList } from "@/components/row-card";
 import { SuggestionAnswer } from "@/components/suggestion-answer";
 import { SuggestionChanges } from "@/components/suggestion-changes";
 import { TreeTarget } from "@/components/tree-target";
@@ -78,15 +79,9 @@ export function NotificationsList({
     );
   }, [hasUnread, items]);
 
-  if (items.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">No notifications yet.</p>
-    );
-  }
-
   return (
-    <ul className="flex flex-col gap-3">
-      {items.map((n) => (
+    <RowList items={items} empty="No notifications yet.">
+      {(n) => (
         <NotificationRow
           key={n.id}
           n={n}
@@ -101,8 +96,8 @@ export function NotificationsList({
             )
           }
         />
-      ))}
-    </ul>
+      )}
+    </RowList>
   );
 }
 
@@ -189,10 +184,7 @@ function NotificationRow({
   }
 
   return (
-    <li
-      ref={rowRef}
-      className="flex flex-col gap-2 rounded-md border border-border p-3 text-sm"
-    >
+    <RowCard ref={rowRef}>
       <div className="flex items-start justify-between gap-3">
         <p className={n.readAt ? "text-muted-foreground" : "font-medium"}>
           {showTree && n.treeName ? (
@@ -410,6 +402,6 @@ function NotificationRow({
           </div>
         </div>
       ) : null}
-    </li>
+    </RowCard>
   );
 }

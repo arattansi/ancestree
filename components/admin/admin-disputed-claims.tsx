@@ -2,28 +2,18 @@
 
 import { resolveClaim } from "@/app/actions/claims";
 import { ConfirmButton } from "@/components/confirm-dialog";
+import { RowCard, RowList } from "@/components/row-card";
 import type { DisputedClaim } from "@/lib/claims";
 
 export function AdminDisputedClaims({ claims }: { claims: DisputedClaim[] }) {
-  if (claims.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        No disputed claims to review.
-      </p>
-    );
-  }
-
   return (
-    <ul className="flex flex-col gap-3">
-      {claims.map((c) => {
+    <RowList items={claims} empty="No disputed claims to review.">
+      {(c) => {
         const claim = c.claimantName
           ? `${c.claimantName}’s claim to ${c.personName}`
           : `the claim to ${c.personName}`;
         return (
-          <li
-            key={c.id}
-            className="flex flex-col gap-2 rounded-md border border-border p-3 text-sm"
-          >
+          <RowCard key={c.id}>
             <p className="font-medium">{c.personName}</p>
             <p className="text-muted-foreground">
               Claimed by {c.claimantName ?? "a member"} · disputed by{" "}
@@ -63,9 +53,9 @@ export function AdminDisputedClaims({ claims }: { claims: DisputedClaim[] }) {
                 Reverse claim
               </ConfirmButton>
             </div>
-          </li>
+          </RowCard>
         );
-      })}
-    </ul>
+      }}
+    </RowList>
   );
 }
