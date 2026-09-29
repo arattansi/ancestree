@@ -4,6 +4,7 @@ import { getSessionUser, requireProfile, requireSelfPerson } from "@/lib/auth";
 import type { ClaimResult } from "@/lib/claim-merge";
 import { moveClaimedPhoto } from "@/lib/claim-merge.server";
 import { friendlyDbError } from "@/lib/db-errors";
+import { removeReplacedPhotos } from "@/lib/photo-cleanup.server";
 import { revalidateTreePages } from "@/lib/revalidate";
 import { createClient } from "@/lib/supabase/server";
 
@@ -39,8 +40,12 @@ function friendlyClaimError(message: string | undefined): string {
 export async function claimPerson(
   personId: string,
 ): Promise<{ error?: string; personId?: string }> {
-  await requireSelfPerson();
+  const { self_person_id: ownId } = await requireSelfPerson();
   const supabase = await createClient();
+  // Their own entry's photo: the merge deletes the entry (Step 82).
+  const { data: own } = ownId
+    ? await supabase.from("people").select("photo_path").eq("id", ownId).maybeSingle()
+    : { data: null };
   const { data, error } = await supabase.rpc("claim_person", {
     p_person_id: personId,
   });
@@ -49,6 +54,12 @@ export async function claimPerson(
   // Before the pages redraw, so the claimed entry's photo signs (Step 43).
   const result = data as ClaimResult;
   await moveClaimedPhoto(result);
+  // Where the claimed entry kept its own photo, theirs stayed in a folder
+  // nobody can read now; it goes (Step 82). One that was to move stays,
+  // moved or not: it may be the claimed entry's only copy.
+  if (ownId && !result.photo_from) {
+    removeReplacedPhotos("person", ownId, [own?.photo_path]);
+  }
 
   revalidateTreePages();
   return { personId: result.person_id };

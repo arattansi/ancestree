@@ -8,6 +8,7 @@ import {
   type ErrorRule,
 } from "@/lib/db-errors";
 import { toStoredCrop, type CropTransform } from "@/lib/image-crop";
+import { removeReplacedPhotos } from "@/lib/photo-cleanup.server";
 import { photoPathOwner } from "@/lib/photo-path";
 import { petSchema, toPetPayload, type PetFormValues } from "@/lib/pet-schema";
 import { revalidateTreePages } from "@/lib/revalidate";
@@ -164,17 +165,22 @@ export async function updatePet(
   if (!parsed.success) {
     return { error: "Please fix the highlighted fields and try again." };
   }
-  const owner = photo && "path" in photo ? photoPathOwner(photo.path) : null;
-  if (photo && "path" in photo && (owner?.kind !== "pet" || owner.petId !== petId)) {
+  const newPath = photo && "path" in photo ? photo.path : null;
+  const owner = newPath ? photoPathOwner(newPath) : null;
+  if (newPath && (owner?.kind !== "pet" || owner.petId !== petId)) {
     return { error: "That photo isn't this companion's." };
   }
 
   const supabase = await createClient();
+  // A new photo leaves the old file behind (Step 82).
+  const { data: before } = newPath
+    ? await supabase.from("pets").select("photo_path").eq("id", petId).maybeSingle()
+    : { data: null };
   let write = supabase
     .from("pets")
     .update({
       ...toPetPayload(parsed.data),
-      ...(photo && "path" in photo ? { photo_path: photo.path } : {}),
+      ...(newPath ? { photo_path: newPath } : {}),
       ...(photo ? { photo_crop: toStoredCrop(photo.crop) } : {}),
     })
     .eq("id", petId);
@@ -186,6 +192,7 @@ export async function updatePet(
   });
   if (saved.error) return { error: saved.error };
 
+  if (newPath) removeReplacedPhotos("pet", petId, [before?.photo_path], newPath);
   revalidateTreePages();
   return { petId };
 }
@@ -276,7 +283,7 @@ export async function removePet(petId: string): Promise<{ error?: string }> {
 /**
  * Point a pet row at an uploaded photo (or clear it). Only a photo in this
  * companion's own folder, on its own tree (Step 77.4): the tree's members
- * can read nothing else.
+ * can read nothing else. The file it pointed at before goes (Step 82).
  */
 export async function setPetPhoto(
   petId: string,
@@ -289,6 +296,11 @@ export async function setPetPhoto(
     return { error: "That photo isn't this companion's." };
   }
   const supabase = await createClient();
+  const { data: before } = await supabase
+    .from("pets")
+    .select("photo_path")
+    .eq("id", petId)
+    .maybeSingle();
   let write = supabase
     .from("pets")
     .update({
@@ -303,6 +315,7 @@ export async function setPetPhoto(
     failed: friendlyError,
   });
   if (saved.error) return { error: saved.error };
+  removeReplacedPhotos("pet", petId, [before?.photo_path], photoPath);
   revalidateTreePages();
   return {};
 }

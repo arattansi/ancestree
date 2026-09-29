@@ -46,3 +46,29 @@ export function photoPathOwner(path: string): PhotoOwner | null {
   }
   return null;
 }
+
+/**
+ * Of the photos person or companion `id` pointed at, the ones a save may
+ * have left behind (Step 82): each that isn't the one it points at `now`
+ * and lies in its own folder, under any tree. That's all the bucket's
+ * delete policies read of a path, so these are the files whoever may
+ * change it could remove themselves. A path laid out otherwise, or in
+ * anyone else's folder, is never one.
+ */
+export function photosLeftBehind(
+  kind: PhotoOwner["kind"],
+  id: string,
+  was: readonly (string | null | undefined)[],
+  now: string | null = null,
+): string[] {
+  const left = new Set<string>();
+  for (const path of was) {
+    if (!path || path === now) continue;
+    const owner = photoPathOwner(path);
+    if (!owner || owner.kind !== kind) continue;
+    if ((owner.kind === "person" ? owner.personId : owner.petId) === id) {
+      left.add(path);
+    }
+  }
+  return [...left];
+}

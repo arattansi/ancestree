@@ -4,6 +4,10 @@ import { requireProfile } from "@/lib/auth";
 import { friendlyDbError, ownedWrite, RLS_REFUSED } from "@/lib/db-errors";
 import { ENTRY_RULES, friendlyEntryError } from "@/lib/entry-errors";
 import { toStoredCrop, type CropTransform } from "@/lib/image-crop";
+import {
+  removeReplacedPhotos,
+  removeUndonePhotos,
+} from "@/lib/photo-cleanup.server";
 import { photoPathOwner } from "@/lib/photo-path";
 import {
   personSchema,
@@ -87,9 +91,10 @@ export async function updatePerson(
     ...(photo ? { photo_crop: toStoredCrop(photo.crop) } : {}),
   };
   const supabase = await createClient();
+  // Its photo too: a new one leaves the old file behind (Step 82).
   const { data: home } = await supabase
     .from("people")
-    .select("tree_id, owner_user_id")
+    .select("tree_id, owner_user_id, photo_path")
     .eq("id", personId)
     .maybeSingle();
   // lineage_type is a home-tree Root's alone; the DB trigger rejects other
@@ -111,6 +116,9 @@ export async function updatePerson(
   );
   if (saved.error) return { error: saved.error };
 
+  if (photo && "path" in photo) {
+    removeReplacedPhotos("person", personId, [home?.photo_path], photo.path);
+  }
   revalidateTreePages();
   return { personId };
 }
@@ -237,7 +245,7 @@ export async function autoArrangeTree(
 /**
  * Point a person row at an uploaded photo (or clear it). Only a photo in
  * this entry's own folder (Step 77.4): anything else could be another
- * entry's file.
+ * entry's file. The file it pointed at before goes (Step 82).
  */
 export async function setPersonPhoto(
   personId: string,
@@ -252,6 +260,11 @@ export async function setPersonPhoto(
     }
   }
   const supabase = await createClient();
+  const { data: before } = await supabase
+    .from("people")
+    .select("photo_path")
+    .eq("id", personId)
+    .maybeSingle();
   const saved = await ownedWrite(
     supabase
       .from("people")
@@ -264,6 +277,7 @@ export async function setPersonPhoto(
     { refused: NOT_YOURS_TO_EDIT, failed: friendlyEntryError },
   );
   if (saved.error) return { error: saved.error };
+  removeReplacedPhotos("person", personId, [before?.photo_path], photoPath);
   revalidateTreePages();
   return {};
 }
@@ -316,6 +330,8 @@ export async function revertEntryEdit(
     }
     return { error: friendlyEntryError(error.message) };
   }
+  // A photo the edit held that the entry no longer shows goes (Step 82).
+  removeUndonePhotos(revisionId);
   revalidateTreePages();
   return { restored: data?.length ?? 0 };
 }
