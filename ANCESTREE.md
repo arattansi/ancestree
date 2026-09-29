@@ -1504,6 +1504,24 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 85 — Two fixes: the invite form's hydration warning, the header
+  on a phone** (ad-hoc, Aalim 2026-09-29; no migration; both seen while
+  testing Steps 80 to 84). **85.1, the invite form:** every member's
+  account settings logged a React hydration warning, from **Invite a
+  Relative**: its rows took their ids from a count kept by the module
+  (`let nextKey`), which on the server ran on with every page drawn
+  (`row-10-first`) and in the browser began again (`row-0-first`), so the
+  two never matched and React gave up patching the labels to their fields.
+  The count is now the form's own, from its first row, behind a `useId`
+  that keeps two forms on a page apart (`components/direct-invite-form.tsx`).
+  **Verified** in headless Chrome as a throwaway Root: three loads of
+  account settings, the ids the server sent the same as the ids drawn each
+  time, no hydration warning and no console error there, in the Root
+  console or on the trees page; no id twice on any of them; rows added and
+  removed keep ids of their own and what was typed in them; a label still
+  focuses its field; nothing was sent. The throwaway rows and accounts were
+  deleted after. 1,280 unit tests, `tsc`, `eslint` and `next build` clean.
+
 - **Step 84 — A Root can invite someone to claim an entry their tree
   shows** (ad-hoc, Aalim 2026-09-29; migration
   `20260929140000_claim_invites_from_the_tree_they_join`, applied before
