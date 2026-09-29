@@ -32,7 +32,7 @@ round trip.
 | Roots | Every tree has at least one Root, for good, and at most two (Step 39). The last Root may leave only by handing the tree to a successor (`deleteAccount(successorId)`, per tree). |
 | Naming | `trees.name` is shown; `trees.slug` is the URL segment (`/t/<slug>/…`). Slugs are unique and only a Root may rename a tree. |
 | Bloodline gate | Per tree (`bloodline_anchors.tree_id`). A founded tree is anchored on its founder's own entry, set when they add, claim or bring themselves there (Step 29: `place_people` anchors the founder's own entry); the first tree keeps its two original anchors. The bloodline climbs every parent line from the anchors, then comes down parent lines and across sibling lines (Step 55), so a partner who married in stays out. Everyone added needs a blood tie (Step 55): once their lines are drawn they are blood, or have a line straight to someone who is, as a partner or the other parent of a blood child. Nobody joins only through someone who married in — their parents, siblings, a child from another relationship, a later partner — whoever is adding, a Root or a newcomer adding themselves included, and the refusal names who. "Add a relative" and onboarding say so as soon as the form would be refused, without stopping the submit (Step 55.1). A member who married in can't add their own side of the family, which belongs on a tree of their own. |
-| Deleting a tree | A Root may delete a tree they run (`delete_tree`, from the Root console's Data & privacy card). Every person whose home it was moves home to the other tree they were placed on first, or is deleted with the tree if there is none; a member whose own entry goes starts over on their next tree's onboarding. Its boards, banks, companions, invites and share links go with it. |
+| Deleting a tree | A Root may delete a tree they run (`delete_tree`, from the Root console's Data & privacy card). Every person whose home it was moves home to the other tree that has shown them in full the longest, or is deleted with the tree if there is none: a tree that shows only their basic card (Step 80) was never given the entry, so doesn't inherit it. A member whose own entry goes starts over on their next tree's onboarding. Its boards, banks, companions, invites and share links go with it. |
 
 ## 3. Membership and account types
 
@@ -86,17 +86,35 @@ Rules that follow:
 ## 4. People: home trees and placements
 
 `people.tree_id` is the person's **home tree**. `tree_placements (tree_id,
-person_id, status, pos_*)` says which trees show them and where the card
-sits on each canvas. The home tree always has an active placement; every
-other placement is added by a Root of the receiving tree.
+person_id, status, approval, pos_*)` says which trees show them, how much of
+them, and where the card sits on each canvas. The home tree always shows the
+whole entry; every other placement is added by a Root of the receiving tree,
+or by the person joining it.
 
 | | Rule |
 |---|---|
-| Bringing people over | When a member founds a tree, or later from the "People from other trees" card on `/t/<slug>/admin`, a Root picks anyone they can see on a tree they belong to. Each pick becomes a placement. Everyone brought over needs a blood tie on this tree, judged across the whole batch, with a member's own entry counted as there while it waits for their yes (Step 55). |
-| Consent | If the person is a member's own entry (their `self_person_id` or a settled claim) and that member is not the one placing them, the placement is **pending** until they accept (`placement_requested` notification, accept or decline on `/account`). Accepting an invite to the tree counts as saying yes (Step 30.9), a claim invite included (Step 41.3). Pending placements are not drawn. Anyone else's entry (an unclaimed relative, a grandparent) is placed at once. |
+| Bringing people over | When a member founds a tree, or later from the "People from other trees" card on `/t/<slug>/admin`, a Root picks from everyone they can see in full on a tree they belong to: **all descendants of** someone, with the partners they married or had children with unless that's switched off (Step 80, `lib/carry.ts#lineOf`), or anyone one by one. Each pick becomes a placement, and everyone is on the tree at once. Everyone brought over needs a blood tie on this tree, judged across the whole batch (Step 55). |
+| Basic cards | What the tree shows of someone brought over waits on a yes (Step 80). Until it comes they are a **basic card**: first or preferred name, last name, place of birth, and their lines. A member's own entry (their `self_person_id` or a settled claim) waits on that member. Nobody's own entry waits on whoever may edit it on its home tree (`private.can_edit_person`): its Roots, the Branch who tends it, the Branch or Leaf who added it. An entry the Root bringing it may edit already, their own included, waits on nobody and comes over whole. |
+| Asking | The member is told by notice (`placement_requested`) and by email; everyone asked about nobody's own entries gets one notice (`placements_requested`, in the home tree's inbox) and one email for the batch. Both open **Asked of You** on `/account` settings, where each is approved or declined by itself, or a tree's asks all at once; whoever answers first answers for everyone asked, and whoever brought them over is told once. Nobody is asked twice about the same card. |
+| Answering | A no leaves the basic card where it is. Either answer can be changed later, from the same card (`answer_placements`): a yes taken back makes the card basic again. Saying yes for their own entry makes them a Leaf of that tree, as before. Accepting an invite to the tree counts as saying yes (Step 30.9), a claim invite included (Step 41.3), and so does moving the entry's home there. |
 | Home tree choice | A member chooses which of the trees they are placed on is their home (`/account` → Your entry). A Root of the current home tree may also move an unclaimed entry's home to another tree it is placed on. |
-| Leaving | A person may withdraw their own entry from any tree that is not their home. A Root may remove any placement from their tree. Removing a placement never deletes the person or their connections. |
+| Leaving | A Root may remove any placement from their tree. The person shown no longer can (Step 80): their name and place of birth need nobody's yes, and what they take back is the rest of their entry. Removing a placement never deletes the person or their connections. |
 | Removing from the home tree | Not possible directly: change the home first, or delete the entry. |
+
+### What a basic card keeps back
+
+The database keeps it back, not the page (Step 80). `tree_placements.detail`
+is `basic` while `approval` is `asked` or `declined`, and `full` otherwise.
+
+| | On a tree that shows only their basic card |
+|---|---|
+| The entry | `people` isn't readable through that tree (`private.can_see_person` asks for a full placement). `tree_people` carries the basic card's row from `private.basic_tree_people`: names and place of birth, every other column empty, the same for every member of the tree, its Roots and whoever brought them over included. |
+| Photo, documents | Not readable: both follow `can_see_person` and a full placement. |
+| Lines | Drawn, from `private.basic_tree_edges`: that a line is there, its kind, and whether a marriage ended. Its dates only on the tree it was drawn on. `relationships` rows are readable when both ends are shown in full, or the line was drawn on a tree the reader belongs to. |
+| Building on them | A Root, Branch or Leaf adds relatives of a basic card and draws lines to it as to any card, which is what founding a tree for the other side of the family needs. A line to a basic card is changed by whoever drew it, or a Root of the tree it was drawn on. |
+| Comments, suggestions, claims | None: a board, a suggested change, "This is me" and the onboarding search all ask for a full placement. |
+| Visitors | **Hidden from visitors** holds: a visitor sees a blurred card with no name. |
+| Share links | The basic card, as the tree's members see it. |
 
 ### Who edits what
 
@@ -145,9 +163,10 @@ shown. The Root's undo of a Branch edit (Step 22.4) applies to Branches of
 `h`.
 
 `private.can_edit_relationship(r)`: the member who drew it, a Root of any
-tree on which **both** ends are actively placed, or a Branch of such a tree
-with both ends on their side there. Drawing a new line requires the same of
-the tree it is drawn on. The bloodline gate asks a blood tie of new entries
+tree that shows **both** ends in full, or a Branch of such a tree with both
+ends on their side there; and a Root of the tree it was drawn on while both
+ends are on it, a basic card among them (Step 80). Drawing a new line
+requires both ends on the tree it is drawn on, in full or not. The bloodline gate asks a blood tie of new entries
 and of people brought over, not of a line between two people already there.
 
 `private.can_delete_person(p)`: a Root of `h`; otherwise the Step 22.3 rule
@@ -191,7 +210,7 @@ old one never was; the person can share it again.
 
 | Kind | Who may send | What redeeming does |
 |---|---|---|
-| Join as a Leaf | Any member: Root, Branch or Leaf | Adds a membership in the inviter's tree. An existing member of another tree gains a second membership; no second profile. If they have their own entry, it's shown on this tree too, active, since accepting is their say-so; every Root of the tree is told (`placed_on_join`) and can take it off from "Who This Tree Shows" (Step 30.9). They land on it. |
+| Join as a Leaf | Any member: Root, Branch or Leaf | Adds a membership in the inviter's tree. An existing member of another tree gains a second membership; no second profile. If they have their own entry, it's shown on this tree too, in full, since accepting is their say-so, a basic card of theirs there included (Step 80); every Root of the tree is told (`placed_on_join`) and can take it off from "Who This Tree Shows" (Step 30.9). They land on it. |
 | Claim an entry | As Step 22.1, evaluated in the entry's home tree; or a Root approving a request to join as an entry on their tree that the name matches (Step 30.3); or the member a relative's ask went to, as an entry the newcomer's name matches on the tree they picked, where Step 22.1 lets them (Step 41.1) | As above, plus the vouch for that entry. Someone with no entry of their own claims it there and then and lands on it (Step 30.2); if it's spoken for by then, onboarding as usual. A member who already has an entry lands on theirs, shown on this tree (Step 41.3). The invite's entry folds into it when only its maker has built on it, nobody is behind it and it's on no other tree: theirs takes its place, lines, notes and documents and all, and it's deleted. It never folds in if either of them has died, a line joins them, or they were born more than a year apart. Otherwise both stay, and every Root is told either way. |
 | **Founder** | Any Root | Creates a brand-new tree (“Family” until they rename it; `private.default_tree_name`), makes them its Root, and sends them to onboarding on it. Refused if the address already founded a tree. |
 
@@ -271,7 +290,8 @@ invite, and joining from there is theirs to press.
 ## 8. Accounts that span trees
 
 - `/account` lists every tree the member belongs to with their type in each,
-  the trees they run, pending placement requests, and one inbox tab per tree.
+  the trees they run, what other trees have asked to show in full (**Asked
+  of You**, Step 80), and one inbox tab per tree.
 - Deleting an account: in each tree, the member's contributions pass to a
   Root of that tree; if they were the last Root of a tree they must name a
   successor there first. A Root's Branches pass the same way and count

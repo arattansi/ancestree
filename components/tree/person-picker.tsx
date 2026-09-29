@@ -4,6 +4,7 @@ import * as React from "react";
 import { X } from "lucide-react";
 
 import { FitText } from "@/components/ui/fit-text";
+import { BASIC_DETAILS } from "@/lib/carry";
 import { Input } from "@/components/ui/input";
 import { useFocusReturn } from "@/components/use-focus-return";
 import {
@@ -139,7 +140,9 @@ export function PersonPicker({
                       </FitText>
                     ) : null}
                     <FitText className="leading-4 text-muted-foreground">
-                      {personLifespan(p) ?? "Living"}
+                      {p.basic
+                        ? BASIC_DETAILS
+                        : (personLifespan(p) ?? "Living")}
                     </FitText>
                   </button>
                 </li>

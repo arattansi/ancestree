@@ -211,7 +211,7 @@ export const listNotifications = cache(async function listNotifications(
       ? supabase
           .from("tree_placements")
           .select("id, tree_id, person_id")
-          .eq("status", "pending")
+          .eq("approval", "asked")
           .in("person_id", [...new Set(pendingPersonIds)])
           .then(({ data }) => data ?? [])
       : [],

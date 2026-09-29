@@ -80,6 +80,17 @@ export type TreeGraphPerson = {
    * card's place is known, nothing about who it is (Step 25.4).
    */
   blurred: boolean;
+  /**
+   * Brought over from another tree and still waiting for a yes, or refused
+   * one (Step 80): this tree shows the name and the place of birth, and
+   * nothing else is read here at all. Every other field is empty.
+   */
+  basic: boolean;
+  /** Where that yes stands; `none` when there was nothing to ask. */
+  approval: PlacementApproval;
+  /** Whose yes a basic card waits on: the member whose entry it is, or
+   *  whoever may edit it on its home tree. */
+  asked_of: AskedOf;
   photo_url: string | null;
   /** Count of open (unresolved) flags raised against this entry. */
   open_flag_count: number;
@@ -93,6 +104,16 @@ export type TreeGraphPerson = {
    *  (`getTreeGraph`'s `withAccountTypes`); always `null` on a share link. */
   account_type: AccountTypeKey | null;
 };
+
+export type PlacementApproval = "none" | "asked" | "approved" | "declined";
+
+type AskedOf = "owner" | "stewards" | null;
+
+function approvalOf(value: string | null): PlacementApproval {
+  return value === "asked" || value === "approved" || value === "declined"
+    ? value
+    : "none";
+}
 
 export type TreeGraphEdge = {
   id: string;
@@ -108,6 +129,12 @@ export type TreeGraphEdge = {
   marriage_day: number | null;
   is_divorced: boolean;
   divorce_date: string | null;
+  /**
+   * Drawn on the tree being read, rather than brought along with the
+   * people it joins. A line to a basic card is this tree's to change only
+   * when it is (Step 80, `private.can_edit_relationship`).
+   */
+  drawn_here: boolean;
 };
 
 /**
@@ -116,7 +143,7 @@ export type TreeGraphEdge = {
  * says whether this tree is the one whose rules govern the entry.
  */
 const PERSON_COLUMNS =
-  "id, home_tree_id, is_home, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_death, date_of_birth_precision, date_of_death_precision, birth_month, birth_day, date_of_birth_circa, date_of_death_circa, city_of_birth, country_of_birth, place_id_birth, place_id_death, is_deceased, place_of_death, sex, lineage_type, photo_path, photo_crop, pos_x, pos_y, owner_user_id, created_by, pos_dx, pos_dy, hidden_from_visitors, blurred, email, email_visible";
+  "id, home_tree_id, is_home, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_death, date_of_birth_precision, date_of_death_precision, birth_month, birth_day, date_of_birth_circa, date_of_death_circa, city_of_birth, country_of_birth, place_id_birth, place_id_death, is_deceased, place_of_death, sex, lineage_type, photo_path, photo_crop, pos_x, pos_y, owner_user_id, created_by, pos_dx, pos_dy, hidden_from_visitors, blurred, email, email_visible, detail, approval, asked_of";
 
 /**
  * Stands in for the user ids on a public read (`forPublic`): the nil UUID,
@@ -126,7 +153,7 @@ const PERSON_COLUMNS =
 export const NOBODY = "00000000-0000-0000-0000-000000000000";
 
 const EDGE_COLUMNS =
-  "id, from_person, to_person, type, created_by, marriage_date, marriage_month, marriage_day, is_divorced, divorce_date";
+  "id, from_person, to_person, type, created_by, marriage_date, marriage_month, marriage_day, is_divorced, divorce_date, drawn_on_tree_id";
 
 /** Everyone placed on the tree, as the `tree_people` view holds them. */
 async function readTreePeople(supabase: DbClient, treeId: string) {
@@ -306,9 +333,32 @@ export async function getTreeGraph(
   // The view's columns are nullable to TypeScript (a view has no NOT NULL);
   // every row has an id, a family name and a home, or it isn't a person —
   // unless it is a hidden person seen by a visitor, whose card is drawn from
-  // the placement alone (Step 25.4).
+  // the placement alone (Step 25.4), or a basic card (Step 80), whose row
+  // carries a name and a place of birth and says nothing of who made it.
   const rows = peopleRows.flatMap((p) => {
     if (!p.id) return [];
+    if (p.detail === "basic" && !p.blurred && p.last_name && p.home_tree_id) {
+      return [
+        {
+          ...p,
+          id: p.id,
+          last_name: p.last_name,
+          home_tree_id: p.home_tree_id,
+          is_home: false,
+          owner_user_id: "",
+          created_by: "",
+          country_of_birth: p.country_of_birth ?? "",
+          is_deceased: false,
+          date_of_birth_precision: "day",
+          date_of_death_precision: "day",
+          hidden_from_visitors: false,
+          blurred: false,
+          basic: true,
+          approval: approvalOf(p.approval),
+          asked_of: (p.asked_of === "owner" ? "owner" : "stewards") as AskedOf,
+        },
+      ];
+    }
     if (
       p.blurred ||
       !p.last_name ||
@@ -350,6 +400,9 @@ export async function getTreeGraph(
           photo_crop: null,
           hidden_from_visitors: true,
           blurred: true,
+          basic: false,
+          approval: approvalOf(null),
+          asked_of: null as AskedOf,
         },
       ];
     }
@@ -370,6 +423,9 @@ export async function getTreeGraph(
         date_of_death_circa: p.date_of_death_circa ?? false,
         hidden_from_visitors: p.hidden_from_visitors ?? false,
         blurred: false,
+        basic: false,
+        approval: approvalOf(p.approval),
+        asked_of: null as AskedOf,
       },
     ];
   });
@@ -387,6 +443,7 @@ export async function getTreeGraph(
             marriage_day: r.marriage_day,
             is_divorced: r.is_divorced ?? false,
             divorce_date: r.divorce_date,
+            drawn_here: r.drawn_on_tree_id === treeId,
           },
         ]
       : [],

@@ -15,11 +15,8 @@ import {
   personInitials,
   personLifespan,
 } from "@/lib/person-name";
-import {
-  listForeignPlacements,
-  listPlacementCandidates,
-  type PlacementCandidate,
-} from "@/lib/placements.server";
+import { BASIC_DETAILS, type CarryLine, type CarryPerson } from "@/lib/carry";
+import { listCarryChoices } from "@/lib/placements.server";
 import { createClient } from "@/lib/supabase/server";
 import { getTreeGraph, type TreeGraphEdge, type TreeGraphPerson } from "@/lib/tree";
 import { listMyTrees, type TreeMembership } from "@/lib/tree-context";
@@ -43,8 +40,19 @@ export type FounderEntry = FamilyCard & {
   placedHere: boolean;
 };
 
-/** A close relative on the founder's other trees, not on this one yet. */
-export type BringCandidate = PlacementCandidate & { kind: CloseKind };
+/**
+ * Who the founder could bring from their other trees (Step 80): everyone
+ * they can see there and the lines between them, for "All descendants of",
+ * with their close family ticked to begin with.
+ */
+export type BringChoices = {
+  people: CarryPerson[];
+  lines: CarryLine[];
+  /** Their partners, children, parents and siblings who aren't here yet. */
+  close: string[];
+  /** The trees they'd come from. */
+  fromTrees: string[];
+};
 
 export type FirstTreeData = {
   state: FirstTreeState;
@@ -55,10 +63,8 @@ export type FirstTreeData = {
     children: FamilyCard[];
     siblings: FamilyCard[];
   };
-  /** Close relatives the founder could bring over from their other trees. */
-  bring: BringCandidate[];
-  /** Brought over, but waiting for the person to say yes. */
-  waiting: { personId: string; name: string }[];
+  /** Who the founder could bring over from their other trees, if anyone. */
+  bring: BringChoices | null;
   /** Invitations out from this tree (not founder invites). */
   invites: TreeInvite[];
   /** The names of the founder's other trees, which this one shouldn't share. */
@@ -70,7 +76,8 @@ function card(p: TreeGraphPerson): FamilyCard {
   return {
     id: p.id,
     name: personDisplayName(p),
-    lifespan: personLifespan(p),
+    // A basic card has no years to give, and the chip mustn't guess.
+    lifespan: p.basic ? BASIC_DETAILS : personLifespan(p),
     initials: personInitials(p),
     photoUrl: p.photo_url,
   };
@@ -203,18 +210,10 @@ export async function loadFirstTree(
   }
 
   // A member who founded this tree has family on the trees they came from:
-  // offer to bring the close ones rather than add them twice.
-  let bring: BringCandidate[] = [];
-  let waiting: FirstTreeData["waiting"] = [];
+  // offer to bring them rather than add them twice.
+  let bring: BringChoices | null = null;
   if (withBring && selfId && founder && row?.tree_id !== m.tree.id) {
-    const [candidates, placed] = await Promise.all([
-      closeRelativesElsewhere(m.tree.id, selfId),
-      listForeignPlacements(m.tree.id),
-    ]);
-    bring = candidates;
-    waiting = placed
-      .filter((p) => p.status === "pending")
-      .map((p) => ({ personId: p.personId, name: p.name }));
+    bring = await bringChoices(m.tree.id, selfId);
   }
 
   return {
@@ -230,44 +229,26 @@ export async function loadFirstTree(
       siblings: cards(close.siblings),
     },
     bring,
-    waiting,
     invites: invited.invites,
     otherTreeNames: myTrees.filter((t) => t.id !== m.tree.id).map((t) => t.name),
   };
 }
 
 /**
- * The founder's parents, partners, children and siblings on the other trees
- * they're on, who aren't on this one yet — what the family step offers to
- * bring over. Everyone else they can see stays on the admin console's
- * "People from other trees" card.
+ * Everyone the founder can see on their other trees who could come onto
+ * this one, their close family first in mind: partners, children, parents
+ * and siblings not here yet are ticked to begin with. `null` when there is
+ * nobody to bring.
  */
-async function closeRelativesElsewhere(
+async function bringChoices(
   treeId: string,
   selfId: string,
-): Promise<BringCandidate[]> {
-  const supabase = await createClient();
-  const [{ data: lines }, candidates] = await Promise.all([
-    supabase
-      .from("tree_edges")
-      .select("from_person, to_person, type, is_divorced, tree_id")
-      .neq("tree_id", treeId),
-    listPlacementCandidates(treeId),
-  ]);
+): Promise<BringChoices | null> {
+  const { people, lines } = await listCarryChoices(treeId);
+  const toBring = people.filter((p) => !p.here);
+  if (toBring.length === 0) return null;
 
-  const edges = (lines ?? []).flatMap((l) =>
-    l.from_person && l.to_person && l.type
-      ? [
-          {
-            from_person: l.from_person,
-            to_person: l.to_person,
-            type: l.type,
-            is_divorced: l.is_divorced,
-          },
-        ]
-      : [],
-  );
-  const close = closeFamilyOf(selfId, edges);
+  const close = closeFamilyOf(selfId, lines);
   const kindOf = new Map<string, CloseKind>();
   for (const id of close.parents) kindOf.set(id, "parent");
   for (const p of close.partners) kindOf.set(p.id, "partner");
@@ -275,12 +256,18 @@ async function closeRelativesElsewhere(
   for (const id of close.siblings) if (!kindOf.has(id)) kindOf.set(id, "sibling");
 
   const order: CloseKind[] = ["partner", "child", "parent", "sibling"];
-  return candidates
-    .flatMap((c) => {
-      const kind = kindOf.get(c.id);
-      return kind ? [{ ...c, kind }] : [];
-    })
-    .sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind));
+  return {
+    people,
+    lines,
+    close: toBring
+      .flatMap((p) => {
+        const kind = kindOf.get(p.id);
+        return kind ? [{ id: p.id, kind }] : [];
+      })
+      .sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind))
+      .map((p) => p.id),
+    fromTrees: [...new Set(toBring.flatMap((p) => p.fromTrees))],
+  };
 }
 
 /**

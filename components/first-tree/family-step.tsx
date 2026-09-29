@@ -4,11 +4,10 @@ import * as React from "react";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 
-import { placePeople } from "@/app/actions/trees";
+import { CarryPicker } from "@/components/carry-picker";
 import { FamilyPersonChip } from "@/components/first-tree/family-person-chip";
 import { QuickRelativeDialog } from "@/components/first-tree/quick-relative-dialog";
 import { LinkPendingLabel } from "@/components/link-pending";
-import { PendingButton } from "@/components/pending-button";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -17,41 +16,24 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import { useAction } from "@/components/use-action";
 import type { CloseKind, FamilyCard } from "@/lib/first-tree";
+import type { BringChoices } from "@/lib/first-tree.server";
 import { cn } from "@/lib/utils";
-
-export type BringOption = {
-  id: string;
-  name: string;
-  lifespan: string | null;
-  fromTrees: string[];
-  needsConsent: boolean;
-  kind: CloseKind;
-};
-
-const KIND_WORD: Record<CloseKind, string> = {
-  parent: "Your parent",
-  partner: "Your partner",
-  child: "Your child",
-  sibling: "Your sibling",
-};
 
 /**
  * The founder's close family, laid out the way the tree will hold them
  * (Step 29): parents above, partners and siblings either side, children
  * below. Each empty place is a button that adds someone there, drawing the
  * lines for them (`QuickRelativeDialog`). A sibling waits for a parent to
- * share. A member who founded the tree first gets to bring the close family
- * already on their other trees, rather than add them twice.
+ * share. A member who founded the tree first gets to bring family already
+ * on their other trees, a whole line of it if they like (Step 80), rather
+ * than add them twice.
  */
 export function FamilyStep({
   treeId,
   founder,
   family,
   bring,
-  waiting,
   doneHref,
 }: {
   treeId: string;
@@ -62,8 +44,7 @@ export function FamilyStep({
     children: FamilyCard[];
     siblings: FamilyCard[];
   };
-  bring: BringOption[];
-  waiting: { personId: string; name: string }[];
+  bring: BringChoices | null;
   doneHref: string;
 }) {
   const [adding, setAdding] = React.useState<CloseKind | null>(null);
@@ -77,12 +58,23 @@ export function FamilyStep({
 
   return (
     <div className="flex flex-col gap-6">
-      {bring.length > 0 ? <BringRelatives treeId={treeId} options={bring} /> : null}
-      {waiting.length > 0 ? (
-        <p className="text-sm text-muted-foreground">
-          Waiting for {listNames(waiting.map((w) => w.name))} to say yes —
-          they&rsquo;ll appear here once they do.
-        </p>
+      {bring ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Already on {listNames(bring.fromTrees)}</CardTitle>
+            <CardDescription>
+              Bring them across instead of adding them again.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <CarryPicker
+              treeId={treeId}
+              people={bring.people}
+              lines={bring.lines}
+              suggested={bring.close}
+            />
+          </CardContent>
+        </Card>
       ) : null}
 
       <section
@@ -264,101 +256,4 @@ function Stem() {
 function listNames(names: string[]): string {
   if (names.length <= 1) return names[0] ?? "";
   return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
-}
-
-/**
- * For a member who founded the tree: their close family already on their
- * other trees, ticked, to bring across as they are. Someone who is a member
- * themselves is asked first, as any placement of a member's own entry is.
- */
-function BringRelatives({
-  treeId,
-  options,
-}: {
-  treeId: string;
-  options: BringOption[];
-}) {
-  const [unticked, setUnticked] = React.useState<Set<string>>(new Set());
-  const action = useAction();
-  const picked = options.filter((o) => !unticked.has(o.id));
-  const from = [...new Set(options.flatMap((o) => o.fromTrees))];
-
-  function onBring() {
-    if (picked.length === 0) return;
-    action.run(
-      "bring",
-      () => placePeople(treeId, picked.map((o) => o.id)),
-      {
-        // Worth saying in the founder's first run: who came across, and who
-        // was asked first.
-        success: (res) => {
-          const placed = res.placed ?? [];
-          const asked = placed.filter((p) => p.status === "pending").length;
-          const shown = placed.length - asked;
-          return (
-            [
-              shown > 0 ? `${shown} brought across` : null,
-              asked > 0 ? `${asked} asked first` : null,
-            ]
-              .filter(Boolean)
-              .join(", ") + "."
-          );
-        },
-      },
-    );
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Already on {listNames(from)}</CardTitle>
-        <CardDescription>
-          Bring them across instead of adding them again. Members are asked
-          first.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        <ul className="flex flex-col gap-2">
-          {options.map((option) => (
-            <li key={option.id}>
-              <label className="flex items-start gap-3 rounded-md border border-border p-2.5 text-sm">
-                <Checkbox
-                  id={`bring-${option.id}`}
-                  checked={!unticked.has(option.id)}
-                  onCheckedChange={(c) =>
-                    setUnticked((prev) => {
-                      const next = new Set(prev);
-                      if (c === true) next.delete(option.id);
-                      else next.add(option.id);
-                      return next;
-                    })
-                  }
-                  className="mt-0.5"
-                />
-                <span className="flex min-w-0 flex-col">
-                  <span className="font-medium text-foreground">{option.name}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {KIND_WORD[option.kind]}
-                    {option.lifespan ? ` · ${option.lifespan}` : ""}
-                    {option.needsConsent ? " · asked first" : ""}
-                  </span>
-                </span>
-              </label>
-            </li>
-          ))}
-        </ul>
-        <PendingButton
-          onClick={onBring}
-          pending={action.pending}
-          disabled={picked.length === 0}
-          pendingLabel="Bringing them across…"
-          className="self-start"
-        >
-          {picked.length === 1
-            ? "Bring them across"
-            : `Bring ${picked.length} across`}
-        </PendingButton>
-      </CardContent>
-    </Card>
-  );
 }

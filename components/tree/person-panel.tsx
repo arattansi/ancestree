@@ -64,6 +64,7 @@ import {
   type DayMonth,
 } from "@/lib/partial-date";
 import { FILL_ENTRY_NOTE, LOCKED_ENTRY_NOTE } from "@/lib/account-types";
+import { BASIC_DETAILS, waitingOn } from "@/lib/carry";
 import { blankFields } from "@/lib/fill-blanks";
 import { SEX_LABELS, type Sex } from "@/lib/person-schema";
 import { PersonTrees } from "@/components/tree/person-trees";
@@ -533,17 +534,30 @@ export function PersonPanel({
   const [prevId, setPrevId] = React.useState(person?.id);
   // Under the name in the header, as on the person's card and leaf.
   const maiden = person ? maidenLine(person) : null;
+  // A basic card (Step 80) is a name and a place of birth: nothing to edit,
+  // fill in, comment on or manage from this tree.
+  const basic = !!person?.basic;
+  const locked = readOnly || basic;
+  const waiting = person
+    ? waitingOn(person.approval, person.asked_of, personDisplayName(person))
+    : null;
+  // With no dates to show, a basic card says what it is instead.
+  const lifeLine = person
+    ? basic
+      ? BASIC_DETAILS
+      : (personLifespan(person) ?? "Living")
+    : "";
   // Something here is blank, and the viewer may fill it in (Step 44).
   const fillable =
-    !!person && canFill && !readOnly && blankFields(person).length > 0;
+    !!person && canFill && !locked && blankFields(person).length > 0;
   // What "Manage" offers this viewer. Editing sits in the header (Step 62),
   // so for some viewers nothing is left there, and the section goes.
-  const canReposition = !readOnly && canEdit && !!person?.photo_url;
+  const canReposition = !locked && canEdit && !!person?.photo_url;
   const canClaim = !isSelf && claimable && !person?.claim_status;
   const lockedNote = !canEdit && !claimable && !isSelf;
   const canDispute = person?.claim_status === "approved" && isCreator;
   const showManage =
-    !readOnly &&
+    !locked &&
     (canReposition ||
       canClaim ||
       canDelete ||
@@ -701,7 +715,7 @@ export function PersonPanel({
                       <p className="truncate text-sm text-white/80">{maiden}</p>
                     ) : null}
                     <p className="truncate text-sm text-white/80">
-                      {personLifespan(person) ?? "Living"}
+                      {lifeLine}
                       {isSelf ? " · Your entry" : ""}
                     </p>
                   </div>
@@ -719,7 +733,7 @@ export function PersonPanel({
                   </SheetTitle>
                   {maiden ? <p className="sr-only">{maiden}</p> : null}
                   <SheetDescription className="sr-only">
-                    {personLifespan(person) ?? "Living"}
+                    {lifeLine}
                   </SheetDescription>
                 </>
               ) : (
@@ -736,7 +750,7 @@ export function PersonPanel({
                       <p className="text-sm text-muted-foreground">{maiden}</p>
                     ) : null}
                     <SheetDescription>
-                      {personLifespan(person) ?? "Living"}
+                      {lifeLine}
                       {isSelf ? " · Your entry" : ""}
                     </SheetDescription>
                   </div>
@@ -769,7 +783,7 @@ export function PersonPanel({
               {/* Up here rather than under Manage at the foot of the sheet,
                   so it's found without scrolling (Step 62). Anyone who can't
                   edit it can suggest a change (Step 67). */}
-              {!readOnly ? (
+              {!locked ? (
                 <div className="flex flex-wrap gap-2">
                   {canEdit || fillable ? (
                     <Button
@@ -805,7 +819,12 @@ export function PersonPanel({
 
             <div className="flex flex-col gap-6 px-4 pb-6">
               {connectionPrompt}
-              {!readOnly ? (
+              {waiting ? (
+                <p className="rounded-md border border-dashed border-border bg-muted/40 px-3 py-2.5 text-sm text-muted-foreground">
+                  {waiting}
+                </p>
+              ) : null}
+              {!locked ? (
                 <EntrySuggestions
                   suggestions={changeSuggestions}
                   declined={declinedSuggestions}
@@ -815,6 +834,23 @@ export function PersonPanel({
               {!readOnly ? (
                 <PersonTrees personId={person.id} currentTreeId={treeId} />
               ) : null}
+              {basic ? (
+                <dl className="grid grid-cols-2 gap-4">
+                  <Field label="First name" value={person.first_name} />
+                  <Field label="Preferred name" value={person.preferred_name} />
+                  <Field label="Last name" value={person.last_name} />
+                  <PlaceField
+                    label="Place of birth"
+                    place={
+                      [person.city_of_birth, person.country_of_birth]
+                        .filter(Boolean)
+                        .join(", ") || null
+                    }
+                    placeId={person.place_id_birth}
+                    shareToken={shareToken}
+                  />
+                </dl>
+              ) : (
               <dl className="grid grid-cols-2 gap-4">
                 <Field label="First name" value={person.first_name} />
                 <Field label="Middle name" value={person.middle_name} />
@@ -883,8 +919,9 @@ export function PersonPanel({
                   </>
                 ) : null}
               </dl>
+              )}
 
-              {(canEdit || fillable) && !person.maiden_name ? (
+              {!basic && (canEdit || fillable) && !person.maiden_name ? (
                 <div className="rounded-md border border-dashed border-border bg-muted/40 px-3 py-2.5 text-xs text-muted-foreground">
                   No maiden name yet.
                 </div>
@@ -897,7 +934,7 @@ export function PersonPanel({
 
               <CompanionsSection
                 pets={pets}
-                canAdd={!readOnly && canEdit}
+                canAdd={!locked && canEdit}
                 onSelectPet={onSelectPet}
                 onAdd={() => setAddingCompanion(true)}
               />
@@ -907,7 +944,7 @@ export function PersonPanel({
                 onResolved={() => undefined}
               />
 
-              {!readOnly ? (
+              {!locked ? (
                 <section className="border-t border-border pt-5">
                   {canSeeDocuments ? (
                     <PersonDocuments
@@ -929,7 +966,7 @@ export function PersonPanel({
                 </section>
               ) : null}
 
-              {!readOnly ? (
+              {!locked ? (
                 <section className="border-t border-border pt-5">
                   <EntryComments
                     personId={person.id}

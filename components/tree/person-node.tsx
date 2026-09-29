@@ -8,6 +8,7 @@ import { LeafCard } from "@/components/tree/leaf-card";
 import { PillCard } from "@/components/tree/pill-card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { FitText } from "@/components/ui/fit-text";
+import { BASIC_DETAILS } from "@/lib/carry";
 import { cropStyle, parseCrop } from "@/lib/image-crop";
 import { nativeLeaf } from "@/lib/native-leaf";
 import { countOf } from "@/lib/plural";
@@ -293,6 +294,13 @@ function PersonNodeImpl({ data }: NodeProps) {
               title={birthplace}
             >
               {birthplace}
+            </p>
+          ) : null}
+          {/* Where the years would be, what a card without them is (Step
+              80): brought from another tree, the rest of it not yet shown. */}
+          {person.basic ? (
+            <p className="truncate text-xs text-muted-foreground italic">
+              {BASIC_DETAILS}
             </p>
           ) : null}
         </div>

@@ -2,6 +2,7 @@
 
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 
 import { requireProfile } from "@/lib/auth";
 import { bloodTiePlacementRefusal, readBloodTieRefusal } from "@/lib/bloodline";
@@ -11,6 +12,8 @@ import {
   clearCurrentTreeCookie,
   setCurrentTreeCookie,
 } from "@/lib/current-tree.server";
+import { personDisplayName } from "@/lib/person-name";
+import { alertPlacementAsks } from "@/lib/placement-alerts.server";
 import { createClient } from "@/lib/supabase/server";
 import { revalidateTreePages } from "@/lib/revalidate";
 import { redeemInvite } from "@/lib/sign-in.server";
@@ -83,20 +86,26 @@ export async function renameTree(
   return { slug: data.slug };
 }
 
-export type PlacementOutcome = { personId: string; status: string };
+export type PlacementOutcome = {
+  personId: string;
+  /** How much of them the tree shows: `asked` and `declined` are basic cards. */
+  approval: string;
+};
 
 /**
- * Root: bring people onto a tree (Step 25). Anyone the Root can see on a tree
- * they belong to, with a blood tie here once the whole batch is placed (Step
- * 55). Another member's own entry waits for that member to accept
- * (`placement_requested`); everyone else is shown at once.
+ * Root: bring people onto a tree (Steps 25 and 80). Anyone the Root can see
+ * on a tree they belong to, with a blood tie here once the whole batch is
+ * placed (Step 55). Everyone is on the tree at once: whole when the entry is
+ * the Root's own or theirs to edit, otherwise as a basic card while the
+ * member whose entry it is, or whoever may edit it on its home tree, is
+ * asked — by notice, and by an email sent once this has answered.
  */
 export async function placePeople(
   treeId: string,
   personIds: string[],
 ): Promise<{ placed?: PlacementOutcome[]; error?: string }> {
-  const { error: notRoot } = await rootOf(treeId);
-  if (notRoot) return { error: notRoot };
+  const { membership, error: notRoot } = await rootOf(treeId);
+  if (notRoot || !membership) return { error: notRoot };
   const ids = [...new Set(personIds)].filter(Boolean);
   if (ids.length === 0) return { error: "Pick at least one person." };
 
@@ -123,11 +132,39 @@ export async function placePeople(
       ),
     };
   }
+
+  const asked = (data ?? []).flatMap((r) =>
+    r.newly_asked && r.placed_person_id ? [r.placed_person_id] : [],
+  );
+  if (asked.length > 0) {
+    const selfId = membership.profile.self_person_id;
+    // Named as the notice names them: by their own entry, else the name
+    // they go by.
+    const { data: entry } = selfId
+      ? await supabase
+          .from("people")
+          .select("first_name, preferred_name, last_name")
+          .eq("id", selfId)
+          .maybeSingle()
+      : { data: null };
+    const placerName = entry
+      ? personDisplayName(entry)
+      : membership.profile.display_name?.trim() || "A relative";
+    after(() =>
+      alertPlacementAsks({
+        treeId,
+        treeName: membership.tree.name,
+        placerName,
+        personIds: asked,
+      }),
+    );
+  }
+
   revalidateTreePages();
   return {
     placed: (data ?? []).map((r) => ({
       personId: r.placed_person_id ?? "",
-      status: r.placement_status ?? "",
+      approval: r.placement_approval ?? "none",
     })),
   };
 }
@@ -159,44 +196,63 @@ export async function bringOwnEntry(treeId: string): Promise<{ error?: string }>
   return {};
 }
 
-/** The person a placement waits on accepts or declines it. */
+/** What a refused answer says (Step 80). */
+const ANSWER_RULES: readonly ErrorRule[] = [
+  ["no longer exists", "That request no longer exists."],
+  ["only the person", "Only the person this entry belongs to can answer."],
+  [
+    "only someone who can edit",
+    "Only someone who can edit this entry can answer.",
+  ],
+  ["home tree shows", "An entry’s home tree always shows all of it."],
+  ...TREE_RULES,
+];
+
+/**
+ * Yes or no to showing whole entries on a tree that isn't their home (Step
+ * 80): the member whose entry it is, or for nobody's own entry whoever may
+ * edit it. A no leaves the basic card; either answer can be changed later.
+ */
+export async function answerPlacements(
+  placementIds: string[],
+  accept: boolean,
+): Promise<{ answered?: number; error?: string }> {
+  await requireProfile();
+  const ids = [...new Set(placementIds)].filter(Boolean);
+  if (ids.length === 0) return { error: "Nothing to answer." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("answer_placements", {
+    p_placement_ids: ids,
+    p_accept: accept,
+  });
+  if (error) {
+    return { error: friendlyDbError(error.message, ANSWER_RULES, TREE_FALLBACK) };
+  }
+  revalidateTreePages();
+  return { answered: (data ?? []).length };
+}
+
+/** One answer, from a notice's buttons. */
 export async function respondToPlacement(
   placementId: string,
   accept: boolean,
 ): Promise<{ error?: string }> {
-  await requireProfile();
-  const supabase = await createClient();
-  const { error } = await supabase.rpc("respond_to_placement", {
-    p_placement_id: placementId,
-    p_accept: accept,
-  });
-  if (error) {
-    return {
-      error: friendlyDbError(
-        error.message,
-        [
-          ["already answered", "That request was already answered."],
-          ["no longer exists", "That request no longer exists."],
-          ["only the person", "Only the person this entry belongs to can answer."],
-          ...TREE_RULES,
-        ],
-        TREE_FALLBACK,
-      ),
-    };
-  }
-  revalidateTreePages();
-  return {};
+  const { error } = await answerPlacements([placementId], accept);
+  return error ? { error } : {};
 }
 
 /**
- * Take a person off a tree that isn't their home: a Root of that tree, or
- * the person themselves. Their entry and its connections are untouched.
+ * Root: take a person off a tree that isn't their home. Their entry and its
+ * connections are untouched. The person themselves no longer can (Step 80):
+ * a basic card needs nobody's yes, and what they take back is the rest of
+ * their entry (`answerPlacements`).
  */
 export async function removePlacement(
   treeId: string,
   personId: string,
 ): Promise<{ error?: string }> {
-  await requireProfile();
+  const { error: notRoot } = await rootOf(treeId);
+  if (notRoot) return { error: notRoot };
   const supabase = await createClient();
   const removed = await ownedWrite(
     supabase
@@ -206,8 +262,7 @@ export async function removePlacement(
       .eq("person_id", personId)
       .select("id"),
     {
-      refused:
-        "Only a Root of this tree, or the person themselves, can remove them from it.",
+      refused: "They aren’t on this tree any more.",
       failed: (m) =>
         friendlyDbError(
           m,

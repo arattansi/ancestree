@@ -153,7 +153,6 @@ export async function FirstTreeOnboarding({
             founder={founder}
             family={data.family}
             bring={data.bring}
-            waiting={data.waiting}
             doneHref={next}
           />
         </>

@@ -20,10 +20,20 @@ import { answeredLine } from "@/lib/suggestions";
 import { timeAgo } from "@/lib/time-ago";
 import {
   adminHref,
+  asksHref,
   newTreeHref,
   suggestChangeHref,
   treeFocusHref,
 } from "@/lib/tree-links";
+
+/**
+ * An ask to show an entry on another tree (Step 80): the tree asking is
+ * often one they aren't on, and the entry is there as a basic card, so
+ * there is nothing of theirs to open on it.
+ */
+function asksAboutAnotherTree(type: string): boolean {
+  return type === "placement_requested" || type === "placements_requested";
+}
 
 /**
  * Fired once a list has marked its notifications read, so the header's bell
@@ -145,7 +155,7 @@ function NotificationRow({
       () => respondToPlacement(id, accept),
       {
         // Their entry now shows on another tree, which nothing here says.
-        success: accept ? "You're on that tree now." : undefined,
+        success: accept ? "Approved." : "Declined.",
         onSuccess: answered,
       },
     );
@@ -235,10 +245,10 @@ function NotificationRow({
               size="sm"
               pending={action.pendingKey === "placement:accept"}
               disabled={busy}
-              pendingLabel="Accepting…"
+              pendingLabel="Approving…"
               onClick={() => onPlacement(placementId, true)}
             >
-              Accept
+              Approve
             </PendingButton>
             <PendingButton
               size="sm"
@@ -270,7 +280,19 @@ function NotificationRow({
           </TreeTarget>
         ) : null}
 
-        {n.personId && n.treeId ? (
+        {n.type === "placements_requested" ? (
+          // Step 80: entries they may edit, asked for by another tree.
+          // Answered on their account, one by one or all at once.
+          <Button
+            nativeButton={false}
+            render={<Link href={asksHref()} />}
+            size="sm"
+          >
+            Review
+          </Button>
+        ) : null}
+
+        {n.personId && n.treeId && !asksAboutAnotherTree(n.type) ? (
           // The item's tree may not be the one being looked at: switch
           // to it, then open the person.
           <TreeTarget

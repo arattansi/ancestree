@@ -68,10 +68,7 @@ import { listNicknameGroups } from "@/lib/nicknames.server";
 import { countOf } from "@/lib/plural";
 import { membersOnOtherTrees } from "@/lib/remove-member.server";
 import { listRequestCandidates } from "@/lib/request-candidates.server";
-import {
-  listForeignPlacements,
-  listPlacementCandidates,
-} from "@/lib/placements.server";
+import { listCarried, listCarryChoices } from "@/lib/placements.server";
 import { getSiteUrl } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/server";
 import { listMyTrees, type TreeMembership } from "@/lib/tree-context";
@@ -131,8 +128,8 @@ export async function AdminConsole({
     [inviteHistory, bareInvites, archivedInvites],
     familyLink,
     familyLinkJoins,
-    candidates,
-    foreign,
+    carry,
+    carried,
     reviewer,
     treeRequests,
     nicknameGroups,
@@ -189,8 +186,8 @@ export async function AdminConsole({
     familyLinkP,
     // Who joined with the family link, this one or an earlier one (Step 52).
     familyLinkP.then((link) => listFamilyLinkJoins(tree.id, link?.id ?? null)),
-    listPlacementCandidates(tree.id),
-    listForeignPlacements(tree.id),
+    listCarryChoices(tree.id),
+    listCarried(tree.id),
     reviewerP,
     // Requests to start a tree (Step 28) are the site's, not this tree's: the
     // same queue shows on every console a beta reviewer runs.
@@ -294,8 +291,9 @@ export async function AdminConsole({
     if (p.is_home === false) fromElsewhere += 1;
   }
 
-  const pendingPlacements = foreign.filter(
-    (f) => f.status === "pending",
+  // Cards still waiting on someone's yes (Step 80).
+  const pendingPlacements = carried.filter(
+    (c) => c.approval === "asked",
   ).length;
   const actionItems = buildAdminActionItems({
     inviteRequests: inviteRequests.length,
@@ -532,17 +530,18 @@ export async function AdminConsole({
         description="Everyone has one entry. Bring people you can see on your other trees onto this one; their details stay theirs to keep, and each tree arranges them on its own canvas."
         sectionIds={["placements"]}
         badge={pendingPlacements}
-        defaultOpen={fromElsewhere === 0 && candidates.length > 0}
+        defaultOpen={fromElsewhere === 0 && carry.people.some((p) => !p.here)}
       >
         <AdminSubsection
           id="placements"
           title="Who This Tree Shows"
-          description={`${countOf(fromElsewhere, "person", "people")} on this tree call another tree home. Their details, photo and connections follow their home tree’s rules; what you decide here is whether they appear, and where the card sits. A member’s own entry only appears once they’ve said yes.`}
+          description={`${countOf(fromElsewhere, "person", "people")} on this tree call another tree home. Each arrives with their name and place of birth; the rest shows once they, or a Root or Branch of their home tree, approve.`}
         >
           <AdminPlacements
             treeId={tree.id}
-            candidates={candidates}
-            placed={foreign}
+            people={carry.people}
+            lines={carry.lines}
+            carried={carried}
           />
         </AdminSubsection>
       </AdminGroup>

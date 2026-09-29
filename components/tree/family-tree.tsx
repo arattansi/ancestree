@@ -95,6 +95,7 @@ import {
   type EntrySubject,
   type Viewer,
 } from "@/lib/branch";
+import { BASIC_DETAILS } from "@/lib/carry";
 import type { EntryInvite } from "@/lib/claim-invites";
 import { mergeConfirmation, relativesThatMove } from "@/lib/claim-merge";
 import type { ClaimCandidate } from "@/lib/claims";
@@ -844,7 +845,9 @@ function FoldedDetails({
             </span>
           ) : null}
           <span className="truncate text-xs text-muted-foreground">
-            {personLifespan(person) ?? "Living"}
+            {person.basic
+              ? BASIC_DETAILS
+              : (personLifespan(person) ?? "Living")}
             {isSelf ? " · Your entry" : ""}
           </span>
         </span>
@@ -2349,6 +2352,9 @@ function Canvas({
   const relations = React.useMemo<PersonRelation[]>(() => {
     if (!selectedId) return [];
     const nameById = new Map(people.map((p) => [p.id, personDisplayName(p)]));
+    // A line to a basic card is another tree's, unless it was drawn here
+    // or by the viewer (Step 80).
+    const basicIds = new Set(people.filter((p) => p.basic).map((p) => p.id));
     return relationships
       .filter(
         (r) =>
@@ -2376,7 +2382,11 @@ function Canvas({
             marriageWithoutYear: asDayMonth(r.marriage_month, r.marriage_day),
             isDivorced: r.is_divorced,
             divorceDate: r.divorce_date,
-            canEdit: canEditConnection(r, viewer),
+            canEdit:
+              canEditConnection(r, viewer) &&
+              (r.drawn_here ||
+                r.created_by === viewer.userId ||
+                !(basicIds.has(r.from_person) || basicIds.has(r.to_person))),
           },
         ];
       });

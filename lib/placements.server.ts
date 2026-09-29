@@ -3,8 +3,10 @@ import "server-only";
 import { cache } from "react";
 
 import { getSessionUser } from "@/lib/auth";
+import { isCarryAsk, type CarryLine, type CarryPerson } from "@/lib/carry";
 import { personDisplayName, personLifespan } from "@/lib/person-name";
 import { createClient } from "@/lib/supabase/server";
+import { readIn, type PlacementApproval } from "@/lib/tree";
 
 /**
  * Whether an entry is on a tree now (an active placement), as far as the
@@ -25,61 +27,57 @@ export const isPlacedOn = cache(
   },
 );
 
-export type PlacementCandidate = {
-  id: string;
-  name: string;
-  lifespan: string | null;
-  /** The trees the caller can see them on. */
-  fromTrees: string[];
-  /** Another member's own entry: placing it waits for their yes. */
-  needsConsent: boolean;
+/** What a Root may bring onto `treeId`, and the lines a family is read from. */
+export type CarryChoices = {
+  /**
+   * Everyone the caller can see in full on their other trees, by name.
+   * Those on this tree already are there to pick a line from (`here`).
+   */
+  people: CarryPerson[];
+  /** The lines between them, as the other trees draw them. */
+  lines: CarryLine[];
 };
 
 /**
- * People a Root could bring onto `treeId` (Step 25): everyone the caller can
- * see on their other trees who isn't shown on this one yet. Grouped by name
- * so one person on two trees appears once.
+ * Who a Root could bring onto `treeId` (Steps 25 and 80): everyone they can
+ * see in full on their other trees, each with what bringing them over would
+ * ask (`placement_preview`), and the lines between them, so "All descendants
+ * of" can be answered as they pick. Someone on two trees appears once. A
+ * basic card on another tree isn't theirs to pass on, so it's left out.
  */
-export async function listPlacementCandidates(
-  treeId: string,
-): Promise<PlacementCandidate[]> {
+export async function listCarryChoices(treeId: string): Promise<CarryChoices> {
   const user = await getSessionUser();
-  if (!user) return [];
+  if (!user) return { people: [], lines: [] };
   const supabase = await createClient();
 
   // No embed here: `tree_people` is a view, and PostgREST can't follow a
   // relationship from it; tree names come from `trees` directly.
-  const [{ data: rows }, { data: here }, { data: owned }, { data: claimed }, { data: trees }] =
+  const [{ data: rows }, { data: here }, { data: trees }, { data: edges }] =
     await Promise.all([
       supabase
         .from("tree_people")
         .select(
           "id, tree_id, first_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_death, date_of_birth_circa, date_of_death_circa, is_deceased",
         )
-        .neq("tree_id", treeId),
+        .neq("tree_id", treeId)
+        .eq("detail", "full"),
       supabase
         .from("tree_placements")
-        .select("person_id, status")
-        .eq("tree_id", treeId),
-      supabase
-        .from("profiles")
-        .select("auth_user_id, self_person_id")
-        .not("self_person_id", "is", null),
-      supabase.from("claims").select("person_id, claimant_user_id").eq("status", "approved"),
+        .select("person_id")
+        .eq("tree_id", treeId)
+        .eq("status", "active"),
       supabase.from("trees").select("id, name"),
+      supabase
+        .from("tree_edges")
+        .select("from_person, to_person, type")
+        .neq("tree_id", treeId),
     ]);
   const treeName = new Map((trees ?? []).map((t) => [t.id, t.name]));
+  const shown = new Set((here ?? []).map((p) => p.person_id));
 
-  const shown = new Set(
-    (here ?? []).filter((p) => p.status !== "declined").map((p) => p.person_id),
-  );
-  const ownerOf = new Map<string, string>();
-  for (const p of owned ?? []) if (p.self_person_id) ownerOf.set(p.self_person_id, p.auth_user_id);
-  for (const c of claimed ?? []) if (!ownerOf.has(c.person_id)) ownerOf.set(c.person_id, c.claimant_user_id);
-
-  const byId = new Map<string, PlacementCandidate>();
+  const byId = new Map<string, CarryPerson>();
   for (const r of rows ?? []) {
-    if (!r.id || !r.last_name || shown.has(r.id)) continue;
+    if (!r.id || !r.last_name) continue;
     const name = r.tree_id ? treeName.get(r.tree_id) : undefined;
     const existing = byId.get(r.id);
     if (existing) {
@@ -87,55 +85,116 @@ export async function listPlacementCandidates(
       continue;
     }
     const person = { ...r, last_name: r.last_name, is_deceased: r.is_deceased ?? false };
-    const owner = ownerOf.get(r.id);
     byId.set(r.id, {
       id: r.id,
       name: personDisplayName(person),
       lifespan: personLifespan(person),
       fromTrees: name ? [name] : [],
-      needsConsent: !!owner && owner !== user.id,
+      here: shown.has(r.id),
+      // Until the database says otherwise, the careful answer.
+      asks: "stewards",
     });
   }
-  return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
+
+  const toBring = [...byId.values()].filter((p) => !p.here).map((p) => p.id);
+  const previews = await readIn(toBring, (chunk) =>
+    supabase.rpc("placement_preview", { p_person_ids: chunk }),
+  );
+  for (const row of previews) {
+    const person = byId.get(row.person_id);
+    if (person && isCarryAsk(row.asks)) person.asks = row.asks;
+  }
+
+  const seen = new Set<string>();
+  const lines = (edges ?? []).flatMap((e): CarryLine[] => {
+    if (!e.from_person || !e.to_person || !e.type) return [];
+    if (!byId.has(e.from_person) || !byId.has(e.to_person)) return [];
+    const key = `${e.type}:${e.from_person}:${e.to_person}`;
+    if (seen.has(key)) return [];
+    seen.add(key);
+    return [{ from_person: e.from_person, to_person: e.to_person, type: e.type }];
+  });
+
+  return {
+    people: [...byId.values()].sort((a, b) => a.name.localeCompare(b.name)),
+    lines,
+  };
 }
 
-export type ForeignPlacement = {
+export type CarriedPerson = {
   placementId: string;
   personId: string;
   name: string;
-  status: "active" | "pending" | "declined";
   homeTreeName: string | null;
+  approval: PlacementApproval;
+  /** Whose yes it waits on, or waited on; `null` when nobody was asked. */
+  askedOf: "owner" | "stewards" | null;
 };
 
 /**
- * Everyone on `treeId` whose home is elsewhere, plus placements still waiting
- * on (or declined by) the person. What the Root has brought over.
+ * Everyone on `treeId` whose home is elsewhere, newest first: how much of
+ * each the tree shows, and whose yes the rest waits on (`tree_carried`,
+ * which answers a Root of the tree and nobody else).
  */
-export async function listForeignPlacements(
-  treeId: string,
-): Promise<ForeignPlacement[]> {
+export async function listCarried(treeId: string): Promise<CarriedPerson[]> {
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("tree_placements")
-    .select(
-      "id, status, person_id, people!inner(id, tree_id, first_name, preferred_name, last_name, trees(name))",
-    )
-    .eq("tree_id", treeId)
-    .neq("people.tree_id", treeId)
-    .order("created_at", { ascending: false });
-
-  return (data ?? []).flatMap((p) => {
-    const person = Array.isArray(p.people) ? p.people[0] : p.people;
-    if (!person) return [];
-    const home = Array.isArray(person.trees) ? person.trees[0] : person.trees;
-    return [
-      {
-        placementId: p.id,
-        personId: p.person_id,
-        name: personDisplayName(person),
-        status: p.status as ForeignPlacement["status"],
-        homeTreeName: home?.name ?? null,
-      },
-    ];
-  });
+  const { data } = await supabase.rpc("tree_carried", { p_tree: treeId });
+  return (data ?? []).map((row) => ({
+    placementId: row.placement_id,
+    personId: row.person_id,
+    name: row.person_name || "Unnamed person",
+    homeTreeName: row.home_tree_name ?? null,
+    approval:
+      row.approval === "asked" ||
+      row.approval === "approved" ||
+      row.approval === "declined"
+        ? row.approval
+        : "none",
+    askedOf:
+      row.asked_of === "owner" || row.asked_of === "stewards"
+        ? row.asked_of
+        : null,
+  }));
 }
+
+export type PlacementAsk = {
+  placementId: string;
+  treeId: string;
+  treeName: string;
+  personId: string;
+  personName: string;
+  /** Their own entry, rather than one they may edit. */
+  own: boolean;
+  homeTreeName: string;
+  askedByName: string | null;
+  approval: "asked" | "approved" | "declined";
+};
+
+/**
+ * What's been asked of the member, answered or not (`placement_asks`): their
+ * own entry on trees that aren't its home, and nobody's own entries they may
+ * edit. The trees asking are often ones they aren't on.
+ */
+export const listPlacementAsks = cache(async (): Promise<PlacementAsk[]> => {
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("placement_asks");
+  return (data ?? []).flatMap((row): PlacementAsk[] =>
+    row.approval === "asked" ||
+    row.approval === "approved" ||
+    row.approval === "declined"
+      ? [
+          {
+            placementId: row.placement_id,
+            treeId: row.tree_id,
+            treeName: row.tree_name,
+            personId: row.person_id,
+            personName: row.person_name || "Unnamed person",
+            own: row.own,
+            homeTreeName: row.home_tree_name,
+            askedByName: row.asked_by_name || null,
+            approval: row.approval,
+          },
+        ]
+      : [],
+  );
+});

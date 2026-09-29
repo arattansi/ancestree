@@ -112,6 +112,15 @@ export function newTreeHref(): string {
 }
 
 /**
+ * Where a member answers what's been asked of them (Step 80): their
+ * account's settings, which open on Asked of You while anything waits. An
+ * email's button; callers add the site's origin.
+ */
+export function asksHref(): string {
+  return "/account?view=settings#asked-of-you";
+}
+
+/**
  * `relatedTo` as the add flow should use it: one id that is on the tree, or
  * nothing. Anything else — missing, repeated, or someone not on the tree — is
  * ignored rather than refused, so a stale link still opens the plain flow.

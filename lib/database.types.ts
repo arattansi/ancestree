@@ -1752,7 +1752,11 @@ export type Database = {
       }
       tree_placements: {
         Row: {
+          answered_by: string | null
+          approval: string
+          asked_at: string | null
           created_at: string
+          detail: string
           id: string
           person_id: string
           placed_by: string | null
@@ -1766,7 +1770,11 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          answered_by?: string | null
+          approval?: string
+          asked_at?: string | null
           created_at?: string
+          detail?: never
           id?: string
           person_id: string
           placed_by?: string | null
@@ -1780,7 +1788,11 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          answered_by?: string | null
+          approval?: string
+          asked_at?: string | null
           created_at?: string
+          detail?: never
           id?: string
           person_id?: string
           placed_by?: string | null
@@ -1794,6 +1806,20 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "tree_placements_answered_by_fkey"
+            columns: ["answered_by"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "tree_placements_answered_by_fkey"
+            columns: ["answered_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
           {
             foreignKeyName: "tree_placements_person_id_fkey"
             columns: ["person_id"]
@@ -2199,6 +2225,8 @@ export type Database = {
       }
       tree_people: {
         Row: {
+          approval: string | null
+          asked_of: string | null
           birth_day: number | null
           birth_month: number | null
           blurred: boolean | null
@@ -2212,6 +2240,7 @@ export type Database = {
           date_of_death: string | null
           date_of_death_circa: boolean | null
           date_of_death_precision: string | null
+          detail: string | null
           email: string | null
           email_visible: boolean | null
           first_name: string | null
@@ -2334,6 +2363,13 @@ export type Database = {
         Returns: Json
       }
       address_has_profile: { Args: { p_email: string }; Returns: boolean }
+      answer_placements: {
+        Args: { p_accept: boolean; p_placement_ids: string[] }
+        Returns: {
+          placement_approval: string
+          placement_id: string
+        }[]
+      }
       beta_reviewer_emails: { Args: never; Returns: string[] }
       can_delete_person: { Args: { p_person_id: string }; Returns: boolean }
       can_invite_to_claim: { Args: { p_person_id: string }; Returns: boolean }
@@ -2522,8 +2558,44 @@ export type Database = {
       place_people: {
         Args: { p_person_ids: string[]; p_tree: string }
         Returns: {
+          newly_asked: boolean
           placed_person_id: string
+          placement_approval: string
           placement_status: string
+        }[]
+      }
+      placement_ask_recipients: {
+        Args: { p_person_ids: string[]; p_tree: string }
+        Returns: {
+          email: string
+          entries: number
+          home_tree_name: string
+          kind: string
+          person_name: string
+        }[]
+      }
+      placement_asks: {
+        Args: never
+        Returns: {
+          approval: string
+          asked_at: string
+          asked_by_name: string
+          home_tree_id: string
+          home_tree_name: string
+          own: boolean
+          person_id: string
+          person_name: string
+          placement_id: string
+          responded_at: string
+          tree_id: string
+          tree_name: string
+        }[]
+      }
+      placement_preview: {
+        Args: { p_person_ids: string[] }
+        Returns: {
+          asks: string
+          person_id: string
         }[]
       }
       record_share_link_view: {
@@ -2642,6 +2714,20 @@ export type Database = {
           p_values: Json
         }
         Returns: string[]
+      }
+      tree_carried: {
+        Args: { p_tree: string }
+        Returns: {
+          approval: string
+          asked_at: string
+          asked_of: string
+          detail: string
+          home_tree_name: string
+          person_id: string
+          person_name: string
+          placement_id: string
+          responded_at: string
+        }[]
       }
       tree_root_emails: { Args: { p_tree_id: string }; Returns: string[] }
       trees_matching_name: {

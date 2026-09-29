@@ -21,6 +21,7 @@ import { HomeTreePicker } from "@/components/home-tree-picker";
 import { NotificationsList } from "@/components/notifications-list";
 import { AccountViewSkeleton } from "@/components/page-skeletons";
 import { PersonForm } from "@/components/person-form";
+import { PlacementAsks } from "@/components/placement-asks";
 import { RelativesCanAsk } from "@/components/relatives-can-ask";
 import { RelayInvites, type PendingRelay } from "@/components/relay-invites";
 import { SubmitButton } from "@/components/submit-button";
@@ -48,6 +49,7 @@ import { INVITE_LIFETIME_DAYS } from "@/lib/limits";
 import { openedRelayNote } from "@/lib/opened-relay";
 import { loadOpenedRelay } from "@/lib/opened-relay.server";
 import { loadOwnEntry } from "@/lib/own-entry.server";
+import { listPlacementAsks } from "@/lib/placements.server";
 import { listRelayCandidates } from "@/lib/relay-candidates.server";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -266,6 +268,7 @@ async function SettingsView({
     selfEntry,
     branchSideByTree,
     { data: otherMembers },
+    asks,
   ] = await Promise.all([
     listNotifications(profile.auth_user_id),
     supabase
@@ -327,6 +330,9 @@ async function SettingsView({
           .in("tree_id", runIds)
           .neq("auth_user_id", profile.auth_user_id)
       : { data: [] },
+    // What other trees have asked to show in full (Step 80): their own
+    // entry, and nobody's own entries they may edit.
+    listPlacementAsks(),
   ]);
   const invitedByTree = new Map(
     (directory ?? []).map((d) => [d.tree_id, d.invited_by_name]),
@@ -394,6 +400,21 @@ async function SettingsView({
 
   return (
     <div className="grid gap-6 md:grid-cols-2">
+      {asks.length > 0 ? (
+        <Card id="asked-of-you" className="scroll-mt-24 md:col-span-2">
+          <CardHeader>
+            <CardTitle>Asked of You</CardTitle>
+            <CardDescription>
+              These trees show a name and place of birth already. The rest
+              shows once approved.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <PlacementAsks asks={asks} />
+          </CardContent>
+        </Card>
+      ) : null}
+
       {relays.length > 0 || openedRelayGone ? (
         <Card id="relatives-asking" className="md:col-span-2">
           <CardHeader>
@@ -544,8 +565,8 @@ async function SettingsView({
             <CardDescription>
               One entry, shown on{" "}
               {shownOn.length === 1 ? "one tree" : `${shownOn.length} trees`}:{" "}
-              {shownOn.map((t) => t.name).join(", ")}. A Root asks before
-              showing it on theirs; you can answer from your inbox below.
+              {shownOn.map((t) => t.name).join(", ")}. Other trees can show
+              your name and place of birth; the rest waits for your yes.
             </CardDescription>
           </CardHeader>
           <CardContent>
