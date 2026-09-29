@@ -126,6 +126,7 @@ import {
 import { layoutPets } from "@/lib/pet-layout";
 import type { TreePet } from "@/lib/pets";
 import {
+  maidenLine,
   personDisplayName,
   personHasDied,
   personInitials,
@@ -795,6 +796,7 @@ function FoldedDetails({
   expandRef: React.Ref<HTMLButtonElement>;
 }) {
   const name = personDisplayName(person);
+  const maiden = maidenLine(person);
   return (
     <div
       className="flex w-full items-center gap-1 rounded-2xl border bg-card p-1.5 text-sm shadow-md"
@@ -824,6 +826,11 @@ function FoldedDetails({
         </Avatar>
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="truncate font-medium text-foreground">{name}</span>
+          {maiden ? (
+            <span className="truncate text-xs text-muted-foreground">
+              {maiden}
+            </span>
+          ) : null}
           <span className="truncate text-xs text-muted-foreground">
             {personLifespan(person) ?? "Living"}
             {isSelf ? " · Your entry" : ""}
