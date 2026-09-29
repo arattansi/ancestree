@@ -237,6 +237,29 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   action's answer means (`actionError`, `isRedirect`, `UNREACHABLE`;
   `.test.ts`); `tap-target` in `app/globals.css` — a 44 px hit area on
   touch screens
+- Shared pieces, one copy each (Step 77.4; `.test.ts` beside the pure
+  ones): `lib/limits.ts` (what the browser and server both hold to: invite
+  lifetime, tree name, comment, note, display name, share link; the emails
+  and pages that name them read them from here), `lib/expiry.ts`
+  (`isExpired` at the database's own boundary — lapsed at the moment
+  itself — and `expiresAfter`), `lib/short-date.ts` (`shortDate`, "23 Sep
+  2026" in UTC, the same on the server and in every browser),
+  `lib/plural.ts` (`plural`, `countOf`), `lib/email-address.ts`
+  (`isEmailAddress`), `lib/member-names.server.ts` (`memberNames`),
+  `components/copy-text.ts` (`copyText`), `lib/db-errors.ts`
+  (`friendlyDbError` over each action's rules; `ownedWrite`, which reads an
+  update or delete that row-level security skipped — no rows back — as a
+  refusal, not a success), `membershipOf` / `rootOf` answering a union
+  (the membership, or why not); photos: `lib/photo-path.ts` (the bucket
+  layout its policies read, `photoPath` / `photoPathOwner`),
+  `lib/photo-upload.ts` (`uploadPhoto` under the file's own type,
+  `attachPhoto`, which removes a file the entry refused, `discardPhoto`;
+  the Supabase client loads only when a photo is sent),
+  `components/use-photo-draft.ts` (`usePhotoDraft`, `usePickedUrl`),
+  `sameCrop` in `lib/image-crop.ts`; `components/spouse-dates-fields.tsx`
+  + `lib/spouse-dates.ts` (a marriage's dates in every form, stored and
+  normalized one way); `lib/entry-view.server.ts` (`signedPhotoUrl(s)`,
+  `placeLabels`)
 - `components/person-fields.tsx` — shared demographic fieldset; `person-form.tsx` —
   edit an existing entry (on the edit page its buttons float:
   `floating-form-actions.tsx`, Step 59); `add-person-flow.tsx` — self / relative add with chain
@@ -1425,6 +1448,58 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 77.4 — Efficiency audit, phase 4: one copy of each shared piece,
+  and the bugs the copies hid** (ad-hoc; no migration; the audit's findings
+  R2–R5; the fourth of seven parts). **Photos:** seven forms each uploaded
+  a photo their own way; now one does (`lib/photo-upload.ts`, the bucket's
+  layout in `lib/photo-path.ts`, the picker's state in `usePhotoDraft`).
+  With it: a companion's **Reposition** on the photo it has now saves (it
+  was dropped); a picture the picker couldn't remake is stored as the PNG
+  or WebP it is, not as a `.jpg`; a photo the entry refused is removed
+  rather than left in the bucket; the photo actions take only a path in the
+  entry's own folder, a companion's on its own tree; the Supabase client
+  loads only when a photo is sent. **Marriage dates:** one set of fields
+  for the add-a-relative form, a first run's partner, a new connection and
+  a spouse's row on the sheet, stored one way everywhere (a divorce date
+  only for a divorce) and read one way by the three actions. **Helpers:**
+  one copy each of the limits both sides hold to (the emails and pages
+  that name the invite lifetime read it), of when something has lapsed (at
+  the database's own boundary: an invite or share link at its expiry
+  moment is expired everywhere now), of a short date ("23 Sep 2026", the
+  same on the server and in every browser, so the page no longer changes
+  as it loads), of plurals (nought reads as plural), of the email check,
+  of member names, of copying a link, of an entry's photo address and
+  place names, and of the entry-to-form mapping. **Actions:**
+  `membershipOf` and `rootOf` answer the membership or why not, never
+  neither, so a guard can't hand back a silent success; each action's
+  refusals are said through one `friendlyDbError`; and a write that
+  row-level security quietly skipped now says so rather than reporting
+  success — unlinking a companion, removing one (its photo went too),
+  deleting a companion's comment, revoking a share link, deleting an
+  invite record. **Verified:** in headless Chrome on live as throwaway
+  members of two throwaway trees, against dev and a production build: a
+  new photo on an entry landed in its folder as the JPEG the picker made,
+  and a new framing alone saved on the same file; a companion's photo
+  landed under `pets/` on its tree, and its Reposition alone saved — on the
+  live code (`8554ffe`) it didn't; a new companion with a picture the
+  picker couldn't read was stored as `.png` / `image/png` — on the live
+  code, as `.jpg` / `image/jpeg`; a Leaf's photo filled in her mother's
+  unclaimed entry; a relative added with a photo got it; the spouse row
+  handed focus to the marriage date, saved a new one and refused a divorce
+  before it; a new connection's marriage and a spouse added from the form
+  saved their dates (`2011-02-03`, `2005-06-07`, no divorce date); the Root
+  console spelled dates "29 Sep 2026" and counted "0 views"; the trees page
+  counted entries and members. As a Leaf, row-level security skipped an
+  unlink, a revoke and a delete with no error (0 rows) — what the old code
+  took for success, rolled back. The live code and this side by side in
+  dev, 50 pages loaded as the same seven throwaway members: every page's
+  data identical, but for the build's own script chunks. No console errors
+  but one the live code shows too (Add a companion resets its form while
+  drawing). The throwaway users, trees, photo files and rows were deleted
+  after. Rebased onto Steps 79 and 81, the account page's own entry opens
+  their circa dates through the same mapping as the edit page. 1180 tests
+  pass (30 new); tsc, lint and `next build` are clean.
 
 - **Step 81 — Circa: a rough date of birth or death** (ad-hoc; migration
   `20260929010000_circa_dates`). Aalim: "when inputting DOB and DOD, allow
