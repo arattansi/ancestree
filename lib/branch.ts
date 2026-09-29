@@ -26,6 +26,14 @@
 
 import { accountTypeOf } from "@/lib/account-types";
 import { upThenDownIds, type ParentEdge } from "@/lib/bloodline";
+import {
+  partnersOf,
+  reach,
+  stepsOf,
+  toChildren,
+  toParents,
+  toSiblings,
+} from "@/lib/graph-walk";
 
 export type BranchEdge = ParentEdge;
 
@@ -38,13 +46,7 @@ function withPartners(
   line: Set<string>,
   edges: readonly BranchEdge[],
 ): Set<string> {
-  const partners = new Set<string>();
-  for (const e of edges) {
-    if (e.type !== "spouse") continue;
-    if (line.has(e.from_person)) partners.add(e.to_person);
-    if (line.has(e.to_person)) partners.add(e.from_person);
-  }
-  for (const id of partners) line.add(id);
+  for (const id of partnersOf(line, edges)) line.add(id);
   return line;
 }
 
@@ -115,40 +117,12 @@ export function lineIds(
   personId: string,
   edges: readonly BranchEdge[],
 ): Set<string> {
-  const parents = new Map<string, string[]>(); // child -> parents
-  const children = new Map<string, string[]>(); // parent -> children
-  const siblings = new Map<string, string[]>();
-  const link = (map: Map<string, string[]>, from: string, to: string) => {
-    const list = map.get(from);
-    if (list) list.push(to);
-    else map.set(from, [to]);
-  };
-  for (const e of edges) {
-    if (e.type === "parent") {
-      link(parents, e.to_person, e.from_person);
-      link(children, e.from_person, e.to_person);
-    } else if (e.type === "sibling") {
-      link(siblings, e.from_person, e.to_person);
-      link(siblings, e.to_person, e.from_person);
-    }
-  }
-
-  const walk = (seed: Iterable<string>, next: Map<string, string[]>) => {
-    const seen = new Set<string>(seed);
-    const queue = [...seen];
-    while (queue.length > 0) {
-      for (const id of next.get(queue.pop()!) ?? []) {
-        if (seen.has(id)) continue;
-        seen.add(id);
-        queue.push(id);
-      }
-    }
-    return seen;
-  };
-
-  const kin = walk(walk([personId], parents), siblings);
+  const kin = reach(
+    reach([personId], stepsOf(edges, toParents)),
+    stepsOf(edges, toSiblings),
+  );
   // As on a branch, with the partners the line married.
-  return withPartners(walk(kin, children), edges);
+  return withPartners(reach(kin, stepsOf(edges, toChildren)), edges);
 }
 
 /**
@@ -163,23 +137,7 @@ export function descendantIds(
   roots: readonly string[],
   edges: readonly BranchEdge[],
 ): Set<string> {
-  const children = new Map<string, string[]>();
-  for (const e of edges) {
-    if (e.type !== "parent") continue;
-    const list = children.get(e.from_person);
-    if (list) list.push(e.to_person);
-    else children.set(e.from_person, [e.to_person]);
-  }
-  const line = new Set<string>(roots);
-  const queue = [...line];
-  while (queue.length > 0) {
-    for (const child of children.get(queue.pop()!) ?? []) {
-      if (line.has(child)) continue;
-      line.add(child);
-      queue.push(child);
-    }
-  }
-  return withPartners(line, edges);
+  return withPartners(reach(roots, stepsOf(edges, toChildren)), edges);
 }
 
 /**

@@ -40,6 +40,8 @@
  * always lays out the same way and the whole thing is unit-testable.
  */
 
+import { reach, stepsOf, toChildren, toParents } from "@/lib/graph-walk";
+
 /** Card size, matching `person-node.tsx` (`w-52`). */
 export const NODE_W = 208;
 export const NODE_H = 112;
@@ -1095,36 +1097,21 @@ function buildUnions(
 
 /**
  * Follow parent edges from `personId` all the way in one direction: `up` for
- * everyone they descend from, `down` for everyone descended from them. Strict —
- * the person themself is never in the result.
+ * everyone they descend from, `down` for everyone descended from them. The
+ * person themself isn't in it — unless a cycle in the data (which a
+ * mis-entered "parent" edge can create) leads back to them, when the walk
+ * ends on who it has seen rather than hanging the canvas.
  *
  * The canvas uses this to spotlight a whole bloodline when one of its descent
- * lines is clicked. A cycle in the data (which a mis-entered "parent" edge can
- * create) terminates on the visited set rather than hanging the canvas.
+ * lines is clicked.
  */
 export function bloodline(
   personId: string,
   relationships: LayoutRelationship[],
   direction: "up" | "down",
 ): Set<string> {
-  const next = new Map<string, string[]>();
-  for (const r of relationships) {
-    if (r.type !== "parent") continue;
-    // Walking up follows the edge backwards, child -> parent; walking down
-    // follows it the way it is stored.
-    if (direction === "up") push(next, r.to_person, r.from_person);
-    else push(next, r.from_person, r.to_person);
-  }
-
-  const seen = new Set<string>();
-  const stack = [...(next.get(personId) ?? [])];
-  while (stack.length > 0) {
-    const id = stack.pop()!;
-    if (seen.has(id)) continue;
-    seen.add(id);
-    stack.push(...(next.get(id) ?? []));
-  }
-  return seen;
+  const next = stepsOf(relationships, direction === "up" ? toParents : toChildren);
+  return reach(next.get(personId) ?? [], next);
 }
 
 /** Everyone `personId` descends from, to the top of the tree. */

@@ -4,6 +4,8 @@
  * groupings; the DB exposes the same relation as the `sibling_edges` view.
  */
 
+import { stepsOf, toChildren } from "@/lib/graph-walk";
+
 export type ParentishRelationship = {
   from_person: string;
   to_person: string;
@@ -14,13 +16,7 @@ export type ParentishRelationship = {
 export function inferSiblings(
   relationships: ParentishRelationship[],
 ): Map<string, Set<string>> {
-  const childrenByParent = new Map<string, string[]>();
-  for (const r of relationships) {
-    if (r.type !== "parent") continue;
-    const kids = childrenByParent.get(r.from_person);
-    if (kids) kids.push(r.to_person);
-    else childrenByParent.set(r.from_person, [r.to_person]);
-  }
+  const childrenByParent = stepsOf(relationships, toChildren);
 
   const siblings = new Map<string, Set<string>>();
   const link = (a: string, b: string) => {
@@ -40,21 +36,4 @@ export function inferSiblings(
     }
   }
   return siblings;
-}
-
-/** Flat, de-duplicated, order-independent list of sibling pairs. */
-export function siblingPairs(
-  relationships: ParentishRelationship[],
-): Array<[string, string]> {
-  const seen = new Set<string>();
-  const pairs: Array<[string, string]> = [];
-  for (const [a, set] of inferSiblings(relationships)) {
-    for (const b of set) {
-      const key = a < b ? `${a}|${b}` : `${b}|${a}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      pairs.push(a < b ? [a, b] : [b, a]);
-    }
-  }
-  return pairs;
 }

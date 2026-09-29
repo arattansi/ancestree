@@ -20,61 +20,22 @@
  */
 
 import type { ConnectionEdge, PersonRef } from "@/lib/connections";
+import {
+  reach,
+  stepsOf,
+  toChildren,
+  toParents,
+  toSiblings,
+  type Step,
+  type WalkEdge,
+} from "@/lib/graph-walk";
 
-export type ParentEdge = {
-  /** The parent; either end of a spouse or sibling line. */
-  from_person: string;
-  /** The child; the other end of a spouse or sibling line. */
-  to_person: string;
-  type: string;
-};
+export type ParentEdge = WalkEdge;
 
-type Step = readonly [from: string, to: string];
-
-/** `from -> [to]` for every step `stepsFor` finds in an edge. */
-function stepsOf(
-  edges: readonly ParentEdge[],
-  stepsFor: (e: ParentEdge) => readonly Step[],
-): Map<string, string[]> {
-  const steps = new Map<string, string[]>();
-  for (const e of edges) {
-    for (const [from, to] of stepsFor(e)) {
-      const next = steps.get(from);
-      if (next) next.push(to);
-      else steps.set(from, [to]);
-    }
-  }
-  return steps;
-}
-
-/** `seed`, and everyone reachable from it along `steps`. */
-function reach(
-  seed: Iterable<string>,
-  steps: Map<string, string[]>,
-): Set<string> {
-  const seen = new Set<string>(seed);
-  const queue = [...seen];
-  while (queue.length > 0) {
-    for (const id of steps.get(queue.pop()!) ?? []) {
-      if (seen.has(id)) continue;
-      seen.add(id);
-      queue.push(id);
-    }
-  }
-  return seen;
-}
-
-const up = (e: ParentEdge): Step[] =>
-  e.type === "parent" ? [[e.to_person, e.from_person]] : [];
-const down = (e: ParentEdge): Step[] =>
-  e.type === "parent" ? [[e.from_person, e.to_person]] : [];
-const downAndAcross = (e: ParentEdge): Step[] =>
-  e.type === "sibling"
-    ? [
-        [e.from_person, e.to_person],
-        [e.to_person, e.from_person],
-      ]
-    : down(e);
+const downAndAcross = (e: WalkEdge): Step[] => [
+  ...toChildren(e),
+  ...toSiblings(e),
+];
 
 /**
  * Step 14's walk: up every parent edge from `anchors`, then down every parent
@@ -85,7 +46,10 @@ export function upThenDownIds(
   anchors: readonly string[],
   edges: readonly ParentEdge[],
 ): Set<string> {
-  return reach(reach(anchors, stepsOf(edges, up)), stepsOf(edges, down));
+  return reach(
+    reach(anchors, stepsOf(edges, toParents)),
+    stepsOf(edges, toChildren),
+  );
 }
 
 /** Every person in the bloodline anchored on `anchors`. */
@@ -94,19 +58,9 @@ export function bloodlineIds(
   edges: readonly ParentEdge[],
 ): Set<string> {
   return reach(
-    reach(anchors, stepsOf(edges, up)),
+    reach(anchors, stepsOf(edges, toParents)),
     stepsOf(edges, downAndAcross),
   );
-}
-
-/** True when `personId` is blood. A tree with no anchors has no gate. */
-export function isBloodline(
-  personId: string,
-  anchors: readonly string[],
-  edges: readonly ParentEdge[],
-): boolean {
-  if (anchors.length === 0) return true;
-  return bloodlineIds(anchors, edges).has(personId);
 }
 
 /**

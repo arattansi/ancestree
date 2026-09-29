@@ -5,7 +5,6 @@ import {
   bloodTiePlacementRefusal,
   bloodTieRefusal,
   bloodTieWarning,
-  isBloodline,
   newWithoutBloodTie,
   readBloodTieRefusal,
   upThenDownIds,
@@ -162,18 +161,6 @@ describe("upThenDownIds", () => {
     expect(upThenDownIds(["me"], edges)).toEqual(
       new Set(["me", "dad", "sister"]),
     );
-  });
-});
-
-describe("isBloodline", () => {
-  it("fails open when no anchors are configured", () => {
-    expect(isBloodline("anyone", [], [])).toBe(true);
-  });
-
-  it("gates once anchors exist", () => {
-    const edges = [parent("dad", "me"), spouse("me", "partner")];
-    expect(isBloodline("me", ["me"], edges)).toBe(true);
-    expect(isBloodline("partner", ["me"], edges)).toBe(false);
   });
 });
 

@@ -1,9 +1,10 @@
+import { partnersOf } from "@/lib/graph-walk";
+import { inferSiblings } from "@/lib/siblings";
 import {
   ancestorsOf,
   descendantsOf,
   type LayoutRelationship,
 } from "@/lib/tree-layout";
-import { inferSiblings } from "@/lib/siblings";
 
 /**
  * One person's own tree: the vertical line they sit on, plus the partners who
@@ -93,18 +94,4 @@ export function spotlightPeople(spotlight: PersonSpotlight): Set<string> {
     ...spotlight.siblings,
     ...spotlight.siblingSpouses,
   ]);
-}
-
-/** The partners of anyone in `people`, one step out. */
-function partnersOf(
-  people: Set<string>,
-  relationships: LayoutRelationship[],
-): Set<string> {
-  const partners = new Set<string>();
-  for (const r of relationships) {
-    if (r.type !== "spouse") continue;
-    if (people.has(r.from_person)) partners.add(r.to_person);
-    if (people.has(r.to_person)) partners.add(r.from_person);
-  }
-  return partners;
 }
