@@ -171,7 +171,9 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   controls end with
   **Go to me**, which opens the viewer's own tree and details, Step 48),
   `tree-search.tsx` the **Search & filters** card under **Add a relative**
-  (Find a person, Show a connection, Filters: only your Root's side, only the
+  (its results, and `person-picker.tsx`'s, show a `née` maiden name under
+  the name, Step 76.8;
+  Find a person, Show a connection, Filters: only your Root's side, only the
   descendants of one or two people, and Pets & companions — each section
   closed until opened),
   `upcoming-feed.tsx` the **Upcoming** card at the top left (birthdays and
@@ -1375,6 +1377,23 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 76.8 — Maiden name in the tree search results** (ad-hoc, after
+  Step 76.7; no migration). Aalim: "show the maiden name in the tree
+  search results too". The search has always matched maiden names, so
+  "Jaffer" found Fatima Rattansi with nothing on the row to say why. Each
+  result in **Find a person** now reads "Fatima Rattansi / née Jaffer /
+  1925 – 2010 · Zanzibar, Tanzania", the maiden name on a line of its own
+  as on the card rather than crowding the years and birthplace; with no
+  years or birthplace it stands alone, not over "No other details". The
+  person picker (`person-picker.tsx`) does the same in its suggestions,
+  since it matches maiden names too: **Show a connection**, the
+  descendants filter and the sheet's "How is … connected to…". Long ones
+  shrink before they are cut short, as the rows' other lines do; the
+  card is 288px wide on a phone too. **Verified:** on a throwaway
+  read-only `FamilyTree` (nothing sent to the server), "Jaffer" in Find a
+  person and "Kassamali" in Show a connection. 1091 tests pass; tsc, lint
+  and `next build` are clean.
 
 - **Step 76.7 — Maiden name on the minimized details card** (ad-hoc, after
   Step 76.6; no migration). Aalim: "add the maiden name to the minimized
