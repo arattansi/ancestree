@@ -15,7 +15,11 @@ import {
   WEEK_DAYS,
   type Occasion,
 } from "@/lib/occasions";
-import { personDisplayName, personInitials } from "@/lib/person-name";
+import {
+  maidenLine,
+  personDisplayName,
+  personInitials,
+} from "@/lib/person-name";
 import type { TreeGraphPerson } from "@/lib/tree";
 import { cn } from "@/lib/utils";
 
@@ -58,19 +62,38 @@ function Face({
   );
 }
 
+const firstName = (p: TreeGraphPerson) =>
+  (p.preferred_name || p.first_name || "").trim();
+
 /** "Ahmed & Sara Khan" when they share a surname, else both in full. */
 function coupleName(
   a: TreeGraphPerson | undefined,
   b: TreeGraphPerson | undefined,
 ): string {
-  const first = (p: TreeGraphPerson) =>
-    (p.preferred_name || p.first_name || "").trim();
-  if (a && b && a.last_name === b.last_name && first(a) && first(b))
-    return `${first(a)} & ${first(b)} ${a.last_name}`;
+  if (a && b && a.last_name === b.last_name && firstName(a) && firstName(b))
+    return `${firstName(a)} & ${firstName(b)} ${a.last_name}`;
   return [a, b]
     .filter((p): p is TreeGraphPerson => !!p)
     .map(personDisplayName)
     .join(" & ");
+}
+
+/**
+ * The line under a row's name: "née Jaffer" under someone's own, and under
+ * a couple's, whose it is: "Sara née Jaffer".
+ */
+function maidenNote(
+  a: TreeGraphPerson | undefined,
+  b: TreeGraphPerson | undefined,
+  couple: boolean,
+): string | null {
+  if (!couple) return a ? maidenLine(a) : null;
+  const notes = [a, b].flatMap((p) => {
+    const maiden = p ? maidenLine(p) : null;
+    if (!p || !maiden) return [];
+    return [firstName(p) ? `${firstName(p)} ${maiden}` : maiden];
+  });
+  return notes.join(" · ") || null;
 }
 
 /** When it is: "today", "tomorrow", or " · Sat 3 Oct". */
@@ -186,6 +209,7 @@ export function UpcomingFeed({
               {group.items.map((o) => {
                 const [a, b] = o.people.map((id) => personById.get(id));
                 const couple = o.kind === "anniversary";
+                const maiden = maidenNote(a, b, couple);
                 return (
                   <li key={`${o.kind}:${o.people.join("~")}`}>
                     <button
@@ -224,6 +248,11 @@ export function UpcomingFeed({
                               ? personDisplayName(a)
                               : ""}
                         </FitText>
+                        {maiden ? (
+                          <FitText className="leading-4 text-muted-foreground">
+                            {maiden}
+                          </FitText>
+                        ) : null}
                         <span className="flex items-center gap-1 text-xs leading-4 text-muted-foreground">
                           {couple ? (
                             <Heart aria-hidden className="size-3 shrink-0" />
