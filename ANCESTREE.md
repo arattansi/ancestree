@@ -367,7 +367,9 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   kept fresh between saves by `components/header-counts.tsx`, which asks
   `GET /api/header-counts` on moving to another page or coming back to the
   tab, at most every 30 s; the bell reads its list from
-  `GET /api/notifications` when it's opened, Step 77.2), `found-tree-form.tsx`, `home-tree-picker.tsx`,
+  `GET /api/notifications` when it's opened, Step 77.2; one row, compact
+  on a narrow bar through `header-compact` in `app/globals.css`, the
+  buttons' symbols and corner counts in `site-nav-link.tsx`, Step 85.2), `found-tree-form.tsx`, `home-tree-picker.tsx`,
   `join-tree-button.tsx`, `admin/admin-placements.tsx`, `carry-picker.tsx` (**All descendants of**,
   in the Root console and the founder's family step, Step 80),
   `placement-asks.tsx` (**Asked of You** on `/account` settings, Step 80),
@@ -1504,6 +1506,55 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 85 — Two fixes: the invite form's hydration warning, the header
+  on a phone** (ad-hoc, Aalim 2026-09-29; no migration; both seen while
+  testing Steps 80 to 84). **85.1, the invite form:** every member's
+  account settings logged a React hydration warning, from **Invite a
+  Relative**: its rows took their ids from a count kept by the module
+  (`let nextKey`), which on the server ran on with every page drawn
+  (`row-10-first`) and in the browser began again (`row-0-first`), so the
+  two never matched and React gave up patching the labels to their fields.
+  The count is now the form's own, from its first row, behind a `useId`
+  that keeps two forms on a page apart (`components/direct-invite-form.tsx`).
+  **Verified** in headless Chrome as a throwaway Root: three loads of
+  account settings, the ids the server sent the same as the ids drawn each
+  time, no hydration warning and no console error there, in the Root
+  console or on the trees page; no id twice on any of them; rows added and
+  removed keep ids of their own and what was typed in them; a label still
+  focuses its field; nothing was sent. The throwaway rows and accounts were
+  deleted after. 1,280 unit tests, `tsc`, `eslint` and `next build` clean.
+  **85.2, the header** (landed after Step 86, so the entry sits above it):
+  on a phone the signed-in header wrapped onto three rows, 118px, whatever
+  the tree's name: its buttons could wrap, and the grid gave the centre
+  column, the tree switcher, its full width first. The buttons never wrap
+  now and a long name ends in "…". On a narrow bar, a phone's or one beside
+  a docked sheet below 64rem, the header goes compact (`header-compact`, a
+  variant in `app/globals.css`): the mark without the wordmark, **tree**,
+  **connections** and **account** as their symbols with the words kept as
+  their names, the connections and unread counts on the buttons' corners,
+  and the tree's name in what's left. The mark and the switcher answer to a
+  44px square on a touch screen like the buttons, and the Root console count
+  is at least 36px wide so its square stops short of **account**'s. Below
+  44rem (was `sm`) a details sheet starts under the header, as on a phone:
+  beside it the header had less room than the narrowest phone's. **My
+  calls, not asked:** symbols rather than words on a narrow bar (the fullest
+  header, two trees, open connections, a Root console count and unread,
+  can't fit its words on any phone); the wordmark gone on every phone,
+  signed out too, so the bar doesn't change as its buttons stream in; the
+  44rem. **Verified:** a throwaway page of every header state swept headless
+  from 320 to 1,400px, touch and mouse, sheet open or not: one 57px row
+  everywhere, nothing past the bar or over another control, no sideways
+  scroll, every target a whole 44px, except the fullest header at 320–340px
+  (704–724px beside a sheet), where the name is down to its ▾ and the
+  mark's and switcher's targets are 32–42px: five 44px buttons, the switcher
+  and the mark need 296px of the 288 there. Then as throwaway members on
+  live, a Root of a long-named tree and a Leaf of a short one: account
+  settings, `/onboarding` and the canvas with a person's sheet open, at 320,
+  375, 390 and 768px (700, 1,024 and 1,280 with the sheet), and signed out:
+  one row each time, and the switcher switched trees at 320px. The same
+  settings page on main: 118px; here: 57px. Throwaway rows and accounts
+  deleted after. 1,289 unit tests, `tsc`, `eslint` and `next build` clean.
+
 - **Step 86 — Added by / invited by at the foot of a person's details**
   (ad-hoc, Aalim 2026-09-29; no migration). The details sheet ends with a
   footer of tags for how the person came onto the tree: **Added by** whoever
@@ -1527,24 +1578,6 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   "Added by Root" + "Invited by Branch" on their own entry. Throwaway rows
   and accounts deleted after. 1,289 unit tests, `tsc`, `eslint` and `next
   build` clean.
-
-- **Step 85 — Two fixes: the invite form's hydration warning, the header
-  on a phone** (ad-hoc, Aalim 2026-09-29; no migration; both seen while
-  testing Steps 80 to 84). **85.1, the invite form:** every member's
-  account settings logged a React hydration warning, from **Invite a
-  Relative**: its rows took their ids from a count kept by the module
-  (`let nextKey`), which on the server ran on with every page drawn
-  (`row-10-first`) and in the browser began again (`row-0-first`), so the
-  two never matched and React gave up patching the labels to their fields.
-  The count is now the form's own, from its first row, behind a `useId`
-  that keeps two forms on a page apart (`components/direct-invite-form.tsx`).
-  **Verified** in headless Chrome as a throwaway Root: three loads of
-  account settings, the ids the server sent the same as the ids drawn each
-  time, no hydration warning and no console error there, in the Root
-  console or on the trees page; no id twice on any of them; rows added and
-  removed keep ids of their own and what was typed in them; a label still
-  focuses its field; nothing was sent. The throwaway rows and accounts were
-  deleted after. 1,280 unit tests, `tsc`, `eslint` and `next build` clean.
 
 - **Step 84 — A Root can invite someone to claim an entry their tree
   shows** (ad-hoc, Aalim 2026-09-29; migration
