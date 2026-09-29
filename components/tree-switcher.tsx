@@ -49,7 +49,7 @@ export function TreeSwitcher({
     <DropdownMenu>
       <DropdownMenuTrigger
         disabled={action.pending}
-        className="flex min-w-0 max-w-[16rem] items-center gap-1 rounded-md px-2 py-1 text-sm font-semibold tracking-tight text-foreground outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+        className="relative flex min-w-0 max-w-[16rem] items-center gap-1 rounded-md px-2 py-1 text-sm font-semibold tracking-tight text-foreground outline-none tap-target hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
         aria-label={`Tree: ${label}. Switch tree`}
       >
         <span className="truncate">{label}</span>

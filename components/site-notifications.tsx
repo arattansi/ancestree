@@ -10,7 +10,7 @@ import {
   NOTIFICATIONS_READ_EVENT,
   NotificationsList,
 } from "@/components/notifications-list";
-import { Badge } from "@/components/ui/badge";
+import { NavCount } from "@/components/site-nav-link";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { NotificationItem } from "@/lib/claims";
@@ -117,9 +117,7 @@ export function SiteNotifications() {
       >
         <Bell className="size-4" aria-hidden />
         {unread > 0 ? (
-          <Badge variant="destructive" className="ml-1.5">
-            {unread}
-          </Badge>
+          <NavCount variant="destructive">{unread}</NavCount>
         ) : null}
       </Button>
 

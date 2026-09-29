@@ -2162,8 +2162,9 @@ export function FamilyTree(props: Props) {
   }
 
   return (
-    // The screen below the header, whatever its height: its buttons wrap to
-    // a second row on a narrow phone (SiteHeaderHeight, Step 61).
+    // The screen below the header, whatever its height (SiteHeaderHeight,
+    // Step 61): one row since Step 85.2, but it still wraps where even its
+    // compact row can't fit.
     <div className="relative h-[calc(100dvh-var(--site-header-height,3.5rem))] w-full">
       {props.visitorNote ? (
         <p

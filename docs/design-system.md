@@ -24,7 +24,9 @@ Descriptions, labels, buttons, hints and body copy stay in sentence case.
 Buttons that move you between pages or views are all lower-case: the
 header's **tree**, **connections**, **account** and **sign in**; the account
 page's view toggle **profile**, **root**, **dashboard**, **settings**. The tree switcher
-shows a tree's name, which keeps its own capitalisation.
+shows a tree's name, which keeps its own capitalisation. On a narrow bar
+the header's show their symbols instead, the words kept as their names
+(Step 85.2, below).
 
 Buttons that *do* something — **Save**, **Rename**, **Start my tree**,
 **Sign out** — are sentence case, like any other button. That includes the
@@ -84,16 +86,21 @@ turn autocomplete off, or every relative is offered the member's own name
   match its neighbour, trim its copy instead.
 - The header is three columns: the mark, the tree switcher centred (only
   for someone with more than one tree to look at), and the navigation
-  buttons right-aligned.
+  buttons right-aligned. It stays one row from 320px up (Step 85.2): the
+  buttons never wrap and a long tree name ends in "…". On a narrow bar, a
+  phone's or one beside a docked sheet below 64rem, it goes compact: the
+  mark without the wordmark, **tree**, **connections** and **account** as
+  their symbols (their words still name them), and the counts on the
+  buttons' corners.
 - A count that leads somewhere other than the button it sits by is a button
   of its own beside it, never inside it (a control can't hold another): the
   red count next to **account** opens what's waiting in the Root consoles
   you run, while **account** still opens the account page. Its label says
   what it counts ("3 need attention in the Root console").
 - A node's details sheet (a person's or a companion's) never covers the
-  header's buttons. From `sm` up the header moves aside and lays out to the
-  left of the 24rem sheet, the wordmark giving way to the mark where that's
-  tight; on a phone the sheet starts under the header. Mark any new sheet
+  header's buttons. From 44rem up the header moves aside and lays out to
+  the left of the 24rem sheet, compact where that's tight; narrower, the
+  sheet starts under the header (Step 85.2). Mark any new sheet
   that sits beside the canvas `data-docked-sheet` to get the same
   (`app/globals.css`).
 - A person's details sheet can be minimized (Step 49), on a phone or a
@@ -191,7 +198,8 @@ uses them rather than its own flags and messages.
   The canvas keeps who's open in the address, and its camera and filters
   for the tab, so Back finds it as it was left.
 - **Touch targets:** on a touch screen a small control (a bare ✕, a text
-  link used as a button, the header's buttons, a sheet's or dialog's
+  link used as a button, the header's mark, tree switcher and buttons, a
+  sheet's or dialog's
   close) answers to a 44 px square around it (`relative tap-target`, an
   invisible hit area, so nothing moves), and the canvas's zoom buttons are
   40 px. A bare ✕ is `text-muted-foreground` at full strength, never faded

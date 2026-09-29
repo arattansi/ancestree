@@ -3,11 +3,10 @@
 import * as React from "react";
 
 /**
- * Keeps `--site-header-height` on the root element in step with the header,
- * whose buttons wrap to a second row on a narrow phone. There a node's
- * details sheet starts below the header rather than over it, so the
- * navigation stays in reach (see `[data-docked-sheet]` in globals.css).
- * Renders a hidden marker inside the header so it can find it.
+ * Keeps `--site-header-height` on the root element in step with the header.
+ * On a phone a node's details sheet starts below the header rather than
+ * over it, so the navigation stays in reach (see `[data-docked-sheet]` in
+ * globals.css). Renders a hidden marker inside the header so it can find it.
  */
 export function SiteHeaderHeight() {
   const ref = React.useRef<HTMLSpanElement>(null);

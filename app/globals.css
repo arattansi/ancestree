@@ -221,18 +221,22 @@
 /* A node's details sheet — a person's or a companion's, marked
    `data-docked-sheet` — sits on the right and leaves the page live, so the
    header's buttons (tree, account, notifications) have to stay in reach
-   while it's open. From `sm` up the sheet is 24rem wide: the header lays
-   itself out in the space to its left, its right padding growing by however
-   much of the header the sheet would cover, plus a 1rem gap (the bar is at
-   most 64rem, centred). Where that space is tight, the wordmark gives way to
-   the mark. Below `sm` the sheet takes most of the screen and leaves no room
-   beside it, so it starts under the header instead, whose height
+   while it's open. From `sm` up the sheet is 24rem wide, and from 44rem up
+   the header lays itself out in the space to its left, its right padding
+   growing by however much of the header the sheet would cover, plus a 1rem
+   gap (the bar is at most 64rem, centred). Where that space is tight, the
+   header goes compact (below). Narrower, the space beside the sheet is less
+   than the narrowest phone's (Step 85.2), and below `sm` the sheet takes
+   most of the screen, so it starts under the header instead, whose height
    SiteHeaderHeight keeps in `--site-header-height`. */
 @media (width >= 40rem) {
   /* The Toaster keeps its toasts left of the sheet (Step 70). */
   :root:has([data-docked-sheet][data-open]) {
     --docked-sheet-width: 24rem;
   }
+}
+
+@media (width >= 44rem) {
   .site-header-bar {
     transition: padding-right 200ms ease-in-out;
   }
@@ -242,22 +246,23 @@
   }
 }
 
-@media (40rem <= width < 48rem) {
-  body:has([data-docked-sheet][data-open]) .site-header-wordmark {
-    /* Tailwind's sr-only, so it still names the link. */
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-    border-width: 0;
+/* The header on a narrow bar, a phone's or one beside a docked sheet (Step
+   85.2), so it stays one row from 320px up: the wordmark gives way to the
+   mark, the tree, connections and account buttons show their symbols for
+   their words (which still name them), and counts sit on a button's corner.
+   The tree's name takes what's left. */
+@custom-variant header-compact {
+  @media (width < 40rem) {
+    @slot;
+  }
+  @media (44rem <= width < 64rem) {
+    body:has([data-docked-sheet][data-open]) & {
+      @slot;
+    }
   }
 }
 
-@media (width < 40rem) {
+@media (width < 44rem) {
   [data-docked-sheet] {
     top: var(--site-header-height, 0px);
     height: auto;

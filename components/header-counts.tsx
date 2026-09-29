@@ -1,11 +1,11 @@
 "use client";
 
+import { Link2 } from "lucide-react";
 import * as React from "react";
 import { usePathname } from "next/navigation";
 
-import { SiteNavLink } from "@/components/site-nav-link";
+import { NavCount, SiteNavLink } from "@/components/site-nav-link";
 import { TreeTarget } from "@/components/tree-target";
-import { Badge } from "@/components/ui/badge";
 import {
   countsStale,
   parseHeaderCounts,
@@ -123,11 +123,12 @@ export function ConnectionsNavLink() {
   const { counts } = useHeaderCounts();
   if (counts.connections === 0) return null;
   return (
-    <SiteNavLink href={reviewHref()}>
+    <SiteNavLink
+      href={reviewHref()}
+      icon={<Link2 className="size-4" aria-hidden />}
+      count={<NavCount variant="secondary">{counts.connections}</NavCount>}
+    >
       connections
-      <Badge variant="secondary" className="ml-1.5">
-        {counts.connections}
-      </Badge>
     </SiteNavLink>
   );
 }
@@ -152,7 +153,9 @@ export function AdminQueueButton() {
       aria-label={admin.label}
       title={admin.label}
       pendingLabel={admin.label}
-      className="relative tap-target tabular-nums"
+      // At least 36px wide, so its 44px target stops short of account's
+      // (Step 85.2).
+      className="relative min-w-9 tap-target tabular-nums"
     >
       {admin.count}
     </TreeTarget>

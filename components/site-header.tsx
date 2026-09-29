@@ -1,3 +1,4 @@
+import { CircleUserRound, Network } from "lucide-react";
 import Link from "next/link";
 import { unstable_rethrow } from "next/navigation";
 import type { ReactNode } from "react";
@@ -22,9 +23,13 @@ import { treeHref } from "@/lib/tree-links";
 
 /**
  * The header's frame: the mark on the left, then whatever sits in the
- * centre and on the right. `site-header-bar` and `site-header-wordmark` let
- * a node's details sheet move the header aside while it's open
- * (globals.css).
+ * centre and on the right. `site-header-bar` lets a node's details sheet
+ * move the header aside while it's open (globals.css).
+ *
+ * One row (Step 85.2): the buttons never wrap, and the centre gives way to
+ * them, a long tree name ending in "…". On a narrow bar (`header-compact`,
+ * globals.css) the centre is what's left between the mark and the buttons;
+ * the buttons wrap there only if even their compact row can't fit.
  */
 function HeaderFrame({
   center,
@@ -35,18 +40,18 @@ function HeaderFrame({
 }) {
   return (
     <header className="sticky top-0 z-40 border-b bar-chrome">
-      <div className="site-header-bar mx-auto grid min-h-14 w-full max-w-5xl grid-cols-[1fr_auto_1fr] items-center gap-x-4 px-4 py-2">
+      <div className="site-header-bar mx-auto grid min-h-14 w-full max-w-5xl grid-cols-[1fr_auto_1fr] items-center gap-x-4 px-4 py-2 header-compact:grid-cols-[auto_minmax(0,1fr)_auto] header-compact:gap-x-3">
         <Link
           href="/"
-          className="flex w-fit items-center gap-2 rounded-sm text-sm font-semibold tracking-tight text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          className="relative flex w-fit items-center gap-2 rounded-sm text-sm font-semibold tracking-tight text-foreground outline-none tap-target focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
           <LogoMark className="size-5" />
-          <span className="site-header-wordmark">ancestree.space</span>
+          <span className="header-compact:sr-only">ancestree.space</span>
         </Link>
         <div className="flex min-w-0 items-center justify-center">{center}</div>
         <nav
           aria-label="Primary"
-          className="flex flex-wrap items-center justify-end gap-2"
+          className="flex items-center justify-end gap-2 header-compact:flex-wrap"
         >
           {nav}
         </nav>
@@ -137,13 +142,23 @@ async function LoadedHeader() {
             {access ? (
               // Exact, so it isn't lit beside **connections** on its
               // /tree/review page (Step 61).
-              <SiteNavLink href={treeHref()} exact>
+              <SiteNavLink
+                href={treeHref()}
+                exact
+                icon={<Network className="size-4" aria-hidden />}
+              >
                 tree
               </SiteNavLink>
             ) : null}
             <ConnectionsNavLink />
-            <span className="flex items-center gap-1">
-              <SiteNavLink href="/account">account</SiteNavLink>
+            {/* Apart on a narrow bar, so each keeps a whole 44px target. */}
+            <span className="flex items-center gap-1 header-compact:gap-2">
+              <SiteNavLink
+                href="/account"
+                icon={<CircleUserRound className="size-4" aria-hidden />}
+              >
+                account
+              </SiteNavLink>
               <AdminQueueButton />
             </span>
             <SiteNotifications />
