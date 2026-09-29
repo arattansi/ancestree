@@ -177,7 +177,8 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   descendants of one or two people, and Pets & companions — each section
   closed until opened),
   `upcoming-feed.tsx` the **Upcoming** card at the top left (birthdays and
-  anniversaries, Step 57.1; `use-today.ts` the viewer's own day),
+  anniversaries, Step 57.1; `use-today.ts` the viewer's own day; a `née`
+  maiden name under the name, under a couple's saying whose, Step 76.9),
   `use-tree-room.ts` + `live-cursors.tsx` who else has the tree open, as
   faces above **Upcoming**, and their pointers (Step 57.3), `person-node.tsx`
   custom node (name, then `née` maiden name / birth year / birthplace;
@@ -1377,6 +1378,22 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 76.9 — Maiden name in the Upcoming feed** (ad-hoc, after Step
+  76.8; no migration). Aalim: "show the maiden name in the upcoming feed
+  too". A birthday reads "Nurbanu Rattansi / née Kassamali Rahemtullah /
+  Turns 74 tomorrow", the maiden name on a line of its own under the name,
+  as everywhere else since Step 76. An anniversary's name is the couple's
+  ("Ali & Nurbanu Rattansi"), so a bare "née …" wouldn't say whose; its
+  line names the partner: "Nurbanu née Kassamali Rahemtullah", and both,
+  joined by " · ", when each has one ("Maya née Nathoo · Leila née
+  Jaffer"). Rows without one are unchanged. Long ones shrink to fit (the
+  longest couple's line here went to 11px) before they are cut short; the
+  card is 288px wide on a phone too. **Verified:** the real card on a
+  throwaway page, fed birthdays and anniversaries from `upcomingOccasions`
+  (single and couple rows, one or both maiden names, the longest maiden
+  name on live), light and dark. 1091 tests pass; tsc, lint and
+  `next build` are clean.
 
 - **Step 76.8 — Maiden name in the tree search results** (ad-hoc, after
   Step 76.7; no migration). Aalim: "show the maiden name in the tree
