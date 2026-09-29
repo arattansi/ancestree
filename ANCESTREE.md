@@ -245,14 +245,17 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   (+ admin "add a place"); `components/person-documents.tsx`
 - `lib/places.ts` — server-only `searchPlaces` / `getPlacesByIds` /
   `formatPlaceLabel`; `lib/country-names.ts` — `countryName` (ISO→name) +
-  `ALPHA2`; `app/actions/places.ts` — `searchPlacesAction` / `requestNewPlace`
+  `ALPHA2`, and a country's own `places` row (`countryPlaceId`,
+  `isCountryPlace`, `isCountryPlaceId`, Step 79, `.test.ts`);
+  `app/actions/places.ts` — `searchPlacesAction` / `requestNewPlace`
   (admin) / `listCountryOptions`; `lib/historical-names.ts` — pure
   `resolveHistoricalName` / `formatHistoricalPlace` (Step 4.5d, `.test.ts`)
 - `lib/place-search.ts` — pure `shapePlaceQuery` / `rankPlaces` /
-  `choosePlaces`, what the place search looks for and in what order
-  (Step 66, `.test.ts`); `lib/place-regions.ts` — the region names it
-  matches; `lib/place-choice.ts` — the picker's pure helpers (`chosenPlace`,
-  `isLink`, `typedPlaceName`, `unmatchedSearch`, `.test.ts`)
+  `choosePlaces` / `countriesNamed`, what the place search looks for and in
+  what order (Steps 66 and 79, `.test.ts`); `lib/place-regions.ts` — the
+  region names it matches; `lib/place-choice.ts` — the picker's pure
+  helpers (`chosenPlace`, `isLink`, `typedPlaceName`, `unmatchedSearch`,
+  and `placeText`, the town and country an entry keeps; `.test.ts`)
 - Ancestral lands (Step 27): `lib/native-land.ts` — pure parsing and wording
   of Native Land Digital's answer (`.test.ts`); `lib/native-land.server.ts` —
   `territoriesAt(lat, lng)`, the only caller of NLD; `app/api/ancestral-lands`
@@ -400,7 +403,7 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `notifications`          | In-app notices, **one inbox per tree** (`tree_id`, Step 25; `placement_requested` \| `placement_accepted` \| `placement_declined` added; `tree_request_approved`, Step 28; `placed_on_join`, Step 30.9, and what a claim invite did, Step 41.3; `joined_by_link`, Step 52); recipient-scoped RLS                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `entry_comments`         | Comments and flags, **one board per tree** (`tree_id`, Step 25) (`is_flag`, `open` \| `resolved`, `resolved_by`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `documents`              | Metadata for private file uploads, **one bank per tree** (`tree_id`); `shared_across_trees` shows it on every tree the person is on — flipped only by the person or a Root of their home tree (`documents_guard`), which also keeps it on its entry except inside a merge (Step 41.3's claim invite, or "This is me" since Step 43), which leaves it unshared                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| `places`                 | GeoNames reference data (populated places + admin areas) for birthplace autocomplete; not tree-scoped — read by any member, written by the import script and by a Root's **Add a place** (ids from 10,000,000,000)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `places`                 | GeoNames reference data (populated places + admin areas) for birthplace autocomplete; not tree-scoped — read by any member, written by the import script and by a Root's **Add a place** (ids from 10,000,000,000); a row for each country (Step 79: ids from 9,000,000,000, no coordinates, never found by the name search)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `historical_names`       | Curated period names for a place/country over a date range (Step 4.5d); matched by `place_id` then `country_code` against a birth/death year. Read by any member; seeded by migration                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `pets`                   | Companion animals — a deliberately thin, non-human entry: name, species (`cat` / `dog` / `other` + `species_label`), `year_born` / `year_died`, an optional exact `birth_date` (must agree with `year_born`) and an optional GeoNames place of birth (`place_id_birth` FK + denormalised `city_of_birth` / `country_of_birth`, exactly like a person; Step 27.7's `ancestral_lands_birth` was dropped in Step 40.5, as on a person), photo, and a `pos_dx` / `pos_dy` nudge. No lineage, claims or documents                                                                                                                                                                                                                                                                                                                                                                               |
 | `pet_companions`         | Which people a pet lived with (`pet_id` + `person_id`). Many-to-many, undirected, no lineage meaning; a trigger deletes a pet once its last companion goes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
@@ -411,7 +414,9 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 (`people_required_identity` no longer needs a country; an entry without one
 holds `''` in `country_of_birth`). When one is picked it's a
 **`place_id_birth`** (GeoNames `places` FK, Step 4.5c), and `city_of_birth` /
-`country_of_birth` are still written (derived from the picked place). `lineage_type` is writable by admins only.
+`country_of_birth` are still written (derived from the picked place). It can
+be a whole country (Step 79): then `city_of_birth` is empty, and a place of
+death's `place_of_death` is just the country's name. `lineage_type` is writable by admins only.
 `middle_name` and `maiden_name` are optional nullable text columns, visible to and
 editable by any member who can already edit the entry.
 
@@ -1331,6 +1336,27 @@ with population ≥ 500).
   first was Shishang, India (Aalim, 2026-09-28). Every column that holds a
   place id is `bigint`, so a hand-added place can be a companion's
   birthplace too (`pets.place_id_birth` was `integer` until Step 65).
+- **Countries** (Step 79, migration `20260928190000_country_places`): a
+  place can be a whole country, for someone known only to have been born
+  (or to have died) there. Each of the 249 ISO codes in `ALPHA2` has a row:
+  id 9,000,000,000 plus its two letters' character codes
+  (`countryPlaceId`; TZ is 9,000,008,490), feature class `A`, code `PCL`
+  (`isCountryPlace`), the English name, and no coordinates, population or
+  `ascii_name`, so no `search_name`: the name search never finds one. The
+  picker offers countries itself (`countriesNamed` in
+  `lib/place-search.ts`), ranked in with the places, with a globe instead
+  of a pin: one of its names starts with what was typed, or a later word
+  of it does ("Korea"). Its names are its English name (with ä, ö and ü
+  also spelled out, "St." also read as "saint", a leading "the" dropped)
+  and its other names in `lib/place-regions.ts` (UK, USA, Tanganyika,
+  Ceylon, Burma, Rhodesia, Holland…), except one for only part of it
+  (Zanzibar finds the town). A country named whole or from its start comes
+  before places that match as closely ("Singapore": the country, then the
+  city); one found by a later word, after them ("Man": Manila, Manchester,
+  then the Isle of Man). Picking one keeps no town: `city_of_birth` empty,
+  `country_of_birth` (or `place_of_death`) the country's name
+  (`placeText` in `lib/place-choice.ts`). Its period names come from
+  `historical_names` by country, as a town's do.
 
 ## Reference data — Native Land Digital
 
@@ -1370,7 +1396,8 @@ cessions, not whose land a place is.
 - **What gets asked.** A person's place of birth and death, and a
   companion's place of birth (Step 27.7). Only GeoNames populated places
   with coordinates (`feature_class = 'P'`) are asked about; a hand-added
-  place has none, so it shows nothing. A share link's
+  place has none, so it shows nothing, and neither does a whole country
+  (Step 79). A share link's
   viewer isn't signed in, so its cards ask
   `GET /shared/<token>/ancestral-lands?place=<id>` (Step 27.9), which
   answers only while the link works and only about a place its cards show
@@ -1398,6 +1425,57 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 79 — A country alone as a place of birth** (ad-hoc; migration
+  `20260928190000_country_places`). Aalim: "allow for a user to just put a
+  country for place of birth". The picker only knew GeoNames' cities500,
+  which has no countries, so someone known only to have been born in
+  Tanzania couldn't be entered. Now each of the 249 ISO countries is a row
+  in `places` (id 9,000,000,000 plus its letters' character codes, no
+  coordinates, no `search_name`), and the picker offers the countries the
+  search names, with a globe instead of a pin: by its English name or
+  another name for it (UK, USA, Tanganyika, Ceylon, Burma, Rhodesia; DR
+  Congo, Republic of the Congo, Cabo Verde, East Timor and Holy See are
+  new), from its start or a later word's ("Korea"), "St." read as
+  "saint", a leading "the" dropped ("The Gambia"), ä, ö and ü spelled out
+  or not ("Türkiye"). Zanzibar, a part of Tanzania, still finds only the
+  town. A country named whole or from its start comes before places that
+  match as closely ("Singapore": the country, then the city; "Ind": India
+  and Indonesia, then Indianapolis); one found by a later word, after them
+  ("Man": Manila, Manchester, then the Isle of Man); a region after a comma
+  still comes first ("Georgia, US"). Picking one keeps no town:
+  `city_of_birth` empty and `country_of_birth` the country, through one
+  helper the person and companion forms share (`placeText`), so the card,
+  the details sheet, search and its country filter, and the leaf all read
+  it as a country. A place of death and a companion's place of birth take
+  a country too (same picker), a place of death keeping just its name. A
+  whole country's period name has no town before it: born in Tanzania in
+  1950 reads "Tanganyika (British mandate) · now Tanzania". Found on the
+  way: a place of death with a period name read "Nairobi, Kenya, Kenya
+  Colony · now Kenya", as `place_of_death` holds the whole label; it now
+  takes the town's own name. No entry showed it yet. The birthplace boxes
+  read "Search for a town, village, or country…". No ancestral lands are
+  asked for a country (it has no coordinates, and isn't a populated
+  place). **Verified:** the migration rehearsed on live in a rolled-back
+  transaction: 249 rows whose md5 (code and name) equals the file's, ids
+  following the rule, none found by the name search, the FK taking a
+  country as a person's birth and death place, a member reading them
+  through RLS, a Root's next hand-added place id unchanged. Applied
+  through the MCP (row renamed from `20260929082743`; its statement's md5
+  equals the file's); `db push --dry-run` up to date. In the pane as a
+  throwaway Root on live: "Tanz" listed Tanzania first, with a globe;
+  picking it saved `place_id_birth` 9000008490, no town and
+  `country_of_birth` "Tanzania"; the edit page opened again on
+  "Tanzania" (with its globe in the list, after a fix: a place the form
+  opens with was always drawn with a pin); the details sheet read
+  "Tanganyika (British mandate) · now Tanzania"; "Tanganyika" offered
+  Tanzania, "Zanzibar" the town, "UK" the United Kingdom before Uk, Russia,
+  "Singapore" the country before the city; Kenya as the place of death
+  saved "Kenya"; a companion born in Uganda saved no town. The placeholder
+  fits a phone's box (248 of 293 px). The throwaway user, tree and rows
+  were deleted after. The loader's tests fail on the old code ("Tanzania,
+  Tanganyika…", "Nairobi, Kenya, Kenya Colony…"). 1137 tests pass (22
+  new); tsc, lint and `next build` are clean.
 
 - **Step 77.3 — Efficiency audit, phase 4: moving around keeps your place**
   (ad-hoc; no migration; the audit's findings N2, N3 and N4; the third of
