@@ -97,12 +97,32 @@ export function AccountPageSkeleton({ label }: { label: string }) {
         </div>
         <Skeleton className="h-7 w-56 max-w-full" />
       </div>
-      <div className="grid gap-6 md:grid-cols-2">
-        <Skeleton className="h-48 w-full rounded-xl md:col-span-2" />
-        <Skeleton className="h-40 w-full rounded-xl" />
-        <Skeleton className="h-40 w-full rounded-xl" />
-      </div>
+      <AccountViewCards />
     </LoadingColumn>
+  );
+}
+
+function AccountViewCards() {
+  return (
+    <div className="grid gap-6 md:grid-cols-2">
+      <Skeleton className="h-48 w-full rounded-xl md:col-span-2" />
+      <Skeleton className="h-40 w-full rounded-xl" />
+      <Skeleton className="h-40 w-full rounded-xl" />
+    </div>
+  );
+}
+
+/**
+ * One view of the account page while it loads, under the title and view
+ * buttons that are already there (Step 77.3): a click on a view answers at
+ * once rather than leaving the last one up.
+ */
+export function AccountViewSkeleton({ label }: { label: string }) {
+  return (
+    <div aria-busy="true">
+      <AccountViewCards />
+      <span className="sr-only">{label}</span>
+    </div>
   );
 }
 

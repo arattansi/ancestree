@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 
-import { switchTreeForm } from "@/app/actions/current-tree";
 import { AccountTypeBadge } from "@/components/account-type-badge";
 import { StartTreeButton } from "@/components/start-tree-button";
-import { SubmitButton } from "@/components/submit-button";
+import { TreeTarget } from "@/components/tree-target";
 import {
   Card,
   CardContent,
@@ -12,7 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { requireProfile } from "@/lib/auth";
-import { listMyTrees } from "@/lib/tree-context";
+import { currentAccess, listMyTrees } from "@/lib/tree-context";
 import { adminHref, treeHref } from "@/lib/tree-links";
 import { TREE_REQUEST_RECEIVED } from "@/lib/tree-requests";
 import { getTreeRequestStatus } from "@/lib/tree-requests.server";
@@ -24,11 +23,15 @@ export const metadata: Metadata = {
 
 export default async function TreesPage() {
   // Asked for together (Step 77.1): the trees need only the session.
-  const [, trees, request] = await Promise.all([
+  const [, trees, request, access] = await Promise.all([
     requireProfile(),
     listMyTrees(),
     getTreeRequestStatus(),
+    currentAccess(),
   ]);
+  // The tree they're looking at opens with a plain link (Step 77.3).
+  const currentTreeId =
+    access?.kind === "member" ? access.membership.tree.id : null;
   const founded = trees.some((t) => t.founded);
 
   return (
@@ -69,17 +72,24 @@ export default async function TreesPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="flex flex-wrap gap-2">
-                  <form action={switchTreeForm.bind(null, t.id, treeHref())}>
-                    <SubmitButton size="sm" pendingLabel="Opening…">
-                      Open the tree
-                    </SubmitButton>
-                  </form>
+                  <TreeTarget
+                    treeId={t.id}
+                    currentTreeId={currentTreeId}
+                    href={treeHref()}
+                    size="sm"
+                  >
+                    Open the tree
+                  </TreeTarget>
                   {t.type.runsTree ? (
-                    <form action={switchTreeForm.bind(null, t.id, adminHref())}>
-                      <SubmitButton size="sm" variant="outline">
-                        Root console
-                      </SubmitButton>
-                    </form>
+                    <TreeTarget
+                      treeId={t.id}
+                      currentTreeId={currentTreeId}
+                      href={adminHref()}
+                      size="sm"
+                      variant="outline"
+                    >
+                      Root console
+                    </TreeTarget>
                   ) : null}
                 </CardContent>
               </Card>

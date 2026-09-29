@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
 import Link from "next/link";
 
 import { signOut } from "@/app/actions/auth";
-import { switchTreeForm } from "@/app/actions/current-tree";
 import { AccountTypeBadge } from "@/components/account-type-badge";
 import { AccountTypeCard } from "@/components/account-type-guide";
 import {
@@ -19,11 +19,13 @@ import { DirectInviteForm } from "@/components/direct-invite-form";
 import { EditDisplayName } from "@/components/edit-display-name";
 import { HomeTreePicker } from "@/components/home-tree-picker";
 import { NotificationsList } from "@/components/notifications-list";
+import { AccountViewSkeleton } from "@/components/page-skeletons";
 import { PersonForm } from "@/components/person-form";
 import { RelativesCanAsk } from "@/components/relatives-can-ask";
 import { RelayInvites, type PendingRelay } from "@/components/relay-invites";
 import { SubmitButton } from "@/components/submit-button";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { TreeTarget } from "@/components/tree-target";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -144,22 +146,30 @@ export default async function AccountPage({
         />
       </div>
 
-      {view === "admin" && console ? (
-        <AdminConsole membership={console} />
-      ) : view === "dashboard" ? (
-        <EngagementDashboard />
-      ) : view === "settings" ? (
-        <SettingsView
-          profile={profile}
-          trees={trees}
-          currentTreeId={
-            access?.kind === "member" ? access.membership.tree.id : null
-          }
-          openedRelayId={readRelayParam(relay)}
-        />
-      ) : (
-        <ProfileView profile={profile} />
-      )}
+      {/* Each view reads its own data behind its own boundary (Step 77.3):
+          choosing another shows its shape at once, under the buttons that
+          are already there, rather than leaving the last view up. */}
+      <Suspense
+        key={`${view}:${console?.tree.id ?? ""}`}
+        fallback={<AccountViewSkeleton label={`Loading ${view}…`} />}
+      >
+        {view === "admin" && console ? (
+          <AdminConsole membership={console} />
+        ) : view === "dashboard" ? (
+          <EngagementDashboard />
+        ) : view === "settings" ? (
+          <SettingsView
+            profile={profile}
+            trees={trees}
+            currentTreeId={
+              access?.kind === "member" ? access.membership.tree.id : null
+            }
+            openedRelayId={readRelayParam(relay)}
+          />
+        ) : (
+          <ProfileView profile={profile} />
+        )}
+      </Suspense>
       <BackToTop />
     </main>
   );
@@ -434,27 +444,26 @@ async function SettingsView({
                 className="flex flex-col gap-2 rounded-lg border border-border p-3"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <form action={switchTreeForm.bind(null, t.id, treeHref())}>
-                    <SubmitButton
-                      variant="link"
-                      className="h-auto border-0 p-0 whitespace-normal text-inherit underline-offset-auto"
-                    >
-                      {t.name}
-                    </SubmitButton>
-                  </form>
+                  <TreeTarget
+                    treeId={t.id}
+                    currentTreeId={currentTreeId}
+                    href={treeHref()}
+                    variant="link"
+                    className="h-auto border-0 p-0 whitespace-normal text-inherit underline-offset-auto"
+                  >
+                    {t.name}
+                  </TreeTarget>
                   <span className="flex items-center gap-2">
                     {t.type.runsTree ? (
-                      <form
-                        action={switchTreeForm.bind(null, t.id, adminHref())}
+                      <TreeTarget
+                        treeId={t.id}
+                        currentTreeId={currentTreeId}
+                        href={adminHref()}
+                        variant="link"
+                        className="relative tap-target h-auto border-0 p-0 text-xs font-normal text-muted-foreground underline hover:text-foreground"
                       >
-                        <SubmitButton
-                          variant="link"
-                          pendingLabel="Opening…"
-                          className="relative tap-target h-auto border-0 p-0 text-xs font-normal text-muted-foreground underline hover:text-foreground"
-                        >
-                          Root console
-                        </SubmitButton>
-                      </form>
+                        Root console
+                      </TreeTarget>
                     ) : null}
                     <AccountTypeBadge role={t.role} />
                   </span>
@@ -616,12 +625,18 @@ async function SettingsView({
               return (
                 <section key={t.id} className="flex flex-col gap-2">
                   <h3 className="text-sm font-semibold">{t.name}</h3>
-                  <NotificationsList items={items} />
+                  <NotificationsList
+                    items={items}
+                    currentTreeId={currentTreeId}
+                  />
                 </section>
               );
             })
           ) : (
-            <NotificationsList items={notifications} />
+            <NotificationsList
+              items={notifications}
+              currentTreeId={currentTreeId}
+            />
           )}
         </CardContent>
       </Card>

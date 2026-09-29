@@ -31,14 +31,27 @@ describe("header counts (Step 77.2)", () => {
       count: 2,
       treeId: "t1",
       href: "/account?view=admin#invite-requests",
-      label: "2 need attention in admin",
+      label: "2 need attention in the Root console",
     };
     expect(
-      parseHeaderCounts({ unread: 1, latestUnreadAt: 9, connections: 0, admin }),
-    ).toEqual({ unread: 1, latestUnreadAt: 9, connections: 0, admin });
+      parseHeaderCounts({
+        unread: 1,
+        latestUnreadAt: 9,
+        connections: 0,
+        currentTreeId: "t1",
+        admin,
+      }),
+    ).toEqual({ unread: 1, latestUnreadAt: 9, connections: 0, currentTreeId: "t1", admin });
+    // A visitor, or someone on no tree: no tree of theirs is being looked at.
     expect(
       parseHeaderCounts({ unread: 1, latestUnreadAt: 9, connections: 4, admin: null }),
-    ).toEqual({ unread: 1, latestUnreadAt: 9, connections: 4, admin: null });
+    ).toEqual({
+      unread: 1,
+      latestUnreadAt: 9,
+      connections: 4,
+      currentTreeId: null,
+      admin: null,
+    });
     // A half-formed queue is no queue.
     expect(
       parseHeaderCounts({

@@ -126,6 +126,16 @@ export function SiteNotifications() {
       {open ? (
         <div
           ref={panelRef}
+          // A link to where they already are — "View on tree" for whoever is
+          // open — changes no address for it to close by (Step 77.3).
+          onClick={(event) => {
+            const link = (event.target as Element).closest("a[href]");
+            if (
+              link instanceof HTMLAnchorElement &&
+              link.href === window.location.href
+            )
+              setOpen(false);
+          }}
           className="absolute top-full right-0 z-50 mt-2 max-h-[70vh] w-[min(22rem,90vw)] overflow-y-auto rounded-lg border border-border bg-card p-3 text-left shadow-md"
         >
           <div className="mb-2 flex items-center justify-between gap-2">
@@ -141,7 +151,11 @@ export function SiteNotifications() {
             <CloseOnNavigate onNavigate={() => setOpen(false)} />
           </React.Suspense>
           {items ? (
-            <NotificationsList items={items} showTree />
+            <NotificationsList
+              items={items}
+              showTree
+              currentTreeId={counts.currentTreeId}
+            />
           ) : failed ? (
             <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
               <p role="alert">Couldn’t load them.</p>

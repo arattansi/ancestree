@@ -12,6 +12,7 @@ import {
 } from "@/components/account-type-badge";
 import { AccountTypeGuide } from "@/components/account-type-guide";
 import { FormError } from "@/components/form-error";
+import { LinkPendingLabel } from "@/components/link-pending";
 import { PendingButton } from "@/components/pending-button";
 import { Button } from "@/components/ui/button";
 import {
@@ -323,7 +324,9 @@ export function InviteStep({
           render={<Link href={nextHref} />}
           variant={invites.length > 0 ? "default" : "outline"}
         >
-          {invites.length > 0 ? "Continue" : "Skip for now"}
+          <LinkPendingLabel>
+            {invites.length > 0 ? "Continue" : "Skip for now"}
+          </LinkPendingLabel>
         </Button>
         <p className="text-xs text-muted-foreground">
           You can invite people later too.

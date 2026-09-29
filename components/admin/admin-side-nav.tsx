@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { ADMIN_NAVIGATE_EVENT } from "@/components/admin/nav-event";
+import { navigateToAdminSection } from "@/components/admin/nav-event";
 import { cn } from "@/lib/utils";
 
 export type AdminNavItem = { id: string; label: string };
@@ -43,12 +43,7 @@ export function AdminSideNav({ groups }: { groups: AdminNavGroup[] }) {
   function go(event: React.MouseEvent, id: string) {
     event.preventDefault();
     setActive(id);
-    window.dispatchEvent(new CustomEvent(ADMIN_NAVIGATE_EVENT, { detail: id }));
-    requestAnimationFrame(() =>
-      document
-        .getElementById(id)
-        ?.scrollIntoView({ behavior: "smooth", block: "start" }),
-    );
+    navigateToAdminSection(id);
   }
 
   return (

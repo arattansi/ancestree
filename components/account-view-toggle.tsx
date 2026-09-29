@@ -1,8 +1,8 @@
 import Link from "next/link";
 
-import { switchTreeForm } from "@/app/actions/current-tree";
-import { SubmitButton } from "@/components/submit-button";
-import { Button } from "@/components/ui/button";
+import { LinkPendingLabel } from "@/components/link-pending";
+import { TreeTarget } from "@/components/tree-target";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { adminHref } from "@/lib/tree-links";
 
 export type AccountView = "profile" | "admin" | "dashboard" | "settings";
@@ -41,7 +41,9 @@ export function AccountViewToggle({
           profile
         </ToggleLink>
         {consoleTreeId ? (
-          <ToggleLink href={adminHref()} active={view === "admin"}>
+          // Never fetched ahead: the console archives lapsed invites as it's
+          // drawn (Step 77.3).
+          <ToggleLink href={adminHref()} active={view === "admin"} prefetch={false}>
             root
           </ToggleLink>
         ) : null}
@@ -63,20 +65,31 @@ export function AccountViewToggle({
           className="flex flex-wrap items-center justify-end gap-1 text-xs text-muted-foreground"
         >
           <span>Console for</span>
-          {adminTrees.map((t) => (
-            <form
-              key={t.id}
-              action={switchTreeForm.bind(null, t.id, adminHref())}
-            >
-              <SubmitButton
-                size="xs"
-                variant={t.id === consoleTreeId ? "secondary" : "ghost"}
-                aria-current={t.id === consoleTreeId ? "page" : undefined}
+          {adminTrees.map((t) =>
+            t.id === consoleTreeId ? (
+              // The one shown: nothing to open.
+              <span
+                key={t.id}
+                aria-current="page"
+                className={buttonVariants({ size: "xs", variant: "secondary" })}
               >
                 {t.name}
-              </SubmitButton>
-            </form>
-          ))}
+              </span>
+            ) : (
+              // Another tree's console makes it the one the site shows, so
+              // it switches first (Step 77.3).
+              <TreeTarget
+                key={t.id}
+                treeId={t.id}
+                currentTreeId={consoleTreeId}
+                href={adminHref()}
+                size="xs"
+                variant="ghost"
+              >
+                {t.name}
+              </TreeTarget>
+            ),
+          )}
         </nav>
       ) : null}
     </div>
@@ -86,22 +99,25 @@ export function AccountViewToggle({
 function ToggleLink({
   href,
   active,
+  prefetch,
   children,
 }: {
   href: string;
   active: boolean;
+  prefetch?: false;
   children: React.ReactNode;
 }) {
   return (
     <Button
       nativeButton={false}
-      render={<Link href={href} />}
+      render={<Link href={href} prefetch={prefetch} />}
       size="sm"
       variant={active ? "default" : "ghost"}
       aria-current={active ? "page" : undefined}
       className="h-7"
     >
-      {children}
+      {/* Pulses until the view is on its way in (Step 77.3). */}
+      <LinkPendingLabel>{children}</LinkPendingLabel>
     </Button>
   );
 }

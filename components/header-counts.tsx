@@ -3,9 +3,8 @@
 import * as React from "react";
 import { usePathname } from "next/navigation";
 
-import { switchTreeForm } from "@/app/actions/current-tree";
 import { SiteNavLink } from "@/components/site-nav-link";
-import { SubmitButton } from "@/components/submit-button";
+import { TreeTarget } from "@/components/tree-target";
 import { Badge } from "@/components/ui/badge";
 import {
   countsStale,
@@ -135,24 +134,27 @@ export function ConnectionsNavLink() {
 
 /**
  * The count beside **account** of what waits in the admin consoles they
- * run, which opens the card it's waiting on (Step 30.1).
+ * run, which opens the card it's waiting on (Step 30.1): a link on the tree
+ * being looked at, a switch to another (Step 77.3).
  */
 export function AdminQueueButton() {
   const { counts } = useHeaderCounts();
   const admin = counts.admin;
   if (!admin) return null;
   return (
-    <form action={switchTreeForm.bind(null, admin.treeId, admin.href)}>
-      <SubmitButton
-        size="sm"
-        // Yellow: it opens what's waiting. Red is for removing (Step 70).
-        variant="attention"
-        aria-label={admin.label}
-        title={admin.label}
-        className="relative tap-target tabular-nums"
-      >
-        {admin.count}
-      </SubmitButton>
-    </form>
+    <TreeTarget
+      treeId={admin.treeId}
+      currentTreeId={counts.currentTreeId}
+      href={admin.href}
+      size="sm"
+      // Yellow: it opens what's waiting. Red is for removing (Step 70).
+      variant="attention"
+      aria-label={admin.label}
+      title={admin.label}
+      pendingLabel={admin.label}
+      className="relative tap-target tabular-nums"
+    >
+      {admin.count}
+    </TreeTarget>
   );
 }

@@ -48,6 +48,7 @@ export async function headerCounts({
     unread: unread.count,
     latestUnreadAt: unread.latestAt,
     connections,
+    currentTreeId,
     admin: queue
       ? {
           count,

@@ -44,6 +44,9 @@ export default async function TreePage() {
     return (
       <main className="flex flex-1 flex-col">
         <FamilyTree
+          // One canvas per tree: a switch that doesn't remount the page
+          // mustn't carry the camera or who's open across (Step 77.3).
+          key={tree.id}
           people={people}
           relationships={relationships}
           treeId={tree.id}
@@ -135,6 +138,8 @@ export default async function TreePage() {
   return (
     <main className="flex flex-1 flex-col">
       <FamilyTree
+        // One canvas per tree (Step 77.3), as above.
+        key={tree.id}
         people={people}
         relationships={relationships}
         treeId={tree.id}

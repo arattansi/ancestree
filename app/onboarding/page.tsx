@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 
 import { FirstTreeOnboarding } from "@/components/first-tree/first-tree-onboarding";
 import { OnboardingSelfFlow } from "@/components/onboarding-self-flow";
+import { FormPageSkeleton } from "@/components/page-skeletons";
 import { Card, CardContent } from "@/components/ui/card";
 import { getUser } from "@/lib/auth";
 import { isFounder } from "@/lib/first-tree.server";
@@ -39,11 +41,16 @@ export default async function OnboardingPage({
   // (Step 29), and they can come back to any step from the canvas.
   if (isFounder(membership)) {
     const { step } = await searchParams;
+    const asked = typeof step === "string" ? step : undefined;
+    // Each step reads behind its own boundary (Step 77.3): moving to
+    // another shows its shape at once rather than leaving the last one up.
     return (
-      <FirstTreeOnboarding
-        membership={membership}
-        asked={typeof step === "string" ? step : undefined}
-      />
+      <Suspense
+        key={asked ?? ""}
+        fallback={<FormPageSkeleton label="Loading the step…" />}
+      >
+        <FirstTreeOnboarding membership={membership} asked={asked} />
+      </Suspense>
     );
   }
 

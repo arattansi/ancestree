@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { renameTree } from "@/app/actions/trees";
 import { FormError } from "@/components/form-error";
+import { LinkPendingLabel } from "@/components/link-pending";
 import { PendingButton } from "@/components/pending-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -86,7 +87,7 @@ export function NameStep({
               render={<Link href={nextHref} />}
               variant="ghost"
             >
-              Skip for now
+              <LinkPendingLabel>Skip for now</LinkPendingLabel>
             </Button>
           </div>
         </form>

@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { signOut } from "@/app/actions/auth";
-import { switchTreeForm } from "@/app/actions/current-tree";
 import { AcceptInviteForm, SignInToAccept } from "@/components/accept-invite-form";
 import { AccountTypeGlyph } from "@/components/account-type-badge";
 import { JoinTreeButton } from "@/components/join-tree-button";
 import { MagicLinkForm } from "@/components/magic-link-form";
 import { SubmitButton } from "@/components/submit-button";
+import { TreeTarget } from "@/components/tree-target";
 import {
   Card,
   CardContent,
@@ -22,7 +22,7 @@ import { sentToAnotherAddress } from "@/lib/invite-address";
 import { inviteHref } from "@/lib/sign-in-links";
 import { opensOnSignInLink, readInvite } from "@/lib/sign-in.server";
 import { createClient } from "@/lib/supabase/server";
-import { listMyTrees } from "@/lib/tree-context";
+import { currentAccess, listMyTrees } from "@/lib/tree-context";
 import { treeHref, treesHref } from "@/lib/tree-links";
 
 export const metadata: Metadata = {
@@ -42,13 +42,17 @@ export default async function InvitePage({
   // 77.1). A member already: the invite adds a tree, not an account (Step
   // 25). The invite itself is read by its token, which is its secret, so
   // reading it before the preview has said it's live reveals nothing.
-  const [profile, sessionUser, { data }, invite, myTrees] = await Promise.all([
-    getProfile(),
-    getSessionUser(),
-    supabase.rpc("invite_preview", { p_token: token }),
-    readInvite(token),
-    listMyTrees(),
-  ]);
+  const [profile, sessionUser, { data }, invite, myTrees, access] =
+    await Promise.all([
+      getProfile(),
+      getSessionUser(),
+      supabase.rpc("invite_preview", { p_token: token }),
+      readInvite(token),
+      listMyTrees(),
+      currentAccess(),
+    ]);
+  const currentTreeId =
+    access?.kind === "member" ? access.membership.tree.id : null;
   const preview = data?.[0];
 
   // An invite emailed to someone is their sign-in link: one button, no second
@@ -102,7 +106,11 @@ export default async function InvitePage({
             signedInAs={signedInAs ?? user?.email ?? ""}
           />
         ) : preview?.valid && alreadyOn && onTreeId ? (
-          <AlreadyOnTree treeId={onTreeId} treeName={preview.tree_name} />
+          <AlreadyOnTree
+            treeId={onTreeId}
+            treeName={preview.tree_name}
+            currentTreeId={currentTreeId}
+          />
         ) : preview?.valid ? (
           <>
             <CardHeader>
@@ -232,7 +240,15 @@ export default async function InvitePage({
  * joining, just the way in. Opening switches to the tree without touching
  * the invite, so a family link keeps its place for someone new.
  */
-function AlreadyOnTree({ treeId, treeName }: { treeId: string; treeName: string }) {
+function AlreadyOnTree({
+  treeId,
+  treeName,
+  currentTreeId,
+}: {
+  treeId: string;
+  treeName: string;
+  currentTreeId: string | null;
+}) {
   return (
     <>
       <CardHeader>
@@ -240,11 +256,14 @@ function AlreadyOnTree({ treeId, treeName }: { treeId: string; treeName: string 
         <CardDescription>This link is for relatives who aren&rsquo;t on it yet.</CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={switchTreeForm.bind(null, treeId, treeHref())}>
-          <SubmitButton className="w-full" pendingLabel="Opening…">
-            Open {treeName}
-          </SubmitButton>
-        </form>
+        <TreeTarget
+          treeId={treeId}
+          currentTreeId={currentTreeId}
+          href={treeHref()}
+          className="w-full"
+        >
+          Open {treeName}
+        </TreeTarget>
       </CardContent>
     </>
   );

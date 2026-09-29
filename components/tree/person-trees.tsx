@@ -2,9 +2,8 @@
 
 import * as React from "react";
 
-import { switchTreeForm } from "@/app/actions/current-tree";
 import { listPersonTrees, type PersonTreeLink } from "@/app/actions/trees";
-import { SubmitButton } from "@/components/submit-button";
+import { TreeTarget } from "@/components/tree-target";
 import { treeFocusHref } from "@/lib/tree-links";
 
 /**
@@ -49,21 +48,20 @@ export function PersonTrees({
     <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
       <span>Also on</span>
       {trees.map((t) => (
-        <form
+        // Another tree: busy until its canvas has arrived (Step 70), with
+        // no remount of the page on the way (Step 77.3).
+        <TreeTarget
           key={t.id}
-          action={switchTreeForm.bind(null, t.id, treeFocusHref(personId))}
+          treeId={t.id}
+          currentTreeId={currentTreeId}
+          href={treeFocusHref(personId)}
+          variant="link"
+          size="xs"
+          className="relative tap-target h-auto px-0 whitespace-normal text-foreground underline underline-offset-2"
         >
-          {/* Busy until the other tree's canvas has arrived (Step 70). */}
-          <SubmitButton
-            variant="link"
-            size="xs"
-            pendingLabel="Opening…"
-            className="relative tap-target h-auto px-0 whitespace-normal text-foreground underline underline-offset-2"
-          >
-            {t.name}
-            {t.visitor ? " (view only)" : ""}
-          </SubmitButton>
-        </form>
+          {t.name}
+          {t.visitor ? " (view only)" : ""}
+        </TreeTarget>
       ))}
     </div>
   );

@@ -30,10 +30,12 @@ export async function switchTree(treeId: string): Promise<{ error?: string }> {
 }
 
 /**
- * The same, as a form action bound to a tree and a destination — a
- * notification's "View on tree", an "Also on" link, the trees list. The
- * form's FormData arrives as a third argument and is ignored. A tree they
- * can no longer see lands them on their trees page instead.
+ * The same, to a destination on that tree — a notification's "View on
+ * tree", an "Also on" link, the trees list — when it's another tree than
+ * the one being looked at (`TreeTarget`, Step 77.3; on that one it's a
+ * plain link). A FormData, when it's a form's action, arrives as a third
+ * argument and is ignored. A tree they can no longer see lands them on
+ * their trees page instead.
  */
 export async function switchTreeForm(
   treeId: string,

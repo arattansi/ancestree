@@ -7,6 +7,7 @@ import { FamilyStep } from "@/components/first-tree/family-step";
 import { FirstTreeProgress } from "@/components/first-tree/first-tree-progress";
 import { InviteStep } from "@/components/first-tree/invite-step";
 import { NameStep } from "@/components/first-tree/name-step";
+import { LinkPendingLabel } from "@/components/link-pending";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -91,7 +92,7 @@ export async function FirstTreeOnboarding({
                   is on {tree.name}.
                 </p>
                 <Button nativeButton={false} render={<Link href={next} />}>
-                  Continue
+                  <LinkPendingLabel>Continue</LinkPendingLabel>
                 </Button>
               </CardContent>
             </Card>

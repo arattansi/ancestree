@@ -58,7 +58,13 @@ import { UpcomingFeed } from "@/components/tree/upcoming-feed";
 import { useShowCompanions } from "@/components/tree/use-show-companions";
 import { useToday } from "@/components/tree/use-today";
 import { useTreeRoom } from "@/components/tree/use-tree-room";
+import {
+  NOT_READ,
+  rememberCanvas,
+  useCanvasMemory,
+} from "@/components/tree/use-canvas-memory";
 import { LiveCursors, PresenceFaces } from "@/components/tree/live-cursors";
+import type { CanvasMemory } from "@/lib/canvas-memory";
 import {
   EMPTY_FILTER,
   isFilterActive,
@@ -512,6 +518,11 @@ const NO_INVITES: EntryInvite[] = [];
 const NO_SUGGESTIONS: EntrySuggestion[] = [];
 const NO_DECLINED: DeclinedSuggestion[] = [];
 const NOBODY: ReadonlySet<string> = new Set();
+/**
+ * What the camera is framing once it's put back where this tab left it
+ * (Step 77.3): whatever is on the canvas as it opens. Never a person's id.
+ */
+const KEPT_VIEW = "(kept view)";
 
 type Props = {
   people: TreeGraphPerson[];
@@ -929,7 +940,7 @@ function Canvas({
   // Only the descendants of one or two people (Step 57.2), within the side
   // when that's on too: them, their descendants and whom those married, laid
   // out around them. Like the side, it cuts only what the canvas draws,
-  // searches and lights, and lasts for the visit.
+  // searches and lights, and comes back with the canvas (Step 77.3).
   const [descendantsOf, setDescendantsOf] = React.useState<string[]>([]);
   const descent = React.useMemo(() => {
     const onSide = new Set(sidePeople.map((p) => p.id));
@@ -1070,22 +1081,30 @@ function Canvas({
   if (minimized && !selectedId) setMinimized(false);
   // The card's button, which takes focus from the sheet as it goes.
   const foldedRef = React.useRef<HTMLButtonElement>(null);
-  // Seeded once per `person`, not once per mount (Step 19.2): after an add the
-  // new entry can arrive a render after the canvas does, and a notification
-  // can point a canvas that is already open at someone else. Closing the
-  // panel doesn't re-open it — the URL hasn't changed.
+  // Followed each time the address names somebody new, not once per mount
+  // (Step 19.2): after an add the new entry can arrive a render after the
+  // canvas does, and a link or Back can point a canvas that is already open
+  // at someone else. The address follows whoever is open too (Step 77.3,
+  // below), so it naming the person already open is nothing to follow, and
+  // closing the panel doesn't re-open it.
   const [seededFocus, setSeededFocus] = React.useState(focusable);
-  if (focusable && focusable !== seededFocus) {
+  if (focusable !== seededFocus) {
     setSeededFocus(focusable);
-    setSelectedId(focusable);
-    // Sent here to see somebody: their details open in full.
-    setMinimized(false);
-    // Pointed at somebody the filters leave off (the Root's side, or the
-    // descendants picked): the whole tree comes back, so their card is there
-    // to open.
-    if (!shownIds.has(focusable)) {
-      setSideOnly(false);
-      setDescendantsOf([]);
+    if (focusable && focusable !== selectedId) {
+      setSelectedId(focusable);
+      // Sent here to see somebody: their details open in full.
+      setMinimized(false);
+      // Pointed at somebody the filters leave off (the Root's side, or the
+      // descendants picked): the whole tree comes back, so their card is
+      // there to open.
+      if (!shownIds.has(focusable)) {
+        setSideOnly(false);
+        setDescendantsOf([]);
+      }
+    } else if (!focusId && selectedId) {
+      // Sent to the tree itself, naming nobody — its link in the header,
+      // or Back to before somebody was opened: whoever was open closes.
+      setSelectedId(null);
     }
   }
   const [selectedPetId, setSelectedPetId] = React.useState<string | null>(null);
@@ -1100,6 +1119,60 @@ function Canvas({
   // Whoever was last opened from a search result: their details offer to show
   // how they are connected to somebody else.
   const [searchedId, setSearchedId] = React.useState<string | null>(null);
+
+  // How this tab left the canvas last time (Step 77.3), brought back once as
+  // it opens: after hydration on a page load, since the server can't see the
+  // tab's storage, and on the first render when it's come back to from
+  // another page. `undefined` until then. The filters come back whoever is
+  // open; the camera (below), the details folded or not and a lit connection
+  // only to the view they belonged to — the same person open, or nobody.
+  const memory = useCanvasMemory(treeId);
+  const [recalled, setRecalled] = React.useState<CanvasMemory | null>();
+  if (recalled === undefined && memory !== NOT_READ) {
+    setRecalled(memory);
+    if (memory) {
+      const known = (id: string | null) => !!id && personById.has(id);
+      setSideOnly(memory.sideOnly);
+      setDescendantsOf(memory.descendantsOf.filter(known));
+      setFilter(memory.filter);
+      if (memory.person === selectedId) {
+        setMinimized(memory.minimized);
+        if (known(memory.connection.from) && known(memory.connection.to))
+          setConnectionEnds(memory.connection);
+      }
+    }
+  }
+  // Whoever is open stays on the canvas: filters brought back that would
+  // leave them off make way, as they do for a link to somebody (above).
+  if (
+    selectedId &&
+    personById.has(selectedId) &&
+    !shownIds.has(selectedId) &&
+    (sideOnly || descendantsOf.length > 0)
+  ) {
+    setSideOnly(false);
+    setDescendantsOf([]);
+  }
+
+  // Whoever is open goes in the address as they're opened and closed (Step
+  // 77.3), so Back to the tree, or a reload, opens them again. Replaced, not
+  // pushed: moving around the canvas isn't somewhere Back steps through.
+  // Compared with the last one written, not skipped on mount, so an address
+  // naming somebody still on their way (above) is left for them.
+  const mirroredRef = React.useRef(selectedId);
+  React.useEffect(() => {
+    if (mirroredRef.current === selectedId) return;
+    mirroredRef.current = selectedId;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("person") === selectedId) return;
+    if (selectedId) url.searchParams.set("person", selectedId);
+    else url.searchParams.delete("person");
+    window.history.replaceState(
+      null,
+      "",
+      `${url.pathname}${url.search}${url.hash}`,
+    );
+  }, [selectedId]);
   // Bumped to aim the camera again: at the viewer ("Go to me"), or at all of
   // what's drawn once the Root's side is switched (Step 48).
   const [aimTick, setAimTick] = React.useState(0);
@@ -1840,18 +1913,37 @@ function Canvas({
   /** The person whose tree the camera is currently framing. */
   const framedRef = React.useRef<string | null>(null);
 
-  // The opening view: the whole tree, once the canvas can be aimed at all.
+  // The opening view: the whole tree, once the canvas can be aimed at all,
+  // and what this tab kept of the canvas has been brought back.
   const openedRef = React.useRef(false);
   React.useEffect(() => {
-    if (!canvasReady || !paneWidth || openedRef.current) return;
+    if (!canvasReady || !paneWidth || recalled === undefined) return;
+    if (openedRef.current) return;
     openedRef.current = true;
+    // Back where the camera was left (Step 77.3), when who's open is who was
+    // then — or nobody, as then: the tree is drawn as it was, so the view
+    // still fits. What it frames stays framed (below).
+    if (recalled?.view && recalled.person === selectedId) {
+      const { x, y, zoom } = recalled.view;
+      void setCenter(x, y, { zoom, duration: 0 });
+      framedRef.current = KEPT_VIEW;
+      return;
+    }
     // Unless the canvas was opened on somebody (`/tree?person=…`), in which
     // case the effect below is framing their tree instead.
     if (selectedId) return;
     // Instant, not animated: the opening view has nothing to animate from, and
     // an animated camera move this early is dropped before it starts.
     frame([...graph.layout.positions.values()], 0, 1, 0);
-  }, [canvasReady, paneWidth, selectedId, graph.layout.positions, frame]);
+  }, [
+    canvasReady,
+    paneWidth,
+    recalled,
+    selectedId,
+    graph.layout.positions,
+    frame,
+    setCenter,
+  ]);
 
   // Whether a person's details sheet covers the right of the canvas: not for
   // a blurred card, which has none, nor once it's minimized (Step 49), when
@@ -1861,6 +1953,7 @@ function Canvas({
 
   React.useEffect(() => {
     if (!canvasReady || !paneWidth || !paneHeight) return;
+    if (recalled === undefined) return;
     // One person's tree, framed again when their details are minimized or
     // brought back (Step 49), or the connection between two.
     const framedKey = path
@@ -1868,6 +1961,11 @@ function Canvas({
       : selectedId
         ? `${selectedId}${sheetOut ? "+sheet" : ""}`
         : null;
+    // The camera put back where it was left (above) already frames it.
+    if (framedRef.current === KEPT_VIEW) {
+      framedRef.current = framedKey && spotlight ? framedKey : null;
+      return;
+    }
     if (!framedKey || !spotlight) {
       if (!framedRef.current) return;
       framedRef.current = null;
@@ -1906,6 +2004,7 @@ function Canvas({
     return () => clearTimeout(timer);
   }, [
     canvasReady,
+    recalled,
     path,
     selectedId,
     sheetOut,
@@ -2017,6 +2116,65 @@ function Canvas({
     },
     [flowStore, getInternalNode, room.cursors, setCenter],
   );
+
+  // Kept for this tab as the canvas goes (Step 77.3): who's open, the
+  // filters and the camera, for when it opens again. Only once what was kept
+  // before has been brought back, or it would be written over with how a
+  // canvas starts.
+  const keptRef = React.useRef<Omit<CanvasMemory, "view"> | null>(null);
+  React.useEffect(() => {
+    keptRef.current =
+      recalled === undefined
+        ? null
+        : {
+            person: selectedId,
+            sideOnly,
+            descendantsOf,
+            filter,
+            connection: connectionEnds,
+            minimized,
+          };
+  }, [
+    recalled,
+    selectedId,
+    sideOnly,
+    descendantsOf,
+    filter,
+    connectionEnds,
+    minimized,
+  ]);
+  React.useEffect(() => {
+    // Written as the canvas goes — to another page, or the tab away — with
+    // the camera as it is then; before the camera was ever aimed, as it was
+    // kept.
+    const keep = () => {
+      const kept = keptRef.current;
+      if (!kept) return;
+      let view =
+        recalled && recalled.person === kept.person ? recalled.view : null;
+      if (openedRef.current) {
+        const { transform, width, height } = flowStore.getState();
+        const [tx, ty, zoom] = transform;
+        if (width && height && zoom)
+          view = {
+            x: (width / 2 - tx) / zoom,
+            y: (height / 2 - ty) / zoom,
+            zoom,
+          };
+      }
+      rememberCanvas(treeId, { ...kept, view });
+    };
+    const onHidden = () => {
+      if (document.visibilityState === "hidden") keep();
+    };
+    window.addEventListener("pagehide", keep);
+    document.addEventListener("visibilitychange", onHidden);
+    return () => {
+      window.removeEventListener("pagehide", keep);
+      document.removeEventListener("visibilitychange", onHidden);
+      keep();
+    };
+  }, [treeId, recalled, flowStore]);
 
   // Switching a filter starts afresh on what's drawn: nobody open, nothing
   // lit, the camera on all of it.

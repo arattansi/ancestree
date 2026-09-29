@@ -4,14 +4,13 @@ import * as React from "react";
 import Link from "next/link";
 
 import { disputeClaim, markNotificationsRead } from "@/app/actions/claims";
-import { switchTreeForm } from "@/app/actions/current-tree";
 import { revertEntryEdit } from "@/app/actions/people";
 import { respondToPlacement } from "@/app/actions/trees";
 import { FormError } from "@/components/form-error";
 import { PendingButton } from "@/components/pending-button";
-import { SubmitButton } from "@/components/submit-button";
 import { SuggestionAnswer } from "@/components/suggestion-answer";
 import { SuggestionChanges } from "@/components/suggestion-changes";
+import { TreeTarget } from "@/components/tree-target";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAction } from "@/components/use-action";
@@ -44,10 +43,16 @@ export function newestNotification(items: NotificationItem[]): number {
 export function NotificationsList({
   items,
   showTree = false,
+  currentTreeId,
 }: {
   items: NotificationItem[];
   /** Name each item's tree — for a list that spans every tree (Step 25). */
   showTree?: boolean;
+  /**
+   * The tree being looked at: an item on it opens its page with a plain
+   * link, one on another tree switches first (Step 77.3).
+   */
+  currentTreeId: string | null;
 }) {
   // One dispute form open at a time, across the list.
   const [disputingId, setDisputingId] = React.useState<string | null>(null);
@@ -76,6 +81,7 @@ export function NotificationsList({
           key={n.id}
           n={n}
           showTree={showTree}
+          currentTreeId={currentTreeId}
           disputing={disputingId === n.id}
           onDisputingChange={(open) =>
             // A dispute sent from one item mustn't close another's form,
@@ -97,11 +103,13 @@ export function NotificationsList({
 function NotificationRow({
   n,
   showTree,
+  currentTreeId,
   disputing,
   onDisputingChange,
 }: {
   n: NotificationItem;
   showTree: boolean;
+  currentTreeId: string | null;
   /** Its dispute form is open. */
   disputing: boolean;
   onDisputingChange: (open: boolean) => void;
@@ -251,33 +259,29 @@ function NotificationRow({
         n.treeId ? (
           // Step 71: back into the form with what they suggested, on
           // the tree they suggested it from.
-          <form
-            action={switchTreeForm.bind(
-              null,
-              n.treeId,
-              suggestChangeHref(n.personId, suggestion.id),
-            )}
+          <TreeTarget
+            treeId={n.treeId}
+            currentTreeId={currentTreeId}
+            href={suggestChangeHref(n.personId, suggestion.id)}
+            size="sm"
+            variant="outline"
           >
-            <SubmitButton size="sm" variant="outline" pendingLabel="Opening…">
-              Edit and resend
-            </SubmitButton>
-          </form>
+            Edit and resend
+          </TreeTarget>
         ) : null}
 
         {n.personId && n.treeId ? (
           // The item's tree may not be the one being looked at: switch
           // to it, then open the person.
-          <form
-            action={switchTreeForm.bind(
-              null,
-              n.treeId,
-              treeFocusHref(n.personId),
-            )}
+          <TreeTarget
+            treeId={n.treeId}
+            currentTreeId={currentTreeId}
+            href={treeFocusHref(n.personId)}
+            size="sm"
+            variant="ghost"
           >
-            <SubmitButton size="sm" variant="ghost" pendingLabel="Opening…">
-              View on tree
-            </SubmitButton>
-          </form>
+            View on tree
+          </TreeTarget>
         ) : null}
 
         {n.type === "placed_on_join" && n.treeId ? (
@@ -285,33 +289,29 @@ function NotificationRow({
           // tree, and with a claim invite perhaps folded the entry it
           // named into theirs (Step 41.3). A Root keeps it, or takes it
           // off in "Who This Tree Shows" — on the tree the notice is about.
-          <form
-            action={switchTreeForm.bind(
-              null,
-              n.treeId,
-              adminHref("placements"),
-            )}
+          <TreeTarget
+            treeId={n.treeId}
+            currentTreeId={currentTreeId}
+            href={adminHref("placements")}
+            size="sm"
+            variant="outline"
           >
-            <SubmitButton size="sm" variant="outline" pendingLabel="Opening…">
-              View in Root console
-            </SubmitButton>
-          </form>
+            View in Root console
+          </TreeTarget>
         ) : null}
 
         {n.type === "joined_by_link" && n.treeId ? (
           // Step 52: someone joined with the family link. Who else has,
           // and how full it is, are on its card.
-          <form
-            action={switchTreeForm.bind(
-              null,
-              n.treeId,
-              adminHref("family-link"),
-            )}
+          <TreeTarget
+            treeId={n.treeId}
+            currentTreeId={currentTreeId}
+            href={adminHref("family-link")}
+            size="sm"
+            variant="outline"
           >
-            <SubmitButton size="sm" variant="outline" pendingLabel="Opening…">
-              View family link
-            </SubmitButton>
-          </form>
+            View family link
+          </TreeTarget>
         ) : null}
 
         {n.type === "tree_request_approved" ? (

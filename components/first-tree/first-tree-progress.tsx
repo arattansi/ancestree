@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Check } from "lucide-react";
 
+import { LinkPendingLabel } from "@/components/link-pending";
 import {
   FIRST_TREE_STEPS,
   FIRST_TREE_STEP_NAMES,
@@ -70,9 +71,12 @@ export function FirstTreeProgress({
               {reachable && !isCurrent ? (
                 <Link
                   href={onboardingStepHref(step)}
-                  className="flex items-center gap-1.5 rounded-md px-1 py-0.5 hover:bg-muted"
+                  className="rounded-md px-1 py-0.5 hover:bg-muted"
                 >
-                  {body}
+                  {/* Pulses until the step is on its way (Step 77.3). */}
+                  <LinkPendingLabel className="flex items-center gap-1.5">
+                    {body}
+                  </LinkPendingLabel>
                 </Link>
               ) : (
                 <span

@@ -7,6 +7,7 @@ import { Plus } from "lucide-react";
 import { placePeople } from "@/app/actions/trees";
 import { FamilyPersonChip } from "@/components/first-tree/family-person-chip";
 import { QuickRelativeDialog } from "@/components/first-tree/quick-relative-dialog";
+import { LinkPendingLabel } from "@/components/link-pending";
 import { PendingButton } from "@/components/pending-button";
 import { Button } from "@/components/ui/button";
 import {
@@ -166,7 +167,7 @@ export function FamilyStep({
 
       <div className="flex flex-wrap items-center gap-3">
         <Button nativeButton={false} render={<Link href={doneHref} />}>
-          Done — open my tree
+          <LinkPendingLabel>Done — open my tree</LinkPendingLabel>
         </Button>
         <p className="text-xs text-muted-foreground">
           Add everyone else from the tree.

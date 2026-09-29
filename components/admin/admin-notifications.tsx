@@ -2,20 +2,9 @@
 
 import { Bell } from "lucide-react";
 
-import { ADMIN_NAVIGATE_EVENT } from "@/components/admin/nav-event";
+import { navigateToAdminSection as navigateToSection } from "@/components/admin/nav-event";
 import type { AdminActionItem } from "@/lib/admin-notifications";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
-function navigateToSection(target: string) {
-  window.dispatchEvent(
-    new CustomEvent(ADMIN_NAVIGATE_EVENT, { detail: target }),
-  );
-  requestAnimationFrame(() =>
-    document
-      .getElementById(target)
-      ?.scrollIntoView({ behavior: "smooth", block: "start" }),
-  );
-}
 
 /**
  * The admin queue — pending access requests, disputed claims, and new own-tree

@@ -10,6 +10,8 @@ export type HeaderCounts = {
   latestUnreadAt: number;
   /** Open connection suggestions on the tree being looked at. */
   connections: number;
+  /** The tree being looked at, when they're a member of it. */
+  currentTreeId: string | null;
   /** What waits in the admin consoles they run, and where it opens. */
   admin: {
     count: number;
@@ -48,6 +50,8 @@ export function parseHeaderCounts(value: unknown): HeaderCounts | null {
   const latestUnreadAt = num(v.latestUnreadAt);
   const connections = num(v.connections);
   if (unread === null || latestUnreadAt === null || connections === null) return null;
+  const currentTreeId =
+    typeof v.currentTreeId === "string" ? v.currentTreeId : null;
   const a = v.admin as Record<string, unknown> | null | undefined;
   const admin =
     a &&
@@ -57,5 +61,5 @@ export function parseHeaderCounts(value: unknown): HeaderCounts | null {
     typeof a.label === "string"
       ? { count: a.count as number, treeId: a.treeId, href: a.href, label: a.label }
       : null;
-  return { unread, latestUnreadAt, connections, admin };
+  return { unread, latestUnreadAt, connections, currentTreeId, admin };
 }
