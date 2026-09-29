@@ -12,7 +12,7 @@ import { shortDate } from "@/lib/short-date";
 import { inviteHref } from "@/lib/sign-in-links";
 
 /**
- * Bare invite links on /admin — the ones minted without a recipient, so they
+ * Bare invite links on the Root console — the ones minted without a recipient, so they
  * have no row in "Sent invites". Copyable (the whole point of a bare link is
  * that you send it yourself) and deletable.
  */

@@ -9,8 +9,6 @@ import {
 } from "@/lib/place-search";
 import { createClient } from "@/lib/supabase/server";
 
-export { countryName };
-
 export type PlaceHit = {
   id: number;
   name: string;

@@ -324,7 +324,7 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   (`enteredLine`; `.test.ts`); `lib/welcome.server.ts` — who invited them
   onto the tree (`inviterName`, `.test.ts`);
   `lib/tree-context.ts` — the per-tree context (Step 25): `requireTreeMember`
-  / `requireTreeRoot` / `requireTreeSelfPersonWith` (the page's reads beside
+  / `requireTreeSelfPersonWith` (the page's reads beside
   the check that its own entry is on the tree, Step 77.1) /
   `requireTreeAccess` (member or visitor) for pages, `membershipOf` /
   `rootOf` for actions, `listMyTrees` (a member's trees, read once, which

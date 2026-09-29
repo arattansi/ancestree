@@ -9,7 +9,6 @@
     "lint": "eslint",
     "test": "vitest run",
     "import:geonames": "tsx --env-file=.env.local scripts/import-geonames.ts",
-    "backfill:places": "tsx --env-file=.env.local scripts/backfill-places.ts",
     "email:push": "tsx --env-file=.env.local scripts/push-email-templates.ts",
     "brand:build": "tsx scripts/brand-mark.ts"
   },

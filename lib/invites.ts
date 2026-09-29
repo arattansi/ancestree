@@ -33,10 +33,11 @@ const HISTORY_LIMIT = 50;
  * Every invite that has gone out and been reviewed — a public request a Root
  * approved or declined, and one sent directly: from the console or an
  * account page, or to claim an entry from its card or the add-relative form
- * (Step 38) — newest first. Drives the "Sent invites" history on /admin; the
- * pending queue is a separate, unrelated query (status = 'pending'). Joined
- * invites are gone (`redeem_invite` deletes them) and archived ones are left
- * to `listArchivedInvites`, so what's here is still waiting on someone.
+ * (Step 38) — newest first. Drives the "Sent invites" history on the Root
+ * console; the pending queue is a separate, unrelated query (status =
+ * 'pending'). Joined invites are gone (`redeem_invite` deletes them) and
+ * archived ones are left to `listArchivedInvites`, so what's here is still
+ * waiting on someone.
  */
 export async function listInviteHistory(treeId: string): Promise<InviteHistoryItem[]> {
   const supabase = await createClient();
@@ -142,10 +143,10 @@ export async function listBareInvites(treeId: string): Promise<BareInvite[]> {
 
 /**
  * Archive every invite that has run out unused. There's no scheduler, so
- * /admin calls this as it loads, before listing anything: a lapsed link is
- * already dead (`redeem_invite` checks `expires_at`), so all that waits on
- * this is which list it shows up in. Needs a Root — it's their RLS that
- * allows the update.
+ * the Root console calls this as it loads, before listing anything: a
+ * lapsed link is already dead (`redeem_invite` checks `expires_at`), so all
+ * that waits on this is which list it shows up in. Needs a Root — it's
+ * their RLS that allows the update.
  */
 export async function archiveExpiredInvites(treeId: string): Promise<void> {
   const supabase = await createClient();

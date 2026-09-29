@@ -160,13 +160,6 @@ export async function requireAnyRoot(): Promise<Profile> {
   return profile;
 }
 
-/** A page for Roots of the current tree only; others are sent to the canvas. */
-export async function requireTreeRoot(): Promise<TreeMembership> {
-  const m = await requireTreeMember();
-  if (!m.isRoot) redirect(treeHref());
-  return m;
-}
-
 /**
  * A member who has their own entry, and has it on this tree, with the
  * page's own reads: anyone without one is sent to this tree's onboarding.

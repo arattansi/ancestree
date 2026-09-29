@@ -6,7 +6,6 @@ import { clearNotifications } from "@/app/actions/claims";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import type { NotificationItem } from "@/lib/claims";
-import { cn } from "@/lib/utils";
 
 /**
  * Clears a list of notifications, once asked. A placement request still
@@ -18,11 +17,9 @@ import { cn } from "@/lib/utils";
  */
 export function ClearNotificationsButton({
   items,
-  className,
   onOpenChange,
 }: {
   items: NotificationItem[];
-  className?: string;
   /** Its question opens or closes, for a dropdown to stay open meanwhile. */
   onOpenChange?: (open: boolean) => void;
 }) {
@@ -70,7 +67,7 @@ export function ClearNotificationsButton({
           type="button"
           size="xs"
           variant="ghost"
-          className={cn("relative tap-target", className)}
+          className="relative tap-target"
           onClick={() => {
             cleared.current = false;
           }}

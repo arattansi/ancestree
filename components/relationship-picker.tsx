@@ -31,13 +31,11 @@ export function RelationshipPicker({
   members,
   value,
   onChange,
-  disabled,
   labelId,
 }: {
   members: TreeMemberOption[];
   value: string;
   onChange: (id: string) => void;
-  disabled?: boolean;
   labelId?: string;
 }) {
   const [query, setQuery] = React.useState("");
@@ -67,7 +65,6 @@ export function RelationshipPicker({
               onChange("");
               setQuery("");
             }}
-            disabled={disabled}
           >
             Change
           </button>
@@ -79,7 +76,6 @@ export function RelationshipPicker({
             placeholder="Search people already in the tree…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            disabled={disabled}
             aria-labelledby={labelId}
             aria-controls={listId}
           />
@@ -98,7 +94,6 @@ export function RelationshipPicker({
                 <li key={m.id} role="option" aria-selected={m.id === value}>
                   <button
                     type="button"
-                    disabled={disabled}
                     onClick={() => {
                       onChange(m.id);
                       setQuery("");

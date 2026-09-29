@@ -19,8 +19,6 @@ import {
   type SuggestionSource,
 } from "@/lib/connection-suggestions";
 
-export type { PanelSuggestion };
-
 type TreeSnapshot = {
   people: ExistingPerson[];
   edges: ExistingEdge[];

@@ -40,17 +40,6 @@ export async function compressImage(
   });
 }
 
-/** Natural pixel size of an image file, for the picker's crop maths. */
-export async function imageSize(
-  file: File,
-): Promise<{ width: number; height: number } | null> {
-  const bitmap = await loadBitmap(file);
-  if (!bitmap) return null;
-  const size = { width: bitmap.width, height: bitmap.height };
-  if ("close" in bitmap) bitmap.close();
-  return size;
-}
-
 function baseName(file: File): string {
   return file.name.replace(/\.[^.]+$/, "") || "photo";
 }
