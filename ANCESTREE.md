@@ -174,8 +174,12 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   its parents' live positions_ — not a node — so it follows them as they are
   dragged, and all of a couple's children bend at a shared horizontal bus, so a
   marriage shows one trunk rather than one line per parent — the lines are
-  `canvas-edges.tsx`, the graph they're drawn from `build-graph.ts`, the
-  lanes `generation-lane.tsx`, Step 77.6; admin
+  `canvas-edges.tsx`, the graph they're drawn from `build-graph.ts`
+  (people, then companions hung on apart, Step 87.1), the
+  lanes `generation-lane.tsx`, Step 77.6; a save keeps every unchanged row,
+  card and line as the same object and each photo at its first signed
+  address — `lib/structural-share.ts`, `lib/canvas-nodes.ts`,
+  `lib/signed-url.ts`, `use-kept.ts`, Step 87.1; admin
   "Auto-arrange" clears every manual nudge; on a phone no card can be
   dragged (a tablet's can), so a finger on one pans, Step 49; the zoom
   controls end with
@@ -1513,6 +1517,42 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 87.1 — Stable canvas across saves** (efficiency audit Phase 3,
+  C2 and C8; no migration). Every save's revalidation handed `FamilyTree`
+  every row afresh and every photo newly signed, so the layout ran again,
+  the canvas was re-seeded with unmeasured nodes (React Flow hides those,
+  and their lines), and every avatar fell back to initials and downloaded
+  again. Now: (1) `FamilyTree` passes what it's given through
+  `shareEqual` (`lib/structural-share.ts`) against what it had, so every
+  row, list and prop equal to last time's is the very same object (rows
+  matched by id); (2) each photo's address goes through `keptPhotoUrl`
+  (`lib/signed-url.ts`) first, which keeps the tab's first signed address
+  per photo, keyed on the address without its query (share links carry no
+  path), until it has under 10 minutes left, read from the token's `exp`;
+  (3) a re-seed (`keepNodes`, `lib/canvas-nodes.ts`) keeps the canvas's own
+  node wherever nothing about the card changed and otherwise carries its
+  `measured` over, and lines go through `shareEqual`; (4) the per-card
+  `data` keeps last time's object where its flags came out the same
+  (`keepEntries`, via `useKept`), and `PersonNode` / `PetNode` compare only
+  `data`, so a card the layout merely moves isn't drawn again; (5)
+  `buildGraph` split into `buildPeopleGraph` and `withPets`, so switching
+  companions doesn't lay the people out again; (6) the canvas starts from
+  the locked nodes, so a Leaf's or Branch's isn't seeded twice. **Numbers**
+  (77-person fixture, 41 photos, production builds, headless, 4× CPU, main
+  → this): a save with nothing changed went from 231 card renders, all 77
+  cards hidden, 0 lines, all 77 cards on initials and 82 photo downloads to
+  0 renders, 0 hidden, all 76 lines, 0 initials, 0 downloads and 0
+  layouts; a save renaming one person, 1 render; one adding a child, 1
+  render (only the new card waits to be measured); first load 154 → 77
+  renders, and 230 → 77 for a Leaf; a drag frame 1.1 → 0 renders; the
+  Pets switch 1 → 0 layouts; first paint unchanged (median 853 vs 860 ms
+  over 12 loads). On live as a throwaway Root (8 people, 6 photos): a
+  dropped card redrew 1 card instead of 25, kept all 8 cards and 7 lines
+  on screen and fetched no photo again (main: 8 hidden, 0 lines, 8 on
+  initials, 6 downloads); leaving for the account page and coming back
+  fetched no photo again (main: 6). Search keystrokes are 87.2's, the drop's
+  revalidation 87.3's.
 
 - **Step 77.7 — Cache Components spike: left off** (efficiency audit S9
   and N4, the last of Step 77; no migration, nothing shipped). Tried
