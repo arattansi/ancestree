@@ -266,6 +266,34 @@ export function ordinal(n: number): string {
 }
 
 /**
+ * The week ahead as a message for a family chat (Step 89): a line each,
+ * "🎂 Today: Amina Khan's birthday", "💍 Sat 3 Oct: Ahmed & Sara Khan's
+ * anniversary". Names and the occasion only, as Aalim asked: no ages, no
+ * count of years, no maiden names, since a group chat can hold people who
+ * aren't on the tree. `nameOf` names the person, or the couple. Anything
+ * past the week is left out; nothing in it gives "".
+ */
+export function weekMessage(
+  occasions: readonly Occasion[],
+  nameOf: (o: Occasion) => string,
+): string {
+  const lines = occasions
+    .filter((o) => o.daysAway < WEEK_DAYS)
+    .map((o) => {
+      const day =
+        o.daysAway === 0
+          ? "Today"
+          : o.daysAway === 1
+            ? "Tomorrow"
+            : occasionDay(o.date);
+      const what = o.kind === "birthday" ? "birthday" : "anniversary";
+      const mark = o.kind === "birthday" ? "🎂" : "💍";
+      return `${mark} ${day}: ${nameOf(o)}'s ${what}`;
+    });
+  return lines.length ? ["This week:", ...lines].join("\n") : "";
+}
+
+/**
  * What an occasion is, in the card's words: "Turns 34", "25th anniversary",
  * or "Birthday", "Anniversary" when the year it began isn't known.
  */

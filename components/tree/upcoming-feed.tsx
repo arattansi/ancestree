@@ -1,10 +1,17 @@
 "use client";
 
 import * as React from "react";
-import { Cake, Heart, X } from "lucide-react";
+import { Cake, Heart, Share, X } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { copyText } from "@/components/copy-text";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { FitText } from "@/components/ui/fit-text";
 import { useFocusReturn } from "@/components/use-focus-return";
 import { cropStyle, parseCrop } from "@/lib/image-crop";
@@ -13,6 +20,7 @@ import {
   occasionDay,
   occasionTitle,
   WEEK_DAYS,
+  weekMessage,
   type Occasion,
 } from "@/lib/occasions";
 import {
@@ -20,6 +28,7 @@ import {
   personDisplayName,
   personInitials,
 } from "@/lib/person-name";
+import { hasMessagesApp, messagesHref, whatsappHref } from "@/lib/share-text";
 import type { TreeGraphPerson } from "@/lib/tree";
 import { cn } from "@/lib/utils";
 
@@ -96,6 +105,67 @@ function maidenNote(
   return notes.join(" · ") || null;
 }
 
+/**
+ * Upcoming's **Share** (Step 89): the week ahead, typed out for a family
+ * chat and sent by the member, not by us. WhatsApp and Messages open with
+ * the text ready and the member picks the chat; Copy is for anywhere else
+ * (Slack, say); More… is the device's own share sheet, where it has one.
+ * Messages shows only where an `sms:` link opens it (Apple, Android).
+ */
+function ShareWeek({ text }: { text: string }) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        className="relative flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs text-muted-foreground outline-none tap-target hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+        aria-label="Share this week"
+      >
+        <Share className="size-3.5" />
+        Share
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-36">
+        <ShareItems text={text} />
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/** The menu's items, drawn only once it opens, so `navigator` is there. */
+function ShareItems({ text }: { text: string }) {
+  const messages = hasMessagesApp(navigator.userAgent);
+  const sheet = typeof navigator.share === "function";
+  return (
+    <>
+      <DropdownMenuItem
+        render={
+          <a href={whatsappHref(text)} target="_blank" rel="noopener noreferrer" />
+        }
+      >
+        WhatsApp
+      </DropdownMenuItem>
+      {messages ? (
+        <DropdownMenuItem render={<a href={messagesHref(text)} />}>
+          Messages
+        </DropdownMenuItem>
+      ) : null}
+      <DropdownMenuItem
+        onClick={() =>
+          void copyText(text, { copied: "Copied", failed: "Couldn't copy" })
+        }
+      >
+        Copy
+      </DropdownMenuItem>
+      {sheet ? (
+        <DropdownMenuItem
+          // Closing the sheet without sharing rejects; that's no error.
+          onClick={() => void navigator.share({ text }).catch(() => {})}
+        >
+          More…
+        </DropdownMenuItem>
+      ) : null}
+    </>
+  );
+}
+
 /** When it is: "today", "tomorrow", or " · Sat 3 Oct". */
 function when(o: Occasion): string {
   if (o.daysAway === 0) return " today";
@@ -126,6 +196,18 @@ export function UpcomingFeed({
   const groups = React.useMemo(
     () => (occasions && today ? groupOccasions(occasions, today) : []),
     [occasions, today],
+  );
+  const shareText = React.useMemo(
+    () =>
+      weekMessage(occasions ?? [], (o) => {
+        const [a, b] = o.people.map((id) => personById.get(id));
+        return o.kind === "anniversary"
+          ? coupleName(a, b)
+          : a
+            ? personDisplayName(a)
+            : "";
+      }),
+    [occasions, personById],
   );
 
   // The button and the card take each other's place, so focus is handed
@@ -181,15 +263,18 @@ export function UpcomingFeed({
             </span>
           ) : null}
         </h2>
-        <button
-          ref={closeRef}
-          type="button"
-          onClick={closeCard}
-          className="relative tap-target text-muted-foreground hover:text-foreground"
-          aria-label="Close upcoming"
-        >
-          <X className="size-4" />
-        </button>
+        <div className="flex items-center gap-2">
+          {shareText ? <ShareWeek text={shareText} /> : null}
+          <button
+            ref={closeRef}
+            type="button"
+            onClick={closeCard}
+            className="relative tap-target text-muted-foreground hover:text-foreground"
+            aria-label="Close upcoming"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
       </div>
 
       {groups.length === 0 ? (

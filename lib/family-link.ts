@@ -5,6 +5,8 @@
  * supabase/migrations/20260925150000_family_link.sql.
  */
 
+import { whatsappHref } from "@/lib/share-text";
+
 /**
  * How many may join through one link before it must be rotated.
  * `private.family_link_max_uses()` and the `invites_family_link_cap` check
@@ -42,5 +44,5 @@ export function familyLinkMessage(url: string, treeName: string): string {
 
 /** Opens WhatsApp (the app, or WhatsApp Web) with the message ready to send. */
 export function whatsappShareHref(url: string, treeName: string): string {
-  return `https://wa.me/?text=${encodeURIComponent(familyLinkMessage(url, treeName))}`;
+  return whatsappHref(familyLinkMessage(url, treeName));
 }

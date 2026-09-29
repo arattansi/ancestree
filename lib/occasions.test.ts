@@ -7,6 +7,8 @@ import {
   occasionTitle,
   ordinal,
   upcomingOccasions,
+  weekMessage,
+  type Occasion,
   type OccasionEdge,
   type OccasionPerson,
 } from "@/lib/occasions";
@@ -336,5 +338,48 @@ describe("wording", () => {
     // A late evening, local time: still that day, whatever UTC says.
     expect(localDay(new Date(2026, 8, 26, 23, 59))).toBe("2026-09-26");
     expect(localDay(new Date(2027, 0, 1, 0, 0))).toBe("2027-01-01");
+  });
+});
+
+describe("weekMessage (Step 89)", () => {
+  const today = "2026-09-29";
+  const people = [
+    person("amina", "1992-09-29"),
+    person("yusuf", "1990-10-03"),
+    person("zara", "1960-11-20"),
+    person("ahmed", "1958-02-11"),
+    person("sara", "1961-05-02"),
+  ];
+  const lines = [marriage("ahmed", "sara", "1985-09-30")];
+  const names: Record<string, string> = {
+    amina: "Amina Khan",
+    yusuf: "Yusuf Ali",
+    zara: "Zara Jiwa",
+  };
+  const nameOf = (o: Occasion) =>
+    o.kind === "anniversary"
+      ? "Ahmed & Sara Khan"
+      : (names[o.people[0]] ?? "?");
+
+  it("lists the week ahead, a line each, with no ages or years", () => {
+    const occasions = upcomingOccasions(people, lines, today);
+    expect(weekMessage(occasions, nameOf)).toBe(
+      [
+        "This week:",
+        "🎂 Today: Amina Khan's birthday",
+        "💍 Tomorrow: Ahmed & Sara Khan's anniversary",
+        "🎂 Sat 3 Oct: Yusuf Ali's birthday",
+      ].join("\n"),
+    );
+  });
+
+  it("leaves out anything past the week", () => {
+    const occasions = upcomingOccasions(people, lines, today);
+    expect(weekMessage(occasions, nameOf)).not.toContain("Zara");
+  });
+
+  it("is empty when nothing falls this week", () => {
+    const occasions = upcomingOccasions([person("zara", "1960-11-20")], [], today);
+    expect(weekMessage(occasions, nameOf)).toBe("");
   });
 });
