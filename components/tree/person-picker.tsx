@@ -6,7 +6,11 @@ import { X } from "lucide-react";
 import { FitText } from "@/components/ui/fit-text";
 import { Input } from "@/components/ui/input";
 import { useFocusReturn } from "@/components/use-focus-return";
-import { personDisplayName, personLifespan } from "@/lib/person-name";
+import {
+  maidenLine,
+  personDisplayName,
+  personLifespan,
+} from "@/lib/person-name";
 import { matchesName } from "@/lib/tree-search";
 import type { TreeGraphPerson } from "@/lib/tree";
 
@@ -112,22 +116,35 @@ export function PersonPicker({
       {text.trim() ? (
         suggestions.length > 0 ? (
           <ul className="flex flex-col gap-0.5">
-            {suggestions.slice(0, MAX_SUGGESTIONS).map((p) => (
-              <li key={p.id}>
-                <button
-                  type="button"
-                  onClick={() => pick(p.id)}
-                  className="w-full rounded-md px-2 py-1 text-left hover:bg-accent"
-                >
-                  <FitText max={13} min={11} className="leading-5 font-medium">
-                    {personDisplayName(p)}
-                  </FitText>
-                  <FitText className="leading-4 text-muted-foreground">
-                    {personLifespan(p) ?? "Living"}
-                  </FitText>
-                </button>
-              </li>
-            ))}
+            {suggestions.slice(0, MAX_SUGGESTIONS).map((p) => {
+              // A maiden name is matched too, so it says why someone came up.
+              const maiden = maidenLine(p);
+              return (
+                <li key={p.id}>
+                  <button
+                    type="button"
+                    onClick={() => pick(p.id)}
+                    className="w-full rounded-md px-2 py-1 text-left hover:bg-accent"
+                  >
+                    <FitText
+                      max={13}
+                      min={11}
+                      className="leading-5 font-medium"
+                    >
+                      {personDisplayName(p)}
+                    </FitText>
+                    {maiden ? (
+                      <FitText className="leading-4 text-muted-foreground">
+                        {maiden}
+                      </FitText>
+                    ) : null}
+                    <FitText className="leading-4 text-muted-foreground">
+                      {personLifespan(p) ?? "Living"}
+                    </FitText>
+                  </button>
+                </li>
+              );
+            })}
             {suggestions.length > MAX_SUGGESTIONS ? (
               <li className="px-2 text-xs text-muted-foreground">
                 {suggestions.length - MAX_SUGGESTIONS} more — keep typing

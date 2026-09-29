@@ -26,7 +26,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { FitText } from "@/components/ui/fit-text";
-import { personDisplayName, personLifespan } from "@/lib/person-name";
+import {
+  maidenLine,
+  personDisplayName,
+  personLifespan,
+} from "@/lib/person-name";
 import {
   countryOptions,
   decadeOptions,
@@ -430,10 +434,16 @@ export function TreeSearch({
             <ul className="mt-1.5 flex max-h-48 flex-col gap-0.5 overflow-y-auto">
               {results.map((p) => {
                 const lifespan = personLifespan(p);
+                // Under the name, as on the card: a search for a maiden
+                // name finds someone under their married one.
+                const maiden = maidenLine(p);
                 const place =
                   [p.city_of_birth, p.country_of_birth]
                     .filter(Boolean)
                     .join(", ") || null;
+                const details =
+                  [lifespan, place].filter(Boolean).join(" · ") ||
+                  (maiden ? null : "No other details");
                 return (
                   <li key={p.id}>
                     <button
@@ -451,10 +461,16 @@ export function TreeSearch({
                       >
                         {personDisplayName(p)}
                       </FitText>
-                      <FitText className="leading-4 text-muted-foreground">
-                        {[lifespan, place].filter(Boolean).join(" · ") ||
-                          "No other details"}
-                      </FitText>
+                      {maiden ? (
+                        <FitText className="leading-4 text-muted-foreground">
+                          {maiden}
+                        </FitText>
+                      ) : null}
+                      {details ? (
+                        <FitText className="leading-4 text-muted-foreground">
+                          {details}
+                        </FitText>
+                      ) : null}
                     </button>
                   </li>
                 );
