@@ -268,6 +268,10 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `lib/photo-upload.ts` (`uploadPhoto` under the file's own type,
   `attachPhoto`, which removes a file the entry refused, `discardPhoto`;
   the Supabase client loads only when a photo is sent),
+  `lib/photo-cleanup.server.ts` (the file a save replaced or cleared goes
+  once nothing points at it, Step 82: `removeReplacedPhotos`,
+  `removeUndonePhotos`; which files may go is `photosLeftBehind` in
+  `lib/photo-path.ts`; `.test.ts` beside each),
   `components/use-photo-draft.ts` (`usePhotoDraft`, `usePickedUrl`),
   `sameCrop` in `lib/image-crop.ts`; `components/spouse-dates-fields.tsx`
   + `lib/spouse-dates.ts` (a marriage's dates in every form, stored and
@@ -699,6 +703,15 @@ reads the person in the path (a document's reads its row). So when "This is
 me" gives the claimed entry the placeholder's photo, `claimPerson` moves the
 file into the claimed entry's folder with the service role (Step 43,
 `moveClaimedPhoto`), as deleting an entry sweeps its files.
+**A replaced photo's file goes (Step 82):** each writer of `photo_path`
+reads what it held before the write, and once the write has gone through,
+the file it replaced or cleared is removed after the response, with the
+service role, when it lies in that entry's or companion's own folder (the
+files its editors could remove themselves) and nothing points at it: no
+entry or companion, and no Branch's edit a Root can still undo, since the
+undo puts the old photo back from `entry_revisions.before`
+(`lib/photo-cleanup.server.ts`). A new writer of `photo_path` calls
+`removeReplacedPhotos` the same way.
 **Documents are private (Step 18.4):** a document's row and file are readable
 only by a Root, the entry's owner (or the member whose own entry it is), and
 the Branch who tends that side of the tree — including another member's own
@@ -1320,6 +1333,9 @@ Canadian context → PIPEDA-minded.
 - **Delete a person**: `PersonPanel` → "Delete entry" (admins only,
   `deletePerson`) removes the row (edges cascade) plus its photo and document
   objects from storage.
+- **Replaced photos** (Step 82): a photo replaced or cleared leaves storage
+  once nothing shows it (see **Storage** under Data model); every earlier
+  photo used to stay in the bucket.
 - **Delete your account**: `/account` → "Delete my account" (`deleteAccount`)
   removes the auth user + `profiles` row after reassigning the member's
   `created_by` / `owner_user_id` / `uploaded_by` references to a founding admin,
@@ -1487,6 +1503,53 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 82 — A replaced photo's old file goes** (ad-hoc; no migration; the
+  follow-up Step 77.5 left: verifying it, three photo edits on one companion
+  left three files under `{tree}/pets/{pet}/`. It predates 77.5: the photo
+  actions only ever swapped `photo_path`). Live had 14 files in `photos`, 4
+  of them replaced photos nothing shows. **Now** each writer of `photo_path`
+  reads what it held before the write (`updatePerson` in the read it already
+  made; `setPersonPhoto`, `setPetPhoto` and `updatePet` with a new photo in
+  one small read) and, once the write has gone through, hands it to
+  `lib/photo-cleanup.server.ts`, which removes the file after the response
+  (`after`), with the service role, only when it lies in that entry's or
+  companion's own folder (`photosLeftBehind`: all the bucket's delete
+  policies read of a path, so nothing the saver couldn't remove themselves;
+  a path planted from another folder is never followed) and nothing points
+  at it: no entry or companion (a claim merge moves files between folders),
+  and no Branch's edit a Root can still undo, since the undo puts the old
+  photo back from `entry_revisions.before` (kept until that undo is
+  pressed). When that can't be read, or storage refuses, the file stays, as
+  before; the save has already answered either way. Two saves of one entry's
+  photo at the same moment can still leave a file behind, never remove one
+  that's shown. **Also:** a Root's **Undo this change** removes whichever of
+  the edit's two photos the entry no longer shows (`removeUndonePhotos`: the
+  Branch's, or the old one once only that undo could have brought it back),
+  and "This is me" on an entry with a photo of its own removes the
+  placeholder's, which was left in a folder nobody can read; one that was to
+  move into the claimed entry stays, moved or not. Filling in blanks only
+  adds a photo where there's none; `deletePerson` and `removePet` are
+  unchanged. The 4 files the old code had left on live were removed at
+  Aalim's go, once checked again that nothing pointed at them: the bucket
+  now holds 10, each a photo an entry or companion shows. **Verified:** in
+  headless Chrome on live as throwaway members of a throwaway tree (a Root,
+  a Branch, two Leaves with placeholders), against a production build,
+  reading the bucket back after each press: an entry's photo replaced twice
+  left one file, the one it shows; three photo edits on a companion left one
+  — on the code before this step, three; a Branch's new photo on a Root's
+  entry left both files, the edit kept for the undo, and the Root's Undo
+  brought the old one back and removed the Branch's; "This is me" on an
+  entry with its own photo removed the placeholder's, and on one without
+  moved it in and removed nothing; a file another entry pointed at stayed,
+  and so did one planted from another entry's folder; a new companion and a
+  new relative kept their photos. Each press made the one save it made
+  before; no console or server errors. `storage.objects` agreed. Rebased
+  onto Step 77.6 (which split the entry's actions into their own file), the
+  whole run again on a fresh build: all 40 checks passed. The throwaway
+  users, trees, rows and files were deleted after each run, leaving the
+  bucket as it was. 1253 tests pass (18 new); tsc, lint and `next build` are
+  clean.
 
 - **Step 77.6 — Efficiency audit, phase 4: the tidy** (ad-hoc; no
   migration; the audit's findings R6–R10, its dead code and its file
