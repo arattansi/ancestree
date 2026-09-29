@@ -412,9 +412,10 @@ export function AddPersonFlow({
     edges: ReturnType<typeof buildChainEdges>;
   } | null>(null);
   const [addingMore, setAddingMore] = React.useState(false);
-  // Adding a relative asks their name, how they connect and an invite up
-  // front, and keeps everything else behind "Add more details" at the
-  // bottom (Step 44). Adding yourself still shows it all.
+  // Adding a relative asks their name, how they connect (anyone in between
+  // included, Step 78) and an invite up front, and keeps everything else
+  // behind "Add more details" at the bottom (Step 44). Adding yourself
+  // still shows it all.
   const compact = mode === "relative";
   const [moreDetails, setMoreDetails] = React.useState(false);
   const details = !compact || moreDetails;
@@ -998,19 +999,19 @@ export function AddPersonFlow({
                       );
                     })}
 
-                    {details ? (
-                      // Yellow: it was easy to miss (Step 54).
-                      <Button
-                        ref={addInBetweenButton}
-                        type="button"
-                        variant="attention"
-                        size="sm"
-                        className="self-start"
-                        onClick={addIntermediate}
-                      >
-                        Add someone in between
-                      </Button>
-                    ) : null}
+                    {/* Yellow: it was easy to miss (Step 54). Not behind "Add
+                        more details" either: adding a relative often means
+                        adding the people who lead to them (Step 78). */}
+                    <Button
+                      ref={addInBetweenButton}
+                      type="button"
+                      variant="attention"
+                      size="sm"
+                      className="self-start"
+                      onClick={addIntermediate}
+                    >
+                      Add someone in between
+                    </Button>
 
                     {details ? (
                       <div className="flex flex-col gap-3 border-t border-border pt-4">
