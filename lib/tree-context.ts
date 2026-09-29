@@ -16,6 +16,7 @@ import {
   type Profile,
 } from "@/lib/auth";
 import { readCurrentTreeId } from "@/lib/current-tree.server";
+import { isPlacedOn } from "@/lib/placements.server";
 import type { Tables } from "@/lib/database.types";
 import { createClient } from "@/lib/supabase/server";
 import { onboardingHref, treeHref, treesHref } from "@/lib/tree-links";
@@ -53,20 +54,14 @@ export const getTreeById = cache(
   },
 );
 
-/** The caller's account type on a tree, or `null` when they are not on it. */
+/**
+ * The caller's account type on a tree, or `null` when they are not on it.
+ * Read off their own list of trees (`listMyTrees`, once per request), which
+ * holds the same membership row.
+ */
 export const getRoleIn = cache(
-  async (treeId: string): Promise<AccountTypeKey | null> => {
-    const user = await getSessionUser();
-    if (!user) return null;
-    const supabase = await createClient();
-    const { data } = await supabase
-      .from("tree_members")
-      .select("role")
-      .eq("tree_id", treeId)
-      .eq("user_id", user.id)
-      .maybeSingle();
-    return data && isAccountTypeKey(data.role) ? data.role : null;
-  },
+  async (treeId: string): Promise<AccountTypeKey | null> =>
+    (await listMyTrees()).find((t) => t.id === treeId)?.role ?? null,
 );
 
 function membership(
@@ -86,8 +81,6 @@ function membership(
 export type TreeVisit = {
   tree: Tree;
   profile: Profile;
-  /** The tree of theirs that this one was opened to. */
-  viaTree: Tree | null;
 };
 
 export type TreeAccess =
@@ -102,44 +95,34 @@ export type TreeAccess =
  * header says.
  */
 export const currentAccess = cache(async (): Promise<TreeAccess | null> => {
-  const profile = await getProfile();
+  // Who they are and which trees are theirs need only the session, so they
+  // are read together (Step 77.1); a tree of theirs needs nothing more.
+  const [profile, trees, chosen] = await Promise.all([
+    getProfile(),
+    listMyTrees(),
+    readCurrentTreeId(),
+  ]);
   if (!profile) return null;
-  const trees = await listMyTrees();
-  const chosen = await readCurrentTreeId();
 
   if (chosen) {
     const mine = trees.find((t) => t.id === chosen);
-    // RLS on `trees` only returns a row to a member or a visitor.
-    const tree = await getTreeById(chosen);
-    if (tree && mine) {
+    if (mine) {
       return {
         kind: "member",
-        membership: membership(tree, profile, mine.role),
+        membership: membership(treeOf(mine), profile, mine.role),
       };
     }
-    if (tree) {
-      const supabase = await createClient();
-      const { data: via } = await supabase
-        .from("tree_visibility")
-        .select(
-          "viewer_tree_id, viewer:trees!tree_visibility_viewer_tree_id_fkey(id, name, slug, created_by, created_at)",
-        )
-        .eq("tree_id", tree.id)
-        .limit(1)
-        .maybeSingle();
-      const viaRaw = Array.isArray(via?.viewer) ? via?.viewer[0] : via?.viewer;
-      return {
-        kind: "visitor",
-        visit: { tree, profile, viaTree: viaRaw ?? null },
-      };
-    }
+    // Not theirs: RLS on `trees` only returns a row to a visitor.
+    const tree = await getTreeById(chosen);
+    if (tree) return { kind: "visitor", visit: { tree, profile } };
   }
 
   const home = await defaultTree(profile);
   if (!home) return null;
-  const tree = await getTreeById(home.id);
-  if (!tree) return null;
-  return { kind: "member", membership: membership(tree, profile, home.role) };
+  return {
+    kind: "member",
+    membership: membership(treeOf(home), profile, home.role),
+  };
 });
 
 /**
@@ -147,12 +130,12 @@ export const currentAccess = cache(async (): Promise<TreeAccess | null> => {
  * to `/join`; a member of no tree at all goes to their (empty) trees page.
  */
 export async function requireTreeAccess(): Promise<TreeAccess> {
-  const profile = await getProfile();
+  // Asked together: the tree needs only the session too (Step 77.1).
+  const [profile, access] = await Promise.all([getProfile(), currentAccess()]);
   if (!profile) {
     const user = await getSessionUser();
     redirect(user ? "/join?status=pending" : "/join");
   }
-  const access = await currentAccess();
   if (!access) redirect(treesHref());
   return access;
 }
@@ -172,8 +155,7 @@ export async function requireTreeMember(): Promise<TreeMembership> {
  * any Root. Mirrors `private.is_any_root`.
  */
 export async function requireAnyRoot(): Promise<Profile> {
-  const profile = await requireProfile();
-  const trees = await listMyTrees();
+  const [profile, trees] = await Promise.all([requireProfile(), listMyTrees()]);
   if (!trees.some((t) => t.type.runsTree)) redirect(treesHref());
   return profile;
 }
@@ -186,22 +168,27 @@ export async function requireTreeRoot(): Promise<TreeMembership> {
 }
 
 /**
- * A member who has their own entry, and has it on this tree. Anyone without
- * one is sent to this tree's onboarding.
+ * A member who has their own entry, and has it on this tree, with the
+ * page's own reads: anyone without one is sent to this tree's onboarding.
+ * The reads start beside the check rather than after it (Step 77.1): `load`
+ * runs at once, and whether their entry is on this tree is decided once both
+ * have settled, so its redirect still comes before anything `load` found.
+ * RLS bounds what `load` can read either way.
  */
-export async function requireTreeSelfPerson(): Promise<TreeMembership> {
+export async function requireTreeSelfPersonWith<T>(
+  load: (m: TreeMembership & { selfPersonId: string }) => Promise<T>,
+): Promise<{ membership: TreeMembership; data: T }> {
   const m = await requireTreeMember();
-  if (!m.profile.self_person_id) redirect(onboardingHref());
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("tree_placements")
-    .select("id")
-    .eq("tree_id", m.tree.id)
-    .eq("person_id", m.profile.self_person_id)
-    .eq("status", "active")
-    .maybeSingle();
-  if (!data) redirect(onboardingHref());
-  return m;
+  const selfPersonId = m.profile.self_person_id;
+  if (!selfPersonId) redirect(onboardingHref());
+  const [placed, data] = await Promise.allSettled([
+    isPlacedOn(m.tree.id, selfPersonId),
+    load({ ...m, selfPersonId }),
+  ]);
+  if (placed.status === "rejected") throw placed.reason;
+  if (!placed.value) redirect(onboardingHref());
+  if (data.status === "rejected") throw data.reason;
+  return { membership: m, data: data.value };
 }
 
 /**
@@ -211,13 +198,18 @@ export async function requireTreeSelfPerson(): Promise<TreeMembership> {
 export async function membershipOf(
   treeId: string,
 ): Promise<{ membership?: TreeMembership; error?: string }> {
-  const profile = await getProfile();
+  // Their profile and their trees in one wave (Step 77.1): a membership row
+  // carries the tree it's on.
+  const [profile, trees] = await Promise.all([getProfile(), listMyTrees()]);
   if (!profile) return { error: "You are not signed in." };
-  const tree = await getTreeById(treeId);
-  if (!tree) return { error: "That tree no longer exists." };
-  const role = await getRoleIn(tree.id);
-  if (!role) return { error: "You are not a member of that tree." };
-  return { membership: membership(tree, profile, role) };
+  const mine = trees.find((t) => t.id === treeId);
+  if (mine) return { membership: membership(treeOf(mine), profile, mine.role) };
+  // Not theirs: whether it's gone or only not theirs decides what's said.
+  return {
+    error: (await getTreeById(treeId))
+      ? "You are not a member of that tree."
+      : "That tree no longer exists.",
+  };
 }
 
 /** For server actions that only a Root of the tree may run. */
@@ -242,7 +234,21 @@ export type MyTree = {
   memberCount: number;
   personCount: number;
   joinedAt: string;
+  /** The tree row's own columns, so a membership needs no second read. */
+  createdBy: string | null;
+  createdAt: string;
 };
+
+/** The tree a membership row is on. */
+function treeOf(t: MyTree): Tree {
+  return {
+    id: t.id,
+    name: t.name,
+    slug: t.slug,
+    created_by: t.createdBy,
+    created_at: t.createdAt,
+  };
+}
 
 /** Every tree the caller belongs to, with their account type in each. */
 export const listMyTrees = cache(async (): Promise<MyTree[]> => {
@@ -254,7 +260,9 @@ export const listMyTrees = cache(async (): Promise<MyTree[]> => {
     .select("*")
     .order("joined_at", { ascending: true });
   return (data ?? []).flatMap((t) => {
-    if (!t.id || !t.name || !t.slug || !isAccountTypeKey(t.role)) return [];
+    if (!t.id || !t.name || !t.slug || !t.created_at || !isAccountTypeKey(t.role)) {
+      return [];
+    }
     return [
       {
         id: t.id,
@@ -266,6 +274,8 @@ export const listMyTrees = cache(async (): Promise<MyTree[]> => {
         memberCount: Number(t.member_count ?? 0),
         personCount: Number(t.person_count ?? 0),
         joinedAt: t.joined_at ?? "",
+        createdBy: t.created_by,
+        createdAt: t.created_at,
       },
     ];
   });

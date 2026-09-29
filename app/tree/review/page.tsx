@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ConnectionReview } from "@/components/tree/connection-review";
 import { Button } from "@/components/ui/button";
 import { auditTreeConnections } from "@/lib/connection-suggestions.server";
-import { requireTreeSelfPerson } from "@/lib/tree-context";
+import { requireTreeSelfPersonWith } from "@/lib/tree-context";
 import { treeHref } from "@/lib/tree-links";
 
 export const metadata: Metadata = {
@@ -13,8 +13,11 @@ export const metadata: Metadata = {
 };
 
 export default async function ConnectionReviewPage() {
-  const { tree } = await requireTreeSelfPerson();
-  const suggestions = await auditTreeConnections(tree.id);
+  // The audit runs beside the check that their own entry is on this tree
+  // (Step 77.1), and once for the page and the header's count of it.
+  const { data: suggestions } = await requireTreeSelfPersonWith(({ tree }) =>
+    auditTreeConnections(tree.id),
+  );
 
   const duplicates = suggestions.filter(
     (s) => s.suggestedType === "duplicate_check",

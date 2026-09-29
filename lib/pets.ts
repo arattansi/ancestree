@@ -54,30 +54,17 @@ export async function getTreePets(
 ): Promise<TreePet[]> {
   const supabase = db ?? (await createClient());
 
-  const { data: rows } = await supabase
+  // Each pet with its people, in one read (Step 77.1), first linked first.
+  const { data } = await supabase
     .from("pets")
-    .select(PET_COLUMNS)
+    .select(`${PET_COLUMNS}, pet_companions(person_id)`)
     .eq("tree_id", treeId)
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: true })
+    .order("created_at", { referencedTable: "pet_companions", ascending: true });
 
-  if (!rows || rows.length === 0) return [];
+  if (!data || data.length === 0) return [];
 
-  const { data: links } = await supabase
-    .from("pet_companions")
-    .select("pet_id, person_id")
-    .in(
-      "pet_id",
-      rows.map((r) => r.id),
-    );
-
-  const companionsByPet = new Map<string, string[]>();
-  for (const link of links ?? []) {
-    const list = companionsByPet.get(link.pet_id) ?? [];
-    list.push(link.person_id);
-    companionsByPet.set(link.pet_id, list);
-  }
-
-  const paths = rows
+  const paths = data
     .map((r) => r.photo_path)
     .filter((p): p is string => Boolean(p));
   const urlByPath = new Map<string, string>();
@@ -90,10 +77,10 @@ export async function getTreePets(
     }
   }
 
-  return rows.map((row) => ({
+  return data.map(({ pet_companions: links, ...row }) => ({
     ...row,
     photo_url: row.photo_path ? (urlByPath.get(row.photo_path) ?? null) : null,
-    companions: companionsByPet.get(row.id) ?? [],
+    companions: (links ?? []).map((link) => link.person_id),
     ...(forPublic ? { created_by: NOBODY, photo_path: null } : {}),
   }));
 }

@@ -8,6 +8,7 @@ import { claimInviteEmail } from "@/lib/emails/claim-invite";
 import { inviteSentEmail } from "@/lib/emails/invite-sent";
 import { mintFounderInvite } from "@/lib/founder-invites.server";
 import { personDisplayName } from "@/lib/person-name";
+import { isPlacedOn } from "@/lib/placements.server";
 import { getSiteUrl } from "@/lib/site-url";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -249,15 +250,11 @@ export async function sendClaimInvite(
   if (!role) {
     return { error: "You don't have permission to send invites for this entry." };
   }
-  if (joinTreeId !== person.tree_id) {
-    const { data: placed } = await supabase
-      .from("tree_placements")
-      .select("id")
-      .eq("tree_id", joinTreeId)
-      .eq("person_id", personId)
-      .eq("status", "active")
-      .maybeSingle();
-    if (!placed) return { error: "That entry isn't on that tree." };
+  if (
+    joinTreeId !== person.tree_id &&
+    !(await isPlacedOn(joinTreeId, personId))
+  ) {
+    return { error: "That entry isn't on that tree." };
   }
 
   const address = email.trim().toLowerCase();

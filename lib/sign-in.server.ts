@@ -261,15 +261,49 @@ export type InviteRecipient = {
 export async function getInviteRecipient(
   token: string,
 ): Promise<InviteRecipient | null> {
+  return (await readInvite(token)).recipient;
+}
+
+/**
+ * An invite as its page needs it, in one service-role read by its token
+ * (Step 77.1): who it was emailed to (`getInviteRecipient`) and the tree it
+ * joins. The page asks for the tree so that a member already on it is told
+ * so rather than offered to join as a Leaf: a family link goes round a
+ * group chat most of whose members may be on the tree (Step 52).
+ */
+export async function readInvite(
+  token: string,
+): Promise<{ recipient: InviteRecipient | null; treeId: string | null }> {
   const admin = createAdminClient();
   const { data: invite } = await admin
     .from("invites")
     .select(
-      "status, expires_at, invited_email, invite_requests(first_name, last_name, email, source)",
+      "status, expires_at, invited_email, tree_id, invite_requests(first_name, last_name, email, source)",
     )
     .eq("token", token)
     .maybeSingle();
+  return {
+    recipient: recipientOf(invite),
+    treeId: invite?.tree_id ?? null,
+  };
+}
 
+type InviteRequestRow = {
+  first_name: string;
+  last_name: string;
+  email: string;
+  source: string;
+};
+
+/** Who a live invite row was emailed to, if anyone. */
+function recipientOf(
+  invite: {
+    status: string;
+    expires_at: string | null;
+    invited_email: string | null;
+    invite_requests: InviteRequestRow | InviteRequestRow[] | null;
+  } | null,
+): InviteRecipient | null {
   if (!invite || invite.status !== "active") return null;
   if (invite.expires_at && new Date(invite.expires_at) < new Date()) return null;
 
@@ -292,21 +326,6 @@ export async function getInviteRecipient(
     joiningName: readJoiningName(request),
     requested: request?.source === "request",
   };
-}
-
-/**
- * The tree an invite joins, or `null` for no such invite (Step 52). The
- * invite page asks so that a member already on it is told so rather than
- * offered to join as a Leaf: a family link goes round a group chat most of
- * whose members may be on the tree. Service role, as `getInviteRecipient`.
- */
-export async function inviteTreeId(token: string): Promise<string | null> {
-  const { data } = await createAdminClient()
-    .from("invites")
-    .select("tree_id")
-    .eq("token", token)
-    .maybeSingle();
-  return data?.tree_id ?? null;
 }
 
 /**

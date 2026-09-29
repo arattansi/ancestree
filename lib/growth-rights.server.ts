@@ -5,6 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Bloodline } from "@/lib/bloodline";
 import type { Database } from "@/lib/database.types";
 import { createClient } from "@/lib/supabase/server";
+import { loadTreeEdges } from "@/lib/tree";
 
 type DbClient = SupabaseClient<Database>;
 
@@ -63,20 +64,25 @@ export async function getBloodline(
   db?: DbClient,
 ): Promise<Bloodline | null> {
   const supabase = db ?? (await createClient());
+  // The lines come from the tree's shared read when it's the member's own
+  // (Step 77.1).
   const [anchors, edges] = await Promise.all([
     supabase
       .from("bloodline_anchors")
       .select("person_id")
       .eq("tree_id", treeId),
-    supabase
-      .from("tree_edges")
-      .select("from_person, to_person, type")
-      .eq("tree_id", treeId),
+    db
+      ? supabase
+          .from("tree_edges")
+          .select("from_person, to_person, type")
+          .eq("tree_id", treeId)
+          .then(({ data, error }) => ({ edges: data ?? [], failed: !!error }))
+      : loadTreeEdges(treeId),
   ]);
-  if (anchors.error || edges.error) return null;
+  if (anchors.error || edges.failed) return null;
   return {
     anchors: anchors.data.map((a) => a.person_id),
-    edges: edges.data.flatMap((e) =>
+    edges: edges.edges.flatMap((e) =>
       e.from_person && e.to_person && e.type
         ? [{ from_person: e.from_person, to_person: e.to_person, type: e.type }]
         : [],

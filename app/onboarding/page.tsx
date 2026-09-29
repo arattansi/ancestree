@@ -4,10 +4,11 @@ import { redirect } from "next/navigation";
 import { FirstTreeOnboarding } from "@/components/first-tree/first-tree-onboarding";
 import { OnboardingSelfFlow } from "@/components/onboarding-self-flow";
 import { Card, CardContent } from "@/components/ui/card";
+import { getUser } from "@/lib/auth";
 import { isFounder } from "@/lib/first-tree.server";
 import { getBloodline } from "@/lib/growth-rights.server";
+import { isPlacedOn } from "@/lib/placements.server";
 import { onboardingStart } from "@/lib/self-match.server";
-import { createClient } from "@/lib/supabase/server";
 import { listTreeMembers } from "@/lib/tree";
 import { currentAccess, requireTreeMember } from "@/lib/tree-context";
 import { treeHref } from "@/lib/tree-links";
@@ -46,30 +47,24 @@ export default async function OnboardingPage({
     );
   }
 
-  // Already on this tree: nothing to find. A member who has an entry on
-  // another tree but not this one is placed here by the tree's Root, not by
-  // adding themselves twice — so they are sent to the canvas as well. Any
-  // invite they accept brings it with them (Steps 30.9 and 41.3), so the
-  // card below is for one a Root has since taken off this tree.
-  if (profile.self_person_id) {
-    const supabase = await createClient();
-    const { data: placed } = await supabase
-      .from("tree_placements")
-      .select("id")
-      .eq("tree_id", tree.id)
-      .eq("person_id", profile.self_person_id)
-      .eq("status", "active")
-      .maybeSingle();
-    if (placed) redirect(treeHref());
-  }
-
   const hasOwnEntryElsewhere = !!profile.self_person_id;
-  // The bloodline lets the form warn of a missing blood tie before submit
-  // (Step 55); someone with an entry elsewhere adds nobody here.
-  const [members, bloodline] = await Promise.all([
+  // All asked for at once (Step 77.1). Already on this tree: nothing to
+  // find. A member who has an entry on another tree but not this one is
+  // placed here by the tree's Root, not by adding themselves twice — so they
+  // are sent to the canvas as well. Any invite they accept brings it with
+  // them (Steps 30.9 and 41.3), so the card below is for one a Root has
+  // since taken off this tree. The bloodline lets the form warn of a missing
+  // blood tie before submit (Step 55), and the name they joined by starts
+  // the search below; someone with an entry elsewhere needs neither.
+  const [placed, members, bloodline] = await Promise.all([
+    profile.self_person_id
+      ? isPlacedOn(tree.id, profile.self_person_id)
+      : false,
     listTreeMembers(tree.id),
     hasOwnEntryElsewhere ? null : getBloodline(tree.id),
+    hasOwnEntryElsewhere ? null : getUser(),
   ]);
+  if (placed) redirect(treeHref());
   // The name they joined by, and the search for it, before the page renders:
   // it opens on what the search found, not an empty form (Step 30.7).
   const start = hasOwnEntryElsewhere

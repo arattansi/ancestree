@@ -1,5 +1,7 @@
 import "server-only";
 
+import { cache } from "react";
+
 import { accountTypeOf, type AccountTypeKey } from "@/lib/account-types";
 import {
   branchReach,
@@ -9,46 +11,57 @@ import {
 } from "@/lib/branch";
 import { personDisplayName } from "@/lib/person-name";
 import { createClient } from "@/lib/supabase/server";
-import { getRootEntryIds } from "@/lib/tree";
+import {
+  getRootEntryIds,
+  loadTreeClaims,
+  loadTreeEdges,
+  loadTreePeople,
+  placedIds,
+  readIn,
+} from "@/lib/tree";
 import type { Profile } from "@/lib/auth";
 
 /**
- * The entries that belong to the people they describe: every member's own
- * entry, plus anything an approved claim has settled on. A branch admin edits
- * around these, never through them.
+ * The entries on a tree that belong to the people they describe: every
+ * member's own entry, plus anything an approved claim has settled on. A
+ * branch admin edits around these, never through them. Only this tree's
+ * people are asked about (Step 77.1), from the reads the canvas shares.
  *
  * The viewer's own entry is left out — it is theirs to edit, and the ownership
  * rule already says so.
  */
 export async function getSpokenForEntryIds(
   viewerUserId: string,
+  treeId: string,
 ): Promise<Set<string>> {
   const supabase = await createClient();
-  const [profileRes, claimRes] = await Promise.all([
-    supabase
-      .from("profiles")
-      .select("auth_user_id, self_person_id")
-      .not("self_person_id", "is", null),
-    supabase.from("claims").select("person_id").eq("status", "approved"),
+  // The profiles and the claims each need only the tree's people, so
+  // neither waits for the other.
+  const [profiles, claims] = await Promise.all([
+    loadTreePeople(treeId).then((people) =>
+      readIn(placedIds(people), (chunk) =>
+        supabase
+          .from("profiles")
+          .select("auth_user_id, self_person_id")
+          .in("self_person_id", chunk),
+      ),
+    ),
+    loadTreeClaims(treeId),
   ]);
 
   const ids = new Set<string>();
-  for (const p of profileRes.data ?? []) {
+  for (const p of profiles) {
     if (p.auth_user_id === viewerUserId) continue;
     if (p.self_person_id) ids.add(p.self_person_id);
   }
-  for (const c of claimRes.data ?? []) ids.add(c.person_id);
+  for (const c of claims) if (c.status === "approved") ids.add(c.person_id);
   return ids;
 }
 
-/** The connections a tree shows, for the branch walks. */
+/** The connections a tree shows, for the branch walks: the shared read. */
 async function treeEdges(treeId: string) {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("tree_edges")
-    .select("from_person, to_person, type")
-    .eq("tree_id", treeId);
-  return (data ?? []).flatMap((r) =>
+  const { edges } = await loadTreeEdges(treeId);
+  return edges.flatMap((r) =>
     r.from_person && r.to_person && r.type
       ? [{ from_person: r.from_person, to_person: r.to_person, type: r.type }]
       : [],
@@ -121,29 +134,35 @@ export async function getBranchSides(
 ): Promise<Map<string, string[]>> {
   const sides = new Map<string, string[]>();
   if (personIds.length === 0) return sides;
-
-  const supabase = await createClient();
-  const [rootIds, edges] = await Promise.all([
-    getRootEntryIds(treeId),
-    treeEdges(treeId),
-  ]);
-  const { data: roots } = rootIds.length
-    ? await supabase
-        .from("people")
-        .select("id, first_name, preferred_name, last_name")
-        .in("id", rootIds)
-    : { data: [] };
-  const nameOf = new Map(
-    (roots ?? []).map((p) => [p.id, personDisplayName(p)]),
-  );
-
-  for (const id of personIds) {
-    sides.set(
-      id,
-      relatedRoots(id, rootIds, edges).map(
-        (root) => nameOf.get(root) ?? "a Root",
-      ),
-    );
-  }
+  const sideOf = await branchSidesOn(treeId);
+  for (const id of personIds) sides.set(id, sideOf(id));
   return sides;
 }
+
+/**
+ * `getBranchSides` for anyone on one tree: its reads, once per request, and
+ * then a lookup. A page can start them before it knows whose sides it wants
+ * (Step 77.1).
+ */
+export const branchSidesOn = cache(
+  async (treeId: string): Promise<(personId: string) => string[]> => {
+    const supabase = await createClient();
+    const [rootIds, edges] = await Promise.all([
+      getRootEntryIds(treeId),
+      treeEdges(treeId),
+    ]);
+    const { data: roots } = rootIds.length
+      ? await supabase
+          .from("people")
+          .select("id, first_name, preferred_name, last_name")
+          .in("id", rootIds)
+      : { data: [] };
+    const nameOf = new Map(
+      (roots ?? []).map((p) => [p.id, personDisplayName(p)]),
+    );
+    return (personId) =>
+      relatedRoots(personId, rootIds, edges).map(
+        (root) => nameOf.get(root) ?? "a Root",
+      );
+  },
+);

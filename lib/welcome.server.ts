@@ -15,21 +15,18 @@ export async function inviterName(
   userId: string,
 ): Promise<string | null> {
   const supabase = await createClient();
-  const { data: me } = await supabase
+  // The tree's members in one read, them and their inviter both (Step 77.1).
+  const { data: members } = await supabase
     .from("member_directory")
-    .select("invited_by_user_id, invited_by_name")
-    .eq("tree_id", treeId)
-    .eq("auth_user_id", userId)
-    .maybeSingle();
+    .select(
+      "auth_user_id, invited_by_user_id, invited_by_name, self_person_id, display_name",
+    )
+    .eq("tree_id", treeId);
+  const me = (members ?? []).find((m) => m.auth_user_id === userId);
   const inviterId = me?.invited_by_user_id;
   if (!inviterId || inviterId === userId) return null;
 
-  const { data: inviter } = await supabase
-    .from("member_directory")
-    .select("self_person_id, display_name")
-    .eq("tree_id", treeId)
-    .eq("auth_user_id", inviterId)
-    .maybeSingle();
+  const inviter = (members ?? []).find((m) => m.auth_user_id === inviterId);
   if (inviter?.self_person_id) {
     const { data: entry } = await supabase
       .from("tree_people")

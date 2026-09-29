@@ -1,8 +1,29 @@
 import "server-only";
 
+import { cache } from "react";
+
 import { getSessionUser } from "@/lib/auth";
 import { personDisplayName, personLifespan } from "@/lib/person-name";
 import { createClient } from "@/lib/supabase/server";
+
+/**
+ * Whether an entry is on a tree now (an active placement), as far as the
+ * caller may see. Once per request: the tree pages, onboarding and the
+ * claim invite all ask it (Step 77.1, audit R7).
+ */
+export const isPlacedOn = cache(
+  async (treeId: string, personId: string): Promise<boolean> => {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from("tree_placements")
+      .select("id")
+      .eq("tree_id", treeId)
+      .eq("person_id", personId)
+      .eq("status", "active")
+      .maybeSingle();
+    return !!data;
+  },
+);
 
 export type PlacementCandidate = {
   id: string;

@@ -23,8 +23,9 @@ export const metadata: Metadata = {
 };
 
 export default async function TreesPage() {
-  await requireProfile();
-  const [trees, request] = await Promise.all([
+  // Asked for together (Step 77.1): the trees need only the session.
+  const [, trees, request] = await Promise.all([
+    requireProfile(),
     listMyTrees(),
     getTreeRequestStatus(),
   ]);

@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Who invited a member onto a tree (Step 50), with the signed-in client
 // stubbed: `member_directory` rows by member and `tree_people` rows by entry,
-// on tree t1. Anything RLS would hide is simply absent.
+// on tree t1. Anything RLS would hide is simply absent. The directory is read
+// whole for the tree (Step 77.1); an entry, one at a time.
 let directory: Record<string, Record<string, unknown>>;
 let people: Record<string, Record<string, unknown>>;
 
@@ -17,12 +18,20 @@ vi.mock("@/lib/supabase/server", () => ({
             filters[column] = value;
             return query;
           },
+          then: (resolve: (res: { data: unknown[]; error: null }) => unknown) =>
+            resolve({
+              data:
+                table === "member_directory" && filters.tree_id === "t1"
+                  ? Object.entries(directory).map(([id, row]) => ({
+                      auth_user_id: id,
+                      ...row,
+                    }))
+                  : [],
+              error: null,
+            }),
           maybeSingle: async () => {
             if (filters.tree_id !== "t1") return { data: null, error: null };
-            const rows = table === "member_directory" ? directory : people;
-            const key =
-              table === "member_directory" ? filters.auth_user_id : filters.id;
-            return { data: rows[key] ?? null, error: null };
+            return { data: people[filters.id] ?? null, error: null };
           },
         };
         return query;

@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { AccountTypeKey } from "@/lib/account-types";
@@ -120,6 +121,126 @@ const PERSON_COLUMNS =
  */
 export const NOBODY = "00000000-0000-0000-0000-000000000000";
 
+const EDGE_COLUMNS =
+  "id, from_person, to_person, type, created_by, marriage_date, marriage_month, marriage_day, is_divorced, divorce_date";
+
+/** Everyone placed on the tree, as the `tree_people` view holds them. */
+async function readTreePeople(supabase: DbClient, treeId: string) {
+  const { data } = await supabase
+    .from("tree_people")
+    .select(PERSON_COLUMNS)
+    .eq("tree_id", treeId);
+  return data ?? [];
+}
+
+/**
+ * The lines between the tree's people, as the `tree_edges` view holds them.
+ * `failed` says the read went wrong, for the few callers that would rather
+ * know nothing than reason over half a tree.
+ */
+async function readTreeEdges(supabase: DbClient, treeId: string) {
+  const { data, error } = await supabase
+    .from("tree_edges")
+    .select(EDGE_COLUMNS)
+    .eq("tree_id", treeId);
+  return { edges: data ?? [], failed: !!error };
+}
+
+export type TreePersonRow = Awaited<ReturnType<typeof readTreePeople>>[number];
+
+/**
+ * Everyone placed on the tree as the signed-in member may see them, read
+ * once per request whoever asks: the canvas, the connection audit and the
+ * header's count of it (Step 77.1, audit S7). A share link's service-role
+ * read never comes through here.
+ */
+export const loadTreePeople = cache(
+  async (treeId: string): Promise<TreePersonRow[]> =>
+    readTreePeople(await createClient(), treeId),
+);
+
+/**
+ * The lines between the tree's people, read once per request whoever asks:
+ * the canvas, the connection audit, the Branch and Leaf walks, the bloodline,
+ * the member pickers (Step 77.1, audit S7).
+ */
+export const loadTreeEdges = cache(async (treeId: string) =>
+  readTreeEdges(await createClient(), treeId),
+);
+
+/** The ids of everyone placed on a tree, hidden ones included. */
+export function placedIds(people: readonly { id: string | null }[]): string[] {
+  return people.flatMap((p) => (p.id ? [p.id] : []));
+}
+
+/**
+ * Who is on a tree now (its active placements), ids only: the light read,
+ * for pages that don't draw the tree. Once per request.
+ */
+const loadPlacedIds = cache(async (treeId: string): Promise<Set<string>> => {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("tree_placements")
+    .select("person_id")
+    .eq("tree_id", treeId)
+    .eq("status", "active");
+  return new Set((data ?? []).map((p) => p.person_id));
+});
+
+async function readDirectory(supabase: DbClient, treeId: string) {
+  const { data } = await supabase
+    .from("member_directory")
+    .select("auth_user_id, role, self_person_id, joined_at")
+    .eq("tree_id", treeId)
+    .order("joined_at", { ascending: true });
+  return data ?? [];
+}
+
+/**
+ * The tree's members as its directory lists them, first to join first:
+ * whose entry is whose, and which entries are the Roots'. Once per request.
+ */
+export const loadTreeDirectory = cache(
+  async (treeId: string) => readDirectory(await createClient(), treeId),
+);
+
+/** How many ids go in one `in` filter, so a big tree's request stays short. */
+const IN_CHUNK = 150;
+
+/** A select filtered to `ids`, in chunks read side by side. */
+export async function readIn<T>(
+  ids: readonly string[],
+  read: (chunk: string[]) => PromiseLike<{ data: T[] | null }>,
+): Promise<T[]> {
+  if (ids.length === 0) return [];
+  const chunks: string[][] = [];
+  for (let i = 0; i < ids.length; i += IN_CHUNK) {
+    chunks.push(ids.slice(i, i + IN_CHUNK));
+  }
+  const results = await Promise.all(chunks.map((chunk) => read(chunk)));
+  return results.flatMap((r) => r.data ?? []);
+}
+
+/**
+ * The claims settled (`approved`) or contested (`disputed`) on the tree's
+ * own people, once per request: the cards' badges, whose entry is whose,
+ * and what a Branch edits around. Only this tree's people, not every claim
+ * in the database (Step 77.1, audit S7).
+ */
+export const loadTreeClaims = cache(async (treeId: string) => {
+  const [people, supabase] = await Promise.all([
+    loadTreePeople(treeId),
+    createClient(),
+  ]);
+  return readIn(placedIds(people), (chunk) =>
+    supabase
+      .from("claims")
+      .select("id, person_id, status, claimant_user_id")
+      .in("status", ["approved", "disputed"])
+      .in("person_id", chunk),
+  );
+});
+
 /**
  * Everyone placed on the tree plus the connections between them, with signed
  * photo URLs. Both come from the tree views, so a person shown on two trees is
@@ -144,33 +265,31 @@ export async function getTreeGraph(
   relationships: TreeGraphEdge[];
 }> {
   const supabase = db ?? (await createClient());
-  const [peopleRes, relRes, claimRes, flagRes, accountTypes] =
-    await Promise.all([
-      supabase.from("tree_people").select(PERSON_COLUMNS).eq("tree_id", treeId),
-      supabase
-        .from("tree_edges")
-        .select(
-          "id, from_person, to_person, type, created_by, marriage_date, marriage_month, marriage_day, is_divorced, divorce_date",
-        )
-        .eq("tree_id", treeId),
-      forPublic
-        ? { data: null }
-        : supabase
-            .from("claims")
-            .select("id, person_id, status")
-            .in("status", ["approved", "disputed"]),
-      forPublic
-        ? { data: null }
-        : supabase
-            .from("entry_comments")
-            .select("person_id")
-            .eq("tree_id", treeId)
-            .eq("is_flag", true)
-            .eq("status", "open"),
-      withAccountTypes && !forPublic
-        ? loadAccountTypes(supabase, treeId)
-        : null,
-    ]);
+  // The signed-in member's reads are shared across the request (Step 77.1);
+  // a share link's service-role reads never are.
+  const shared = !db;
+  // Everything that needs only the tree, in one wave; then what needs its
+  // people, in a second.
+  const [peopleRows, { edges: edgeRows }, flagRes, histRes, directory] = await Promise.all([
+    shared ? loadTreePeople(treeId) : readTreePeople(supabase, treeId),
+    shared ? loadTreeEdges(treeId) : readTreeEdges(supabase, treeId),
+    forPublic
+      ? { data: null }
+      : supabase
+          .from("entry_comments")
+          .select("person_id")
+          .eq("tree_id", treeId)
+          .eq("is_flag", true)
+          .eq("status", "open"),
+    supabase
+      .from("historical_names")
+      .select("place_id, country_code, name, start_date, end_date"),
+    withAccountTypes && !forPublic
+      ? shared
+        ? loadTreeDirectory(treeId)
+        : readDirectory(supabase, treeId)
+      : null,
+  ]);
 
   const openFlagsByPerson = new Map<string, number>();
   for (const f of flagRes.data ?? []) {
@@ -184,7 +303,7 @@ export async function getTreeGraph(
   // every row has an id, a family name and a home, or it isn't a person —
   // unless it is a hidden person seen by a visitor, whose card is drawn from
   // the placement alone (Step 25.4).
-  const rows = (peopleRes.data ?? []).flatMap((p) => {
+  const rows = peopleRows.flatMap((p) => {
     if (!p.id) return [];
     if (
       p.blurred ||
@@ -246,7 +365,7 @@ export async function getTreeGraph(
       },
     ];
   });
-  const edges: TreeGraphEdge[] = (relRes.data ?? []).flatMap((r) =>
+  const edges: TreeGraphEdge[] = edgeRows.flatMap((r) =>
     r.id && r.from_person && r.to_person && r.type && r.created_by
       ? [
           {
@@ -273,16 +392,50 @@ export async function getTreeGraph(
         .filter((n): n is number => typeof n === "number"),
     ),
   ];
-  const [placeRes, histRes] = await Promise.all([
+  const paths = rows
+    .map((p) => p.photo_path)
+    .filter((p): p is string => Boolean(p));
+  const ids = rows.map((p) => p.id);
+  const [placeRes, claims, signedRes] = await Promise.all([
     placeIds.length > 0
       ? supabase.from("places").select("id, country_code").in("id", placeIds)
       : Promise.resolve({
           data: [] as { id: number; country_code: string | null }[],
         }),
-    supabase
-      .from("historical_names")
-      .select("place_id, country_code, name, start_date, end_date"),
+    forPublic
+      ? []
+      : shared
+        ? loadTreeClaims(treeId)
+        : readIn(ids, (chunk) =>
+            supabase
+              .from("claims")
+              .select("id, person_id, status, claimant_user_id")
+              .in("status", ["approved", "disputed"])
+              .in("person_id", chunk),
+          ),
+    paths.length > 0
+      ? supabase.storage.from("photos").createSignedUrls(paths, 60 * 60)
+      : { data: null },
   ]);
+  // Whose entry is whose, by account type *on this tree* (see
+  // `accountTypesByPerson`): from this tree's own directory, so a member's
+  // type here is the one shown, not their type somewhere else.
+  const accountTypes = directory
+    ? accountTypesByPerson(
+        directory.flatMap((m) =>
+          m.auth_user_id
+            ? [
+                {
+                  auth_user_id: m.auth_user_id,
+                  role: m.role,
+                  self_person_id: m.self_person_id,
+                },
+              ]
+            : [],
+        ),
+        claims.filter((c) => c.status === "approved"),
+      )
+    : null;
   const ccByPlace = new Map(
     (placeRes.data ?? []).map((p) => [p.id, p.country_code]),
   );
@@ -313,25 +466,16 @@ export async function getTreeGraph(
     string,
     { id: string; status: "approved" | "disputed" }
   >();
-  for (const c of claimRes.data ?? []) {
+  for (const c of claims) {
     const status = c.status as "approved" | "disputed";
     const current = claimByPerson.get(c.person_id);
     if (!current || (current.status === "approved" && status === "disputed")) {
       claimByPerson.set(c.person_id, { id: c.id, status });
     }
   }
-  const paths = rows
-    .map((p) => p.photo_path)
-    .filter((p): p is string => Boolean(p));
-
   const urlByPath = new Map<string, string>();
-  if (paths.length > 0) {
-    const { data: signed } = await supabase.storage
-      .from("photos")
-      .createSignedUrls(paths, 60 * 60);
-    for (const item of signed ?? []) {
-      if (item.signedUrl && item.path) urlByPath.set(item.path, item.signedUrl);
-    }
+  for (const item of signedRes.data ?? []) {
+    if (item.signedUrl && item.path) urlByPath.set(item.path, item.signedUrl);
   }
 
   return {
@@ -373,39 +517,6 @@ export async function getTreeGraph(
 }
 
 /**
- * Whose entry is whose, by account type *on this tree* (see
- * `accountTypesByPerson`). Read from the per-tree member directory, so a
- * member's type here is the one shown, not their type somewhere else.
- */
-async function loadAccountTypes(
-  supabase: DbClient,
-  treeId: string,
-): Promise<Map<string, AccountTypeKey>> {
-  const [memberRes, claimRes] = await Promise.all([
-    supabase
-      .from("member_directory")
-      .select("auth_user_id, role, self_person_id")
-      .eq("tree_id", treeId),
-    supabase
-      .from("claims")
-      .select("person_id, claimant_user_id")
-      .eq("status", "approved"),
-  ]);
-  const members = (memberRes.data ?? []).flatMap((m) =>
-    m.auth_user_id
-      ? [
-          {
-            auth_user_id: m.auth_user_id,
-            role: m.role,
-            self_person_id: m.self_person_id,
-          },
-        ]
-      : [],
-  );
-  return accountTypesByPerson(members, claimRes.data ?? []);
-}
-
-/**
  * The people a tree's canvas is centred on: its bloodline anchors — the
  * founding Roots' own entries, in the order they were set. The layout anchors
  * generation 0 on them and grows the tree outward, so the chart stays stable
@@ -416,17 +527,22 @@ export async function getTreeAnchors(
   db?: DbClient,
 ): Promise<string[]> {
   const supabase = db ?? (await createClient());
-  const { data } = await supabase
-    .from("bloodline_anchors")
-    .select("person_id, created_at")
-    .eq("tree_id", treeId)
-    .order("created_at", { ascending: true })
-    .limit(2);
+  // The Roots' entries are wanted only when there are no anchors, but for a
+  // member they're read with what the canvas reads anyway, so they're asked
+  // for at once rather than after (Step 77.1).
+  const [{ data }, rootIds] = await Promise.all([
+    supabase
+      .from("bloodline_anchors")
+      .select("person_id, created_at")
+      .eq("tree_id", treeId)
+      .order("created_at", { ascending: true })
+      .limit(2),
+    db ? null : getRootEntryIds(treeId),
+  ]);
   const anchors = (data ?? []).map((row) => row.person_id);
+  if (anchors.length > 0) return anchors;
   // A tree whose Roots haven't anchored it yet centres on their entries.
-  return anchors.length > 0
-    ? anchors
-    : (await getRootEntryIds(treeId, supabase)).slice(0, 2);
+  return (rootIds ?? (await getRootEntryIds(treeId, supabase))).slice(0, 2);
 }
 
 /**
@@ -438,21 +554,20 @@ export async function getRootEntryIds(
   treeId: string,
   db?: DbClient,
 ): Promise<string[]> {
-  const supabase = db ?? (await createClient());
-  const { data } = await supabase
-    .from("member_directory")
-    .select("self_person_id, joined_at")
-    .eq("tree_id", treeId)
-    .eq("role", "admin")
-    .not("self_person_id", "is", null)
-    .order("joined_at", { ascending: true });
-  const ids = (data ?? [])
-    .map((row) => row.self_person_id)
-    .filter((id): id is string => id !== null);
+  if (!db) {
+    // Both reads are shared with the rest of the request, and asked for
+    // together (Step 77.1).
+    const [directory, shown] = await Promise.all([
+      loadTreeDirectory(treeId),
+      loadPlacedIds(treeId),
+    ]);
+    return rootEntries(directory).filter((id) => shown.has(id));
+  }
+  const ids = rootEntries(await readDirectory(db, treeId));
   if (ids.length === 0) return [];
   // Only entries this tree shows: a Root whose own entry sits elsewhere
   // measures no side here.
-  const { data: placed } = await supabase
+  const { data: placed } = await db
     .from("tree_placements")
     .select("person_id")
     .eq("tree_id", treeId)
@@ -460,6 +575,15 @@ export async function getRootEntryIds(
     .in("person_id", ids);
   const shown = new Set((placed ?? []).map((p) => p.person_id));
   return ids.filter((id) => shown.has(id));
+}
+
+/** The Roots' own entries in a tree's directory, first to join first. */
+function rootEntries(
+  directory: readonly { role: string | null; self_person_id: string | null }[],
+): string[] {
+  return directory.flatMap((m) =>
+    m.role === "admin" && m.self_person_id ? [m.self_person_id] : [],
+  );
 }
 
 /**
@@ -471,23 +595,18 @@ export async function listTreeMembers(
   excludeId?: string | null,
 ): Promise<TreeMemberOption[]> {
   const supabase = await createClient();
-  const [peopleRes, parentRes, spouseRes] = await Promise.all([
+  // The lines come from the tree's shared read (Step 77.1); the people are
+  // read here, in the order the picker lists them.
+  const [peopleRes, { edges }] = await Promise.all([
     supabase
       .from("tree_people")
       .select("id, first_name, preferred_name, maiden_name, last_name")
       .eq("tree_id", treeId)
       .order("last_name", { ascending: true }),
-    supabase
-      .from("tree_edges")
-      .select("from_person, to_person")
-      .eq("tree_id", treeId)
-      .eq("type", "parent"),
-    supabase
-      .from("tree_edges")
-      .select("from_person, to_person, is_divorced")
-      .eq("tree_id", treeId)
-      .eq("type", "spouse"),
+    loadTreeEdges(treeId),
   ]);
+  const parentRes = { data: edges.filter((e) => e.type === "parent") };
+  const spouseRes = { data: edges.filter((e) => e.type === "spouse") };
   const data = (peopleRes.data ?? []).flatMap((p) =>
     p.id && p.last_name ? [{ ...p, id: p.id, last_name: p.last_name }] : [],
   );

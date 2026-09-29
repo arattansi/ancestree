@@ -9,7 +9,7 @@ import { WelcomeDetailsForm } from "@/components/welcome/welcome-details-form";
 import { parseCrop } from "@/lib/image-crop";
 import { loadOwnEntry } from "@/lib/own-entry.server";
 import { personInitials } from "@/lib/person-name";
-import { requireTreeSelfPerson } from "@/lib/tree-context";
+import { requireTreeSelfPersonWith } from "@/lib/tree-context";
 import { treeFocusHref, treeHref } from "@/lib/tree-links";
 import {
   addedYou,
@@ -35,12 +35,18 @@ export const metadata: Metadata = {
 export default async function WelcomePage({
   searchParams,
 }: PageProps<"/welcome">) {
-  const { tree, profile } = await requireTreeSelfPerson();
   const { returning } = await searchParams;
-  const [entry, inviter] = await Promise.all([
-    loadOwnEntry(profile),
-    inviterName(tree.id, profile.auth_user_id),
-  ]);
+  // Their entry and who invited them, beside the check that their entry is
+  // on this tree (Step 77.1).
+  const {
+    membership: { tree },
+    data: [entry, inviter],
+  } = await requireTreeSelfPersonWith(({ tree, profile }) =>
+    Promise.all([
+      loadOwnEntry(profile),
+      inviterName(tree.id, profile.auth_user_id),
+    ]),
+  );
   if (!entry) redirect(treeHref());
   const { person } = entry;
 

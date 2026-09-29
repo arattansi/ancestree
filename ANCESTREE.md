@@ -254,7 +254,10 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
 - `lib/person-schema.ts` — shared zod schema; `lib/connections.ts` — chain/edge
   types + `buildChainEdges`; `lib/connection-suggestions.ts` — implied-connection
   detection engine (+ `.server.ts` loader, `.test.ts`); `lib/siblings.ts` — sibling inference; `lib/tree.ts` —
-  shared-tree + member lookups + `getTreeGraph` (canvas data);
+  shared-tree + member lookups + `getTreeGraph` (canvas data), and the
+  reads a request shares whoever asks (Step 77.1): `loadTreePeople`,
+  `loadTreeEdges`, `loadTreeDirectory`, `loadTreeClaims` (this tree's
+  people's only), and `readIn` for a long `in` filter;
   `lib/tree-layout.ts` — the anchored auto-layout engine (Step 4.6, `.test.ts`):
   generations relative to the founding admins fix `y`, the anchor couple is
   translated to the origin, each admin's bloodline is pushed to its own side of
@@ -279,9 +282,11 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   (`enteredLine`; `.test.ts`); `lib/welcome.server.ts` — who invited them
   onto the tree (`inviterName`, `.test.ts`);
   `lib/tree-context.ts` — the per-tree context (Step 25): `requireTreeMember`
-  / `requireTreeRoot` / `requireTreeSelfPerson` / `requireTreeAccess` (member
-  or visitor) for pages, `membershipOf` / `rootOf` for actions, `listMyTrees`,
-  `defaultTreeSlug`; `lib/tree-links.ts` — every tree path (`treeHref`,
+  / `requireTreeRoot` / `requireTreeSelfPersonWith` (the page's reads beside
+  the check that its own entry is on the tree, Step 77.1) /
+  `requireTreeAccess` (member or visitor) for pages, `membershipOf` /
+  `rootOf` for actions, `listMyTrees` (a member's trees, read once, which
+  also answers `getRoleIn` and the tree itself), `defaultTree`; `lib/tree-links.ts` — every tree path (`treeHref`,
   `adminHref`, `editPersonHref`, …); `lib/revalidate.ts` —
   `revalidateTreePages()`, the one call after a write: the action's reply
   carries the page it was sent from, drawn again, and pages visited

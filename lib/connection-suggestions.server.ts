@@ -1,7 +1,10 @@
 import "server-only";
 
+import { cache } from "react";
+
 import { createClient } from "@/lib/supabase/server";
 import { personDisplayName } from "@/lib/person-name";
+import { loadTreeEdges, loadTreePeople } from "@/lib/tree";
 import {
   auditTree,
   computeImpliedConnections,
@@ -35,19 +38,11 @@ type TreeSnapshot = {
 async function loadTree(treeId: string): Promise<TreeSnapshot> {
   const supabase = await createClient();
 
-  const [peopleRes, edgeRes, sugRes, nickRes] = await Promise.all([
+  const [peopleRows, { edges: edgeRows }, sugRes, nickRes] = await Promise.all([
     // What the tree shows (Step 25): its placed people and the lines between
-    // them, from the tree views.
-    supabase
-      .from("tree_people")
-      .select("id, first_name, preferred_name, last_name, date_of_birth")
-      .eq("tree_id", treeId),
-    supabase
-      .from("tree_edges")
-      .select(
-        "from_person, to_person, type, marriage_date, divorce_date, is_divorced",
-      )
-      .eq("tree_id", treeId),
+    // them, from the tree views, read once with the canvas (Step 77.1).
+    loadTreePeople(treeId),
+    loadTreeEdges(treeId),
     // Answered rows only. The add-person modal still offers "Skip for now",
     // which writes a `pending` row and promises to ask again — counting those
     // as resolved would turn skipping into a silent permanent dismissal.
@@ -60,7 +55,7 @@ async function loadTree(treeId: string): Promise<TreeSnapshot> {
   ]);
 
   const labelById = new Map<string, string>();
-  const people: ExistingPerson[] = (peopleRes.data ?? []).flatMap((p) => {
+  const people: ExistingPerson[] = peopleRows.flatMap((p) => {
     if (!p.id || !p.last_name) return [];
     const label = personDisplayName({ ...p, last_name: p.last_name });
     labelById.set(p.id, label);
@@ -85,7 +80,7 @@ async function loadTree(treeId: string): Promise<TreeSnapshot> {
 
   return {
     people,
-    edges: (edgeRes.data ?? []).flatMap((e) =>
+    edges: edgeRows.flatMap((e) =>
       e.from_person && e.to_person && e.type
         ? [
             {
@@ -136,20 +131,23 @@ export async function detectImpliedConnections(
 /**
  * Every open candidate in the tree, strongest evidence first. Derived on read —
  * there are no "pending suggestion" rows to go stale, and improving a rule
- * improves the queue immediately.
+ * improves the queue immediately. Once per request: the canvas and the
+ * header's count share it (Step 77.1).
  */
-export async function auditTreeConnections(
-  treeId: string,
-): Promise<PanelSuggestion[]> {
-  const tree = await loadTree(treeId);
-  const candidates = auditTree({
-    existingPeople: tree.people,
-    existingEdges: tree.edges,
-    resolvedKeys: tree.resolvedKeys,
-    nicknameGroups: tree.nicknameGroups,
-  });
-  return candidates.flatMap((c) => toPanelSuggestion(c, tree.labelById) ?? []);
-}
+export const auditTreeConnections = cache(
+  async (treeId: string): Promise<PanelSuggestion[]> => {
+    const tree = await loadTree(treeId);
+    const candidates = auditTree({
+      existingPeople: tree.people,
+      existingEdges: tree.edges,
+      resolvedKeys: tree.resolvedKeys,
+      nicknameGroups: tree.nicknameGroups,
+    });
+    return candidates.flatMap(
+      (c) => toPanelSuggestion(c, tree.labelById) ?? [],
+    );
+  },
+);
 
 /**
  * A computed candidate has no row of its own, so its identity *is* its key —

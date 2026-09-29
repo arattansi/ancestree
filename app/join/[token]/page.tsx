@@ -16,15 +16,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { LEAF, ROOT } from "@/lib/account-types";
-import { getProfile, getUser } from "@/lib/auth";
+import { getProfile, getSessionUser, getUser } from "@/lib/auth";
 import { verifiedEmail } from "@/lib/first-timer";
 import { sentToAnotherAddress } from "@/lib/invite-address";
 import { inviteHref } from "@/lib/sign-in-links";
-import {
-  getInviteRecipient,
-  inviteTreeId,
-  opensOnSignInLink,
-} from "@/lib/sign-in.server";
+import { opensOnSignInLink, readInvite } from "@/lib/sign-in.server";
 import { createClient } from "@/lib/supabase/server";
 import { listMyTrees } from "@/lib/tree-context";
 import { treeHref, treesHref } from "@/lib/tree-links";
@@ -40,19 +36,32 @@ export default async function InvitePage({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
-
-  // A member already: the invite adds a tree, not an account (Step 25).
-  const profile = await getProfile();
-
   const supabase = await createClient();
-  const { data } = await supabase.rpc("invite_preview", { p_token: token });
+
+  // Everything that needs only the token or the session, at once (Step
+  // 77.1). A member already: the invite adds a tree, not an account (Step
+  // 25). The invite itself is read by its token, which is its secret, so
+  // reading it before the preview has said it's live reveals nothing.
+  const [profile, sessionUser, { data }, invite, myTrees] = await Promise.all([
+    getProfile(),
+    getSessionUser(),
+    supabase.rpc("invite_preview", { p_token: token }),
+    readInvite(token),
+    listMyTrees(),
+  ]);
   const preview = data?.[0];
 
   // An invite emailed to someone is their sign-in link: one button, no second
   // email. A bare link has no address on it, so it still asks for one. Only
   // that address may accept it (Step 51), so a member's page looks it up too.
-  const recipient = preview?.valid ? await getInviteRecipient(token) : null;
-  const user = recipient ? await getUser() : null;
+  // Signed out, to an address that has an account already: open on its
+  // sign-in link, with no tick to spend first (Step 41.2); with no session
+  // at all, that's asked beside the rest.
+  const recipient = preview?.valid ? invite.recipient : null;
+  const [user, signedOutOpensOnLink] = await Promise.all([
+    recipient && sessionUser ? getUser() : null,
+    sessionUser ? null : opensOnSignInLink(recipient, { signedIn: false }),
+  ]);
   const signedInAs = user ? verifiedEmail(user) : null;
   // Signed in as that address already, but no member yet: signing in sent
   // them here, to the invite waiting for them (Step 30.8).
@@ -63,11 +72,9 @@ export default async function InvitePage({
   // device, a Root checking one they sent. The database would refuse them,
   // so the page says whose it is instead of offering to join.
   const forAnotherAddress = Boolean(profile && recipient && !signedInAsRecipient);
-  // Signed out, to an address that has an account already: open on its
-  // sign-in link, with no tick to spend first (Step 41.2).
-  const signInFirst = await opensOnSignInLink(recipient, {
-    signedIn: Boolean(user),
-  });
+  const signInFirst =
+    signedOutOpensOnLink ??
+    (await opensOnSignInLink(recipient, { signedIn: Boolean(user) }));
   const founds = preview?.founds_tree === true;
   // A member already on the tree it joins (Step 52): a family link goes
   // round a group chat, most of whom may be. There's nothing for them to
@@ -75,10 +82,10 @@ export default async function InvitePage({
   // invite still has an entry to hand over, and a founder invite a tree.
   const onTreeId =
     profile && preview?.valid && !founds && !preview.claim_person_name && !forAnotherAddress
-      ? await inviteTreeId(token)
+      ? invite.treeId
       : null;
   const alreadyOn = onTreeId
-    ? (await listMyTrees()).some((t) => t.id === onTreeId)
+    ? myTrees.some((t) => t.id === onTreeId)
     : false;
 
   return (

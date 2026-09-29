@@ -52,7 +52,7 @@ import {
   unavailableTypes,
   type TreeRoom,
 } from "@/lib/account-types";
-import { getBranchSides } from "@/lib/branch.server";
+import { branchSidesOn } from "@/lib/branch.server";
 import { buildAdminActionItems } from "@/lib/admin-notifications";
 import { listDisputedClaims } from "@/lib/claims";
 import { FAMILY_LINK_MAX_USES } from "@/lib/family-link";
@@ -87,23 +87,57 @@ export async function AdminConsole({
 }) {
   const { tree, profile: currentAdmin } = membership;
 
+  // Every read starts at once, and one that needs another's answer starts
+  // the moment it has it (Step 77.1): the console waits for its longest
+  // chain, not for eight stages in a row.
   const supabase = await createClient();
+  const membersP = supabase
+    .from("member_directory")
+    .select("*")
+    .eq("tree_id", tree.id)
+    .order("joined_at", { ascending: true })
+    .then((res) =>
+      (res.data ?? []).filter(
+        (m): m is typeof m & { auth_user_id: string } => !!m.auth_user_id,
+      ),
+    );
+  const pendingRequestsP = supabase
+    .from("invite_requests")
+    .select("id, first_name, last_name, email, created_at")
+    .eq("tree_id", tree.id)
+    .eq("status", "pending")
+    .order("created_at", { ascending: true })
+    .then((res) => res.data ?? []);
+  const familyLinkP = getFamilyLink(tree.id);
+  const reviewerP = isBetaReviewer();
+  // Who you can remove: anyone who isn't a Root, so never yourself.
+  const removable = (m: { role: string | null; auth_user_id: string }) =>
+    m.role !== ROOT.key && m.auth_user_id !== currentAdmin.auth_user_id;
+
   const [
-    membersRes,
+    members,
     peopleRes,
     relCountRes,
     approvedClaimsRes,
     openFlagsRes,
-    inviteRequestsRes,
+    pendingRequests,
     shareLinksRes,
     visibilityRes,
     myTrees,
+    sideOf,
+    disputedClaims,
+    [inviteHistory, bareInvites, archivedInvites],
+    familyLink,
+    familyLinkJoins,
+    candidates,
+    foreign,
+    reviewer,
+    treeRequests,
+    nicknameGroups,
+    requestCandidates,
+    onOtherTrees,
   ] = await Promise.all([
-    supabase
-      .from("member_directory")
-      .select("*")
-      .eq("tree_id", tree.id)
-      .order("joined_at", { ascending: true }),
+    membersP,
     supabase
       .from("tree_people")
       .select("id, created_by, is_home")
@@ -123,12 +157,7 @@ export async function AdminConsole({
       .eq("tree_id", tree.id)
       .eq("is_flag", true)
       .eq("status", "open"),
-    supabase
-      .from("invite_requests")
-      .select("id, first_name, last_name, email, created_at")
-      .eq("tree_id", tree.id)
-      .eq("status", "pending")
-      .order("created_at", { ascending: true }),
+    pendingRequestsP,
     supabase
       .from("share_links")
       .select(
@@ -141,31 +170,50 @@ export async function AdminConsole({
       .select("viewer_tree_id")
       .eq("tree_id", tree.id),
     listMyTrees(),
+    // Whose side each Branch tends part of — the Root their own entry is
+    // related to. They tend the part of it they are related through (Step
+    // 22.2).
+    branchSidesOn(tree.id),
+    listDisputedClaims(tree.id),
+    // Archived before listing, so a link that lapsed since the last visit
+    // lands in "Archived invites" rather than lingering among the live ones.
+    archiveExpiredInvites(tree.id).then(() =>
+      Promise.all([
+        listInviteHistory(tree.id),
+        listBareInvites(tree.id),
+        listArchivedInvites(tree.id),
+      ]),
+    ),
+    familyLinkP,
+    // Who joined with the family link, this one or an earlier one (Step 52).
+    familyLinkP.then((link) => listFamilyLinkJoins(tree.id, link?.id ?? null)),
+    listPlacementCandidates(tree.id),
+    listForeignPlacements(tree.id),
+    reviewerP,
+    // Requests to start a tree (Step 28) are the site's, not this tree's: the
+    // same queue shows on every console a beta reviewer runs.
+    reviewerP.then((reviewer) => (reviewer ? listTreeRequests() : [])),
+    listNicknameGroups(),
+    // Who on the tree each requester's name matches (Step 30.3).
+    pendingRequestsP.then((requests) =>
+      listRequestCandidates(requests.map((r) => r.id)),
+    ),
+    // Whether removing each one deletes their login too (Step 46).
+    membersP.then((members) =>
+      membersOnOtherTrees(
+        tree.id,
+        members.filter(removable).map((m) => m.auth_user_id),
+      ),
+    ),
   ]);
 
-  const members = (membersRes.data ?? []).filter(
-    (m): m is typeof m & { auth_user_id: string } => !!m.auth_user_id,
-  );
-  // Who you can remove: anyone who isn't a Root, so never yourself.
-  const removable = (m: (typeof members)[number]) =>
-    m.role !== ROOT.key && m.auth_user_id !== currentAdmin.auth_user_id;
-  // Whose side each Branch tends part of — the Root their own entry is related
-  // to. They tend the part of it they are related through (Step 22.2).
   const selfEntryOf = new Map(
     members.map((m) => [m.auth_user_id, m.self_person_id]),
-  );
-  const branchSides = await getBranchSides(
-    members.flatMap((m) =>
-      m.role === "branch_admin"
-        ? [m.self_person_id].filter((id): id is string => !!id)
-        : [],
-    ),
-    tree.id,
   );
   const branchCaption = (userId: string | null): string => {
     const self = userId ? selfEntryOf.get(userId) : null;
     if (!self) return "Tends a side once they’re on the tree";
-    const side = branchSideLabel(branchSides.get(self) ?? []);
+    const side = branchSideLabel(sideOf(self));
     return side
       ? `Tends their part of ${side}`
       : "Related to no Root, so tends no side";
@@ -202,46 +250,9 @@ export async function AdminConsole({
         ? "Made a Branch by you"
         : `Made a Branch by ${grantedByName ?? "another Root"}`;
   const people = peopleRes.data ?? [];
-  const disputedClaims = await listDisputedClaims(tree.id);
-  // Before listing, so a link that lapsed since the last visit lands in
-  // "Archived invites" rather than lingering among the live ones.
-  await archiveExpiredInvites(tree.id);
-  const pendingRequests = inviteRequestsRes.data ?? [];
-  const [
-    inviteHistory,
-    bareInvites,
-    archivedInvites,
-    familyLink,
-    candidates,
-    foreign,
-    reviewer,
-    requestCandidates,
-    onOtherTrees,
-  ] = await Promise.all([
-    listInviteHistory(tree.id),
-    listBareInvites(tree.id),
-    listArchivedInvites(tree.id),
-    getFamilyLink(tree.id),
-    listPlacementCandidates(tree.id),
-    listForeignPlacements(tree.id),
-    isBetaReviewer(),
-    // Who on the tree each requester's name matches (Step 30.3).
-    listRequestCandidates(pendingRequests.map((r) => r.id)),
-    // Whether removing each one deletes their login too (Step 46).
-    membersOnOtherTrees(
-      tree.id,
-      members.filter(removable).map((m) => m.auth_user_id),
-    ),
-  ]);
-  // Requests to start a tree (Step 28) are the site's, not this tree's: the
-  // same queue shows on every console a beta reviewer runs.
-  const treeRequests = reviewer ? await listTreeRequests() : [];
-  // Who joined with the family link, this one or an earlier one (Step 52).
-  const familyLinkJoins = await listFamilyLinkJoins(tree.id, familyLink?.id ?? null);
   const openTreeRequests = treeRequests.filter(
     (r) => r.status === "pending",
   ).length;
-  const nicknameGroups = await listNicknameGroups();
   const inviteRequests: PendingInviteRequest[] = pendingRequests.map((r) => ({
     id: r.id,
     firstName: r.first_name,

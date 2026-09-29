@@ -9,14 +9,19 @@ import { getSpokenForEntryIds } from "@/lib/branch.server";
 import { listClaimInvites } from "@/lib/claim-invites.server";
 import { listClaimCandidates } from "@/lib/claims";
 import { auditTreeConnections } from "@/lib/connection-suggestions.server";
-import { getGettingStarted } from "@/lib/first-tree.server";
+import { getGettingStarted, isFounder } from "@/lib/first-tree.server";
 import { getTreePets } from "@/lib/pets";
-import { createClient } from "@/lib/supabase/server";
 import {
   listOwnDeclinedSuggestions,
   listPendingSuggestions,
 } from "@/lib/suggestions.server";
-import { getRootEntryIds, getTreeAnchors, getTreeGraph } from "@/lib/tree";
+import {
+  getRootEntryIds,
+  getTreeAnchors,
+  getTreeGraph,
+  loadTreePeople,
+  placedIds,
+} from "@/lib/tree";
 import { requireTreeAccess } from "@/lib/tree-context";
 import { onboardingHref } from "@/lib/tree-links";
 
@@ -64,18 +69,15 @@ export default async function TreePage() {
   const { tree, profile, role, isRoot } = access.membership;
 
   // Their own entry has to be on this tree before they work on it.
-  if (!profile.self_person_id) redirect(onboardingHref());
-  const supabase = await createClient();
-  const { data: placed } = await supabase
-    .from("tree_placements")
-    .select("id")
-    .eq("tree_id", tree.id)
-    .eq("person_id", profile.self_person_id)
-    .eq("status", "active")
-    .maybeSingle();
-  if (!placed) redirect(onboardingHref());
+  const selfPersonId = profile.self_person_id;
+  if (!selfPersonId) redirect(onboardingHref());
 
+  // Everything the canvas needs is asked for at once (Step 77.1); what reads
+  // the same rows shares one read of them. Whether their entry is on this
+  // tree is read off the tree's own people, and decided once all is in.
+  const graph = getTreeGraph(tree.id, undefined, { withAccountTypes: true });
   const [
+    placedPeople,
     { people, relationships },
     claimCandidates,
     panelSuggestions,
@@ -86,25 +88,35 @@ export default async function TreePage() {
     claimInvites,
     changeSuggestions,
     declinedSuggestions,
+    gettingStarted,
   ] = await Promise.all([
-    getTreeGraph(tree.id, undefined, { withAccountTypes: true }),
+    loadTreePeople(tree.id),
+    graph,
     listClaimCandidates(),
     auditTreeConnections(tree.id),
     getTreeAnchors(tree.id),
     getRootEntryIds(tree.id),
     getTreePets(tree.id),
-    getSpokenForEntryIds(profile.auth_user_id),
+    getSpokenForEntryIds(profile.auth_user_id, tree.id),
     // Who has invited whom to claim their entry, for the cards (Step 38).
     listClaimInvites(tree.id, { userId: profile.auth_user_id, isRoot }),
     // Suggested changes waiting on an answer (Step 67), and the viewer's
     // own that were declined (Step 72).
     listPendingSuggestions(profile.auth_user_id),
     listOwnDeclinedSuggestions(profile.auth_user_id),
+    // The founder's "Getting started" list (Step 29), off the same graph.
+    isFounder(access.membership)
+      ? getGettingStarted(
+          access.membership,
+          graph.then((g) => g.relationships),
+        )
+      : null,
   ]);
+  if (!placedIds(placedPeople).includes(selfPersonId)) {
+    redirect(onboardingHref());
+  }
   // Only this canvas's: a suggestion can be on an entry on another tree.
   const shown = new Set(people.map((p) => p.id));
-  // The founder's "Getting started" list (Step 29), read off the same graph.
-  const gettingStarted = await getGettingStarted(access.membership, relationships);
 
   if (people.length === 0) {
     return (
@@ -127,7 +139,7 @@ export default async function TreePage() {
         relationships={relationships}
         treeId={tree.id}
         treeSlug={tree.slug}
-        selfPersonId={profile.self_person_id}
+        selfPersonId={selfPersonId}
         anchorIds={anchorIds}
         rootIds={rootIds}
         currentUserId={profile.auth_user_id}

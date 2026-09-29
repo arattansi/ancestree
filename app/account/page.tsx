@@ -39,12 +39,12 @@ import {
   countOf,
 } from "@/lib/account-types";
 import { getSessionUser, requireProfile, type Profile } from "@/lib/auth";
-import { getBranchSides } from "@/lib/branch.server";
+import { branchSidesOn } from "@/lib/branch.server";
 import { listNotifications } from "@/lib/claims";
 import { readRelayParam, relayLapseCutoff } from "@/lib/invite-relays";
 import { openedRelayNote } from "@/lib/opened-relay";
 import { loadOpenedRelay } from "@/lib/opened-relay.server";
-import { loadOwnEntry, type OwnEntry } from "@/lib/own-entry.server";
+import { loadOwnEntry } from "@/lib/own-entry.server";
 import { listRelayCandidates } from "@/lib/relay-candidates.server";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -93,12 +93,13 @@ export default async function AccountPage({
   searchParams,
 }: PageProps<"/account">) {
   const { view: requested, relay } = await searchParams;
-  const profile = await requireProfile();
-  const [user, trees, access, ownEntry, reviewer] = await Promise.all([
+  // All of it needs only the session, so it's asked for at once (Step
+  // 77.1); each view then reads what it shows, and only that.
+  const [profile, user, trees, access, reviewer] = await Promise.all([
+    requireProfile(),
     getSessionUser(),
     listMyTrees(),
     currentAccess(),
-    loadOwnEntry(profile),
     isBetaReviewer(),
   ]);
 
@@ -157,7 +158,7 @@ export default async function AccountPage({
           openedRelayId={readRelayParam(relay)}
         />
       ) : (
-        <ProfileView ownEntry={ownEntry} />
+        <ProfileView profile={profile} />
       )}
       <BackToTop />
     </main>
@@ -165,7 +166,8 @@ export default async function AccountPage({
 }
 
 /** Your own entry — what your card says on every tree — as a form. */
-function ProfileView({ ownEntry }: { ownEntry: OwnEntry | null }) {
+async function ProfileView({ profile }: { profile: Profile }) {
+  const ownEntry = await loadOwnEntry(profile);
   if (!ownEntry) {
     return (
       <Card>
@@ -231,11 +233,28 @@ async function SettingsView({
   openedRelayId: string | null;
 }) {
   const supabase = await createClient();
+  const selfId = profile.self_person_id;
+  const runIds = trees.filter((t) => t.type.runsTree).map((t) => t.id);
+  const relayRowsP = supabase
+    .from("invite_relays")
+    .select("id, first_name, last_name, email, created_at")
+    .eq("recipient_user_id", profile.auth_user_id)
+    .eq("status", "pending")
+    .gt("created_at", relayLapseCutoff(new Date()))
+    .order("created_at", { ascending: true })
+    .then((res) => res.data ?? []);
+  // Everything that needs only them, their trees or the address, at once;
+  // what needs an answer first starts as soon as it has it (Step 77.1).
   const [
     notifications,
     { data: directory },
-    { data: relayRows },
+    relayRows,
     { data: madeBranches },
+    relayMatches,
+    openedRelay,
+    selfEntry,
+    branchSideByTree,
+    { data: otherMembers },
   ] = await Promise.all([
     listNotifications(profile.auth_user_id),
     supabase
@@ -245,19 +264,58 @@ async function SettingsView({
     // Asks passed on to them from request access (Step 30.5): RLS shows
     // each only to the member it went to. One left for 30 days has lapsed
     // (Step 41.5).
-    supabase
-      .from("invite_relays")
-      .select("id, first_name, last_name, email, created_at")
-      .eq("recipient_user_id", profile.auth_user_id)
-      .eq("status", "pending")
-      .gt("created_at", relayLapseCutoff(new Date()))
-      .order("created_at", { ascending: true }),
+    relayRowsP,
     // The Branches they've made, tree by tree: each Root makes up to four
     // (Step 39).
     supabase
       .from("tree_members")
       .select("tree_id")
       .eq("branch_granted_by", profile.auth_user_id),
+    // The entries each ask's name matches on each of their trees, which they
+    // may invite the newcomer to claim instead (Step 41.1).
+    relayRowsP.then((rows) =>
+      listRelayCandidates(
+        rows.map((r) => r.id),
+        trees.map((t) => t.id),
+      ),
+    ),
+    // The ask the email's button named, in case it has been answered or
+    // has lapsed since.
+    openedRelayId ? loadOpenedRelay(openedRelayId) : null,
+    // The member's own entry across trees: where it lives, where it shows.
+    selfId
+      ? Promise.all([
+          supabase
+            .from("people")
+            .select("tree_id, hidden_from_visitors")
+            .eq("id", selfId)
+            .maybeSingle(),
+          supabase
+            .from("tree_placements")
+            .select("tree_id, trees(name)")
+            .eq("person_id", selfId)
+            .eq("status", "active"),
+        ])
+      : null,
+    // What each Branch membership tends: the Root they're related to there.
+    Promise.all(
+      selfId
+        ? trees
+            .filter((t) => t.type.entries === "branch")
+            .map(async (t): Promise<[string, string | null]> => {
+              const sideOf = await branchSidesOn(t.id);
+              return [t.id, branchSideLabel(sideOf(selfId))];
+            })
+        : [],
+    ).then((sides) => new Map(sides)),
+    // The other members of every tree they run, for the Roots among them.
+    runIds.length > 0
+      ? supabase
+          .from("member_directory")
+          .select("tree_id, auth_user_id, display_name, role")
+          .in("tree_id", runIds)
+          .neq("auth_user_id", profile.auth_user_id)
+      : { data: [] },
   ]);
   const invitedByTree = new Map(
     (directory ?? []).map((d) => [d.tree_id, d.invited_by_name]),
@@ -266,13 +324,7 @@ async function SettingsView({
   for (const { tree_id } of madeBranches ?? []) {
     branchesMadeByTree.set(tree_id, (branchesMadeByTree.get(tree_id) ?? 0) + 1);
   }
-  // The entries each ask's name matches on each of their trees, which they
-  // may invite the newcomer to claim instead (Step 41.1).
-  const relayMatches = await listRelayCandidates(
-    (relayRows ?? []).map((r) => r.id),
-    trees.map((t) => t.id),
-  );
-  const relays: PendingRelay[] = (relayRows ?? []).map((r) => ({
+  const relays: PendingRelay[] = relayRows.map((r) => ({
     id: r.id,
     firstName: r.first_name,
     lastName: r.last_name,
@@ -288,27 +340,13 @@ async function SettingsView({
   // an ask of theirs says what they did with it, never that it was answered
   // already (Step 41.1).
   const openedRelayLine =
-    openedRelayGone && openedRelayId
-      ? openedRelayNote(await loadOpenedRelay(openedRelayId))
-      : null;
+    openedRelayGone && openedRelayId ? openedRelayNote(openedRelay) : null;
 
-  // The member's own entry across trees: where it lives, where it shows.
   let home: { id: string; name: string } | null = null;
   let shownOn: { id: string; name: string }[] = [];
   let hidden = false;
-  if (profile.self_person_id) {
-    const [{ data: self }, { data: placements }] = await Promise.all([
-      supabase
-        .from("people")
-        .select("tree_id, hidden_from_visitors")
-        .eq("id", profile.self_person_id)
-        .maybeSingle(),
-      supabase
-        .from("tree_placements")
-        .select("tree_id, trees(name)")
-        .eq("person_id", profile.self_person_id)
-        .eq("status", "active"),
-    ]);
+  if (selfEntry) {
+    const [{ data: self }, { data: placements }] = selfEntry;
     hidden = self?.hidden_from_visitors ?? false;
     shownOn = (placements ?? []).flatMap((p) => {
       const t = Array.isArray(p.trees) ? p.trees[0] : p.trees;
@@ -317,28 +355,13 @@ async function SettingsView({
     home = shownOn.find((t) => t.id === self?.tree_id) ?? null;
   }
 
-  // What each Branch membership tends: the Root they're related to there.
-  const branchSideByTree = new Map<string, string | null>();
-  for (const t of trees) {
-    if (t.type.entries !== "branch" || !profile.self_person_id) continue;
-    const sides = await getBranchSides([profile.self_person_id], t.id);
-    branchSideByTree.set(
-      t.id,
-      branchSideLabel(sides.get(profile.self_person_id) ?? []),
-    );
-  }
-
   // Every tree they are the only Root of needs a successor before they go.
   const soleRootTrees: SoleRootTree[] = [];
   for (const t of trees) {
     if (!t.type.runsTree) continue;
-    const { data: members } = await supabase
-      .from("member_directory")
-      .select("auth_user_id, display_name, role")
-      .eq("tree_id", t.id)
-      .neq("auth_user_id", profile.auth_user_id);
-    const others = (members ?? []).filter(
-      (m): m is typeof m & { auth_user_id: string } => !!m.auth_user_id,
+    const others = (otherMembers ?? []).filter(
+      (m): m is typeof m & { auth_user_id: string } =>
+        m.tree_id === t.id && !!m.auth_user_id,
     );
     if (others.some((m) => m.role === "admin")) continue;
     soleRootTrees.push({

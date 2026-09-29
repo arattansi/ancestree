@@ -10,6 +10,7 @@ export type ResolvedShareLink = {
   token: string;
   treeId: string;
   treeName: string;
+  treeSlug: string;
 };
 
 /**
@@ -26,20 +27,17 @@ export async function resolveShareLink(
   if (!token) return null;
 
   const admin = createAdminClient();
+  // The link and its tree in one read (Step 77.1).
   const { data: link } = await admin
     .from("share_links")
-    .select("id, token, tree_id, revoked_at, expires_at")
+    .select("id, token, tree_id, revoked_at, expires_at, trees(id, name, slug)")
     .eq("token", token)
     .maybeSingle();
 
   if (!link || !isShareLinkUsable(link)) return null;
 
-  const { data: tree } = await admin
-    .from("trees")
-    .select("id, name")
-    .eq("id", link.tree_id)
-    .maybeSingle();
-
+  // A many-to-one embed; PostgREST can still hand it back as an array.
+  const tree = Array.isArray(link.trees) ? link.trees[0] : link.trees;
   if (!tree) return null;
 
   // Count the view once the page has gone out, so it never holds up the
@@ -60,6 +58,7 @@ export async function resolveShareLink(
     token: link.token,
     treeId: tree.id,
     treeName: tree.name,
+    treeSlug: tree.slug,
   };
 }
 

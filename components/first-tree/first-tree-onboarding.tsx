@@ -45,7 +45,9 @@ export async function FirstTreeOnboarding({
   asked?: string;
 }) {
   const { tree, profile } = membership;
-  const data = await loadFirstTree(membership);
+  const data = await loadFirstTree(membership, {
+    withBring: isFirstTreeStep(asked),
+  });
   const { state, founder } = data;
   // Always on a step's own address, so a refresh after sending an invite
   // or adding someone stays on that step rather than re-picking where to

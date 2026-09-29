@@ -96,10 +96,12 @@ export async function SiteHeader() {
 }
 
 async function LoadedHeader() {
-  const profile = await getProfile();
-  const [trees, access] = profile
-    ? await Promise.all([listMyTrees(), currentAccess()])
-    : [[], null];
+  // All three need only the session, so they're read together (Step 77.1).
+  const [profile, trees, access] = await Promise.all([
+    getProfile(),
+    listMyTrees(),
+    currentAccess(),
+  ]);
   const signedInNotMember = profile ? false : Boolean(await getSessionUser());
 
   const currentMembership =

@@ -40,19 +40,21 @@ export async function loadOwnEntry(profile: Profile): Promise<OwnEntry | null> {
     .maybeSingle();
   if (!person?.id || !person.last_name) return null;
 
-  let photoUrl: string | null = null;
-  if (person.photo_path) {
-    const { data: signed } = await supabase.storage
-      .from("photos")
-      .createSignedUrl(person.photo_path, 60 * 60);
-    photoUrl = signed?.signedUrl ?? null;
-  }
-
-  const placeMap = await getPlacesByIds(
-    [person.place_id_birth, person.place_id_death].filter(
-      (n): n is number => typeof n === "number",
+  // The photo, the places and their role at home, side by side (Step 77.1).
+  const [photoUrl, placeMap, homeRole] = await Promise.all([
+    person.photo_path
+      ? supabase.storage
+          .from("photos")
+          .createSignedUrl(person.photo_path, 60 * 60)
+          .then(({ data }) => data?.signedUrl ?? null)
+      : null,
+    getPlacesByIds(
+      [person.place_id_birth, person.place_id_death].filter(
+        (n): n is number => typeof n === "number",
+      ),
     ),
-  );
+    getRoleIn(person.tree_id),
+  ]);
   const birthPlace = person.place_id_birth
     ? placeMap.get(person.place_id_birth)
     : undefined;
@@ -63,7 +65,7 @@ export async function loadOwnEntry(profile: Profile): Promise<OwnEntry | null> {
   return {
     homeTreeId: person.tree_id,
     displayName: personDisplayName({ ...person, last_name: person.last_name }),
-    isHomeRoot: (await getRoleIn(person.tree_id)) === "admin",
+    isHomeRoot: homeRole === "admin",
     person: {
       id: person.id,
       photo_path: person.photo_path,

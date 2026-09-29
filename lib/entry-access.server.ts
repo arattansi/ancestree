@@ -1,11 +1,46 @@
 import "server-only";
 
+import { cache } from "react";
+
 import type { AccountTypeKey } from "@/lib/account-types";
 import type { Profile } from "@/lib/auth";
 import { canEditEntry, canFillEntry, type EntrySubject } from "@/lib/branch";
-import { getSpokenForEntryIds, getViewer } from "@/lib/branch.server";
+import { getViewer } from "@/lib/branch.server";
 import { createClient } from "@/lib/supabase/server";
 import { getRoleIn } from "@/lib/tree-context";
+
+/**
+ * Who is behind an entry: an approved claim, or another member's own entry.
+ * Asked of this one entry (not of every profile and claim there is, Step
+ * 77.1), and needing only its id, so a page can start it with its first
+ * reads. Once per request.
+ */
+export const entryFacts = cache(
+  async (
+    personId: string,
+    viewerUserId: string,
+  ): Promise<{ isClaimed: boolean; isSomeoneElsesOwn: boolean }> => {
+    const supabase = await createClient();
+    const [{ data: approvedClaim }, { data: owners }] = await Promise.all([
+      supabase
+        .from("claims")
+        .select("id")
+        .eq("person_id", personId)
+        .eq("status", "approved")
+        .maybeSingle(),
+      supabase
+        .from("profiles")
+        .select("auth_user_id")
+        .eq("self_person_id", personId)
+        .neq("auth_user_id", viewerUserId)
+        .limit(1),
+    ]);
+    return {
+      isClaimed: !!approvedClaim,
+      isSomeoneElsesOwn: !!approvedClaim || (owners ?? []).length > 0,
+    };
+  },
+);
 
 /**
  * What the viewer may do with an entry's details: edit them, or only fill in
@@ -29,16 +64,9 @@ export async function entryAccess(
   /** Their account type on the entry's home tree, if they're on it. */
   homeRole: AccountTypeKey | null;
 }> {
-  const supabase = await createClient();
-  const [{ data: approvedClaim }, homeRole, spokenFor] = await Promise.all([
-    supabase
-      .from("claims")
-      .select("id")
-      .eq("person_id", person.id)
-      .eq("status", "approved")
-      .maybeSingle(),
+  const [facts, homeRole] = await Promise.all([
+    entryFacts(person.id, profile.auth_user_id),
     getRoleIn(person.home_tree_id),
-    getSpokenForEntryIds(profile.auth_user_id),
   ]);
   const viewer = homeRole
     ? await getViewer(profile, homeRole, person.home_tree_id)
@@ -47,8 +75,7 @@ export async function entryAccess(
     id: person.id,
     owner_user_id: person.owner_user_id,
     created_by: person.created_by,
-    isClaimed: !!approvedClaim,
-    isSomeoneElsesOwn: spokenFor.has(person.id),
+    ...facts,
   };
   const canEdit = viewer
     ? canEditEntry(subject, viewer)

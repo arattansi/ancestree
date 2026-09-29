@@ -12,14 +12,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { canEditConnection } from "@/lib/branch";
 import { getViewer } from "@/lib/branch.server";
-import { entryAccess } from "@/lib/entry-access.server";
+import { entryAccess, entryFacts } from "@/lib/entry-access.server";
 import { blankFields } from "@/lib/fill-blanks";
 import { personDisplayName } from "@/lib/person-name";
 import { formatPlaceLabel, getPlacesByIds } from "@/lib/places";
 import { personFormValues } from "@/lib/person-schema";
 import { createClient } from "@/lib/supabase/server";
-import { listTreeMembers } from "@/lib/tree";
-import { getTreeById, requireTreeSelfPerson } from "@/lib/tree-context";
+import { listTreeMembers, loadTreeEdges } from "@/lib/tree";
+import { getTreeById, requireTreeSelfPersonWith } from "@/lib/tree-context";
 import { suggestChangeHref, treeFocusHref } from "@/lib/tree-links";
 
 export const metadata: Metadata = { title: "edit entry" };
@@ -28,17 +28,29 @@ export default async function EditPersonPage({
   params,
 }: PageProps<"/people/[id]/edit">) {
   const { id } = await params;
-  const { tree, profile, type } = await requireTreeSelfPerson();
-
   const supabase = await createClient();
-  const { data: person } = await supabase
-    .from("tree_people")
-    .select(
-      "id, home_tree_id, is_home, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_birth_precision, birth_month, birth_day, place_id_birth, city_of_birth, country_of_birth, is_deceased, date_of_death, date_of_death_precision, place_id_death, place_of_death, sex, lineage_type, photo_path, photo_crop, owner_user_id, created_by, email, email_visible",
-    )
-    .eq("tree_id", tree.id)
-    .eq("id", id)
-    .maybeSingle();
+  // Everything that needs only the entry's id and the tree is asked for
+  // with the check that their own entry is on this tree (Step 77.1): the
+  // entry, the tree's people and lines (the connections below, and who
+  // may edit what), and who is behind the entry.
+  const {
+    membership: { tree, profile, type },
+    data: [{ data: person }, allMembers],
+  } = await requireTreeSelfPersonWith(({ tree, profile }) =>
+    Promise.all([
+      supabase
+        .from("tree_people")
+        .select(
+          "id, home_tree_id, is_home, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_birth_precision, birth_month, birth_day, place_id_birth, city_of_birth, country_of_birth, is_deceased, date_of_death, date_of_death_precision, place_id_death, place_of_death, sex, lineage_type, photo_path, photo_crop, owner_user_id, created_by, email, email_visible",
+        )
+        .eq("tree_id", tree.id)
+        .eq("id", id)
+        .maybeSingle(),
+      // The tree's people and, shared, its lines.
+      listTreeMembers(tree.id),
+      entryFacts(id, profile.auth_user_id),
+    ]),
+  );
 
   if (
     !person?.id ||
@@ -55,7 +67,14 @@ export default async function EditPersonPage({
   // Not theirs to change, but maybe theirs to fill in where it's blank
   // (Step 44). Neither, and they can suggest a change instead (Step 67):
   // "Edit entry" on a card whose home is a tree they don't run lands there.
-  const [{ canEdit, canFill, homeRole }, homeTree] = await Promise.all([
+  // The form's photo and places are read alongside, needed or not.
+  const [
+    { canEdit, canFill, homeRole },
+    homeTree,
+    photoUrl,
+    placeMap,
+    treeViewer,
+  ] = await Promise.all([
     entryAccess(profile, {
       id: personId,
       home_tree_id: homeTreeId,
@@ -63,6 +82,20 @@ export default async function EditPersonPage({
       created_by: person.created_by,
     }),
     person.is_home ? tree : getTreeById(homeTreeId),
+    person.photo_path
+      ? supabase.storage
+          .from("photos")
+          .createSignedUrl(person.photo_path, 60 * 60)
+          .then(({ data }) => data?.signedUrl ?? null)
+      : null,
+    getPlacesByIds(
+      [person.place_id_birth, person.place_id_death].filter(
+        (n): n is number => typeof n === "number",
+      ),
+    ),
+    // Connections are drawn on the tree being viewed, between people it
+    // shows, so who may remove them is decided there.
+    getViewer(profile, type.key, tree.id),
   ]);
   const isHomeRoot = homeRole === "admin";
 
@@ -129,19 +162,6 @@ export default async function EditPersonPage({
     );
   }
 
-  let photoUrl: string | null = null;
-  if (person.photo_path) {
-    const { data: signed } = await supabase.storage
-      .from("photos")
-      .createSignedUrl(person.photo_path, 60 * 60);
-    photoUrl = signed?.signedUrl ?? null;
-  }
-
-  const placeMap = await getPlacesByIds(
-    [person.place_id_birth, person.place_id_death].filter(
-      (n): n is number => typeof n === "number",
-    ),
-  );
   const birthPlace = person.place_id_birth
     ? placeMap.get(person.place_id_birth)
     : undefined;
@@ -153,21 +173,14 @@ export default async function EditPersonPage({
     death: deathPlace ? formatPlaceLabel(deathPlace) : person.place_of_death,
   };
 
-  // Connections are drawn on the tree being viewed, between people it shows.
-  const treeViewer = await getViewer(profile, type.key, tree.id);
-  const [allMembers, { data: rels }] = await Promise.all([
-    listTreeMembers(tree.id),
-    supabase
-      .from("tree_edges")
-      .select(
-        "id, from_person, to_person, type, created_by, marriage_date, marriage_month, divorce_date",
-      )
-      .eq("tree_id", tree.id)
-      .or(`from_person.eq.${personId},to_person.eq.${personId}`),
-  ]);
+  // This person's lines on the tree being viewed, from its shared read.
+  const { edges } = await loadTreeEdges(tree.id);
+  const rels = edges.filter(
+    (r) => r.from_person === personId || r.to_person === personId,
+  );
   const members = allMembers.filter((m) => m.id !== personId);
   const nameById = new Map(allMembers.map((m) => [m.id, m.label]));
-  const connections: ExistingConnection[] = (rels ?? []).flatMap((r) => {
+  const connections: ExistingConnection[] = rels.flatMap((r) => {
     if (!r.id || !r.from_person || !r.to_person || !r.type || !r.created_by)
       return [];
     const otherId = r.from_person === personId ? r.to_person : r.from_person;

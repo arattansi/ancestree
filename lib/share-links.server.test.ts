@@ -23,10 +23,7 @@ type RpcError = { message: string } | null;
  * Its RPC is lazy like a real Supabase query, sent only once awaited, so a
  * call that is built and never awaited never shows up in `sent`.
  */
-function fakeAdmin(
-  rows: { share_links: Row; trees: Row },
-  rpcError: RpcError = null,
-) {
+function fakeAdmin(rows: { share_links: Row }, rpcError: RpcError = null) {
   const sent: { fn: string; args: unknown }[] = [];
   const client = {
     from: (table: keyof typeof rows) => ({
@@ -53,14 +50,16 @@ function fakeAdmin(
 }
 
 const TOKEN = "0123456789abcdef".repeat(4);
+const TREE = { id: "t1", name: "Test tree", slug: "test-tree" };
+// The link with its tree, read together (Step 77.1).
 const LINK = {
   id: "l1",
   token: TOKEN,
   tree_id: "t1",
   revoked_at: null,
   expires_at: null,
+  trees: TREE,
 };
-const TREE = { id: "t1", name: "Test tree" };
 // A relative opening the link, and iMessage drawing its preview (Step 33.7).
 const SAFARI =
   "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1";
@@ -75,7 +74,7 @@ async function afterResponse() {
 describe("resolveShareLink (Step 33)", () => {
   beforeEach(() => {
     afterTasks.length = 0;
-    admin = fakeAdmin({ share_links: LINK, trees: TREE });
+    admin = fakeAdmin({ share_links: LINK });
   });
 
   it("returns the tree, then counts the view once the page has gone out", async () => {
@@ -84,6 +83,7 @@ describe("resolveShareLink (Step 33)", () => {
       token: TOKEN,
       treeId: "t1",
       treeName: "Test tree",
+      treeSlug: "test-tree",
     });
     // Nothing is sent while the page renders…
     expect(admin.sent).toEqual([]);
@@ -102,7 +102,7 @@ describe("resolveShareLink (Step 33)", () => {
       { ...LINK, revoked_at: "2026-09-01T00:00:00Z" },
       { ...LINK, expires_at: "2000-01-01T00:00:00Z" },
     ]) {
-      admin = fakeAdmin({ share_links: link, trees: TREE });
+      admin = fakeAdmin({ share_links: link });
       expect(await resolveShareLink(TOKEN, SAFARI)).toBeNull();
     }
     expect(afterTasks).toEqual([]);
@@ -116,7 +116,7 @@ describe("resolveShareLink (Step 33)", () => {
   });
 
   it("counts no view when the tree is gone", async () => {
-    admin = fakeAdmin({ share_links: LINK, trees: null });
+    admin = fakeAdmin({ share_links: { ...LINK, trees: null } });
     expect(await resolveShareLink(TOKEN, SAFARI)).toBeNull();
     expect(afterTasks).toEqual([]);
   });
@@ -124,7 +124,7 @@ describe("resolveShareLink (Step 33)", () => {
   it("warns when the count fails, never with the token, and still shows the tree", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     admin = fakeAdmin(
-      { share_links: LINK, trees: TREE },
+      { share_links: LINK },
       { message: "permission denied for function record_share_link_view" },
     );
 

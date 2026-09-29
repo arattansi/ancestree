@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { getOwnLine } from "@/lib/branch.server";
 import { getBloodline, getGrowthRights } from "@/lib/growth-rights.server";
 import { listTreeMembers } from "@/lib/tree";
-import { requireTreeSelfPerson } from "@/lib/tree-context";
+import { requireTreeSelfPersonWith } from "@/lib/tree-context";
 import { newTreeHref, validRelatedTo } from "@/lib/tree-links";
 
 export const metadata: Metadata = {
@@ -17,19 +17,22 @@ export const metadata: Metadata = {
 export default async function NewPersonPage({
   searchParams,
 }: PageProps<"/people/new">) {
-  const { tree, type, profile, isRoot } = await requireTreeSelfPerson();
-
   // A Leaf adds on their own line (Step 34), so connects new entries from
   // someone on it; the database judges the result at submit. The bloodline
-  // lets the form warn of a missing blood tie before then (Step 55).
-  const [members, rights, line, bloodline] = await Promise.all([
-    listTreeMembers(tree.id),
-    getGrowthRights(tree.id),
-    type.addRelatives === "line" && profile.self_person_id
-      ? getOwnLine(tree.id, profile.self_person_id)
-      : null,
-    getBloodline(tree.id),
-  ]);
+  // lets the form warn of a missing blood tie before then (Step 55). All of
+  // it is asked for with the check that their own entry is on this tree
+  // (Step 77.1), and the tree's lines are read once for all three.
+  const {
+    membership: { tree, isRoot },
+    data: [members, rights, line, bloodline],
+  } = await requireTreeSelfPersonWith(({ tree, type, selfPersonId }) =>
+    Promise.all([
+      listTreeMembers(tree.id),
+      getGrowthRights(tree.id),
+      type.addRelatives === "line" ? getOwnLine(tree.id, selfPersonId) : null,
+      getBloodline(tree.id),
+    ]),
+  );
   // "Add a relative" with someone selected on the canvas (Step 19.2): start
   // the flow connected to them. Only an id on this tree they may add from is
   // honoured; the growth rights and the bloodline gate still judge the result

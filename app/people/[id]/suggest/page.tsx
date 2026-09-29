@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { PersonSuggestForm } from "@/components/person-suggest-form";
-import { entryAccess } from "@/lib/entry-access.server";
+import { entryAccess, entryFacts } from "@/lib/entry-access.server";
 import { personDisplayName } from "@/lib/person-name";
 import { personFormValues } from "@/lib/person-schema";
 import { formatPlaceLabel, getPlacesByIds } from "@/lib/places";
@@ -13,7 +13,8 @@ import {
   getOwnDeclinedSuggestion,
   getOwnPendingSuggestion,
 } from "@/lib/suggestions.server";
-import { requireTreeSelfPerson } from "@/lib/tree-context";
+import { loadTreeEdges } from "@/lib/tree";
+import { requireTreeSelfPersonWith } from "@/lib/tree-context";
 import {
   editPersonHref,
   suggestChangeHref,
@@ -35,17 +36,31 @@ export default async function SuggestChangePage({
   const { id } = await params;
   const { from } = await searchParams;
   const fromId = typeof from === "string" ? from : undefined;
-  const { tree, profile } = await requireTreeSelfPerson();
-
   const supabase = await createClient();
-  const { data: person } = await supabase
-    .from("tree_people")
-    .select(
-      "id, home_tree_id, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_birth_precision, birth_month, birth_day, place_id_birth, city_of_birth, country_of_birth, is_deceased, date_of_death, date_of_death_precision, place_id_death, place_of_death, sex, owner_user_id, created_by",
-    )
-    .eq("tree_id", tree.id)
-    .eq("id", id)
-    .maybeSingle();
+  // What needs only the entry's id is asked for with the check that their
+  // own entry is on this tree (Step 77.1): the entry, their suggestions on
+  // it, who is behind it, and the tree's lines for who may edit it.
+  const {
+    membership: { tree, profile },
+    data: [{ data: person }, pending, declined],
+  } = await requireTreeSelfPersonWith(({ tree, profile, type }) =>
+    Promise.all([
+      supabase
+        .from("tree_people")
+        .select(
+          "id, home_tree_id, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_birth_precision, birth_month, birth_day, place_id_birth, city_of_birth, country_of_birth, is_deceased, date_of_death, date_of_death_precision, place_id_death, place_of_death, sex, owner_user_id, created_by",
+        )
+        .eq("tree_id", tree.id)
+        .eq("id", id)
+        .maybeSingle(),
+      getOwnPendingSuggestion(id, profile.auth_user_id),
+      // The one they're resending, or their latest if it was declined.
+      getOwnDeclinedSuggestion(id, profile.auth_user_id, fromId),
+      entryFacts(id, profile.auth_user_id),
+      // A Root edits every entry here, so needs no walk over the lines.
+      type.entries === "tree" ? null : loadTreeEdges(tree.id),
+    ]),
+  );
 
   if (
     !person?.id ||
@@ -57,19 +72,6 @@ export default async function SuggestChangePage({
     notFound();
   }
   const personId = person.id;
-
-  const [{ canEdit }, pending, declined] = await Promise.all([
-    entryAccess(profile, {
-      id: personId,
-      home_tree_id: person.home_tree_id,
-      owner_user_id: person.owner_user_id,
-      created_by: person.created_by,
-    }),
-    getOwnPendingSuggestion(personId, profile.auth_user_id),
-    // The one they're resending, or their latest if it was declined.
-    getOwnDeclinedSuggestion(personId, profile.auth_user_id, fromId),
-  ]);
-  if (canEdit) redirect(editPersonHref(personId));
 
   // What the form opens with: a declined suggestion they're resending, or
   // their earlier one while it waits (sending again replaces it), or the
@@ -88,11 +90,22 @@ export default async function SuggestChangePage({
     email_visible: false,
   });
 
-  const placeMap = await getPlacesByIds(
-    [shown.place_id_birth, shown.place_id_death].filter(
-      (n): n is number => typeof n === "number",
+  // Someone who can edit it is sent to edit it; the places are read
+  // alongside, needed or not.
+  const [{ canEdit }, placeMap] = await Promise.all([
+    entryAccess(profile, {
+      id: personId,
+      home_tree_id: person.home_tree_id,
+      owner_user_id: person.owner_user_id,
+      created_by: person.created_by,
+    }),
+    getPlacesByIds(
+      [shown.place_id_birth, shown.place_id_death].filter(
+        (n): n is number => typeof n === "number",
+      ),
     ),
-  );
+  ]);
+  if (canEdit) redirect(editPersonHref(personId));
   const birthPlace =
     shown.place_id_birth != null ? placeMap.get(shown.place_id_birth) : null;
   const deathPlace =

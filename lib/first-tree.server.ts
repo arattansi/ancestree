@@ -148,8 +148,14 @@ async function treeInvites(treeId: string): Promise<{
 /**
  * Everything the founder's first run reads, for the tree they're on. The
  * tree is new and small, so the whole graph is read to find their family.
+ * `withBring: false` leaves out who could be brought from their other
+ * trees, for a visit that only needs to know which step to open (Step
+ * 77.1): it's sent on to that step's address, which reads it all.
  */
-export async function loadFirstTree(m: TreeMembership): Promise<FirstTreeData> {
+export async function loadFirstTree(
+  m: TreeMembership,
+  { withBring = true }: { withBring?: boolean } = {},
+): Promise<FirstTreeData> {
   const selfId = m.profile.self_person_id;
   const supabase = await createClient();
 
@@ -200,7 +206,7 @@ export async function loadFirstTree(m: TreeMembership): Promise<FirstTreeData> {
   // offer to bring the close ones rather than add them twice.
   let bring: BringCandidate[] = [];
   let waiting: FirstTreeData["waiting"] = [];
-  if (selfId && founder && row?.tree_id !== m.tree.id) {
+  if (withBring && selfId && founder && row?.tree_id !== m.tree.id) {
     const [candidates, placed] = await Promise.all([
       closeRelativesElsewhere(m.tree.id, selfId),
       listForeignPlacements(m.tree.id),
@@ -279,15 +285,19 @@ async function closeRelativesElsewhere(
 
 /**
  * The canvas's "Getting started" list for the founder, from the graph the
- * canvas already read; `null` for anyone else, or once it's all done.
+ * canvas reads; `null` for anyone else, or once it's all done. The graph
+ * can still be on its way: the invites are read beside it (Step 77.1).
  */
 export async function getGettingStarted(
   m: TreeMembership,
-  relationships: readonly TreeGraphEdge[],
+  relationships: PromiseLike<readonly TreeGraphEdge[]>,
 ): Promise<GettingStartedItem[] | null> {
   if (!isFounder(m) || !m.profile.self_person_id) return null;
-  const close = closeFamilyOf(m.profile.self_person_id, relationships);
-  const { invited } = await treeInvites(m.tree.id);
+  const [lines, { invited }] = await Promise.all([
+    relationships,
+    treeInvites(m.tree.id),
+  ]);
+  const close = closeFamilyOf(m.profile.self_person_id, lines);
   const items = gettingStartedItems(stateOf(m, true, close, invited));
   return items.every((i) => i.done) ? null : items;
 }
