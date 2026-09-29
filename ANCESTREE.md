@@ -333,7 +333,11 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `revalidateTreePages()`, the one call after a write: the action's reply
   carries the page it was sent from, drawn again, and pages visited
   earlier are fetched afresh (Step 61); `lib/placements.server.ts` — who a
-  Root could bring over, and who they have
+  Root could bring over with the lines between them, who they have, and
+  what's been asked of a member (Step 80); `lib/carry.ts` — who "All
+  descendants of" picks and what bringing each asks (`.test.ts`);
+  `lib/placement-alerts.server.ts` + `lib/emails/placement-asked.ts` — the
+  email to whoever's yes a basic card waits on (`.test.ts`)
 - `components/site-header.tsx` (the mark, the tree switcher, **tree**,
   **connections**, **account**, the bell; `lib/nav-active.ts` says which is
   lit, Step 61; its counts come from `lib/header-counts.server.ts` and are
@@ -341,7 +345,9 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `GET /api/header-counts` on moving to another page or coming back to the
   tab, at most every 30 s; the bell reads its list from
   `GET /api/notifications` when it's opened, Step 77.2), `found-tree-form.tsx`, `home-tree-picker.tsx`,
-  `join-tree-button.tsx`, `admin/admin-placements.tsx`,
+  `join-tree-button.tsx`, `admin/admin-placements.tsx`, `carry-picker.tsx` (**All descendants of**,
+  in the Root console and the founder's family step, Step 80),
+  `placement-asks.tsx` (**Asked of You** on `/account` settings, Step 80),
   `admin/admin-tree-settings.tsx`, `admin/admin-delete-tree.tsx`,
   `tree/person-trees.tsx` ("Also on"); `components/page-skeletons.tsx` +
   `components/ui/skeleton.tsx` for the `loading.tsx` skeletons
@@ -416,7 +422,7 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `trees`                  | A family's canvas (Step 25): `name`, URL `slug` (unique, follows the name), `created_by` = founder — **one founded tree per member** (partial unique index); created only by `found_tree` (once a beta reviewer has approved the member's request, Step 28) / a founder invite / the allowlist bootstrap, deleted only by `delete_tree`                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `tree_members`           | **The account type, per tree** (Step 25): `(tree_id, user_id, role)`, `role` ∈ `admin` \| `branch_admin` \| `member` (Root / Branch / Leaf; `leaf` retired in Step 34). Written by RPCs (`join_tree`, `set_member_role`, `remove_tree_member`) behind `tree_members_guard` (Roots set types; Root is permanent per tree) and `tree_members_limits` (Step 39: at most two Roots a tree, four Branches a Root). `branch_granted_by` = the Root who made them a Branch, whose four they count toward — set by the trigger, never chosen, null unless a Branch |
-| `tree_placements`        | Which trees show a person, and where the card sits there: `(tree_id, person_id, status active\|pending\|declined, pos_*)`. The home tree always has one (trigger); others come from `place_people`, and a member's own entry waits `pending` for their yes (`respond_to_placement`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `tree_placements`        | Which trees show a person, how much of them, and where the card sits there: `(tree_id, person_id, status, approval none\|asked\|approved\|declined, detail basic\|full (generated), asked_at, answered_by, pos_*)`. The home tree always shows the whole entry (trigger); others come from `place_people`, at once, as a basic card (name, place of birth, lines) while `approval` is `asked` or `declined` (Step 80). The member whose entry it is, or whoever may edit nobody's own entry, answers with `answer_placements`. `status` is always `active` now; `pending` and `declined` there are Step 25's and no longer written |
 | `tree_visibility`        | A Root opens their tree, read-only, to the members of another tree they're on: `(tree_id, viewer_tree_id)`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `profiles`               | `auth.users` row: `display_name`, `self_person_id` (one entry, wherever it's shown), `relatives_can_ask` (whether a newcomer's ask may reach them, on unless they untick it; Step 41.5). No account type here: that is `tree_members.role`, per tree (the pre-Step-25 `profiles.role` was dropped in Step 25.6). A member writes only `display_name` and `relatives_can_ask`, on their own row, and never inserts one: `self_person_id` and `invited_by_user_id` are set by the security-definer RPCs alone (Step 42: column grants, `profiles_guard`) |
 | `people`                 | Demographic nodes, **one row per person across all trees**. `tree_id` is the person's **home tree** — whose rules govern their details (Step 25; moved by `set_home_tree`). `hidden_from_visitors` blurs them to visitors. Card positions live on `tree_placements`, not here (the pre-Step-25 `people.pos_*` were dropped in Step 25.6). `owner_user_id` starts as `created_by` and moves on claim. `date_of_birth_precision` / `date_of_death_precision` (`day` \| `month` \| `year`, Step 17) say how much of each date is known — a partial date is stored on the first day of its period, CHECK-enforced, so year-only readers need no change. A birthday with no year is `birth_month` / `birth_day` (Step 63), set only while `date_of_birth` is empty, so they see no year either. `date_of_birth_circa` / `date_of_death_circa` (Step 81) mark a date as a rough estimate, shown "c. 1950"; each needs its date (CHECK), and `people_before_write` clears it when the date is emptied. `place_id_birth` / `place_id_death` → `places(id)` (Step 4.5b; nullable, backfilled — legacy `city_of_birth` / `country_of_birth` / `place_of_death` text kept until reconciled). Nothing about ancestral lands is stored: a card shows Native Land Digital's names, looked up live, or nothing (Step 40; Step 27's `ancestral_lands_birth` / `ancestral_lands_death`, the family's own words, were never used and were dropped in Step 40.5) |
@@ -428,7 +434,7 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `invite_relays`          | Asks a newcomer with no match passed on to a relative (Step 30.5): their typed first/last name + email and the member it went to (`recipient_user_id`), `pending` \| `invited` \| `dismissed`, the tree they were invited to, `email_sent`. Only that member reads and answers it (RLS; update granted on the answer's columns only); filed by the server with the service role, and the rows are what the member's caps count. One open or dismissed ask per address and member. A pending ask lapses after 30 days, and is deleted as new asks come in (Step 41.5) |
 | `invite_relay_asks`      | A note of every ask to a relative, whoever the address belongs to (Step 41.5): the address asking and `created_at`, never the relative's. What the caps per address and across the site count, before anyone is looked up. Service role only (RLS on, no policies, no grants to `anon`/`authenticated`); an ask past a cap leaves no note, and notes older than a day are deleted as new asks come in |
 | `claims`                 | Auto-approve / dispute / reject a person entry (`dispute_reason`, `resolved_by`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| `notifications`          | In-app notices, **one inbox per tree** (`tree_id`, Step 25; `placement_requested` \| `placement_accepted` \| `placement_declined` added; `tree_request_approved`, Step 28; `placed_on_join`, Step 30.9, and what a claim invite did, Step 41.3; `joined_by_link`, Step 52); recipient-scoped RLS                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `notifications`          | In-app notices, **one inbox per tree** (`tree_id`, Step 25; `placement_requested` \| `placement_accepted` \| `placement_declined` added; `placements_requested`, one for a batch of entries someone may edit, Step 80; `tree_request_approved`, Step 28; `placed_on_join`, Step 30.9, and what a claim invite did, Step 41.3; `joined_by_link`, Step 52); recipient-scoped RLS                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `entry_comments`         | Comments and flags, **one board per tree** (`tree_id`, Step 25) (`is_flag`, `open` \| `resolved`, `resolved_by`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `documents`              | Metadata for private file uploads, **one bank per tree** (`tree_id`); `shared_across_trees` shows it on every tree the person is on — flipped only by the person or a Root of their home tree (`documents_guard`), which also keeps it on its entry except inside a merge (Step 41.3's claim invite, or "This is me" since Step 43), which leaves it unshared                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `places`                 | GeoNames reference data (populated places + admin areas) for birthplace autocomplete; not tree-scoped — read by any member, written by the import script and by a Root's **Add a place** (ids from 10,000,000,000); a row for each country (Step 79: ids from 9,000,000,000, no coordinates, never found by the name search)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
@@ -1457,6 +1463,82 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 80 — Carry a family line to another tree: all descendants of,
+  basic cards, approvals** (ad-hoc, Aalim 2026-09-29; migration
+  `20260929090000_carry_a_family_line`, applied before the code). A member
+  founding a tree for the side of the family that isn't on one brought
+  relatives across one at a time, a member's own entry wasn't drawn until
+  they'd said yes to a notice nobody emailed them about, and anyone else's
+  entry came over whole with nobody asked. **Pick a line:** the founder's
+  family step and the Root console's **Who This Tree Shows** share one
+  picker (`components/carry-picker.tsx`): **All descendants of** a person,
+  **And their partners** ticked (whoever they married or had a child with;
+  `lib/carry.ts#lineOf`, a generation at a time, never climbing, sibling
+  lines not followed), each name untickable, or anyone one by one by name.
+  Under each name is what bringing them asks (`placement_preview`): **In
+  full**, **Basic until they approve**, **Basic until a Root or Branch
+  approves**. **Everyone arrives at once:** `place_people` puts each on the
+  tree as `active`, with `approval` `none` for the Root's own entry and any
+  entry they may already edit on its home tree, and `asked` for the rest,
+  which show as **basic cards**: first or preferred name, last name, place
+  of birth, their lines, and "Basic details" where the years would be.
+  **The database keeps the rest back:** `tree_placements.detail` (generated
+  from `approval`) is `basic` while asked or declined;
+  `private.can_see_person`, the photo and document rules, comments,
+  suggestions, "This is me" and the onboarding search all ask for a full
+  placement; `tree_people` and `tree_edges` are now `union all` views whose
+  second half (`private.basic_tree_people`, `private.basic_tree_edges`,
+  read as their owner, checking who may look) carries a basic card's name
+  and place and nothing else, and a line's kind and whether a marriage
+  ended but its dates only on the tree it was drawn on. Even the Root who
+  brought them sees the basic card there. **Who is asked:** a member about
+  their own entry (notice `placement_requested`, and an email); for
+  nobody's own entry, whoever may edit it on its home tree: its Roots, the
+  Branches who tend it, the Branch or Leaf who added it (one notice
+  `placements_requested` and one email each for the batch,
+  `lib/placement-alerts.server.ts`, `lib/emails/placement-asked.ts`).
+  **Answering:** **Asked of You**, first on `/account` settings
+  (`components/placement-asks.tsx`): Approve or Decline each, or **Approve
+  all** a tree asked for; whoever answers first answers for everyone, and
+  whoever brought them is told once for the call. A no leaves the basic
+  card; under **Answered** either answer can be changed, so a yes can be
+  taken back (`answer_placements`; `respond_to_placement` kept for the
+  notice's buttons). Accepting an invite to the tree, or moving the entry's
+  home there, is a yes. **What changed for Step 25:** the person shown can
+  no longer delete their own placement (their name and place need nobody's
+  yes; what they take back is the rest); `delete_tree` hands entries only
+  to a tree that shows them in full; a line to a basic card is changed by
+  whoever drew it or a Root of the tree it was drawn on. **Aalim's answers
+  (asked first):** nobody's own entries show as basic cards at once too; a
+  decline keeps the basic card; an entry the founder may already edit comes
+  over in full. **My calls, not asked:** the member who added an entry
+  nobody has claimed is asked along with the Roots and Branches (they may
+  edit it, and are who a parent adding their children is); partners
+  include the other parent of a child when they never married; marriage
+  dates are kept back with the rest but "divorced" is not, so a former
+  partner isn't drawn as a current one; a basic card says "Basic details",
+  never "Living"; nobody is asked twice about the same card; a basic card
+  on another tree can't be carried on from there. **Known gaps:** a
+  newcomer to the new tree can't claim a basic card as themselves until
+  it's approved (they'd add a duplicate); nothing reminds someone who
+  hasn't answered; the asks don't lapse. **Verified:** the migration
+  rehearsed twice in rolled-back transactions on live with a throwaway
+  family across two trees (45 checks: what each of five members reads
+  before and after, every refusal, both answers, taking one back, an
+  invite accepted, a home moved), the home tree's reads byte-identical
+  before and after, all 26 function bodies md5-equal to the file; then
+  applied, and the same 26 plus both views and three policies compared
+  again. The recorded row's statements differ from the file on purpose:
+  the eight big functions it re-creates were patched in place from their
+  live bodies rather than retyped. End to end in headless Chrome as five
+  throwaway members of an invented family (first run, the picker, 6
+  brought over, basic cards as a member of the new tree only sees them,
+  four emails delivered to Resend's test inbox, approve all, a Branch
+  taking one back and giving it again, the Root console's count, removal),
+  then every row and account deleted. 1,205 unit tests (25 new), `tsc`,
+  `eslint` and `next build` clean. Screenshots of the flow are in Notion
+  (Ancestree Hub → "Start a tree for the other side of the family").
 
 - **Step 77.5 — Efficiency audit, phase 4: one save per press, and invites
   sent together** (ad-hoc; no migration; the audit's finding S8; the fifth

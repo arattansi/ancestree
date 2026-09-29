@@ -351,6 +351,8 @@ export async function getTreeGraph(
           is_deceased: false,
           date_of_birth_precision: "day",
           date_of_death_precision: "day",
+          date_of_birth_circa: false,
+          date_of_death_circa: false,
           hidden_from_visitors: false,
           blurred: false,
           basic: true,
