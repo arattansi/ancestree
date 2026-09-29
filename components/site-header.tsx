@@ -3,23 +3,22 @@ import { unstable_rethrow } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { signOut } from "@/app/actions/auth";
-import { switchTreeForm } from "@/app/actions/current-tree";
+import {
+  AdminQueueButton,
+  ConnectionsNavLink,
+  HeaderCountsProvider,
+} from "@/components/header-counts";
 import { LogoMark } from "@/components/logo-mark";
 import { SiteHeaderHeight } from "@/components/site-header-height";
 import { SiteNavLink } from "@/components/site-nav-link";
 import { SiteNotifications } from "@/components/site-notifications";
 import { SubmitButton } from "@/components/submit-button";
 import { TreeSwitcher } from "@/components/tree-switcher";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { countAdminQueue } from "@/lib/admin-notifications";
-import { pickQueueTarget, queueCountLabel } from "@/lib/admin-queue";
 import { getProfile, getSessionUser } from "@/lib/auth";
-import { listNotifications } from "@/lib/claims";
-import { countOpenConnectionSuggestions } from "@/lib/connection-suggestions.server";
+import { headerCounts } from "@/lib/header-counts.server";
 import { currentAccess, listMyTrees } from "@/lib/tree-context";
-import { adminHref, reviewHref, treeHref } from "@/lib/tree-links";
-import { countPendingTreeRequests } from "@/lib/tree-requests.server";
+import { treeHref } from "@/lib/tree-links";
 
 /**
  * The header's frame: the mark on the left, then whatever sits in the
@@ -108,27 +107,10 @@ async function LoadedHeader() {
     access?.kind === "member" ? access.membership : null;
   const visiting =
     access?.kind === "visitor" ? { name: access.visit.tree.name } : null;
-
-  const runs = trees.filter((t) => t.type.runsTree);
-  const [notifications, openConnections, queues, treeRequests] =
-    await Promise.all([
-      profile ? listNotifications(profile.auth_user_id) : [],
-      currentMembership
-        ? countOpenConnectionSuggestions(currentMembership.tree.id)
-        : 0,
-      Promise.all(runs.map((t) => countAdminQueue(t.id))),
-      // A beta reviewer answers from an admin console, so has a tree to run.
-      runs.length > 0 ? countPendingTreeRequests() : 0,
-    ]);
-  const adminItems =
-    queues.reduce((sum, q) => sum + q.inviteRequests + q.disputedClaims, 0) +
-    treeRequests;
-  // One tap from the count to what's waiting, on whichever tree it's on.
-  const queue = pickQueueTarget({
-    trees: queues,
-    treeRequests,
-    currentTreeId: currentMembership?.tree.id ?? null,
-  });
+  // Counts only (Step 77.2): the bell reads its list when it's opened.
+  const counts = profile
+    ? await headerCounts({ profile, trees, access })
+    : null;
   const showSwitcher =
     trees.length > 1 || (visiting !== null && trees.length > 0);
 
@@ -148,8 +130,10 @@ async function LoadedHeader() {
         ) : null
       }
       nav={
-        profile ? (
-          <>
+        profile && counts ? (
+          // The counts are kept fresh between saves by the page itself
+          // (Step 77.2).
+          <HeaderCountsProvider initial={counts}>
             {access ? (
               // Exact, so it isn't lit beside **connections** on its
               // /tree/review page (Step 61).
@@ -157,40 +141,13 @@ async function LoadedHeader() {
                 tree
               </SiteNavLink>
             ) : null}
-            {openConnections > 0 ? (
-              <SiteNavLink href={reviewHref()}>
-                connections
-                <Badge variant="secondary" className="ml-1.5">
-                  {openConnections}
-                </Badge>
-              </SiteNavLink>
-            ) : null}
+            <ConnectionsNavLink />
             <span className="flex items-center gap-1">
               <SiteNavLink href="/account">account</SiteNavLink>
-              {queue ? (
-                <form
-                  action={switchTreeForm.bind(
-                    null,
-                    queue.treeId,
-                    adminHref(queue.section),
-                  )}
-                >
-                  <SubmitButton
-                    size="sm"
-                    // Yellow: it opens what's waiting. Red is for removing
-                    // (Step 70).
-                    variant="attention"
-                    aria-label={queueCountLabel(adminItems)}
-                    title={queueCountLabel(adminItems)}
-                    className="relative tap-target tabular-nums"
-                  >
-                    {adminItems}
-                  </SubmitButton>
-                </form>
-              ) : null}
+              <AdminQueueButton />
             </span>
-            <SiteNotifications items={notifications} />
-          </>
+            <SiteNotifications />
+          </HeaderCountsProvider>
         ) : signedInNotMember ? (
           // It does something rather than go somewhere, so sentence case
           // (docs/design-system.md).

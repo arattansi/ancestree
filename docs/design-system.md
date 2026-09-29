@@ -109,7 +109,10 @@ turn autocomplete off, or every relative is offered the member's own name
   own rather than borrowing its parent's (`/tree/review`, `/trees/new`).
 - The header streams in on its own: until its buttons are known it's the
   same bar with only the mark (`SiteHeaderShell`), so no page waits for it
-  and nothing moves when it arrives.
+  and nothing moves when it arrives. It draws only counts; the bell's list
+  is read when it's opened (grey rows until it arrives), and the counts are
+  asked for again as someone moves between pages or comes back to the tab
+  (Step 77.2).
 - A page that fails says **Something Went Wrong**, with **Try again** and
   **Back to tree**, the header kept; a missing one says **Page Not Found**,
   with **Back to tree** (Step 61).

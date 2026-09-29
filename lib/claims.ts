@@ -1,5 +1,7 @@
 import "server-only";
 
+import { cache } from "react";
+
 import { createClient } from "@/lib/supabase/server";
 import { personDisplayName, personLifespan } from "@/lib/person-name";
 import {
@@ -149,11 +151,34 @@ async function loadNotificationSuggestions(
 }
 
 /**
+ * How many of the signed-in member's notifications are unread, and when the
+ * newest of them arrived (ms, 0 for none): all the header's bell shows until
+ * it's opened (Step 77.2). One read, on the index of unread rows.
+ */
+export async function countUnreadNotifications(
+  userId: string,
+): Promise<{ count: number; latestAt: number }> {
+  const supabase = await createClient();
+  const { data, count } = await supabase
+    .from("notifications")
+    .select("created_at", { count: "exact" })
+    .eq("recipient_user_id", userId)
+    .is("read_at", null)
+    .order("created_at", { ascending: false })
+    .limit(1);
+  return {
+    count: count ?? 0,
+    latestAt: data?.[0] ? Date.parse(data[0].created_at) || 0 : 0,
+  };
+}
+
+/**
  * Recent in-app notifications for the signed-in member, newest first. With
  * `treeId`, only that tree's inbox; without, every tree, each item naming
- * its tree.
+ * its tree. Once per request; what the items point at is read side by side
+ * (Step 77.2).
  */
-export async function listNotifications(
+export const listNotifications = cache(async function listNotifications(
   userId: string,
   treeId?: string,
 ): Promise<NotificationItem[]> {
@@ -177,62 +202,60 @@ export async function listNotifications(
   ]);
 
   // Placement requests point at the placement the member must answer.
-  const placementByPerson = new Map<string, string>();
   const pendingPersonIds = rows
     .filter((n) => n.type === "placement_requested" && n.person_id && n.tree_id)
     .map((n) => n.person_id as string);
-  if (pendingPersonIds.length > 0) {
-    const { data: placements } = await supabase
-      .from("tree_placements")
-      .select("id, tree_id, person_id")
-      .eq("status", "pending")
-      .in("person_id", [...new Set(pendingPersonIds)]);
-    for (const p of placements ?? []) {
-      placementByPerson.set(`${p.tree_id}:${p.person_id}`, p.id);
-    }
-  }
   const claimIds = rows
     .map((n) => n.claim_id)
     .filter((id): id is string => Boolean(id));
-
-  // Which of these notifications point at a claim this user may still dispute:
-  // they created the entry and the claim is currently `approved`.
-  const disputable = new Set<string>();
-  if (claimIds.length > 0) {
-    const { data: claims } = await supabase
-      .from("claims")
-      .select("id, status, person_id")
-      .in("id", claimIds);
-    const approved = (claims ?? []).filter((c) => c.status === "approved");
-    if (approved.length > 0) {
-      const { data: people } = await supabase
-        .from("people")
-        .select("id, created_by")
-        .in("id", [...new Set(approved.map((c) => c.person_id))]);
-      const mine = new Set(
-        (people ?? [])
-          .filter((p) => p.created_by === userId)
-          .map((p) => p.id),
-      );
-      for (const c of approved) if (mine.has(c.person_id)) disputable.add(c.id);
-    }
-  }
-
   // Revisions are readable by Roots only, so for anyone else this finds none.
   const revisionIds = rows
     .map((n) => n.revision_id)
     .filter((id): id is string => Boolean(id));
-  const revertible = new Set<string>();
-  if (revisionIds.length > 0) {
-    const { data: revisions } = await supabase
-      .from("entry_revisions")
-      .select("id")
-      .in("id", revisionIds)
-      .is("reverted_at", null);
-    for (const r of revisions ?? []) revertible.add(r.id);
-  }
 
-  const suggestions = await suggestionsLoaded;
+  const [placements, claims, revisions, suggestions] = await Promise.all([
+    pendingPersonIds.length > 0
+      ? supabase
+          .from("tree_placements")
+          .select("id, tree_id, person_id")
+          .eq("status", "pending")
+          .in("person_id", [...new Set(pendingPersonIds)])
+          .then(({ data }) => data ?? [])
+      : [],
+    // The claims with who made each entry, in one read.
+    claimIds.length > 0
+      ? supabase
+          .from("claims")
+          .select("id, status, person_id, people(created_by)")
+          .in("id", claimIds)
+          .then(({ data }) => data ?? [])
+      : [],
+    revisionIds.length > 0
+      ? supabase
+          .from("entry_revisions")
+          .select("id")
+          .in("id", revisionIds)
+          .is("reverted_at", null)
+          .then(({ data }) => data ?? [])
+      : [],
+    suggestionsLoaded,
+  ]);
+
+  const placementByPerson = new Map<string, string>();
+  for (const p of placements) {
+    placementByPerson.set(`${p.tree_id}:${p.person_id}`, p.id);
+  }
+  // Which of these notifications point at a claim this user may still dispute:
+  // they created the entry and the claim is currently `approved`.
+  const disputable = new Set<string>();
+  for (const c of claims) {
+    const entry = Array.isArray(c.people) ? c.people[0] : c.people;
+    if (c.status === "approved" && entry?.created_by === userId) {
+      disputable.add(c.id);
+    }
+  }
+  const revertible = new Set(revisions.map((r) => r.id));
+
   return rows.map((n) => {
     const tree = Array.isArray(n.trees) ? n.trees[0] : n.trees;
     return {
@@ -258,7 +281,7 @@ export async function listNotifications(
         : null,
     };
   });
-}
+});
 
 export type DisputedClaim = {
   id: string;

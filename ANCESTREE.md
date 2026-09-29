@@ -294,7 +294,11 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   Root could bring over, and who they have
 - `components/site-header.tsx` (the mark, the tree switcher, **tree**,
   **connections**, **account**, the bell; `lib/nav-active.ts` says which is
-  lit, Step 61), `found-tree-form.tsx`, `home-tree-picker.tsx`,
+  lit, Step 61; its counts come from `lib/header-counts.server.ts` and are
+  kept fresh between saves by `components/header-counts.tsx`, which asks
+  `GET /api/header-counts` on moving to another page or coming back to the
+  tab, at most every 30 s; the bell reads its list from
+  `GET /api/notifications` when it's opened, Step 77.2), `found-tree-form.tsx`, `home-tree-picker.tsx`,
   `join-tree-button.tsx`, `admin/admin-placements.tsx`,
   `admin/admin-tree-settings.tsx`, `admin/admin-delete-tree.tsx`,
   `tree/person-trees.tsx` ("Also on"); `components/page-skeletons.tsx` +
