@@ -185,7 +185,8 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `person-panel.tsx` detail Sheet (its header: the name, `née` maiden
   name and the years, on the photo when there is one, Step 76.6; **Edit
   entry** in its header, Step 62; claim / dispute; **Minimize** folds it into a
-  card at the foot of the canvas, Step 49), `entry-comments.tsx` (comment /
+  card at the foot of the canvas, Step 49, that repeats the header's lines,
+  Step 76.7), `entry-comments.tsx` (comment /
   flag thread + resolve), `claim-suggestions.tsx` "Is this you?" canvas prompt
 - `components/tree/pet-node.tsx` — the companion chip (a third the height of a
   person card, a pill, led by a species glyph, joined by a dotted lead) +
@@ -1374,6 +1375,21 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 76.7 — Maiden name on the minimized details card** (ad-hoc, after
+  Step 76.6; no migration). Aalim: "add the maiden name to the minimized
+  card too". The card a minimized sheet leaves at the foot of the canvas
+  (`FoldedDetails`, Step 49) repeats the header's lines: "Fatima Rattansi /
+  née Jaffer / 1925 – 2010". The maiden name has a line of its own, like
+  the years, rather than joining them: on a phone the card's text is 129px
+  wide, and a shared line would have cut off the years first. Each line
+  truncates on its own, as the card's lines always have, so on a phone a
+  21-letter maiden name ends in an ellipsis ("née Kassamali Rahe…") while
+  ordinary ones fit whole; the card grows by a line (74px tall) and stays
+  clear of the zoom controls. **Verified:** on a throwaway read-only
+  `FamilyTree` (nothing sent to the server), minimizing a sheet with a
+  photo on the desktop and the viewer's own entry on a 375px phone. 1091
+  tests pass; tsc, lint and `next build` are clean.
 
 - **Step 76.6 — Maiden name in the details sheet header** (ad-hoc, after
   Step 76.5; no migration). Aalim: "show the maiden name in the details
