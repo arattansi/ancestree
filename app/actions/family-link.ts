@@ -19,7 +19,7 @@ export async function rotateFamilyLink(
   cap: number,
 ): Promise<FamilyLinkResult> {
   const { membership, error: notRoot } = await rootOf(treeId);
-  if (notRoot || !membership) return { error: notRoot };
+  if (!membership) return { error: notRoot };
   const maxUses = parseFamilyLinkCap(cap);
   if (maxUses === null) return { error: CAP_ERROR };
 
@@ -40,7 +40,7 @@ export async function setFamilyLinkCap(
   cap: number,
 ): Promise<FamilyLinkResult> {
   const { membership, error: notRoot } = await rootOf(treeId);
-  if (notRoot || !membership) return { error: notRoot };
+  if (!membership) return { error: notRoot };
   const maxUses = parseFamilyLinkCap(cap);
   if (maxUses === null) return { error: CAP_ERROR };
 
@@ -67,7 +67,7 @@ export async function setFamilyLinkCap(
  */
 export async function turnOffFamilyLink(treeId: string): Promise<FamilyLinkResult> {
   const { membership, error: notRoot } = await rootOf(treeId);
-  if (notRoot || !membership) return { error: notRoot };
+  if (!membership) return { error: notRoot };
 
   // RLS (`invites_delete`) holds it to a Root of the tree.
   const supabase = await createClient();

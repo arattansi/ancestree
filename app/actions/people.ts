@@ -3,6 +3,12 @@
 import { OWN_LINE_REFUSAL, isOwnLineRefusal } from "@/lib/account-types";
 import { requireProfile } from "@/lib/auth";
 import { bloodTieRefusal, readBloodTieRefusal } from "@/lib/bloodline";
+import {
+  friendlyDbError,
+  ownedWrite,
+  RLS_REFUSED,
+  type ErrorRule,
+} from "@/lib/db-errors";
 import { toStoredCrop, type CropTransform } from "@/lib/image-crop";
 import {
   personSchema,
@@ -23,9 +29,7 @@ import type {
   SuggestedType,
   SuggestionSource,
 } from "@/lib/connection-suggestions";
-import {
-  revalidateTreePages,
-} from "@/lib/revalidate";
+import { revalidateTreePages } from "@/lib/revalidate";
 import { getRoleIn, rootOf } from "@/lib/tree-context";
 import { createClient } from "@/lib/supabase/server";
 import type { TablesUpdate } from "@/lib/database.types";
@@ -45,40 +49,55 @@ const NOT_YOURS_TO_EDIT =
 const NOT_YOURS_TO_MOVE =
   "Only this entry's owner, a Branch for this side of the family, or a Root can move this card.";
 
+const NO_PERMISSION = "You don't have permission to make that change.";
+
+/** What a refused write to an entry says, by the database's reason. */
+const ENTRY_RULES: readonly ErrorRule[] = [
+  [isOwnLineRefusal, OWN_LINE_REFUSAL],
+  ["already exists", "Your own entry already exists."],
+  [RLS_REFUSED, NO_PERMISSION],
+];
+
 function friendlyError(message: string | undefined): string {
-  if (!message) return "Something went wrong. Try again.";
-  if (isOwnLineRefusal(message)) return OWN_LINE_REFUSAL;
-  if (message.includes("already exists"))
-    return "Your own entry already exists.";
-  if (message.toLowerCase().includes("row-level security")) {
-    return "You don't have permission to make that change.";
-  }
-  return "Couldn't save this entry. Check the fields and try again.";
+  return friendlyDbError(
+    message,
+    ENTRY_RULES,
+    "Couldn't save this entry. Check the fields and try again.",
+  );
 }
 
+/** A marriage's dates in the wrong order, however the write was made. */
+const DIVORCE_AFTER_MARRIAGE: ErrorRule = [
+  "divorce_after_marriage",
+  "The divorce date can't be before the marriage date.",
+];
+
+/** What a refused connection says, by the database's reason. */
+const CONNECTION_RULES: readonly ErrorRule[] = [
+  [isOwnLineRefusal, OWN_LINE_REFUSAL],
+  [
+    "already in the tree",
+    "These entries don't connect to the tree yet — pick someone already on it, or add the people in between.",
+  ],
+  ["parent/child loop", "That connection would create a parent/child loop."],
+  ["your own entry already exists", "Your own entry already exists."],
+  [
+    "not in this tree",
+    "The person you're connecting to is no longer on the tree. Refresh and try again.",
+  ],
+  [
+    "partners and parent and child",
+    "Two people can't be both partners and parent and child.",
+  ],
+  [RLS_REFUSED, NO_PERMISSION],
+];
+
 function friendlyConnectionError(message: string | undefined): string {
-  if (!message) return "Something went wrong. Try again.";
-  if (isOwnLineRefusal(message)) return OWN_LINE_REFUSAL;
-  const m = message.toLowerCase();
-  if (m.includes("already in the tree")) {
-    return "These entries don't connect to the tree yet — pick someone already on it, or add the people in between.";
-  }
-  if (m.includes("parent/child loop")) {
-    return "That connection would create a parent/child loop.";
-  }
-  if (m.includes("your own entry already exists")) {
-    return "Your own entry already exists.";
-  }
-  if (m.includes("not in this tree")) {
-    return "The person you're connecting to is no longer on the tree. Refresh and try again.";
-  }
-  if (m.includes("partners and parent and child")) {
-    return "Two people can't be both partners and parent and child.";
-  }
-  if (m.includes("row-level security")) {
-    return "You don't have permission to make that change.";
-  }
-  return "Couldn't save these entries. Check the fields and try again.";
+  return friendlyDbError(
+    message,
+    CONNECTION_RULES,
+    "Couldn't save these entries. Check the fields and try again.",
+  );
 }
 
 export type AddPeopleResult = {
@@ -252,32 +271,35 @@ export async function updateRelationshipMarriage(
   await requireProfile();
   const supabase = await createClient();
   const marriageDate = input.marriage_date?.trim() ? input.marriage_date : null;
-  const { data, error } = await supabase
-    .from("relationships")
-    .update({
-      marriage_date: marriageDate,
-      marriage_month: marriageDate ? null : (input.marriage_month ?? null),
-      marriage_day: marriageDate ? null : (input.marriage_day ?? null),
-      is_divorced: input.is_divorced,
-      divorce_date:
-        input.is_divorced && input.divorce_date?.trim()
-          ? input.divorce_date
-          : null,
-    })
-    .eq("id", relationshipId)
-    .eq("type", "spouse")
-    .select("id");
   const notYours =
     "Only the relationship's creator, a Branch for this side of the family, or a Root can edit this.";
-  if (error) {
-    const m = error.message.toLowerCase();
-    if (m.includes("divorce_after_marriage")) {
-      return { error: "The divorce date can't be before the marriage date." };
-    }
-    if (m.includes("row-level security")) return { error: notYours };
-    return { error: "Couldn't save those dates. Try again." };
-  }
-  if (!data || data.length === 0) return { error: notYours };
+  const saved = await ownedWrite(
+    supabase
+      .from("relationships")
+      .update({
+        marriage_date: marriageDate,
+        marriage_month: marriageDate ? null : (input.marriage_month ?? null),
+        marriage_day: marriageDate ? null : (input.marriage_day ?? null),
+        is_divorced: input.is_divorced,
+        divorce_date:
+          input.is_divorced && input.divorce_date?.trim()
+            ? input.divorce_date
+            : null,
+      })
+      .eq("id", relationshipId)
+      .eq("type", "spouse")
+      .select("id"),
+    {
+      refused: notYours,
+      failed: (m) =>
+        friendlyDbError(
+          m,
+          [DIVORCE_AFTER_MARRIAGE, [RLS_REFUSED, notYours]],
+          "Couldn't save those dates. Try again.",
+        ),
+    },
+  );
+  if (saved.error) return { error: saved.error };
   revalidateTreePages();
   return {};
 }
@@ -400,11 +422,13 @@ export async function connectExistingPeople(input: {
   });
 
   if (error) {
-    const m = error.message.toLowerCase();
-    if (m.includes("divorce_after_marriage")) {
-      return { error: "The divorce date can't be before the marriage date." };
-    }
-    return { error: friendlyConnectionError(error.message) };
+    return {
+      error: friendlyDbError(
+        error.message,
+        [DIVORCE_AFTER_MARRIAGE, ...CONNECTION_RULES],
+        "Couldn't save these entries. Check the fields and try again.",
+      ),
+    };
   }
   revalidateTreePages();
   return {};
@@ -419,22 +443,17 @@ export async function removeRelationship(
 ): Promise<{ error?: string }> {
   await requireProfile();
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("relationships")
-    .delete()
-    .eq("id", relationshipId)
-    .select("id");
-  if (error) {
-    return { error: "Couldn't remove that connection. Try again." };
-  }
-  if (!data || data.length === 0) {
-    // RLS filtered the row out: not the creator, not an admin, and not a
-    // branch admin with both ends of the line on their branch.
-    return {
-      error:
+  // RLS filters the row out for anyone but its creator, a Root, or a Branch
+  // with both ends of the line on their branch.
+  const removed = await ownedWrite(
+    supabase.from("relationships").delete().eq("id", relationshipId).select("id"),
+    {
+      refused:
         "Only the connection's creator, a Branch for this side of the family, or a Root can remove it.",
-    };
-  }
+      failed: "Couldn't remove that connection. Try again.",
+    },
+  );
+  if (removed.error) return { error: removed.error };
   revalidateTreePages();
   return {};
 }
@@ -495,14 +514,11 @@ export async function updatePerson(
   }
   void profile;
 
-  const { data, error } = await supabase
-    .from("people")
-    .update(update)
-    .eq("id", personId)
-    .select("id");
-
-  if (error) return { error: friendlyError(error.message) };
-  if (!data || data.length === 0) return { error: NOT_YOURS_TO_EDIT };
+  const saved = await ownedWrite(
+    supabase.from("people").update(update).eq("id", personId).select("id"),
+    { refused: NOT_YOURS_TO_EDIT, failed: friendlyError },
+  );
+  if (saved.error) return { error: saved.error };
 
   revalidateTreePages();
   return { personId };
@@ -510,16 +526,22 @@ export async function updatePerson(
 
 /** What a refused fill says (Step 44), by the `FILL_BLANKS` reason. */
 function friendlyFillError(message: string): string {
-  if (message.includes("not yours to fill in")) {
-    return "This entry isn't yours to fill in any more. Someone may have claimed it; refresh and look again.";
-  }
-  if (message.includes("photo")) {
-    return "The photo didn't reach this entry. Try adding it again.";
-  }
-  if (message.includes("longer than")) {
-    return "One of those is too long. Keep names under 120 characters.";
-  }
-  return friendlyError(message);
+  return friendlyDbError(
+    message,
+    [
+      [
+        "not yours to fill in",
+        "This entry isn't yours to fill in any more. Someone may have claimed it; refresh and look again.",
+      ],
+      ["photo", "The photo didn't reach this entry. Try adding it again."],
+      [
+        "longer than",
+        "One of those is too long. Keep names under 120 characters.",
+      ],
+      ...ENTRY_RULES,
+    ],
+    "Couldn't save this entry. Check the fields and try again.",
+  );
 }
 
 /**
@@ -569,24 +591,29 @@ export async function setPersonPosition(
   const supabase = await createClient();
   // The card's place on *this* canvas (Step 25): a person shown on two trees
   // sits wherever each tree put them.
-  const { data, error } = await supabase
-    .from("tree_placements")
-    .update({
-      pos_dx: Math.round(dx),
-      pos_dy: Math.round(dy),
-      pos_x: null,
-      pos_y: null,
-    })
-    .eq("tree_id", treeId)
-    .eq("person_id", personId)
-    .select("id");
-  if (error) {
-    if (error.message.toLowerCase().includes("row-level security")) {
-      return { error: NOT_YOURS_TO_MOVE };
-    }
-    return { error: friendlyError(error.message) };
-  }
-  if (!data || data.length === 0) return { error: NOT_YOURS_TO_MOVE };
+  const moved = await ownedWrite(
+    supabase
+      .from("tree_placements")
+      .update({
+        pos_dx: Math.round(dx),
+        pos_dy: Math.round(dy),
+        pos_x: null,
+        pos_y: null,
+      })
+      .eq("tree_id", treeId)
+      .eq("person_id", personId)
+      .select("id"),
+    {
+      refused: NOT_YOURS_TO_MOVE,
+      failed: (m) =>
+        friendlyDbError(
+          m,
+          [[RLS_REFUSED, NOT_YOURS_TO_MOVE], ...ENTRY_RULES],
+          "Couldn't save this entry. Check the fields and try again.",
+        ),
+    },
+  );
+  if (moved.error) return { error: moved.error };
   revalidateTreePages();
   return {};
 }
@@ -624,16 +651,18 @@ export async function setPersonPhoto(
 ): Promise<{ error?: string }> {
   await requireProfile();
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("people")
-    .update({
-      photo_path: photoPath,
-      photo_crop: photoPath && crop ? toStoredCrop(crop) : null,
-    })
-    .eq("id", personId)
-    .select("id");
-  if (error) return { error: friendlyError(error.message) };
-  if (!data || data.length === 0) return { error: NOT_YOURS_TO_EDIT };
+  const saved = await ownedWrite(
+    supabase
+      .from("people")
+      .update({
+        photo_path: photoPath,
+        photo_crop: photoPath && crop ? toStoredCrop(crop) : null,
+      })
+      .eq("id", personId)
+      .select("id"),
+    { refused: NOT_YOURS_TO_EDIT, failed: friendlyError },
+  );
+  if (saved.error) return { error: saved.error };
   revalidateTreePages();
   return {};
 }
@@ -645,13 +674,15 @@ export async function setPersonPhotoCrop(
 ): Promise<{ error?: string }> {
   await requireProfile();
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("people")
-    .update({ photo_crop: toStoredCrop(crop) })
-    .eq("id", personId)
-    .select("id");
-  if (error) return { error: friendlyError(error.message) };
-  if (!data || data.length === 0) return { error: NOT_YOURS_TO_EDIT };
+  const saved = await ownedWrite(
+    supabase
+      .from("people")
+      .update({ photo_crop: toStoredCrop(crop) })
+      .eq("id", personId)
+      .select("id"),
+    { refused: NOT_YOURS_TO_EDIT, failed: friendlyError },
+  );
+  if (saved.error) return { error: saved.error };
   revalidateTreePages();
   return {};
 }
@@ -709,26 +740,29 @@ export async function setDocumentShared(
 ): Promise<{ error?: string }> {
   await requireProfile();
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("documents")
-    .update({ shared_across_trees: shared })
-    .eq("id", documentId)
-    .select("id");
-  if (error) {
-    if (error.message.toLowerCase().includes("share a document")) {
-      return {
-        error:
-          "Only this person, or a Root of their home tree, can share a document across trees.",
-      };
-    }
-    return { error: friendlyError(error.message) };
-  }
-  if (!data || data.length === 0) {
-    return {
-      error: "Only someone who can edit this entry can change its documents.",
-    };
-  }
-  return {};
+  const saved = await ownedWrite(
+    supabase
+      .from("documents")
+      .update({ shared_across_trees: shared })
+      .eq("id", documentId)
+      .select("id"),
+    {
+      refused: "Only someone who can edit this entry can change its documents.",
+      failed: (m) =>
+        friendlyDbError(
+          m,
+          [
+            [
+              "share a document",
+              "Only this person, or a Root of their home tree, can share a document across trees.",
+            ],
+            ...ENTRY_RULES,
+          ],
+          "Couldn't save this entry. Check the fields and try again.",
+        ),
+    },
+  );
+  return saved.error ? { error: saved.error } : {};
 }
 
 /** Record a document already uploaded to the `documents` bucket by the client. */
@@ -765,19 +799,16 @@ export async function removeDocument(
     .eq("id", documentId)
     .maybeSingle();
 
-  const { data: removed, error } = await supabase
-    .from("documents")
-    .delete()
-    .eq("id", documentId)
-    .select("id");
-  if (error) return { error: friendlyError(error.message) };
   // RLS filters a refused delete rather than raising — say so, rather than
   // letting the list drop a document that is still there.
-  if (!removed || removed.length === 0) {
-    return {
-      error: "Only someone who can edit this entry can remove its documents.",
-    };
-  }
+  const removed = await ownedWrite(
+    supabase.from("documents").delete().eq("id", documentId).select("id"),
+    {
+      refused: "Only someone who can edit this entry can remove its documents.",
+      failed: friendlyError,
+    },
+  );
+  if (removed.error) return { error: removed.error };
 
   if (doc?.file_path) {
     await supabase.storage.from("documents").remove([doc.file_path]);

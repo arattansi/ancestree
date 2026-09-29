@@ -1,5 +1,6 @@
 "use server";
 
+import { ownedWrite } from "@/lib/db-errors";
 import { expiresAfter } from "@/lib/expiry";
 import { SHARE_LINK_DAYS, SHARE_LINK_LABEL_MAX } from "@/lib/limits";
 import { getSiteUrl } from "@/lib/site-url";
@@ -19,7 +20,7 @@ export async function createShareLink(input: {
   withExpiry?: boolean;
 }): Promise<CreateShareLinkState> {
   const { membership, error: notRoot } = await rootOf(input.treeId);
-  if (notRoot || !membership) return { error: notRoot };
+  if (!membership) return { error: notRoot };
 
   const label = (input.label ?? "").trim() || null;
   if (label && label.length > SHARE_LINK_LABEL_MAX) {
@@ -56,14 +57,22 @@ export async function createShareLink(input: {
 export async function revokeShareLink(id: string): Promise<{ error?: string }> {
   if (!id) return { error: "Couldn't revoke that link." };
 
-  // RLS lets only a Root of the link's tree update it.
+  // RLS lets only a Root of the link's tree update it; anyone else's write
+  // touches nothing, and says so (Step 77.4).
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("share_links")
-    .update({ revoked_at: new Date().toISOString() })
-    .eq("id", id)
-    .is("revoked_at", null);
-  if (error) return { error: "Couldn't revoke that link. Try again." };
+  const revoked = await ownedWrite(
+    supabase
+      .from("share_links")
+      .update({ revoked_at: new Date().toISOString() })
+      .eq("id", id)
+      .is("revoked_at", null)
+      .select("id"),
+    {
+      refused: "That link is already revoked, or isn't yours to revoke.",
+      failed: "Couldn't revoke that link. Try again.",
+    },
+  );
+  if (revoked.error) return { error: revoked.error };
 
   revalidateTreePages();
   return {};

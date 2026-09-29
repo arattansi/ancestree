@@ -5,34 +5,31 @@ import { revalidatePath } from "next/cache";
 import { getSessionUser, requireProfile, requireSelfPerson } from "@/lib/auth";
 import type { ClaimResult } from "@/lib/claim-merge";
 import { moveClaimedPhoto } from "@/lib/claim-merge.server";
+import { friendlyDbError } from "@/lib/db-errors";
 import { revalidateTreePages } from "@/lib/revalidate";
 import { createClient } from "@/lib/supabase/server";
 
 function friendlyClaimError(message: string | undefined): string {
-  if (!message) return "Something went wrong. Try again.";
-  const m = message.toLowerCase();
-  if (m.includes("too many claims")) {
-    return "You've made too many claims today. Try again tomorrow.";
-  }
-  if (m.includes("already claimed") || m.includes("already belongs")) {
-    return "That entry has already been claimed.";
-  }
-  if (m.includes("match your name")) {
-    return "That entry doesn't match your name closely enough to claim.";
-  }
-  if (m.includes("add your own entry")) {
-    return "Add your own entry before claiming another.";
-  }
-  if (m.includes("placeholder you added")) {
-    return "You already have your own entry on the tree, and it can't be merged into this one. If this is another entry for you, ask a Root to sort out the duplicate.";
-  }
-  if (m.includes("having died")) {
-    return "That entry is marked as having died, so it can't be yours.";
-  }
-  if (m.includes("different tree") || m.includes("no longer exists")) {
-    return "That entry isn't available to claim. Refresh and try again.";
-  }
-  return "Couldn't complete that claim. Try again.";
+  const taken = "That entry has already been claimed.";
+  const gone = "That entry isn't available to claim. Refresh and try again.";
+  return friendlyDbError(
+    message,
+    [
+      ["too many claims", "You've made too many claims today. Try again tomorrow."],
+      ["already claimed", taken],
+      ["already belongs", taken],
+      ["match your name", "That entry doesn't match your name closely enough to claim."],
+      ["add your own entry", "Add your own entry before claiming another."],
+      [
+        "placeholder you added",
+        "You already have your own entry on the tree, and it can't be merged into this one. If this is another entry for you, ask a Root to sort out the duplicate.",
+      ],
+      ["having died", "That entry is marked as having died, so it can't be yours."],
+      ["different tree", gone],
+      ["no longer exists", gone],
+    ],
+    "Couldn't complete that claim. Try again.",
+  );
 }
 
 /**
@@ -72,16 +69,19 @@ export async function disputeClaim(
     p_reason: reason?.trim() || undefined,
   });
   if (error) {
-    const m = error.message.toLowerCase();
-    if (m.includes("only the person who created")) {
-      return {
-        error: "Only the person who created this entry can dispute it.",
-      };
-    }
-    if (m.includes("not open to dispute")) {
-      return { error: "This claim can no longer be disputed." };
-    }
-    return { error: "Couldn't submit that dispute. Try again." };
+    return {
+      error: friendlyDbError(
+        error.message,
+        [
+          [
+            "only the person who created",
+            "Only the person who created this entry can dispute it.",
+          ],
+          ["not open to dispute", "This claim can no longer be disputed."],
+        ],
+        "Couldn't submit that dispute. Try again.",
+      ),
+    };
   }
   revalidatePath("/tree");
   revalidatePath("/account");
@@ -100,11 +100,13 @@ export async function resolveClaim(
     p_action: action,
   });
   if (error) {
-    const m = error.message.toLowerCase();
-    if (m.includes("only a disputed claim")) {
-      return { error: "This claim has already been resolved." };
-    }
-    return { error: "Couldn't resolve that claim. Try again." };
+    return {
+      error: friendlyDbError(
+        error.message,
+        [["only a disputed claim", "This claim has already been resolved."]],
+        "Couldn't resolve that claim. Try again.",
+      ),
+    };
   }
   revalidateTreePages();
   return {};

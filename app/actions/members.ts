@@ -8,6 +8,7 @@ import {
   ROOT,
   ROOT_LIMIT_REFUSAL,
 } from "@/lib/account-types";
+import { friendlyDbError } from "@/lib/db-errors";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { revalidateTreePages } from "@/lib/revalidate";
@@ -79,7 +80,7 @@ export async function deleteMember(
   userId: string,
 ): Promise<{ error?: string; lastTree?: boolean }> {
   const { membership, error: notRoot } = await rootOf(treeId);
-  if (notRoot || !membership) return { error: notRoot };
+  if (!membership) return { error: notRoot };
 
   if (!userId) return { error: "No member specified." };
   if (userId === membership.profile.auth_user_id) {
@@ -93,15 +94,17 @@ export async function deleteMember(
   });
 
   if (error) {
-    const m = error.message.toLowerCase();
-    if (m.includes("root_is_permanent")) {
-      return { error: "A Root can't be removed from their tree." };
-    }
-    if (m.includes("yourself")) return { error: "You can't remove yourself." };
-    if (m.includes("member not found")) {
-      return { error: "That member isn't on this tree." };
-    }
-    return { error: "Couldn't remove that member. Try again." };
+    return {
+      error: friendlyDbError(
+        error.message,
+        [
+          ["root_is_permanent", "A Root can't be removed from their tree."],
+          ["yourself", "You can't remove yourself."],
+          ["member not found", "That member isn't on this tree."],
+        ],
+        "Couldn't remove that member. Try again.",
+      ),
+    };
   }
 
   if (lastTree) {

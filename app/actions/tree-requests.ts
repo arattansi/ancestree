@@ -2,7 +2,7 @@
 
 import { after } from "next/server";
 
-import { requireProfile } from "@/lib/auth";
+import { requireProfile, type Profile } from "@/lib/auth";
 import { sendEmail } from "@/lib/email";
 import { treeRequestApprovedEmail } from "@/lib/emails/tree-request-approved";
 import { mintFounderInvite } from "@/lib/founder-invites.server";
@@ -164,10 +164,13 @@ export async function approveTreeRequest(
     return { error: "That request has already been answered." };
   }
 
-  // A founder invite is minted on a tree the reviewer runs.
-  const root = request.user_id ? null : await rootOf(treeId);
-  if (root && (root.error || !root.membership)) {
-    return { error: root.error ?? "Approve it from the Root console of a tree you run." };
+  // Someone with no account gets a founder invite, minted on a tree the
+  // reviewer runs, from them.
+  let inviter: Profile | null = null;
+  if (!request.user_id) {
+    const { membership, error: notRoot } = await rootOf(treeId);
+    if (!membership) return { error: notRoot };
+    inviter = membership.profile;
   }
 
   // Answer it before acting on it, so a second press can't send twice.
@@ -186,7 +189,8 @@ export async function approveTreeRequest(
     return { error: "That request has already been answered." };
   }
 
-  if (request.user_id) {
+  // A member: they found it themselves, so they're told they can.
+  if (!inviter) {
     const { subject, html } = treeRequestApprovedEmail({
       firstName: request.first_name,
       reviewerName: reviewer.display_name ?? "The ancestree team",
@@ -200,7 +204,7 @@ export async function approveTreeRequest(
 
   const minted = await mintFounderInvite(
     treeId,
-    root!.membership!.profile,
+    inviter,
     {
       firstName: request.first_name,
       lastName: request.last_name,

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { requireProfile } from "@/lib/auth";
 import { bloodTiePlacementRefusal, readBloodTieRefusal } from "@/lib/bloodline";
+import { friendlyDbError, ownedWrite, type ErrorRule } from "@/lib/db-errors";
 import { TREE_NAME_MAX } from "@/lib/limits";
 import {
   clearCurrentTreeCookie,
@@ -16,17 +17,23 @@ import { redeemInvite } from "@/lib/sign-in.server";
 import { membershipOf, rootOf } from "@/lib/tree-context";
 import { joinedTreeHref, treesHref } from "@/lib/tree-links";
 
+/** What a refused tree write says, by the database's reason. */
+const TREE_RULES: readonly ErrorRule[] = [
+  [
+    "one_tree_each",
+    "You've already started a tree of your own. You can be a Root of several trees, but found only one.",
+  ],
+  [
+    "tree_request_needed",
+    "New trees are by request during the beta. Ask from your trees page, and we'll let you know when you can start one.",
+  ],
+  ["name your tree", "Give your tree a name."],
+  ["only a root", "Only a Root of this tree can do that."],
+];
+const TREE_FALLBACK = "Couldn't do that. Try again.";
+
 function friendlyTreeError(message: string | undefined): string {
-  const m = (message ?? "").toLowerCase();
-  if (m.includes("one_tree_each")) {
-    return "You've already started a tree of your own. You can be a Root of several trees, but found only one.";
-  }
-  if (m.includes("tree_request_needed")) {
-    return "New trees are by request during the beta. Ask from your trees page, and we'll let you know when you can start one.";
-  }
-  if (m.includes("name your tree")) return "Give your tree a name.";
-  if (m.includes("only a root")) return "Only a Root of this tree can do that.";
-  return "Couldn't do that. Try again.";
+  return friendlyDbError(message, TREE_RULES, TREE_FALLBACK);
 }
 
 export type FoundTreeResult = { slug?: string; error?: string };
@@ -99,13 +106,22 @@ export async function placePeople(
     p_person_ids: ids,
   });
   if (error) {
-    if (error.message.toLowerCase().includes("only bring people you can see")) {
-      return { error: "You can only bring people you can see on a tree you belong to." };
-    }
     // Someone in the batch has no blood tie here (Step 55): nothing was placed.
     const refusal = readBloodTieRefusal(error);
     if (refusal) return { error: bloodTiePlacementRefusal(refusal) };
-    return { error: friendlyTreeError(error.message) };
+    return {
+      error: friendlyDbError(
+        error.message,
+        [
+          [
+            "only bring people you can see",
+            "You can only bring people you can see on a tree you belong to.",
+          ],
+          ...TREE_RULES,
+        ],
+        TREE_FALLBACK,
+      ),
+    };
   }
   revalidateTreePages();
   return {
@@ -123,7 +139,7 @@ export async function placePeople(
  */
 export async function bringOwnEntry(treeId: string): Promise<{ error?: string }> {
   const { membership, error: notRoot } = await rootOf(treeId);
-  if (notRoot || !membership) return { error: notRoot };
+  if (!membership) return { error: notRoot };
   const selfId = membership.profile.self_person_id;
   if (!selfId) return { error: "You don't have an entry to bring yet." };
 
@@ -155,11 +171,18 @@ export async function respondToPlacement(
     p_accept: accept,
   });
   if (error) {
-    const m = error.message.toLowerCase();
-    if (m.includes("already answered")) return { error: "That request was already answered." };
-    if (m.includes("no longer exists")) return { error: "That request no longer exists." };
-    if (m.includes("only the person")) return { error: "Only the person this entry belongs to can answer." };
-    return { error: friendlyTreeError(error.message) };
+    return {
+      error: friendlyDbError(
+        error.message,
+        [
+          ["already answered", "That request was already answered."],
+          ["no longer exists", "That request no longer exists."],
+          ["only the person", "Only the person this entry belongs to can answer."],
+          ...TREE_RULES,
+        ],
+        TREE_FALLBACK,
+      ),
+    };
   }
   revalidateTreePages();
   return {};
@@ -175,21 +198,31 @@ export async function removePlacement(
 ): Promise<{ error?: string }> {
   await requireProfile();
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("tree_placements")
-    .delete()
-    .eq("tree_id", treeId)
-    .eq("person_id", personId)
-    .select("id");
-  if (error) {
-    if (error.message.includes("HOME_PLACEMENT")) {
-      return { error: "This is the entry's home tree. Move its home first, or delete the entry." };
-    }
-    return { error: friendlyTreeError(error.message) };
-  }
-  if (!data || data.length === 0) {
-    return { error: "Only a Root of this tree, or the person themselves, can remove them from it." };
-  }
+  const removed = await ownedWrite(
+    supabase
+      .from("tree_placements")
+      .delete()
+      .eq("tree_id", treeId)
+      .eq("person_id", personId)
+      .select("id"),
+    {
+      refused:
+        "Only a Root of this tree, or the person themselves, can remove them from it.",
+      failed: (m) =>
+        friendlyDbError(
+          m,
+          [
+            [
+              "HOME_PLACEMENT",
+              "This is the entry's home tree. Move its home first, or delete the entry.",
+            ],
+            ...TREE_RULES,
+          ],
+          TREE_FALLBACK,
+        ),
+    },
+  );
+  if (removed.error) return { error: removed.error };
   revalidateTreePages();
   return {};
 }
@@ -209,14 +242,23 @@ export async function setHomeTree(
     p_tree: treeId,
   });
   if (error) {
-    const m = error.message.toLowerCase();
-    if (m.includes("must already show")) {
-      return { error: "That tree doesn't show this entry yet. A Root there has to bring it over first." };
-    }
-    if (m.includes("only this person")) {
-      return { error: "Only this person, or a Root of their home tree for an unclaimed entry, can move their home." };
-    }
-    return { error: friendlyTreeError(error.message) };
+    return {
+      error: friendlyDbError(
+        error.message,
+        [
+          [
+            "must already show",
+            "That tree doesn't show this entry yet. A Root there has to bring it over first.",
+          ],
+          [
+            "only this person",
+            "Only this person, or a Root of their home tree for an unclaimed entry, can move their home.",
+          ],
+          ...TREE_RULES,
+        ],
+        TREE_FALLBACK,
+      ),
+    };
   }
   revalidateTreePages();
   return {};
@@ -229,15 +271,19 @@ export async function setHiddenFromVisitors(
 ): Promise<{ error?: string }> {
   await requireProfile();
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("people")
-    .update({ hidden_from_visitors: hidden })
-    .eq("id", personId)
-    .select("id");
-  if (error) return { error: friendlyTreeError(error.message) };
-  if (!data || data.length === 0) {
-    return { error: "Only this person, or whoever can edit their entry, can change that." };
-  }
+  const saved = await ownedWrite(
+    supabase
+      .from("people")
+      .update({ hidden_from_visitors: hidden })
+      .eq("id", personId)
+      .select("id"),
+    {
+      refused:
+        "Only this person, or whoever can edit their entry, can change that.",
+      failed: friendlyTreeError,
+    },
+  );
+  if (saved.error) return { error: saved.error };
   revalidateTreePages();
   return {};
 }
@@ -252,7 +298,7 @@ export async function setTreeVisibility(
   visible: boolean,
 ): Promise<{ error?: string }> {
   const { membership, error: notRoot } = await rootOf(treeId);
-  if (notRoot || !membership) return { error: notRoot };
+  if (!membership) return { error: notRoot };
   const { error: notThere } = await membershipOf(viewerTreeId);
   if (notThere) return { error: "You can only open your tree to a tree you belong to." };
 

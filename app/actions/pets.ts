@@ -1,7 +1,12 @@
 "use server";
 
-
 import { requireProfile } from "@/lib/auth";
+import {
+  friendlyDbError,
+  ownedWrite,
+  RLS_REFUSED,
+  type ErrorRule,
+} from "@/lib/db-errors";
 import { toStoredCrop, type CropTransform } from "@/lib/image-crop";
 import { petSchema, toPetPayload, type PetFormValues } from "@/lib/pet-schema";
 import { revalidateTreePages } from "@/lib/revalidate";
@@ -17,19 +22,17 @@ export type PetActionResult = { petId?: string; error?: string };
  */
 const NOT_YOURS_TO_EDIT = "You don't have permission to change this companion.";
 
+/** What a refused write to a companion says, by the database's reason. */
+const PET_RULES: readonly ErrorRule[] = [
+  [RLS_REFUSED, NOT_YOURS_TO_EDIT],
+  ["same tree", "That person isn't on this tree."],
+  ["duplicate key", "They're already listed as a companion."],
+];
+const PET_FALLBACK =
+  "Couldn't save this companion. Check the fields and try again.";
+
 function friendlyError(message: string | undefined): string {
-  if (!message) return "Something went wrong. Try again.";
-  const m = message.toLowerCase();
-  if (m.includes("row-level security")) {
-    return NOT_YOURS_TO_EDIT;
-  }
-  if (m.includes("same tree")) {
-    return "That person isn't on this tree.";
-  }
-  if (m.includes("duplicate key")) {
-    return "They're already listed as a companion.";
-  }
-  return "Couldn't save this companion. Check the fields and try again.";
+  return friendlyDbError(message, PET_RULES, PET_FALLBACK);
 }
 
 /**
@@ -117,19 +120,29 @@ export async function setPetPrimaryCompanion(
 ): Promise<{ error?: string }> {
   await requireProfile();
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("pets")
-    .update({ primary_person_id: personId })
-    .eq("id", petId)
-    .select("id");
-
-  if (error) {
-    if (error.message.toLowerCase().includes("primary connection")) {
-      return { error: "Pick someone this companion already belongs to." };
-    }
-    return { error: friendlyError(error.message) };
-  }
-  if (!data || data.length === 0) return { error: NOT_YOURS_TO_EDIT };
+  const saved = await ownedWrite(
+    supabase
+      .from("pets")
+      .update({ primary_person_id: personId })
+      .eq("id", petId)
+      .select("id"),
+    {
+      refused: NOT_YOURS_TO_EDIT,
+      failed: (m) =>
+        friendlyDbError(
+          m,
+          [
+            [
+              "primary connection",
+              "Pick someone this companion already belongs to.",
+            ],
+            ...PET_RULES,
+          ],
+          PET_FALLBACK,
+        ),
+    },
+  );
+  if (saved.error) return { error: saved.error };
   revalidateTreePages();
   return {};
 }
@@ -147,14 +160,15 @@ export async function updatePet(
   }
 
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("pets")
-    .update(toPetPayload(parsed.data))
-    .eq("id", petId)
-    .select("id");
-
-  if (error) return { error: friendlyError(error.message) };
-  if (!data || data.length === 0) return { error: NOT_YOURS_TO_EDIT };
+  const saved = await ownedWrite(
+    supabase
+      .from("pets")
+      .update(toPetPayload(parsed.data))
+      .eq("id", petId)
+      .select("id"),
+    { refused: NOT_YOURS_TO_EDIT, failed: friendlyError },
+  );
+  if (saved.error) return { error: saved.error };
 
   revalidateTreePages();
   return { petId };
@@ -200,13 +214,18 @@ export async function removePetCompanion(
     };
   }
 
-  const { error } = await supabase
-    .from("pet_companions")
-    .delete()
-    .eq("pet_id", petId)
-    .eq("person_id", personId);
-
-  if (error) return { error: friendlyError(error.message) };
+  // Refused by RLS, the delete touches nothing and says nothing: that's a
+  // refusal too, not an unlink (Step 77.4).
+  const unlinked = await ownedWrite(
+    supabase
+      .from("pet_companions")
+      .delete()
+      .eq("pet_id", petId)
+      .eq("person_id", personId)
+      .select("pet_id"),
+    { refused: NOT_YOURS_TO_EDIT, failed: friendlyError },
+  );
+  if (unlinked.error) return { error: unlinked.error };
   revalidateTreePages();
   return {};
 }
@@ -222,8 +241,13 @@ export async function removePet(petId: string): Promise<{ error?: string }> {
     .eq("id", petId)
     .maybeSingle();
 
-  const { error } = await supabase.from("pets").delete().eq("id", petId);
-  if (error) return { error: friendlyError(error.message) };
+  // Only once the row is really gone does its photo go (Step 77.4): a
+  // refused delete used to read as done.
+  const removed = await ownedWrite(
+    supabase.from("pets").delete().eq("id", petId).select("id"),
+    { refused: NOT_YOURS_TO_EDIT, failed: friendlyError },
+  );
+  if (removed.error) return { error: removed.error };
 
   if (pet?.photo_path) {
     await supabase.storage.from("photos").remove([pet.photo_path]);
@@ -241,16 +265,18 @@ export async function setPetPhoto(
 ): Promise<{ error?: string }> {
   await requireProfile();
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("pets")
-    .update({
-      photo_path: photoPath,
-      photo_crop: photoPath && crop ? toStoredCrop(crop) : null,
-    })
-    .eq("id", petId)
-    .select("id");
-  if (error) return { error: friendlyError(error.message) };
-  if (!data || data.length === 0) return { error: NOT_YOURS_TO_EDIT };
+  const saved = await ownedWrite(
+    supabase
+      .from("pets")
+      .update({
+        photo_path: photoPath,
+        photo_crop: photoPath && crop ? toStoredCrop(crop) : null,
+      })
+      .eq("id", petId)
+      .select("id"),
+    { refused: NOT_YOURS_TO_EDIT, failed: friendlyError },
+  );
+  if (saved.error) return { error: saved.error };
   revalidateTreePages();
   return {};
 }
@@ -267,18 +293,19 @@ export async function setPetPosition(
   await requireProfile();
   const supabase = await createClient();
   const notYours = "Only someone who can edit this companion can move it.";
-  const { data, error } = await supabase
-    .from("pets")
-    .update({ pos_dx: Math.round(dx), pos_dy: Math.round(dy) })
-    .eq("id", petId)
-    .select("id");
-  if (error) {
-    if (error.message.toLowerCase().includes("row-level security")) {
-      return { error: notYours };
-    }
-    return { error: friendlyError(error.message) };
-  }
-  if (!data || data.length === 0) return { error: notYours };
+  const moved = await ownedWrite(
+    supabase
+      .from("pets")
+      .update({ pos_dx: Math.round(dx), pos_dy: Math.round(dy) })
+      .eq("id", petId)
+      .select("id"),
+    {
+      refused: notYours,
+      failed: (m) =>
+        friendlyDbError(m, [[RLS_REFUSED, notYours], ...PET_RULES], PET_FALLBACK),
+    },
+  );
+  if (moved.error) return { error: moved.error };
   revalidateTreePages();
   return {};
 }

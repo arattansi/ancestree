@@ -1,6 +1,7 @@
 "use server";
 
 import { requireProfile } from "@/lib/auth";
+import { friendlyDbError, ownedWrite } from "@/lib/db-errors";
 import { SUGGESTION_NOTE_MAX } from "@/lib/limits";
 import {
   personSchema,
@@ -13,25 +14,18 @@ import { suggestionValues } from "@/lib/suggestions";
 
 /** What a refused suggestion says, by `suggest_entry_change`'s reason. */
 function friendlySuggestError(message: string): string {
-  if (message.includes("yours to edit")) {
-    return "This entry is yours to edit. Edit it instead.";
-  }
-  if (message.includes("not on your tree")) {
-    return "This entry isn't on your tree any more.";
-  }
-  if (message.includes("nothing changed")) {
-    return "That’s what the entry already says.";
-  }
-  if (message.includes("doesn't fit")) {
-    return "Those details don’t fit together. Check them and try again.";
-  }
-  if (message.includes("longer than")) {
-    return "One of those is too long.";
-  }
-  if (message.includes("no longer exists")) {
-    return "That entry no longer exists.";
-  }
-  return "Couldn’t send that. Try again.";
+  return friendlyDbError(
+    message,
+    [
+      ["yours to edit", "This entry is yours to edit. Edit it instead."],
+      ["not on your tree", "This entry isn't on your tree any more."],
+      ["nothing changed", "That’s what the entry already says."],
+      ["doesn't fit", "Those details don’t fit together. Check them and try again."],
+      ["longer than", "One of those is too long."],
+      ["no longer exists", "That entry no longer exists."],
+    ],
+    "Couldn’t send that. Try again.",
+  );
 }
 
 /**
@@ -92,21 +86,24 @@ export async function decideEntrySuggestion(
     ...(why ? { p_reason: why } : {}),
   });
   if (error) {
-    const m = error.message;
-    if (m.includes("withdrawn")) return { error: "It was withdrawn." };
-    if (m.includes("already answered")) {
-      return { error: "Someone has already answered it." };
-    }
-    if (m.includes("not yours to answer")) {
-      return { error: "Only someone who can edit this entry can answer it." };
-    }
-    if (m.includes("no longer fits")) {
-      return {
-        error:
-          "The entry has changed since, and this no longer fits. Edit the entry, or decline this.",
-      };
-    }
-    return { error: "Couldn’t answer that. Try again." };
+    return {
+      error: friendlyDbError(
+        error.message,
+        [
+          ["withdrawn", "It was withdrawn."],
+          ["already answered", "Someone has already answered it."],
+          [
+            "not yours to answer",
+            "Only someone who can edit this entry can answer it.",
+          ],
+          [
+            "no longer fits",
+            "The entry has changed since, and this no longer fits. Edit the entry, or decline this.",
+          ],
+        ],
+        "Couldn’t answer that. Try again.",
+      ),
+    };
   }
   revalidateTreePages();
   return { changed: data ?? [] };
@@ -118,15 +115,14 @@ export async function withdrawEntrySuggestion(
 ): Promise<{ error?: string }> {
   await requireProfile();
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("entry_suggestions")
-    .delete()
-    .eq("id", suggestionId)
-    .select("id");
-  if (error) return { error: "Couldn’t withdraw it. Try again." };
-  if (!data || data.length === 0) {
-    return { error: "It’s already been answered." };
-  }
+  const withdrawn = await ownedWrite(
+    supabase.from("entry_suggestions").delete().eq("id", suggestionId).select("id"),
+    {
+      refused: "It’s already been answered.",
+      failed: "Couldn’t withdraw it. Try again.",
+    },
+  );
+  if (withdrawn.error) return { error: withdrawn.error };
   revalidateTreePages();
   return {};
 }

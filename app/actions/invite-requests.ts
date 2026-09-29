@@ -23,6 +23,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { revalidateTreePages } from "@/lib/revalidate";
 import { getSessionUser, requireProfile } from "@/lib/auth";
+import { ownedWrite } from "@/lib/db-errors";
 import { expiresAfter, isExpired } from "@/lib/expiry";
 import { INVITE_LIFETIME_DAYS } from "@/lib/limits";
 import { rootOf } from "@/lib/tree-context";
@@ -299,21 +300,23 @@ export async function declineInviteRequest(
   const admin = await requireProfile();
   const supabase = await createClient();
 
-  const { data, error } = await supabase
-    .from("invite_requests")
-    .update({
-      status: "declined",
-      reviewed_by: admin.auth_user_id,
-      reviewed_at: new Date().toISOString(),
-    })
-    .eq("id", id)
-    .eq("status", "pending")
-    .select("id");
-
-  if (error) return { error: "Could not decline that request. Try again." };
-  if (!data || data.length === 0) {
-    return { error: "That request was already reviewed, or isn't yours to review." };
-  }
+  const declined = await ownedWrite(
+    supabase
+      .from("invite_requests")
+      .update({
+        status: "declined",
+        reviewed_by: admin.auth_user_id,
+        reviewed_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .eq("status", "pending")
+      .select("id"),
+    {
+      refused: "That request was already reviewed, or isn't yours to review.",
+      failed: "Could not decline that request. Try again.",
+    },
+  );
+  if (declined.error) return { error: declined.error };
 
   revalidateTreePages();
   return {};
@@ -347,8 +350,16 @@ export async function deleteInviteRequest(
     return {};
   }
 
-  const { error } = await supabase.from("invite_requests").delete().eq("id", id);
-  if (error) return { error: "Could not delete that record. Try again." };
+  // Only a Root of its tree may; anyone else's delete touches nothing, and
+  // used to read as done (Step 77.4).
+  const deleted = await ownedWrite(
+    supabase.from("invite_requests").delete().eq("id", id).select("id"),
+    {
+      refused: "Only a Root of this tree can delete that record.",
+      failed: "Could not delete that record. Try again.",
+    },
+  );
+  if (deleted.error) return { error: deleted.error };
 
   if (request.invite_id) {
     const { error: inviteError } = await supabase

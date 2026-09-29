@@ -21,7 +21,7 @@ export async function exportTreeData(treeId: string): Promise<{
   error?: string;
 }> {
   const { membership, error: notRoot } = await rootOf(treeId);
-  if (notRoot || !membership) return { error: notRoot };
+  if (!membership) return { error: notRoot };
 
   const db = createAdminClient();
 

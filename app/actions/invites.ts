@@ -94,7 +94,7 @@ export async function sendDirectInvites(
   rows: DirectInviteRow[],
 ): Promise<SendDirectInvitesState> {
   const { membership, error: notMember } = await membershipOf(treeId);
-  if (notMember || !membership) return { error: notMember };
+  if (!membership) return { error: notMember };
   const inviter = membership.profile;
 
   const checked = checkRows(rows);
@@ -171,7 +171,7 @@ export async function sendFounderInvites(
   rows: DirectInviteRow[],
 ): Promise<SendDirectInvitesState> {
   const { membership, error: notRoot } = await rootOf(treeId);
-  if (notRoot || !membership) return { error: notRoot };
+  if (!membership) return { error: notRoot };
   const inviter = membership.profile;
 
   const checked = checkRows(rows);

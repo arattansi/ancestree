@@ -1,3 +1,4 @@
+import { friendlyDbError } from "@/lib/db-errors";
 import { namePrefill } from "@/lib/first-tree";
 import type { JoiningName } from "@/lib/joining-name";
 import { personDisplayName, personLifespan } from "@/lib/person-name";
@@ -98,24 +99,21 @@ export function matchConfidence(score: number): "strong" | "close" {
  * them, so that refusal meets only an entry marked so after the list showed.
  */
 export function friendlySelfClaimError(message: string | undefined): string {
-  if (!message) return "Something went wrong. Try again.";
-  const m = message.toLowerCase();
-  if (m.includes("too many claims")) {
-    return "You've made too many claims today. Try again tomorrow.";
-  }
-  if (m.includes("already claimed") || m.includes("already have")) {
-    return "That entry has already been claimed. Refresh and try again.";
-  }
-  if (m.includes("match your name")) {
-    return "That entry doesn't match the name you entered closely enough.";
-  }
-  if (m.includes("having died")) {
-    return "That entry is marked as having died, so it can't be yours.";
-  }
-  if (m.includes("different tree") || m.includes("no longer exists")) {
-    return "That entry isn't available to claim. Refresh and try again.";
-  }
-  return "Couldn't claim that entry. Try again.";
+  const taken = "That entry has already been claimed. Refresh and try again.";
+  const gone = "That entry isn't available to claim. Refresh and try again.";
+  return friendlyDbError(
+    message,
+    [
+      ["too many claims", "You've made too many claims today. Try again tomorrow."],
+      ["already claimed", taken],
+      ["already have", taken],
+      ["match your name", "That entry doesn't match the name you entered closely enough."],
+      ["having died", "That entry is marked as having died, so it can't be yours."],
+      ["different tree", gone],
+      ["no longer exists", gone],
+    ],
+    "Couldn't claim that entry. Try again.",
+  );
 }
 
 /** One-line context under a candidate's name: dates, birthplace, parents. */

@@ -192,12 +192,19 @@ export async function requireTreeSelfPersonWith<T>(
 }
 
 /**
+ * What an action's check of who's asking answers (Step 77.4, audit R5): the
+ * membership, or why not, and never neither — so `if (!membership) return
+ * { error }` can't hand back `{ error: undefined }`, which reads as success.
+ */
+export type MembershipCheck =
+  | { membership: TreeMembership; error?: undefined }
+  | { membership?: undefined; error: string };
+
+/**
  * For server actions: the caller's membership on a tree by id, or an error
  * message. Never redirects — an action reports, the page decides.
  */
-export async function membershipOf(
-  treeId: string,
-): Promise<{ membership?: TreeMembership; error?: string }> {
+export async function membershipOf(treeId: string): Promise<MembershipCheck> {
   // Their profile and their trees in one wave (Step 77.1): a membership row
   // carries the tree it's on.
   const [profile, trees] = await Promise.all([getProfile(), listMyTrees()]);
@@ -213,9 +220,7 @@ export async function membershipOf(
 }
 
 /** For server actions that only a Root of the tree may run. */
-export async function rootOf(
-  treeId: string,
-): Promise<{ membership?: TreeMembership; error?: string }> {
+export async function rootOf(treeId: string): Promise<MembershipCheck> {
   const result = await membershipOf(treeId);
   if (result.membership && !result.membership.isRoot) {
     return { error: "Only a Root of this tree can do that." };

@@ -2,6 +2,7 @@
 
 import { listEntryComments, type EntryComment } from "@/lib/entry-comments";
 import { requireProfile } from "@/lib/auth";
+import { friendlyDbError } from "@/lib/db-errors";
 import { COMMENT_MAX } from "@/lib/limits";
 import { createClient } from "@/lib/supabase/server";
 import { revalidateTreePages } from "@/lib/revalidate";
@@ -84,14 +85,18 @@ export async function resolveEntryFlag(
     p_resolved: resolved,
   });
   if (error) {
-    const m = error.message.toLowerCase();
-    if (m.includes("only the entry owner")) {
-      return {
-        error:
-          "Only the entry owner, a Root, or whoever raised the flag can change it.",
-      };
-    }
-    return { error: "Couldn't update that flag. Try again." };
+    return {
+      error: friendlyDbError(
+        error.message,
+        [
+          [
+            "only the entry owner",
+            "Only the entry owner, a Root, or whoever raised the flag can change it.",
+          ],
+        ],
+        "Couldn't update that flag. Try again.",
+      ),
+    };
   }
   revalidateTreePages();
   return {};

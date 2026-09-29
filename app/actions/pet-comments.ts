@@ -1,6 +1,7 @@
 "use server";
 
 import { requireProfile } from "@/lib/auth";
+import { ownedWrite } from "@/lib/db-errors";
 import { COMMENT_MAX } from "@/lib/limits";
 import { listPetComments, type PetComment } from "@/lib/pet-comments";
 import { createClient } from "@/lib/supabase/server";
@@ -60,12 +61,14 @@ export async function deletePetComment(
 ): Promise<{ error?: string }> {
   await requireProfile();
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("pet_comments")
-    .delete()
-    .eq("id", commentId);
-  if (error) {
-    return { error: "Couldn't delete that comment. Try again." };
-  }
-  return {};
+  // Refused by RLS, the delete touches nothing and says nothing (Step 77.4).
+  const deleted = await ownedWrite(
+    supabase.from("pet_comments").delete().eq("id", commentId).select("id"),
+    {
+      refused:
+        "Only its author, or someone who can edit this companion, can delete it.",
+      failed: "Couldn't delete that comment. Try again.",
+    },
+  );
+  return deleted.error ? { error: deleted.error } : {};
 }
