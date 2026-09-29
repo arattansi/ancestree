@@ -23,7 +23,8 @@ export type ClaimCandidate = {
  * member (same last name + a matching first/preferred name, or an invite
  * vouches for it). Drives the "Is this you? Claim it." prompt. Empty unless
  * the member's own entry is a placeholder they added that nobody else has
- * built on, since claiming merges it away (Step 36).
+ * built on, since claiming merges it away (Step 36). A basic card among them
+ * (Step 83) comes as the card shows it: names and place of birth, no dates.
  */
 export async function listClaimCandidates(): Promise<ClaimCandidate[]> {
   const supabase = await createClient();

@@ -35,17 +35,24 @@ function whose(ask: PlacementAsk): string {
   return ask.own ? "Your entry" : ask.personName;
 }
 
+/** Under a name in the list of what no longer waits. */
+function standing(ask: PlacementAsk): string {
+  if (ask.approval === "approved") return "In full";
+  return ask.approval === "lapsed" ? "Basic details · no answer" : "Basic details";
+}
+
 /**
  * What's been asked of a member (Step 80): to show the whole of their own
  * entry, or of entries they may edit, on a tree that has their name and
  * place of birth already. Waiting ones first, a tree at a time, each
- * answered by itself or all at once; then what's been answered, where
- * either answer can be changed.
+ * answered by itself or all at once; then what no longer waits, answered
+ * or lapsed after 30 days (Step 83), where the answer can still be given
+ * or changed.
  */
 export function PlacementAsks({ asks }: { asks: PlacementAsk[] }) {
   const action = useAction();
   const waiting = byTree(asks.filter((a) => a.approval === "asked"));
-  const answered = asks.filter((a) => a.approval !== "asked");
+  const earlier = asks.filter((a) => a.approval !== "asked");
 
   function answer(
     key: string,
@@ -143,13 +150,13 @@ export function PlacementAsks({ asks }: { asks: PlacementAsk[] }) {
         </section>
       ))}
 
-      {answered.length > 0 ? (
+      {earlier.length > 0 ? (
         <details className="text-sm" open={waiting.length === 0}>
           <summary className="cursor-pointer text-xs text-muted-foreground">
-            Answered ({answered.length})
+            Earlier ({earlier.length})
           </summary>
           <ul className="mt-2 divide-y divide-border rounded-md border border-border">
-            {answered.map((ask) => {
+            {earlier.map((ask) => {
               const full = ask.approval === "approved";
               return (
                 <li
@@ -159,7 +166,7 @@ export function PlacementAsks({ asks }: { asks: PlacementAsk[] }) {
                   <div className="flex min-w-0 flex-col">
                     <span className="truncate font-medium">{whose(ask)}</span>
                     <span className="truncate text-xs text-muted-foreground">
-                      {ask.treeName} · {full ? "In full" : "Basic details"}
+                      {ask.treeName} · {standing(ask)}
                     </span>
                   </div>
                   <PendingButton

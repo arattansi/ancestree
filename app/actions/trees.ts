@@ -16,7 +16,7 @@ import { alertPlacementAsks } from "@/lib/placement-alerts.server";
 import { createClient } from "@/lib/supabase/server";
 import { revalidateTreePages } from "@/lib/revalidate";
 import { redeemInvite } from "@/lib/sign-in.server";
-import { membershipOf, rootOf } from "@/lib/tree-context";
+import { membershipOf, rootOf, type TreeMembership } from "@/lib/tree-context";
 import { joinedTreeHref, treesHref } from "@/lib/tree-links";
 
 /** What a refused tree write says, by the database's reason. */
@@ -92,6 +92,38 @@ export type PlacementOutcome = {
 };
 
 /**
+ * Emails whoever was just asked about `asked`, once this has answered. The
+ * Root is named as the notice names them: by their own entry, else the name
+ * they go by.
+ */
+async function emailAsked(
+  membership: TreeMembership,
+  asked: string[],
+): Promise<void> {
+  if (asked.length === 0) return;
+  const selfId = membership.profile.self_person_id;
+  const supabase = await createClient();
+  const { data: entry } = selfId
+    ? await supabase
+        .from("people")
+        .select("first_name, preferred_name, last_name")
+        .eq("id", selfId)
+        .maybeSingle()
+    : { data: null };
+  const placerName = entry
+    ? personDisplayName(entry)
+    : membership.profile.display_name?.trim() || "A relative";
+  after(() =>
+    alertPlacementAsks({
+      treeId: membership.tree.id,
+      treeName: membership.tree.name,
+      placerName,
+      personIds: asked,
+    }),
+  );
+}
+
+/**
  * Root: bring people onto a tree (Steps 25 and 80). Anyone the Root can see
  * on a tree they belong to, with a blood tie here once the whole batch is
  * placed (Step 55). Everyone is on the tree at once: whole when the entry is
@@ -132,32 +164,12 @@ export async function placePeople(
     };
   }
 
-  const asked = (data ?? []).flatMap((r) =>
-    r.newly_asked && r.placed_person_id ? [r.placed_person_id] : [],
+  await emailAsked(
+    membership,
+    (data ?? []).flatMap((r) =>
+      r.newly_asked && r.placed_person_id ? [r.placed_person_id] : [],
+    ),
   );
-  if (asked.length > 0) {
-    const selfId = membership.profile.self_person_id;
-    // Named as the notice names them: by their own entry, else the name
-    // they go by.
-    const { data: entry } = selfId
-      ? await supabase
-          .from("people")
-          .select("first_name, preferred_name, last_name")
-          .eq("id", selfId)
-          .maybeSingle()
-      : { data: null };
-    const placerName = entry
-      ? personDisplayName(entry)
-      : membership.profile.display_name?.trim() || "A relative";
-    after(() =>
-      alertPlacementAsks({
-        treeId,
-        treeName: membership.tree.name,
-        placerName,
-        personIds: asked,
-      }),
-    );
-  }
 
   revalidateTreePages();
   return {
@@ -166,6 +178,40 @@ export async function placePeople(
       approval: r.placement_approval ?? "none",
     })),
   };
+}
+
+/**
+ * Root: ask again about cards whose ask lapsed (Step 83): another 30 days,
+ * with the notice and the email of a first ask. An ask answered since, or
+ * still waiting, is left as it is.
+ */
+export async function askPlacementsAgain(
+  treeId: string,
+  personIds: string[],
+): Promise<{ asked?: number; error?: string }> {
+  const { membership, error: notRoot } = await rootOf(treeId);
+  if (notRoot || !membership) return { error: notRoot };
+  const ids = [...new Set(personIds)].filter(Boolean);
+  if (ids.length === 0) return { error: "Nothing to ask again." };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("ask_placements_again", {
+    p_tree: treeId,
+    p_person_ids: ids,
+  });
+  if (error) return { error: friendlyTreeError(error.message) };
+  const asked = (data ?? []).flatMap((r) =>
+    r.asked_person_id ? [r.asked_person_id] : [],
+  );
+  if (asked.length === 0) {
+    // Answered, or asked again, since the page was drawn.
+    revalidateTreePages();
+    return { error: "Nothing left to ask again." };
+  }
+
+  await emailAsked(membership, asked);
+  revalidateTreePages();
+  return { asked: asked.length };
 }
 
 /**

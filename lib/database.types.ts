@@ -1758,12 +1758,14 @@ export type Database = {
           created_at: string
           detail: string
           id: string
+          lapse_told_at: string | null
           person_id: string
           placed_by: string | null
           pos_dx: number | null
           pos_dy: number | null
           pos_x: number | null
           pos_y: number | null
+          reminded_at: string | null
           responded_at: string | null
           status: string
           tree_id: string
@@ -1776,12 +1778,14 @@ export type Database = {
           created_at?: string
           detail?: string
           id?: string
+          lapse_told_at?: string | null
           person_id: string
           placed_by?: string | null
           pos_dx?: number | null
           pos_dy?: number | null
           pos_x?: number | null
           pos_y?: number | null
+          reminded_at?: string | null
           responded_at?: string | null
           status?: string
           tree_id: string
@@ -1794,12 +1798,14 @@ export type Database = {
           created_at?: string
           detail?: string
           id?: string
+          lapse_told_at?: string | null
           person_id?: string
           placed_by?: string | null
           pos_dx?: number | null
           pos_dy?: number | null
           pos_x?: number | null
           pos_y?: number | null
+          reminded_at?: string | null
           responded_at?: string | null
           status?: string
           tree_id?: string
@@ -2196,6 +2202,7 @@ export type Database = {
           lineage_type: string | null
           maiden_name: string | null
           middle_name: string | null
+          nudge_due: boolean | null
           owner_user_id: string | null
           photo_crop: Json | null
           photo_path: string | null
@@ -2233,6 +2240,12 @@ export type Database = {
         Returns: {
           placement_approval: string
           placement_id: string
+        }[]
+      }
+      ask_placements_again: {
+        Args: { p_person_ids: string[]; p_tree: string }
+        Returns: {
+          asked_person_id: string
         }[]
       }
       beta_reviewer_emails: { Args: never; Returns: string[] }
@@ -2541,6 +2554,18 @@ export type Database = {
       rotate_family_link: {
         Args: { p_max_uses: number; p_tree: string }
         Returns: string
+      }
+      run_placement_nudges: {
+        Args: { p_tree: string }
+        Returns: {
+          email: string
+          entries: number
+          home_tree_name: string
+          kind: string
+          person_name: string
+          placer_name: string
+          tree_name: string
+        }[]
       }
       search_self_candidates: {
         Args: { p_first: string; p_last: string; p_tree?: string }

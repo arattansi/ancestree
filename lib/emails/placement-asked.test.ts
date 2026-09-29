@@ -106,4 +106,32 @@ describe("placementAskedEmail (Step 80)", () => {
       "A relative would like to show a full entry from your tree on The Suleman Tree",
     );
   });
+
+  it("says when the ask lapses (Step 83)", () => {
+    for (const input of [owner, steward]) {
+      expect(placementAskedEmail(input).html).toContain(
+        "The ask lapses 30 days after it was made.",
+      );
+    }
+  });
+
+  it("says so when it's the reminder, and is otherwise the same ask", () => {
+    const first = placementAskedEmail(owner);
+    const again = placementAskedEmail({ ...owner, reminder: true });
+    expect(again.subject).toBe(`Reminder: ${first.subject}`);
+    expect(again.html).toContain(
+      "Raiya Suleman would like to show your full entry on The Suleman Tree</p>",
+    );
+    expect(again.html).toContain(">Approve or decline</a>");
+
+    const several = placementAskedEmail({
+      ...steward,
+      entries: 3,
+      personName: null,
+      reminder: true,
+    });
+    expect(several.subject).toBe(
+      "Reminder: Raiya Suleman would like to show 3 full entries from The Rattansi Tree on The Suleman Tree",
+    );
+  });
 });

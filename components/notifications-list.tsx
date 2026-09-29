@@ -298,6 +298,20 @@ function NotificationRow({
           </TreeTarget>
         ) : null}
 
+        {n.type === "placements_lapsed" && n.treeId ? (
+          // Step 83: nobody answered in 30 days. The Root who asked can
+          // ask again from "Who This Tree Shows".
+          <TreeTarget
+            treeId={n.treeId}
+            currentTreeId={currentTreeId}
+            href={adminHref("placements")}
+            size="sm"
+            variant="outline"
+          >
+            Ask again
+          </TreeTarget>
+        ) : null}
+
         {n.type === "placed_on_join" && n.treeId ? (
           // Step 30.9: joining brought a member's own entry onto this
           // tree, and with a claim invite perhaps folded the entry it

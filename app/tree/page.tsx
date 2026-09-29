@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 
 import { CenteredPage } from "@/components/page-column";
 import { FamilyTree } from "@/components/tree/family-tree";
@@ -12,6 +13,7 @@ import { listClaimCandidates } from "@/lib/claims";
 import { auditTreeConnections } from "@/lib/connection-suggestions.server";
 import { getGettingStarted, isFounder } from "@/lib/first-tree.server";
 import { getTreePets } from "@/lib/pets";
+import { sendPlacementNudges } from "@/lib/placement-alerts.server";
 import {
   listOwnDeclinedSuggestions,
   listPendingSuggestions,
@@ -118,6 +120,11 @@ export default async function TreePage() {
   ]);
   if (!placedIds(placedPeople).includes(selfPersonId)) {
     redirect(onboardingHref());
+  }
+  // An ask that has waited a week is owed a reminder, and one that has
+  // lapsed, word to whoever asked (Step 83). Sent once this has answered.
+  if (placedPeople.some((p) => p.nudge_due)) {
+    after(() => sendPlacementNudges(tree.id));
   }
   // Only this canvas's: a suggestion can be on an entry on another tree.
   const shown = new Set(people.map((p) => p.id));

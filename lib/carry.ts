@@ -129,11 +129,44 @@ export function carryAskNote(asks: CarryAsk): string {
 export const BASIC_DETAILS = "Basic details";
 
 /**
+ * How long an ask waits (Step 83): one reminder goes out after the first,
+ * and after the second it lapses, leaving the basic card. Mirrors
+ * `private.placement_nudge_due` and `private.placement_approval_now`.
+ */
+export const REMIND_AFTER_DAYS = 7;
+export const LAPSE_AFTER_DAYS = 30;
+
+/**
+ * Where a yes stands, as a tree reads it: `none` when there was nothing to
+ * ask, `lapsed` once an ask has waited `LAPSE_AFTER_DAYS` unanswered.
+ */
+export type CarryApproval =
+  | "none"
+  | "asked"
+  | "approved"
+  | "declined"
+  | "lapsed";
+
+export function carryApprovalOf(value: unknown): CarryApproval {
+  return value === "asked" ||
+    value === "approved" ||
+    value === "declined" ||
+    value === "lapsed"
+    ? value
+    : "none";
+}
+
+/** Whether a tree shows only the basic card while the yes stands there. */
+export function showsBasic(approval: CarryApproval): boolean {
+  return approval === "asked" || approval === "declined" || approval === "lapsed";
+}
+
+/**
  * What a basic card waits on, for its details sheet and the Root's list:
  * `name` is the person's own, for the member who is asked themselves.
  */
 export function waitingOn(
-  approval: "none" | "asked" | "approved" | "declined",
+  approval: CarryApproval,
   askedOf: "owner" | "stewards" | null,
   name: string,
 ): string | null {
@@ -141,6 +174,11 @@ export function waitingOn(
     return askedOf === "owner"
       ? `Waiting for ${name} to approve.`
       : "Waiting for a Root or Branch of their home tree to approve.";
+  }
+  if (approval === "lapsed") {
+    return askedOf === "owner"
+      ? `${name} hasn’t answered.`
+      : "Their home tree hasn’t answered.";
   }
   if (approval === "declined") {
     return askedOf === "owner"
@@ -150,12 +188,27 @@ export function waitingOn(
   return null;
 }
 
+/** Under a name in the Root's list: what the tree shows, and why. */
+export function carriedNote(
+  approval: CarryApproval,
+  askedOf: "owner" | "stewards" | null,
+): string | null {
+  if (approval === "asked") {
+    return askedOf === "owner"
+      ? "Basic · waiting for them"
+      : "Basic · waiting for a Root or Branch";
+  }
+  if (approval === "declined") return "Basic · declined";
+  if (approval === "lapsed") return "Basic · no answer";
+  return null;
+}
+
 /** What a call to `place_people` did, as the toast says it. */
 export function carriedSummary(
   placed: readonly { approval: string }[],
 ): string {
-  const basic = placed.filter(
-    (p) => p.approval === "asked" || p.approval === "declined",
+  const basic = placed.filter((p) =>
+    showsBasic(carryApprovalOf(p.approval)),
   ).length;
   const full = placed.length - basic;
   return [

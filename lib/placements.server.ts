@@ -3,10 +3,16 @@ import "server-only";
 import { cache } from "react";
 
 import { getSessionUser } from "@/lib/auth";
-import { isCarryAsk, type CarryLine, type CarryPerson } from "@/lib/carry";
+import {
+  carryApprovalOf,
+  isCarryAsk,
+  type CarryApproval,
+  type CarryLine,
+  type CarryPerson,
+} from "@/lib/carry";
 import { personDisplayName, personLifespan } from "@/lib/person-name";
 import { createClient } from "@/lib/supabase/server";
-import { readIn, type PlacementApproval } from "@/lib/tree";
+import { readIn } from "@/lib/tree";
 
 /**
  * Whether an entry is on a tree now (an active placement), as far as the
@@ -126,7 +132,8 @@ export type CarriedPerson = {
   personId: string;
   name: string;
   homeTreeName: string | null;
-  approval: PlacementApproval;
+  /** `lapsed` once an ask has waited 30 days: a Root can ask again. */
+  approval: CarryApproval;
   /** Whose yes it waits on, or waited on; `null` when nobody was asked. */
   askedOf: "owner" | "stewards" | null;
 };
@@ -144,12 +151,7 @@ export async function listCarried(treeId: string): Promise<CarriedPerson[]> {
     personId: row.person_id,
     name: row.person_name || "Unnamed person",
     homeTreeName: row.home_tree_name ?? null,
-    approval:
-      row.approval === "asked" ||
-      row.approval === "approved" ||
-      row.approval === "declined"
-        ? row.approval
-        : "none",
+    approval: carryApprovalOf(row.approval),
     askedOf:
       row.asked_of === "owner" || row.asked_of === "stewards"
         ? row.asked_of
@@ -167,7 +169,8 @@ export type PlacementAsk = {
   own: boolean;
   homeTreeName: string;
   askedByName: string | null;
-  approval: "asked" | "approved" | "declined";
+  /** `lapsed`: nobody answered in 30 days; a yes is still taken. */
+  approval: Exclude<CarryApproval, "none">;
 };
 
 /**
@@ -178,11 +181,11 @@ export type PlacementAsk = {
 export const listPlacementAsks = cache(async (): Promise<PlacementAsk[]> => {
   const supabase = await createClient();
   const { data } = await supabase.rpc("placement_asks");
-  return (data ?? []).flatMap((row): PlacementAsk[] =>
-    row.approval === "asked" ||
-    row.approval === "approved" ||
-    row.approval === "declined"
-      ? [
+  return (data ?? []).flatMap((row): PlacementAsk[] => {
+    const approval = carryApprovalOf(row.approval);
+    return approval === "none"
+      ? []
+      : [
           {
             placementId: row.placement_id,
             treeId: row.tree_id,
@@ -192,9 +195,8 @@ export const listPlacementAsks = cache(async (): Promise<PlacementAsk[]> => {
             own: row.own,
             homeTreeName: row.home_tree_name,
             askedByName: row.asked_by_name || null,
-            approval: row.approval,
+            approval,
           },
-        ]
-      : [],
-  );
+        ];
+  });
 });

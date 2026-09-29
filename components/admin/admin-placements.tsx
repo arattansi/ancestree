@@ -2,30 +2,22 @@
 
 import * as React from "react";
 
-import { removePlacement } from "@/app/actions/trees";
+import { askPlacementsAgain, removePlacement } from "@/app/actions/trees";
 import { CarryPicker } from "@/components/carry-picker";
 import { ConfirmButton } from "@/components/confirm-dialog";
+import { PendingButton } from "@/components/pending-button";
 import { Badge } from "@/components/ui/badge";
-import type { CarryLine, CarryPerson } from "@/lib/carry";
+import { useAction } from "@/components/use-action";
+import { carriedNote, type CarryLine, type CarryPerson } from "@/lib/carry";
 import type { CarriedPerson } from "@/lib/placements.server";
-
-/** What a card brought over shows, and whose yes the rest waits on. */
-function carriedBadge(p: CarriedPerson): string | null {
-  if (p.approval === "asked") {
-    return p.askedOf === "owner"
-      ? "Basic · waiting for them"
-      : "Basic · waiting for a Root or Branch";
-  }
-  if (p.approval === "declined") return "Basic · declined";
-  return null;
-}
 
 /**
  * "People from other trees" (Steps 25 and 80): a Root brings a family line
  * over from a tree they're on, or anyone they can see there one by one.
  * Everyone arrives at once, whole or as a basic card while someone is asked.
- * Below, who has been brought over so far, how much of each is shown, and
- * a way to take them off again.
+ * Below, who has been brought over so far, how much of each is shown, a way
+ * to ask again about an ask nobody answered (Step 83), and a way to take
+ * them off again.
  */
 export function AdminPlacements({
   treeId,
@@ -38,6 +30,7 @@ export function AdminPlacements({
   lines: CarryLine[];
   carried: CarriedPerson[];
 }) {
+  const again = useAction();
   const full = carried.filter(
     (p) => p.approval === "none" || p.approval === "approved",
   ).length;
@@ -65,7 +58,7 @@ export function AdminPlacements({
         ) : (
           <ul className="divide-y divide-border rounded-md border border-border">
             {carried.map((p) => {
-              const badge = carriedBadge(p);
+              const badge = carriedNote(p.approval, p.askedOf);
               return (
                 <li
                   key={p.placementId}
@@ -80,10 +73,29 @@ export function AdminPlacements({
                   <div className="flex items-center gap-2">
                     {badge ? (
                       <Badge
-                        variant={p.approval === "declined" ? "outline" : "secondary"}
+                        variant={p.approval === "asked" ? "secondary" : "outline"}
                       >
                         {badge}
                       </Badge>
+                    ) : null}
+                    {p.approval === "lapsed" ? (
+                      <PendingButton
+                        size="sm"
+                        variant="outline"
+                        pending={again.pendingKey === p.personId}
+                        disabled={again.pending}
+                        pendingLabel="Asking…"
+                        aria-label={`Ask again about ${p.name}`}
+                        onClick={() =>
+                          again.run(
+                            p.personId,
+                            () => askPlacementsAgain(treeId, [p.personId]),
+                            { success: "Asked again." },
+                          )
+                        }
+                      >
+                        Ask again
+                      </PendingButton>
                     ) : null}
                     <ConfirmButton
                       size="sm"

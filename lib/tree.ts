@@ -4,6 +4,7 @@ import { cache } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { AccountTypeKey } from "@/lib/account-types";
+import { carryApprovalOf, type CarryApproval } from "@/lib/carry";
 import { accountTypesByPerson } from "@/lib/account-type-links";
 import type { Database } from "@/lib/database.types";
 import { signedPhotoUrls } from "@/lib/entry-view.server";
@@ -105,15 +106,11 @@ export type TreeGraphPerson = {
   account_type: AccountTypeKey | null;
 };
 
-export type PlacementApproval = "none" | "asked" | "approved" | "declined";
+export type PlacementApproval = CarryApproval;
 
 type AskedOf = "owner" | "stewards" | null;
 
-function approvalOf(value: string | null): PlacementApproval {
-  return value === "asked" || value === "approved" || value === "declined"
-    ? value
-    : "none";
-}
+const approvalOf = carryApprovalOf;
 
 export type TreeGraphEdge = {
   id: string;
@@ -143,7 +140,7 @@ export type TreeGraphEdge = {
  * says whether this tree is the one whose rules govern the entry.
  */
 const PERSON_COLUMNS =
-  "id, home_tree_id, is_home, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_death, date_of_birth_precision, date_of_death_precision, birth_month, birth_day, date_of_birth_circa, date_of_death_circa, city_of_birth, country_of_birth, place_id_birth, place_id_death, is_deceased, place_of_death, sex, lineage_type, photo_path, photo_crop, pos_x, pos_y, owner_user_id, created_by, pos_dx, pos_dy, hidden_from_visitors, blurred, email, email_visible, detail, approval, asked_of";
+  "id, home_tree_id, is_home, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_death, date_of_birth_precision, date_of_death_precision, birth_month, birth_day, date_of_birth_circa, date_of_death_circa, city_of_birth, country_of_birth, place_id_birth, place_id_death, is_deceased, place_of_death, sex, lineage_type, photo_path, photo_crop, pos_x, pos_y, owner_user_id, created_by, pos_dx, pos_dy, hidden_from_visitors, blurred, email, email_visible, detail, approval, asked_of, nudge_due";
 
 /**
  * Stands in for the user ids on a public read (`forPublic`): the nil UUID,

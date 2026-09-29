@@ -58,3 +58,47 @@ export async function alertPlacementAsks(asked: {
     console.error(`[placement-alerts] ${what}: couldn't email who was asked`, err);
   }
 }
+
+/**
+ * What a tree's waiting asks have to send (Step 83): the one reminder, a
+ * week after an ask, and word to the Root who asked when it lapses after 30
+ * days. There is no scheduler, so the tree's own page sets this off, after
+ * it has answered (`after()`), when `tree_people.nudge_due` says something
+ * is owed. `run_placement_nudges` hands each out once, however many pages
+ * ask at once: it writes the notice of a lapse itself, and what comes back
+ * is who to email a reminder. Logged and swallowed, as above.
+ */
+export async function sendPlacementNudges(treeId: string): Promise<void> {
+  const what = `reminders on tree ${treeId}`;
+  try {
+    const supabase = createAdminClient();
+    const { data, error } = await supabase.rpc("run_placement_nudges", {
+      p_tree: treeId,
+    });
+    if (error) throw error;
+
+    const to = (data ?? []).filter((r) => r.email);
+    if (to.length === 0) return;
+    const url = `${getSiteUrl()}${asksHref()}`;
+    const sent = await sendEmails(
+      to.map((r) => ({
+        to: r.email,
+        ...placementAskedEmail({
+          kind: r.kind === "owner" ? "owner" : "steward",
+          placerName: r.placer_name,
+          treeName: r.tree_name,
+          homeTreeName: r.home_tree_name,
+          entries: r.entries,
+          personName: r.person_name,
+          url,
+          reminder: true,
+        }),
+      })),
+    );
+    const unsent = unsentSummary(sent);
+    if (unsent) console.error(`[placement-alerts] ${what}: ${unsent}`);
+    else console.info(`[placement-alerts] ${what}: emailed ${to.length}`);
+  } catch (err) {
+    console.error(`[placement-alerts] ${what}: couldn't send them`, err);
+  }
+}

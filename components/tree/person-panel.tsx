@@ -287,6 +287,27 @@ export function PersonPanel({
       canDispute ||
       person?.claim_status === "disputed");
 
+  // Claiming merges the viewer's own entry into this one and deletes it, so
+  // it asks first (Step 36). A basic card offers it too (Step 83): claiming
+  // it here is their yes to showing it here.
+  const claimButton =
+    person && canClaim && !readOnly ? (
+      <ConfirmButton
+        size="sm"
+        confirm={{
+          title: "Make this your entry?",
+          description: claimNote ?? undefined,
+          confirmLabel: "Yes, merge",
+          pendingLabel: "Merging…",
+          onConfirm: () => claimPerson(person.id),
+          success: "Merged — this is now your entry.",
+          onSuccess: onClose,
+        }}
+      >
+        This is me — claim it
+      </ConfirmButton>
+    ) : null;
+
   // Reset the inline dispute form whenever a different person is selected.
   if (person?.id !== prevId) {
     setPrevId(person?.id);
@@ -544,6 +565,7 @@ export function PersonPanel({
                   {waiting}
                 </p>
               ) : null}
+              {basic && claimButton ? <div>{claimButton}</div> : null}
               {!locked ? (
                 <EntrySuggestions
                   suggestions={changeSuggestions}
@@ -716,24 +738,7 @@ export function PersonPanel({
                       </Button>
                     ) : null}
 
-                    {/* Claiming merges the viewer's own entry into this one
-                        and deletes it, so it asks first (Step 36). */}
-                    {canClaim ? (
-                      <ConfirmButton
-                        size="sm"
-                        confirm={{
-                          title: "Make this your entry?",
-                          description: claimNote ?? undefined,
-                          confirmLabel: "Yes, merge",
-                          pendingLabel: "Merging…",
-                          onConfirm: () => claimPerson(person.id),
-                          success: "Merged — this is now your entry.",
-                          onSuccess: onClose,
-                        }}
-                      >
-                        This is me — claim it
-                      </ConfirmButton>
-                    ) : null}
+                    {claimButton}
 
                     {canDelete ? (
                       <ConfirmButton

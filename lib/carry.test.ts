@@ -1,11 +1,16 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  LAPSE_AFTER_DAYS,
+  REMIND_AFTER_DAYS,
+  carriedNote,
   carriedSummary,
+  carryApprovalOf,
   carryAskNote,
   carryCounts,
   isCarryAsk,
   lineOf,
+  showsBasic,
   waitingOn,
   type CarryLine,
 } from "@/lib/carry";
@@ -161,6 +166,52 @@ describe("waitingOn", () => {
   it("says nothing of a card shown in full", () => {
     expect(waitingOn("none", null, "Zara")).toBeNull();
     expect(waitingOn("approved", "owner", "Zara")).toBeNull();
+  });
+
+  it("says nobody answered, once the ask has lapsed (Step 83)", () => {
+    expect(waitingOn("lapsed", "owner", "Zara Suleman")).toBe(
+      "Zara Suleman hasn’t answered.",
+    );
+    expect(waitingOn("lapsed", "stewards", "Zara Suleman")).toBe(
+      "Their home tree hasn’t answered.",
+    );
+  });
+});
+
+describe("an ask that waits, and lapses (Step 83)", () => {
+  it("reminds before it lapses", () => {
+    expect(REMIND_AFTER_DAYS).toBe(7);
+    expect(LAPSE_AFTER_DAYS).toBe(30);
+    expect(REMIND_AFTER_DAYS).toBeLessThan(LAPSE_AFTER_DAYS);
+  });
+
+  it("reads what the database says, and nothing it doesn't", () => {
+    expect(carryApprovalOf("asked")).toBe("asked");
+    expect(carryApprovalOf("approved")).toBe("approved");
+    expect(carryApprovalOf("declined")).toBe("declined");
+    expect(carryApprovalOf("lapsed")).toBe("lapsed");
+    expect(carryApprovalOf("none")).toBe("none");
+    expect(carryApprovalOf("pending")).toBe("none");
+    expect(carryApprovalOf(null)).toBe("none");
+  });
+
+  it("keeps the basic card while asked, declined or lapsed", () => {
+    expect(showsBasic("asked")).toBe(true);
+    expect(showsBasic("declined")).toBe(true);
+    expect(showsBasic("lapsed")).toBe(true);
+    expect(showsBasic("approved")).toBe(false);
+    expect(showsBasic("none")).toBe(false);
+  });
+
+  it("tells the Root what each card waits on", () => {
+    expect(carriedNote("asked", "owner")).toBe("Basic · waiting for them");
+    expect(carriedNote("asked", "stewards")).toBe(
+      "Basic · waiting for a Root or Branch",
+    );
+    expect(carriedNote("declined", "owner")).toBe("Basic · declined");
+    expect(carriedNote("lapsed", "stewards")).toBe("Basic · no answer");
+    expect(carriedNote("approved", "owner")).toBeNull();
+    expect(carriedNote("none", null)).toBeNull();
   });
 });
 
