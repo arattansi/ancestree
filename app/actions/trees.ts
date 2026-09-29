@@ -1,6 +1,5 @@
 "use server";
 
-import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 
@@ -396,8 +395,9 @@ export async function joinTreeWithInvite(token: string): Promise<{ error?: strin
   const redeemed = await redeemInvite(supabase, token);
   if (!redeemed.ok) {
     if (redeemed.reason === "another_address") {
-      // Drawn again for whoever is signed in now, it says whose invite it is.
-      refresh();
+      // Drawn again for whoever is signed in now, it says whose invite it
+      // is; pages kept from before they switched accounts go too.
+      revalidateTreePages();
       return { error: "This invite was sent to another email address." };
     }
     return { error: "That invite is invalid, used up, or expired." };
