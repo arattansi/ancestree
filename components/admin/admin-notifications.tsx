@@ -2,15 +2,15 @@
 
 import { Bell } from "lucide-react";
 
-import { navigateToAdminSection as navigateToSection } from "@/components/admin/nav-event";
+import { navigateToAdminSection } from "@/components/admin/nav-event";
 import type { AdminActionItem } from "@/lib/admin-notifications";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 /**
- * The admin queue — pending access requests, disputed claims, and new own-tree
- * registrations. Mirrors the section nav: a thin floating rail on the right at
- * xl, and an inline card near the top of the console on narrower screens where
- * there's no room to float it.
+ * The Root console's queue — requests for access, disputed claims and, for a
+ * beta reviewer, requests to start a tree. Mirrors the section nav: a thin
+ * floating rail on the right at xl, and an inline card near the top of the
+ * console on narrower screens where there's no room to float it.
  */
 export function AdminNotifications({ items }: { items: AdminActionItem[] }) {
   const total = items.reduce((sum, i) => sum + i.count, 0);
@@ -30,7 +30,7 @@ export function AdminNotifications({ items }: { items: AdminActionItem[] }) {
               <li key={item.target}>
                 <button
                   type="button"
-                  onClick={() => navigateToSection(item.target)}
+                  onClick={() => navigateToAdminSection(item.target)}
                   className="-mr-px block w-full border-r-2 border-transparent py-1 pr-3 text-right text-xs text-muted-foreground transition-colors hover:border-foreground hover:text-foreground outline-none focus-visible:text-foreground"
                 >
                   <span className="font-medium tabular-nums text-foreground">
@@ -62,7 +62,7 @@ export function AdminNotifications({ items }: { items: AdminActionItem[] }) {
                 <li key={item.target}>
                   <button
                     type="button"
-                    onClick={() => navigateToSection(item.target)}
+                    onClick={() => navigateToAdminSection(item.target)}
                     className="flex w-full items-center justify-between gap-3 rounded-md px-2 py-2 text-left text-sm transition-colors hover:bg-muted outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <span>

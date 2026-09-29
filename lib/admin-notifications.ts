@@ -1,20 +1,30 @@
 import "server-only";
 
-import type { TreeQueue } from "@/lib/admin-queue";
+import {
+  QUEUE_SECTIONS,
+  type QueueSection,
+  type TreeQueue,
+} from "@/lib/admin-queue";
 import { createClient } from "@/lib/supabase/server";
 
 export type AdminActionItem = {
-  /** Section id to reveal when the notification is clicked. */
-  target: string;
+  /** The console card to open when it's pressed. */
+  target: QueueSection;
   label: string;
   count: number;
 };
 
+/** What each queue is called in the console's "Needs attention" card. */
+const QUEUE_LABELS: Record<QueueSection, string> = {
+  "invite-requests": "requests for access",
+  disputes: "disputed claims",
+  "tree-requests": "requests to start a tree",
+};
+
 /**
- * Things on the admin console that are waiting for a decision. Drives both the
- * "Needs attention" card on the console and the count badge on the header.
- * Soft signals (the own-tree register) are deliberately left out — this is the
- * queue, not the newsfeed.
+ * What waits for a decision on the Root console, for its "Needs attention"
+ * card, in the order the queue is worked (`QUEUE_SECTIONS`). The header's
+ * count is `countAdminQueue` and `pickQueueTarget`.
  */
 export function buildAdminActionItems(counts: {
   inviteRequests: number;
@@ -22,30 +32,22 @@ export function buildAdminActionItems(counts: {
   /** Requests to start a tree (Step 28) — a beta reviewer's only. */
   treeRequests?: number;
 }): AdminActionItem[] {
-  const items: AdminActionItem[] = [
-    {
-      target: "invite-requests",
-      label: "requests for access",
-      count: counts.inviteRequests,
-    },
-    {
-      target: "disputes",
-      label: "disputed claims",
-      count: counts.disputedClaims,
-    },
-    {
-      target: "tree-requests",
-      label: "requests to start a tree",
-      count: counts.treeRequests ?? 0,
-    },
-  ];
-  return items.filter((i) => i.count > 0);
+  const waiting: Record<QueueSection, number> = {
+    "invite-requests": counts.inviteRequests,
+    disputes: counts.disputedClaims,
+    "tree-requests": counts.treeRequests ?? 0,
+  };
+  return QUEUE_SECTIONS.map((target) => ({
+    target,
+    label: QUEUE_LABELS[target],
+    count: waiting[target],
+  })).filter((item) => item.count > 0);
 }
 
 /**
- * Items waiting for an admin decision — cheap count-only queries for the
+ * Items waiting for a Root's decision — cheap count-only queries for the
  * header badge, kept apart so the badge can open the card they're on (Step
- * 30.1). The own-tree register is a soft signal and left out of this count.
+ * 30.1).
  */
 export async function countAdminQueue(treeId: string): Promise<TreeQueue> {
   const supabase = await createClient();
