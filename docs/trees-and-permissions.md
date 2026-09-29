@@ -96,6 +96,7 @@ or by the person joining it.
 | Bringing people over | When a member founds a tree, or later from the "People from other trees" card on `/t/<slug>/admin`, a Root picks from everyone they can see in full on a tree they belong to: **all descendants of** someone, with the partners they married or had children with unless that's switched off (Step 80, `lib/carry.ts#lineOf`), or anyone one by one. Each pick becomes a placement, and everyone is on the tree at once. Everyone brought over needs a blood tie on this tree, judged across the whole batch (Step 55). |
 | Basic cards | What the tree shows of someone brought over waits on a yes (Step 80). Until it comes they are a **basic card**: first or preferred name, last name, place of birth, and their lines. A member's own entry (their `self_person_id` or a settled claim) waits on that member. Nobody's own entry waits on whoever may edit it on its home tree (`private.can_edit_person`): its Roots, the Branch who tends it, the Branch or Leaf who added it. An entry the Root bringing it may edit already, their own included, waits on nobody and comes over whole. |
 | Asking | The member is told by notice (`placement_requested`) and by email; everyone asked about nobody's own entries gets one notice (`placements_requested`, in the home tree's inbox) and one email for the batch. Both open **Asked of You** on `/account` settings, where each is approved or declined by itself, or a tree's asks all at once; whoever answers first answers for everyone asked, and whoever brought them over is told once. Nobody is asked twice about the same card. |
+| Waiting | An ask waits 30 days (Step 83). After 7 without an answer, whoever was asked gets one reminder by email. After 30 it **lapses**: the card stays basic and says nobody answered, the ask moves to **Earlier** under Asked of You, where a yes is still taken, and the Root who asked is told (`placements_lapsed`) and can **Ask again** from "Who This Tree Shows" — another 30 days, with the notice and the email of a first ask. A decline is an answer, so it isn't asked again. There is no scheduler: a lapse is read off `asked_at` (`private.placement_approval_now`), and the reminder and the word of a lapse go out the next time a member opens the asking tree (`tree_people.nudge_due`, then `run_placement_nudges`, which hands each out once). |
 | Answering | A no leaves the basic card where it is. Either answer can be changed later, from the same card (`answer_placements`): a yes taken back makes the card basic again. Saying yes for their own entry makes them a Leaf of that tree, as before. Accepting an invite to the tree counts as saying yes (Step 30.9), a claim invite included (Step 41.3), and so does moving the entry's home there. |
 | Home tree choice | A member chooses which of the trees they are placed on is their home (`/account` → Your entry). A Root of the current home tree may also move an unclaimed entry's home to another tree it is placed on. |
 | Leaving | A Root may remove any placement from their tree. The person shown no longer can (Step 80): their name and place of birth need nobody's yes, and what they take back is the rest of their entry. Removing a placement never deletes the person or their connections. |
@@ -105,6 +106,8 @@ or by the person joining it.
 
 The database keeps it back, not the page (Step 80). `tree_placements.detail`
 is `basic` while `approval` is `asked` or `declined`, and `full` otherwise.
+An ask that has lapsed (Step 83) is still `asked` in the row, so still
+`basic`; the views and `placement_asks` / `tree_carried` call it `lapsed`.
 
 | | On a tree that shows only their basic card |
 |---|---|
@@ -112,7 +115,8 @@ is `basic` while `approval` is `asked` or `declined`, and `full` otherwise.
 | Photo, documents | Not readable: both follow `can_see_person` and a full placement. |
 | Lines | Drawn, from `private.basic_tree_edges`: that a line is there, its kind, and whether a marriage ended. Its dates only on the tree it was drawn on. `relationships` rows are readable when both ends are shown in full, or the line was drawn on a tree the reader belongs to. |
 | Building on them | A Root, Branch or Leaf adds relatives of a basic card and draws lines to it as to any card, which is what founding a tree for the other side of the family needs. A line to a basic card is changed by whoever drew it, or a Root of the tree it was drawn on. |
-| Comments, suggestions, claims | None: a board, a suggested change, "This is me" and the onboarding search all ask for a full placement. |
+| Comments, suggestions | None: a board and a suggested change both ask for a full placement. |
+| Claiming it | As on any tree (Step 83), so someone new to the tree doesn't add themselves twice: the onboarding search and "Is this you?" find a basic card by what it shows — never a maiden name, no dates, and of its parents only those this tree draws — and "This is me" takes a name that matches it. Whoever added the entry is told, in their own tree's inbox, and can dispute. Claiming it on a tree is its owner's yes to showing it there in full, and whoever brought it over is told. A claim a Root reverses makes the card basic again and asks afresh. |
 | Visitors | **Hidden from visitors** holds: a visitor sees a blurred card with no name. |
 | Share links | The basic card, as the tree's members see it. |
 
