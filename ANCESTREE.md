@@ -190,7 +190,12 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   entry** in its header, Step 62; claim / dispute; **Minimize** folds it into a
   card at the foot of the canvas, Step 49, that repeats the header's lines,
   Step 76.7), `entry-comments.tsx` (comment /
-  flag thread + resolve), `claim-suggestions.tsx` "Is this you?" canvas prompt
+  flag thread + resolve), `claim-suggestions.tsx` "Is this you?" canvas prompt;
+  who's open is in the address (`?person=`, replaced as they change), and
+  the camera, the filters, a lit connection and the details folded or not
+  are kept for the tab per tree (`use-canvas-memory.ts`,
+  `lib/canvas-memory.ts`), so Back, Back to tree or a reload finds the
+  canvas as it was left (Step 77.3)
 - `components/tree/pet-node.tsx` — the companion chip (a third the height of a
   person card, a pill, led by a species glyph, joined by a dotted lead) +
   `pet-panel.tsx` (name / animal / years / optional full birthday + a GeoNames
@@ -222,7 +227,13 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `<form action>`'s), `confirm-dialog.tsx` (`ConfirmDialog` /
   `ConfirmButton`: ask before a loss), `form-error.tsx` (a failure by its
   button), `use-focus-return.ts` (`useFocusReturn`, `refocusAfterRemoval`:
-  focus kept when its control goes); `lib/action-feedback.ts` — what an
+  focus kept when its control goes); `link-pending.tsx`
+  (`LinkPendingLabel`: a link's label pulses until its page is on its way,
+  Step 77.3); `tree-target.tsx` (`TreeTarget`: a way to a page on a tree —
+  a plain, unprefetched link on the tree being looked at, which on the
+  canvas opens a person and on the Root console a section in place; a
+  button that switches first on another, Step 77.3);
+  `lib/action-feedback.ts` — what an
   action's answer means (`actionError`, `isRedirect`, `UNREACHABLE`;
   `.test.ts`); `tap-target` in `app/globals.css` — a 44 px hit area on
   touch screens
@@ -1387,6 +1398,56 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 77.3 — Efficiency audit, phase 4: moving around keeps your place**
+  (ad-hoc; no migration; the audit's findings N2, N3 and N4; the third of
+  seven parts). Every way to a page on a tree — a notice's **View on
+  tree**, **Also on**, Your Trees, the header's Root console count — was a
+  form that switched trees and redirected, which drew the whole app again
+  even on the tree already open, and nine of them showed nothing
+  meanwhile. Choosing another account view or first-run step left the old
+  one up until the new one had been read, and Back to the tree lost who was
+  open, the camera and the filters. **A link on the tree you're on:**
+  `TreeTarget` is a plain link there (it opens in a new tab too, is never
+  fetched ahead, and its label pulses until the page is on its way); on the
+  canvas it opens the person without drawing the page again, and on the
+  Root console it opens the section in place. On another tree it's a button
+  that switches first and stays busy until the page has arrived, without
+  drawing the app again from the top. It serves the notices' buttons in the
+  bell and on settings (**View on tree**, **Edit and resend**, **View in
+  Root console**, **View family link**), the header's count, Your Trees,
+  settings' tree list, the console picker, **Also on** and an invite to a
+  tree you're already on. **Views and steps show their shape at once:**
+  each account view and each first-run step reads behind its own boundary,
+  so the one chosen shows its skeleton straight away; the toggle's and the
+  steps' labels pulse meanwhile; the **root** view is never fetched ahead,
+  since the console archives lapsed invites as it's drawn. **Back finds the
+  canvas as it was:** who's open goes in the address as they're opened and
+  closed (replaced, so Back doesn't step through them), and the camera, the
+  filters (your side, descendants of, the search), a lit connection and
+  folded details are kept for the tab, per tree. They come back after Back,
+  **Back to tree** or a reload; the camera, a lit connection and folded
+  details only when the same person is open as when it was left. The
+  header's **tree** opens the tree with nobody open. **Verified:** in
+  headless Chrome on live, against dev and a production build, as a
+  throwaway Root of one throwaway tree who is a Leaf on another: opening
+  someone put them in the address with no new history entry, and closing
+  took them out; with **Show only your side** and a search on, Salim open
+  and the camera moved, **Edit entry** then Back, **Back to tree**, and a
+  reload each reopened Salim with the same two filters and exactly the
+  same camera; the header's **tree** closed him; the bell's **View on
+  tree** for this tree opened Amina in place with nothing fetched and
+  closed the bell, and Back closed her again; for the other tree it was a
+  button that said "Opening…" and landed on Vali there; Your Trees opened
+  the current tree by link and the other by a busy button; nothing was
+  fetched ahead for any of these links or the Root console; settings'
+  skeleton showed 230–330 ms after the click and the next first-run step's
+  within 250 ms; the Root console's count opened Requests for Access in
+  place. On a phone, Back reopened Salim with the camera as it was; signed
+  out on a share link, a reload reopened Karim with the camera as it was.
+  No console errors. The throwaway users, trees, share link and rows were
+  deleted after. 1115 tests pass (3 new); tsc, lint and `next build` are
+  clean.
 
 - **Step 75 — Root, not admin: every message, label and email says Root**
   (ad-hoc; migration `20260928170000_root_not_admin_messages`). Aalim,

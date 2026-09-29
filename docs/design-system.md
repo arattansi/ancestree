@@ -176,6 +176,14 @@ uses them rather than its own flags and messages.
   (`components/use-focus-return.ts`): opening an inline form focuses its
   first field, closing it returns to the button that opened it, and when a
   row is removed the next row's first button takes focus.
+- **Moving around** (Step 77.3): a link whose page takes a moment pulses
+  its label until that page is on its way (`LinkPendingLabel`), and a view
+  or step that reads its own data shows its shape at once (its own
+  `Suspense`, keyed by it). A way to a page on a tree is a `TreeTarget`: on
+  the tree being looked at, a plain link, never fetched ahead; on another,
+  a button that switches first and stays busy until the page has arrived.
+  The canvas keeps who's open in the address, and its camera and filters
+  for the tab, so Back finds it as it was left.
 - **Touch targets:** on a touch screen a small control (a bare ✕, a text
   link used as a button, the header's buttons, a sheet's or dialog's
   close) answers to a 44 px square around it (`relative tap-target`, an
