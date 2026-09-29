@@ -2,7 +2,13 @@
 
 import * as React from "react";
 import { Combobox } from "@base-ui/react/combobox";
-import { CheckIcon, MapPinIcon, PlusIcon, SearchIcon } from "lucide-react";
+import {
+  CheckIcon,
+  GlobeIcon,
+  MapPinIcon,
+  PlusIcon,
+  SearchIcon,
+} from "lucide-react";
 
 import {
   listCountryOptions,
@@ -32,6 +38,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAction } from "@/components/use-action";
+import { isCountryPlaceId } from "@/lib/country-names";
 import {
   chosenPlace,
   isLink,
@@ -44,6 +51,7 @@ export type SelectedPlace = {
   id: number;
   name: string;
   country_code: string | null;
+  is_country: boolean;
 };
 
 type Item = { value: number; label: string; place: PlaceOption };
@@ -53,6 +61,7 @@ const DEBOUNCE_MS = 200;
 /**
  * Birthplace / place-of-death picker backed by `places`. The field is only
  * valid once a real `places.id` is chosen — there is no free-text fallback.
+ * A whole country is one of the choices, marked with a globe (Step 79).
  * Admins get an escape hatch that adds a place row: "Add “…”" in the list
  * when a search finds nothing (Step 64), and "can't find it?" under the field.
  */
@@ -97,6 +106,7 @@ export function PlaceAutocomplete({
         name: initialLabel || "",
         admin1_code: null,
         country_code: null,
+        is_country: isCountryPlaceId(value),
         label: initialLabel || "",
       },
     };
@@ -168,7 +178,12 @@ export function PlaceAutocomplete({
           setPicked(v);
           onChange(
             v
-              ? { id: v.place.id, name: v.place.name, country_code: v.place.country_code }
+              ? {
+                  id: v.place.id,
+                  name: v.place.name,
+                  country_code: v.place.country_code,
+                  is_country: v.place.is_country,
+                }
               : null,
           );
         }}
@@ -215,7 +230,11 @@ export function PlaceAutocomplete({
                     value={item}
                     className="flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground"
                   >
-                    <MapPinIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                    {item.place.is_country ? (
+                      <GlobeIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                    ) : (
+                      <MapPinIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                    )}
                     <span className="flex-1">{item.label}</span>
                     <Combobox.ItemIndicator>
                       <CheckIcon className="size-4" aria-hidden />
@@ -274,6 +293,7 @@ export function PlaceAutocomplete({
               id: place.id,
               name: place.name,
               country_code: place.country_code,
+              is_country: place.is_country,
             });
             setAddOpen(false);
           }}

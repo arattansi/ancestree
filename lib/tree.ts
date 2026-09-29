@@ -16,7 +16,7 @@ import {
   resolveHistoricalName,
   type HistoricalNameRow,
 } from "@/lib/historical-names";
-import { countryName } from "@/lib/country-names";
+import { countryName, isCountryPlace } from "@/lib/country-names";
 import type { TreeMemberOption } from "@/components/relationship-picker";
 
 /** A person plus the fields the tree canvas + detail panel need. */
@@ -398,9 +398,17 @@ export async function getTreeGraph(
   const ids = rows.map((p) => p.id);
   const [placeRes, claims, signedRes] = await Promise.all([
     placeIds.length > 0
-      ? supabase.from("places").select("id, country_code").in("id", placeIds)
+      ? supabase
+          .from("places")
+          .select("id, name, country_code, feature_code")
+          .in("id", placeIds)
       : Promise.resolve({
-          data: [] as { id: number; country_code: string | null }[],
+          data: [] as {
+            id: number;
+            name: string;
+            country_code: string | null;
+            feature_code: string | null;
+          }[],
         }),
     forPublic
       ? []
@@ -436,18 +444,17 @@ export async function getTreeGraph(
         claims.filter((c) => c.status === "approved"),
       )
     : null;
-  const ccByPlace = new Map(
-    (placeRes.data ?? []).map((p) => [p.id, p.country_code]),
-  );
+  const placeById = new Map((placeRes.data ?? []).map((p) => [p.id, p]));
   const histRows = (histRes.data ?? []) as HistoricalNameRow[];
 
   const historicalFor = (
     placeId: number | null,
-    fallbackCity: string | null,
+    town: string | null,
     fallbackCountry: string | null,
     eventDate: string | null,
   ): string | null => {
-    const cc = placeId != null ? (ccByPlace.get(placeId) ?? null) : null;
+    const place = placeId != null ? placeById.get(placeId) : undefined;
+    const cc = place?.country_code ?? null;
     const historical = resolveHistoricalName(histRows, {
       placeId,
       countryCode: cc,
@@ -455,7 +462,8 @@ export async function getTreeGraph(
     });
     if (!historical) return null;
     return formatHistoricalPlace({
-      city: fallbackCity,
+      // A whole country has no town to name before it (Step 79).
+      city: place && isCountryPlace(place) ? null : town,
       modernCountry: (cc ? countryName(cc) : null) || fallbackCountry,
       historical,
     });
@@ -506,7 +514,11 @@ export async function getTreeGraph(
         ),
         death_place_historical: historicalFor(
           p.place_id_death,
-          p.place_of_death,
+          // The town's own name: place_of_death holds the whole label
+          // ("Nairobi, Kenya"), which read "Nairobi, Kenya, Kenya Colony".
+          (p.place_id_death != null
+            ? placeById.get(p.place_id_death)?.name
+            : null) ?? p.place_of_death,
           null,
           p.date_of_death,
         ),

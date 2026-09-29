@@ -13,11 +13,17 @@
  * Vancouver, CA.08 → Toronto, IN.09 → Ahmedabad, IN.16 → Mumbai, …).
  */
 
-/** Other names for a country: everyday ones, and older ones family records use. */
+/**
+ * Other names for a country: everyday ones, and older ones family records use.
+ * Typed alone, each also finds the country itself (Step 79), except a name for
+ * only part of it (Zanzibar).
+ */
 export const COUNTRY_OTHER_NAMES: Readonly<Record<string, readonly string[]>> = {
   AE: ["uae"],
-  CD: ["zaire", "drc", "belgian congo"],
+  CD: ["zaire", "drc", "dr congo", "democratic republic of the congo", "belgian congo"],
+  CG: ["republic of the congo"],
   CI: ["ivory coast"],
+  CV: ["cabo verde"],
   CZ: ["czech republic"],
   GB: ["uk", "britain", "great britain"],
   HK: ["hong kong"],
@@ -31,9 +37,11 @@ export const COUNTRY_OTHER_NAMES: Readonly<Record<string, readonly string[]>> = 
   PS: ["palestine"],
   SZ: ["swaziland"],
   TH: ["siam"],
+  TL: ["east timor"],
   TR: ["turkey"],
   TZ: ["tanganyika", "zanzibar"],
   US: ["usa", "america", "united states of america"],
+  VA: ["holy see"],
   ZM: ["northern rhodesia"],
   ZW: ["rhodesia", "southern rhodesia"],
 };

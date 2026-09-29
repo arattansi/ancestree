@@ -13,8 +13,11 @@ import { Plus } from "lucide-react";
 
 import { AncestralLandsField } from "@/components/ancestral-lands";
 import { DateField } from "@/components/date-field";
-import { PlaceAutocomplete } from "@/components/place-autocomplete";
-import { countryName } from "@/lib/country-names";
+import {
+  PlaceAutocomplete,
+  type SelectedPlace,
+} from "@/components/place-autocomplete";
+import { placeText } from "@/lib/place-choice";
 import { preferredCopiesFirst } from "@/lib/person-name";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -346,15 +349,9 @@ export function PersonDetailFields<T extends FieldValues>({
   const placeIdDeath = useWatch({ control, name: name("place_id_death") });
 
   const setPlace = React.useCallback(
-    (
-      kind: "birth" | "death",
-      place: { id: number; name: string; country_code: string | null } | null,
-    ) => {
-      const label = place
-        ? [place.name, countryName(place.country_code)]
-            .filter(Boolean)
-            .join(", ")
-        : "";
+    (kind: "birth" | "death", place: SelectedPlace | null) => {
+      // A whole country leaves the town empty (Step 79).
+      const text = place ? placeText(place) : null;
       const idField = kind === "birth" ? "place_id_birth" : "place_id_death";
       const textField = kind === "birth" ? "city_of_birth" : "place_of_death";
       setValue(name(idField), (place?.id ?? null) as never, {
@@ -363,17 +360,14 @@ export function PersonDetailFields<T extends FieldValues>({
       });
       setValue(
         name(textField),
-        (kind === "birth" ? (place?.name ?? "") : label) as never,
+        ((kind === "birth" ? text?.city : text?.label) ?? "") as never,
         { shouldDirty: true },
       );
       if (kind === "birth") {
-        setValue(
-          name("country_of_birth"),
-          (place
-            ? countryName(place.country_code) || place.country_code || ""
-            : "") as never,
-          { shouldValidate: true, shouldDirty: true },
-        );
+        setValue(name("country_of_birth"), (text?.country ?? "") as never, {
+          shouldValidate: true,
+          shouldDirty: true,
+        });
       }
     },
     [name, setValue],
@@ -455,7 +449,7 @@ export function PersonDetailFields<T extends FieldValues>({
                     initialLabel={placeLabels?.birth}
                     isAdmin={isAdmin}
                     invalid={Boolean(fieldState.error)}
-                    placeholder="Search for a city, town, or village…"
+                    placeholder="Search for a town, village, or country…"
                     onChange={(place) => setPlace("birth", place)}
                   />
                 </FormControl>

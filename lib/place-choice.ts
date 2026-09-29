@@ -1,3 +1,20 @@
+import { countryName } from "@/lib/country-names";
+
+/**
+ * What an entry keeps as text beside the place it points to (Step 4.5b): the
+ * town, the country, and the two as one label, which a place of death keeps.
+ * A whole country (Step 79) has no town: "Tanzania", not "Tanzania, Tanzania".
+ */
+export function placeText(place: {
+  name: string;
+  country_code: string | null;
+  is_country: boolean;
+}): { city: string; country: string; label: string } {
+  const country = countryName(place.country_code) || place.country_code || "";
+  const city = place.is_country ? "" : place.name;
+  return { city, country, label: [city, country].filter(Boolean).join(", ") };
+}
+
 /**
  * Which option the place picker shows as chosen.
  *

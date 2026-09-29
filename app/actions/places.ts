@@ -62,7 +62,7 @@ export async function requestNewPlace(input: {
 
   if (error || !data) return { error: "Couldn't add that place. Try again." };
 
-  const hit = data as PlaceHit;
+  const hit: PlaceHit = { ...data, is_country: false };
   return { place: { ...hit, label: formatPlaceLabel(hit) } };
 }
 

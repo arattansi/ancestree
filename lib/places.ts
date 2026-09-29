@@ -1,7 +1,12 @@
 import "server-only";
 
-import { countryName } from "@/lib/country-names";
-import { choosePlaces, shapePlaceQuery, type PlaceSearch } from "@/lib/place-search";
+import { countryName, isCountryPlace } from "@/lib/country-names";
+import {
+  choosePlaces,
+  isCountryRow,
+  shapePlaceQuery,
+  type PlaceSearch,
+} from "@/lib/place-search";
 import { createClient } from "@/lib/supabase/server";
 
 export { countryName };
@@ -11,29 +16,25 @@ export type PlaceHit = {
   name: string;
   admin1_code: string | null;
   country_code: string | null;
+  /** A whole country rather than a town in it (Step 79). */
+  is_country: boolean;
 };
 
 /**
  * Human label for a place: "City, ST, Country" — the admin1 segment is only
  * shown when GeoNames stored it as a letter code (US-style), since numeric
  * admin1 codes aren't meaningful without the admin1 gazetteer we don't import.
+ * A whole country is just its name (Step 79).
  */
 export function formatPlaceLabel(place: PlaceHit): string {
+  const country = countryName(place.country_code);
+  if (place.is_country) return country || place.name;
   const parts = [place.name];
   if (place.admin1_code && /^[A-Za-z]{2,3}$/.test(place.admin1_code)) {
     parts.push(place.admin1_code.toUpperCase());
   }
-  const country = countryName(place.country_code);
   if (country) parts.push(country);
   return parts.join(", ");
-}
-
-/** The legacy free-text pair still written alongside the FK (see Step 4.5b). */
-export function placeLegacyText(place: PlaceHit): {
-  city: string;
-  country: string;
-} {
-  return { city: place.name, country: countryName(place.country_code) || (place.country_code ?? "") };
 }
 
 /**
@@ -49,7 +50,8 @@ const CANDIDATES = 200;
  * Fuzzy place search for the autocomplete: trigram-indexed `search_name
  * ILIKE`, shaped and ranked by lib/place-search.ts (the part before a comma
  * is searched, what follows prefers a region; Step 66). Two letters only
- * match a whole name, which the index serves (Step 66.5).
+ * match a whole name, which the index serves (Step 66.5). The countries the
+ * search names are ranked in with the places (Step 79).
  */
 export async function searchPlaces(query: string, limit = 8): Promise<PlaceHit[]> {
   const q = shapePlaceQuery(query);
@@ -78,6 +80,7 @@ export async function searchPlaces(query: string, limit = 8): Promise<PlaceHit[]
     name: p.name,
     admin1_code: p.admin1_code,
     country_code: p.country_code,
+    is_country: isCountryRow(p),
   }));
 }
 
@@ -89,8 +92,19 @@ export async function getPlacesByIds(ids: number[]): Promise<Map<number, PlaceHi
   const supabase = await createClient();
   const { data } = await supabase
     .from("places")
-    .select("id, name, admin1_code, country_code")
+    .select("id, name, admin1_code, country_code, feature_code")
     .in("id", unique);
 
-  return new Map((data ?? []).map((p) => [p.id, p as PlaceHit]));
+  return new Map(
+    (data ?? []).map((p) => [
+      p.id,
+      {
+        id: p.id,
+        name: p.name,
+        admin1_code: p.admin1_code,
+        country_code: p.country_code,
+        is_country: isCountryPlace(p),
+      },
+    ]),
+  );
 }

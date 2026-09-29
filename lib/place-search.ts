@@ -1,4 +1,4 @@
-import { ALPHA2, countryName } from "@/lib/country-names";
+import { ALPHA2, countryName, countryPlaceId } from "@/lib/country-names";
 import { MIN_LETTERS } from "@/lib/place-choice";
 import { ADMIN1_NAMES, COUNTRY_OTHER_NAMES } from "@/lib/place-regions";
 
@@ -16,6 +16,11 @@ import { ADMIN1_NAMES, COUNTRY_OTHER_NAMES } from "@/lib/place-regions";
  * comma ("Vancouver BC"). A name shorter than MIN_LETTERS is only matched
  * whole (`ILIKE 'bo'`), which the index serves; anywhere in a name it would
  * scan every place (Step 66.5).
+ *
+ * A whole country can be the place too (Step 79). Its `places` row has no
+ * `search_name`, so the query never finds it; `countriesNamed` offers the
+ * countries whose name, or another name for it (UK, Tanganyika, Ceylon),
+ * starts with what was typed or has a later word that does ("Korea").
  */
 
 /** Shortest name the search runs for, matched whole below MIN_LETTERS. */
@@ -251,17 +256,101 @@ export type PlaceRow = {
   population: number | null;
 };
 
+/** A whole country, offered alongside the places the query finds (Step 79). */
+export type CountryRow = PlaceRow & {
+  id: number;
+  /** The names it's found by, keyed like `countryKey`. */
+  country_keys: readonly string[];
+};
+
+export function isCountryRow(row: PlaceRow): row is CountryRow {
+  return "country_keys" in row;
+}
+
+/**
+ * Other names for a country that name only a part of it: they place a town
+ * ("Stone Town, Zanzibar") but don't offer the whole country.
+ */
+const PART_OF_A_COUNTRY: ReadonlySet<string> = new Set(["zanzibar"]);
+
+/** A name as the country search compares it: a region name, no "the" first. */
+function countryKey(text: string): string {
+  return regionKey(text).replace(/^the /, "");
+}
+
+/**
+ * Each country with every name it's found by: its English name, also with
+ * ä, ö and ü spelled out ("tuerkiye") and "St." as "saint", and its names in
+ * COUNTRY_OTHER_NAMES. In alphabetical order, which countries that match
+ * equally keep.
+ */
+const COUNTRIES: readonly { code: string; name: string; keys: readonly string[] }[] =
+  ALPHA2.map((code) => {
+    const name = countryName(code);
+    const own = [countryKey(name), countryKey(foldSpelledOut(name))];
+    const keys = new Set(own);
+    for (const key of own) {
+      if (key.startsWith("st ")) keys.add(`saint ${key.slice(3)}`);
+    }
+    for (const other of COUNTRY_OTHER_NAMES[code] ?? []) {
+      if (!PART_OF_A_COUNTRY.has(other)) keys.add(countryKey(other));
+    }
+    return { code, name, keys: [...keys] };
+  }).sort((a, b) => a.name.localeCompare(b.name));
+
+/** How closely a name matches: 3 whole, 2 its start, 1 a later word's start. */
+function nameMatch(name: string, q: string): number {
+  if (name === q) return 3;
+  if (name.startsWith(q)) return 2;
+  if (name.includes(` ${q}`)) return 1;
+  return 0;
+}
+
+function bestMatch(names: readonly string[], q: string): number {
+  return names.reduce((best, name) => Math.max(best, nameMatch(name, q)), 0);
+}
+
+/**
+ * The countries a search names: one of its names starts with the name typed,
+ * or has a later word that does ("Korea"). Under MIN_LETTERS it has to be a
+ * whole name ("UK"), as a place's does.
+ */
+export function countriesNamed(search: PlaceSearch): CountryRow[] {
+  const q = countryKey(search.name);
+  if (q.length < MIN_NAME) return [];
+  return COUNTRIES.flatMap(({ code, name, keys }) => {
+    const match = bestMatch(keys, q);
+    if (match === 0 || (isShort(q) && match < 3)) return [];
+    return [
+      {
+        id: countryPlaceId(code),
+        name,
+        ascii_name: null,
+        search_name: null,
+        admin1_code: null,
+        country_code: code,
+        population: null,
+        country_keys: keys,
+      },
+    ];
+  });
+}
+
 /**
  * Places in the order to offer them: the whole typed text as a name
  * ("Misato, Saitama"), then the regions hinted at, then how closely the name
- * matches (exact > prefix > word > anywhere), then population. Places outside
- * a region the fallback took off the end are left out.
+ * matches (exact > prefix > word > anywhere), then population. A country
+ * named whole or from its start comes before places that match as closely
+ * (Step 79); one found by a later word of its name, after them. Places
+ * outside a region the fallback took off the end are left out.
  */
 export function rankPlaces<T extends PlaceRow>(
   rows: readonly T[],
   search: PlaceSearch,
 ): T[] {
   const q = search.name;
+  const countryQ = countryKey(q);
+  const countryWhole = countryKey(search.whole);
   const scored = rows.flatMap((row) => {
     const words = regionWordsFor(row.country_code, row.admin1_code);
     // A whole region name was taken off, so only that region will do
@@ -272,39 +361,52 @@ export function rankPlaces<T extends PlaceRow>(
     ) {
       return [];
     }
-    const hay = (row.search_name ?? row.ascii_name ?? row.name).toLowerCase();
-    let name = 0;
-    if (hay === q) name = 3;
-    else if (hay.startsWith(q)) name = 2;
-    else if (hay.includes(` ${q}`)) name = 1;
+    let whole: boolean;
+    let name: number;
+    if (isCountryRow(row)) {
+      whole = row.country_keys.includes(countryWhole);
+      name = bestMatch(row.country_keys, countryQ);
+    } else {
+      const hay = (row.search_name ?? row.ascii_name ?? row.name).toLowerCase();
+      whole = hay === search.whole;
+      name = nameMatch(hay, q);
+    }
     return [
       {
         row,
-        whole: hay === search.whole ? 1 : 0,
+        whole: whole ? 1 : 0,
         region: search.hints.reduce((sum, hint) => sum + hintMatch(hint, words), 0),
         name,
+        country: isCountryRow(row) && name >= 2 ? 1 : 0,
         pop: row.population ?? 0,
       },
     ];
   });
   scored.sort(
     (a, b) =>
-      b.whole - a.whole || b.region - a.region || b.name - a.name || b.pop - a.pop,
+      b.whole - a.whole ||
+      b.region - a.region ||
+      b.name - a.name ||
+      b.country - a.country ||
+      b.pop - a.pop,
   );
   return scored.map(({ row }) => row);
 }
 
 /**
  * The places to offer: the search as typed, ranked, or — when it found
- * nothing — its fallback's.
+ * nothing — its fallback's, with the countries that search names (Step 79).
  */
 export function choosePlaces<T extends PlaceRow>(
   query: PlaceQuery,
   found: readonly T[],
   rescued: readonly T[] | null,
-): T[] {
+): (T | CountryRow)[] {
   if (found.length > 0 || !query.fallback || !rescued) {
-    return rankPlaces(found, query);
+    return rankPlaces<T | CountryRow>([...countriesNamed(query), ...found], query);
   }
-  return rankPlaces(rescued, query.fallback);
+  return rankPlaces<T | CountryRow>(
+    [...countriesNamed(query.fallback), ...rescued],
+    query.fallback,
+  );
 }

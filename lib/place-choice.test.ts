@@ -1,9 +1,35 @@
 import { describe, expect, it } from "vitest";
 
-import { chosenPlace, isLink, typedPlaceName, unmatchedSearch } from "./place-choice";
+import {
+  chosenPlace,
+  isLink,
+  placeText,
+  typedPlaceName,
+  unmatchedSearch,
+} from "./place-choice";
 
 const abidjan = { value: 2293538, label: "Abidjan, Côte d’Ivoire" };
 const saved = { value: 184745, label: "Nairobi, Kenya" };
+
+describe("placeText", () => {
+  it("keeps a town and its country", () => {
+    expect(
+      placeText({ name: "Nairobi", country_code: "KE", is_country: false }),
+    ).toEqual({ city: "Nairobi", country: "Kenya", label: "Nairobi, Kenya" });
+  });
+
+  it("keeps no town for a whole country (Step 79)", () => {
+    expect(
+      placeText({ name: "Tanzania", country_code: "TZ", is_country: true }),
+    ).toEqual({ city: "", country: "Tanzania", label: "Tanzania" });
+  });
+
+  it("keeps the town alone when the country isn't known", () => {
+    expect(
+      placeText({ name: "Shishang", country_code: null, is_country: false }),
+    ).toEqual({ city: "Shishang", country: "", label: "Shishang" });
+  });
+});
 
 describe("chosenPlace", () => {
   it("shows nothing when the form has no place", () => {

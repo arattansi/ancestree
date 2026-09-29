@@ -17,6 +17,34 @@ export function countryName(code: string | null | undefined): string {
   }
 }
 
+/**
+ * Where the `places` rows for whole countries start (Step 79): a place of
+ * birth can be just a country. GeoNames' own ids stay far below this, and a
+ * Root's hand-added places start at 10,000,000,000.
+ */
+export const COUNTRY_PLACE_ID_BASE = 9_000_000_000;
+
+/**
+ * A country's `places.id`: the base plus its two letters' character codes
+ * ("TZ" is 9,000,008,490). Migration `20260928190000_country_places` makes
+ * the same ids in SQL.
+ */
+export function countryPlaceId(code: string): number {
+  const cc = code.trim().toUpperCase();
+  return COUNTRY_PLACE_ID_BASE + cc.charCodeAt(0) * 100 + cc.charCodeAt(1);
+}
+
+/** Whether a `places` row is a whole country rather than a town (Step 79). */
+export function isCountryPlace(place: { feature_code: string | null }): boolean {
+  // GeoNames files countries under PCL (PCLI, PCLD…); ours are plain PCL.
+  return place.feature_code?.startsWith("PCL") ?? false;
+}
+
+/** The same from a place's id alone, where only the id is at hand. */
+export function isCountryPlaceId(id: number): boolean {
+  return id >= COUNTRY_PLACE_ID_BASE && id < COUNTRY_PLACE_ID_BASE + 10_000;
+}
+
 /** Every ISO-3166-1 alpha-2 code, for the "add a place" country picker. */
 export const ALPHA2: readonly string[] = [
   "AD","AE","AF","AG","AI","AL","AM","AO","AQ","AR","AS","AT","AU","AW","AX","AZ",

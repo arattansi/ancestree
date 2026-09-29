@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 
+import { countryPlaceId } from "./country-names";
 import {
   choosePlaces,
+  countriesNamed,
   foldPlaceText,
+  isCountryRow,
   rankPlaces,
   shapePlaceQuery,
   type PlaceQuery,
@@ -343,5 +346,118 @@ describe("choosePlaces", () => {
   it("offers nothing when neither search finds anything", () => {
     expect(offered("Zzvillagesixtyfour taluka", [], [])).toEqual([]);
     expect(offered("Zzvillagesixtyfour", [])).toEqual([]);
+  });
+});
+
+describe("countries (Step 79)", () => {
+  const country = (code: string) => countryPlaceId(code);
+  const named = (typed: string) =>
+    countriesNamed(query(typed)).map((c) => c.country_code);
+
+  it("offers the country its name starts", () => {
+    expect(named("Tanzania")).toEqual(["TZ"]);
+    expect(named("tanz")).toEqual(["TZ"]);
+    expect(named("Kenya, Africa")).toEqual(["KE"]);
+    expect(named("Nairobi")).toEqual([]);
+  });
+
+  it("offers a country by the names family records use", () => {
+    expect(named("Tanganyika")).toEqual(["TZ"]);
+    expect(named("Ceylon")).toEqual(["LK"]);
+    expect(named("Burma")).toEqual(["MM"]);
+    expect(named("USA")).toEqual(["US"]);
+    expect(named("Turkey")).toEqual(["TR"]);
+    expect(named("Türkiye")).toEqual(["TR"]);
+    expect(named("DR Congo")).toEqual(["CD"]);
+  });
+
+  it("offers a country by a later word of its name too", () => {
+    expect(named("Korea")).toEqual(["KP", "KR"]);
+    // Rhodesia was Zimbabwe; Northern Rhodesia, Zambia.
+    expect(named("Rhodesia")).toEqual(["ZM", "ZW"]);
+  });
+
+  it("reads St. as saint, and a country without its the", () => {
+    expect(named("Saint Lucia")).toEqual(["LC"]);
+    expect(named("St Lucia")).toEqual(["LC"]);
+    expect(named("The Gambia")).toEqual(["GM"]);
+    expect(named("Bosnia and")).toEqual(["BA"]);
+    expect(named("Cote d'Ivoire")).toEqual(["CI"]);
+  });
+
+  it("doesn't offer all of Tanzania for Zanzibar, a part of it", () => {
+    expect(named("Zanzibar")).toEqual([]);
+  });
+
+  it("needs a whole name under three letters", () => {
+    expect(named("UK")).toEqual(["GB"]);
+    expect(named("Ke")).toEqual([]);
+    expect(named("in")).toEqual([]);
+  });
+
+  it("names each country by its place id", () => {
+    const [tanzania] = countriesNamed(query("Tanzania"));
+    expect(tanzania).toMatchObject({
+      id: country("TZ"),
+      name: "Tanzania",
+      country_code: "TZ",
+      admin1_code: null,
+      population: null,
+    });
+    expect(isCountryRow(tanzania)).toBe(true);
+    expect(isCountryRow(NAIROBI[0])).toBe(false);
+  });
+
+  it("offers a country found by its name alone, with no places", () => {
+    expect(offered("Tanzania", [])).toEqual([country("TZ")]);
+    expect(offered("Tanganyika", [])).toEqual([country("TZ")]);
+  });
+
+  it("puts a country before a place by the same name", () => {
+    const singapore = row(1880252, "Singapore", "00", "SG", 3547809);
+    expect(offered("Singapore", [singapore])).toEqual([country("SG"), 1880252]);
+    const indianapolis = row(4259418, "Indianapolis", "IN", "US", 870788);
+    expect(offered("India", [indianapolis])).toEqual([
+      country("IN"),
+      4259418,
+      country("IO"), // British Indian Ocean Territory, by a later word
+    ]);
+    expect(offered("Ind", [indianapolis])).toEqual([
+      country("IN"),
+      country("ID"), // Indonesia
+      4259418,
+      country("IO"),
+    ]);
+  });
+
+  it("puts places whose name starts the same before a country found by a later word", () => {
+    const manila = row(1701668, "Manila", "NCR", "PH", 1600000);
+    const manchester = row(2643123, "Manchester", "ENG", "GB", 395515);
+    expect(offered("Man", [manila, manchester])).toEqual([
+      1701668,
+      2643123,
+      country("IM"), // Isle of Man
+    ]);
+  });
+
+  it("puts places in the region named after the comma before a country", () => {
+    const georgiana = row(4061234, "Georgiana", "AL", "US", 1738);
+    expect(offered("Georgia, US", [georgiana])).toEqual([
+      4061234,
+      country("GE"),
+      country("GS"), // South Georgia & South Sandwich Islands
+    ]);
+  });
+
+  it("offers the country when only the fallback search runs", () => {
+    // "tuerkiye" finds no place, so the plain spelling is searched.
+    expect(offered("Türkiye", [], [])).toEqual([country("TR")]);
+  });
+
+  it("leaves the searches that name no country as they were", () => {
+    expect(offered("London", LONDON)).toEqual(
+      rankPlaces(LONDON, query("London")).map((p) => p.id),
+    );
+    expect(offered("Kalavad taluka", [], [KALAVAD])).toEqual([1268450]);
   });
 });

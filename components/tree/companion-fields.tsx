@@ -4,8 +4,11 @@ import * as React from "react";
 import { useFormContext, useWatch, type Control } from "react-hook-form";
 
 import { AncestralLandsField } from "@/components/ancestral-lands";
-import { PlaceAutocomplete } from "@/components/place-autocomplete";
-import { countryName } from "@/lib/country-names";
+import {
+  PlaceAutocomplete,
+  type SelectedPlace,
+} from "@/components/place-autocomplete";
+import { placeText } from "@/lib/place-choice";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   FormControl,
@@ -56,21 +59,17 @@ export function CompanionFields({
     [cityOfBirth, countryOfBirth].filter(Boolean).join(", ") || null;
 
   // Same write pattern a person entry uses: the FK plus the denormalised
-  // city / country text the panel reads back without a join.
+  // city / country text the panel reads back without a join (no city for a
+  // whole country, Step 79).
   const onPlaceChange = React.useCallback(
-    (place: { id: number; name: string; country_code: string | null } | null) => {
+    (place: SelectedPlace | null) => {
+      const text = place ? placeText(place) : null;
       setValue("place_id_birth", place?.id ?? null, {
         shouldValidate: true,
         shouldDirty: true,
       });
-      setValue("city_of_birth", place?.name ?? "", { shouldDirty: true });
-      setValue(
-        "country_of_birth",
-        place
-          ? countryName(place.country_code) || place.country_code || ""
-          : "",
-        { shouldDirty: true },
-      );
+      setValue("city_of_birth", text?.city ?? "", { shouldDirty: true });
+      setValue("country_of_birth", text?.country ?? "", { shouldDirty: true });
     },
     [setValue],
   );
@@ -210,7 +209,7 @@ export function CompanionFields({
                 initialLabel={initialPlaceLabel}
                 isAdmin={isAdmin}
                 invalid={Boolean(fieldState.error)}
-                placeholder="Search for a city, town, or village…"
+                placeholder="Search for a town, village, or country…"
                 onChange={onPlaceChange}
               />
             </FormControl>
