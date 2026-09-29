@@ -6,26 +6,31 @@ import type { TreePet } from "@/lib/pets";
 import type { TreeGraphEdge, TreeGraphPerson } from "@/lib/tree";
 import { layoutTree, type TreeLayout } from "@/lib/tree-layout";
 
+/** The people's half of the canvas, laid out; companions go on after. */
+export type PeopleGraph = {
+  nodes: Node[];
+  edges: Edge[];
+  layout: TreeLayout;
+  /** Who is drawn, and whom each is drawn married to, for the companions. */
+  ids: Set<string>;
+  spousesOf: Map<string, string[]>;
+};
+
 /**
  * A tree as the canvas draws it (Step 77.6, moved out of `family-tree.tsx`):
  * a card per person where the layout puts them, a descent line per child
- * and a line per marriage, and the companions hung off their people. Pure:
- * the same tree gives the same graph.
+ * and a line per marriage. Companions are hung off their people apart
+ * (`withPets`), so switching them on or off doesn't lay the people out again
+ * (Step 87.1, audit C8). Pure: the same tree gives the same graph.
  */
-export function buildGraph(
+export function buildPeopleGraph(
   people: TreeGraphPerson[],
   relationships: TreeGraphEdge[],
-  pets: TreePet[],
   selfPersonId: string | null,
   anchorIds: string[],
   /** Rows fixed from a fuller canvas (`LayoutOptions.generations`). */
   generations?: ReadonlyMap<string, number>,
-): {
-  nodes: Node[];
-  edges: Edge[];
-  layout: TreeLayout;
-  petPositions: Map<string, { x: number; y: number }>;
-} {
+): PeopleGraph {
   const layout = layoutTree(people, relationships, { anchorIds, generations });
   const { positions, unions } = layout;
   const ids = new Set(people.map((p) => p.id));
@@ -98,13 +103,9 @@ export function buildGraph(
     });
   }
 
-  // Companions are laid out *after* the humans, from the human positions, and
-  // joined by a dotted lead rather than a descent or spouse line: nothing about
-  // a pet is allowed to look like a family edge.
-  //
-  // The spouse map goes along so a married primary anchors its pet on the
-  // couple: a household pet straddles the pair rather than hanging off one of
-  // them, whether or not both partners were listed as companions.
+  // The spouse map goes along to the companions so a married primary anchors
+  // its pet on the couple: a household pet straddles the pair rather than
+  // hanging off one of them, whether or not both partners were listed.
   const spousesOf = new Map<string, string[]>();
   for (const r of relationships) {
     if (r.type !== "spouse") continue;
@@ -119,6 +120,27 @@ export function buildGraph(
     ]);
   }
 
+  return { nodes, edges, layout, ids, spousesOf };
+}
+
+/**
+ * The people's graph with the companions hung off it. Companions are laid
+ * out *after* the humans, from the human positions, and joined by a dotted
+ * lead rather than a descent or spouse line: nothing about a pet is allowed
+ * to look like a family edge.
+ */
+export function withPets(
+  graph: PeopleGraph,
+  pets: TreePet[],
+): {
+  nodes: Node[];
+  edges: Edge[];
+  layout: TreeLayout;
+  petPositions: Map<string, { x: number; y: number }>;
+} {
+  const { layout, ids, spousesOf } = graph;
+  const nodes = [...graph.nodes];
+  const edges = [...graph.edges];
   const petLayout = layoutPets(
     pets.map((pet) => ({
       id: pet.id,

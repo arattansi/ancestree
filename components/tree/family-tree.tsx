@@ -35,7 +35,7 @@ import { setPetPosition } from "@/app/actions/pets";
 import { ConfirmButton } from "@/components/confirm-dialog";
 import { RequestInviteDialog } from "@/components/request-invite-form";
 import { AddRelativeButton } from "@/components/tree/add-relative-button";
-import { buildGraph } from "@/components/tree/build-graph";
+import { buildPeopleGraph, withPets } from "@/components/tree/build-graph";
 import { ColumnsIcon, ExpandingLabel } from "@/components/tree/canvas-controls";
 import { edgeTypes } from "@/components/tree/canvas-edges";
 import { FoldedDetails } from "@/components/tree/folded-details";
@@ -117,6 +117,10 @@ import { descentGeometry, type CardRect } from "@/lib/edge-geometry";
 import { NODE_H, NODE_W, type XY } from "@/lib/tree-dimensions";
 import { bloodline, layoutTree } from "@/lib/tree-layout";
 import type { TreePet } from "@/lib/pets";
+import { keepEntries, keepNodes } from "@/lib/canvas-nodes";
+import { keptPhotoUrl } from "@/lib/signed-url";
+import { shareEqual } from "@/lib/structural-share";
+import { useKept } from "@/components/tree/use-kept";
 import { personDisplayName, personHasDied } from "@/lib/person-name";
 import {
   anchorPoint,
@@ -310,12 +314,13 @@ function Canvas({
         : undefined,
     [descent, sidePeople, sideRelationships, sideAnchorIds],
   );
-  const graph = React.useMemo(
+  // The people are laid out apart from their companions, so switching
+  // companions on or off only hangs them on or takes them off (Step 87.1).
+  const peopleGraph = React.useMemo(
     () =>
-      buildGraph(
+      buildPeopleGraph(
         shownPeople,
         shownRelationships,
-        pets,
         selfPersonId,
         descent ? descent.anchorIds : sideAnchorIds,
         rows,
@@ -323,12 +328,15 @@ function Canvas({
     [
       shownPeople,
       shownRelationships,
-      pets,
       selfPersonId,
       descent,
       sideAnchorIds,
       rows,
     ],
+  );
+  const graph = React.useMemo(
+    () => withPets(peopleGraph, pets),
+    [peopleGraph, pets],
   );
   const shownIds = React.useMemo(
     () => new Set(shownPeople.map((p) => p.id)),
@@ -399,7 +407,22 @@ function Canvas({
     return locked;
   }, [readOnly, people, pets, viewer, canEditPersonId]);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(graph.nodes);
+  // A locked card is seeded with `draggable: false` — only ever `false`: a
+  // node's own `true` would override `nodesDraggable={false}` and let cards
+  // move while a tree is pulled out. Seeding it here rather than layering it
+  // on per render keeps each card the same object through someone else's
+  // drag, so only the card being dragged re-renders. The canvas starts from
+  // these too, so a Leaf's or a Branch's isn't seeded twice (Step 87.1).
+  const seeded = React.useMemo(
+    () =>
+      lockedIds.size === 0
+        ? graph.nodes
+        : graph.nodes.map((n) =>
+            lockedIds.has(n.id) ? { ...n, draggable: false } : n,
+          ),
+    [graph, lockedIds],
+  );
+  const [nodes, setNodes, onNodesChange] = useNodesState(seeded);
   const [edges, setEdges, onEdgesChange] = useEdgesState(graph.edges);
   // `/tree?person=<id>` opens the canvas on one entry — where the "View on
   // tree" button on a notification points. The panel opens on the first render
@@ -539,23 +562,14 @@ function Canvas({
   const colorMode = themeReady && resolvedTheme === "dark" ? "dark" : "light";
 
   // Re-seed the canvas whenever the graph itself changes — a new relative, or
-  // an auto-arrange that cleared everybody's nudges.
-  //
-  // A locked card is seeded with `draggable: false` — only ever `false`: a
-  // node's own `true` would override `nodesDraggable={false}` and let cards
-  // move while a tree is pulled out. Seeding it here rather than layering it
-  // on per render keeps each card the same object through someone else's
-  // drag, so only the card being dragged re-renders.
+  // an auto-arrange that cleared everybody's nudges. Cards and lines that
+  // didn't change stay as the canvas holds them, and the rest carry their
+  // measurements over, so nothing blinks out while it's measured again
+  // (Step 87.1, audit C2).
   React.useEffect(() => {
-    setNodes(
-      lockedIds.size === 0
-        ? graph.nodes
-        : graph.nodes.map((n) =>
-            lockedIds.has(n.id) ? { ...n, draggable: false } : n,
-          ),
-    );
-    setEdges(graph.edges);
-  }, [graph, lockedIds, setNodes, setEdges]);
+    setNodes((held) => keepNodes(held, seeded));
+    setEdges((held) => shareEqual(held, graph.edges));
+  }, [graph, seeded, setNodes, setEdges]);
 
   const filterActive = isFilterActive(filter);
   const matchingIds = React.useMemo(() => {
@@ -903,7 +917,7 @@ function Canvas({
   // when the tree does — rather than off the live `nodes` state, so a drag
   // hands every card back the same `data` object it already had and only the
   // card being dragged re-renders.
-  const dataById = React.useMemo(() => {
+  const freshDataById = React.useMemo(() => {
     const petById = new Map(pets.map((pet) => [pet.id, pet]));
     const endpoints = connection?.endpoints ?? null;
     const lineCards = connection?.cards ?? null;
@@ -964,6 +978,9 @@ function Canvas({
     selectedId,
     selectedPetId,
   ]);
+  // A card whose flags came out the same is handed the very same `data`, so
+  // it doesn't draw again when the rest of the tree changes (Step 87.1).
+  const dataById = useKept(freshDataById, keepEntries);
 
   const displayNodes = React.useMemo(
     () =>
@@ -2143,7 +2160,37 @@ function Canvas({
   );
 }
 
-export function FamilyTree(props: Props) {
+/** Rows with each photo at the address this tab already has for it. */
+function withKeptPhotos<T extends { photo_url: string | null }>(
+  rows: T[],
+): T[] {
+  let changed = false;
+  const kept = rows.map((row) => {
+    const url = keptPhotoUrl(row.photo_url);
+    if (url === row.photo_url) return row;
+    changed = true;
+    return { ...row, photo_url: url };
+  });
+  return changed ? kept : rows;
+}
+
+/**
+ * What the canvas was handed, with everything equal to what it had last
+ * time kept as the very same objects (Step 87.1, audit C2): a save hands
+ * over every row afresh, and each photo newly signed, though almost none of
+ * them changed. Kept, the layout doesn't run again, the canvas isn't
+ * re-seeded, and only the cards whose rows did change draw again.
+ */
+function keepProps(prev: Props, next: Props): Props {
+  return shareEqual(prev, {
+    ...next,
+    people: withKeptPhotos(next.people),
+    pets: withKeptPhotos(next.pets),
+  });
+}
+
+export function FamilyTree(given: Props) {
+  const props = useKept(given, keepProps);
   if (props.people.length === 0) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-24 text-center">

@@ -115,4 +115,9 @@ function PetNodeImpl({ data }: NodeProps) {
   );
 }
 
-export const PetNode = React.memo(PetNodeImpl);
+// A card draws from its `data` alone: the canvas places it, so a card the
+// layout only moved isn't drawn again (Step 87.1).
+export const PetNode = React.memo(
+  PetNodeImpl,
+  (prev: NodeProps, next: NodeProps) => prev.data === next.data,
+);

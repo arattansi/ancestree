@@ -309,4 +309,9 @@ function PersonNodeImpl({ data }: NodeProps) {
   );
 }
 
-export const PersonNode = React.memo(PersonNodeImpl);
+// A card draws from its `data` alone: the canvas places it, so a card the
+// layout only moved isn't drawn again (Step 87.1).
+export const PersonNode = React.memo(
+  PersonNodeImpl,
+  (prev: NodeProps, next: NodeProps) => prev.data === next.data,
+);
