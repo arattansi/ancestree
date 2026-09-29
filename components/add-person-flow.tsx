@@ -63,6 +63,7 @@ import {
 } from "@/components/ui/select";
 import { useAction } from "@/components/use-action";
 import { useFocusReturn } from "@/components/use-focus-return";
+import { usePhotoDraft } from "@/components/use-photo-draft";
 import {
   bloodTieWarning,
   newWithoutBloodTie,
@@ -77,12 +78,11 @@ import {
   type RelationshipKind,
 } from "@/lib/connections";
 import { isEmailAddress } from "@/lib/email-address";
-import { DEFAULT_CROP, type CropTransform } from "@/lib/image-crop";
 import { marriageDateProblems, toStoredDate } from "@/lib/partial-date";
 import { personDisplayName } from "@/lib/person-name";
 import { emptyPersonValues, personSchema } from "@/lib/person-schema";
+import { attachPhoto } from "@/lib/photo-upload";
 import { plural } from "@/lib/plural";
-import { createClient } from "@/lib/supabase/client";
 import { treeFocusHref } from "@/lib/tree-links";
 
 /** Multi-connection cap — keeps the one submit transaction small (Task 11.4). */
@@ -398,9 +398,7 @@ export function AddPersonFlow({
   const [connecting, setConnecting] = React.useState(
     mustConnect || members.length > 0,
   );
-  const [photoFile, setPhotoFile] = React.useState<File | null>(null);
-  const [photoBusy, setPhotoBusy] = React.useState(false);
-  const [crop, setCrop] = React.useState<CropTransform>(DEFAULT_CROP);
+  const photo = usePhotoDraft();
   // The form's save and the connection dialog's go through one handle: the
   // button pressed stays busy until the page it lands on shows, so a second
   // press can't save the same people again (Steps 61, 70).
@@ -559,16 +557,6 @@ export function AddPersonFlow({
       ? nameOf(i + 1, `Person ${i + 1}`)
       : primaryLabel;
 
-  async function uploadPhoto(personId: string, file: File): Promise<string> {
-    const supabase = createClient();
-    const path = `${treeId}/${personId}/${crypto.randomUUID()}.jpg`;
-    const { error } = await supabase.storage
-      .from("photos")
-      .upload(path, file, { contentType: "image/jpeg", upsert: false });
-    if (error) throw error;
-    return path;
-  }
-
   function addIntermediate() {
     people.append(emptyPersonValues);
     links.append({ kind: "child" });
@@ -623,12 +611,14 @@ export function AddPersonFlow({
     }
 
     const primaryId = result.personIds[0];
-    if (photoFile && primaryId) {
-      try {
-        const path = await uploadPhoto(primaryId, photoFile);
-        const res = await setPersonPhoto(primaryId, path, crop);
-        if (res.error) throw new Error(res.error);
-      } catch {
+    const { file, crop } = photo;
+    if (file && primaryId) {
+      const res = await attachPhoto(
+        { kind: "person", treeId, personId: primaryId },
+        file,
+        (path) => setPersonPhoto(primaryId, path, crop),
+      );
+      if (res.error) {
         toast.warning("Saved — but the photo didn't upload. Add it later.");
       }
     }
@@ -753,11 +743,7 @@ export function AddPersonFlow({
   const photoField = (
     <PhotoPicker
       id="primary-photo"
-      value={photoFile}
-      onChange={setPhotoFile}
-      crop={crop}
-      onCropChange={setCrop}
-      onBusyChange={setPhotoBusy}
+      {...photo.picker}
       disabled={action.pending}
     />
   );
@@ -1230,7 +1216,7 @@ export function AddPersonFlow({
           pending={action.pending}
           pendingLabel="Saving…"
           disabled={
-            photoBusy || !form.formState.isValid || (needAnchor && !anchorId)
+            photo.busy || !form.formState.isValid || (needAnchor && !anchorId)
           }
         >
           {mode === "self"

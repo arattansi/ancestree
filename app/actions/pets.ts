@@ -8,6 +8,7 @@ import {
   type ErrorRule,
 } from "@/lib/db-errors";
 import { toStoredCrop, type CropTransform } from "@/lib/image-crop";
+import { photoPathOwner } from "@/lib/photo-path";
 import { petSchema, toPetPayload, type PetFormValues } from "@/lib/pet-schema";
 import { revalidateTreePages } from "@/lib/revalidate";
 import { membershipOf } from "@/lib/tree-context";
@@ -257,21 +258,54 @@ export async function removePet(petId: string): Promise<{ error?: string }> {
   return {};
 }
 
-/** Point a pet row at an uploaded photo (or clear it). */
+/**
+ * Point a pet row at an uploaded photo (or clear it). Only a photo in this
+ * companion's own folder, on its own tree (Step 77.4): the tree's members
+ * can read nothing else.
+ */
 export async function setPetPhoto(
   petId: string,
   photoPath: string | null,
   crop?: CropTransform,
 ): Promise<{ error?: string }> {
   await requireProfile();
+  const owner = photoPath === null ? null : photoPathOwner(photoPath);
+  if (photoPath !== null && (owner?.kind !== "pet" || owner.petId !== petId)) {
+    return { error: "That photo isn't this companion's." };
+  }
+  const supabase = await createClient();
+  let write = supabase
+    .from("pets")
+    .update({
+      photo_path: photoPath,
+      photo_crop: photoPath && crop ? toStoredCrop(crop) : null,
+    })
+    .eq("id", petId);
+  // In a folder of another tree, nobody on this one could see it.
+  if (owner) write = write.eq("tree_id", owner.treeId);
+  const saved = await ownedWrite(write.select("id"), {
+    refused: NOT_YOURS_TO_EDIT,
+    failed: friendlyError,
+  });
+  if (saved.error) return { error: saved.error };
+  revalidateTreePages();
+  return {};
+}
+
+/**
+ * Re-frame a companion's photo that's already uploaded — no new file. Its
+ * "Reposition" used to be dropped on save (Step 77.4).
+ */
+export async function setPetPhotoCrop(
+  petId: string,
+  crop: CropTransform,
+): Promise<{ error?: string }> {
+  await requireProfile();
   const supabase = await createClient();
   const saved = await ownedWrite(
     supabase
       .from("pets")
-      .update({
-        photo_path: photoPath,
-        photo_crop: photoPath && crop ? toStoredCrop(crop) : null,
-      })
+      .update({ photo_crop: toStoredCrop(crop) })
       .eq("id", petId)
       .select("id"),
     { refused: NOT_YOURS_TO_EDIT, failed: friendlyError },

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { firstFocusable, useFocusReturn } from "@/components/use-focus-return";
+import { usePickedUrl } from "@/components/use-photo-draft";
 import { compressImage } from "@/lib/image";
 import { cropStyle, DEFAULT_CROP, type CropTransform } from "@/lib/image-crop";
 
@@ -58,14 +59,7 @@ export function PhotoPicker({
 
   React.useEffect(() => onBusyChange?.(busy), [busy, onBusyChange]);
 
-  const pickedUrl = React.useMemo(
-    () => (value ? URL.createObjectURL(value) : null),
-    [value],
-  );
-  React.useEffect(() => {
-    if (!pickedUrl) return;
-    return () => URL.revokeObjectURL(pickedUrl);
-  }, [pickedUrl]);
+  const pickedUrl = usePickedUrl(value);
 
   async function handlePick(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];

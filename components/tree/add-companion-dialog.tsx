@@ -18,13 +18,14 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Form } from "@/components/ui/form";
 import { useAction } from "@/components/use-action";
-import { DEFAULT_CROP, type CropTransform } from "@/lib/image-crop";
+import { usePhotoDraft } from "@/components/use-photo-draft";
+import { DEFAULT_CROP } from "@/lib/image-crop";
 import {
   emptyPetValues,
   petSchema,
   type PetFormValues,
 } from "@/lib/pet-schema";
-import { createClient } from "@/lib/supabase/client";
+import { attachPhoto } from "@/lib/photo-upload";
 
 /**
  * Add a companion animal.
@@ -51,9 +52,7 @@ export function AddCompanionDialog({
   isAdmin?: boolean;
 }) {
   const [companions, setCompanions] = React.useState<string[]>([startingWith]);
-  const [photoFile, setPhotoFile] = React.useState<File | null>(null);
-  const [photoBusy, setPhotoBusy] = React.useState(false);
-  const [crop, setCrop] = React.useState<CropTransform>(DEFAULT_CROP);
+  const photo = usePhotoDraft();
   const action = useAction({ inline: true });
 
   const form = useForm<PetFormValues>({
@@ -69,20 +68,19 @@ export function AddCompanionDialog({
   if (seed !== `${open}:${startingWith}`) {
     setSeed(`${open}:${startingWith}`);
     setCompanions([startingWith]);
-    setPhotoFile(null);
-    setCrop(DEFAULT_CROP);
+    photo.reset(DEFAULT_CROP);
     form.reset(emptyPetValues);
     action.setError(null);
   }
 
-  const submitting = action.pending || photoBusy;
+  const submitting = action.pending || photo.busy;
 
   const onSubmit = form.handleSubmit((values) => {
     if (companions.length === 0) {
       action.setError("Pick at least one person this companion belongs to.");
       return;
     }
-    const file = photoFile;
+    const { file, crop } = photo;
     action.run(
       "add",
       async () => {
@@ -102,19 +100,13 @@ export function AddCompanionDialog({
         // The companion exists now, so a photo that fails only warns: a
         // second press would add it twice.
         if (file) {
-          try {
-            const supabase = createClient();
-            const path = `${treeId}/pets/${result.petId}/${crypto.randomUUID()}.jpg`;
-            const { error } = await supabase.storage
-              .from("photos")
-              .upload(path, file, {
-                contentType: "image/jpeg",
-                upsert: false,
-              });
-            if (error) throw error;
-            const res = await setPetPhoto(result.petId, path, crop);
-            if (res.error) throw new Error(res.error);
-          } catch {
+          const petId = result.petId;
+          const res = await attachPhoto(
+            { kind: "pet", treeId, petId },
+            file,
+            (path) => setPetPhoto(petId, path, crop),
+          );
+          if (res.error) {
             toast.warning(
               "The photo didn't upload — the companion was still added.",
             );
@@ -154,13 +146,9 @@ export function AddCompanionDialog({
 
             <PhotoPicker
               id="add-companion-photo"
-              value={photoFile}
-              onChange={setPhotoFile}
-              crop={crop}
-              onCropChange={setCrop}
+              {...photo.picker}
               label="Photo (optional)"
               disabled={submitting}
-              onBusyChange={setPhotoBusy}
             />
 
             <FormError>{action.error}</FormError>
@@ -170,7 +158,7 @@ export function AddCompanionDialog({
                 size="sm"
                 pending={action.pending}
                 pendingLabel="Adding…"
-                disabled={photoBusy}
+                disabled={photo.busy}
               >
                 Add companion
               </PendingButton>

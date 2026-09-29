@@ -28,6 +28,7 @@ import { Form } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAction } from "@/components/use-action";
+import { usePhotoDraft } from "@/components/use-photo-draft";
 import { coParentSelection, type PartnerOption } from "@/lib/connections";
 import {
   closeRelativeEdges,
@@ -36,7 +37,6 @@ import {
   type CloseRelativeLinks,
 } from "@/lib/first-tree";
 import { isEmailAddress } from "@/lib/email-address";
-import { DEFAULT_CROP, type CropTransform } from "@/lib/image-crop";
 import { marriageDateProblems } from "@/lib/partial-date";
 import { personDisplayName } from "@/lib/person-name";
 import {
@@ -44,7 +44,7 @@ import {
   personSchema,
   type PersonFormValues,
 } from "@/lib/person-schema";
-import { createClient } from "@/lib/supabase/client";
+import { attachPhoto } from "@/lib/photo-upload";
 
 const TITLES: Record<CloseKind, string> = {
   parent: "Add a parent",
@@ -123,9 +123,7 @@ function QuickRelativeForm({
   }>({});
   const [coParents, setCoParents] = React.useState<string[] | null>(null);
   const [shared, setShared] = React.useState<string[]>(parents.map((p) => p.id));
-  const [photoFile, setPhotoFile] = React.useState<File | null>(null);
-  const [photoBusy, setPhotoBusy] = React.useState(false);
-  const [crop, setCrop] = React.useState<CropTransform>(DEFAULT_CROP);
+  const photo = usePhotoDraft();
   const [inviteEmail, setInviteEmail] = React.useState("");
   // Busy until the family step has drawn them in; what goes wrong shows by
   // the button.
@@ -138,7 +136,7 @@ function QuickRelativeForm({
     isDivorced: p.isDivorced,
   }));
   const otherParent = kind === "parent" && parents.length === 1 ? parents[0] : null;
-  const submitting = action.pending || photoBusy;
+  const submitting = action.pending || photo.busy;
 
   function onSubmit(values: PersonFormValues) {
     action.setError(null);
@@ -190,17 +188,14 @@ function QuickRelativeForm({
 
         // They're on the tree from here on: nothing after this may send the
         // form back to its start, where a second press would add them twice.
-        if (photoFile) {
-          try {
-            const supabase = createClient();
-            const path = `${treeId}/${personId}/${crypto.randomUUID()}.jpg`;
-            const { error: uploadError } = await supabase.storage
-              .from("photos")
-              .upload(path, photoFile, { contentType: "image/jpeg", upsert: false });
-            if (uploadError) throw uploadError;
-            const res = await setPersonPhoto(personId, path, crop);
-            if (res.error) throw new Error(res.error);
-          } catch {
+        const { file, crop } = photo;
+        if (file) {
+          const res = await attachPhoto(
+            { kind: "person", treeId, personId },
+            file,
+            (path) => setPersonPhoto(personId, path, crop),
+          );
+          if (res.error) {
             toast.warning("Added — but the photo didn't upload. Add it from the tree.");
           }
         }
@@ -338,11 +333,7 @@ function QuickRelativeForm({
 
         <PhotoPicker
           id={`quick-${kind}-photo`}
-          value={photoFile}
-          onChange={setPhotoFile}
-          crop={crop}
-          onCropChange={setCrop}
-          onBusyChange={setPhotoBusy}
+          {...photo.picker}
           label="Photo (optional)"
           disabled={submitting}
         />
@@ -353,7 +344,7 @@ function QuickRelativeForm({
           <PendingButton
             type="submit"
             pending={action.pending}
-            disabled={photoBusy}
+            disabled={photo.busy}
             pendingLabel="Adding…"
           >
             {TITLES[kind]}

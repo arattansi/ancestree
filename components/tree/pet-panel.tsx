@@ -10,6 +10,7 @@ import {
   removePet,
   removePetCompanion,
   setPetPhoto,
+  setPetPhotoCrop,
   setPetPrimaryCompanion,
   updatePet,
 } from "@/app/actions/pets";
@@ -36,13 +37,9 @@ import {
 } from "@/components/ui/sheet";
 import { toastError, useAction } from "@/components/use-action";
 import { useFocusReturn } from "@/components/use-focus-return";
+import { usePhotoDraft } from "@/components/use-photo-draft";
 import { UNREACHABLE } from "@/lib/action-feedback";
-import {
-  cropStyle,
-  DEFAULT_CROP,
-  parseCrop,
-  type CropTransform,
-} from "@/lib/image-crop";
+import { cropStyle, DEFAULT_CROP, parseCrop } from "@/lib/image-crop";
 import {
   formatPetBirthday,
   petBirthplace,
@@ -54,7 +51,7 @@ import {
   type PetSpecies,
 } from "@/lib/pet-schema";
 import type { TreePet } from "@/lib/pets";
-import { createClient } from "@/lib/supabase/client";
+import { attachPhoto } from "@/lib/photo-upload";
 
 const toFormValues = (pet: TreePet): PetFormValues => ({
   name: pet.name,
@@ -121,10 +118,11 @@ export function PetPanel({
   onSelectPerson: (personId: string) => void;
 }) {
   const [editing, setEditing] = React.useState(false);
-  const [photoFile, setPhotoFile] = React.useState<File | null>(null);
-  const [photoBusy, setPhotoBusy] = React.useState(false);
-  const savedCrop = parseCrop(pet?.photo_crop);
-  const [crop, setCrop] = React.useState<CropTransform>(savedCrop);
+  const savedCrop = React.useMemo(
+    () => parseCrop(pet?.photo_crop),
+    [pet?.photo_crop],
+  );
+  const photo = usePhotoDraft(savedCrop);
   const [prevId, setPrevId] = React.useState(pet?.id);
 
   const form = useForm<PetFormValues>({
@@ -150,8 +148,7 @@ export function PetPanel({
   if (pet?.id !== prevId) {
     setPrevId(pet?.id);
     setEditing(false);
-    setPhotoFile(null);
-    setCrop(pet ? parseCrop(pet.photo_crop) : DEFAULT_CROP);
+    photo.reset(pet ? parseCrop(pet.photo_crop) : DEFAULT_CROP);
     if (pet) form.reset(toFormValues(pet));
   }
 
@@ -181,28 +178,27 @@ export function PetPanel({
   function onSave(values: PetFormValues) {
     if (!pet) return;
     const petId = pet.id;
-    const file = photoFile;
+    const { file, crop } = photo;
+    // Reposition on the photo it has, with no new one: saved on its own
+    // (Step 77.4) — it used to be dropped.
+    const reframed = !!pet.photo_path && photo.reframed;
     edit.run(
       "save",
       async () => {
         if (file) {
-          try {
-            const supabase = createClient();
-            const path = `${treeId}/pets/${petId}/${crypto.randomUUID()}.jpg`;
-            const { error } = await supabase.storage
-              .from("photos")
-              .upload(path, file, {
-                contentType: "image/jpeg",
-                upsert: false,
-              });
-            if (error) throw error;
-            const res = await setPetPhoto(petId, path, crop);
-            if (res.error) throw new Error(res.error);
-          } catch {
+          const res = await attachPhoto(
+            { kind: "pet", treeId, petId },
+            file,
+            (path) => setPetPhoto(petId, path, crop),
+          );
+          if (res.error) {
             toast.warning(
               "The photo didn't upload — other changes still saved.",
             );
           }
+        } else if (reframed) {
+          const res = await setPetPhotoCrop(petId, crop);
+          if (res.error) toast.warning("The photo’s new framing didn’t save.");
         }
         return updatePet(petId, values);
       },
@@ -210,7 +206,7 @@ export function PetPanel({
         onSuccess: () => {
           returnFocus(() => editButtonRef.current);
           setEditing(false);
-          setPhotoFile(null);
+          photo.clearFile();
         },
       },
     );
@@ -345,14 +341,10 @@ export function PetPanel({
                     />
                     <PhotoPicker
                       id={`pet-photo-${pet.id}`}
-                      value={photoFile}
-                      onChange={setPhotoFile}
-                      crop={crop}
-                      onCropChange={setCrop}
+                      {...photo.picker}
                       currentUrl={pet.photo_url}
                       label="Photo"
                       disabled={edit.pending}
-                      onBusyChange={setPhotoBusy}
                     />
                     <FormError>{edit.error}</FormError>
                     <div className="flex gap-2">
@@ -361,7 +353,7 @@ export function PetPanel({
                         size="sm"
                         pending={edit.pending}
                         pendingLabel="Saving…"
-                        disabled={photoBusy}
+                        disabled={photo.busy}
                       >
                         Save
                       </PendingButton>
@@ -372,7 +364,8 @@ export function PetPanel({
                         disabled={edit.pending}
                         onClick={() => {
                           form.reset(toFormValues(pet));
-                          setPhotoFile(null);
+                          // Its framing too, now that a reframe saves.
+                          photo.reset();
                           returnFocus(() => editButtonRef.current);
                           setEditing(false);
                         }}

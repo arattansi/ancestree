@@ -20,13 +20,14 @@ import { PhotoPicker } from "@/components/photo-picker";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { useAction } from "@/components/use-action";
-import { parseCrop, type CropTransform } from "@/lib/image-crop";
+import { usePhotoDraft } from "@/components/use-photo-draft";
+import { parseCrop } from "@/lib/image-crop";
 import {
   emptyPersonValues,
   personSchema,
   type PersonFormValues,
 } from "@/lib/person-schema";
-import { createClient } from "@/lib/supabase/client";
+import { attachPhoto } from "@/lib/photo-upload";
 
 type ExistingPerson = PersonFormValues & {
   id: string;
@@ -59,13 +60,11 @@ export function PersonForm({
    *  account page, Save changes ends the form. */
   backHref?: string;
 }) {
-  const [photoFile, setPhotoFile] = React.useState<File | null>(null);
-  const [photoBusy, setPhotoBusy] = React.useState(false);
   const savedCrop = React.useMemo(
     () => parseCrop(person.photo_crop),
     [person.photo_crop],
   );
-  const [crop, setCrop] = React.useState<CropTransform>(savedCrop);
+  const photo = usePhotoDraft(savedCrop);
   const action = useAction({ inline: true });
 
   const form = useForm<PersonFormValues>({
@@ -73,16 +72,6 @@ export function PersonForm({
     mode: "onChange",
     defaultValues: { ...emptyPersonValues, ...stripExisting(person) },
   });
-
-  async function uploadPhoto(personId: string, file: File): Promise<string> {
-    const supabase = createClient();
-    const path = `${treeId}/${personId}/${crypto.randomUUID()}.jpg`;
-    const { error } = await supabase.storage
-      .from("photos")
-      .upload(path, file, { contentType: "image/jpeg", upsert: false });
-    if (error) throw error;
-    return path;
-  }
 
   const onSubmit = form.handleSubmit((values) =>
     action.run(
@@ -92,21 +81,23 @@ export function PersonForm({
         // once the rest has saved: "other changes still saved" can't come
         // before they are.
         let photoProblem: string | null = null;
-        if (photoFile) {
-          try {
-            const path = await uploadPhoto(person.id, photoFile);
-            const res = await setPersonPhoto(person.id, path, crop);
-            if (res.error) throw new Error(res.error);
-          } catch {
+        const { file, crop } = photo;
+        if (file) {
+          const res = await attachPhoto(
+            { kind: "person", treeId, personId: person.id },
+            file,
+            (path) => setPersonPhoto(person.id, path, crop),
+          );
+          if (res.error) {
             photoProblem = "The photo didn't upload — other changes still saved.";
           }
-        } else if (person.photo_path && !sameCrop(crop, savedCrop)) {
+        } else if (person.photo_path && photo.reframed) {
           const res = await setPersonPhotoCrop(person.id, crop);
           if (res.error) photoProblem = "The photo's new framing didn't save.";
         }
         const result = await updatePerson(person.id, values);
         if (!result.error && photoProblem) toast.warning(photoProblem);
-        return { ...result, photoSaved: photoFile !== null && !photoProblem };
+        return { ...result, photoSaved: file !== null && !photoProblem };
       },
       {
         // The page stays put, so this is the only sign it went through.
@@ -114,7 +105,7 @@ export function PersonForm({
         // Saved, the photo is the entry's now: kept as the one picked, a
         // second Save would upload it again.
         onSuccess: ({ photoSaved }) => {
-          if (photoSaved) setPhotoFile(null);
+          if (photoSaved) photo.clearFile();
         },
       },
     ),
@@ -125,7 +116,7 @@ export function PersonForm({
       type="submit"
       pending={action.pending}
       pendingLabel="Saving…"
-      disabled={photoBusy || !form.formState.isValid}
+      disabled={photo.busy || !form.formState.isValid}
     >
       Save changes
     </PendingButton>
@@ -149,12 +140,8 @@ export function PersonForm({
 
         <PhotoPicker
           id="photo"
-          value={photoFile}
-          onChange={setPhotoFile}
-          crop={crop}
-          onCropChange={setCrop}
+          {...photo.picker}
           currentUrl={photoUrl}
-          onBusyChange={setPhotoBusy}
           disabled={action.pending}
         />
 
@@ -182,10 +169,6 @@ export function PersonForm({
       </div>
     </Form>
   );
-}
-
-function sameCrop(a: CropTransform, b: CropTransform): boolean {
-  return a.zoom === b.zoom && a.focusX === b.focusX && a.focusY === b.focusY;
 }
 
 function stripExisting(person: ExistingPerson): PersonFormValues {

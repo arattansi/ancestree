@@ -16,10 +16,11 @@ import {
 import { PhotoPicker } from "@/components/photo-picker";
 import { Form } from "@/components/ui/form";
 import { useAction } from "@/components/use-action";
+import { usePhotoDraft } from "@/components/use-photo-draft";
 import { filledPhrase, type Fillable } from "@/lib/fill-blanks";
-import { DEFAULT_CROP, type CropTransform } from "@/lib/image-crop";
+import type { CropTransform } from "@/lib/image-crop";
 import { personSchema, type PersonFormValues } from "@/lib/person-schema";
-import { createClient } from "@/lib/supabase/client";
+import { discardPhoto, uploadPhoto } from "@/lib/photo-upload";
 import { treeFocusHref } from "@/lib/tree-links";
 
 /**
@@ -43,9 +44,7 @@ export function PersonFillForm({
 }) {
   const router = useRouter();
   const show = React.useMemo(() => new Set<string>(blanks), [blanks]);
-  const [photoFile, setPhotoFile] = React.useState<File | null>(null);
-  const [photoBusy, setPhotoBusy] = React.useState(false);
-  const [crop, setCrop] = React.useState<CropTransform>(DEFAULT_CROP);
+  const photoDraft = usePhotoDraft();
   const action = useAction({ inline: true });
 
   const form = useForm<PersonFormValues>({
@@ -57,7 +56,7 @@ export function PersonFillForm({
   // out `isValid` once it has been read, and a photo on its own dirties no
   // field to make it look again (Step 50).
   const { isDirty, isValid } = form.formState;
-  const somethingToAdd = isDirty || photoFile !== null;
+  const somethingToAdd = isDirty || photoDraft.file !== null;
 
   const onSubmit = form.handleSubmit((next) =>
     action.run(
@@ -66,20 +65,27 @@ export function PersonFillForm({
         // Into the entry's folder first: the storage policy lets them while it
         // has no photo, and the fill names the file.
         let photo: { path: string; crop: CropTransform } | null = null;
-        if (photoFile) {
-          const path = `${treeId}/${personId}/${crypto.randomUUID()}.jpg`;
-          const { error } = await createClient()
-            .storage.from("photos")
-            .upload(path, photoFile, { contentType: "image/jpeg", upsert: false });
-          if (error) {
+        if (photoDraft.file) {
+          try {
+            const path = await uploadPhoto(
+              { kind: "person", treeId, personId },
+              photoDraft.file,
+            );
+            photo = { path, crop: photoDraft.crop };
+          } catch {
             return {
               error:
                 "The photo didn't upload. Someone may have just added one; refresh and look again, or remove it to save the rest.",
             };
           }
-          photo = { path, crop };
         }
-        return fillPersonBlanks(personId, next, photo);
+        const result = await fillPersonBlanks(personId, next, photo);
+        // A photo the entry didn't take — refused, or filled meanwhile —
+        // isn't left behind (Step 77.4).
+        if (photo && (result.error || !result.filled?.includes("photo"))) {
+          await discardPhoto(photo.path);
+        }
+        return result;
       },
       {
         // Here, so the button stays busy until the tree shows: pressed again
@@ -115,11 +121,7 @@ export function PersonFillForm({
         {show.has("photo") ? (
           <PhotoPicker
             id="fill-photo"
-            value={photoFile}
-            onChange={setPhotoFile}
-            crop={crop}
-            onCropChange={setCrop}
-            onBusyChange={setPhotoBusy}
+            {...photoDraft.picker}
             disabled={action.pending}
           />
         ) : null}
@@ -130,7 +132,7 @@ export function PersonFillForm({
           type="submit"
           pending={action.pending}
           pendingLabel="Saving…"
-          disabled={photoBusy || !somethingToAdd || !isValid}
+          disabled={photoDraft.busy || !somethingToAdd || !isValid}
         >
           Add these details
         </PendingButton>

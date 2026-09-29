@@ -95,6 +95,11 @@ export function parseCrop(value: unknown): CropTransform {
   };
 }
 
+/** Whether two crops frame a photo the same way. */
+export function sameCrop(a: CropTransform, b: CropTransform): boolean {
+  return a.zoom === b.zoom && a.focusX === b.focusX && a.focusY === b.focusY;
+}
+
 /** The shape written back to the column. */
 export function toStoredCrop({
   zoom,

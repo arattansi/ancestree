@@ -22,12 +22,13 @@ import { PhotoPicker } from "@/components/photo-picker";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { useAction } from "@/components/use-action";
+import { usePhotoDraft, usePickedUrl } from "@/components/use-photo-draft";
 import { EntrySummary } from "@/components/welcome/entry-summary";
 import type { Fillable } from "@/lib/fill-blanks";
-import { parseCrop, type CropTransform } from "@/lib/image-crop";
+import { parseCrop } from "@/lib/image-crop";
 import { personDisplayName, personInitials } from "@/lib/person-name";
 import { personSchema, type PersonFormValues } from "@/lib/person-schema";
-import { createClient } from "@/lib/supabase/client";
+import { attachPhoto } from "@/lib/photo-upload";
 import { treeFocusHref } from "@/lib/tree-links";
 import {
   enteredLine,
@@ -65,10 +66,8 @@ export function WelcomeDetailsForm({
     ...values
   } = entry;
   const [showAll, setShowAll] = React.useState(false);
-  const [photoFile, setPhotoFile] = React.useState<File | null>(null);
-  const [photoBusy, setPhotoBusy] = React.useState(false);
   const savedCrop = React.useMemo(() => parseCrop(photoCrop), [photoCrop]);
-  const [crop, setCrop] = React.useState<CropTransform>(savedCrop);
+  const photo = usePhotoDraft(savedCrop);
   const action = useAction({ inline: true });
 
   const form = useForm<PersonFormValues>({
@@ -87,21 +86,14 @@ export function WelcomeDetailsForm({
     live.place_id_birth === values.place_id_birth
       ? birthPlace
       : [live.city_of_birth, live.country_of_birth].filter(Boolean).join(", ");
-  const pickedUrl = React.useMemo(
-    () => (photoFile ? URL.createObjectURL(photoFile) : null),
-    [photoFile],
-  );
-  React.useEffect(() => {
-    if (!pickedUrl) return;
-    return () => URL.revokeObjectURL(pickedUrl);
-  }, [pickedUrl]);
+  const pickedUrl = usePickedUrl(photo.file);
 
   // Read up front, not inside the button's `||`: react-hook-form only works
   // out `isValid` once it has been read, and a photo on its own dirties no
   // field to make it look again.
   const { isDirty, isValid } = form.formState;
-  const reframed = !photoFile && !!photoPath && !sameCrop(crop, savedCrop);
-  const somethingToSave = isDirty || photoFile !== null || reframed;
+  const reframed = !!photoPath && photo.reframed;
+  const somethingToSave = isDirty || photo.file !== null || reframed;
 
   const onSubmit = form.handleSubmit((next) =>
     action.run(
@@ -110,18 +102,14 @@ export function WelcomeDetailsForm({
         const detailsChanged = form.formState.isDirty;
 
         let photoFailed = false;
-        if (photoFile) {
-          try {
-            const path = `${homeTreeId}/${personId}/${crypto.randomUUID()}.jpg`;
-            const { error } = await createClient()
-              .storage.from("photos")
-              .upload(path, photoFile, { contentType: "image/jpeg", upsert: false });
-            if (error) throw error;
-            const res = await setPersonPhoto(personId, path, crop);
-            if (res.error) throw new Error(res.error);
-          } catch {
-            photoFailed = true;
-          }
+        const { file, crop } = photo;
+        if (file) {
+          const res = await attachPhoto(
+            { kind: "person", treeId: homeTreeId, personId },
+            file,
+            (path) => setPersonPhoto(personId, path, crop),
+          );
+          photoFailed = !!res.error;
         } else if (reframed) {
           const res = await setPersonPhotoCrop(personId, crop);
           if (res.error) toast.warning("The photo’s new framing didn’t save.");
@@ -161,7 +149,7 @@ export function WelcomeDetailsForm({
             initials={personInitials(live)}
             line={enteredLine(live, placeNow)}
             photoUrl={pickedUrl ?? photoUrl}
-            crop={crop}
+            crop={photo.crop}
             action={
               showAll ? null : (
                 <Button
@@ -181,12 +169,8 @@ export function WelcomeDetailsForm({
         {showAll || asks.includes("photo") ? (
           <PhotoPicker
             id={`welcome-photo-${personId}`}
-            value={photoFile}
-            onChange={setPhotoFile}
-            crop={crop}
-            onCropChange={setCrop}
+            {...photo.picker}
             currentUrl={photoUrl}
-            onBusyChange={setPhotoBusy}
             disabled={action.pending}
           />
         ) : null}
@@ -213,7 +197,7 @@ export function WelcomeDetailsForm({
             type="submit"
             pending={action.pending}
             pendingLabel="Saving…"
-            disabled={photoBusy || !somethingToSave || !isValid}
+            disabled={photo.busy || !somethingToSave || !isValid}
           >
             Save and see the tree
           </PendingButton>
@@ -228,8 +212,4 @@ export function WelcomeDetailsForm({
       </form>
     </Form>
   );
-}
-
-function sameCrop(a: CropTransform, b: CropTransform): boolean {
-  return a.zoom === b.zoom && a.focusX === b.focusX && a.focusY === b.focusY;
 }

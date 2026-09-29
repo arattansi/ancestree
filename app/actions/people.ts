@@ -10,6 +10,7 @@ import {
   type ErrorRule,
 } from "@/lib/db-errors";
 import { toStoredCrop, type CropTransform } from "@/lib/image-crop";
+import { photoPathOwner } from "@/lib/photo-path";
 import {
   personSchema,
   toPersonPayload,
@@ -643,13 +644,23 @@ export async function autoArrangeTree(
   return {};
 }
 
-/** Point a person row at an uploaded photo (or clear it). */
+/**
+ * Point a person row at an uploaded photo (or clear it). Only a photo in
+ * this entry's own folder (Step 77.4): anything else could be another
+ * entry's file.
+ */
 export async function setPersonPhoto(
   personId: string,
   photoPath: string | null,
   crop?: CropTransform,
 ): Promise<{ error?: string }> {
   await requireProfile();
+  if (photoPath !== null) {
+    const owner = photoPathOwner(photoPath);
+    if (owner?.kind !== "person" || owner.personId !== personId) {
+      return { error: "That photo isn't this entry's." };
+    }
+  }
   const supabase = await createClient();
   const saved = await ownedWrite(
     supabase
