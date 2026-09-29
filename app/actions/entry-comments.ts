@@ -2,10 +2,9 @@
 
 import { listEntryComments, type EntryComment } from "@/lib/entry-comments";
 import { requireProfile } from "@/lib/auth";
+import { COMMENT_MAX } from "@/lib/limits";
 import { createClient } from "@/lib/supabase/server";
 import { revalidateTreePages } from "@/lib/revalidate";
-
-const MAX_BODY = 2000;
 
 /** Every comment / flag on an entry's board on one tree, for the detail panel. */
 export async function getEntryComments(
@@ -31,8 +30,8 @@ export async function addEntryComment(input: {
   const profile = await requireProfile();
   const body = input.body.trim();
   if (!body) return { error: "Write a message first." };
-  if (body.length > MAX_BODY) {
-    return { error: `Keep it under ${MAX_BODY} characters.` };
+  if (body.length > COMMENT_MAX) {
+    return { error: `Keep it under ${COMMENT_MAX} characters.` };
   }
 
   const supabase = await createClient();

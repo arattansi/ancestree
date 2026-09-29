@@ -23,9 +23,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { revalidateTreePages } from "@/lib/revalidate";
 import { getSessionUser, requireProfile } from "@/lib/auth";
+import { expiresAfter, isExpired } from "@/lib/expiry";
+import { INVITE_LIFETIME_DAYS } from "@/lib/limits";
 import { rootOf } from "@/lib/tree-context";
-
-const INVITE_TTL_DAYS = 14;
 
 export type RequestInviteState = RequestFormState & { ok?: boolean };
 
@@ -151,9 +151,7 @@ export async function approveInviteRequest(
     }
   }
 
-  const expiresAt = new Date(
-    Date.now() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000,
-  ).toISOString();
+  const expiresAt = expiresAfter(INVITE_LIFETIME_DAYS);
 
   const { data: invite, error: inviteError } = await supabase
     .from("invites")
@@ -251,7 +249,7 @@ export async function resendInviteEmail(
   if (invite.status !== "active") {
     return { error: "That invite link has been revoked." };
   }
-  if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
+  if (isExpired(invite.expires_at)) {
     return {
       error: "That invite link has expired. Delete it and invite them again.",
     };

@@ -7,7 +7,9 @@
  * without knowing about the first. Pure; `claim-invites.server.ts` loads them.
  */
 
+import { isExpired } from "@/lib/expiry";
 import type { NamedPerson } from "@/lib/person-name";
+import { shortDate } from "@/lib/short-date";
 
 /**
  * The name a claim invite's "Sent invites" record carries: the entry's, as
@@ -64,9 +66,7 @@ export type EntryInvite = {
 };
 
 function isLive(row: ClaimInviteRow, now: Date): boolean {
-  if (row.archived) return false;
-  if (!row.expiresAt) return true;
-  return Date.parse(row.expiresAt) > now.getTime();
+  return !row.archived && !isExpired(row.expiresAt, now);
 }
 
 /**
@@ -115,11 +115,11 @@ export function claimInvitesShown(
 /**
  * The card's line for one invite, e.g. "Aalim Rattansi sent an invite on
  * 23 Sep 2026. The link works until 7 Oct 2026." `formatDate` renders a
- * date the way the card does.
+ * date, `shortDate` unless a test says otherwise.
  */
 export function describeClaimInvite(
   invite: EntryInvite,
-  formatDate: (iso: string) => string,
+  formatDate: (iso: string) => string = shortDate,
 ): string {
   const who = invite.sentByViewer ? "you" : (invite.sentByName ?? "a member");
   const Who = who === "you" || who === "a member" ? capitalise(who) : who;

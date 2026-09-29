@@ -1,5 +1,6 @@
 import "server-only";
 
+import { memberNames } from "@/lib/member-names.server";
 import { createClient } from "@/lib/supabase/server";
 
 export type EntryComment = {
@@ -38,19 +39,9 @@ export async function listEntryComments(
   const rows = data ?? [];
   if (rows.length === 0) return [];
 
-  const userIds = [
-    ...new Set(
-      rows.flatMap((r) =>
-        [r.created_by, r.resolved_by].filter((v): v is string => Boolean(v)),
-      ),
-    ),
-  ];
-  const { data: members } = await supabase
-    .from("member_directory")
-    .select("auth_user_id, display_name")
-    .in("auth_user_id", userIds);
-  const nameById = new Map(
-    (members ?? []).map((m) => [m.auth_user_id, m.display_name ?? "A relative"]),
+  const names = await memberNames(
+    supabase,
+    rows.flatMap((r) => [r.created_by, r.resolved_by]),
   );
 
   return rows.map((r) => ({
@@ -60,9 +51,12 @@ export async function listEntryComments(
     status: r.status as "open" | "resolved",
     createdAt: r.created_at,
     createdBy: r.created_by,
-    authorName: nameById.get(r.created_by) ?? "A relative",
+    authorName: names.get(r.created_by) ?? "A relative",
     resolvedBy: r.resolved_by,
-    resolverName: r.resolved_by ? nameById.get(r.resolved_by) ?? null : null,
+    resolverName:
+      r.resolved_by && names.has(r.resolved_by)
+        ? (names.get(r.resolved_by) ?? "A relative")
+        : null,
     resolvedAt: r.resolved_at,
   }));
 }

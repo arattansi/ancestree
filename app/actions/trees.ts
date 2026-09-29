@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { requireProfile } from "@/lib/auth";
 import { bloodTiePlacementRefusal, readBloodTieRefusal } from "@/lib/bloodline";
+import { TREE_NAME_MAX } from "@/lib/limits";
 import {
   clearCurrentTreeCookie,
   setCurrentTreeCookie,
@@ -14,8 +15,6 @@ import { revalidateTreePages } from "@/lib/revalidate";
 import { redeemInvite } from "@/lib/sign-in.server";
 import { membershipOf, rootOf } from "@/lib/tree-context";
 import { joinedTreeHref, treesHref } from "@/lib/tree-links";
-
-const MAX_TREE_NAME = 80;
 
 function friendlyTreeError(message: string | undefined): string {
   const m = (message ?? "").toLowerCase();
@@ -44,7 +43,7 @@ export async function foundTree(name: string): Promise<FoundTreeResult> {
   await requireProfile();
   const trimmed = name.trim();
   if (!trimmed) return { error: "Give your tree a name." };
-  if (trimmed.length > MAX_TREE_NAME) return { error: "That name is too long." };
+  if (trimmed.length > TREE_NAME_MAX) return { error: "That name is too long." };
 
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("found_tree", { p_name: trimmed });
@@ -65,7 +64,7 @@ export async function renameTree(
   if (notRoot) return { error: notRoot };
   const trimmed = name.trim();
   if (!trimmed) return { error: "Give your tree a name." };
-  if (trimmed.length > MAX_TREE_NAME) return { error: "That name is too long." };
+  if (trimmed.length > TREE_NAME_MAX) return { error: "That name is too long." };
 
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("rename_tree", {

@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "sonner";
 
 import {
   rotateFamilyLink,
@@ -10,6 +9,7 @@ import {
 } from "@/app/actions/family-link";
 import { AccountTypeBadge } from "@/components/account-type-badge";
 import { ConfirmButton } from "@/components/confirm-dialog";
+import { copyText } from "@/components/copy-text";
 import { PendingButton } from "@/components/pending-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { toastError, useAction } from "@/components/use-action";
+import { useAction } from "@/components/use-action";
 import { useFocusReturn } from "@/components/use-focus-return";
 import {
   FAMILY_LINK_CAPS,
@@ -32,14 +32,8 @@ import {
   whatsappShareHref,
 } from "@/lib/family-link";
 import type { FamilyLink, FamilyLinkJoin } from "@/lib/family-link.server";
-
-function shortDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
+import { shortDate } from "@/lib/short-date";
+import { inviteHref } from "@/lib/sign-in-links";
 
 /**
  * The tree's family link on /admin (Step 52): one open link for a family
@@ -72,16 +66,11 @@ export function AdminFamilyLink({
   const makeRef = React.useRef<HTMLButtonElement>(null);
   const copyRef = React.useRef<HTMLButtonElement>(null);
 
-  const url = link ? `${baseUrl}/join/${link.token}` : null;
+  const url = link ? `${baseUrl}${inviteHref(link.token)}` : null;
   const full = link ? isFamilyLinkFull(link) : false;
 
-  async function copy(text: string, silent = false) {
-    try {
-      await navigator.clipboard.writeText(text);
-      if (!silent) toast.success("Family link copied");
-    } catch {
-      if (!silent) toastError("Couldn't copy. Select the link and copy it.");
-    }
+  function copy(text: string) {
+    void copyText(text, { copied: "Family link copied" });
   }
 
   function make() {

@@ -1,5 +1,6 @@
 import { escapeHtml } from "@/lib/email";
 import { INVITE_EMAIL_SUBJECT, renderInviteEmail } from "@/lib/emails/shared";
+import { INVITE_LIFETIME_DAYS } from "@/lib/limits";
 
 /**
  * "You're invited" email, sent by `approveInviteRequest` once an admin
@@ -30,11 +31,11 @@ export function inviteApprovedEmail(input: {
                   link below signs you straight in and makes that entry yours,
                   so you can keep your own details up to date from then on.
                   The link is yours alone, so please don&rsquo;t forward it.
-                  It works once and expires in 14 days.`
+                  It works once and expires in ${INVITE_LIFETIME_DAYS} days.`
       : `${inviterName} approved your request to join the family tree
                   on ancestree. The link below signs you straight in &mdash;
                   it&rsquo;s yours alone, so please don&rsquo;t forward it. It
-                  works once and expires in 14 days.`,
+                  works once and expires in ${INVITE_LIFETIME_DAYS} days.`,
     url: input.url,
   });
 

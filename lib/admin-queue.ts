@@ -6,6 +6,8 @@
  * each one lands.
  */
 
+import { plural } from "@/lib/plural";
+
 /** The console cards that hold a queue, in the order they're worked. */
 export const QUEUE_SECTIONS = [
   "invite-requests",
@@ -101,5 +103,5 @@ export function pickQueueTarget({
 
 /** What the header's count says to a screen reader, and on hover. */
 export function queueCountLabel(count: number): string {
-  return `${count} ${count === 1 ? "needs" : "need"} attention in the Root console`;
+  return `${count} ${plural(count, "needs", "need")} attention in the Root console`;
 }

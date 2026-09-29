@@ -1,5 +1,6 @@
 import "server-only";
 
+import { memberNames } from "@/lib/member-names.server";
 import { createClient } from "@/lib/supabase/server";
 
 export type PetComment = {
@@ -27,13 +28,9 @@ export async function listPetComments(petId: string): Promise<PetComment[]> {
   const rows = data ?? [];
   if (rows.length === 0) return [];
 
-  const userIds = [...new Set(rows.map((r) => r.created_by))];
-  const { data: members } = await supabase
-    .from("member_directory")
-    .select("auth_user_id, display_name")
-    .in("auth_user_id", userIds);
-  const nameById = new Map(
-    (members ?? []).map((m) => [m.auth_user_id, m.display_name ?? "A relative"]),
+  const names = await memberNames(
+    supabase,
+    rows.map((r) => r.created_by),
   );
 
   return rows.map((r) => ({
@@ -41,6 +38,6 @@ export async function listPetComments(petId: string): Promise<PetComment[]> {
     body: r.body,
     createdAt: r.created_at,
     createdBy: r.created_by,
-    authorName: nameById.get(r.created_by) ?? "A relative",
+    authorName: names.get(r.created_by) ?? "A relative",
   }));
 }

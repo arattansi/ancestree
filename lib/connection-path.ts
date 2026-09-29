@@ -1,3 +1,4 @@
+import { countOf } from "@/lib/plural";
 import type { LayoutRelationship } from "@/lib/tree-layout";
 
 /**
@@ -227,7 +228,7 @@ export function connectionLabel(
     if (!married && core.length === 2 && core[0] === "down" && core[1] === "up")
       return "Parents of the same child";
     const between = path.people.length - 2;
-    return `Connected through ${between} ${between === 1 ? "person" : "people"}`;
+    return `Connected through ${countOf(between, "person", "people")}`;
   }
 
   // Half-siblings only when the tree can tell: both have two parents on it,

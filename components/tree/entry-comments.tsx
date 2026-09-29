@@ -14,6 +14,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAction } from "@/components/use-action";
 import { useFocusReturn } from "@/components/use-focus-return";
 import type { EntryComment } from "@/lib/entry-comments";
+import { COMMENT_MAX } from "@/lib/limits";
+import { countOf } from "@/lib/plural";
 import { timeAgo } from "@/lib/time-ago";
 import { cn } from "@/lib/utils";
 
@@ -139,7 +141,7 @@ export function EntryComments({
         </h2>
         {openFlags > 0 ? (
           <Badge variant="destructive">
-            {openFlags} open flag{openFlags === 1 ? "" : "s"}
+            {countOf(openFlags, "open flag")}
           </Badge>
         ) : null}
       </div>
@@ -155,7 +157,7 @@ export function EntryComments({
               : "Add a note or ask a question about this entry…"
           }
           rows={3}
-          maxLength={2000}
+          maxLength={COMMENT_MAX}
           disabled={post.pending}
         />
         <FormError>{post.error}</FormError>

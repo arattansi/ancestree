@@ -20,6 +20,7 @@ import {
   type Dashboard,
 } from "@/lib/dashboard";
 import { loadDashboard } from "@/lib/dashboard.server";
+import { countOf } from "@/lib/plural";
 
 /**
  * The beta reviewers' dashboard (Step 56) — the "dashboard" view of the
@@ -146,7 +147,7 @@ export function DashboardView({ d }: { d: Dashboard }) {
         <CardHeader>
           <CardTitle>How Far Members Have Got</CardTitle>
           <CardDescription>
-            Of {d.members} {d.members === 1 ? "member" : "members"}, how many
+            Of {countOf(d.members, "member")}, how many
             have done each at least once.
           </CardDescription>
         </CardHeader>

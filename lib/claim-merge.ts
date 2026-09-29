@@ -1,4 +1,5 @@
 import { personDisplayName, type NamedPerson } from "@/lib/person-name";
+import { plural } from "@/lib/plural";
 
 /** How a relative stands to the member, read off a stored line. */
 export type MergeRelation = "parent" | "partner" | "sibling" | "child";
@@ -88,7 +89,7 @@ export function mergeConfirmation(relatives: MergeRelative[]): string {
       .map((r) => r.name);
     if (names.length === 0) return [];
     const [one, many] = NOUNS[relation];
-    return [`your ${names.length === 1 ? one : many} ${listNames(names)}`];
+    return [`your ${plural(names.length, one, many)} ${listNames(names)}`];
   });
   const undo = "This cannot be undone.";
   if (groups.length === 0) {
@@ -98,7 +99,7 @@ export function mergeConfirmation(relatives: MergeRelative[]): string {
     groups.length === 1
       ? groups[0]
       : `${groups.slice(0, -1).join(", ")}, and ${groups[groups.length - 1]}`;
-  const move = relatives.length === 1 ? "moves" : "move";
+  const move = plural(relatives.length, "moves", "move");
   return `${who[0].toUpperCase()}${who.slice(1)} ${move} to this entry, and your old one is removed.\n${undo}`;
 }
 

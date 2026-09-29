@@ -3,6 +3,7 @@ import "server-only";
 import type { EmailOtpType, User } from "@supabase/supabase-js";
 
 import { setCurrentTreeCookie } from "@/lib/current-tree.server";
+import { isExpired } from "@/lib/expiry";
 import { verifiedEmail } from "@/lib/first-timer";
 import { waitingInviteHref } from "@/lib/first-timer.server";
 import { isAnotherAddressRefusal } from "@/lib/invite-address";
@@ -305,7 +306,7 @@ function recipientOf(
   } | null,
 ): InviteRecipient | null {
   if (!invite || invite.status !== "active") return null;
-  if (invite.expires_at && new Date(invite.expires_at) < new Date()) return null;
+  if (isExpired(invite.expires_at)) return null;
 
   // One-to-one FK that PostgREST still hands back as an array.
   const request = Array.isArray(invite.invite_requests)

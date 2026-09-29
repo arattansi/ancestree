@@ -4,10 +4,10 @@ import type { Profile } from "@/lib/auth";
 import { sendEmail } from "@/lib/email";
 import { founderApprovedEmail } from "@/lib/emails/founder-approved";
 import { founderInviteEmail } from "@/lib/emails/founder-invite";
+import { expiresAfter } from "@/lib/expiry";
+import { INVITE_LIFETIME_DAYS } from "@/lib/limits";
 import { getSiteUrl } from "@/lib/site-url";
 import { createAdminClient } from "@/lib/supabase/admin";
-
-const INVITE_TTL_DAYS = 14;
 
 export type FounderInviteRecipient = {
   firstName: string;
@@ -45,9 +45,7 @@ export async function mintFounderInvite(
   source: "direct" | "request",
 ): Promise<MintedFounderInvite> {
   const supabase = createAdminClient();
-  const expiresAt = new Date(
-    Date.now() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000,
-  ).toISOString();
+  const expiresAt = expiresAfter(INVITE_LIFETIME_DAYS);
 
   const { data: invite, error: inviteError } = await supabase
     .from("invites")

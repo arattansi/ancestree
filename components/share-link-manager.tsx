@@ -1,18 +1,21 @@
 "use client";
 
 import { Fragment, useState } from "react";
-import { toast } from "sonner";
 
 import { createShareLink, revokeShareLink } from "@/app/actions/share-links";
 import { ConfirmButton } from "@/components/confirm-dialog";
+import { copyText } from "@/components/copy-text";
 import { FormError } from "@/components/form-error";
 import { PendingButton } from "@/components/pending-button";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { toastError, useAction } from "@/components/use-action";
+import { useAction } from "@/components/use-action";
+import { SHARE_LINK_DAYS, SHARE_LINK_LABEL_MAX } from "@/lib/limits";
+import { countOf } from "@/lib/plural";
 import { shareLinkState } from "@/lib/share-links";
+import { shortDate } from "@/lib/short-date";
 
 export type ShareLinkRow = {
   id: string;
@@ -25,22 +28,8 @@ export type ShareLinkRow = {
   viewCount: number;
 };
 
-/** `quiet`: no word when it worked, for a panel that already says so. */
-async function copy(text: string, { quiet = false } = {}) {
-  try {
-    await navigator.clipboard.writeText(text);
-    if (!quiet) toast.success("Share link copied");
-  } catch {
-    toastError("Couldn't copy — select and copy the link manually");
-  }
-}
-
-function shortDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+function copy(text: string) {
+  void copyText(text, { copied: "Share link copied" });
 }
 
 export function ShareLinkManager({
@@ -66,7 +55,8 @@ export function ShareLinkManager({
         setLabel("");
         setWithExpiry(false);
         // The panel it opens says it's copied.
-        if (result.url) void copy(result.url, { quiet: true });
+        // No word when it worked: the panel below says so.
+        if (result.url) void copyText(result.url, { copied: null });
       },
     });
   }
@@ -83,7 +73,7 @@ export function ShareLinkManager({
             value={label}
             onChange={(e) => setLabel(e.target.value)}
             placeholder="e.g. Grandma's side, reunion 2026"
-            maxLength={80}
+            maxLength={SHARE_LINK_LABEL_MAX}
           />
         </div>
         <Label
@@ -95,7 +85,7 @@ export function ShareLinkManager({
             checked={withExpiry}
             onCheckedChange={(v) => setWithExpiry(v === true)}
           />
-          Expire this link after 30 days
+          Expire this link after {SHARE_LINK_DAYS} days
         </Label>
         <FormError>{action.error}</FormError>
         <PendingButton
@@ -151,7 +141,7 @@ export function ShareLinkManager({
                     </span>
                     <span className="text-xs text-muted-foreground">
                       {[
-                        `${link.viewCount} view${link.viewCount === 1 ? "" : "s"}`,
+                        countOf(link.viewCount, "view"),
                         link.lastViewedAt
                           ? `last viewed ${shortDate(link.lastViewedAt)}`
                           : null,

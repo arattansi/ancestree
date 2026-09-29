@@ -9,6 +9,7 @@ import { PendingButton } from "@/components/pending-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAction } from "@/components/use-action";
+import { TREE_NAME_MAX } from "@/lib/limits";
 import { onboardingHref } from "@/lib/tree-links";
 
 /**
@@ -49,7 +50,7 @@ export function FoundTreeForm({ suggestedName }: { suggestedName: string }) {
           id="tree-name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          maxLength={80}
+          maxLength={TREE_NAME_MAX}
           autoComplete="off"
           required
         />

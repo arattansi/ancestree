@@ -1,10 +1,9 @@
 "use server";
 
 import { requireProfile } from "@/lib/auth";
+import { COMMENT_MAX } from "@/lib/limits";
 import { listPetComments, type PetComment } from "@/lib/pet-comments";
 import { createClient } from "@/lib/supabase/server";
-
-const MAX_BODY = 2000;
 
 /** Every comment on a companion, for its detail panel. */
 export async function getPetComments(petId: string): Promise<PetComment[]> {
@@ -25,8 +24,8 @@ export async function addPetComment(input: {
   const profile = await requireProfile();
   const body = input.body.trim();
   if (!body) return { error: "Write a message first." };
-  if (body.length > MAX_BODY) {
-    return { error: `Keep it under ${MAX_BODY} characters.` };
+  if (body.length > COMMENT_MAX) {
+    return { error: `Keep it under ${COMMENT_MAX} characters.` };
   }
 
   const supabase = await createClient();

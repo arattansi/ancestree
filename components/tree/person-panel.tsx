@@ -44,6 +44,7 @@ import {
 } from "@/components/ui/sheet";
 import { toastError, useAction } from "@/components/use-action";
 import { useFocusReturn } from "@/components/use-focus-return";
+import { INVITE_LIFETIME_DAYS } from "@/lib/limits";
 import {
   maidenLine,
   personDisplayName,
@@ -68,6 +69,7 @@ import { FILL_ENTRY_NOTE, LOCKED_ENTRY_NOTE } from "@/lib/account-types";
 import { blankFields } from "@/lib/fill-blanks";
 import { SEX_LABELS, type Sex } from "@/lib/person-schema";
 import { PersonTrees } from "@/components/tree/person-trees";
+import { countOf } from "@/lib/plural";
 import type { DeclinedSuggestion, EntrySuggestion } from "@/lib/suggestions";
 import { editPersonHref, suggestChangeHref } from "@/lib/tree-links";
 import { cn } from "@/lib/utils";
@@ -440,18 +442,10 @@ function ClaimInviteRecords({ invites }: { invites: EntryInvite[] }) {
   return (
     <ul className="flex flex-col gap-1 text-xs text-muted-foreground">
       {invites.map((invite) => (
-        <li key={invite.id}>{describeClaimInvite(invite, formatInviteDate)}</li>
+        <li key={invite.id}>{describeClaimInvite(invite)}</li>
       ))}
     </ul>
   );
-}
-
-function formatInviteDate(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
 }
 
 export function PersonPanel({
@@ -800,8 +794,7 @@ export function PersonPanel({
                 ) : null}
                 {person.open_flag_count > 0 ? (
                   <Badge variant="destructive">
-                    {person.open_flag_count} open flag
-                    {person.open_flag_count === 1 ? "" : "s"}
+                    {countOf(person.open_flag_count, "open flag")}
                   </Badge>
                 ) : null}
                 {person.claim_status === "approved" ? (
@@ -1097,8 +1090,8 @@ export function PersonPanel({
                       <FormError>{invite.error}</FormError>
                       <JoinsAsNote />
                       <p className="text-xs text-muted-foreground">
-                        They&rsquo;ll get a link, good for 14 days, to take
-                        over this entry.
+                        They&rsquo;ll get a link, good for{" "}
+                        {INVITE_LIFETIME_DAYS} days, to take over this entry.
                       </p>
                     </div>
                   ) : claimInvites.length > 0 ? (

@@ -17,6 +17,7 @@ import { PersonPicker } from "@/components/tree/person-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useFocusReturn } from "@/components/use-focus-return";
+import { countOf } from "@/lib/plural";
 import { cn } from "@/lib/utils";
 import {
   Select,
@@ -422,7 +423,7 @@ export function TreeSearch({
           <div>
             <div className="flex items-center justify-between gap-3">
               <p className="text-xs text-muted-foreground">
-                {results.length} {results.length === 1 ? "match" : "matches"}
+                {countOf(results.length, "match", "matches")}
               </p>
               <ClearButton
                 onClick={() => {

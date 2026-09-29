@@ -5,6 +5,8 @@
  * about a bad entry.
  */
 
+import { isEmailAddress } from "@/lib/email-address";
+
 /** What "request access" says before anything is typed, in its dialog or on its page. */
 export const REQUEST_ACCESS_INTRO =
   "Tell us who you are and we’ll look for your family tree.";
@@ -17,10 +19,6 @@ export const REQUEST_INVITE_INTRO =
   "Tell us who you are and a relative on the tree will review it.";
 
 export const MAX_NAME_LENGTH = 80;
-/** The most an address can be (RFC 5321's path limit, less the brackets). */
-export const MAX_EMAIL_LENGTH = 254;
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export type NameAndEmail = {
   firstName: string;
@@ -55,7 +53,7 @@ export function nameAndEmailProblem({
   if (firstName.length > MAX_NAME_LENGTH || lastName.length > MAX_NAME_LENGTH) {
     return { field: "name", message: "That name is too long." };
   }
-  if (email.length > MAX_EMAIL_LENGTH || !EMAIL_RE.test(email)) {
+  if (!isEmailAddress(email)) {
     return { field: "email", message: "Enter a valid email address." };
   }
   return null;
@@ -84,13 +82,4 @@ export function problemState(
   entered: NameAndEmail,
 ): RequestFormState {
   return { error: problem.message, errorField: problem.field, ...entered };
-}
-
-/**
- * Whether an address, already trimmed and lower-cased, passes the check
- * these forms give theirs — for another address on one of them, like a
- * relative's (Step 30.5).
- */
-export function isEmailAddress(email: string): boolean {
-  return email.length <= MAX_EMAIL_LENGTH && EMAIL_RE.test(email);
 }

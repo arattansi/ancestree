@@ -4,25 +4,22 @@ import { INVITED_AS, accountTypeOf } from "@/lib/account-types";
 import { requireProfile } from "@/lib/auth";
 import { claimInviteRecordName } from "@/lib/claim-invites";
 import { sendEmail } from "@/lib/email";
+import { isEmailAddress } from "@/lib/email-address";
 import { claimInviteEmail } from "@/lib/emails/claim-invite";
 import { inviteSentEmail } from "@/lib/emails/invite-sent";
+import { expiresAfter } from "@/lib/expiry";
 import { mintFounderInvite } from "@/lib/founder-invites.server";
+import { INVITE_LIFETIME_DAYS } from "@/lib/limits";
 import { personDisplayName } from "@/lib/person-name";
 import { isPlacedOn } from "@/lib/placements.server";
 import { getSiteUrl } from "@/lib/site-url";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { revalidateTreePages } from "@/lib/revalidate";
+import { MAX_NAME_LENGTH } from "@/lib/request-forms";
 import { getRoleIn, membershipOf, rootOf } from "@/lib/tree-context";
 
-const INVITE_TTL_DAYS = 14;
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const MAX_NAME_LENGTH = 80;
 const MAX_DIRECT_INVITE_ROWS = 20;
-
-function expiry(): string {
-  return new Date(Date.now() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString();
-}
 
 export type DirectInviteRow = {
   firstName: string;
@@ -68,7 +65,7 @@ function checkRows(rows: DirectInviteRow[]): { rows?: DirectInviteRow[]; error?:
     if (r.firstName.length > MAX_NAME_LENGTH || r.lastName.length > MAX_NAME_LENGTH) {
       return { error: "A name is too long." };
     }
-    if (!EMAIL_RE.test(r.email)) {
+    if (!isEmailAddress(r.email)) {
       return { error: `"${r.email}" isn't a valid email address.` };
     }
     if (seen.has(r.email)) {
@@ -113,7 +110,7 @@ export async function sendDirectInvites(
         tree_id: treeId,
         created_by: inviter.auth_user_id,
         status: "active",
-        expires_at: expiry(),
+        expires_at: expiresAfter(INVITE_LIFETIME_DAYS),
         joins_as: INVITED_AS.key,
         // The link signs this address in — see `signInWithInvite`.
         invited_email: row.email,
@@ -258,7 +255,7 @@ export async function sendClaimInvite(
   }
 
   const address = email.trim().toLowerCase();
-  if (!EMAIL_RE.test(address)) {
+  if (!isEmailAddress(address)) {
     return { error: "That doesn't look like an email address." };
   }
 
@@ -304,7 +301,7 @@ export async function sendClaimInvite(
       tree_id: joinTreeId,
       created_by: inviter.auth_user_id,
       status: "active",
-      expires_at: expiry(),
+      expires_at: expiresAfter(INVITE_LIFETIME_DAYS),
       joins_as: INVITED_AS.key,
       person_id: personId,
       invited_email: address,

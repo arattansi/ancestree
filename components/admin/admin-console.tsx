@@ -63,7 +63,9 @@ import {
   listBareInvites,
   listInviteHistory,
 } from "@/lib/invites";
+import { INVITE_LIFETIME_DAYS } from "@/lib/limits";
 import { listNicknameGroups } from "@/lib/nicknames.server";
+import { countOf } from "@/lib/plural";
 import { membersOnOtherTrees } from "@/lib/remove-member.server";
 import { listRequestCandidates } from "@/lib/request-candidates.server";
 import {
@@ -404,7 +406,7 @@ export async function AdminConsole({
 
       <AdminGroup
         title="Members"
-        description={`${members.length} member${members.length === 1 ? "" : "s"} — their account type on this tree, who invited them, and entries created.`}
+        description={`${countOf(members.length, "member")} — their account type on this tree, who invited them, and entries created.`}
         sectionIds={["members", "account-types"]}
       >
         <AdminSubsection
@@ -535,7 +537,7 @@ export async function AdminConsole({
         <AdminSubsection
           id="placements"
           title="Who This Tree Shows"
-          description={`${fromElsewhere} ${fromElsewhere === 1 ? "person" : "people"} on this tree call another tree home. Their details, photo and connections follow their home tree’s rules; what you decide here is whether they appear, and where the card sits. A member’s own entry only appears once they’ve said yes.`}
+          description={`${countOf(fromElsewhere, "person", "people")} on this tree call another tree home. Their details, photo and connections follow their home tree’s rules; what you decide here is whether they appear, and where the card sits. A member’s own entry only appears once they’ve said yes.`}
         >
           <AdminPlacements
             treeId={tree.id}
@@ -609,7 +611,7 @@ export async function AdminConsole({
         <AdminSubsection
           id="invite"
           title="Invite a Relative"
-          description="Send by name and email and it’s emailed for you: the link signs them straight in, works once, and expires after 14 days. They join as a Leaf, and you can make them a Branch from the members table once they’re in; Branches and Leaves invite relatives from their account page. Someone who already has an account on another tree joins this one with the same link."
+          description={`Send by name and email and it’s emailed for you: the link signs them straight in, works once, and expires after ${INVITE_LIFETIME_DAYS} days. They join as a Leaf, and you can make them a Branch from the members table once they’re in; Branches and Leaves invite relatives from their account page. Someone who already has an account on another tree joins this one with the same link.`}
         >
           <DirectInviteForm treeId={tree.id} />
         </AdminSubsection>

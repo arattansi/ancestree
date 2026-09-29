@@ -4,11 +4,13 @@ import type { InviteHistoryItem } from "@/lib/invites";
 import { DeleteInviteButton } from "@/components/delete-invite-button";
 import { ResendInviteButton } from "@/components/resend-invite-button";
 import { Badge } from "@/components/ui/badge";
+import { isExpired } from "@/lib/expiry";
+import { shortDate } from "@/lib/short-date";
 
 /**
  * "Sent invites" history on /admin — read-only apart from resending or
- * deleting a row. A client component so its dates read in the viewer's own
- * locale and time zone, as the bare and archived lists' do.
+ * deleting a row. Its dates read the same everywhere (`shortDate`, Step
+ * 77.4), as the bare and archived lists' do.
  */
 export function AdminInviteHistory({ items }: { items: InviteHistoryItem[] }) {
   if (items.length === 0) {
@@ -84,16 +86,8 @@ function sentBy(item: InviteHistoryItem) {
         : "Approved";
   const who = item.sentByName ?? "a former member";
   return item.reviewedAt
-    ? `${verb} by ${who} on ${formatDate(item.reviewedAt)}`
+    ? `${verb} by ${who} on ${shortDate(item.reviewedAt)}`
     : `${verb} by ${who}`;
-}
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
 }
 
 /** An invite is worth resending while it still exists and can still be used. */
@@ -101,12 +95,8 @@ function canResend(item: InviteHistoryItem) {
   return (
     item.status === "approved" &&
     item.inviteStatus === "active" &&
-    !isExpired(item)
+    !isExpired(item.expiresAt)
   );
-}
-
-function isExpired(item: InviteHistoryItem) {
-  return item.expiresAt ? new Date(item.expiresAt) < new Date() : false;
 }
 
 /**
@@ -142,7 +132,7 @@ function StatusBadge({ item }: { item: InviteHistoryItem }) {
     case "revoked":
       return <Badge variant="secondary">Revoked</Badge>;
     case "active": {
-      const expired = isExpired(item);
+      const expired = isExpired(item.expiresAt);
       return (
         <Badge variant="secondary">{expired ? "Expired, unused" : "Sent, not yet used"}</Badge>
       );

@@ -1,11 +1,11 @@
 "use server";
 
+import { expiresAfter } from "@/lib/expiry";
+import { SHARE_LINK_DAYS, SHARE_LINK_LABEL_MAX } from "@/lib/limits";
 import { getSiteUrl } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/server";
 import { revalidateTreePages } from "@/lib/revalidate";
 import { rootOf } from "@/lib/tree-context";
-
-const EXPIRY_DAYS = 30;
 
 export type CreateShareLinkState = {
   url?: string;
@@ -22,12 +22,13 @@ export async function createShareLink(input: {
   if (notRoot || !membership) return { error: notRoot };
 
   const label = (input.label ?? "").trim() || null;
+  if (label && label.length > SHARE_LINK_LABEL_MAX) {
+    return { error: `Keep the label under ${SHARE_LINK_LABEL_MAX} characters.` };
+  }
   const withExpiry = Boolean(input.withExpiry);
 
   const supabase = await createClient();
-  const expiresAt = withExpiry
-    ? new Date(Date.now() + EXPIRY_DAYS * 24 * 60 * 60 * 1000).toISOString()
-    : null;
+  const expiresAt = withExpiry ? expiresAfter(SHARE_LINK_DAYS) : null;
 
   const { data: link, error } = await supabase
     .from("share_links")

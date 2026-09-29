@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { MAX_EMAIL_LENGTH } from "@/lib/email-address";
 import {
-  MAX_EMAIL_LENGTH,
   MAX_NAME_LENGTH,
   nameAndEmailProblem,
   problemState,

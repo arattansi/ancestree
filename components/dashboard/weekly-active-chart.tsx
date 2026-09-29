@@ -5,10 +5,11 @@ import {
   weekStart,
   type DashboardWeek,
 } from "@/lib/dashboard";
+import { countOf } from "@/lib/plural";
 import { cn } from "@/lib/utils";
 
 function membersActive(n: number): string {
-  return `${n} ${n === 1 ? "member" : "members"} active`;
+  return `${countOf(n, "member")} active`;
 }
 
 /**

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAction } from "@/components/use-action";
+import { SUGGESTION_NOTE_MAX } from "@/lib/limits";
 import {
   refocusAfterRemoval,
   useFocusReturn,
@@ -106,7 +107,7 @@ export function SuggestionAnswer({
         id={reasonId}
         value={reason}
         onChange={(e) => setReason(e.target.value)}
-        maxLength={500}
+        maxLength={SUGGESTION_NOTE_MAX}
         disabled={action.pending}
       />
       <FormError>{action.error}</FormError>

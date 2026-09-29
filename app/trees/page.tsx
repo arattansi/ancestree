@@ -11,6 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { requireProfile } from "@/lib/auth";
+import { plural } from "@/lib/plural";
 import { currentAccess, listMyTrees } from "@/lib/tree-context";
 import { adminHref, treeHref } from "@/lib/tree-links";
 import { TREE_REQUEST_RECEIVED } from "@/lib/tree-requests";
@@ -62,9 +63,9 @@ export default async function TreesPage() {
                       <CardTitle>{t.name}</CardTitle>
                       <CardDescription>
                         {t.personCount}{" "}
-                        {t.personCount === 1 ? "entry" : "entries"} ·{" "}
+                        {plural(t.personCount, "entry", "entries")} ·{" "}
                         {t.memberCount}{" "}
-                        {t.memberCount === 1 ? "member" : "members"}
+                        {plural(t.memberCount, "member")}
                         {t.founded ? " · founded by you" : ""}
                       </CardDescription>
                     </div>

@@ -86,6 +86,6 @@ describe("petBirthplace", () => {
 describe("formatPetBirthday", () => {
   it("formats an ISO date and passes through null", () => {
     expect(formatPetBirthday(null)).toBeNull();
-    expect(formatPetBirthday("2018-03-14")).toContain("2018");
+    expect(formatPetBirthday("2018-03-14")).toBe("14 March 2018");
   });
 });

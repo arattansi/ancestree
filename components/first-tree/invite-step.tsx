@@ -34,6 +34,7 @@ import {
   type AccountTypeKey,
 } from "@/lib/account-types";
 import type { TreeInvite } from "@/lib/first-tree";
+import { plural } from "@/lib/plural";
 import { cn } from "@/lib/utils";
 
 /**
@@ -42,7 +43,7 @@ import { cn } from "@/lib/utils";
  * is given to someone who has already joined — within the limits (Step 39).
  */
 const HOW_THEY_GET_IT: Record<AccountTypeKey, string> = {
-  admin: `That’s you. You can make ${inWords(ROOTS_PER_TREE - 1)} more Root${ROOTS_PER_TREE - 1 === 1 ? "" : "s"} once they’ve joined.`,
+  admin: `That’s you. You can make ${inWords(ROOTS_PER_TREE - 1)} more ${plural(ROOTS_PER_TREE - 1, "Root")} once they’ve joined.`,
   branch_admin: `For whoever knows one side best. You can make up to ${inWords(BRANCHES_PER_ROOT)} Branches once they’ve joined.`,
   member: "Everyone invited joins as a Leaf.",
 };

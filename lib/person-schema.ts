@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { isEmailAddress, MAX_EMAIL_LENGTH } from "@/lib/email-address";
 import {
   asDayMonth,
   dateProblem,
@@ -95,8 +96,8 @@ export const personSchema = z
     email: z
       .string()
       .trim()
-      .max(254, "Keep this under 254 characters.")
-      .refine((v) => v === "" || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v), {
+      .max(MAX_EMAIL_LENGTH, `Keep this under ${MAX_EMAIL_LENGTH} characters.`)
+      .refine((v) => v === "" || isEmailAddress(v), {
         message: "That doesn't look like an email address.",
       })
       .optional()

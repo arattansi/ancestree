@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAction } from "@/components/use-action";
+import { TREE_NAME_MAX } from "@/lib/limits";
 import { adminHref } from "@/lib/tree-links";
 
 /** Rename the tree (Step 25). Its web address follows the name. */
@@ -41,7 +42,7 @@ export function AdminTreeName({ treeId, name }: { treeId: string; name: string }
             id="tree-name"
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            maxLength={80}
+            maxLength={TREE_NAME_MAX}
             required
           />
         </div>

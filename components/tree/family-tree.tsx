@@ -65,6 +65,7 @@ import {
 } from "@/components/tree/use-canvas-memory";
 import { LiveCursors, PresenceFaces } from "@/components/tree/live-cursors";
 import type { CanvasMemory } from "@/lib/canvas-memory";
+import { countOf, plural } from "@/lib/plural";
 import {
   EMPTY_FILTER,
   isFilterActive,
@@ -498,7 +499,7 @@ function GenerationLane({
           <span className="text-muted-foreground/60">{band.sublabel}</span>
         ) : null}
         <span className="text-muted-foreground/50">
-          {band.count} {band.count === 1 ? "person" : "people"}
+          {countOf(band.count, "person", "people")}
         </span>
       </div>
     </div>
@@ -1532,7 +1533,7 @@ function Canvas({
         label: direction === "up" ? "Ancestors" : "Descendants",
         separator: direction === "up" ? "↑" : "↓",
         from: rootNames.join(" & "),
-        to: `${line.size} ${kind}${line.size > 1 ? "s" : ""}`,
+        to: countOf(line.size, kind),
       };
     }
 
@@ -2641,10 +2642,10 @@ function Canvas({
                 </span>
                 <span className="text-muted-foreground">
                   {spotlight.ancestors}{" "}
-                  {spotlight.ancestors === 1 ? "ancestor" : "ancestors"}
+                  {plural(spotlight.ancestors, "ancestor")}
                   <span className="mx-1.5 text-muted-foreground/50">·</span>
                   {spotlight.descendants}{" "}
-                  {spotlight.descendants === 1 ? "descendant" : "descendants"}
+                  {plural(spotlight.descendants, "descendant")}
                 </span>
                 <button
                   type="button"

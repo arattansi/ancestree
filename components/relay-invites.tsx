@@ -25,6 +25,7 @@ import {
   matchConfidence,
   type SelfCandidate,
 } from "@/lib/self-match";
+import { shortDate } from "@/lib/short-date";
 
 /** An ask a newcomer passed on to this member (Step 30.5), as they typed it. */
 export type PendingRelay = {
@@ -48,14 +49,6 @@ type SendOutcome = { error?: string; sent?: DirectInviteResult };
 
 /** How a claim invite went: made, and `warning` if its email didn't go. */
 type ClaimOutcome = { error?: string; warning?: string; email?: string };
-
-function shortDate(date: Date) {
-  return date.toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
 
 /**
  * The asks passed on to this member (Step 30.5), each an invite filled in
@@ -238,11 +231,10 @@ function RelayInviteForm({
           {relay.firstName} {relay.lastName} asked you to invite them
         </p>
         <p className="text-sm text-muted-foreground">
-          {/* Unanswered, it lapses after 30 days (Step 41.5). */}
-          <span suppressHydrationWarning>
-            Asked {shortDate(new Date(relay.createdAt))}, and waits until{" "}
-            {shortDate(relayLapsesAt(relay.createdAt))}
-          </span>
+          {/* Unanswered, it lapses after 30 days (Step 41.5). The same
+              day on the server and in the browser (Step 77.4). */}
+          Asked {shortDate(relay.createdAt)}, and waits until{" "}
+          {shortDate(relayLapsesAt(relay.createdAt))}
           . Their details are as they typed them, so put anything right before
           you send.
         </p>

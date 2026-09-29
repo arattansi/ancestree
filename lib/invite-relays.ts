@@ -10,7 +10,7 @@
  * 30 days.
  */
 
-import { isEmailAddress } from "@/lib/request-forms";
+import { isEmailAddress } from "@/lib/email-address";
 
 /** At most this many asks in each span. */
 export type RelayCaps = {

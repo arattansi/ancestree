@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { formatPartialDate } from "@/lib/partial-date";
+
 /**
  * Cats and dogs are first-class; anything else is `other` plus a short label,
  * so "Nibbles the rabbit" is possible without opening a species taxonomy.
@@ -210,14 +212,10 @@ export function petBirthplace(pet: {
   );
 }
 
-/** "14 March 2018" from an ISO date, for the panel's details row. */
+/**
+ * "14 March 2018" from an ISO date, for the panel's details row: spelled
+ * out as a person's dates are, the same in every browser (Step 77.4).
+ */
 export function formatPetBirthday(birthDate: string | null): string | null {
-  if (!birthDate) return null;
-  const parsed = new Date(`${birthDate}T00:00:00`);
-  if (Number.isNaN(parsed.getTime())) return null;
-  return parsed.toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+  return formatPartialDate(birthDate, "day");
 }

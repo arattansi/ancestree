@@ -13,17 +13,9 @@ import { PendingButton } from "@/components/pending-button";
 import { Textarea } from "@/components/ui/textarea";
 import { useAction } from "@/components/use-action";
 import { focusIsLost } from "@/components/use-focus-return";
+import { COMMENT_MAX } from "@/lib/limits";
 import type { PetComment } from "@/lib/pet-comments";
-
-function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.round(diff / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.round(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.round(hrs / 24)}d ago`;
-}
+import { timeAgo } from "@/lib/time-ago";
 
 /**
  * A companion's comment thread. Plain notes only — no flags — because a pet
@@ -122,7 +114,7 @@ export function PetComments({
           onChange={(e) => setBody(e.target.value)}
           placeholder="Share a memory or a detail about this companion…"
           rows={3}
-          maxLength={2000}
+          maxLength={COMMENT_MAX}
           disabled={post.pending}
         />
         <FormError>{post.error}</FormError>

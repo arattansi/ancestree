@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAction } from "@/components/use-action";
 import { useFocusReturn } from "@/components/use-focus-return";
+import { DISPLAY_NAME_MAX } from "@/lib/limits";
 
 /**
  * Inline editor for a member's own display name, shown as the account card
@@ -67,7 +68,7 @@ export function EditDisplayName({ name }: { name: string | null }) {
         id="display-name"
         value={value}
         autoFocus
-        maxLength={60}
+        maxLength={DISPLAY_NAME_MAX}
         onChange={(e) => setValue(e.target.value)}
         className="text-base font-normal"
       />

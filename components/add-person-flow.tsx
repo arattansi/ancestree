@@ -76,10 +76,12 @@ import {
   type PersonRef,
   type RelationshipKind,
 } from "@/lib/connections";
+import { isEmailAddress } from "@/lib/email-address";
 import { DEFAULT_CROP, type CropTransform } from "@/lib/image-crop";
 import { marriageDateProblems, toStoredDate } from "@/lib/partial-date";
 import { personDisplayName } from "@/lib/person-name";
 import { emptyPersonValues, personSchema } from "@/lib/person-schema";
+import { plural } from "@/lib/plural";
 import { createClient } from "@/lib/supabase/client";
 import { treeFocusHref } from "@/lib/tree-links";
 
@@ -310,7 +312,7 @@ const flowSchema = z.object({
 }).superRefine((values, ctx) => {
   // Only asked, and only sent, while they're living.
   const address = inviteAddress(values);
-  if (address && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) {
+  if (address && !isEmailAddress(address)) {
     ctx.addIssue({
       code: "custom",
       message: "That doesn't look like an email address.",
@@ -949,8 +951,8 @@ export function AddPersonFlow({
                               }
                             />
                             <span>
-                              Also connect to {anchorLabel}&rsquo;s parent
-                              {anchorParents.length > 1 ? "s" : ""} (
+                              Also connect to {anchorLabel}&rsquo;s{" "}
+                              {plural(anchorParents.length, "parent")} (
                               {anchorParents.map((p) => p.label).join(" & ")}).
                             </span>
                           </label>

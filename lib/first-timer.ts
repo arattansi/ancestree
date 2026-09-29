@@ -8,6 +8,7 @@
  * choice is tested; the rows come from `lib/first-timer.server.ts`.
  */
 
+import { isExpired } from "@/lib/expiry";
 import { inviteHref } from "@/lib/sign-in-links";
 
 /**
@@ -58,7 +59,7 @@ export function newestLiveInvite(
 ): BoundInvite | null {
   let newest: BoundInvite | null = null;
   for (const invite of invites) {
-    if (invite.expiresAt && new Date(invite.expiresAt) <= now) continue;
+    if (isExpired(invite.expiresAt, now)) continue;
     if (!newest || new Date(invite.createdAt) > new Date(newest.createdAt)) {
       newest = invite;
     }

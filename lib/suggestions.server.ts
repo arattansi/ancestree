@@ -1,5 +1,6 @@
 import "server-only";
 
+import { memberNames } from "@/lib/member-names.server";
 import { createClient } from "@/lib/supabase/server";
 import {
   asSuggestionColumns,
@@ -78,22 +79,14 @@ async function withDeciders(
   rows: DecidedRow[],
   userId: string,
 ): Promise<DeclinedSuggestion[]> {
-  const deciders = [
-    ...new Set(rows.flatMap((r) => (r.decided_by ? [r.decided_by] : []))),
-  ];
   const supabase = await createClient();
-  const { data: members } = deciders.length
-    ? await supabase
-        .from("member_directory")
-        .select("auth_user_id, display_name")
-        .in("auth_user_id", deciders)
-    : { data: [] };
-  const nameById = new Map(
-    (members ?? []).map((m) => [m.auth_user_id, m.display_name]),
+  const names = await memberNames(
+    supabase,
+    rows.map((r) => r.decided_by),
   );
   return rows.map((r) => ({
     ...toSuggestion(r, userId),
-    declinedBy: r.decided_by ? (nameById.get(r.decided_by) ?? null) : null,
+    declinedBy: r.decided_by ? (names.get(r.decided_by) ?? null) : null,
     declineReason: r.decline_reason,
     declinedAt: r.decided_at ?? r.created_at,
   }));

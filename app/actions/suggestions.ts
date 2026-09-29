@@ -1,6 +1,7 @@
 "use server";
 
 import { requireProfile } from "@/lib/auth";
+import { SUGGESTION_NOTE_MAX } from "@/lib/limits";
 import {
   personSchema,
   toPersonPayload,
@@ -9,8 +10,6 @@ import {
 import { revalidateTreePages } from "@/lib/revalidate";
 import { createClient } from "@/lib/supabase/server";
 import { suggestionValues } from "@/lib/suggestions";
-
-const MAX_NOTE = 500;
 
 /** What a refused suggestion says, by `suggest_entry_change`'s reason. */
 function friendlySuggestError(message: string): string {
@@ -55,8 +54,8 @@ export async function suggestEntryChange(input: {
     return { error: "Please fix the highlighted fields and try again." };
   }
   const note = input.note.trim();
-  if (note.length > MAX_NOTE) {
-    return { error: `Keep the note under ${MAX_NOTE} characters.` };
+  if (note.length > SUGGESTION_NOTE_MAX) {
+    return { error: `Keep the note under ${SUGGESTION_NOTE_MAX} characters.` };
   }
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("suggest_entry_change", {
@@ -83,8 +82,8 @@ export async function decideEntrySuggestion(
 ): Promise<{ changed?: string[]; error?: string }> {
   await requireProfile();
   const why = accept ? "" : (reason ?? "").trim();
-  if (why.length > MAX_NOTE) {
-    return { error: `Keep the reason under ${MAX_NOTE} characters.` };
+  if (why.length > SUGGESTION_NOTE_MAX) {
+    return { error: `Keep the reason under ${SUGGESTION_NOTE_MAX} characters.` };
   }
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("decide_entry_suggestion", {

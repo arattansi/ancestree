@@ -3,6 +3,7 @@
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 
+import { isEmailAddress } from "@/lib/email-address";
 import { signInAsksName, type JoiningName } from "@/lib/joining-name";
 import { signInNeedsConsent } from "@/lib/privacy-consent";
 import {
@@ -28,8 +29,6 @@ import {
 } from "@/lib/sign-in.server";
 import { createClient } from "@/lib/supabase/server";
 import { getSiteUrl } from "@/lib/site-url";
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
  * The entry as typed — a name too, on a bare invite link — and how it went.
@@ -70,7 +69,7 @@ export async function requestMagicLink(
   const resend = formData.get("resend") === "1";
 
   if (asksName && problem) return problemState(problem, entered);
-  if (!asksName && !EMAIL_RE.test(email)) {
+  if (!asksName && !isEmailAddress(email)) {
     return { error: "Enter a valid email address.", email };
   }
 
@@ -127,7 +126,7 @@ export async function verifySignInCode(
   const invite = String(formData.get("inviteToken") ?? "").trim() || null;
   const next = safeNext(String(formData.get("next") ?? ""));
 
-  if (!EMAIL_RE.test(email) || !isWholeSignInCode(code)) {
+  if (!isEmailAddress(email) || !isWholeSignInCode(code)) {
     return { error: `Enter the ${SIGN_IN_CODE_LENGTH}-digit code from the email.` };
   }
 

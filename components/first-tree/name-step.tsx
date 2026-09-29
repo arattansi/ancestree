@@ -13,8 +13,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAction } from "@/components/use-action";
+import { TREE_NAME_MAX } from "@/lib/limits";
 
-const MAX_TREE_NAME = 80;
 
 /**
  * Naming the tree, in the founder's first run (Step 29). It opens on their
@@ -67,7 +67,7 @@ export function NameStep({
               id="first-tree-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              maxLength={MAX_TREE_NAME}
+              maxLength={TREE_NAME_MAX}
               autoComplete="off"
               aria-invalid={error ? true : undefined}
               aria-describedby={error ? "first-tree-name-error" : undefined}

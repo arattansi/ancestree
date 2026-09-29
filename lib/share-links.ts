@@ -1,4 +1,5 @@
 import type { Tables } from "@/lib/database.types";
+import { isExpired } from "@/lib/expiry";
 
 export type ShareLink = Tables<"share_links">;
 
@@ -17,10 +18,7 @@ export function isShareLinkUsable(
   now: Date = new Date(),
 ): boolean {
   if (link.revoked_at) return false;
-  if (link.expires_at && new Date(link.expires_at).getTime() <= now.getTime()) {
-    return false;
-  }
-  return true;
+  return !isExpired(link.expires_at, now);
 }
 
 // What fetches a link with no person behind it: the services that draw a
@@ -63,8 +61,6 @@ export function shareLinkState(
   now: Date = new Date(),
 ): ShareLinkState {
   if (link.revoked_at) return "revoked";
-  if (link.expires_at && new Date(link.expires_at).getTime() <= now.getTime()) {
-    return "expired";
-  }
+  if (isExpired(link.expires_at, now)) return "expired";
   return "active";
 }

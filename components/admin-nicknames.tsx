@@ -21,6 +21,7 @@ import {
   nicknameInputError,
   type NicknameGroup,
 } from "@/lib/nicknames";
+import { countOf } from "@/lib/plural";
 
 type Removal = { canonical: string; variant: string };
 
@@ -112,8 +113,7 @@ export function AdminNicknames({ groups }: { groups: NicknameGroup[] }) {
             />
           </div>
           <p className="text-sm text-muted-foreground">
-            {visible.length} of {groups.length} group
-            {groups.length === 1 ? "" : "s"}
+            {visible.length} of {countOf(groups.length, "group")}
           </p>
         </div>
 

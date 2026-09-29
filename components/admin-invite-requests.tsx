@@ -7,16 +7,18 @@ import {
   approveInviteRequest,
   declineInviteRequest,
 } from "@/app/actions/invite-requests";
+import { copyText } from "@/components/copy-text";
 import { DeleteInviteButton } from "@/components/delete-invite-button";
 import { PendingButton } from "@/components/pending-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { toastError, useAction } from "@/components/use-action";
+import { useAction } from "@/components/use-action";
 import {
   refocusAfterRemoval,
   useFocusReturn,
 } from "@/components/use-focus-return";
 import { requestRows } from "@/lib/request-rows";
+import { shortDate } from "@/lib/short-date";
 import {
   candidateSummary,
   matchConfidence,
@@ -154,13 +156,8 @@ function RequestRow({
     });
   }
 
-  async function copy(url: string) {
-    try {
-      await navigator.clipboard.writeText(url);
-      toast.success("Invite link copied");
-    } catch {
-      toastError("Couldn't copy — select and copy the link manually");
-    }
+  function copy(url: string) {
+    void copyText(url, { copied: "Invite link copied" });
   }
 
   return (
@@ -168,11 +165,7 @@ function RequestRow({
       <p className="font-medium">{name}</p>
       <p className="text-muted-foreground">
         {r.email} ·{" "}
-        {new Date(r.createdAt).toLocaleDateString(undefined, {
-          day: "numeric",
-          month: "short",
-          year: "numeric",
-        })}
+        {shortDate(r.createdAt)}
       </p>
       {result ? (
         <div className="flex flex-col gap-2">

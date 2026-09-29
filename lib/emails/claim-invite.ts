@@ -1,5 +1,6 @@
 import { escapeHtml } from "@/lib/email";
 import { INVITE_EMAIL_SUBJECT, renderInviteEmail } from "@/lib/emails/shared";
+import { INVITE_LIFETIME_DAYS } from "@/lib/limits";
 
 /**
  * "Come and claim your entry" email, sent by an admin from an unclaimed entry
@@ -30,7 +31,7 @@ export function claimInviteEmail(input: {
                   below signs you straight in and lets you claim it as your
                   own, so you can fill in your own details from then on.
                   It&rsquo;s yours alone, so please don&rsquo;t forward it. It
-                  works once and expires in 14 days.`,
+                  works once and expires in ${INVITE_LIFETIME_DAYS} days.`,
     url: input.url,
   });
 

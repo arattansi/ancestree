@@ -15,6 +15,7 @@ import { Form } from "@/components/ui/form";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAction } from "@/components/use-action";
+import { SUGGESTION_NOTE_MAX } from "@/lib/limits";
 import { personSchema, type PersonFormValues } from "@/lib/person-schema";
 
 /**
@@ -103,7 +104,7 @@ export function PersonSuggestForm({
             value={note}
             onChange={(e) => setNote(e.target.value)}
             rows={3}
-            maxLength={500}
+            maxLength={SUGGESTION_NOTE_MAX}
             disabled={action.pending}
           />
         </div>

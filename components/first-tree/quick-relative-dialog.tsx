@@ -35,6 +35,7 @@ import {
   type CloseKind,
   type CloseRelativeLinks,
 } from "@/lib/first-tree";
+import { isEmailAddress } from "@/lib/email-address";
 import { DEFAULT_CROP, type CropTransform } from "@/lib/image-crop";
 import { marriageDateProblems } from "@/lib/partial-date";
 import { personDisplayName } from "@/lib/person-name";
@@ -53,8 +54,6 @@ const TITLES: Record<CloseKind, string> = {
 };
 
 type Named = { id: string; name: string };
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 type QuickRelativeProps = {
   kind: CloseKind;
@@ -145,7 +144,7 @@ function QuickRelativeForm({
     action.setError(null);
     // Nobody is invited to take over a deceased person's entry.
     const address = values.is_deceased ? "" : inviteEmail.trim();
-    if (address && !EMAIL_RE.test(address)) {
+    if (address && !isEmailAddress(address)) {
       action.setError("That email doesn't look right — fix it, or leave it empty.");
       return;
     }

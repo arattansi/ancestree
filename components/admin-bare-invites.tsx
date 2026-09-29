@@ -1,14 +1,15 @@
 "use client";
 
-import { toast } from "sonner";
-
 import { deleteInvite } from "@/app/actions/invites";
 import { ConfirmButton } from "@/components/confirm-dialog";
+import { copyText } from "@/components/copy-text";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { toastError } from "@/components/use-action";
+import { isExpired } from "@/lib/expiry";
 import type { BareInvite } from "@/lib/invites";
+import { shortDate } from "@/lib/short-date";
+import { inviteHref } from "@/lib/sign-in-links";
 
 /**
  * Bare invite links on /admin — the ones minted without a recipient, so they
@@ -30,15 +31,10 @@ export function AdminBareInvites({
     );
   }
 
-  const urlFor = (token: string) => `${baseUrl}/join/${token}`;
+  const urlFor = (token: string) => `${baseUrl}${inviteHref(token)}`;
 
-  async function copy(token: string) {
-    try {
-      await navigator.clipboard.writeText(urlFor(token));
-      toast.success("Invite link copied");
-    } catch {
-      toastError("Couldn't copy — select and copy the link manually");
-    }
+  function copy(token: string) {
+    void copyText(urlFor(token), { copied: "Invite link copied" });
   }
 
   return (
@@ -95,24 +91,12 @@ export function AdminBareInvites({
   );
 }
 
-function shortDate(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
-
 /** Nobody's name is attached to a bare link, so the stakes are all in its state. */
 function consequence(invite: BareInvite) {
-  if (invite.status === "active" && !isExpired(invite)) {
+  if (invite.status === "active" && !isExpired(invite.expiresAt)) {
     return "It stops working for anyone you’ve sent it to.";
   }
   return "It no longer works anyway.";
-}
-
-function isExpired(invite: BareInvite) {
-  return invite.expiresAt ? new Date(invite.expiresAt) < new Date() : false;
 }
 
 function StatusBadge({ invite }: { invite: BareInvite }) {
@@ -122,7 +106,7 @@ function StatusBadge({ invite }: { invite: BareInvite }) {
     default:
       return (
         <Badge variant="secondary">
-          {isExpired(invite) ? "Expired, unused" : "Unused"}
+          {isExpired(invite.expiresAt) ? "Expired, unused" : "Unused"}
         </Badge>
       );
   }

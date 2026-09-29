@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { FitText } from "@/components/ui/fit-text";
 import { cropStyle, parseCrop } from "@/lib/image-crop";
 import { nativeLeaf } from "@/lib/native-leaf";
+import { countOf } from "@/lib/plural";
 import { cn } from "@/lib/utils";
 import {
   maidenLine,
@@ -228,7 +229,7 @@ function PersonNodeImpl({ data }: NodeProps) {
         {person.open_flag_count > 0 ? (
           <span
             className="absolute -top-1.5 -right-1.5 flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] font-semibold text-white"
-            title={`${person.open_flag_count} open flag${person.open_flag_count === 1 ? "" : "s"}`}
+            title={countOf(person.open_flag_count, "open flag")}
             aria-label={`${person.open_flag_count} open flags`}
           >
             {person.open_flag_count}

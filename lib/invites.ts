@@ -155,7 +155,8 @@ export async function archiveExpiredInvites(treeId: string): Promise<void> {
     .eq("tree_id", treeId)
     .eq("status", "active")
     .is("archived_at", null)
-    .lt("expires_at", new Date().toISOString());
+    // Lapsed at the moment itself, as the database counts it (`lib/expiry.ts`).
+    .lte("expires_at", new Date().toISOString());
 }
 
 export type ArchivedInvite = {

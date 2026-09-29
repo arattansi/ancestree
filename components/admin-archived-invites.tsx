@@ -3,6 +3,7 @@
 import { deleteInvite } from "@/app/actions/invites";
 import { ConfirmButton } from "@/components/confirm-dialog";
 import type { ArchivedInvite } from "@/lib/invites";
+import { shortDate } from "@/lib/short-date";
 
 /**
  * "Archived invites" on /admin — ones that expired unused, kept on record
@@ -33,7 +34,7 @@ export function AdminArchivedInvites({ invites }: { invites: ArchivedInvite[] })
               {[
                 invite.email,
                 `Sent by ${invite.createdByName ?? "a former member"}`,
-                invite.expiresAt ? `expired ${formatDate(invite.expiresAt)}` : null,
+                invite.expiresAt ? `expired ${shortDate(invite.expiresAt)}` : null,
               ]
                 .filter(Boolean)
                 .join(" · ")}
@@ -64,12 +65,4 @@ function describe(invite: ArchivedInvite) {
   if (invite.recipientName) return `${invite.recipientName}’s invite`;
   if (invite.claimPersonName) return `the invite to claim ${invite.claimPersonName}`;
   return "this bare link";
-}
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
 }

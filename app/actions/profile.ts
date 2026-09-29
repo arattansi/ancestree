@@ -1,10 +1,9 @@
 "use server";
 
 import { requireProfile } from "@/lib/auth";
+import { DISPLAY_NAME_MAX } from "@/lib/limits";
 import { revalidateTreePages } from "@/lib/revalidate";
 import { createClient } from "@/lib/supabase/server";
-
-const MAX_NAME = 60;
 
 /**
  * Change the name a member is shown under across the app (their profile
@@ -21,8 +20,8 @@ export async function updateDisplayName(
   if (trimmed.length < 2) {
     return { error: "Enter at least two characters." };
   }
-  if (trimmed.length > MAX_NAME) {
-    return { error: `Keep it under ${MAX_NAME} characters.` };
+  if (trimmed.length > DISPLAY_NAME_MAX) {
+    return { error: `Keep it under ${DISPLAY_NAME_MAX} characters.` };
   }
   if (trimmed === profile.display_name) {
     return { displayName: trimmed };

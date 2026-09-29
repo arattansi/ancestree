@@ -44,6 +44,7 @@ import { getSessionUser, requireProfile, type Profile } from "@/lib/auth";
 import { branchSidesOn } from "@/lib/branch.server";
 import { listNotifications } from "@/lib/claims";
 import { readRelayParam, relayLapseCutoff } from "@/lib/invite-relays";
+import { INVITE_LIFETIME_DAYS } from "@/lib/limits";
 import { openedRelayNote } from "@/lib/opened-relay";
 import { loadOpenedRelay } from "@/lib/opened-relay.server";
 import { loadOwnEntry } from "@/lib/own-entry.server";
@@ -595,8 +596,8 @@ async function SettingsView({
               <CardDescription>
                 Email them an invite and the link signs them straight in —
                 nothing for them to set up. It is tied to you, works once, and
-                expires after 14 days. For a link to share in a family group
-                chat, ask a Root.
+                expires after {INVITE_LIFETIME_DAYS} days. For a link to share
+                in a family group chat, ask a Root.
               </CardDescription>
             </CardHeader>
             <CardContent>

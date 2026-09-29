@@ -1,5 +1,6 @@
 import { escapeHtml } from "@/lib/email";
 import { renderInviteEmail } from "@/lib/emails/shared";
+import { INVITE_LIFETIME_DAYS } from "@/lib/limits";
 
 /**
  * "Start your family's tree" email for a Root inviting someone to found a
@@ -21,7 +22,7 @@ export function founderInviteEmail(input: {
                   ancestree. The link below signs you straight in and opens a
                   brand-new tree with you as its first Root &mdash; you decide
                   who joins it. It&rsquo;s yours alone, so please don&rsquo;t
-                  forward it. It works once and expires in 14 days.`,
+                  forward it. It works once and expires in ${INVITE_LIFETIME_DAYS} days.`,
     url: input.url,
   });
 

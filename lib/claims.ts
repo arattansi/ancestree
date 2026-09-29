@@ -2,6 +2,7 @@ import "server-only";
 
 import { cache } from "react";
 
+import { memberNames } from "@/lib/member-names.server";
 import { createClient } from "@/lib/supabase/server";
 import { personDisplayName, personLifespan } from "@/lib/person-name";
 import {
@@ -109,27 +110,19 @@ async function loadNotificationSuggestions(
       rows.flatMap((r) => (r.status === "pending" ? [r.person_id] : [])),
     ),
   ];
-  const deciders = [
-    ...new Set(rows.flatMap((r) => (r.decided_by ? [r.decided_by] : []))),
-  ];
-  const [{ data: people }, { data: members }] = await Promise.all([
+  const [{ data: people }, names] = await Promise.all([
     waiting.length > 0
       ? supabase
           .from("people")
           .select(SUGGESTION_ENTRY_COLUMNS)
           .in("id", waiting)
       : Promise.resolve({ data: [] }),
-    deciders.length > 0
-      ? supabase
-          .from("member_directory")
-          .select("auth_user_id, display_name")
-          .in("auth_user_id", deciders)
-      : Promise.resolve({ data: [] }),
+    memberNames(
+      supabase,
+      rows.map((r) => r.decided_by),
+    ),
   ]);
   const entryById = new Map((people ?? []).map((p) => [p.id, p]));
-  const nameById = new Map(
-    (members ?? []).map((m) => [m.auth_user_id, m.display_name]),
-  );
 
   for (const r of rows) {
     const before = asSuggestionColumns(r.before);
@@ -143,7 +136,7 @@ async function loadNotificationSuggestions(
       status,
       rows: suggestionRows(asSuggestionColumns(r.changes), against),
       note: r.note,
-      decidedBy: r.decided_by ? (nameById.get(r.decided_by) ?? null) : null,
+      decidedBy: r.decided_by ? (names.get(r.decided_by) ?? null) : null,
       declineReason: r.decline_reason,
     });
   }
@@ -313,19 +306,10 @@ export async function listDisputedClaims(treeId: string): Promise<DisputedClaim[
     .in("id", personIds);
   const personById = new Map((people ?? []).map((p) => [p.id, p]));
 
-  const memberIds = [
-    ...new Set([
-      ...rows.map((r) => r.claimant_user_id),
-      ...(people ?? []).map((p) => p.created_by),
-    ]),
-  ];
-  const { data: members } = await supabase
-    .from("member_directory")
-    .select("auth_user_id, display_name")
-    .in("auth_user_id", memberIds);
-  const nameById = new Map(
-    (members ?? []).map((m) => [m.auth_user_id, m.display_name]),
-  );
+  const names = await memberNames(supabase, [
+    ...rows.map((r) => r.claimant_user_id),
+    ...(people ?? []).map((p) => p.created_by),
+  ]);
 
   return rows.map((r) => {
     const person = personById.get(r.person_id);
@@ -333,8 +317,8 @@ export async function listDisputedClaims(treeId: string): Promise<DisputedClaim[
       id: r.id,
       personId: r.person_id,
       personName: person ? personDisplayName(person) : "Unknown entry",
-      claimantName: nameById.get(r.claimant_user_id) ?? null,
-      creatorName: person ? nameById.get(person.created_by) ?? null : null,
+      claimantName: names.get(r.claimant_user_id) ?? null,
+      creatorName: person ? (names.get(person.created_by) ?? null) : null,
       reason: r.dispute_reason,
       disputedAt: r.updated_at,
     };

@@ -1,5 +1,6 @@
 import { escapeHtml } from "@/lib/email";
 import { INVITE_EMAIL_SUBJECT, renderInviteEmail } from "@/lib/emails/shared";
+import { INVITE_LIFETIME_DAYS } from "@/lib/limits";
 
 /**
  * "You're invited" email for an admin sending an invite directly to someone
@@ -20,7 +21,7 @@ export function inviteSentEmail(input: {
     bodyHtml: `${inviterName} invited you to help build the family tree on
                   ancestree. The link below signs you straight in &mdash;
                   it&rsquo;s yours alone, so please don&rsquo;t forward it. It
-                  works once and expires in 14 days.`,
+                  works once and expires in ${INVITE_LIFETIME_DAYS} days.`,
     url: input.url,
   });
 

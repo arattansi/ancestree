@@ -13,18 +13,11 @@ import { PendingButton } from "@/components/pending-button";
 import { Badge } from "@/components/ui/badge";
 import { useAction } from "@/components/use-action";
 import { refocusAfterRemoval } from "@/components/use-focus-return";
+import { shortDate } from "@/lib/short-date";
 import type { TreeRequestItem } from "@/lib/tree-requests.server";
 
 function fullName(r: TreeRequestItem): string {
   return `${r.firstName} ${r.lastName}`.trim();
-}
-
-function shortDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
 }
 
 /**
