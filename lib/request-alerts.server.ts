@@ -1,7 +1,7 @@
 import "server-only";
 
 import { openConsoleHref } from "@/lib/admin-queue";
-import { sendEmail } from "@/lib/email";
+import { sendEmails, unsentSummary } from "@/lib/email";
 import { accessRequestedEmail } from "@/lib/emails/access-requested";
 import { treeRequestedEmail } from "@/lib/emails/tree-requested";
 import {
@@ -31,30 +31,17 @@ function sinceADayAgo(): string {
 
 /**
  * One email per address rather than one to all of them, so no approver
- * sees another's address. One at a time: there are only ever a few, and
- * the mail provider limits how fast a team may send.
+ * sees another's address — sent together in one request (Step 77.5).
  */
 async function sendToEach(
   to: string[],
   message: { subject: string; html: string },
   what: string,
 ): Promise<void> {
-  let failed = 0;
-  let lastError = "";
-  for (const address of to) {
-    const sent = await sendEmail({ to: address, ...message });
-    if (!sent.ok) {
-      failed += 1;
-      lastError = sent.error;
-    }
-  }
-  if (failed > 0) {
-    console.error(
-      `[request-alerts] ${what}: ${failed} of ${to.length} alerts failed to send — ${lastError}`,
-    );
-  } else {
-    console.info(`[request-alerts] ${what}: emailed ${to.length}`);
-  }
+  const sent = await sendEmails(to.map((address) => ({ to: address, ...message })));
+  const unsent = unsentSummary(sent);
+  if (unsent) console.error(`[request-alerts] ${what}: ${unsent}`);
+  else console.info(`[request-alerts] ${what}: emailed ${to.length}`);
 }
 
 /**

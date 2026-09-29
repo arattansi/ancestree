@@ -3,9 +3,9 @@
 import { after } from "next/server";
 
 import { requireProfile, type Profile } from "@/lib/auth";
-import { sendEmail } from "@/lib/email";
+import { sendEmail, whyNotSent } from "@/lib/email";
 import { treeRequestApprovedEmail } from "@/lib/emails/tree-request-approved";
-import { mintFounderInvite } from "@/lib/founder-invites.server";
+import { mintFounderInvites } from "@/lib/founder-invites.server";
 import { CONSENT_NEEDED, consentGiven } from "@/lib/privacy-consent";
 import {
   problemState,
@@ -60,7 +60,7 @@ export type WaitlistState = RequestFormState & { ok?: boolean };
  * 30.1); signing up again emails nobody.
  *
  * It needs the privacy agreement (Step 30.6): the founder invite is filed
- * as a request (`mintFounderInvite`), and the join page skips the box for a
+ * as a request (`mintFounderInvites`), and the join page skips the box for a
  * request, taking it as ticked when they asked.
  */
 export async function joinBetaWaitlist(
@@ -199,17 +199,19 @@ export async function approveTreeRequest(
     const sent = await sendEmail({ to: request.email, subject, html });
     await supabase.from("tree_requests").update({ email_sent: sent.ok }).eq("id", id);
     revalidateTreePages();
-    return { emailed: sent.ok, emailError: sent.ok ? undefined : sent.error };
+    return { emailed: sent.ok, emailError: whyNotSent(sent) };
   }
 
-  const minted = await mintFounderInvite(
+  const [minted] = await mintFounderInvites(
     treeId,
     inviter,
-    {
-      firstName: request.first_name,
-      lastName: request.last_name,
-      email: request.email,
-    },
+    [
+      {
+        firstName: request.first_name,
+        lastName: request.last_name,
+        email: request.email,
+      },
+    ],
     "request",
   );
   if (!minted.inviteId) {

@@ -1,19 +1,14 @@
 "use server";
 
-import { INVITED_AS } from "@/lib/account-types";
 import { requireProfile } from "@/lib/auth";
 import {
   mintClaimInvite,
   type ClaimInviteState,
 } from "@/lib/claim-invite-send.server";
-import { sendEmail } from "@/lib/email";
 import { isEmailAddress } from "@/lib/email-address";
 import { inviteSentEmail } from "@/lib/emails/invite-sent";
-import { expiresAfter } from "@/lib/expiry";
-import { mintFounderInvite } from "@/lib/founder-invites.server";
-import { INVITE_LIFETIME_DAYS } from "@/lib/limits";
-import { getSiteUrl } from "@/lib/site-url";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { mintFounderInvites } from "@/lib/founder-invites.server";
+import { mintInvites, type MintedInvite } from "@/lib/invite-mint.server";
 import { createClient } from "@/lib/supabase/server";
 import { revalidateTreePages } from "@/lib/revalidate";
 import { MAX_NAME_LENGTH } from "@/lib/request-forms";
@@ -33,6 +28,7 @@ export type DirectInviteResult = {
   minted: boolean;
   /** Only meaningful when `minted` is true. */
   emailed: boolean;
+  /** Why it didn't go, in words for the inviter, when there's more to say. */
   error?: string;
 };
 
@@ -77,17 +73,12 @@ function checkRows(rows: DirectInviteRow[]): { rows?: DirectInviteRow[]; error?:
 }
 
 /**
- * Mint an invite into one tree for each row and email it directly to that
- * person — no public request involved. Open to any member there, and each
- * joins as a Leaf. Each row also becomes an
- * `invite_requests` row (source = 'direct', pre-approved) purely so it shows
- * up in the Roots' "Sent invites" history alongside request-driven approvals.
- *
- * The invite is bound to the address, so opening it signs them straight in
- * (`signInWithInvite`). Only a Root or the service role may bind one
- * (`invites_guard`), hence the service-role writes: the inviter's permission
- * is checked here, and the token goes to the recipient's inbox, never back to
- * the inviter.
+ * Invite people into one tree by name and address, emailed to each of them
+ * — no public request involved. Open to any member there, and each joins as
+ * a Leaf. Each also gets an `invite_requests` record (source = 'direct',
+ * pre-approved) purely so it shows up in the Roots' "Sent invites" history
+ * alongside request-driven approvals. All of them go together
+ * (`mintInvites`, Step 77.5), and no link comes back to the inviter.
  */
 export async function sendDirectInvites(
   treeId: string,
@@ -95,67 +86,21 @@ export async function sendDirectInvites(
 ): Promise<SendDirectInvitesState> {
   const { membership, error: notMember } = await membershipOf(treeId);
   if (!membership) return { error: notMember };
-  const inviter = membership.profile;
 
   const checked = checkRows(rows);
   if (checked.error || !checked.rows) return { error: checked.error };
 
-  const supabase = createAdminClient();
-  const results: DirectInviteResult[] = [];
-
-  for (const row of checked.rows) {
-    const { data: invite, error: inviteError } = await supabase
-      .from("invites")
-      .insert({
-        tree_id: treeId,
-        created_by: inviter.auth_user_id,
-        status: "active",
-        expires_at: expiresAfter(INVITE_LIFETIME_DAYS),
-        joins_as: INVITED_AS.key,
-        // The link signs this address in — see `signInWithInvite`.
-        invited_email: row.email,
-      })
-      .select("id, token")
-      .single();
-
-    if (inviteError || !invite) {
-      results.push({ email: row.email, minted: false, emailed: false, error: "Could not create a link." });
-      continue;
-    }
-
-    const url = `${getSiteUrl()}/join/${invite.token}`;
-    const { subject, html } = inviteSentEmail({
-      firstName: row.firstName,
-      inviterName: inviter.display_name ?? "A family member",
-      url,
-    });
-    const sent = await sendEmail({ to: row.email, subject, html });
-
-    // Best-effort history row. If it fails the invite itself is still valid,
-    // so this doesn't fail the row.
-    await supabase.from("invite_requests").insert({
-      tree_id: treeId,
-      first_name: row.firstName,
-      last_name: row.lastName,
-      email: row.email,
-      source: "direct",
-      status: "approved",
-      reviewed_by: inviter.auth_user_id,
-      reviewed_at: new Date().toISOString(),
-      invite_id: invite.id,
-      email_sent: sent.ok,
-    });
-
-    results.push({
-      email: row.email,
-      minted: true,
-      emailed: sent.ok,
-      error: sent.ok ? undefined : sent.error,
-    });
-  }
+  const minted = await mintInvites({
+    treeId,
+    inviter: membership.profile,
+    recipients: checked.rows,
+    source: "direct",
+    email: (row, { url, inviterName }) =>
+      inviteSentEmail({ firstName: row.firstName, inviterName, url }),
+  });
 
   revalidateTreePages();
-  return { results };
+  return { results: minted.map(directInviteResult) };
 }
 
 /**
@@ -172,24 +117,29 @@ export async function sendFounderInvites(
 ): Promise<SendDirectInvitesState> {
   const { membership, error: notRoot } = await rootOf(treeId);
   if (!membership) return { error: notRoot };
-  const inviter = membership.profile;
 
   const checked = checkRows(rows);
   if (checked.error || !checked.rows) return { error: checked.error };
 
-  const results: DirectInviteResult[] = [];
-  for (const row of checked.rows) {
-    const minted = await mintFounderInvite(treeId, inviter, row, "direct");
-    results.push({
-      email: row.email,
-      minted: minted.inviteId !== null,
-      emailed: minted.emailed,
-      error: minted.error,
-    });
-  }
+  const minted = await mintFounderInvites(
+    treeId,
+    membership.profile,
+    checked.rows,
+    "direct",
+  );
 
   revalidateTreePages();
-  return { results };
+  return { results: minted.map(directInviteResult) };
+}
+
+/** How a sent invite is reported back: never its link. */
+function directInviteResult(invite: MintedInvite): DirectInviteResult {
+  return {
+    email: invite.email,
+    minted: invite.inviteId !== null,
+    emailed: invite.emailed,
+    error: invite.error,
+  };
 }
 
 export type { ClaimInviteState } from "@/lib/claim-invite-send.server";

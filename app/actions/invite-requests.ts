@@ -2,7 +2,7 @@
 
 import { after } from "next/server";
 
-import { sendEmail } from "@/lib/email";
+import { sendEmail, whyNotSent } from "@/lib/email";
 import { claimInviteEmail } from "@/lib/emails/claim-invite";
 import { founderApprovedEmail } from "@/lib/emails/founder-approved";
 import { founderInviteEmail } from "@/lib/emails/founder-invite";
@@ -18,13 +18,13 @@ import {
 } from "@/lib/request-forms";
 import { alertRootsOfAccessRequest } from "@/lib/request-alerts.server";
 import type { SelfCandidate } from "@/lib/self-match";
-import { getSiteUrl } from "@/lib/site-url";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { revalidateTreePages } from "@/lib/revalidate";
 import { getSessionUser, requireProfile } from "@/lib/auth";
 import { ownedWrite } from "@/lib/db-errors";
 import { expiresAfter, isExpired } from "@/lib/expiry";
+import { inviterName, inviteUrl } from "@/lib/invite-mint.server";
 import { INVITE_LIFETIME_DAYS } from "@/lib/limits";
 import { rootOf } from "@/lib/tree-context";
 
@@ -152,7 +152,25 @@ export async function approveInviteRequest(
     }
   }
 
-  const expiresAt = expiresAfter(INVITE_LIFETIME_DAYS);
+  // Answer it before acting on it, so a second press, or a second Root,
+  // can't send it twice (Step 77.5).
+  const claimed = await ownedWrite(
+    supabase
+      .from("invite_requests")
+      .update({
+        status: "approved",
+        reviewed_by: admin.auth_user_id,
+        reviewed_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .eq("status", "pending")
+      .select("id"),
+    {
+      refused: "That request has already been reviewed.",
+      failed: "Could not approve that request. Try again.",
+    },
+  );
+  if (claimed.error) return { error: claimed.error };
 
   const { data: invite, error: inviteError } = await supabase
     .from("invites")
@@ -160,7 +178,7 @@ export async function approveInviteRequest(
       tree_id: request.tree_id,
       created_by: admin.auth_user_id,
       status: "active",
-      expires_at: expiresAt,
+      expires_at: expiresAfter(INVITE_LIFETIME_DAYS),
       // The link signs this address in — see `signInWithInvite`.
       invited_email: request.email.trim().toLowerCase(),
       // Accepting claims this entry (Step 30.2); `invites_guard` lets a Root.
@@ -170,39 +188,35 @@ export async function approveInviteRequest(
     .single();
 
   if (inviteError || !invite) {
+    // Nothing went out: put it back in the queue.
+    await supabase
+      .from("invite_requests")
+      .update({ status: "pending", reviewed_by: null, reviewed_at: null })
+      .eq("id", id);
     return { error: "Could not create an invite link. Try again." };
   }
 
-  const url = `${getSiteUrl()}/join/${invite.token}`;
+  const url = inviteUrl(invite.token);
   const { subject, html } = inviteApprovedEmail({
     firstName: request.first_name,
-    inviterName: admin.display_name ?? "A family member",
+    inviterName: inviterName(admin),
     url,
     entryName: entry?.name,
   });
   const sent = await sendEmail({ to: request.email, subject, html });
 
-  const { error: updateError } = await supabase
+  // It's approved either way: this ties the record to its link, so Sent
+  // Invites can resend it.
+  await supabase
     .from("invite_requests")
-    .update({
-      status: "approved",
-      reviewed_by: admin.auth_user_id,
-      reviewed_at: new Date().toISOString(),
-      invite_id: invite.id,
-      email_sent: sent.ok,
-    })
-    .eq("id", id)
-    .eq("status", "pending");
-
-  if (updateError) {
-    return { error: "Could not update that request. Try again." };
-  }
+    .update({ invite_id: invite.id, email_sent: sent.ok })
+    .eq("id", id);
 
   revalidateTreePages();
   return {
     url,
     emailed: sent.ok,
-    emailError: sent.ok ? undefined : sent.error,
+    emailError: whyNotSent(sent),
     entryName: entry?.name,
   };
 }
@@ -256,14 +270,13 @@ export async function resendInviteEmail(
     };
   }
 
-  const inviterName = admin.display_name ?? "A family member";
-  const url = `${getSiteUrl()}/join/${invite.token}`;
+  const url = inviteUrl(invite.token);
   // Keep the original wording: nobody asked for a direct invite, so it must
   // not come back claiming their request was approved; a founder invite
   // starts a tree of their own, so it must not read as joining this one; and
   // an invite naming an entry names it again — a request approved as one
   // (Step 30.3), or one sent from the entry's card (Step 38).
-  const input = { firstName: request.first_name, inviterName, url };
+  const input = { firstName: request.first_name, inviterName: inviterName(admin), url };
   const direct = request.source === "direct";
   const entry = invite.people;
   const entryName = entry ? personDisplayName(entry) : null;
@@ -286,7 +299,12 @@ export async function resendInviteEmail(
 
   revalidateTreePages();
 
-  if (!sent.ok) return { error: `Still couldn't send it — ${sent.error}` };
+  if (!sent.ok) {
+    const why = whyNotSent(sent);
+    return {
+      error: why ? `Still couldn't send it — ${why}.` : "Still couldn't send it. Try again in a moment.",
+    };
+  }
   if (updateError) {
     return { error: "Email sent, but the record still shows it as failed." };
   }

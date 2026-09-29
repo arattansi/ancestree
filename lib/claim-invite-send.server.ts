@@ -1,18 +1,13 @@
 import "server-only";
 
-import { accountTypeOf, INVITED_AS } from "@/lib/account-types";
+import { accountTypeOf } from "@/lib/account-types";
 import type { Profile } from "@/lib/auth";
 import { claimInviteRecordName } from "@/lib/claim-invites";
-import { sendEmail } from "@/lib/email";
 import { isEmailAddress } from "@/lib/email-address";
 import { claimInviteEmail } from "@/lib/emails/claim-invite";
-import { expiresAfter } from "@/lib/expiry";
-import { INVITE_LIFETIME_DAYS } from "@/lib/limits";
+import { mintInvites } from "@/lib/invite-mint.server";
 import { personDisplayName } from "@/lib/person-name";
 import { isPlacedOn } from "@/lib/placements.server";
-import { inviteHref } from "@/lib/sign-in-links";
-import { getSiteUrl } from "@/lib/site-url";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getRoleIn } from "@/lib/tree-context";
 
@@ -95,55 +90,32 @@ export async function mintClaimInvite(
     };
   }
 
-  // Bound to the address, so opening it signs them straight in. Only a Root
-  // or the service role may bind one (`invites_guard`), hence the service-role
-  // write, as in `sendDirectInvites`: the inviter's right was checked above.
-  const admin = createAdminClient();
-  const { data: invite, error } = await admin
-    .from("invites")
-    .insert({
-      tree_id: joinTreeId,
-      created_by: inviter.auth_user_id,
-      status: "active",
-      expires_at: expiresAfter(INVITE_LIFETIME_DAYS),
-      joins_as: INVITED_AS.key,
-      person_id: personId,
-      invited_email: address,
-    })
-    .select("id, token")
-    .single();
+  // Bound to the address and filed in "Sent invites", as a direct invite
+  // is (`mintInvites`): the inviter's right was checked above. The record is
+  // named after the entry, the only name the card asks for (Step 38).
+  const entryName = personDisplayName(person);
+  const recordName = claimInviteRecordName(person);
+  const [invite] = await mintInvites({
+    treeId: joinTreeId,
+    inviter,
+    recipients: [
+      { firstName: recordName.first_name, lastName: recordName.last_name, email: address },
+    ],
+    personId,
+    source: "direct",
+    email: (_, { url, inviterName }) =>
+      claimInviteEmail({
+        firstName: person.preferred_name || person.first_name || entryName,
+        entryName,
+        inviterName,
+        url,
+      }),
+  });
 
-  if (error || !invite) {
+  if (!invite.inviteId) {
     return { error: "Could not create an invite link. Try again." };
   }
-
-  const entryName = personDisplayName(person);
-  const { subject, html } = claimInviteEmail({
-    firstName: person.preferred_name || person.first_name || entryName,
-    entryName,
-    inviterName: inviter.display_name ?? "A family member",
-    url: `${getSiteUrl()}${inviteHref(invite.token)}`,
-  });
-  const sent = await sendEmail({ to: address, subject, html });
-
-  // Its "Sent invites" record, as a direct invite keeps (Step 38): without
-  // one the Roots never saw it in the Root console, where it can be resent
-  // or deleted. Named after the entry, the only name the card asks for.
-  // Best-effort, as there: the invite is valid either way, and the entry's
-  // card shows it from the invite itself.
-  await admin.from("invite_requests").insert({
-    tree_id: joinTreeId,
-    ...claimInviteRecordName(person),
-    email: address,
-    source: "direct",
-    status: "approved",
-    reviewed_by: inviter.auth_user_id,
-    reviewed_at: new Date().toISOString(),
-    invite_id: invite.id,
-    email_sent: sent.ok,
-  });
-
-  if (!sent.ok) {
+  if (!invite.emailed) {
     return {
       minted: true,
       error: accountTypeOf(role).runsTree
