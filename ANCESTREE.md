@@ -1528,6 +1528,45 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 87.2 — Search keystrokes and closed panels** (the second of Step
+  87, audit Phase 3, finding C4; no migration). **Aalim asked for:**
+  search results capped at 6, like `PersonPicker`, with a count of the
+  rest. So the filter reaches the canvas's dimming, Upcoming and the
+  results list through `useDeferredValue` (`shownFilter` in
+  `family-tree.tsx` and `tree-search.tsx`): the box shows each key at once
+  and the rest catches up, skipping keys typed meanwhile. The list is a
+  memoized `SearchResults` with at most 6 rows and "and 71 more" under
+  them, each row plain truncated lines instead of two or three `FitText`
+  measurements. `PersonPanel` and `PetPanel` are `React.memo`, and
+  `FamilyTree` hands them kept props: `useCallback` handlers, memoized
+  companions, suggestions and connection prompt, module constants for
+  empty lists, `peopleOptions` through `useKept(…, shareEqual)` and
+  `shownIds` through the new `keepSet` (`lib/canvas-nodes.ts`), so a card
+  drop's new row doesn't draw either sheet. The companion's edit form
+  (`PetEditForm`, with its `useForm`, photo draft and save action) mounts
+  only while it's open. **My calls, not asked:** the 6 rows stay in the
+  12rem scroll box (without it the card reached 697px on a 390×844 phone,
+  covering the canvas it dims); "N matches" stays above the list; a
+  cancelled or saved edit starts afresh from the companion next time.
+  **Numbers** (77-person fixture, prod build, 4× CPU, main → 87.2, five
+  runs): keyboard event to next paint, median 64 → 24 ms, worst 88 → 40;
+  five keys at once 275 → 192 ms; "a" (everyone matches) 77 rows and 171
+  `FitText`s → 6 rows, none; PersonPanel/PetPanel renders on load 4 → 1
+  and 4 → 1 (pet form 4 → 0); while closed, 11 each per search, 11 per
+  10-step drag, 1 per save → 0; beside an open person, 5 per search and 1
+  per save → 0; opening a companion runs no form (was 2). Card renders per
+  key are unchanged (only cards whose dimming flips, since 87.1), now in
+  the deferred render. **Verified** on live as a throwaway Root with 8
+  people and a dog, main beside the change: "z" showed 6 of 7 with "and 1
+  more"; picking Zara opened her details with the connection prompt; a
+  real drop drew neither closed sheet (main: 11 each); the dog's sheet
+  opened with no form, saved a new name and back, focus returned to Edit
+  companion, Cancel dropped a half-typed name; no console errors. Known:
+  the first key of a search still costs ~40 ms (the results block and the
+  first dimming land before the frame); cards can't be dragged while a
+  person's line is pulled out, and a drop closes the companion sheet, both
+  as before. The throwaway account, tree and sessions were deleted.
+
 - **Step 88.1 — A person's details: Edit on the tag row, Family and
   Companions fold** (the first of Step 88, the person sheet's redesign;
   ad-hoc, Aalim 2026-09-29; no migration). **Aalim asked for:** no "No
