@@ -53,7 +53,7 @@ export function AdminSideNav({ groups }: { groups: AdminNavGroup[] }) {
 
   return (
     <nav
-      aria-label="Admin sections"
+      aria-label="Root console sections"
       className="fixed top-1/2 left-[max(1.5rem,calc(50%-34rem))] z-10 hidden max-h-[80vh] -translate-y-1/2 overflow-y-auto xl:block"
     >
       <ul className="flex flex-col gap-3 border-l border-border">

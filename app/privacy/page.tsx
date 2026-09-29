@@ -96,15 +96,15 @@ export default function PrivacyPage() {
       <Section title="Your choices">
         <ul className="list-disc space-y-1 pl-5">
           <li>
-            <strong>See your data.</strong> An admin can export the full tree as a
+            <strong>See your data.</strong> A Root can export the full tree as a
             JSON file on request.
           </li>
           <li>
             <strong>Correct an entry.</strong> Edit your own entry any time, or
-            flag another entry for the owner or an admin to fix.
+            flag another entry for the owner or a Root to fix.
           </li>
           <li>
-            <strong>Delete an entry.</strong> Ask an admin to remove an entry and
+            <strong>Delete an entry.</strong> Ask a Root to remove an entry and
             its photos and documents.
           </li>
           <li>
@@ -125,7 +125,7 @@ export default function PrivacyPage() {
               your account
             </Link>{" "}
             you can permanently delete your login. Entries you added remain part
-            of the shared family record under an admin&rsquo;s stewardship unless
+            of the shared family record under a Root&rsquo;s stewardship unless
             you also ask for them to be removed.
           </li>
         </ul>
@@ -133,8 +133,8 @@ export default function PrivacyPage() {
 
       <Section title="Contact">
         <p>
-          The tree&rsquo;s admins are its data stewards. Reach out to the relative
-          who invited you, or an admin, with any privacy request.
+          The tree&rsquo;s Roots are its data stewards. Reach out to the relative
+          who invited you, or a Root, with any privacy request.
         </p>
       </Section>
 

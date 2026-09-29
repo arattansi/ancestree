@@ -651,7 +651,7 @@ export function PersonPanel({
     if (!person?.claim_id) return;
     const claimId = person.claim_id;
     dispute.run("send", () => disputeClaim(claimId, reason), {
-      success: "Dispute sent to an admin.",
+      success: "Dispute sent to a Root.",
       onSuccess: () => {
         setDisputing(false);
         onClose();
@@ -1169,7 +1169,7 @@ export function PersonPanel({
 
                   {person.claim_status === "disputed" ? (
                     <p className="text-xs text-muted-foreground">
-                      A dispute over this entry is with an admin.
+                      A dispute over this entry is with a Root.
                     </p>
                   ) : null}
                 </section>

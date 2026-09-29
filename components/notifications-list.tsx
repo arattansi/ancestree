@@ -158,7 +158,7 @@ function NotificationRow({
 
   function onDispute(id: string) {
     dispute.run("dispute", () => disputeClaim(id, reason), {
-      success: "Dispute sent to an admin.",
+      success: "Dispute sent to a Root.",
       onSuccess: () => {
         onDisputingChange(false);
         setReason("");
@@ -293,7 +293,7 @@ function NotificationRow({
             )}
           >
             <SubmitButton size="sm" variant="outline" pendingLabel="Opening…">
-              View in admin
+              View in Root console
             </SubmitButton>
           </form>
         ) : null}

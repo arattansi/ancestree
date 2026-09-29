@@ -32,7 +32,7 @@ round trip.
 | Roots | Every tree has at least one Root, for good, and at most two (Step 39). The last Root may leave only by handing the tree to a successor (`deleteAccount(successorId)`, per tree). |
 | Naming | `trees.name` is shown; `trees.slug` is the URL segment (`/t/<slug>/…`). Slugs are unique and only a Root may rename a tree. |
 | Bloodline gate | Per tree (`bloodline_anchors.tree_id`). A founded tree is anchored on its founder's own entry, set when they add, claim or bring themselves there (Step 29: `place_people` anchors the founder's own entry); the first tree keeps its two original anchors. The bloodline climbs every parent line from the anchors, then comes down parent lines and across sibling lines (Step 55), so a partner who married in stays out. Everyone added needs a blood tie (Step 55): once their lines are drawn they are blood, or have a line straight to someone who is, as a partner or the other parent of a blood child. Nobody joins only through someone who married in — their parents, siblings, a child from another relationship, a later partner — whoever is adding, a Root or a newcomer adding themselves included, and the refusal names who. "Add a relative" and onboarding say so as soon as the form would be refused, without stopping the submit (Step 55.1). A member who married in can't add their own side of the family, which belongs on a tree of their own. |
-| Deleting a tree | A Root may delete a tree they run (`delete_tree`, from the admin page's Data & privacy card). Every person whose home it was moves home to the other tree they were placed on first, or is deleted with the tree if there is none; a member whose own entry goes starts over on their next tree's onboarding. Its boards, banks, companions, invites and share links go with it. |
+| Deleting a tree | A Root may delete a tree they run (`delete_tree`, from the Root console's Data & privacy card). Every person whose home it was moves home to the other tree they were placed on first, or is deleted with the tree if there is none; a member whose own entry goes starts over on their next tree's onboarding. Its boards, banks, companions, invites and share links go with it. |
 
 ## 3. Membership and account types
 
@@ -71,7 +71,7 @@ Rules that follow:
 - A member joins a tree through an invite (as a Leaf), by founding it (as
   Root), or by accepting a placement of their own entry (as a Leaf, so they
   can keep their own entry up to date there; a Root may change that).
-- A Root may remove a Branch or a Leaf from the admin console
+- A Root may remove a Branch or a Leaf from the Root console
   (`remove_tree_member`). What they added or own whose home is this tree
   passes to that Root: entries (their own among them), lines, comments,
   documents, invites, share links, companions, and who placed each card.
@@ -224,7 +224,7 @@ ask again.
 Whoever answers hears at once (Step 30.1). A new request to join emails every
 Root of that tree, and a new request to start one — from the waitlist or a
 member — emails every beta reviewer who runs a tree; each email's button opens
-the request on the right admin console, signing them in first if need be.
+the request on the right Root console, signing them in first if need be.
 Asking again emails nobody. The forms are public, so the alerts are capped (5
 an hour and 20 a day per tree; 10 an hour and 30 a day for the waitlist; a
 member's ask isn't capped): past the cap a request still waits in the queue,

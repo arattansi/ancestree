@@ -14,8 +14,8 @@ stay lower-case inside a title — *a, an, the, to, of, on, in, for, from,
 and, or, &* — but are capitalised when they come first.
 
 This applies to `CardTitle`, `AdminGroup` and `AdminSubsection` titles, and
-the `h1` of a page. A table of contents that points at sections (the admin
-side nav) repeats their titles, so it uses the same case.
+the `h1` of a page. A table of contents that points at sections (the Root
+console's side nav) repeats their titles, so it uses the same case.
 
 Descriptions, labels, buttons, hints and body copy stay in sentence case.
 
@@ -23,7 +23,7 @@ Descriptions, labels, buttons, hints and body copy stay in sentence case.
 
 Buttons that move you between pages or views are all lower-case: the
 header's **tree**, **connections**, **account** and **sign in**; the account
-page's view toggle **profile**, **admin**, **dashboard**, **settings**. The tree switcher
+page's view toggle **profile**, **root**, **dashboard**, **settings**. The tree switcher
 shows a tree's name, which keeps its own capitalisation.
 
 Buttons that *do* something — **Save**, **Rename**, **Start my tree**,
@@ -44,6 +44,14 @@ read-only canvas and opens the request form in a dialog over it, so it's an
 action there, like **Add a relative** or **Auto-arrange**, rather than a way
 to another page. Its dialog is titled **Ask to join** too.
 
+### Root, never admin
+
+A member reads **Root**, never "admin" (Step 75): labels, toasts, errors,
+emails and the database's own messages alike. What a Root runs is the
+**Root console**, and its view toggle is **root**, lower-case like the
+other views. `admin` stays in code and in addresses (`/account?view=admin`,
+`/account/admin`), so links in emails already sent keep working.
+
 ### Forms: labels, not explanations
 
 A form is its labels (Step 58; dialogs and prompts had the same pass in
@@ -61,7 +69,7 @@ turn autocomplete off, or every relative is offered the member's own name
 
 ## Layout
 
-- Pages sit in a centred column: `max-w-3xl` for the account page and admin
+- Pages sit in a centred column: `max-w-3xl` for the account page and Root
   console, `max-w-2xl` for forms, `max-w-lg` for short pages, `max-w-5xl`
   for the header.
 - Settings-style pages lay cards out in two columns (`grid gap-6
@@ -73,9 +81,9 @@ turn autocomplete off, or every relative is offered the member's own name
   buttons right-aligned.
 - A count that leads somewhere other than the button it sits by is a button
   of its own beside it, never inside it (a control can't hold another): the
-  red count next to **account** opens what's waiting in the admin consoles
+  red count next to **account** opens what's waiting in the Root consoles
   you run, while **account** still opens the account page. Its label says
-  what it counts ("3 need attention in admin").
+  what it counts ("3 need attention in the Root console").
 - A node's details sheet (a person's or a companion's) never covers the
   header's buttons. From `sm` up the header moves aside and lays out to the
   left of the 24rem sheet, the wordmark giving way to the mark where that's
@@ -157,7 +165,7 @@ uses them rather than its own flags and messages.
   card (Step 74) happens at once, with **Undo** in the toast.
 - **Red:** the tinted `destructive` button is for a removal among other
   buttons (a row's **Delete**); `destructive-solid` only confirms. A count
-  asking for attention (the header's admin count) is `attention`, and a
+  asking for attention (the header's Root console count) is `attention`, and a
   button that sends something (**Send dispute**) is an ordinary one.
 - **Row buttons say which row**: a list's **Delete**, **Remove**, **Copy**
   or **Download** names its row to a screen reader ("Remove Will.pdf").

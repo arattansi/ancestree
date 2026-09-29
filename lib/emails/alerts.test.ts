@@ -71,7 +71,7 @@ describe("accessRequestedEmail", () => {
     expect(accessRequestedEmail(base).html).not.toContain("hold off");
     const { html } = accessRequestedEmail({ ...base, lastFor: "hour" });
     expect(html).toContain("That&rsquo;s 5 requests to join it in an hour");
-    expect(html).toContain("still\n                  wait for you in the admin console");
+    expect(html).toContain("still\n                  wait for you in the Root console");
     expect(accessRequestedEmail({ ...base, lastFor: "day" }).html).toContain(
       "That&rsquo;s 20 requests to join it in a day",
     );

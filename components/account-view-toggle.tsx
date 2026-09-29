@@ -42,7 +42,7 @@ export function AccountViewToggle({
         </ToggleLink>
         {consoleTreeId ? (
           <ToggleLink href={adminHref()} active={view === "admin"}>
-            admin
+            root
           </ToggleLink>
         ) : null}
         {dashboard ? (
@@ -59,7 +59,7 @@ export function AccountViewToggle({
       </div>
       {view === "admin" && adminTrees.length > 1 ? (
         <nav
-          aria-label="Admin console for"
+          aria-label="Root console for"
           className="flex flex-wrap items-center justify-end gap-1 text-xs text-muted-foreground"
         >
           <span>Console for</span>

@@ -69,7 +69,7 @@ export async function generateMetadata({
   const { view } = await searchParams;
   if (view === "admin") {
     return {
-      title: "admin",
+      title: "root",
       description: "Manage members, invites, disputes, and entry counts.",
     };
   }
@@ -452,7 +452,7 @@ async function SettingsView({
                           pendingLabel="Opening…"
                           className="relative tap-target h-auto border-0 p-0 text-xs font-normal text-muted-foreground underline hover:text-foreground"
                         >
-                          Admin console
+                          Root console
                         </SubmitButton>
                       </form>
                     ) : null}

@@ -347,7 +347,7 @@ export async function sendClaimInvite(
     return {
       minted: true,
       error: accountTypeOf(role).runsTree
-        ? "The invite was created but the email didn't send. Resend it from Sent Invites on the admin page."
+        ? "The invite was created but the email didn't send. Resend it from Sent Invites in the Root console."
         : "The invite was created but the email didn't send. Try again in a moment.",
     };
   }

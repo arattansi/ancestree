@@ -167,7 +167,7 @@ export async function approveTreeRequest(
   // A founder invite is minted on a tree the reviewer runs.
   const root = request.user_id ? null : await rootOf(treeId);
   if (root && (root.error || !root.membership)) {
-    return { error: root.error ?? "Approve it from the admin console of a tree you run." };
+    return { error: root.error ?? "Approve it from the Root console of a tree you run." };
   }
 
   // Answer it before acting on it, so a second press can't send twice.

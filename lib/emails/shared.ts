@@ -150,5 +150,5 @@ export function alertCapNoteHtml(
   const span = lastFor === "hour" ? "an hour" : "a day";
   return ` That&rsquo;s ${count} ${what} in ${span}, so we&rsquo;ll hold off
                   emailing about more for now &mdash; any that follow still
-                  wait for you in the admin console.`;
+                  wait for you in the Root console.`;
 }

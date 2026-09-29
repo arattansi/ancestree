@@ -124,7 +124,7 @@ export function InviteStep({
             .filter((r) => r.minted && !r.emailed)
             .forEach((r) =>
               toast.warning(
-                `The invite for ${r.email} is ready, but the email didn't send. Resend it from your account's admin view.`,
+                `The invite for ${r.email} is ready, but the email didn't send. Resend it from the Root console.`,
               ),
             );
 

@@ -89,7 +89,7 @@ export async function resolveEntryFlag(
     if (m.includes("only the entry owner")) {
       return {
         error:
-          "Only the entry owner, an admin, or whoever raised the flag can change it.",
+          "Only the entry owner, a Root, or whoever raised the flag can change it.",
       };
     }
     return { error: "Couldn't update that flag. Try again." };

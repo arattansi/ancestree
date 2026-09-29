@@ -55,7 +55,7 @@ export function FoundTreeForm({ suggestedName }: { suggestedName: string }) {
         />
         <p className="text-xs text-muted-foreground">
           Call it whatever you like — the family name, say. You can rename it
-          any time from its admin console; the web address follows the name.
+          any time from its Root console; the web address follows the name.
         </p>
       </div>
       <FormError>{action.error}</FormError>

@@ -96,7 +96,7 @@ export default async function OnboardingPage({
         <Card>
           <CardContent className="text-sm text-muted-foreground">
             You already have your own entry on another tree. A Root of{" "}
-            {tree.name} can bring it onto this one from their admin page, so
+            {tree.name} can bring it onto this one from their Root console, so
             there is only ever one of you.
           </CardContent>
         </Card>

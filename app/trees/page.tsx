@@ -77,7 +77,7 @@ export default async function TreesPage() {
                   {t.type.runsTree ? (
                     <form action={switchTreeForm.bind(null, t.id, adminHref())}>
                       <SubmitButton size="sm" variant="outline">
-                        Admin
+                        Root console
                       </SubmitButton>
                     </form>
                   ) : null}

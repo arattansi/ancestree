@@ -152,7 +152,7 @@ describe("pickQueueTarget", () => {
 
 describe("queueCountLabel", () => {
   it("reads as a sentence, singular and plural", () => {
-    expect(queueCountLabel(1)).toBe("1 needs attention in admin");
-    expect(queueCountLabel(4)).toBe("4 need attention in admin");
+    expect(queueCountLabel(1)).toBe("1 needs attention in the Root console");
+    expect(queueCountLabel(4)).toBe("4 need attention in the Root console");
   });
 });

@@ -71,7 +71,7 @@ export function ConnectionPrompt({
           resolution === "dismissed"
             ? "Thanks — we won't ask again."
             : suggestion.suggestedType === "duplicate_check"
-              ? "Flagged for an admin to merge."
+              ? "Flagged for a Root to merge."
               : undefined,
         onSuccess: onResolved,
       },
