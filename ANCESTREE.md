@@ -321,11 +321,19 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `loadTreeEdges`, `loadTreeDirectory`, `loadTreeClaims` (this tree's
   people's only), and `readIn` for a long `in` filter;
   `lib/tree-layout.ts` — the anchored auto-layout engine (Step 4.6, `.test.ts`):
-  generations relative to the founding admins fix `y`, the anchor couple is
-  translated to the origin, each admin's bloodline is pushed to its own side of
-  it, median sweeps cut edge crossings, and a separation sweep guarantees a
-  minimum gap between cards. Couple partners sit side by side eldest-left and a
-  sibling set runs oldest→youngest. Also emits generation bands and per-couple
+  generations relative to the founding admins fix `y`; partners are fused into
+  one *atom*, and a family (an atom plus everything descended from it) is laid
+  out as one rigid *block*, packed against its neighbours by its
+  per-generation contour, so nothing is ever threaded into a sibling set.
+  Blocks go down in order: the anchor couple and their descendants at the
+  centre, then every ancestry nearest generation first (the first partner's
+  growing left, the second's right, aunts, uncles and cousins off their
+  parents' outer edge, in-laws on their outward side), then any branch with no
+  path to the anchors off the right-hand end. A `settle` pass then eases
+  parents over their children's span and back (order fixed, so it aligns but
+  never re-shuffles; skipped by `centreFamilies`, the spotlight's layout), and
+  a separation sweep guarantees a minimum gap between cards. Couple partners
+  sit side by side eldest-left and a sibling set runs oldest→youngest. Also emits generation bands and per-couple
   descent points (`descentGeometry`, shared with the canvas so the drawn line
   and the laid-out one follow one rule; a `generations` option fixes each
   row from the whole tree when only part of it is drawn, Step 57.2); its
@@ -5468,7 +5476,11 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   passes to centre parents over children, then a **separation sweep that
   guarantees** no two cards on a row are closer than `GUTTER` — overlap is
   impossible at any size (tested on a 105-person tree). Couples stay adjacent
-  eldest-left; sibling runs go oldest→youngest. The canvas draws generation
+  eldest-left; sibling runs go oldest→youngest. _Superseded the same day by
+  `8dbf47d`: per-row sweeps let unrelated couples split a sibling set, so
+  placement now packs rigid family blocks (see Project structure,
+  `lib/tree-layout.ts`); the sides, row numbering and separation sweep are
+  unchanged._ The canvas draws generation
   lanes (`ViewportPortal`) labelled by _generation number_ rather than by
   relationship — a row also holds the aunts, uncles and in-laws born into it, so
   "Grandparents" would mislabel most of it. Numbers count outward from the
