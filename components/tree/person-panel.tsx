@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Lightbulb, Minimize2, Pencil } from "lucide-react";
+import { Lightbulb, Mail, Minimize2, Pencil, UserPlus } from "lucide-react";
 
 import { claimPerson, disputeClaim } from "@/app/actions/claims";
 import { sendClaimInvite } from "@/app/actions/invites";
@@ -63,6 +63,7 @@ import { BASIC_DETAILS, waitingOn } from "@/lib/carry";
 import { blankFields } from "@/lib/fill-blanks";
 import { SEX_LABELS, type Sex } from "@/lib/person-schema";
 import { PersonTrees } from "@/components/tree/person-trees";
+import { joinedByTags } from "@/lib/joined-by";
 import { countOf } from "@/lib/plural";
 import type { DeclinedSuggestion, EntrySuggestion } from "@/lib/suggestions";
 import { editPersonHref, suggestChangeHref } from "@/lib/tree-links";
@@ -276,6 +277,9 @@ export function PersonPanel({
   const canClaim = !isSelf && claimable && !person?.claim_status;
   const lockedNote = !canEdit && !claimable && !isSelf;
   const canDispute = person?.claim_status === "approved" && isCreator;
+  const joinedTags = locked
+    ? []
+    : joinedByTags(person?.joined_by ?? null, currentUserId);
   const showManage =
     !locked &&
     (canReposition ||
@@ -885,6 +889,27 @@ export function PersonPanel({
                     </p>
                   ) : null}
                 </section>
+              ) : null}
+
+              {/* How they came onto the tree, last (Step 86): who added the
+                  entry and who invited them, both when they differ. */}
+              {joinedTags.length > 0 ? (
+                <footer className="flex flex-wrap gap-1.5 border-t border-border pt-4">
+                  {joinedTags.map((tag) => (
+                    <Badge
+                      key={tag.label}
+                      variant="outline"
+                      className="max-w-full font-normal text-muted-foreground"
+                    >
+                      {tag.kind === "added" ? (
+                        <UserPlus aria-hidden />
+                      ) : (
+                        <Mail aria-hidden />
+                      )}
+                      <span className="truncate">{tag.label}</span>
+                    </Badge>
+                  ))}
+                </footer>
               ) : null}
             </div>
 

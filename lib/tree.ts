@@ -6,6 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AccountTypeKey } from "@/lib/account-types";
 import { carryApprovalOf, type CarryApproval } from "@/lib/carry";
 import { accountTypesByPerson } from "@/lib/account-type-links";
+import { joinedByPerson, type JoinedBy } from "@/lib/joined-by";
 import type { Database } from "@/lib/database.types";
 import { signedPhotoUrls } from "@/lib/entry-view.server";
 import { createClient } from "@/lib/supabase/server";
@@ -104,6 +105,9 @@ export type TreeGraphPerson = {
    *  `null` for an entry no member has. Only loaded for signed-in members
    *  (`getTreeGraph`'s `withAccountTypes`); always `null` on a share link. */
   account_type: AccountTypeKey | null;
+  /** Who added this entry and who invited its person to this tree (Step
+   *  86), loaded with `account_type`; `null` when nobody is to be named. */
+  joined_by: JoinedBy | null;
 };
 
 export type PlacementApproval = CarryApproval;
@@ -218,7 +222,9 @@ const loadPlacedIds = cache(async (treeId: string): Promise<Set<string>> => {
 async function readDirectory(supabase: DbClient, treeId: string) {
   const { data } = await supabase
     .from("member_directory")
-    .select("auth_user_id, role, self_person_id, joined_at")
+    .select(
+      "auth_user_id, display_name, role, self_person_id, joined_at, invited_by_user_id, invited_by_name",
+    )
     .eq("tree_id", treeId)
     .order("joined_at", { ascending: true });
   return data ?? [];
@@ -460,7 +466,19 @@ export async function getTreeGraph(
     .map((p) => p.photo_path)
     .filter((p): p is string => Boolean(p));
   const ids = rows.map((p) => p.id);
-  const [placeRes, claims, urlByPath] = await Promise.all([
+  // Whoever added an entry but isn't on this tree's directory (they left,
+  // or it was added on another tree) is named from their profile (Step 86).
+  const listed = new Set(directory?.map((m) => m.auth_user_id));
+  const unlisted = directory
+    ? [
+        ...new Set(
+          rows.flatMap((p) =>
+            p.created_by && !listed.has(p.created_by) ? [p.created_by] : [],
+          ),
+        ),
+      ]
+    : [];
+  const [placeRes, claims, urlByPath, unlistedProfiles] = await Promise.all([
     placeIds.length > 0
       ? supabase
           .from("places")
@@ -486,6 +504,12 @@ export async function getTreeGraph(
               .in("person_id", chunk),
           ),
     signedPhotoUrls(supabase, paths),
+    readIn(unlisted, (chunk) =>
+      supabase
+        .from("profiles")
+        .select("auth_user_id, display_name")
+        .in("auth_user_id", chunk),
+    ),
   ]);
   // Whose entry is whose, by account type *on this tree* (see
   // `accountTypesByPerson`): from this tree's own directory, so a member's
@@ -504,6 +528,20 @@ export async function getTreeGraph(
             : [],
         ),
         claims.filter((c) => c.status === "approved"),
+      )
+    : null;
+  const joinedBy = directory
+    ? joinedByPerson(
+        rows,
+        directory.flatMap((m) =>
+          m.auth_user_id ? [{ ...m, auth_user_id: m.auth_user_id }] : [],
+        ),
+        claims.filter((c) => c.status === "approved"),
+        new Map(
+          unlistedProfiles.flatMap((p) =>
+            p.display_name ? [[p.auth_user_id, p.display_name]] : [],
+          ),
+        ),
       )
     : null;
   const placeById = new Map((placeRes.data ?? []).map((p) => [p.id, p]));
@@ -563,6 +601,7 @@ export async function getTreeGraph(
         claim_id: claim?.id ?? null,
         open_flag_count: openFlagsByPerson.get(p.id) ?? 0,
         account_type: accountTypes?.get(p.id) ?? null,
+        joined_by: joinedBy?.get(p.id) ?? null,
         birth_place_historical: historicalFor(
           p.place_id_birth,
           p.city_of_birth,
