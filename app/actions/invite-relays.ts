@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 
 import {
@@ -196,6 +195,6 @@ export async function setRelativesCanAsk(on: boolean): Promise<{ error?: string 
     .eq("auth_user_id", profile.auth_user_id);
   if (error) return { error: "Couldn't save that. Try again." };
 
-  revalidatePath("/account");
+  revalidateTreePages();
   return {};
 }

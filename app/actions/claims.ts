@@ -1,7 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
 import { getSessionUser, requireProfile, requireSelfPerson } from "@/lib/auth";
 import type { ClaimResult } from "@/lib/claim-merge";
 import { moveClaimedPhoto } from "@/lib/claim-merge.server";
@@ -52,8 +50,7 @@ export async function claimPerson(
   const result = data as ClaimResult;
   await moveClaimedPhoto(result);
 
-  revalidatePath("/tree");
-  revalidatePath("/account");
+  revalidateTreePages();
   return { personId: result.person_id };
 }
 
@@ -83,8 +80,7 @@ export async function disputeClaim(
       ),
     };
   }
-  revalidatePath("/tree");
-  revalidatePath("/account");
+  revalidateTreePages();
   return {};
 }
 
@@ -112,7 +108,6 @@ export async function resolveClaim(
   return {};
 }
 
-/** Mark all of the signed-in member's notifications as read. */
 /**
  * Clear notifications: the caller's own, by id. The list sends every item
  * except a placement request still waiting on an answer, which is the only
@@ -133,7 +128,7 @@ export async function clearNotifications(
     .eq("recipient_user_id", user.id)
     .select("id");
   if (error) return { error: "Couldn't clear your notifications. Try again." };
-  revalidatePath("/account");
+  revalidateTreePages();
   return { cleared: data?.length ?? 0 };
 }
 

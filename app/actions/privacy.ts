@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { getSessionUser, requireProfile } from "@/lib/auth";
@@ -344,6 +343,6 @@ export async function deleteAccount(
   }
 
   await supabase.auth.signOut();
-  revalidatePath("/");
+  revalidateTreePages();
   redirect("/?deleted=1");
 }
