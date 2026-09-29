@@ -15,7 +15,10 @@ import { getViewer } from "@/lib/branch.server";
 import { entryAccess, entryFacts } from "@/lib/entry-access.server";
 import { blankFields } from "@/lib/fill-blanks";
 import { personDisplayName } from "@/lib/person-name";
-import { formatPlaceLabel, getPlacesByIds } from "@/lib/places";
+import {
+  placeLabels as entryPlaceLabels,
+  signedPhotoUrl,
+} from "@/lib/entry-view.server";
 import { personFormValues } from "@/lib/person-schema";
 import { createClient } from "@/lib/supabase/server";
 import { listTreeMembers, loadTreeEdges } from "@/lib/tree";
@@ -72,7 +75,7 @@ export default async function EditPersonPage({
     { canEdit, canFill, homeRole },
     homeTree,
     photoUrl,
-    placeMap,
+    placeLabels,
     treeViewer,
   ] = await Promise.all([
     entryAccess(profile, {
@@ -82,17 +85,8 @@ export default async function EditPersonPage({
       created_by: person.created_by,
     }),
     person.is_home ? tree : getTreeById(homeTreeId),
-    person.photo_path
-      ? supabase.storage
-          .from("photos")
-          .createSignedUrl(person.photo_path, 60 * 60)
-          .then(({ data }) => data?.signedUrl ?? null)
-      : null,
-    getPlacesByIds(
-      [person.place_id_birth, person.place_id_death].filter(
-        (n): n is number => typeof n === "number",
-      ),
-    ),
+    signedPhotoUrl(supabase, person.photo_path),
+    entryPlaceLabels(person),
     // Connections are drawn on the tree being viewed, between people it
     // shows, so who may remove them is decided there.
     getViewer(profile, type.key, tree.id),
@@ -162,16 +156,6 @@ export default async function EditPersonPage({
     );
   }
 
-  const birthPlace = person.place_id_birth
-    ? placeMap.get(person.place_id_birth)
-    : undefined;
-  const deathPlace = person.place_id_death
-    ? placeMap.get(person.place_id_death)
-    : undefined;
-  const placeLabels = {
-    birth: birthPlace ? formatPlaceLabel(birthPlace) : person.city_of_birth,
-    death: deathPlace ? formatPlaceLabel(deathPlace) : person.place_of_death,
-  };
 
   // This person's lines on the tree being viewed, from its shared read.
   const { edges } = await loadTreeEdges(tree.id);

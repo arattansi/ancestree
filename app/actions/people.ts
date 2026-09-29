@@ -11,6 +11,7 @@ import {
 } from "@/lib/db-errors";
 import { toStoredCrop, type CropTransform } from "@/lib/image-crop";
 import { photoPathOwner } from "@/lib/photo-path";
+import { normalizeSpouseDates } from "@/lib/spouse-dates";
 import {
   personSchema,
   toPersonPayload,
@@ -101,6 +102,27 @@ function friendlyConnectionError(message: string | undefined): string {
   );
 }
 
+/**
+ * A new marriage line's dates, as `add_people_with_connections` reads its
+ * edges: an empty string for a date it hasn't got.
+ */
+function spouseEdgeDates(e: {
+  marriage_date?: string | null;
+  marriage_month?: number | null;
+  marriage_day?: number | null;
+  is_divorced?: boolean;
+  divorce_date?: string | null;
+}) {
+  const d = normalizeSpouseDates(e);
+  return {
+    marriage_date: d.marriage_date ?? "",
+    marriage_month: d.marriage_month,
+    marriage_day: d.marriage_day,
+    is_divorced: d.is_divorced,
+    divorce_date: d.divorce_date ?? "",
+  };
+}
+
 export type AddPeopleResult = {
   personIds?: string[];
   selfId?: string | null;
@@ -164,15 +186,7 @@ export async function addPeopleWithConnections(
     type: e.type,
     a: refToString(e.a),
     b: refToString(e.b),
-    ...(e.type === "spouse"
-      ? {
-          marriage_date: e.marriage_date ?? "",
-          marriage_month: e.marriage_month ?? null,
-          marriage_day: e.marriage_day ?? null,
-          is_divorced: e.is_divorced ?? false,
-          divorce_date: e.is_divorced ? (e.divorce_date ?? "") : "",
-        }
-      : {}),
+    ...(e.type === "spouse" ? spouseEdgeDates(e) : {}),
   }));
 
   const pSuggestions = (input.suggestions ?? []).map((s) => ({
@@ -271,22 +285,13 @@ export async function updateRelationshipMarriage(
 ): Promise<{ error?: string }> {
   await requireProfile();
   const supabase = await createClient();
-  const marriageDate = input.marriage_date?.trim() ? input.marriage_date : null;
+  const dates = normalizeSpouseDates(input);
   const notYours =
     "Only the relationship's creator, a Branch for this side of the family, or a Root can edit this.";
   const saved = await ownedWrite(
     supabase
       .from("relationships")
-      .update({
-        marriage_date: marriageDate,
-        marriage_month: marriageDate ? null : (input.marriage_month ?? null),
-        marriage_day: marriageDate ? null : (input.marriage_day ?? null),
-        is_divorced: input.is_divorced,
-        divorce_date:
-          input.is_divorced && input.divorce_date?.trim()
-            ? input.divorce_date
-            : null,
-      })
+      .update(dates)
       .eq("id", relationshipId)
       .eq("type", "spouse")
       .select("id"),
@@ -399,26 +404,19 @@ export async function connectExistingPeople(input: {
     to = input.personId;
   }
 
-  const isSpouse = type === "spouse";
-  const isDivorced = isSpouse && (input.is_divorced ?? false);
-  const marriageDate =
-    isSpouse && input.marriage_date?.trim() ? input.marriage_date : undefined;
+  // Only a marriage carries dates.
+  const dates = normalizeSpouseDates(type === "spouse" ? input : {});
 
   const supabase = await createClient();
   const { error } = await supabase.rpc("connect_people", {
     p_from: from,
     p_to: to,
     p_type: type,
-    p_marriage_date: marriageDate,
-    p_marriage_month:
-      isSpouse && !marriageDate
-        ? (input.marriage_month ?? undefined)
-        : undefined,
-    p_marriage_day:
-      isSpouse && !marriageDate ? (input.marriage_day ?? undefined) : undefined,
-    p_is_divorced: isDivorced,
-    p_divorce_date:
-      isDivorced && input.divorce_date?.trim() ? input.divorce_date : undefined,
+    p_marriage_date: dates.marriage_date ?? undefined,
+    p_marriage_month: dates.marriage_month ?? undefined,
+    p_marriage_day: dates.marriage_day ?? undefined,
+    p_is_divorced: dates.is_divorced,
+    p_divorce_date: dates.divorce_date ?? undefined,
     p_tree: input.treeId,
   });
 

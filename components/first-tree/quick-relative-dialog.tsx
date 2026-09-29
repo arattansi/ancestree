@@ -10,17 +10,13 @@ import {
   addPeopleWithConnections,
   setPersonPhoto,
 } from "@/app/actions/people";
-import {
-  SpouseDatesFields,
-  spouseDates,
-  type SpouseDates,
-} from "@/components/add-person-flow";
 import { CoParentOffer } from "@/components/co-parent-offer";
 import { FormError } from "@/components/form-error";
 import { JoinsAsNote } from "@/components/joins-as-note";
 import { PendingButton } from "@/components/pending-button";
 import { PersonFields } from "@/components/person-fields";
 import { PhotoPicker } from "@/components/photo-picker";
+import { SpouseDatesFields } from "@/components/spouse-dates-fields";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -45,6 +41,7 @@ import {
   type PersonFormValues,
 } from "@/lib/person-schema";
 import { attachPhoto } from "@/lib/photo-upload";
+import { toStoredSpouseDates, type SpouseDates } from "@/lib/spouse-dates";
 
 const TITLES: Record<CloseKind, string> = {
   parent: "Add a parent",
@@ -161,7 +158,7 @@ function QuickRelativeForm({
         });
         return;
       }
-      links.marriage = spouseDates(marriage);
+      links.marriage = toStoredSpouseDates(marriage);
     }
     if (kind === "child") links.coParentIds = coParentSelection(coParents, partnerOptions);
     if (kind === "sibling") links.sharedParentIds = shared;

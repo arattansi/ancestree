@@ -5,7 +5,6 @@ import * as React from "react";
 import { connectExistingPeople, removeRelationship } from "@/app/actions/people";
 import { CoParentOffer } from "@/components/co-parent-offer";
 import { ConfirmButton } from "@/components/confirm-dialog";
-import { DateField } from "@/components/date-field";
 import { FormError } from "@/components/form-error";
 import { PendingButton } from "@/components/pending-button";
 import { UNREACHABLE } from "@/lib/action-feedback";
@@ -14,13 +13,13 @@ import {
   KIND_STATEMENT,
   type PartnerOption,
 } from "@/lib/connections";
-import { marriageDateProblems, toStoredDate } from "@/lib/partial-date";
+import { marriageDateProblems } from "@/lib/partial-date";
+import { toStoredSpouseDates, type SpouseDates } from "@/lib/spouse-dates";
 import {
   RelationshipPicker,
   type TreeMemberOption,
 } from "@/components/relationship-picker";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
+import { SpouseDatesFields } from "@/components/spouse-dates-fields";
 import {
   Select,
   SelectContent,
@@ -95,9 +94,7 @@ export function EditConnections({
   const [kind, setKind] = React.useState<ConnectionKind>("child");
   /** null until the member touches it — see `defaultCoParents`. */
   const [coParentIds, setCoParentIds] = React.useState<string[] | null>(null);
-  const [marriageDate, setMarriageDate] = React.useState("");
-  const [isDivorced, setIsDivorced] = React.useState(false);
-  const [divorceDate, setDivorceDate] = React.useState("");
+  const [dates, setDates] = React.useState<SpouseDates>({});
   const add = useAction({ inline: true });
   const returnFocus = useFocusReturn();
   const addRef = React.useRef<HTMLDivElement>(null);
@@ -120,9 +117,7 @@ export function EditConnections({
   function resetForm() {
     setOtherId("");
     setKind("child");
-    setMarriageDate("");
-    setIsDivorced(false);
-    setDivorceDate("");
+    setDates({});
     setCoParentIds(null);
   }
 
@@ -130,7 +125,11 @@ export function EditConnections({
   // or a day and month without the year (Step 63).
   const dateProblems =
     kind === "spouse"
-      ? marriageDateProblems({ marriageDate, isDivorced, divorceDate })
+      ? marriageDateProblems({
+          marriageDate: dates.marriage_date,
+          isDivorced: dates.is_divorced,
+          divorceDate: dates.divorce_date,
+        })
       : { marriage: null, divorce: null };
   const datesOk = !dateProblems.marriage && !dateProblems.divorce;
 
@@ -140,8 +139,7 @@ export function EditConnections({
       return;
     }
     if (!datesOk) return;
-    // Padded to ISO: a one-digit day types as "1965-03-5".
-    const married = toStoredDate(marriageDate);
+    const stored = toStoredSpouseDates(dates);
     const partnersToAdd = parentSide ? chosenCoParents : [];
     const childId = parentSide?.childId ?? "";
     add.run(
@@ -156,11 +154,7 @@ export function EditConnections({
           personId,
           otherId,
           kind,
-          marriage_date: married.date ?? "",
-          marriage_month: married.withoutYear?.month ?? null,
-          marriage_day: married.withoutYear?.day ?? null,
-          is_divorced: isDivorced,
-          divorce_date: toStoredDate(divorceDate).date ?? "",
+          ...stored,
         });
         if (res.error) return res;
         // The main edge is in. Each ticked partner becomes a parent of the
@@ -308,50 +302,12 @@ export function EditConnections({
             />
 
             {kind === "spouse" ? (
-              <div className="flex flex-col gap-3 rounded-md border border-dashed border-border p-3">
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="conn-marriage" className="text-xs font-normal">
-                    Marriage date (optional)
-                  </Label>
-                  <DateField
-                    id="conn-marriage"
-                    value={marriageDate}
-                    onChange={setMarriageDate}
-                    aria-invalid={Boolean(dateProblems.marriage)}
-                  />
-                  {dateProblems.marriage ? (
-                    <p className="text-xs text-destructive">
-                      {dateProblems.marriage}
-                    </p>
-                  ) : null}
-                </div>
-                <label className="flex items-center gap-3 text-sm">
-                  <Checkbox
-                    id="conn-divorced"
-                    checked={isDivorced}
-                    onCheckedChange={(c) => setIsDivorced(c === true)}
-                  />
-                  <span>They later divorced</span>
-                </label>
-                {isDivorced ? (
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="conn-divorce" className="text-xs font-normal">
-                      Divorce date (optional)
-                    </Label>
-                    <DateField
-                      id="conn-divorce"
-                      value={divorceDate}
-                      onChange={setDivorceDate}
-                      aria-invalid={Boolean(dateProblems.divorce)}
-                    />
-                    {dateProblems.divorce ? (
-                      <p className="text-xs text-destructive">
-                        {dateProblems.divorce}
-                      </p>
-                    ) : null}
-                  </div>
-                ) : null}
-              </div>
+              <SpouseDatesFields
+                idBase="conn"
+                value={dates}
+                onPatch={(patch) => setDates((d) => ({ ...d, ...patch }))}
+                errors={dateProblems}
+              />
             ) : null}
           </>
         ) : null}

@@ -24,14 +24,13 @@ import { ConnectionPromptList } from "@/components/tree/connection-prompts";
 import { AddCompanionDialog } from "@/components/tree/add-companion-dialog";
 import { AddRelativeButton } from "@/components/tree/add-relative-button";
 import type { CompanionOption } from "@/components/tree/companion-picker";
-import { DateField } from "@/components/date-field";
 import { PhotoCropEditor } from "@/components/photo-crop-editor";
+import { SpouseDatesFields } from "@/components/spouse-dates-fields";
 import { EntryComments } from "@/components/tree/entry-comments";
 import { EntrySuggestions } from "@/components/tree/entry-suggestions";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -62,7 +61,6 @@ import {
   formatPartialDate,
   marriageDateProblems,
   toPartialIso,
-  toStoredDate,
   type DayMonth,
 } from "@/lib/partial-date";
 import { FILL_ENTRY_NOTE, LOCKED_ENTRY_NOTE } from "@/lib/account-types";
@@ -70,6 +68,7 @@ import { blankFields } from "@/lib/fill-blanks";
 import { SEX_LABELS, type Sex } from "@/lib/person-schema";
 import { PersonTrees } from "@/components/tree/person-trees";
 import { countOf } from "@/lib/plural";
+import { toStoredSpouseDates, type SpouseDates } from "@/lib/spouse-dates";
 import type { DeclinedSuggestion, EntrySuggestion } from "@/lib/suggestions";
 import { editPersonHref, suggestChangeHref } from "@/lib/tree-links";
 import { cn } from "@/lib/utils";
@@ -162,11 +161,13 @@ function SpouseRow({
     "day",
     relation.marriageWithoutYear,
   );
-  const [marriageDate, setMarriageDate] = React.useState(savedMarriage);
-  const [isDivorced, setIsDivorced] = React.useState(relation.isDivorced);
-  const [divorceDate, setDivorceDate] = React.useState(
-    relation.divorceDate ?? "",
-  );
+  const saved: SpouseDates = {
+    marriage_date: savedMarriage,
+    is_divorced: relation.isDivorced,
+    divorce_date: relation.divorceDate ?? "",
+  };
+  const [dates, setDates] = React.useState<SpouseDates>(saved);
+  const idBase = `spouse-${relation.id}`;
   const action = useAction({ inline: true });
   // The sheet is non-modal, so nothing else keeps focus as the editor opens
   // and closes (Step 70).
@@ -175,26 +176,18 @@ function SpouseRow({
   // Marriage dates have to be whole (no precision column on relationships),
   // or a day and month without the year (Step 63).
   const dateProblems = marriageDateProblems({
-    marriageDate,
-    isDivorced,
-    divorceDate,
+    marriageDate: dates.marriage_date,
+    isDivorced: dates.is_divorced,
+    divorceDate: dates.divorce_date,
   });
   const datesOk = !dateProblems.marriage && !dateProblems.divorce;
 
   function save() {
     if (!datesOk) return;
-    // Padded to ISO: a one-digit day types as "1965-03-5".
-    const married = toStoredDate(marriageDate);
+    const stored = toStoredSpouseDates(dates);
     action.run(
       "save",
-      () =>
-        updateRelationshipMarriage(relation.id, {
-          marriage_date: married.date,
-          marriage_month: married.withoutYear?.month ?? null,
-          marriage_day: married.withoutYear?.day ?? null,
-          is_divorced: isDivorced,
-          divorce_date: toStoredDate(divorceDate).date,
-        }),
+      () => updateRelationshipMarriage(relation.id, stored),
       {
         onSuccess: () => {
           returnFocus(() => editRef.current);
@@ -241,9 +234,7 @@ function SpouseRow({
           onClick={() => {
             setEditing(true);
             // The link makes way for the editor: its first box takes focus.
-            returnFocus(() =>
-              document.getElementById(`marriage-${relation.id}`),
-            );
+            returnFocus(() => document.getElementById(`${idBase}-marriage`));
           }}
         >
           {savedMarriage || relation.isDivorced
@@ -254,48 +245,13 @@ function SpouseRow({
 
       {editing ? (
         <div className="mt-1 flex flex-col gap-3">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor={`marriage-${relation.id}`} className="text-xs">
-              Marriage date
-            </Label>
-            <DateField
-              id={`marriage-${relation.id}`}
-              value={marriageDate}
-              onChange={setMarriageDate}
-              aria-invalid={Boolean(dateProblems.marriage)}
-            />
-            {dateProblems.marriage ? (
-              <p className="text-xs text-destructive">
-                {dateProblems.marriage}
-              </p>
-            ) : null}
-          </div>
-          <label className="flex items-center gap-3 text-sm">
-            <Checkbox
-              id={`divorced-${relation.id}`}
-              checked={isDivorced}
-              onCheckedChange={(c) => setIsDivorced(c === true)}
-            />
-            <span>They later divorced</span>
-          </label>
-          {isDivorced ? (
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor={`divorce-${relation.id}`} className="text-xs">
-                Divorce date
-              </Label>
-              <DateField
-                id={`divorce-${relation.id}`}
-                value={divorceDate}
-                onChange={setDivorceDate}
-                aria-invalid={Boolean(dateProblems.divorce)}
-              />
-              {dateProblems.divorce ? (
-                <p className="text-xs text-destructive">
-                  {dateProblems.divorce}
-                </p>
-              ) : null}
-            </div>
-          ) : null}
+          <SpouseDatesFields
+            idBase={idBase}
+            value={dates}
+            onPatch={(patch) => setDates((d) => ({ ...d, ...patch }))}
+            errors={dateProblems}
+            boxed={false}
+          />
           <FormError>{action.error}</FormError>
           <div className="flex gap-2">
             <PendingButton
@@ -314,9 +270,7 @@ function SpouseRow({
               onClick={() => {
                 returnFocus(() => editRef.current);
                 setEditing(false);
-                setMarriageDate(savedMarriage);
-                setIsDivorced(relation.isDivorced);
-                setDivorceDate(relation.divorceDate ?? "");
+                setDates(saved);
                 action.setError(null);
               }}
             >

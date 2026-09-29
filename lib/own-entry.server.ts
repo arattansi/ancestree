@@ -1,10 +1,9 @@
 import "server-only";
 
 import type { Profile } from "@/lib/auth";
-import { asDayMonth, toPartialIso } from "@/lib/partial-date";
+import { placeLabels, signedPhotoUrl } from "@/lib/entry-view.server";
 import { personDisplayName } from "@/lib/person-name";
-import type { PersonFormValues } from "@/lib/person-schema";
-import { formatPlaceLabel, getPlacesByIds } from "@/lib/places";
+import { personFormValues, type PersonFormValues } from "@/lib/person-schema";
 import { createClient } from "@/lib/supabase/server";
 import { getRoleIn } from "@/lib/tree-context";
 
@@ -41,71 +40,24 @@ export async function loadOwnEntry(profile: Profile): Promise<OwnEntry | null> {
   if (!person?.id || !person.last_name) return null;
 
   // The photo, the places and their role at home, side by side (Step 77.1).
-  const [photoUrl, placeMap, homeRole] = await Promise.all([
-    person.photo_path
-      ? supabase.storage
-          .from("photos")
-          .createSignedUrl(person.photo_path, 60 * 60)
-          .then(({ data }) => data?.signedUrl ?? null)
-      : null,
-    getPlacesByIds(
-      [person.place_id_birth, person.place_id_death].filter(
-        (n): n is number => typeof n === "number",
-      ),
-    ),
+  const [photoUrl, labels, homeRole] = await Promise.all([
+    signedPhotoUrl(supabase, person.photo_path),
+    placeLabels(person),
     getRoleIn(person.tree_id),
   ]);
-  const birthPlace = person.place_id_birth
-    ? placeMap.get(person.place_id_birth)
-    : undefined;
-  const deathPlace = person.place_id_death
-    ? placeMap.get(person.place_id_death)
-    : undefined;
+  const entry = { ...person, last_name: person.last_name };
 
   return {
     homeTreeId: person.tree_id,
-    displayName: personDisplayName({ ...person, last_name: person.last_name }),
+    displayName: personDisplayName(entry),
     isHomeRoot: homeRole === "admin",
     person: {
       id: person.id,
       photo_path: person.photo_path,
       photo_crop: person.photo_crop,
-      first_name: person.first_name ?? "",
-      middle_name: person.middle_name ?? "",
-      preferred_name: person.preferred_name ?? "",
-      maiden_name: person.maiden_name ?? "",
-      last_name: person.last_name,
-      date_of_birth: toPartialIso(
-        person.date_of_birth,
-        person.date_of_birth_precision ?? "day",
-        asDayMonth(person.birth_month, person.birth_day),
-      ),
-      date_of_birth_circa: person.date_of_birth_circa,
-      place_id_birth: person.place_id_birth ?? null,
-      city_of_birth: person.city_of_birth ?? "",
-      country_of_birth: person.country_of_birth ?? "",
-      is_deceased: person.is_deceased ?? false,
-      date_of_death: toPartialIso(
-        person.date_of_death,
-        person.date_of_death_precision ?? "day",
-      ),
-      date_of_death_circa: person.date_of_death_circa,
-      place_id_death: person.place_id_death ?? null,
-      place_of_death: person.place_of_death ?? "",
-      sex: (person.sex as PersonFormValues["sex"]) ?? undefined,
-      lineage_type:
-        (person.lineage_type as PersonFormValues["lineage_type"]) ?? undefined,
-      email: person.email ?? "",
-      email_visible: person.email_visible ?? false,
+      ...personFormValues(entry),
     },
     photoUrl,
-    placeLabels: {
-      birth: birthPlace
-        ? formatPlaceLabel(birthPlace)
-        : (person.city_of_birth ?? null),
-      death: deathPlace
-        ? formatPlaceLabel(deathPlace)
-        : (person.place_of_death ?? null),
-    },
+    placeLabels: labels,
   };
 }

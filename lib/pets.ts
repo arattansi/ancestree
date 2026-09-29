@@ -3,6 +3,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/lib/database.types";
+import { signedPhotoUrls } from "@/lib/entry-view.server";
 import { createClient } from "@/lib/supabase/server";
 import { NOBODY } from "@/lib/tree";
 
@@ -64,18 +65,10 @@ export async function getTreePets(
 
   if (!data || data.length === 0) return [];
 
-  const paths = data
-    .map((r) => r.photo_path)
-    .filter((p): p is string => Boolean(p));
-  const urlByPath = new Map<string, string>();
-  if (paths.length > 0) {
-    const { data: signed } = await supabase.storage
-      .from("photos")
-      .createSignedUrls(paths, 60 * 60);
-    for (const item of signed ?? []) {
-      if (item.signedUrl && item.path) urlByPath.set(item.path, item.signedUrl);
-    }
-  }
+  const urlByPath = await signedPhotoUrls(
+    supabase,
+    data.map((r) => r.photo_path),
+  );
 
   return data.map(({ pet_companions: links, ...row }) => ({
     ...row,

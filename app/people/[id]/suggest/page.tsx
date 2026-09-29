@@ -6,7 +6,7 @@ import { PersonSuggestForm } from "@/components/person-suggest-form";
 import { entryAccess, entryFacts } from "@/lib/entry-access.server";
 import { personDisplayName } from "@/lib/person-name";
 import { personFormValues } from "@/lib/person-schema";
-import { formatPlaceLabel, getPlacesByIds } from "@/lib/places";
+import { placeLabels } from "@/lib/entry-view.server";
 import { createClient } from "@/lib/supabase/server";
 import { answeredLine, withChanges } from "@/lib/suggestions";
 import {
@@ -92,24 +92,16 @@ export default async function SuggestChangePage({
 
   // Someone who can edit it is sent to edit it; the places are read
   // alongside, needed or not.
-  const [{ canEdit }, placeMap] = await Promise.all([
+  const [{ canEdit }, labels] = await Promise.all([
     entryAccess(profile, {
       id: personId,
       home_tree_id: person.home_tree_id,
       owner_user_id: person.owner_user_id,
       created_by: person.created_by,
     }),
-    getPlacesByIds(
-      [shown.place_id_birth, shown.place_id_death].filter(
-        (n): n is number => typeof n === "number",
-      ),
-    ),
+    placeLabels(shown),
   ]);
   if (canEdit) redirect(editPersonHref(personId));
-  const birthPlace =
-    shown.place_id_birth != null ? placeMap.get(shown.place_id_birth) : null;
-  const deathPlace =
-    shown.place_id_death != null ? placeMap.get(shown.place_id_death) : null;
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 py-10">
@@ -150,14 +142,7 @@ export default async function SuggestChangePage({
         treeId={tree.id}
         personId={personId}
         values={values}
-        placeLabels={{
-          birth: birthPlace
-            ? formatPlaceLabel(birthPlace)
-            : shown.city_of_birth,
-          death: deathPlace
-            ? formatPlaceLabel(deathPlace)
-            : shown.place_of_death,
-        }}
+        placeLabels={labels}
         note={startingFrom?.note ?? ""}
         startsFrom={startsFrom}
         backHref={treeFocusHref(personId)}

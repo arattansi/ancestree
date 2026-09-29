@@ -26,7 +26,6 @@ import {
 } from "@/components/connection-approval-dialog";
 import type { ImpliedConnection } from "@/lib/connection-suggestions";
 import { CoParentOffer } from "@/components/co-parent-offer";
-import { DateField } from "@/components/date-field";
 import { FormError } from "@/components/form-error";
 import { JoinsAsNote } from "@/components/joins-as-note";
 import { PendingButton } from "@/components/pending-button";
@@ -37,6 +36,7 @@ import {
   PersonNameFields,
 } from "@/components/person-fields";
 import { PhotoPicker } from "@/components/photo-picker";
+import { SpouseDatesFields } from "@/components/spouse-dates-fields";
 import {
   RelationshipPicker,
   type TreeMemberOption,
@@ -53,7 +53,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -78,37 +77,16 @@ import {
   type RelationshipKind,
 } from "@/lib/connections";
 import { isEmailAddress } from "@/lib/email-address";
-import { marriageDateProblems, toStoredDate } from "@/lib/partial-date";
+import { marriageDateProblems } from "@/lib/partial-date";
 import { personDisplayName } from "@/lib/person-name";
 import { emptyPersonValues, personSchema } from "@/lib/person-schema";
+import { toStoredSpouseDates, type SpouseDates } from "@/lib/spouse-dates";
 import { attachPhoto } from "@/lib/photo-upload";
 import { plural } from "@/lib/plural";
 import { treeFocusHref } from "@/lib/tree-links";
 
 /** Multi-connection cap — keeps the one submit transaction small (Task 11.4). */
 const MAX_EXTRA_CONNECTIONS = 10;
-
-export type SpouseDates = {
-  marriage_date?: string;
-  is_divorced?: boolean;
-  divorce_date?: string;
-};
-
-/** Normalise a spouse link's optional marriage/divorce fields for an edge. */
-export function spouseDates(link: SpouseDates | undefined) {
-  // Whole dates, padded to ISO ("1965-03-5" → "1965-03-05"), or a wedding
-  // day with no year (Step 63).
-  const married = toStoredDate(link?.marriage_date);
-  return {
-    marriage_date: married.date,
-    marriage_month: married.withoutYear?.month ?? null,
-    marriage_day: married.withoutYear?.day ?? null,
-    is_divorced: link?.is_divorced ?? false,
-    divorce_date: link?.is_divorced
-      ? toStoredDate(link?.divorce_date).date
-      : null,
-  };
-}
 
 /** Optional marriage / divorce fields carried on a spouse link (Step 11.5). */
 const spouseDatesShape = {
@@ -135,63 +113,6 @@ function spouseDateIssues(
     ...(marriage ? [{ path: "marriage_date" as const, message: marriage }] : []),
     ...(divorce ? [{ path: "divorce_date" as const, message: divorce }] : []),
   ];
-}
-
-/** Marriage and divorce dates on a spouse link; the first run's partner step
- *  asks them too (Step 29). */
-export function SpouseDatesFields({
-  idBase,
-  value,
-  onPatch,
-  errors,
-}: {
-  idBase: string;
-  value: SpouseDates;
-  onPatch: (patch: SpouseDates) => void;
-  errors?: { marriage?: string; divorce?: string };
-}) {
-  return (
-    <div className="flex flex-col gap-3 rounded-md border border-dashed border-border p-3">
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor={`${idBase}-marriage`} className="text-xs font-normal">
-          Marriage date (optional)
-        </Label>
-        <DateField
-          id={`${idBase}-marriage`}
-          value={value.marriage_date ?? ""}
-          onChange={(v) => onPatch({ marriage_date: v })}
-          aria-invalid={Boolean(errors?.marriage)}
-        />
-        {errors?.marriage ? (
-          <p className="text-xs text-destructive">{errors.marriage}</p>
-        ) : null}
-      </div>
-      <label className="flex items-center gap-3 text-sm">
-        <Checkbox
-          id={`${idBase}-divorced`}
-          checked={value.is_divorced ?? false}
-          onCheckedChange={(c) => onPatch({ is_divorced: c === true })}
-        />
-        <span>They later divorced</span>
-      </label>
-      {value.is_divorced ? (
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor={`${idBase}-divorce`} className="text-xs font-normal">
-            Divorce date (optional)
-          </Label>
-          <DateField
-            id={`${idBase}-divorce`}
-            value={value.divorce_date ?? ""}
-            onChange={(v) => onPatch({ divorce_date: v })}
-            aria-invalid={Boolean(errors?.divorce)}
-          />
-          {errors?.divorce ? (
-            <p className="text-xs text-destructive">{errors.divorce}</p>
-          ) : null}
-        </div>
-      ) : null}
-    </div>
-  );
 }
 
 /**
@@ -677,7 +598,7 @@ export function AddPersonFlow({
       links: values.links,
       extraLinks: values.extraLinks,
       members,
-      spouseFields: spouseDates,
+      spouseFields: toStoredSpouseDates,
     });
 
     // Looking for implied connections, saving and landing are one call: the

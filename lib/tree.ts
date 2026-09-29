@@ -6,6 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AccountTypeKey } from "@/lib/account-types";
 import { accountTypesByPerson } from "@/lib/account-type-links";
 import type { Database } from "@/lib/database.types";
+import { signedPhotoUrls } from "@/lib/entry-view.server";
 import { createClient } from "@/lib/supabase/server";
 
 /** Either the cookie-scoped SSR client or the service-role admin client. */
@@ -403,7 +404,7 @@ export async function getTreeGraph(
     .map((p) => p.photo_path)
     .filter((p): p is string => Boolean(p));
   const ids = rows.map((p) => p.id);
-  const [placeRes, claims, signedRes] = await Promise.all([
+  const [placeRes, claims, urlByPath] = await Promise.all([
     placeIds.length > 0
       ? supabase
           .from("places")
@@ -428,9 +429,7 @@ export async function getTreeGraph(
               .in("status", ["approved", "disputed"])
               .in("person_id", chunk),
           ),
-    paths.length > 0
-      ? supabase.storage.from("photos").createSignedUrls(paths, 60 * 60)
-      : { data: null },
+    signedPhotoUrls(supabase, paths),
   ]);
   // Whose entry is whose, by account type *on this tree* (see
   // `accountTypesByPerson`): from this tree's own directory, so a member's
@@ -488,11 +487,6 @@ export async function getTreeGraph(
       claimByPerson.set(c.person_id, { id: c.id, status });
     }
   }
-  const urlByPath = new Map<string, string>();
-  for (const item of signedRes.data ?? []) {
-    if (item.signedUrl && item.path) urlByPath.set(item.path, item.signedUrl);
-  }
-
   return {
     people: rows.map((p) => {
       const claim = claimByPerson.get(p.id) ?? null;
