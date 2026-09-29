@@ -8,7 +8,7 @@ import {
   removeDocument,
   signDocument,
   type PersonDocument,
-} from "@/app/actions/people";
+} from "@/app/actions/documents";
 import { ConfirmButton } from "@/components/confirm-dialog";
 import { FormError } from "@/components/form-error";
 import { PendingButton } from "@/components/pending-button";

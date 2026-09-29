@@ -5,11 +5,9 @@ import Link from "next/link";
 import { Lightbulb, Minimize2, Pencil } from "lucide-react";
 
 import { claimPerson, disputeClaim } from "@/app/actions/claims";
+import { updateRelationshipMarriage } from "@/app/actions/connections";
 import { sendClaimInvite } from "@/app/actions/invites";
-import {
-  setPersonPhotoCrop,
-  updateRelationshipMarriage,
-} from "@/app/actions/people";
+import { setPersonPhotoCrop } from "@/app/actions/people";
 import { deletePerson } from "@/app/actions/privacy";
 import { describeClaimInvite, type EntryInvite } from "@/lib/claim-invites";
 import type { PanelSuggestion } from "@/lib/connection-suggestions";

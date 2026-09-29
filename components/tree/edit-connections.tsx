@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { connectExistingPeople, removeRelationship } from "@/app/actions/people";
+import { connectExistingPeople, removeRelationship } from "@/app/actions/connections";
 import { CoParentOffer } from "@/components/co-parent-offer";
 import { ConfirmButton } from "@/components/confirm-dialog";
 import { FormError } from "@/components/form-error";

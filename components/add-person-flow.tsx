@@ -2,18 +2,13 @@
 
 import { useRouter } from "next/navigation";
 import * as React from "react";
-import {
-  useFieldArray,
-  useForm,
-  useWatch,
-  type Control,
-} from "react-hook-form";
+import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { Plus } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { z } from "zod";
 
-import { addRelative, setPersonPhoto } from "@/app/actions/people";
+import { addRelative } from "@/app/actions/connections";
+import { setPersonPhoto } from "@/app/actions/people";
 import {
   ConnectionApprovalDialog,
   type SuggestionPrompt,
@@ -31,6 +26,7 @@ import {
   PersonNameFields,
 } from "@/components/person-fields";
 import { PhotoPicker } from "@/components/photo-picker";
+import { InBetweenFields } from "@/components/in-between-fields";
 import { SpouseDatesFields } from "@/components/spouse-dates-fields";
 import {
   RelationshipPicker,
@@ -59,6 +55,12 @@ import { useAction } from "@/components/use-action";
 import { useFocusReturn } from "@/components/use-focus-return";
 import { usePhotoDraft } from "@/components/use-photo-draft";
 import {
+  flowSchema,
+  inviteAddress,
+  MAX_EXTRA_CONNECTIONS,
+  type FlowValues,
+} from "@/lib/add-person-schema";
+import {
   bloodTieWarning,
   newWithoutBloodTie,
   type Bloodline,
@@ -71,181 +73,12 @@ import {
   type PersonRef,
   type RelationshipKind,
 } from "@/lib/connections";
-import { isEmailAddress } from "@/lib/email-address";
-import { marriageDateProblems } from "@/lib/partial-date";
 import { personDisplayName } from "@/lib/person-name";
-import { emptyPersonValues, personSchema } from "@/lib/person-schema";
-import { toStoredSpouseDates, type SpouseDates } from "@/lib/spouse-dates";
+import { emptyPersonValues } from "@/lib/person-schema";
+import { toStoredSpouseDates } from "@/lib/spouse-dates";
 import { attachPhoto } from "@/lib/photo-upload";
 import { plural } from "@/lib/plural";
 import { treeFocusHref } from "@/lib/tree-links";
-
-/** Multi-connection cap — keeps the one submit transaction small (Task 11.4). */
-const MAX_EXTRA_CONNECTIONS = 10;
-
-/** Optional marriage / divorce fields carried on a spouse link (Step 11.5). */
-const spouseDatesShape = {
-  marriage_date: z.string().optional(),
-  is_divorced: z.boolean().optional(),
-  divorce_date: z.string().optional(),
-};
-
-/**
- * A link's marriage dates are only checked while it is a spouse link: one
- * switched to "child" keeps its old dates in the form, and they mustn't hold
- * up a submit they no longer belong to.
- */
-function spouseDateIssues(
-  link: SpouseDates & { kind: string },
-): { path: "marriage_date" | "divorce_date"; message: string }[] {
-  if (link.kind !== "spouse") return [];
-  const { marriage, divorce } = marriageDateProblems({
-    marriageDate: link.marriage_date,
-    isDivorced: link.is_divorced,
-    divorceDate: link.divorce_date,
-  });
-  return [
-    ...(marriage ? [{ path: "marriage_date" as const, message: marriage }] : []),
-    ...(divorce ? [{ path: "divorce_date" as const, message: divorce }] : []),
-  ];
-}
-
-/**
- * Someone in between, added in the same step. On the add-a-relative form
- * their name comes first and the rest on request, as for the person being
- * added (Step 44).
- */
-function InBetweenFields({
-  control,
-  isAdmin,
-  index,
-  compact,
-}: {
-  control: Control<FlowValues>;
-  isAdmin: boolean;
-  index: number;
-  compact: boolean;
-}) {
-  const [open, setOpen] = React.useState(!compact);
-  const prefix = `people.${index}`;
-  const idPrefix = `intermediate-${index}`;
-  if (!compact) {
-    return (
-      <PersonFields
-        control={control}
-        isAdmin={isAdmin}
-        prefix={prefix}
-        idPrefix={idPrefix}
-      />
-    );
-  }
-  return (
-    <div className="flex flex-col gap-6">
-      <PersonNameFields control={control} prefix={prefix} />
-      {open ? (
-        <PersonDetailFields
-          control={control}
-          isAdmin={isAdmin}
-          withDiedField
-          prefix={prefix}
-          idPrefix={idPrefix}
-        />
-      ) : (
-        <Button
-          type="button"
-          variant="link"
-          size="sm"
-          className="self-start px-0"
-          onClick={() => setOpen(true)}
-        >
-          <Plus />
-          More about them
-        </Button>
-      )}
-    </div>
-  );
-}
-
-const flowSchema = z.object({
-  people: z.array(personSchema).min(1),
-  anchorId: z.string(),
-  links: z.array(
-    z.object({
-      kind: z.enum(RELATIONSHIP_KINDS),
-      /** Sibling links only — also connect to the sibling's parents. */
-      linkToParents: z.boolean().optional(),
-      /**
-       * Child links only — the anchor's partners to record as a second parent.
-       * Ids, so a partner deselected by hand stays deselected.
-       */
-      coParentIds: z.array(z.string()).optional(),
-      ...spouseDatesShape,
-    }).superRefine((link, ctx) => {
-      for (const issue of spouseDateIssues(link)) {
-        ctx.addIssue({
-          code: "custom",
-          message: issue.message,
-          path: [issue.path],
-        });
-      }
-    }),
-  ),
-  extraLinks: z
-    .array(
-      z.object({
-        targetId: z.string().min(1, "Pick someone on the tree."),
-        kind: z.enum(RELATIONSHIP_KINDS),
-        /** Child links only — the target's partners to record as a parent too. */
-        coParentIds: z.array(z.string()).optional(),
-        ...spouseDatesShape,
-      }).superRefine((link, ctx) => {
-        for (const issue of spouseDateIssues(link)) {
-          ctx.addIssue({
-            code: "custom",
-            message: issue.message,
-            path: [issue.path],
-          });
-        }
-      }),
-    )
-    .max(MAX_EXTRA_CONNECTIONS)
-    .superRefine((rows, ctx) => {
-      const seen = new Set<string>();
-      rows.forEach((r, i) => {
-        const key = `${r.targetId}:${r.kind}`;
-        if (r.targetId && seen.has(key)) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "This is the same connection twice.",
-            path: [i, "targetId"],
-          });
-        }
-        seen.add(key);
-      });
-    }),
-  /** Invite the new person to claim their entry once it's saved. */
-  inviteEmail: z.string().optional(),
-}).superRefine((values, ctx) => {
-  // Only asked, and only sent, while they're living.
-  const address = inviteAddress(values);
-  if (address && !isEmailAddress(address)) {
-    ctx.addIssue({
-      code: "custom",
-      message: "That doesn't look like an email address.",
-      path: ["inviteEmail"],
-    });
-  }
-});
-type FlowValues = z.infer<typeof flowSchema>;
-
-/** Where the invite goes, or "" for none: a deceased person gets no invite. */
-function inviteAddress(values: {
-  people: { is_deceased: boolean }[];
-  inviteEmail?: string;
-}): string {
-  if (values.people[0]?.is_deceased) return "";
-  return (values.inviteEmail ?? "").trim();
-}
 
 /** The entry saved but its invite didn't go, whether refused or unreachable. */
 const INVITE_UNSENT =

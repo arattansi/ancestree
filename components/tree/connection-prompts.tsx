@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { resolveImpliedConnection } from "@/app/actions/people";
+import { resolveImpliedConnection } from "@/app/actions/connections";
 import type { PanelSuggestion } from "@/lib/connection-suggestions";
 import { PendingButton } from "@/components/pending-button";
 import { Badge } from "@/components/ui/badge";

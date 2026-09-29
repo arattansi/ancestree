@@ -5,7 +5,8 @@ import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 
-import { addRelative, setPersonPhoto } from "@/app/actions/people";
+import { addRelative } from "@/app/actions/connections";
+import { setPersonPhoto } from "@/app/actions/people";
 import { CoParentOffer } from "@/components/co-parent-offer";
 import { FormError } from "@/components/form-error";
 import { JoinsAsNote } from "@/components/joins-as-note";
