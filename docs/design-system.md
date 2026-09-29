@@ -69,9 +69,15 @@ turn autocomplete off, or every relative is offered the member's own name
 
 ## Layout
 
-- Pages sit in a centred column: `max-w-3xl` for the account page and Root
-  console, `max-w-2xl` for forms, `max-w-lg` for short pages, `max-w-5xl`
-  for the header.
+- Pages sit in a centred column: `3xl` for the account page and Root
+  console, `2xl` for forms, `lg` for short pages (`PageColumn` in
+  `components/page-column.tsx`, whose widths these are), `max-w-5xl` for
+  the header. A page with one thing in the middle of it, a card or a
+  message, is a `CenteredPage`.
+- A list of things to act on is a `RowList` of `RowCard`s
+  (`components/row-card.tsx`): bordered cards whose lines stack, 12 px
+  apart, or `dense` one-line rows 8 px apart, and one muted line when
+  there's nothing in it. An entry a name matches is a `CandidateRow`.
 - Settings-style pages lay cards out in two columns (`grid gap-6
   md:grid-cols-2`); a card that needs the width spans both
   (`md:col-span-2`). Cards keep their natural height; don't stretch one to
@@ -106,7 +112,7 @@ turn autocomplete off, or every relative is offered the member's own name
   it (Step 59; the edit entry page's **Save changes** and **Back to
   tree**): from `lg` up in a column just right of the form, level with the
   page title; below that in a bar along the bottom of the screen, styled
-  like the header. The primary button comes first, as in any row of
+  like the header (both `bar-chrome`, in `app/globals.css`). The primary button comes first, as in any row of
   buttons. A failed save's message sits by them. They stay at the end of
   the form in the page's order, so the keyboard reaches them after the
   fields (`components/floating-form-actions.tsx`).

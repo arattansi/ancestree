@@ -157,11 +157,14 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   the privacy tick, Step 30.6),
   `approveTreeRequest` / `declineTreeRequest` / `deleteTreeRequest` (beta
   reviewers);
-  `people.ts`: `addRelative` (one call for an add: the implied connections
-  asked about first, then a transactional multi-person + edge create and
-  the invite asked for with it, Step 77.5; a photo follows in a second),
-  update person (its photo in the same write, Step 77.5), drag-to-pin
-  position, photo + document writes, signed URLs; `claims.ts`: `claimPerson` / `disputeClaim` / `resolveClaim` /
+  `people.ts`: update person (its photo in the same write, Step 77.5),
+  fill blanks, drag-to-pin position, auto-arrange, photo writes, revert;
+  `connections.ts`: `addRelative` (one call for an add: the implied
+  connections asked about first, then a transactional multi-person + edge
+  create and the invite asked for with it, Step 77.5; a photo follows in a
+  second) and every line after it; `documents.ts`: document reads, writes
+  and signed URLs (the three split in Step 77.6; the refusal wording they
+  share is `lib/entry-errors.ts`); `claims.ts`: `claimPerson` / `disputeClaim` / `resolveClaim` /
   `markNotificationsRead`; `entry-comments.ts`: `getEntryComments` /
   `addEntryComment` / `resolveEntryFlag`)
 - `components/tree/` — `family-tree.tsx` React Flow canvas (generation lanes
@@ -170,7 +173,9 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   a child's descent line starts from a junction _derived from
   its parents' live positions_ — not a node — so it follows them as they are
   dragged, and all of a couple's children bend at a shared horizontal bus, so a
-  marriage shows one trunk rather than one line per parent; admin
+  marriage shows one trunk rather than one line per parent — the lines are
+  `canvas-edges.tsx`, the graph they're drawn from `build-graph.ts`, the
+  lanes `generation-lane.tsx`, Step 77.6; admin
   "Auto-arrange" clears every manual nudge; on a phone no card can be
   dragged (a tablet's can), so a finger on one pans, Step 49; the zoom
   controls end with
@@ -194,7 +199,9 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   name and the years, on the photo when there is one, Step 76.6; **Edit
   entry** in its header, Step 62; claim / dispute; **Minimize** folds it into a
   card at the foot of the canvas, Step 49, that repeats the header's lines,
-  Step 76.7), `entry-comments.tsx` (comment /
+  Step 76.7, `folded-details.tsx`; its family and companions sections are
+  `person-family.tsx` and `person-companions.tsx`, Step 77.6),
+  `entry-comments.tsx` (comment /
   flag thread + resolve), `claim-suggestions.tsx` "Is this you?" canvas prompt;
   who's open is in the address (`?person=`, replaced as they change), and
   the camera, the filters, a lit connection and the details folded or not
@@ -241,7 +248,8 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `lib/action-feedback.ts` — what an
   action's answer means (`actionError`, `isRedirect`, `UNREACHABLE`;
   `.test.ts`); `tap-target` in `app/globals.css` — a 44 px hit area on
-  touch screens
+  touch screens; `bar-chrome` there — the header's frosted bar, which a
+  form's floating buttons share on a phone (Step 77.6)
 - Shared pieces, one copy each (Step 77.4; `.test.ts` beside the pure
   ones): `lib/limits.ts` (what the browser and server both hold to: invite
   lifetime, tree name, comment, note, display name, share link; the emails
@@ -268,7 +276,12 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
 - `components/person-fields.tsx` — shared demographic fieldset; `person-form.tsx` —
   edit an existing entry (on the edit page its buttons float:
   `floating-form-actions.tsx`, Step 59); `add-person-flow.tsx` — self / relative add with chain
-  connect; `relationship-picker.tsx` — search-select an existing member;
+  connect (its schema `lib/add-person-schema.ts`, `.test.ts`, and the people
+  in between `in-between-fields.tsx`, Step 77.6);
+  `relationship-picker.tsx` — search-select an existing member;
+  `candidate-row.tsx` — an entry a name matches, with its button, wherever
+  one is offered (Step 77.6); `row-card.tsx` — `RowCard` and `RowList`, a
+  list of things to act on and its "No …" line (Step 77.6);
   `place-autocomplete.tsx` — `places`-backed birth/death location picker
   (+ admin "add a place"); `components/person-documents.tsx`
 - `lib/places.ts` — server-only `searchPlaces` / `getPlacesByIds` /
@@ -295,7 +308,10 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   NLD's names, or nothing (Step 40)
 - `lib/person-schema.ts` — shared zod schema; `lib/connections.ts` — chain/edge
   types + `buildChainEdges`; `lib/connection-suggestions.ts` — implied-connection
-  detection engine (+ `.server.ts` loader, `.test.ts`); `lib/siblings.ts` — sibling inference; `lib/tree.ts` —
+  detection engine (+ `.server.ts` loader, `.test.ts`); `lib/siblings.ts` — sibling inference;
+  `lib/graph-walk.ts` — the one walk along a tree's lines (`stepsOf`,
+  `reach`, `partnersOf`) the bloodline, branches, a person's own line and the
+  spotlight take (Step 77.6, `.test.ts`); `lib/tree.ts` —
   shared-tree + member lookups + `getTreeGraph` (canvas data), and the
   reads a request shares whoever asks (Step 77.1): `loadTreePeople`,
   `loadTreeEdges`, `loadTreeDirectory`, `loadTreeClaims` (this tree's
@@ -308,7 +324,10 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   sibling set runs oldest→youngest. Also emits generation bands and per-couple
   descent points (`descentGeometry`, shared with the canvas so the drawn line
   and the laid-out one follow one rule; a `generations` option fixes each
-  row from the whole tree when only part of it is drawn, Step 57.2);
+  row from the whole tree when only part of it is drawn, Step 57.2); its
+  measures are `lib/tree-dimensions.ts`, its lines' geometry
+  `lib/edge-geometry.ts` and the lanes' labels and titles
+  `lib/generation-lanes.ts` (split in Step 77.6);
   `lib/occasions.ts` — upcoming birthdays and anniversaries (Step 57.1,
   `.test.ts`); `lib/presence.ts` — the tree room's topic, colours, send
   rate and card-anchored pointers (Step 57.3, `.test.ts`);
@@ -350,7 +369,12 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `placement-asks.tsx` (**Asked of You** on `/account` settings, Step 80),
   `admin/admin-tree-settings.tsx`, `admin/admin-delete-tree.tsx`,
   `tree/person-trees.tsx` ("Also on"); `components/page-skeletons.tsx` +
-  `components/ui/skeleton.tsx` for the `loading.tsx` skeletons
+  `components/ui/skeleton.tsx` for the `loading.tsx` skeletons;
+  `components/page-column.tsx` — `PageColumn` (`lg`, `2xl`, `3xl`) and
+  `CenteredPage`, every page's shell and its skeleton's (Step 77.6);
+  `lib/admin-sections.ts` — the Root console's sections, listed once for
+  its side nav and groups (Step 77.6, `.test.ts`);
+  `lib/account-settings.server.ts` — what `/account` settings shows
 - `lib/auth.ts` — `getSessionUser` (who the session's token names, checked
   on the server against the project's signing key, Step 61) / `getUser`
   (the Auth server's user, for a confirmed address) / `getProfile` /
@@ -1463,6 +1487,57 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 77.6 — Efficiency audit, phase 4: the tidy** (ad-hoc; no
+  migration; the audit's findings R6–R10, its dead code and its file
+  seams; the sixth of seven parts). Nothing a member sees changes but two
+  pages' spacing. **Revalidation (R6):** every write now goes through
+  `revalidateTreePages`; the last paths named by hand (claim, dispute,
+  clearing notifications, the relatives-can-ask switch, deleting an
+  account) and the one `refresh()` (an invite for another address) are
+  gone. **One walk (R7):** `lib/graph-walk.ts` is the walk along a tree's
+  lines that the bloodline, a branch, a person's own line, "Only
+  descendants of" and the canvas's spotlight each wrote themselves.
+  **The Root console (R8):** its twelve pieces that sat at the top of
+  `components/` moved into `components/admin/`; its sections are listed
+  once (`lib/admin-sections.ts`), and the side nav, each group and whether
+  a section shows all come from the list; the Needs attention card maps
+  the queue's sections. `RowCard` and `RowList` are the bordered rows and
+  their "No …" line across the console, the notifications, an entry's
+  suggestions and comments, a companion's comments and the connection
+  prompts, and `CandidateRow` the one close-match row in the three places
+  a name's matches are offered. **Page chrome (R10):** `PageColumn` and
+  `CenteredPage` draw every page's shell and its skeleton's, so the
+  connection review and privacy pages take the others' spacing; the header
+  and a form's floating buttons share `bar-chrome`; the person and pet
+  sheets' width classes, which lost to the sheet's own, are gone. **Dead
+  code:** `requireTreeRoot`, `siblingPairs`, `imageSize`, `isBloodline`,
+  `resolveConnectionSuggestion`, `setDocumentShared` (never had a way to
+  press it), two props nobody passed, a Step 9 flag nothing read,
+  create-next-app's images and the places backfill that has run. The
+  bare-invite card stays until its last link lapses (9 Oct). **Files:**
+  `app/actions/people.ts` split into the entry's, a connection's and a
+  document's actions; `family-tree.tsx` gave its lines, lanes, graph,
+  phone check and folded card their own files (2,841 → 2,209 lines; its
+  hooks wait for Phase 3); `person-panel.tsx` its family and companions
+  sections (1,216 → 973); `lib/tree-layout.ts` its measures, lines'
+  geometry and lanes (1,627 → 1,182); the add-a-relative form its schema,
+  now tested; the account page its settings loading (652 → 534).
+  **Verified:** the new code against main (`f3413d0`) side by side in dev,
+  as seven throwaway members of two throwaway trees and a signed-out
+  visitor: 50 page loads' data identical but for the header's class list
+  and the review page's spacing; 25 screens photographed on both — the
+  Root console's lists, requests with a close match, the side nav,
+  settings with a relative's ask, the canvas and a spotlight, a person's
+  sheet, comment threads, forms on a phone — pixel for pixel the same but
+  for the two pages meant to move and a clock that had ticked; the sheet
+  293 px on a phone and 384 px wider, as before. On the new code: the side
+  nav opens each group at its section; the lines are drawn and a clicked
+  one lights its run; the spouse row edits its dates; a phone can't drag a
+  card; the add form refuses a bad address; documents list; a sent invite
+  resends. No console errors. The throwaway users, trees and rows were
+  deleted after. 1235 tests pass (16 new, 2 gone with `isBloodline`);
+  tsc, lint and `next build` are clean.
 
 - **Step 80 — Carry a family line to another tree: all descendants of,
   basic cards, approvals** (ad-hoc, Aalim 2026-09-29; migration
