@@ -1504,6 +1504,30 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 86 — Added by / invited by at the foot of a person's details**
+  (ad-hoc, Aalim 2026-09-29; no migration). The details sheet ends with a
+  footer of tags for how the person came onto the tree: **Added by** whoever
+  made the entry (`people.created_by`) and **Invited by** whoever invited its
+  member to *this* tree (`tree_members.invited_by_user_id`, through
+  `member_directory`). They're two tags when two people did it (a Root adds
+  a cousin, a Branch sends the invite that claims it) and one, **Added and
+  invited by …**, when it's the same person; the viewer is "you". A member
+  who added their own entry isn't "added by" anyone, so a founder's entry
+  has no footer. Names come from the tree's directory, and a creator who
+  isn't on it (they left, or the entry was added on another tree) from
+  their profile, read only for them; nobody readable, no tag. Members only:
+  loaded with `account_type` (`withAccountTypes`), so share links and
+  visitors never get it, and a basic card shows none. Pure logic in
+  `lib/joined-by.ts` (tested), read in `getTreeGraph`, drawn in
+  `components/tree/person-panel.tsx`. **Verified** headless as a throwaway
+  Root and Leaf on live (Root → Branch invited by Root → Leaf invited by
+  Branch, the Leaf's entry added by the Root): the Root saw "Invited by you"
+  on the Branch, "Added by you" + "Invited by Branch" on the Leaf, "Added
+  by Branch" on the Branch's aunt and nothing on their own; the Leaf saw
+  "Added by Root" + "Invited by Branch" on their own entry. Throwaway rows
+  and accounts deleted after. 1,289 unit tests, `tsc`, `eslint` and `next
+  build` clean.
+
 - **Step 85 — Two fixes: the invite form's hydration warning, the header
   on a phone** (ad-hoc, Aalim 2026-09-29; no migration; both seen while
   testing Steps 80 to 84). **85.1, the invite form:** every member's
