@@ -90,6 +90,7 @@ import {
   canEditEntry,
   canFillEntry,
   canInviteToClaim,
+  canInviteToClaimCard,
   canOfferDelete,
   canSeeDocuments,
   descendantIds,
@@ -1724,8 +1725,13 @@ function Canvas({
     canFillEntry(entrySubject(selectedPerson), viewer);
   const canSeeDocs =
     !!selectedPerson && canSeeDocuments(entrySubject(selectedPerson), viewer);
+  // A basic card says too little of itself for the entry's rule, so it has
+  // its own: a Root's to send, when nobody is behind it (Step 84).
   const canInvite =
-    !!selectedPerson && canInviteToClaim(entrySubject(selectedPerson), viewer);
+    !!selectedPerson &&
+    (selectedPerson.basic
+      ? canInviteToClaimCard(selectedPerson, viewer)
+      : canInviteToClaim(entrySubject(selectedPerson), viewer));
   const canDelete =
     !!selectedPerson && canOfferDelete(entrySubject(selectedPerson), viewer);
   const selectedInvites = React.useMemo(

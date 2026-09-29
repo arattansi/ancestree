@@ -2251,6 +2251,10 @@ export type Database = {
       beta_reviewer_emails: { Args: never; Returns: string[] }
       can_delete_person: { Args: { p_person_id: string }; Returns: boolean }
       can_invite_to_claim: { Args: { p_person_id: string }; Returns: boolean }
+      can_invite_to_claim_on: {
+        Args: { p_person_id: string; p_tree: string }
+        Returns: boolean
+      }
       claim_person: { Args: { p_person_id: string }; Returns: Json }
       claim_person_as_self: {
         Args: {

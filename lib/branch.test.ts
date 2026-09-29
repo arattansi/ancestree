@@ -9,6 +9,7 @@ import {
   canEditEntry,
   canFillEntry,
   canInviteToClaim,
+  canInviteToClaimCard,
   canOfferDelete,
   canSeeDocuments,
   descendantIds,
@@ -561,6 +562,31 @@ describe("canInviteToClaim", () => {
       }),
     ).toBe(false);
     expect(canInviteToClaim(entry({ id: "arzu" }), branchAdmin)).toBe(false);
+  });
+});
+
+describe("canInviteToClaimCard (Step 84)", () => {
+  const card = { basic: true, asked_of: "stewards" as const };
+
+  it("lets a Root invite someone to claim a basic card nobody is behind", () => {
+    expect(canInviteToClaimCard(card, admin)).toBe(true);
+  });
+
+  it("is a Root's alone", () => {
+    expect(canInviteToClaimCard(card, branchAdmin)).toBe(false);
+    expect(canInviteToClaimCard(card, member)).toBe(false);
+  });
+
+  it("refuses a member's own card", () => {
+    expect(canInviteToClaimCard({ ...card, asked_of: "owner" }, admin)).toBe(
+      false,
+    );
+  });
+
+  it("leaves a card shown in full to the entry's own rule", () => {
+    expect(
+      canInviteToClaimCard({ basic: false, asked_of: null }, admin),
+    ).toBe(false);
   });
 });
 

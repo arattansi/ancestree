@@ -163,8 +163,13 @@ export type { ClaimInviteState } from "@/lib/claim-invite-send.server";
  * With `treeId` the newcomer joins that tree instead, where the entry must
  * be placed and the inviter a member — the tree a relayed ask's member
  * picked (Step 41.1), as a request approved as an entry joins the request's
- * tree (Step 30.3). The right to hand the entry over is still judged on its
- * home tree, and the record goes to the Roots of the tree they join.
+ * tree (Step 30.3), and the tree whose canvas the invite is sent from
+ * (Step 84). The record goes to the Roots of the tree they join.
+ *
+ * A Root of the tree they join may also invite someone to claim any entry
+ * it shows that nobody is behind (`private.can_invite_to_claim_on`, Step
+ * 84), a basic card included: the invite names it as the card does, and
+ * accepting claims it and shows it there in full (Step 83).
  */
 export async function sendClaimInvite(
   personId: string,

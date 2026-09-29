@@ -308,6 +308,51 @@ export function PersonPanel({
       </ConfirmButton>
     ) : null;
 
+  // Nobody is behind this entry yet, and it is the viewer's to hand over
+  // (`canInviteToClaim`): theirs to edit, or a card their tree shows and
+  // they're its Root (Step 84). The server asks the database the same thing
+  // before minting the link.
+  const inviteToClaim = !person ? null : canInviteToClaim ? (
+    <div className="flex flex-col gap-2 rounded-md border border-border p-3">
+      <Label htmlFor="claim-invite-email" className="text-xs font-medium">
+        Invite {personDisplayName(person)} to claim this entry
+      </Label>
+      <ClaimInviteRecords invites={claimInvites} />
+      <div className="flex flex-wrap gap-2">
+        <Input
+          ref={claimEmailRef}
+          id="claim-invite-email"
+          type="email"
+          inputMode="email"
+          autoComplete="off"
+          className="min-w-[12rem] flex-1"
+          value={claimEmail}
+          onChange={(e) => setClaimEmail(e.target.value)}
+          placeholder="them@example.com"
+          disabled={invite.pending}
+        />
+        <PendingButton
+          size="sm"
+          onClick={onSendClaimInvite}
+          pending={invite.pending}
+          disabled={claimEmail.trim().length === 0}
+          pendingLabel="Sending…"
+        >
+          {claimInvites.some((i) => i.live) ? "Send another" : "Send invite"}
+        </PendingButton>
+      </div>
+      <FormError>{invite.error}</FormError>
+      <JoinsAsNote />
+      <p className="text-xs text-muted-foreground">
+        They&rsquo;ll get a link, good for {INVITE_LIFETIME_DAYS} days, to take
+        over this entry.
+      </p>
+    </div>
+  ) : claimInvites.length > 0 ? (
+    // Everyone else on the tree still sees that it's in hand.
+    <ClaimInviteRecords invites={claimInvites} />
+  ) : null;
+
   // Reset the inline dispute form whenever a different person is selected.
   if (person?.id !== prevId) {
     setPrevId(person?.id);
@@ -337,7 +382,8 @@ export function PersonPanel({
     const personId = person.id;
     // An invite whose email failed is still made, and listed: the action
     // draws the page again whether or not the email went.
-    invite.run("send", () => sendClaimInvite(personId, claimEmail), {
+    // They join the tree it's sent from, which shows the entry (Step 84).
+    invite.run("send", () => sendClaimInvite(personId, claimEmail, treeId), {
       success: (res) => `Invite sent to ${res.email ?? "them"}.`,
       onSuccess: () => {
         setClaimEmail("");
@@ -566,6 +612,7 @@ export function PersonPanel({
                 </p>
               ) : null}
               {basic && claimButton ? <div>{claimButton}</div> : null}
+              {basic && !readOnly ? inviteToClaim : null}
               {!locked ? (
                 <EntrySuggestions
                   suggestions={changeSuggestions}
@@ -766,54 +813,7 @@ export function PersonPanel({
                     ) : null}
                   </div>
 
-                  {/* Nobody is behind this entry yet, and it is the viewer's to
-                      hand over (`canInviteToClaim`). The server asks the
-                      database the same thing before minting the link. */}
-                  {canInviteToClaim ? (
-                    <div className="flex flex-col gap-2 rounded-md border border-border p-3">
-                      <Label
-                        htmlFor="claim-invite-email"
-                        className="text-xs font-medium"
-                      >
-                        Invite {personDisplayName(person)} to claim this entry
-                      </Label>
-                      <ClaimInviteRecords invites={claimInvites} />
-                      <div className="flex flex-wrap gap-2">
-                        <Input
-                          ref={claimEmailRef}
-                          id="claim-invite-email"
-                          type="email"
-                          inputMode="email"
-                          autoComplete="off"
-                          className="min-w-[12rem] flex-1"
-                          value={claimEmail}
-                          onChange={(e) => setClaimEmail(e.target.value)}
-                          placeholder="them@example.com"
-                          disabled={invite.pending}
-                        />
-                        <PendingButton
-                          size="sm"
-                          onClick={onSendClaimInvite}
-                          pending={invite.pending}
-                          disabled={claimEmail.trim().length === 0}
-                          pendingLabel="Sending…"
-                        >
-                          {claimInvites.some((i) => i.live)
-                            ? "Send another"
-                            : "Send invite"}
-                        </PendingButton>
-                      </div>
-                      <FormError>{invite.error}</FormError>
-                      <JoinsAsNote />
-                      <p className="text-xs text-muted-foreground">
-                        They&rsquo;ll get a link, good for{" "}
-                        {INVITE_LIFETIME_DAYS} days, to take over this entry.
-                      </p>
-                    </div>
-                  ) : claimInvites.length > 0 ? (
-                    // Everyone else on the tree still sees that it's in hand.
-                    <ClaimInviteRecords invites={claimInvites} />
-                  ) : null}
+                  {inviteToClaim}
 
                   {lockedNote ? (
                     <p className="text-xs text-muted-foreground">

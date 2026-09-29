@@ -255,6 +255,24 @@ export function canInviteToClaim(entry: EntrySubject, viewer: Viewer): boolean {
 }
 
 /**
+ * The Root's half of `private.can_invite_to_claim_on` (Step 84), for a basic
+ * card, which says nothing of who made it or whether they are living: a
+ * Root of the tree showing it, when the rest of it waits on its home tree
+ * rather than on a member whose own it is. The database has the last word,
+ * on what the card keeps back too.
+ */
+export function canInviteToClaimCard(
+  card: { basic: boolean; asked_of: "owner" | "stewards" | null },
+  viewer: Viewer,
+): boolean {
+  return (
+    card.basic &&
+    card.asked_of === "stewards" &&
+    accountTypeOf(viewer.role).runsTree
+  );
+}
+
+/**
  * Whether to offer "Delete entry" (Step 22.3). Mirrors the half of
  * `private.can_delete_person` the entry itself can answer: a Root, anything;
  * a Branch or a Leaf, an entry they created that is still theirs — unclaimed,
