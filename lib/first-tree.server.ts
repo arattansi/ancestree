@@ -288,5 +288,3 @@ export async function getGettingStarted(
   const items = gettingStartedItems(stateOf(m, true, close, invited));
   return items.every((i) => i.done) ? null : items;
 }
-
-export type { FamilyCard, FirstTreeState, GettingStartedItem };

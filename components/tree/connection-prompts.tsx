@@ -141,3 +141,21 @@ export function ConnectionPromptList({
     </ul>
   );
 }
+
+/** A person's open prompts on their details sheet, under their own heading. */
+export function PendingConnectionPrompts({
+  suggestions,
+  onResolved,
+}: {
+  suggestions: PanelSuggestion[];
+  onResolved: () => void;
+}) {
+  if (suggestions.length === 0) return null;
+
+  return (
+    <section className="flex flex-col gap-3 border-t border-border pt-5">
+      <h2 className="text-sm font-semibold">Connections to check</h2>
+      <ConnectionPromptList suggestions={suggestions} onResolved={onResolved} />
+    </section>
+  );
+}

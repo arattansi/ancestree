@@ -33,7 +33,7 @@
  * same tree always draws the same way.
  */
 
-import { NODE_H, NODE_W, type XY } from "@/lib/tree-layout";
+import { NODE_H, NODE_W, type XY } from "@/lib/tree-dimensions";
 
 /** Chip size, matching `pet-node.tsx` (`w-36`, `h-11`). */
 export const PET_W = 144;

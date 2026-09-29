@@ -5,7 +5,6 @@ import Link from "next/link";
 import { Lightbulb, Minimize2, Pencil } from "lucide-react";
 
 import { claimPerson, disputeClaim } from "@/app/actions/claims";
-import { updateRelationshipMarriage } from "@/app/actions/connections";
 import { sendClaimInvite } from "@/app/actions/invites";
 import { setPersonPhotoCrop } from "@/app/actions/people";
 import { deletePerson } from "@/app/actions/privacy";
@@ -18,12 +17,16 @@ import { FormError } from "@/components/form-error";
 import { JoinsAsNote } from "@/components/joins-as-note";
 import { PendingButton } from "@/components/pending-button";
 import { PersonDocuments } from "@/components/person-documents";
-import { ConnectionPromptList } from "@/components/tree/connection-prompts";
+import { PendingConnectionPrompts } from "@/components/tree/connection-prompts";
+import { CompanionsSection } from "@/components/tree/person-companions";
+import {
+  FamilySection,
+  type PersonRelation,
+} from "@/components/tree/person-family";
 import { AddCompanionDialog } from "@/components/tree/add-companion-dialog";
 import { AddRelativeButton } from "@/components/tree/add-relative-button";
 import type { CompanionOption } from "@/components/tree/companion-picker";
 import { PhotoCropEditor } from "@/components/photo-crop-editor";
-import { SpouseDatesFields } from "@/components/spouse-dates-fields";
 import { EntryComments } from "@/components/tree/entry-comments";
 import { EntrySuggestions } from "@/components/tree/entry-suggestions";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -54,29 +57,16 @@ import {
   parseCrop,
   type CropTransform,
 } from "@/lib/image-crop";
-import {
-  asDayMonth,
-  formatPartialDate,
-  marriageDateProblems,
-  toPartialIso,
-  type DayMonth,
-} from "@/lib/partial-date";
+import { asDayMonth, formatPartialDate } from "@/lib/partial-date";
 import { FILL_ENTRY_NOTE, LOCKED_ENTRY_NOTE } from "@/lib/account-types";
 import { BASIC_DETAILS, waitingOn } from "@/lib/carry";
 import { blankFields } from "@/lib/fill-blanks";
 import { SEX_LABELS, type Sex } from "@/lib/person-schema";
 import { PersonTrees } from "@/components/tree/person-trees";
 import { countOf } from "@/lib/plural";
-import { toStoredSpouseDates, type SpouseDates } from "@/lib/spouse-dates";
 import type { DeclinedSuggestion, EntrySuggestion } from "@/lib/suggestions";
 import { editPersonHref, suggestChangeHref } from "@/lib/tree-links";
 import { cn } from "@/lib/utils";
-import {
-  petYears,
-  speciesLabel,
-  SPECIES_GLYPHS,
-  type PetSpecies,
-} from "@/lib/pet-schema";
 import type { TreePet } from "@/lib/pets";
 import type { TreeGraphPerson } from "@/lib/tree";
 
@@ -115,274 +105,6 @@ function PlaceField({
         <AncestralLands placeId={placeId} shareToken={shareToken} />
       </dd>
     </div>
-  );
-}
-
-function PendingConnectionPrompts({
-  suggestions,
-  onResolved,
-}: {
-  suggestions: PanelSuggestion[];
-  onResolved: () => void;
-}) {
-  if (suggestions.length === 0) return null;
-
-  return (
-    <section className="flex flex-col gap-3 border-t border-border pt-5">
-      <h2 className="text-sm font-semibold">Connections to check</h2>
-      <ConnectionPromptList suggestions={suggestions} onResolved={onResolved} />
-    </section>
-  );
-}
-
-export type PersonRelation = {
-  id: string;
-  otherName: string;
-  kind: "spouse" | "parent" | "child";
-  marriageDate: string | null;
-  /** A wedding day kept without its year, when there's no date (Step 63). */
-  marriageWithoutYear: DayMonth | null;
-  isDivorced: boolean;
-  divorceDate: string | null;
-  canEdit: boolean;
-};
-
-function SpouseRow({
-  relation,
-  onChanged,
-}: {
-  relation: PersonRelation;
-  onChanged: () => void;
-}) {
-  const [editing, setEditing] = React.useState(false);
-  const savedMarriage = toPartialIso(
-    relation.marriageDate,
-    "day",
-    relation.marriageWithoutYear,
-  );
-  const saved: SpouseDates = {
-    marriage_date: savedMarriage,
-    is_divorced: relation.isDivorced,
-    divorce_date: relation.divorceDate ?? "",
-  };
-  const [dates, setDates] = React.useState<SpouseDates>(saved);
-  const idBase = `spouse-${relation.id}`;
-  const action = useAction({ inline: true });
-  // The sheet is non-modal, so nothing else keeps focus as the editor opens
-  // and closes (Step 70).
-  const returnFocus = useFocusReturn();
-  const editRef = React.useRef<HTMLButtonElement>(null);
-  // Marriage dates have to be whole (no precision column on relationships),
-  // or a day and month without the year (Step 63).
-  const dateProblems = marriageDateProblems({
-    marriageDate: dates.marriage_date,
-    isDivorced: dates.is_divorced,
-    divorceDate: dates.divorce_date,
-  });
-  const datesOk = !dateProblems.marriage && !dateProblems.divorce;
-
-  function save() {
-    if (!datesOk) return;
-    const stored = toStoredSpouseDates(dates);
-    action.run(
-      "save",
-      () => updateRelationshipMarriage(relation.id, stored),
-      {
-        onSuccess: () => {
-          returnFocus(() => editRef.current);
-          setEditing(false);
-          onChanged();
-        },
-      },
-    );
-  }
-
-  return (
-    <div className="flex flex-col gap-1.5 rounded-md border border-border p-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-medium text-muted-foreground">
-          Spouse / partner
-        </span>
-        <span className="text-sm text-foreground">{relation.otherName}</span>
-        {relation.isDivorced ? (
-          <Badge variant="outline">
-            Divorced
-            {relation.divorceDate
-              ? ` ${formatPartialDate(relation.divorceDate)}`
-              : ""}
-          </Badge>
-        ) : null}
-      </div>
-
-      {savedMarriage && !editing ? (
-        <p className="text-xs text-muted-foreground">
-          Married{" "}
-          {formatPartialDate(
-            relation.marriageDate,
-            "day",
-            relation.marriageWithoutYear,
-          )}
-        </p>
-      ) : null}
-
-      {!editing && relation.canEdit ? (
-        <button
-          ref={editRef}
-          type="button"
-          className="relative tap-target self-start text-xs text-foreground underline underline-offset-2"
-          onClick={() => {
-            setEditing(true);
-            // The link makes way for the editor: its first box takes focus.
-            returnFocus(() => document.getElementById(`${idBase}-marriage`));
-          }}
-        >
-          {savedMarriage || relation.isDivorced
-            ? "Edit marriage / divorce"
-            : "Add marriage / divorce dates"}
-        </button>
-      ) : null}
-
-      {editing ? (
-        <div className="mt-1 flex flex-col gap-3">
-          <SpouseDatesFields
-            idBase={idBase}
-            value={dates}
-            onPatch={(patch) => setDates((d) => ({ ...d, ...patch }))}
-            errors={dateProblems}
-            boxed={false}
-          />
-          <FormError>{action.error}</FormError>
-          <div className="flex gap-2">
-            <PendingButton
-              size="sm"
-              onClick={save}
-              pending={action.pending}
-              disabled={!datesOk}
-              pendingLabel="Saving…"
-            >
-              Save
-            </PendingButton>
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={action.pending}
-              onClick={() => {
-                returnFocus(() => editRef.current);
-                setEditing(false);
-                setDates(saved);
-                action.setError(null);
-              }}
-            >
-              Cancel
-            </Button>
-          </div>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function FamilySection({
-  relations,
-  onChanged,
-}: {
-  relations: PersonRelation[];
-  onChanged: () => void;
-}) {
-  if (relations.length === 0) return null;
-  const spouses = relations.filter((r) => r.kind === "spouse");
-  const parents = relations.filter((r) => r.kind === "parent");
-  const children = relations.filter((r) => r.kind === "child");
-
-  return (
-    <section className="flex flex-col gap-3 border-t border-border pt-5">
-      <h2 className="text-sm font-semibold">Family</h2>
-      {spouses.map((s) => (
-        <SpouseRow key={s.id} relation={s} onChanged={onChanged} />
-      ))}
-      {parents.length > 0 ? (
-        <div className="flex flex-col gap-0.5">
-          <dt className="text-xs font-medium text-muted-foreground">Parents</dt>
-          <dd className="text-sm">
-            {parents.map((p) => p.otherName).join(", ")}
-          </dd>
-        </div>
-      ) : null}
-      {children.length > 0 ? (
-        <div className="flex flex-col gap-0.5">
-          <dt className="text-xs font-medium text-muted-foreground">
-            Children
-          </dt>
-          <dd className="text-sm">
-            {children.map((c) => c.otherName).join(", ")}
-          </dd>
-        </div>
-      ) : null}
-    </section>
-  );
-}
-
-/**
- * The pets this person lived with.
- *
- * Kept apart from `FamilySection` on purpose: companions are listed *after*
- * the family, in their own section, with their own wording — never as another
- * kind of relative in the same list.
- */
-function CompanionsSection({
-  pets,
-  canAdd,
-  onSelectPet,
-  onAdd,
-}: {
-  pets: TreePet[];
-  canAdd: boolean;
-  onSelectPet: (petId: string) => void;
-  onAdd: () => void;
-}) {
-  if (pets.length === 0 && !canAdd) return null;
-
-  return (
-    <section className="flex flex-col gap-3 border-t border-border pt-5">
-      <h2 className="text-sm font-semibold">Companions</h2>
-      {pets.length > 0 ? (
-        <ul className="flex flex-col gap-1.5">
-          {pets.map((pet) => (
-            <li key={pet.id}>
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 rounded-md border border-border px-2.5 py-1.5 text-left text-sm hover:bg-accent hover:text-accent-foreground"
-                onClick={() => onSelectPet(pet.id)}
-              >
-                <span aria-hidden>
-                  {SPECIES_GLYPHS[pet.species as PetSpecies] ??
-                    SPECIES_GLYPHS.other}
-                </span>
-                <span className="min-w-0 flex-1 truncate">{pet.name}</span>
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {speciesLabel(pet)}
-                  {petYears(pet) ? ` · ${petYears(pet)}` : ""}
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-xs text-muted-foreground">
-          No pets on this entry yet.
-        </p>
-      )}
-      {canAdd ? (
-        <Button
-          size="sm"
-          variant="outline"
-          className="self-start"
-          onClick={onAdd}
-        >
-          Add a companion
-        </Button>
-      ) : null}
-    </section>
   );
 }
 

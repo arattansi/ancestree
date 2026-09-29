@@ -7,16 +7,13 @@ import { useTheme } from "next-themes";
 import {
   Background,
   BackgroundVariant,
-  BaseEdge,
   ControlButton,
   Controls,
   MiniMap,
   Panel,
-  Position,
   ReactFlow,
   ReactFlowProvider,
   ViewportPortal,
-  getSmoothStepPath,
   useEdgesState,
   useNodesState,
   useReactFlow,
@@ -24,13 +21,11 @@ import {
   useStoreApi,
   useUpdateNodeInternals,
   type Edge,
-  type EdgeProps,
-  type Node,
   type NodeMouseHandler,
   type OnNodeDrag,
   type ReactFlowState,
 } from "@xyflow/react";
-import { LocateFixed, Maximize2, Route } from "lucide-react";
+import { LocateFixed, Route } from "lucide-react";
 import { toast } from "sonner";
 
 import "@xyflow/react/dist/style.css";
@@ -40,6 +35,16 @@ import { setPetPosition } from "@/app/actions/pets";
 import { ConfirmButton } from "@/components/confirm-dialog";
 import { RequestInviteDialog } from "@/components/request-invite-form";
 import { AddRelativeButton } from "@/components/tree/add-relative-button";
+import { buildGraph } from "@/components/tree/build-graph";
+import { ColumnsIcon, ExpandingLabel } from "@/components/tree/canvas-controls";
+import { edgeTypes } from "@/components/tree/canvas-edges";
+import { FoldedDetails } from "@/components/tree/folded-details";
+import { GenerationLane } from "@/components/tree/generation-lane";
+import {
+  SPOTLIGHT_BROWN,
+  SPOTLIGHT_GREEN,
+} from "@/components/tree/spotlight-colours";
+import { useIsPhone } from "@/components/tree/use-is-phone";
 import { CanvasTip } from "@/components/tree/canvas-tip";
 import { ClaimSuggestions } from "@/components/tree/claim-suggestions";
 import { GettingStarted } from "@/components/tree/getting-started";
@@ -73,7 +78,6 @@ import {
   petMatchesFilter,
   type TreeFilter,
 } from "@/lib/tree-search";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { toastError } from "@/components/use-action";
 import { accountTypeOf } from "@/lib/account-types";
@@ -95,14 +99,12 @@ import {
   type EntrySubject,
   type Viewer,
 } from "@/lib/branch";
-import { BASIC_DETAILS } from "@/lib/carry";
 import type { EntryInvite } from "@/lib/claim-invites";
 import { mergeConfirmation, relativesThatMove } from "@/lib/claim-merge";
 import type { ClaimCandidate } from "@/lib/claims";
 import { connectionLabel, connectionPath } from "@/lib/connection-path";
 import type { PanelSuggestion } from "@/lib/connection-suggestions";
 import type { GettingStartedItem } from "@/lib/first-tree";
-import { cropStyle, parseCrop } from "@/lib/image-crop";
 import { nativeLeaf } from "@/lib/native-leaf";
 import { upcomingOccasions } from "@/lib/occasions";
 import { asDayMonth } from "@/lib/partial-date";
@@ -110,36 +112,11 @@ import { personSpotlight, spotlightPeople } from "@/lib/person-spotlight";
 import type { DeclinedSuggestion, EntrySuggestion } from "@/lib/suggestions";
 import { onboardingHref } from "@/lib/tree-links";
 import { cn } from "@/lib/utils";
-import {
-  bloodline,
-  descentGeometry,
-  descentRoute,
-  lateralGeometry,
-  roundedPolyline,
-  siblingBracketPoints,
-  leafBranchPath,
-  trunkStep,
-  layoutTree,
-  laneTitleFit,
-  laneTitleLeft,
-  NODE_H,
-  NODE_W,
-  type CardRect,
-  type Descent,
-  type Lateral,
-  type GenerationBand,
-  type TreeLayout,
-  type XY,
-} from "@/lib/tree-layout";
-import { layoutPets } from "@/lib/pet-layout";
+import { descentGeometry, type CardRect } from "@/lib/edge-geometry";
+import { NODE_H, NODE_W, type XY } from "@/lib/tree-dimensions";
+import { bloodline, layoutTree } from "@/lib/tree-layout";
 import type { TreePet } from "@/lib/pets";
-import {
-  maidenLine,
-  personDisplayName,
-  personHasDied,
-  personInitials,
-  personLifespan,
-} from "@/lib/person-name";
+import { personDisplayName, personHasDied } from "@/lib/person-name";
 import {
   anchorPoint,
   placePoint,
@@ -147,371 +124,7 @@ import {
   type Peer,
 } from "@/lib/presence";
 import type { TreeGraphEdge, TreeGraphPerson } from "@/lib/tree";
-import type { PersonRelation } from "@/components/tree/person-panel";
-
-// Spotlight palette, the brand tokens from globals.css: foliage green for the
-// cards and the leaves they turn into (person-node.tsx and leaf-card.tsx),
-// trunk brown for everything that carries them — branch lines, stems, the pill
-// that names the tree you pulled out.
-const SPOTLIGHT_BROWN = "var(--brand-brown)";
-const SPOTLIGHT_GREEN = "var(--brand-green)";
-
-const sameDescent = (a: Descent, b: Descent) =>
-  a.startX === b.startX &&
-  a.startY === b.startY &&
-  a.busY === b.busY &&
-  a.stepY === b.stepY;
-
-/** Where a union's children drop off their bar, and the highest one's top. */
-type SiblingBar = { landXs: number[]; top: number };
-
-const sameBar = (a: SiblingBar | null, b: SiblingBar | null) =>
-  a === b ||
-  (!!a &&
-    !!b &&
-    a.top === b.top &&
-    a.landXs.length === b.landXs.length &&
-    a.landXs.every((x, i) => x === b.landXs[i]));
-
-const sameRect = (a: CardRect | null, b: CardRect | null) =>
-  a?.x === b?.x && a?.y === b?.y && a?.w === b?.w && a?.h === b?.h;
-
-/** One node's live rectangle, or null while it is still unmeasured. */
-function rectOf(state: ReactFlowState, nodeId: string): CardRect | null {
-  const node = state.nodeLookup.get(nodeId);
-  if (!node) return null;
-  const { x, y } = node.internals.positionAbsolute;
-  return {
-    x,
-    y,
-    w: node.measured?.width ?? NODE_W,
-    h: node.measured?.height ?? NODE_H,
-  };
-}
-
-/**
- * A descent line from a couple down to one child.
- *
- * The junction it starts from is *derived from the parents' live positions*
- * rather than being a node of its own — an invisible node would sit where the
- * layout first put it and stay there while you dragged its parents around,
- * leaving the line detached from them. Reading the parents straight out of the
- * store means the trunk follows every drag, on either side of the connection.
- *
- * All of a couple's children bend at the same `busY`, so their trunks overlap
- * exactly and a marriage reads as one trunk plus a stub per child rather than
- * one diagonal each.
- */
-function DescentEdge({
-  id,
-  target,
-  sourceX,
-  sourceY,
-  targetX,
-  targetY,
-  data,
-  style,
-}: EdgeProps) {
-  const parents = React.useMemo(
-    () => (Array.isArray(data?.parents) ? (data.parents as string[]) : []),
-    [data],
-  );
-  // Every child hanging off this union's bar, this one included: the trunk
-  // meets the bar halfway between the outermost two, wherever they are now.
-  const siblings = React.useMemo(
-    () => (Array.isArray(data?.siblings) ? (data.siblings as string[]) : []),
-    [data],
-  );
-  // The layout's own geometry, used until the cards have been measured.
-  const fallback = React.useMemo<Descent>(
-    () => ({
-      startX: typeof data?.startX === "number" ? data.startX : sourceX,
-      startY: typeof data?.startY === "number" ? data.startY : sourceY,
-      busY:
-        typeof data?.busY === "number" ? data.busY : (sourceY + targetY) / 2,
-      stepY: typeof data?.stepY === "number" ? data.stepY : null,
-    }),
-    [sourceX, sourceY, targetY, data],
-  );
-
-  // Pulled out of the tree, the cards are leaves: a branch that stopped
-  // anywhere on top of one would read as a line lying across it, so the line
-  // leaves the parents at their stems and comes down over the child, stopping
-  // short of its blade — whose top depends on the species, so the spotlight
-  // passes it in.
-  const toLeaf = data?.toLeaf === true;
-  const bladeTop = typeof data?.bladeTop === "number" ? data.bladeTop : 0;
-
-  // Where each sibling drops off the bar — over the middle of its card or
-  // leaf — and how high the highest of them sits. Every child of the union
-  // reads the same cards, so they all draw the same trunk, step and bar.
-  const bar = useStore(
-    React.useCallback(
-      (state: ReactFlowState): SiblingBar | null => {
-        if (siblings.length < 2) return null;
-        const rects = siblings
-          .map((childId) => rectOf(state, childId))
-          .filter((rect): rect is CardRect => rect !== null);
-        if (rects.length < 2) return null;
-        return {
-          landXs: rects.map((r) => r.x + r.w / 2),
-          top: Math.min(...rects.map((r) => r.y)),
-        };
-      },
-      [siblings],
-    ),
-    sameBar,
-  );
-
-  // A lone child keeps measuring from its own handle, exactly as before.
-  const childTop = bar?.top ?? targetY;
-  const descent = useStore(
-    React.useCallback(
-      (state: ReactFlowState): Descent => {
-        const rects = parents
-          .map((parentId) => rectOf(state, parentId))
-          .filter((rect): rect is CardRect => rect !== null);
-        return descentGeometry(rects, childTop, { leafy: toLeaf }) ?? fallback;
-      },
-      [parents, fallback, childTop, toLeaf],
-    ),
-    sameDescent,
-  );
-
-  // The child's own rectangle, so the branch can stop above its blade rather
-  // than at whatever point the target handle happens to have been measured at.
-  const childRect = useStore(
-    React.useCallback(
-      (state: ReactFlowState) => (toLeaf ? rectOf(state, target) : null),
-      [target, toLeaf],
-    ),
-    sameRect,
-  );
-
-  const landXs = bar?.landXs ?? [];
-  if (toLeaf) {
-    const child = childRect ?? {
-      x: targetX,
-      y: targetY - NODE_H / 2,
-      w: NODE_W,
-      h: NODE_H,
-    };
-    return (
-      <BaseEdge
-        id={id}
-        path={leafBranchPath(descent, child, bladeTop, 10, landXs)}
-        style={style}
-      />
-    );
-  }
-
-  // Parents off to one side of their children: jog across to the middle of
-  // the bar on the way down, so the family hangs evenly off one trunk.
-  if (trunkStep(descent, landXs)) {
-    const path = roundedPolyline(
-      [
-        ...descentRoute(descent, targetX, landXs),
-        { x: targetX, y: targetY },
-      ],
-      10,
-    );
-    return <BaseEdge id={id} path={path} style={style} />;
-  }
-
-  const [path] = getSmoothStepPath({
-    sourceX: descent.startX,
-    sourceY: descent.startY,
-    sourcePosition: Position.Bottom,
-    targetX,
-    targetY,
-    targetPosition: Position.Top,
-    borderRadius: 10,
-    centerY: descent.busY,
-  });
-  return <BaseEdge id={id} path={path} style={style} />;
-}
-
-/**
- * The line between two partners.
- *
- * Drawn level, through the vertical middle of both cards, so a marriage reads
- * as a lateral connection rather than a slightly sloped mistake. Positions come
- * from the store rather than from the handles so the line stays level even if a
- * card's height ever varies again; if a partner has been dragged out of line it
- * steps around at right angles instead of going diagonal.
- */
-function SpouseEdge({
-  id,
-  sourceX,
-  sourceY,
-  targetX,
-  targetY,
-  data,
-  style,
-}: EdgeProps) {
-  const pair = React.useMemo(
-    () => (Array.isArray(data?.pair) ? (data.pair as string[]) : []),
-    [data],
-  );
-
-  const lateral = useStore(
-    React.useCallback(
-      (state: ReactFlowState): Lateral | null => {
-        const [a, b] = pair.map((nodeId) => {
-          const node = state.nodeLookup.get(nodeId);
-          if (!node) return null;
-          const { x, y } = node.internals.positionAbsolute;
-          return {
-            x,
-            y,
-            w: node.measured?.width ?? NODE_W,
-            h: node.measured?.height ?? NODE_H,
-          };
-        });
-        return a && b ? lateralGeometry(a, b) : null;
-      },
-      [pair],
-    ),
-    (a, b) => a?.y === b?.y && a?.jogged === b?.jogged,
-  );
-
-  // A partner dragged off the row: step around it rather than slope across.
-  if (lateral?.jogged) {
-    const [stepped] = getSmoothStepPath({
-      sourceX,
-      sourceY,
-      sourcePosition: Position.Right,
-      targetX,
-      targetY,
-      targetPosition: Position.Left,
-      borderRadius: 8,
-    });
-    return <BaseEdge id={id} path={stepped} style={style} />;
-  }
-
-  const y = lateral?.y ?? sourceY;
-  return (
-    <BaseEdge
-      id={id}
-      path={`M ${sourceX},${y} L ${targetX},${y}`}
-      style={style}
-    />
-  );
-}
-
-/**
- * The bracket between the spotlighted person and a sibling who shares no
- * parent on the tree (Step 19.3) — joined by a stored "sibling of" row alone,
- * so there is no parents' bus to hang them from. Spotlight-only, and routed
- * from the live cards like every other line so it follows them as they move.
- */
-function SiblingBracketEdge({ id, data, style }: EdgeProps) {
-  const pair = React.useMemo(
-    () => (Array.isArray(data?.pair) ? (data.pair as string[]) : []),
-    [data],
-  );
-  const path = useStore(
-    React.useCallback(
-      (state: ReactFlowState): string | null => {
-        const [a, b] = pair.map((nodeId) => rectOf(state, nodeId));
-        return a && b ? roundedPolyline(siblingBracketPoints(a, b), 10) : null;
-      },
-      [pair],
-    ),
-  );
-  return path ? <BaseEdge id={id} path={path} style={style} /> : null;
-}
-
-/**
- * A generation lane behind the cards: alternating tint plus a label naming the
- * row relative to the founders ("Grandparents · b. 1930s"). This is what makes
- * a large chart scannable — you can find a generation without tracing edges.
- */
-function GenerationLane({
-  band,
-  minX,
-  maxX,
-  faded,
-}: {
-  band: GenerationBand;
-  minX: number;
-  maxX: number;
-  /** A tree has been pulled out; these lanes belong to the one left behind. */
-  faded?: boolean;
-}) {
-  // Legible at any zoom (Step 32): magnified back to life size when the canvas
-  // is zoomed out, rising clear of its row's cards (`laneTitleFit`).
-  const zoom = useStore((state: ReactFlowState) => state.transform[2]);
-  const title = laneTitleFit(zoom);
-  // And in view along the row (32.3): pinned inside the canvas's left edge
-  // once the lane's start is panned off it (`laneTitleLeft`), which needs the
-  // canvas x of that edge and the title's own width.
-  const viewLeft = useStore(
-    (state: ReactFlowState) => -state.transform[0] / state.transform[2],
-  );
-  const titleRef = React.useRef<HTMLDivElement>(null);
-  const [titleWidth, setTitleWidth] = React.useState(0);
-  React.useEffect(() => {
-    const el = titleRef.current;
-    if (!el) return;
-    // Layout width, before the magnification: a font arriving late moves it.
-    const measure = () => setTitleWidth(el.offsetWidth);
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-  const titleLeft = laneTitleLeft({
-    laneLeft: minX,
-    laneWidth: maxX - minX,
-    viewLeft,
-    zoom,
-    width: titleWidth * title.scale,
-  });
-  return (
-    <div
-      className={cn(
-        "pointer-events-none absolute transition-opacity duration-500",
-        faded && "opacity-20",
-      )}
-      style={{
-        transform: `translate(${minX}px, ${band.y}px)`,
-        width: maxX - minX,
-        height: band.height,
-      }}
-    >
-      <div
-        className={cn(
-          "size-full rounded-2xl border border-border/30",
-          band.generation % 2 === 0 ? "bg-muted/25" : "bg-transparent",
-        )}
-      />
-      <div
-        ref={titleRef}
-        className="absolute flex origin-top-left items-baseline gap-2 text-xs leading-none whitespace-nowrap"
-        style={{
-          left: titleLeft,
-          top: title.top,
-          transform: `scale(${title.scale})`,
-        }}
-      >
-        <span className="font-medium text-muted-foreground">{band.label}</span>
-        {band.sublabel ? (
-          <span className="text-muted-foreground/60">{band.sublabel}</span>
-        ) : null}
-        <span className="text-muted-foreground/50">
-          {countOf(band.count, "person", "people")}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-const edgeTypes = {
-  descent: DescentEdge,
-  spouse: SpouseEdge,
-  siblingBracket: SiblingBracketEdge,
-};
+import type { PersonRelation } from "@/components/tree/person-family";
 
 const nodeTypes = { person: PersonNode, pet: PetNode };
 
@@ -583,290 +196,6 @@ type BloodlineDirection = "up" | "down";
 
 /** A spotlighted connection: the edge, and the direction the click chose. */
 type SelectedEdge = { id: string; direction: BloodlineDirection };
-
-function buildGraph(
-  people: TreeGraphPerson[],
-  relationships: TreeGraphEdge[],
-  pets: TreePet[],
-  selfPersonId: string | null,
-  anchorIds: string[],
-  /** Rows fixed from a fuller canvas (`LayoutOptions.generations`). */
-  generations?: ReadonlyMap<string, number>,
-): {
-  nodes: Node[];
-  edges: Edge[];
-  layout: TreeLayout;
-  petPositions: Map<string, { x: number; y: number }>;
-} {
-  const layout = layoutTree(people, relationships, { anchorIds, generations });
-  const { positions, unions } = layout;
-  const ids = new Set(people.map((p) => p.id));
-
-  const nodes: Node[] = people.map((person) => ({
-    id: person.id,
-    type: "person",
-    position: positions.get(person.id) ?? { x: 0, y: 0 },
-    data: {
-      person,
-      isSelf: person.id === selfPersonId,
-      selected: false,
-      dimmed: false,
-    },
-  }));
-
-  const edges: Edge[] = [];
-  const parentEdgeStyle = { stroke: "var(--border)", strokeWidth: 1.5 };
-
-  // One bus-routed descent edge per child. The edge is anchored to a real
-  // parent node so React Flow re-renders it whenever that parent moves; it
-  // carries the whole parent set in `data` so it can find the junction between
-  // them, and the layout's `busY` as a first-paint fallback.
-  for (const union of unions) {
-    const [primary] = union.parents;
-    if (!primary) continue;
-    for (const child of union.children) {
-      edges.push({
-        id: `d:${union.id}->${child}`,
-        source: primary,
-        target: child,
-        type: "descent",
-        data: {
-          parents: union.parents,
-          siblings: union.children,
-          startX: union.startX,
-          startY: union.startY,
-          busY: union.busY,
-          stepY: union.stepY,
-        },
-        style: parentEdgeStyle,
-      });
-    }
-  }
-
-  for (const r of relationships) {
-    if (r.type !== "spouse") continue;
-    if (!ids.has(r.from_person) || !ids.has(r.to_person)) continue;
-    const a = positions.get(r.from_person);
-    const b = positions.get(r.to_person);
-    const [left, right] =
-      (a?.x ?? 0) <= (b?.x ?? 0)
-        ? [r.from_person, r.to_person]
-        : [r.to_person, r.from_person];
-    edges.push({
-      id: `s:${left}~${right}`,
-      source: left,
-      target: right,
-      sourceHandle: "r",
-      targetHandle: "l",
-      type: "spouse",
-      data: { pair: [left, right] },
-      style: {
-        stroke: "var(--muted-foreground)",
-        strokeWidth: 1.5,
-        // Divorced pairs get a sparser, fainter dash than a current marriage.
-        strokeDasharray: r.is_divorced ? "2 5" : "5 4",
-        opacity: r.is_divorced ? 0.6 : 1,
-      },
-    });
-  }
-
-  // Companions are laid out *after* the humans, from the human positions, and
-  // joined by a dotted lead rather than a descent or spouse line: nothing about
-  // a pet is allowed to look like a family edge.
-  //
-  // The spouse map goes along so a married primary anchors its pet on the
-  // couple: a household pet straddles the pair rather than hanging off one of
-  // them, whether or not both partners were listed as companions.
-  const spousesOf = new Map<string, string[]>();
-  for (const r of relationships) {
-    if (r.type !== "spouse") continue;
-    if (!ids.has(r.from_person) || !ids.has(r.to_person)) continue;
-    spousesOf.set(r.from_person, [
-      ...(spousesOf.get(r.from_person) ?? []),
-      r.to_person,
-    ]);
-    spousesOf.set(r.to_person, [
-      ...(spousesOf.get(r.to_person) ?? []),
-      r.from_person,
-    ]);
-  }
-
-  const petLayout = layoutPets(
-    pets.map((pet) => ({
-      id: pet.id,
-      companions: pet.companions,
-      primary: pet.primary_person_id,
-      pos_dx: pet.pos_dx,
-      pos_dy: pet.pos_dy,
-    })),
-    layout.autoPositions,
-    { spouses: spousesOf },
-  );
-
-  for (const pet of pets) {
-    const position = petLayout.positions.get(pet.id);
-    if (!position) continue;
-    nodes.push({
-      id: pet.id,
-      type: "pet",
-      position,
-      data: { pet, selected: false, dimmed: false },
-    });
-    for (const companionId of pet.companions) {
-      if (!ids.has(companionId)) continue;
-      edges.push({
-        id: `c:${companionId}~${pet.id}`,
-        source: companionId,
-        target: pet.id,
-        style: {
-          stroke: "var(--muted-foreground)",
-          strokeWidth: 1.25,
-          strokeDasharray: "1 4",
-          strokeLinecap: "round",
-          opacity: 0.7,
-        },
-      });
-    }
-  }
-
-  return { nodes, edges, layout, petPositions: petLayout.autoPositions };
-}
-
-/**
- * The canvas controls sit as bare symbols so they stay out of the way of the
- * tree, and widen to spell themselves out when you point at one.
- */
-function ExpandingLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="grid grid-cols-[0fr] transition-[grid-template-columns] duration-200 ease-out group-hover/expand:grid-cols-[1fr] group-focus-visible/expand:grid-cols-[1fr]">
-      <span className="overflow-hidden whitespace-nowrap">
-        <span className="pl-1.5">{children}</span>
-      </span>
-    </span>
-  );
-}
-
-/** Three upright bars — the auto-arrange symbol. */
-function ColumnsIcon() {
-  return (
-    <svg
-      viewBox="0 0 16 16"
-      className="size-3.5"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-      strokeLinecap="round"
-      aria-hidden
-    >
-      <path d="M3.5 3v10M8 3v10M12.5 3v10" />
-    </svg>
-  );
-}
-
-// A phone: driven by a finger, with a screen under 600px on its short side,
-// Android's own line between a phone and a tablet. The short side, so a
-// phone on its side is still a phone; the screen's, not the window's, so a
-// tablet in split view is still a tablet.
-const TOUCH = "(pointer: coarse)";
-const PHONE_SHORT_SIDE = 600;
-
-function isPhone() {
-  return (
-    window.matchMedia(TOUCH).matches &&
-    Math.min(window.screen.width, window.screen.height) < PHONE_SHORT_SIDE
-  );
-}
-
-function subscribeToDevice(onChange: () => void) {
-  const query = window.matchMedia(TOUCH);
-  query.addEventListener("change", onChange);
-  // A foldable opening out into a tablet resizes the window as it goes.
-  window.addEventListener("resize", onChange);
-  return () => {
-    query.removeEventListener("change", onChange);
-    window.removeEventListener("resize", onChange);
-  };
-}
-
-/**
- * A person's details, minimized (Step 49). The sheet covers the right of the
- * canvas, and most of it on a phone, so it can be put away while the reader
- * looks at the tree it belongs to. This card is what's left of it, the
- * sheet's own heading: whose details are open. Pressing it brings them back;
- * ✕ closes them. It takes the place of the "…'s tree" pill.
- */
-function FoldedDetails({
-  person,
-  isSelf,
-  onExpand,
-  onClose,
-  expandRef,
-}: {
-  person: TreeGraphPerson;
-  isSelf: boolean;
-  onExpand: () => void;
-  onClose: () => void;
-  expandRef: React.Ref<HTMLButtonElement>;
-}) {
-  const name = personDisplayName(person);
-  const maiden = maidenLine(person);
-  return (
-    <div
-      className="flex w-full items-center gap-1 rounded-2xl border bg-card p-1.5 text-sm shadow-md"
-      style={{
-        borderColor: `color-mix(in srgb, ${SPOTLIGHT_BROWN} 33%, transparent)`,
-      }}
-    >
-      <button
-        ref={expandRef}
-        type="button"
-        onClick={onExpand}
-        aria-label={`Show ${name}’s details`}
-        title="Show details"
-        className="flex min-w-0 flex-1 items-center gap-3 rounded-xl p-1 text-left outline-none hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring/50"
-      >
-        <Avatar className="size-9 overflow-hidden">
-          {person.photo_url ? (
-            <AvatarImage
-              src={person.photo_url}
-              alt=""
-              style={cropStyle(parseCrop(person.photo_crop))}
-            />
-          ) : null}
-          <AvatarFallback className="text-xs">
-            {personInitials(person)}
-          </AvatarFallback>
-        </Avatar>
-        <span className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate font-medium text-foreground">{name}</span>
-          {maiden ? (
-            <span className="truncate text-xs text-muted-foreground">
-              {maiden}
-            </span>
-          ) : null}
-          <span className="truncate text-xs text-muted-foreground">
-            {person.basic
-              ? BASIC_DETAILS
-              : (personLifespan(person) ?? "Living")}
-            {isSelf ? " · Your entry" : ""}
-          </span>
-        </span>
-        <Maximize2
-          aria-hidden
-          className="size-4 shrink-0 text-muted-foreground"
-        />
-      </button>
-      <button
-        type="button"
-        onClick={onClose}
-        aria-label="Close"
-        className="relative tap-target flex size-8 shrink-0 items-center justify-center text-muted-foreground hover:text-foreground"
-      >
-        ✕
-      </button>
-    </div>
-  );
-}
 
 function Canvas({
   people,
@@ -1190,13 +519,8 @@ function Canvas({
   // On a phone the cards stay where the tree puts them (Step 49): a finger
   // on a card pans the canvas, which is what sliding one on a phone nearly
   // always means, so nothing is moved by accident. A tablet has room to aim
-  // at a card, and drags (49.4). The server says "not a phone"; nothing can
-  // be dragged before hydration anyway.
-  const phone = React.useSyncExternalStore(
-    subscribeToDevice,
-    isPhone,
-    () => false,
-  );
+  // at a card, and drags (49.4).
+  const phone = useIsPhone();
 
   // React Flow's own `colorMode="system"` reads the OS preference while it
   // renders, so the server said "light", the client said "dark", and hydration

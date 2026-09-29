@@ -8,7 +8,7 @@ import {
   layoutPets,
   type LayoutPet,
 } from "@/lib/pet-layout";
-import { NODE_H, NODE_W, type XY } from "@/lib/tree-layout";
+import { NODE_H, NODE_W, type XY } from "@/lib/tree-dimensions";
 
 const pet = (
   id: string,

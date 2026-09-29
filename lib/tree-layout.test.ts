@@ -1,18 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  COUPLE_GAP,
-  GUTTER,
-  LANE_TITLE_H,
-  LANE_TITLE_LEFT,
-  LANE_TITLE_MAX_SCALE,
-  LANE_TITLE_PIN,
-  laneTitleFit,
-  laneTitleLeft,
-  NODE_H,
-  NODE_W,
-  ROW_GAP,
-  ROW_H,
   descentGeometry,
   descentRoute,
   trunkStep,
@@ -23,10 +11,28 @@ import {
   LEAF_LINE_GAP,
   siblingBracketPoints,
   BRACKET_RISE,
+  STEM_LANE,
+} from "@/lib/edge-geometry";
+import {
+  LANE_TITLE_H,
+  LANE_TITLE_LEFT,
+  LANE_TITLE_MAX_SCALE,
+  LANE_TITLE_PIN,
+  laneTitleFit,
+  laneTitleLeft,
+  generationLabel,
+} from "@/lib/generation-lanes";
+import {
+  COUPLE_GAP,
+  GUTTER,
+  NODE_H,
+  NODE_W,
+  ROW_GAP,
+  ROW_H,
   PILL_H,
   PILL_W,
-  STEM_LANE,
-  generationLabel,
+} from "@/lib/tree-dimensions";
+import {
   layoutTree,
   ancestorsOf,
   descendantsOf,
