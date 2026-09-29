@@ -1384,6 +1384,52 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 77.1 — Efficiency audit, phase 4: each page reads its data side
+  by side, each row once** (ad-hoc; no migration; the audit's Phase 4,
+  findings S5, S7 and R7; the first of seven parts, 77.1–77.7). Aalim:
+  "Continue to Phase 4" of the [Ancestree Efficiency
+  Audit](https://claude.ai/artifact/MGmcpvsEkFnhWrQ24Xvyjo), in seven parts
+  landing one at a time. Pages waited on their queries one after another:
+  every tree page spent three round trips finding the tree before reading
+  anything, `/tree` read the tree's people and lines three times (the canvas,
+  the connection audit, the header's count of it) and every claim and
+  profile in the database, and the admin console ran eight stages in a row.
+  **One wave to find the tree:** who you are and your trees are read
+  together, and a tree of yours needs nothing more (`listMyTrees` carries
+  the tree's own columns and answers `getRoleIn` too); a visitor's unused
+  `tree_visibility` read is gone. **Each row once:** the canvas, the audit
+  and the header's count of it, the Branch and Leaf walks, the bloodline and
+  the member pickers share one read per request of the tree's people and
+  lines (`loadTreePeople`, `loadTreeEdges`), of its member directory, and of
+  its claims, which, like the profiles behind "spoken for", are read for
+  this tree's people only rather than the whole database (`readIn` splits a
+  long list of ids); the edit page asks about the one entry it shows
+  (`entryFacts`). **Side by side:** a page's reads start beside the check
+  that your own entry is on the tree (`requireTreeSelfPersonWith`), whose
+  redirect still comes first; the admin console's reads are chains, each
+  starting as soon as what it needs arrives (lapsed invites are still
+  archived before they're listed); the account page reads your entry only
+  for its profile view, and its settings loops run together; pets come with
+  their companions, a share link with its tree, an invite with the tree it
+  joins, in one read each; a founder's first-run visit with no step reads
+  only what picks the step. Nothing on screen changes but how soon it
+  arrives. **Verified:** the old code (`bf30717`) and the new side by side
+  in dev, the same 50 pages loaded as the same throwaway members of two
+  throwaway trees on live (a founding Root, a second Root, a Branch, a Leaf
+  with a claimed entry, a Leaf with a disputed claim, a Root and a Leaf of
+  the second tree, one visiting the first; a share link and an invite
+  signed out): every page's data came back identical, but for the second
+  tree's canvas, whose list of entries spoken for now holds only its own
+  people (it only asks about its own). Round trips per load, header
+  included, old → new: `/tree` 36 in 8 waves → 28 in 4; edit entry 24 in 7
+  → 18 in 4 (a Branch's 25 in 10 → 19 in 5); the admin console 46 in 15 →
+  42 in 4; account settings 22 in 8 → 19 in 4; a Leaf's suggest page 20 in
+  9 → 16 in 4; a share link 11 in 5 → 8 in 3; dev load times fell by a
+  third or more (the admin console's by two thirds). The canvas draws every
+  card with no console error. The
+  throwaway users, sessions, trees and rows were deleted after. 1109 tests
+  pass (18 new); tsc, lint and `next build` are clean.
+
 - **Step 78 — "Add someone in between" up front on Add a relative**
   (ad-hoc; no migration). Aalim, on a screenshot of the form connecting a
   new entry as someone's child: "there's no 'add people in between' button
