@@ -192,7 +192,8 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   closed until opened),
   `upcoming-feed.tsx` the **Upcoming** card at the top left (birthdays and
   anniversaries, Step 57.1; `use-today.ts` the viewer's own day; a `née`
-  maiden name under the name, under a couple's saying whose, Step 76.9),
+  maiden name under the name, under a couple's saying whose, Step 76.9;
+  its **Share** menu, Step 89),
   `use-tree-room.ts` + `live-cursors.tsx` who else has the tree open, as
   faces above **Upcoming**, and their pointers (Step 57.3), `person-node.tsx`
   custom node (name, then `née` maiden name / birth year / birthplace;
@@ -345,7 +346,9 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `lib/edge-geometry.ts` and the lanes' labels and titles
   `lib/generation-lanes.ts` (split in Step 77.6);
   `lib/occasions.ts` — upcoming birthdays and anniversaries (Step 57.1,
-  `.test.ts`); `lib/presence.ts` — the tree room's topic, colours, send
+  `.test.ts`; `weekMessage`, the week as a chat message, Step 89);
+  `lib/share-text.ts` — `wa.me` and `sms:` links that open WhatsApp or
+  Messages with a message typed out (Step 89, `.test.ts`); `lib/presence.ts` — the tree room's topic, colours, send
   rate and card-anchored pointers (Step 57.3, `.test.ts`);
   `lib/person-name.ts` — display
   name + lifespan + initials, and whether someone has died
@@ -610,7 +613,14 @@ the canvas draws, and of those who a search leaves lit (a couple while either
 is), so the side and descendants filters narrow it too, with a "Filtered"
 chip. Closed, its button counts the week ahead. A birthday opens the person;
 an anniversary lights the couple's line. Members only: not on a share link or
-for a visitor from another tree.
+for a visitor from another tree. **Share** (Step 89), beside the ✕ while
+anything falls in the week, types the week out for a family chat, a line
+each ("🎂 Today: Amina Khan's birthday", "💍 Sat 3 Oct: Ahmed & Sara
+Khan's anniversary") under "This week:", names and occasion only (no ages,
+years or maiden names), as the card's filters leave it. Its menu:
+**WhatsApp** (`wa.me`), **Messages** (`sms:`; Apple and Android only),
+**Copy**, and **More…** (the device's share sheet) where there is one. The
+member picks the chat and sends it; nothing is sent by us.
 
 **Who's here (Step 57.3):** members with the same tree open see each other's
 faces above **Upcoming** and each other's pointers on the canvas. It
@@ -1518,6 +1528,23 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 89 — Share the week from Upcoming, and a scope for a family-chat
+  bot** (ad-hoc; no migration). After the WhatsApp group bot research
+  (Step 17 backlog: Meta's Groups API makes only the business's own
+  groups, 8 people at most, for verified Official Business Accounts, and
+  Ancestree isn't a registered business), Aalim asked for "a share button
+  and … a product scope for the bot route that can work for imessage,
+  whatsapp, and slack". **89.1:** Upcoming's **Share** menu (see
+  **Upcoming**): WhatsApp, Messages, Copy, and the share sheet where the
+  device has one, sending the week ahead as names and occasion only (his
+  answer: no ages, no maiden names, no tree link). The family link's
+  WhatsApp button now builds its link with the same `whatsappHref`.
+  Checked on a throwaway fixture page (since deleted): the links carry the
+  text, More… hands it to `navigator.share`, nothing past the week and no
+  maiden name goes out, and the menu fits at 375px. The pane refuses
+  clipboard writes, so Copy there said "Couldn't copy" (it doesn't say
+  "the link" any more). **89.2:** the bot scope lives on the Notion epic,
+  not here: nothing of it is built.
 - **Step 87.1 — Stable canvas across saves** (efficiency audit Phase 3,
   C2 and C8; no migration). Every save's revalidation handed `FamilyTree`
   every row afresh and every photo newly signed, so the layout ran again,
