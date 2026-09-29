@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { BetaWaitlistDialog } from "@/components/beta-waitlist-dialog";
 import { LogoMark } from "@/components/logo-mark";
+import { CenteredPage } from "@/components/page-column";
 import { RequestAccessDialog } from "@/components/request-access";
 import { StartTreeButton } from "@/components/start-tree-button";
 import { Button } from "@/components/ui/button";
@@ -25,7 +26,7 @@ export default async function Home() {
   const treeRequest = profile ? await getTreeRequestStatus() : null;
 
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-8 px-6 py-24 text-center">
+    <CenteredPage className="gap-8 text-center">
       <div className="flex flex-col items-center gap-4">
         <LogoMark className="size-16" />
         <div className="flex flex-col items-center gap-1">
@@ -78,6 +79,6 @@ export default async function Home() {
           </p>
         )}
       </div>
-    </main>
+    </CenteredPage>
   );
 }

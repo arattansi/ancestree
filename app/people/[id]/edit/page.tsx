@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
+import { PageColumn } from "@/components/page-column";
 import { PersonFillForm } from "@/components/person-fill-form";
 import { PersonForm } from "@/components/person-form";
 import {
@@ -120,7 +121,7 @@ export default async function EditPersonPage({
       photo_path: person.photo_path,
     });
     return (
-      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 py-10">
+      <PageColumn>
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">
@@ -152,7 +153,7 @@ export default async function EditPersonPage({
             blanks={blanks}
           />
         ) : null}
-      </main>
+      </PageColumn>
     );
   }
 
@@ -200,7 +201,7 @@ export default async function EditPersonPage({
   });
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 py-10">
+    <PageColumn>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
           Edit {displayName}
@@ -242,6 +243,6 @@ export default async function EditPersonPage({
         members={members}
         connections={connections}
       />
-    </main>
+    </PageColumn>
   );
 }

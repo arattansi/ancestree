@@ -294,7 +294,7 @@ export function PetPanel({
       <SheetContent
         data-docked-sheet
         showOverlay={false}
-        className="w-full gap-0 overflow-y-auto sm:max-w-sm"
+        className="gap-0 overflow-y-auto"
       >
         {pet ? (
           <>

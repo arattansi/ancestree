@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { PageColumn } from "@/components/page-column";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EntrySummary } from "@/components/welcome/entry-summary";
@@ -52,7 +53,7 @@ export default async function WelcomePage({
 
   if (returning) {
     return (
-      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 py-10">
+      <PageColumn>
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-semibold tracking-tight">
             Welcome to {tree.name}
@@ -79,13 +80,13 @@ export default async function WelcomePage({
             </Button>
           </CardContent>
         </Card>
-      </main>
+      </PageColumn>
     );
   }
 
   const asks = welcomeAsks(person);
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 py-10">
+    <PageColumn>
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-semibold tracking-tight">
           {welcomeTitle(person)}
@@ -105,6 +106,6 @@ export default async function WelcomePage({
           />
         </CardContent>
       </Card>
-    </main>
+    </PageColumn>
   );
 }

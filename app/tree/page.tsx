@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { CenteredPage } from "@/components/page-column";
 import { FamilyTree } from "@/components/tree/family-tree";
 import { Button } from "@/components/ui/button";
 import { LEAF } from "@/lib/account-types";
@@ -123,7 +124,7 @@ export default async function TreePage() {
 
   if (people.length === 0) {
     return (
-      <main className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-24 text-center">
+      <CenteredPage className="gap-4 text-center">
         <h1 className="text-lg font-semibold">The tree is empty</h1>
         <p className="max-w-sm text-sm text-muted-foreground">
           Add yourself first, then connect relatives to build out the tree.
@@ -131,7 +132,7 @@ export default async function TreePage() {
         <Button nativeButton={false} render={<Link href={onboardingHref()} />}>
           Add yourself
         </Button>
-      </main>
+      </CenteredPage>
     );
   }
 

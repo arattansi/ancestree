@@ -180,6 +180,13 @@
   }
 }
 
+/* The frosted bar behind the site header, and a form's floating buttons on
+   a phone (Step 77.6, audit R10): the page shows faintly through it where
+   the browser can blur. */
+@utility bar-chrome {
+  @apply bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80;
+}
+
 /* React Flow's zoom buttons are 26 px; on a touch screen, 40. Two classes,
    so this wins over @xyflow/react's own sheet wherever it loads. */
 @media (pointer: coarse) {

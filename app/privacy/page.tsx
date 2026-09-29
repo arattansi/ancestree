@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { RELATIVES_CAN_ASK_LABEL, RELAY_LAPSE_DAYS } from "@/lib/invite-relays";
+import { PageColumn } from "@/components/page-column";
 
 export const metadata: Metadata = {
   title: "privacy",
@@ -11,7 +12,7 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 py-12">
+    <PageColumn>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
           Privacy &amp; your family&rsquo;s data
@@ -143,7 +144,7 @@ export default function PrivacyPage() {
           Back home
         </Link>
       </p>
-    </main>
+    </PageColumn>
   );
 }
 

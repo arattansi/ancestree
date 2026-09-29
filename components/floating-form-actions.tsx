@@ -24,7 +24,7 @@ export function FloatingFormActions({
       data-floating-actions
       className={cn(
         "fixed z-30",
-        "max-lg:inset-x-0 max-lg:bottom-0 max-lg:border-t max-lg:border-border max-lg:bg-background/95 max-lg:backdrop-blur max-lg:supports-[backdrop-filter]:bg-background/80",
+        "max-lg:inset-x-0 max-lg:bottom-0 max-lg:border-t max-lg:bar-chrome",
         "lg:top-[calc(var(--site-header-height,3.5rem)+2.5rem)] lg:left-[calc(50%+21.5rem)] lg:w-36",
       )}
     >

@@ -1,7 +1,11 @@
 import type { ReactNode } from "react";
 
+import {
+  CenteredPage,
+  PageColumn,
+  type PageWidth,
+} from "@/components/page-column";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
 
 /**
  * What a page shows while it loads (Step 61): its own column with grey
@@ -12,37 +16,28 @@ import { cn } from "@/lib/utils";
 function LoadingColumn({
   width,
   label,
-  className,
   children,
 }: {
-  width: string;
+  width?: PageWidth;
   label: string;
-  className?: string;
   children: ReactNode;
 }) {
   return (
-    <main
-      aria-busy="true"
-      className={cn(
-        "mx-auto flex w-full flex-1 flex-col gap-6 px-4 py-10",
-        width,
-        className,
-      )}
-    >
+    <PageColumn width={width} aria-busy="true">
       {children}
       <span className="sr-only">{label}</span>
-    </main>
+    </PageColumn>
   );
 }
 
 /** A form page: its title, labelled fields, then its button. */
 export function FormPageSkeleton({
   label,
-  width = "max-w-2xl",
+  width,
   fields = 5,
 }: {
   label: string;
-  width?: string;
+  width?: PageWidth;
   fields?: number;
 }) {
   return (
@@ -64,11 +59,11 @@ export function FormPageSkeleton({
 /** A list page: its title, then rows. */
 export function ListPageSkeleton({
   label,
-  width = "max-w-2xl",
+  width,
   rows = 3,
 }: {
   label: string;
-  width?: string;
+  width?: PageWidth;
   rows?: number;
 }) {
   return (
@@ -89,7 +84,7 @@ export function ListPageSkeleton({
  */
 export function AccountPageSkeleton({ label }: { label: string }) {
   return (
-    <LoadingColumn width="max-w-3xl" label={label}>
+    <LoadingColumn width="3xl" label={label}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex flex-col gap-2">
           <Skeleton className="h-8 w-40" />
@@ -129,10 +124,7 @@ export function AccountViewSkeleton({ label }: { label: string }) {
 /** A page that is one card in the middle of the screen, like an invite. */
 export function CardPageSkeleton({ label }: { label: string }) {
   return (
-    <main
-      aria-busy="true"
-      className="flex flex-1 flex-col items-center justify-center gap-6 px-6 py-24"
-    >
+    <CenteredPage aria-busy="true">
       <div className="flex w-full max-w-md flex-col gap-4 rounded-xl border border-border p-6">
         <Skeleton className="h-6 w-40" />
         <Skeleton className="h-4 w-full" />
@@ -140,7 +132,7 @@ export function CardPageSkeleton({ label }: { label: string }) {
         <Skeleton className="mt-2 h-8 w-full" />
       </div>
       <span className="sr-only">{label}</span>
-    </main>
+    </CenteredPage>
   );
 }
 

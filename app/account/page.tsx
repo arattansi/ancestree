@@ -19,6 +19,7 @@ import { DirectInviteForm } from "@/components/direct-invite-form";
 import { EditDisplayName } from "@/components/edit-display-name";
 import { HomeTreePicker } from "@/components/home-tree-picker";
 import { NotificationsList } from "@/components/notifications-list";
+import { PageColumn } from "@/components/page-column";
 import { AccountViewSkeleton } from "@/components/page-skeletons";
 import { PersonForm } from "@/components/person-form";
 import { PlacementAsks } from "@/components/placement-asks";
@@ -126,7 +127,7 @@ export default async function AccountPage({
         : "profile";
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-10">
+    <PageColumn width="3xl">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-semibold tracking-tight">
@@ -174,7 +175,7 @@ export default async function AccountPage({
         )}
       </Suspense>
       <BackToTop />
-    </main>
+    </PageColumn>
   );
 }
 

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { FoundTreeForm } from "@/components/found-tree-form";
+import { PageColumn } from "@/components/page-column";
 import { StartTreeButton } from "@/components/start-tree-button";
 import {
   Card,
@@ -41,7 +42,7 @@ export default async function NewTreePage() {
   const suggestedName = defaultTreeName(trees.length);
 
   return (
-    <main className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-6 px-4 py-10">
+    <PageColumn width="lg">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
           Start a Tree of Your Own
@@ -96,6 +97,6 @@ export default async function NewTreePage() {
           Back to your trees
         </Link>
       </p>
-    </main>
+    </PageColumn>
   );
 }

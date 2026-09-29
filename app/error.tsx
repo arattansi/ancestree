@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect } from "react";
 
+import { CenteredPage } from "@/components/page-column";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -29,7 +30,7 @@ export default function ErrorPage({
   }, [error]);
 
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-6 px-6 py-24">
+    <CenteredPage>
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Something Went Wrong</CardTitle>
@@ -53,6 +54,6 @@ export default function ErrorPage({
           ) : null}
         </CardContent>
       </Card>
-    </main>
+    </CenteredPage>
   );
 }

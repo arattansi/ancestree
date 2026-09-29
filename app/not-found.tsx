@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { CenteredPage } from "@/components/page-column";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -21,7 +22,7 @@ export const metadata: Metadata = {
  */
 export default function NotFound() {
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-6 px-6 py-24">
+    <CenteredPage>
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Page Not Found</CardTitle>
@@ -35,6 +36,6 @@ export default function NotFound() {
           </Button>
         </CardContent>
       </Card>
-    </main>
+    </CenteredPage>
   );
 }

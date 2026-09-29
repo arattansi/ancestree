@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { AddPersonFlow } from "@/components/add-person-flow";
+import { PageColumn } from "@/components/page-column";
 import { Card, CardContent } from "@/components/ui/card";
 import { getOwnLine } from "@/lib/branch.server";
 import { getBloodline, getGrowthRights } from "@/lib/growth-rights.server";
@@ -44,7 +45,7 @@ export default async function NewPersonPage({
   );
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 py-10">
+    <PageColumn>
       {/* No line under the title on what the form asks; the form shows it
           (Step 58). Only a member who can't add just anyone is told the rule. */}
       <div>
@@ -86,6 +87,6 @@ export default async function NewPersonPage({
           />
         </CardContent>
       </Card>
-    </main>
+    </PageColumn>
   );
 }

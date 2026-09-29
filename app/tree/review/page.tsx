@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { PageColumn } from "@/components/page-column";
 import { ConnectionReview } from "@/components/tree/connection-review";
 import { Button } from "@/components/ui/button";
 import { auditTreeConnections } from "@/lib/connection-suggestions.server";
@@ -27,7 +28,7 @@ export default async function ConnectionReviewPage() {
   );
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-8 px-4 py-10">
+    <PageColumn>
       <header className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-lg font-semibold">Connections to review</h1>
@@ -53,6 +54,6 @@ export default async function ConnectionReviewPage() {
         medium={links.filter((s) => s.confidence === "medium")}
         duplicates={duplicates}
       />
-    </main>
+    </PageColumn>
   );
 }

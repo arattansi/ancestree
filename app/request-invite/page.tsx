@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
+import { CenteredPage } from "@/components/page-column";
 import { RequestAccessFlow } from "@/components/request-access";
 import { RequestInviteForm, SignInInstead } from "@/components/request-invite-form";
 import {
@@ -34,7 +35,7 @@ export default async function RequestInvitePage({
   const treeSlug = typeof tree === "string" && tree ? tree : null;
 
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-6 px-6 py-24">
+    <CenteredPage>
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>{treeSlug ? "Request an Invite" : "Request Access"}</CardTitle>
@@ -53,6 +54,6 @@ export default async function RequestInvitePage({
           )}
         </CardContent>
       </Card>
-    </main>
+    </CenteredPage>
   );
 }

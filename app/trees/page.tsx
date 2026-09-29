@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { AccountTypeBadge } from "@/components/account-type-badge";
+import { PageColumn } from "@/components/page-column";
 import { StartTreeButton } from "@/components/start-tree-button";
 import { TreeTarget } from "@/components/tree-target";
 import {
@@ -36,7 +37,7 @@ export default async function TreesPage() {
   const founded = trees.some((t) => t.founded);
 
   return (
-    <main className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-6 px-4 py-10">
+    <PageColumn width="lg">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Your Trees</h1>
         <p className="text-sm text-muted-foreground">
@@ -123,6 +124,6 @@ export default async function TreesPage() {
           )}
         </Card>
       ) : null}
-    </main>
+    </PageColumn>
   );
 }

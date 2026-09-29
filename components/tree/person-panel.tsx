@@ -643,7 +643,7 @@ export function PersonPanel({
         showCloseButton={!person?.photo_url}
         keepMounted={minimized}
         finalFocus={minimized ? minimizedFocus : undefined}
-        className="w-full gap-0 overflow-y-auto sm:max-w-md"
+        className="gap-0 overflow-y-auto"
       >
         {person ? (
           <>

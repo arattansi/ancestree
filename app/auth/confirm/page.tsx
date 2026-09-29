@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { confirmSignIn } from "@/app/actions/auth";
+import { CenteredPage } from "@/components/page-column";
 import { SubmitButton } from "@/components/submit-button";
 import {
   Card,
@@ -42,7 +43,7 @@ export default async function ConfirmSignInPage({
   if (!tokenHash || !type) redirect("/auth/auth-code-error");
 
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-6 px-6 py-24">
+    <CenteredPage>
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>{invite ? "Join the Family Tree" : "Finish Signing In"}</CardTitle>
@@ -60,6 +61,6 @@ export default async function ConfirmSignInPage({
           </form>
         </CardContent>
       </Card>
-    </main>
+    </CenteredPage>
   );
 }

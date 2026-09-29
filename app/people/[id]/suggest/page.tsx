@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
+import { PageColumn } from "@/components/page-column";
 import { PersonSuggestForm } from "@/components/person-suggest-form";
 import { entryAccess, entryFacts } from "@/lib/entry-access.server";
 import { personDisplayName } from "@/lib/person-name";
@@ -104,7 +105,7 @@ export default async function SuggestChangePage({
   if (canEdit) redirect(editPersonHref(personId));
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 py-10">
+    <PageColumn>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
           Suggest a Change to {personDisplayName(entry)}
@@ -147,6 +148,6 @@ export default async function SuggestChangePage({
         startsFrom={startsFrom}
         backHref={treeFocusHref(personId)}
       />
-    </main>
+    </PageColumn>
   );
 }

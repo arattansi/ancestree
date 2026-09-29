@@ -8,6 +8,7 @@ import { FirstTreeProgress } from "@/components/first-tree/first-tree-progress";
 import { InviteStep } from "@/components/first-tree/invite-step";
 import { NameStep } from "@/components/first-tree/name-step";
 import { LinkPendingLabel } from "@/components/link-pending";
+import { PageColumn } from "@/components/page-column";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -58,7 +59,7 @@ export async function FirstTreeOnboarding({
   const next = hrefAfter(step, state);
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 py-10">
+    <PageColumn>
       <FirstTreeProgress current={step} state={state} />
 
       {step === "invite" ? (
@@ -166,7 +167,7 @@ export async function FirstTreeOnboarding({
           — the rest can wait.
         </p>
       ) : null}
-    </main>
+    </PageColumn>
   );
 }
 

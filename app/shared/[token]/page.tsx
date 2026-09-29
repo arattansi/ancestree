@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
 
+import { CenteredPage } from "@/components/page-column";
 import { FamilyTree } from "@/components/tree/family-tree";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,7 +37,7 @@ export default async function SharedTreePage({
 
   if (!link) {
     return (
-      <main className="flex flex-1 flex-col items-center justify-center gap-6 px-6 py-24">
+      <CenteredPage>
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle>Link not available</CardTitle>
@@ -59,7 +60,7 @@ export default async function SharedTreePage({
             </p>
           </CardContent>
         </Card>
-      </main>
+      </CenteredPage>
     );
   }
 

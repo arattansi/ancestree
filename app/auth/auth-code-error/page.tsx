@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { CenteredPage } from "@/components/page-column";
 import {
   Card,
   CardContent,
@@ -15,7 +16,7 @@ export const metadata: Metadata = {
 
 export default function AuthCodeErrorPage() {
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-6 px-6 py-24">
+    <CenteredPage>
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>That link didn&rsquo;t work</CardTitle>
@@ -32,6 +33,6 @@ export default function AuthCodeErrorPage() {
           </p>
         </CardContent>
       </Card>
-    </main>
+    </CenteredPage>
   );
 }

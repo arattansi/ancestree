@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { signOut } from "@/app/actions/auth";
 import { MagicLinkForm } from "@/components/magic-link-form";
+import { CenteredPage } from "@/components/page-column";
 import { RequestAccessFlow } from "@/components/request-access";
 import { SubmitButton } from "@/components/submit-button";
 import {
@@ -52,7 +53,7 @@ export default async function JoinPage({
     ) : null;
 
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-6 px-6 py-24">
+    <CenteredPage>
       <Card className="w-full max-w-md">
         {user ? (
           <NotYetMember email={email} step={step} alert={alert} />
@@ -86,7 +87,7 @@ export default async function JoinPage({
           </>
         )}
       </Card>
-    </main>
+    </CenteredPage>
   );
 }
 

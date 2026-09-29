@@ -4,6 +4,7 @@ import { Suspense } from "react";
 
 import { FirstTreeOnboarding } from "@/components/first-tree/first-tree-onboarding";
 import { OnboardingSelfFlow } from "@/components/onboarding-self-flow";
+import { PageColumn } from "@/components/page-column";
 import { FormPageSkeleton } from "@/components/page-skeletons";
 import { Card, CardContent } from "@/components/ui/card";
 import { getUser } from "@/lib/auth";
@@ -83,7 +84,7 @@ export default async function OnboardingPage({
       });
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 py-10">
+    <PageColumn>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
           Welcome{profile.display_name ? `, ${profile.display_name}` : ""}
@@ -120,6 +121,6 @@ export default async function OnboardingPage({
           </CardContent>
         </Card>
       )}
-    </main>
+    </PageColumn>
   );
 }

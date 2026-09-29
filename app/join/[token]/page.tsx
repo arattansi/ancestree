@@ -6,6 +6,7 @@ import { AcceptInviteForm, SignInToAccept } from "@/components/accept-invite-for
 import { AccountTypeGlyph } from "@/components/account-type-badge";
 import { JoinTreeButton } from "@/components/join-tree-button";
 import { MagicLinkForm } from "@/components/magic-link-form";
+import { CenteredPage } from "@/components/page-column";
 import { SubmitButton } from "@/components/submit-button";
 import { TreeTarget } from "@/components/tree-target";
 import {
@@ -93,7 +94,7 @@ export default async function InvitePage({
     : false;
 
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-6 px-6 py-24">
+    <CenteredPage>
       <Card className="w-full max-w-md">
         {preview?.valid && recipient && forAnotherAddress ? (
           <ForAnotherAddress
@@ -231,7 +232,7 @@ export default async function InvitePage({
           </>
         )}
       </Card>
-    </main>
+    </CenteredPage>
   );
 }
 
