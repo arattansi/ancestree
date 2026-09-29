@@ -9,8 +9,6 @@ import {
   addPetCompanion,
   removePet,
   removePetCompanion,
-  setPetPhoto,
-  setPetPhotoCrop,
   setPetPrimaryCompanion,
   updatePet,
 } from "@/app/actions/pets";
@@ -51,7 +49,7 @@ import {
   type PetSpecies,
 } from "@/lib/pet-schema";
 import type { TreePet } from "@/lib/pets";
-import { attachPhoto } from "@/lib/photo-upload";
+import { discardPhoto, uploadPhoto } from "@/lib/photo-upload";
 
 const toFormValues = (pet: TreePet): PetFormValues => ({
   name: pet.name,
@@ -185,22 +183,25 @@ export function PetPanel({
     edit.run(
       "save",
       async () => {
+        // The file goes up first, then the details and the photo are saved
+        // together (Step 77.5).
+        let path: string | null = null;
         if (file) {
-          const res = await attachPhoto(
-            { kind: "pet", treeId, petId },
-            file,
-            (path) => setPetPhoto(petId, path, crop),
-          );
-          if (res.error) {
+          try {
+            path = await uploadPhoto({ kind: "pet", treeId, petId }, file);
+          } catch {
             toast.warning(
               "The photo didn't upload — other changes still saved.",
             );
           }
-        } else if (reframed) {
-          const res = await setPetPhotoCrop(petId, crop);
-          if (res.error) toast.warning("The photo’s new framing didn’t save.");
         }
-        return updatePet(petId, values);
+        const result = await updatePet(
+          petId,
+          values,
+          path ? { path, crop } : reframed ? { crop } : null,
+        );
+        if (result.error && path) await discardPhoto(path);
+        return result;
       },
       {
         onSuccess: () => {

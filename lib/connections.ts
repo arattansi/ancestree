@@ -56,7 +56,7 @@ export type ResolvedSuggestionInput = {
   resolution: "accepted" | "dismissed" | "pending";
 };
 
-/** Payload for the `addPeopleWithConnections` server action. */
+/** Payload for the `addRelative` server action (Step 77.5). */
 export type AddPeopleInput = {
   /** The tree the people are added to and the lines drawn on (Step 25). */
   treeId: string;

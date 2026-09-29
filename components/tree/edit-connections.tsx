@@ -7,7 +7,6 @@ import { CoParentOffer } from "@/components/co-parent-offer";
 import { ConfirmButton } from "@/components/confirm-dialog";
 import { FormError } from "@/components/form-error";
 import { PendingButton } from "@/components/pending-button";
-import { UNREACHABLE } from "@/lib/action-feedback";
 import {
   coParentSelection,
   KIND_STATEMENT,
@@ -141,7 +140,6 @@ export function EditConnections({
     if (!datesOk) return;
     const stored = toStoredSpouseDates(dates);
     const partnersToAdd = parentSide ? chosenCoParents : [];
-    const childId = parentSide?.childId ?? "";
     add.run(
       "add",
       async (): Promise<{
@@ -149,45 +147,30 @@ export function EditConnections({
         alsoAdded?: string[];
         missed?: string;
       }> => {
+        // The main line and each ticked partner as the child's other
+        // parent, in one call (Step 77.5).
         const res = await connectExistingPeople({
           treeId,
           personId,
           otherId,
           kind,
           ...stored,
+          coParentIds: partnersToAdd,
         });
-        if (res.error) return res;
-        // The main edge is in. Each ticked partner becomes a parent of the
-        // same child — one call apiece, because `connect_people` writes one
-        // edge.
-        const alsoAdded: string[] = [];
-        for (const coParentId of partnersToAdd) {
-          const label = coParentOffer.find((p) => p.id === coParentId)?.label;
-          let refused: string | undefined;
-          try {
-            const extra = await connectExistingPeople({
-              treeId,
-              personId: coParentId,
-              otherId: childId,
-              kind: "parent",
-            });
-            refused = extra.error;
-          } catch {
-            refused = UNREACHABLE;
-          }
-          if (refused) {
-            // The main link is saved either way, so the form isn't handed
-            // back to be pressed again: say what didn't happen.
-            return {
-              alsoAdded,
-              missed: `Connected, but couldn't also add ${
-                label ?? "the other parent"
-              }: ${refused}`,
-            };
-          }
-          alsoAdded.push(label ?? "another parent");
-        }
-        return { alsoAdded };
+        if (res.error) return { error: res.error };
+        const labelOf = (id: string) =>
+          coParentOffer.find((p) => p.id === id)?.label;
+        const alsoAdded = (res.alsoAdded ?? []).map(
+          (id) => labelOf(id) ?? "another parent",
+        );
+        // The main link is saved either way, so the form isn't handed back
+        // to be pressed again: say what didn't happen.
+        const missed = res.missed
+          ? `Connected, but couldn't also add ${
+              labelOf(res.missed.id) ?? "the other parent"
+            }: ${res.missed.error}`
+          : undefined;
+        return { alsoAdded, missed };
       },
       {
         // Only the partners: the new line itself shows in the list above.

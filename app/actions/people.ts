@@ -1,8 +1,9 @@
 "use server";
 
 import { OWN_LINE_REFUSAL, isOwnLineRefusal } from "@/lib/account-types";
-import { requireProfile } from "@/lib/auth";
+import { requireProfile, type Profile } from "@/lib/auth";
 import { bloodTieRefusal, readBloodTieRefusal } from "@/lib/bloodline";
+import { mintClaimInvite } from "@/lib/claim-invite-send.server";
 import {
   friendlyDbError,
   ownedWrite,
@@ -11,7 +12,10 @@ import {
 } from "@/lib/db-errors";
 import { toStoredCrop, type CropTransform } from "@/lib/image-crop";
 import { photoPathOwner } from "@/lib/photo-path";
-import { normalizeSpouseDates } from "@/lib/spouse-dates";
+import {
+  normalizeSpouseDates,
+  type StoredSpouseDates,
+} from "@/lib/spouse-dates";
 import {
   personSchema,
   toPersonPayload,
@@ -27,7 +31,6 @@ import { fillFields } from "@/lib/fill-blanks";
 import type {
   ImpliedConnection,
   NewPersonInput,
-  PendingEdge,
   SuggestedType,
   SuggestionSource,
 } from "@/lib/connection-suggestions";
@@ -40,6 +43,14 @@ export type PersonActionState = {
   personId?: string;
   error?: string;
 };
+
+/**
+ * A photo that goes with an edit (Step 77.5): a new file, already uploaded
+ * to the entry's folder, and its framing; or the photo it has, framed anew.
+ * Saved in the same write as the details, so an edit is one change — one
+ * notice to the entry's people, one undo for a Root.
+ */
+export type PhotoChange = { path: string; crop: CropTransform } | { crop: CropTransform };
 
 /**
  * What a refused write to someone else's entry says. RLS doesn't raise on an
@@ -135,11 +146,12 @@ export type AddPeopleResult = {
  * by "add a relative" (`selfIndex` null). Non-admin entries must connect to an
  * existing tree member, and everyone's to someone born into the family (Step
  * 55, `lib/bloodline.ts`); the DB RPC enforces both and guards against cycles.
+ * Draws no page: `addRelative` does, once it's done.
  */
-export async function addPeopleWithConnections(
+async function addPeople(
+  profile: Profile,
   input: AddPeopleInput,
 ): Promise<AddPeopleResult> {
-  const profile = await requireProfile();
 
   if (input.selfIndex !== null && profile.self_person_id) {
     return { error: "Your own entry already exists." };
@@ -239,31 +251,72 @@ export async function addPeopleWithConnections(
     .filter((q): q is NonNullable<typeof q> => q !== null);
   if (placeUpdates.length > 0) await Promise.all(placeUpdates);
 
-  revalidateTreePages();
   return { personIds: result.ids, selfId: result.self_id };
 }
 
+export type AddRelativeResult = AddPeopleResult & {
+  /** Connections the tree implies, to answer before anything is saved. */
+  askable?: ImpliedConnection[];
+  /** Where the invite to claim the new entry went. */
+  invited?: string;
+  /** Saved, but the invite didn't go: why. */
+  inviteWarning?: string;
+};
+
 /**
- * Run the implied-connection detection engine (Step 11.2) over the edges a
- * pending add-person submit would create, so the flow can show the blocking
- * approval modal before it commits. Read-only.
+ * Add a relative, or yourself, in one call (Step 77.5): look for the
+ * connections the tree implies (`detect`, on the first try — answered, they
+ * come back as `suggestions`), save the people and their lines, and send
+ * the invite to claim the new entry that was asked for with it. It used to
+ * be up to four calls, each drawing the page again.
+ *
+ * Only the entries can fail it. Once they exist, an invite that doesn't go
+ * is a warning: a failure would bring the button back, and a second press
+ * would add everyone again. A photo can't come in the same call — storage
+ * lets it into the entry's folder only once the entry exists — so with
+ * `photoFollows` the page is drawn again by the photo's own save instead,
+ * once.
  */
-export async function detectConnections(input: {
-  treeId: string;
-  newPeople: NewPersonInput[];
-  pendingEdges: PendingEdge[];
-}): Promise<{ suggestions?: ImpliedConnection[]; error?: string }> {
-  await requireProfile();
-  try {
-    const suggestions = await detectImpliedConnections(input.treeId, {
-      newPeople: input.newPeople,
-      pendingEdges: input.pendingEdges,
-    });
-    return { suggestions };
-  } catch {
-    // Detection is advisory — never block an add on its failure.
-    return { suggestions: [] };
+export async function addRelative(
+  input: AddPeopleInput & {
+    detect?: { newPeople: NewPersonInput[] };
+    inviteEmail?: string | null;
+    photoFollows?: boolean;
+  },
+): Promise<AddRelativeResult> {
+  const profile = await requireProfile();
+
+  if (input.detect) {
+    let askable: ImpliedConnection[] = [];
+    try {
+      askable = await detectImpliedConnections(input.treeId, {
+        newPeople: input.detect.newPeople,
+        pendingEdges: input.edges,
+      });
+    } catch {
+      // Detection is advisory — never block an add on its failure.
+    }
+    if (askable.length > 0) return { askable };
   }
+
+  const added = await addPeople(profile, input);
+  if (added.error || !added.personIds) return added;
+
+  const primaryId = added.personIds[0];
+  let invited: string | undefined;
+  let inviteWarning: string | undefined;
+  if (input.inviteEmail && primaryId) {
+    try {
+      const res = await mintClaimInvite(profile, primaryId, input.inviteEmail);
+      if (res.error) inviteWarning = res.error;
+      else invited = res.email;
+    } catch {
+      inviteWarning = "Couldn't reach the email service.";
+    }
+  }
+
+  if (!input.photoFollows) revalidateTreePages();
+  return { ...added, invited, inviteWarning };
 }
 
 /**
@@ -368,6 +421,12 @@ export async function resolveImpliedConnection(input: {
  * connection" card on the edit page. `kind` reads "the person being edited is
  * the {kind} of {otherId}". Membership, the partner/parent guard and the cycle
  * guard are enforced by the `connect_people` RPC.
+ *
+ * A new parent line can bring the parent's partners along as the child's
+ * other parents (`coParentIds`), in the same call (Step 77.5): one request
+ * and one redraw rather than one each. `connect_people` writes one line, so
+ * they're drawn one after another; the first refused stops the rest, and
+ * the main line stays — `alsoAdded` and `missed` say how far it got.
  */
 export async function connectExistingPeople(input: {
   /** The tree the line is drawn on; both people must be shown on it. */
@@ -381,7 +440,13 @@ export async function connectExistingPeople(input: {
   marriage_day?: number | null;
   is_divorced?: boolean;
   divorce_date?: string | null;
-}): Promise<{ error?: string }> {
+  /** The new parent's partners, as the child's other parents too. */
+  coParentIds?: string[];
+}): Promise<{
+  error?: string;
+  alsoAdded?: string[];
+  missed?: { id: string; error: string };
+}> {
   await requireProfile();
   if (!input.personId || !input.otherId) {
     return { error: "Pick someone to connect to." };
@@ -404,33 +469,55 @@ export async function connectExistingPeople(input: {
     to = input.personId;
   }
 
-  // Only a marriage carries dates.
-  const dates = normalizeSpouseDates(type === "spouse" ? input : {});
-
   const supabase = await createClient();
-  const { error } = await supabase.rpc("connect_people", {
-    p_from: from,
-    p_to: to,
-    p_type: type,
-    p_marriage_date: dates.marriage_date ?? undefined,
-    p_marriage_month: dates.marriage_month ?? undefined,
-    p_marriage_day: dates.marriage_day ?? undefined,
-    p_is_divorced: dates.is_divorced,
-    p_divorce_date: dates.divorce_date ?? undefined,
-    p_tree: input.treeId,
-  });
+  const connect = async (
+    edge: { from: string; to: string; type: typeof type },
+    dates: StoredSpouseDates,
+  ): Promise<string | null> => {
+    const { error } = await supabase.rpc("connect_people", {
+      p_from: edge.from,
+      p_to: edge.to,
+      p_type: edge.type,
+      p_marriage_date: dates.marriage_date ?? undefined,
+      p_marriage_month: dates.marriage_month ?? undefined,
+      p_marriage_day: dates.marriage_day ?? undefined,
+      p_is_divorced: dates.is_divorced,
+      p_divorce_date: dates.divorce_date ?? undefined,
+      p_tree: input.treeId,
+    });
+    return error
+      ? friendlyDbError(
+          error.message,
+          [DIVORCE_AFTER_MARRIAGE, ...CONNECTION_RULES],
+          "Couldn't save these entries. Check the fields and try again.",
+        )
+      : null;
+  };
 
-  if (error) {
-    return {
-      error: friendlyDbError(
-        error.message,
-        [DIVORCE_AFTER_MARRIAGE, ...CONNECTION_RULES],
-        "Couldn't save these entries. Check the fields and try again.",
-      ),
-    };
+  // Only a marriage carries dates.
+  const refused = await connect(
+    { from, to, type },
+    normalizeSpouseDates(type === "spouse" ? input : {}),
+  );
+  if (refused) return { error: refused };
+
+  // The child's other parents, when the new line is a parent's.
+  const alsoAdded: string[] = [];
+  let missed: { id: string; error: string } | undefined;
+  if (type === "parent") {
+    const noDates = normalizeSpouseDates({});
+    for (const coParentId of new Set(input.coParentIds ?? [])) {
+      if (!coParentId || coParentId === from || coParentId === to) continue;
+      const error = await connect({ from: coParentId, to, type }, noDates);
+      if (error) {
+        missed = { id: coParentId, error };
+        break;
+      }
+      alsoAdded.push(coParentId);
+    }
   }
   revalidateTreePages();
-  return {};
+  return { alsoAdded, ...(missed ? { missed } : {}) };
 }
 
 /**
@@ -464,11 +551,18 @@ export async function removeRelationship(
 export async function updatePerson(
   personId: string,
   values: PersonFormValues,
+  photo?: PhotoChange | null,
 ): Promise<PersonActionState> {
   const profile = await requireProfile();
   const parsed = personSchema.safeParse(values);
   if (!parsed.success) {
     return { error: "Please fix the highlighted fields and try again." };
+  }
+  if (photo && "path" in photo) {
+    const owner = photoPathOwner(photo.path);
+    if (owner?.kind !== "person" || owner.personId !== personId) {
+      return { error: "That photo isn't this entry's." };
+    }
   }
   const payload = toPersonPayload(parsed.data);
 
@@ -493,6 +587,8 @@ export async function updatePerson(
     place_id_death: payload.place_id_death,
     place_of_death: payload.place_of_death,
     sex: payload.sex,
+    ...(photo && "path" in photo ? { photo_path: photo.path } : {}),
+    ...(photo ? { photo_crop: toStoredCrop(photo.crop) } : {}),
   };
   const supabase = await createClient();
   const { data: home } = await supabase

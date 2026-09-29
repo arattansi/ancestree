@@ -148,10 +148,15 @@ export async function setPetPrimaryCompanion(
   return {};
 }
 
-/** Edit the handful of fields a companion has. */
+/**
+ * Edit the handful of fields a companion has, and its photo with them
+ * (Step 77.5): a new one already uploaded to its folder, or the one it has
+ * framed anew — one write for the lot.
+ */
 export async function updatePet(
   petId: string,
   values: PetFormValues,
+  photo?: { path: string; crop: CropTransform } | { crop: CropTransform } | null,
 ): Promise<PetActionResult> {
   await requireProfile();
 
@@ -159,16 +164,26 @@ export async function updatePet(
   if (!parsed.success) {
     return { error: "Please fix the highlighted fields and try again." };
   }
+  const owner = photo && "path" in photo ? photoPathOwner(photo.path) : null;
+  if (photo && "path" in photo && (owner?.kind !== "pet" || owner.petId !== petId)) {
+    return { error: "That photo isn't this companion's." };
+  }
 
   const supabase = await createClient();
-  const saved = await ownedWrite(
-    supabase
-      .from("pets")
-      .update(toPetPayload(parsed.data))
-      .eq("id", petId)
-      .select("id"),
-    { refused: NOT_YOURS_TO_EDIT, failed: friendlyError },
-  );
+  let write = supabase
+    .from("pets")
+    .update({
+      ...toPetPayload(parsed.data),
+      ...(photo && "path" in photo ? { photo_path: photo.path } : {}),
+      ...(photo ? { photo_crop: toStoredCrop(photo.crop) } : {}),
+    })
+    .eq("id", petId);
+  // A photo in a folder of another tree: nobody on this one could see it.
+  if (owner) write = write.eq("tree_id", owner.treeId);
+  const saved = await ownedWrite(write.select("id"), {
+    refused: NOT_YOURS_TO_EDIT,
+    failed: friendlyError,
+  });
   if (saved.error) return { error: saved.error };
 
   revalidateTreePages();
@@ -292,28 +307,6 @@ export async function setPetPhoto(
   return {};
 }
 
-/**
- * Re-frame a companion's photo that's already uploaded — no new file. Its
- * "Reposition" used to be dropped on save (Step 77.4).
- */
-export async function setPetPhotoCrop(
-  petId: string,
-  crop: CropTransform,
-): Promise<{ error?: string }> {
-  await requireProfile();
-  const supabase = await createClient();
-  const saved = await ownedWrite(
-    supabase
-      .from("pets")
-      .update({ photo_crop: toStoredCrop(crop) })
-      .eq("id", petId)
-      .select("id"),
-    { refused: NOT_YOURS_TO_EDIT, failed: friendlyError },
-  );
-  if (saved.error) return { error: saved.error };
-  revalidateTreePages();
-  return {};
-}
 
 /**
  * Persist a drag as a nudge from the spot under the pet's companions, so the

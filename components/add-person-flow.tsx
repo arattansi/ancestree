@@ -13,12 +13,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { z } from "zod";
 
-import { sendClaimInvite } from "@/app/actions/invites";
-import {
-  addPeopleWithConnections,
-  detectConnections,
-  setPersonPhoto,
-} from "@/app/actions/people";
+import { addRelative, setPersonPhoto } from "@/app/actions/people";
 import {
   ConnectionApprovalDialog,
   type SuggestionPrompt,
@@ -502,37 +497,59 @@ export function AddPersonFlow({
   }
 
   /**
-   * Saves the entries, then the photo and the invite. Only the entries can
-   * fail it: once they exist, a photo or an invite that doesn't go through
-   * is a warning, since a failure would bring the button back and a second
-   * press would add everyone again.
+   * Looks for the connections the tree implies (unless they've been
+   * answered: `resolved`), then saves the entries and sends the invite asked
+   * for with them, in one call (Step 77.5); a photo follows in a second.
+   * Only the entries can fail it: once they exist, a photo or an invite that
+   * doesn't go through is a warning, since a failure would bring the button
+   * back and a second press would add everyone again.
    */
-  async function persist(
+  async function save(
     values: FlowValues,
     edges: ReturnType<typeof buildChainEdges>,
-    resolved: {
-      subject: PersonRef;
-      related: PersonRef;
-      suggested_type: ImpliedConnection["suggestedType"];
-      source: ImpliedConnection["source"];
-      resolution: SuggestionResolution;
-    }[],
+    resolved:
+      | {
+          subject: PersonRef;
+          related: PersonRef;
+          suggested_type: ImpliedConnection["suggestedType"];
+          source: ImpliedConnection["source"];
+          resolution: SuggestionResolution;
+        }[]
+      | null,
   ): Promise<SaveOutcome> {
-    const result = await addPeopleWithConnections({
+    const { file, crop } = photo;
+    // Asked for with the entry, so sent once it exists: an invite to claim
+    // it. The card they land on offers the same invite again.
+    const address = asksInvite ? inviteAddress(values) : "";
+    const result = await addRelative({
       treeId,
       people: values.people,
       edges,
       selfIndex: mode === "self" ? 0 : null,
-      suggestions: resolved,
+      suggestions: resolved ?? [],
+      detect: resolved
+        ? undefined
+        : {
+            // Names go along so the engine can name people in its
+            // explanations.
+            newPeople: values.people.map((p) => ({
+              familyName: p.last_name,
+              dateOfBirth: p.date_of_birth || null,
+              givenName: p.preferred_name || p.first_name || null,
+              label: personDisplayName(p),
+            })),
+          },
+      inviteEmail: address || null,
+      photoFollows: file !== null,
     });
 
+    if (result.askable?.length) return { askable: result.askable };
     if (result.error || !result.personIds) {
       // Without a blood tie (Step 55) the error names who needs one.
       return { error: result.error ?? "Couldn't save these entries." };
     }
 
     const primaryId = result.personIds[0];
-    const { file, crop } = photo;
     if (file && primaryId) {
       const res = await attachPhoto(
         { kind: "person", treeId, personId: primaryId },
@@ -543,30 +560,15 @@ export function AddPersonFlow({
         toast.warning("Saved — but the photo didn't upload. Add it later.");
       }
     }
-
-    // Asked for with the entry, so sent once it exists: an invite to claim it.
-    // The entry stays saved whatever happens here, and the card they land on
-    // offers the same invite again.
-    const address = asksInvite ? inviteAddress(values) : "";
-    let invited: string | null = null;
-    if (address && primaryId) {
-      try {
-        const res = await sendClaimInvite(primaryId, address);
-        if (res.error) {
-          toast.warning(INVITE_UNSENT, { description: res.error });
-        } else {
-          invited = res.email ?? address;
-        }
-      } catch {
-        toast.warning(INVITE_UNSENT);
-      }
+    if (result.inviteWarning) {
+      toast.warning(INVITE_UNSENT, { description: result.inviteWarning });
     }
 
     toast.success(
       mode === "self"
         ? "You're in the family tree."
-        : invited
-          ? `Relative added. Invite sent to ${invited}.`
+        : result.invited
+          ? `Relative added. Invite sent to ${result.invited}.`
           : "Relative added.",
     );
     return { primaryId };
@@ -601,29 +603,12 @@ export function AddPersonFlow({
       spouseFields: toStoredSpouseDates,
     });
 
-    // Looking for implied connections, saving and landing are one call: the
+    // Looking for implied connections, saving and landing are one run: the
     // button is busy all the way, and a failure anywhere, the server out of
     // reach included, is said by it.
     action.run(
       "save",
-      async (): Promise<SaveOutcome> => {
-        const detected = await detectConnections({
-          treeId,
-          // Names go along so the engine can name people in its explanations.
-          newPeople: values.people.map((p) => ({
-            familyName: p.last_name,
-            dateOfBirth: p.date_of_birth || null,
-            givenName: p.preferred_name || p.first_name || null,
-            label: personDisplayName(p),
-          })),
-          pendingEdges: edges,
-        });
-
-        const askable = detected.suggestions ?? [];
-        if (askable.length > 0) return { askable };
-
-        return persist(values, edges, []);
-      },
+      (): Promise<SaveOutcome> => save(values, edges, null),
       {
         onSuccess: ({ askable, primaryId }) => {
           if (askable) {
@@ -652,7 +637,7 @@ export function AddPersonFlow({
         resolution: resolutions[i],
       })),
     );
-    action.run("save", () => persist(values, edges, resolved), {
+    action.run("save", () => save(values, edges, resolved), {
       onSuccess: ({ primaryId }) => {
         setPendingSave(null);
         setSuggestions([]);

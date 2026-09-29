@@ -6,11 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 
-import {
-  setPersonPhoto,
-  setPersonPhotoCrop,
-  updatePerson,
-} from "@/app/actions/people";
+import { updatePerson, type PhotoChange } from "@/app/actions/people";
 import { FloatingFormActions } from "@/components/floating-form-actions";
 import { FormError } from "@/components/form-error";
 import { PendingButton } from "@/components/pending-button";
@@ -27,7 +23,7 @@ import {
   personSchema,
   type PersonFormValues,
 } from "@/lib/person-schema";
-import { attachPhoto } from "@/lib/photo-upload";
+import { discardPhoto, uploadPhoto } from "@/lib/photo-upload";
 
 type ExistingPerson = PersonFormValues & {
   id: string;
@@ -77,26 +73,32 @@ export function PersonForm({
     action.run(
       "save",
       async () => {
-        // The photo goes first, but what went wrong with it is said only
-        // once the rest has saved: "other changes still saved" can't come
-        // before they are.
+        // The file goes up first; the details and the photo are then saved
+        // in one write (Step 77.5), so it's one change: one notice, one
+        // undo. What went wrong with the upload is said only once the rest
+        // has saved: "other changes still saved" can't come before they are.
         let photoProblem: string | null = null;
         const { file, crop } = photo;
+        let change: PhotoChange | null = null;
         if (file) {
-          const res = await attachPhoto(
-            { kind: "person", treeId, personId: person.id },
-            file,
-            (path) => setPersonPhoto(person.id, path, crop),
-          );
-          if (res.error) {
+          try {
+            const path = await uploadPhoto(
+              { kind: "person", treeId, personId: person.id },
+              file,
+            );
+            change = { path, crop };
+          } catch {
             photoProblem = "The photo didn't upload — other changes still saved.";
           }
         } else if (person.photo_path && photo.reframed) {
-          const res = await setPersonPhotoCrop(person.id, crop);
-          if (res.error) photoProblem = "The photo's new framing didn't save.";
+          change = { crop };
         }
-        const result = await updatePerson(person.id, values);
-        if (!result.error && photoProblem) toast.warning(photoProblem);
+        const result = await updatePerson(person.id, values, change);
+        if (result.error) {
+          if (change && "path" in change) await discardPhoto(change.path);
+          return { ...result, photoSaved: false };
+        }
+        if (photoProblem) toast.warning(photoProblem);
         return { ...result, photoSaved: file !== null && !photoProblem };
       },
       {

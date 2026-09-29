@@ -154,9 +154,11 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   the privacy tick, Step 30.6),
   `approveTreeRequest` / `declineTreeRequest` / `deleteTreeRequest` (beta
   reviewers);
-  `people.ts`: `addPeopleWithConnections` (transactional multi-person + edge
-  create), update person, drag-to-pin position, photo + document writes,
-  signed URLs; `claims.ts`: `claimPerson` / `disputeClaim` / `resolveClaim` /
+  `people.ts`: `addRelative` (one call for an add: the implied connections
+  asked about first, then a transactional multi-person + edge create and
+  the invite asked for with it, Step 77.5; a photo follows in a second),
+  update person (its photo in the same write, Step 77.5), drag-to-pin
+  position, photo + document writes, signed URLs; `claims.ts`: `claimPerson` / `disputeClaim` / `resolveClaim` /
   `markNotificationsRead`; `entry-comments.ts`: `getEntryComments` /
   `addEntryComment` / `resolveEntryFlag`)
 - `components/tree/` — `family-tree.tsx` React Flow canvas (generation lanes

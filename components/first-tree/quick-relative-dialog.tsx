@@ -5,11 +5,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 
-import { sendClaimInvite } from "@/app/actions/invites";
-import {
-  addPeopleWithConnections,
-  setPersonPhoto,
-} from "@/app/actions/people";
+import { addRelative, setPersonPhoto } from "@/app/actions/people";
 import { CoParentOffer } from "@/components/co-parent-offer";
 import { FormError } from "@/components/form-error";
 import { JoinsAsNote } from "@/components/joins-as-note";
@@ -172,11 +168,16 @@ function QuickRelativeForm({
     action.run(
       "add",
       async (): Promise<{ error?: string; invited?: string }> => {
-        const result = await addPeopleWithConnections({
+        // Them, their lines and the invite asked for with them, in one call
+        // (Step 77.5); a photo follows in a second.
+        const { file, crop } = photo;
+        const result = await addRelative({
           treeId,
           people: [values],
           edges: closeRelativeEdges(kind, founder.id, links),
           selfIndex: null,
+          inviteEmail: address || null,
+          photoFollows: file !== null,
         });
         const personId = result.personIds?.[0];
         if (result.error || !personId) {
@@ -185,7 +186,6 @@ function QuickRelativeForm({
 
         // They're on the tree from here on: nothing after this may send the
         // form back to its start, where a second press would add them twice.
-        const { file, crop } = photo;
         if (file) {
           const res = await attachPhoto(
             { kind: "person", treeId, personId },
@@ -197,20 +197,15 @@ function QuickRelativeForm({
           }
         }
 
-        // Asked for with the entry, so sent once it exists, as the add-relative
-        // form does (Step 31). The entry stays whatever happens here, and their
-        // card on the tree offers the invite again.
-        if (!address) return {};
-        try {
-          const res = await sendClaimInvite(personId, address);
-          if (!res.error) return { invited: res.email ?? address };
+        // Asked for with the entry, so sent once it existed, as the
+        // add-relative form does (Step 31). The entry stays whatever happened
+        // to it, and their card on the tree offers the invite again.
+        if (result.inviteWarning) {
           toast.warning("Added — but the invite didn't send. Send it again from their card.", {
-            description: res.error,
+            description: result.inviteWarning,
           });
-        } catch {
-          toast.warning("Added — but the invite didn't send. Send it again from their card.");
         }
-        return {};
+        return { invited: result.invited };
       },
       {
         onSuccess: ({ invited }) => {

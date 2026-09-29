@@ -7,11 +7,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 
-import {
-  setPersonPhoto,
-  setPersonPhotoCrop,
-  updatePerson,
-} from "@/app/actions/people";
+import { updatePerson, type PhotoChange } from "@/app/actions/people";
 import { FormError } from "@/components/form-error";
 import { PendingButton } from "@/components/pending-button";
 import {
@@ -28,7 +24,7 @@ import type { Fillable } from "@/lib/fill-blanks";
 import { parseCrop } from "@/lib/image-crop";
 import { personDisplayName, personInitials } from "@/lib/person-name";
 import { personSchema, type PersonFormValues } from "@/lib/person-schema";
-import { attachPhoto } from "@/lib/photo-upload";
+import { discardPhoto, uploadPhoto } from "@/lib/photo-upload";
 import { treeFocusHref } from "@/lib/tree-links";
 import {
   enteredLine,
@@ -101,23 +97,31 @@ export function WelcomeDetailsForm({
       async (): Promise<{ error?: string }> => {
         const detailsChanged = form.formState.isDirty;
 
+        // The file goes up first; the details and the photo are then saved
+        // in one write (Step 77.5).
         let photoFailed = false;
         const { file, crop } = photo;
+        let change: PhotoChange | null = null;
         if (file) {
-          const res = await attachPhoto(
-            { kind: "person", treeId: homeTreeId, personId },
-            file,
-            (path) => setPersonPhoto(personId, path, crop),
-          );
-          photoFailed = !!res.error;
+          try {
+            const path = await uploadPhoto(
+              { kind: "person", treeId: homeTreeId, personId },
+              file,
+            );
+            change = { path, crop };
+          } catch {
+            photoFailed = true;
+          }
         } else if (reframed) {
-          const res = await setPersonPhotoCrop(personId, crop);
-          if (res.error) toast.warning("The photo’s new framing didn’t save.");
+          change = { crop };
         }
 
-        if (detailsChanged) {
-          const result = await updatePerson(personId, next);
-          if (result.error) return result;
+        if (detailsChanged || change) {
+          const result = await updatePerson(personId, next, change);
+          if (result.error) {
+            if (change && "path" in change) await discardPhoto(change.path);
+            return result;
+          }
         }
 
         if (photoFailed) {
