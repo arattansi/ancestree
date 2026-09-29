@@ -90,6 +90,8 @@ export function enteredLine(
     /** As the form holds it: "1950", "1950-05", "1950-05-03" or, with no
      *  year, "-05-03". */
     date_of_birth?: string | null;
+    /** A rough estimate (Step 81): "born c. 1950". */
+    date_of_birth_circa?: boolean;
   },
   birthPlace: string | null | undefined,
 ): string | null {
@@ -99,6 +101,7 @@ export function enteredLine(
     stored.date,
     stored.precision,
     stored.withoutYear,
+    entry.date_of_birth_circa,
   );
   const place = birthPlace?.trim();
   const birth =

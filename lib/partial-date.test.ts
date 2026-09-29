@@ -57,6 +57,24 @@ describe("formatPartialDate", () => {
     );
     expect(formatPartialDate(null, "day", null)).toBeNull();
   });
+
+  it("puts c. before a rough date, whatever of it is known (Step 81)", () => {
+    expect(formatPartialDate("1950-01-01", "year", null, true)).toBe("c. 1950");
+    expect(formatPartialDate("1950-05-01", "month", null, true)).toBe(
+      "c. May 1950",
+    );
+    expect(formatPartialDate("1950-05-03", "day", null, true)).toBe(
+      "c. 3 May 1950",
+    );
+    expect(formatPartialDate("1950-01-01", "year", null, false)).toBe("1950");
+  });
+
+  it("has no c. without a year to be rough about", () => {
+    expect(formatPartialDate(null, "day", { month: 3, day: 5 }, true)).toBe(
+      "5 March",
+    );
+    expect(formatPartialDate(null, "year", null, true)).toBeNull();
+  });
 });
 
 describe("asDayMonth / formatDayMonth", () => {

@@ -4,6 +4,7 @@ import {
   asDayMonth,
   dateProblem,
   isBeforeAtSharedPrecision,
+  splitDateParts,
   toPartialIso,
   toStoredDate,
 } from "@/lib/partial-date";
@@ -49,11 +50,18 @@ const optionalDate = (allowNoYear: boolean) =>
       if (problem) ctx.addIssue({ code: "custom", message: problem });
     });
 
+/** Circa is ticked but the date has no year to be rough about (Step 81). */
+const circaWithoutYear = (circa: boolean | undefined, date: string | undefined) =>
+  Boolean(circa) && !splitDateParts(date).year;
+
+const CIRCA_NEEDS_A_YEAR = "Add the year, or untick circa.";
+
 /**
  * Shared person schema. Required: (first OR preferred) AND last name AND an
  * explicit living/deceased answer. A place of birth is optional since Step 44
  * (the database's `people_required_identity` agrees). Death fields only apply
- * when `is_deceased` is true.
+ * when `is_deceased` is true. Either date can be marked circa, a rough
+ * estimate (Step 81), once it has a year.
  */
 export const personSchema = z
   .object({
@@ -67,6 +75,7 @@ export const personSchema = z
       .min(1, "Last name is required.")
       .max(120, "Keep this under 120 characters."),
     date_of_birth: optionalDate(true),
+    date_of_birth_circa: z.boolean().optional(),
     // Canonical GeoNames place (Step 4.5c). `city_of_birth` / `country_of_birth`
     // are still written alongside it (derived from the picked place) until the
     // legacy text columns are dropped — see Step 4.5b.
@@ -75,6 +84,7 @@ export const personSchema = z
     country_of_birth: optionalText(120),
     is_deceased: z.boolean(),
     date_of_death: optionalDate(false),
+    date_of_death_circa: z.boolean().optional(),
     place_id_death: z.number().int().positive().nullable(),
     place_of_death: optionalText(160),
     sex: z.enum(SEX_VALUES).optional(),
@@ -97,6 +107,15 @@ export const personSchema = z
     message: "Enter a first name or a preferred name.",
     path: ["first_name"],
   })
+  .refine((v) => !circaWithoutYear(v.date_of_birth_circa, v.date_of_birth), {
+    message: CIRCA_NEEDS_A_YEAR,
+    path: ["date_of_birth"],
+  })
+  .refine(
+    (v) =>
+      !(v.is_deceased && circaWithoutYear(v.date_of_death_circa, v.date_of_death)),
+    { message: CIRCA_NEEDS_A_YEAR, path: ["date_of_death"] },
+  )
   .refine(
     // Only as finely as the vaguer of the two is known: died "1990" is fine
     // for someone born in May 1990.
@@ -120,11 +139,13 @@ export const emptyPersonValues: PersonFormValues = {
   maiden_name: "",
   last_name: "",
   date_of_birth: "",
+  date_of_birth_circa: false,
   place_id_birth: null,
   city_of_birth: "",
   country_of_birth: "",
   is_deceased: false,
   date_of_death: "",
+  date_of_death_circa: false,
   place_id_death: null,
   place_of_death: "",
   sex: undefined,
@@ -144,12 +165,15 @@ export type PersonRow = {
   date_of_birth_precision: string | null;
   birth_month: number | null;
   birth_day: number | null;
+  /** A rough estimate (Step 81); left out where it isn't read. */
+  date_of_birth_circa?: boolean | null;
   place_id_birth: number | null;
   city_of_birth: string | null;
   country_of_birth: string | null;
   is_deceased: boolean | null;
   date_of_death: string | null;
   date_of_death_precision: string | null;
+  date_of_death_circa?: boolean | null;
   place_id_death: number | null;
   place_of_death: string | null;
   sex: string | null;
@@ -174,6 +198,7 @@ export function personFormValues(row: PersonRow): PersonFormValues {
       row.date_of_birth_precision ?? "day",
       asDayMonth(row.birth_month, row.birth_day),
     ),
+    date_of_birth_circa: row.date_of_birth_circa ?? false,
     place_id_birth: row.place_id_birth ?? null,
     city_of_birth: row.city_of_birth ?? "",
     country_of_birth: row.country_of_birth ?? "",
@@ -182,6 +207,7 @@ export function personFormValues(row: PersonRow): PersonFormValues {
       row.date_of_death,
       row.date_of_death_precision ?? "day",
     ),
+    date_of_death_circa: row.date_of_death_circa ?? false,
     place_id_death: row.place_id_death ?? null,
     place_of_death: row.place_of_death ?? "",
     sex: (row.sex as PersonFormValues["sex"]) ?? undefined,
@@ -215,12 +241,15 @@ export function toPersonPayload(values: PersonFormValues) {
     date_of_birth_precision: birth.precision,
     birth_month: birthday?.month ?? null,
     birth_day: birthday?.day ?? null,
+    // Circa only beside a date with its year (Step 81).
+    date_of_birth_circa: Boolean(values.date_of_birth_circa) && birth.date !== null,
     place_id_birth: values.place_id_birth ?? null,
     city_of_birth: trimOrNull(values.city_of_birth),
     country_of_birth: (values.country_of_birth ?? "").trim(),
     is_deceased: values.is_deceased,
     date_of_death: death.date,
     date_of_death_precision: death.precision,
+    date_of_death_circa: Boolean(values.date_of_death_circa) && death.date !== null,
     place_id_death: values.is_deceased ? (values.place_id_death ?? null) : null,
     place_of_death: values.is_deceased
       ? trimOrNull(values.place_of_death)

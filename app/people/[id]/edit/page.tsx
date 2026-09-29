@@ -41,7 +41,7 @@ export default async function EditPersonPage({
       supabase
         .from("tree_people")
         .select(
-          "id, home_tree_id, is_home, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_birth_precision, birth_month, birth_day, place_id_birth, city_of_birth, country_of_birth, is_deceased, date_of_death, date_of_death_precision, place_id_death, place_of_death, sex, lineage_type, photo_path, photo_crop, owner_user_id, created_by, email, email_visible",
+          "id, home_tree_id, is_home, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_birth_precision, birth_month, birth_day, date_of_birth_circa, place_id_birth, city_of_birth, country_of_birth, is_deceased, date_of_death, date_of_death_precision, date_of_death_circa, place_id_death, place_of_death, sex, lineage_type, photo_path, photo_crop, owner_user_id, created_by, email, email_visible",
         )
         .eq("tree_id", tree.id)
         .eq("id", id)

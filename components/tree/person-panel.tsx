@@ -899,6 +899,7 @@ export function PersonPanel({
                     person.date_of_birth,
                     person.date_of_birth_precision,
                     asDayMonth(person.birth_month, person.birth_day),
+                    person.date_of_birth_circa,
                   )}
                 />
                 <PlaceField
@@ -920,6 +921,8 @@ export function PersonPanel({
                       value={formatPartialDate(
                         person.date_of_death,
                         person.date_of_death_precision,
+                        null,
+                        person.date_of_death_circa,
                       )}
                     />
                     <PlaceField

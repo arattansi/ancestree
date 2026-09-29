@@ -8,7 +8,8 @@
  *
  * A suggestion is kept as the columns it changes (`changes`) and what they
  * held when it was made (`before`), a detail at a time: a date with its
- * precision (and a birthday kept without its year), a place with the labels
+ * precision (and a birthday kept without its year, and whether it's circa,
+ * Step 81), a place with the labels
  * it was picked with. This says which details there are, turns a form into
  * what the function takes, and reads a suggestion back as rows to show.
  */
@@ -40,6 +41,7 @@ export const SUGGESTION_DETAILS = [
       "date_of_birth_precision",
       "birth_month",
       "birth_day",
+      "date_of_birth_circa",
     ],
   },
   {
@@ -51,7 +53,7 @@ export const SUGGESTION_DETAILS = [
   {
     key: "date_of_death",
     label: "Date of death",
-    columns: ["date_of_death", "date_of_death_precision"],
+    columns: ["date_of_death", "date_of_death_precision", "date_of_death_circa"],
   },
   {
     key: "place_of_death",
@@ -109,12 +111,14 @@ export function suggestionValues(
     date_of_birth_precision: person.date_of_birth_precision,
     birth_month: person.birth_month,
     birth_day: person.birth_day,
+    date_of_birth_circa: person.date_of_birth_circa,
     place_id_birth: person.place_id_birth,
     city_of_birth: person.city_of_birth,
     country_of_birth: person.country_of_birth,
     is_deceased: person.is_deceased,
     date_of_death: person.date_of_death,
     date_of_death_precision: person.date_of_death_precision,
+    date_of_death_circa: person.date_of_death_circa,
     place_id_death: person.place_id_death,
     place_of_death: person.place_of_death,
   };
@@ -146,6 +150,7 @@ export function describeDetail(
         text(values.date_of_birth),
         text(values.date_of_birth_precision),
         asDayMonth(whole(values.birth_month), whole(values.birth_day)),
+        values.date_of_birth_circa === true,
       );
     case "place_of_birth":
       return (
@@ -163,6 +168,8 @@ export function describeDetail(
       return formatPartialDate(
         text(values.date_of_death),
         text(values.date_of_death_precision),
+        null,
+        values.date_of_death_circa === true,
       );
     case "place_of_death":
       return text(values.place_of_death);

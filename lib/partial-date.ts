@@ -62,7 +62,7 @@ export function formatDayMonth(
 /**
  * "3 May 1950", "May 1950" or "1950", as much of the date as is known, or
  * "3 May" for a day and month with no year (`withoutYear`); null when there
- * is no date.
+ * is no date. A rough date (`circa`, Step 81) reads "c. 1950".
  *
  * Spelled out from a fixed list rather than `toLocaleDateString`, which reads
  * the browser's locale — "May 3, 1950" in one relative's browser and "03/05/1950"
@@ -72,6 +72,7 @@ export function formatPartialDate(
   iso: string | null | undefined,
   precision?: string | null,
   withoutYear?: DayMonth | null,
+  circa?: boolean | null,
 ): string | null {
   if (!iso) return formatDayMonth(withoutYear);
   const match = ISO_DATE.exec(iso);
@@ -80,14 +81,22 @@ export function formatPartialDate(
   const monthName = MONTH_NAMES[Number(month) - 1];
   if (!monthName) return null;
 
-  switch (asDatePrecision(precision)) {
-    case "year":
-      return year;
-    case "month":
-      return `${monthName} ${year}`;
-    default:
-      return `${Number(day)} ${monthName} ${year}`;
-  }
+  const known = (() => {
+    switch (asDatePrecision(precision)) {
+      case "year":
+        return year;
+      case "month":
+        return `${monthName} ${year}`;
+      default:
+        return `${Number(day)} ${monthName} ${year}`;
+    }
+  })();
+  return circaDate(known, circa);
+}
+
+/** A date or a year as a rough estimate reads it (Step 81): "c. 1950". */
+export function circaDate(text: string, circa?: boolean | null): string {
+  return circa ? `c. ${text}` : text;
 }
 
 // ---------------------------------------------------------------------------

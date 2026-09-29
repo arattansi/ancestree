@@ -34,7 +34,7 @@ export async function loadOwnEntry(profile: Profile): Promise<OwnEntry | null> {
   const { data: person } = await supabase
     .from("people")
     .select(
-      "id, tree_id, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_birth_precision, birth_month, birth_day, place_id_birth, city_of_birth, country_of_birth, is_deceased, date_of_death, date_of_death_precision, place_id_death, place_of_death, sex, lineage_type, photo_path, photo_crop, email, email_visible",
+      "id, tree_id, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_birth_precision, birth_month, birth_day, date_of_birth_circa, place_id_birth, city_of_birth, country_of_birth, is_deceased, date_of_death, date_of_death_precision, date_of_death_circa, place_id_death, place_of_death, sex, lineage_type, photo_path, photo_crop, email, email_visible",
     )
     .eq("id", profile.self_person_id)
     .maybeSingle();
@@ -80,6 +80,7 @@ export async function loadOwnEntry(profile: Profile): Promise<OwnEntry | null> {
         person.date_of_birth_precision ?? "day",
         asDayMonth(person.birth_month, person.birth_day),
       ),
+      date_of_birth_circa: person.date_of_birth_circa,
       place_id_birth: person.place_id_birth ?? null,
       city_of_birth: person.city_of_birth ?? "",
       country_of_birth: person.country_of_birth ?? "",
@@ -88,6 +89,7 @@ export async function loadOwnEntry(profile: Profile): Promise<OwnEntry | null> {
         person.date_of_death,
         person.date_of_death_precision ?? "day",
       ),
+      date_of_death_circa: person.date_of_death_circa,
       place_id_death: person.place_id_death ?? null,
       place_of_death: person.place_of_death ?? "",
       sex: (person.sex as PersonFormValues["sex"]) ?? undefined,

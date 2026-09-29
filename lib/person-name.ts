@@ -1,3 +1,5 @@
+import { circaDate } from "@/lib/partial-date";
+
 export type NamedPerson = {
   first_name?: string | null;
   preferred_name?: string | null;
@@ -37,19 +39,24 @@ export function maidenLine(p: { maiden_name?: string | null }): string | null {
   return maiden ? `née ${maiden}` : null;
 }
 
-const year = (d?: string | null) => (d ? d.slice(0, 4) : null);
+/** A date's year, "c." before it when the date is a rough estimate (Step 81). */
+const year = (d?: string | null, circa?: boolean | null) =>
+  d ? circaDate(d.slice(0, 4), circa) : null;
 
 /**
- * Short life-span label for a node: `b. 1948`, `1948 – 2019`, or `d. 2019`.
- * Returns `null` when there are no dates and the person is living.
+ * Short life-span label for a node: `b. 1948`, `1948 – 2019`, or `d. 2019`,
+ * with `c.` before a rough year (`c. 1948 – 2019`). Returns `null` when there
+ * are no dates and the person is living.
  */
 export function personLifespan(p: {
   date_of_birth?: string | null;
   date_of_death?: string | null;
+  date_of_birth_circa?: boolean | null;
+  date_of_death_circa?: boolean | null;
   is_deceased?: boolean | null;
 }): string | null {
-  const born = year(p.date_of_birth);
-  const died = year(p.date_of_death);
+  const born = year(p.date_of_birth, p.date_of_birth_circa);
+  const died = year(p.date_of_death, p.date_of_death_circa);
   if (born && died) return `${born} – ${died}`;
   if (born) return p.is_deceased ? `b. ${born} · d.` : `b. ${born}`;
   if (died) return `d. ${died}`;

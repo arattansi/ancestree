@@ -5,8 +5,48 @@ import {
   nodeDisplayName,
   personDisplayName,
   personHasDied,
+  personLifespan,
   preferredCopiesFirst,
 } from "@/lib/person-name";
+
+describe("personLifespan", () => {
+  it("reads the years of birth and death", () => {
+    expect(
+      personLifespan({ date_of_birth: "1948-03-01", date_of_death: "2019-01-01" }),
+    ).toBe("1948 – 2019");
+    expect(personLifespan({ date_of_birth: "1948-03-01" })).toBe("b. 1948");
+    expect(personLifespan({ date_of_death: "2019-01-01" })).toBe("d. 2019");
+    expect(personLifespan({ is_deceased: true })).toBe("Deceased");
+    expect(personLifespan({})).toBeNull();
+  });
+
+  it("puts c. before a rough year (Step 81)", () => {
+    expect(
+      personLifespan({
+        date_of_birth: "1948-01-01",
+        date_of_birth_circa: true,
+        date_of_death: "2019-01-01",
+      }),
+    ).toBe("c. 1948 – 2019");
+    expect(
+      personLifespan({
+        date_of_birth: "1948-01-01",
+        date_of_death: "2019-01-01",
+        date_of_death_circa: true,
+      }),
+    ).toBe("1948 – c. 2019");
+    expect(
+      personLifespan({ date_of_birth: "1948-01-01", date_of_birth_circa: true }),
+    ).toBe("b. c. 1948");
+    expect(
+      personLifespan({
+        date_of_birth: "1948-01-01",
+        date_of_birth_circa: true,
+        is_deceased: true,
+      }),
+    ).toBe("b. c. 1948 · d.");
+  });
+});
 
 describe("nodeDisplayName", () => {
   it("leaves a name that fits alone", () => {

@@ -1046,8 +1046,10 @@ export type Database = {
           created_at: string
           created_by: string
           date_of_birth: string | null
+          date_of_birth_circa: boolean
           date_of_birth_precision: string
           date_of_death: string | null
+          date_of_death_circa: boolean
           date_of_death_precision: string
           email: string | null
           email_visible: boolean
@@ -1078,8 +1080,10 @@ export type Database = {
           created_at?: string
           created_by: string
           date_of_birth?: string | null
+          date_of_birth_circa?: boolean
           date_of_birth_precision?: string
           date_of_death?: string | null
+          date_of_death_circa?: boolean
           date_of_death_precision?: string
           email?: string | null
           email_visible?: boolean
@@ -1110,8 +1114,10 @@ export type Database = {
           created_at?: string
           created_by?: string
           date_of_birth?: string | null
+          date_of_birth_circa?: boolean
           date_of_birth_precision?: string
           date_of_death?: string | null
+          date_of_death_circa?: boolean
           date_of_death_precision?: string
           email?: string | null
           email_visible?: boolean
@@ -2201,8 +2207,10 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           date_of_birth: string | null
+          date_of_birth_circa: boolean | null
           date_of_birth_precision: string | null
           date_of_death: string | null
+          date_of_death_circa: boolean | null
           date_of_death_precision: string | null
           email: string | null
           email_visible: boolean | null
@@ -2478,8 +2486,10 @@ export type Database = {
           created_at: string
           created_by: string
           date_of_birth: string | null
+          date_of_birth_circa: boolean
           date_of_birth_precision: string
           date_of_death: string | null
+          date_of_death_circa: boolean
           date_of_death_precision: string
           email: string | null
           email_visible: boolean

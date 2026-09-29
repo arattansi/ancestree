@@ -105,6 +105,21 @@ describe("upcomingOccasions", () => {
     );
   });
 
+  it("keeps a birthday in a rough year, with no age (Step 81)", () => {
+    const list = upcomingOccasions(
+      [
+        person("circa", "1950-10-01", { date_of_birth_circa: true }),
+        person("sure", "1950-10-02"),
+      ],
+      [],
+      TODAY,
+    );
+    expect(list.map((o) => [o.people[0], o.date, o.years])).toEqual([
+      ["circa", "2026-10-01", null],
+      ["sure", "2026-10-02", 76],
+    ]);
+  });
+
   it("keeps a 29 February birthday on the 28th in a year without one", () => {
     const leapling = [person("leap", "2000-02-29")];
     expect(upcomingOccasions(leapling, [], TODAY)[0]).toMatchObject({

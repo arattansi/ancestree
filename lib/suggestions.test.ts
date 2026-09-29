@@ -52,7 +52,7 @@ describe("SUGGESTION_DETAILS", () => {
     }
   });
 
-  it("keeps a date with its precision and a place with its labels", () => {
+  it("keeps a date with its precision and circa, and a place with its labels", () => {
     const columnsOf = (key: string) =>
       SUGGESTION_DETAILS.find((d) => d.key === key)?.columns;
     expect(columnsOf("date_of_birth")).toEqual([
@@ -60,6 +60,7 @@ describe("SUGGESTION_DETAILS", () => {
       "date_of_birth_precision",
       "birth_month",
       "birth_day",
+      "date_of_birth_circa",
     ]);
     expect(columnsOf("place_of_birth")).toEqual([
       "place_id_birth",
@@ -69,6 +70,7 @@ describe("SUGGESTION_DETAILS", () => {
     expect(columnsOf("date_of_death")).toEqual([
       "date_of_death",
       "date_of_death_precision",
+      "date_of_death_circa",
     ]);
     expect(columnsOf("place_of_death")).toEqual([
       "place_id_death",
@@ -100,6 +102,23 @@ describe("suggestionValues", () => {
       date_of_birth_precision: "month",
       country_of_birth: "",
       is_deceased: false,
+    });
+  });
+
+  it("sends whether each date is circa (Step 81)", () => {
+    const values = suggestionValues(
+      toPersonPayload({
+        ...emptyPersonValues,
+        first_name: "Amarshi",
+        last_name: "Sayani",
+        date_of_birth: "1931",
+        date_of_birth_circa: true,
+      }),
+    );
+    expect(values).toMatchObject({
+      date_of_birth: "1931-01-01",
+      date_of_birth_circa: true,
+      date_of_death_circa: false,
     });
   });
 
@@ -199,6 +218,22 @@ describe("suggestionRows", () => {
         label: "Maiden name",
         from: "Rattansi",
         to: null,
+      },
+    ]);
+  });
+
+  it("shows a date made circa (Step 81)", () => {
+    expect(
+      suggestionRows(
+        { date_of_death_circa: true },
+        entry({ date_of_death_circa: false }),
+      ),
+    ).toEqual([
+      {
+        detail: "date_of_death",
+        label: "Date of death",
+        from: "1999",
+        to: "c. 1999",
       },
     ]);
   });

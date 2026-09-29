@@ -105,6 +105,23 @@ describe("fillFields", () => {
     });
   });
 
+  it("sends circa with a date only when it's so (Step 81)", () => {
+    expect(
+      fillFields(
+        payload({
+          is_deceased: true,
+          date_of_birth: "1931",
+          date_of_birth_circa: true,
+          date_of_death: "1990",
+          date_of_death_circa: true,
+        }),
+      ),
+    ).toMatchObject({ date_of_birth_circa: "true", date_of_death_circa: "true" });
+    const sure = fillFields(payload({ date_of_birth: "1931" }));
+    expect(sure).not.toHaveProperty("date_of_birth_circa");
+    expect(sure).not.toHaveProperty("date_of_death_circa");
+  });
+
   it("sends a birthday without its year as a month and day, with no date", () => {
     const fields = fillFields(payload({ date_of_birth: "-03-05" }));
     expect(fields).toMatchObject({ birth_month: 3, birth_day: 5 });

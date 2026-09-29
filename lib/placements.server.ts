@@ -54,7 +54,7 @@ export async function listPlacementCandidates(
       supabase
         .from("tree_people")
         .select(
-          "id, tree_id, first_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_death, is_deceased",
+          "id, tree_id, first_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_death, date_of_birth_circa, date_of_death_circa, is_deceased",
         )
         .neq("tree_id", treeId),
       supabase

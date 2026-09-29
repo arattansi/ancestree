@@ -99,6 +99,8 @@ export function fillFields(
     date_of_birth_precision: person.date_of_birth
       ? person.date_of_birth_precision
       : null,
+    // Sent only when it's so: a date fills in with its circa (Step 81).
+    date_of_birth_circa: person.date_of_birth_circa ? "true" : null,
     birth_month: person.birth_month,
     birth_day: person.birth_day,
     // A place comes with the city and country it was picked with.
@@ -110,6 +112,7 @@ export function fillFields(
     date_of_death_precision: person.date_of_death
       ? person.date_of_death_precision
       : null,
+    date_of_death_circa: person.date_of_death_circa ? "true" : null,
     place_id_death: person.place_id_death,
     place_of_death: person.place_id_death != null ? person.place_of_death : null,
     photo_path: photo?.path ?? null,

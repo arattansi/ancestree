@@ -29,6 +29,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -268,6 +269,43 @@ export function PersonNameFields<T extends FieldValues>({
 
 /** Whether they've died. The add-a-relative form asks it up front, since
  *  nobody is invited to take over the entry of someone who has (Step 44). */
+/**
+ * "Circa" beside a date's label: the date is a rough estimate, shown
+ * "c. 1950" (Step 81). It needs the date's year, which the schema checks on
+ * the date, so the date is checked again whenever this changes.
+ */
+function CircaField<T extends FieldValues>({
+  control,
+  name,
+  date,
+  id,
+}: {
+  control: Control<T>;
+  name: Path<T>;
+  date: Path<T>;
+  id: string;
+}) {
+  return (
+    <FormField
+      control={control}
+      name={name}
+      rules={{ deps: [date] }}
+      render={({ field }) => (
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id={id}
+            checked={field.value === true}
+            onCheckedChange={(checked) => field.onChange(checked === true)}
+          />
+          <Label htmlFor={id} className="font-normal">
+            Circa
+          </Label>
+        </div>
+      )}
+    />
+  );
+}
+
 export function PersonDiedField<T extends FieldValues>({
   control,
   prefix,
@@ -415,7 +453,15 @@ export function PersonDetailFields<T extends FieldValues>({
             name={name("date_of_birth")}
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Date of birth</FormLabel>
+                <div className="flex items-center justify-between gap-3">
+                  <FormLabel>Date of birth</FormLabel>
+                  <CircaField
+                    control={control}
+                    name={name("date_of_birth_circa")}
+                    date={name("date_of_birth")}
+                    id={`${idPrefix}-birth-circa`}
+                  />
+                </div>
                 <FormControl>
                   <DateField
                     value={field.value ?? ""}
@@ -476,7 +522,15 @@ export function PersonDetailFields<T extends FieldValues>({
               name={name("date_of_death")}
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Date of death</FormLabel>
+                  <div className="flex items-center justify-between gap-3">
+                    <FormLabel>Date of death</FormLabel>
+                    <CircaField
+                      control={control}
+                      name={name("date_of_death_circa")}
+                      date={name("date_of_death")}
+                      id={`${idPrefix}-death-circa`}
+                    />
+                  </div>
                   <FormControl>
                     <DateField
                       value={field.value ?? ""}

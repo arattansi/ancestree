@@ -6,7 +6,8 @@
  * Only a date with its day counts. A birth date known to the month or the
  * year has no day to keep (`date_of_birth_precision`, Step 17); a marriage
  * date is always whole, as it has no precision column. A day and month kept
- * without the year counts too (Step 63), with no age or count of years. Only
+ * without the year counts too (Step 63), with no age or count of years, and
+ * so does a birthday in a rough year (circa, Step 81), with no age. Only
  * the living have birthdays here, and only couples still married, both
  * living, have anniversaries: this is what's coming up to celebrate, not a
  * record of the dead.
@@ -26,6 +27,8 @@ export type OccasionPerson = {
   /** A birthday kept without its year (Step 63). */
   birth_month?: number | null;
   birth_day?: number | null;
+  /** The year of birth is a rough estimate (Step 81): no age. */
+  date_of_birth_circa?: boolean | null;
   date_of_death: string | null;
   is_deceased: boolean;
 };
@@ -155,11 +158,13 @@ export function upcomingOccasions(
 
   const found: Occasion[] = [];
   for (const p of living.values()) {
-    const born = p.date_of_birth
+    const dated = p.date_of_birth
       ? asDatePrecision(p.date_of_birth_precision) === "day"
         ? parse(p.date_of_birth)
         : null
       : withoutYear(p.birth_month, p.birth_day);
+    const born: Recurring | null =
+      dated && p.date_of_birth_circa ? { ...dated, y: null } : dated;
     const birthday = born && occasion("birthday", [p.id], born, day);
     if (birthday) found.push(birthday);
   }

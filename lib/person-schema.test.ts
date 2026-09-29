@@ -104,6 +104,67 @@ describe("personSchema dates", () => {
   });
 });
 
+describe("personSchema circa (Step 81)", () => {
+  const birthIssue = (values: PersonFormValues) =>
+    personSchema
+      .safeParse(values)
+      .error?.issues.find((i) => i.path[0] === "date_of_birth")?.message;
+
+  it("takes circa beside any date with its year", () => {
+    for (const date_of_birth of ["1950", "1950-05", "1950-05-03"]) {
+      expect(
+        personSchema.safeParse(person({ date_of_birth, date_of_birth_circa: true }))
+          .success,
+      ).toBe(true);
+    }
+  });
+
+  it("asks for the year when circa has none", () => {
+    expect(birthIssue(person({ date_of_birth: "", date_of_birth_circa: true }))).toBe(
+      "Add the year, or untick circa.",
+    );
+    expect(
+      birthIssue(person({ date_of_birth: "-03-05", date_of_birth_circa: true })),
+    ).toBe("Add the year, or untick circa.");
+    expect(
+      deathIssue(
+        person({ is_deceased: true, date_of_death: "", date_of_death_circa: true }),
+      ),
+    ).toBe("Add the year, or untick circa.");
+  });
+
+  it("minds no death circa for someone living", () => {
+    const values = person({
+      is_deceased: false,
+      date_of_death: "",
+      date_of_death_circa: true,
+    });
+    expect(personSchema.safeParse(values).success).toBe(true);
+    expect(toPersonPayload(values).date_of_death_circa).toBe(false);
+  });
+
+  it("keeps circa only beside a date", () => {
+    const rough = toPersonPayload(
+      person({
+        is_deceased: true,
+        date_of_birth: "1931",
+        date_of_birth_circa: true,
+        date_of_death: "2004",
+        date_of_death_circa: true,
+      }),
+    );
+    expect(rough.date_of_birth_circa).toBe(true);
+    expect(rough.date_of_death_circa).toBe(true);
+    const birthday = toPersonPayload(
+      person({ date_of_birth: "-03-05", date_of_birth_circa: true }),
+    );
+    expect(birthday.date_of_birth_circa).toBe(false);
+    expect(toPersonPayload(person({ date_of_birth: "1931" })).date_of_birth_circa).toBe(
+      false,
+    );
+  });
+});
+
 describe("toPersonPayload dates", () => {
   it("stores a partial date on the first day of its period, with its precision", () => {
     const payload = toPersonPayload(
@@ -168,6 +229,15 @@ describe("personFormValues", () => {
     email: null,
     email_visible: null,
     ...over,
+  });
+
+  it("opens with circa as it was saved (Step 81)", () => {
+    expect(personFormValues(row()).date_of_birth_circa).toBe(false);
+    const values = personFormValues(
+      row({ date_of_birth_circa: true, date_of_death_circa: true }),
+    );
+    expect(values.date_of_birth_circa).toBe(true);
+    expect(values.date_of_death_circa).toBe(true);
   });
 
   it("opens a partial date as just what's known", () => {

@@ -185,7 +185,8 @@ export async function addPeopleWithConnections(
   const result = data as { ids: string[]; self_id: string | null };
 
   // The RPC still takes only the legacy text place columns; set the canonical
-  // `places` FKs (Step 4.5c) on the freshly-created rows. ids align with people.
+  // `places` FKs (Step 4.5c) on the freshly-created rows, and a date that's
+  // a rough estimate (Step 81). ids align with people.
   const placeUpdates = result.ids
     .map((personId, i) => {
       const values = people[i];
@@ -195,6 +196,8 @@ export async function addPeopleWithConnections(
         place_id_birth: p.place_id_birth,
         place_id_death: p.place_id_death,
         sex: p.sex,
+        ...(p.date_of_birth_circa ? { date_of_birth_circa: true } : {}),
+        ...(p.date_of_death_circa ? { date_of_death_circa: true } : {}),
       };
       if (Object.values(update).every((v) => v == null)) return null;
       return supabase.from("people").update(update).eq("id", personId);
@@ -461,12 +464,14 @@ export async function updatePerson(
     date_of_birth_precision: payload.date_of_birth_precision,
     birth_month: payload.birth_month,
     birth_day: payload.birth_day,
+    date_of_birth_circa: payload.date_of_birth_circa,
     place_id_birth: payload.place_id_birth,
     city_of_birth: payload.city_of_birth,
     country_of_birth: payload.country_of_birth,
     is_deceased: payload.is_deceased,
     date_of_death: payload.date_of_death,
     date_of_death_precision: payload.date_of_death_precision,
+    date_of_death_circa: payload.date_of_death_circa,
     place_id_death: payload.place_id_death,
     place_of_death: payload.place_of_death,
     sex: payload.sex,

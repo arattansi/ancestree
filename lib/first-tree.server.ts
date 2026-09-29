@@ -167,7 +167,7 @@ export async function loadFirstTree(
       ? supabase
           .from("people")
           .select(
-            "id, first_name, preferred_name, last_name, maiden_name, date_of_birth, date_of_death, is_deceased, tree_id, trees(name)",
+            "id, first_name, preferred_name, last_name, maiden_name, date_of_birth, date_of_death, date_of_birth_circa, date_of_death_circa, is_deceased, tree_id, trees(name)",
           )
           .eq("id", selfId)
           .maybeSingle()
