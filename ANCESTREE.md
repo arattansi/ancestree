@@ -64,7 +64,7 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   Step 29), `/welcome` (where a claim invite, or claiming an entry on
   onboarding, lands: their entry, with a photo and what's missing asked up
   front; `?returning=1` only greets a member who brought their own —
-  `components/welcome/`, `lib/welcome.ts`, Step 50); `/admin` redirects to the account page's Admin view, and
+  `components/welcome/`, `lib/welcome.ts`, Step 50); `/admin` redirects to the account page's Root console, and
   `/account/admin?tree=<id>&section=<card>` is an alert email's button — a
   route that switches to that tree for a Root of it and opens its console
   at the card (Step 30.1, `lib/open-console.server.ts`). Site-wide: `/`
@@ -92,7 +92,7 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `&relay=<id>` from the email), each listing the entries on the picked tree
   that the newcomer's name matches, to invite them as (Step 41.1), and the
   date it lapses (Step 41.5); its Privacy card has the **Relatives can ask
-  me to invite them** box (on unless they untick it, Step 41.5) — and, with `?view=admin`, the **admin console**
+  me to invite them** box (on unless they untick it, Step 41.5) — and, with `?view=admin`, the **Root console**
   of the current tree, or the first you run: stats, members, people from
   other trees, requests, disputes, requests to start a tree (beta
   reviewers only), invites incl. founder invites and the family link
@@ -478,8 +478,8 @@ the branch (`private.can_edit_relationship`) — one end alone would let them
 redraw a line into someone else's family. When a Branch changes an entry a
 Root created or owns, the edit publishes at once and the Root can undo it
 (**Branch edits and the Root's undo**, below). Nothing else moves: deleting
-what others added, setting `lineage_type` and the admin console stay
-admin-only.
+what others added, setting `lineage_type` and the Root console stay
+Root-only.
 `lib/branch.ts` mirrors the rule for the UI; the database decides.
 
 **Your Root's side (Step 48):** the canvas's "Show only your Root's side"
@@ -726,7 +726,7 @@ mirror it for the UI.
 | Invite someone to claim an entry                   | Any unclaimed, living entry, as a Leaf                                                                          | Unclaimed on their side, as Leaves                                           | Unclaimed ones they added, as Leaves |
 | Change account types                               | Anyone not a Root: Leaf, Branch, or Root (for good)                                                             | —                                                                            | —                                    |
 | Demote or remove a Root                            | Never, themselves included; a Root may delete their own account, handing over to a new Root if they're the last | —                                                                            | —                                    |
-| Admin console, lineage, share links                | ✓                                                                                                               | —                                                                            | —                                    |
+| Root console, lineage, share links                 | ✓                                                                                                               | —                                                                            | —                                    |
 
 ## Auth & invites (Step 3)
 
@@ -843,7 +843,7 @@ mirror it for the UI.
   profile keeps the accept form, which signs in the invite's own address.
 - **The family link (Step 52, `20260925150000_family_link`)**: one open
   invite per tree for a family group chat, which only a Root makes
-  (admin console → Invites → **Family Link**). It's an `invites` row with
+  (Root console → Invites → **Family Link**). It's an `invites` row with
   `max_uses` set, so `/join/<token>` and sign-in take it as they took a
   bare link: signed out, the name-and-email form and its sign-in email;
   signed in, **Join <Tree>**. Whoever opens it joins as a Leaf, invited by
@@ -911,7 +911,7 @@ mirror it for the UI.
   that entry on the tree they've joined, active, with themselves as
   `placed_by`: accepting is their say-so. A pending or declined placement
   left by an earlier request becomes active. Each of the tree's Roots gets a
-  `placed_on_join` notice with **View in admin**, which switches to that tree
+  `placed_on_join` notice with **View in Root console**, which switches to that tree
   and opens "Who This Tree Shows", where they can take it off. The member
   lands on their entry (`self_placed`). Since Step 41.3 a claim invite
   places it too, or folds the invite's entry into it (below). A founder
@@ -1155,7 +1155,7 @@ mirror it for the UI.
   (iMessage, WhatsApp, Slack…) or another bot gets the page but no view
   (33.7, `countsAsView`), and neither does a server action's reply, which
   draws the page again (41.4, `viewerUserAgent`: Next marks it `Next-Action`).
-  The admin console shows the count and the date of
+  The Root console shows the count and the date of
   the last view (33.6). `lib/share-links.ts` holds the pure
   usable/expired/revoked logic, `countsAsView` and `viewerUserAgent`
   (`.test.ts`).
@@ -1169,7 +1169,7 @@ mirror it for the UI.
   (email): the build owner and, since `20260923043000`, Raiya Suleman; add
   a row (by migration) to share the queue further, which also shares the
   account page's **dashboard** tab (Step 56) —
-  answer both from "Requests to Start a Tree" on any admin console they run,
+  answer both from "Requests to Start a Tree" on any Root console they run,
   counted in the header badge — and emailed to every reviewer who runs a tree
   the moment a new one lands (Step 30.1, `lib/emails/tree-requested.ts`;
   the waitlist capped at 10 an hour and 30 a day, members not at all, since
@@ -1387,6 +1387,47 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 75 — Root, not admin: every message, label and email says Root**
+  (ad-hoc; migration `20260928170000_root_not_admin_messages`). Aalim,
+  after Step 70 listed three messages that still said "admin": "update
+  everywhere to show root rather than admin". The account page's view
+  toggle reads **profile / root / settings** (the tab, "root"), and what a
+  Root runs is the **Root console**: the link beside a tree you run in
+  settings, **Root console** on Your Trees (was **Admin**), a notice's
+  **View in Root console** (was **View in admin**), the header count's label
+  ("1 needs attention in the Root console") and the console's two navs for
+  screen readers. Every toast, error and line that sent someone to "an
+  admin" or "the admin page" now names a Root or the Root console: a
+  dispute sent, a duplicate flagged, who may change a flag, an invite whose
+  email didn't send, approving a tree request, onboarding's note about an
+  entry on another tree, naming a new tree, the privacy notice and the
+  alert email's cap note. In the database, the notices each Root gets when
+  someone joins bringing their own entry (by any invite, or a claim invite
+  when they had one already) and the family-link guard's refusal say "from
+  the Root console": `redeem_invite` and `family_link_guard` re-created with
+  only those three strings changed, their live bodies first checked against
+  `20260925150000_family_link` (md5 identical). No notice already sent said
+  "admin", so no stored text changed. Addresses keep `admin`
+  (`/account?view=admin`, `/account/admin`), so links in emails already sent
+  still work, and so do the code's names. `docs/design-system.md` has the
+  rule ("Root, never admin"). **Verified:** the migration rehearsed on live
+  in a rolled-back transaction with throwaway members: both notices and the
+  guard said "the admin page" before and "the Root console" after, and the
+  new bodies' md5s equal the file's. Then applied: the recorded row renamed
+  to the file's version, its statement md5 equal to the file's, `db push
+  --dry-run` up to date, regenerated types byte-identical. In headless
+  Chrome as a throwaway Root on live: the tab reads "root · ancestree", the
+  toggle "profile / root / settings", the header count "1 needs attention
+  in the Root console" and opens the console at Requests for Access;
+  **Root console** on settings and Your Trees opens the console; **View in
+  Root console** opens it at Who This Tree Shows; none of those pages says
+  "admin" anywhere. The privacy notice, signed out, says Root throughout.
+  Once rebased onto Step 77.2, whose header reads its counts and the bell's
+  list on its own, a second throwaway Root saw the same count label and the
+  bell's **View in Root console**. The throwaway users, trees and rows were
+  deleted after. 1112 tests pass (two updated); tsc, lint and `next build`
+  are clean.
 
 - **Step 77.2 — Efficiency audit, phase 4: a light header whose counts
   keep up** (ad-hoc; no migration; the audit's findings S4 and N7; the
