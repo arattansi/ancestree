@@ -16,9 +16,8 @@ import { INVITED_AS, ROOT } from "@/lib/account-types";
 
 type Row = { key: string; firstName: string; lastName: string; email: string };
 
-let nextKey = 0;
-function emptyRow(): Row {
-  return { key: `row-${nextKey++}`, firstName: "", lastName: "", email: "" };
+function emptyRow(n: number): Row {
+  return { key: `row-${n}`, firstName: "", lastName: "", email: "" };
 }
 
 /** Email invites by name and address. Each joins as a Leaf. */
@@ -34,7 +33,14 @@ export function DirectInviteForm({
    */
   founder?: boolean;
 }) {
-  const [rows, setRows] = React.useState<Row[]>([emptyRow()]);
+  // Rows are counted by the form, from its first: a count kept by the module
+  // ran on with every page the server drew, so its ids never matched the
+  // browser's (Step 85). `useId` keeps two forms on a page apart.
+  const formId = React.useId();
+  const nextRow = React.useRef(1);
+  const newRow = () => emptyRow(nextRow.current++);
+  const idOf = (row: Row, field: string) => `${formId}-${row.key}-${field}`;
+  const [rows, setRows] = React.useState<Row[]>(() => [emptyRow(0)]);
   // Why each row kept after a send is still there, by row key.
   const [reasons, setReasons] = React.useState<Record<string, string>>({});
   const action = useAction({ inline: true });
@@ -44,7 +50,8 @@ export function DirectInviteForm({
   }
 
   function addRow() {
-    setRows((prev) => [...prev, emptyRow()]);
+    const row = newRow();
+    setRows((prev) => [...prev, row]);
   }
 
   function removeRow(key: string) {
@@ -105,7 +112,7 @@ export function DirectInviteForm({
           }
           const reasonFor = (r: Row) => why.get(r.email.trim().toLowerCase());
           const remaining = filled.filter((r) => reasonFor(r) !== undefined);
-          setRows(remaining.length > 0 ? remaining : [emptyRow()]);
+          setRows(remaining.length > 0 ? remaining : [newRow()]);
           setReasons(Object.fromEntries(remaining.map((r) => [r.key, reasonFor(r) ?? ""])));
         },
       },
@@ -119,33 +126,33 @@ export function DirectInviteForm({
           <div key={row.key} className="flex flex-col gap-1.5">
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end">
               <div className="flex flex-col gap-1.5">
-                {i === 0 ? <Label htmlFor={`${row.key}-first`}>First name</Label> : null}
+                {i === 0 ? <Label htmlFor={idOf(row, "first")}>First name</Label> : null}
                 <Input
-                  id={`${row.key}-first`}
+                  id={idOf(row, "first")}
                   value={row.firstName}
                   onChange={(e) => updateRow(row.key, "firstName", e.target.value)}
                   autoComplete="off"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                {i === 0 ? <Label htmlFor={`${row.key}-last`}>Last name</Label> : null}
+                {i === 0 ? <Label htmlFor={idOf(row, "last")}>Last name</Label> : null}
                 <Input
-                  id={`${row.key}-last`}
+                  id={idOf(row, "last")}
                   value={row.lastName}
                   onChange={(e) => updateRow(row.key, "lastName", e.target.value)}
                   autoComplete="off"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                {i === 0 ? <Label htmlFor={`${row.key}-email`}>Email</Label> : null}
+                {i === 0 ? <Label htmlFor={idOf(row, "email")}>Email</Label> : null}
                 <Input
-                  id={`${row.key}-email`}
+                  id={idOf(row, "email")}
                   type="email"
                   value={row.email}
                   onChange={(e) => updateRow(row.key, "email", e.target.value)}
                   placeholder="you@example.com"
                   autoComplete="off"
-                  aria-describedby={reasons[row.key] ? `${row.key}-why` : undefined}
+                  aria-describedby={reasons[row.key] ? idOf(row, "why") : undefined}
                 />
               </div>
               <Button
@@ -160,7 +167,7 @@ export function DirectInviteForm({
               </Button>
             </div>
             {reasons[row.key] ? (
-              <p id={`${row.key}-why`} className="text-sm text-destructive">
+              <p id={idOf(row, "why")} className="text-sm text-destructive">
                 {reasons[row.key]}
               </p>
             ) : null}
