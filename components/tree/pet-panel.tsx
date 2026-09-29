@@ -37,7 +37,7 @@ import { toastError, useAction } from "@/components/use-action";
 import { useFocusReturn } from "@/components/use-focus-return";
 import { usePhotoDraft } from "@/components/use-photo-draft";
 import { UNREACHABLE } from "@/lib/action-feedback";
-import { cropStyle, DEFAULT_CROP, parseCrop } from "@/lib/image-crop";
+import { cropStyle, parseCrop } from "@/lib/image-crop";
 import {
   formatPetBirthday,
   petBirthplace,
@@ -77,104 +77,32 @@ function useOptimisticFor<T>(petId: string | undefined, value: T) {
   return [shown, (next: T) => setState({ petId, value: next })] as const;
 }
 
-/** Whether an event came from a toast (the Toaster's own region). */
-function inToast(target: EventTarget | null | undefined): boolean {
-  return target instanceof Element && !!target.closest("[data-sonner-toaster]");
-}
-
 /**
- * A companion's detail sheet.
- *
- * Where a person's panel carries claims, comments, flags, documents and
- * lineage, this carries a name, an animal, a couple of years, a photo, and
- * the people it belongs to. That gap is the feature: a
- * companion is a warm footnote on the tree, not another record to maintain.
+ * Editing a companion's details and photo. Mounted only while it's open, so
+ * a closed sheet, or one just being read, runs no form (Step 87.2, audit
+ * C4); closing it drops whatever was half typed.
  */
-export function PetPanel({
+function PetEditForm({
   pet,
   treeId,
-  people,
-  canEdit,
-  currentUserId,
   isAdmin,
-  readOnly = false,
-  shareToken = null,
-  onClose,
-  onSelectPerson,
+  onDone,
 }: {
-  pet: TreePet | null;
+  pet: TreePet;
   treeId: string;
-  /** Everyone on the canvas, for linking this companion to more of them. */
-  people: CompanionOption[];
-  canEdit: boolean;
-  currentUserId: string;
   isAdmin: boolean;
-  readOnly?: boolean;
-  /** On a share link: how the panel asks whose land a place is (Step 27.9). */
-  shareToken?: string | null;
-  onClose: () => void;
-  onSelectPerson: (personId: string) => void;
+  /** Saved, or cancelled. */
+  onDone: () => void;
 }) {
-  const [editing, setEditing] = React.useState(false);
-  const savedCrop = React.useMemo(
-    () => parseCrop(pet?.photo_crop),
-    [pet?.photo_crop],
-  );
-  const photo = usePhotoDraft(savedCrop);
-  const [prevId, setPrevId] = React.useState(pet?.id);
-
+  const photo = usePhotoDraft(parseCrop(pet.photo_crop));
   const form = useForm<PetFormValues>({
     resolver: zodResolver(petSchema),
     mode: "onChange",
-    defaultValues: pet
-      ? toFormValues(pet)
-      : {
-          name: "",
-          species: "dog",
-          species_label: "",
-          year_born: "",
-          birth_date: "",
-          place_id_birth: null,
-          city_of_birth: "",
-          country_of_birth: "",
-          is_deceased: false,
-          year_died: "",
-        },
+    defaultValues: toFormValues(pet),
   });
-
-  // A different companion selected: drop any half-finished edit.
-  if (pet?.id !== prevId) {
-    setPrevId(pet?.id);
-    setEditing(false);
-    photo.reset(pet ? parseCrop(pet.photo_crop) : DEFAULT_CROP);
-    if (pet) form.reset(toFormValues(pet));
-  }
-
-  const labelById = React.useMemo(
-    () => new Map(people.map((p) => [p.id, p.label])),
-    [people],
-  );
-
-  // A handle each for the edit form, the links and the primary, so one of
-  // them running doesn't hold up the others (Step 70).
   const edit = useAction({ inline: true });
-  const links = useAction();
-  const primary = useAction();
-  // The chips and the Primary badge move at once; a call that fails puts
-  // them back by itself.
-  const [companionIds, setCompanionIds] = useOptimisticFor(
-    pet?.id,
-    pet?.companions ?? NO_COMPANIONS,
-  );
-  const [primaryId, setPrimaryId] = useOptimisticFor(
-    pet?.id,
-    pet?.primary_person_id ?? null,
-  );
-  const returnFocus = useFocusReturn();
-  const editButtonRef = React.useRef<HTMLButtonElement>(null);
 
   function onSave(values: PetFormValues) {
-    if (!pet) return;
     const petId = pet.id;
     const { file, crop } = photo;
     // Reposition on the photo it has, with no new one: saved on its own
@@ -204,14 +132,129 @@ export function PetPanel({
         return result;
       },
       {
-        onSuccess: () => {
-          returnFocus(() => editButtonRef.current);
-          setEditing(false);
-          photo.clearFile();
-        },
+        onSuccess: onDone,
       },
     );
   }
+
+  return (
+    <Form {...form}>
+      <form
+        onSubmit={(event) => void form.handleSubmit(onSave)(event)}
+        className="flex flex-col gap-5"
+      >
+        <CompanionFields
+          control={form.control}
+          idPrefix={`pet-${pet.id}`}
+          isAdmin={isAdmin}
+        />
+        <PhotoPicker
+          id={`pet-photo-${pet.id}`}
+          {...photo.picker}
+          currentUrl={pet.photo_url}
+          label="Photo"
+          disabled={edit.pending}
+        />
+        <FormError>{edit.error}</FormError>
+        <div className="flex gap-2">
+          <PendingButton
+            type="submit"
+            size="sm"
+            pending={edit.pending}
+            pendingLabel="Saving…"
+            disabled={photo.busy}
+          >
+            Save
+          </PendingButton>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            disabled={edit.pending}
+            onClick={onDone}
+          >
+            Cancel
+          </Button>
+        </div>
+      </form>
+    </Form>
+  );
+}
+
+/** Whether an event came from a toast (the Toaster's own region). */
+function inToast(target: EventTarget | null | undefined): boolean {
+  return target instanceof Element && !!target.closest("[data-sonner-toaster]");
+}
+
+/**
+ * A companion's detail sheet.
+ *
+ * Where a person's panel carries claims, comments, flags, documents and
+ * lineage, this carries a name, an animal, a couple of years, a photo, and
+ * the people it belongs to. That gap is the feature: a
+ * companion is a warm footnote on the tree, not another record to maintain.
+ */
+function PetPanelImpl({
+  pet,
+  treeId,
+  people,
+  canEdit,
+  currentUserId,
+  isAdmin,
+  readOnly = false,
+  shareToken = null,
+  onClose,
+  onSelectPerson,
+}: {
+  pet: TreePet | null;
+  treeId: string;
+  /** Everyone on the canvas, for linking this companion to more of them. */
+  people: CompanionOption[];
+  canEdit: boolean;
+  currentUserId: string;
+  isAdmin: boolean;
+  readOnly?: boolean;
+  /** On a share link: how the panel asks whose land a place is (Step 27.9). */
+  shareToken?: string | null;
+  onClose: () => void;
+  onSelectPerson: (personId: string) => void;
+}) {
+  const [editing, setEditing] = React.useState(false);
+  const [prevId, setPrevId] = React.useState(pet?.id);
+
+  // A different companion selected: drop any half-finished edit.
+  if (pet?.id !== prevId) {
+    setPrevId(pet?.id);
+    setEditing(false);
+  }
+
+  const labelById = React.useMemo(
+    () => new Map(people.map((p) => [p.id, p.label])),
+    [people],
+  );
+
+  // A handle each for the edit form, the links and the primary, so one of
+  // them running doesn't hold up the others (Step 70).
+  const links = useAction();
+  const primary = useAction();
+  // The chips and the Primary badge move at once; a call that fails puts
+  // them back by itself.
+  const [companionIds, setCompanionIds] = useOptimisticFor(
+    pet?.id,
+    pet?.companions ?? NO_COMPANIONS,
+  );
+  const [primaryId, setPrimaryId] = useOptimisticFor(
+    pet?.id,
+    pet?.primary_person_id ?? null,
+  );
+  const returnFocus = useFocusReturn();
+  const editButtonRef = React.useRef<HTMLButtonElement>(null);
+
+  // Out of the form, back to the button that opened it.
+  const doneEditing = () => {
+    returnFocus(() => editButtonRef.current);
+    setEditing(false);
+  };
 
   function onCompanionsChange(ids: string[]) {
     if (!pet) return;
@@ -330,52 +373,13 @@ export function PetPanel({
 
             <div className="flex flex-col gap-6 px-4 pb-6">
               {editing ? (
-                <Form {...form}>
-                  <form
-                    onSubmit={(event) => void form.handleSubmit(onSave)(event)}
-                    className="flex flex-col gap-5"
-                  >
-                    <CompanionFields
-                      control={form.control}
-                      idPrefix={`pet-${pet.id}`}
-                      isAdmin={isAdmin}
-                    />
-                    <PhotoPicker
-                      id={`pet-photo-${pet.id}`}
-                      {...photo.picker}
-                      currentUrl={pet.photo_url}
-                      label="Photo"
-                      disabled={edit.pending}
-                    />
-                    <FormError>{edit.error}</FormError>
-                    <div className="flex gap-2">
-                      <PendingButton
-                        type="submit"
-                        size="sm"
-                        pending={edit.pending}
-                        pendingLabel="Saving…"
-                        disabled={photo.busy}
-                      >
-                        Save
-                      </PendingButton>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        disabled={edit.pending}
-                        onClick={() => {
-                          form.reset(toFormValues(pet));
-                          // Its framing too, now that a reframe saves.
-                          photo.reset();
-                          returnFocus(() => editButtonRef.current);
-                          setEditing(false);
-                        }}
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  </form>
-                </Form>
+                <PetEditForm
+                  key={pet.id}
+                  pet={pet}
+                  treeId={treeId}
+                  isAdmin={isAdmin}
+                  onDone={doneEditing}
+                />
               ) : (
                 <>
                   {formatPetBirthday(pet.birth_date) || petBirthplace(pet) ? (
@@ -474,7 +478,6 @@ export function PetPanel({
                       size="sm"
                       variant="outline"
                       onClick={() => {
-                        edit.setError(null);
                         returnFocus(() =>
                           document.getElementById(`pet-${pet.id}-name`),
                         );
@@ -516,3 +519,7 @@ export function PetPanel({
     </Sheet>
   );
 }
+
+/** Drawn again only when what it's handed changes, never for the canvas
+ *  moving around it (Step 87.2). */
+export const PetPanel = React.memo(PetPanelImpl);

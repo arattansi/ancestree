@@ -44,6 +44,9 @@ import type { TreeGraphPerson } from "@/lib/tree";
 
 const ANY = "__any";
 
+/** As many results as the connection pickers offer (`PersonPicker`). */
+const MAX_RESULTS = 6;
+
 /** The two ends of a connection, either of which may still be unpicked. */
 export type ConnectionEnds = { from: string | null; to: string | null };
 
@@ -152,6 +155,67 @@ function ClearButton({ onClick }: { onClick: () => void }) {
   );
 }
 
+/**
+ * The first few people a search finds, each a way to open them. Only a
+ * finished search draws it again, not each key while one is being typed
+ * (Step 87.2, audit C4).
+ */
+const SearchResults = React.memo(function SearchResults({
+  results,
+  onPick,
+}: {
+  results: TreeGraphPerson[];
+  onPick: (personId: string) => void;
+}) {
+  const rest = results.length - MAX_RESULTS;
+  return (
+    <>
+      <ul className="mt-1.5 flex flex-col gap-0.5">
+        {results.slice(0, MAX_RESULTS).map((p) => {
+          const lifespan = personLifespan(p);
+          // Under the name, as on the card: a search for a maiden
+          // name finds someone under their married one.
+          const maiden = maidenLine(p);
+          const place =
+            [p.city_of_birth, p.country_of_birth].filter(Boolean).join(", ") ||
+            null;
+          const details =
+            [lifespan, place].filter(Boolean).join(" · ") ||
+            (maiden ? null : "No other details");
+          return (
+            <li key={p.id}>
+              <button
+                type="button"
+                onClick={() => onPick(p.id)}
+                className="w-full rounded-md px-2 py-1.5 text-left hover:bg-accent"
+              >
+                <span className="block truncate text-sm leading-5 font-medium">
+                  {personDisplayName(p)}
+                </span>
+                {maiden ? (
+                  <span className="block truncate text-xs leading-4 text-muted-foreground">
+                    {maiden}
+                  </span>
+                ) : null}
+                {details ? (
+                  <span className="block truncate text-xs leading-4 text-muted-foreground">
+                    {details}
+                  </span>
+                ) : null}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      {rest > 0 ? (
+        <p className="mt-1 px-2 text-xs text-muted-foreground">
+          and {rest} more
+        </p>
+      ) : null}
+    </>
+  );
+});
+
 /** A labelled on/off switch, one row of the Filters section. */
 function SwitchRow({
   icon,
@@ -237,16 +301,27 @@ export function TreeSearch({
   const decades = React.useMemo(() => decadeOptions(people), [people]);
 
   const active = isFilterActive(filter);
+  // The box shows each key at once; what it finds follows when there's time,
+  // as the canvas's dimming does (Step 87.2).
+  const shownFilter = React.useDeferredValue(filter);
+  const shownActive = isFilterActive(shownFilter);
   const results = React.useMemo(
     () =>
-      active
+      shownActive
         ? people
-            .filter((p) => matchesFilter(p, filter))
+            .filter((p) => matchesFilter(p, shownFilter))
             .sort((a, b) =>
               personDisplayName(a).localeCompare(personDisplayName(b)),
             )
         : [],
-    [people, filter, active],
+    [people, shownFilter, shownActive],
+  );
+  const pickResult = React.useCallback(
+    (personId: string) => {
+      onPick(personId);
+      setOpen(false);
+    },
+    [onPick, setOpen],
   );
 
   const set = (patch: Partial<TreeFilter>) =>
@@ -419,7 +494,7 @@ export function TreeSearch({
           ))}
         </div>
 
-        {active ? (
+        {shownActive ? (
           <div>
             <div className="flex items-center justify-between gap-3">
               <p className="text-xs text-muted-foreground">
@@ -432,51 +507,7 @@ export function TreeSearch({
                 }}
               />
             </div>
-            <ul className="mt-1.5 flex max-h-48 flex-col gap-0.5 overflow-y-auto">
-              {results.map((p) => {
-                const lifespan = personLifespan(p);
-                // Under the name, as on the card: a search for a maiden
-                // name finds someone under their married one.
-                const maiden = maidenLine(p);
-                const place =
-                  [p.city_of_birth, p.country_of_birth]
-                    .filter(Boolean)
-                    .join(", ") || null;
-                const details =
-                  [lifespan, place].filter(Boolean).join(" · ") ||
-                  (maiden ? null : "No other details");
-                return (
-                  <li key={p.id}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onPick(p.id);
-                        setOpen(false);
-                      }}
-                      className="w-full rounded-md px-2 py-1.5 text-left hover:bg-accent"
-                    >
-                      <FitText
-                        max={14}
-                        min={11}
-                        className="leading-5 font-medium"
-                      >
-                        {personDisplayName(p)}
-                      </FitText>
-                      {maiden ? (
-                        <FitText className="leading-4 text-muted-foreground">
-                          {maiden}
-                        </FitText>
-                      ) : null}
-                      {details ? (
-                        <FitText className="leading-4 text-muted-foreground">
-                          {details}
-                        </FitText>
-                      ) : null}
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
+            <SearchResults results={results} onPick={pickResult} />
           </div>
         ) : null}
       </Section>

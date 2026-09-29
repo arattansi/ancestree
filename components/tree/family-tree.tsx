@@ -137,6 +137,7 @@ const NO_PETS: TreePet[] = [];
 const NO_INVITES: EntryInvite[] = [];
 const NO_SUGGESTIONS: EntrySuggestion[] = [];
 const NO_DECLINED: DeclinedSuggestion[] = [];
+const NO_PANEL_SUGGESTIONS: PanelSuggestion[] = [];
 const NOBODY: ReadonlySet<string> = new Set();
 /**
  * What the camera is framing once it's put back where this tab left it
@@ -571,13 +572,20 @@ function Canvas({
     setEdges((held) => shareEqual(held, graph.edges));
   }, [graph, seeded, setNodes, setEdges]);
 
-  const filterActive = isFilterActive(filter);
+  // What the canvas dims and Upcoming leaves out follows the search a beat
+  // behind the box being typed in (Step 87.2, audit C4): each key shows at
+  // once, and the cards catch up when there's time, skipping the keys typed
+  // meanwhile.
+  const shownFilter = React.useDeferredValue(filter);
+  const filterActive = isFilterActive(shownFilter);
   const matchingIds = React.useMemo(() => {
     if (!filterActive) return null;
     return new Set(
-      shownPeople.filter((p) => matchesFilter(p, filter)).map((p) => p.id),
+      shownPeople
+        .filter((p) => matchesFilter(p, shownFilter))
+        .map((p) => p.id),
     );
-  }, [shownPeople, filter, filterActive]);
+  }, [shownPeople, shownFilter, filterActive]);
 
   // Birthdays and anniversaries coming up (Step 57.1), among the people the
   // canvas draws and, while a search is on, the ones it leaves lit: a couple
@@ -938,7 +946,7 @@ function Canvas({
           ? false
           : isPet
             ? pet
-              ? !petMatchesFilter(pet, filter, matchingIds)
+              ? !petMatchesFilter(pet, shownFilter, matchingIds)
               : false
             : !matchingIds.has(n.id);
       // A clicked line shows only the family it runs through; companions go
@@ -970,7 +978,7 @@ function Canvas({
   }, [
     graph.nodes,
     pets,
-    filter,
+    shownFilter,
     matchingIds,
     connection,
     spotlight,
@@ -1652,27 +1660,36 @@ function Canvas({
   // Offered in a searched-for person's details: light the line from them to
   // somebody else. Refused here, with the reason, when nothing joins the two —
   // the details sheet has nowhere to show an empty connection.
-  const connectFromSelected = (toId: string) => {
-    if (!selectedId) return;
-    if (!connectionPath(selectedId, toId, shownRelationships)) {
-      toast.info(
-        `Nothing on the tree joins ${nameById.get(selectedId) ?? "them"} and ${nameById.get(toId) ?? "them"} yet.`,
-      );
-      return;
-    }
-    onConnectionChange({ from: selectedId, to: toId });
-  };
-  // The selected person, by the name the Add button and the connection prompt
-  // call them.
-  const selectedTarget = selectedPerson
-    ? {
-        id: selectedPerson.id,
-        name:
-          selectedPerson.preferred_name ||
-          selectedPerson.first_name ||
-          personDisplayName(selectedPerson),
+  const connectFromSelected = React.useCallback(
+    (toId: string) => {
+      if (!selectedId) return;
+      if (!connectionPath(selectedId, toId, shownRelationships)) {
+        toast.info(
+          `Nothing on the tree joins ${nameById.get(selectedId) ?? "them"} and ${nameById.get(toId) ?? "them"} yet.`,
+        );
+        return;
       }
-    : null;
+      onConnectionChange({ from: selectedId, to: toId });
+    },
+    [selectedId, shownRelationships, nameById, onConnectionChange],
+  );
+  // The selected person, by the name the Add button and the connection prompt
+  // call them. Kept while they stay the same, like everything else the
+  // details sheet is handed, so the sheet doesn't draw again for what only
+  // changes the canvas: a drag, a search, a lit line (Step 87.2).
+  const selectedTarget = React.useMemo(
+    () =>
+      selectedPerson
+        ? {
+            id: selectedPerson.id,
+            name:
+              selectedPerson.preferred_name ||
+              selectedPerson.first_name ||
+              personDisplayName(selectedPerson),
+          }
+        : null,
+    [selectedPerson],
+  );
   // Whose relative the Add button adds (Step 19.2): whoever is selected, as
   // long as the viewer may add from them — a Leaf, only on their own line.
   const addTarget =
@@ -1771,6 +1788,61 @@ function Canvas({
         ? declinedSuggestions.filter((s) => s.personId === selectedId)
         : NO_DECLINED,
     [declinedSuggestions, selectedId, readOnly],
+  );
+  const selectedPets = React.useMemo(
+    () =>
+      selectedId
+        ? allPets.filter((pet) => pet.companions.includes(selectedId))
+        : NO_PETS,
+    [allPets, selectedId],
+  );
+  const selectedPanelSuggestions = React.useMemo(
+    () =>
+      selectedId
+        ? panelSuggestions.filter(
+            (s) =>
+              s.subjectPersonId === selectedId ||
+              s.relatedPersonId === selectedId,
+          )
+        : NO_PANEL_SUGGESTIONS,
+    [panelSuggestions, selectedId],
+  );
+  const onSelectPet = React.useCallback((petId: string) => {
+    setSelectedId(null);
+    setSelectedPetId(petId);
+  }, []);
+  const onMinimize = React.useCallback(() => setMinimized(true), []);
+  const onClosePerson = React.useCallback(() => setSelectedId(null), []);
+  const onClosePet = React.useCallback(() => setSelectedPetId(null), []);
+  const onSearchOpenChange = React.useCallback(
+    (open: boolean) => setOpenCard(open ? "search" : null),
+    [],
+  );
+  const selectedName = selectedTarget?.name;
+  const connectionPrompt = React.useMemo(
+    () =>
+      selectedPerson && selectedPerson.id === searchedId ? (
+        <section className="flex flex-col gap-2 rounded-lg border border-dashed border-border bg-muted/40 p-3">
+          <h2 className="flex items-center gap-1.5 text-sm font-semibold">
+            <Route className="size-3.5 text-muted-foreground" />
+            How is {selectedName} connected to…
+          </h2>
+          <PersonPicker
+            people={shownPeople}
+            value={null}
+            onChange={(id) => {
+              if (id) connectFromSelected(id);
+            }}
+            excludeId={selectedPerson.id}
+            placeholder="Search a second person…"
+            label={`Second person, to show their connection to ${selectedName}`}
+          />
+          <p className="text-xs text-muted-foreground">
+            Pick someone and the line between the two lights up on the tree.
+          </p>
+        </section>
+      ) : null,
+    [selectedPerson, searchedId, selectedName, shownPeople, connectFromSelected],
   );
 
   return (
@@ -1889,7 +1961,7 @@ function Canvas({
               same width as Add's. */}
           <TreeSearch
             open={openCard === "search"}
-            onOpenChange={(open) => setOpenCard(open ? "search" : null)}
+            onOpenChange={onSearchOpenChange}
             people={shownPeople}
             filter={filter}
             onFilterChange={setFilter}
@@ -2081,19 +2153,10 @@ function Canvas({
         // A hidden person's card is a blur to a visitor: nothing to open.
         person={selectedPerson?.blurred ? null : selectedPerson}
         treeId={treeId}
-        pets={allPets.filter((pet) =>
-          selectedId ? pet.companions.includes(selectedId) : false,
-        )}
+        pets={selectedPets}
         people={peopleOptions}
-        onSelectPet={(petId) => {
-          setSelectedId(null);
-          setSelectedPetId(petId);
-        }}
-        suggestions={panelSuggestions.filter(
-          (s) =>
-            s.subjectPersonId === selectedId ||
-            s.relatedPersonId === selectedId,
-        )}
+        onSelectPet={onSelectPet}
+        suggestions={selectedPanelSuggestions}
         relations={relations}
         isAdmin={isAdmin}
         isSelf={selectedPerson?.id === selfPersonId}
@@ -2114,34 +2177,11 @@ function Canvas({
         isCreator={selectedPerson?.created_by === currentUserId}
         currentUserId={currentUserId}
         addRelativeOf={addTarget}
-        connectionPrompt={
-          selectedPerson && selectedPerson.id === searchedId ? (
-            <section className="flex flex-col gap-2 rounded-lg border border-dashed border-border bg-muted/40 p-3">
-              <h2 className="flex items-center gap-1.5 text-sm font-semibold">
-                <Route className="size-3.5 text-muted-foreground" />
-                How is {selectedTarget?.name} connected to…
-              </h2>
-              <PersonPicker
-                people={shownPeople}
-                value={null}
-                onChange={(id) => {
-                  if (id) connectFromSelected(id);
-                }}
-                excludeId={selectedPerson.id}
-                placeholder="Search a second person…"
-                label={`Second person, to show their connection to ${selectedTarget?.name}`}
-              />
-              <p className="text-xs text-muted-foreground">
-                Pick someone and the line between the two lights up on the
-                tree.
-              </p>
-            </section>
-          ) : null
-        }
+        connectionPrompt={connectionPrompt}
         minimized={minimized}
-        onMinimize={() => setMinimized(true)}
+        onMinimize={onMinimize}
         minimizedFocus={foldedRef}
-        onClose={() => setSelectedId(null)}
+        onClose={onClosePerson}
       />
 
       <PetPanel
@@ -2153,7 +2193,7 @@ function Canvas({
         isAdmin={isAdmin}
         readOnly={readOnly}
         shareToken={shareToken}
-        onClose={() => setSelectedPetId(null)}
+        onClose={onClosePet}
         onSelectPerson={selectPerson}
       />
     </>

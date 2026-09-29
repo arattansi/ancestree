@@ -148,7 +148,7 @@ function ClaimInviteRecords({ invites }: { invites: EntryInvite[] }) {
   );
 }
 
-export function PersonPanel({
+function PersonPanelImpl({
   person,
   treeId,
   pets,
@@ -1029,3 +1029,9 @@ export function PersonPanel({
     </Sheet>
   );
 }
+
+/**
+ * Handed only what it needs, each kept while it stays the same, so the sheet
+ * doesn't draw again for what only changes the canvas (Step 87.2, audit C4).
+ */
+export const PersonPanel = React.memo(PersonPanelImpl);
