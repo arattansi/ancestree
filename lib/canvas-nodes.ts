@@ -62,3 +62,17 @@ export function keepEntries<V extends Record<string, unknown>>(
   }
   return same ? prev : out;
 }
+
+/**
+ * `prev` while it holds the same ids as `next` (Step 87.2): a card dropped
+ * hands the canvas a new row, but who is drawn is the same, so what is
+ * keyed on it (and the sheets handed it) stays put.
+ */
+export function keepSet<T>(
+  prev: ReadonlySet<T>,
+  next: ReadonlySet<T>,
+): ReadonlySet<T> {
+  if (prev.size !== next.size) return next;
+  for (const id of next) if (!prev.has(id)) return next;
+  return prev;
+}

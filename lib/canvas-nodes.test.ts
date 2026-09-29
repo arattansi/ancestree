@@ -1,7 +1,7 @@
 import type { Node } from "@xyflow/react";
 import { describe, expect, it } from "vitest";
 
-import { keepEntries, keepNodes } from "@/lib/canvas-nodes";
+import { keepEntries, keepNodes, keepSet } from "@/lib/canvas-nodes";
 
 const amina = { id: "1", first_name: "Amina" };
 const salim = { id: "2", first_name: "Salim" };
@@ -78,5 +78,19 @@ describe("re-seeding the canvas without a blink (Step 87.1)", () => {
     const out = keepEntries(prev, dimmed);
     expect(out.get("1")).toBe(prev.get("1"));
     expect(out.get("2")).toBe(dimmed.get("2"));
+  });
+});
+
+describe("keepSet (Step 87.2)", () => {
+  it("keeps the old set while it holds the same ids", () => {
+    const prev = new Set(["a", "b"]);
+    expect(keepSet(prev, new Set(["b", "a"]))).toBe(prev);
+  });
+  it("takes the new set when an id comes or goes", () => {
+    const prev = new Set(["a", "b"]);
+    const added = new Set(["a", "b", "c"]);
+    const swapped = new Set(["a", "c"]);
+    expect(keepSet(prev, added)).toBe(added);
+    expect(keepSet(prev, swapped)).toBe(swapped);
   });
 });

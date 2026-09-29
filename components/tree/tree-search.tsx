@@ -170,7 +170,7 @@ const SearchResults = React.memo(function SearchResults({
   const rest = results.length - MAX_RESULTS;
   return (
     <>
-      <ul className="mt-1.5 flex flex-col gap-0.5">
+      <ul className="mt-1.5 flex max-h-48 flex-col gap-0.5 overflow-y-auto">
         {results.slice(0, MAX_RESULTS).map((p) => {
           const lifespan = personLifespan(p);
           // Under the name, as on the card: a search for a maiden

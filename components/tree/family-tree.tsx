@@ -117,7 +117,7 @@ import { descentGeometry, type CardRect } from "@/lib/edge-geometry";
 import { NODE_H, NODE_W, type XY } from "@/lib/tree-dimensions";
 import { bloodline, layoutTree } from "@/lib/tree-layout";
 import type { TreePet } from "@/lib/pets";
-import { keepEntries, keepNodes } from "@/lib/canvas-nodes";
+import { keepEntries, keepNodes, keepSet } from "@/lib/canvas-nodes";
 import { keptPhotoUrl } from "@/lib/signed-url";
 import { shareEqual } from "@/lib/structural-share";
 import { useKept } from "@/components/tree/use-kept";
@@ -138,6 +138,7 @@ const NO_INVITES: EntryInvite[] = [];
 const NO_SUGGESTIONS: EntrySuggestion[] = [];
 const NO_DECLINED: DeclinedSuggestion[] = [];
 const NO_PANEL_SUGGESTIONS: PanelSuggestion[] = [];
+const NO_RELATIONS: PersonRelation[] = [];
 const NOBODY: ReadonlySet<string> = new Set();
 /**
  * What the camera is framing once it's put back where this tab left it
@@ -339,9 +340,12 @@ function Canvas({
     () => withPets(peopleGraph, pets),
     [peopleGraph, pets],
   );
-  const shownIds = React.useMemo(
-    () => new Set(shownPeople.map((p) => p.id)),
-    [shownPeople],
+  const shownIds = useKept(
+    React.useMemo<ReadonlySet<string>>(
+      () => new Set(shownPeople.map((p) => p.id)),
+      [shownPeople],
+    ),
+    keepSet,
   );
   const nameById = React.useMemo(
     () => new Map(people.map((p) => [p.id, personDisplayName(p)])),
@@ -1698,9 +1702,14 @@ function Canvas({
       : null;
   const selectedPet = allPets.find((pet) => pet.id === selectedPetId) ?? null;
 
-  const peopleOptions = React.useMemo(
-    () => people.map((p) => ({ id: p.id, label: personDisplayName(p) })),
-    [people],
+  // Kept while every name stays the same: a card dropped changes its row,
+  // not what the sheets offer (Step 87.2).
+  const peopleOptions = useKept(
+    React.useMemo(
+      () => people.map((p) => ({ id: p.id, label: personDisplayName(p) })),
+      [people],
+    ),
+    shareEqual,
   );
 
   // A companion is editable by whoever added it, an admin, or anyone who can
@@ -1709,7 +1718,7 @@ function Canvas({
     !!selectedPet && canEditCompanion(selectedPet, viewer, canEditPersonId);
 
   const relations = React.useMemo<PersonRelation[]>(() => {
-    if (!selectedId) return [];
+    if (!selectedId) return NO_RELATIONS;
     const nameById = new Map(people.map((p) => [p.id, personDisplayName(p)]));
     // A line to a basic card is another tree's, unless it was drawn here
     // or by the viewer (Step 80).
