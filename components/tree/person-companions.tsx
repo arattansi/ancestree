@@ -2,6 +2,7 @@
 
 import * as React from "react";
 
+import { SheetFold } from "@/components/tree/sheet-fold";
 import { Button } from "@/components/ui/button";
 import {
   petYears,
@@ -16,24 +17,33 @@ import type { TreePet } from "@/lib/pets";
  *
  * Kept apart from `FamilySection` on purpose: companions are listed *after*
  * the family, in their own section, with their own wording — never as another
- * kind of relative in the same list.
+ * kind of relative in the same list. Folded away at first, like the family
+ * (Step 88.1).
  */
 export function CompanionsSection({
   pets,
   canAdd,
   onSelectPet,
   onAdd,
+  open,
+  onOpenChange,
 }: {
   pets: TreePet[];
   canAdd: boolean;
   onSelectPet: (petId: string) => void;
   onAdd: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }) {
   if (pets.length === 0 && !canAdd) return null;
 
   return (
-    <section className="flex flex-col gap-3 border-t border-border pt-5">
-      <h2 className="text-sm font-semibold">Companions</h2>
+    <SheetFold
+      title="Companions"
+      count={pets.length}
+      open={open}
+      onOpenChange={onOpenChange}
+    >
       {pets.length > 0 ? (
         <ul className="flex flex-col gap-1.5">
           {pets.map((pet) => (
@@ -71,6 +81,6 @@ export function CompanionsSection({
           Add a companion
         </Button>
       ) : null}
-    </section>
+    </SheetFold>
   );
 }

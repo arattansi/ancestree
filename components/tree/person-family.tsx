@@ -6,6 +6,7 @@ import { updateRelationshipMarriage } from "@/app/actions/connections";
 import { FormError } from "@/components/form-error";
 import { PendingButton } from "@/components/pending-button";
 import { SpouseDatesFields } from "@/components/spouse-dates-fields";
+import { SheetFold } from "@/components/tree/sheet-fold";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAction } from "@/components/use-action";
@@ -165,12 +166,17 @@ function SpouseRow({
   );
 }
 
+/** Folded away at first (Step 88.1): the canvas already shows the family. */
 export function FamilySection({
   relations,
   onChanged,
+  open,
+  onOpenChange,
 }: {
   relations: PersonRelation[];
   onChanged: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }) {
   if (relations.length === 0) return null;
   const spouses = relations.filter((r) => r.kind === "spouse");
@@ -178,8 +184,12 @@ export function FamilySection({
   const children = relations.filter((r) => r.kind === "child");
 
   return (
-    <section className="flex flex-col gap-3 border-t border-border pt-5">
-      <h2 className="text-sm font-semibold">Family</h2>
+    <SheetFold
+      title="Family"
+      count={relations.length}
+      open={open}
+      onOpenChange={onOpenChange}
+    >
       {spouses.map((s) => (
         <SpouseRow key={s.id} relation={s} onChanged={onChanged} />
       ))}
@@ -201,6 +211,6 @@ export function FamilySection({
           </dd>
         </div>
       ) : null}
-    </section>
+    </SheetFold>
   );
 }

@@ -82,6 +82,30 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 /**
+ * A link drawn like the badges it sits beside, the account type tag's size
+ * (Step 88.1), with a whole 44px to press on a touch screen.
+ */
+function TagLink({
+  href,
+  title,
+  children,
+}: {
+  href: string;
+  title?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Badge
+      variant="outline"
+      render={<Link href={href} title={title} />}
+      className="relative tap-target overflow-visible"
+    >
+      {children}
+    </Badge>
+  );
+}
+
+/**
  * A place of birth or death, with whose land it is beneath it (Step 27). It
  * takes the panel's full width, so the lands have room to read and don't
  * reflow the grid when Native Land Digital's names arrive.
@@ -250,6 +274,11 @@ export function PersonPanel({
   const [addingCompanion, setAddingCompanion] = React.useState(false);
   const [cropOpen, setCropOpen] = React.useState(false);
   const [claimEmail, setClaimEmail] = React.useState("");
+  // Family and Companions start folded (Step 88.1). Opened, they stay open
+  // as the reader moves from one relative to the next, until the details
+  // close.
+  const [familyOpen, setFamilyOpen] = React.useState(false);
+  const [companionsOpen, setCompanionsOpen] = React.useState(false);
   const savedCrop = parseCrop(person?.photo_crop);
   const [crop, setCrop] = React.useState<CropTransform>(savedCrop);
   const [prevId, setPrevId] = React.useState(person?.id);
@@ -367,6 +396,10 @@ export function PersonPanel({
     setCropOpen(false);
     setCrop(savedCrop);
     setClaimEmail("");
+    if (!person) {
+      setFamilyOpen(false);
+      setCompanionsOpen(false);
+    }
     // What went wrong for the last one goes with them.
     cropSave.setError(null);
     invite.setError(null);
@@ -547,7 +580,11 @@ export function PersonPanel({
                   </div>
                 </div>
               )}
-              <div className="flex flex-wrap gap-1.5 empty:hidden">
+              {/* The edit button sits at the end of the badges, the account
+                  type tag's size (Step 88.1; in the header since Step 62, so
+                  it's found without scrolling). Anyone who can't edit the
+                  entry can suggest a change (Step 67). */}
+              <div className="flex flex-wrap items-center gap-1.5 empty:hidden">
                 {person.is_deceased ? (
                   <Badge variant="secondary">Deceased</Badge>
                 ) : null}
@@ -570,36 +607,29 @@ export function PersonPanel({
                     Lineage: {person.lineage_type}
                   </Badge>
                 ) : null}
+                {!locked ? (
+                  <span className="ml-auto flex gap-1.5">
+                    {canEdit || fillable ? (
+                      <TagLink
+                        href={editPersonHref(person.id)}
+                        title={canEdit ? undefined : "Fill in what’s missing"}
+                      >
+                        <Pencil aria-hidden />
+                        {canEdit ? "Edit" : "Fill in"}
+                      </TagLink>
+                    ) : null}
+                    {!canEdit ? (
+                      <TagLink
+                        href={suggestChangeHref(person.id)}
+                        title="Suggest a change"
+                      >
+                        <Lightbulb aria-hidden />
+                        Suggest
+                      </TagLink>
+                    ) : null}
+                  </span>
+                ) : null}
               </div>
-              {/* Up here rather than under Manage at the foot of the sheet,
-                  so it's found without scrolling (Step 62). Anyone who can't
-                  edit it can suggest a change (Step 67). */}
-              {!locked ? (
-                <div className="flex flex-wrap gap-2">
-                  {canEdit || fillable ? (
-                    <Button
-                      nativeButton={false}
-                      render={<Link href={editPersonHref(person.id)} />}
-                      variant="outline"
-                      size="sm"
-                    >
-                      <Pencil aria-hidden />
-                      {canEdit ? "Edit entry" : "Fill in what’s missing"}
-                    </Button>
-                  ) : null}
-                  {!canEdit ? (
-                    <Button
-                      nativeButton={false}
-                      render={<Link href={suggestChangeHref(person.id)} />}
-                      variant="outline"
-                      size="sm"
-                    >
-                      <Lightbulb aria-hidden />
-                      Suggest a change
-                    </Button>
-                  ) : null}
-                </div>
-              ) : null}
               {addRelativeOf && !readOnly ? (
                 <AddRelativeButton
                   relatedTo={addRelativeOf}
@@ -714,15 +744,11 @@ export function PersonPanel({
               </dl>
               )}
 
-              {!basic && (canEdit || fillable) && !person.maiden_name ? (
-                <div className="rounded-md border border-dashed border-border bg-muted/40 px-3 py-2.5 text-xs text-muted-foreground">
-                  No maiden name yet.
-                </div>
-              ) : null}
-
               <FamilySection
                 relations={relations}
                 onChanged={() => undefined}
+                open={familyOpen}
+                onOpenChange={setFamilyOpen}
               />
 
               <CompanionsSection
@@ -730,6 +756,8 @@ export function PersonPanel({
                 canAdd={!locked && canEdit}
                 onSelectPet={onSelectPet}
                 onAdd={() => setAddingCompanion(true)}
+                open={companionsOpen}
+                onOpenChange={setCompanionsOpen}
               />
 
               <PendingConnectionPrompts

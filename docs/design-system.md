@@ -110,11 +110,18 @@ turn autocomplete off, or every relative is offered the member's own name
   whole canvas. Pressing the card brings the sheet back as it was; its ✕
   closes the details. It stays minimized while the reader opens other
   people, until nobody is open.
-- A person's details sheet keeps its edit button in its header, under the
-  name and badges (Step 62): **Edit entry**, or **Fill in what's missing**
-  for a Leaf who may only fill blanks, so it's found without scrolling.
-  **Manage**, at the foot, keeps the rest (reposition the photo, claim,
-  delete) and isn't shown when it holds nothing for the viewer.
+- A person's details sheet keeps its edit button in its header (Step 62),
+  so it's found without scrolling: at the right end of the badges' row,
+  drawn like the account type tag and its size (Step 88.1). **Edit**, or
+  **Fill in** for a Leaf who may only fill blanks, and **Suggest** for
+  anyone who can't edit the entry. **Manage**, at the foot, keeps the rest
+  (reposition the photo, claim, delete) and isn't shown when it holds
+  nothing for the viewer.
+- Sections of the sheet that matter less fold away, closed at first, their
+  heading the button with a count beside it (Step 88.1:
+  **Family** and **Companions**, `components/tree/sheet-fold.tsx`). One
+  opened stays open as the reader moves from person to person, until the
+  details close. A folded section keeps what was typed in it.
 - A long form's buttons float, so they're in reach wherever someone is in
   it (Step 59; the edit entry page's **Save changes** and **Back to
   tree**): from `lg` up in a column just right of the form, level with the
