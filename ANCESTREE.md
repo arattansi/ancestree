@@ -1379,6 +1379,26 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 78 — "Add someone in between" up front on Add a relative**
+  (ad-hoc; no migration). Aalim, on a screenshot of the form connecting a
+  new entry as someone's child: "there's no 'add people in between' button
+  here when adding a net new person". Since Step 44 the yellow button
+  (Step 54) showed only once **Add more details** was pressed, and Step 58
+  took away the line pointing there. It now sits under **How they
+  connect** as soon as someone is picked, as it always has when adding
+  yourself; an in-between person still gets just their name, the rest
+  behind "More about them". Marriage dates and "This person connects to
+  more people on the tree" stay behind **Add more details**.
+  **Verified:** in Chromium on a throwaway page with made-up people
+  (deleted, never committed): the button shows before **Add more
+  details**, and not until someone is picked; one in between reads "Noah
+  Rivera is child of Sam Rivera" and "Mia Rivera is child of Noah Rivera",
+  and **Add relative** turns on once both are named; **Remove** puts focus
+  back on the button; **Add more details** still focuses its heading and
+  leaves one button; a Leaf sees it too, and adding yourself is unchanged;
+  a 375 px phone and both themes; no console or server errors. 1091 tests
+  pass (none new: it's layout); tsc and lint are clean.
+
 - **Step 76.9 — Maiden name in the Upcoming feed** (ad-hoc, after Step
   76.8; no migration). Aalim: "show the maiden name in the upcoming feed
   too". A birthday reads "Nurbanu Rattansi / née Kassamali Rahemtullah /
