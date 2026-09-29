@@ -1388,6 +1388,39 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 77.2 — Efficiency audit, phase 4: a light header whose counts
+  keep up** (ad-hoc; no migration; the audit's findings S4 and N7; the
+  second of seven parts). The header drew up to 50 notifications, with the
+  reads behind their buttons, into every page and every save's reply, and
+  between saves its counts went stale: moving to another page doesn't draw
+  the header again. **Counts only:** the header now asks how many
+  notifications are unread (one read, on the index of unread rows), how
+  many connections wait (the audit `/tree` already runs, once between
+  them) and what waits in the admin consoles. **The bell's list when it's
+  opened:** `GET /api/notifications` (a route, so it never waits behind a
+  save), grey rows until it arrives, then read again while it's open when
+  the page is drawn again (an answer given in it) or something new comes
+  in; what was there stays up meanwhile, and the reads behind its buttons
+  run side by side. **Counts that keep up:** on moving to another page, and
+  on coming back to the tab or the window, the header asks
+  `GET /api/header-counts` again, at most every 30 s; a save's reply still
+  wins over an ask sent before it. Nothing else on the page changes.
+  **Verified:** the live code (Step 77.1) and this side by side in dev, 49
+  pages loaded as the same throwaway members of two throwaway trees on
+  live: each differs only in the header's buttons, never in the page, and
+  no page's data carries a notification any more. Per load, header
+  included: `/tree` 27 queries in 4 waves → 24 in 3; edit entry 18 in 4 →
+  15 in 2; add a relative and the trees page 17/14 in 4 → 14/11 in 2. As
+  a throwaway Root in headless Chrome: a fresh load showed "3 unread";
+  opening the bell showed grey rows, then all four, and cleared the count;
+  reopening showed them at once while they were read again; a notice
+  added behind their back showed as "1 unread" on moving to another page
+  once 30 s had passed, and not before; coming back to the window asked
+  again; Clear from the bell left "No notifications yet" with focus on its
+  heading; the admin count still opened "Requests for Access". No console
+  errors. The throwaway users, sessions, trees and rows were deleted
+  after. 1112 tests pass (3 new); tsc, lint and `next build` are clean.
+
 - **Step 77.1 — Efficiency audit, phase 4: each page reads its data side
   by side, each row once** (ad-hoc; no migration; the audit's Phase 4,
   findings S5, S7 and R7; the first of seven parts, 77.1–77.7). Aalim:
