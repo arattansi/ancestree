@@ -9,7 +9,7 @@ round trip.
 ## 1. The model in five sentences
 
 1. A **tree** is a canvas with its own members, account types, invites, share
-   links, comment boards, document banks and inbox.
+   links, document banks and inbox.
 2. A **person** is one row, wherever they appear: one name, one set of dates,
    one photo. Every person has a **home tree**, and may be **placed** on other
    trees as well.
@@ -73,8 +73,9 @@ Rules that follow:
   can keep their own entry up to date there; a Root may change that).
 - A Root may remove a Branch or a Leaf from the Root console
   (`remove_tree_member`). What they added or own whose home is this tree
-  passes to that Root: entries (their own among them), lines, comments,
-  documents, invites, share links, companions, and who placed each card.
+  passes to that Root: entries (their own among them), lines, documents,
+  invites, share links, companions, and who placed each card. The stories
+  they told stay theirs (Step 88.3), told by nobody once their profile goes.
   If it was their last tree, what they left on other trees passes to that
   Root too, and their profile and sign-in go; a card they placed on a tree
   they had already left stays where it is, with nobody recorded as placing
@@ -115,7 +116,7 @@ An ask that has lapsed (Step 83) is still `asked` in the row, so still
 | Photo, documents | Not readable: both follow `can_see_person` and a full placement. |
 | Lines | Drawn, from `private.basic_tree_edges`: that a line is there, its kind, and whether a marriage ended. Its dates only on the tree it was drawn on. `relationships` rows are readable when both ends are shown in full, or the line was drawn on a tree the reader belongs to. |
 | Building on them | A Root, Branch or Leaf adds relatives of a basic card and draws lines to it as to any card, which is what founding a tree for the other side of the family needs. A line to a basic card is changed by whoever drew it, or a Root of the tree it was drawn on. |
-| Comments, suggestions | None: a board and a suggested change both ask for a full placement. |
+| Stories, suggestions | None: a story and a suggested change both ask for a full placement, and a basic card's sheet shows no stories. |
 | Claiming it | As on any tree (Step 83), so someone new to the tree doesn't add themselves twice: the onboarding search and "Is this you?" find a basic card by what it shows — never a maiden name, no dates, and of its parents only those this tree draws — and "This is me" takes a name that matches it. Whoever added the entry is told, in their own tree's inbox, and can dispute. Claiming it on a tree is its owner's yes to showing it there in full, and whoever brought it over is told. A claim a Root reverses makes the card basic again and asks afresh. A Root of the tree may also invite someone to claim it, from the card (Step 84, below). |
 | Visitors | **Hidden from visitors** holds: a visitor sees a blurred card with no name. |
 | Share links | The basic card, as the tree's members see it. |
@@ -183,7 +184,8 @@ be placed there.
 
 | Thing | Scope | Who sees it |
 |---|---|---|
-| Comments and flags (`entry_comments.tree_id`) | One board per tree per person | Members of that tree |
+| Stories (`stories`, Step 88.3; they replaced the per-tree comments board) | Per person, told from one tree (`tree_id`, whose inbox its teller hears back in) | Approved: members of every tree that shows the person in full, not visitors or share links. Waiting: its teller, and whoever approves it: the person themself once the entry is claimed (or is their own) and they're living, else whoever may edit it. Declined: its teller alone. Deleted by its teller or whoever may edit the entry |
+| Reports (`entry_reports`, Step 88.2) | Per person, raised from one tree | Whoever raised it, and whoever may fix it |
 | Suggested changes (`entry_suggestions`, Step 67) | Per person, made from one tree | Whoever suggested it, and whoever may edit the entry |
 | Documents (`documents.tree_id`, `shared_across_trees`) | Uploaded onto one tree | Step 18.4 rule evaluated in that tree; when shared, the same rule in every tree the person is placed on |
 | Profile photo | Part of the person | Everyone who can see the person |
@@ -202,7 +204,7 @@ old one never was; the person can share it again.
   themselves belong to (`tree_visibility (tree_id, viewer_tree_id)`). Only a
   Root may; only for trees they are a member of; revocable at any time.
 - Members of the viewer tree reach it through the shared person's card
-  ("Also on: The Suleman tree") and see it read-only: no comments, no edits,
+  ("Also on: The Suleman tree") and see it read-only: no stories, no edits,
   no documents, no account types, with a "request to join" button that files
   an invite request with that tree's Roots.
 - Any person can mark their own entry **hidden from visitors**

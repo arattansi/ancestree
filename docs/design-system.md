@@ -164,8 +164,8 @@ uses them rather than its own flags and messages.
   goes by its button (`FormError`, `role="alert"`) and stays until they
   try again. A toast is for a button with no form around it, and for what
   happens off screen: an email sent, a link copied, a change someone else
-  will see. A toast never repeats what the screen already shows ("Comment
-  posted." under the comment).
+  will see. A toast never repeats what the screen already shows ("Story
+  added." under the story).
 - **Toasts** are red for a failure and green for a success, and can be
   closed; a failure stays up 10 seconds. On a phone they come in at the
   top, under the header, where they cover none of the canvas's buttons;

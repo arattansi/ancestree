@@ -166,8 +166,8 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   second) and every line after it; `documents.ts`: document reads, writes
   and signed URLs (the three split in Step 77.6; the refusal wording they
   share is `lib/entry-errors.ts`); `claims.ts`: `claimPerson` /
-  `markNotificationsRead`; `entry-comments.ts`: `getEntryComments` /
-  `addEntryComment`; `entry-reports.ts`: `reportEntry` / `resolveEntryReport` /
+  `markNotificationsRead`; `stories.ts`: `getEntryStories` / `addStory` /
+  `decideStory` / `deleteStory`, Step 88.3; `entry-reports.ts`: `reportEntry` / `resolveEntryReport` /
   `withdrawEntryReport` / `decideClaimDispute` / `getEntryReports`, Step 88.2)
 - `components/tree/` — `family-tree.tsx` React Flow canvas (generation lanes
   behind the cards, whose titles stay life-size when zoomed out —
@@ -214,7 +214,8 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   card at the foot of the canvas, Step 49, that repeats the header's lines,
   Step 76.7, `folded-details.tsx`; its family and companions sections are
   `person-family.tsx` and `person-companions.tsx`, Step 77.6),
-  `entry-comments.tsx` (comments; flags left for reports in Step 88.2),
+  `entry-stories.tsx` (the sheet's Stories, in place of the comments board,
+  Step 88.3) + `story-dialog.tsx` (Add a story, loaded on the first press),
   `claim-suggestions.tsx` "Is this you?" canvas prompt;
   who's open is in the address (`?person=`, replaced as they change), and
   the camera, the filters, a lit connection and the details folded or not
@@ -240,8 +241,12 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
 - `components/notifications-list.tsx` (account; its claim notice's dispute
   opens the report dialog) + `admin/admin-reports.tsx` (the Root console's
   open reports: resolve, or uphold / reverse a disputed claim, Step 88.2);
-  `lib/claims.ts` — claim candidates, notifications; `lib/entry-comments.ts` —
-  comment reads; `lib/entry-reports.ts` — report reads (sheet, Root console,
+  `lib/claims.ts` — claim candidates, notifications; `lib/stories.ts` —
+  story reads (`entry_stories` + signed recording links); `lib/story-audio.ts`
+  — the recording bucket's types, paths and lengths; `lib/story-audio-shrink.ts`
+  — a recording remade as speech in the browser (Mediabunny, loaded only
+  once one is picked); `lib/story-upload.ts` — sending one;
+  `lib/entry-reports.ts` — report reads (sheet, Root console,
   the queue's count)
 - `components/ui/` — shadcn primitives (incl. `form` = react-hook-form + zod,
   `alert-dialog` = Base UI's AlertDialog dressed like `dialog`)
@@ -490,8 +495,8 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `invite_relays`          | Asks a newcomer with no match passed on to a relative (Step 30.5): their typed first/last name + email and the member it went to (`recipient_user_id`), `pending` \| `invited` \| `dismissed`, the tree they were invited to, `email_sent`. Only that member reads and answers it (RLS; update granted on the answer's columns only); filed by the server with the service role, and the rows are what the member's caps count. One open or dismissed ask per address and member. A pending ask lapses after 30 days, and is deleted as new asks come in (Step 41.5) |
 | `invite_relay_asks`      | A note of every ask to a relative, whoever the address belongs to (Step 41.5): the address asking and `created_at`, never the relative's. What the caps per address and across the site count, before anyone is looked up. Service role only (RLS on, no policies, no grants to `anon`/`authenticated`); an ask past a cap leaves no note, and notes older than a day are deleted as new asks come in |
 | `claims`                 | Auto-approve / reject a person entry (`resolved_by`); a dispute of one is an `entry_reports` row and leaves it `approved` (Step 88.2) |
-| `notifications`          | In-app notices, **one inbox per tree** (`tree_id`, Step 25; `placement_requested` \| `placement_accepted` \| `placement_declined` added; `placements_requested`, one for a batch of entries someone may edit, Step 80; `placements_lapsed`, to the Root whose ask nobody answered in 30 days, Step 83; `tree_request_approved`, Step 28; `placed_on_join`, Step 30.9, and what a claim invite did, Step 41.3; `joined_by_link`, Step 52); recipient-scoped RLS                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `entry_comments`         | Comments, **one board per tree** (`tree_id`, Step 25); flags left for `entry_reports` in Step 88.2 |
+| `notifications`          | In-app notices, **one inbox per tree** (`tree_id`, Step 25; `placement_requested` \| `placement_accepted` \| `placement_declined` added; `placements_requested`, one for a batch of entries someone may edit, Step 80; `placements_lapsed`, to the Root whose ask nobody answered in 30 days, Step 83; `tree_request_approved`, Step 28; `placed_on_join`, Step 30.9, and what a claim invite did, Step 41.3; `joined_by_link`, Step 52; `story_to_approve`, `story_approved`, `story_declined`, Step 88.3); recipient-scoped RLS                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `stories`                | Stories about a person (Step 88.3, in place of the per-tree comments board): `title`, `body` and/or a recording (`audio_path` in the private `stories` bucket, `<person id>/<uuid>.<ext>`; `audio_seconds`), `pending` \| `approved` \| `declined`, `decided_by`, the tree it was told on (`tree_id`, where its teller hears back). Approved: read by members of every tree showing the person in full. Pending: its teller, and whoever approves it: the person themself once the entry is claimed or is their own and they're living (`private.story_owner`), else whoever `can_edit_person`. Declined: its teller alone. Told only through `add_story` (approved at once when the teller may approve it), answered through `decide_story`; deleted by its teller or whoever may edit the entry; read by the sheet through `entry_stories` (runs as the viewer, names each teller). `created_by` is set null when their account goes |
 | `entry_reports`          | Problems reported with an entry (Step 88.2): `body`, `open` \| `resolved`, `resolved_by`, the tree it was raised on (`tree_id`, where its reporter hears back), and `claim_id` when it disputes that claim (one open at a time). Seen only by its reporter and whoever can fix it: `can_edit_person` for a problem, the home tree's Roots for a dispute. Written only by `report_entry` / `resolve_entry_report` / `decide_claim_dispute`; its reporter may delete (withdraw) an open one; `created_by` is set null when their account goes |
 | `documents`              | Metadata for private file uploads, **one bank per tree** (`tree_id`); `shared_across_trees` shows it on every tree the person is on — flipped only by the person or a Root of their home tree (`documents_guard`), which also keeps it on its entry except inside a merge (Step 41.3's claim invite, or "This is me" since Step 43), which leaves it unshared                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `places`                 | GeoNames reference data (populated places + admin areas) for birthplace autocomplete; not tree-scoped — read by any member, written by the import script and by a Root's **Add a place** (ids from 10,000,000,000); a row for each country (Step 79: ids from 9,000,000,000, no coordinates, never found by the name search)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
@@ -1539,6 +1544,102 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 88.3 — Stories** (the third of Step 88, the person sheet's
+  redesign; four migrations). **Aalim asked for:** stories in place of the
+  entry's comments board, each long-form text or an uploaded recording,
+  showing who added it and when; and **a story needs approval**, from the
+  entry's own person once it's claimed, or else whoever can edit it
+  (the album's approvers, Step 88.5). Nobody else sees a story until it's
+  approved; its teller sees their own while it waits. So the sheet's
+  **Stories** section (where Comments was) lists the stories the viewer
+  may see, newest first: title, teller ("You" for their own), when, the
+  recording's length, **Waiting for approval** or **Not approved**, the
+  text folded past six lines or 480 characters ("Read more"), and a
+  player. **Add** opens "Add a story": Title, Story, and **Add a
+  recording** (any of them but the title alone). Whoever approves a
+  waiting story sees **Approve / Decline** on it; its teller and whoever
+  can edit the entry see **Delete** ("Delete this story?", "This cannot be
+  undone."). `stories` (`20260929180000_stories`): select RLS lets the
+  teller see their own, members of any tree showing the person in full see
+  approved ones, and `private.can_approve_story` see waiting ones; told
+  only by `add_story` (approved at once when its teller could approve it,
+  else the approvers are asked in their inbox), answered by
+  `decide_story` (the teller is told), deleted through RLS.
+  `entry_stories` (`20260929185000_story_list`) reads an entry's stories
+  in one call as the viewer, with each teller's name and whether the
+  viewer may approve it. Recordings go in a private `stories` bucket
+  (25 MB, audio types only), in the person's folder, uploaded from the
+  browser by a member who may tell that person a story, and read by
+  whoever can see the story; the uploader can remove an upload no story
+  took (`20260929187000_story_upload_discard`: storage finds a file before
+  deleting it, so the uploader needs to read it). The 3 live comments
+  became approved stories with the same ids;
+  `20260929190000_comments_become_stories`, after the deploy, carries
+  anything written on the old board meanwhile and drops `entry_comments`
+  and its notice trigger.
+  **Defaults already chosen, not asked:** the teller or the entry's
+  editors delete; a recording is shrunk in the browser to one channel of
+  speech; not on a share link's read-only canvas (nor for a visitor, nor
+  on a basic card); the comments carried over approved. **My calls, not
+  asked:** a story is the person's, not a tree's: an approved one shows on
+  every tree that shows the person in full (the board was per tree), and
+  the album will be too. The approver is the person only while they're
+  living (`private.story_owner`: `person_owner_member`, but not for
+  someone who has died), and a story told by someone who could approve it
+  is approved at once, with nobody asked. A declined story stays, marked
+  **Not approved**, for its teller alone, so their words aren't lost; they
+  can delete it. The approvers' notice goes where a suggested change's
+  does (Step 68): the person themself ("…added a story about you, waiting
+  for your approval.", on a tree of theirs that shows them), else the
+  owner, the home tree's Roots and its tending Branches. A title is
+  optional, up to 120 characters; a story up to 20,000. A recording is
+  remade as **AAC in an .m4a** where the browser can encode it (plays
+  everywhere), else **Opus in an .ogg** (Firefox; Safari plays it from
+  18.4), both mono 48 kHz (AAC 48 kbps: macOS refuses less once it starts,
+  though it says it can; Opus 24 kbps), each encoder tried in turn;
+  **Mediabunny** reads the file as a stream, so an hour's recording never
+  sits in memory, and loads (138 KB gz) only once someone picks one. With
+  no encoder, the file itself goes if the bucket takes it; a smaller
+  original that plays everywhere (MP3, M4A) goes as it is. A recording is
+  a file picked from the device; nothing records in the browser. A teller's name is `member_label`
+  wherever the story is read, so a teller on another tree is still named;
+  their stories stay, told by nobody, when their account goes (the
+  per-tree hand-over the comments had is gone). A deleted story's
+  recording goes after the response, with the service role; deleting an
+  entry removes its stories' recordings; the tree export carries the
+  stories told on the tree and the approved ones about its people, not a
+  waiting or declined one told on another tree. Someone else's story keeps a Leaf from
+  deleting an entry and a placeholder from merging, and a merge moves
+  stories along, as comments did. Copy: the Leaf join line, the account
+  types table ("Add stories and report problems"), the privacy notice and
+  the dashboard ("Stories told"; "Comments on companions") say stories.
+  **Verified** on live as three seeded throwaways (a Root, a Leaf, and a
+  Leaf behind his own entry), in headless Chrome against this build: the
+  Leaf told an entry nobody claimed a story, then two with a recording (a
+  10 s, 1.76 MB stereo WAV went up as a 51.7 KB mono .m4a); only the Root
+  was asked; the Root saw all three with Approve / Decline / Delete,
+  approved two and declined one; the other Leaf saw only the approved two
+  with no buttons, and the recording played (`audio/mp4`, 10.07 s); the
+  teller saw the declined one marked, deleted it, and its file went. On the
+  claimed Leaf's own entry, only he was asked, the Root saw nothing until
+  he approved, and his own story was approved at once; his inbox showed
+  the ask with **View on tree**. A share link's sheet had no Stories. On a
+  phone the dialog fit (358 px of 390, no sideways scroll). The Opus path
+  (forced first) made an Ogg Opus file that played. Storage through its
+  API with real member tokens: a stranger's upload to that folder and a
+  non-audio type were refused, the uploader removed his loose upload but
+  not one a story used, another member couldn't read a loose upload.
+  Deleting the entry took its stories and their recordings. Each
+  migration was rehearsed first in a rolled-back transaction (the first
+  and last together, 70 checks as throwaway users, every function body
+  md5-checked), and the three before the deploy were applied from their
+  files with a self-check. The throwaway accounts, tree,
+  stories, recordings and notices were deleted. **Known:** a waiting
+  story isn't in the Root console or any count (only the inbox); a story
+  can't be edited, only deleted and told again; deleting a whole tree
+  leaves its stories' recordings in the bucket (as it does photos, Step
+  82); an upload whose story couldn't be reached stays.
 
 - **Step 87.3 — A card drop without a redraw** (the third of Step 87,
   audit Phase 3, finding S3, Step 61's leftover; no migration). **Aalim
