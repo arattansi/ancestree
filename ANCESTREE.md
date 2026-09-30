@@ -248,7 +248,9 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   in, one at a time, swiped or stepped through, each photo's details and
   actions under it, the whole photo in a dialog on a press) +
   `album-dialog.tsx` (Add a photo: shrunk as it's picked, a description,
-  who's in it; loaded on the first press),
+  who's in it; loaded on the first press; since Step 88.6 the date taken
+  and suggested tags, read from the photo's own details before it's
+  shrunk),
   `claim-suggestions.tsx` "Is this you?" canvas prompt;
   who's open is in the address (`?person=`, replaced as they change), and
   the camera, the filters, a lit connection and the details folded or not
@@ -263,7 +265,7 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `pet-comments.tsx` (`pet_comments` — comments only, no flags / resolve /
   notifications; `lib/pet-comments.ts` + `app/actions/pet-comments.ts`),
   `companion-fields.tsx`, `companion-picker.tsx` (multi-select
-  people), `add-companion-dialog.tsx` (opened from a person's panel);
+  people; a "Suggested" row of one-press adds, the album's, Step 88.6), `add-companion-dialog.tsx` (opened from a person's panel);
   `lib/pet-schema.ts` (pure zod; `birth_date` implies `year_born`),
   `lib/pet-labels.ts` (species labels and glyphs, `petYears`, zod-free for
   the canvas, Step 87.4), `lib/pet-layout.ts` — pets
@@ -278,7 +280,15 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `lib/claims.ts` — claim candidates, notifications; `lib/album.ts` —
   album reads (`entry_album` + a signed 800px transform and the whole
   photo, Step 88.5); `lib/album-path.ts` — the `album` bucket's layout
-  (`{tree}/{uuid}.{ext}`); `lib/stories.ts` —
+  (`{tree}/{uuid}.{ext}`); `lib/photo-metadata.ts` — what a picked photo
+  says about itself (named faces, person shown, keywords, date taken) from
+  its JPEG / PNG / WebP EXIF, XMP and IPTC, read in the browser, never its
+  location (`xml-lite.ts` reads the XMP), and `lib/photo-tags.ts` — those
+  names matched to people on the tree and everyone ranked by whether they
+  were alive when it was taken (`lib/tag-person.ts` is what the canvas
+  hands it for each person, apart so the canvas doesn't load the rest),
+  `lib/album-taken.ts` — the date's check, all Step 88.6 (`.test.ts`);
+  `lib/stories.ts` —
   story reads (`entry_stories` + signed recording links) and a story's
   comments (`list_story_comments`); `lib/story-links.ts` /
   `story-links.server.ts` — a story's public link and its service-role read
@@ -549,7 +559,7 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `story_links`            | Public links to approved stories (Step 88.4): one working link per sharer per story (`token`, 24 URL-safe characters; `created_by`, whom the page names; `revoked_at` / `revoked_by`). A link works while the story is approved and its links aren't off (`stories.links_off`), the person isn't `hidden_from_visitors`, and its sharer is still on a tree that shows them in full (`private.story_link_live`). Made only by `share_story` (anyone who can see the story; once its links were turned off, only its person, an editor of the entry or its teller, which turns them on again), turned off by `stop_sharing_story` (every link at once; those three). A member reads only their own; the public page reads with the service role (`shared_story`) |
 | `story_comments`         | Comments on an approved story (Step 88.4), no approval: read by whoever may read the story, written only by `add_story_comment` (its teller and its person are told, `story_commented`), deleted by their author, the story's teller or whoever may edit the entry; listed through `list_story_comments`. `created_by` is set null when their account goes |
 | `entry_reports`          | Problems reported with an entry (Step 88.2): `body`, `open` \| `resolved`, `resolved_by`, the tree it was raised on (`tree_id`, where its reporter hears back), and `claim_id` when it disputes that claim (one open at a time). Seen only by its reporter and whoever can fix it: `can_edit_person` for a problem, the home tree's Roots for a dispute. Written only by `report_entry` / `resolve_entry_report` / `decide_claim_dispute`; its reporter may delete (withdraw) an open one; `created_by` is set null when their account goes |
-| `album_photos`           | Album photos (Step 88.5, in place of documents): one uploaded file (`file_path` in the private `album` bucket, `<tree id>/<uuid>.<ext>`, at most 1600px, shrunk in the browser), an optional `description` (≤ 500), who added it (`created_by`, set null when their account goes) and the tree it was added on (`tree_id`, where they hear back). Seen by its uploader and by whoever sees one of its tags (`private.can_see_album_photo`); added only through `add_album_photo`; deleted by its uploader. It goes by itself when nobody is in it any more (`album_tags_last_gone`), and its file with the service role from the app |
+| `album_photos`           | Album photos (Step 88.5, in place of documents): one uploaded file (`file_path` in the private `album` bucket, `<tree id>/<uuid>.<ext>`, at most 1600px, shrunk in the browser), an optional `description` (≤ 500), when it was taken (`taken_on` + `taken_on_precision`, `day` \| `month` \| `year` on the first day of its period like a person's dates, both or neither, not after tomorrow; Step 88.6), who added it (`created_by`, set null when their account goes) and the tree it was added on (`tree_id`, where they hear back). Seen by its uploader and by whoever sees one of its tags (`private.can_see_album_photo`); added only through `add_album_photo`; deleted by its uploader. It goes by itself when nobody is in it any more (`album_tags_last_gone`), and its file with the service role from the app |
 | `album_tags`             | Who is in each album photo (Step 88.5), one row a person, each approved on its own: `pending` \| `approved` \| `declined`, `decided_by`. Approved: read by members of every tree showing the person in full. Pending: its photo's uploader and whoever approves it, the same people as a story (`private.story_owner`, else `can_edit_person`). Declined: the uploader alone. Tagged only at upload (approved at once where the uploader may approve), answered through `decide_album_tag`; removed by the uploader, the approver or whoever may edit the entry (`private.can_untag`); read by the sheet through `entry_album` (runs as the viewer) |
 | `places`                 | GeoNames reference data (populated places + admin areas) for birthplace autocomplete; not tree-scoped — read by any member, written by the import script and by a Root's **Add a place** (ids from 10,000,000,000); a row for each country (Step 79: ids from 9,000,000,000, no coordinates, never found by the name search)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `historical_names`       | Curated period names for a place/country over a date range (Step 4.5d); matched by `place_id` then `country_code` against a birth/death year. Read by any member; seeded by migration                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
@@ -835,6 +845,26 @@ from the same people as a story: the person themself once the entry is
 claimed or is their own and they're living, else whoever can edit it. Until
 then the photo is in that album only for its uploader and the approver.
 Not on share links, not to visitors, not on a basic card.
+
+**Tags suggested from a photo's own details (Step 88.6):** Add a photo
+reads the picked file before shrinking it (the canvas keeps nothing):
+named face regions (Metadata Working Group, as Lightroom, digiKam and
+Picasa write them; Microsoft's, as Windows Photo Gallery does), IPTC's
+person shown, keywords (XMP `dc:subject`, keyword trees such as
+Lightroom's `People|…` and digiKam's `People/…`, IPTC, Windows' Tags) and
+the date taken (EXIF, or a date written into XMP or IPTC later: of a scan's
+camera date and a "1962" someone typed, the older). The people a name
+fits are offered under "Who's in it" as "Suggested", one press each or
+"Add all": a full name (given or preferred, then last or maiden, middle
+names or initials between) from anywhere; a given name alone only from a
+face or a People keyword, and only when one person has it. Where a name
+fits several, those alive when it was taken come first, and the others
+drop out; nobody the name alone fits is left out for their dates. The
+same date puts everyone in the picker in that order, and fills in "Date
+taken" (kept as much as is known). No faces are looked at: nothing is
+recognised, only names someone already wrote into the file. Phone
+cameras and Apple / Google Photos exports rarely carry names, so most
+photos suggest nobody and give only the date.
 
 Helpers live in the unexposed `private` schema (`role_in`, `is_root_of`,
 `is_branch_of`, `is_tree_member`, `can_edit_person`, `branch_ids`,
@@ -1476,6 +1506,12 @@ Canadian context → PIPEDA-minded.
   removes the auth user + `profiles` row after reassigning the member's
   `created_by` / `owner_user_id` references to a founding admin,
   so the shared record stays intact. Blocked if the caller is the only admin.
+- **A photo's own details** (Step 88.6): Add a photo reads a picked
+  photo's names and date in the browser to suggest tags and fill in the
+  date; only that date is stored (`album_photos.taken_on`, and only if it's
+  kept on the form). GPS is never read. What goes up is always the copy the
+  canvas drew, which carries no EXIF, XMP or IPTC: a photo the browser
+  couldn't redraw is refused rather than uploaded as picked.
 - **Free-tier headroom**: photos are downscaled client-side to ≤1280px JPEG
   (`lib/image.ts#compressImage`, wired in the add + edit forms), album
   photos to ≤1600px (the same, in `album-dialog.tsx`), well under the
@@ -1639,6 +1675,69 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 88.6 — Tags suggested from a photo's own details** (the last of
+  Step 88, the person sheet redesign; migration
+  `20260930030000_album_taken_date`, additive, live before the deploy).
+  **Aalim asked for:** Add a photo reads the photo's metadata before it's
+  shrunk (the canvas re-encode keeps none of it): named face regions
+  (Metadata Working Group and Microsoft) and XMP keywords matched to people
+  on the tree, suggested as tags; the date taken, stored as the photo's
+  "taken" date and used to rank toward people alive then; GPS dropped, not
+  stored; no face recognition. Now `lib/photo-metadata.ts` reads a picked
+  JPEG, PNG or WebP in the browser, beside the shrink: EXIF (the date taken
+  and Windows' Tags; the GPS directory is never opened), XMP (MWG and
+  Microsoft regions, IPTC's person shown, `dc:subject`, Lightroom / digiKam
+  / Windows / Media Pro keyword trees, the XMP and Photoshop dates; long
+  packets rebuilt from JPEG's extended segments, PNG's compressed ones
+  inflated), and IPTC (keywords, date created), through a small
+  namespace-aware XML reader (`lib/xml-lite.ts`), never throwing. The
+  names it finds are matched to people on the canvas (`lib/photo-tags.ts`)
+  and offered under "Who's in it" as **Suggested**, one press each or
+  **Add all**; the date fills in **Date taken** (`DateField`, as much as is
+  known), or "+ Date taken" when the photo gives none; the carousel shows
+  "Taken 16 July 1985" under each photo. `album_photos.taken_on` +
+  `taken_on_precision` (a person's date convention: first day of its
+  period, both or neither); `add_album_photo` takes `p_taken_on`,
+  `p_taken_precision` (the four-argument version dropped, so the old
+  code's call still resolves; refuses a date after tomorrow);
+  `entry_album` returns them. **My calls, not asked:** a full name
+  (given or preferred, then last or maiden, with any middle names or
+  initials between; case, accents, "Doe, Jane" and brackets ignored)
+  suggests from any source; a given name alone ("Jane") only from a face
+  region or a People keyword, and only when one person has it; a name
+  fitting several keeps those alive when it was taken (born before, not
+  died before; a "c." date widened five years) and drops the rest, but
+  nobody a name fits alone is dropped for their dates, since a scan's
+  camera date is the day it was scanned; of a photo's several dates the
+  oldest wins (a scan's 2023 against a written-in "1962" gives 1962); a
+  date before 1826 or after tomorrow in a photo is ignored; the same date
+  orders everyone in the picker (alive then, can't say, couldn't have
+  been); two suggestions of one name get "(b. 1920)"; basic and blurred
+  cards are never matched; the photo's date goes if the photo is removed
+  or replaced, a typed one stays; a photo the browser couldn't redraw is
+  refused rather than uploaded as picked (it would have carried its GPS:
+  88.5 sent the original up when the canvas failed); HEIC isn't read (the
+  browsers that can't draw it refuse it anyway); a photo's caption isn't
+  used for the description. `tagPersonOf` lives apart
+  (`lib/tag-person.ts`) so only it joins `/tree`'s first load; the reader
+  and the matching load with the dialog. Privacy notice: two lines on
+  what's read on the device and what's kept. **Verified** on live as a
+  seeded throwaway Root (seven people, two of them "Ali Testwood" 75
+  years apart), headless, with photos a real encoder wrote: a camera date
+  1985, GPS and Lightroom-style faces "Ali Testwood", "Fatima Oakes" (her
+  maiden name), "Hassan" and keywords "Zainab Testwood", "Beach" suggested
+  exactly the 1920 Ali (b. 1920), Fatima, Hassan and Zainab, filled in 16
+  July 1985 and stored it at `day`; typing 2000 instead suggested the 1995
+  Ali; a scan (camera 2023, written 1962) filled in 1962 and stored
+  1962-01-01 at `year`; a bare photo got "+ Date taken", refused
+  1 December 2026 ("That’s after today.") and stored March 1990 at `month`,
+  the picker then led with those alive in March 1990. Every stored file:
+  JFIF + ICC only, no EXIF, XMP, IPTC or GPS, 1600px. The four-argument
+  call through PostgREST still resolves. Phone (390px): no sideways
+  scroll. 25 new unit tests (Lightroom, digiKam, Windows Photo Gallery,
+  IPTC, extended XMP, PNG, WebP fixtures from sharp; truncation and
+  noise; names, dates, ranking). Throwaways and their files removed.
 
 - **Step 87.6 — One GET for the sheet** (the sixth of Step 87, audit Phase
   3, finding S6; no migration; landed after Step 88.5 and bundles its
