@@ -1800,7 +1800,10 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   longer on the tree) took its upload back; deleting the ancestor kept the
   photo the person was also in and removed the one only of them; the
   export carried the album; the phone carousel swiped; and deleting the
-  tree left the album bucket empty. Throwaways removed after.
+  tree left the album bucket empty. Throwaways removed after. **Then, at
+  Aalim's ask,** the sheet's **Family** and **Companions** folds moved
+  below the Album and Stories: details, Album, Stories, Family,
+  Companions, Manage.
 
 - **Step 88.4 — Story links and story comments** (the fourth of Step 88,
   the person sheet's redesign; one migration,

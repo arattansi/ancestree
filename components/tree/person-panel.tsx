@@ -802,22 +802,6 @@ function PersonPanelImpl({
               </dl>
               )}
 
-              <FamilySection
-                relations={relations}
-                onChanged={() => undefined}
-                open={familyOpen}
-                onOpenChange={setFamilyOpen}
-              />
-
-              <CompanionsSection
-                pets={pets}
-                canAdd={!locked && canEdit}
-                onSelectPet={onSelectPet}
-                onAdd={() => setAddingCompanion(true)}
-                open={companionsOpen}
-                onOpenChange={setCompanionsOpen}
-              />
-
               <PendingConnectionPrompts
                 suggestions={suggestions}
                 onResolved={() => undefined}
@@ -846,6 +830,24 @@ function PersonPanelImpl({
                   />
                 </section>
               ) : null}
+
+              {/* Family and Companions come after the album and stories
+                  (Aalim, Step 88.5). */}
+              <FamilySection
+                relations={relations}
+                onChanged={() => undefined}
+                open={familyOpen}
+                onOpenChange={setFamilyOpen}
+              />
+
+              <CompanionsSection
+                pets={pets}
+                canAdd={!locked && canEdit}
+                onSelectPet={onSelectPet}
+                onAdd={() => setAddingCompanion(true)}
+                open={companionsOpen}
+                onOpenChange={setCompanionsOpen}
+              />
 
               {showManage ? (
                 <section className="flex flex-col gap-3 border-t border-border pt-5">
