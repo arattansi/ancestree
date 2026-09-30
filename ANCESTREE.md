@@ -186,7 +186,10 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   a page drawn after the save knows it — `lib/local-drops.ts`, Step 87.3;
   the details sheets, their dialogs and the cropper are fetched once the
   canvas has painted and mounted closed, the Supabase client with the
-  first room — `components/lazy-component.tsx`, Step 87.4;
+  first room — `components/lazy-component.tsx`, Step 87.4; cards and
+  small faces show a card-sized copy of each photo, the full one loads on
+  a card's first hover, and a face keeps its picture while a new address
+  loads — `photo_card_url`, `use-steady-photo.ts`, Step 87.5;
   admin "Auto-arrange" clears every manual nudge; on a phone no card can be
   dragged (a tablet's can), so a finger on one pans, Step 49; the zoom
   controls end with
@@ -774,6 +777,15 @@ all delete the rows as the caller (the proof of the right), then remove the
 files with the service role, only those no row points at any more
 (`lib/file-cleanup.server.ts`). Any new code that deletes rows holding a
 file path does the same.
+**Cards show a small copy (Step 87.5):** every page that draws the canvas
+signs each photo twice: full size (`photo_url`: the sheet, its photo
+dialog, the cropper, a card's hover preview) and a storage transform that
+fits it in a square of `cardPhotoEdge(crop)` px, 128 at zoom 1 and 64 more
+per step of the crop's zoom, `resize: contain` so it keeps its shape
+(`photo_card_url`: every small face). A width alone would keep the full
+height and stretch it. The crop is CSS, so the copy frames the same.
+Storage signs a transform one photo at a time (`signedCardPhotoUrls`, in
+parallel with the rest); where it won't, the card gets the full address.
 **Documents are private (Step 18.4):** a document's row and file are readable
 only by a Root, the entry's owner (or the member whose own entry it is), and
 the Branch who tends that side of the tree — including another member's own
@@ -1566,6 +1578,60 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 87.5 — Card-sized photos** (the fifth of Step 87, audit Phase
+  3, finding C3 and C7's hover preview; no migration). **Aalim asked for:**
+  a small signed storage `transform` for cards, full size for the sheet
+  and the photo dialog, and the hover preview mounted on hover. So
+  `getTreeGraph` and `getTreePets` sign each photo twice: `photo_url` as
+  before, and `photo_card_url` (`signedCardPhotoUrls`, one
+  `createSignedUrl` per photo with `transform`, in parallel, since storage
+  signs transforms only one at a time; the full address stands in where it
+  won't sign one). Every small face draws the card copy: person cards, pet
+  chips, the pet sheet's header, the minimized card, Upcoming, who's-here
+  faces. The sheet's portrait, its photo dialog and the cropper stay full
+  size. A person card's, pet chip's and leaf's hover preview mounts on the
+  first pointer over it (then CSS shows it on each hover as before), with
+  the card copy under the full photo until it lands. `keepSignedUrl` keys
+  on the address plus the token's `transformations`, so the full photo
+  and each size of card copy are kept apart and a save refetches neither.
+  `useSteadyPhoto` keeps a face's picture while a new address loads: Base
+  UI's `AvatarImage` fell back to the initials on every `src` change, so a
+  photo signed again (after 50 minutes, or a crop zoomed into a larger
+  copy) blinked. **My calls, not asked:** `resize: contain` in a square,
+  not a width: a width alone keeps the full height (128 × 1280, 27 KB) and
+  would stretch the crop; retina: 128 px at zoom 1 (a portrait's short side
+  gets 128, a 4:3 landscape's 96: 2.4–3.2 px per point on a 40 px avatar),
+  and 64 px more per step of the crop's zoom so the part a card shows
+  keeps that (`cardPhotoEdge`: 1.21 → 192, 1.57 → 256, 2.43 → 320, capped
+  at 1280), since half of live's photos are zoomed; the card avatar now
+  clips to its circle (`overflow-hidden`, as every other face already
+  did): a zoomed crop's CSS scale drew a bigger circle over the name, on
+  main too; the hover preview keeps the full photo (224 px wide, so a
+  small copy would be soft), so the first hover loads it, and the sheet
+  opened after that finds it cached. Pages off the canvas (/account,
+  /welcome, the edit form, onboarding) still show the full photo: one
+  face each. **Numbers.** Live throwaway tree (5 photos, 130 KB each):
+  photo bytes on load 647 → 42 KB (5 card copies: 96×128, 256×192,
+  320×320, 192×192, 128×128, WebP), the same on its share link (647 →
+  42 KB); photos shown 1514 → 1387 ms, cards shown 915 → 905, document
+  end 719 → 645 ms (10 alternating loads; the extra signing is hidden in
+  the page's parallel reads); hovering a card 0 → 1 image (133 KB), then
+  the sheet and its photo dialog 0 new requests either way; a crop saved
+  from zoom 1 to 2 fetches one 8.7 KB copy (main 0), 0 initials frames;
+  a drop 0 refetches. 77-person fixture (41 photos, 4× CPU, ×12,
+  alternating, main at `f1a686e`; the fixture's card copies are local
+  JPEGs, 9–33 KB): images on load 5,450 → 471 KB, photos shown 1085 →
+  1024 ms locally and 7028 → 2042 ms on a Fast-4G-like link, cards shown
+  937 → 888 and 1466 → 1437 ms, first paint unchanged; hover previews in
+  the DOM 41 → only those hovered; saves, a rename, an add and a replayed
+  drop refetch nothing either way; a save that re-signs every photo
+  refetched 41 full photos (5.4 MB) and showed initials on 41 cards for a
+  frame on main, and now refetches 41 card copies with 0 initials frames.
+  Framing checked by 2× screenshots of 8 avatars against main (same
+  crop, zoomed ones included). **Known:** the live-cursor faces don't use
+  `useSteadyPhoto` (a peer's face may blink once when re-signed after 50
+  minutes); a tree with many photos makes that many signing calls per
+  render.
 - **Step 90 — A removed document's file goes** (ad-hoc bug fix; no
   migration). Found verifying Step 87.4 on live: removing a document from a
   person's details deleted its row, then asked the member's own client to
