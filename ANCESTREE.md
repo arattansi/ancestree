@@ -208,7 +208,12 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   first room — `components/lazy-component.tsx`, Step 87.4; cards and
   small faces show a card-sized copy of each photo, the full one loads on
   a card's first hover, and a face keeps its picture while a new address
-  loads — `photo_card_url`, `use-steady-photo.ts`, Step 87.5;
+  loads — `photo_card_url`, `use-steady-photo.ts`, Step 87.5; on a
+  phone (`data-phone` on the canvas, the `phone:` variant) cards off a
+  spotlight fade without blur and leaves have no shadow, the minimap is
+  drawn only from `sm` up (`useIsSm`), and a line works its route out
+  again only once one of its cards has moved or changed size
+  (`useCardsStore`), Step 87.7;
   admin "Auto-arrange" clears every manual nudge; on a phone no card can be
   dragged (a tablet's can), so a finger on one pans, Step 49; the zoom
   controls end with
@@ -299,7 +304,9 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `lib/entry-reports.ts` — report reads (sheet, Root console,
   the queue's count)
 - `components/ui/` — shadcn primitives (incl. `form` = react-hook-form + zod,
-  `alert-dialog` = Base UI's AlertDialog dressed like `dialog`)
+  `alert-dialog` = Base UI's AlertDialog dressed like `dialog`; `fit-text`
+  shrinks a line to fit, every one on the page watched by one shared
+  ResizeObserver and fitted in batches, Step 87.7)
 - Feedback (Step 70; the rules are in `docs/design-system.md`, Feedback):
   `components/use-action.ts` — `useAction`, the one way a client component
   calls a server action: busy per button until the page's new render (or
@@ -1678,6 +1685,64 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 87.7 — Phone paint and hidden work** (the last of Step 87,
+  audit Phase 3, findings C5–C7; the hover previews in C7 went in 87.5; no
+  migration; landed after Steps 88.6 and 91). **Aalim asked for:** a
+  performance trace first (phone emulation, 4× CPU), then on a phone dim
+  with opacity only and drop the leaf shadow; the minimap only from `sm`
+  up; line selectors that return early when their cards haven't changed;
+  FitText skipping `document.fonts.ready` once fonts have loaded, and one
+  shared ResizeObserver instead of one per line. The trace agreed with the
+  audit: on a phone, in a spotlight, the 74 blurred cards roughly doubled
+  raster and composite time during a pan, and every pan or zoom frame
+  worked out every line's route again (2,812 geometry calls per pan on the
+  77-person fixture). Now the canvas carries `data-phone` on a phone (the
+  same test that keeps its cards from dragging, Step 49) and a `phone:`
+  variant (`app/globals.css`) turns the filter off there: cards and
+  companions off a spotlight fade to 30% as before, without the blur and
+  desaturation, and the leaves lose their drop shadow, the selected
+  leaf's green glow included (its thicker outline and deeper wash stay).
+  `WideMiniMap` mounts the minimap only from `sm` up (`useIsSm` in
+  `use-is-phone.ts`), in a component of its own so learning the width
+  after hydration redraws it and not the canvas. `useCardsStore` in
+  `canvas-edges.tsx` wraps each line's store selectors: it keeps the x, y,
+  width and height it last saw for each of the line's cards and hands back
+  its last answer while they're unchanged. It compares the numbers, not
+  the objects, because a measure or a drag gives every card a new position
+  object whether it moved or not. `FitText` shares one ResizeObserver
+  across the page: a line's first fit is the observer's first report of
+  it, before it is painted; each batch writes every font size, reads every
+  width and then settles each, so it costs one layout; a new text is
+  watched afresh, so it is fitted again; `fonts.ready` is awaited once for
+  the page, and only while a font is still loading. **My calls, not
+  asked:** "phone" is Step 49's phone (coarse pointer, screen short side
+  under 600), so tablets and narrow desktop windows keep the blur and the
+  shadows; the visitor blur on hidden people is opacity-only on a phone
+  too (their cards say only "Hidden"); `onlyRenderVisibleElements` (the
+  audit's "try above about 150 cards") is left off, since the biggest live
+  tree has 117. **Numbers** (the 77-person zz-p3 fixture, production
+  builds of main at `2e463c1` and this side by side, headless, 4× CPU,
+  ×12, medians; phone = 390 × 844, touch, `isMobile`): pan and zoom
+  geometry calls 2,812 / 1,900 → 0 (phone), 3,192 / 912 → 0 (desktop);
+  per drag step 77–78 → 3 (the dragged card's lines), a whole drop 1,959
+  → 80; opening a sheet 3,581 → 57; load 323 → 95. Script time during a
+  phone pan 390 → 311 ms, a zoom 151 → 104. A phone pan in a spotlight:
+  composite 220 → 101 ms, raster 308 → 256, paint 59 → 84 (the cards are
+  painted into the page instead of being filtered as layers), so 587 →
+  441 ms in all; frames over 20 ms while a phone sheet opens 6 → 3.
+  ResizeObservers per load 87 → 11, their callbacks 89 → 13; FitText
+  measures per load 231 → 154 (77 cards, once when shown and once when
+  the web font lands; 77 when it already has); nothing runs while the
+  canvas is idle, before or after. Load itself unchanged (script 1009 →
+  986 ms desktop, 969 → 929 phone). Screenshots against main: desktop and
+  a touch tablet (744 × 1133) pixel-identical in light and dark (load,
+  search dimming, spotlight); a phone differs only in a spotlight. Live,
+  as a seeded throwaway Root (12 people, 5 photos, a cat) on phone, tablet
+  and desktop: loads, pans, pinch/wheel zoom, search dimming, a spotlight
+  (leaves, fading, minimized), a `?person=` load with no console errors, a
+  real drop kept after a reload, lines following a card mid-drag and
+  after; read-only runs of main and this differ only in the phone's
+  `data-phone`, minimap and filters.
 - **Step 91 — A portrait the browser couldn't redraw isn't uploaded as
   picked** (ad-hoc privacy fix; no migration). Found during Step 88.6:
   `compressImage` (`lib/image.ts`) redraws a picked photo on a canvas,
