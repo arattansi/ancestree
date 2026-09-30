@@ -130,8 +130,7 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   contributions to a founding admin);
   `trees.ts`: `foundTree` / `renameTree` / `deleteTree`, `placePeople` /
   `respondToPlacement` / `removePlacement`, `setHomeTree`,
-  `setHiddenFromVisitors`, `setTreeVisibility`, `joinTreeWithInvite`,
-  `listPersonTrees` (Step 25);
+  `setHiddenFromVisitors`, `setTreeVisibility`, `joinTreeWithInvite`;
   `invites.ts`: `sendDirectInvites` (bulk name+email
   invites), `sendFounderInvites` (Roots: someone founds a tree of their own)
   — both made, emailed in one Resend batch and recorded together
@@ -168,13 +167,27 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   create and the invite asked for with it, Step 77.5; a photo follows in a
   second) and every line after it (the refusal wording `people.ts` and
   `connections.ts` share is `lib/entry-errors.ts`); `album.ts`:
-  `getEntryAlbum` / `addAlbumPhoto` / `decideAlbumPhoto` /
-  `removeFromAlbum` / `deleteAlbumPhoto`, Step 88.5; `claims.ts`: `claimPerson` /
-  `markNotificationsRead`; `stories.ts`: `getEntryStories` / `addStory` /
+  `addAlbumPhoto` / `decideAlbumPhoto` /
+  `removeFromAlbum` / `deleteAlbumPhoto`, Step 88.5 (its reads are the
+  sheet's GET, Step 87.6); `claims.ts`: `claimPerson` /
+  `markNotificationsRead`; `stories.ts`: `addStory` /
   `decideStory` / `deleteStory`, Step 88.3, and `shareStory` /
   `stopSharingStory` / `getStoryComments` / `addStoryComment` /
   `deleteStoryComment`, Step 88.4; `entry-reports.ts`: `reportEntry` / `resolveEntryReport` /
-  `withdrawEntryReport` / `decideClaimDispute` / `getEntryReports`, Step 88.2)
+  `withdrawEntryReport` / `decideClaimDispute`, Step 88.2; the sheet's
+  reads are `GET /api/person-sheet`, Step 87.6)
+- `app/api/person-sheet` — `GET ?person=<id>&want=trees,reports,album,stories`:
+  what the details sheet shows beyond the card ("Also on", Step 25; open
+  reports, 88.2; the album, 88.5; stories, 88.3), read side by side as the viewer
+  (`lib/person-sheet.server.ts#loadPersonSheet`, a section that fails is
+  named and the rest still come; `lib/person-sheet.ts` the types and
+  params, `.test.ts`); `components/tree/use-person-sheet.ts` keeps each
+  person's for the tab: `useLoadPersonSheet` (in `PersonPanel`) asks once
+  per opening for what's missing or over a minute old, calls it off when
+  another person opens, and asks for the reports again when their count
+  changes; the sections read `usePersonSheet` and write their own changes
+  with `setPersonSheet`; `invalidatePersonSheet` reads again; every new
+  page from the server marks them all stale (`FamilyTree`), Step 87.6
 - `components/tree/` — `family-tree.tsx` React Flow canvas (generation lanes
   behind the cards, whose titles stay life-size when zoomed out —
   `laneTitleFit` — and pinned inside the canvas's left edge — `laneTitleLeft`;
@@ -345,8 +358,9 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `formatPlaceLabel`; `lib/country-names.ts` — `countryName` (ISO→name) +
   `ALPHA2`, and a country's own `places` row (`countryPlaceId`,
   `isCountryPlace`, `isCountryPlaceId`, Step 79, `.test.ts`);
-  `app/actions/places.ts` — `searchPlacesAction` / `requestNewPlace`
-  (admin) / `listCountryOptions`; `lib/historical-names.ts` — pure
+  `app/api/places` — `GET ?q=` the picker's search, a route so a newer
+  search calls off the last and none waits behind a save (Step 87.6);
+  `app/actions/places.ts` — `requestNewPlace` (admin) / `listCountryOptions`; `lib/historical-names.ts` — pure
   `resolveHistoricalName` / `formatHistoricalPlace` (Step 4.5d, `.test.ts`)
 - `lib/place-search.ts` — pure `shapePlaceQuery` / `rankPlaces` /
   `choosePlaces` / `countriesNamed`, what the place search looks for and in
@@ -1625,6 +1639,85 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 87.6 — One GET for the sheet** (the sixth of Step 87, audit Phase
+  3, finding S6; no migration; landed after Step 88.5 and bundles its
+  album). **Aalim asked for:** one GET route that returns everything the
+  details sheet reads on open, in parallel, fetched with an
+  `AbortController` and kept per person, like the ancestral lands. The
+  sheet read "Also on", its open reports, the album and its stories
+  through four server actions from effects, and the client sends actions
+  one at a time, so they went in single file, waited behind any save (a
+  card drop), and clicking through relatives queued reads for people no
+  longer open. Now `PersonPanel` calls `useLoadPersonSheet`
+  (`components/tree/use-person-sheet.ts`), which asks
+  `GET /api/person-sheet?person=<id>&want=trees,reports,album,stories`
+  once for whatever that person's sheet lacks: "Also on" unless the tree
+  is read-only, reports only while the card counts some (again when the
+  count changes), the album and stories unless the entry is locked. The
+  route reads the sections side by side as the viewer, through RLS, with
+  the same queries as before (`lib/person-sheet.server.ts`); a section
+  that fails is named and the others still arrive, so "Couldn’t load the
+  album / the stories. Try again" work as before. `PersonTrees`,
+  `EntryReports`, `EntryAlbum` and `EntryStories` read their person's
+  entry (`usePersonSheet`) and write their own changes to it
+  (`setPersonSheet`: a story told, answered, shared or deleted, a comment
+  counted, a photo added, answered or taken out, a report dealt with), so
+  coming back to someone shows what was done; an answer sent before such
+  a change doesn't overwrite it. `listPersonTrees`, `getEntryReports`,
+  `getEntryAlbum` and `getEntryStories` are gone. Place search's
+  per-keystroke action is in the same finding, so it moved too:
+  `GET /api/places?q=` (`searchPlacesAction` gone), and a newer search
+  calls off the last one when it goes out (not on the keystroke, so a
+  result can still land between keys, as before). **My calls, not
+  asked:** a person's reads count as fresh for a minute (clicking back and
+  forth between relatives reads nothing) and every new page from the
+  server marks them all stale (`FamilyTree`), so after any save that
+  redraws the page, or coming back to the tree, each person is read again
+  when next opened; an open sheet isn't read again when the page is
+  redrawn (it wasn't before either); a minimized sheet still reads, as its
+  sections stayed mounted. The ancestral lands keep their own GET: keyed
+  by place, not person, shared with share links, and a slow answer from
+  Native Land Digital would hold up the rest. A share link's sheet and a
+  visitor's read none of these, as before. The pet sheet's comments are
+  still an action (not in S6). An abort stops the browser waiting; the
+  server's queries still finish. Agreed with the Step 88.5 session by
+  message: documents stayed out while they were going; 88.5 landed first,
+  so this rebased and took the album in. **Numbers** (live, a seeded
+  10-person throwaway Root, production builds of main at `76f00e5` and
+  this side by side, headless, ×12, opening Dad, who has "Also on", two
+  stories, two album photos and a report): per open, 4 actions one after
+  another → 1 GET; 4.0 KB across four replies → one of 3.6 KB. Every
+  section now shows in the same frame at 407 ms (median; 311–498):
+  "Also on" 513 → 407, the album 865 → 407, stories 1056 → 407, but
+  **reports 328 → 407**, since the answer waits for its slowest part
+  (the album's signing) where the reports used to arrive first. Opening
+  the same person again: 4 actions, stories at 1063 ms → no read, 13 ms.
+  Right after a card drop: the reads waited for the drop's reply (251 ms)
+  → the GET goes out beside it; stories 1082 → 424 ms. Five relatives
+  clicked through 120 ms apart: 18 actions, 15–16 finishing after the
+  last click, the last person's stories at 3534 ms → 5 GETs, 4 called
+  off, 341 ms. Place search: typing "Toronto" 60 ms a key, one search
+  either way, results 816 → 810 ms after the last key (the query's own
+  time); 260 ms a key, six searches either way, results 9 → 9 ms after
+  the last key (main's worst 817, queued behind the one before; this
+  one's 12). **Verified** on live against both builds as the throwaway
+  Root and a Leaf: the same sheets on main and on this (diffed): the
+  Root's pending story, waiting photo and Root-only report hidden from
+  the Leaf, the Leaf's own report shown to them, "Also on" for the people
+  on the second tree, a `/tree?person=` load with no console errors, and
+  a share link's sheet reading nothing (no `/api/` request, no action).
+  On this build: a story told on Mom showed at once, stayed after opening
+  Sister and coming back (no read for Mom), and after a reload; approving
+  a waiting story, and a waiting album photo, stayed approved on coming
+  back; resolving a report took it away at once and after the page caught
+  up; the Leaf's new report made the count, and the sheet read only the
+  reports; a drop then an open showed the sheet; asking the route as the
+  Leaf for Uncle's reports or Grandma's stories returned none of the
+  Root's; bad ids or sections 400; signed out is sent to `/join` by the
+  proxy, as for every `/api/` route. `npm test`, `tsc`, `eslint` and the
+  build clean. The throwaway accounts, trees, rows and album files were
+  deleted.
 
 - **Step 88.5 — The album replaces documents** (the fifth of Step 88, the
   person sheet's redesign; two migrations: `20260930010000_album`,
