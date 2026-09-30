@@ -488,8 +488,9 @@ export async function listPersonTrees(personId: string): Promise<PersonTreeLink[
 /**
  * Root: delete a tree they run. Entries whose home it was move to another
  * tree that shows them; the rest go with it (`delete_tree`), and so do
- * their files, and the documents uploaded onto it (Step 90): read before,
- * removed after the response wherever nothing points at them any more.
+ * their files (Step 90) and the album photos nobody else is in (Step
+ * 88.5): read before, removed after the response wherever nothing points
+ * at them any more.
  */
 export async function deleteTree(treeId: string): Promise<{ error?: string }> {
   const { error: notRoot } = await rootOf(treeId);

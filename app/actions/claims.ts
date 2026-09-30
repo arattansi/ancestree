@@ -33,7 +33,7 @@ function friendlyClaimError(message: string | undefined): string {
 
 /**
  * Claim an existing entry as yourself. Auto-approves and merges the
- * placeholder you added for yourself into it, documents and photo included;
+ * placeholder you added for yourself into it, album and photo included;
  * `claim_person` refuses when your own entry is more than that, or the entry
  * is of someone who has died (Step 36).
  */

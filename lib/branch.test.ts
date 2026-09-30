@@ -11,7 +11,6 @@ import {
   canInviteToClaim,
   canInviteToClaimCard,
   canOfferDelete,
-  canSeeDocuments,
   descendantIds,
   lineIds,
   ownRoots,
@@ -701,45 +700,6 @@ describe("canEditCompanion", () => {
   it("gives an admin every companion", () => {
     const pet = { created_by: "raiya-user", companions: ["noorali"] };
     expect(canEditCompanion(pet, admin, () => false)).toBe(true);
-  });
-});
-
-describe("canSeeDocuments", () => {
-  it("shows a Root every entry's documents", () => {
-    expect(canSeeDocuments(entry({ id: "hussein" }), admin)).toBe(true);
-  });
-
-  it("shows the owner, and the member whose own entry it is", () => {
-    const mine = entry({ id: "rehan", owner_user_id: "arzu-user" });
-    expect(canSeeDocuments(mine, member)).toBe(true);
-    expect(canSeeDocuments(entry({ id: "arzu" }), member)).toBe(true);
-  });
-
-  it("hides them from a Leaf who doesn't own the entry", () => {
-    expect(canSeeDocuments(entry(), member)).toBe(false);
-  });
-
-  it("shows a Branch their part of the Root's side, including members' own entries", () => {
-    const raiya = entry({ id: "raiya", isSomeoneElsesOwn: true });
-    expect(canEditEntry(raiya, branchAdmin)).toBe(false);
-    expect(canSeeDocuments(raiya, branchAdmin)).toBe(true);
-    expect(canSeeDocuments(entry({ id: "safia" }), branchAdmin)).toBe(true);
-    expect(canSeeDocuments(entry({ id: "noorali" }), branchAdmin)).toBe(false);
-    expect(canSeeDocuments(entry({ id: "minaz" }), branchAdmin)).toBe(false);
-  });
-
-  it("covers everyone who can edit the entry", () => {
-    const ids = ["fatehali", "noorali", "minaz", "arzu", "rehan", "raiya"];
-    for (const viewer of [admin, branchAdmin, member]) {
-      for (const id of ids) {
-        for (const owner of ["raiya-user", "arzu-user"]) {
-          const e = entry({ id, owner_user_id: owner, created_by: owner });
-          if (canEditEntry(e, viewer)) {
-            expect(canSeeDocuments(e, viewer)).toBe(true);
-          }
-        }
-      }
-    }
   });
 });
 

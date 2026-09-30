@@ -19,7 +19,7 @@ import { useAction, type RunOptions } from "@/components/use-action";
 import { refocusAfterRemoval } from "@/components/use-focus-return";
 
 export type ConfirmProps<T = unknown> = {
-  /** The question, as the dialog's title: "Remove this document?" */
+  /** The question, as the dialog's title: "Remove this photo from the album?" */
   title: React.ReactNode;
   /**
    * What the reader must know first, if anything; in a string, each line

@@ -116,7 +116,7 @@ describe("describeAccess", () => {
   it("lets everyone see, add stories, report and suggest changes (Step 88.3)", () => {
     for (const t of ACCOUNT_TYPES) {
       expect(valueOf(t, "See the whole tree")).toBe(true);
-      expect(valueOf(t, "Add stories and report problems")).toBe(true);
+      expect(valueOf(t, "Add stories and photos, and report problems")).toBe(true);
       expect(valueOf(t, "Suggest changes to entries")).toBe(true);
     }
   });
@@ -125,11 +125,6 @@ describe("describeAccess", () => {
     expect(valueOf(ROOT, "Edit entries")).toBe(true);
     expect(valueOf(BRANCH, "Edit entries")).toBe("Their part of a Root’s side");
     expect(valueOf(LEAF, "Edit entries")).toBe("The ones they added");
-    expect(valueOf(ROOT, "See documents")).toBe(true);
-    expect(valueOf(BRANCH, "See documents")).toBe(
-      "Their part of a Root’s side",
-    );
-    expect(valueOf(LEAF, "See documents")).toBe("Entries they own");
     expect(valueOf(LEAF, "Change connections")).toBe("The ones they drew");
   });
 

@@ -303,12 +303,6 @@ const ENTRY_REACH: Record<Reach, string | true> = {
   own: "The ones they added",
 };
 
-const DOCUMENT_REACH: Record<Reach, string | true> = {
-  tree: true,
-  branch: "Their part of a Root’s side",
-  own: "Entries they own",
-};
-
 const CLAIM_INVITE_REACH: Record<Reach, string | true> = {
   tree: true,
   branch: "On their part of a Root’s side",
@@ -329,7 +323,7 @@ const CONNECTION_REACH: Record<Reach, string | true> = {
 export function describeAccess(type: AccountType): Access[] {
   return [
     { label: "See the whole tree", value: true },
-    { label: "Add stories and report problems", value: true },
+    { label: "Add stories and photos, and report problems", value: true },
     { label: "Edit entries", value: ENTRY_REACH[type.entries] },
     {
       label: "Fill in what’s missing",
@@ -341,9 +335,6 @@ export function describeAccess(type: AccountType): Access[] {
     // Anything they can't edit, to its owner, the Roots and the Branch who
     // tends it (Steps 67–68).
     { label: "Suggest changes to entries", value: true },
-    // Documents follow the same reach as editing, except that a Branch also
-    // sees members' own entries on their side (`private.can_see_documents`).
-    { label: "See documents", value: DOCUMENT_REACH[type.entries] },
     { label: "Change connections", value: CONNECTION_REACH[type.connections] },
     {
       label: "Add relatives",

@@ -10,7 +10,6 @@ import { updatePerson, type PhotoChange } from "@/app/actions/people";
 import { FloatingFormActions } from "@/components/floating-form-actions";
 import { FormError } from "@/components/form-error";
 import { PendingButton } from "@/components/pending-button";
-import { PersonDocuments } from "@/components/person-documents";
 import { PersonFields } from "@/components/person-fields";
 import { PhotoPicker } from "@/components/photo-picker";
 import { Button } from "@/components/ui/button";
@@ -165,10 +164,6 @@ export function PersonForm({
           </>
         )}
       </form>
-
-      <div className="mt-8 border-t border-border pt-6">
-        <PersonDocuments personId={person.id} treeId={treeId} canEdit />
-      </div>
     </Form>
   );
 }

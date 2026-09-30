@@ -277,7 +277,7 @@ export function canInviteToClaimCard(
  * `private.can_delete_person` the entry itself can answer: a Root, anything;
  * a Branch or a Leaf, an entry they created that is still theirs — unclaimed,
  * nobody's own, not their own. The other half, that nobody else has hung a
- * connection, comment, document or companion on it, is the database's to
+ * connection, story, photo or companion on it, is the database's to
  * check when they try; a refusal then says to ask a Root.
  */
 export function canOfferDelete(entry: EntrySubject, viewer: Viewer): boolean {
@@ -327,19 +327,6 @@ export function canEditCompanion(
   if (accountTypeOf(viewer.role).companions === "tree") return true;
   if (pet.created_by === viewer.userId) return true;
   return pet.companions.some(canEditPerson);
-}
-
-/**
- * Mirrors `private.can_see_documents` (Step 18.4): a Root; the entry's owner,
- * or the member whose own entry it is; or the Branch who tends the side it is
- * on — including another member's own entry, which that Branch can't edit but
- * does look after. Everyone who can edit an entry is in here.
- */
-export function canSeeDocuments(entry: EntrySubject, viewer: Viewer): boolean {
-  if (accountTypeOf(viewer.role).entries === "tree") return true;
-  if (entry.owner_user_id === viewer.userId) return true;
-  if (entry.id === viewer.selfPersonId) return true;
-  return isOnBranch(entry.id, viewer);
 }
 
 /**

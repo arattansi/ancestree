@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { getSessionUser, requireProfile } from "@/lib/auth";
-import { removeUnusedDocuments } from "@/lib/file-cleanup.server";
+import { albumPhotosOf, removeUnusedAlbumPhotos } from "@/lib/file-cleanup.server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { revalidateTreePages } from "@/lib/revalidate";
@@ -44,7 +44,8 @@ export async function exportTreeData(treeId: string): Promise<{
     storiesOnPeople,
     reportsHere,
     reportsOnOwn,
-    documents,
+    albumTags,
+    albumHere,
     notifications,
     pets,
     petCompanions,
@@ -66,7 +67,12 @@ export async function exportTreeData(treeId: string): Promise<{
     // entries, which its Roots see wherever they were raised.
     db.from("entry_reports").select("*").eq("tree_id", treeId),
     db.from("entry_reports").select("*, people!inner(tree_id)").eq("people.tree_id", treeId),
-    db.from("documents").select("*").eq("tree_id", treeId),
+    // The album (Step 88.5): who's in which photo, for anyone the tree
+    // shows, and the photos added here.
+    personIds.length
+      ? db.from("album_tags").select("*").in("person_id", personIds)
+      : Promise.resolve({ data: [], error: null }),
+    db.from("album_photos").select("*").eq("tree_id", treeId),
     db.from("notifications").select("*").eq("tree_id", treeId),
     db.from("pets").select("*").eq("tree_id", treeId),
     db.from("pet_companions").select("*, pets!inner(tree_id)").eq("pets.tree_id", treeId),
@@ -84,7 +90,8 @@ export async function exportTreeData(treeId: string): Promise<{
     storiesOnPeople,
     reportsHere,
     reportsOnOwn,
-    documents,
+    albumTags,
+    albumHere,
     notifications,
     pets,
     petCompanions,
@@ -111,6 +118,16 @@ export async function exportTreeData(treeId: string): Promise<{
     : { data: [], error: null };
   if (storyComments.error) return { error: "Could not read every table. Try again." };
 
+  // The photos they're in that were added on other trees.
+  const here = new Set((albumHere.data ?? []).map((p) => p.id));
+  const elsewhere = [
+    ...new Set((albumTags.data ?? []).map((t) => t.photo_id).filter((id) => !here.has(id))),
+  ];
+  const albumElsewhere = elsewhere.length
+    ? await db.from("album_photos").select("*").in("id", elsewhere)
+    : { data: [], error: null };
+  if (albumElsewhere.error) return { error: "Could not read every table. Try again." };
+
   const payload = {
     exported_at: new Date().toISOString(),
     tree_id: treeId,
@@ -132,7 +149,8 @@ export async function exportTreeData(treeId: string): Promise<{
           ].map((r) => [r.id, r]),
         ).values(),
       ],
-      documents: documents.data ?? [],
+      album_photos: [...(albumHere.data ?? []), ...(albumElsewhere.data ?? [])],
+      album_tags: albumTags.data ?? [],
       notifications: notifications.data ?? [],
       pets: pets.data ?? [],
       pet_companions: petCompanions.data ?? [],
@@ -148,13 +166,14 @@ export async function exportTreeData(treeId: string): Promise<{
 }
 
 /**
- * Permanently remove a person entry, its relationship edges and stories (via
- * cascade), and its stored photo, documents and story recordings. A Root of the entry's home tree may remove any
- * entry — right-to-erasure requests come through here. Since Step 22.3 a
- * Branch or a Leaf may remove an unclaimed entry they added, as long
- * as nobody else has hung a connection, story, document or companion on it
- * and no other tree shows it (`private.can_delete_person`, enforced by the
- * `people_delete` policy).
+ * Permanently remove a person entry, its relationship edges, stories and
+ * album tags (via cascade), and its stored photo, story recordings and the
+ * album photos nobody else is in (Step 88.5). A Root of the entry's home
+ * tree may remove any entry — right-to-erasure requests come through here.
+ * Since Step 22.3 a Branch or a Leaf may remove an unclaimed entry they
+ * added, as long as nobody else has hung a connection, story, photo or
+ * companion on it and no other tree shows it (`private.can_delete_person`,
+ * enforced by the `people_delete` policy).
  */
 export async function deletePerson(
   personId: string,
@@ -175,15 +194,12 @@ export async function deletePerson(
   });
   if (!allowed) return { error: NOT_YOURS_TO_DELETE };
 
-  // Its documents and its stories' recordings, some of which the viewer
-  // can't see (a document only its side of the family may, a story waiting
-  // on the person), so the service role reads where they are (Step 90).
-  // Removed only once the delete has gone through.
+  // The album photos they're in and their stories' recordings, some of
+  // which the viewer can't see (a photo or a story waiting on the person),
+  // so the service role reads where they are (Step 90). Removed only once
+  // the delete has gone through, and a photo only once nobody is in it.
   const db = createAdminClient();
-  const { data: docs } = await db
-    .from("documents")
-    .select("file_path")
-    .eq("person_id", personId);
+  const album = await albumPhotosOf([personId]);
   const { data: recordings } = await db
     .from("stories")
     .select("audio_path")
@@ -227,7 +243,7 @@ export async function deletePerson(
   ];
   if (objects.length) await db.storage.from("photos").remove(objects);
 
-  await removeUnusedDocuments((docs ?? []).map((d) => d.file_path));
+  await removeUnusedAlbumPhotos(album ?? []);
 
   const audioPaths = (recordings ?? []).flatMap((r) =>
     r.audio_path ? [r.audio_path] : [],
@@ -239,7 +255,7 @@ export async function deletePerson(
 }
 
 const NOT_YOURS_TO_DELETE =
-  "Someone else has added to this entry — a connection, story, document or companion — or another tree shows it, so only a Root can remove it now. Ask a Root.";
+  "Someone else has added to this entry — a connection, story, photo or companion — or another tree shows it, so only a Root can remove it now. Ask a Root.";
 
 export type DeleteAccountInput = {
   /**
@@ -338,7 +354,6 @@ export async function deleteAccount(
       db.from("relationships").update({ created_by: steward }).eq("created_by", user.id).eq("tree_id", m.tree_id),
       db.from("invites").update({ created_by: steward }).eq("created_by", user.id).eq("tree_id", m.tree_id),
       db.from("share_links").update({ created_by: steward }).eq("created_by", user.id).eq("tree_id", m.tree_id),
-      db.from("documents").update({ uploaded_by: steward }).eq("uploaded_by", user.id).eq("tree_id", m.tree_id),
       // Companions are family memories too — hand them over rather than
       // letting the profile cascade take the household dog with it.
       db.from("pets").update({ created_by: steward }).eq("created_by", user.id).eq("tree_id", m.tree_id),
@@ -370,7 +385,6 @@ export async function deleteAccount(
       db.from("relationships").update({ created_by: s }).eq("created_by", user.id),
       db.from("invites").update({ created_by: s }).eq("created_by", user.id),
       db.from("share_links").update({ created_by: s }).eq("created_by", user.id),
-      db.from("documents").update({ uploaded_by: s }).eq("uploaded_by", user.id),
       db.from("pets").update({ created_by: s }).eq("created_by", user.id),
       db.from("pet_companions").update({ created_by: s }).eq("created_by", user.id),
       db.from("pet_comments").update({ created_by: s }).eq("created_by", user.id),
@@ -378,8 +392,9 @@ export async function deleteAccount(
     ]);
   }
   // A founded tree keeps going without its founder on record. Their stories
-  // stay on the entries they're about, told by nobody (Step 88.3): the
-  // profile's delete clears `stories.created_by`.
+  // stay on the entries they're about, told by nobody (Step 88.3), and their
+  // photos in the albums they're in, added by nobody (Step 88.5): the
+  // profile's delete clears `stories.created_by` and `album_photos.created_by`.
   await db.from("trees").update({ created_by: null }).eq("created_by", user.id);
 
   const { error: profileError } = await db

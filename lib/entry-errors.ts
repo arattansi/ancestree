@@ -2,10 +2,9 @@ import { OWN_LINE_REFUSAL, isOwnLineRefusal } from "@/lib/account-types";
 import { friendlyDbError, RLS_REFUSED, type ErrorRule } from "@/lib/db-errors";
 
 /**
- * What a refused write to an entry says: shared by the entry, connection and
- * document actions (`app/actions/people.ts`, `connections.ts`,
- * `documents.ts`), which, being "use server" files, can only share
- * functions they export as actions.
+ * What a refused write to an entry says: shared by the entry and connection
+ * actions (`app/actions/people.ts`, `connections.ts`), which, being "use
+ * server" files, can only share functions they export as actions.
  */
 
 export const NO_PERMISSION = "You don't have permission to make that change.";

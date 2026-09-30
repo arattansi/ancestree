@@ -91,7 +91,6 @@ import {
   canInviteToClaim,
   canInviteToClaimCard,
   canOfferDelete,
-  canSeeDocuments,
   descendantIds,
   lineIds,
   ownRoots,
@@ -1847,8 +1846,6 @@ function Canvas({
     !!selectedPerson &&
     !canEdit &&
     canFillEntry(entrySubject(selectedPerson), viewer);
-  const canSeeDocs =
-    !!selectedPerson && canSeeDocuments(entrySubject(selectedPerson), viewer);
   // A basic card says too little of itself for the entry's rule, so it has
   // its own: a Root's to send, when nobody is behind it (Step 84).
   const canInvite =
@@ -2254,7 +2251,6 @@ function Canvas({
           isSelf={selectedPerson?.id === selfPersonId}
           canEdit={canEdit}
           canFill={canFill}
-          canSeeDocuments={canSeeDocs}
           canDelete={canDelete}
           canInviteToClaim={canInvite}
           claimInvites={selectedInvites}

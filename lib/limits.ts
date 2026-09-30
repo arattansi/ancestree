@@ -32,6 +32,18 @@ export const STORY_MAX = 20000;
  */
 export const STORY_AUDIO_MAX_MB = 25;
 
+/** An album photo's description, and how many people one may be of
+ *  (Step 88.5). */
+export const ALBUM_DESCRIPTION_MAX = 500;
+export const ALBUM_PEOPLE_MAX = 20;
+
+/**
+ * An album photo as stored (Step 88.5): its longest side once the browser
+ * has shrunk it, and the `album` bucket's limit, for one it couldn't.
+ */
+export const ALBUM_PHOTO_EDGE = 1600;
+export const ALBUM_PHOTO_MAX_MB = 10;
+
 /** What's wrong, in a report on an entry (Step 88.2). */
 export const REPORT_MAX = 1000;
 

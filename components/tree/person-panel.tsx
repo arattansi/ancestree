@@ -18,7 +18,6 @@ import { JoinsAsNote } from "@/components/joins-as-note";
 import { lazyComponent, whenIdle } from "@/components/lazy-component";
 import { PhotoCropEditor } from "@/components/lazy-photo-crop-editor";
 import { PendingButton } from "@/components/pending-button";
-import { PersonDocuments } from "@/components/person-documents";
 import { PendingConnectionPrompts } from "@/components/tree/connection-prompts";
 import { CompanionsSection } from "@/components/tree/person-companions";
 import {
@@ -27,6 +26,7 @@ import {
 } from "@/components/tree/person-family";
 import { AddRelativeButton } from "@/components/tree/add-relative-button";
 import type { CompanionOption } from "@/components/tree/companion-picker";
+import { EntryAlbum } from "@/components/tree/entry-album";
 import { EntryStories } from "@/components/tree/entry-stories";
 import { EntryReports } from "@/components/tree/entry-reports";
 import { EntrySuggestions } from "@/components/tree/entry-suggestions";
@@ -201,7 +201,6 @@ function PersonPanelImpl({
   isSelf,
   canEdit,
   canFill = false,
-  canSeeDocuments,
   canDelete = false,
   canInviteToClaim = false,
   claimInvites = [],
@@ -243,8 +242,6 @@ function PersonPanelImpl({
    * 44): an unclaimed entry on their own line (`canFillEntry`).
    */
   canFill?: boolean;
-  /** Documents are the owner's, their Branch's and the Roots' (Step 18.4). */
-  canSeeDocuments: boolean;
   /**
    * Offer "Delete entry" (Step 22.3): a Root, or the Branch or Leaf who added
    * it while it is still theirs (`canOfferDelete`). The database still
@@ -815,25 +812,15 @@ function PersonPanelImpl({
                 onResolved={() => undefined}
               />
 
+              {/* The album (Step 88.5), where documents were: not on a
+                  share link or to a visitor, and not on a basic card. */}
               {!locked ? (
                 <section className="border-t border-border pt-5">
-                  {canSeeDocuments ? (
-                    <PersonDocuments
-                      personId={person.id}
-                      treeId={treeId}
-                      canEdit={canEdit}
-                    />
-                  ) : (
-                    // Not "No documents yet" — there may be some, just not
-                    // theirs to see.
-                    <div className="flex flex-col gap-1">
-                      <h2 className="text-sm font-semibold">Documents</h2>
-                      <p className="text-xs text-muted-foreground">
-                        Private to this entry&rsquo;s owner, its Branch and the
-                        Roots.
-                      </p>
-                    </div>
-                  )}
+                  <EntryAlbum
+                    personId={person.id}
+                    treeId={treeId}
+                    people={people}
+                  />
                 </section>
               ) : null}
 
@@ -878,7 +865,7 @@ function PersonPanelImpl({
                         confirm={{
                           title: `Delete ${personDisplayName(person)}?`,
                           description:
-                            "Their connections, photo, documents and stories go too.\nThis cannot be undone.",
+                            "Their connections, photos and stories go too.\nThis cannot be undone.",
                           confirmLabel: "Delete",
                           pendingLabel: "Deleting…",
                           onConfirm: () => deletePerson(person.id),

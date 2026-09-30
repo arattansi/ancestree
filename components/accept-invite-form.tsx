@@ -65,7 +65,7 @@ export function AcceptInviteForm({
             className="mt-0.5"
           />
           <span>
-            I agree that my family details, photos, and documents will be shared
+            I agree that my family details and photos will be shared
             with other members of this private tree, and I have read the{" "}
             <Link
               href="/privacy"

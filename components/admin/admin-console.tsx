@@ -645,7 +645,7 @@ export async function AdminConsole({
         <AdminSubsection
           id="data-privacy"
           title="Data & Privacy"
-          description="Export this tree as JSON for a data-access request. To erase a specific person and their photos and documents, open their entry on the tree and use “Delete entry”. Deleting the whole tree moves everyone whose home it is to another tree that shows them, and removes the rest."
+          description="Export this tree as JSON for a data-access request. To erase a specific person and their photos, open their entry on the tree and use “Delete entry”. Deleting the whole tree moves everyone whose home it is to another tree that shows them, and removes the rest."
         >
           <div className="flex flex-wrap items-center gap-3">
             <AdminExport treeId={tree.id} />

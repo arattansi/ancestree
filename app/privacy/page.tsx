@@ -37,7 +37,7 @@ export default function PrivacyPage() {
             The demographic details you enter about yourself and relatives: names,
             dates and places of birth and death, and relationships.
           </li>
-          <li>Photos, documents and recordings you choose to upload.</li>
+          <li>Photos and recordings you choose to upload.</li>
           <li>
             Activity needed to run the tree: who created an entry, claims,
             stories, reports, and in-app notifications.
@@ -81,13 +81,12 @@ export default function PrivacyPage() {
             members, entries, days used — never its entries or who anyone is.
           </li>
           <li>
-            Photos and documents live in private storage and are only ever served
-            through short-lived signed URLs.
+            Photos and recordings live in private storage and are only ever
+            served through short-lived signed URLs.
           </li>
           <li>
-            Documents on an entry go further: only the entry&rsquo;s owner, the
-            relative looking after that side of the family, and the tree&rsquo;s
-            founders can see or download them.
+            A photo shows in someone&rsquo;s album only once they, or whoever
+            can edit their entry, approve it.
           </li>
           <li>
             Nothing on the tree is public or indexed by search engines, except
@@ -111,7 +110,7 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong>Delete an entry.</strong> Ask a Root to remove an entry and
-            its photos, documents and stories.
+            its photos and stories.
           </li>
           <li>
             <strong>Stop relatives asking.</strong> Untick &ldquo;

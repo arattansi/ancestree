@@ -137,7 +137,7 @@ export function InviteConsent({
         className="mt-0.5"
       />
       <span>
-        If approved, I agree to share my family details, photos and documents
+        If approved, I agree to share my family details and photos
         with this tree&rsquo;s members. I&rsquo;ve read the{" "}
         <Link href="/privacy" target="_blank" className="underline underline-offset-4">
           privacy notice

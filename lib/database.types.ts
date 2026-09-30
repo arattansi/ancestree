@@ -14,6 +14,118 @@ export type Database = {
   }
   public: {
     Tables: {
+      album_photos: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          file_path: string
+          id: string
+          tree_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          file_path: string
+          id?: string
+          tree_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          file_path?: string
+          id?: string
+          tree_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "album_photos_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "album_photos_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "album_photos_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "my_trees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "album_photos_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      album_tags: {
+        Row: {
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          person_id: string
+          photo_id: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          person_id: string
+          photo_id: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          person_id?: string
+          photo_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "album_tags_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "album_tags_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "album_tags_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "album_tags_photo_id_fkey"
+            columns: ["photo_id"]
+            isOneToOne: false
+            referencedRelation: "album_photos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bloodline_anchors: {
         Row: {
           created_at: string
@@ -239,81 +351,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "trees"
             referencedColumns: ["id"]
-          },
-        ]
-      }
-      documents: {
-        Row: {
-          created_at: string
-          file_name: string
-          file_path: string
-          id: string
-          mime_type: string
-          person_id: string
-          shared_across_trees: boolean
-          tree_id: string
-          updated_at: string
-          uploaded_by: string
-        }
-        Insert: {
-          created_at?: string
-          file_name: string
-          file_path: string
-          id?: string
-          mime_type: string
-          person_id: string
-          shared_across_trees?: boolean
-          tree_id: string
-          updated_at?: string
-          uploaded_by: string
-        }
-        Update: {
-          created_at?: string
-          file_name?: string
-          file_path?: string
-          id?: string
-          mime_type?: string
-          person_id?: string
-          shared_across_trees?: boolean
-          tree_id?: string
-          updated_at?: string
-          uploaded_by?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "documents_person_id_fkey"
-            columns: ["person_id"]
-            isOneToOne: false
-            referencedRelation: "people"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "documents_tree_id_fkey"
-            columns: ["tree_id"]
-            isOneToOne: false
-            referencedRelation: "my_trees"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "documents_tree_id_fkey"
-            columns: ["tree_id"]
-            isOneToOne: false
-            referencedRelation: "trees"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "documents_uploaded_by_fkey"
-            columns: ["uploaded_by"]
-            isOneToOne: false
-            referencedRelation: "member_directory"
-            referencedColumns: ["auth_user_id"]
-          },
-          {
-            foreignKeyName: "documents_uploaded_by_fkey"
-            columns: ["uploaded_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["auth_user_id"]
           },
         ]
       }
@@ -2438,6 +2475,15 @@ export type Database = {
       }
     }
     Functions: {
+      add_album_photo: {
+        Args: {
+          p_description: string
+          p_path: string
+          p_people: string[]
+          p_tree: string
+        }
+        Returns: Json
+      }
       add_people_with_connections: {
         Args: {
           p_edges?: Json
@@ -2509,6 +2555,10 @@ export type Database = {
         }
         Returns: string
       }
+      decide_album_tag: {
+        Args: { p_approve: boolean; p_person: string; p_photo: string }
+        Returns: undefined
+      }
       decide_claim_dispute: {
         Args: { p_report: string; p_uphold: boolean }
         Returns: undefined
@@ -2540,6 +2590,21 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      entry_album: {
+        Args: { p_person: string }
+        Returns: {
+          added_by: string
+          can_decide: boolean
+          can_untag: boolean
+          created_at: string
+          created_by: string
+          description: string
+          file_path: string
+          id: string
+          others: Json
+          status: string
+        }[]
       }
       entry_stories: {
         Args: { p_person: string }
