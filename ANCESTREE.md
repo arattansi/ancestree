@@ -1509,9 +1509,11 @@ Canadian context → PIPEDA-minded.
 - **A photo's own details** (Step 88.6): Add a photo reads a picked
   photo's names and date in the browser to suggest tags and fill in the
   date; only that date is stored (`album_photos.taken_on`, and only if it's
-  kept on the form). GPS is never read. What goes up is always the copy the
-  canvas drew, which carries no EXIF, XMP or IPTC: a photo the browser
-  couldn't redraw is refused rather than uploaded as picked.
+  kept on the form). GPS is never read. What goes up, to the album and as
+  any portrait (Step 91), is always the copy the canvas drew, which carries
+  no EXIF, XMP or IPTC: a photo the browser couldn't redraw is refused
+  rather than uploaded as picked (`compressImage` returns `null`, never the
+  file).
 - **Free-tier headroom**: photos are downscaled client-side to ≤1280px JPEG
   (`lib/image.ts#compressImage`, wired in the add + edit forms), album
   photos to ≤1600px (the same, in `album-dialog.tsx`), well under the
@@ -1675,6 +1677,38 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 91 — A portrait the browser couldn't redraw isn't uploaded as
+  picked** (ad-hoc privacy fix; no migration). Found during Step 88.6:
+  `compressImage` (`lib/image.ts`) redraws a picked photo on a canvas,
+  which keeps none of its EXIF, XMP or IPTC, but when the redraw failed
+  (the file wouldn't decode, no 2d context, `toBlob` gave nothing) it
+  handed back the file as picked, and the portrait picker
+  (`components/photo-picker.tsx`) took it, so a person's or companion's
+  photo could reach the `photos` bucket with its camera's details, GPS
+  included. Even the picker's own "That image couldn't be read." (from the
+  crop editor) left that file selected, to go up on save. The album already
+  refused it (88.6). **Now** `compressImage` returns `null` on any failure,
+  a thrown one included, and never the original, so no caller can upload
+  one by mistake; the picker shows its existing line, "That image couldn't
+  be read. Try another file.", keeps whatever photo was there before, and
+  selects nothing; the album's check reads the `null` (its copy is
+  unchanged: "That photo couldn’t be read.", or "Choose a JPEG, PNG, or
+  WebP image." for a type it doesn't take, such as a HEIC outside Safari).
+  The portrait picker already refuses anything but JPEG, PNG and WebP by
+  type, HEIC included. `lib/photo-upload.ts` no longer expects a PNG or
+  WebP the picker couldn't remake: it only ever gets the JPEG it drew.
+  **Verified** in headless Chrome on live as a throwaway Root, on the edit
+  page: a "JPEG" with intact EXIF + GPS in front of undecodable data was
+  refused with that line, no editor or thumbnail, and after Save changes
+  nothing had been sent to storage and `photo_path` stayed empty; a real
+  2400×1800 JPEG with EXIF (camera make, date, GPS) then saved as a
+  1280×960 JPEG in the person's folder whose segments are only JFIF + ICC
+  (no EXIF, XMP or the camera's name); the undecodable one again, with
+  that portrait saved, was refused and the portrait kept. The throwaway
+  user, tree and file were deleted. 5 new unit tests (`lib/image.test.ts`:
+  each failing step gives `null`, two of them failed on the old code);
+  1388 pass; tsc, lint and `next build` are clean.
 
 - **Step 88.6 — Tags suggested from a photo's own details** (the last of
   Step 88, the person sheet redesign; migration
