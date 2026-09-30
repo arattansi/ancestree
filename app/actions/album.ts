@@ -14,12 +14,6 @@ import { createClient } from "@/lib/supabase/server";
  * what the list needs.
  */
 
-/** The photos in someone's album the viewer may see, for their details. */
-export async function getEntryAlbum(personId: string): Promise<AlbumPhoto[]> {
-  const profile = await requireProfile();
-  return listAlbum(personId, profile.auth_user_id);
-}
-
 /** What adding a photo says when it can't say more. */
 const NOT_ADDED = "Couldn’t add it. Try again.";
 

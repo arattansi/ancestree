@@ -13,7 +13,6 @@ import {
 import {
   listCountryOptions,
   requestNewPlace,
-  searchPlacesAction,
   type PlaceOption,
 } from "@/app/actions/places";
 import { FormError } from "@/components/form-error";
@@ -59,6 +58,21 @@ type Item = { value: number; label: string; place: PlaceOption };
 const DEBOUNCE_MS = 200;
 
 /**
+ * The places a search finds (`/api/places`, Step 87.6): a GET, so it neither
+ * waits behind the last keystroke's search or a save, nor goes on once it's
+ * called off. Out of reach, it finds none.
+ */
+async function findPlaces(q: string, signal: AbortSignal): Promise<PlaceOption[]> {
+  const res = await fetch(`/api/places?q=${encodeURIComponent(q)}`, {
+    signal,
+    cache: "no-store",
+  });
+  if (!res.ok) return [];
+  const body = (await res.json()) as { places?: PlaceOption[] };
+  return Array.isArray(body.places) ? body.places : [];
+}
+
+/**
  * Birthplace / place-of-death picker backed by `places`. The field is only
  * valid once a real `places.id` is chosen — there is no free-text fallback.
  * A whole country is one of the choices, marked with a globe (Step 79).
@@ -92,6 +106,8 @@ export function PlaceAutocomplete({
   const [addOpen, setAddOpen] = React.useState(false);
   const timer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const reqId = React.useRef(0);
+  // The search on its way, called off by the next one or a pick.
+  const searching = React.useRef<AbortController | null>(null);
 
   // A value nobody has picked in this session shows the label the form was
   // opened with. Built from those two alone — never from `items` — so a search
@@ -122,6 +138,7 @@ export function PlaceAutocomplete({
     // A link names no place, so there's nothing to ask for; and a search
     // still in flight mustn't land its results under it.
     if (q.trim().length < 2 || isLink(q)) {
+      searching.current?.abort();
       reqId.current++;
       setItems([]);
       setLoading(false);
@@ -129,12 +146,18 @@ export function PlaceAutocomplete({
     }
     setLoading(true);
     timer.current = setTimeout(async () => {
+      // A newer search supersedes one still on its way, as before; until
+      // it goes out, the last one's results may still land.
+      searching.current?.abort();
       const mine = ++reqId.current;
+      const controller = new AbortController();
+      searching.current = controller;
       let hits: PlaceOption[] = [];
       try {
-        hits = await searchPlacesAction(q);
+        hits = await findPlaces(q, controller.signal);
       } catch {
-        // The server out of reach: an empty list, not "Searching…" for good.
+        // Called off, or the server out of reach: an empty list, not
+        // "Searching…" for good.
       }
       if (mine !== reqId.current) return;
       setItems(hits.map((h) => ({ value: h.id, label: h.label, place: h })));
@@ -144,6 +167,7 @@ export function PlaceAutocomplete({
 
   React.useEffect(() => () => {
     if (timer.current) clearTimeout(timer.current);
+    searching.current?.abort();
   }, []);
 
   const options: Item[] = React.useMemo(() => {
@@ -173,6 +197,7 @@ export function PlaceAutocomplete({
           // A pick settles it: drop any search still in flight so its results
           // can't land on top of the choice.
           if (timer.current) clearTimeout(timer.current);
+          searching.current?.abort();
           reqId.current++;
           setLoading(false);
           setPicked(v);

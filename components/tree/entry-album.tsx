@@ -7,12 +7,16 @@ import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import {
   decideAlbumPhoto,
   deleteAlbumPhoto,
-  getEntryAlbum,
   removeFromAlbum,
 } from "@/app/actions/album";
 import { ActionButton } from "@/components/action-button";
 import { ConfirmButton } from "@/components/confirm-dialog";
 import type { CompanionOption } from "@/components/tree/companion-picker";
+import {
+  invalidatePersonSheet,
+  setPersonSheet,
+  usePersonSheet,
+} from "@/components/tree/use-person-sheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -298,9 +302,9 @@ function AlbumCarousel({
 /**
  * Someone's album (Step 88.5), in place of the documents it replaced: the
  * photos they're in that the viewer may see, newest first, and a way for
- * anyone on the tree to add one. Read when the entry opens; added,
- * answered and removed here, so the album keeps itself without the page
- * being drawn again.
+ * anyone on the tree to add one. Read when the entry opens
+ * (`useLoadPersonSheet`, Step 87.6); added, answered and removed here, so
+ * the album keeps itself without the page being drawn again.
  */
 export function EntryAlbum({
   personId,
@@ -313,36 +317,17 @@ export function EntryAlbum({
   /** Everyone on the canvas, who may be tagged in a new photo. */
   people: CompanionOption[];
 }) {
-  const [state, setState] = React.useState<{
-    personId: string;
-    items: AlbumPhoto[] | null;
-    failed: boolean;
-  }>({ personId, items: null, failed: false });
+  // Read with the rest of the sheet when it opens (Step 87.6).
+  const sheet = usePersonSheet(personId);
   const [adding, setAdding] = React.useState(false);
   // Mounted from the first press on, so it can close with its animation.
   const [dialogMounted, setDialogMounted] = React.useState(false);
-  const [version, setVersion] = React.useState(0);
   // A photo just added is the newest: the carousel starts over, on it.
   const [added, setAdded] = React.useState(0);
 
-  // The album of the person being viewed; `null` while (re)loading.
-  const current = state.personId === personId ? state : null;
-  const items = current?.items ?? null;
-
-  React.useEffect(() => {
-    let active = true;
-    getEntryAlbum(personId).then(
-      (rows) => {
-        if (active) setState({ personId, items: rows, failed: false });
-      },
-      () => {
-        if (active) setState({ personId, items: null, failed: true });
-      },
-    );
-    return () => {
-      active = false;
-    };
-  }, [personId, version]);
+  // The album of the person being viewed; `null` while loading.
+  const items = sheet?.sheet.album ?? null;
+  const failed = items === null && !!sheet?.failed.includes("album");
 
   // Another person, and what was being added for the last one goes.
   const [prevPerson, setPrevPerson] = React.useState(personId);
@@ -352,11 +337,7 @@ export function EntryAlbum({
   }
 
   function update(change: (items: AlbumPhoto[]) => AlbumPhoto[]) {
-    setState((cur) =>
-      cur.personId === personId && cur.items
-        ? { ...cur, items: change(cur.items) }
-        : cur,
-    );
+    setPersonSheet(personId, "album", (all) => all && change(all));
   }
 
   return (
@@ -378,13 +359,13 @@ export function EntryAlbum({
         </Button>
       </div>
 
-      {current?.failed ? (
+      {failed ? (
         <p className="text-sm text-muted-foreground">
           Couldn’t load the album.{" "}
           <button
             type="button"
             className="font-medium underline underline-offset-2"
-            onClick={() => setVersion((v) => v + 1)}
+            onClick={() => invalidatePersonSheet(personId, ["album"])}
           >
             Try again
           </button>
@@ -424,9 +405,9 @@ export function EntryAlbum({
           onAdded={(photos) => {
             setAdded((n) => n + 1);
             if (photos) {
-              setState({ personId, items: photos, failed: false });
+              setPersonSheet(personId, "album", () => photos);
             } else {
-              setVersion((v) => v + 1);
+              invalidatePersonSheet(personId, ["album"]);
             }
           }}
         />

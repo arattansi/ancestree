@@ -59,6 +59,7 @@ import {
   type ConnectionEnds,
 } from "@/components/tree/tree-search";
 import { UpcomingFeed } from "@/components/tree/upcoming-feed";
+import { markPersonSheetsStale } from "@/components/tree/use-person-sheet";
 import { useShowCompanions } from "@/components/tree/use-show-companions";
 import { useToday } from "@/components/tree/use-today";
 import { useTreeRoom } from "@/components/tree/use-tree-room";
@@ -2327,6 +2328,9 @@ export function FamilyTree(given: Props) {
   // Which page this is, for the drops the canvas holds (Step 87.3): the
   // same object when Back brings it again.
   const page = pageNumber(given);
+  // A page drawn again by the server: whatever the details sheet read
+  // about anyone may have changed (Step 87.6).
+  React.useEffect(() => markPersonSheetsStale(), [page]);
   if (props.people.length === 0) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-24 text-center">

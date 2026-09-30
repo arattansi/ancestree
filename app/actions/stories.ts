@@ -21,12 +21,6 @@ import { createClient } from "@/lib/supabase/server";
  * these draws the page again: each hands back what the list needs.
  */
 
-/** The stories on an entry the viewer may see, for its details. */
-export async function getEntryStories(personId: string): Promise<EntryStory[]> {
-  const profile = await requireProfile();
-  return listStories(personId, profile.auth_user_id);
-}
-
 /**
  * Tell a story about someone on the viewer's tree: text, a recording they
  * have just uploaded to that person's folder, or both. It waits for the

@@ -1,17 +1,19 @@
 "use client";
 
-import * as React from "react";
 import Link from "next/link";
 
 import {
   decideClaimDispute,
-  getEntryReports,
   resolveEntryReport,
   withdrawEntryReport,
 } from "@/app/actions/entry-reports";
 import { ActionButton } from "@/components/action-button";
 import { ConfirmButton } from "@/components/confirm-dialog";
 import { RowCard } from "@/components/row-card";
+import {
+  setPersonSheet,
+  usePersonSheet,
+} from "@/components/tree/use-person-sheet";
 import { Badge } from "@/components/ui/badge";
 import type { EntryReport } from "@/lib/entry-reports";
 import { timeAgo } from "@/lib/time-ago";
@@ -136,7 +138,8 @@ export function ReportCard({
 /**
  * The open reports on an entry that the viewer may see (Step 88.2): whoever
  * may put it right, and whoever raised one. Read only when the entry's card
- * counts some for them, and again whenever that count changes.
+ * counts some for them (`useLoadPersonSheet`), and again whenever that
+ * count changes.
  */
 export function EntryReports({
   personId,
@@ -153,32 +156,9 @@ export function EntryReports({
   /** A Root of the entry's home tree, who decides a disputed claim. */
   canDecide: boolean;
 }) {
-  const key = `${personId}:${count}`;
-  const [state, setState] = React.useState<{
-    key: string;
-    reports: EntryReport[] | null;
-  }>({ key, reports: null });
-  // Dealt with here, and gone before the canvas's count catches up.
-  const [gone, setGone] = React.useState<ReadonlySet<string>>(new Set());
-
-  React.useEffect(() => {
-    if (count === 0) return;
-    let active = true;
-    getEntryReports(personId).then(
-      (reports) => {
-        if (active) setState({ key: `${personId}:${count}`, reports });
-      },
-      () => undefined,
-    );
-    return () => {
-      active = false;
-    };
-  }, [personId, count]);
-
-  const reports =
-    state.key === key
-      ? (state.reports ?? []).filter((r) => !gone.has(r.id))
-      : [];
+  // Read with the rest of the sheet (Step 87.6), and again whenever the
+  // count changes; one dealt with here goes at once.
+  const reports = usePersonSheet(personId)?.sheet.reports ?? [];
   if (count === 0 || reports.length === 0) return null;
 
   return (
@@ -195,7 +175,11 @@ export function EntryReports({
             // Visible to them and not theirs: they may fix it, or decide it.
             canResolve={canEdit || !r.mine}
             canDecide={canDecide || (!r.mine && r.dispute)}
-            onDone={(id) => setGone((cur) => new Set(cur).add(id))}
+            onDone={(id) =>
+              setPersonSheet(personId, "reports", (all) =>
+                all?.filter((x) => x.id !== id),
+              )
+            }
           />
         ))}
       </ul>

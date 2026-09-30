@@ -64,6 +64,7 @@ import { BASIC_DETAILS, waitingOn } from "@/lib/carry";
 import { blankFields } from "@/lib/fill-blanks";
 import { SEX_LABELS, type Sex } from "@/lib/person-labels";
 import { PersonTrees } from "@/components/tree/person-trees";
+import { useLoadPersonSheet } from "@/components/tree/use-person-sheet";
 import { joinedByTags } from "@/lib/joined-by";
 import { countOf } from "@/lib/plural";
 import type { DeclinedSuggestion, EntrySuggestion } from "@/lib/suggestions";
@@ -331,6 +332,16 @@ function PersonPanelImpl({
   // fill in, comment on or manage from this tree.
   const basic = !!person?.basic;
   const locked = readOnly || basic;
+  // What the sections below show beyond the card, in one read as the sheet
+  // opens (Step 87.6): "Also on" unless the tree is read-only, and reports,
+  // the album and stories where the entry is open to this viewer.
+  // Minimized, they stay mounted, so still read.
+  useLoadPersonSheet(person?.id ?? null, {
+    trees: !readOnly,
+    album: !locked,
+    stories: !locked,
+    reports: locked ? 0 : (person?.open_report_count ?? 0),
+  });
   const waiting = person
     ? waitingOn(person.approval, person.asked_of, personDisplayName(person))
     : null;

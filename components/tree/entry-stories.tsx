@@ -8,7 +8,6 @@ import { Globe, MessageCircle, Mic, Plus, Share } from "lucide-react";
 import {
   decideStory,
   deleteStory,
-  getEntryStories,
   shareStory,
   stopSharingStory,
 } from "@/app/actions/stories";
@@ -18,6 +17,11 @@ import { PendingButton } from "@/components/pending-button";
 import { RowCard, RowList } from "@/components/row-card";
 import { sendLink } from "@/components/send-link";
 import { StoryComments } from "@/components/tree/story-comments";
+import {
+  invalidatePersonSheet,
+  setPersonSheet,
+  usePersonSheet,
+} from "@/components/tree/use-person-sheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAction } from "@/components/use-action";
@@ -260,8 +264,9 @@ function StoryCard({
 /**
  * The stories about someone (Step 88.3), in place of the comments board
  * they replaced: those the viewer may see, newest first, and a way to add
- * one. Read when the entry opens; told, answered and deleted here, so the
- * list keeps itself without the page being drawn again.
+ * one. Read when the entry opens (`useLoadPersonSheet`); told, answered and
+ * deleted here, so the list keeps itself without the page being drawn
+ * again.
  */
 export function EntryStories({
   personId,
@@ -274,19 +279,15 @@ export function EntryStories({
   /** The viewer may edit the entry, so may delete any story on it. */
   canEdit: boolean;
 }) {
-  const [state, setState] = React.useState<{
-    personId: string;
-    items: EntryStory[] | null;
-    failed: boolean;
-  }>({ personId, items: null, failed: false });
+  // Read with the rest of the sheet when it opens (Step 87.6).
+  const sheet = usePersonSheet(personId);
   const [adding, setAdding] = React.useState(false);
   // Mounted from the first press on, so it can close with its animation.
   const [dialogMounted, setDialogMounted] = React.useState(false);
-  const [version, setVersion] = React.useState(0);
 
-  // The stories of the person being viewed; `null` while (re)loading.
-  const current = state.personId === personId ? state : null;
-  const items = current?.items ?? null;
+  // The stories of the person being viewed; `null` while loading.
+  const items = sheet?.sheet.stories ?? null;
+  const failed = items === null && !!sheet?.failed.includes("stories");
 
   // A story whose comments the address asks for (`treeStoryHref`, Step
   // 88.4): opened once it's here, then gone from the address, so a reload
@@ -300,21 +301,6 @@ export function EntryStories({
     window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
   }, [focusFound]);
 
-  React.useEffect(() => {
-    let active = true;
-    getEntryStories(personId).then(
-      (rows) => {
-        if (active) setState({ personId, items: rows, failed: false });
-      },
-      () => {
-        if (active) setState({ personId, items: null, failed: true });
-      },
-    );
-    return () => {
-      active = false;
-    };
-  }, [personId, version]);
-
   // Another person, and what was being written for the last one goes.
   const [prevPerson, setPrevPerson] = React.useState(personId);
   if (personId !== prevPerson) {
@@ -323,11 +309,7 @@ export function EntryStories({
   }
 
   function update(change: (items: EntryStory[]) => EntryStory[]) {
-    setState((cur) =>
-      cur.personId === personId && cur.items
-        ? { ...cur, items: change(cur.items) }
-        : cur,
-    );
+    setPersonSheet(personId, "stories", (all) => all && change(all));
   }
 
   return (
@@ -349,13 +331,13 @@ export function EntryStories({
         </Button>
       </div>
 
-      {current?.failed ? (
+      {failed ? (
         <p className="text-sm text-muted-foreground">
           Couldn’t load the stories.{" "}
           <button
             type="button"
             className="font-medium underline underline-offset-2"
-            onClick={() => setVersion((v) => v + 1)}
+            onClick={() => invalidatePersonSheet(personId, ["stories"])}
           >
             Try again
           </button>
@@ -405,9 +387,9 @@ export function EntryStories({
           treeId={treeId}
           onTold={(stories) => {
             if (stories) {
-              setState({ personId, items: stories, failed: false });
+              setPersonSheet(personId, "stories", () => stories);
             } else {
-              setVersion((v) => v + 1);
+              invalidatePersonSheet(personId, ["stories"]);
             }
           }}
         />

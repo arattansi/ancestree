@@ -2,16 +2,9 @@
 
 import { requireProfile } from "@/lib/auth";
 import { friendlyDbError, ownedWrite } from "@/lib/db-errors";
-import { listEntryReports, type EntryReport } from "@/lib/entry-reports";
 import { REPORT_MAX } from "@/lib/limits";
 import { revalidateTreePages } from "@/lib/revalidate";
 import { createClient } from "@/lib/supabase/server";
-
-/** The open reports on an entry the viewer may see, for its details. */
-export async function getEntryReports(personId: string): Promise<EntryReport[]> {
-  const profile = await requireProfile();
-  return listEntryReports(personId, profile.auth_user_id);
-}
 
 /**
  * Report a problem with an entry from the tree it's on (Step 88.2): what's

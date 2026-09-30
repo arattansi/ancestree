@@ -453,38 +453,6 @@ export async function joinTreeWithInvite(token: string): Promise<{ error?: strin
   redirect(joinedTreeHref(redeemed.joined));
 }
 
-export type PersonTreeLink = {
-  id: string;
-  name: string;
-  slug: string;
-  /** The caller isn't a member: the tree's Root opened it to one of theirs. */
-  visitor: boolean;
-};
-
-/**
- * The trees a person is shown on that the caller may open (Step 25): as a
- * member, or as a visitor where the tree has been opened to one of theirs.
- * RLS on `trees` is what decides; a tree the caller can't see isn't listed.
- */
-export async function listPersonTrees(personId: string): Promise<PersonTreeLink[]> {
-  await requireProfile();
-  const supabase = await createClient();
-  const [{ data: placements }, { data: mine }] = await Promise.all([
-    supabase
-      .from("tree_placements")
-      .select("tree_id, trees(id, name, slug)")
-      .eq("person_id", personId)
-      .eq("status", "active"),
-    supabase.from("my_trees").select("id"),
-  ]);
-  const member = new Set((mine ?? []).map((t) => t.id));
-  return (placements ?? []).flatMap((p) => {
-    const t = Array.isArray(p.trees) ? p.trees[0] : p.trees;
-    if (!t?.id || !t.name || !t.slug) return [];
-    return [{ id: t.id, name: t.name, slug: t.slug, visitor: !member.has(t.id) }];
-  });
-}
-
 /**
  * Root: delete a tree they run. Entries whose home it was move to another
  * tree that shows them; the rest go with it (`delete_tree`), and so do

@@ -1,9 +1,7 @@
 "use client";
 
-import * as React from "react";
-
-import { listPersonTrees, type PersonTreeLink } from "@/app/actions/trees";
 import { TreeTarget } from "@/components/tree-target";
+import { usePersonSheet } from "@/components/tree/use-person-sheet";
 import { treeFocusHref } from "@/lib/tree-links";
 
 /**
@@ -20,27 +18,11 @@ export function PersonTrees({
   personId: string;
   currentTreeId: string;
 }) {
-  // Keyed by person, so switching cards never shows the last person's trees.
-  const [state, setState] = React.useState<{
-    personId: string;
-    trees: PersonTreeLink[];
-  } | null>(null);
-  const trees = state?.personId === personId ? state.trees : null;
-
-  React.useEffect(() => {
-    let active = true;
-    listPersonTrees(personId).then((rows) => {
-      if (active) {
-        setState({
-          personId,
-          trees: rows.filter((t) => t.id !== currentTreeId),
-        });
-      }
-    });
-    return () => {
-      active = false;
-    };
-  }, [personId, currentTreeId]);
+  // Read with the rest of the sheet (Step 87.6), keyed by person, so
+  // switching cards never shows the last person's trees.
+  const trees = usePersonSheet(personId)?.sheet.trees?.filter(
+    (t) => t.id !== currentTreeId,
+  );
 
   if (!trees || trees.length === 0) return null;
 

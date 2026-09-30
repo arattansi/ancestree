@@ -1,19 +1,11 @@
 "use server";
 
-import { requireProfile } from "@/lib/auth";
 import { requireAnyRoot } from "@/lib/tree-context";
 import { ALPHA2, countryName } from "@/lib/country-names";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { formatPlaceLabel, searchPlaces, type PlaceHit } from "@/lib/places";
+import { formatPlaceLabel, type PlaceHit } from "@/lib/places";
 
 export type PlaceOption = PlaceHit & { label: string };
-
-/** Debounced autocomplete search — any signed-in member. */
-export async function searchPlacesAction(query: string): Promise<PlaceOption[]> {
-  await requireProfile();
-  const hits = await searchPlaces(query);
-  return hits.map((h) => ({ ...h, label: formatPlaceLabel(h) }));
-}
 
 /** IDs at/above this base were added by an admin, not imported from GeoNames. */
 const USER_PLACE_ID_BASE = 10_000_000_000;
