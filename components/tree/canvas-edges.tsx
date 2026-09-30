@@ -65,6 +65,69 @@ function rectOf(state: ReactFlowState, nodeId: string): CardRect | null {
 }
 
 /**
+ * A store selector over some cards that works only when one of them has
+ * moved or changed size. React Flow runs every edge's selectors on each store
+ * update, every frame of a pan or a drag included, while almost every card
+ * stays where it was. So a selector whose cards all sit where it last saw
+ * them hands back what it worked out then, allocating nothing (Step 87.7,
+ * audit C6). It compares the numbers themselves: a measure or a drag gives
+ * every card a new position object, moved or not.
+ */
+function useCardsStore<T>(
+  ids: readonly string[],
+  select: (state: ReactFlowState) => T,
+  equal?: (a: T, b: T) => boolean,
+): T {
+  const selector = React.useMemo(() => overCards(ids, select), [ids, select]);
+  return useStore(selector, equal);
+}
+
+/** `select`, run again only once one of the cards `ids` has changed. */
+function overCards<T>(
+  ids: readonly string[],
+  select: (state: ReactFlowState) => T,
+): (state: ReactFlowState) => T {
+  // Each card's x, y, width and height, as last seen.
+  const seen: (number | undefined)[] = [];
+  let last: T;
+  let fresh = false;
+  return (state) => {
+    if (fresh && sameCards(state, ids, seen)) return last;
+    ids.forEach((id, i) => {
+      const node = state.nodeLookup.get(id);
+      seen[4 * i] = node?.internals.positionAbsolute.x;
+      seen[4 * i + 1] = node?.internals.positionAbsolute.y;
+      seen[4 * i + 2] = node?.measured?.width;
+      seen[4 * i + 3] = node?.measured?.height;
+    });
+    last = select(state);
+    fresh = true;
+    return last;
+  };
+}
+
+function sameCards(
+  state: ReactFlowState,
+  ids: readonly string[],
+  seen: (number | undefined)[],
+): boolean {
+  for (let i = 0; i < ids.length; i++) {
+    const node = state.nodeLookup.get(ids[i]);
+    if (
+      node?.internals.positionAbsolute.x !== seen[4 * i] ||
+      node?.internals.positionAbsolute.y !== seen[4 * i + 1] ||
+      node?.measured?.width !== seen[4 * i + 2] ||
+      node?.measured?.height !== seen[4 * i + 3]
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+const NO_CARDS: readonly string[] = [];
+
+/**
  * A descent line from a couple down to one child.
  *
  * The junction it starts from is *derived from the parents' live positions*
@@ -120,7 +183,8 @@ function DescentEdge({
   // Where each sibling drops off the bar — over the middle of its card or
   // leaf — and how high the highest of them sits. Every child of the union
   // reads the same cards, so they all draw the same trunk, step and bar.
-  const bar = useStore(
+  const bar = useCardsStore(
+    siblings,
     React.useCallback(
       (state: ReactFlowState): SiblingBar | null => {
         if (siblings.length < 2) return null;
@@ -140,7 +204,8 @@ function DescentEdge({
 
   // A lone child keeps measuring from its own handle, exactly as before.
   const childTop = bar?.top ?? targetY;
-  const descent = useStore(
+  const descent = useCardsStore(
+    parents,
     React.useCallback(
       (state: ReactFlowState): Descent => {
         const rects = parents
@@ -155,7 +220,12 @@ function DescentEdge({
 
   // The child's own rectangle, so the branch can stop above its blade rather
   // than at whatever point the target handle happens to have been measured at.
-  const childRect = useStore(
+  const leafIds = React.useMemo(
+    () => (toLeaf ? [target] : NO_CARDS),
+    [target, toLeaf],
+  );
+  const childRect = useCardsStore(
+    leafIds,
     React.useCallback(
       (state: ReactFlowState) => (toLeaf ? rectOf(state, target) : null),
       [target, toLeaf],
@@ -229,7 +299,8 @@ function SpouseEdge({
     [data],
   );
 
-  const lateral = useStore(
+  const lateral = useCardsStore(
+    pair,
     React.useCallback(
       (state: ReactFlowState): Lateral | null => {
         const [a, b] = pair.map((nodeId) => {
@@ -285,7 +356,8 @@ function SiblingBracketEdge({ id, data, style }: EdgeProps) {
     () => (Array.isArray(data?.pair) ? (data.pair as string[]) : []),
     [data],
   );
-  const path = useStore(
+  const path = useCardsStore(
+    pair,
     React.useCallback(
       (state: ReactFlowState): string | null => {
         const [a, b] = pair.map((nodeId) => rectOf(state, nodeId));

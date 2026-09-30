@@ -47,9 +47,9 @@ function PetNodeImpl({ data }: NodeProps) {
   return (
     <div
       className={cn(
-        "group relative transition-[opacity,filter] duration-300",
+        "group relative transition-[opacity,filter] duration-300 phone:transition-opacity",
         dimmed && "opacity-25",
-        blurred && "opacity-30 blur-[2px] saturate-50",
+        blurred && "opacity-30 blur-[2px] saturate-50 phone:filter-none",
       )}
       onPointerEnter={previewed ? undefined : () => setPreviewed(true)}
     >

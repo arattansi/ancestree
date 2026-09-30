@@ -141,13 +141,14 @@ function PersonNodeImpl({ data }: NodeProps) {
   return (
     <div
       className={cn(
-        "group relative transition-[opacity,filter] duration-300",
+        "group relative transition-[opacity,filter] duration-300 phone:transition-opacity",
         dimmed && "opacity-25",
         // Blurred back rather than merely faded: the spotlighted tree reads as
         // sitting in front of the rest of the canvas, not just brighter than
         // it. Still clickable — clicking a blurred relative moves the
-        // spotlight onto their line.
-        blurred && "opacity-30 blur-[2px] saturate-50",
+        // spotlight onto their line. Faded only on a phone, where every
+        // blurred card is drawn again on each frame of a pan (Step 87.7).
+        blurred && "opacity-30 blur-[2px] saturate-50 phone:filter-none",
       )}
       onPointerEnter={previewed ? undefined : () => setPreviewed(true)}
     >

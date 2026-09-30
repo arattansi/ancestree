@@ -251,6 +251,12 @@
    mark, the tree, connections and account buttons show their symbols for
    their words (which still name them), and counts sit on a button's corner.
    The tree's name takes what's left. */
+/* On a phone's canvas (Step 87.7, audit C5): the canvas carries
+   `data-phone` there, the same test that keeps its cards from dragging
+   (Step 49). A phone re-rasterizes every filtered card on each frame of a
+   pan or zoom, so there the canvas dims with opacity alone. */
+@custom-variant phone (&:where([data-phone] *));
+
 @custom-variant header-compact {
   @media (width < 40rem) {
     @slot;

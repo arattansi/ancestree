@@ -45,7 +45,7 @@ import {
   SPOTLIGHT_BROWN,
   SPOTLIGHT_GREEN,
 } from "@/components/tree/spotlight-colours";
-import { useIsPhone } from "@/components/tree/use-is-phone";
+import { useIsPhone, useIsSm } from "@/components/tree/use-is-phone";
 import { CanvasTip } from "@/components/tree/canvas-tip";
 import { ClaimSuggestions } from "@/components/tree/claim-suggestions";
 import { GettingStarted } from "@/components/tree/getting-started";
@@ -1944,6 +1944,8 @@ function Canvas({
     <>
       <ReactFlow
         className={cn(pulled && "tree-pulled")}
+        // A phone's cards fade without blur or shadow (the `phone:` variant).
+        data-phone={phone ? "" : undefined}
         nodes={displayNodes}
         edges={displayEdges}
         nodeTypes={nodeTypes}
@@ -2008,13 +2010,7 @@ function Canvas({
             </ControlButton>
           ) : null}
         </Controls>
-        <MiniMap
-          pannable
-          zoomable
-          nodeColor="var(--muted-foreground)"
-          maskColor="var(--muted)"
-          className="!hidden !bg-card sm:!block"
-        />
+        <WideMiniMap />
         <Panel
           position="top-right"
           className={cn(
@@ -2328,6 +2324,25 @@ function keepProps(prev: Props, next: Props): Props {
     people: withKeptPhotos(next.people),
     pets: withKeptPhotos(next.pets),
   });
+}
+
+/**
+ * The minimap, from `sm` up only (Step 87.7, audit C6): hidden below it, it
+ * still worked out its bounds on every frame of a pan. Its own component, so
+ * learning the width after hydration redraws it and not the canvas.
+ */
+function WideMiniMap() {
+  const wide = useIsSm();
+  if (!wide) return null;
+  return (
+    <MiniMap
+      pannable
+      zoomable
+      nodeColor="var(--muted-foreground)"
+      maskColor="var(--muted)"
+      className="!bg-card"
+    />
+  );
 }
 
 export function FamilyTree(given: Props) {

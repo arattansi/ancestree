@@ -317,11 +317,12 @@ export function LeafCard({
       onPointerEnter={previewed ? undefined : () => setPreviewed(true)}
     >
       {/* The blade overhangs the card box top and bottom, so the lobes that
-          stick out of it are not clipped away. */}
+          stick out of it are not clipped away. No shadow on a phone, where
+          it is painted again on each frame of a pan (Step 87.7). */}
       <svg
         viewBox="0 0 208 150"
         className={cn(
-          "absolute inset-x-0 -inset-y-[19px] overflow-visible transition-[filter] duration-300",
+          "absolute inset-x-0 -inset-y-[19px] overflow-visible transition-[filter] duration-300 phone:filter-none",
           selected
             ? "drop-shadow-[0_10px_22px_color-mix(in_srgb,var(--brand-green)_45%,transparent)]"
             : "drop-shadow-[0_8px_18px_rgba(38,32,22,0.22)]",

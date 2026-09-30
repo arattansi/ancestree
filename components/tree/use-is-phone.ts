@@ -34,3 +34,24 @@ function subscribeToDevice(onChange: () => void) {
 export function useIsPhone(): boolean {
   return React.useSyncExternalStore(subscribeToDevice, isPhone, () => false);
 }
+
+// Tailwind's `sm`: from here up the canvas has room for its minimap.
+const SM = "(min-width: 640px)";
+
+function subscribeToSm(onChange: () => void) {
+  const query = window.matchMedia(SM);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+}
+
+/**
+ * Whether the window is `sm` or wider, as it changes (Step 87.7). The
+ * server says no, so what it gates arrives just after hydration.
+ */
+export function useIsSm(): boolean {
+  return React.useSyncExternalStore(
+    subscribeToSm,
+    () => window.matchMedia(SM).matches,
+    () => false,
+  );
+}
