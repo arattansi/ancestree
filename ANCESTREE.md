@@ -297,6 +297,11 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   once nothing points at it, Step 82: `removeReplacedPhotos`,
   `removeUndonePhotos`; which files may go is `photosLeftBehind` in
   `lib/photo-path.ts`; `.test.ts` beside each),
+  `lib/file-cleanup.server.ts` (a deleted row's file goes, Step 90:
+  `removeDocumentsLater` for a removed document or a refused upload,
+  `treeFiles` + `removeTreeFilesLater` for a deleted tree's photos,
+  documents and recordings), `lib/document-path.ts` (the `documents`
+  bucket layout),
   `components/use-photo-draft.ts` (`usePhotoDraft`, `usePickedUrl`),
   `sameCrop` in `lib/image-crop.ts`; `components/spouse-dates-fields.tsx`
   + `lib/spouse-dates.ts` (a marriage's dates in every form, stored and
@@ -760,6 +765,15 @@ entry or companion, and no Branch's edit a Root can still undo, since the
 undo puts the old photo back from `entry_revisions.before`
 (`lib/photo-cleanup.server.ts`). A new writer of `photo_path` calls
 `removeReplacedPhotos` the same way.
+**A deleted row's file goes with the service role (Step 90):** storage
+deletes only what the caller can see, and a document's file is visible only
+while its row exists, so a member's own client can never remove it once the
+row is gone (it matches nothing and reports no error). Removing a document,
+an upload that couldn't be recorded, deleting an entry and deleting a tree
+all delete the rows as the caller (the proof of the right), then remove the
+files with the service role, only those no row points at any more
+(`lib/file-cleanup.server.ts`). Any new code that deletes rows holding a
+file path does the same.
 **Documents are private (Step 18.4):** a document's row and file are readable
 only by a Root, the entry's owner (or the member whose own entry it is), and
 the Branch who tends that side of the tree — including another member's own
@@ -1551,6 +1565,46 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 90 — A removed document's file goes** (ad-hoc bug fix; no
+  migration). Found verifying Step 87.4 on live: removing a document from a
+  person's details deleted its row, then asked the member's own client to
+  remove the file, and every time (7 of 7) the file stayed. The bucket's
+  `storage_documents_select` shows a document's file only while a
+  `documents` row points at it, storage deletes only what the caller can
+  see, so with the row gone the remove matched nothing and said nothing
+  (the result wasn't checked). The same was true of an upload that couldn't
+  be recorded (the client removed a file no row pointed at yet). **Now**
+  `removeDocument` deletes the row as the caller (a refusal still says "Only
+  someone who can edit this entry can remove its documents.", and nothing
+  is removed), reads the path back from that delete, and removes the file
+  after the response with the service role, only when no row points at it;
+  `recordDocument` removes its own upload the same way when the row is
+  refused, only a file in that entry's folder on that tree
+  (`isDocumentOf`). A removal storage says it didn't find is now logged.
+  **Also checked the other paths:** `deletePerson` already removed
+  documents with the service role, but read their paths as the caller, who
+  may not see all of them (a Leaf deleting an entry they added): it reads
+  them with the service role now. **Deleting a tree** removed no files at
+  all (the Step 82 gap): `deleteTree` now reads the tree's photos (entries
+  and companions), its documents and its entries' story recordings before
+  `delete_tree`, and after it removes each that nothing points at, so an
+  entry that moved to another tree keeps its photo and recordings. Claim
+  merges (`claim_person`, `merge_invited_entry`) move document rows, never
+  delete them, so they leak nothing. Step 88.5 (the album replaces
+  documents) will drop the bucket; until then this keeps it tidy.
+  **Orphans on live:** none to sweep — the documents bucket held 1 file
+  with its 1 row (the 87.4 run's files were already gone), photos 11 with
+  none unshown, stories none. **Verified:** in headless Chrome on live as a
+  throwaway Root with a seeded tree, reading the buckets back through the
+  Storage API: two documents uploaded through the sheet's **Add
+  documents**, one removed → its file gone within 0.7 s, the other stayed
+  (file and list); **Delete entry** on that person → the last file gone;
+  a third document on another entry with a seeded photo and story
+  recording, then **Delete this tree** in the Root console → the document,
+  photo and recording all gone. No `[file-cleanup]` warnings. The
+  throwaway user, profile, tree and files were deleted; live's counts are
+  as before. 1349 tests pass (2 new); tsc, lint and `next build` are clean.
 
 - **Step 87.4 fix — No hydration mismatch on a `?person=` link** (no
   migration). Reported by the Step 88.4 session: `/tree?person=<id>` on
