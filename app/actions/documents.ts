@@ -2,7 +2,9 @@
 
 import { requireProfile } from "@/lib/auth";
 import { ownedWrite } from "@/lib/db-errors";
+import { isDocumentOf } from "@/lib/document-path";
 import { friendlyEntryError } from "@/lib/entry-errors";
+import { removeDocumentsLater } from "@/lib/file-cleanup.server";
 import { createClient } from "@/lib/supabase/server";
 
 export type PersonDocument = {
@@ -47,7 +49,11 @@ export async function listDocuments(
   }));
 }
 
-/** Record a document already uploaded to the `documents` bucket by the client. */
+/**
+ * Record a document already uploaded to the `documents` bucket by the client.
+ * When it can't be recorded, the upload goes (Step 90): with no row, the
+ * uploader's own client can't see the file to remove it.
+ */
 export async function recordDocument(input: {
   treeId: string;
   personId: string;
@@ -65,36 +71,44 @@ export async function recordDocument(input: {
     mime_type: input.mimeType,
     uploaded_by: profile.auth_user_id,
   });
-  if (error) return { error: friendlyEntryError(error.message) };
+  if (error) {
+    // Only an upload for this entry, and only while nothing records it.
+    if (isDocumentOf(input.filePath, input.treeId, input.personId)) {
+      removeDocumentsLater([input.filePath]);
+    }
+    return { error: friendlyEntryError(error.message) };
+  }
   return {};
 }
 
+/**
+ * Remove a document. Its row goes first, as the caller: that's what proves
+ * the right. Its file goes after the response with the service role
+ * (Step 90), since storage only shows a document's file while its row is
+ * there, so the caller's own client could no longer remove it.
+ */
 export async function removeDocument(
   documentId: string,
 ): Promise<{ error?: string }> {
   await requireProfile();
   const supabase = await createClient();
 
-  const { data: doc } = await supabase
-    .from("documents")
-    .select("file_path")
-    .eq("id", documentId)
-    .maybeSingle();
-
   // RLS filters a refused delete rather than raising — say so, rather than
   // letting the list drop a document that is still there.
   const removed = await ownedWrite(
-    supabase.from("documents").delete().eq("id", documentId).select("id"),
+    supabase
+      .from("documents")
+      .delete()
+      .eq("id", documentId)
+      .select("file_path"),
     {
       refused: "Only someone who can edit this entry can remove its documents.",
       failed: friendlyEntryError,
     },
   );
-  if (removed.error) return { error: removed.error };
+  if (removed.error !== undefined) return { error: removed.error };
 
-  if (doc?.file_path) {
-    await supabase.storage.from("documents").remove([doc.file_path]);
-  }
+  removeDocumentsLater(removed.rows.map((row) => row.file_path));
   return {};
 }
 

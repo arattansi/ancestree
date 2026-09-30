@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAction } from "@/components/use-action";
 import { useFocusReturn } from "@/components/use-focus-return";
+import { documentPath } from "@/lib/document-path";
 import { fileExtension } from "@/lib/image";
 
 const ACCEPT = ".pdf,.jpg,.jpeg,.png";
@@ -82,7 +83,7 @@ export function PersonDocuments({
             problems.push(`${file.name}: files must be 10MB or smaller.`);
             continue;
           }
-          const path = `${treeId}/${personId}/${crypto.randomUUID()}.${fileExtension(file)}`;
+          const path = documentPath(treeId, personId, fileExtension(file));
           const { error } = await supabase.storage
             .from("documents")
             .upload(path, file, { contentType: file.type, upsert: false });
@@ -97,10 +98,8 @@ export function PersonDocuments({
             fileName: file.name,
             mimeType: file.type,
           });
-          if (recorded.error) {
-            problems.push(`${file.name}: ${recorded.error}`);
-            await supabase.storage.from("documents").remove([path]);
-          }
+          // One that isn't recorded, the action removes (Step 90).
+          if (recorded.error) problems.push(`${file.name}: ${recorded.error}`);
         }
         refresh();
         // Every file's problem, a line each; none, and it worked.

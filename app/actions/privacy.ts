@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { getSessionUser, requireProfile } from "@/lib/auth";
+import { removeUnusedDocuments } from "@/lib/file-cleanup.server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { revalidateTreePages } from "@/lib/revalidate";
@@ -160,15 +161,15 @@ export async function deletePerson(
   });
   if (!allowed) return { error: NOT_YOURS_TO_DELETE };
 
-  const { data: docs } = await supabase
+  // Its documents and its stories' recordings, some of which the viewer
+  // can't see (a document only its side of the family may, a story waiting
+  // on the person), so the service role reads where they are (Step 90).
+  // Removed only once the delete has gone through.
+  const db = createAdminClient();
+  const { data: docs } = await db
     .from("documents")
     .select("file_path")
     .eq("person_id", personId);
-
-  // Its stories' recordings, some of which (waiting on the person) the
-  // viewer can't see, so the service role reads where they are. Removed
-  // only once the delete has gone through.
-  const db = createAdminClient();
   const { data: recordings } = await db
     .from("stories")
     .select("audio_path")
@@ -212,10 +213,7 @@ export async function deletePerson(
   ];
   if (objects.length) await db.storage.from("photos").remove(objects);
 
-  const docPaths = (docs ?? []).map((d) => d.file_path).filter(Boolean);
-  if (docPaths.length) {
-    await db.storage.from("documents").remove(docPaths);
-  }
+  await removeUnusedDocuments((docs ?? []).map((d) => d.file_path));
 
   const audioPaths = (recordings ?? []).flatMap((r) =>
     r.audio_path ? [r.audio_path] : [],

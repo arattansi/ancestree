@@ -6,6 +6,7 @@ import { after } from "next/server";
 import { requireProfile } from "@/lib/auth";
 import { bloodTiePlacementRefusal, readBloodTieRefusal } from "@/lib/bloodline";
 import { friendlyDbError, ownedWrite, type ErrorRule } from "@/lib/db-errors";
+import { removeTreeFilesLater, treeFiles } from "@/lib/file-cleanup.server";
 import { TREE_NAME_MAX } from "@/lib/limits";
 import {
   clearCurrentTreeCookie,
@@ -486,14 +487,18 @@ export async function listPersonTrees(personId: string): Promise<PersonTreeLink[
 
 /**
  * Root: delete a tree they run. Entries whose home it was move to another
- * tree that shows them; the rest go with it (`delete_tree`).
+ * tree that shows them; the rest go with it (`delete_tree`), and so do
+ * their files, and the documents uploaded onto it (Step 90): read before,
+ * removed after the response wherever nothing points at them any more.
  */
 export async function deleteTree(treeId: string): Promise<{ error?: string }> {
   const { error: notRoot } = await rootOf(treeId);
   if (notRoot) return { error: notRoot };
   const supabase = await createClient();
+  const files = await treeFiles(treeId);
   const { error } = await supabase.rpc("delete_tree", { p_tree: treeId });
   if (error) return { error: friendlyTreeError(error.message) };
+  removeTreeFilesLater(files);
   await clearCurrentTreeCookie();
   revalidateTreePages();
   redirect(treesHref());
