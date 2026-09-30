@@ -8,8 +8,8 @@ import {
 /**
  * Putting a picked photo in the `photos` bucket, from the browser (Step
  * 77.4, audit R2): one way for every form that takes one. The file keeps its
- * own type — the picker hands over a JPEG it made, or a PNG or WebP it
- * couldn't remake — and goes in its owner's folder (`lib/photo-path.ts`).
+ * own type — the picker hands over only a JPEG it redrew (Step 91) — and
+ * goes in its owner's folder (`lib/photo-path.ts`).
  * The Supabase client is loaded only once a photo is actually sent.
  */
 

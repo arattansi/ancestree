@@ -28,6 +28,7 @@ import {
   ALBUM_PHOTO_MAX_MB,
 } from "@/lib/limits";
 import { readPhotoMetadata, type PhotoMetadata } from "@/lib/photo-metadata";
+import { PHOTO_EXTENSIONS } from "@/lib/photo-path";
 import { bornYear, rankByTaken, suggestTags } from "@/lib/photo-tags";
 
 type Picked =
@@ -153,22 +154,21 @@ export function AlbumDialog({
     setPicked({ state: "preparing" });
     // Read from the photo as picked, since the shrinking keeps none of it.
     const [small, read] = await Promise.all([
-      compressImage(file, { maxEdge: ALBUM_PHOTO_EDGE }).catch(() => null),
+      compressImage(file, { maxEdge: ALBUM_PHOTO_EDGE }),
       readPhotoMetadata(file),
     ]);
     if (pick.current !== mine) return;
-    // A photo the browser couldn't open (an iPhone's HEIC, outside Safari)
-    // comes back as it was, which the album won't take; nor one as picked
-    // in any type, which would carry what it says about itself up with it.
+    // Only a photo the browser redrew goes up, never one as picked, which
+    // would carry what it says about itself with it. One it couldn't open
+    // in a type the album doesn't take (an iPhone's HEIC, outside Safari)
+    // is asked for in one it does.
     const problem = !small
-      ? "That photo couldn’t be read."
-      : !albumPath(treeId, small.type)
-        ? "Choose a JPEG, PNG, or WebP image."
-        : small === file
-          ? "That photo couldn’t be read."
-          : small.size > ALBUM_PHOTO_MAX_MB * 1024 * 1024
-            ? `Photos must be ${ALBUM_PHOTO_MAX_MB}MB or smaller.`
-            : null;
+      ? PHOTO_EXTENSIONS[file.type]
+        ? "That photo couldn’t be read."
+        : "Choose a JPEG, PNG, or WebP image."
+      : small.size > ALBUM_PHOTO_MAX_MB * 1024 * 1024
+        ? `Photos must be ${ALBUM_PHOTO_MAX_MB}MB or smaller.`
+        : null;
     if (problem || !small) {
       setPicked(null);
       setMeta(null);

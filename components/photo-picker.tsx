@@ -13,6 +13,7 @@ import { compressImage } from "@/lib/image";
 import { cropStyle, DEFAULT_CROP, type CropTransform } from "@/lib/image-crop";
 
 const ACCEPT = "image/jpeg,image/png,image/webp";
+const UNREADABLE = "That image couldn't be read. Try another file.";
 
 /**
  * Pick a photo and position it inside the round thumbnail. Photos upload
@@ -75,11 +76,15 @@ export function PhotoPicker({
       return;
     }
     setBusy(true);
-    try {
-      onChange(await compressImage(file));
-    } finally {
-      setBusy(false);
+    const small = await compressImage(file);
+    setBusy(false);
+    // Only a photo the browser redrew goes up: the file as picked would
+    // carry its camera's details, where it was taken included (Step 91).
+    if (!small) {
+      setProblem(UNREADABLE);
+      return;
     }
+    onChange(small);
     // A fresh photo starts centred; the editor opens so the framing is
     // confirmed rather than guessed.
     cropOnOpen.current = DEFAULT_CROP;
@@ -174,7 +179,7 @@ export function PhotoPicker({
             crop={crop}
             onCropChange={onCropChange}
             onUnreadable={() => {
-              setProblem("That image couldn't be read. Try another file.");
+              setProblem(UNREADABLE);
               setEditing(false);
               returnFocus(() => fileInput.current);
             }}
