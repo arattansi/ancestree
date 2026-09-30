@@ -39,7 +39,8 @@ export async function exportTreeData(treeId: string): Promise<{
     relationships,
     invites,
     claims,
-    entryComments,
+    storiesHere,
+    storiesOnPeople,
     reportsHere,
     reportsOnOwn,
     documents,
@@ -54,7 +55,12 @@ export async function exportTreeData(treeId: string): Promise<{
     db.from("tree_edges").select("*").eq("tree_id", treeId),
     db.from("invites").select("*").eq("tree_id", treeId),
     personIds.length ? db.from("claims").select("*").in("person_id", personIds) : Promise.resolve({ data: [], error: null }),
-    db.from("entry_comments").select("*").eq("tree_id", treeId),
+    // Stories (Step 88.3): those told here, and the approved ones about
+    // anyone the tree shows, which its members read wherever they were told.
+    db.from("stories").select("*").eq("tree_id", treeId),
+    personIds.length
+      ? db.from("stories").select("*").eq("status", "approved").in("person_id", personIds)
+      : Promise.resolve({ data: [], error: null }),
     // Reports (Step 88.2): those raised here, and those on the tree's own
     // entries, which its Roots see wherever they were raised.
     db.from("entry_reports").select("*").eq("tree_id", treeId),
@@ -73,7 +79,8 @@ export async function exportTreeData(treeId: string): Promise<{
     relationships,
     invites,
     claims,
-    entryComments,
+    storiesHere,
+    storiesOnPeople,
     reportsHere,
     reportsOnOwn,
     documents,
@@ -95,7 +102,13 @@ export async function exportTreeData(treeId: string): Promise<{
       relationships: relationships.data ?? [],
       invites: invites.data ?? [],
       claims: claims.data ?? [],
-      entry_comments: entryComments.data ?? [],
+      stories: [
+        ...new Map(
+          [...(storiesHere.data ?? []), ...(storiesOnPeople.data ?? [])].map(
+            (s) => [s.id, s],
+          ),
+        ).values(),
+      ],
       entry_reports: [
         ...new Map(
           [
@@ -120,11 +133,11 @@ export async function exportTreeData(treeId: string): Promise<{
 }
 
 /**
- * Permanently remove a person entry, its relationship edges (via cascade), and
- * its stored photo + documents. A Root of the entry's home tree may remove any
+ * Permanently remove a person entry, its relationship edges and stories (via
+ * cascade), and its stored photo, documents and story recordings. A Root of the entry's home tree may remove any
  * entry — right-to-erasure requests come through here. Since Step 22.3 a
  * Branch or a Leaf may remove an unclaimed entry they added, as long
- * as nobody else has hung a connection, comment, document or companion on it
+ * as nobody else has hung a connection, story, document or companion on it
  * and no other tree shows it (`private.can_delete_person`, enforced by the
  * `people_delete` policy).
  */
@@ -152,6 +165,16 @@ export async function deletePerson(
     .select("file_path")
     .eq("person_id", personId);
 
+  // Its stories' recordings, some of which (waiting on the person) the
+  // viewer can't see, so the service role reads where they are. Removed
+  // only once the delete has gone through.
+  const db = createAdminClient();
+  const { data: recordings } = await db
+    .from("stories")
+    .select("audio_path")
+    .eq("person_id", personId)
+    .not("audio_path", "is", null);
+
   // Companions whose *only* person is this one go with them (a DB trigger
   // prunes the rows); their photos have to be swept up here.
   const { data: companionLinks } = await supabase
@@ -175,7 +198,6 @@ export async function deletePerson(
   // The entry is gone, and with it the storage policies' way of knowing who
   // could edit it, so the files are swept with the service role. The delete
   // above is what proved the right to remove them.
-  const db = createAdminClient();
 
   const { data: survivingPets } = petIds.length
     ? await db.from("pets").select("id").in("id", petIds)
@@ -195,12 +217,17 @@ export async function deletePerson(
     await db.storage.from("documents").remove(docPaths);
   }
 
+  const audioPaths = (recordings ?? []).flatMap((r) =>
+    r.audio_path ? [r.audio_path] : [],
+  );
+  if (audioPaths.length) await db.storage.from("stories").remove(audioPaths);
+
   revalidateTreePages();
   return {};
 }
 
 const NOT_YOURS_TO_DELETE =
-  "Someone else has added to this entry — a connection, comment, document or companion — or another tree shows it, so only a Root can remove it now. Ask a Root.";
+  "Someone else has added to this entry — a connection, story, document or companion — or another tree shows it, so only a Root can remove it now. Ask a Root.";
 
 export type DeleteAccountInput = {
   /**
@@ -299,7 +326,6 @@ export async function deleteAccount(
       db.from("relationships").update({ created_by: steward }).eq("created_by", user.id).eq("tree_id", m.tree_id),
       db.from("invites").update({ created_by: steward }).eq("created_by", user.id).eq("tree_id", m.tree_id),
       db.from("share_links").update({ created_by: steward }).eq("created_by", user.id).eq("tree_id", m.tree_id),
-      db.from("entry_comments").update({ created_by: steward }).eq("created_by", user.id).eq("tree_id", m.tree_id),
       db.from("documents").update({ uploaded_by: steward }).eq("uploaded_by", user.id).eq("tree_id", m.tree_id),
       // Companions are family memories too — hand them over rather than
       // letting the profile cascade take the household dog with it.
@@ -332,7 +358,6 @@ export async function deleteAccount(
       db.from("relationships").update({ created_by: s }).eq("created_by", user.id),
       db.from("invites").update({ created_by: s }).eq("created_by", user.id),
       db.from("share_links").update({ created_by: s }).eq("created_by", user.id),
-      db.from("entry_comments").update({ created_by: s }).eq("created_by", user.id),
       db.from("documents").update({ uploaded_by: s }).eq("uploaded_by", user.id),
       db.from("pets").update({ created_by: s }).eq("created_by", user.id),
       db.from("pet_companions").update({ created_by: s }).eq("created_by", user.id),
@@ -340,7 +365,9 @@ export async function deleteAccount(
       db.from("tree_placements").update({ placed_by: s }).eq("placed_by", user.id),
     ]);
   }
-  // A founded tree keeps going without its founder on record.
+  // A founded tree keeps going without its founder on record. Their stories
+  // stay on the entries they're about, told by nobody (Step 88.3): the
+  // profile's delete clears `stories.created_by`.
   await db.from("trees").update({ created_by: null }).eq("created_by", user.id);
 
   const { error: profileError } = await db

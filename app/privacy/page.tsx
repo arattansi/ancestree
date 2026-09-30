@@ -37,10 +37,10 @@ export default function PrivacyPage() {
             The demographic details you enter about yourself and relatives: names,
             dates and places of birth and death, and relationships.
           </li>
-          <li>Photos and documents you choose to upload.</li>
+          <li>Photos, documents and recordings you choose to upload.</li>
           <li>
             Activity needed to run the tree: who created an entry, claims,
-            comments, flags, and in-app notifications.
+            stories, reports, and in-app notifications.
           </li>
           <li>
             The days you use ancestree — the date only, not what you looked
@@ -102,11 +102,11 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong>Correct an entry.</strong> Edit your own entry any time, or
-            flag another entry for the owner or a Root to fix.
+            report a problem with another for the owner or a Root to fix.
           </li>
           <li>
             <strong>Delete an entry.</strong> Ask a Root to remove an entry and
-            its photos and documents.
+            its photos, documents and stories.
           </li>
           <li>
             <strong>Stop relatives asking.</strong> Untick &ldquo;
@@ -126,8 +126,9 @@ export default function PrivacyPage() {
               your account
             </Link>{" "}
             you can permanently delete your login. Entries you added remain part
-            of the shared family record under a Root&rsquo;s stewardship unless
-            you also ask for them to be removed.
+            of the shared family record under a Root&rsquo;s stewardship, and
+            stories you told stay without your name, unless you also ask for
+            them to be removed.
           </li>
         </ul>
       </Section>

@@ -175,8 +175,8 @@ export default async function InvitePage({
                     <span className="font-medium">Leaf</span>: you can see the
                     whole tree, add relatives on your own line — your parents
                     and grandparents, everyone descended from them, and the
-                    people they married — keep your own entry up to date, and
-                    comment on or flag anything that looks wrong.
+                    people they married — keep your own entry up to date, add
+                    stories, and report anything that looks wrong.
                   </p>
                 </div>
               )}

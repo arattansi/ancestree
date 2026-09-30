@@ -19,8 +19,18 @@ export const TREE_NAME_MAX = 80;
 /** A share link's label. */
 export const SHARE_LINK_LABEL_MAX = 80;
 
-/** A comment on an entry or a companion. */
+/** A comment on a companion. */
 export const COMMENT_MAX = 2000;
+
+/** A story's title, and the story itself (Step 88.3). */
+export const STORY_TITLE_MAX = 120;
+export const STORY_MAX = 20000;
+
+/**
+ * A story's recording, as stored (the `stories` bucket's limit): about an
+ * hour and a quarter of speech once the browser has shrunk it.
+ */
+export const STORY_AUDIO_MAX_MB = 25;
 
 /** What's wrong, in a report on an entry (Step 88.2). */
 export const REPORT_MAX = 1000;

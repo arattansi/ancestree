@@ -1,0 +1,146 @@
+"use server";
+
+import { after } from "next/server";
+
+import { requireProfile } from "@/lib/auth";
+import { friendlyDbError, ownedWrite } from "@/lib/db-errors";
+import { STORY_MAX, STORY_TITLE_MAX } from "@/lib/limits";
+import { isStoryAudioPath } from "@/lib/story-audio";
+import { listStories, type EntryStory } from "@/lib/stories";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
+
+/**
+ * Stories on an entry (Step 88.3). The sheet keeps its own list, so none of
+ * these draws the page again: each hands back what the list needs.
+ */
+
+/** The stories on an entry the viewer may see, for its details. */
+export async function getEntryStories(personId: string): Promise<EntryStory[]> {
+  const profile = await requireProfile();
+  return listStories(personId, profile.auth_user_id);
+}
+
+/**
+ * Tell a story about someone on the viewer's tree: text, a recording they
+ * have just uploaded to that person's folder, or both. It waits for the
+ * person, or whoever can edit the entry, unless the teller is that person.
+ * The list back includes it.
+ */
+export async function addStory(input: {
+  personId: string;
+  /** The tree it's told on, whose inbox its teller hears back in. */
+  treeId: string;
+  title: string;
+  body: string;
+  audioPath: string | null;
+  audioSeconds: number | null;
+}): Promise<{ error?: string; status?: "pending" | "approved"; stories?: EntryStory[] }> {
+  const profile = await requireProfile();
+  const title = input.title.trim();
+  const body = input.body.trim();
+  const audioPath = input.audioPath;
+  if (!body && !audioPath) return { error: "Write the story or add a recording." };
+  if (title.length > STORY_TITLE_MAX) {
+    return { error: `Keep the title under ${STORY_TITLE_MAX} characters.` };
+  }
+  if (body.length > STORY_MAX) {
+    return { error: `Keep it under ${STORY_MAX.toLocaleString("en")} characters.` };
+  }
+  if (audioPath && !isStoryAudioPath(input.personId, audioPath)) {
+    return { error: "The recording didn’t upload." };
+  }
+  const seconds =
+    input.audioSeconds !== null && Number.isFinite(input.audioSeconds)
+      ? Math.max(0, Math.round(input.audioSeconds))
+      : null;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("add_story", {
+    p_person: input.personId,
+    p_tree: input.treeId,
+    // Blank is none: `add_story` keeps only what has words in it.
+    p_title: title,
+    p_body: body,
+    p_audio_path: audioPath ?? undefined,
+    p_audio_seconds: audioPath && seconds !== null ? seconds : undefined,
+  });
+  if (error) {
+    return {
+      error: friendlyDbError(
+        error.message,
+        [
+          ["not on your tree", "That entry isn’t on your tree."],
+          ["didn't arrive", "The recording didn’t upload."],
+          ["stories_audio_path_key", "The recording didn’t upload."],
+          ["nothing to tell", "Write the story or add a recording."],
+          ["longer than a story may be", "That’s longer than a story may be."],
+        ],
+        "Couldn’t add it. Try again.",
+      ),
+    };
+  }
+  const told = data as { status?: string } | null;
+  return {
+    status: told?.status === "approved" ? "approved" : "pending",
+    // It's told either way; a list that can't be read now is read again.
+    stories: await listStories(input.personId, profile.auth_user_id).catch(
+      () => undefined,
+    ),
+  };
+}
+
+/**
+ * Approve or decline a story waiting on the viewer. Its teller is told; a
+ * declined one stays for them alone.
+ */
+export async function decideStory(
+  storyId: string,
+  approve: boolean,
+): Promise<{ error?: string }> {
+  await requireProfile();
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("decide_story", {
+    p_story: storyId,
+    p_approve: approve,
+  });
+  if (error) {
+    return {
+      error: friendlyDbError(
+        error.message,
+        [
+          ["already decided", "It’s already been answered."],
+          ["not yours to approve", "It isn’t yours to approve."],
+        ],
+        "Couldn’t answer it. Try again.",
+      ),
+    };
+  }
+  return {};
+}
+
+/**
+ * Delete a story: its teller, or whoever can edit the entry. Its recording
+ * goes after the response, with the service role, since the story it
+ * belonged to (storage's way of knowing who may touch it) is gone.
+ */
+export async function deleteStory(storyId: string): Promise<{ error?: string }> {
+  await requireProfile();
+  const supabase = await createClient();
+  const res = await ownedWrite(
+    supabase.from("stories").delete().eq("id", storyId).select("audio_path"),
+    {
+      refused: "It’s gone already, or isn’t yours to delete.",
+      failed: "Couldn’t delete it. Try again.",
+    },
+  );
+  if (res.error !== undefined) return { error: res.error };
+  const paths = res.rows.flatMap((r) => (r.audio_path ? [r.audio_path] : []));
+  if (paths.length > 0) {
+    after(async () => {
+      const { error } = await createAdminClient().storage.from("stories").remove(paths);
+      if (error) console.error("[stories] a deleted story's recording stayed", error.message);
+    });
+  }
+  return {};
+}

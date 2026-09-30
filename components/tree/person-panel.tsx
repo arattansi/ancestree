@@ -28,7 +28,7 @@ import { AddRelativeButton } from "@/components/tree/add-relative-button";
 import type { CompanionOption } from "@/components/tree/companion-picker";
 import { PhotoCropEditor } from "@/components/photo-crop-editor";
 import { ReportDialog } from "@/components/tree/report-dialog";
-import { EntryComments } from "@/components/tree/entry-comments";
+import { EntryStories } from "@/components/tree/entry-stories";
 import { EntryReports } from "@/components/tree/entry-reports";
 import { EntrySuggestions } from "@/components/tree/entry-suggestions";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -819,9 +819,15 @@ function PersonPanelImpl({
                 </section>
               ) : null}
 
+              {/* Stories (Step 88.3), where the comments board was: not on
+                  a share link or to a visitor, and not on a basic card. */}
               {!locked ? (
                 <section className="border-t border-border pt-5">
-                  <EntryComments personId={person.id} treeId={treeId} />
+                  <EntryStories
+                    personId={person.id}
+                    treeId={treeId}
+                    canEdit={canEdit}
+                  />
                 </section>
               ) : null}
 
@@ -854,7 +860,7 @@ function PersonPanelImpl({
                         confirm={{
                           title: `Delete ${personDisplayName(person)}?`,
                           description:
-                            "Their connections, photo and documents go too.\nThis cannot be undone.",
+                            "Their connections, photo, documents and stories go too.\nThis cannot be undone.",
                           confirmLabel: "Delete",
                           pendingLabel: "Deleting…",
                           onConfirm: () => deletePerson(person.id),

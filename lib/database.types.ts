@@ -317,72 +317,6 @@ export type Database = {
           },
         ]
       }
-      entry_comments: {
-        Row: {
-          body: string
-          created_at: string
-          created_by: string
-          id: string
-          person_id: string
-          tree_id: string
-          updated_at: string
-        }
-        Insert: {
-          body: string
-          created_at?: string
-          created_by: string
-          id?: string
-          person_id: string
-          tree_id: string
-          updated_at?: string
-        }
-        Update: {
-          body?: string
-          created_at?: string
-          created_by?: string
-          id?: string
-          person_id?: string
-          tree_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "entry_comments_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "member_directory"
-            referencedColumns: ["auth_user_id"]
-          },
-          {
-            foreignKeyName: "entry_comments_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["auth_user_id"]
-          },
-          {
-            foreignKeyName: "entry_comments_person_id_fkey"
-            columns: ["person_id"]
-            isOneToOne: false
-            referencedRelation: "people"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "entry_comments_tree_id_fkey"
-            columns: ["tree_id"]
-            isOneToOne: false
-            referencedRelation: "my_trees"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "entry_comments_tree_id_fkey"
-            columns: ["tree_id"]
-            isOneToOne: false
-            referencedRelation: "trees"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       entry_reports: {
         Row: {
           body: string
@@ -1733,6 +1667,101 @@ export type Database = {
           },
         ]
       }
+      stories: {
+        Row: {
+          audio_path: string | null
+          audio_seconds: number | null
+          body: string | null
+          created_at: string
+          created_by: string | null
+          decided_at: string | null
+          decided_by: string | null
+          id: string
+          person_id: string
+          status: string
+          title: string | null
+          tree_id: string | null
+        }
+        Insert: {
+          audio_path?: string | null
+          audio_seconds?: number | null
+          body?: string | null
+          created_at?: string
+          created_by?: string | null
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          person_id: string
+          status?: string
+          title?: string | null
+          tree_id?: string | null
+        }
+        Update: {
+          audio_path?: string | null
+          audio_seconds?: number | null
+          body?: string | null
+          created_at?: string
+          created_by?: string | null
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          person_id?: string
+          status?: string
+          title?: string | null
+          tree_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stories_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "stories_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "stories_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "stories_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "stories_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stories_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "my_trees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stories_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tree_members: {
         Row: {
           branch_granted_by: string | null
@@ -2304,6 +2333,17 @@ export type Database = {
         }
         Returns: Json
       }
+      add_story: {
+        Args: {
+          p_audio_path?: string
+          p_audio_seconds?: number
+          p_body: string
+          p_person: string
+          p_title: string
+          p_tree: string
+        }
+        Returns: Json
+      }
       address_has_profile: { Args: { p_email: string }; Returns: boolean }
       answer_placements: {
         Args: { p_accept: boolean; p_placement_ids: string[] }
@@ -2319,6 +2359,7 @@ export type Database = {
         }[]
       }
       beta_reviewer_emails: { Args: never; Returns: string[] }
+      can_approve_story: { Args: { p_person: string }; Returns: boolean }
       can_delete_person: { Args: { p_person_id: string }; Returns: boolean }
       can_invite_to_claim: { Args: { p_person_id: string }; Returns: boolean }
       can_invite_to_claim_on: {
@@ -2357,6 +2398,10 @@ export type Database = {
         Args: { p_accept: boolean; p_reason?: string; p_suggestion: string }
         Returns: string[]
       }
+      decide_story: {
+        Args: { p_approve: boolean; p_story: string }
+        Returns: undefined
+      }
       delete_tree: { Args: { p_tree: string }; Returns: Json }
       engagement_dashboard: { Args: never; Returns: Json }
       ensure_profile: {
@@ -2376,6 +2421,21 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      entry_stories: {
+        Args: { p_person: string }
+        Returns: {
+          audio_path: string
+          audio_seconds: number
+          body: string
+          can_decide: boolean
+          created_at: string
+          created_by: string
+          id: string
+          status: string
+          title: string
+          told_by: string
+        }[]
       }
       family_link_joins: {
         Args: { p_tree: string }

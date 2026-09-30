@@ -329,7 +329,7 @@ const CONNECTION_REACH: Record<Reach, string | true> = {
 export function describeAccess(type: AccountType): Access[] {
   return [
     { label: "See the whole tree", value: true },
-    { label: "Comment on and flag entries", value: true },
+    { label: "Add stories and report problems", value: true },
     { label: "Edit entries", value: ENTRY_REACH[type.entries] },
     {
       label: "Fill in what’s missing",
