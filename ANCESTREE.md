@@ -94,7 +94,8 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   date it lapses (Step 41.5); its Privacy card has the **Relatives can ask
   me to invite them** box (on unless they untick it, Step 41.5) — and, with `?view=admin`, the **Root console**
   of the current tree, or the first you run: stats, members, people from
-  other trees, requests, disputes, requests to start a tree (beta
+  other trees, requests, reports (disputed claims among them, Step 88.2),
+  requests to start a tree (beta
   reviewers only), invites incl. founder invites and the family link
   (Step 52, `components/admin/admin-family-link.tsx`), share
   links, tree name, who else may view, export, delete the tree;
@@ -164,9 +165,10 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   create and the invite asked for with it, Step 77.5; a photo follows in a
   second) and every line after it; `documents.ts`: document reads, writes
   and signed URLs (the three split in Step 77.6; the refusal wording they
-  share is `lib/entry-errors.ts`); `claims.ts`: `claimPerson` / `disputeClaim` / `resolveClaim` /
+  share is `lib/entry-errors.ts`); `claims.ts`: `claimPerson` /
   `markNotificationsRead`; `entry-comments.ts`: `getEntryComments` /
-  `addEntryComment` / `resolveEntryFlag`)
+  `addEntryComment`; `entry-reports.ts`: `reportEntry` / `resolveEntryReport` /
+  `withdrawEntryReport` / `decideClaimDispute` / `getEntryReports`, Step 88.2)
 - `components/tree/` — `family-tree.tsx` React Flow canvas (generation lanes
   behind the cards, whose titles stay life-size when zoomed out —
   `laneTitleFit` — and pinned inside the canvas's left edge — `laneTitleLeft`;
@@ -197,17 +199,21 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `use-tree-room.ts` + `live-cursors.tsx` who else has the tree open, as
   faces above **Upcoming**, and their pointers (Step 57.3), `person-node.tsx`
   custom node (name, then `née` maiden name / birth year / birthplace;
-  open-flag badge; in a spotlight `leaf-card.tsx`'s leaf, at most three
+  open-report badge, counting only the reports the viewer may see, Step
+  88.2; in a spotlight `leaf-card.tsx`'s leaf, at most three
   lines: name, "You", the years, or, with a maiden name, name, `née`
   maiden name, "You" with the years, Steps 76–76.5),
   `person-panel.tsx` detail Sheet (its header: the name, `née` maiden
   name and the years, on the photo when there is one, Step 76.6; **Edit
-  entry** in its header, Step 62; claim / dispute; **Minimize** folds it into a
+  entry** in its header, Step 62; claim; a flag at the end of the tag row
+  opens `report-dialog.tsx`, to report a problem or, for whoever added a
+  claimed entry, dispute the claim, and `entry-reports.tsx` lists the open
+  reports the viewer may see, Step 88.2; **Minimize** folds it into a
   card at the foot of the canvas, Step 49, that repeats the header's lines,
   Step 76.7, `folded-details.tsx`; its family and companions sections are
   `person-family.tsx` and `person-companions.tsx`, Step 77.6),
-  `entry-comments.tsx` (comment /
-  flag thread + resolve), `claim-suggestions.tsx` "Is this you?" canvas prompt;
+  `entry-comments.tsx` (comments; flags left for reports in Step 88.2),
+  `claim-suggestions.tsx` "Is this you?" canvas prompt;
   who's open is in the address (`?person=`, replaced as they change), and
   the camera, the filters, a lit connection and the details folded or not
   are kept for the tab per tree (`use-canvas-memory.ts`,
@@ -229,9 +235,12 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `app/actions/pets.ts` — add / update / link / unlink / remove / photo /
   position. Pets are read separately from `getTreeGraph` so nothing in the
   layout, bloodline, generation, or claim code ever sees one
-- `components/notifications-list.tsx` (account) + `admin/admin-disputed-claims.tsx`
-  (a Root upholds / reverses); `lib/claims.ts` — claim candidates, notifications,
-  disputed-claim queries; `lib/entry-comments.ts` — comment/flag thread reads
+- `components/notifications-list.tsx` (account; its claim notice's dispute
+  opens the report dialog) + `admin/admin-reports.tsx` (the Root console's
+  open reports: resolve, or uphold / reverse a disputed claim, Step 88.2);
+  `lib/claims.ts` — claim candidates, notifications; `lib/entry-comments.ts` —
+  comment reads; `lib/entry-reports.ts` — report reads (sheet, Root console,
+  the queue's count)
 - `components/ui/` — shadcn primitives (incl. `form` = react-hook-form + zod,
   `alert-dialog` = Base UI's AlertDialog dressed like `dialog`)
 - Feedback (Step 70; the rules are in `docs/design-system.md`, Feedback):
@@ -478,9 +487,10 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `tree_requests`          | Asks to start a tree during the beta (Step 28): a member's (`user_id`) or a waitlist sign-up's (name + email only), `pending` \| `approved` \| `declined`, answered by a beta reviewer (`private.beta_reviewers`). A member's approval is their permission to `found_tree`; a sign-up's approval mints a founder invite (`invite_id`). Reviewers see and answer every row, a member only their own; members ask through `request_tree`, the waitlist is written with the service role. One pending ask per member and per waitlist address                                                                                                                                                                                                                                                                   |
 | `invite_relays`          | Asks a newcomer with no match passed on to a relative (Step 30.5): their typed first/last name + email and the member it went to (`recipient_user_id`), `pending` \| `invited` \| `dismissed`, the tree they were invited to, `email_sent`. Only that member reads and answers it (RLS; update granted on the answer's columns only); filed by the server with the service role, and the rows are what the member's caps count. One open or dismissed ask per address and member. A pending ask lapses after 30 days, and is deleted as new asks come in (Step 41.5) |
 | `invite_relay_asks`      | A note of every ask to a relative, whoever the address belongs to (Step 41.5): the address asking and `created_at`, never the relative's. What the caps per address and across the site count, before anyone is looked up. Service role only (RLS on, no policies, no grants to `anon`/`authenticated`); an ask past a cap leaves no note, and notes older than a day are deleted as new asks come in |
-| `claims`                 | Auto-approve / dispute / reject a person entry (`dispute_reason`, `resolved_by`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `claims`                 | Auto-approve / reject a person entry (`resolved_by`); a dispute of one is an `entry_reports` row and leaves it `approved` (Step 88.2) |
 | `notifications`          | In-app notices, **one inbox per tree** (`tree_id`, Step 25; `placement_requested` \| `placement_accepted` \| `placement_declined` added; `placements_requested`, one for a batch of entries someone may edit, Step 80; `placements_lapsed`, to the Root whose ask nobody answered in 30 days, Step 83; `tree_request_approved`, Step 28; `placed_on_join`, Step 30.9, and what a claim invite did, Step 41.3; `joined_by_link`, Step 52); recipient-scoped RLS                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `entry_comments`         | Comments and flags, **one board per tree** (`tree_id`, Step 25) (`is_flag`, `open` \| `resolved`, `resolved_by`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `entry_comments`         | Comments, **one board per tree** (`tree_id`, Step 25); flags left for `entry_reports` in Step 88.2 |
+| `entry_reports`          | Problems reported with an entry (Step 88.2): `body`, `open` \| `resolved`, `resolved_by`, the tree it was raised on (`tree_id`, where its reporter hears back), and `claim_id` when it disputes that claim (one open at a time). Seen only by its reporter and whoever can fix it: `can_edit_person` for a problem, the home tree's Roots for a dispute. Written only by `report_entry` / `resolve_entry_report` / `decide_claim_dispute`; its reporter may delete (withdraw) an open one; `created_by` is set null when their account goes |
 | `documents`              | Metadata for private file uploads, **one bank per tree** (`tree_id`); `shared_across_trees` shows it on every tree the person is on — flipped only by the person or a Root of their home tree (`documents_guard`), which also keeps it on its entry except inside a merge (Step 41.3's claim invite, or "This is me" since Step 43), which leaves it unshared                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `places`                 | GeoNames reference data (populated places + admin areas) for birthplace autocomplete; not tree-scoped — read by any member, written by the import script and by a Root's **Add a place** (ids from 10,000,000,000); a row for each country (Step 79: ids from 9,000,000,000, no coordinates, never found by the name search)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `historical_names`       | Curated period names for a place/country over a date range (Step 4.5d); matched by `place_id` then `country_code` against a birth/death year. Read by any member; seeded by migration                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
@@ -824,7 +834,7 @@ mirror it for the UI.
 
 |                                                    | Root                                                                                                            | Branch                                                                       | Leaf                                 |
 | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------ |
-| See the tree, comment, flag, claim their own entry | ✓                                                                                                               | ✓                                                                            | ✓                                    |
+| See the tree, comment, report a problem, claim their own entry | ✓                                                                                                               | ✓                                                                            | ✓                                    |
 | Edit entries                                       | Every entry                                                                                                     | Their part of a Root's side (not another member's own), plus what they added | What they added, and their own       |
 | Branch edits to a Root's entries                   | Told; one-click undo                                                                                            | Publish at once                                                              | —                                    |
 | Suggest a change; answer one                       | Suggest where they can't edit; answer on every entry                                                            | Suggest where they can't edit; answer where they can                         | Same as Branch                       |
@@ -1261,7 +1271,7 @@ mirror it for the UI.
   revocable). The `/shared/[token]` route resolves the token with the
   service-role client (`lib/share-links.server.ts`) — RLS is admins-only, no
   `anon` grant — and renders `<FamilyTree readOnly>` (no drag-persist, no add /
-  claim / flag / comment / manage affordances). Its corner card's **Ask to
+  claim / report / comment / manage affordances). Its corner card's **Ask to
   join** opens the request form in a dialog over the canvas (Step 41.4); a
   visitor from another tree gets the same button, less the dialog's "Sign
   in". Each view is counted once the page has gone
@@ -1527,6 +1537,76 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 88.2 — Report a problem** (the second of Step 88, the person
+  sheet's redesign; two migrations). **Aalim asked for:** flags off the
+  comments board, as a flag button that opens a dialog to say what's
+  wrong; the claim dispute (under Manage) as a choice in that dialog, only
+  where it applies; and **a report seen only by whoever can fix it**: the
+  entry's editors and the Roots, on the sheet and in the Root console, its
+  reporter seeing their own, the open count on the card and the sheet by
+  the same rule. So a report is a row of its own, `entry_reports`
+  (`20260929160000_entry_reports`), readable by its reporter and, for a
+  problem with the details, whoever `can_edit_person`, or, for a dispute
+  (`claim_id` set), the Roots of the entry's home tree; written only by
+  `report_entry`, `resolve_entry_report` and `decide_claim_dispute`,
+  withdrawn (deleted) by its reporter while open. The flag sits at the end
+  of the tag row beside **Edit** / **Suggest** (`TagButton`, icon only,
+  "Report a problem"); `report-dialog.tsx` is "Its details / Who claimed
+  it" (the choice only for whoever added a claimed entry) and "What's
+  wrong?". The sheet lists the open reports the viewer may see
+  (`entry-reports.tsx`, read only when the card counts some): **Mark
+  resolved** for an editor, **Uphold / Reverse claim** for a home Root,
+  **Withdraw** for the reporter. The Root console's **Disputed Claims**
+  became **Reports** (both kinds, `admin-reports.tsx`, same card), under
+  "Requests & Reports"; its stats' "Open flags" and "Disputes" are one
+  "Reports", and the header's queue counts open reports on the tree's own
+  entries. The claim notice's **Dispute this claim** opens the same
+  dialog on "Who claimed it". **My calls, not asked:** a dispute no longer
+  changes the claim: it stays `approved` while its report is open, so
+  nobody outside the rule learns of it from the claim (the "Ownership
+  disputed" badge and Manage's dispute link and line are gone); the
+  claimant is still told it was disputed, as before, but can't read it.
+  A report is told to the entry's owner, its home tree's Roots and the
+  Branches tending it (as a suggested change is asked, Step 68), no longer
+  to the creator of an entry someone has claimed. The flag shows to
+  whoever can't edit the entry, or may dispute its claim. "What's wrong?"
+  is needed for a dispute too (its reason was optional), up to 1,000
+  characters. Resolved reports leave the sheet and the console (the
+  reporter is told); there's no Reopen. A report raised on another tree
+  that shows the entry goes to the home tree's fixers, not that tree's
+  Roots. A reporter whose account goes leaves the report for the fixers
+  (`created_by` set null). A placeholder merged away takes its reports
+  along (`claim_person`, `merge_invited_entry`, one line each); a report
+  doesn't stop an entry being deleted. The export carries `entry_reports`.
+  `20260929170000_flags_leave_the_comments`, applied once this build was
+  live, moves any board flag and any still-disputed claim across, keeps
+  the one old rejected claim's reason as a resolved dispute, and drops
+  `entry_comments.is_flag` / `status` / `resolved_*`, `claims.
+  dispute_reason`, `dispute_claim`, `resolve_claim` and
+  `resolve_entry_flag`; `entry_comment_notify` tells of comments only.
+  `claims_status_check` still allows `disputed`, unused. **Verified** in a
+  rolled-back rehearsal on live (both migrations, six throwaways on two
+  trees: who reads what, every refusal, reverse and merge) and end to end
+  on live as a seeded Root, the entry's creator, its claimant and an
+  unrelated Leaf, headless Chrome on the worktree's dev server: the
+  claimant reported a wrong birth year on an entry she can't edit (no
+  choice shown; "Report sent."), the creator disputed her claim ("Sent to
+  a Root."). The creator, an editor of the first entry, saw its report
+  with **Mark resolved**; the claimant saw hers with **Withdraw** and
+  nothing of the dispute on her own entry; the unrelated Leaf saw no
+  badge, count or report, nor any in the page's RSC payload. Through
+  PostgREST with each member's own token: the Root and creator read both,
+  the claimant one, the unrelated Leaf none; an insert or update answered
+  403 `42501`. The Root's console listed both, the header said "2 need
+  attention"; **Uphold claim** kept the claim `approved`, **Mark
+  resolved** told the reporter. The notice's dispute opened on "Who
+  claimed it" and its button went once sent. A 390px phone wraps the tag
+  row with the flag right-aligned, a 44px target. Known: a spotlight's
+  leaves show no count (as with flags); the dialog offers "Who claimed it"
+  while the creator's own dispute is open, and the server says "You've
+  already disputed this claim." The throwaway accounts, tree and sessions
+  were deleted. 1,322 unit tests, `tsc`, `eslint` and `next build` clean.
 
 - **Step 87.2 — Search keystrokes and closed panels** (the second of Step
   87, audit Phase 3, finding C4; no migration). **Aalim asked for:**
