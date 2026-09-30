@@ -1552,6 +1552,20 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 87.4 fix — No hydration mismatch on a `?person=` link** (no
+  migration). Reported by the Step 88.4 session: `/tree?person=<id>` on
+  87.4 logged React's hydration error (#418) every load. The canvas
+  preloads the sheet's code as its script runs when the address names a
+  person, so by hydration `lazyComponent` could draw the loaded sheet
+  where the server had drawn `next/dynamic`'s boundary. `Lazy` now draws
+  the boundary while hydrating (`useSyncExternalStore`, server snapshot
+  "hydrating") and the loaded component only in instances made after, so
+  dialogs and sheets mounted later still open in the same render.
+  **Verified** on the fixture's prod build: `?person=` loads 4/4 with the
+  error → 0/4 (1× and 4× CPU), the sheet still open each time; the
+  sheet, cropper, Add a companion and Ask to join still animate in on
+  their first frame with focus landing and returning as before.
+
 - **Step 87.4 — Lighter first load** (the fourth of Step 87, audit Phase
   3, finding C1; no migration). **Aalim asked for:** the labels out of the
   zod modules, which takes zod off every page (the bell's list reached

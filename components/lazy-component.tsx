@@ -10,6 +10,8 @@ import * as React from "react";
  * hover or once the page is idle, so it's usually here before anyone taps.
  */
 
+const noSubscription = () => () => {};
+
 export type LazyComponent<P> = React.FC<P> & {
   /** Fetch the code now; resolves once it's here. */
   preload: () => Promise<unknown>;
@@ -41,9 +43,17 @@ export function lazyComponent<P extends object>(
   };
   const Dynamic = dynamic<P>(preload, { ssr: false, loading });
   function Lazy(props: P) {
+    // One hydrating draws what the server did, `next/dynamic`'s boundary,
+    // even when its code is here already (a `?person=` link preloads the
+    // sheet), or React finds a mismatch.
+    const hydrating = React.useSyncExternalStore(
+      noSubscription,
+      () => false,
+      () => true,
+    );
     // Chosen once per instance, so one never swaps what it draws mid-life.
-    const [Component] = React.useState<React.ComponentType<P>>(
-      () => loaded ?? Dynamic,
+    const [Component] = React.useState<React.ComponentType<P>>(() =>
+      loaded && !hydrating ? loaded : Dynamic,
     );
     return <Component {...props} />;
   }
