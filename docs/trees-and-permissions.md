@@ -184,7 +184,9 @@ be placed there.
 
 | Thing | Scope | Who sees it |
 |---|---|---|
-| Stories (`stories`, Step 88.3; they replaced the per-tree comments board) | Per person, told from one tree (`tree_id`, whose inbox its teller hears back in) | Approved: members of every tree that shows the person in full, not visitors or share links. Waiting: its teller, and whoever approves it: the person themself once the entry is claimed (or is their own) and they're living, else whoever may edit it. Declined: its teller alone. Deleted by its teller or whoever may edit the entry |
+| Stories (`stories`, Step 88.3; they replaced the per-tree comments board) | Per person, told from one tree (`tree_id`, whose inbox its teller hears back in) | Approved: members of every tree that shows the person in full, not visitors or a tree's share link (a story's own link, Step 88.4, is below). Waiting: its teller, and whoever approves it: the person themself once the entry is claimed (or is their own) and they're living, else whoever may edit it. Declined: its teller alone. Deleted by its teller or whoever may edit the entry |
+| Story links (`story_links`, Step 88.4) | Per story, one per sharer | Public: anyone with the link reads the approved story (not its comments) while its links are on, the person isn't hidden from visitors, and the sharer still sees the story. Made by anyone who can read the story; turned off (all at once, until one of them shares it again) by the person, whoever may edit the entry, or its teller |
+| Story comments (`story_comments`, Step 88.4) | Per story | Whoever may read the approved story; written by any of them with no approval; deleted by their author, the story's teller or whoever may edit the entry |
 | Reports (`entry_reports`, Step 88.2) | Per person, raised from one tree | Whoever raised it, and whoever may fix it |
 | Suggested changes (`entry_suggestions`, Step 67) | Per person, made from one tree | Whoever suggested it, and whoever may edit the entry |
 | Documents (`documents.tree_id`, `shared_across_trees`) | Uploaded onto one tree | Step 18.4 rule evaluated in that tree; when shared, the same rule in every tree the person is placed on |

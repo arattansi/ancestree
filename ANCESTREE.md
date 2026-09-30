@@ -108,7 +108,10 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `/request-invite` (public; `?tree=<slug>` asks that tree's Roots, and
   without one it's the request-access search),
   `/shared/[token]` (public read-only canvas; its **Ask to join** opens the
-  `?tree=` form in a dialog over it, Step 41.4), `/privacy`
+  `?tree=` form in a dialog over it, Step 41.4), `/shared/story/[token]`
+  (public read-only story, from its **Share** link, Step 88.4; its
+  comments link is `/stories/[id]`, a members' route that opens the story's
+  person on a tree of theirs with its comments open), `/privacy`
 - Loading and failure (Step 61): each page a member moves to has a
   `loading.tsx` shaped like it (`components/page-skeletons.tsx`), so a
   click answers at once; `app/error.tsx` keeps the header when a page
@@ -167,7 +170,9 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   and signed URLs (the three split in Step 77.6; the refusal wording they
   share is `lib/entry-errors.ts`); `claims.ts`: `claimPerson` /
   `markNotificationsRead`; `stories.ts`: `getEntryStories` / `addStory` /
-  `decideStory` / `deleteStory`, Step 88.3; `entry-reports.ts`: `reportEntry` / `resolveEntryReport` /
+  `decideStory` / `deleteStory`, Step 88.3, and `shareStory` /
+  `stopSharingStory` / `getStoryComments` / `addStoryComment` /
+  `deleteStoryComment`, Step 88.4; `entry-reports.ts`: `reportEntry` / `resolveEntryReport` /
   `withdrawEntryReport` / `decideClaimDispute` / `getEntryReports`, Step 88.2)
 - `components/tree/` — `family-tree.tsx` React Flow canvas (generation lanes
   behind the cards, whose titles stay life-size when zoomed out —
@@ -221,7 +226,10 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   Step 76.7, `folded-details.tsx`; its family and companions sections are
   `person-family.tsx` and `person-companions.tsx`, Step 77.6),
   `entry-stories.tsx` (the sheet's Stories, in place of the comments board,
-  Step 88.3) + `story-dialog.tsx` (Add a story, loaded on the first press),
+  Step 88.3; **Share**, **Stop sharing** and each story's comments, Step
+  88.4, `story-comments.tsx`; `components/send-link.ts` sends a link by a
+  phone's share sheet, else copies it) + `story-dialog.tsx` (Add a story,
+  loaded on the first press),
   `claim-suggestions.tsx` "Is this you?" canvas prompt;
   who's open is in the address (`?person=`, replaced as they change), and
   the camera, the filters, a lit connection and the details folded or not
@@ -249,7 +257,10 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   opens the report dialog) + `admin/admin-reports.tsx` (the Root console's
   open reports: resolve, or uphold / reverse a disputed claim, Step 88.2);
   `lib/claims.ts` — claim candidates, notifications; `lib/stories.ts` —
-  story reads (`entry_stories` + signed recording links); `lib/story-audio.ts`
+  story reads (`entry_stories` + signed recording links) and a story's
+  comments (`list_story_comments`); `lib/story-links.ts` /
+  `story-links.server.ts` — a story's public link and its service-role read
+  (`shared_story`, Step 88.4); `lib/story-audio.ts`
   — the recording bucket's types, paths and lengths; `lib/story-audio-shrink.ts`
   — a recording remade as speech in the browser (Mediabunny, loaded only
   once one is picked); `lib/story-upload.ts` — sending one;
@@ -510,8 +521,10 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `invite_relays`          | Asks a newcomer with no match passed on to a relative (Step 30.5): their typed first/last name + email and the member it went to (`recipient_user_id`), `pending` \| `invited` \| `dismissed`, the tree they were invited to, `email_sent`. Only that member reads and answers it (RLS; update granted on the answer's columns only); filed by the server with the service role, and the rows are what the member's caps count. One open or dismissed ask per address and member. A pending ask lapses after 30 days, and is deleted as new asks come in (Step 41.5) |
 | `invite_relay_asks`      | A note of every ask to a relative, whoever the address belongs to (Step 41.5): the address asking and `created_at`, never the relative's. What the caps per address and across the site count, before anyone is looked up. Service role only (RLS on, no policies, no grants to `anon`/`authenticated`); an ask past a cap leaves no note, and notes older than a day are deleted as new asks come in |
 | `claims`                 | Auto-approve / reject a person entry (`resolved_by`); a dispute of one is an `entry_reports` row and leaves it `approved` (Step 88.2) |
-| `notifications`          | In-app notices, **one inbox per tree** (`tree_id`, Step 25; `placement_requested` \| `placement_accepted` \| `placement_declined` added; `placements_requested`, one for a batch of entries someone may edit, Step 80; `placements_lapsed`, to the Root whose ask nobody answered in 30 days, Step 83; `tree_request_approved`, Step 28; `placed_on_join`, Step 30.9, and what a claim invite did, Step 41.3; `joined_by_link`, Step 52; `story_to_approve`, `story_approved`, `story_declined`, Step 88.3); recipient-scoped RLS                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `stories`                | Stories about a person (Step 88.3, in place of the per-tree comments board): `title`, `body` and/or a recording (`audio_path` in the private `stories` bucket, `<person id>/<uuid>.<ext>`; `audio_seconds`), `pending` \| `approved` \| `declined`, `decided_by`, the tree it was told on (`tree_id`, where its teller hears back). Approved: read by members of every tree showing the person in full. Pending: its teller, and whoever approves it: the person themself once the entry is claimed or is their own and they're living (`private.story_owner`), else whoever `can_edit_person`. Declined: its teller alone. Told only through `add_story` (approved at once when the teller may approve it), answered through `decide_story`; deleted by its teller or whoever may edit the entry; read by the sheet through `entry_stories` (runs as the viewer, names each teller). `created_by` is set null when their account goes |
+| `notifications`          | In-app notices, **one inbox per tree** (`tree_id`, Step 25; `placement_requested` \| `placement_accepted` \| `placement_declined` added; `placements_requested`, one for a batch of entries someone may edit, Step 80; `placements_lapsed`, to the Root whose ask nobody answered in 30 days, Step 83; `tree_request_approved`, Step 28; `placed_on_join`, Step 30.9, and what a claim invite did, Step 41.3; `joined_by_link`, Step 52; `story_to_approve`, `story_approved`, `story_declined`, Step 88.3; `story_commented`, Step 88.4); recipient-scoped RLS                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `stories`                | Stories about a person (Step 88.3, in place of the per-tree comments board): `title`, `body` and/or a recording (`audio_path` in the private `stories` bucket, `<person id>/<uuid>.<ext>`; `audio_seconds`), `pending` \| `approved` \| `declined`, `decided_by`, the tree it was told on (`tree_id`, where its teller hears back). Approved: read by members of every tree showing the person in full. Pending: its teller, and whoever approves it: the person themself once the entry is claimed or is their own and they're living (`private.story_owner`), else whoever `can_edit_person`. Declined: its teller alone. Told only through `add_story` (approved at once when the teller may approve it), answered through `decide_story`; deleted by its teller or whoever may edit the entry; read by the sheet through `entry_stories` (runs as the viewer, names each teller; since Step 88.4 also its comment count, whether a link to it works, whether the viewer may share it or turn its links off, and their own link). `links_off` (Step 88.4): its links were turned off. `created_by` is set null when their account goes |
+| `story_links`            | Public links to approved stories (Step 88.4): one working link per sharer per story (`token`, 24 URL-safe characters; `created_by`, whom the page names; `revoked_at` / `revoked_by`). A link works while the story is approved and its links aren't off (`stories.links_off`), the person isn't `hidden_from_visitors`, and its sharer is still on a tree that shows them in full (`private.story_link_live`). Made only by `share_story` (anyone who can see the story; once its links were turned off, only its person, an editor of the entry or its teller, which turns them on again), turned off by `stop_sharing_story` (every link at once; those three). A member reads only their own; the public page reads with the service role (`shared_story`) |
+| `story_comments`         | Comments on an approved story (Step 88.4), no approval: read by whoever may read the story, written only by `add_story_comment` (its teller and its person are told, `story_commented`), deleted by their author, the story's teller or whoever may edit the entry; listed through `list_story_comments`. `created_by` is set null when their account goes |
 | `entry_reports`          | Problems reported with an entry (Step 88.2): `body`, `open` \| `resolved`, `resolved_by`, the tree it was raised on (`tree_id`, where its reporter hears back), and `claim_id` when it disputes that claim (one open at a time). Seen only by its reporter and whoever can fix it: `can_edit_person` for a problem, the home tree's Roots for a dispute. Written only by `report_entry` / `resolve_entry_report` / `decide_claim_dispute`; its reporter may delete (withdraw) an open one; `created_by` is set null when their account goes |
 | `documents`              | Metadata for private file uploads, **one bank per tree** (`tree_id`); `shared_across_trees` shows it on every tree the person is on — flipped only by the person or a Root of their home tree (`documents_guard`), which also keeps it on its entry except inside a merge (Step 41.3's claim invite, or "This is me" since Step 43), which leaves it unshared                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `places`                 | GeoNames reference data (populated places + admin areas) for birthplace autocomplete; not tree-scoped — read by any member, written by the import script and by a Root's **Add a place** (ids from 10,000,000,000); a row for each country (Step 79: ids from 9,000,000,000, no coordinates, never found by the name search)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
@@ -1324,6 +1337,28 @@ mirror it for the UI.
   the last view (33.6). `lib/share-links.ts` holds the pure
   usable/expired/revoked logic, `countsAsView` and `viewerUserAgent`
   (`.test.ts`).
+- **Story links** (`public.story_links`, Step 88.4): any member who can
+  read an approved story may press **Share** on it, which makes their own
+  link `"/shared/story/<token>"` (or hands back the one they have) and
+  sends it: a phone's or tablet's share sheet, else the clipboard
+  (`components/send-link.ts`; when the press has gone stale by the time
+  the link is made, a toast holds it with a **Share** / **Copy** button).
+  The page (`app/shared/story/[token]`) reads the story with the service
+  role (`shared_story`, `lib/story-links.server.ts`, shared by the page and
+  its metadata) and shows its title, text and recording, who it's about
+  and who shared it, never its comments; it isn't indexed, and a chat's
+  preview gets the title and "A story about <name>, shared by <name>."
+  Its **Sign in to see the comments** (**See the comments** when signed
+  in) goes to `/stories/<id>` (`app/stories/[id]/route.ts`), which
+  signs-out visitors pass through `/join` to reach, and which opens the
+  person on a tree of the member's that shows them (the one they're on if
+  it does, else their home tree) at `?person=…&story=…`; the sheet opens
+  that story's comments, brings it into view and drops `story` from the
+  address. **Stop sharing** (the person, whoever may edit the entry, or the
+  story's teller) turns every link off at once and keeps them off: only
+  those three may share it again. A link also stops while the person is
+  hidden from visitors, and for good once its sharer's account goes.
+  Views aren't counted.
 - **Starting a tree is by request during the beta** (Step 28,
   `public.tree_requests`): a signed-in member presses "start a tree
   (beta)" (home page, `/trees`, `/trees/new`) and `request_tree` files one
@@ -1577,6 +1612,82 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 88.4 — Story links and story comments** (the fourth of Step 88,
+  the person sheet's redesign; one migration,
+  `20260929200000_story_links_and_comments`, additive, live before the
+  deploy). **Aalim asked for:** an approved story gets a **Share** button
+  (the phone's share sheet, copied on a desktop) whose link opens the
+  story read-only with no account; the person or whoever can edit the
+  entry can turn a link off; and **anyone who can see a story can comment
+  on it**, with no approval. So an approved story's card has **Comment**
+  (or "2 comments"), which opens its comments under it (oldest first, "Add
+  a comment", **Post**), and **Share**; once a link works it's marked
+  **Shared**, and whoever may turn it off sees **Stop sharing** ("Stop
+  sharing this story?", "Its links stop working."). The link is
+  `/shared/story/<token>`: the title (else "A story about <name>"), "About
+  <name> · Shared by <name>", the text and the recording, and **Sign in to
+  see the comments** (**See the comments** when signed in), which goes
+  through `/stories/<id>` to the person's sheet on a tree of the member's
+  that shows them, with that story's comments open. `story_links` and
+  `story_comments` are new, with `share_story`, `stop_sharing_story`,
+  `shared_story` (service role only), `story_place`, `add_story_comment`
+  (tells the teller and the person, `story_commented`) and
+  `list_story_comments`; `entry_stories` also gives each story's comment
+  count, whether a link works, whether the viewer may share it or stop
+  it, and their own link; `stories.links_off`.
+  **Defaults already chosen, not asked:** anyone who can see an approved
+  story may make its link, and its teller may turn it off too; the page
+  shows the story, the person's name and who shared it, not the comments,
+  with a way through for members; no link for anyone hidden from visitors;
+  a comment is deleted by its author, the story's teller or the entry's
+  editors; built like the tree's share links (a service-role read, no
+  grant to visitors). **My calls, not asked:** each sharer gets their own
+  link (pressing Share again sends the same one), so the page names who
+  sent it; **Stop sharing turns off every link at once and keeps them
+  off**: after that only the person, an editor of the entry or the teller
+  can share it again (their Share turns links back on, with new tokens),
+  so a relative can't undo it by sharing again. A link also stops working
+  while the person is hidden from visitors, and once its sharer is no
+  longer on a tree that shows the person; it goes with the sharer's
+  account. Tokens are 24 URL-safe characters (144 bits), shorter than a
+  tree link's for pasting into chats. The share sheet is used wherever the
+  pointer is coarse (phones and tablets); a desktop copies. When the link
+  took long enough to make that the browser no longer counts the press, a
+  toast holds it with **Share** / **Copy**. Comments are for approved
+  stories only, up to 2,000 characters, not editable; the teller and the
+  person (claimed and living) are told of each, on a tree of theirs that
+  shows the story. The page isn't indexed; a chat's preview reads the
+  story's title and "A story about <name>, shared by <name>." Views aren't
+  counted. The tree export carries the exported stories' comments, not
+  their links. The dashboard counts "Comments on stories"; the privacy
+  notice says a shared story is the one thing anyone with its link can
+  read. **Verified** on live as a seeded throwaway Root and Leaf in
+  headless Chrome against this build: the Leaf shared the Root's story
+  (one action; a second press sent the same link with none), the card
+  showed **Shared**, the Leaf commented ("You", "1 comment", the box
+  cleared and kept focus); signed out, the link showed the story, "About
+  Nanima Zz884 · Shared by Amina Zz884", no comment, `noindex`, the
+  preview's title and description, and its sign-in link led to
+  `/join?next=/stories/<id>`; the Root's `/stories/<id>` opened the sheet
+  with the comments open and the story in view, `story` gone from the
+  address, and the Leaf's comment deletable; **Stop sharing** made the
+  Leaf's link say "Link not available" and took the Leaf's Share away,
+  while the Root's new link worked ("Shared by Rahim Zz884") and the old
+  one stayed dead; the Root deleted the Leaf's comment, the Leaf deleted
+  their own; on a phone the share sheet got the title and link, and a
+  stale press fell back to the toast's **Share**. A bad id and a story on
+  a tree the Leaf isn't on both opened the plain canvas. The Root's inbox
+  had "Amina Zz884 commented on your story about Nanima Zz884." The
+  migration was rehearsed in a rolled-back transaction on live (62
+  checks as real member ids, an outsider, anon and the service role: who
+  may share, stop, read tokens, resolve, comment, delete; hidden
+  people; a pending story; cascades), then applied from its file with
+  every function body md5-checked in the same transaction. The throwaway
+  accounts, tree, links, comments and notices were deleted. **Known:** a
+  link paused by hiding the person works again if they're unhidden. The
+  run also caught a hydration error on every `/tree?person=` load, from
+  Step 87.4; that session fixed it ("Step 87.4 fix", below).
 
 - **Step 87.5 — Card-sized photos** (the fifth of Step 87, audit Phase
   3, finding C3 and C7's hover preview; no migration). **Aalim asked for:**
