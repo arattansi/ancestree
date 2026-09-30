@@ -2,14 +2,25 @@
 
 import * as React from "react";
 import dynamic from "next/dynamic";
-import { Mic, Plus } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { Globe, MessageCircle, Mic, Plus, Share } from "lucide-react";
 
-import { decideStory, deleteStory, getEntryStories } from "@/app/actions/stories";
+import {
+  decideStory,
+  deleteStory,
+  getEntryStories,
+  shareStory,
+  stopSharingStory,
+} from "@/app/actions/stories";
 import { ActionButton } from "@/components/action-button";
 import { ConfirmButton } from "@/components/confirm-dialog";
+import { PendingButton } from "@/components/pending-button";
 import { RowCard, RowList } from "@/components/row-card";
+import { sendLink } from "@/components/send-link";
+import { StoryComments } from "@/components/tree/story-comments";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useAction } from "@/components/use-action";
 import type { EntryStory } from "@/lib/stories";
 import { formatDuration } from "@/lib/story-audio";
 import { isLongStory } from "@/lib/story-text";
@@ -21,26 +32,92 @@ const StoryDialog = dynamic(
   { ssr: false },
 );
 
+/** "Comment", or how many there are. */
+function commentsLabel(count: number): string {
+  if (count === 0) return "Comment";
+  return count === 1 ? "1 comment" : `${count} comments`;
+}
+
+/**
+ * Share an approved story (Step 88.4): the viewer's own public link, made
+ * the first time, then sent (`sendLink`).
+ */
+function ShareButton({
+  story,
+  onShared,
+}: {
+  story: EntryStory;
+  onShared: (url: string) => void;
+}) {
+  const share = useAction();
+  const title = story.title ?? undefined;
+  return (
+    <PendingButton
+      type="button"
+      size="sm"
+      variant="ghost"
+      pending={share.pending}
+      pendingLabel="Sharing…"
+      onClick={() => {
+        if (story.shareUrl) {
+          void sendLink(story.shareUrl, title);
+          return;
+        }
+        share.run("share", () => shareStory(story.id), {
+          onSuccess: ({ url }) => {
+            if (!url) return;
+            onShared(url);
+            void sendLink(url, title);
+          },
+        });
+      }}
+    >
+      <Share aria-hidden />
+      Share
+    </PendingButton>
+  );
+}
+
 /**
  * One story (Step 88.3): its title, who told it and when, the text (folded
  * when it's long) and the recording. Whoever may approve a waiting story
  * answers it here; its teller, or whoever can edit the entry, may delete it.
+ * An approved one has its own comments, and may be shared by a public link
+ * (Step 88.4).
  */
 function StoryCard({
   story,
   canDelete,
+  focused,
   onDecided,
   onDeleted,
+  onChanged,
 }: {
   story: EntryStory;
+  /** Theirs to delete, and so is any comment on it. */
   canDelete: boolean;
+  /** A link to its comments opened the sheet. */
+  focused: boolean;
   onDecided: (approved: boolean) => void;
   onDeleted: () => void;
+  onChanged: (change: Partial<EntryStory>) => void;
 }) {
   const [expanded, setExpanded] = React.useState(false);
+  const [commentsOpen, setCommentsOpen] = React.useState(focused);
+  const cardRef = React.useRef<HTMLLIElement>(null);
+  // Sent here to read its comments: they open, and it comes into view.
+  const [wasFocused, setWasFocused] = React.useState(focused);
+  if (focused !== wasFocused) {
+    setWasFocused(focused);
+    if (focused) setCommentsOpen(true);
+  }
+  React.useEffect(() => {
+    if (focused) cardRef.current?.scrollIntoView({ block: "start" });
+  }, [focused]);
   const long = story.body ? isLongStory(story.body) : false;
+  const approved = story.status === "approved";
   return (
-    <RowCard className="gap-2">
+    <RowCard ref={cardRef} className="gap-2">
       {story.title ? <p className="font-medium">{story.title}</p> : null}
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
         <span className="font-medium text-foreground">
@@ -57,6 +134,12 @@ function StoryCard({
           <Badge variant="secondary">Waiting for approval</Badge>
         ) : story.status === "declined" ? (
           <Badge variant="destructive">Not approved</Badge>
+        ) : null}
+        {story.shared ? (
+          <Badge variant="outline">
+            <Globe aria-hidden />
+            Shared
+          </Badge>
         ) : null}
       </div>
       {story.body ? (
@@ -86,6 +169,41 @@ function StoryCard({
         <audio controls preload="none" src={story.audioUrl} className="w-full" />
       ) : null}
       <div className="flex flex-wrap gap-2 empty:hidden">
+        {approved ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            aria-expanded={commentsOpen}
+            onClick={() => setCommentsOpen((open) => !open)}
+          >
+            <MessageCircle aria-hidden />
+            {commentsLabel(story.commentCount)}
+          </Button>
+        ) : null}
+        {story.canShare ? (
+          <ShareButton
+            story={story}
+            onShared={(url) => onChanged({ shared: true, shareUrl: url })}
+          />
+        ) : null}
+        {story.shared && story.canStopSharing ? (
+          <ConfirmButton
+            size="sm"
+            variant="ghost"
+            confirm={{
+              title: "Stop sharing this story?",
+              description: "Its links stop working.",
+              confirmLabel: "Stop sharing",
+              pendingLabel: "Stopping…",
+              destructive: false,
+              onConfirm: () => stopSharingStory(story.id),
+              onSuccess: () => onChanged({ shared: false, shareUrl: null }),
+            }}
+          >
+            Stop sharing
+          </ConfirmButton>
+        ) : null}
         {story.canDecide ? (
           <>
             <ActionButton
@@ -126,6 +244,15 @@ function StoryCard({
           </ConfirmButton>
         ) : null}
       </div>
+      {approved && commentsOpen ? (
+        <StoryComments
+          storyId={story.id}
+          canTend={canDelete}
+          onCount={(count) => {
+            if (count !== story.commentCount) onChanged({ commentCount: count });
+          }}
+        />
+      ) : null}
     </RowCard>
   );
 }
@@ -160,6 +287,18 @@ export function EntryStories({
   // The stories of the person being viewed; `null` while (re)loading.
   const current = state.personId === personId ? state : null;
   const items = current?.items ?? null;
+
+  // A story whose comments the address asks for (`treeStoryHref`, Step
+  // 88.4): opened once it's here, then gone from the address, so a reload
+  // or coming back to this person doesn't open it again.
+  const focusStory = useSearchParams().get("story");
+  const focusFound = !!focusStory && !!items?.some((s) => s.id === focusStory);
+  React.useEffect(() => {
+    if (!focusFound) return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete("story");
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+  }, [focusFound]);
 
   React.useEffect(() => {
     let active = true;
@@ -230,6 +369,7 @@ export function EntryStories({
               key={story.id}
               story={story}
               canDelete={story.mine || canEdit}
+              focused={focusFound && story.id === focusStory}
               onDecided={(approved) =>
                 update((all) =>
                   approved || story.mine
@@ -247,6 +387,11 @@ export function EntryStories({
                 )
               }
               onDeleted={() => update((all) => all.filter((s) => s.id !== story.id))}
+              onChanged={(change) =>
+                update((all) =>
+                  all.map((s) => (s.id === story.id ? { ...s, ...change } : s)),
+                )
+              }
             />
           )}
         </RowList>

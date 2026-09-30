@@ -4,9 +4,15 @@ import { after } from "next/server";
 
 import { requireProfile } from "@/lib/auth";
 import { friendlyDbError, ownedWrite } from "@/lib/db-errors";
-import { STORY_MAX, STORY_TITLE_MAX } from "@/lib/limits";
+import { COMMENT_MAX, STORY_MAX, STORY_TITLE_MAX } from "@/lib/limits";
 import { isStoryAudioPath } from "@/lib/story-audio";
-import { listStories, type EntryStory } from "@/lib/stories";
+import {
+  listStories,
+  listStoryComments,
+  storyLinkUrl,
+  type EntryStory,
+  type StoryComment,
+} from "@/lib/stories";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -143,4 +149,108 @@ export async function deleteStory(storyId: string): Promise<{ error?: string }> 
     });
   }
   return {};
+}
+
+/**
+ * The viewer's public link to an approved story (Step 88.4), made the first
+ * time they share it; the same one after that. Shared by someone who could
+ * have turned its links off, they're on again.
+ */
+export async function shareStory(
+  storyId: string,
+): Promise<{ error?: string; url?: string }> {
+  await requireProfile();
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("share_story", { p_story: storyId });
+  if (error || !data) {
+    return {
+      error: friendlyDbError(
+        error?.message,
+        [["be shared", "It can’t be shared."]],
+        "Couldn’t make a link. Try again.",
+      ),
+    };
+  }
+  return { url: storyLinkUrl(data) };
+}
+
+/**
+ * Turn off every link to a story, for its person, an editor of the entry or
+ * its teller. They stay off until one of them shares it again.
+ */
+export async function stopSharingStory(storyId: string): Promise<{ error?: string }> {
+  await requireProfile();
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("stop_sharing_story", { p_story: storyId });
+  if (error) {
+    return {
+      error: friendlyDbError(
+        error.message,
+        [["not yours to stop sharing", "It isn’t yours to stop sharing."]],
+        "Couldn’t stop sharing it. Try again.",
+      ),
+    };
+  }
+  return {};
+}
+
+/** A story's comments, for its card (Step 88.4). */
+export async function getStoryComments(storyId: string): Promise<StoryComment[]> {
+  const profile = await requireProfile();
+  return listStoryComments(storyId, profile.auth_user_id);
+}
+
+/**
+ * Comment on an approved story the viewer can see. Its teller and its
+ * person are told. The list back includes it.
+ */
+export async function addStoryComment(input: {
+  storyId: string;
+  body: string;
+}): Promise<{ error?: string; comments?: StoryComment[] }> {
+  const profile = await requireProfile();
+  const body = input.body.trim();
+  if (!body) return { error: "Write a comment first." };
+  if (body.length > COMMENT_MAX) {
+    return { error: `Keep it under ${COMMENT_MAX.toLocaleString("en")} characters.` };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("add_story_comment", {
+    p_story: input.storyId,
+    p_body: body,
+  });
+  if (error) {
+    return {
+      error: friendlyDbError(
+        error.message,
+        [
+          ["not a story you can see", "That story isn’t on your tree."],
+          ["nothing to say", "Write a comment first."],
+          ["longer than a comment may be", `Keep it under ${COMMENT_MAX.toLocaleString("en")} characters.`],
+        ],
+        "Couldn’t post it. Try again.",
+      ),
+    };
+  }
+  return {
+    // It's posted either way; a list that can't be read now is read again.
+    comments: await listStoryComments(input.storyId, profile.auth_user_id).catch(
+      () => undefined,
+    ),
+  };
+}
+
+/** Delete a comment: its author, the story's teller, or an editor of the entry. */
+export async function deleteStoryComment(commentId: string): Promise<{ error?: string }> {
+  await requireProfile();
+  const supabase = await createClient();
+  const res = await ownedWrite(
+    supabase.from("story_comments").delete().eq("id", commentId).select("id"),
+    {
+      refused: "It’s gone already, or isn’t yours to delete.",
+      failed: "Couldn’t delete it. Try again.",
+    },
+  );
+  return res.error !== undefined ? { error: res.error } : {};
 }

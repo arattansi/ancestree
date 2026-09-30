@@ -19,7 +19,7 @@ export const TREE_NAME_MAX = 80;
 /** A share link's label. */
 export const SHARE_LINK_LABEL_MAX = 80;
 
-/** A comment on a companion. */
+/** A comment on a companion, or on a story (Step 88.4). */
 export const COMMENT_MAX = 2000;
 
 /** A story's title, and the story itself (Step 88.3). */

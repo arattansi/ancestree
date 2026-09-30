@@ -1677,6 +1677,7 @@ export type Database = {
           decided_at: string | null
           decided_by: string | null
           id: string
+          links_off: boolean
           person_id: string
           status: string
           title: string | null
@@ -1691,6 +1692,7 @@ export type Database = {
           decided_at?: string | null
           decided_by?: string | null
           id?: string
+          links_off?: boolean
           person_id: string
           status?: string
           title?: string | null
@@ -1705,6 +1707,7 @@ export type Database = {
           decided_at?: string | null
           decided_by?: string | null
           id?: string
+          links_off?: boolean
           person_id?: string
           status?: string
           title?: string | null
@@ -1758,6 +1761,118 @@ export type Database = {
             columns: ["tree_id"]
             isOneToOne: false
             referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      story_comments: {
+        Row: {
+          body: string
+          created_at: string
+          created_by: string | null
+          id: string
+          story_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          story_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          story_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "story_comments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "story_comments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "story_comments_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "stories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      story_links: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          revoked_at: string | null
+          revoked_by: string | null
+          story_id: string
+          token: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          revoked_at?: string | null
+          revoked_by?: string | null
+          story_id: string
+          token?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          revoked_at?: string | null
+          revoked_by?: string | null
+          story_id?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "story_links_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "story_links_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "story_links_revoked_by_fkey"
+            columns: ["revoked_by"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "story_links_revoked_by_fkey"
+            columns: ["revoked_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "story_links_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "stories"
             referencedColumns: ["id"]
           },
         ]
@@ -2344,6 +2459,10 @@ export type Database = {
         }
         Returns: Json
       }
+      add_story_comment: {
+        Args: { p_body: string; p_story: string }
+        Returns: string
+      }
       address_has_profile: { Args: { p_email: string }; Returns: boolean }
       answer_placements: {
         Args: { p_accept: boolean; p_placement_ids: string[] }
@@ -2429,9 +2548,14 @@ export type Database = {
           audio_seconds: number
           body: string
           can_decide: boolean
+          can_share: boolean
+          can_stop_sharing: boolean
+          comment_count: number
           created_at: string
           created_by: string
           id: string
+          my_link: string
+          shared: boolean
           status: string
           title: string
           told_by: string
@@ -2521,6 +2645,16 @@ export type Database = {
         }[]
       }
       is_beta_reviewer: { Args: never; Returns: boolean }
+      list_story_comments: {
+        Args: { p_story: string }
+        Returns: {
+          body: string
+          created_at: string
+          created_by: string
+          id: string
+          said_by: string
+        }[]
+      }
       my_growth_rights: { Args: { p_tree?: string }; Returns: Json }
       my_tree_request: { Args: never; Returns: string }
       note_active_day: { Args: never; Returns: boolean }
@@ -2731,6 +2865,27 @@ export type Database = {
       set_member_role: {
         Args: { p_role: string; p_tree: string; p_user: string }
         Returns: string
+      }
+      share_story: { Args: { p_story: string }; Returns: string }
+      shared_story: {
+        Args: { p_token: string }
+        Returns: {
+          audio_path: string
+          audio_seconds: number
+          body: string
+          person_name: string
+          shared_by: string
+          story_id: string
+          title: string
+        }[]
+      }
+      stop_sharing_story: { Args: { p_story: string }; Returns: undefined }
+      story_place: {
+        Args: { p_prefer?: string; p_story: string }
+        Returns: {
+          person_id: string
+          tree_id: string
+        }[]
       }
       suggest_entry_change: {
         Args: {

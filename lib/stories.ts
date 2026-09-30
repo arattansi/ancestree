@@ -1,5 +1,7 @@
 import "server-only";
 
+import { getSiteUrl } from "@/lib/site-url";
+import { storyLinkPath } from "@/lib/story-links";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -24,10 +26,39 @@ export type EntryStory = {
   mine: boolean;
   /** Waiting, and the viewer may approve it. */
   canDecide: boolean;
+  /** Its comments the viewer may read (Step 88.4): an approved story's. */
+  commentCount: number;
+  /** Someone's public link to it works (Step 88.4). */
+  shared: boolean;
+  /**
+   * The viewer may share it: approved, theirs to see, its person not hidden
+   * from visitors, and its links not turned off, unless they could have.
+   */
+  canShare: boolean;
+  /** The viewer may turn its links off: its person, an editor, or its teller. */
+  canStopSharing: boolean;
+  /** The viewer's own working link to it, once they've shared it. */
+  shareUrl: string | null;
+};
+
+/** A comment on a story (Step 88.4). */
+export type StoryComment = {
+  id: string;
+  body: string;
+  createdAt: string;
+  /** Who wrote it, as the trees name them. */
+  saidBy: string;
+  /** The viewer wrote it, so may delete it. */
+  mine: boolean;
 };
 
 /** How long a recording's link lasts: longer than anyone keeps a sheet open. */
-const AUDIO_LINK_SECONDS = 60 * 60;
+export const AUDIO_LINK_SECONDS = 60 * 60;
+
+/** A story link's whole address, to send. */
+export function storyLinkUrl(token: string): string {
+  return `${getSiteUrl()}${storyLinkPath(token)}`;
+}
 
 function asStatus(status: string): EntryStory["status"] {
   return status === "approved" || status === "declined" ? status : "pending";
@@ -72,5 +103,32 @@ export async function listStories(
     toldBy: r.told_by || "A relative",
     mine: r.created_by === viewerId,
     canDecide: r.can_decide ?? false,
+    commentCount: r.comment_count ?? 0,
+    shared: r.shared ?? false,
+    canShare: r.can_share ?? false,
+    canStopSharing: r.can_stop_sharing ?? false,
+    shareUrl: r.my_link ? storyLinkUrl(r.my_link) : null,
+  }));
+}
+
+/**
+ * A story's comments the viewer may read, oldest first
+ * (`list_story_comments`, which runs as the viewer).
+ */
+export async function listStoryComments(
+  storyId: string,
+  viewerId: string,
+): Promise<StoryComment[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("list_story_comments", {
+    p_story: storyId,
+  });
+  if (error) throw new Error("Couldn’t read the comments.");
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    body: r.body,
+    createdAt: r.created_at,
+    saidBy: r.said_by || "A relative",
+    mine: r.created_by === viewerId,
   }));
 }

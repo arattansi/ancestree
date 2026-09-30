@@ -8,9 +8,11 @@ import {
   onboardingHref,
   onboardingStepHref,
   reviewHref,
+  storyHref,
   suggestChangeHref,
   treeFocusHref,
   treeHref,
+  treeStoryHref,
   validRelatedTo,
   welcomeHref,
 } from "@/lib/tree-links";
@@ -36,6 +38,18 @@ describe("tree paths", () => {
   it("opens the admin console as the account page's admin view", () => {
     expect(adminHref()).toBe("/account?view=admin");
     expect(adminHref("placements")).toBe("/account?view=admin#placements");
+  });
+});
+
+describe("story links (Step 88.4)", () => {
+  it("opens a person's sheet on one story's comments", () => {
+    expect(treeStoryHref("p1", "s1")).toBe("/tree?person=p1&story=s1");
+    expect(treeStoryHref("p 1", "s&1")).toBe("/tree?person=p%201&story=s%261");
+  });
+
+  it("finds a story's tree from its public page, behind sign-in", () => {
+    expect(storyHref("s1")).toBe("/stories/s1");
+    expect(storyHref("a/b")).toBe("/stories/a%2Fb");
   });
 });
 

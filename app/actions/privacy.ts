@@ -92,6 +92,25 @@ export async function exportTreeData(treeId: string): Promise<{
   ].find((r) => r.error)?.error;
   if (firstError) return { error: "Could not read every table. Try again." };
 
+  const stories = [
+    ...new Map(
+      [...(storiesHere.data ?? []), ...(storiesOnPeople.data ?? [])].map(
+        (s) => [s.id, s],
+      ),
+    ).values(),
+  ];
+  // Their comments (Step 88.4); not their public links, which are keys.
+  const storyComments = stories.length
+    ? await db
+        .from("story_comments")
+        .select("*")
+        .in(
+          "story_id",
+          stories.map((s) => s.id),
+        )
+    : { data: [], error: null };
+  if (storyComments.error) return { error: "Could not read every table. Try again." };
+
   const payload = {
     exported_at: new Date().toISOString(),
     tree_id: treeId,
@@ -103,13 +122,8 @@ export async function exportTreeData(treeId: string): Promise<{
       relationships: relationships.data ?? [],
       invites: invites.data ?? [],
       claims: claims.data ?? [],
-      stories: [
-        ...new Map(
-          [...(storiesHere.data ?? []), ...(storiesOnPeople.data ?? [])].map(
-            (s) => [s.id, s],
-          ),
-        ).values(),
-      ],
+      stories,
+      story_comments: storyComments.data ?? [],
       entry_reports: [
         ...new Map(
           [

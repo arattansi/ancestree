@@ -17,6 +17,24 @@ export function treeFocusHref(personId: string | null | undefined): string {
   return personId ? `${treeHref()}?person=${enc(personId)}` : treeHref();
 }
 
+/**
+ * The canvas opened on a person's sheet with one of their stories' comments
+ * open (Step 88.4): `EntryStories` reads `story`.
+ */
+export function treeStoryHref(personId: string, storyId: string): string {
+  return `${treeFocusHref(personId)}&story=${enc(storyId)}`;
+}
+
+/**
+ * A story's comments from anywhere (Step 88.4): the link on its public
+ * page. It finds the story's person on a tree of the member's that shows
+ * them, and opens it there (`app/stories/[id]/route.ts`); signed out, they
+ * sign in first and come back to it.
+ */
+export function storyHref(storyId: string): string {
+  return `/stories/${enc(storyId)}`;
+}
+
 /** Connections the tree implies but hasn't recorded. */
 export function reviewHref(): string {
   return "/tree/review";

@@ -89,7 +89,12 @@ export default function PrivacyPage() {
             relative looking after that side of the family, and the tree&rsquo;s
             founders can see or download them.
           </li>
-          <li>Nothing on the tree is public or indexed by search engines.</li>
+          <li>
+            Nothing on the tree is public or indexed by search engines, except
+            a story a member shares by its link: anyone with the link can read
+            that story, never its comments. The person it&rsquo;s about, whoever
+            can edit their entry, or whoever told it can turn its links off.
+          </li>
           <li>We never sell or share this data with third parties.</li>
         </ul>
       </Section>
