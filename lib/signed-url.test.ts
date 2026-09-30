@@ -78,4 +78,25 @@ describe("photo addresses kept across saves (Step 87.1)", () => {
     expect(keepSignedUrl(kept, `${BASE}?t=2`, NOW)).toBe(`${BASE}?t=2`);
     expect(kept.size).toBe(0);
   });
+
+  it("keeps a photo's card-sized copies apart from it and from each other (Step 87.5)", () => {
+    const kept = new Map<string, string>();
+    const render = BASE.replace("/object/sign/", "/render/image/sign/");
+    const full = signed(inS(3_600_000));
+    const card = (edge: number, n: number) =>
+      signed(inS(3_600_000), render, {
+        transformations: `height:${edge},width:${edge},resize:contain`,
+        n,
+      });
+    const small = card(128, 1);
+    expect(keepSignedUrl(kept, full, NOW)).toBe(full);
+    expect(keepSignedUrl(kept, small, NOW)).toBe(small);
+    // The same size signed again is the kept one…
+    expect(keepSignedUrl(kept, card(128, 2), NOW + 1000)).toBe(small);
+    // …a new size (the crop zoomed in) is shown at once.
+    const larger = card(256, 3);
+    expect(keepSignedUrl(kept, larger, NOW + 2000)).toBe(larger);
+    // A same-path address with no transform is still the full photo.
+    expect(keepSignedUrl(kept, signed(inS(3_600_000), render), NOW)).not.toBe(small);
+  });
 });

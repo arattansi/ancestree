@@ -140,9 +140,9 @@ export function PresenceFaces({
             }
           >
             <Avatar className="size-7 overflow-hidden">
-              {person?.photo_url ? (
+              {person?.photo_card_url ? (
                 <AvatarImage
-                  src={person.photo_url}
+                  src={person.photo_card_url}
                   alt=""
                   style={cropStyle(parseCrop(person.photo_crop))}
                 />

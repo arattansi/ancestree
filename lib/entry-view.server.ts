@@ -3,6 +3,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/lib/database.types";
+import { cardPhotoEdge, parseCrop } from "@/lib/image-crop";
 import { formatPlaceLabel, getPlacesByIds } from "@/lib/places";
 
 /**
@@ -34,6 +35,57 @@ export async function signedPhotoUrls(
     if (item.signedUrl && item.path) urls.set(item.path, item.signedUrl);
   }
   return urls;
+}
+
+type PhotoRow = { photo_path: string | null; photo_crop: unknown };
+
+/**
+ * Card-sized signed addresses (Step 87.5, audit C3): a storage transform
+ * that fits each photo in a `cardPhotoEdge` square, a few KB instead of
+ * the whole upload behind a 40px avatar. Storage signs a transform one
+ * photo at a time, so these go out together. Returns each row's address,
+ * or `null` where storage wouldn't sign one (the caller falls back to the
+ * full-size address).
+ */
+export async function signedCardPhotoUrls(
+  db: DbClient,
+  rows: readonly PhotoRow[],
+): Promise<(row: PhotoRow) => string | null> {
+  const keyOf = (path: string, edge: number) => `${edge}:${path}`;
+  const wanted = new Map<string, { path: string; edge: number }>();
+  for (const row of rows) {
+    if (!row.photo_path) continue;
+    const edge = cardPhotoEdge(parseCrop(row.photo_crop));
+    wanted.set(keyOf(row.photo_path, edge), { path: row.photo_path, edge });
+  }
+  const urls = new Map<string, string>();
+  await Promise.all(
+    [...wanted].map(async ([key, { path, edge }]) => {
+      const { data } = await db.storage
+        .from("photos")
+        .createSignedUrl(path, PHOTO_URL_TTL_S, {
+          transform: { width: edge, height: edge, resize: "contain" },
+        });
+      if (data?.signedUrl) urls.set(key, data.signedUrl);
+    }),
+  );
+  return (row) =>
+    row.photo_path
+      ? (urls.get(
+          keyOf(row.photo_path, cardPhotoEdge(parseCrop(row.photo_crop))),
+        ) ?? null)
+      : null;
+}
+
+/** A row's two photo addresses, from `signedPhotoUrls` and
+ *  `signedCardPhotoUrls`; the card falls back to the full size. */
+export function photoUrlsOf(
+  row: PhotoRow,
+  urlByPath: ReadonlyMap<string, string>,
+  cardUrlOf: (row: PhotoRow) => string | null,
+): { photo_url: string | null; photo_card_url: string | null } {
+  const full = row.photo_path ? (urlByPath.get(row.photo_path) ?? null) : null;
+  return { photo_url: full, photo_card_url: full && (cardUrlOf(row) ?? full) };
 }
 
 /** One stored photo's signed address, or `null`. */

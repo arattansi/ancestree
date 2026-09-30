@@ -8,7 +8,11 @@ import { carryApprovalOf, type CarryApproval } from "@/lib/carry";
 import { accountTypesByPerson } from "@/lib/account-type-links";
 import { joinedByPerson, type JoinedBy } from "@/lib/joined-by";
 import type { Database } from "@/lib/database.types";
-import { signedPhotoUrls } from "@/lib/entry-view.server";
+import {
+  photoUrlsOf,
+  signedCardPhotoUrls,
+  signedPhotoUrls,
+} from "@/lib/entry-view.server";
 import { createClient } from "@/lib/supabase/server";
 
 /** Either the cookie-scoped SSR client or the service-role admin client. */
@@ -93,7 +97,12 @@ export type TreeGraphPerson = {
   /** Whose yes a basic card waits on: the member whose entry it is, or
    *  whoever may edit it on its home tree. */
   asked_of: AskedOf;
+  /** The full-size photo: the sheet, its photo dialog, the cropper and a
+   *  card's hover preview. */
   photo_url: string | null;
+  /** The same photo sized for a card's avatar (Step 87.5): every small
+   *  face on the canvas. Full size when storage wouldn't sign a small one. */
+  photo_card_url: string | null;
   /** Open reports on this entry the viewer may see (Step 88.2): only
    *  whoever can put it right, and whoever raised one. */
   open_report_count: number;
@@ -463,6 +472,8 @@ export async function getTreeGraph(
         ),
       ]
     : [];
+  // Card-sized photos sign one by one (Step 87.5), alongside the rest.
+  const cardUrls = signedCardPhotoUrls(supabase, rows);
   const [placeRes, claims, reports, urlByPath, unlistedProfiles] = await Promise.all([
     placeIds.length > 0
       ? supabase
@@ -507,6 +518,7 @@ export async function getTreeGraph(
         .in("auth_user_id", chunk),
     ),
   ]);
+  const cardUrlOf = await cardUrls;
   // Whose entry is whose, by account type *on this tree* (see
   // `accountTypesByPerson`): from this tree's own directory, so a member's
   // type here is the one shown, not their type somewhere else.
@@ -589,7 +601,7 @@ export async function getTreeGraph(
           : {}),
         // Null on a blurred row (the view's left join); no email, not shown.
         email_visible: p.email_visible ?? false,
-        photo_url: p.photo_path ? (urlByPath.get(p.photo_path) ?? null) : null,
+        ...photoUrlsOf(p, urlByPath, cardUrlOf),
         claim_status: claimId ? "approved" : null,
         claim_id: claimId,
         open_report_count: openReportsByPerson.get(p.id) ?? 0,

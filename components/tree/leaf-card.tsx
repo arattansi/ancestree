@@ -177,9 +177,13 @@ const TRUNK_BROWN = "var(--brand-brown)";
 function LeafDetail({
   person,
   leaf,
+  withPhoto,
 }: {
   person: TreeGraphPerson;
   leaf: NativeLeaf;
+  /** Once the leaf has been hovered: the full photo loads only then
+   *  (Step 87.5). */
+  withPhoto: boolean;
 }) {
   const born = formatPartialDate(
     person.date_of_birth,
@@ -211,13 +215,26 @@ function LeafDetail({
       }}
     >
       {person.photo_url ? (
-        <div className="aspect-[4/3] w-full overflow-hidden bg-muted">
-          <img
-            src={person.photo_url}
-            alt={`Photo of ${personDisplayName(person)}`}
-            style={cropStyle(parseCrop(person.photo_crop))}
-            className="size-full object-cover"
-          />
+        <div className="relative aspect-[4/3] w-full overflow-hidden bg-muted">
+          {withPhoto ? (
+            <>
+              {/* The card-sized copy until the full one lands. */}
+              {person.photo_card_url ? (
+                <img
+                  src={person.photo_card_url}
+                  alt=""
+                  style={cropStyle(parseCrop(person.photo_crop))}
+                  className="absolute inset-0 size-full object-cover"
+                />
+              ) : null}
+              <img
+                src={person.photo_url}
+                alt={`Photo of ${personDisplayName(person)}`}
+                style={cropStyle(parseCrop(person.photo_crop))}
+                className="relative size-full object-cover"
+              />
+            </>
+          ) : null}
         </div>
       ) : null}
       <div className="flex flex-col gap-0.5 px-3 py-2.5">
@@ -292,9 +309,13 @@ export function LeafCard({
   // Ids have to be unique per card: two leaves sharing a clip path would clip
   // to whichever one the browser resolved last.
   const clipId = React.useId();
+  const [previewed, setPreviewed] = React.useState(false);
 
   return (
-    <div className="group/leaf relative h-28 w-52">
+    <div
+      className="group/leaf relative h-28 w-52"
+      onPointerEnter={previewed ? undefined : () => setPreviewed(true)}
+    >
       {/* The blade overhangs the card box top and bottom, so the lobes that
           stick out of it are not clipped away. */}
       <svg
@@ -423,7 +444,7 @@ export function LeafCard({
         ) : null}
       </div>
 
-      <LeafDetail person={person} leaf={leaf} />
+      <LeafDetail person={person} leaf={leaf} withPhoto={previewed} />
     </div>
   );
 }

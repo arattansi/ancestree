@@ -7,7 +7,10 @@
  *
  * Keyed on the address without its query, not on the stored path: a share
  * link never sends the path. A new photo is a new file (`photoPath`), so
- * its address differs before the query too.
+ * its address differs before the query too. A card-sized copy (Step 87.5)
+ * is signed at `/render/image/sign/…` with its size inside the token, so
+ * the key also carries the token's `transformations`: the full photo, and
+ * each size of card copy, are kept apart.
  */
 
 /** Signed again this long before the kept address would stop working. */
@@ -18,23 +21,42 @@ function decodeBase64Url(part: string): string {
   return atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, "="));
 }
 
-/**
- * When a storage-signed address stops working, in ms since the epoch, read
- * from its token's `exp` (no secret needed to read it), or `null` when the
- * address carries no token that says.
- */
-export function signedUrlExpiry(url: string): number | null {
+/** The claims of a storage-signed address's token (no secret needed to
+ *  read them), or `null` when it carries no token to read. */
+function tokenClaims(url: string): Record<string, unknown> | null {
   const query = url.indexOf("?");
   if (query < 0) return null;
   const token = new URLSearchParams(url.slice(query + 1)).get("token");
   const payload = token?.split(".")[1];
   if (!payload) return null;
   try {
-    const { exp } = JSON.parse(decodeBase64Url(payload)) as { exp?: unknown };
-    return typeof exp === "number" && Number.isFinite(exp) ? exp * 1000 : null;
+    const claims: unknown = JSON.parse(decodeBase64Url(payload));
+    return claims && typeof claims === "object"
+      ? (claims as Record<string, unknown>)
+      : null;
   } catch {
     return null;
   }
+}
+
+/**
+ * When a storage-signed address stops working, in ms since the epoch, read
+ * from its token's `exp`, or `null` when the address carries no token that
+ * says.
+ */
+export function signedUrlExpiry(url: string): number | null {
+  const exp = tokenClaims(url)?.exp;
+  return typeof exp === "number" && Number.isFinite(exp) ? exp * 1000 : null;
+}
+
+/** Which photo, at which size, a signed address shows: the address before
+ *  its query, and the transform its token asks for, if any. */
+function photoKey(url: string, query: number): string {
+  const transformations = tokenClaims(url)?.transformations;
+  const base = url.slice(0, query);
+  return typeof transformations === "string"
+    ? `${base}#${transformations}`
+    : base;
 }
 
 /**
@@ -50,7 +72,7 @@ export function keepSignedUrl(
 ): string {
   const query = url.indexOf("?");
   if (query < 0) return url;
-  const key = url.slice(0, query);
+  const key = photoKey(url, query);
   const old = kept.get(key);
   if (old !== undefined && old !== url) {
     const expires = signedUrlExpiry(old);

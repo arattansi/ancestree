@@ -100,6 +100,26 @@ export function sameCrop(a: CropTransform, b: CropTransform): boolean {
   return a.zoom === b.zoom && a.focusX === b.focusX && a.focusY === b.focusY;
 }
 
+/**
+ * The square box a card's copy of a photo is signed to fit (Step 87.5,
+ * audit C3): 128px at zoom 1, grown with the crop's zoom in steps of 64 so
+ * the part a card shows keeps about 128px of picture across a 40px avatar
+ * (a 2x screen needs 80). Storage's `contain` keeps the photo's shape, so
+ * `cropStyle` frames the small copy exactly as it frames the full one.
+ */
+export const CARD_PHOTO_EDGE = 128;
+const CARD_PHOTO_STEP = 64;
+/** Uploads are never larger (`compressImage`'s `maxEdge`). */
+const PHOTO_MAX_EDGE = 1280;
+
+export function cardPhotoEdge({ zoom }: CropTransform): number {
+  const wanted = CARD_PHOTO_EDGE * clamp(zoom, MIN_ZOOM, MAX_ZOOM);
+  return Math.min(
+    PHOTO_MAX_EDGE,
+    Math.ceil(wanted / CARD_PHOTO_STEP) * CARD_PHOTO_STEP,
+  );
+}
+
 /** The shape written back to the column. */
 export function toStoredCrop({
   zoom,

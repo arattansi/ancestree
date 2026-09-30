@@ -4,6 +4,7 @@ import * as React from "react";
 import { Maximize2 } from "lucide-react";
 
 import { SPOTLIGHT_BROWN } from "@/components/tree/spotlight-colours";
+import { useSteadyPhoto } from "@/components/tree/use-steady-photo";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { BASIC_DETAILS } from "@/lib/carry";
 import { cropStyle, parseCrop } from "@/lib/image-crop";
@@ -37,6 +38,7 @@ export function FoldedDetails({
 }) {
   const name = personDisplayName(person);
   const maiden = maidenLine(person);
+  const photo = useSteadyPhoto(person.photo_card_url);
   return (
     <div
       className="flex w-full items-center gap-1 rounded-2xl border bg-card p-1.5 text-sm shadow-md"
@@ -53,9 +55,9 @@ export function FoldedDetails({
         className="flex min-w-0 flex-1 items-center gap-3 rounded-xl p-1 text-left outline-none hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring/50"
       >
         <Avatar className="size-9 overflow-hidden">
-          {person.photo_url ? (
+          {photo ? (
             <AvatarImage
-              src={person.photo_url}
+              src={photo}
               alt=""
               style={cropStyle(parseCrop(person.photo_crop))}
             />

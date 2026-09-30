@@ -2295,16 +2295,18 @@ function Canvas({
   );
 }
 
-/** Rows with each photo at the address this tab already has for it. */
-function withKeptPhotos<T extends { photo_url: string | null }>(
-  rows: T[],
-): T[] {
+/** Rows with each photo, full size and card-sized (Step 87.5), at the
+ *  address this tab already has for it. */
+function withKeptPhotos<
+  T extends { photo_url: string | null; photo_card_url: string | null },
+>(rows: T[]): T[] {
   let changed = false;
   const kept = rows.map((row) => {
     const url = keptPhotoUrl(row.photo_url);
-    if (url === row.photo_url) return row;
+    const cardUrl = keptPhotoUrl(row.photo_card_url);
+    if (url === row.photo_url && cardUrl === row.photo_card_url) return row;
     changed = true;
-    return { ...row, photo_url: url };
+    return { ...row, photo_url: url, photo_card_url: cardUrl };
   });
   return changed ? kept : rows;
 }

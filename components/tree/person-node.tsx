@@ -6,6 +6,7 @@ import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { AccountTypeMark } from "@/components/account-type-badge";
 import { LeafCard } from "@/components/tree/leaf-card";
 import { PillCard } from "@/components/tree/pill-card";
+import { useSteadyPhoto } from "@/components/tree/use-steady-photo";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { FitText } from "@/components/ui/fit-text";
 import { BASIC_DETAILS } from "@/lib/carry";
@@ -70,6 +71,10 @@ function PersonNodeImpl({ data }: NodeProps) {
   // the place of birth.
   const lifespan = personLifespan(person);
   const birthplace = person.city_of_birth || person.country_of_birth || null;
+  // The avatar shows the card-sized copy; the full photo loads only once
+  // the card is first hovered, for the preview (Step 87.5, audit C3).
+  const cardPhoto = useSteadyPhoto(person.photo_card_url);
+  const [previewed, setPreviewed] = React.useState(false);
 
   // Married in beside a sibling, they are named and no more (Step 19.4). The
   // spouse line reaches them at either side; top and bottom only anchor the
@@ -144,10 +149,12 @@ function PersonNodeImpl({ data }: NodeProps) {
         // spotlight onto their line.
         blurred && "opacity-30 blur-[2px] saturate-50",
       )}
+      onPointerEnter={previewed ? undefined : () => setPreviewed(true)}
     >
-      {person.photo_url ? (
+      {person.photo_url && previewed ? (
         // On hover the card "grows": a larger copy of the card anchored to the
         // same centre, with a big photo above the name so the name stays visible.
+        // Mounted on the first hover, then shown on each hover as before.
         <div
           className={cn(
             "pointer-events-none absolute bottom-0 left-1/2 z-50 hidden w-56 -translate-x-1/2",
@@ -158,12 +165,21 @@ function PersonNodeImpl({ data }: NodeProps) {
           {/* The square wrapper clips the zoomed <img>: cropStyle applies the
               zoom as a CSS scale() that would otherwise bleed down over the
               name below it. */}
-          <div className="aspect-square w-full overflow-hidden">
+          <div className="relative aspect-square w-full overflow-hidden">
+            {/* The card's copy, already here, until the full one lands. */}
+            {cardPhoto ? (
+              <img
+                src={cardPhoto}
+                alt=""
+                style={cropStyle(parseCrop(person.photo_crop))}
+                className="absolute inset-0 size-full"
+              />
+            ) : null}
             <img
               src={person.photo_url}
               alt={`Photo of ${name}`}
               style={cropStyle(parseCrop(person.photo_crop))}
-              className="size-full"
+              className="relative size-full"
             />
           </div>
           <div className="flex flex-col gap-0.5 px-3 py-2">
@@ -238,10 +254,15 @@ function PersonNodeImpl({ data }: NodeProps) {
           </span>
         ) : null}
 
-        <Avatar size="lg" className={cn(deceased && "opacity-70")}>
-          {person.photo_url ? (
+        <Avatar
+          size="lg"
+          // Clips a zoomed crop (its CSS scale) to the circle, as every
+          // other face does; without it the photo spilled over the name.
+          className={cn("overflow-hidden", deceased && "opacity-70")}
+        >
+          {cardPhoto ? (
             <AvatarImage
-              src={person.photo_url}
+              src={cardPhoto}
               alt=""
               style={cropStyle(parseCrop(person.photo_crop))}
             />

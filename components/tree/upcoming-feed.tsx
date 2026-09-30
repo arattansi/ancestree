@@ -5,6 +5,7 @@ import { Cake, Heart, Share, X } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { copyText } from "@/components/copy-text";
+import { useSteadyPhoto } from "@/components/tree/use-steady-photo";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -55,11 +56,12 @@ function Face({
   person: TreeGraphPerson | undefined;
   className?: string;
 }) {
+  const photo = useSteadyPhoto(person?.photo_card_url ?? null);
   return (
     <Avatar className={cn("size-7 overflow-hidden", className)}>
-      {person?.photo_url ? (
+      {person && photo ? (
         <AvatarImage
-          src={person.photo_url}
+          src={photo}
           alt=""
           style={cropStyle(parseCrop(person.photo_crop))}
         />

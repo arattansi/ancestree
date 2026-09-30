@@ -40,6 +40,9 @@ function PetNodeImpl({ data }: NodeProps) {
   const kind = speciesLabel(pet);
   const glyph =
     SPECIES_GLYPHS[pet.species as PetSpecies] ?? SPECIES_GLYPHS.other;
+  // The chip shows the card-sized copy; the full photo waits for the first
+  // hover, as on a person's card (Step 87.5).
+  const [previewed, setPreviewed] = React.useState(false);
 
   return (
     <div
@@ -48,20 +51,29 @@ function PetNodeImpl({ data }: NodeProps) {
         dimmed && "opacity-25",
         blurred && "opacity-30 blur-[2px] saturate-50",
       )}
+      onPointerEnter={previewed ? undefined : () => setPreviewed(true)}
     >
-      {pet.photo_url ? (
+      {pet.photo_url && previewed ? (
         <div
           className={cn(
             "pointer-events-none absolute bottom-0 left-1/2 z-50 hidden w-40 -translate-x-1/2",
             "flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-xl group-hover:flex",
           )}
         >
-          <div className="aspect-square w-full overflow-hidden">
+          <div className="relative aspect-square w-full overflow-hidden">
+            {pet.photo_card_url ? (
+              <img
+                src={pet.photo_card_url}
+                alt=""
+                style={cropStyle(parseCrop(pet.photo_crop))}
+                className="absolute inset-0 size-full"
+              />
+            ) : null}
             <img
               src={pet.photo_url}
               alt={`Photo of ${pet.name}`}
               style={cropStyle(parseCrop(pet.photo_crop))}
-              className="size-full"
+              className="relative size-full"
             />
           </div>
           <div className="flex flex-col gap-0.5 px-3 py-2">
@@ -90,9 +102,9 @@ function PetNodeImpl({ data }: NodeProps) {
           className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-background text-sm"
           aria-hidden
         >
-          {pet.photo_url ? (
+          {pet.photo_card_url ? (
             <img
-              src={pet.photo_url}
+              src={pet.photo_card_url}
               alt=""
               style={cropStyle(parseCrop(pet.photo_crop))}
               className="size-full object-cover"

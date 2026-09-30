@@ -343,9 +343,9 @@ function PetPanelImpl({
             <SheetHeader className="gap-3">
               <div className="flex items-center gap-3">
                 <span className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-muted text-xl">
-                  {pet.photo_url ? (
+                  {pet.photo_card_url ? (
                     <img
-                      src={pet.photo_url}
+                      src={pet.photo_card_url}
                       alt=""
                       style={cropStyle(parseCrop(pet.photo_crop))}
                       className="size-full object-cover"

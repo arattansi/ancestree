@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  cardPhotoEdge,
   cropRect,
   cropStyle,
   parseCrop,
@@ -130,3 +131,27 @@ describe("cropStyle", () => {
     expect(cropStyle(t).transformOrigin).toBe("25% 50%");
   });
 });
+
+describe("cardPhotoEdge (Step 87.5)", () => {
+  const at = (zoom: number) => cardPhotoEdge({ zoom, focusX: 0.5, focusY: 0.5 });
+
+  it("signs a 128px copy for an unzoomed photo", () => {
+    expect(at(1)).toBe(128);
+  });
+
+  it("grows with the zoom in 64px steps, so the part shown keeps its detail", () => {
+    for (const zoom of [1.21, 1.33, 1.57, 2, 2.43, 3.7]) {
+      const edge = at(zoom);
+      expect(edge % 64).toBe(0);
+      expect(edge / zoom).toBeGreaterThanOrEqual(128);
+      expect(edge - 64).toBeLessThan(128 * zoom);
+    }
+  });
+
+  it("stays within the largest upload", () => {
+    expect(at(4)).toBe(512);
+    expect(at(99)).toBe(512);
+    expect(at(Number.NaN)).toBe(128);
+  });
+});
+

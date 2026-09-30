@@ -3,7 +3,11 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/lib/database.types";
-import { signedPhotoUrls } from "@/lib/entry-view.server";
+import {
+  photoUrlsOf,
+  signedCardPhotoUrls,
+  signedPhotoUrls,
+} from "@/lib/entry-view.server";
 import { createClient } from "@/lib/supabase/server";
 import { NOBODY } from "@/lib/tree";
 
@@ -34,6 +38,8 @@ export type TreePet = {
    */
   primary_person_id: string | null;
   photo_url: string | null;
+  /** Sized for the pet's card and small faces (Step 87.5). */
+  photo_card_url: string | null;
   /** The people this pet belongs to. Always at least one (see the DB trigger). */
   companions: string[];
 };
@@ -65,14 +71,14 @@ export async function getTreePets(
 
   if (!data || data.length === 0) return [];
 
-  const urlByPath = await signedPhotoUrls(
-    supabase,
-    data.map((r) => r.photo_path),
-  );
+  const [urlByPath, cardUrlOf] = await Promise.all([
+    signedPhotoUrls(supabase, data.map((r) => r.photo_path)),
+    signedCardPhotoUrls(supabase, data),
+  ]);
 
   return data.map(({ pet_companions: links, ...row }) => ({
     ...row,
-    photo_url: row.photo_path ? (urlByPath.get(row.photo_path) ?? null) : null,
+    ...photoUrlsOf(row, urlByPath, cardUrlOf),
     companions: (links ?? []).map((link) => link.person_id),
     ...(forPublic ? { created_by: NOBODY, photo_path: null } : {}),
   }));
