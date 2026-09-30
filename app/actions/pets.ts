@@ -346,6 +346,6 @@ export async function setPetPosition(
     },
   );
   if (moved.error) return { error: moved.error };
-  revalidateTreePages();
+  // Not redrawn, as for a person's card (`setPersonPosition`, Step 87.3).
   return {};
 }

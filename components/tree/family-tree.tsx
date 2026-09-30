@@ -118,6 +118,17 @@ import { NODE_H, NODE_W, type XY } from "@/lib/tree-dimensions";
 import { bloodline, layoutTree } from "@/lib/tree-layout";
 import type { TreePet } from "@/lib/pets";
 import { keepEntries, keepNodes, keepSet } from "@/lib/canvas-nodes";
+import {
+  type Placement,
+  dropCard,
+  dropSaved,
+  dropsSnapshot,
+  dropUndone,
+  NO_DROPS,
+  pageNumber,
+  placeDrops,
+  subscribeDrops,
+} from "@/lib/local-drops";
 import { keptPhotoUrl } from "@/lib/signed-url";
 import { shareEqual } from "@/lib/structural-share";
 import { useKept } from "@/components/tree/use-kept";
@@ -225,7 +236,8 @@ function Canvas({
   claimInvites = NO_INVITES,
   changeSuggestions = NO_SUGGESTIONS,
   declinedSuggestions = NO_DECLINED,
-}: Props) {
+  page,
+}: Props & { page: number }) {
   // Companions stay off the canvas until the viewer switches them on (Step
   // 23). Off the canvas only: a person's details still list theirs, and
   // picking one there still opens it.
@@ -316,19 +328,42 @@ function Canvas({
         : undefined,
     [descent, sidePeople, sideRelationships, sideAnchorIds],
   );
+  // Cards dropped in this tab are laid out where they were dropped until the
+  // page knows it (Step 87.3): saving a drop doesn't draw the page again.
+  const drops = React.useSyncExternalStore(
+    subscribeDrops,
+    dropsSnapshot,
+    () => NO_DROPS,
+  );
+  // Kept as the same rows when a later page brings the drop saved, so the
+  // card isn't laid out or drawn again for it.
+  const placedPeople = useKept(
+    React.useMemo(
+      () => placeDrops(shownPeople, drops, treeId, page),
+      [shownPeople, drops, treeId, page],
+    ),
+    shareEqual,
+  );
+  const placedPets = useKept(
+    React.useMemo(
+      () => placeDrops(pets, drops, treeId, page),
+      [pets, drops, treeId, page],
+    ),
+    shareEqual,
+  );
   // The people are laid out apart from their companions, so switching
   // companions on or off only hangs them on or takes them off (Step 87.1).
   const peopleGraph = React.useMemo(
     () =>
       buildPeopleGraph(
-        shownPeople,
+        placedPeople,
         shownRelationships,
         selfPersonId,
         descent ? descent.anchorIds : sideAnchorIds,
         rows,
       ),
     [
-      shownPeople,
+      placedPeople,
       shownRelationships,
       selfPersonId,
       descent,
@@ -337,8 +372,8 @@ function Canvas({
     ],
   );
   const graph = React.useMemo(
-    () => withPets(peopleGraph, pets),
-    [peopleGraph, pets],
+    () => withPets(peopleGraph, placedPets),
+    [peopleGraph, placedPets],
   );
   const shownIds = useKept(
     React.useMemo<ReadonlySet<string>>(
@@ -1578,53 +1613,70 @@ function Canvas({
   }, []);
 
   // A drag is stored as a nudge from where the layout put the card, so the
-  // card keeps its offset as the tree grows instead of freezing in place. A
-  // refused move says why and puts the card back where the tree last had it —
-  // its seeded position, saved nudges included — rather than leaving it where
-  // it was dropped as though the move had stuck. So does a move that never
-  // reached the server. Nothing waits on the answer: the card is already
-  // where it was dropped.
+  // card keeps its offset as the tree grows instead of freezing in place.
+  // The canvas lays the card out there itself (Step 87.3), and the save
+  // doesn't draw the page again. A refused move says why and puts the card
+  // back where the tree last had it — its seeded position, saved nudges
+  // included — rather than leaving it where it was dropped as though the
+  // move had stuck. So does a move that never reached the server. Nothing
+  // waits on the answer: the card is already where it was dropped.
   const onNodeDragStop = React.useCallback<OnNodeDrag>(
     (_, node) => {
-      const putBack = (message: string) => {
-        toastError(message);
-        const home = graph.nodes.find((n) => n.id === node.id)?.position;
-        if (!home) return;
-        setNodes((ns) =>
-          ns.map((n) => (n.id === node.id ? { ...n, position: home } : n)),
+      const drop = (
+        was: Placement,
+        at: Placement,
+        save: () => Promise<{ error?: string }>,
+      ) => {
+        const token = dropCard(treeId, node.id, was, at);
+        const putBack = (message: string) => {
+          toastError(message);
+          dropUndone(treeId, node.id, token);
+        };
+        void save().then(
+          (res) => {
+            if (res.error) putBack(res.error);
+            else dropSaved(treeId, node.id, token);
+          },
+          (thrown: unknown) => {
+            // Signed out meanwhile: the action redirected, and the router
+            // is already on its way there.
+            if (isRedirect(thrown)) return;
+            console.error(thrown);
+            putBack(UNREACHABLE);
+          },
         );
-      };
-      const refused = (res: { error?: string }) => {
-        if (res.error) putBack(res.error);
-      };
-      const unreachable = (thrown: unknown) => {
-        // Signed out meanwhile: the action redirected, and the router is
-        // already on its way there.
-        if (isRedirect(thrown)) return;
-        console.error(thrown);
-        putBack(UNREACHABLE);
       };
       if (node.type === "pet") {
         const spot = graph.petPositions.get(node.id);
-        if (!spot) return;
-        void setPetPosition(
-          node.id,
-          node.position.x - spot.x,
-          node.position.y - spot.y,
-        ).then(refused, unreachable);
+        const pet = allPets.find((p) => p.id === node.id);
+        if (!spot || !pet) return;
+        const dx = Math.round(node.position.x - spot.x);
+        const dy = Math.round(node.position.y - spot.y);
+        drop(
+          { pos_dx: pet.pos_dx, pos_dy: pet.pos_dy },
+          { pos_dx: dx, pos_dy: dy },
+          () => setPetPosition(node.id, dx, dy),
+        );
         return;
       }
       if (node.type !== "person") return;
       const auto = graph.layout.autoPositions.get(node.id);
-      if (!auto) return;
-      void setPersonPosition(
-        treeId,
-        node.id,
-        node.position.x - auto.x,
-        node.position.y - auto.y,
-      ).then(refused, unreachable);
+      const person = personById.get(node.id);
+      if (!auto || !person) return;
+      const dx = Math.round(node.position.x - auto.x);
+      const dy = Math.round(node.position.y - auto.y);
+      drop(
+        {
+          pos_dx: person.pos_dx,
+          pos_dy: person.pos_dy,
+          pos_x: person.pos_x,
+          pos_y: person.pos_y,
+        },
+        { pos_dx: dx, pos_dy: dy, pos_x: null, pos_y: null },
+        () => setPersonPosition(treeId, node.id, dx, dy),
+      );
     },
-    [graph, setNodes, treeId],
+    [graph, allPets, personById, treeId],
   );
 
   const selectedPerson = people.find((p) => p.id === selectedId) ?? null;
@@ -2240,6 +2292,9 @@ function keepProps(prev: Props, next: Props): Props {
 
 export function FamilyTree(given: Props) {
   const props = useKept(given, keepProps);
+  // Which page this is, for the drops the canvas holds (Step 87.3): the
+  // same object when Back brings it again.
+  const page = pageNumber(given);
   if (props.people.length === 0) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-24 text-center">
@@ -2271,7 +2326,7 @@ export function FamilyTree(given: Props) {
         </p>
       ) : null}
       <ReactFlowProvider>
-        <Canvas {...props} />
+        <Canvas {...props} page={page} />
       </ReactFlowProvider>
     </div>
   );

@@ -213,7 +213,9 @@ export async function setPersonPosition(
     },
   );
   if (moved.error) return { error: moved.error };
-  revalidateTreePages();
+  // Not redrawn (Step 87.3): the canvas holds the card where it was dropped
+  // until a later page knows it, Back included (`lib/local-drops`), and no
+  // other page draws where cards sit.
   return {};
 }
 
