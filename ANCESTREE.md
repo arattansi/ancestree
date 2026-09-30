@@ -166,9 +166,10 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `connections.ts`: `addRelative` (one call for an add: the implied
   connections asked about first, then a transactional multi-person + edge
   create and the invite asked for with it, Step 77.5; a photo follows in a
-  second) and every line after it; `documents.ts`: document reads, writes
-  and signed URLs (the three split in Step 77.6; the refusal wording they
-  share is `lib/entry-errors.ts`); `claims.ts`: `claimPerson` /
+  second) and every line after it (the refusal wording `people.ts` and
+  `connections.ts` share is `lib/entry-errors.ts`); `album.ts`:
+  `getEntryAlbum` / `addAlbumPhoto` / `decideAlbumPhoto` /
+  `removeFromAlbum` / `deleteAlbumPhoto`, Step 88.5; `claims.ts`: `claimPerson` /
   `markNotificationsRead`; `stories.ts`: `getEntryStories` / `addStory` /
   `decideStory` / `deleteStory`, Step 88.3, and `shareStory` /
   `stopSharingStory` / `getStoryComments` / `addStoryComment` /
@@ -229,7 +230,12 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   Step 88.3; **Share**, **Stop sharing** and each story's comments, Step
   88.4, `story-comments.tsx`; `components/send-link.ts` sends a link by a
   phone's share sheet, else copies it) + `story-dialog.tsx` (Add a story,
-  loaded on the first press),
+  loaded on the first press), `entry-album.tsx` (the sheet's Album, in
+  place of Documents, Step 88.5: a carousel of the photos the person is
+  in, one at a time, swiped or stepped through, each photo's details and
+  actions under it, the whole photo in a dialog on a press) +
+  `album-dialog.tsx` (Add a photo: shrunk as it's picked, a description,
+  who's in it; loaded on the first press),
   `claim-suggestions.tsx` "Is this you?" canvas prompt;
   who's open is in the address (`?person=`, replaced as they change), and
   the camera, the filters, a lit connection and the details folded or not
@@ -256,7 +262,10 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
 - `components/notifications-list.tsx` (account; its claim notice's dispute
   opens the report dialog) + `admin/admin-reports.tsx` (the Root console's
   open reports: resolve, or uphold / reverse a disputed claim, Step 88.2);
-  `lib/claims.ts` — claim candidates, notifications; `lib/stories.ts` —
+  `lib/claims.ts` — claim candidates, notifications; `lib/album.ts` —
+  album reads (`entry_album` + a signed 800px transform and the whole
+  photo, Step 88.5); `lib/album-path.ts` — the `album` bucket's layout
+  (`{tree}/{uuid}.{ext}`); `lib/stories.ts` —
   story reads (`entry_stories` + signed recording links) and a story's
   comments (`list_story_comments`); `lib/story-links.ts` /
   `story-links.server.ts` — a story's public link and its service-role read
@@ -312,10 +321,10 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `removeUndonePhotos`; which files may go is `photosLeftBehind` in
   `lib/photo-path.ts`; `.test.ts` beside each),
   `lib/file-cleanup.server.ts` (a deleted row's file goes, Step 90:
-  `removeDocumentsLater` for a removed document or a refused upload,
+  `removeAlbumPhotosLater` for a photo deleted or out of every album,
+  `albumPhotosOf` for the photos a person is in, Step 88.5,
   `treeFiles` + `removeTreeFilesLater` for a deleted tree's photos,
-  documents and recordings), `lib/document-path.ts` (the `documents`
-  bucket layout),
+  album photos and recordings),
   `components/use-photo-draft.ts` (`usePhotoDraft`, `usePickedUrl`),
   `sameCrop` in `lib/image-crop.ts`; `components/spouse-dates-fields.tsx`
   + `lib/spouse-dates.ts` (a marriage's dates in every form, stored and
@@ -331,7 +340,7 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   one is offered (Step 77.6); `row-card.tsx` — `RowCard` and `RowList`, a
   list of things to act on and its "No …" line (Step 77.6);
   `place-autocomplete.tsx` — `places`-backed birth/death location picker
-  (+ admin "add a place"); `components/person-documents.tsx`
+  (+ admin "add a place")
 - `lib/places.ts` — server-only `searchPlaces` / `getPlacesByIds` /
   `formatPlaceLabel`; `lib/country-names.ts` — `countryName` (ISO→name) +
   `ALPHA2`, and a country's own `places` row (`countryPlaceId`,
@@ -497,7 +506,7 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
 - shadcn primitives + semantic tokens only (no raw hex). Mobile-first, WCAG AA.
 - All DB DDL via the Supabase MCP (`apply_migration`, sanity-checked with `execute_sql`).
 - Every table RLS-scoped via `profiles.auth_user_id = auth.uid()`.
-- Private storage buckets (`photos`, `documents`) served via signed URLs.
+- Private storage buckets (`photos`, `album`, `stories`) served via signed URLs.
 - Commit prefix: `Ancestree v1 (step/total): <subject>`.
 
 ## Data model
@@ -526,10 +535,11 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `story_links`            | Public links to approved stories (Step 88.4): one working link per sharer per story (`token`, 24 URL-safe characters; `created_by`, whom the page names; `revoked_at` / `revoked_by`). A link works while the story is approved and its links aren't off (`stories.links_off`), the person isn't `hidden_from_visitors`, and its sharer is still on a tree that shows them in full (`private.story_link_live`). Made only by `share_story` (anyone who can see the story; once its links were turned off, only its person, an editor of the entry or its teller, which turns them on again), turned off by `stop_sharing_story` (every link at once; those three). A member reads only their own; the public page reads with the service role (`shared_story`) |
 | `story_comments`         | Comments on an approved story (Step 88.4), no approval: read by whoever may read the story, written only by `add_story_comment` (its teller and its person are told, `story_commented`), deleted by their author, the story's teller or whoever may edit the entry; listed through `list_story_comments`. `created_by` is set null when their account goes |
 | `entry_reports`          | Problems reported with an entry (Step 88.2): `body`, `open` \| `resolved`, `resolved_by`, the tree it was raised on (`tree_id`, where its reporter hears back), and `claim_id` when it disputes that claim (one open at a time). Seen only by its reporter and whoever can fix it: `can_edit_person` for a problem, the home tree's Roots for a dispute. Written only by `report_entry` / `resolve_entry_report` / `decide_claim_dispute`; its reporter may delete (withdraw) an open one; `created_by` is set null when their account goes |
-| `documents`              | Metadata for private file uploads, **one bank per tree** (`tree_id`); `shared_across_trees` shows it on every tree the person is on — flipped only by the person or a Root of their home tree (`documents_guard`), which also keeps it on its entry except inside a merge (Step 41.3's claim invite, or "This is me" since Step 43), which leaves it unshared                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `album_photos`           | Album photos (Step 88.5, in place of documents): one uploaded file (`file_path` in the private `album` bucket, `<tree id>/<uuid>.<ext>`, at most 1600px, shrunk in the browser), an optional `description` (≤ 500), who added it (`created_by`, set null when their account goes) and the tree it was added on (`tree_id`, where they hear back). Seen by its uploader and by whoever sees one of its tags (`private.can_see_album_photo`); added only through `add_album_photo`; deleted by its uploader. It goes by itself when nobody is in it any more (`album_tags_last_gone`), and its file with the service role from the app |
+| `album_tags`             | Who is in each album photo (Step 88.5), one row a person, each approved on its own: `pending` \| `approved` \| `declined`, `decided_by`. Approved: read by members of every tree showing the person in full. Pending: its photo's uploader and whoever approves it, the same people as a story (`private.story_owner`, else `can_edit_person`). Declined: the uploader alone. Tagged only at upload (approved at once where the uploader may approve), answered through `decide_album_tag`; removed by the uploader, the approver or whoever may edit the entry (`private.can_untag`); read by the sheet through `entry_album` (runs as the viewer) |
 | `places`                 | GeoNames reference data (populated places + admin areas) for birthplace autocomplete; not tree-scoped — read by any member, written by the import script and by a Root's **Add a place** (ids from 10,000,000,000); a row for each country (Step 79: ids from 9,000,000,000, no coordinates, never found by the name search)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `historical_names`       | Curated period names for a place/country over a date range (Step 4.5d); matched by `place_id` then `country_code` against a birth/death year. Read by any member; seeded by migration                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `pets`                   | Companion animals — a deliberately thin, non-human entry: name, species (`cat` / `dog` / `other` + `species_label`), `year_born` / `year_died`, an optional exact `birth_date` (must agree with `year_born`) and an optional GeoNames place of birth (`place_id_birth` FK + denormalised `city_of_birth` / `country_of_birth`, exactly like a person; Step 27.7's `ancestral_lands_birth` was dropped in Step 40.5, as on a person), photo, and a `pos_dx` / `pos_dy` nudge. No lineage, claims or documents                                                                                                                                                                                                                                                                                                                                                                               |
+| `pets`                   | Companion animals — a deliberately thin, non-human entry: name, species (`cat` / `dog` / `other` + `species_label`), `year_born` / `year_died`, an optional exact `birth_date` (must agree with `year_born`) and an optional GeoNames place of birth (`place_id_birth` FK + denormalised `city_of_birth` / `country_of_birth`, exactly like a person; Step 27.7's `ancestral_lands_birth` was dropped in Step 40.5, as on a person), photo, and a `pos_dx` / `pos_dy` nudge. No lineage, claims, stories or album                                                                                                                                                                                                                                                                                                                                                                               |
 | `pet_companions`         | Which people a pet lived with (`pet_id` + `person_id`). Many-to-many, undirected, no lineage meaning; a trigger deletes a pet once its last companion goes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `pet_comments`           | A plain comment thread on a companion (`pet_id`, `body`, `created_by`). No flags, no open/resolved lifecycle, no notifications; author or anyone who `can_edit_pet` may delete                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 
@@ -568,7 +578,7 @@ person's **details** follow
 their **home tree** (`private.home_tree`): its Roots and Branches, plus the
 person themselves — who controls their own entry on every tree. What another
 tree may do with a person it shows is place and arrange the card, keep its
-own comment board and document bank, and draw lines between people it
+its own companions, and draw lines between people it
 shows. A line may be changed by whoever drew it, or a Root (or a Branch with
 both ends on their side) of any tree that shows both ends. Members of a tree
 see its placements; members of a tree it's been opened to (`tree_visibility`)
@@ -591,7 +601,7 @@ past what they can edit, and a photo where there's none
 `people_update` policy is unchanged. Deletes (`private.can_delete_person`, Step 22.3): a Root anything; a
 Branch or a Leaf an entry they created that is still theirs — owner
 unchanged, no claim of any status, nobody's own entry, not their own — and
-only while every connection, comment, document and companion on it is theirs
+only while every connection, story, album photo and companion on it is theirs
 too; otherwise "ask a Root".
 A claim moves
 `owner_user_id` to the claimant, so the creator then loses edit rights until an
@@ -764,11 +774,14 @@ growth; each ≥ 5:1 on its own tint in both themes). Canopy's crown green
 stays as `--canopy`, the colour of things done. `/account` shows the
 member's own card; `/admin` → Members shows all three.
 
-**Storage:** private buckets `photos` and `documents`. Object path
-`{tree_id}/{person_id}/{filename}`, served only through signed URLs. Photos are
-readable by every member; only whoever can edit the entry can write either.
-A photo's file must sit under its own entry's id: `storage_photos_select`
-reads the person in the path (a document's reads its row). So when "This is
+**Storage:** private buckets `photos`, `album` and `stories`, served only
+through signed URLs. A portrait's path is `{tree_id}/{person_id}/{filename}`:
+readable by every member; only whoever can edit the entry can write it.
+An album photo's is `{tree_id}/{uuid}.{ext}` (Step 88.5): any member of
+that tree may upload there, and its file is readable by whoever can see the
+photo, or by its uploader while no photo points at it (so a refused upload
+can go again). A photo's file must sit under its own entry's id:
+`storage_photos_select` reads the person in the path. So when "This is
 me" gives the claimed entry the placeholder's photo, `claimPerson` moves the
 file into the claimed entry's folder with the service role (Step 43,
 `moveClaimedPhoto`), as deleting an entry sweeps its files.
@@ -782,12 +795,13 @@ undo puts the old photo back from `entry_revisions.before`
 (`lib/photo-cleanup.server.ts`). A new writer of `photo_path` calls
 `removeReplacedPhotos` the same way.
 **A deleted row's file goes with the service role (Step 90):** storage
-deletes only what the caller can see, and a document's file is visible only
-while its row exists, so a member's own client can never remove it once the
-row is gone (it matches nothing and reports no error). Removing a document,
-an upload that couldn't be recorded, deleting an entry and deleting a tree
-all delete the rows as the caller (the proof of the right), then remove the
-files with the service role, only those no row points at any more
+deletes only what the caller can see, and an album photo's file (a
+document's, until Step 88.5) is visible only while its row exists, so a
+member's own client can never remove it once the row is gone (it matches
+nothing and reports no error). Deleting an album photo, taking the last
+person out of one, deleting an entry and deleting a tree all delete the
+rows as the caller (the proof of the right), then remove the files with the
+service role, only those no row points at any more
 (`lib/file-cleanup.server.ts`). Any new code that deletes rows holding a
 file path does the same.
 **Cards show a small copy (Step 87.5):** every page that draws the canvas
@@ -799,19 +813,19 @@ per step of the crop's zoom, `resize: contain` so it keeps its shape
 height and stretch it. The crop is CSS, so the copy frames the same.
 Storage signs a transform one photo at a time (`signedCardPhotoUrls`, in
 parallel with the rest); where it won't, the card gets the full address.
-**Documents are private (Step 18.4):** a document's row and file are readable
-only by a Root, the entry's owner (or the member whose own entry it is), and
-the Branch who tends that side of the tree — including another member's own
-entry, which the Branch can't edit (`private.can_see_documents`, on
-`documents_select` and `storage_documents_select`; mirrored by
-`lib/branch#canSeeDocuments`). Everyone who can edit an entry is in that set,
-which a delete also needs. Others see a one-line "private" note in the panel
-rather than an empty list.
+**Albums need approval, a person at a time (Step 88.5):** documents (Step
+18.4's private bank per entry) are gone; an entry has an **Album** instead.
+Anyone on a tree that shows someone in full may add a photo of them and tag
+whoever else on that tree is in it; each tag waits for its own approval,
+from the same people as a story: the person themself once the entry is
+claimed or is their own and they're living, else whoever can edit it. Until
+then the photo is in that album only for its uploader and the approver.
+Not on share links, not to visitors, not on a basic card.
 
 Helpers live in the unexposed `private` schema (`role_in`, `is_root_of`,
 `is_branch_of`, `is_tree_member`, `can_edit_person`, `branch_ids`,
 `line_ids`, `root_person_ids`, `own_branch_ids`, `is_on_own_branch`,
-`can_see_documents`, `person_is_someones_own`, `can_edit_relationship`,
+`can_see_stories`, `person_is_someones_own`, `can_edit_relationship`,
 `can_edit_pet`, `can_delete_person`, `revision_fields`, `notify_edit`,
 `member_label`, `suggestion_columns`, `tending_branches`).
 
@@ -887,14 +901,13 @@ mirror it for the UI.
 
 |                                                    | Root                                                                                                            | Branch                                                                       | Leaf                                 |
 | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------ |
-| See the tree, comment, report a problem, claim their own entry | ✓                                                                                                               | ✓                                                                            | ✓                                    |
+| See the tree, add stories and photos, report a problem, claim their own entry | ✓                                                                                                               | ✓                                                                            | ✓                                    |
 | Edit entries                                       | Every entry                                                                                                     | Their part of a Root's side (not another member's own), plus what they added | What they added, and their own       |
 | Branch edits to a Root's entries                   | Told; one-click undo                                                                                            | Publish at once                                                              | —                                    |
 | Suggest a change; answer one                       | Suggest where they can't edit; answer on every entry                                                            | Suggest where they can't edit; answer where they can                         | Same as Branch                       |
 | Change connections                                 | Any                                                                                                             | Both ends on their side, or ones they drew                                   | Ones they drew                       |
 | Companions                                         | Any                                                                                                             | On their side, or ones they added                                            | Ones they added                      |
 | Add relatives                                      | ✓ (bloodline gate)                                                                                              | ✓ (bloodline gate)                                                           | On their own line (bloodline gate)   |
-| See documents                                      | Every entry                                                                                                     | Their side, members' own entries included                                    | Entries they own                     |
 | Delete entries                                     | Any                                                                                                             | Unclaimed ones they added, while nobody else has built on them               | Same as Branch                       |
 | Invite relatives                                   | As Leaves                                                                                                       | As Leaves                                                                    | As Leaves                            |
 | Invite someone to claim an entry                   | Any unclaimed, living entry, as a Leaf                                                                          | Unclaimed on their side, as Leaves                                           | Unclaimed ones they added, as Leaves |
@@ -1115,9 +1128,8 @@ mirror it for the UI.
   not be plainly different people: never either marked as having died, no
   line between them, and not born more than a year apart. Theirs then sits
   where it sat on that canvas, with its lines (less any that would double
-  up), notes, documents (no longer shared across trees; `documents_guard`
-  lets a document change entries only inside a merge: this one, or "This
-  is me" since Step 43), companions and
+  up), stories, album photos (since Step 88.5; its documents until then),
+  companions and
   bloodline anchors, and it's deleted; their own details stay as they
   were. Otherwise it's left as it is and theirs is placed beside it, as
   for an ordinary invite. Every Root gets a `placed_on_join` notice saying
@@ -1402,7 +1414,7 @@ mirror it for the UI.
   apart by `current_user`, since the definer RPCs run as their owner. The
   LOCAL `ancestree.privileged_profile_write` GUC those RPCs set is read by
   other guards (`tree_members_guard`, `tree_placements_guard`,
-  `documents_guard`, `people_before_write`), not this one. (The old
+  `people_before_write`), not this one. (The old
   `profiles_protect_role` went with `profiles.role` in Step 25.6.)
 - **`public.member_directory`** view (`security_invoker`) = profiles + resolved
   `invited_by_name` and, for a Branch, `branch_granted_by_name` (Step 39);
@@ -1416,7 +1428,7 @@ tier ~3–4/hour) — swap to an SMTP provider before wider testing.
 
 ## Privacy & compliance (Step 10)
 
-Family data (living people, DOB, photos, documents) is treated as sensitive PII;
+Family data (living people, DOB, photos, recordings) is treated as sensitive PII;
 Canadian context → PIPEDA-minded.
 
 - **Consent where someone joins**: a required checkbox linking to `/privacy`
@@ -1434,24 +1446,25 @@ Canadian context → PIPEDA-minded.
   invite opens on a sign-in link back to it (Step 41.2). `/privacy` is in
   `proxy.ts`'s public prefixes so it is readable pre-auth.
 - **All PII behind auth + RLS**: every table is RLS-scoped by tree membership;
-  nothing is public or indexed. Photos/documents live in private buckets and are
+  nothing is public or indexed. Photos and recordings live in private buckets and are
   only ever served through short-lived signed URLs (unchanged from Step 2).
 - **Admin data export**: `/admin` → "Download JSON export"
   (`exportTreeData`, service-role read of every table scoped to the shared tree;
   `components/admin/admin-export.tsx` streams it as a client-side download).
 - **Delete a person**: `PersonPanel` → "Delete entry" (admins only,
-  `deletePerson`) removes the row (edges cascade) plus its photo and document
-  objects from storage.
+  `deletePerson`) removes the row (edges, stories and album tags cascade)
+  plus its photo, its stories' recordings and the album photos nobody else
+  is in from storage.
 - **Replaced photos** (Step 82): a photo replaced or cleared leaves storage
   once nothing shows it (see **Storage** under Data model); every earlier
   photo used to stay in the bucket.
 - **Delete your account**: `/account` → "Delete my account" (`deleteAccount`)
   removes the auth user + `profiles` row after reassigning the member's
-  `created_by` / `owner_user_id` / `uploaded_by` references to a founding admin,
+  `created_by` / `owner_user_id` references to a founding admin,
   so the shared record stays intact. Blocked if the caller is the only admin.
 - **Free-tier headroom**: photos are downscaled client-side to ≤1280px JPEG
-  (`lib/image.ts#compressImage`, wired in the add + edit forms); documents are
-  capped at 10MB/file client-side (`person-documents.tsx`), well under the
+  (`lib/image.ts#compressImage`, wired in the add + edit forms), album
+  photos to ≤1600px (the same, in `album-dialog.tsx`), well under the
   Supabase Free limits (50MB/file, 1GB storage, 500MB DB). No PII in logs:
   the few `console.*` calls, all server-side, log a tag with an error code
   or a count.
@@ -1612,6 +1625,89 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 88.5 — The album replaces documents** (the fifth of Step 88, the
+  person sheet's redesign; two migrations: `20260930010000_album`,
+  additive, live before the deploy, and
+  `20260930020000_documents_become_album` after it). An entry's
+  **Documents** section is gone; in its place is an **Album**: a carousel
+  across the sheet, one photo at a time, swiped (scroll-snap) or stepped
+  with ‹ › and the arrow keys, "2 / 7" beside its details: who added it
+  ("You" for your own) and when, **Waiting for approval** / **Not
+  approved**, the description, "With …" for anyone else in it the viewer
+  may see (a waiting or declined tag says so to the uploader), and what the
+  viewer may do: **Approve** / **Decline**, **Remove** (from this album)
+  and, for its uploader, **Delete** (from every album: "It goes from every
+  album it's in." when it's in others). A press on the photo shows the
+  whole of it. **Add** opens **Add a photo**: Photo, Description, Who's in
+  it (the album's person locked in, anyone else on the canvas added from
+  the companion picker, up to 20). A picked photo is shrunk at once to
+  1600px JPEG (`compressImage`, which drops EXIF, GPS included); a HEIC the
+  browser can't open, or a file over 10 MB, is refused there. The album
+  shows each photo from an 800px storage transform (`resize: contain`,
+  WebP to browsers; one signing call a photo, in parallel), the whole photo
+  only in the dialog. **Aalim asked for:** anyone on the tree can add; the
+  uploader can tag several people and the photo shows in each album, so
+  approval is per tag; nobody else sees it until it's approved, by the
+  person on a claimed entry, else whoever can edit it; documents go
+  entirely, no PDFs, the one on live moving into its person's album,
+  waiting; not on share links. So: `album_photos` (file, description,
+  uploader, the tree it was added on) and `album_tags` (a person each,
+  `pending` / `approved` / `declined`), `add_album_photo` (one notice per
+  approver, `photo_to_approve`: "… added a photo of you and 1 other,
+  waiting for your approval."), `decide_album_tag` (`photo_approved` /
+  `photo_declined` to the uploader), `entry_album` for the sheet, the
+  approvers being Step 88.3's (`private.story_owner`, else
+  `can_approve_story`'s editors), and a private `album` bucket at
+  `<tree>/<uuid>.<ext>`: any member of that tree uploads, whoever sees the
+  photo reads, the uploader alone removes an upload no photo took. A tag a
+  viewer could approve is approved at once (a Root adding a photo of an
+  ancestor, anyone adding one of themselves).
+  **My calls, not asked:** one photo per add; the description can't be
+  edited, nor the tags after the add; a tag the uploader could approve
+  needs no approval; **Remove** takes someone out of one album (the
+  uploader, the approver or whoever may edit the entry), and a photo nobody
+  is in any more goes, file and all (`album_tags_last_gone`); a declined
+  photo stays for its uploader, marked; someone else's photo of an entry
+  keeps a Leaf from deleting it and a placeholder from merging away, and a
+  merge ("This is me", a claim invite) moves the tags along; the uploader's
+  account going leaves their photos, added by nobody. The live document
+  (a 4096×3072 JPEG, 1.8 MB, with EXIF) is re-encoded upright at 1200×1600
+  (163 KB, no metadata) into the album bucket by a one-off service-role
+  script after the deploy; the second migration then makes it a photo of
+  its person uploaded by them, waiting for their own yes, with no notice
+  (they put it there), and refuses to run while any document's copy is
+  missing; the emptied bucket goes through the Storage API. Gone with
+  documents: `documents`, its bucket and storage rules,
+  `private.can_see_document(s)` / `can_write_document` / `document_rule_in`
+  / `documents_guard`, `app/actions/documents.ts`,
+  `components/person-documents.tsx` (on the sheet and the edit page),
+  `lib/document-path.ts`, `canSeeDocuments` and the "See documents" row of
+  the account types (now "Add stories and photos, and report problems").
+  Every sweep that knew documents knows the album: `deletePerson` (the
+  photos nobody else is in), `deleteTree` (`treeFiles`), the claim merge,
+  `exportTreeData` (`album_photos` + `album_tags`, not `documents`),
+  `deleteAccount` and `remove_tree_member` (nothing to hand over). The
+  dashboard counts "Album photos added"; the privacy notice and the three
+  consent boxes no longer mention documents. **Verified** on live with a
+  rolled-back rehearsal of both migrations (68 checks as five throwaway
+  members: uploads by tree, per-tag visibility and answers, notices, untag
+  rights, the last-tag cleanup, delete and placeholder rules, the claim
+  moving a tag, the document's move, every body's md5), then end to end in
+  headless Chrome as a throwaway Root and three Leaves on a seeded tree:
+  a 3000×2000 PNG stored as a 1600×1067 JPEG with no EXIF, shown as an
+  800×534 WebP of 6 KB and whole in the dialog; the person approved two
+  and declined one (gone for them, "Not approved" for the uploader), the
+  Root declined the ancestor's tag; a third Leaf saw only the approved
+  photos, through the sheet and through PostgREST with their own token
+  (no signed link for the declined one's file, 403 on a direct insert);
+  Remove kept the photo in the uploader's own album; Delete removed the
+  file within 1.2 s; storage let only the uploader remove a stray upload
+  and refused an upload to another tree; a refused add (someone tagged no
+  longer on the tree) took its upload back; deleting the ancestor kept the
+  photo the person was also in and removed the one only of them; the
+  export carried the album; the phone carousel swiped; and deleting the
+  tree left the album bucket empty. Throwaways removed after.
 
 - **Step 88.4 — Story links and story comments** (the fourth of Step 88,
   the person sheet's redesign; one migration,

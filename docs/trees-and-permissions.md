@@ -9,7 +9,7 @@ round trip.
 ## 1. The model in five sentences
 
 1. A **tree** is a canvas with its own members, account types, invites, share
-   links, document banks and inbox.
+   links and inbox.
 2. A **person** is one row, wherever they appear: one name, one set of dates,
    one photo. Every person has a **home tree**, and may be **placed** on other
    trees as well.
@@ -73,9 +73,10 @@ Rules that follow:
   can keep their own entry up to date there; a Root may change that).
 - A Root may remove a Branch or a Leaf from the Root console
   (`remove_tree_member`). What they added or own whose home is this tree
-  passes to that Root: entries (their own among them), lines, documents,
-  invites, share links, companions, and who placed each card. The stories
-  they told stay theirs (Step 88.3), told by nobody once their profile goes.
+  passes to that Root: entries (their own among them), lines, invites,
+  share links, companions, and who placed each card. The stories they told
+  and the album photos they added stay theirs (Steps 88.3, 88.5), nobody's
+  once their profile goes.
   If it was their last tree, what they left on other trees passes to that
   Root too, and their profile and sign-in go; a card they placed on a tree
   they had already left stays where it is, with nobody recorded as placing
@@ -113,10 +114,10 @@ An ask that has lapsed (Step 83) is still `asked` in the row, so still
 | | On a tree that shows only their basic card |
 |---|---|
 | The entry | `people` isn't readable through that tree (`private.can_see_person` asks for a full placement). `tree_people` carries the basic card's row from `private.basic_tree_people`: names and place of birth, every other column empty, the same for every member of the tree, its Roots and whoever brought them over included. |
-| Photo, documents | Not readable: both follow `can_see_person` and a full placement. |
+| Photo | Not readable: it follows `can_see_person` and a full placement. |
 | Lines | Drawn, from `private.basic_tree_edges`: that a line is there, its kind, and whether a marriage ended. Its dates only on the tree it was drawn on. `relationships` rows are readable when both ends are shown in full, or the line was drawn on a tree the reader belongs to. |
 | Building on them | A Root, Branch or Leaf adds relatives of a basic card and draws lines to it as to any card, which is what founding a tree for the other side of the family needs. A line to a basic card is changed by whoever drew it, or a Root of the tree it was drawn on. |
-| Stories, suggestions | None: a story and a suggested change both ask for a full placement, and a basic card's sheet shows no stories. |
+| Stories, album, suggestions | None: a story, an album photo and a suggested change all ask for a full placement, and a basic card's sheet shows no stories or album. |
 | Claiming it | As on any tree (Step 83), so someone new to the tree doesn't add themselves twice: the onboarding search and "Is this you?" find a basic card by what it shows — never a maiden name, no dates, and of its parents only those this tree draws — and "This is me" takes a name that matches it. Whoever added the entry is told, in their own tree's inbox, and can dispute. Claiming it on a tree is its owner's yes to showing it there in full, and whoever brought it over is told. A claim a Root reverses makes the card basic again and asks afresh. A Root of the tree may also invite someone to claim it, from the card (Step 84, below). |
 | Visitors | **Hidden from visitors** holds: a visitor sees a blurred card with no name. |
 | Share links | The basic card, as the tree's members see it. |
@@ -127,8 +128,8 @@ An ask that has lapsed (Step 83) is still `asked` in the row, so still
 
 1. A Root of `h`.
 2. The person themselves (`self_person_id`, or an approved claim). This rule
-   doesn't ask which trees they're on, and neither do the documents and
-   photos rules that trust it, so only the steps in section 8 may set
+   doesn't ask which trees they're on, and neither do the photo, story and
+   album rules that trust it, so only the steps in section 8 may set
    `self_person_id` (Step 42).
 3. A Branch or a Leaf **in `h`** who owns the entry, or who created it while
    it is still unclaimed.
@@ -189,16 +190,15 @@ be placed there.
 | Story comments (`story_comments`, Step 88.4) | Per story | Whoever may read the approved story; written by any of them with no approval; deleted by their author, the story's teller or whoever may edit the entry |
 | Reports (`entry_reports`, Step 88.2) | Per person, raised from one tree | Whoever raised it, and whoever may fix it |
 | Suggested changes (`entry_suggestions`, Step 67) | Per person, made from one tree | Whoever suggested it, and whoever may edit the entry |
-| Documents (`documents.tree_id`, `shared_across_trees`) | Uploaded onto one tree | Step 18.4 rule evaluated in that tree; when shared, the same rule in every tree the person is placed on |
+| Album photos (`album_photos`, `album_tags`, Step 88.5; they replaced the per-tree document banks) | Per photo, added on one tree (`tree_id`, whose inbox its uploader hears back in); per person it's of (a tag each) | A tag approved: members of every tree that shows that person in full, not visitors or a share link. Waiting: the uploader, and whoever approves it, the same people as a story. Declined: the uploader alone. Added by any member of a tree showing everyone in it in full; taken out of someone's album by the uploader, its approver or whoever may edit the entry; deleted by the uploader; gone once nobody is in it |
 | Profile photo | Part of the person | Everyone who can see the person |
 | Notifications (`notifications.tree_id`) | One inbox per tree | The recipient, on that tree's tab of `/account` |
 | Claims, revisions | Per person | As before, with "admin" meaning a Root of the home tree |
 
-Who may flip `shared_across_trees` on a document: the person the entry
-belongs to, or a Root of the entry's home tree. A merge that moves a document
-onto another entry (a claim invite folding one in, Step 41.3, or "This is
-me", Step 43) leaves it unshared, since that entry may be shown on trees the
-old one never was; the person can share it again.
+A merge that folds one entry into another (a claim invite, Step 41.3, or
+"This is me", Step 43) moves its stories and its album tags along, keeping
+each tag's answer; where the other entry is in a photo already, that tag
+stays.
 
 ## 6. Seeing across trees
 
@@ -207,7 +207,7 @@ old one never was; the person can share it again.
   Root may; only for trees they are a member of; revocable at any time.
 - Members of the viewer tree reach it through the shared person's card
   ("Also on: The Suleman tree") and see it read-only: no stories, no edits,
-  no documents, no account types, with a "request to join" button that files
+  no album, no account types, with a "request to join" button that files
   an invite request with that tree's Roots.
 - Any person can mark their own entry **hidden from visitors**
   (`people.hidden_from_visitors`). A hidden entry is drawn blurred, with no
@@ -219,7 +219,7 @@ old one never was; the person can share it again.
 | Kind | Who may send | What redeeming does |
 |---|---|---|
 | Join as a Leaf | Any member: Root, Branch or Leaf | Adds a membership in the inviter's tree. An existing member of another tree gains a second membership; no second profile. If they have their own entry, it's shown on this tree too, in full, since accepting is their say-so, a basic card of theirs there included (Step 80); every Root of the tree is told (`placed_on_join`) and can take it off from "Who This Tree Shows" (Step 30.9). They land on it. |
-| Claim an entry | As Step 22.1, evaluated in the entry's home tree, into a tree the sender belongs to that shows the entry; or a Root of a tree that shows the entry, whole or as a basic card, when nobody is behind it and they are living (Step 84, `private.can_invite_to_claim_on`: the invite is sent from that tree's canvas and joins it, names the entry as the card does, and accepting claims it and shows it there in full); or a Root approving a request to join as an entry on their tree that the name matches (Step 30.3); or the member a relative's ask went to, as an entry the newcomer's name matches on the tree they picked, where Step 22.1 lets them (Step 41.1) | As above, plus the vouch for that entry. Someone with no entry of their own claims it there and then and lands on it (Step 30.2); if it's spoken for by then, onboarding as usual. A member who already has an entry lands on theirs, shown on this tree (Step 41.3). The invite's entry folds into it when only its maker has built on it, nobody is behind it and it's on no other tree: theirs takes its place, lines, notes and documents and all, and it's deleted. It never folds in if either of them has died, a line joins them, or they were born more than a year apart. Otherwise both stay, and every Root is told either way. |
+| Claim an entry | As Step 22.1, evaluated in the entry's home tree, into a tree the sender belongs to that shows the entry; or a Root of a tree that shows the entry, whole or as a basic card, when nobody is behind it and they are living (Step 84, `private.can_invite_to_claim_on`: the invite is sent from that tree's canvas and joins it, names the entry as the card does, and accepting claims it and shows it there in full); or a Root approving a request to join as an entry on their tree that the name matches (Step 30.3); or the member a relative's ask went to, as an entry the newcomer's name matches on the tree they picked, where Step 22.1 lets them (Step 41.1) | As above, plus the vouch for that entry. Someone with no entry of their own claims it there and then and lands on it (Step 30.2); if it's spoken for by then, onboarding as usual. A member who already has an entry lands on theirs, shown on this tree (Step 41.3). The invite's entry folds into it when only its maker has built on it, nobody is behind it and it's on no other tree: theirs takes its place, lines, stories and album photos and all, and it's deleted. It never folds in if either of them has died, a line joins them, or they were born more than a year apart. Otherwise both stay, and every Root is told either way. |
 | **Founder** | Any Root | Creates a brand-new tree (“Family” until they rename it; `private.default_tree_name`), makes them its Root, and sends them to onboarding on it. Refused if the address already founded a tree. |
 
 The beta is "by invite only" because only these paths create trees: there is
