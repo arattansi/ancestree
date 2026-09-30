@@ -1,13 +1,18 @@
 "use client";
 
 import * as React from "react";
+import { Plus } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useFocusReturn } from "@/components/use-focus-return";
+import type { TagOption } from "@/lib/tag-person";
 import { foldSearchText } from "@/lib/tree-search";
 import { cn } from "@/lib/utils";
 
-export type CompanionOption = { id: string; label: string };
+/** Someone on the canvas, with what the album matches a photo's names
+ *  and date against (Step 88.6). */
+export type CompanionOption = TagOption;
 
 /**
  * Pick the people a companion belongs to.
@@ -24,6 +29,7 @@ export function CompanionPicker({
   /** People that can't be unpicked here — e.g. the entry you started from. */
   locked = [],
   label = "Belongs to",
+  suggested = [],
 }: {
   options: CompanionOption[];
   value: string[];
@@ -31,6 +37,12 @@ export function CompanionPicker({
   disabled?: boolean;
   locked?: string[];
   label?: string;
+  /**
+   * People to offer first, one press each (Step 88.6: those a photo's
+   * details name). Picked, they leave the row; they're left out of the
+   * list under the search box until something's typed.
+   */
+  suggested?: CompanionOption[];
 }) {
   const [query, setQuery] = React.useState("");
   const labelById = React.useMemo(
@@ -52,14 +64,23 @@ export function CompanionPicker({
     });
   }
 
+  const offered = React.useMemo(
+    () => suggested.filter((o) => !value.includes(o.id)),
+    [suggested, value],
+  );
+
   const matches = React.useMemo(() => {
     const q = foldSearchText(query.trim());
     const unpicked = options.filter((o) => !value.includes(o.id));
-    if (!q) return unpicked.slice(0, 8);
+    if (!q) {
+      return unpicked
+        .filter((o) => !offered.some((s) => s.id === o.id))
+        .slice(0, 8);
+    }
     return unpicked
       .filter((o) => foldSearchText(o.label).includes(q))
       .slice(0, 8);
-  }, [options, value, query]);
+  }, [options, value, query, offered]);
 
   return (
     <div className="flex flex-col gap-2">
@@ -102,6 +123,47 @@ export function CompanionPicker({
           Pick at least one person.
         </p>
       )}
+
+      {offered.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="mr-1 text-xs text-muted-foreground">Suggested</span>
+          {offered.map((o) => (
+            <button
+              key={o.id}
+              type="button"
+              disabled={disabled}
+              className="relative tap-target flex items-center gap-1 rounded-full border border-dashed border-border py-1 pr-2.5 pl-2 text-xs hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
+              aria-label={`Add ${o.label}`}
+              onClick={(event) => {
+                const next = event.currentTarget.nextElementSibling;
+                handOn(
+                  event.currentTarget,
+                  next instanceof HTMLButtonElement ? next : null,
+                );
+                onChange([...value, o.id]);
+              }}
+            >
+              <Plus aria-hidden className="size-3" />
+              {o.label}
+            </button>
+          ))}
+          {offered.length > 1 ? (
+            <Button
+              type="button"
+              variant="link"
+              size="sm"
+              className="h-auto px-1 text-xs"
+              disabled={disabled}
+              onClick={(event) => {
+                handOn(event.currentTarget, null);
+                onChange([...value, ...offered.map((o) => o.id)]);
+              }}
+            >
+              Add all
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
 
       <Input
         ref={inputRef}

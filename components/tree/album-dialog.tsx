@@ -1,9 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { ImagePlus, X } from "lucide-react";
+import { ImagePlus, Plus, X } from "lucide-react";
 
 import { addAlbumPhoto } from "@/app/actions/album";
+import { DateField } from "@/components/date-field";
 import { FormError } from "@/components/form-error";
 import { PendingButton } from "@/components/pending-button";
 import {
@@ -18,6 +19,7 @@ import { useAction } from "@/components/use-action";
 import { isRedirect } from "@/lib/action-feedback";
 import type { AlbumPhoto } from "@/lib/album";
 import { albumPath } from "@/lib/album-path";
+import { takenProblem } from "@/lib/album-taken";
 import { compressImage } from "@/lib/image";
 import {
   ALBUM_DESCRIPTION_MAX,
@@ -25,18 +27,31 @@ import {
   ALBUM_PHOTO_EDGE,
   ALBUM_PHOTO_MAX_MB,
 } from "@/lib/limits";
+import { readPhotoMetadata, type PhotoMetadata } from "@/lib/photo-metadata";
+import { bornYear, rankByTaken, suggestTags } from "@/lib/photo-tags";
 
 type Picked =
   | { state: "preparing" }
   | { state: "ready"; file: File; url: string };
 
+/** The date taken, and whether it's the photo's own, which goes with it. */
+type Taken = { value: string; fromPhoto: boolean };
+
+const NO_DATE: Taken = { value: "", fromPhoto: false };
+
 const NOT_SENT = "The photo didn’t upload.";
 
 /**
- * Add a photo to someone's album (Step 88.5): the photo, what it's of, and
- * who's in it, the album's own person always among them. A picked photo is
- * shrunk as soon as it's picked, to the album's size, and shown here before
- * it goes. A form is its labels. Loaded only once someone opens it.
+ * Add a photo to someone's album (Step 88.5): the photo, when it was taken,
+ * what it's of, and who's in it, the album's own person always among them.
+ * A picked photo is shrunk as soon as it's picked, to the album's size, and
+ * shown here before it goes. A form is its labels. Loaded only once someone
+ * opens it.
+ *
+ * Before it's shrunk, what the photo says about itself is read (Step 88.6):
+ * its date taken fills the date in, and the people it names who are on the
+ * tree are suggested, those alive when it was taken first. Only the copy
+ * drawn afresh goes up, which carries none of it: not where it was taken.
  */
 export function AlbumDialog({
   open,
@@ -61,6 +76,13 @@ export function AlbumDialog({
   const [pickError, setPickError] = React.useState<string | null>(null);
   const [description, setDescription] = React.useState("");
   const [tagged, setTagged] = React.useState<string[]>([personId]);
+  const [meta, setMeta] = React.useState<PhotoMetadata | null>(null);
+  const [taken, setTaken] = React.useState<Taken>(NO_DATE);
+  // "+ Date taken" pressed, or the date typed in: the field stays.
+  const [takenOpened, setTakenOpened] = React.useState(false);
+  const [takenTouched, setTakenTouched] = React.useState(false);
+  // "+ Date taken" pressed: the day box, which it becomes, takes focus.
+  const focusTaken = React.useRef(false);
   const fileRef = React.useRef<HTMLInputElement>(null);
   // Which pick is being prepared: a later pick, or a closed dialog, drops
   // an earlier one's result.
@@ -75,6 +97,10 @@ export function AlbumDialog({
       setPickError(null);
       setDescription("");
       setTagged([personId]);
+      setMeta(null);
+      setTaken(NO_DATE);
+      setTakenOpened(false);
+      setTakenTouched(false);
       send.setError(null);
     }
   }
@@ -90,32 +116,75 @@ export function AlbumDialog({
     if (!open) pick.current += 1;
   }, [open]);
 
+  // Shown while it holds a date: one a photo gave goes with the photo.
+  const takenShown = takenOpened || taken.value !== "";
+  React.useEffect(() => {
+    if (!takenShown || !focusTaken.current) return;
+    focusTaken.current = false;
+    document.getElementById("album-taken")?.focus();
+  }, [takenShown]);
+
+  const takenError = takenProblem(taken.value);
+  const takenOn = !takenError && taken.value ? taken.value : null;
+  // Those alive when it was taken first, wherever names are listed.
+  const ranked = React.useMemo(() => rankByTaken(people, takenOn), [people, takenOn]);
+  const suggested = React.useMemo(() => {
+    if (!meta || meta.names.length === 0) return [];
+    const byId = new Map(people.map((o) => [o.id, o]));
+    const labels = new Map<string, number>();
+    for (const o of people) labels.set(o.label, (labels.get(o.label) ?? 0) + 1);
+    return suggestTags(meta.names, people, takenOn).flatMap((id) => {
+      const o = byId.get(id);
+      if (!o) return [];
+      // Two of one name are told apart by when they were born.
+      const born = (labels.get(o.label) ?? 0) > 1 ? bornYear(o.person) : null;
+      return [born ? { ...o, label: `${o.label} (${born})` } : o];
+    });
+  }, [meta, people, takenOn]);
+
+  /** The photo's own date goes with it; one typed stays. */
+  function dropPhotoDate() {
+    setTaken((t) => (t.fromPhoto ? NO_DATE : t));
+  }
+
   async function onPick(file: File) {
     const mine = ++pick.current;
     setPickError(null);
     setPicked({ state: "preparing" });
-    let small: File | null = null;
-    try {
-      small = await compressImage(file, { maxEdge: ALBUM_PHOTO_EDGE });
-    } catch {
-      small = null;
-    }
+    // Read from the photo as picked, since the shrinking keeps none of it.
+    const [small, read] = await Promise.all([
+      compressImage(file, { maxEdge: ALBUM_PHOTO_EDGE }).catch(() => null),
+      readPhotoMetadata(file),
+    ]);
     if (pick.current !== mine) return;
     // A photo the browser couldn't open (an iPhone's HEIC, outside Safari)
-    // comes back as it was, which the album won't take.
+    // comes back as it was, which the album won't take; nor one as picked
+    // in any type, which would carry what it says about itself up with it.
     const problem = !small
       ? "That photo couldn’t be read."
       : !albumPath(treeId, small.type)
         ? "Choose a JPEG, PNG, or WebP image."
-        : small.size > ALBUM_PHOTO_MAX_MB * 1024 * 1024
-          ? `Photos must be ${ALBUM_PHOTO_MAX_MB}MB or smaller.`
-          : null;
+        : small === file
+          ? "That photo couldn’t be read."
+          : small.size > ALBUM_PHOTO_MAX_MB * 1024 * 1024
+            ? `Photos must be ${ALBUM_PHOTO_MAX_MB}MB or smaller.`
+            : null;
     if (problem || !small) {
       setPicked(null);
+      setMeta(null);
+      dropPhotoDate();
       setPickError(problem);
       return;
     }
     setPicked({ state: "ready", file: small, url: URL.createObjectURL(small) });
+    setMeta(read);
+    const photoTaken = read.taken;
+    if (photoTaken) {
+      // Unless one's been typed, which stays.
+      setTaken((t) => (!t.value || t.fromPhoto ? { value: photoTaken, fromPhoto: true } : t));
+    } else {
+      dropPhotoDate();
+    }
   }
 
   const ready = picked?.state === "ready" ? picked : null;
@@ -123,8 +192,10 @@ export function AlbumDialog({
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!ready) return;
+    setTakenTouched(true);
+    if (!ready || takenError) return;
     const file = ready.file;
+    const takenValue = taken.value;
     send.run(
       "send",
       async () => {
@@ -137,7 +208,14 @@ export function AlbumDialog({
         if (error) return { error: NOT_SENT };
         try {
           // Refused, it takes the upload away again itself.
-          return await addAlbumPhoto({ personId, treeId, path, description, people: tagged });
+          return await addAlbumPhoto({
+            personId,
+            treeId,
+            path,
+            description,
+            people: tagged,
+            taken: takenValue,
+          });
         } catch (thrown) {
           // Unreachable: the photo may have arrived, so the upload stays.
           if (isRedirect(thrown)) throw thrown;
@@ -193,7 +271,11 @@ export function AlbumDialog({
                   variant="ghost"
                   className="self-end"
                   disabled={send.pending}
-                  onClick={() => setPicked(null)}
+                  onClick={() => {
+                    setPicked(null);
+                    setMeta(null);
+                    dropPhotoDate();
+                  }}
                 >
                   <X aria-hidden />
                   Remove
@@ -214,6 +296,38 @@ export function AlbumDialog({
             )}
             <FormError>{pickError}</FormError>
           </div>
+          {takenShown ? (
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="album-taken">Date taken</Label>
+              <DateField
+                id="album-taken"
+                value={taken.value}
+                onChange={(value) => {
+                  setTaken({ value, fromPhoto: false });
+                  setTakenOpened(true);
+                }}
+                onBlur={() => setTakenTouched(true)}
+                disabled={send.pending}
+                aria-invalid={takenTouched && !!takenError}
+              />
+              <FormError>{takenTouched ? takenError : null}</FormError>
+            </div>
+          ) : (
+            <Button
+              type="button"
+              variant="link"
+              size="sm"
+              className="self-start px-0"
+              disabled={send.pending}
+              onClick={() => {
+                focusTaken.current = true;
+                setTakenOpened(true);
+              }}
+            >
+              <Plus aria-hidden />
+              Date taken
+            </Button>
+          )}
           <div className="flex flex-col gap-2">
             <Label htmlFor="album-description">Description</Label>
             <Textarea
@@ -227,7 +341,8 @@ export function AlbumDialog({
           </div>
           <CompanionPicker
             label="Who’s in it"
-            options={people}
+            options={ranked}
+            suggested={suggested}
             value={tagged}
             onChange={(ids) => setTagged(ids.slice(0, ALBUM_PEOPLE_MAX))}
             locked={[personId]}

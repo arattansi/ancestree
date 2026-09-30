@@ -37,7 +37,16 @@ export default function PrivacyPage() {
             The demographic details you enter about yourself and relatives: names,
             dates and places of birth and death, and relationships.
           </li>
-          <li>Photos and recordings you choose to upload.</li>
+          <li>
+            Photos and recordings you choose to upload, and when a photo was
+            taken.
+          </li>
+          <li>
+            When you add a photo, the names and date saved in it are read on
+            your device, to suggest who&rsquo;s in it and when it was taken.
+            The photo is uploaded without them, and without where it was
+            taken.
+          </li>
           <li>
             Activity needed to run the tree: who created an entry, claims,
             stories, reports, and in-app notifications.

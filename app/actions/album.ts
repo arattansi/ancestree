@@ -3,9 +3,11 @@
 import { requireProfile } from "@/lib/auth";
 import { listAlbum, type AlbumPhoto } from "@/lib/album";
 import { isAlbumPathOn } from "@/lib/album-path";
+import { takenProblem } from "@/lib/album-taken";
 import { friendlyDbError, ownedWrite } from "@/lib/db-errors";
 import { removeAlbumPhotosLater } from "@/lib/file-cleanup.server";
 import { ALBUM_DESCRIPTION_MAX, ALBUM_PEOPLE_MAX } from "@/lib/limits";
+import { toStoredDate } from "@/lib/partial-date";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -19,7 +21,8 @@ const NOT_ADDED = "Couldn’t add it. Try again.";
 
 /**
  * Add a photo the viewer has just uploaded to the tree's folder, of the
- * people in it (`personId`'s album first among them). Each of them it waits
+ * people in it (`personId`'s album first among them), with when it was
+ * taken if that's known (Step 88.6: "1962" will do). Each of them it waits
  * for, unless the viewer could approve it there. When it's refused, the
  * upload goes again. The album back is `personId`'s.
  */
@@ -31,6 +34,8 @@ export async function addAlbumPhoto(input: {
   path: string;
   description: string;
   people: string[];
+  /** Partial ISO ("1962", "1962-03", "1962-03-05"), or "". */
+  taken?: string;
 }): Promise<{ error?: string; pending?: number; photos?: AlbumPhoto[] }> {
   const profile = await requireProfile();
   const description = input.description.trim();
@@ -55,12 +60,17 @@ export async function addAlbumPhoto(input: {
   if (people.length > ALBUM_PEOPLE_MAX) {
     return refuse(`Tag ${ALBUM_PEOPLE_MAX} people at most.`);
   }
+  const takenError = takenProblem(input.taken ?? "");
+  if (takenError) return refuse(takenError);
+  const taken = toStoredDate(input.taken);
 
   const { data, error } = await supabase.rpc("add_album_photo", {
     p_tree: input.treeId,
     p_path: input.path,
     p_description: description,
     p_people: people,
+    p_taken_on: taken.date ?? undefined,
+    p_taken_precision: taken.date ? taken.precision : undefined,
   });
   if (error) {
     return refuse(
@@ -73,6 +83,7 @@ export async function addAlbumPhoto(input: {
           ["nobody in it", "Tag who’s in it."],
           ["too many people", `Tag ${ALBUM_PEOPLE_MAX} people at most.`],
           ["longer than a description may be", `Keep the description under ${ALBUM_DESCRIPTION_MAX} characters.`],
+          ["taken after today", "That’s after today."],
         ],
         NOT_ADDED,
       ),

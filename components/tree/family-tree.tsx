@@ -132,6 +132,7 @@ import { keptPhotoUrl } from "@/lib/signed-url";
 import { shareEqual } from "@/lib/structural-share";
 import { useKept } from "@/components/tree/use-kept";
 import { personDisplayName, personHasDied } from "@/lib/person-name";
+import { tagPersonOf } from "@/lib/tag-person";
 import {
   anchorPoint,
   placePoint,
@@ -1787,7 +1788,13 @@ function Canvas({
   // not what the sheets offer (Step 87.2).
   const peopleOptions = useKept(
     React.useMemo(
-      () => people.map((p) => ({ id: p.id, label: personDisplayName(p) })),
+      () =>
+        people.map((p) => ({
+          id: p.id,
+          label: personDisplayName(p),
+          // Names and dates an album photo's are matched to (Step 88.6).
+          person: tagPersonOf(p),
+        })),
       [people],
     ),
     shareEqual,

@@ -21,6 +21,8 @@ export type Database = {
           description: string | null
           file_path: string
           id: string
+          taken_on: string | null
+          taken_on_precision: string | null
           tree_id: string | null
         }
         Insert: {
@@ -29,6 +31,8 @@ export type Database = {
           description?: string | null
           file_path: string
           id?: string
+          taken_on?: string | null
+          taken_on_precision?: string | null
           tree_id?: string | null
         }
         Update: {
@@ -37,6 +41,8 @@ export type Database = {
           description?: string | null
           file_path?: string
           id?: string
+          taken_on?: string | null
+          taken_on_precision?: string | null
           tree_id?: string | null
         }
         Relationships: [
@@ -2480,6 +2486,8 @@ export type Database = {
           p_description: string
           p_path: string
           p_people: string[]
+          p_taken_on?: string
+          p_taken_precision?: string
           p_tree: string
         }
         Returns: Json
@@ -2604,6 +2612,8 @@ export type Database = {
           id: string
           others: Json
           status: string
+          taken_on: string
+          taken_on_precision: string
         }[]
       }
       entry_stories: {

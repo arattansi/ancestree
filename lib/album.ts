@@ -4,7 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 
 /**
  * A photo in someone's album (Step 88.5), as their details show it: who
- * added it, when, what it's of, and who else is in it. A photo is uploaded
+ * added it, when, what it's of, when it was taken (Step 88.6), and who else
+ * is in it. A photo is uploaded
  * once and tagged with each person in it; each tag waits for approval on
  * its own, from the person themself once they have claimed the entry, or
  * else from whoever can edit it. Until then only they and its uploader see
@@ -18,6 +19,10 @@ export type AlbumPhoto = {
   /** The whole photo, signed for an hour. */
   fullUrl: string | null;
   description: string | null;
+  /** When it was taken, on the first day of as much of it as is known
+   *  (`takenPrecision`), or null. */
+  takenOn: string | null;
+  takenPrecision: string | null;
   createdAt: string;
   /** Who added it, as the trees name them. */
   addedBy: string;
@@ -101,6 +106,8 @@ export async function listAlbum(
       url: views[i]?.data?.signedUrl ?? fullUrl,
       fullUrl,
       description: r.description ?? null,
+      takenOn: r.taken_on ?? null,
+      takenPrecision: r.taken_on_precision ?? null,
       createdAt: r.created_at,
       addedBy: r.added_by || "A relative",
       mine: r.created_by === viewerId,

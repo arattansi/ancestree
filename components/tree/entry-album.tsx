@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import type { AlbumPhoto } from "@/lib/album";
+import { formatPartialDate } from "@/lib/partial-date";
 import { timeAgo } from "@/lib/time-ago";
 
 // Opened by a press, so it and what it loads wait for one (Step 87.4).
@@ -44,11 +45,11 @@ function withLine(others: AlbumPhoto["others"]): string | null {
 
 /**
  * What's under the photo in view: who added it and when, whether it's in
- * the album yet, what it's of, who else is in it, and what the viewer may
- * do with it. Whoever approves the person's photos answers a waiting one
- * here; it can be taken out of the album by its uploader, by whoever
- * approves them, or by whoever can edit the entry; its uploader may delete
- * it from every album.
+ * the album yet, what it's of, when it was taken, who else is in it, and
+ * what the viewer may do with it. Whoever approves the person's photos
+ * answers a waiting one here; it can be taken out of the album by its
+ * uploader, by whoever approves them, or by whoever can edit the entry; its
+ * uploader may delete it from every album.
  */
 function PhotoDetails({
   photo,
@@ -65,6 +66,7 @@ function PhotoDetails({
   onGone: () => void;
 }) {
   const others = withLine(photo.others);
+  const taken = formatPartialDate(photo.takenOn, photo.takenPrecision);
   // Its uploader deleting it is the same as taking it out, and more, when
   // it's in nobody else's album they can see.
   const canRemove = photo.canRemove && !(photo.mine && photo.others.length === 0);
@@ -89,6 +91,7 @@ function PhotoDetails({
       {photo.description ? (
         <p className="whitespace-pre-wrap">{photo.description}</p>
       ) : null}
+      {taken ? <p className="text-xs text-muted-foreground">Taken {taken}</p> : null}
       {others ? <p className="text-xs text-muted-foreground">{others}</p> : null}
       <div className="flex flex-wrap gap-2 empty:hidden">
         {photo.canDecide ? (
