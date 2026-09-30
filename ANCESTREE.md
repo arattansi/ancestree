@@ -184,6 +184,9 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `lib/signed-url.ts`, `use-kept.ts`, Step 87.1; a dropped card is laid
   out where it was dropped by the canvas itself, for the tab's life, until
   a page drawn after the save knows it — `lib/local-drops.ts`, Step 87.3;
+  the details sheets, their dialogs and the cropper are fetched once the
+  canvas has painted and mounted closed, the Supabase client with the
+  first room — `components/lazy-component.tsx`, Step 87.4;
   admin "Auto-arrange" clears every manual nudge; on a phone no card can be
   dragged (a tablet's can), so a finger on one pans, Step 49; the zoom
   controls end with
@@ -231,8 +234,9 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   notifications; `lib/pet-comments.ts` + `app/actions/pet-comments.ts`),
   `companion-fields.tsx`, `companion-picker.tsx` (multi-select
   people), `add-companion-dialog.tsx` (opened from a person's panel);
-  `lib/pet-schema.ts` (pure zod + species labels; `birth_date` implies
-  `year_born`), `lib/pet-layout.ts` — pets
+  `lib/pet-schema.ts` (pure zod; `birth_date` implies `year_born`),
+  `lib/pet-labels.ts` (species labels and glyphs, `petYears`, zod-free for
+  the canvas, Step 87.4), `lib/pet-layout.ts` — pets
   are laid out **after** the humans, hung in the gap below their companions and
   swept apart on a row (`.test.ts`); `lib/pets.ts` — `getTreePets`;
   `app/actions/pets.ts` — add / update / link / unlink / remove / photo /
@@ -331,7 +335,10 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `lib/ancestral-lands.server.ts` — `landsAtPlace`, what both answer;
   `components/ancestral-lands.tsx` — the lands line on a card and in a form:
   NLD's names, or nothing (Step 40)
-- `lib/person-schema.ts` — shared zod schema; `lib/connections.ts` — chain/edge
+- `lib/person-schema.ts` — shared zod schema, its labels (sex, lineage) in
+  zod-free `lib/person-labels.ts` (Step 87.4; `lib/first-load.test.ts` keeps
+  zod, react-hook-form and the browser Supabase client out of the header's
+  and the canvas's static imports); `lib/connections.ts` — chain/edge
   types + `buildChainEdges`; `lib/connection-suggestions.ts` — implied-connection
   detection engine (+ `.server.ts` loader, `.test.ts`); `lib/siblings.ts` — sibling inference;
   `lib/graph-walk.ts` — the one walk along a tree's lines (`stepsOf`,
@@ -1544,6 +1551,66 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 87.4 — Lighter first load** (the fourth of Step 87, audit Phase
+  3, finding C1; no migration). **Aalim asked for:** the labels out of the
+  zod modules, which takes zod off every page (the bell's list reached
+  `lib/person-schema` through `lib/suggestions`, so the root layout carried
+  zod); `next/dynamic` for the sheets, dialogs, the photo cropper and the
+  bell's list; the Supabase client and presence after first paint. So sex
+  and lineage labels live in `lib/person-labels.ts` and species labels,
+  glyphs and `petYears` in `lib/pet-labels.ts` (both schemas re-export
+  them); `components/lazy-component.tsx`'s `lazyComponent` wraps
+  `next/dynamic` (`ssr: false`) with a `preload()`, and an instance made
+  once the code is here draws it in the same render, so nothing opens
+  through an empty Suspense frame; `useLoadedSoon` mounts a piece, closed,
+  once the page is idle (or sooner on a pointer over what opens it).
+  `PersonPanel` and `PetPanel` load that way (a card hovered loads them
+  early; a `?person=` link asks for the sheet's code as the canvas script
+  runs), and the sheet fetches `ReportDialog`, `AddCompanionDialog` and
+  the cropper once it's mounted; `PhotoPicker` fetches the cropper when
+  it mounts; the bell's list and Clear load when the bell is pointed at,
+  focused or opened (its skeleton shows meanwhile); the share link's
+  "Ask to join" is a plain button with the dialog behind it
+  (`request-invite-dialog.tsx`; `finalFocus` back to the button); the
+  presence room imports the Supabase client inside its join, and a
+  document upload inside the upload. `NOTIFICATIONS_READ_EVENT` moved to
+  `lib/header-counts.ts`. **My calls, not asked:** mount-on-idle rather
+  than mount-on-open, so every sheet and dialog still opens with its
+  transition and its focus handling exactly as before; the six form pages
+  whose own forms validate with zod keep it (/account's own-entry form,
+  /people/new, edit, suggest, /welcome, /onboarding); TreeSearch and
+  Auto-arrange's confirm stay in the canvas bundle (not asked for);
+  `lib/first-load.test.ts` walks the header's and the canvas's static
+  imports and fails if they reach zod, react-hook-form, the form schemas
+  or the browser client (it fails on main). **Numbers** (prod builds, main
+  at `71af02d` → 87.4, gzipped first-load JS from the client reference
+  manifests): every page 315.8 → 233.1 KB (zod ≈ 94 KB of it gone from the
+  layout); /tree and /shared/[token] 548.0 → 357.1 KB (no zod, auth-js,
+  realtime, react-hook-form, cropper, sheets or bell list before the
+  cards); home 322.6 → 255.9, /account 461.1 → 400.0, /people/[id]/edit
+  439.9 → 376.0, /join 323.2 → 256.7; only /people/[id]/suggest grew
+  (366.4 → 366.6). On the 77-person
+  fixture (4× CPU, ×12, alternating, main at `0857c9e`): JS on the wire before the cards show
+  557 → 368 KB; cards shown median 907 → 829 ms locally, 1395 → 1167 ms on
+  a Fast-4G-like link, read-only 839 → 767 ms; first paint unchanged (148
+  vs 148 ms, 276 vs 272 ms); render counts on load unchanged (77 cards, 1
+  layout, 1 sheet); drops unchanged. Opening, main vs 87.4: a sheet
+  431 / 436 ms, the cropper 105 / 99, Add a companion 134 / 128, Ask to
+  join 113–123 / 112–120, a `?person=` link's sheet 918 / 866 ms (its
+  cards 1188 / 1236 ms); every one animated in on its first frame with its
+  content, focus landing and returning to the same element. Known: a card
+  clicked within ~300 ms of the cards appearing, before the page is idle,
+  opens ~90 ms later than main (4× CPU) while the sheets' code arrives.
+  **Verified** on live as a throwaway Root and Leaf (5 people, a cat, a
+  photo), main beside the change, twice each: presence both ways and the
+  Leaf's pointer seen by the Root; a person's sheet, the cropper (focus to
+  the frame and back to Reposition photo), the companion's sheet, a
+  document upload (the lazy client) and its removal, the bell (5 unread,
+  list, Clear, count cleared) and the Leaf's Report dialog (focus to the
+  box and back), all alike, with no console errors. Removing a document
+  leaves its file in storage on main too (spun off). The throwaway
+  accounts, tree, files and sessions were deleted.
 
 - **Step 88.3 — Stories** (the third of Step 88, the person sheet's
   redesign; four migrations). **Aalim asked for:** stories in place of the
