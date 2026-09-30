@@ -181,8 +181,10 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   lanes `generation-lane.tsx`, Step 77.6; a save keeps every unchanged row,
   card and line as the same object and each photo at its first signed
   address — `lib/structural-share.ts`, `lib/canvas-nodes.ts`,
-  `lib/signed-url.ts`, `use-kept.ts`, Step 87.1; admin
-  "Auto-arrange" clears every manual nudge; on a phone no card can be
+  `lib/signed-url.ts`, `use-kept.ts`, Step 87.1; a dropped card is laid
+  out where it was dropped by the canvas itself, for the tab's life, until
+  a page drawn after the save knows it — `lib/local-drops.ts`, Step 87.3;
+  admin "Auto-arrange" clears every manual nudge; on a phone no card can be
   dragged (a tablet's can), so a finger on one pans, Step 49; the zoom
   controls end with
   **Go to me**, which opens the viewer's own tree and details, Step 48),
@@ -379,7 +381,7 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `adminHref`, `editPersonHref`, …); `lib/revalidate.ts` —
   `revalidateTreePages()`, the one call after a write: the action's reply
   carries the page it was sent from, drawn again, and pages visited
-  earlier are fetched afresh (Step 61); `lib/placements.server.ts` — who a
+  earlier are fetched afresh (Step 61; not after a card drop, Step 87.3); `lib/placements.server.ts` — who a
   Root could bring over with the lines between them, who they have, and
   what's been asked of a member (Step 80); `lib/carry.ts` — who "All
   descendants of" picks and what bringing each asks (`.test.ts`);
@@ -1537,6 +1539,47 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 87.3 — A card drop without a redraw** (the third of Step 87,
+  audit Phase 3, finding S3, Step 61's leftover; no migration). **Aalim
+  asked for:** a local position applies only while the server still has
+  the pre-drop value, so Auto-arrange or a later refresh wins. So
+  `setPersonPosition` and `setPetPosition` no longer call
+  `revalidateTreePages`, and the canvas lays a dropped card out itself:
+  `lib/local-drops.ts` holds each drop (what the row held before, the
+  rounded nudge saved, and once the save answers, the newest page the tab
+  had then), and `placeDrops` puts it on the rows before the layout while
+  the row still holds its old value and the page is no fresher than the
+  save. A refused or unreachable drop is taken out again, so the card
+  goes back with the toast, as before. **My calls, not asked:** the drops
+  live for the tab, not the canvas, because Back reuses the page this tab
+  was handed before the drop (Next reuses pages on back/forward whatever
+  `staleTimes` says) and, with no revalidation, nothing else would mark it
+  stale; pages are told apart by the props object itself (`pageNumber`),
+  which is the same object when Back brings it again; any page drawn
+  after the save retires the drop, even one whose row reads as it did
+  before (so another member's Auto-arrange wins on this tab's next page);
+  the placed rows go through `useKept(…, shareEqual)`, so the page that
+  brings the saved value draws nothing. No other page draws where cards
+  sit, so nothing else needs revalidating; other members see a move on
+  their next page, as before. **Numbers:** live as a throwaway Root (4
+  people and a cat, prod builds, main → 87.3, 6 drops each, twice): the
+  drop's action reply 27.8 KB (the whole page, `x-action-revalidated: 1`)
+  → 71 bytes, median time to the reply's end 663–701 → 179–188 ms; cards
+  drawn 1 → 1 and layouts 1 → 1 either way, now at the drop instead of
+  after the round trip. On the 77-person fixture (4× CPU): main's replayed
+  revalidation 1 card + 1 layout, 87.3's drop 1 card + 1 layout, the later
+  page with the drop saved 1 + 1 → 0 + 0, no long tasks either way.
+  **Verified** on live, main beside the change: the dropped card stayed
+  where it was dropped, and a second tab, Back from the account page and
+  a reload all showed it there; a second drop then Back straight away
+  held too; an unreachable drop (action request aborted) put Dad back with
+  "Couldn't reach the server"; the cat's drop saved and held through a
+  reload; Auto-arrange after a fresh drop reset every card and the cat,
+  and Back afterwards showed them arranged; no console errors but the
+  aborted request's own. A refused drop takes the same path as an
+  unreachable one (the undo is unit-tested; not staged live). The
+  throwaway account, tree and sessions were deleted.
 
 - **Step 88.2 — Report a problem** (the second of Step 88, the person
   sheet's redesign; two migrations). **Aalim asked for:** flags off the
