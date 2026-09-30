@@ -17,7 +17,6 @@ import { Label } from "@/components/ui/label";
 import { useAction } from "@/components/use-action";
 import { useFocusReturn } from "@/components/use-focus-return";
 import { fileExtension } from "@/lib/image";
-import { createClient } from "@/lib/supabase/client";
 
 const ACCEPT = ".pdf,.jpg,.jpeg,.png";
 const ALLOWED = /^(application\/pdf|image\/jpeg|image\/png)$/;
@@ -71,6 +70,8 @@ export function PersonDocuments({
       "upload",
       async () => {
         const problems: string[] = [];
+        // Fetched with the first upload rather than with the sheet (Step 87.4).
+        const { createClient } = await import("@/lib/supabase/client");
         const supabase = createClient();
         for (const file of files) {
           if (!ALLOWED.test(file.type)) {

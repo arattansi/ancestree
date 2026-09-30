@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, type RefObject } from "react";
 import Link from "next/link";
 
 import { requestInvite, type RequestInviteState } from "@/app/actions/invite-requests";
@@ -12,34 +12,38 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { REQUEST_INVITE_INTRO } from "@/lib/request-forms";
 
 const INITIAL: RequestInviteState = {};
 
 /**
- * The share link's "Ask to join" (Step 41.4): this form in a dialog over
- * the read-only canvas, so asking doesn't cost the viewer their place in
- * the tree. A visitor from another tree has the same button. The form
- * lives in the dialog, so closing it starts afresh; asking again while the
- * request waits files nothing new and emails nobody (`requestInvite`).
+ * The share link's "Ask to join" dialog (Step 41.4), opened by
+ * `RequestInviteDialog`'s button, which fetches this module only once the
+ * canvas has painted (Step 87.4). The form lives in the dialog, so closing
+ * it starts afresh; asking again while the request waits files nothing new
+ * and emails nobody (`requestInvite`).
  */
-export function RequestInviteDialog({
+export function RequestInviteDialogPopup({
+  open,
+  onOpenChange,
   treeSlug,
-  signedIn = false,
-  children,
-  ...look
+  signedIn,
+  finalFocus,
 }: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   treeSlug: string;
-  /** A visitor is signed in already, so isn't offered a sign-in. */
-  signedIn?: boolean;
-  children: React.ReactNode;
-} & Pick<React.ComponentProps<typeof Button>, "size" | "variant" | "className">) {
+  signedIn: boolean;
+  /** The button that opened it, where focus goes back to. */
+  finalFocus: RefObject<HTMLElement | null>;
+}) {
   return (
-    <Dialog>
-      <DialogTrigger render={<Button {...look} />}>{children}</DialogTrigger>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-md">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        finalFocus={finalFocus}
+        className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-md"
+      >
         <DialogHeader>
           <DialogTitle>Ask to join</DialogTitle>
           <DialogDescription>{REQUEST_INVITE_INTRO}</DialogDescription>

@@ -30,9 +30,9 @@ import {
   PET_SPECIES,
   SPECIES_GLYPHS,
   SPECIES_LABELS,
-  type PetFormValues,
   type PetSpecies,
-} from "@/lib/pet-schema";
+} from "@/lib/pet-labels";
+import type { PetFormValues } from "@/lib/pet-schema";
 
 /**
  * Every field a companion has — which is the point. A person entry asks for

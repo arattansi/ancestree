@@ -41,13 +41,12 @@ import { cropStyle, parseCrop } from "@/lib/image-crop";
 import {
   formatPetBirthday,
   petBirthplace,
-  petSchema,
   petYears,
   speciesLabel,
   SPECIES_GLYPHS,
-  type PetFormValues,
   type PetSpecies,
-} from "@/lib/pet-schema";
+} from "@/lib/pet-labels";
+import { petSchema, type PetFormValues } from "@/lib/pet-schema";
 import type { TreePet } from "@/lib/pets";
 import { discardPhoto, uploadPhoto } from "@/lib/photo-upload";
 

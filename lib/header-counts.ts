@@ -21,6 +21,14 @@ export type HeaderCounts = {
   } | null;
 };
 
+/**
+ * Fired once a list has marked its notifications read, so the header's bell
+ * clears its count without the page being drawn again (Step 61). Its
+ * `detail` is `newestNotification` of the list. Here, not with the list, so
+ * the bell has it before the list's code comes (Step 87.4).
+ */
+export const NOTIFICATIONS_READ_EVENT = "ancestree:notifications-read";
+
 /** How long counts stay fresh before moving on or coming back asks again. */
 export const COUNTS_FRESH_MS = 30_000;
 

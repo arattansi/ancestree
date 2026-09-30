@@ -33,7 +33,8 @@ import "@xyflow/react/dist/style.css";
 import { autoArrangeTree, setPersonPosition } from "@/app/actions/people";
 import { setPetPosition } from "@/app/actions/pets";
 import { ConfirmButton } from "@/components/confirm-dialog";
-import { RequestInviteDialog } from "@/components/request-invite-form";
+import { lazyComponent, useLoadedSoon } from "@/components/lazy-component";
+import { RequestInviteDialog } from "@/components/request-invite-dialog";
 import { AddRelativeButton } from "@/components/tree/add-relative-button";
 import { buildPeopleGraph, withPets } from "@/components/tree/build-graph";
 import { ColumnsIcon, ExpandingLabel } from "@/components/tree/canvas-controls";
@@ -50,9 +51,7 @@ import { ClaimSuggestions } from "@/components/tree/claim-suggestions";
 import { GettingStarted } from "@/components/tree/getting-started";
 import { bladeTop } from "@/components/tree/leaf-card";
 import { PersonNode } from "@/components/tree/person-node";
-import { PersonPanel } from "@/components/tree/person-panel";
 import { PetNode } from "@/components/tree/pet-node";
-import { PetPanel } from "@/components/tree/pet-panel";
 import { PersonPicker } from "@/components/tree/person-picker";
 import {
   NO_CONNECTION,
@@ -143,6 +142,26 @@ import type { TreeGraphEdge, TreeGraphPerson } from "@/lib/tree";
 import type { PersonRelation } from "@/components/tree/person-family";
 
 const nodeTypes = { person: PersonNode, pet: PetNode };
+
+// The details sheets aren't needed to draw the tree, so their code comes
+// once it has painted (Step 87.4, audit C1), and they're mounted, closed,
+// from then on, so a card opens its sheet as it always did.
+const PersonPanel = lazyComponent(() =>
+  import("@/components/tree/person-panel").then((m) => m.PersonPanel),
+);
+const PetPanel = lazyComponent(() =>
+  import("@/components/tree/pet-panel").then((m) => m.PetPanel),
+);
+const preloadPanels = () =>
+  Promise.all([PersonPanel.preload(), PetPanel.preload()]);
+// A `?person=` link opens its sheet with the canvas: that code is asked for
+// as this script runs, alongside the page's own.
+if (
+  typeof window !== "undefined" &&
+  new URLSearchParams(window.location.search).has("person")
+) {
+  PersonPanel.preload().catch(() => {});
+}
 
 const NO_PETS: TreePet[] = [];
 const NO_INVITES: EntryInvite[] = [];
@@ -1754,6 +1773,16 @@ function Canvas({
       : null;
   const selectedPet = allPets.find((pet) => pet.id === selectedPetId) ?? null;
 
+  // The sheets, mounted once the canvas has painted and their code is here
+  // (sooner if a pointer comes over a card first), or at once for one opened
+  // before then (a `?person=` link), and kept so they close as they always
+  // did.
+  const [panelsReady, loadPanels] = useLoadedSoon(preloadPanels);
+  const [personOpened, setPersonOpened] = React.useState(false);
+  if (selectedPerson && !personOpened) setPersonOpened(true);
+  const [petOpened, setPetOpened] = React.useState(false);
+  if (selectedPet && !petOpened) setPetOpened(true);
+
   // Kept while every name stays the same: a card dropped changes its row,
   // not what the sheets offer (Step 87.2).
   const peopleOptions = useKept(
@@ -1917,6 +1946,7 @@ function Canvas({
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeClick={onNodeClick}
+        onNodeMouseEnter={panelsReady ? undefined : loadPanels}
         onEdgeClick={onEdgeClick}
         onNodeDragStop={readOnly ? undefined : onNodeDragStop}
         onPaneClick={() => {
@@ -2210,53 +2240,57 @@ function Canvas({
         </Panel>
       </ReactFlow>
 
-      <PersonPanel
-        // A hidden person's card is a blur to a visitor: nothing to open.
-        person={selectedPerson?.blurred ? null : selectedPerson}
-        treeId={treeId}
-        pets={selectedPets}
-        people={peopleOptions}
-        onSelectPet={onSelectPet}
-        suggestions={selectedPanelSuggestions}
-        relations={relations}
-        isAdmin={isAdmin}
-        isSelf={selectedPerson?.id === selfPersonId}
-        canEdit={canEdit}
-        canFill={canFill}
-        canSeeDocuments={canSeeDocs}
-        canDelete={canDelete}
-        canInviteToClaim={canInvite}
-        claimInvites={selectedInvites}
-        changeSuggestions={selectedSuggestions}
-        declinedSuggestions={selectedDeclined}
-        readOnly={readOnly}
-        shareToken={shareToken}
-        claimable={!!selectedPerson && claimableIds.has(selectedPerson.id)}
-        claimNote={
-          selectedPerson ? (claimNotes.get(selectedPerson.id) ?? null) : null
-        }
-        isCreator={selectedPerson?.created_by === currentUserId}
-        currentUserId={currentUserId}
-        addRelativeOf={addTarget}
-        connectionPrompt={connectionPrompt}
-        minimized={minimized}
-        onMinimize={onMinimize}
-        minimizedFocus={foldedRef}
-        onClose={onClosePerson}
-      />
+      {panelsReady || personOpened ? (
+        <PersonPanel
+          // A hidden person's card is a blur to a visitor: nothing to open.
+          person={selectedPerson?.blurred ? null : selectedPerson}
+          treeId={treeId}
+          pets={selectedPets}
+          people={peopleOptions}
+          onSelectPet={onSelectPet}
+          suggestions={selectedPanelSuggestions}
+          relations={relations}
+          isAdmin={isAdmin}
+          isSelf={selectedPerson?.id === selfPersonId}
+          canEdit={canEdit}
+          canFill={canFill}
+          canSeeDocuments={canSeeDocs}
+          canDelete={canDelete}
+          canInviteToClaim={canInvite}
+          claimInvites={selectedInvites}
+          changeSuggestions={selectedSuggestions}
+          declinedSuggestions={selectedDeclined}
+          readOnly={readOnly}
+          shareToken={shareToken}
+          claimable={!!selectedPerson && claimableIds.has(selectedPerson.id)}
+          claimNote={
+            selectedPerson ? (claimNotes.get(selectedPerson.id) ?? null) : null
+          }
+          isCreator={selectedPerson?.created_by === currentUserId}
+          currentUserId={currentUserId}
+          addRelativeOf={addTarget}
+          connectionPrompt={connectionPrompt}
+          minimized={minimized}
+          onMinimize={onMinimize}
+          minimizedFocus={foldedRef}
+          onClose={onClosePerson}
+        />
+      ) : null}
 
-      <PetPanel
-        pet={selectedPet}
-        treeId={treeId}
-        people={peopleOptions}
-        canEdit={canEditPet}
-        currentUserId={currentUserId}
-        isAdmin={isAdmin}
-        readOnly={readOnly}
-        shareToken={shareToken}
-        onClose={onClosePet}
-        onSelectPerson={selectPerson}
-      />
+      {panelsReady || petOpened ? (
+        <PetPanel
+          pet={selectedPet}
+          treeId={treeId}
+          people={peopleOptions}
+          canEdit={canEditPet}
+          currentUserId={currentUserId}
+          isAdmin={isAdmin}
+          readOnly={readOnly}
+          shareToken={shareToken}
+          onClose={onClosePet}
+          onSelectPerson={selectPerson}
+        />
+      ) : null}
     </>
   );
 }

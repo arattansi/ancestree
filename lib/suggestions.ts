@@ -15,11 +15,8 @@
  */
 
 import { asDayMonth, formatPartialDate } from "@/lib/partial-date";
-import {
-  SEX_LABELS,
-  type Sex,
-  type toPersonPayload,
-} from "@/lib/person-schema";
+import { SEX_LABELS, type Sex } from "@/lib/person-labels";
+import type { toPersonPayload } from "@/lib/person-schema";
 
 /**
  * What a suggestion may change, in the order it's shown, and the columns

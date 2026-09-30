@@ -3,7 +3,7 @@
 import * as React from "react";
 
 import { FormError } from "@/components/form-error";
-import { PhotoCropEditor } from "@/components/photo-crop-editor";
+import { PhotoCropEditor } from "@/components/lazy-photo-crop-editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -58,6 +58,10 @@ export function PhotoPicker({
   const problemId = `${id}-problem`;
 
   React.useEffect(() => onBusyChange?.(busy), [busy, onBusyChange]);
+  // The editor opens after a pick or a Reposition: here by then.
+  React.useEffect(() => {
+    if (!disabled) void PhotoCropEditor.preload().catch(() => {});
+  }, [disabled]);
 
   const pickedUrl = usePickedUrl(value);
 

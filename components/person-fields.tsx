@@ -43,7 +43,7 @@ import {
   SEX_VALUES,
   LINEAGE_LABELS,
   LINEAGE_TYPES,
-} from "@/lib/person-schema";
+} from "@/lib/person-labels";
 
 /** The mark on a label whose field has to be filled in. */
 function RequiredMark() {

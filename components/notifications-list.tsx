@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { useAction } from "@/components/use-action";
 import { firstFocusable, useFocusReturn } from "@/components/use-focus-return";
 import type { NotificationItem } from "@/lib/claims";
+import { NOTIFICATIONS_READ_EVENT } from "@/lib/header-counts";
 import { answeredLine } from "@/lib/suggestions";
 import { timeAgo } from "@/lib/time-ago";
 import {
@@ -34,13 +35,6 @@ import {
 function asksAboutAnotherTree(type: string): boolean {
   return type === "placement_requested" || type === "placements_requested";
 }
-
-/**
- * Fired once a list has marked its notifications read, so the header's bell
- * clears its count without the page being drawn again (Step 61). Its
- * `detail` is `newestNotification` of the list.
- */
-export const NOTIFICATIONS_READ_EVENT = "ancestree:notifications-read";
 
 /** When the newest of these arrived, in ms (0 for none). */
 export function newestNotification(items: NotificationItem[]): number {

@@ -12,7 +12,7 @@ import {
   type Peer,
   type PresenceMeta,
 } from "@/lib/presence";
-import { createClient } from "@/lib/supabase/client";
+import type { createClient } from "@/lib/supabase/client";
 
 /*
  * The tree's room (Step 57.3): a private Realtime channel, `tree:<id>`, that
@@ -27,12 +27,16 @@ import { createClient } from "@/lib/supabase/client";
  * otherwise rejoin a channel on its way out and hear nothing. A room lives
  * while anyone holds it and for a moment after; a new one for a topic waits
  * for the old one to have left.
+ *
+ * The Supabase client comes with the first room, not with the page, so the
+ * tree draws without waiting for it (Step 87.4, audit C1).
  */
 
 type Room = {
   key: string;
   topic: string;
   userId: string;
+  supabase: ReturnType<typeof createClient> | null;
   channel: RealtimeChannel | null;
   joined: boolean;
   holders: number;
@@ -70,6 +74,7 @@ function open(topic: string, userId: string): Room {
     key,
     topic,
     userId,
+    supabase: null,
     channel: null,
     joined: false,
     holders: 1,
@@ -82,12 +87,14 @@ function open(topic: string, userId: string): Room {
   };
   rooms.set(key, room);
 
-  const supabase = createClient();
   void (leaving.get(topic) ?? Promise.resolve())
-    // A private channel is joined with the member's own token.
-    .then(() => supabase.realtime.setAuth())
-    .then(() => {
+    .then(() => import("@/lib/supabase/client"))
+    .then(async (client) => {
+      const supabase = client.createClient();
+      // A private channel is joined with the member's own token.
+      await supabase.realtime.setAuth();
       if (room.closed) return;
+      room.supabase = supabase;
       const channel = supabase.channel(topic, {
         config: {
           private: true,
@@ -123,8 +130,8 @@ function close(room: Room) {
   room.closing = setTimeout(() => {
     room.closed = true;
     rooms.delete(room.key);
-    if (!room.channel) return;
-    const gone: Promise<unknown> = createClient()
+    if (!room.channel || !room.supabase) return;
+    const gone: Promise<unknown> = room.supabase
       .removeChannel(room.channel)
       .catch(() => undefined)
       .finally(() => {

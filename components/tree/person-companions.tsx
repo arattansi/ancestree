@@ -9,7 +9,7 @@ import {
   speciesLabel,
   SPECIES_GLYPHS,
   type PetSpecies,
-} from "@/lib/pet-schema";
+} from "@/lib/pet-labels";
 import type { TreePet } from "@/lib/pets";
 
 /**

@@ -15,6 +15,8 @@ import { AncestralLands } from "@/components/ancestral-lands";
 import { ConfirmButton } from "@/components/confirm-dialog";
 import { FormError } from "@/components/form-error";
 import { JoinsAsNote } from "@/components/joins-as-note";
+import { lazyComponent, whenIdle } from "@/components/lazy-component";
+import { PhotoCropEditor } from "@/components/lazy-photo-crop-editor";
 import { PendingButton } from "@/components/pending-button";
 import { PersonDocuments } from "@/components/person-documents";
 import { PendingConnectionPrompts } from "@/components/tree/connection-prompts";
@@ -23,11 +25,8 @@ import {
   FamilySection,
   type PersonRelation,
 } from "@/components/tree/person-family";
-import { AddCompanionDialog } from "@/components/tree/add-companion-dialog";
 import { AddRelativeButton } from "@/components/tree/add-relative-button";
 import type { CompanionOption } from "@/components/tree/companion-picker";
-import { PhotoCropEditor } from "@/components/photo-crop-editor";
-import { ReportDialog } from "@/components/tree/report-dialog";
 import { EntryStories } from "@/components/tree/entry-stories";
 import { EntryReports } from "@/components/tree/entry-reports";
 import { EntrySuggestions } from "@/components/tree/entry-suggestions";
@@ -63,7 +62,7 @@ import { asDayMonth, formatPartialDate } from "@/lib/partial-date";
 import { FILL_ENTRY_NOTE, LOCKED_ENTRY_NOTE } from "@/lib/account-types";
 import { BASIC_DETAILS, waitingOn } from "@/lib/carry";
 import { blankFields } from "@/lib/fill-blanks";
-import { SEX_LABELS, type Sex } from "@/lib/person-schema";
+import { SEX_LABELS, type Sex } from "@/lib/person-labels";
 import { PersonTrees } from "@/components/tree/person-trees";
 import { joinedByTags } from "@/lib/joined-by";
 import { countOf } from "@/lib/plural";
@@ -72,6 +71,17 @@ import { editPersonHref, suggestChangeHref } from "@/lib/tree-links";
 import { cn } from "@/lib/utils";
 import type { TreePet } from "@/lib/pets";
 import type { TreeGraphPerson } from "@/lib/tree";
+
+// Dialogs the sheet opens on a tap (Step 87.4, audit C1), fetched once the
+// sheet is mounted and the browser is idle, so they're here before it opens.
+const ReportDialog = lazyComponent(() =>
+  import("@/components/tree/report-dialog").then((m) => m.ReportDialog),
+);
+const AddCompanionDialog = lazyComponent(() =>
+  import("@/components/tree/add-companion-dialog").then(
+    (m) => m.AddCompanionDialog,
+  ),
+);
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   if (value === null || value === undefined || value === "") return null;
@@ -308,6 +318,14 @@ function PersonPanelImpl({
   const [familyOpen, setFamilyOpen] = React.useState(false);
   const [companionsOpen, setCompanionsOpen] = React.useState(false);
   const savedCrop = parseCrop(person?.photo_crop);
+  React.useEffect(
+    () =>
+      whenIdle(() => {
+        for (const lazy of [ReportDialog, AddCompanionDialog, PhotoCropEditor])
+          lazy.preload().catch(() => {});
+      }),
+    [],
+  );
   const [crop, setCrop] = React.useState<CropTransform>(savedCrop);
   const [prevId, setPrevId] = React.useState(person?.id);
   // Under the name in the header, as on the person's card and leaf.

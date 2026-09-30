@@ -3,18 +3,47 @@
 import { Bell } from "lucide-react";
 import * as React from "react";
 
-import { ClearNotificationsButton } from "@/components/clear-notifications-button";
 import { CloseOnNavigate } from "@/components/close-on-navigate";
 import { useHeaderCounts } from "@/components/header-counts";
-import {
-  NOTIFICATIONS_READ_EVENT,
-  NotificationsList,
-} from "@/components/notifications-list";
+import { lazyComponent } from "@/components/lazy-component";
 import { NavCount } from "@/components/site-nav-link";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { NotificationItem } from "@/lib/claims";
-import { unreadShown } from "@/lib/header-counts";
+import { NOTIFICATIONS_READ_EVENT, unreadShown } from "@/lib/header-counts";
+
+/** What the list shows until its items (or its code) are here. */
+function ListSkeleton() {
+  return (
+    <div aria-busy="true" className="flex flex-col gap-3">
+      <Skeleton className="h-14 w-full" />
+      <Skeleton className="h-14 w-full" />
+      <span className="sr-only">Loading notifications</span>
+    </div>
+  );
+}
+
+// The list and its Clear, which every page's header would otherwise carry,
+// with the forms they answer in (and zod through them): fetched when the
+// bell is pointed at, focused or opened (Step 87.4, audit C1).
+const NotificationsList = lazyComponent(
+  () =>
+    import("@/components/notifications-list").then(
+      (m) => m.NotificationsList,
+    ),
+  ListSkeleton,
+);
+const ClearNotificationsButton = lazyComponent(() =>
+  import("@/components/clear-notifications-button").then(
+    (m) => m.ClearNotificationsButton,
+  ),
+);
+function preloadList() {
+  void Promise.all([
+    NotificationsList.preload(),
+    ClearNotificationsButton.preload(),
+  ]).catch(() => {});
+}
 
 /**
  * The signed-in member's in-app notifications, reachable from the header on
@@ -94,6 +123,7 @@ export function SiteNotifications() {
   }, [open, asking]);
 
   function toggle() {
+    preloadList();
     setOpen((v) => {
       if (!v) setSeenUpTo((cur) => Math.max(cur, counts.latestUnreadAt));
       return !v;
@@ -110,6 +140,8 @@ export function SiteNotifications() {
         variant="ghost"
         className="relative tap-target"
         onClick={toggle}
+        onPointerEnter={preloadList}
+        onFocus={preloadList}
         aria-expanded={open}
         aria-label={
           unread > 0 ? `Notifications, ${unread} unread` : "Notifications"
@@ -170,11 +202,7 @@ export function SiteNotifications() {
               </Button>
             </div>
           ) : (
-            <div aria-busy="true" className="flex flex-col gap-3">
-              <Skeleton className="h-14 w-full" />
-              <Skeleton className="h-14 w-full" />
-              <span className="sr-only">Loading notifications</span>
-            </div>
+            <ListSkeleton />
           )}
         </div>
       ) : null}
