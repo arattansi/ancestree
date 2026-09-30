@@ -69,7 +69,7 @@ export async function generateMetadata({
   if (view === "admin") {
     return {
       title: "root",
-      description: "Manage members, invites, disputes, and entry counts.",
+      description: "Manage members, invites, reports, and entry counts.",
     };
   }
   if (view === "dashboard" && (await isBetaReviewer())) {

@@ -3,7 +3,7 @@ import { AccountTypeGuide } from "@/components/account-type-guide";
 import { AccountTypePicker } from "@/components/admin/account-type-picker";
 import { AdminArchivedInvites } from "@/components/admin/admin-archived-invites";
 import { AdminBareInvites } from "@/components/admin/admin-bare-invites";
-import { AdminDisputedClaims } from "@/components/admin/admin-disputed-claims";
+import { AdminReports } from "@/components/admin/admin-reports";
 import { AdminExport } from "@/components/admin/admin-export";
 import { AdminInviteHistory } from "@/components/admin/admin-invite-history";
 import { AdminNicknames } from "@/components/admin/admin-nicknames";
@@ -57,7 +57,7 @@ import {
   sectionShown,
   type AdminSectionContext,
 } from "@/lib/admin-sections";
-import { listDisputedClaims } from "@/lib/claims";
+import { listTreeReports } from "@/lib/entry-reports";
 import { FAMILY_LINK_MAX_USES } from "@/lib/family-link";
 import { getFamilyLink, listFamilyLinkJoins } from "@/lib/family-link.server";
 import {
@@ -121,13 +121,12 @@ export async function AdminConsole({
     peopleRes,
     relCountRes,
     approvedClaimsRes,
-    openFlagsRes,
     pendingRequests,
     shareLinksRes,
     visibilityRes,
     myTrees,
     sideOf,
-    disputedClaims,
+    reports,
     [inviteHistory, bareInvites, archivedInvites],
     familyLink,
     familyLinkJoins,
@@ -153,12 +152,6 @@ export async function AdminConsole({
       .select("id, people!inner(tree_id)", { count: "exact", head: true })
       .eq("status", "approved")
       .eq("people.tree_id", tree.id),
-    supabase
-      .from("entry_comments")
-      .select("id", { count: "exact", head: true })
-      .eq("tree_id", tree.id)
-      .eq("is_flag", true)
-      .eq("status", "open"),
     pendingRequestsP,
     supabase
       .from("share_links")
@@ -176,7 +169,7 @@ export async function AdminConsole({
     // related to. They tend the part of it they are related through (Step
     // 22.2).
     branchSidesOn(tree.id),
-    listDisputedClaims(tree.id),
+    listTreeReports(tree.id, currentAdmin.auth_user_id),
     // Archived before listing, so a link that lapsed since the last visit
     // lands in "Archived invites" rather than lingering among the live ones.
     archiveExpiredInvites(tree.id).then(() =>
@@ -300,11 +293,11 @@ export async function AdminConsole({
   ).length;
   const actionItems = buildAdminActionItems({
     inviteRequests: inviteRequests.length,
-    disputedClaims: disputedClaims.length,
+    reports: reports.length,
     treeRequests: openTreeRequests,
   });
   const requestsBadge =
-    inviteRequests.length + disputedClaims.length + openTreeRequests;
+    inviteRequests.length + reports.length + openTreeRequests;
 
   const stats: { label: string; value: number }[] = [
     { label: "Members", value: members.length },
@@ -312,8 +305,7 @@ export async function AdminConsole({
     { label: "From Other Trees", value: fromElsewhere },
     { label: "Connections", value: relCountRes.count ?? 0 },
     { label: "Claimed", value: approvedClaimsRes.count ?? 0 },
-    { label: "Open flags", value: openFlagsRes.count ?? 0 },
-    { label: "Disputes", value: disputedClaims.length },
+    { label: "Reports", value: reports.length },
     { label: "Invite requests", value: inviteRequests.length },
   ];
 
@@ -330,7 +322,7 @@ export async function AdminConsole({
       <div>
         <h2 className="text-xl font-semibold tracking-tight">{tree.name}</h2>
         <p className="text-sm text-muted-foreground">
-          Members, invites, disputes, who this tree shows, and its health at a
+          Members, invites, reports, who this tree shows, and its health at a
           glance.
         </p>
       </div>
@@ -506,11 +498,11 @@ export async function AdminConsole({
       </AdminGroup>
 
       <AdminGroup
-        title="Requests & Claims"
+        title="Requests & Reports"
         description={
           reviewer
-            ? "People asking to join, contesting a claim, or asking to start a tree."
-            : "People asking to join, or contesting a claim."
+            ? "People asking to join, problems reported with entries, and asking to start a tree."
+            : "People asking to join, and problems reported with entries."
         }
         sectionIds={groupSectionIds("requests", sections)}
         badge={requestsBadge}
@@ -527,13 +519,13 @@ export async function AdminConsole({
         </AdminSubsection>
 
         <AdminSubsection
-          id="disputes"
+          id="reports"
           collapsible
-          defaultOpen={disputedClaims.length > 0}
-          title="Disputed Claims"
-          description={`${disputedClaims.length} awaiting a decision. Upholding keeps the new owner; reversing returns the entry to its creator.`}
+          defaultOpen={reports.length > 0}
+          title="Reports"
+          description={`${reports.length} open. A report is seen only by the Roots, whoever can edit the entry, and whoever made it. Upholding a disputed claim keeps its owner; reversing returns the entry to whoever added it.`}
         >
-          <AdminDisputedClaims claims={disputedClaims} />
+          <AdminReports reports={reports} />
         </AdminSubsection>
 
         {sectionShown("tree-requests", sections) ? (

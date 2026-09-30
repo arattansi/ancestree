@@ -92,9 +92,9 @@ describe("entryFacts (Step 77.1)", () => {
     });
   });
 
-  it("ignores a claim still in dispute and other entries' claims", async () => {
+  it("ignores a reversed claim and other entries' claims", async () => {
     claims = [
-      { id: "c1", person_id: "p1", status: "disputed" },
+      { id: "c1", person_id: "p1", status: "rejected" },
       { id: "c2", person_id: "p2", status: "approved" },
     ];
     await expect(entryFacts("p1", "me")).resolves.toEqual({

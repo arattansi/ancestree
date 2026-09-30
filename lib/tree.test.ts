@@ -16,7 +16,7 @@ const ROWS: Record<string, unknown[]> = {
   ],
   tree_edges: [],
   claims: [{ id: "c1", person_id: "p2", status: "approved", claimant_user_id: "u2" }],
-  entry_comments: [],
+  entry_reports: [],
   historical_names: [],
   places: [],
   member_directory: [
@@ -67,6 +67,27 @@ describe("getTreeGraph account types (Step 19.1)", () => {
     });
     expect(people.map((p) => p.account_type)).toEqual(["admin", "member"]);
     expect(read).toContain("member_directory");
+  });
+});
+
+describe("getTreeGraph report counts (Step 88.2)", () => {
+  const rows = {
+    ...ROWS,
+    // What RLS lets the viewer read: the open reports they may see.
+    entry_reports: [{ person_id: "p2" }, { person_id: "p2" }],
+  };
+
+  it("counts the open reports the viewer can read", async () => {
+    const { client } = fakeClient(rows);
+    const { people } = await getTreeGraph("t1", client);
+    expect(people.map((p) => p.open_report_count)).toEqual([0, 2]);
+  });
+
+  it("reads none on a share link", async () => {
+    const { client, read } = fakeClient(rows);
+    const { people } = await getTreeGraph("t1", client, { forPublic: true });
+    expect(people.map((p) => p.open_report_count)).toEqual([0, 0]);
+    expect(read).not.toContain("entry_reports");
   });
 });
 

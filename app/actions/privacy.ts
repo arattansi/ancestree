@@ -40,6 +40,8 @@ export async function exportTreeData(treeId: string): Promise<{
     invites,
     claims,
     entryComments,
+    reportsHere,
+    reportsOnOwn,
     documents,
     notifications,
     pets,
@@ -53,6 +55,10 @@ export async function exportTreeData(treeId: string): Promise<{
     db.from("invites").select("*").eq("tree_id", treeId),
     personIds.length ? db.from("claims").select("*").in("person_id", personIds) : Promise.resolve({ data: [], error: null }),
     db.from("entry_comments").select("*").eq("tree_id", treeId),
+    // Reports (Step 88.2): those raised here, and those on the tree's own
+    // entries, which its Roots see wherever they were raised.
+    db.from("entry_reports").select("*").eq("tree_id", treeId),
+    db.from("entry_reports").select("*, people!inner(tree_id)").eq("people.tree_id", treeId),
     db.from("documents").select("*").eq("tree_id", treeId),
     db.from("notifications").select("*").eq("tree_id", treeId),
     db.from("pets").select("*").eq("tree_id", treeId),
@@ -68,6 +74,8 @@ export async function exportTreeData(treeId: string): Promise<{
     invites,
     claims,
     entryComments,
+    reportsHere,
+    reportsOnOwn,
     documents,
     notifications,
     pets,
@@ -88,6 +96,14 @@ export async function exportTreeData(treeId: string): Promise<{
       invites: invites.data ?? [],
       claims: claims.data ?? [],
       entry_comments: entryComments.data ?? [],
+      entry_reports: [
+        ...new Map(
+          [
+            ...(reportsHere.data ?? []),
+            ...(reportsOnOwn.data ?? []).map(({ people: _home, ...r }) => r),
+          ].map((r) => [r.id, r]),
+        ).values(),
+      ],
       documents: documents.data ?? [],
       notifications: notifications.data ?? [],
       pets: pets.data ?? [],

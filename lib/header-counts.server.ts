@@ -40,7 +40,7 @@ export async function headerCounts({
     runs.length > 0 ? countPendingTreeRequests() : 0,
   ]);
   const count =
-    queues.reduce((sum, q) => sum + q.inviteRequests + q.disputedClaims, 0) +
+    queues.reduce((sum, q) => sum + q.inviteRequests + q.reports, 0) +
     treeRequests;
   // One tap from the count to what's waiting, on whichever tree it's on.
   const queue = pickQueueTarget({ trees: queues, treeRequests, currentTreeId });

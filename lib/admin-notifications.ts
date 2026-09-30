@@ -5,6 +5,7 @@ import {
   type QueueSection,
   type TreeQueue,
 } from "@/lib/admin-queue";
+import { countTreeReports } from "@/lib/entry-reports";
 import { createClient } from "@/lib/supabase/server";
 
 export type AdminActionItem = {
@@ -17,7 +18,7 @@ export type AdminActionItem = {
 /** What each queue is called in the console's "Needs attention" card. */
 const QUEUE_LABELS: Record<QueueSection, string> = {
   "invite-requests": "requests for access",
-  disputes: "disputed claims",
+  reports: "reports",
   "tree-requests": "requests to start a tree",
 };
 
@@ -28,13 +29,13 @@ const QUEUE_LABELS: Record<QueueSection, string> = {
  */
 export function buildAdminActionItems(counts: {
   inviteRequests: number;
-  disputedClaims: number;
+  reports: number;
   /** Requests to start a tree (Step 28) — a beta reviewer's only. */
   treeRequests?: number;
 }): AdminActionItem[] {
   const waiting: Record<QueueSection, number> = {
     "invite-requests": counts.inviteRequests,
-    disputes: counts.disputedClaims,
+    reports: counts.reports,
     "tree-requests": counts.treeRequests ?? 0,
   };
   return QUEUE_SECTIONS.map((target) => ({
@@ -51,22 +52,18 @@ export function buildAdminActionItems(counts: {
  */
 export async function countAdminQueue(treeId: string): Promise<TreeQueue> {
   const supabase = await createClient();
-  const [reqs, disputes] = await Promise.all([
+  const [reqs, reports] = await Promise.all([
     supabase
       .from("invite_requests")
       .select("id", { count: "exact", head: true })
       .eq("tree_id", treeId)
       .eq("status", "pending"),
-    // Disputes are per entry; the ones for this tree are on its people.
-    supabase
-      .from("claims")
-      .select("id, people!inner(tree_id)", { count: "exact", head: true })
-      .eq("status", "disputed")
-      .eq("people.tree_id", treeId),
+    // Reports are per entry; the ones for this tree are on its own people.
+    countTreeReports(treeId),
   ]);
   return {
     treeId,
     inviteRequests: reqs.count ?? 0,
-    disputedClaims: disputes.count ?? 0,
+    reports,
   };
 }

@@ -7,7 +7,7 @@ import type { AdminActionItem } from "@/lib/admin-notifications";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 /**
- * The Root console's queue — requests for access, disputed claims and, for a
+ * The Root console's queue — requests for access, reports on entries and, for a
  * beta reviewer, requests to start a tree. Mirrors the section nav: a thin
  * floating rail on the right at xl, and an inline card near the top of the
  * console on narrower screens where there's no room to float it.

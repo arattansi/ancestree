@@ -22,6 +22,9 @@ export const SHARE_LINK_LABEL_MAX = 80;
 /** A comment on an entry or a companion. */
 export const COMMENT_MAX = 2000;
 
+/** What's wrong, in a report on an entry (Step 88.2). */
+export const REPORT_MAX = 1000;
+
 /** The note with a suggested change, and a reason for declining one. */
 export const SUGGESTION_NOTE_MAX = 500;
 

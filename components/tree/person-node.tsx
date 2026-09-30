@@ -227,13 +227,14 @@ function PersonNodeImpl({ data }: NodeProps) {
           className={handleClass}
         />
 
-        {person.open_flag_count > 0 ? (
+        {/* Reports only those who can put them right see (Step 88.2). */}
+        {person.open_report_count > 0 ? (
           <span
             className="absolute -top-1.5 -right-1.5 flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] font-semibold text-white"
-            title={countOf(person.open_flag_count, "open flag")}
-            aria-label={`${person.open_flag_count} open flags`}
+            title={countOf(person.open_report_count, "report")}
+            aria-label={countOf(person.open_report_count, "report")}
           >
-            {person.open_flag_count}
+            {person.open_report_count}
           </span>
         ) : null}
 

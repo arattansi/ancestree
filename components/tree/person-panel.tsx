@@ -2,9 +2,9 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Lightbulb, Mail, Minimize2, Pencil, UserPlus } from "lucide-react";
+import { Flag, Lightbulb, Mail, Minimize2, Pencil, UserPlus } from "lucide-react";
 
-import { claimPerson, disputeClaim } from "@/app/actions/claims";
+import { claimPerson } from "@/app/actions/claims";
 import { sendClaimInvite } from "@/app/actions/invites";
 import { setPersonPhotoCrop } from "@/app/actions/people";
 import { deletePerson } from "@/app/actions/privacy";
@@ -27,7 +27,9 @@ import { AddCompanionDialog } from "@/components/tree/add-companion-dialog";
 import { AddRelativeButton } from "@/components/tree/add-relative-button";
 import type { CompanionOption } from "@/components/tree/companion-picker";
 import { PhotoCropEditor } from "@/components/photo-crop-editor";
+import { ReportDialog } from "@/components/tree/report-dialog";
 import { EntryComments } from "@/components/tree/entry-comments";
+import { EntryReports } from "@/components/tree/entry-reports";
 import { EntrySuggestions } from "@/components/tree/entry-suggestions";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -99,6 +101,35 @@ function TagLink({
       variant="outline"
       render={<Link href={href} title={title} />}
       className="relative tap-target overflow-visible"
+    >
+      {children}
+    </Badge>
+  );
+}
+
+/** A button drawn like `TagLink` beside it. */
+function TagButton({
+  label,
+  onClick,
+  children,
+}: {
+  /** Its name, for a button that shows only an icon. */
+  label: string;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <Badge
+      variant="outline"
+      render={
+        <button
+          type="button"
+          onClick={onClick}
+          aria-label={label}
+          title={label}
+        />
+      }
+      className="relative tap-target overflow-visible hover:bg-muted hover:text-muted-foreground"
     >
       {children}
     </Badge>
@@ -262,14 +293,11 @@ function PersonPanelImpl({
   // ask first, and their dialogs carry their own.
   const cropSave = useAction({ inline: true });
   const invite = useAction({ inline: true });
-  const dispute = useAction({ inline: true });
   // The sheet is non-modal, so nothing else keeps focus as its inline forms
   // open and close.
   const returnFocus = useFocusReturn();
   const claimEmailRef = React.useRef<HTMLInputElement>(null);
-  const disputeLinkRef = React.useRef<HTMLButtonElement>(null);
-  const [disputing, setDisputing] = React.useState(false);
-  const [reason, setReason] = React.useState("");
+  const [reporting, setReporting] = React.useState(false);
   const [photoOpen, setPhotoOpen] = React.useState(false);
   const [addingCompanion, setAddingCompanion] = React.useState(false);
   const [cropOpen, setCropOpen] = React.useState(false);
@@ -305,7 +333,12 @@ function PersonPanelImpl({
   const canReposition = !locked && canEdit && !!person?.photo_url;
   const canClaim = !isSelf && claimable && !person?.claim_status;
   const lockedNote = !canEdit && !claimable && !isSelf;
+  // Whoever added an entry someone has claimed may dispute the claim, in
+  // the report dialog (Step 88.2).
   const canDispute = person?.claim_status === "approved" && isCreator;
+  // A problem with an entry is reported by whoever can't put it right
+  // themselves, or has a claim to dispute.
+  const canReport = !locked && (!canEdit || canDispute);
   const joinedTags = locked
     ? []
     : joinedByTags(person?.joined_by ?? null, currentUserId);
@@ -316,9 +349,7 @@ function PersonPanelImpl({
       canDelete ||
       canInviteToClaim ||
       claimInvites.length > 0 ||
-      lockedNote ||
-      canDispute ||
-      person?.claim_status === "disputed");
+      lockedNote);
 
   // Claiming merges the viewer's own entry into this one and deletes it, so
   // it asks first (Step 36). A basic card offers it too (Step 83): claiming
@@ -386,11 +417,10 @@ function PersonPanelImpl({
     <ClaimInviteRecords invites={claimInvites} />
   ) : null;
 
-  // Reset the inline dispute form whenever a different person is selected.
+  // A different person: what was open for the last one closes.
   if (person?.id !== prevId) {
     setPrevId(person?.id);
-    setDisputing(false);
-    setReason("");
+    setReporting(false);
     setPhotoOpen(false);
     setAddingCompanion(false);
     setCropOpen(false);
@@ -403,7 +433,6 @@ function PersonPanelImpl({
     // What went wrong for the last one goes with them.
     cropSave.setError(null);
     invite.setError(null);
-    dispute.setError(null);
   }
 
   function onSaveCrop() {
@@ -429,18 +458,6 @@ function PersonPanelImpl({
         returnFocus(() =>
           claimEmailRef.current?.disabled ? null : claimEmailRef.current,
         );
-      },
-    });
-  }
-
-  function onDispute() {
-    if (!person?.claim_id) return;
-    const claimId = person.claim_id;
-    dispute.run("send", () => disputeClaim(claimId, reason), {
-      success: "Dispute sent to a Root.",
-      onSuccess: () => {
-        setDisputing(false);
-        onClose();
       },
     });
   }
@@ -583,14 +600,15 @@ function PersonPanelImpl({
               {/* The edit button sits at the end of the badges, the account
                   type tag's size (Step 88.1; in the header since Step 62, so
                   it's found without scrolling). Anyone who can't edit the
-                  entry can suggest a change (Step 67). */}
+                  entry can suggest a change (Step 67), or report a problem
+                  with it (Step 88.2). */}
               <div className="flex flex-wrap items-center gap-1.5 empty:hidden">
                 {person.is_deceased ? (
                   <Badge variant="secondary">Deceased</Badge>
                 ) : null}
-                {person.open_flag_count > 0 ? (
+                {person.open_report_count > 0 ? (
                   <Badge variant="destructive">
-                    {countOf(person.open_flag_count, "open flag")}
+                    {countOf(person.open_report_count, "report")}
                   </Badge>
                 ) : null}
                 {person.claim_status === "approved" ? (
@@ -598,9 +616,6 @@ function PersonPanelImpl({
                 ) : null}
                 {person.account_type ? (
                   <AccountTypeBadge role={person.account_type} />
-                ) : null}
-                {person.claim_status === "disputed" ? (
-                  <Badge variant="destructive">Ownership disputed</Badge>
                 ) : null}
                 {isAdmin && person.lineage_type ? (
                   <Badge variant="outline">
@@ -627,6 +642,14 @@ function PersonPanelImpl({
                         Suggest
                       </TagLink>
                     ) : null}
+                    {canReport ? (
+                      <TagButton
+                        label="Report a problem"
+                        onClick={() => setReporting(true)}
+                      >
+                        <Flag aria-hidden />
+                      </TagButton>
+                    ) : null}
                   </span>
                 ) : null}
               </div>
@@ -652,6 +675,15 @@ function PersonPanelImpl({
                   suggestions={changeSuggestions}
                   declined={declinedSuggestions}
                   entry={person}
+                />
+              ) : null}
+              {!locked ? (
+                <EntryReports
+                  personId={person.id}
+                  personName={personDisplayName(person)}
+                  count={person.open_report_count}
+                  canEdit={canEdit}
+                  canDecide={isAdmin && person.is_home}
                 />
               ) : null}
               {!readOnly ? (
@@ -789,12 +821,7 @@ function PersonPanelImpl({
 
               {!locked ? (
                 <section className="border-t border-border pt-5">
-                  <EntryComments
-                    personId={person.id}
-                    treeId={treeId}
-                    currentUserId={currentUserId}
-                    canModerate={canEdit}
-                  />
+                  <EntryComments personId={person.id} treeId={treeId} />
                 </section>
               ) : null}
 
@@ -852,70 +879,6 @@ function PersonPanelImpl({
                       {fillable ? FILL_ENTRY_NOTE : LOCKED_ENTRY_NOTE}
                     </p>
                   ) : null}
-
-                  {canDispute ? (
-                    disputing ? (
-                      <div className="flex flex-col gap-2 rounded-md border border-border p-3">
-                        <label
-                          htmlFor="dispute-reason"
-                          className="text-xs font-medium text-muted-foreground"
-                        >
-                          Why is this claim wrong? (optional)
-                        </label>
-                        <Input
-                          id="dispute-reason"
-                          value={reason}
-                          onChange={(e) => setReason(e.target.value)}
-                          placeholder="This isn't the same person…"
-                        />
-                        <FormError>{dispute.error}</FormError>
-                        <div className="flex gap-2">
-                          <PendingButton
-                            size="sm"
-                            onClick={onDispute}
-                            pending={dispute.pending}
-                            pendingLabel="Sending…"
-                          >
-                            Send dispute
-                          </PendingButton>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => {
-                              returnFocus(() => disputeLinkRef.current);
-                              setDisputing(false);
-                              dispute.setError(null);
-                            }}
-                            disabled={dispute.pending}
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <button
-                        ref={disputeLinkRef}
-                        type="button"
-                        className="relative tap-target self-start text-xs text-destructive underline underline-offset-2"
-                        onClick={() => {
-                          setDisputing(true);
-                          // The link makes way for the form: its box takes
-                          // focus.
-                          returnFocus(() =>
-                            document.getElementById("dispute-reason"),
-                          );
-                        }}
-                      >
-                        You created this entry — dispute the claim
-                      </button>
-                    )
-                  ) : null}
-
-                  {person.claim_status === "disputed" ? (
-                    <p className="text-xs text-muted-foreground">
-                      A dispute over this entry is with a Root.
-                    </p>
-                  ) : null}
                 </section>
               ) : null}
 
@@ -940,6 +903,16 @@ function PersonPanelImpl({
                 </footer>
               ) : null}
             </div>
+
+            {canReport ? (
+              <ReportDialog
+                open={reporting}
+                onOpenChange={setReporting}
+                personId={person.id}
+                treeId={treeId}
+                canDispute={canDispute}
+              />
+            ) : null}
 
             {!readOnly && canEdit ? (
               <AddCompanionDialog

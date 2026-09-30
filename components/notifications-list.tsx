@@ -3,17 +3,16 @@
 import * as React from "react";
 import Link from "next/link";
 
-import { disputeClaim, markNotificationsRead } from "@/app/actions/claims";
+import { markNotificationsRead } from "@/app/actions/claims";
 import { revertEntryEdit } from "@/app/actions/people";
 import { respondToPlacement } from "@/app/actions/trees";
-import { FormError } from "@/components/form-error";
 import { PendingButton } from "@/components/pending-button";
 import { RowCard, RowList } from "@/components/row-card";
 import { SuggestionAnswer } from "@/components/suggestion-answer";
 import { SuggestionChanges } from "@/components/suggestion-changes";
 import { TreeTarget } from "@/components/tree-target";
+import { ReportDialog } from "@/components/tree/report-dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useAction } from "@/components/use-action";
 import { firstFocusable, useFocusReturn } from "@/components/use-focus-return";
 import type { NotificationItem } from "@/lib/claims";
@@ -65,8 +64,6 @@ export function NotificationsList({
    */
   currentTreeId: string | null;
 }) {
-  // One dispute form open at a time, across the list.
-  const [disputingId, setDisputingId] = React.useState<string | null>(null);
   const hasUnread = items.some((n) => !n.readAt);
 
   React.useEffect(() => {
@@ -87,14 +84,6 @@ export function NotificationsList({
           n={n}
           showTree={showTree}
           currentTreeId={currentTreeId}
-          disputing={disputingId === n.id}
-          onDisputingChange={(open) =>
-            // A dispute sent from one item mustn't close another's form,
-            // opened since.
-            setDisputingId((current) =>
-              open ? n.id : current === n.id ? null : current,
-            )
-          }
         />
       )}
     </RowList>
@@ -109,29 +98,20 @@ function NotificationRow({
   n,
   showTree,
   currentTreeId,
-  disputing,
-  onDisputingChange,
 }: {
   n: NotificationItem;
   showTree: boolean;
   currentTreeId: string | null;
-  /** Its dispute form is open. */
-  disputing: boolean;
-  onDisputingChange: (open: boolean) => void;
 }) {
   const action = useAction();
-  // The dispute is a small form: what goes wrong shows by its button.
-  const dispute = useAction({ inline: true });
-  const [reason, setReason] = React.useState("");
+  // Disputing the claim is the report dialog's (Step 88.2).
+  const [disputing, setDisputing] = React.useState(false);
   const returnFocus = useFocusReturn();
   const rowRef = React.useRef<HTMLLIElement>(null);
-  const disputeButtonRef = React.useRef<HTMLButtonElement>(null);
-  const reasonRef = React.useRef<HTMLInputElement>(null);
-  const busy = action.pending || dispute.pending;
+  const busy = action.pending;
   const suggestion = n.suggestion;
   const placementId = n.placementId;
   const revisionId = n.revertibleRevisionId;
-  const claimId = n.claimId;
 
   // An answered item loses the buttons that answered it: focus moves on to
   // what's left of it rather than drop to the page.
@@ -154,33 +134,6 @@ function NotificationRow({
         onSuccess: answered,
       },
     );
-  }
-
-  function openDispute() {
-    setReason("");
-    dispute.setError(null);
-    onDisputingChange(true);
-    returnFocus(() => reasonRef.current);
-  }
-
-  function closeDispute() {
-    dispute.setError(null);
-    onDisputingChange(false);
-    returnFocus(() => disputeButtonRef.current);
-  }
-
-  function onDispute(id: string) {
-    dispute.run("dispute", () => disputeClaim(id, reason), {
-      success: "Dispute sent to a Root.",
-      onSuccess: () => {
-        onDisputingChange(false);
-        setReason("");
-        // A disputed claim can't be disputed again, so its button goes too.
-        returnFocus(
-          () => disputeButtonRef.current ?? firstFocusable(rowRef.current),
-        );
-      },
-    });
   }
 
   return (
@@ -367,54 +320,22 @@ function NotificationRow({
           </PendingButton>
         ) : null}
 
-        {n.canDispute && claimId && !disputing ? (
-          <Button
-            ref={disputeButtonRef}
-            size="sm"
-            variant="outline"
-            onClick={openDispute}
-          >
+        {n.canDispute && n.personId && n.treeId ? (
+          <Button size="sm" variant="outline" onClick={() => setDisputing(true)}>
             Dispute this claim
           </Button>
         ) : null}
       </div>
 
-      {disputing && claimId ? (
-        <div className="flex flex-col gap-2 rounded-md border border-border p-2">
-          <label
-            htmlFor={`reason-${n.id}`}
-            className="text-xs font-medium text-muted-foreground"
-          >
-            Why is this claim wrong? (optional)
-          </label>
-          <Input
-            ref={reasonRef}
-            id={`reason-${n.id}`}
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            placeholder="This isn't the same person…"
-          />
-          <FormError>{dispute.error}</FormError>
-          <div className="flex gap-2">
-            <PendingButton
-              size="sm"
-              pending={dispute.pending}
-              disabled={action.pending}
-              pendingLabel="Sending…"
-              onClick={() => onDispute(claimId)}
-            >
-              Send dispute
-            </PendingButton>
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={dispute.pending}
-              onClick={closeDispute}
-            >
-              Cancel
-            </Button>
-          </div>
-        </div>
+      {n.canDispute && n.personId && n.treeId ? (
+        <ReportDialog
+          open={disputing}
+          onOpenChange={setDisputing}
+          personId={n.personId}
+          treeId={n.treeId}
+          canDispute
+          initial="claim"
+        />
       ) : null}
     </RowCard>
   );

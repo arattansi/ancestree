@@ -24,10 +24,10 @@ describe("adminNav", () => {
       },
       { label: "People", items: [{ id: "placements", label: "From Other Trees" }] },
       {
-        label: "Requests & claims",
+        label: "Requests & reports",
         items: [
           { id: "invite-requests", label: "Requests for Access" },
-          { id: "disputes", label: "Disputed Claims" },
+          { id: "reports", label: "Reports" },
         ],
       },
       {
@@ -70,10 +70,10 @@ describe("adminNav", () => {
 describe("groupSectionIds", () => {
   it("opens a group for its own sections, not for the overview above it", () => {
     expect(groupSectionIds("members", ROOT)).toEqual(["members", "account-types"]);
-    expect(groupSectionIds("requests", ROOT)).toEqual(["invite-requests", "disputes"]);
+    expect(groupSectionIds("requests", ROOT)).toEqual(["invite-requests", "reports"]);
     expect(groupSectionIds("requests", REVIEWER)).toEqual([
       "invite-requests",
-      "disputes",
+      "reports",
       "tree-requests",
     ]);
   });

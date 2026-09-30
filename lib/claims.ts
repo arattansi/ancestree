@@ -48,7 +48,8 @@ export type NotificationItem = {
   readAt: string | null;
   personId: string | null;
   claimId: string | null;
-  /** True when the recipient is the entry's creator and can still dispute. */
+  /** True when the recipient is the entry's creator and can still dispute
+   *  its claim: it stands, and they haven't a dispute of it open. */
   canDispute: boolean;
   /**
    * A Branch's edit to a Root's entry that this Root can still undo (Step
@@ -216,11 +217,12 @@ export const listNotifications = cache(async function listNotifications(
           .in("person_id", [...new Set(pendingPersonIds)])
           .then(({ data }) => data ?? [])
       : [],
-    // The claims with who made each entry, in one read.
+    // The claims with who made each entry, and any dispute of theirs still
+    // open (Step 88.2), in one read.
     claimIds.length > 0
       ? supabase
           .from("claims")
-          .select("id, status, person_id, people(created_by)")
+          .select("id, status, person_id, people(created_by), entry_reports(status)")
           .in("id", claimIds)
           .then(({ data }) => data ?? [])
       : [],
@@ -240,11 +242,16 @@ export const listNotifications = cache(async function listNotifications(
     placementByPerson.set(`${p.tree_id}:${p.person_id}`, p.id);
   }
   // Which of these notifications point at a claim this user may still dispute:
-  // they created the entry and the claim is currently `approved`.
+  // they created the entry, the claim is `approved`, and no dispute of it is
+  // open.
   const disputable = new Set<string>();
   for (const c of claims) {
     const entry = Array.isArray(c.people) ? c.people[0] : c.people;
-    if (c.status === "approved" && entry?.created_by === userId) {
+    if (
+      c.status === "approved" &&
+      entry?.created_by === userId &&
+      !c.entry_reports.some((r) => r.status === "open")
+    ) {
       disputable.add(c.id);
     }
   }
@@ -276,52 +283,3 @@ export const listNotifications = cache(async function listNotifications(
     };
   });
 });
-
-export type DisputedClaim = {
-  id: string;
-  personId: string;
-  personName: string;
-  claimantName: string | null;
-  creatorName: string | null;
-  reason: string | null;
-  disputedAt: string;
-};
-
-/** Disputed claims on one tree's entries awaiting a Root's decision. */
-export async function listDisputedClaims(treeId: string): Promise<DisputedClaim[]> {
-  const supabase = await createClient();
-  const { data: claims } = await supabase
-    .from("claims")
-    .select("id, person_id, claimant_user_id, dispute_reason, updated_at, people!inner(tree_id)")
-    .eq("status", "disputed")
-    .eq("people.tree_id", treeId)
-    .order("updated_at", { ascending: true });
-
-  const rows = claims ?? [];
-  if (rows.length === 0) return [];
-
-  const personIds = [...new Set(rows.map((r) => r.person_id))];
-  const { data: people } = await supabase
-    .from("people")
-    .select("id, first_name, preferred_name, last_name, created_by")
-    .in("id", personIds);
-  const personById = new Map((people ?? []).map((p) => [p.id, p]));
-
-  const names = await memberNames(supabase, [
-    ...rows.map((r) => r.claimant_user_id),
-    ...(people ?? []).map((p) => p.created_by),
-  ]);
-
-  return rows.map((r) => {
-    const person = personById.get(r.person_id);
-    return {
-      id: r.id,
-      personId: r.person_id,
-      personName: person ? personDisplayName(person) : "Unknown entry",
-      claimantName: names.get(r.claimant_user_id) ?? null,
-      creatorName: person ? (names.get(person.created_by) ?? null) : null,
-      reason: r.dispute_reason,
-      disputedAt: r.updated_at,
-    };
-  });
-}

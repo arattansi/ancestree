@@ -11,7 +11,7 @@ import { plural } from "@/lib/plural";
 /** The console cards that hold a queue, in the order they're worked. */
 export const QUEUE_SECTIONS = [
   "invite-requests",
-  "disputes",
+  "reports",
   "tree-requests",
 ] as const;
 
@@ -63,7 +63,8 @@ export function readOpenConsole(params: URLSearchParams): {
 export type TreeQueue = {
   treeId: string;
   inviteRequests: number;
-  disputedClaims: number;
+  /** Open reports on its own entries, disputed claims among them (Step 88.2). */
+  reports: number;
 };
 
 export type QueueTarget = { treeId: string; section: QueueSection };
@@ -71,7 +72,7 @@ export type QueueTarget = { treeId: string; section: QueueSection };
 /**
  * Where the header's count takes an approver: the tree they're looking at,
  * when anything waits there; else the first tree they run with something
- * waiting. On that tree, requests for access first, then disputes, then
+ * waiting. On that tree, requests for access first, then reports, then
  * requests to start a tree — a beta reviewer's, the same on every console
  * they run. `null` when nothing waits.
  */
@@ -85,7 +86,7 @@ export function pickQueueTarget({
   treeRequests: number;
   currentTreeId: string | null;
 }): QueueTarget | null {
-  const own = (q: TreeQueue) => q.inviteRequests + q.disputedClaims;
+  const own = (q: TreeQueue) => q.inviteRequests + q.reports;
   const current = trees.find((q) => q.treeId === currentTreeId);
   const tree =
     (current && own(current) + treeRequests > 0 ? current : undefined) ??
@@ -95,8 +96,8 @@ export function pickQueueTarget({
   const section: QueueSection =
     tree.inviteRequests > 0
       ? "invite-requests"
-      : tree.disputedClaims > 0
-        ? "disputes"
+      : tree.reports > 0
+        ? "reports"
         : "tree-requests";
   return { treeId: tree.treeId, section };
 }

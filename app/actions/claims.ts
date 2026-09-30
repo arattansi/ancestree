@@ -1,6 +1,6 @@
 "use server";
 
-import { getSessionUser, requireProfile, requireSelfPerson } from "@/lib/auth";
+import { getSessionUser, requireSelfPerson } from "@/lib/auth";
 import type { ClaimResult } from "@/lib/claim-merge";
 import { moveClaimedPhoto } from "@/lib/claim-merge.server";
 import { friendlyDbError } from "@/lib/db-errors";
@@ -63,60 +63,6 @@ export async function claimPerson(
 
   revalidateTreePages();
   return { personId: result.person_id };
-}
-
-/** Original creator contests an approved claim; routes it to an admin. */
-export async function disputeClaim(
-  claimId: string,
-  reason?: string,
-): Promise<{ error?: string }> {
-  await requireProfile();
-  const supabase = await createClient();
-  const { error } = await supabase.rpc("dispute_claim", {
-    p_claim_id: claimId,
-    p_reason: reason?.trim() || undefined,
-  });
-  if (error) {
-    return {
-      error: friendlyDbError(
-        error.message,
-        [
-          [
-            "only the person who created",
-            "Only the person who created this entry can dispute it.",
-          ],
-          ["not open to dispute", "This claim can no longer be disputed."],
-        ],
-        "Couldn't submit that dispute. Try again.",
-      ),
-    };
-  }
-  revalidateTreePages();
-  return {};
-}
-
-/** Admin resolves a disputed claim: `uphold` keeps it, `reverse` undoes it. */
-export async function resolveClaim(
-  claimId: string,
-  action: "uphold" | "reverse",
-): Promise<{ error?: string }> {
-  await requireProfile();
-  const supabase = await createClient();
-  const { error } = await supabase.rpc("resolve_claim", {
-    p_claim_id: claimId,
-    p_action: action,
-  });
-  if (error) {
-    return {
-      error: friendlyDbError(
-        error.message,
-        [["only a disputed claim", "This claim has already been resolved."]],
-        "Couldn't resolve that claim. Try again.",
-      ),
-    };
-  }
-  revalidateTreePages();
-  return {};
 }
 
 /**

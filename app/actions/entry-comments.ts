@@ -2,12 +2,10 @@
 
 import { listEntryComments, type EntryComment } from "@/lib/entry-comments";
 import { requireProfile } from "@/lib/auth";
-import { friendlyDbError } from "@/lib/db-errors";
 import { COMMENT_MAX } from "@/lib/limits";
 import { createClient } from "@/lib/supabase/server";
-import { revalidateTreePages } from "@/lib/revalidate";
 
-/** Every comment / flag on an entry's board on one tree, for the detail panel. */
+/** Every comment on an entry's board on one tree, for the detail panel. */
 export async function getEntryComments(
   treeId: string,
   personId: string,
@@ -17,16 +15,15 @@ export async function getEntryComments(
 }
 
 /**
- * Add a comment (or a flag when `isFlag`) to an entry. Any tree member may do
- * this; membership is enforced by `entry_comments` RLS. A DB trigger notifies
- * the entry's owner and original creator.
+ * Add a comment to an entry. Any tree member may do this; membership is
+ * enforced by `entry_comments` RLS. A DB trigger notifies the entry's owner
+ * and original creator.
  */
 export async function addEntryComment(input: {
   /** The board it goes on: one per tree (Step 25). */
   treeId: string;
   personId: string;
   body: string;
-  isFlag: boolean;
 }): Promise<{ error?: string; comment?: EntryComment }> {
   const profile = await requireProfile();
   const body = input.body.trim();
@@ -42,62 +39,23 @@ export async function addEntryComment(input: {
       tree_id: input.treeId,
       person_id: input.personId,
       body,
-      is_flag: input.isFlag,
       created_by: profile.auth_user_id,
     })
-    .select(
-      "id, body, is_flag, status, created_at, created_by, resolved_by, resolved_at",
-    )
+    .select("id, body, created_at, created_by")
     .single();
 
   if (error || !data) {
     return { error: "Couldn't post that. Refresh and try again." };
   }
 
-  // A flag shows on the entry's card, so the canvas is drawn again; a plain
-  // comment only shows on the board, which keeps its own list (Step 61).
-  if (input.isFlag) revalidateTreePages();
+  // A comment only shows on the board, which keeps its own list (Step 61).
   return {
     comment: {
       id: data.id,
       body: data.body,
-      isFlag: data.is_flag,
-      status: data.status as "open" | "resolved",
       createdAt: data.created_at,
       createdBy: data.created_by,
       authorName: profile.display_name ?? "You",
-      resolvedBy: null,
-      resolverName: null,
-      resolvedAt: null,
     },
   };
-}
-
-/** Resolve or reopen a flag (entry owner, an admin, or the flag's author). */
-export async function resolveEntryFlag(
-  commentId: string,
-  resolved: boolean,
-): Promise<{ error?: string }> {
-  await requireProfile();
-  const supabase = await createClient();
-  const { error } = await supabase.rpc("resolve_entry_flag", {
-    p_comment_id: commentId,
-    p_resolved: resolved,
-  });
-  if (error) {
-    return {
-      error: friendlyDbError(
-        error.message,
-        [
-          [
-            "only the entry owner",
-            "Only the entry owner, a Root, or whoever raised the flag can change it.",
-          ],
-        ],
-        "Couldn't update that flag. Try again.",
-      ),
-    };
-  }
-  revalidateTreePages();
-  return {};
 }

@@ -47,7 +47,7 @@ const GROUPS: readonly AdminGroupKey[] = [
 const NAV_HEADINGS: Record<AdminGroupKey, string | null> = {
   members: null,
   people: "People",
-  requests: "Requests & claims",
+  requests: "Requests & reports",
   invites: "Invites",
   settings: "Settings",
 };
@@ -58,7 +58,7 @@ const SECTIONS: readonly AdminSection[] = [
   { id: "account-types", nav: "Account Types", group: "members" },
   { id: "placements", nav: "From Other Trees", group: "people" },
   { id: "invite-requests", nav: "Requests for Access", group: "requests" },
-  { id: "disputes", nav: "Disputed Claims", group: "requests" },
+  { id: "reports", nav: "Reports", group: "requests" },
   {
     id: "tree-requests",
     nav: "Requests to Start a Tree",

@@ -78,7 +78,6 @@ export type Database = {
         Row: {
           claimant_user_id: string
           created_at: string
-          dispute_reason: string | null
           id: string
           person_id: string
           resolved_at: string | null
@@ -89,7 +88,6 @@ export type Database = {
         Insert: {
           claimant_user_id: string
           created_at?: string
-          dispute_reason?: string | null
           id?: string
           person_id: string
           resolved_at?: string | null
@@ -100,7 +98,6 @@ export type Database = {
         Update: {
           claimant_user_id?: string
           created_at?: string
-          dispute_reason?: string | null
           id?: string
           person_id?: string
           resolved_at?: string | null
@@ -326,11 +323,7 @@ export type Database = {
           created_at: string
           created_by: string
           id: string
-          is_flag: boolean
           person_id: string
-          resolved_at: string | null
-          resolved_by: string | null
-          status: string
           tree_id: string
           updated_at: string
         }
@@ -339,11 +332,7 @@ export type Database = {
           created_at?: string
           created_by: string
           id?: string
-          is_flag?: boolean
           person_id: string
-          resolved_at?: string | null
-          resolved_by?: string | null
-          status?: string
           tree_id: string
           updated_at?: string
         }
@@ -352,11 +341,7 @@ export type Database = {
           created_at?: string
           created_by?: string
           id?: string
-          is_flag?: boolean
           person_id?: string
-          resolved_at?: string | null
-          resolved_by?: string | null
-          status?: string
           tree_id?: string
           updated_at?: string
         }
@@ -383,20 +368,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "entry_comments_resolved_by_fkey"
-            columns: ["resolved_by"]
-            isOneToOne: false
-            referencedRelation: "member_directory"
-            referencedColumns: ["auth_user_id"]
-          },
-          {
-            foreignKeyName: "entry_comments_resolved_by_fkey"
-            columns: ["resolved_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["auth_user_id"]
-          },
-          {
             foreignKeyName: "entry_comments_tree_id_fkey"
             columns: ["tree_id"]
             isOneToOne: false
@@ -405,6 +376,105 @@ export type Database = {
           },
           {
             foreignKeyName: "entry_comments_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      entry_reports: {
+        Row: {
+          body: string
+          claim_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          person_id: string
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          tree_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          claim_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          person_id: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          tree_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          claim_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          person_id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          tree_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "entry_reports_claim_id_fkey"
+            columns: ["claim_id"]
+            isOneToOne: false
+            referencedRelation: "claims"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entry_reports_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "entry_reports_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "entry_reports_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entry_reports_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "entry_reports_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "entry_reports_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "my_trees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entry_reports_tree_id_fkey"
             columns: ["tree_id"]
             isOneToOne: false
             referencedRelation: "trees"
@@ -2279,15 +2349,15 @@ export type Database = {
         }
         Returns: string
       }
+      decide_claim_dispute: {
+        Args: { p_report: string; p_uphold: boolean }
+        Returns: undefined
+      }
       decide_entry_suggestion: {
         Args: { p_accept: boolean; p_reason?: string; p_suggestion: string }
         Returns: string[]
       }
       delete_tree: { Args: { p_tree: string }; Returns: Json }
-      dispute_claim: {
-        Args: { p_claim_id: string; p_reason?: string }
-        Returns: undefined
-      }
       engagement_dashboard: { Args: never; Returns: Json }
       ensure_profile: {
         Args: { p_display_name?: string }
@@ -2527,19 +2597,21 @@ export type Database = {
           isSetofReturn: false
         }
       }
-      request_tree: { Args: never; Returns: string }
-      resolve_claim: {
-        Args: { p_action: string; p_claim_id: string }
-        Returns: undefined
+      report_entry: {
+        Args: {
+          p_body: string
+          p_dispute?: boolean
+          p_person: string
+          p_tree: string
+        }
+        Returns: string
       }
+      request_tree: { Args: never; Returns: string }
       resolve_connection_suggestion: {
         Args: { p_id: string; p_resolution: string }
         Returns: undefined
       }
-      resolve_entry_flag: {
-        Args: { p_comment_id: string; p_resolved?: boolean }
-        Returns: undefined
-      }
+      resolve_entry_report: { Args: { p_report: string }; Returns: undefined }
       resolve_implied_connection: {
         Args: {
           p_related: string

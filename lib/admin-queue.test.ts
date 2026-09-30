@@ -17,10 +17,10 @@ vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 const A = "11111111-1111-4111-8111-111111111111";
 const B = "22222222-2222-4222-8222-222222222222";
 
-const queue = (treeId: string, inviteRequests = 0, disputedClaims = 0): TreeQueue => ({
+const queue = (treeId: string, inviteRequests = 0, reports = 0): TreeQueue => ({
   treeId,
   inviteRequests,
-  disputedClaims,
+  reports,
 });
 
 describe("openConsoleHref / readOpenConsole", () => {
@@ -61,8 +61,8 @@ describe("openConsoleHref / readOpenConsole", () => {
       ),
     ).toEqual({ treeId: null, section: null });
     expect(
-      readOpenConsole(new URLSearchParams(`tree=${A}'--&section=disputes`)),
-    ).toEqual({ treeId: null, section: "disputes" });
+      readOpenConsole(new URLSearchParams(`tree=${A}'--&section=reports`)),
+    ).toEqual({ treeId: null, section: "reports" });
   });
 
   it("lands on the console's own address for the card", () => {
@@ -74,7 +74,7 @@ describe("isQueueSection", () => {
   it("knows the cards the console's Needs attention list points at", () => {
     const targets = buildAdminActionItems({
       inviteRequests: 1,
-      disputedClaims: 1,
+      reports: 1,
       treeRequests: 1,
     }).map((i) => i.target);
     expect(targets.every(isQueueSection)).toBe(true);
@@ -108,7 +108,7 @@ describe("pickQueueTarget", () => {
         treeRequests: 0,
         currentTreeId: A,
       }),
-    ).toEqual({ treeId: B, section: "disputes" });
+    ).toEqual({ treeId: B, section: "reports" });
   });
 
   it("goes there too from a tree they only visit or don't run", () => {
@@ -121,7 +121,7 @@ describe("pickQueueTarget", () => {
     ).toEqual({ treeId: B, section: "invite-requests" });
   });
 
-  it("puts requests for access before disputes", () => {
+  it("puts requests for access before reports", () => {
     expect(
       pickQueueTarget({ trees: [queue(A, 1, 4)], treeRequests: 2, currentTreeId: A }),
     ).toEqual({ treeId: A, section: "invite-requests" });

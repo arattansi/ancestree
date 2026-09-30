@@ -6,21 +6,16 @@ import { createClient } from "@/lib/supabase/server";
 export type EntryComment = {
   id: string;
   body: string;
-  isFlag: boolean;
-  status: "open" | "resolved";
   createdAt: string;
   createdBy: string;
   authorName: string;
-  resolvedBy: string | null;
-  resolverName: string | null;
-  resolvedAt: string | null;
 };
 
 /**
- * Comments and flags on a person entry's board on one tree (Step 25), newest
- * first, with author + resolver display names resolved from the member
- * directory. Visible to any member of that tree (enforced by `entry_comments`
- * RLS).
+ * Comments on a person entry's board on one tree (Step 25), newest first,
+ * with author display names resolved from the member directory. Visible to
+ * any member of that tree (enforced by `entry_comments` RLS). A problem with
+ * the entry is a report now, which only whoever can fix it sees (Step 88.2).
  */
 export async function listEntryComments(
   treeId: string,
@@ -29,9 +24,7 @@ export async function listEntryComments(
   const supabase = await createClient();
   const { data } = await supabase
     .from("entry_comments")
-    .select(
-      "id, body, is_flag, status, created_at, created_by, resolved_by, resolved_at",
-    )
+    .select("id, body, created_at, created_by")
     .eq("tree_id", treeId)
     .eq("person_id", personId)
     .order("created_at", { ascending: false });
@@ -41,22 +34,14 @@ export async function listEntryComments(
 
   const names = await memberNames(
     supabase,
-    rows.flatMap((r) => [r.created_by, r.resolved_by]),
+    rows.map((r) => r.created_by),
   );
 
   return rows.map((r) => ({
     id: r.id,
     body: r.body,
-    isFlag: r.is_flag,
-    status: r.status as "open" | "resolved",
     createdAt: r.created_at,
     createdBy: r.created_by,
     authorName: names.get(r.created_by) ?? "A relative",
-    resolvedBy: r.resolved_by,
-    resolverName:
-      r.resolved_by && names.has(r.resolved_by)
-        ? (names.get(r.resolved_by) ?? "A relative")
-        : null,
-    resolvedAt: r.resolved_at,
   }));
 }

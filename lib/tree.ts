@@ -94,11 +94,13 @@ export type TreeGraphPerson = {
    *  whoever may edit it on its home tree. */
   asked_of: AskedOf;
   photo_url: string | null;
-  /** Count of open (unresolved) flags raised against this entry. */
-  open_flag_count: number;
-  /** `approved` once someone has claimed this entry, `disputed` while an admin
-   *  is reviewing a contested claim, otherwise `null`. */
-  claim_status: "approved" | "disputed" | null;
+  /** Open reports on this entry the viewer may see (Step 88.2): only
+   *  whoever can put it right, and whoever raised one. */
+  open_report_count: number;
+  /** `approved` once someone has claimed this entry, otherwise `null`. A
+   *  dispute of the claim is a report now, and leaves the claim standing
+   *  (Step 88.2). */
+  claim_status: "approved" | null;
   /** The active claim row id, when `claim_status` is set. */
   claim_id: string | null;
   /** The account type of the member this entry belongs to (Step 19.1), or
@@ -256,10 +258,9 @@ export async function readIn<T>(
 }
 
 /**
- * The claims settled (`approved`) or contested (`disputed`) on the tree's
- * own people, once per request: the cards' badges, whose entry is whose,
- * and what a Branch edits around. Only this tree's people, not every claim
- * in the database (Step 77.1, audit S7).
+ * The claims on the tree's own people, once per request: the cards'
+ * badges, whose entry is whose, and what a Branch edits around. Only this
+ * tree's people, not every claim in the database (Step 77.1, audit S7).
  */
 export const loadTreeClaims = cache(async (treeId: string) => {
   const [people, supabase] = await Promise.all([
@@ -270,7 +271,7 @@ export const loadTreeClaims = cache(async (treeId: string) => {
     supabase
       .from("claims")
       .select("id, person_id, status, claimant_user_id")
-      .in("status", ["approved", "disputed"])
+      .eq("status", "approved")
       .in("person_id", chunk),
   );
 });
@@ -284,7 +285,7 @@ export const loadTreeClaims = cache(async (treeId: string) => {
  * a share link passes the RLS-bypassing admin client, and a visitor there must
  * never learn who on the tree has an account, let alone what kind. Left off,
  * the member directory isn't even read. `forPublic` is the share link's read
- * (Step 61): no claims (a claimed entry is a member's) and no open flags, and
+ * (Step 61): no claims (a claimed entry is a member's) and no reports, and
  * no user ids, email addresses or storage paths in what reaches the browser.
  */
 export async function getTreeGraph(
@@ -304,17 +305,9 @@ export async function getTreeGraph(
   const shared = !db;
   // Everything that needs only the tree, in one wave; then what needs its
   // people, in a second.
-  const [peopleRows, { edges: edgeRows }, flagRes, histRes, directory] = await Promise.all([
+  const [peopleRows, { edges: edgeRows }, histRes, directory] = await Promise.all([
     shared ? loadTreePeople(treeId) : readTreePeople(supabase, treeId),
     shared ? loadTreeEdges(treeId) : readTreeEdges(supabase, treeId),
-    forPublic
-      ? { data: null }
-      : supabase
-          .from("entry_comments")
-          .select("person_id")
-          .eq("tree_id", treeId)
-          .eq("is_flag", true)
-          .eq("status", "open"),
     supabase
       .from("historical_names")
       .select("place_id, country_code, name, start_date, end_date"),
@@ -324,14 +317,6 @@ export async function getTreeGraph(
         : readDirectory(supabase, treeId)
       : null,
   ]);
-
-  const openFlagsByPerson = new Map<string, number>();
-  for (const f of flagRes.data ?? []) {
-    openFlagsByPerson.set(
-      f.person_id,
-      (openFlagsByPerson.get(f.person_id) ?? 0) + 1,
-    );
-  }
 
   // The view's columns are nullable to TypeScript (a view has no NOT NULL);
   // every row has an id, a family name and a home, or it isn't a person —
@@ -478,7 +463,7 @@ export async function getTreeGraph(
         ),
       ]
     : [];
-  const [placeRes, claims, urlByPath, unlistedProfiles] = await Promise.all([
+  const [placeRes, claims, reports, urlByPath, unlistedProfiles] = await Promise.all([
     placeIds.length > 0
       ? supabase
           .from("places")
@@ -500,9 +485,20 @@ export async function getTreeGraph(
             supabase
               .from("claims")
               .select("id, person_id, status, claimant_user_id")
-              .in("status", ["approved", "disputed"])
+              .eq("status", "approved")
               .in("person_id", chunk),
           ),
+    // Those who may see a report (RLS) are those who can put it right, and
+    // whoever raised it (Step 88.2): the count follows the same rule.
+    forPublic
+      ? []
+      : readIn(ids, (chunk) =>
+          supabase
+            .from("entry_reports")
+            .select("person_id")
+            .eq("status", "open")
+            .in("person_id", chunk),
+        ),
     signedPhotoUrls(supabase, paths),
     readIn(unlisted, (chunk) =>
       supabase
@@ -527,7 +523,7 @@ export async function getTreeGraph(
               ]
             : [],
         ),
-        claims.filter((c) => c.status === "approved"),
+        claims,
       )
     : null;
   const joinedBy = directory
@@ -536,7 +532,7 @@ export async function getTreeGraph(
         directory.flatMap((m) =>
           m.auth_user_id ? [{ ...m, auth_user_id: m.auth_user_id }] : [],
         ),
-        claims.filter((c) => c.status === "approved"),
+        claims,
         new Map(
           unlistedProfiles.flatMap((p) =>
             p.display_name ? [[p.auth_user_id, p.display_name]] : [],
@@ -569,21 +565,18 @@ export async function getTreeGraph(
     });
   };
 
-  // person_id -> active claim. `disputed` wins over `approved` if both exist.
-  const claimByPerson = new Map<
-    string,
-    { id: string; status: "approved" | "disputed" }
-  >();
-  for (const c of claims) {
-    const status = c.status as "approved" | "disputed";
-    const current = claimByPerson.get(c.person_id);
-    if (!current || (current.status === "approved" && status === "disputed")) {
-      claimByPerson.set(c.person_id, { id: c.id, status });
-    }
+  // person_id -> its claim.
+  const claimByPerson = new Map(claims.map((c) => [c.person_id, c.id]));
+  const openReportsByPerson = new Map<string, number>();
+  for (const r of reports) {
+    openReportsByPerson.set(
+      r.person_id,
+      (openReportsByPerson.get(r.person_id) ?? 0) + 1,
+    );
   }
   return {
     people: rows.map((p) => {
-      const claim = claimByPerson.get(p.id) ?? null;
+      const claimId = claimByPerson.get(p.id) ?? null;
       return {
         ...p,
         ...(forPublic
@@ -597,9 +590,9 @@ export async function getTreeGraph(
         // Null on a blurred row (the view's left join); no email, not shown.
         email_visible: p.email_visible ?? false,
         photo_url: p.photo_path ? (urlByPath.get(p.photo_path) ?? null) : null,
-        claim_status: claim?.status ?? null,
-        claim_id: claim?.id ?? null,
-        open_flag_count: openFlagsByPerson.get(p.id) ?? 0,
+        claim_status: claimId ? "approved" : null,
+        claim_id: claimId,
+        open_report_count: openReportsByPerson.get(p.id) ?? 0,
         account_type: accountTypes?.get(p.id) ?? null,
         joined_by: joinedBy?.get(p.id) ?? null,
         birth_place_historical: historicalFor(
