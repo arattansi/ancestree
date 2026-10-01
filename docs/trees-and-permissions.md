@@ -231,6 +231,20 @@ stays.
   it that look like one person entered twice are asked about there,
   **Same person?** (Step 92.4): to the member alone, worked out as the
   page is drawn and never stored. Merging them is a later step.
+  It's where a member **lands, every visit** (Step 92.5): signing in, the
+  header's mark and the home page's **view your tree** open it, and so
+  does **tree** until they switch. Picking a tree — in the switcher, or by
+  any link from the view that goes to one — makes it the tree the browser
+  remembers until it closes (a session cookie): `/tree`, the add flow,
+  **connections** and the Root console mean that tree, and **tree** goes
+  back to it, for the rest of that visit. A new visit starts on My Family
+  Tree again, with no tree chosen (the tree pages then mean the member's
+  home tree). Joining or founding a tree, an invite, and an email's button
+  or link that names a tree (an alert's Root console, a story) open that
+  tree as before and make it the chosen one. A member it can't be drawn
+  for yet — no entry of their own, or on no tree — lands where the canvas
+  sends them (onboarding, or their trees page); a visitor's tree and share
+  links are unchanged.
 - Any person can mark their own entry **hidden from visitors**
   (`people.hidden_from_visitors`). A hidden entry is drawn blurred, with no
   name or details, on a tree the viewer is not a member of. A Root of the home

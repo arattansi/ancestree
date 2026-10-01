@@ -48,14 +48,16 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
 ## Project structure
 
 - `app/` — App Router pages. **Tree pages have plain addresses** and read
-  the tree from a cookie (`lib/current-tree.server.ts`; the header's
+  the tree from a cookie that lasts until the browser closes (Step 92.5;
+  `lib/current-tree.server.ts`; the header's
   switcher, the header's admin count beside **account** (it opens the card
   that's waiting, on whichever tree it's on; Step 30.1), a notification's
   "View on tree" and "Also on" links set it via
   `app/actions/current-tree.ts`, an alert email's button sets it through
   `/account/admin`, and joining or founding a tree sets it
   too; `lib/tree-context.ts#currentAccess` resolves it, falling back to the
-  member's home tree): `/tree` (React Flow canvas), `/tree/review`,
+  member's home tree, and `isTreeChosen` says whether one was chosen this
+  visit): `/tree` (React Flow canvas), `/tree/review`,
   `/people/new`, `/people/[id]/edit`, `/people/[id]/suggest` (suggest a
   change to an entry you can't edit, Step 67), `/onboarding` (first-run on that
   tree: a member finds or adds themselves, opening on the search for the
@@ -70,7 +72,11 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   at the card (Step 30.1, `lib/open-console.server.ts`). `/family` is My
   Family Tree (Step 92.2): every tree the member is on, drawn as one canvas
   arranged around them (`loadMyFamily`); an address of its own, so it
-  leaves the remembered tree alone, reached from the switcher. Nothing is
+  leaves the remembered tree alone, reached from the switcher. It's where
+  members land every visit (Step 92.5, `homeHref`): signing in
+  (`DEFAULT_NEXT` in `lib/safe-next.ts`), the header's mark, the home
+  page's **view your tree**, and **tree** until a tree is switched to
+  (`TreeNavLink`); anyone it can't be drawn for goes on to `/tree`. Nothing is
   added on it: a card's actions go to its own tree (Step 92.3), and its
   entry's pages (`/people/[id]/edit`, `/suggest`) are opened by switching
   to that tree first, with `?back=family` to come back. Site-wide: `/`
@@ -1718,6 +1724,50 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 92.5 — land on My Family Tree, every visit** (the last of Step
+  92; no migration). **Aalim asked for:** My Family Tree every visit; a
+  switch to a tree lasts until the browser closes. The `ancestree.tree`
+  cookie is now a session cookie (no `maxAge`), so a switch — the
+  switcher, a "View on tree" or **On** link, joining, founding, an
+  invite, an alert email's console button, a story link — holds for the
+  visit and a new one starts with none. Signing in lands on `/family`
+  (`DEFAULT_NEXT`, so `/join`, `/auth/confirm`, `/auth/callback` and the
+  code form all do, and a signed-out visit to `/tree` now carries
+  `next=/tree` back), as do the header's mark for a member, the home
+  page's **view your tree** and a member opening `/request-invite`
+  (`homeHref`: My Family Tree with an entry of their own, else `/tree`).
+  `/family` sends anyone it can't be drawn for (signed out, not a member,
+  on no tree, no own entry) to wherever `/tree` would, which never sends
+  anyone back, so nothing loops; with an entry, it no longer asks which
+  tree is shown by default (one read fewer). Emailed links that name a
+  tree still open it. **My calls, not asked:** the header's **tree** is
+  the canvas being looked at, or from any other page the tree switched to
+  this visit, and with none chosen, My Family Tree (`TreeNavLink`,
+  `isTreeChosen`), lit wherever it opens; from My Family Tree every way to
+  a tree is a switch, even to the tree shown by default (the switcher, and
+  the view's **On**, "Which tree" and Edit links get only the tree chosen
+  this visit as current), so going to one holds for the visit; the
+  switcher's label away from `/family` still names the tree the tree pages
+  act on, the home tree when none is chosen; "Back to tree" on the error
+  and not-found pages, onboarding, the welcome and a joined tree's landing
+  stay on the tree. **Checked:** lint, tsc, 1,459 tests, `next build`;
+  three throwaway members, headless (each browser context its own cookie
+  jar): one Root of tree A and Leaf of tree B with an entry on both, one
+  Root of B only, one Leaf of A with no entry. Sign-in lands on `/family`
+  with no tree cookie (5 and 3 cards); `/join`, `/request-invite` and
+  **view your tree** go there too; the no-entry member lands on
+  onboarding, and `/family` → `/tree` → `/onboarding` without a loop.
+  Switching to B sets a session cookie (`expires: -1`, httpOnly); **tree**
+  then opens B from `/account`, `/tree/review` and `/family`, the mark
+  opens `/family`, and picking B again from there needs no server action;
+  a new tab keeps B; a new browser context lands on `/family` with no
+  cookie, `/tree` showing the home tree. Picking the default tree from the
+  switcher, or its **On** link in a sheet, switches (one action, cookie
+  set); once chosen, that **On** link is plain. An alert email's console
+  link (signed out and in) and an emailed invite (accepted signed in) open
+  their tree and remember it for the session. Phone and desktop, light and
+  dark. All rows, sessions and accounts deleted after.
 
 - **Step 92.4 — "Same person?" on My Family Tree** (the fourth of Step
   92; no migration). **Aalim asked for:** duplicates shown both, and

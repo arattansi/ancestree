@@ -35,7 +35,7 @@ header's **Sign out**, which replaces **sign in** for someone signed in who
 isn't a member yet (Step 30.8).
 
 The home page's calls to action count as navigation, so they're lower-case
-too — **view your tree**, **sign in**, **request access**, **start a tree
+too — **view your tree** (My Family Tree, Step 92.5), **sign in**, **request access**, **start a tree
 (beta)** — even the ones that open a dialog rather than a page. Inside the
 dialog, titles and buttons go back to sentence case (**Request access**,
 **Join the waitlist**), as dialog titles are everywhere. **sign in** stays
@@ -89,7 +89,13 @@ turn autocomplete off, or every relative is offered the member's own name
   every member since Step 92.2: **My Family Tree** first, then each tree
   with the mark of their account type there, then starting a tree of their
   own until they've founded one — **Ask to start a tree**, **Asked to start
-  a tree**, **Start a tree**), and the navigation buttons right-aligned. It stays one row from 320px up (Step 85.2): the
+  a tree**, **Start a tree**), and the navigation buttons right-aligned.
+  Members land on My Family Tree every visit (Step 92.5), so for a member
+  the mark opens it (the home page for anyone else), and **tree** opens
+  the canvas they're on, or from another page the tree they switched to
+  this visit — with none chosen, My Family Tree too, lit there. A tree
+  picked from My Family Tree is always switched to, even the one shown
+  by default, so the choice holds until the browser closes. It stays one row from 320px up (Step 85.2): the
   buttons never wrap and a long tree name ends in "…". On a narrow bar, a
   phone's or one beside a docked sheet below 64rem, it goes compact: the
   mark without the wordmark, **tree**, **connections** and **account** as
