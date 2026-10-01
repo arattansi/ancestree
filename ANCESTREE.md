@@ -248,7 +248,9 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   faces above **Upcoming**, and their pointers (Step 57.3), `person-node.tsx`
   custom node (name, then `née` maiden name / birth year / birthplace;
   open-report badge, counting only the reports the viewer may see, Step
-  88.2; in a spotlight `leaf-card.tsx`'s leaf, at most three
+  88.2; in a spotlight `leaf-card.tsx`'s leaf — the leaf of the tree that
+  grows where they were born (`lib/native-leaf.ts`), drawn from that
+  tree's own leaf by `lib/leaf-shapes.ts`, Step 96 — at most three
   lines: name, "You", the years, or, with a maiden name, name, `née`
   maiden name, "You" with the years, Steps 76–76.5),
   `person-panel.tsx` detail Sheet (its header: the name, `née` maiden
@@ -1749,6 +1751,52 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 96 — Every tree's own leaf in a spotlight** (ad-hoc; no
+  migration). **Aalim asked for:** "the banyan tree leaf doesn't look
+  anything like the actual leaf. make sure that there are shapes being
+  updated for the various trees". The 61 places in `lib/native-leaf.ts`
+  shared 7 silhouettes (the banyan was the plain `ovate` leaf, Uganda's
+  mvule an `elliptic` lens, Mozambique's mopane a circle, Arabia's date
+  palm and Switzerland's spruce lenses too). Now `lib/leaf-shapes.ts`
+  draws 47, one for each tree's leaf (or two trees whose leaves look
+  alike: mvule and iroko are one species, as are oriental plane and
+  chinar; fig, oak, birch, olive, lime, palm, acacia shared): the
+  **banyan** broad and blunt-tipped, a faint notch at the stalk, a strong
+  basal pair of veins and side veins looping forward; the strangler and
+  sycamore figs; iroko's drip tip; clove, ironwood, olive, yellowwood,
+  eucalyptus (a sickle), rhododendron, argan, jackfruit/tambalacoque,
+  teak, pohutukawa/ivi, shea (wavy, notched tip), traveller's tree (a torn
+  paddle); toothed apple, zelkova, chestnut (saw teeth, straight veins),
+  beech (wavy), birch (a doubly-toothed triangle), lime and mulberry
+  (hearts, the mulberry lobed on one side), holm oak (a few spines);
+  English/sessile and red oak, the flag's sugar maple (unchanged, now
+  with five palmate veins), oriental plane and Japanese maple (five and
+  seven toothed lobes); compound leaves — baobab (unchanged), ceiba
+  (seven leaflets), ceibo (three), mopane (two wings), neem, walnut,
+  mahogany, narra, msasa, frankincense, acacia and rain tree (twice
+  compound); a date palm frond; spruce, Scots pine, cedar tufts and
+  juniper sprays. Shapes are generated from small parts (a mirrored
+  edge, teeth, leaflets off a rachis, needles raked forward) over a solid
+  body along the midrib, so the name always has room; `leafGeometry`
+  measures each one where it's drawn, so `BLADE_BOTTOM`/`TEXT_LEFT` are
+  gone: the descent line stops above the blade at the leaf's middle and
+  the marks hang under its middle (the maple's line lands 3px lower than
+  before, still clear of it). `leaf-card.tsx` draws whatever it's given.
+  **My calls, not asked:** one shape per tree, even where a place's
+  species is a compound or needle leaf (drawn as such, not mapped to a
+  simple blade as Step 19 did); colour and the dashed outline for someone
+  who has died are unchanged (on the cedar's tufts the dashes read as
+  dots); the baobab and maple are left as Step 19 drew them. **Checked:**
+  lint, tsc, 1,666 tests (new `lib/leaf-shapes.test.ts`: every blade holds
+  its three lines with clearance, stays within its box sideways and the
+  maple's height, meets its stem, stays under 6.5 KB, and differs from
+  every other; the banyan is broad and blunt), `next build`; a throwaway
+  fixture page of the real `LeafCard` for all 47 (light and dark, with
+  marks, maiden names, "You" and deceased) and a real read-only spotlight
+  of a 14-person fixture family from 14 countries, headless; a
+  box-based ink check on every card (the new ones ≥ 1.5px; baobab and
+  maple as before). The fixture was deleted after.
 
 - **Step 95 — the weekly newsletter** (migrations
   `20261001090000_weekly_newsletter` and `20261001100000_newsletter_schedule`,
