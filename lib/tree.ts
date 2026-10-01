@@ -191,6 +191,192 @@ async function readTreeEdges(supabase: DbClient, treeId: string) {
 
 export type TreePersonRow = Awaited<ReturnType<typeof readTreePeople>>[number];
 
+/** How many rows PostgREST answers with at most (the project's `max_rows`). */
+const PAGE = 1000;
+
+/**
+ * A read that may run past one answer, asked for page by page until a page
+ * comes back short. `read` must order its rows, or pages can overlap.
+ */
+export async function readPaged<T>(
+  read: (
+    from: number,
+    to: number,
+  ) => PromiseLike<{ data: T[] | null; error: unknown }>,
+): Promise<{ rows: T[]; failed: boolean }> {
+  const rows: T[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await read(from, from + PAGE - 1);
+    if (error) return { rows, failed: true };
+    rows.push(...(data ?? []));
+    if ((data ?? []).length < PAGE) return { rows, failed: false };
+  }
+}
+
+/**
+ * Everyone placed on any of `treeIds`, once per tree they're on, each row
+ * saying which tree it is (My Family Tree, Step 92): one read for all of
+ * them, not one per tree.
+ */
+export async function readTreesPeople(
+  supabase: DbClient,
+  treeIds: readonly string[],
+) {
+  return readPaged((from, to) =>
+    supabase
+      .from("tree_people")
+      .select(`tree_id, ${PERSON_COLUMNS}` as `tree_id, ${typeof PERSON_COLUMNS}`)
+      .in("tree_id", treeIds)
+      .order("tree_id")
+      .order("id")
+      .range(from, to),
+  );
+}
+
+/** The lines each of `treeIds` draws, each row saying which tree. */
+export async function readTreesEdges(
+  supabase: DbClient,
+  treeIds: readonly string[],
+) {
+  return readPaged((from, to) =>
+    supabase
+      .from("tree_edges")
+      .select(`tree_id, ${EDGE_COLUMNS}` as `tree_id, ${typeof EDGE_COLUMNS}`)
+      .in("tree_id", treeIds)
+      .order("tree_id")
+      .order("id")
+      .range(from, to),
+  );
+}
+
+/**
+ * A `tree_people` row as a card on `treeId`, or `null` when it isn't one.
+ * The view's columns are nullable to TypeScript (a view has no NOT NULL);
+ * every row has an id, a family name and a home, or it isn't a person —
+ * unless it is a hidden person seen by a visitor, whose card is drawn from
+ * the placement alone (Step 25.4), or a basic card (Step 80), whose row
+ * carries a name and a place of birth and says nothing of who made it.
+ */
+export function cardOf(p: TreePersonRow, treeId: string) {
+  if (!p.id) return null;
+  if (p.detail === "basic" && !p.blurred && p.last_name && p.home_tree_id) {
+    return {
+      ...p,
+      id: p.id,
+      last_name: p.last_name,
+      home_tree_id: p.home_tree_id,
+      is_home: false,
+      owner_user_id: "",
+      created_by: "",
+      country_of_birth: p.country_of_birth ?? "",
+      is_deceased: false,
+      date_of_birth_precision: "day",
+      date_of_death_precision: "day",
+      date_of_birth_circa: false,
+      date_of_death_circa: false,
+      hidden_from_visitors: false,
+      blurred: false,
+      basic: true,
+      approval: approvalOf(p.approval),
+      asked_of: (p.asked_of === "owner" ? "owner" : "stewards") as AskedOf,
+    };
+  }
+  if (
+    p.blurred ||
+    !p.last_name ||
+    !p.home_tree_id ||
+    !p.owner_user_id ||
+    !p.created_by
+  ) {
+    if (!p.blurred) return null;
+    return {
+      ...p,
+      id: p.id,
+      first_name: null,
+      middle_name: null,
+      preferred_name: null,
+      maiden_name: null,
+      last_name: "Hidden",
+      home_tree_id: treeId,
+      is_home: false,
+      owner_user_id: "",
+      created_by: "",
+      country_of_birth: "",
+      is_deceased: false,
+      date_of_birth: null,
+      date_of_death: null,
+      date_of_birth_precision: "day",
+      date_of_death_precision: "day",
+      birth_month: null,
+      birth_day: null,
+      date_of_birth_circa: false,
+      date_of_death_circa: false,
+      city_of_birth: null,
+      place_id_birth: null,
+      place_id_death: null,
+      place_of_death: null,
+      sex: null,
+      lineage_type: null,
+      photo_path: null,
+      photo_crop: null,
+      hidden_from_visitors: true,
+      blurred: true,
+      basic: false,
+      approval: approvalOf(null),
+      asked_of: null as AskedOf,
+    };
+  }
+  return {
+    ...p,
+    id: p.id,
+    last_name: p.last_name,
+    home_tree_id: p.home_tree_id,
+    is_home: p.is_home ?? p.home_tree_id === treeId,
+    owner_user_id: p.owner_user_id,
+    created_by: p.created_by,
+    country_of_birth: p.country_of_birth ?? "",
+    is_deceased: p.is_deceased ?? false,
+    date_of_birth_precision: p.date_of_birth_precision ?? "day",
+    date_of_death_precision: p.date_of_death_precision ?? "day",
+    date_of_birth_circa: p.date_of_birth_circa ?? false,
+    date_of_death_circa: p.date_of_death_circa ?? false,
+    hidden_from_visitors: p.hidden_from_visitors ?? false,
+    blurred: false,
+    basic: false,
+    approval: approvalOf(p.approval),
+    asked_of: null as AskedOf,
+  };
+}
+
+/** A card before its photo, places, claim and reports are filled in. */
+export type TreeCard = NonNullable<ReturnType<typeof cardOf>>;
+
+type TreeEdgeRow = Awaited<ReturnType<typeof readTreeEdges>>["edges"][number];
+
+/** A `tree_edges` row as a line on `treeId`, or `null` when it isn't one. */
+export function lineOf(
+  r: TreeEdgeRow,
+  treeId: string,
+  forPublic = false,
+): TreeGraphEdge | null {
+  if (!r.id || !r.from_person || !r.to_person || !r.type || !r.created_by) {
+    return null;
+  }
+  return {
+    id: r.id,
+    from_person: r.from_person,
+    to_person: r.to_person,
+    type: r.type,
+    created_by: forPublic ? NOBODY : r.created_by,
+    marriage_date: r.marriage_date,
+    marriage_month: r.marriage_month,
+    marriage_day: r.marriage_day,
+    is_divorced: r.is_divorced ?? false,
+    divorce_date: r.divorce_date,
+    drawn_here: r.drawn_on_tree_id === treeId,
+  };
+}
+
 /**
  * Everyone placed on the tree as the signed-in member may see them, read
  * once per request whoever asks: the canvas, the connection audit and the
@@ -314,140 +500,91 @@ export async function getTreeGraph(
   const shared = !db;
   // Everything that needs only the tree, in one wave; then what needs its
   // people, in a second.
-  const [peopleRows, { edges: edgeRows }, histRes, directory] = await Promise.all([
-    shared ? loadTreePeople(treeId) : readTreePeople(supabase, treeId),
-    shared ? loadTreeEdges(treeId) : readTreeEdges(supabase, treeId),
-    supabase
-      .from("historical_names")
-      .select("place_id, country_code, name, start_date, end_date"),
-    withAccountTypes && !forPublic
-      ? shared
-        ? loadTreeDirectory(treeId)
-        : readDirectory(supabase, treeId)
-      : null,
-  ]);
+  const [peopleRows, { edges: edgeRows }, histRows, directory] =
+    await Promise.all([
+      shared ? loadTreePeople(treeId) : readTreePeople(supabase, treeId),
+      shared ? loadTreeEdges(treeId) : readTreeEdges(supabase, treeId),
+      readHistoricalNames(supabase),
+      withAccountTypes && !forPublic
+        ? shared
+          ? loadTreeDirectory(treeId)
+          : readDirectory(supabase, treeId)
+        : null,
+    ]);
 
-  // The view's columns are nullable to TypeScript (a view has no NOT NULL);
-  // every row has an id, a family name and a home, or it isn't a person —
-  // unless it is a hidden person seen by a visitor, whose card is drawn from
-  // the placement alone (Step 25.4), or a basic card (Step 80), whose row
-  // carries a name and a place of birth and says nothing of who made it.
-  const rows = peopleRows.flatMap((p) => {
-    if (!p.id) return [];
-    if (p.detail === "basic" && !p.blurred && p.last_name && p.home_tree_id) {
-      return [
-        {
-          ...p,
-          id: p.id,
-          last_name: p.last_name,
-          home_tree_id: p.home_tree_id,
-          is_home: false,
-          owner_user_id: "",
-          created_by: "",
-          country_of_birth: p.country_of_birth ?? "",
-          is_deceased: false,
-          date_of_birth_precision: "day",
-          date_of_death_precision: "day",
-          date_of_birth_circa: false,
-          date_of_death_circa: false,
-          hidden_from_visitors: false,
-          blurred: false,
-          basic: true,
-          approval: approvalOf(p.approval),
-          asked_of: (p.asked_of === "owner" ? "owner" : "stewards") as AskedOf,
-        },
-      ];
-    }
-    if (
-      p.blurred ||
-      !p.last_name ||
-      !p.home_tree_id ||
-      !p.owner_user_id ||
-      !p.created_by
-    ) {
-      if (!p.blurred) return [];
-      return [
-        {
-          ...p,
-          id: p.id,
-          first_name: null,
-          middle_name: null,
-          preferred_name: null,
-          maiden_name: null,
-          last_name: "Hidden",
-          home_tree_id: treeId,
-          is_home: false,
-          owner_user_id: "",
-          created_by: "",
-          country_of_birth: "",
-          is_deceased: false,
-          date_of_birth: null,
-          date_of_death: null,
-          date_of_birth_precision: "day",
-          date_of_death_precision: "day",
-          birth_month: null,
-          birth_day: null,
-          date_of_birth_circa: false,
-          date_of_death_circa: false,
-          city_of_birth: null,
-          place_id_birth: null,
-          place_id_death: null,
-          place_of_death: null,
-          sex: null,
-          lineage_type: null,
-          photo_path: null,
-          photo_crop: null,
-          hidden_from_visitors: true,
-          blurred: true,
-          basic: false,
-          approval: approvalOf(null),
-          asked_of: null as AskedOf,
-        },
-      ];
-    }
-    return [
-      {
-        ...p,
-        id: p.id,
-        last_name: p.last_name,
-        home_tree_id: p.home_tree_id,
-        is_home: p.is_home ?? p.home_tree_id === treeId,
-        owner_user_id: p.owner_user_id,
-        created_by: p.created_by,
-        country_of_birth: p.country_of_birth ?? "",
-        is_deceased: p.is_deceased ?? false,
-        date_of_birth_precision: p.date_of_birth_precision ?? "day",
-        date_of_death_precision: p.date_of_death_precision ?? "day",
-        date_of_birth_circa: p.date_of_birth_circa ?? false,
-        date_of_death_circa: p.date_of_death_circa ?? false,
-        hidden_from_visitors: p.hidden_from_visitors ?? false,
-        blurred: false,
-        basic: false,
-        approval: approvalOf(p.approval),
-        asked_of: null as AskedOf,
-      },
-    ];
+  const rows = peopleRows.flatMap((p) => cardOf(p, treeId) ?? []);
+  const edges = edgeRows.flatMap((r) => lineOf(r, treeId, forPublic) ?? []);
+  const people = await finishCards(supabase, rows, {
+    histRows,
+    claims: forPublic
+      ? []
+      : shared
+        ? loadTreeClaims(treeId)
+        : readApprovedClaims(
+            supabase,
+            rows.map((p) => p.id),
+          ),
+    directories: directory ? new Map([[treeId, directory]]) : null,
+    treeOf: () => treeId,
+    forPublic,
   });
-  const edges: TreeGraphEdge[] = edgeRows.flatMap((r) =>
-    r.id && r.from_person && r.to_person && r.type && r.created_by
-      ? [
-          {
-            id: r.id,
-            from_person: r.from_person,
-            to_person: r.to_person,
-            type: r.type,
-            created_by: forPublic ? NOBODY : r.created_by,
-            marriage_date: r.marriage_date,
-            marriage_month: r.marriage_month,
-            marriage_day: r.marriage_day,
-            is_divorced: r.is_divorced ?? false,
-            divorce_date: r.divorce_date,
-            drawn_here: r.drawn_on_tree_id === treeId,
-          },
-        ]
-      : [],
-  );
+  return { people, relationships: edges };
+}
 
+/** Every curated period name for a place (Step 4.5d). */
+export async function readHistoricalNames(
+  supabase: DbClient,
+): Promise<HistoricalNameRow[]> {
+  const { data } = await supabase
+    .from("historical_names")
+    .select("place_id, country_code, name, start_date, end_date");
+  return (data ?? []) as HistoricalNameRow[];
+}
+
+type ClaimRow = { id: string; person_id: string; claimant_user_id: string };
+
+/** The settled claims on `ids`. */
+export function readApprovedClaims(
+  supabase: DbClient,
+  ids: readonly string[],
+): Promise<ClaimRow[]> {
+  return readIn(ids, (chunk) =>
+    supabase
+      .from("claims")
+      .select("id, person_id, status, claimant_user_id")
+      .eq("status", "approved")
+      .in("person_id", chunk),
+  );
+}
+
+export type DirectoryRow = Awaited<ReturnType<typeof readDirectory>>[number];
+
+/**
+ * Cards as the canvas draws them: each with its photo's addresses, its
+ * places' period names, its claim, the reports the viewer may see, and, when
+ * `directories` are read, whose entry it is and who brought it. One wave of
+ * reads for every card, whichever trees they came from.
+ *
+ * `treeOf` names the tree a card is read on: its directory says whose entry
+ * it is there (an account type is per tree), and who added it.
+ */
+export async function finishCards(
+  supabase: DbClient,
+  rows: readonly TreeCard[],
+  {
+    histRows,
+    claims: claimsRead,
+    directories,
+    treeOf,
+    forPublic = false,
+  }: {
+    histRows: readonly HistoricalNameRow[];
+    claims: readonly ClaimRow[] | Promise<readonly ClaimRow[]>;
+    directories: ReadonlyMap<string, readonly DirectoryRow[]> | null;
+    treeOf: (personId: string) => string;
+    forPublic?: boolean;
+  },
+): Promise<TreeGraphPerson[]> {
   // Step 4.5d — resolve period-appropriate place names for birth/death years.
   const placeIds = [
     ...new Set(
@@ -460,100 +597,99 @@ export async function getTreeGraph(
     .map((p) => p.photo_path)
     .filter((p): p is string => Boolean(p));
   const ids = rows.map((p) => p.id);
-  // Whoever added an entry but isn't on this tree's directory (they left,
-  // or it was added on another tree) is named from their profile (Step 86).
-  const listed = new Set(directory?.map((m) => m.auth_user_id));
-  const unlisted = directory
+  // Whoever added an entry but isn't on its tree's directory (they left, or
+  // it was added on another tree) is named from their profile (Step 86).
+  const listed = new Map(
+    [...(directories ?? [])].map(([treeId, directory]) => [
+      treeId,
+      new Set(directory.map((m) => m.auth_user_id)),
+    ]),
+  );
+  const unlisted = directories
     ? [
         ...new Set(
           rows.flatMap((p) =>
-            p.created_by && !listed.has(p.created_by) ? [p.created_by] : [],
+            p.created_by && !listed.get(treeOf(p.id))?.has(p.created_by)
+              ? [p.created_by]
+              : [],
           ),
         ),
       ]
     : [];
   // Card-sized photos sign one by one (Step 87.5), alongside the rest.
   const cardUrls = signedCardPhotoUrls(supabase, rows);
-  const [placeRes, claims, reports, urlByPath, unlistedProfiles] = await Promise.all([
-    placeIds.length > 0
-      ? supabase
-          .from("places")
-          .select("id, name, country_code, feature_code")
-          .in("id", placeIds)
-      : Promise.resolve({
-          data: [] as {
-            id: number;
-            name: string;
-            country_code: string | null;
-            feature_code: string | null;
-          }[],
-        }),
-    forPublic
-      ? []
-      : shared
-        ? loadTreeClaims(treeId)
+  const [placeRes, claims, reports, urlByPath, unlistedProfiles] =
+    await Promise.all([
+      placeIds.length > 0
+        ? supabase
+            .from("places")
+            .select("id, name, country_code, feature_code")
+            .in("id", placeIds)
+        : Promise.resolve({
+            data: [] as {
+              id: number;
+              name: string;
+              country_code: string | null;
+              feature_code: string | null;
+            }[],
+          }),
+      claimsRead,
+      // Those who may see a report (RLS) are those who can put it right, and
+      // whoever raised it (Step 88.2): the count follows the same rule.
+      forPublic
+        ? []
         : readIn(ids, (chunk) =>
             supabase
-              .from("claims")
-              .select("id, person_id, status, claimant_user_id")
-              .eq("status", "approved")
+              .from("entry_reports")
+              .select("person_id")
+              .eq("status", "open")
               .in("person_id", chunk),
           ),
-    // Those who may see a report (RLS) are those who can put it right, and
-    // whoever raised it (Step 88.2): the count follows the same rule.
-    forPublic
-      ? []
-      : readIn(ids, (chunk) =>
-          supabase
-            .from("entry_reports")
-            .select("person_id")
-            .eq("status", "open")
-            .in("person_id", chunk),
-        ),
-    signedPhotoUrls(supabase, paths),
-    readIn(unlisted, (chunk) =>
-      supabase
-        .from("profiles")
-        .select("auth_user_id, display_name")
-        .in("auth_user_id", chunk),
-    ),
-  ]);
+      signedPhotoUrls(supabase, paths),
+      readIn(unlisted, (chunk) =>
+        supabase
+          .from("profiles")
+          .select("auth_user_id, display_name")
+          .in("auth_user_id", chunk),
+      ),
+    ]);
   const cardUrlOf = await cardUrls;
-  // Whose entry is whose, by account type *on this tree* (see
-  // `accountTypesByPerson`): from this tree's own directory, so a member's
-  // type here is the one shown, not their type somewhere else.
-  const accountTypes = directory
-    ? accountTypesByPerson(
-        directory.flatMap((m) =>
-          m.auth_user_id
-            ? [
-                {
-                  auth_user_id: m.auth_user_id,
-                  role: m.role,
-                  self_person_id: m.self_person_id,
-                },
-              ]
-            : [],
-        ),
+  const otherNames = new Map(
+    unlistedProfiles.flatMap((p) =>
+      p.display_name ? [[p.auth_user_id, p.display_name] as const] : [],
+    ),
+  );
+  // Whose entry is whose, by account type *on the card's tree* (see
+  // `accountTypesByPerson`): from that tree's own directory, so a member's
+  // type there is the one shown, not their type somewhere else.
+  const accountTypes = new Map<string, Map<string, AccountTypeKey>>();
+  const joinedBy = new Map<string, Map<string, JoinedBy>>();
+  for (const [treeId, directory] of directories ?? []) {
+    const members = directory.flatMap((m) =>
+      m.auth_user_id ? [{ ...m, auth_user_id: m.auth_user_id }] : [],
+    );
+    accountTypes.set(
+      treeId,
+      accountTypesByPerson(
+        members.map((m) => ({
+          auth_user_id: m.auth_user_id,
+          role: m.role,
+          self_person_id: m.self_person_id,
+        })),
         claims,
-      )
-    : null;
-  const joinedBy = directory
-    ? joinedByPerson(
-        rows,
-        directory.flatMap((m) =>
-          m.auth_user_id ? [{ ...m, auth_user_id: m.auth_user_id }] : [],
-        ),
+      ),
+    );
+    joinedBy.set(
+      treeId,
+      joinedByPerson(
+        rows.filter((p) => treeOf(p.id) === treeId),
+        members,
         claims,
-        new Map(
-          unlistedProfiles.flatMap((p) =>
-            p.display_name ? [[p.auth_user_id, p.display_name]] : [],
-          ),
-        ),
-      )
-    : null;
+        otherNames,
+      ),
+    );
+  }
   const placeById = new Map((placeRes.data ?? []).map((p) => [p.id, p]));
-  const histRows = (histRes.data ?? []) as HistoricalNameRow[];
 
   const historicalFor = (
     placeId: number | null,
@@ -586,47 +722,44 @@ export async function getTreeGraph(
       (openReportsByPerson.get(r.person_id) ?? 0) + 1,
     );
   }
-  return {
-    people: rows.map((p) => {
-      const claimId = claimByPerson.get(p.id) ?? null;
-      return {
-        ...p,
-        ...(forPublic
-          ? {
-              owner_user_id: NOBODY,
-              created_by: NOBODY,
-              email: null,
-              photo_path: null,
-            }
-          : {}),
-        // Null on a blurred row (the view's left join); no email, not shown.
-        email_visible: p.email_visible ?? false,
-        ...photoUrlsOf(p, urlByPath, cardUrlOf),
-        claim_status: claimId ? "approved" : null,
-        claim_id: claimId,
-        open_report_count: openReportsByPerson.get(p.id) ?? 0,
-        account_type: accountTypes?.get(p.id) ?? null,
-        joined_by: joinedBy?.get(p.id) ?? null,
-        birth_place_historical: historicalFor(
-          p.place_id_birth,
-          p.city_of_birth,
-          p.country_of_birth,
-          p.date_of_birth,
-        ),
-        death_place_historical: historicalFor(
-          p.place_id_death,
-          // The town's own name: place_of_death holds the whole label
-          // ("Nairobi, Kenya"), which read "Nairobi, Kenya, Kenya Colony".
-          (p.place_id_death != null
-            ? placeById.get(p.place_id_death)?.name
-            : null) ?? p.place_of_death,
-          null,
-          p.date_of_death,
-        ),
-      };
-    }),
-    relationships: edges,
-  };
+  return rows.map((p) => {
+    const claimId = claimByPerson.get(p.id) ?? null;
+    return {
+      ...p,
+      ...(forPublic
+        ? {
+            owner_user_id: NOBODY,
+            created_by: NOBODY,
+            email: null,
+            photo_path: null,
+          }
+        : {}),
+      // Null on a blurred row (the view's left join); no email, not shown.
+      email_visible: p.email_visible ?? false,
+      ...photoUrlsOf(p, urlByPath, cardUrlOf),
+      claim_status: claimId ? "approved" : null,
+      claim_id: claimId,
+      open_report_count: openReportsByPerson.get(p.id) ?? 0,
+      account_type: accountTypes.get(treeOf(p.id))?.get(p.id) ?? null,
+      joined_by: joinedBy.get(treeOf(p.id))?.get(p.id) ?? null,
+      birth_place_historical: historicalFor(
+        p.place_id_birth,
+        p.city_of_birth,
+        p.country_of_birth,
+        p.date_of_birth,
+      ),
+      death_place_historical: historicalFor(
+        p.place_id_death,
+        // The town's own name: place_of_death holds the whole label
+        // ("Nairobi, Kenya"), which read "Nairobi, Kenya, Kenya Colony".
+        (p.place_id_death != null
+          ? placeById.get(p.place_id_death)?.name
+          : null) ?? p.place_of_death,
+        null,
+        p.date_of_death,
+      ),
+    };
+  });
 }
 
 /**

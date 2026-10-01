@@ -47,6 +47,8 @@
   --color-canopy: var(--canopy);
   --color-attention: var(--attention);
   --color-attention-foreground: var(--attention-foreground);
+  --color-tree-mark-1: var(--tree-mark-1);
+  --color-tree-mark-2: var(--tree-mark-2);
   --color-brand-green: var(--brand-green);
   --color-brand-brown: var(--brand-brown);
   --radius-sm: calc(var(--radius) * 0.6);
@@ -109,6 +111,12 @@
      dark amber text, over 8:1 in both themes. Not red: red means delete. */
   --attention: oklch(0.88 0.16 92);
   --attention-foreground: oklch(0.28 0.08 46);
+  /* Each of a member's trees on My Family Tree (Step 92): the data-viz
+     reference palette's blue and magenta, the one pair of its hues that
+     means nothing else here and clears every check against the other in
+     both themes (docs/design-system.md, "Tree marks"). */
+  --tree-mark-1: #2a78d6;
+  --tree-mark-2: #d55181;
 }
 
 .dark {
@@ -149,6 +157,8 @@
   --canopy: oklch(0.8 0.12 150);
   --attention: oklch(0.83 0.17 85);
   --attention-foreground: oklch(0.28 0.08 46);
+  --tree-mark-1: #3987e5;
+  --tree-mark-2: #d55181;
 }
 
 @layer base {
