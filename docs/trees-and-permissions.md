@@ -126,7 +126,11 @@ Rules that follow:
   held-back details and "Your details are hidden from the family until your
   parent approves."), but it stays a placeholder to everyone else, and they
   can't edit it, until the parent shows it. It's claimed only through such
-  an invite, and never merged into an entry of theirs.
+  an invite. A child who already has an entry of their own is merged with
+  it on accepting: one record, which takes the placeholder's number and
+  holds back what it said, a placeholder on every tree it's on until the
+  parent shows it. Once the child has claimed it, the parent can't delete
+  it.
 - A member joins a tree through an invite (as a Leaf), by founding it (as
   Root), or by accepting a placement of their own entry (as a Leaf, so they
   can keep their own entry up to date there; a Root may change that).
@@ -248,7 +252,7 @@ even the child, once they've claimed it (Step 98.3): it's theirs to edit
 only once their parent has shown it.
 
 `private.can_delete_person(p)`: a Root of `h`, or a placeholder child's
-parent; otherwise the Step 22.3 rule
+parent until the child has claimed it (Step 98.3); otherwise the Step 22.3 rule
 for the creator, evaluated in `h`.
 
 Pets stay on one tree (the tree they were added to) and their companions must

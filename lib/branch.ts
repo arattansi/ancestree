@@ -308,6 +308,16 @@ function isOwnPlaceholder(entry: EntrySubject, selfId: string | null): boolean {
 }
 
 /**
+ * A placeholder its parent may take away (Step 98.2): theirs, until the
+ * child has claimed it and it's the child's own entry (Step 98.3).
+ */
+function isOwnUnclaimedPlaceholder(entry: EntrySubject, selfId: string | null): boolean {
+  return (
+    isOwnPlaceholder(entry, selfId) && !entry.isClaimed && !entry.isSomeoneElsesOwn
+  );
+}
+
+/**
  * Mirrors `private.can_edit_person`: a Root; their own entry; otherwise the
  * current owner, the original creator while the entry is still unclaimed — or
  * a Branch anywhere on their own branch, as long as the entry isn't somebody
@@ -426,8 +436,9 @@ export function canInviteToClaimCard(
  */
 export function canOfferDelete(entry: EntrySubject, viewer: Viewer): boolean {
   if (accountTypeOf(viewer.role).deletes === "tree") return true;
-  // A placeholder child's parent may take it away (Step 98.2).
-  if (isOwnPlaceholder(entry, viewer.selfPersonId)) return true;
+  // A placeholder child's parent may take it away (Step 98.2), until the
+  // child has claimed it (Step 98.3).
+  if (isOwnUnclaimedPlaceholder(entry, viewer.selfPersonId)) return true;
   if (entry.id === viewer.selfPersonId) return false;
   if (entry.isClaimed || entry.isSomeoneElsesOwn) return false;
   return (
@@ -477,7 +488,7 @@ export function canOfferDeleteHere(
   home: Viewer | null,
 ): boolean {
   if (isHome) return canOfferDelete(entry, here);
-  if (isOwnPlaceholder(entry, here.selfPersonId)) return true;
+  if (isOwnUnclaimedPlaceholder(entry, here.selfPersonId)) return true;
   return !!home && accountTypeOf(home.role).deletes === "tree";
 }
 

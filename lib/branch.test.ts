@@ -981,6 +981,13 @@ describe("placeholder children (Step 98.2)", () => {
     expect(canOfferDelete(placeholder(), someoneElse)).toBe(false);
     expect(canOfferDeleteHere(placeholder(), false, parent, null)).toBe(true);
   });
+
+  it("isn't the parent's to delete once the child has claimed it (98.3)", () => {
+    const claimed = placeholder({ isClaimed: true, isSomeoneElsesOwn: true });
+    expect(canOfferDelete(claimed, parent)).toBe(false);
+    expect(canOfferDeleteHere(claimed, false, parent, null)).toBe(false);
+    expect(canOfferDelete(claimed, admin)).toBe(true);
+  });
 });
 
 describe("a placeholder's parent, invited by a Branch (Step 98.2)", () => {

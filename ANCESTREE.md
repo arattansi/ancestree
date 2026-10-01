@@ -1753,6 +1753,43 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 98.3, follow-up: a child's own entry merges with their
+  placeholder** (migration `20261001200000_child_entry_merges_with_placeholder`,
+  applied before the push with Aalim's OK; the old code works with it).
+  **Aalim asked for:** "merge the child's own entry when they accept too…
+  it should merge whenever the child claims the placeholder. it just
+  remains labelled as placeholder to the public until the parent approves
+  it being visible" — 98.3's first known gap. A child who already has an
+  entry of their own and accepts an invite to claim their placeholder no
+  longer ends up beside it: `merge_invited_entry` folds the placeholder
+  into their entry (lines, card position, stories, credits, album, as for
+  any stand-in), and their entry takes its number: one record, **First
+  Child** on every tree it's on, their own included, with everything it
+  said (and anything the placeholder held back, theirs winning) in
+  `private.withheld_details` (`private.entry_details`) until their parent
+  shows it. They see their details and the note; their parent sees the
+  list and is told ("First Child's details are hidden from the family.
+  Only you can choose what to show."); a reveal leaves it theirs.
+  `people_before_write` lets that merge set the number and clear a Root's
+  lineage mark, under the privileged flag. Also: a parent can no longer
+  delete a placeholder once the child has claimed it
+  (`can_delete_person`, re-created from Step 99's `20261001190000`;
+  `lib/branch.ts` mirrors it). **My calls, not asked:** a Root's lineage
+  mark on the child's entry is dropped, not held back; what the parent
+  doesn't tick is dropped from the child's own entry too, as for any
+  reveal (they can add it back, the entry being theirs once shown); the
+  Roots' "accepted your invite" notice names the child as "First Child".
+  **Checked:** tsc, lint, 1,767 tests; a rolled-back before/after rehearsal on
+  live (before: two records, the Root sees the child's name; after: one,
+  placeholder #1 on both trees, details held back, parent line moved,
+  parent told and can't delete it, reveal of name + photo restores just
+  those, the child edits it after); applied from the file with the row and
+  4 body md5 asserts; headless e2e with a throwaway Root, Leaf parent and a
+  child with their own tree: the child joins, sees "First Child · Your
+  entry" with their details and "Also on" their tree; the parent's list
+  shows them, no Delete; Show name → the Root sees "Kay Zz" and nothing
+  else; all deleted after.
+
 - **Step 98.2, follow-up: a Branch invites the parent too** (migration
   `20261001180000_branch_invites_placeholder_parents`). **Aalim asked
   for:** "let a Branch invite the parent too" — 98.2's second known gap. A
@@ -1893,7 +1930,7 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   not their own name; their address isn't seeded onto the placeholder.
   **Known gaps:** a child who already has their own entry and accepts the
   invite isn't merged, so a Root sees both side by side (as for any
-  unmergeable claim invite); the emails already sent on 2026-09-28 named
+  unmergeable claim invite; merged since the follow-up above); the emails already sent on 2026-09-28 named
   the children. **Checked:** tsc, lint, 1,743 tests; a rolled-back
   rehearsal on live, 55 checks before and after (Aalim's and Raiya's
   views, a Leaf, a stand-in parent, the real child invite redeemed by a
