@@ -19,9 +19,10 @@ import type { MyTree } from "@/lib/tree-context";
  * `app/account/page.tsx`): relatives' asks and the entries they match, the
  * member's own entry across their trees, what each Branch membership
  * tends, the trees they'd leave without a Root, what other trees have asked
- * of them, and their inbox. Everything that needs only them, their trees
- * or the address is asked for at once; what needs an answer first starts
- * as soon as it has it (Step 77.1).
+ * of them, their inbox and whether they get the weekly newsletter.
+ * Everything that needs only them, their trees or the address is asked for
+ * at once; what needs an answer first starts as soon as it has it (Step
+ * 77.1).
  */
 export async function loadAccountSettings(
   profile: Profile,
@@ -51,6 +52,7 @@ export async function loadAccountSettings(
     branchSideByTree,
     { data: otherMembers },
     asks,
+    { data: newsletter },
   ] = await Promise.all([
     listNotifications(profile.auth_user_id),
     supabase
@@ -115,6 +117,13 @@ export async function loadAccountSettings(
     // What other trees have asked to show in full (Step 80): their own
     // entry, and nobody's own entries they may edit.
     listPlacementAsks(),
+    // Whether they get the weekly newsletter (Step 95): RLS shows only
+    // their own row, and no row yet means on.
+    supabase
+      .from("newsletter_settings")
+      .select("subscribed")
+      .eq("user_id", profile.auth_user_id)
+      .maybeSingle(),
   ]);
   const invitedByTree = new Map(
     (directory ?? []).map((d) => [d.tree_id, d.invited_by_name]),
@@ -188,5 +197,6 @@ export async function loadAccountSettings(
     branchSideByTree,
     soleRootTrees,
     asks,
+    newsletterOn: newsletter?.subscribed ?? true,
   };
 }

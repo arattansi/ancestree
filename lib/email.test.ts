@@ -55,6 +55,17 @@ describe("sendEmails", () => {
     ]);
   });
 
+  it("carries a message's own headers, and none when it has none (Step 95)", async () => {
+    const unsubscribe = {
+      "List-Unsubscribe": "<https://www.ancestree.space/api/newsletter/t>",
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    };
+    await sendEmails([{ ...mail("a@x.com"), headers: unsubscribe }, mail("b@x.com")]);
+    const [withHeaders, without] = calls[0].body as { headers?: unknown }[];
+    expect(withHeaders.headers).toEqual(unsubscribe);
+    expect(without).not.toHaveProperty("headers");
+  });
+
   it("sends one on its own, and nothing for nobody", async () => {
     expect(await sendEmails([mail("a@x.com")])).toEqual([{ ok: true }]);
     expect(calls.map((c) => c.url)).toEqual([ONE_URL]);

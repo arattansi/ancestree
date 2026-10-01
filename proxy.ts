@@ -15,6 +15,12 @@ const PUBLIC_PREFIXES = [
   "/privacy",
   "/request-invite",
   "/shared",
+  // The weekly newsletter's unsubscribe page and one-click link, which
+  // work signed out, and its weekly job, which checks its own secret
+  // (Step 95).
+  "/newsletter",
+  "/api/newsletter",
+  "/api/cron",
 ];
 
 export async function proxy(request: NextRequest, event: NextFetchEvent) {

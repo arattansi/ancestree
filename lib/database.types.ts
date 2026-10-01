@@ -968,6 +968,45 @@ export type Database = {
         }
         Relationships: []
       }
+      newsletter_settings: {
+        Row: {
+          last_issue_at: string | null
+          subscribed: boolean
+          token: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          last_issue_at?: string | null
+          subscribed?: boolean
+          token?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          last_issue_at?: string | null
+          subscribed?: boolean
+          token?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "newsletter_settings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "newsletter_settings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           actor_user_id: string | null
@@ -2539,6 +2578,10 @@ export type Database = {
         Args: { p_person_id: string; p_tree: string }
         Returns: boolean
       }
+      claim_newsletter_issues: {
+        Args: { p_users: string[] }
+        Returns: string[]
+      }
       claim_person: { Args: { p_person_id: string }; Returns: Json }
       claim_person_as_self: {
         Args: {
@@ -2732,6 +2775,17 @@ export type Database = {
       }
       my_growth_rights: { Args: { p_tree?: string }; Returns: Json }
       my_tree_request: { Args: never; Returns: string }
+      newsletter_due: {
+        Args: { p_users?: string[] }
+        Returns: {
+          email: string
+          self_person_id: string
+          since: string
+          token: string
+          tree_ids: string[]
+          user_id: string
+        }[]
+      }
       note_active_day: { Args: never; Returns: boolean }
       person_claim_candidates: {
         Args: never
@@ -2941,6 +2995,7 @@ export type Database = {
         Args: { p_role: string; p_tree: string; p_user: string }
         Returns: string
       }
+      set_newsletter: { Args: { p_on: boolean }; Returns: undefined }
       share_story: { Args: { p_story: string }; Returns: string }
       shared_story: {
         Args: { p_token: string }

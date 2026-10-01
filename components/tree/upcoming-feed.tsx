@@ -25,6 +25,7 @@ import {
   type Occasion,
 } from "@/lib/occasions";
 import {
+  coupleDisplayName,
   maidenLine,
   personDisplayName,
   personInitials,
@@ -75,19 +76,6 @@ function Face({
 
 const firstName = (p: TreeGraphPerson) =>
   (p.preferred_name || p.first_name || "").trim();
-
-/** "Ahmed & Sara Khan" when they share a surname, else both in full. */
-function coupleName(
-  a: TreeGraphPerson | undefined,
-  b: TreeGraphPerson | undefined,
-): string {
-  if (a && b && a.last_name === b.last_name && firstName(a) && firstName(b))
-    return `${firstName(a)} & ${firstName(b)} ${a.last_name}`;
-  return [a, b]
-    .filter((p): p is TreeGraphPerson => !!p)
-    .map(personDisplayName)
-    .join(" & ");
-}
 
 /**
  * The line under a row's name: "née Jaffer" under someone's own, and under
@@ -204,7 +192,7 @@ export function UpcomingFeed({
       weekMessage(occasions ?? [], (o) => {
         const [a, b] = o.people.map((id) => personById.get(id));
         return o.kind === "anniversary"
-          ? coupleName(a, b)
+          ? coupleDisplayName(a, b)
           : a
             ? personDisplayName(a)
             : "";
@@ -330,7 +318,7 @@ export function UpcomingFeed({
                           className="leading-5 font-medium"
                         >
                           {couple
-                            ? coupleName(a, b)
+                            ? coupleDisplayName(a, b)
                             : a
                               ? personDisplayName(a)
                               : ""}

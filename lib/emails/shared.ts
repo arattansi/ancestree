@@ -19,7 +19,13 @@ export function renderEmail(input: {
   /** The greeting. Already HTML-escaped. */
   heading: string;
   /** Pre-built HTML for the paragraph under the greeting — caller escapes any interpolated names. */
-  bodyHtml: string;
+  bodyHtml?: string;
+  /**
+   * Blocks of their own under the greeting (and its paragraph, if any),
+   * above the button: the weekly newsletter's sections (Step 95). Pre-built
+   * HTML; the caller escapes what it interpolates.
+   */
+  contentHtml?: string;
   /**
    * The button. `url` is our own address — never user-supplied text — but
    * escaped here all the same: a query string's `&` would otherwise read as
@@ -29,7 +35,8 @@ export function renderEmail(input: {
   /** The small print under the divider. Already HTML-safe. */
   footnoteHtml: string;
 }): string {
-  const { title, preheader, heading, bodyHtml, cta, footnoteHtml } = input;
+  const { title, preheader, heading, bodyHtml, contentHtml, cta, footnoteHtml } =
+    input;
   const href = escapeHtml(cta.url);
 
   return `<!doctype html>
@@ -59,10 +66,14 @@ export function renderEmail(input: {
                   <tr><td style="padding:28px 0;"><div style="height:1px;background-color:#e5e5e5;line-height:1px;font-size:0;">&nbsp;</div></td></tr>
                 </table>
 
-                <p style="margin:0;font-size:16px;font-weight:600;color:#0a0a0a;">${heading}</p>
+                <p style="margin:0;font-size:16px;font-weight:600;color:#0a0a0a;">${heading}</p>${
+                  bodyHtml
+                    ? `
                 <p style="margin:10px 0 0;font-size:15px;line-height:1.6;color:#737373;">
                   ${bodyHtml}
-                </p>
+                </p>`
+                    : ""
+                }${contentHtml ?? ""}
 
                 <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 0;">
                   <tr>

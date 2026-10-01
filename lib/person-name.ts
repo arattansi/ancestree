@@ -14,6 +14,23 @@ export function personDisplayName(p: NamedPerson): string {
 }
 
 /**
+ * A couple as Upcoming and the weekly newsletter name them: "Ahmed & Sara
+ * Khan" when they share a surname, else both in full.
+ */
+export function coupleDisplayName(
+  a: NamedPerson | undefined,
+  b: NamedPerson | undefined,
+): string {
+  const first = (p: NamedPerson) => (p.preferred_name || p.first_name || "").trim();
+  if (a && b && a.last_name && a.last_name === b.last_name && first(a) && first(b))
+    return `${first(a)} & ${first(b)} ${a.last_name}`;
+  return [a, b]
+    .filter((p): p is NamedPerson => !!p)
+    .map(personDisplayName)
+    .join(" & ");
+}
+
+/**
  * The name as a card on the canvas shows it.
  *
  * A card is 208px wide and a name is the one thing on it that has to be read,

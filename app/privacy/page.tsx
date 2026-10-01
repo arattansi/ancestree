@@ -30,8 +30,9 @@ export default function PrivacyPage() {
       <Section title="What we collect">
         <ul className="list-disc space-y-1 pl-5">
           <li>
-            Your email address, used only to send one-time sign-in codes and to
-            identify your account.
+            Your email address, used only to identify your account and to send
+            one-time sign-in codes, alerts about your trees, and a weekly
+            newsletter about your family that you can turn off.
           </li>
           <li>
             The demographic details you enter about yourself and relatives: names,

@@ -31,6 +31,7 @@ import { RelativesCanAsk } from "@/components/relatives-can-ask";
 import { RelayInvites } from "@/components/relay-invites";
 import { SubmitButton } from "@/components/submit-button";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { WeeklyNewsletter } from "@/components/weekly-newsletter";
 import { TreeTarget } from "@/components/tree-target";
 import { Button } from "@/components/ui/button";
 import {
@@ -252,6 +253,7 @@ async function SettingsView({
     branchSideByTree,
     soleRootTrees,
     asks,
+    newsletterOn,
   } = await loadAccountSettings(profile, trees, openedRelayId);
 
   // Inviting from here: every tree they don't run (Roots invite from the
@@ -502,6 +504,7 @@ async function SettingsView({
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
+          <WeeklyNewsletter on={newsletterOn} />
           {trees.length > 1 ? (
             trees.map((t) => {
               const items = notifications.filter((n) => n.treeId === t.id);

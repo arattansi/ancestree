@@ -192,6 +192,26 @@ export function asksHref(): string {
 }
 
 /**
+ * The weekly newsletter's page (Step 95): opened from the email's
+ * Unsubscribe link with the member's own token, signed out, to turn it off
+ * or back on. Callers add the site's origin.
+ */
+export function newsletterPageHref(token: string): string {
+  return `/newsletter/${enc(token)}`;
+}
+
+/** What a mail app's one-click unsubscribe posts to (RFC 8058), for the
+ *  newsletter's `List-Unsubscribe` header. */
+export function newsletterOneClickHref(token: string): string {
+  return `/api/newsletter/${enc(token)}`;
+}
+
+/** Settings, at the newsletter's box. */
+export function newsletterSettingsHref(): string {
+  return "/account?view=settings#newsletter";
+}
+
+/**
  * `relatedTo` as the add flow should use it: one id that is on the tree, or
  * nothing. Anything else — missing, repeated, or someone not on the tree — is
  * ignored rather than refused, so a stale link still opens the plain flow.

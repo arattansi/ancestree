@@ -17,6 +17,8 @@ export type SendEmailInput = {
   to: string;
   subject: string;
   html: string;
+  /** Extra headers: the weekly newsletter's one-click unsubscribe (Step 95). */
+  headers?: Record<string, string>;
 };
 
 export type SendEmailResult =
@@ -96,6 +98,7 @@ function message(input: SendEmailInput) {
     to: input.to,
     subject: input.subject,
     html: input.html,
+    ...(input.headers ? { headers: input.headers } : {}),
   };
 }
 
