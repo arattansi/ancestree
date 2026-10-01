@@ -7,6 +7,8 @@ import {
   companionsShowing,
   familyTies,
   lineEditableFromView,
+  marriedInLabel,
+  marriedInto,
   mergeLines,
   mergeShowings,
   treeMarkOf,
@@ -59,13 +61,18 @@ const dadsSide = [
   parent("coParent", "karimKid"),
   parent("coParentMom", "coParent"),
 ];
-// Where the two sides meet: Dad married Mom; Aalim and his sister.
+// Where the two sides meet: Dad married Mom; Aalim, his sister and his
+// brother, who married too, his wife's mother on the tree as well.
 const parents = [
   spouse("dad", "mom"),
   parent("dad", "aalim"),
   parent("mom", "aalim"),
   parent("dad", "sister"),
   parent("mom", "sister"),
+  parent("dad", "brother"),
+  parent("mom", "brother"),
+  spouse("brother", "brotherWife"),
+  parent("brotherWifeMom", "brotherWife"),
 ];
 // His mom's side: her parents, her sister, her sister's husband and son.
 const momsSide = [
@@ -80,7 +87,7 @@ const momsSide = [
   parent("husbandsMom", "momSisHusband"),
 ];
 // Raiya's side: her parents, her brother and his wife, whose mother is
-// there too. Raiya married Aalim.
+// there too. Raiya married Aalim, and they have a daughter.
 const raiyasSide = [
   parent("rDad", "raiya"),
   parent("rMom", "raiya"),
@@ -89,6 +96,8 @@ const raiyasSide = [
   spouse("rBro", "rBroWife"),
   parent("rBroWifeMom", "rBroWife"),
   spouse("aalim", "raiya"),
+  parent("aalim", "daughter"),
+  parent("raiya", "daughter"),
 ];
 const everyone = [...dadsSide, ...parents, ...momsSide, ...raiyasSide];
 
@@ -109,7 +118,64 @@ describe("familyTies", () => {
     expect(tiesOf("me", everyone)).toEqual(["me: blood"]);
   });
 
-  it("Karim sees his dad's side, with Aalim's mom and Raiya only as partners", () => {
+  it("Aalim sees both his parents' sides, and whoever married in alone", () => {
+    expect(ids("aalim", everyone, "blood")).toEqual(
+      [
+        "aalim",
+        "sister",
+        "brother",
+        "daughter",
+        // His dad's side…
+        "dad",
+        "gpaR",
+        "gmaR",
+        "greatAunt",
+        "greatAuntKid",
+        "uncle",
+        "karim",
+        "karimKid",
+        // …and his mom's: she is his blood, not someone who married in.
+        "mom",
+        "mgpa",
+        "mgma",
+        "momSis",
+        "momNephew",
+      ].sort(),
+    );
+    // His wife, his brother's wife, his uncle's wife (Aalim's examples),
+    // his aunt's husband, and Karim's ex and co-parent.
+    expect(ids("aalim", everyone, "married_in")).toEqual(
+      [
+        "raiya",
+        "brotherWife",
+        "aunt",
+        "momSisHusband",
+        "karimEx",
+        "coParent",
+      ].sort(),
+    );
+  });
+
+  it("keeps out the family of everyone who married in, his wife's included", () => {
+    const shown = familyTies("aalim", everyone);
+    for (const id of [
+      // Raiya's parents, brother and his wife (Step 94).
+      "rDad",
+      "rMom",
+      "rBro",
+      "rBroWife",
+      "rBroWifeMom",
+      "brotherWifeMom",
+      "auntDad",
+      "husbandsMom",
+      "exDad",
+      "coParentMom",
+    ]) {
+      expect(shown.has(id), id).toBe(false);
+    }
+  });
+
+  it("Karim sees his dad's side, with Aalim's mom and Raiya only as married in", () => {
     expect(tiesOf("karim", everyone)).toEqual(
       [
         // Up every parent line, then down and across siblings (Step 55).
@@ -124,94 +190,41 @@ describe("familyTies", () => {
         "dad: blood",
         "aalim: blood",
         "sister: blood",
+        "brother: blood",
+        "daughter: blood",
         "karimKid: blood",
         // Married, or had a child with, someone in: alone.
-        "mom: partner",
-        "raiya: partner",
-        "karimEx: partner",
-        "coParent: partner",
+        "mom: married_in",
+        "raiya: married_in",
+        "brotherWife: married_in",
+        "karimEx: married_in",
+        "coParent: married_in",
       ].sort(),
     );
   });
 
-  it("keeps out the families of everyone who married in", () => {
-    const shown = familyTies("karim", everyone);
-    for (const id of [
-      "mgpa",
-      "mgma",
-      "momSis",
-      "momNephew",
-      "rDad",
-      "rMom",
-      "rBro",
-      "exDad",
-      "coParentMom",
-    ]) {
+  it("Raiya sees her own family, with Aalim alone beside her", () => {
+    expect(ids("raiya", everyone, "blood")).toEqual(
+      ["raiya", "rDad", "rMom", "rBro", "daughter"].sort(),
+    );
+    expect(ids("raiya", everyone, "married_in")).toEqual(
+      ["aalim", "rBroWife"].sort(),
+    );
+    // None of Aalim's family but their daughter.
+    const shown = familyTies("raiya", everyone);
+    for (const id of ["dad", "mom", "sister", "brother", "karim", "mgma"]) {
       expect(shown.has(id), id).toBe(false);
     }
   });
 
-  it("Raiya sees her own family and both of Aalim's sides", () => {
-    expect(ids("raiya", everyone, "blood")).toEqual(
-      ["raiya", "rDad", "rMom", "rBro"].sort(),
-    );
-    expect(ids("raiya", everyone, "partner_blood")).toEqual(
-      [
-        "aalim",
-        "sister",
-        // His dad's side…
-        "dad",
-        "gpaR",
-        "gmaR",
-        "greatAunt",
-        "greatAuntKid",
-        "uncle",
-        "karim",
-        "karimKid",
-        // …and his mom's.
-        "mom",
-        "mgpa",
-        "mgma",
-        "momSis",
-        "momNephew",
-      ].sort(),
-    );
-    expect(ids("raiya", everyone, "partner")).toEqual(
-      ["rBroWife", "aunt", "momSisHusband", "karimEx", "coParent"].sort(),
-    );
-  });
-
-  it("Aalim's mom sees her own family and her in-laws", () => {
-    expect(ids("mom", everyone, "blood")).toEqual(
-      ["mom", "mgpa", "mgma", "momSis", "momNephew", "aalim", "sister"].sort(),
-    );
-    expect(ids("mom", everyone, "partner_blood")).toEqual(
-      [
-        "dad",
-        "gpaR",
-        "gmaR",
-        "greatAunt",
-        "greatAuntKid",
-        "uncle",
-        "karim",
-        "karimKid",
-      ].sort(),
-    );
-    expect(ids("mom", everyone, "partner")).toEqual(
-      ["momSisHusband", "raiya", "aunt", "karimEx", "coParent"].sort(),
-    );
-    // Nobody from Raiya's side but Raiya herself.
-    expect(familyTies("mom", everyone).has("rDad")).toBe(false);
-  });
-
-  it("leaves an ex's family out, the ex still a card", () => {
+  it("leaves an ex's family out, the ex still there as married in", () => {
     const divorced = everyone.map((e) =>
       e.type === "spouse" && e.from_person === "dad" && e.to_person === "mom"
         ? { ...e, is_divorced: true }
         : e,
     );
     const ties = familyTies("mom", divorced);
-    expect(ties.get("dad")).toBe("partner");
+    expect(ties.get("dad")).toBe("married_in");
     // Their children are still hers.
     expect(ties.get("aalim")).toBe("blood");
     for (const id of ["gpaR", "gmaR", "uncle", "karim"]) {
@@ -219,7 +232,7 @@ describe("familyTies", () => {
     }
   });
 
-  it("takes in every current partner's blood, and a co-parent never married", () => {
+  it("takes in every partner alone, and a co-parent never married", () => {
     const edges = [
       spouse("me", "wife1"),
       spouse("me", "wife2"),
@@ -233,11 +246,9 @@ describe("familyTies", () => {
       [
         "me: blood",
         "kid: blood",
-        "wife1: partner_blood",
-        "w1Dad: partner_blood",
-        "wife2: partner_blood",
-        "w2Dad: partner_blood",
-        "other: partner",
+        "wife1: married_in",
+        "wife2: married_in",
+        "other: married_in",
       ].sort(),
     );
   });
@@ -255,7 +266,73 @@ describe("familyTies", () => {
 
   it("ends on a cycle in the lines", () => {
     const edges = [parent("a", "b"), parent("b", "a"), spouse("a", "x", true)];
-    expect(tiesOf("a", edges)).toEqual(["a: blood", "b: blood", "x: partner"]);
+    expect(tiesOf("a", edges)).toEqual([
+      "a: blood",
+      "b: blood",
+      "x: married_in",
+    ]);
+  });
+});
+
+describe("marriedInto", () => {
+  const linksOf = (selfId: string, edges: readonly FamilyEdge[]) =>
+    marriedInto(familyTies(selfId, edges), edges)
+      .map((m) => `${m.id} → ${m.to}: ${m.kind}`)
+      .sort();
+
+  it("names whom each married into, and how", () => {
+    expect(linksOf("aalim", everyone)).toEqual(
+      [
+        "raiya → aalim: spouse",
+        "brotherWife → brother: spouse",
+        "aunt → uncle: spouse",
+        "momSisHusband → momSis: spouse",
+        "karimEx → karim: former_spouse",
+        "coParent → karim: co_parent",
+      ].sort(),
+    );
+  });
+
+  it("prefers a marriage to a child together, and a current one to an ex", () => {
+    const edges = [
+      parent("me", "kid1"),
+      parent("partner", "kid1"),
+      spouse("partner", "me"),
+      parent("brother", "kid2"),
+      parent("partner", "kid2"),
+      parent("mum", "me"),
+      parent("mum", "brother"),
+      spouse("ex", "brother", true),
+      spouse("ex", "me"),
+    ];
+    expect(linksOf("me", edges)).toEqual([
+      "ex → me: spouse",
+      "partner → me: spouse",
+    ]);
+  });
+
+  it("names nobody who is blood", () => {
+    const edges = [
+      parent("gpa", "mum"),
+      parent("gpa", "uncle"),
+      parent("mum", "me"),
+      parent("uncle", "cousin"),
+      spouse("me", "cousin"),
+    ];
+    expect(linksOf("me", edges)).toEqual([]);
+  });
+});
+
+describe("marriedInLabel", () => {
+  it("says whom, or that it's the viewer's", () => {
+    expect(marriedInLabel("spouse", "Karim")).toBe("Spouse of Karim");
+    expect(marriedInLabel("former_spouse", "Karim")).toBe(
+      "Former spouse of Karim",
+    );
+    expect(marriedInLabel("co_parent", "Karim")).toBe("Co-parent with Karim");
+    expect(marriedInLabel("spouse", null)).toBe("Your spouse");
+    expect(marriedInLabel("former_spouse", null)).toBe("Your former spouse");
+    expect(marriedInLabel("co_parent", null)).toBe("Co-parent with you");
   });
 });
 

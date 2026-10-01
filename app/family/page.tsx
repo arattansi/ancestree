@@ -17,12 +17,13 @@ import { treeHref } from "@/lib/tree-links";
 
 export const metadata: Metadata = {
   title: "My Family Tree",
-  description: "Everyone you're related to, from every tree you're on.",
+  description: "Your blood relatives, and who married in, from every tree you're on.",
 };
 
 /**
- * My Family Tree (Step 92.2): everyone the member is related to, gathered
- * from every tree they're a member of (`loadMyFamily`) and drawn on the
+ * My Family Tree (Step 92.2): the member's own family tree — their blood
+ * relatives, and whoever married in as pills (Step 94) — gathered from
+ * every tree they're a member of (`loadMyFamily`) and drawn on the
  * tree's own canvas, arranged around them. A view only: nothing is moved
  * or added on it. Each card's actions (Step 92.3) go to the card's own
  * tree, as who the member is there; adding goes to the tree they pick.
@@ -101,6 +102,8 @@ export default async function MyFamilyPage() {
           currentTreeId,
           // Asked of the viewer only, here (Step 92.4).
           samePeople: family.samePeople,
+          // Pills, not cards (Step 94).
+          marriedIn: family.marriedIn,
         }}
       />
     </main>

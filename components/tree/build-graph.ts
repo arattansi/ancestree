@@ -30,8 +30,15 @@ export function buildPeopleGraph(
   anchorIds: string[],
   /** Rows fixed from a fuller canvas (`LayoutOptions.generations`). */
   generations?: ReadonlyMap<string, number>,
+  /** People drawn as pills: on My Family Tree, whoever married in (Step
+   *  94, `LayoutOptions.compactIds`). */
+  compactIds?: ReadonlySet<string>,
 ): PeopleGraph {
-  const layout = layoutTree(people, relationships, { anchorIds, generations });
+  const layout = layoutTree(people, relationships, {
+    anchorIds,
+    generations,
+    compactIds,
+  });
   const { positions, unions } = layout;
   const ids = new Set(people.map((p) => p.id));
 

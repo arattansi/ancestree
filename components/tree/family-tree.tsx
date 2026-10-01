@@ -117,9 +117,11 @@ import { generationLabelFromYou } from "@/lib/generation-lanes";
 import {
   addTreesFromView,
   lineEditableFromView,
+  marriedInLabel,
   type FamilyActingTree,
   type FamilyLine,
   type FamilyShowing,
+  type MarriedIn,
 } from "@/lib/my-family";
 import { nativeLeaf } from "@/lib/native-leaf";
 import { upcomingOccasions } from "@/lib/occasions";
@@ -214,6 +216,9 @@ export type FamilyView = {
   /** Cards that may be one person entered twice (Step 92.4), and what
    *  each pair stands on: asked "Same person?" here only. */
   samePeople: readonly SamePair[];
+  /** Everyone who married into the viewer's family, and whom (Step 94):
+   *  drawn as pills. Everyone else is a direct relative, on a card. */
+  marriedIn: readonly MarriedIn[];
 };
 
 type Props = {
@@ -315,6 +320,17 @@ function Canvas({
   // actions go to its own tree, as who the viewer is there (Step 92.3,
   // `viewerOn` below).
   const editable = !readOnly && !family;
+  // It's the viewer's own family tree (Step 94): their blood on cards, and
+  // whoever married into it as a pill, a sibling's partner's shape in a
+  // spotlight (Step 19.4), wherever they stand on the view.
+  const marriedIn = React.useMemo(
+    () => new Map((family?.marriedIn ?? []).map((m) => [m.id, m])),
+    [family],
+  );
+  const pillIds = React.useMemo<ReadonlySet<string>>(
+    () => (marriedIn.size > 0 ? new Set(marriedIn.keys()) : NOBODY),
+    [marriedIn],
+  );
   // Companions stay off the canvas until the viewer switches them on (Step
   // 23). Off the canvas only: a person's details still list theirs, and
   // picking one there still opens it.
@@ -438,6 +454,7 @@ function Canvas({
         selfPersonId,
         descent ? descent.anchorIds : sideAnchorIds,
         rows,
+        pillIds.size > 0 ? pillIds : undefined,
       ),
     [
       placedPeople,
@@ -446,6 +463,7 @@ function Canvas({
       descent,
       sideAnchorIds,
       rows,
+      pillIds,
     ],
   );
   const graph = React.useMemo(
@@ -946,9 +964,13 @@ function Canvas({
 
     const compact = layoutTree(litPeople, shownRelationships, {
       anchorIds: [anchorId],
-      // Siblings' partners packed as pills (Step 19.4); the overview layout
-      // never passes this, so its positions are untouched.
-      compactIds: spotlight.siblingSpouses,
+      // Siblings' partners packed as pills (Step 19.4), and on My Family
+      // Tree whoever married in (Step 94); a tree's overview layout never
+      // passes this, so its positions are untouched.
+      compactIds:
+        pillIds.size > 0
+          ? new Set([...spotlight.siblingSpouses, ...pillIds])
+          : spotlight.siblingSpouses,
       // Each family hangs straight under its parents' trunk, so the line
       // drops onto the middle of the children's bar with no step.
       centreFamilies: true,
@@ -977,7 +999,7 @@ function Canvas({
       });
     }
     return positions;
-  }, [spotlight, shownPeople, pets, shownRelationships, graph]);
+  }, [spotlight, shownPeople, pets, shownRelationships, graph, pillIds]);
 
   // Clicking a connection: work out what it joins, name it, and collect the
   // nodes and edges the spotlight should keep lit.
@@ -1121,6 +1143,22 @@ function Canvas({
       ),
     [sameById, sameNameOf],
   );
+  // Whom each married-in pill married into (Step 94), for the pill after
+  // "Married in" and for the sheet: the viewer's own spouse is "Your
+  // spouse".
+  const marriedToById = React.useMemo(() => {
+    if (marriedIn.size === 0) return null;
+    const firstNameOf = (id: string) => {
+      const p = personById.get(id);
+      return p?.preferred_name || p?.first_name || "a relative";
+    };
+    return new Map(
+      [...marriedIn.values()].map((m) => [
+        m.id,
+        marriedInLabel(m.kind, m.to === selfPersonId ? null : firstNameOf(m.to)),
+      ]),
+    );
+  }, [marriedIn, personById, selfPersonId]);
   // Everything the canvas says about a card beyond where it sits — the ring on
   // the open entry, the fade on a card the search filtered out, the ring on a
   // clicked connection's endpoints, and the spotlight's lit line against its
@@ -1168,8 +1206,15 @@ function Canvas({
         : isPet
           ? !!pet?.companions.some((id) => spotlight?.line.has(id))
           : lit.has(n.id);
-      const compressed =
-        !isPet && (spotlight?.siblingSpouses.has(n.id) ?? false);
+      // A pill: whoever married in, on My Family Tree (Step 94), or a
+      // sibling's partner in a spotlight (Step 19.4).
+      const pillLabel = isPet
+        ? undefined
+        : marriedToById?.has(n.id)
+          ? `Married in · ${marriedToById.get(n.id)}`
+          : (spotlight?.siblingSpouses.has(n.id)
+            ? `Spouse of ${spotlight.spouseOf.get(n.id) || "a sibling"}`
+            : undefined);
       const mark = isPet ? undefined : markById.get(n.id);
       const same = isPet ? undefined : sameLabelById.get(n.id);
       map.set(n.id, {
@@ -1181,9 +1226,7 @@ function Canvas({
         highlighted,
         lineage: !!lit && inLine,
         blurred: (!!lit && !inLine) || (!isPet && !!(n.data as { person?: { blurred?: boolean } }).person?.blurred),
-        ...(compressed
-          ? { compressed, spouseOf: spotlight?.spouseOf.get(n.id) }
-          : {}),
+        ...(pillLabel ? { compressed: true, pillLabel } : {}),
       });
     }
     return map;
@@ -1199,6 +1242,7 @@ function Canvas({
     selectedPetId,
     markById,
     sameLabelById,
+    marriedToById,
   ]);
   // A card whose flags came out the same is handed the very same `data`, so
   // it doesn't draw again when the rest of the tree changes (Step 87.1).
@@ -2179,6 +2223,15 @@ function Canvas({
   // Asked in the sheet of a card that may be someone else's too (Step
   // 92.4): naming each, to open in turn, or put away as two people.
   const selectedSame = selectedId ? sameById.get(selectedId) : undefined;
+  // Direct relative or married in, on My Family Tree (Step 94): said in
+  // the sheet as well as by the card's shape. The viewer is neither.
+  const kinship = React.useMemo(() => {
+    if (!family || !selectedId || selectedId === selfPersonId) return null;
+    const to = marriedToById?.get(selectedId);
+    return to
+      ? { marriedIn: true as const, to }
+      : { marriedIn: false as const };
+  }, [family, selectedId, selfPersonId, marriedToById]);
   const samePersonPrompt = React.useMemo(
     () =>
       selectedId && selectedSame ? (
@@ -2541,6 +2594,7 @@ function Canvas({
           addRelativeOf={addTarget}
           connectionPrompt={connectionPrompt}
           samePerson={samePersonPrompt}
+          kinship={kinship}
           minimized={minimized}
           onMinimize={onMinimize}
           minimizedFocus={foldedRef}

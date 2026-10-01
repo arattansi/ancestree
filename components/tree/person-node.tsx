@@ -37,11 +37,12 @@ export type PersonNodeData = {
   lineage?: boolean;
   /** Off that tree — shown blurred back behind it. */
   blurred?: boolean;
-  /** A sibling's partner on that tree — drawn as a name-only pill (Step
-   *  19.4). Always alongside `lineage`. */
+  /** Married in — drawn as a name-only pill: a sibling's partner on that
+   *  tree (Step 19.4, always alongside `lineage`), or on My Family Tree
+   *  whoever married into the viewer's family (Step 94). */
   compressed?: boolean;
-  /** The sibling's first name, for the pill's "Spouse of …". */
-  spouseOf?: string;
+  /** Who the pill is to the family: "Spouse of Karim". */
+  pillLabel?: string;
   /** On My Family Tree, the mark of the tree the card comes from (Step
    *  92.2). */
   mark?: CardMark;
@@ -66,7 +67,7 @@ function PersonNodeImpl({ data }: NodeProps) {
     lineage,
     blurred,
     compressed,
-    spouseOf,
+    pillLabel,
     mark,
     same,
   } = data as PersonNodeData;
@@ -86,12 +87,21 @@ function PersonNodeImpl({ data }: NodeProps) {
   const cardPhoto = useSteadyPhoto(person.photo_card_url);
   const [previewed, setPreviewed] = React.useState(false);
 
-  // Married in beside a sibling, they are named and no more (Step 19.4). The
-  // spouse line reaches them at either side; top and bottom only anchor the
-  // faded lines to their own family, left behind in the tree.
-  if (lineage && compressed) {
+  // Married in, they are named and no more (Steps 19.4, 94). The spouse
+  // line reaches them at either side; top and bottom anchor the lines to
+  // their children, or the faded ones to their own family left behind in
+  // the tree. Off a spotlight's line they fade and blur as a card does.
+  if (compressed) {
     return (
-      <div className="relative">
+      <div
+        className={cn(
+          "relative transition-[opacity,filter] duration-300 phone:transition-opacity",
+          !lineage && dimmed && "opacity-25",
+          !lineage &&
+            blurred &&
+            "opacity-30 blur-[2px] saturate-50 phone:filter-none",
+        )}
+      >
         <Handle type="target" position={Position.Top} className={handleClass} />
         <Handle
           type="source"
@@ -110,7 +120,13 @@ function PersonNodeImpl({ data }: NodeProps) {
           id="r"
           className={handleClass}
         />
-        <PillCard person={person} spouseOf={spouseOf ?? "a sibling"} />
+        <PillCard
+          person={person}
+          label={pillLabel ?? "Married in"}
+          mark={mark}
+          same={same}
+          selected={!!selected}
+        />
       </div>
     );
   }

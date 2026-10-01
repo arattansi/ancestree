@@ -6,11 +6,13 @@ import type { AccountTypeKey } from "@/lib/account-types";
 import { getProfile } from "@/lib/auth";
 import {
   familyTies,
+  marriedInto,
   mergeLines,
   mergeShowings,
   treeMarkOf,
   type FamilyLine,
   type FamilyTie,
+  type MarriedIn,
   type Showing,
   type TreeMark,
 } from "@/lib/my-family";
@@ -80,6 +82,11 @@ export type MyFamilyGraph = {
    * to the viewer only. Worked out here, never stored.
    */
   samePeople: SamePair[];
+  /**
+   * Everyone who married into the viewer's family, and whom (Step 94): a
+   * pill on the view, not a card. Everyone else is a direct relative.
+   */
+  marriedIn: MarriedIn[];
 };
 
 /** When each of `treeIds` placed each of its people, by `tree:person`. */
@@ -271,7 +278,7 @@ export const loadMyFamily = cache(async (): Promise<MyFamilyGraph | null> => {
 
   const familyPeople = finished.map((p) => ({
     ...p,
-    tie: ties.get(p.id) ?? "partner",
+    tie: ties.get(p.id) ?? "married_in",
     tree_id: treeOf.get(p.id) ?? "",
     tree_ids: cards.get(p.id)?.treeIds ?? [],
     full_tree_ids: cards.get(p.id)?.fullTreeIds ?? [],
@@ -291,5 +298,7 @@ export const loadMyFamily = cache(async (): Promise<MyFamilyGraph | null> => {
       relationships,
       new Set([...spokenFor, selfId]),
     ),
+    // Of those shown: a line runs to them only when both ends are.
+    marriedIn: marriedInto(ties, relationships),
   };
 });

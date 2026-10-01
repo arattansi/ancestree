@@ -639,6 +639,15 @@ describe("descentGeometry", () => {
     expect(d.startY).toBe(NODE_H / 2);
   });
 
+  it("starts in the gap between a card and a pill (Step 94)", () => {
+    const d = descentGeometry(
+      [card(0, 0), { x: NODE_W + 24, y: (NODE_H - 36) / 2, w: 120, h: 36 }],
+      childTop,
+    )!;
+    expect(d.startX).toBe(NODE_W + 12);
+    expect(d.startY).toBe(NODE_H / 2);
+  });
+
   it("follows the parents when one of them is dragged", () => {
     const before = descentGeometry(partners, childTop)!;
     const after = descentGeometry(

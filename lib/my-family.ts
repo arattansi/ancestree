@@ -4,17 +4,19 @@
  * one `people` row is placed on many trees, and a line is a fact about two
  * people, not a tree. A view only: nothing is added there.
  *
- * Who's in (Aalim, 2026-09-30):
- * - their blood: the Step 55 walk from their own entry — up every parent
- *   line, then down parent lines and across sibling lines;
- * - the blood of their current partner(s): a spouse line not marked ended.
- *   An ex's family stays out;
- * - then, as cards only, anyone in those two married or had children with,
- *   exes and co-parents included — and not *their* families.
+ * Who's in (Aalim, Step 94, 2026-10-01 — it is their *own* family tree,
+ * not a tree's):
+ * - their blood, as cards: the Step 55 walk from their own entry — up every
+ *   parent line, then down parent lines and across sibling lines;
+ * - as pills, everyone who married into it: anyone a blood relative married
+ *   or had a child with, exes and co-parents included — and none of *their*
+ *   family. Their own partner's family stays out as much as an uncle's
+ *   wife's does.
  *
- * So Karim sees his father's side through his cousin Aalim, with Aalim's mom
- * and Raiya there only as partners; Raiya, married to Aalim, sees both of
- * Aalim's sides as well as her own family.
+ * So Aalim sees both his parents' sides, with his uncle's wife and his
+ * brother's wife as pills, and Raiya as a pill beside him; Raiya's parents
+ * are on her My Family Tree, not his. (Until Step 94 a current partner's
+ * whole family came in too, which made the view a copy of the tree.)
  *
  * Pure: `lib/my-family.server.ts` reads the trees, merges them with
  * `mergeShowings` and `mergeLines`, and keeps whom `familyTies` names.
@@ -31,31 +33,17 @@ import {
 import { partnersOf, type WalkEdge } from "@/lib/graph-walk";
 import type { TreeGraphEdge } from "@/lib/tree";
 
-/** A line as the rule reads it: a marriage that ended is a former partner's. */
+/** A line as the rule reads it: a marriage that ended is a former one. */
 export type FamilyEdge = WalkEdge & { is_divorced: boolean };
 
-/** How someone is in My Family Tree. */
+/** How someone is in My Family Tree (Step 94). */
 export type FamilyTie =
-  /** Shares an ancestor with the viewer, the viewer included (Step 55). */
+  /** A direct relative: shares an ancestor with the viewer, the viewer
+   *  included (Step 55). A card. */
   | "blood"
-  /** A current partner of the viewer, or shares an ancestor with one. */
-  | "partner_blood"
-  /** Married, or had a child with, someone above: shown alone, without
-   *  their own family. */
-  | "partner";
-
-/** Everyone the viewer's current partners are: a spouse line not ended. */
-function currentPartnersOf(
-  selfId: string,
-  edges: readonly FamilyEdge[],
-): string[] {
-  return edges.flatMap((e) => {
-    if (e.type !== "spouse" || e.is_divorced) return [];
-    if (e.from_person === selfId) return [e.to_person];
-    if (e.to_person === selfId) return [e.from_person];
-    return [];
-  });
-}
+  /** Married, or had a child with, a blood relative, without being one: a
+   *  pill, alone, without their own family. */
+  | "married_in";
 
 /** Everyone who had a child with someone in `people`: the child's other
  *  parents, whether or not they ever married. */
@@ -88,21 +76,92 @@ export function familyTies(
   edges: readonly FamilyEdge[],
 ): Map<string, FamilyTie> {
   const ties = new Map<string, FamilyTie>();
-  for (const id of bloodlineIds([selfId], edges)) ties.set(id, "blood");
-  const partners = currentPartnersOf(selfId, edges);
-  for (const id of bloodlineIds(partners, edges)) {
-    if (!ties.has(id)) ties.set(id, "partner_blood");
-  }
-  // One step out from everyone in, and no further: a partner's or
-  // co-parent's own family never comes with them.
-  const inside = new Set(ties.keys());
-  for (const id of [
-    ...partnersOf(inside, edges),
-    ...coParentsOf(inside, edges),
-  ]) {
-    if (!ties.has(id)) ties.set(id, "partner");
+  const blood = bloodlineIds([selfId], edges);
+  for (const id of blood) ties.set(id, "blood");
+  // One step out from the blood, and no further: whoever married in never
+  // brings their own family, the viewer's partner's included.
+  for (const id of [...partnersOf(blood, edges), ...coParentsOf(blood, edges)]) {
+    if (!ties.has(id)) ties.set(id, "married_in");
   }
   return ties;
+}
+
+/** How someone married in is joined to the blood relative they married
+ *  into (Step 94): a marriage, one that ended, or a child together. */
+export type MarriedInKind = "spouse" | "former_spouse" | "co_parent";
+
+/** Someone who married into the viewer's family, and whom (Step 94). */
+export type MarriedIn = {
+  id: string;
+  /** The blood relative they married, or had a child with. */
+  to: string;
+  kind: MarriedInKind;
+};
+
+const KIND_ORDER: Record<MarriedInKind, number> = {
+  spouse: 0,
+  former_spouse: 1,
+  co_parent: 2,
+};
+
+/**
+ * Whom each of `ties`' married-in people married into, for the pill's
+ * "Spouse of …" and the sheet: a current marriage first, then one that
+ * ended, then a child together; between two of a kind, the first line.
+ */
+export function marriedInto(
+  ties: ReadonlyMap<string, FamilyTie>,
+  edges: readonly FamilyEdge[],
+): MarriedIn[] {
+  const blood = (id: string) => ties.get(id) === "blood";
+  const best = new Map<string, MarriedIn>();
+  const offer = (link: MarriedIn) => {
+    if (ties.get(link.id) !== "married_in") return;
+    const seen = best.get(link.id);
+    if (!seen || KIND_ORDER[link.kind] < KIND_ORDER[seen.kind]) {
+      best.set(link.id, link);
+    }
+  };
+  for (const e of edges) {
+    if (e.type !== "spouse") continue;
+    const kind = e.is_divorced ? "former_spouse" : "spouse";
+    if (blood(e.to_person)) offer({ id: e.from_person, to: e.to_person, kind });
+    if (blood(e.from_person)) offer({ id: e.to_person, to: e.from_person, kind });
+  }
+  const parentsByChild = new Map<string, string[]>();
+  for (const e of edges) {
+    if (e.type !== "parent") continue;
+    const parents = parentsByChild.get(e.to_person);
+    if (parents) parents.push(e.from_person);
+    else parentsByChild.set(e.to_person, [e.from_person]);
+  }
+  for (const parents of parentsByChild.values()) {
+    const to = parents.find(blood);
+    if (!to) continue;
+    for (const p of parents) offer({ id: p, to, kind: "co_parent" });
+  }
+  return [...best.values()];
+}
+
+/**
+ * What a married-in pill says of whom they married into: "Spouse of
+ * Karim", "Former spouse of Karim", "Co-parent with Karim"; to the viewer,
+ * "Your spouse" and the like. `to` is that relative's first name, or null
+ * when it's the viewer.
+ */
+export function marriedInLabel(kind: MarriedInKind, to: string | null): string {
+  if (to === null) {
+    return kind === "spouse"
+      ? "Your spouse"
+      : kind === "former_spouse"
+        ? "Your former spouse"
+        : "Co-parent with you";
+  }
+  return kind === "spouse"
+    ? `Spouse of ${to}`
+    : kind === "former_spouse"
+      ? `Former spouse of ${to}`
+      : `Co-parent with ${to}`;
 }
 
 /** One of the viewer's trees showing someone. */

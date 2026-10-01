@@ -47,8 +47,14 @@ export function descentGeometry(
 ): Descent | null {
   if (parents.length === 0) return null;
 
+  // A couple's line leaves from the middle of the gap between them: their
+  // centres' midpoint when they're the same width, but a card beside a pill
+  // (My Family Tree, Step 94) would put that inside the card.
+  const [left, right] = [...parents].sort((a, b) => a.x - b.x);
   const startX =
-    parents.reduce((sum, r) => sum + r.x + r.w / 2, 0) / parents.length;
+    parents.length === 2
+      ? (left.x + left.w + right.x) / 2
+      : parents.reduce((sum, r) => sum + r.x + r.w / 2, 0) / parents.length;
   const bottom = Math.max(...parents.map((r) => r.y + r.h));
 
   // Normally the line starts on the spouse line, in the gap between partners.
