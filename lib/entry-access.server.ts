@@ -4,7 +4,7 @@ import { cache } from "react";
 
 import type { AccountTypeKey } from "@/lib/account-types";
 import type { Profile } from "@/lib/auth";
-import { canEditEntry, canFillEntry, type EntrySubject } from "@/lib/branch";
+import { entryRights, type EntrySubject } from "@/lib/branch";
 import { getViewer } from "@/lib/branch.server";
 import { createClient } from "@/lib/supabase/server";
 import { getRoleIn } from "@/lib/tree-context";
@@ -77,12 +77,8 @@ export async function entryAccess(
     created_by: person.created_by,
     ...facts,
   };
-  const canEdit = viewer
-    ? canEditEntry(subject, viewer)
-    : person.id === profile.self_person_id;
   return {
-    canEdit,
-    canFill: !canEdit && !!viewer && canFillEntry(subject, viewer),
+    ...entryRights(subject, viewer, profile.self_person_id),
     homeRole,
   };
 }

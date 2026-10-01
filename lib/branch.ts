@@ -24,7 +24,7 @@
  * rule, used to decide what the UI offers without a round trip per card.
  */
 
-import { accountTypeOf } from "@/lib/account-types";
+import { accountTypeOf, type AccountTypeKey } from "@/lib/account-types";
 import { upThenDownIds, type ParentEdge } from "@/lib/bloodline";
 import {
   partnersOf,
@@ -218,6 +218,63 @@ export function viewerReach(
   };
 }
 
+/**
+ * A viewer's reach on one tree as a page hands it to a canvas: arrays, to
+ * travel in the page, kept to the people the page shows, since only they
+ * are asked about (Steps 92.3 and 93).
+ */
+export type TreeReach = {
+  branch: string[] | null;
+  line: string[] | null;
+  ownLine: string[] | null;
+};
+
+/** Who the viewer is on one of their trees: their account type there, and
+ *  what it reaches. */
+export type TreeAccess = { id: string; role: AccountTypeKey; reach: TreeReach };
+
+/** `reach` kept to `shown`, as arrays. */
+export function keepReach(
+  reach: ViewerReach,
+  shown: ReadonlySet<string>,
+): TreeReach {
+  const kept = (ids: ReadonlySet<string> | null) =>
+    ids ? [...ids].filter((id) => shown.has(id)) : null;
+  return {
+    branch: kept(reach.branch),
+    line: kept(reach.line),
+    ownLine: kept(reach.ownLine),
+  };
+}
+
+/** `viewerReach` on one tree, kept to `shown`. */
+export function reachOnTree(
+  selfId: string | null,
+  role: string,
+  rootIds: readonly string[],
+  edges: readonly BranchEdge[],
+  shown: ReadonlySet<string>,
+): TreeReach {
+  return keepReach(viewerReach(selfId, role, rootIds, edges), shown);
+}
+
+/** The viewer as one of their trees sees them, for the rules below. */
+export function viewerOnTree(
+  tree: Pick<TreeAccess, "role" | "reach">,
+  userId: string,
+  selfId: string | null,
+): Viewer {
+  const set = (ids: string[] | null) => (ids ? new Set(ids) : null);
+  return {
+    userId,
+    role: tree.role,
+    selfPersonId: selfId,
+    branch: set(tree.reach.branch),
+    line: set(tree.reach.line),
+    ownLine: set(tree.reach.ownLine),
+  };
+}
+
 /** The entry being looked at, as far as permission is concerned. */
 export type EntrySubject = {
   id: string;
@@ -251,6 +308,27 @@ export function canEditEntry(entry: EntrySubject, viewer: Viewer): boolean {
     return true;
   }
   return isOnBranch(entry.id, viewer) && !entry.isSomeoneElsesOwn;
+}
+
+/**
+ * What the viewer may do with an entry's details, by its **home** tree's
+ * rules, as `private.can_edit_person` and `can_fill_person` read them (Step
+ * 25): `home` is who they are on the entry's home tree, `null` when they
+ * aren't a member there, and then it's theirs to edit only if it's their
+ * own entry, and nobody's to fill in. Which tree is being looked at
+ * doesn't come into it (Step 93): the edit page (`entryAccess`), every
+ * tree's canvas and My Family Tree all ask this.
+ */
+export function entryRights(
+  entry: EntrySubject,
+  home: Viewer | null,
+  selfId: string | null,
+): { canEdit: boolean; canFill: boolean } {
+  const canEdit = home ? canEditEntry(entry, home) : entry.id === selfId;
+  return {
+    canEdit,
+    canFill: !canEdit && !!home && canFillEntry(entry, home),
+  };
 }
 
 /**
@@ -316,6 +394,57 @@ export function canOfferDelete(entry: EntrySubject, viewer: Viewer): boolean {
     entry.created_by === viewer.userId &&
     entry.owner_user_id === entry.created_by
   );
+}
+
+/**
+ * Whether to offer inviting someone to claim a full card on the tree being
+ * looked at (Step 93), as `private.can_invite_to_claim_on` decides: a Root
+ * of this tree, anything still claimable here (Step 84); anyone else, an
+ * entry their home-tree rules let them hand over (`canInviteToClaim` as
+ * who they are on its home tree, `null` when they aren't on it).
+ */
+export function canInviteToClaimHere(
+  entry: EntrySubject,
+  here: Viewer,
+  home: Viewer | null,
+): boolean {
+  if (accountTypeOf(here.role).runsTree) return canInviteToClaim(entry, here);
+  return !!home && canInviteToClaim(entry, home);
+}
+
+/**
+ * Whether to offer "Delete entry" for a card on the tree being looked at
+ * (Step 93). `private.can_delete_person` reads the home tree: on its home
+ * tree it's `canOfferDelete`; shown here from another, it's placed beyond
+ * its home, which only a Root of the home tree deletes past.
+ */
+export function canOfferDeleteHere(
+  entry: EntrySubject,
+  isHome: boolean,
+  here: Viewer,
+  home: Viewer | null,
+): boolean {
+  if (isHome) return canOfferDelete(entry, here);
+  return !!home && accountTypeOf(home.role).deletes === "tree";
+}
+
+/**
+ * The trees, other than `treeId`, that are home to someone on its canvas
+ * and that the viewer belongs to (Step 93): whose rules those entries'
+ * details follow, so who the viewer is there is read for them. A basic
+ * card says nothing of its home, and stays out.
+ */
+export function homeTreesShown<T extends { id: string }>(
+  people: readonly { home_tree_id: string; is_home: boolean; basic: boolean }[],
+  treeId: string,
+  myTrees: readonly T[],
+): T[] {
+  const homes = new Set(
+    people.flatMap((p) =>
+      !p.is_home && !p.basic && p.home_tree_id !== treeId ? [p.home_tree_id] : [],
+    ),
+  );
+  return myTrees.filter((t) => t.id !== treeId && homes.has(t.id));
 }
 
 /**

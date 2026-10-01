@@ -3,7 +3,15 @@ import "server-only";
 import { cache } from "react";
 
 import { accountTypeOf, type AccountTypeKey } from "@/lib/account-types";
-import { lineIds, relatedRoots, viewerReach, type Viewer } from "@/lib/branch";
+import {
+  homeTreesShown,
+  keepReach,
+  lineIds,
+  relatedRoots,
+  viewerReach,
+  type TreeAccess,
+  type Viewer,
+} from "@/lib/branch";
 import { personDisplayName } from "@/lib/person-name";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -95,6 +103,35 @@ export async function getViewer(
     treeEdges(treeId),
   ]);
   return { ...base, ...viewerReach(self, role, rootIds, edges) };
+}
+
+/**
+ * Who the viewer is on the other trees that are home to people on
+ * `treeId`'s canvas (Step 93): an entry's details follow its home tree's
+ * rules (`private.can_edit_person`), so its card asks who they are there.
+ * Only trees in `myTrees` (theirs); a Root's reach needs no walk, a
+ * Branch's or a Leaf's is measured on that tree's own people and lines, as
+ * `getViewer` does, and kept to the people shown here.
+ */
+export async function getHomeTreeAccess(
+  profile: Profile,
+  treeId: string,
+  people: readonly {
+    id: string;
+    home_tree_id: string;
+    is_home: boolean;
+    basic: boolean;
+  }[],
+  myTrees: readonly { id: string; role: AccountTypeKey }[],
+): Promise<TreeAccess[]> {
+  const shown = new Set(people.map((p) => p.id));
+  return Promise.all(
+    homeTreesShown(people, treeId, myTrees).map(async ({ id, role }) => ({
+      id,
+      role,
+      reach: keepReach(await getViewer(profile, role, id), shown),
+    })),
+  );
 }
 
 /**

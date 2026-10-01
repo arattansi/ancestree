@@ -10,12 +10,19 @@ import {
   canFillEntry,
   canInviteToClaim,
   canInviteToClaimCard,
+  canInviteToClaimHere,
   canOfferDelete,
+  canOfferDeleteHere,
   descendantIds,
+  entryRights,
+  homeTreesShown,
+  keepReach,
   lineIds,
   ownRoots,
+  reachOnTree,
   relatedRoots,
   rootSideIds,
+  viewerOnTree,
   viewerReach,
   type BranchEdge,
   type EntrySubject,
@@ -811,5 +818,99 @@ describe("canFillEntry (Step 44)", () => {
       ownLine: null,
     };
     expect(canFillEntry(entry(), onboarding)).toBe(false);
+  });
+});
+
+describe("an entry's details follow its home tree (Step 93)", () => {
+  const leafHere = { ...member, userId: "arzu-user" };
+
+  it("asks who the viewer is on the home tree, wherever the card is", () => {
+    // On a tree where Arzu is a Leaf, an entry whose home tree has them as
+    // a Branch: theirs to edit, as the database says.
+    expect(entryRights(entry(), branchAdmin, "arzu")).toEqual({
+      canEdit: true,
+      canFill: false,
+    });
+    // The same entry, its home tree having them as a Leaf: on their own
+    // line, unclaimed, so theirs to fill in.
+    expect(entryRights(entry(), leafHere, "arzu")).toEqual({
+      canEdit: false,
+      canFill: true,
+    });
+    // A Root of the home tree edits it, whatever they are here.
+    expect(entryRights(entry({ isClaimed: true }), admin, null).canEdit).toBe(
+      true,
+    );
+  });
+
+  it("leaves an entry homed on a tree they aren't on to its own person", () => {
+    expect(entryRights(entry(), null, "arzu")).toEqual({
+      canEdit: false,
+      canFill: false,
+    });
+    // Even one they own: the owner rule is the home tree's.
+    expect(
+      entryRights(entry({ owner_user_id: "arzu-user" }), null, "arzu").canEdit,
+    ).toBe(false);
+    expect(entryRights(entry({ id: "arzu" }), null, "arzu").canEdit).toBe(true);
+  });
+
+  it("lets this tree's Root invite to claim, else the home tree's rules", () => {
+    const unclaimed = entry({ id: "rehan" });
+    expect(canInviteToClaimHere(unclaimed, admin, null)).toBe(true);
+    expect(canInviteToClaimHere(unclaimed, leafHere, null)).toBe(false);
+    expect(canInviteToClaimHere(unclaimed, leafHere, branchAdmin)).toBe(true);
+    expect(canInviteToClaimHere(unclaimed, leafHere, leafHere)).toBe(false);
+  });
+
+  it("offers Delete on a card shown from another tree only to that tree's Root", () => {
+    const mine = entry({
+      id: "minaz",
+      owner_user_id: "arzu-user",
+      created_by: "arzu-user",
+    });
+    // Home here: as before.
+    expect(canOfferDeleteHere(mine, true, member, member)).toBe(true);
+    expect(canOfferDeleteHere(entry(), true, admin, admin)).toBe(true);
+    // Shown here from its home: placed beyond it, so only its home's Root.
+    expect(canOfferDeleteHere(mine, false, member, member)).toBe(false);
+    expect(canOfferDeleteHere(entry(), false, admin, null)).toBe(false);
+    expect(canOfferDeleteHere(entry(), false, member, admin)).toBe(true);
+  });
+
+  it("reads only the viewer's other trees that are home to someone shown", () => {
+    const people = [
+      { home_tree_id: "here", is_home: true, basic: false },
+      { home_tree_id: "theirs", is_home: false, basic: false },
+      { home_tree_id: "elsewhere", is_home: false, basic: false },
+      // A basic card's home is a stand-in: never read.
+      { home_tree_id: "basic-home", is_home: false, basic: true },
+    ];
+    const mine = [
+      { id: "here", role: "admin" },
+      { id: "theirs", role: "member" },
+      { id: "basic-home", role: "member" },
+      { id: "unrelated", role: "branch_admin" },
+    ];
+    expect(homeTreesShown(people, "here", mine)).toEqual([
+      { id: "theirs", role: "member" },
+    ]);
+  });
+
+  it("hands each tree's reach over as arrays kept to the people shown", () => {
+    const shown = new Set(["arzu", "fatehali", "rehan"]);
+    const reach = reachOnTree("arzu", "branch_admin", roots, family, shown);
+    expect(reach).toEqual(
+      keepReach(viewerReach("arzu", "branch_admin", roots, family), shown),
+    );
+    expect(new Set(reach.branch)).toEqual(shown);
+    const viewer = viewerOnTree(
+      { role: "branch_admin", reach },
+      "arzu-user",
+      "arzu",
+    );
+    expect(viewer.branch).toEqual(shown);
+    expect(viewer.line).toBeNull();
+    expect(canEditEntry(entry({ id: "rehan" }), viewer)).toBe(true);
   });
 });

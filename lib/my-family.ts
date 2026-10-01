@@ -20,16 +20,12 @@
  * `mergeShowings` and `mergeLines`, and keeps whom `familyTies` names.
  */
 
-import { accountTypeOf, type AccountTypeKey } from "@/lib/account-types";
+import { accountTypeOf } from "@/lib/account-types";
 import { bloodlineIds } from "@/lib/bloodline";
 import {
   canAddRelativeOf,
   canEditConnection,
-  canEditEntry,
-  canFillEntry,
-  viewerReach,
-  type BranchEdge,
-  type EntrySubject,
+  type TreeAccess,
   type Viewer,
 } from "@/lib/branch";
 import { partnersOf, type WalkEdge } from "@/lib/graph-walk";
@@ -254,83 +250,14 @@ export type FamilyShowing = {
 /*
  * Acting from the view (Step 92.3). Nothing is done *on* My Family Tree:
  * each card's actions go to a tree of the viewer's, as who they are there,
- * and the database decides again on every write. What follows says what
- * the sheet offers, mirroring the rules each tree's canvas mirrors
- * (`lib/branch.ts`), measured tree by tree.
+ * and the database decides again on every write. A card's details follow
+ * its home tree's rules (`lib/branch.ts#entryRights`), as on any canvas;
+ * what follows is the view's own: lines, and where adding goes.
  */
 
-/**
- * What the viewer reaches on one of their trees (`viewerReach`, as
- * `getViewer` works it out from that tree's Roots and lines), kept to the
- * people the view shows: those are all it's asked about. Arrays, to travel
- * to the page.
- */
-export type TreeReach = {
-  branch: string[] | null;
-  line: string[] | null;
-  ownLine: string[] | null;
-};
-
-/** One of the viewer's trees, with who they are there (Step 92.3). */
-export type FamilyActingTree = FamilyViewTree & {
-  role: AccountTypeKey;
-  reach: TreeReach;
-};
-
-/** `viewerReach` on one tree, kept to `shown`. */
-export function reachOnTree(
-  selfId: string,
-  role: string,
-  rootIds: readonly string[],
-  edges: readonly BranchEdge[],
-  shown: ReadonlySet<string>,
-): TreeReach {
-  const reach = viewerReach(selfId, role, rootIds, edges);
-  const kept = (ids: ReadonlySet<string> | null) =>
-    ids ? [...ids].filter((id) => shown.has(id)) : null;
-  return {
-    branch: kept(reach.branch),
-    line: kept(reach.line),
-    ownLine: kept(reach.ownLine),
-  };
-}
-
-/** The viewer as one of their trees sees them, for `lib/branch`'s rules. */
-export function viewerOnTree(
-  tree: FamilyActingTree,
-  userId: string,
-  selfId: string | null,
-): Viewer {
-  const set = (ids: string[] | null) => (ids ? new Set(ids) : null);
-  return {
-    userId,
-    role: tree.role,
-    selfPersonId: selfId,
-    branch: set(tree.reach.branch),
-    line: set(tree.reach.line),
-    ownLine: set(tree.reach.ownLine),
-  };
-}
-
-/**
- * What the viewer may do with a card's details from the view: its home
- * tree's rules, as `entryAccess` reads them (Step 25). A card comes from
- * its home tree whenever the viewer is a member there (`cardShowing`), so
- * `home` is the viewer on the card's tree when that is its home, and
- * `null` when the home is a tree they aren't on: then it's theirs to edit
- * only if it's their own entry, and nobody's to fill in.
- */
-export function entryRightsFromView(
-  entry: EntrySubject,
-  home: Viewer | null,
-  selfId: string | null,
-): { canEdit: boolean; canFill: boolean } {
-  const canEdit = home ? canEditEntry(entry, home) : entry.id === selfId;
-  return {
-    canEdit,
-    canFill: !canEdit && !!home && canFillEntry(entry, home),
-  };
-}
+/** One of the viewer's trees, with who they are there (`TreeAccess`:
+ *  their account type and its reach, kept to the view's people). */
+export type FamilyActingTree = FamilyViewTree & TreeAccess;
 
 /**
  * Whether a line may be changed from the view (Aalim, Step 92): only where

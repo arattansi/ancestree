@@ -89,16 +89,17 @@ import {
   canAddRelativeOf,
   canEditCompanion,
   canEditConnection,
-  canEditEntry,
-  canFillEntry,
-  canInviteToClaim,
   canInviteToClaimCard,
-  canOfferDelete,
+  canInviteToClaimHere,
+  canOfferDeleteHere,
   descendantIds,
+  entryRights,
   lineIds,
   ownRoots,
   rootSideIds,
+  viewerOnTree,
   type EntrySubject,
+  type TreeAccess,
   type Viewer,
 } from "@/lib/branch";
 import type { EntryInvite } from "@/lib/claim-invites";
@@ -110,9 +111,7 @@ import type { GettingStartedItem } from "@/lib/first-tree";
 import { generationLabelFromYou } from "@/lib/generation-lanes";
 import {
   addTreesFromView,
-  entryRightsFromView,
   lineEditableFromView,
-  viewerOnTree,
   type FamilyActingTree,
   type FamilyLine,
   type FamilyShowing,
@@ -182,6 +181,7 @@ const NO_SUGGESTIONS: EntrySuggestion[] = [];
 const NO_DECLINED: DeclinedSuggestion[] = [];
 const NO_PANEL_SUGGESTIONS: PanelSuggestion[] = [];
 const NO_RELATIONS: PersonRelation[] = [];
+const NO_HOME_TREES: TreeAccess[] = [];
 const NOBODY: ReadonlySet<string> = new Set();
 /**
  * What the camera is framing once it's put back where this tab left it
@@ -257,6 +257,12 @@ type Props = {
   declinedSuggestions?: DeclinedSuggestion[];
   /** Drawn as My Family Tree rather than one tree (Step 92.2). */
   family?: FamilyView | null;
+  /**
+   * Who the viewer is on the other trees of theirs that are home to people
+   * here (Step 93): an entry's details follow its home tree's rules, not
+   * this tree's. A member's canvas only.
+   */
+  homeTrees?: TreeAccess[];
 };
 
 /** Which way a bloodline spotlight runs from the person who was clicked. */
@@ -287,6 +293,7 @@ function Canvas({
   changeSuggestions = NO_SUGGESTIONS,
   declinedSuggestions = NO_DECLINED,
   family = null,
+  homeTrees = NO_HOME_TREES,
   page,
 }: Props & { page: number }) {
   // My Family Tree moves nothing and adds nothing itself (Step 92.2): no
@@ -486,6 +493,34 @@ function Canvas({
     (treeId: string) => viewers.get(treeId) ?? null,
     [viewers],
   );
+  // On a tree, who they are on the other trees of theirs that are home to
+  // people here (Step 93).
+  const homeViewers = React.useMemo(
+    () =>
+      new Map(
+        homeTrees.map((t) => [
+          t.id,
+          viewerOnTree(t, currentUserId, selfPersonId),
+        ]),
+      ),
+    [homeTrees, currentUserId, selfPersonId],
+  );
+  // Who the viewer is on someone's home tree, whose rules their details
+  // follow (`private.can_edit_person`), or `null` when they aren't on it.
+  // On a tree, this tree when it's their home, else one of the viewer's
+  // others; on My Family Tree, the card's tree when that's their home (a
+  // card comes from its home tree whenever the viewer is on it). A basic
+  // card says nothing of its home.
+  const homeViewerOf = React.useCallback(
+    (person: TreeGraphPerson & Partial<FamilyShowing>): Viewer | null => {
+      if (person.is_home) {
+        return isFamily ? viewerOn(person.tree_id ?? "") : viewer;
+      }
+      if (isFamily || person.basic) return null;
+      return homeViewers.get(person.home_tree_id) ?? null;
+    },
+    [isFamily, viewerOn, viewer, homeViewers],
+  );
   const spokenFor = React.useMemo(() => new Set(spokenForIds), [spokenForIds]);
   const entrySubject = React.useCallback(
     (person: TreeGraphPerson): EntrySubject => ({
@@ -503,21 +538,30 @@ function Canvas({
     () => new Map(people.map((p) => [p.id, p])),
     [people],
   );
+  // Whether their details are the viewer's to edit, by their home tree's
+  // rules (Step 93), wherever the card is shown.
   const canEditPersonId = React.useCallback(
     (id: string) => {
       const person = personById.get(id);
-      return !!person && canEditEntry(entrySubject(person), viewer);
+      return (
+        !!person &&
+        entryRights(entrySubject(person), homeViewerOf(person), selfPersonId)
+          .canEdit
+      );
     },
-    [personById, entrySubject, viewer],
+    [personById, entrySubject, homeViewerOf, selfPersonId],
   );
   // Cards whose move the database would refuse. They aren't offered as
   // draggable at all — dragging one pans the canvas — instead of moving under
-  // the pointer and being refused on drop.
+  // the pointer and being refused on drop. A Root of this tree moves any
+  // card on it; anyone else, a card whose entry they may edit
+  // (`tree_placements_update`).
   const lockedIds = React.useMemo(() => {
     const locked = new Set<string>();
     if (!editable) return locked;
+    const movesAll = accountTypeOf(viewer.role).runsTree;
     for (const person of people)
-      if (!canEditPersonId(person.id)) locked.add(person.id);
+      if (!movesAll && !canEditPersonId(person.id)) locked.add(person.id);
     for (const pet of pets)
       if (!canEditCompanion(pet, viewer, canEditPersonId)) locked.add(pet.id);
     return locked;
@@ -1957,47 +2001,45 @@ function Canvas({
       });
   }, [selectedId, relationships, people, viewer, editable, isFamily, viewerOn]);
   // On My Family Tree, a card's sheet acts on the card's own tree (Step
-  // 92.3): what's told, added or reported from it goes there, and its
-  // details follow their home tree's rules, which is the card's tree
-  // whenever the viewer is on their home tree.
+  // 92.3): what's told, added or reported from it goes there.
   const cardTreeId = family ? (selectedPerson?.tree_id ?? null) : null;
   const cardViewer = cardTreeId ? viewerOn(cardTreeId) : null;
-  const viewRights =
-    family && selectedPerson
-      ? entryRightsFromView(
-          entrySubject(selectedPerson),
-          selectedPerson.is_home ? cardViewer : null,
-          selfPersonId,
-        )
+  // A person's details follow their home tree's rules, whichever tree is
+  // showing them (Step 93): who the viewer is there decides Edit and Fill
+  // in (Step 44), as the edit page does.
+  const selectedHome = selectedPerson ? homeViewerOf(selectedPerson) : null;
+  const rights =
+    (editable || isFamily) && selectedPerson
+      ? entryRights(entrySubject(selectedPerson), selectedHome, selfPersonId)
       : null;
-  const canEdit = viewRights
-    ? viewRights.canEdit
-    : editable &&
-      !!selectedPerson &&
-      canEditEntry(entrySubject(selectedPerson), viewer);
-  // Not theirs to edit, but theirs to fill in where it's blank (Step 44).
-  const canFill = viewRights
-    ? viewRights.canFill
-    : editable &&
-      !!selectedPerson &&
-      !canEdit &&
-      canFillEntry(entrySubject(selectedPerson), viewer);
+  const canEdit = !!rights?.canEdit;
+  const canFill = !!rights?.canFill;
   // A Root of the card's tree, on My Family Tree; of this tree, on a tree.
   const sheetIsAdmin = family
     ? !!cardViewer && accountTypeOf(cardViewer.role).runsTree
     : isAdmin;
   // A basic card says too little of itself for the entry's rule, so it has
   // its own: a Root's to send, when nobody is behind it (Step 84).
+  // A full one, this tree's Root, or the entry's home-tree rules (Step 93).
   const canInvite =
     editable &&
     !!selectedPerson &&
     (selectedPerson.basic
       ? canInviteToClaimCard(selectedPerson, viewer)
-      : canInviteToClaim(entrySubject(selectedPerson), viewer));
+      : canInviteToClaimHere(
+          entrySubject(selectedPerson),
+          viewer,
+          selectedHome,
+        ));
   const canDelete =
     editable &&
     !!selectedPerson &&
-    canOfferDelete(entrySubject(selectedPerson), viewer);
+    canOfferDeleteHere(
+      entrySubject(selectedPerson),
+      selectedPerson.is_home,
+      viewer,
+      selectedHome,
+    );
   const selectedInvites = React.useMemo(
     () =>
       selectedId && !readOnly

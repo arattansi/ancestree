@@ -1,18 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { lineIds } from "@/lib/branch";
+import { entryRights, lineIds, reachOnTree, viewerOnTree } from "@/lib/branch";
 import {
   addTreesFromView,
   cardShowing,
   companionsShowing,
-  entryRightsFromView,
   familyTies,
   lineEditableFromView,
   mergeLines,
   mergeShowings,
-  reachOnTree,
   treeMarkOf,
-  viewerOnTree,
   type FamilyActingTree,
   type FamilyEdge,
   type FamilyLine,
@@ -517,29 +514,29 @@ describe("acting from the view (Step 92.3)", () => {
 
   it("edits a card's details by its home tree's rules", () => {
     // Home on Dad's side, where they're a Branch: their part of it is theirs.
-    expect(entryRightsFromView(entry("cousin"), viewerOn("dads"), "me")).toEqual({
+    expect(entryRights(entry("cousin"), viewerOn("dads"), "me")).toEqual({
       canEdit: true,
       canFill: false,
     });
     // Not someone else's own entry, though.
     expect(
-      entryRightsFromView(entry("cousin", { own: true }), viewerOn("dads"), "me")
+      entryRights(entry("cousin", { own: true }), viewerOn("dads"), "me")
         .canEdit,
     ).toBe(false);
     // Home on Mom's side, where they're a Leaf: fill in their own line.
-    expect(entryRightsFromView(entry("momDad"), viewerOn("moms"), "me")).toEqual({
+    expect(entryRights(entry("momDad"), viewerOn("moms"), "me")).toEqual({
       canEdit: false,
       canFill: true,
     });
-    expect(entryRightsFromView(entry("lin"), viewerOn("moms"), "me").canFill).toBe(
+    expect(entryRights(entry("lin"), viewerOn("moms"), "me").canFill).toBe(
       true,
     );
     // Home on a tree they aren't on: only their own entry.
-    expect(entryRightsFromView(entry("stranger"), null, "me")).toEqual({
+    expect(entryRights(entry("stranger"), null, "me")).toEqual({
       canEdit: false,
       canFill: false,
     });
-    expect(entryRightsFromView(entry("me"), null, "me").canEdit).toBe(true);
+    expect(entryRights(entry("me"), null, "me").canEdit).toBe(true);
   });
 
   it("changes a line only where it was drawn on a tree they're a Root or Branch of", () => {

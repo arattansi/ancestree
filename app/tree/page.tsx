@@ -7,7 +7,10 @@ import { CenteredPage } from "@/components/page-column";
 import { FamilyTree } from "@/components/tree/family-tree";
 import { Button } from "@/components/ui/button";
 import { LEAF } from "@/lib/account-types";
-import { getSpokenForEntryIds } from "@/lib/branch.server";
+import {
+  getHomeTreeAccess,
+  getSpokenForEntryIds,
+} from "@/lib/branch.server";
 import { listClaimInvites } from "@/lib/claim-invites.server";
 import { listClaimCandidates } from "@/lib/claims";
 import { auditTreeConnections } from "@/lib/connection-suggestions.server";
@@ -25,7 +28,7 @@ import {
   loadTreePeople,
   placedIds,
 } from "@/lib/tree";
-import { requireTreeAccess } from "@/lib/tree-context";
+import { listMyTrees, requireTreeAccess } from "@/lib/tree-context";
 import { onboardingHref } from "@/lib/tree-links";
 
 export const metadata: Metadata = {
@@ -95,6 +98,7 @@ export default async function TreePage() {
     changeSuggestions,
     declinedSuggestions,
     gettingStarted,
+    homeTrees,
   ] = await Promise.all([
     loadTreePeople(tree.id),
     graph,
@@ -117,6 +121,12 @@ export default async function TreePage() {
           graph.then((g) => g.relationships),
         )
       : null,
+    // Who they are on the other trees of theirs that are home to people
+    // here, whose rules those entries' details follow (Step 93): read once
+    // the people are in, and only for such trees.
+    Promise.all([graph, listMyTrees()]).then(([g, mine]) =>
+      getHomeTreeAccess(profile, tree.id, g.people, mine),
+    ),
   ]);
   if (!placedIds(placedPeople).includes(selfPersonId)) {
     redirect(onboardingHref());
@@ -170,6 +180,7 @@ export default async function TreePage() {
         declinedSuggestions={declinedSuggestions.filter((s) =>
           shown.has(s.personId),
         )}
+        homeTrees={homeTrees}
       />
     </main>
   );

@@ -8,14 +8,13 @@ import {
   familyTies,
   mergeLines,
   mergeShowings,
-  reachOnTree,
   treeMarkOf,
   type FamilyLine,
   type FamilyTie,
   type Showing,
   type TreeMark,
-  type TreeReach,
 } from "@/lib/my-family";
+import { reachOnTree, type TreeReach } from "@/lib/branch";
 import { createClient } from "@/lib/supabase/server";
 import {
   cardOf,
