@@ -1725,6 +1725,24 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 94.1 — your spouse a full card on My Family Tree** (no
+  migration). **Aalim asked for:** their wife as a full card, not a pill.
+  `familyTies` has a third tie, `spouse`: the viewer's own spouse, a
+  marriage not marked ended, who isn't blood. They're a card beside the
+  viewer (and a leaf in a spotlight), with **Your spouse** under the name
+  where the viewer's says **You**, and **Your spouse** first among the
+  sheet's badges; still none of their family comes in. `loadMyFamily`
+  returns `spouseIds`; `marriedInto` no longer names them. **My calls, not
+  asked:** a viewer's ex, and someone they had a child with but never
+  married, stay pills (**Your former spouse**, **Co-parent with you**);
+  every spouse not marked ended is a card; the key is unchanged, the card
+  itself saying who she is. **Checked:** lint, tsc, 1,465 tests, `next
+  build`; the Step 94 throwaway tree again, headless: the wife a card
+  saying **Your spouse** beside the viewer and a leaf in his spotlight,
+  her badge **Your spouse**; the brother's, uncle's and aunt's partners
+  still pills; her parents and brother still out. Rows and the account
+  deleted after.
+
 - **Step 94 — My Family Tree: blood relatives, and who married in as
   pills** (no migration). **Aalim asked for:** the view had become a copy
   of a tree they're a Root of; it's meant to be their *individual* family

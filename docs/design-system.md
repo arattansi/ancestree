@@ -146,10 +146,13 @@ turn autocomplete off, or every relative is offered the member's own name
   spotlight (Step 19.4): name only, muted, no photo or account mark, on the
   far side of their partner, everywhere on the view, spotlit or not. The
   pill's tooltip says **Married in · Spouse of Karim** (or **Former spouse
-  of**, **Co-parent with**, **Your spouse**). The difference is also said
-  outright: the key under the tree names lists a small card, **Direct
-  relative**, and a small pill, **Married in**, and the sheet's badges
-  start with one of the two (none on the reader's own entry).
+  of**, **Co-parent with**, **Your former spouse**). The reader's own
+  spouse is the exception (Step 94.1): a card beside them, saying **Your
+  spouse** under the name where theirs says **You**. The difference is
+  also said outright: the key under the tree names lists a small card,
+  **Direct relative**, and a small pill, **Married in**, and the sheet's
+  badges start with **Direct relative**, **Your spouse** or **Married in**
+  (none on the reader's own entry).
 - On My Family Tree a card that may be one person entered twice (Step
   92.4, `lib/same-person.ts`) wears a **?** in the attention yellow at its
   foot, across from the account mark, and never on a leaf; on a pill, on
