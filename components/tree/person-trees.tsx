@@ -1,7 +1,9 @@
 "use client";
 
 import { TreeTarget } from "@/components/tree-target";
+import { TreeMarkDot } from "@/components/tree/tree-mark";
 import { usePersonSheet } from "@/components/tree/use-person-sheet";
+import type { FamilyViewTree } from "@/lib/my-family";
 import { treeFocusHref } from "@/lib/tree-links";
 
 /**
@@ -44,6 +46,44 @@ export function PersonTrees({
           {t.name}
           {t.visitor ? " (view only)" : ""}
         </TreeTarget>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * On My Family Tree (Step 92.2): every one of the viewer's trees that shows
+ * this person, by full name with its mark, as the key shows them. Each
+ * opens that tree on this person, as "Also on" does.
+ */
+export function PersonOnTrees({
+  personId,
+  trees,
+  currentTreeId,
+}: {
+  personId: string;
+  trees: FamilyViewTree[];
+  /** The tree the browser is looking at, which opens without a switch. */
+  currentTreeId: string | null;
+}) {
+  if (trees.length === 0) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+      <span>On</span>
+      {trees.map((t) => (
+        <span key={t.id} className="flex min-w-0 items-center gap-1.5">
+          <TreeMarkDot mark={t.mark} />
+          <TreeTarget
+            treeId={t.id}
+            currentTreeId={currentTreeId}
+            href={treeFocusHref(personId)}
+            variant="link"
+            size="xs"
+            className="relative tap-target h-auto px-0 whitespace-normal text-foreground underline underline-offset-2"
+          >
+            {t.name}
+          </TreeTarget>
+        </span>
       ))}
     </div>
   );

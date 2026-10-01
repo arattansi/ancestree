@@ -20,6 +20,7 @@ import { getProfile, getSessionUser } from "@/lib/auth";
 import { headerCounts } from "@/lib/header-counts.server";
 import { currentAccess, listMyTrees } from "@/lib/tree-context";
 import { treeHref } from "@/lib/tree-links";
+import { getTreeRequestStatus } from "@/lib/tree-requests.server";
 
 /**
  * The header's frame: the mark on the left, then whatever sits in the
@@ -72,8 +73,8 @@ export function SiteHeaderShell() {
 }
 
 /**
- * The site-wide header. Left, the mark; centre, the tree switcher for
- * anyone with more than one tree to look at; right, the tree's pages, the
+ * The site-wide header. Left, the mark; centre, the tree switcher for every
+ * member (Step 92.2: My Family Tree and their trees); right, the tree's pages, the
  * account — beside it, a count of anything waiting in the admin consoles
  * they run, which opens the card it's waiting on (Step 30.1) — and
  * notifications across every tree. The current tree is the one the
@@ -112,12 +113,20 @@ async function LoadedHeader() {
     access?.kind === "member" ? access.membership : null;
   const visiting =
     access?.kind === "visitor" ? { name: access.visit.tree.name } : null;
-  // Counts only (Step 77.2): the bell reads its list when it's opened.
-  const counts = profile
-    ? await headerCounts({ profile, trees, access })
-    : null;
-  const showSwitcher =
-    trees.length > 1 || (visiting !== null && trees.length > 0);
+  // Every member gets the switcher (Step 92.2): My Family Tree is in it,
+  // and starting a tree of their own until they've founded one.
+  const showSwitcher = trees.length > 0;
+  // Counts only (Step 77.2): the bell reads its list when it's opened. Where
+  // an ask to start a tree stands is read beside them, and only when no
+  // tree of theirs says they founded one already.
+  const [counts, startTree] = profile
+    ? await Promise.all([
+        headerCounts({ profile, trees, access }),
+        !showSwitcher || trees.some((t) => t.founded)
+          ? ("founded" as const)
+          : getTreeRequestStatus(),
+      ])
+    : [null, "founded" as const];
 
   return (
     <HeaderFrame
@@ -131,6 +140,8 @@ async function LoadedHeader() {
             }))}
             currentId={currentMembership?.tree.id ?? null}
             visiting={visiting}
+            myFamily={!!profile.self_person_id}
+            startTree={startTree}
           />
         ) : null
       }

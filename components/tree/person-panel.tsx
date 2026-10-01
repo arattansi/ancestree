@@ -63,10 +63,11 @@ import { FILL_ENTRY_NOTE, LOCKED_ENTRY_NOTE } from "@/lib/account-types";
 import { BASIC_DETAILS, waitingOn } from "@/lib/carry";
 import { blankFields } from "@/lib/fill-blanks";
 import { SEX_LABELS, type Sex } from "@/lib/person-labels";
-import { PersonTrees } from "@/components/tree/person-trees";
+import { PersonOnTrees, PersonTrees } from "@/components/tree/person-trees";
 import { useLoadPersonSheet } from "@/components/tree/use-person-sheet";
 import { joinedByTags } from "@/lib/joined-by";
 import { countOf } from "@/lib/plural";
+import type { FamilyViewTree } from "@/lib/my-family";
 import type { DeclinedSuggestion, EntrySuggestion } from "@/lib/suggestions";
 import { editPersonHref, suggestChangeHref } from "@/lib/tree-links";
 import { cn } from "@/lib/utils";
@@ -213,6 +214,8 @@ function PersonPanelImpl({
   currentUserId,
   readOnly = false,
   shareToken = null,
+  onTrees = null,
+  currentTreeId = null,
   addRelativeOf = null,
   connectionPrompt = null,
   minimized = false,
@@ -231,6 +234,13 @@ function PersonPanelImpl({
   readOnly?: boolean;
   /** On a share link: how its cards ask whose land a place is (Step 27.9). */
   shareToken?: string | null;
+  /**
+   * On My Family Tree (Step 92.2): every one of the viewer's trees showing
+   * them, named in place of "Also on", and the tree the browser is looking
+   * at, which its link opens without a switch.
+   */
+  onTrees?: FamilyViewTree[] | null;
+  currentTreeId?: string | null;
   /** Pending implied connections involving this person the viewer can resolve. */
   suggestions: PanelSuggestion[];
   /** This person's parent / child / spouse links (spouse rows carry dates). */
@@ -712,7 +722,13 @@ function PersonPanelImpl({
                   canDecide={isAdmin && person.is_home}
                 />
               ) : null}
-              {!readOnly ? (
+              {onTrees ? (
+                <PersonOnTrees
+                  personId={person.id}
+                  trees={onTrees}
+                  currentTreeId={currentTreeId}
+                />
+              ) : !readOnly ? (
                 <PersonTrees personId={person.id} currentTreeId={treeId} />
               ) : null}
               {basic ? (

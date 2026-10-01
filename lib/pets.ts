@@ -55,17 +55,22 @@ const PET_COLUMNS =
  * paths, as with `getTreeGraph`.
  */
 export async function getTreePets(
-  treeId: string,
+  /** A tree, or several at once: My Family Tree's (Step 92.2). */
+  treeId: string | readonly string[],
   db?: DbClient,
   { forPublic = false }: { forPublic?: boolean } = {},
 ): Promise<TreePet[]> {
   const supabase = db ?? (await createClient());
 
   // Each pet with its people, in one read (Step 77.1), first linked first.
-  const { data } = await supabase
+  const pets = supabase
     .from("pets")
-    .select(`${PET_COLUMNS}, pet_companions(person_id)`)
-    .eq("tree_id", treeId)
+    .select(`${PET_COLUMNS}, pet_companions(person_id)`);
+  const { data } = await (
+    typeof treeId === "string"
+      ? pets.eq("tree_id", treeId)
+      : pets.in("tree_id", treeId)
+  )
     .order("created_at", { ascending: true })
     .order("created_at", { referencedTable: "pet_companions", ascending: true });
 

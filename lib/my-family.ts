@@ -213,3 +213,46 @@ export function treeMarkOf(index: number): TreeMark {
   const slot = ((index % (2 * n)) + 2 * n) % (2 * n);
   return { colour: TREE_MARK_COLOURS[slot % n], ring: slot >= n };
 }
+
+/**
+ * The canvas's name for My Family Tree where a tree's id would go (Step
+ * 92.2): what this tab keeps of the view (`use-canvas-memory`) and its
+ * cards' drops (none: nothing is dragged there) are kept under it.
+ */
+export const MY_FAMILY_VIEW = "my-family";
+
+/** One of the viewer's trees as the view's key and cards show it. */
+export type FamilyViewTree = { id: string; name: string; mark: TreeMark };
+
+/** Which of the viewer's trees a card on the view comes from, and is on. */
+export type FamilyShowing = {
+  /** The card's tree, whose mark it wears. */
+  tree_id: string;
+  /** Every one of the viewer's trees that shows them, in the key's order. */
+  tree_ids: string[];
+};
+
+/**
+ * The companions My Family Tree hangs off its people (Step 92.2): those
+ * with someone in the view, each kept to whom the view shows. A pet stays
+ * on the one tree it was added to, so no two trees bring the same one. A
+ * primary companion the view leaves out is let go, and the chip hangs
+ * from the topmost of those shown, as on a tree whose primary was deleted.
+ */
+export function companionsShowing<
+  P extends { companions: string[]; primary_person_id: string | null },
+>(pets: readonly P[], shown: ReadonlySet<string>): P[] {
+  return pets.flatMap((pet) => {
+    const companions = pet.companions.filter((id) => shown.has(id));
+    if (companions.length === 0) return [];
+    if (companions.length === pet.companions.length) return [pet];
+    const primary = pet.primary_person_id;
+    return [
+      {
+        ...pet,
+        companions,
+        primary_person_id: primary && shown.has(primary) ? primary : null,
+      },
+    ];
+  });
+}

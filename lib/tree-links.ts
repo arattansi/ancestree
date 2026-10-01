@@ -12,6 +12,15 @@ export function treeHref(): string {
   return "/tree";
 }
 
+/**
+ * My Family Tree (Step 92): everyone the member is related to, from every
+ * tree of theirs, arranged around them. A view, not a tree, so it has an
+ * address of its own and leaves the tree the browser remembers alone.
+ */
+export function myFamilyHref(): string {
+  return "/family";
+}
+
 /** The canvas opened on one person's spotlight (`FamilyTree` reads `person`). */
 export function treeFocusHref(personId: string | null | undefined): string {
   return personId ? `${treeHref()}?person=${enc(personId)}` : treeHref();

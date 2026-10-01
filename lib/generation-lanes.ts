@@ -60,6 +60,29 @@ export function generationLabel(generation: number): string {
 }
 
 /**
+ * A lane's label on My Family Tree (Step 92), which is arranged around the
+ * viewer rather than a tree's founders, so its rows are named from them:
+ * "Your generation", "Parents' generation", "Grandchildren's generation".
+ * Still the cohort, not the relationship — "Parents' generation" is the row
+ * their parents were born into, aunts and uncles and their partners too.
+ * Past great-grandparents, the greats are counted ("2× great-grandparents'
+ * generation").
+ */
+export function generationLabelFromYou(generation: number): string {
+  if (generation === 0) return "Your generation";
+  const steps = Math.abs(generation);
+  const [one, two] =
+    generation < 0
+      ? ["Parents'", "grandparents'"]
+      : ["Children's", "grandchildren's"];
+  if (steps === 1) return `${one} generation`;
+  const greats =
+    steps === 2 ? "" : steps === 3 ? "great-" : `${steps - 2}× great-`;
+  const name = `${greats}${two}`;
+  return `${name[0].toUpperCase()}${name.slice(1)} generation`;
+}
+
+/**
  * "b. 1950s" for a row born in one decade, "b. 1950s–1960s" when it spans more.
  *
  * A generation is a cohort, not a cohort of one age: two sets of parents born a

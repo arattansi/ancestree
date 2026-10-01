@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   cardShowing,
+  companionsShowing,
   familyTies,
   mergeLines,
   mergeShowings,
@@ -392,5 +393,32 @@ describe("treeMarkOf", () => {
       { colour: "var(--tree-mark-2)", ring: true },
       { colour: "var(--tree-mark-1)", ring: false },
     ]);
+  });
+});
+
+describe("companionsShowing", () => {
+  const pet = (id: string, companions: string[], primary: string | null) => ({
+    id,
+    companions,
+    primary_person_id: primary,
+  });
+  const shown = new Set(["a", "b"]);
+
+  it("keeps a pet whose people are all in the view as it is", () => {
+    const dog = pet("dog", ["a", "b"], "a");
+    expect(companionsShowing([dog], shown)[0]).toBe(dog);
+  });
+
+  it("leaves out a pet with nobody in the view", () => {
+    expect(companionsShowing([pet("cat", ["x"], "x")], shown)).toEqual([]);
+  });
+
+  it("keeps a pet's people to those shown, and lets an absent primary go", () => {
+    expect(
+      companionsShowing(
+        [pet("dog", ["x", "a"], "x"), pet("cat", ["a", "y"], "a")],
+        shown,
+      ),
+    ).toEqual([pet("dog", ["a"], null), pet("cat", ["a"], "a")]);
   });
 });

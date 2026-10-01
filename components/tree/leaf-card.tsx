@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import { AccountTypeMark } from "@/components/account-type-badge";
+import { TreeMarkDot, type CardMark } from "@/components/tree/tree-mark";
 import { FitText } from "@/components/ui/fit-text";
 import { cropStyle, parseCrop } from "@/lib/image-crop";
 import { leafLabel, type LeafShape, type NativeLeaf } from "@/lib/native-leaf";
@@ -288,11 +289,14 @@ export function LeafCard({
   leaf,
   selected,
   isSelf,
+  mark,
 }: {
   person: TreeGraphPerson;
   leaf: NativeLeaf;
   selected: boolean;
   isSelf: boolean;
+  /** On My Family Tree, the mark of the tree it comes from (Step 92.2). */
+  mark?: CardMark;
 }) {
   // Total on purpose: a shape added to the table before it is drawn here used
   // to render `d={undefined}`, which is a card with no leaf on it at all.
@@ -306,6 +310,9 @@ export function LeafCard({
   const threeLines =
     [youAlone, maiden, youWithYears || lifespan].filter(Boolean).length === 2;
   const deceased = person.is_deceased;
+  // Where the marks hang under the leaf (below).
+  const markTop =
+    (BLADE_BOTTOM[leaf.shape] ?? BLADE_BOTTOM.ovate) - OVERHANG + MARK_GAP;
   // Ids have to be unique per card: two leaves sharing a clip path would clip
   // to whichever one the browser resolved last.
   const clipId = React.useId();
@@ -388,12 +395,23 @@ export function LeafCard({
         <AccountTypeMark
           typeKey={person.account_type}
           className="absolute left-1/2 size-5 -translate-x-1/2 rounded-full bg-card p-0.5"
-          style={{
-            top:
-              (BLADE_BOTTOM[leaf.shape] ?? BLADE_BOTTOM.ovate) -
-              OVERHANG +
-              MARK_GAP,
-          }}
+          style={{ top: markTop }}
+        />
+      ) : null}
+      {/* Its tree's mark on My Family Tree (Step 92.2), hung under the leaf
+          with the account mark: left of it when there is one, centred
+          when not, ringed in card colour as that is. */}
+      {mark ? (
+        <TreeMarkDot
+          mark={mark}
+          label={mark.name}
+          className={cn(
+            "absolute ring-[3px] ring-card",
+            person.account_type
+              ? "left-[calc(50%-26px)]"
+              : "left-1/2 -translate-x-1/2",
+          )}
+          style={{ top: markTop + 5 }}
         />
       ) : null}
 

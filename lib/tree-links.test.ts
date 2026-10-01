@@ -5,6 +5,7 @@ import {
   adminHref,
   editPersonHref,
   joinedTreeHref,
+  myFamilyHref,
   onboardingHref,
   onboardingStepHref,
   reviewHref,
@@ -20,6 +21,7 @@ import {
 describe("tree paths", () => {
   it("keeps every tree page at a plain address", () => {
     expect(treeHref()).toBe("/tree");
+    expect(myFamilyHref()).toBe("/family");
     expect(reviewHref()).toBe("/tree/review");
     expect(onboardingHref()).toBe("/onboarding");
     expect(onboardingStepHref("family")).toBe("/onboarding?step=family");

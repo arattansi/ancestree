@@ -52,6 +52,7 @@ import { GettingStarted } from "@/components/tree/getting-started";
 import { bladeTop } from "@/components/tree/leaf-card";
 import { PersonNode } from "@/components/tree/person-node";
 import { PetNode } from "@/components/tree/pet-node";
+import { TreeKey, type CardMark } from "@/components/tree/tree-mark";
 import { PersonPicker } from "@/components/tree/person-picker";
 import {
   NO_CONNECTION,
@@ -105,6 +106,8 @@ import type { ClaimCandidate } from "@/lib/claims";
 import { connectionLabel, connectionPath } from "@/lib/connection-path";
 import type { PanelSuggestion } from "@/lib/connection-suggestions";
 import type { GettingStartedItem } from "@/lib/first-tree";
+import { generationLabelFromYou } from "@/lib/generation-lanes";
+import type { FamilyShowing, FamilyViewTree } from "@/lib/my-family";
 import { nativeLeaf } from "@/lib/native-leaf";
 import { upcomingOccasions } from "@/lib/occasions";
 import { asDayMonth } from "@/lib/partial-date";
@@ -177,8 +180,21 @@ const NOBODY: ReadonlySet<string> = new Set();
  */
 const KEPT_VIEW = "(kept view)";
 
+/**
+ * My Family Tree (Step 92.2): the viewer's trees gathered into one view
+ * that only shows. Its cards wear their tree's mark, a key names the trees,
+ * and nothing is dragged, added or edited there.
+ */
+export type FamilyView = {
+  /** The viewer's trees, in the key's order. */
+  trees: FamilyViewTree[];
+  /** The tree the browser is looking at, for the sheet's links to theirs. */
+  currentTreeId: string | null;
+};
+
 type Props = {
-  people: TreeGraphPerson[];
+  /** On My Family Tree, each says which of the viewer's trees show them. */
+  people: (TreeGraphPerson & Partial<FamilyShowing>)[];
   relationships: TreeGraphEdge[];
   treeId: string;
   /** The tree's URL slug, for a read-only canvas's "Ask to join" (Step 41.4). */
@@ -227,6 +243,8 @@ type Props = {
   changeSuggestions?: EntrySuggestion[];
   /** The viewer's own suggestions that were declined (Step 72). */
   declinedSuggestions?: DeclinedSuggestion[];
+  /** Drawn as My Family Tree rather than one tree (Step 92.2). */
+  family?: FamilyView | null;
 };
 
 /** Which way a bloodline spotlight runs from the person who was clicked. */
@@ -256,8 +274,13 @@ function Canvas({
   claimInvites = NO_INVITES,
   changeSuggestions = NO_SUGGESTIONS,
   declinedSuggestions = NO_DECLINED,
+  family = null,
   page,
 }: Props & { page: number }) {
+  // My Family Tree moves and changes nothing (Step 92.2): no drag, no
+  // adding, no edits, nobody else's pointers. Each card's actions, against
+  // its own tree, are Step 92.3's.
+  const editable = !readOnly && !family;
   // Companions stay off the canvas until the viewer switches them on (Step
   // 23). Off the canvas only: a person's details still list theirs, and
   // picking one there still opens it.
@@ -459,13 +482,13 @@ function Canvas({
   // the pointer and being refused on drop.
   const lockedIds = React.useMemo(() => {
     const locked = new Set<string>();
-    if (readOnly) return locked;
+    if (!editable) return locked;
     for (const person of people)
       if (!canEditPersonId(person.id)) locked.add(person.id);
     for (const pet of pets)
       if (!canEditCompanion(pet, viewer, canEditPersonId)) locked.add(pet.id);
     return locked;
-  }, [readOnly, people, pets, viewer, canEditPersonId]);
+  }, [editable, people, pets, viewer, canEditPersonId]);
 
   // A locked card is seeded with `draggable: false` — only ever `false`: a
   // node's own `true` would override `nodesDraggable={false}` and let cards
@@ -972,6 +995,19 @@ function Canvas({
     return null;
   }, [selectedEdgeId, graph.edges, nameById, shownRelationships]);
 
+  // Each card's tree mark on My Family Tree (Step 92.2): one object per
+  // tree, so a card's data stays the same while its tree does.
+  const markById = React.useMemo(() => {
+    const byTree = new Map<string, CardMark>(
+      (family?.trees ?? []).map((t) => [t.id, { ...t.mark, name: t.name }]),
+    );
+    return new Map(
+      people.flatMap((p) => {
+        const mark = p.tree_id ? byTree.get(p.tree_id) : undefined;
+        return mark ? [[p.id, mark] as const] : [];
+      }),
+    );
+  }, [family, people]);
   // Everything the canvas says about a card beyond where it sits — the ring on
   // the open entry, the fade on a card the search filtered out, the ring on a
   // clicked connection's endpoints, and the spotlight's lit line against its
@@ -1021,8 +1057,10 @@ function Canvas({
           : lit.has(n.id);
       const compressed =
         !isPet && (spotlight?.siblingSpouses.has(n.id) ?? false);
+      const mark = isPet ? undefined : markById.get(n.id);
       map.set(n.id, {
         ...n.data,
+        ...(mark ? { mark } : {}),
         selected,
         dimmed,
         highlighted,
@@ -1044,6 +1082,7 @@ function Canvas({
     path,
     selectedId,
     selectedPetId,
+    markById,
   ]);
   // A card whose flags came out the same is handed the very same `data`, so
   // it doesn't draw again when the rest of the tree changes (Step 87.1).
@@ -1462,7 +1501,7 @@ function Canvas({
   const selfEntry = selfPersonId ? personById.get(selfPersonId) : undefined;
   const roomMe = React.useMemo(
     () =>
-      readOnly || !currentUserId
+      !editable || !currentUserId
         ? null
         : {
             person: selfPersonId,
@@ -1471,7 +1510,7 @@ function Canvas({
                 personDisplayName(selfEntry)
               : "",
           },
-    [readOnly, currentUserId, selfPersonId, selfEntry],
+    [editable, currentUserId, selfPersonId, selfEntry],
   );
   const room = useTreeRoom(treeId, currentUserId, roomMe);
   const roomColours = React.useMemo(
@@ -1700,6 +1739,19 @@ function Canvas({
   );
 
   const selectedPerson = people.find((p) => p.id === selectedId) ?? null;
+  // My Family Tree is arranged around the viewer, so its rows are named
+  // from them (Step 92.2): "Your generation", "Parents' generation".
+  const isView = !!family;
+  const bands = React.useMemo(
+    () =>
+      isView
+        ? graph.layout.bands.map((band) => ({
+            ...band,
+            label: generationLabelFromYou(band.generation),
+          }))
+        : graph.layout.bands,
+    [isView, graph.layout.bands],
+  );
   // Minimized to the card that stands in for the "…'s tree" pill. Never
   // for a blurred card: it has no details to bring back.
   const folded = minimized && !!selectedPerson && !selectedPerson.blurred;
@@ -1769,7 +1821,7 @@ function Canvas({
   // Whose relative the Add button adds (Step 19.2): whoever is selected, as
   // long as the viewer may add from them — a Leaf, only on their own line.
   const addTarget =
-    selectedTarget && canAddRelativeOf(selectedTarget.id, viewer)
+    editable && selectedTarget && canAddRelativeOf(selectedTarget.id, viewer)
       ? selectedTarget
       : null;
   const selectedPet = allPets.find((pet) => pet.id === selectedPetId) ?? null;
@@ -1803,7 +1855,9 @@ function Canvas({
   // A companion is editable by whoever added it, an admin, or anyone who can
   // already edit one of its people — looser than a person entry on purpose.
   const canEditPet =
-    !!selectedPet && canEditCompanion(selectedPet, viewer, canEditPersonId);
+    editable &&
+    !!selectedPet &&
+    canEditCompanion(selectedPet, viewer, canEditPersonId);
 
   const relations = React.useMemo<PersonRelation[]>(() => {
     if (!selectedId) return NO_RELATIONS;
@@ -1839,6 +1893,7 @@ function Canvas({
             isDivorced: r.is_divorced,
             divorceDate: r.divorce_date,
             canEdit:
+              editable &&
               canEditConnection(r, viewer) &&
               (r.drawn_here ||
                 r.created_by === viewer.userId ||
@@ -1846,23 +1901,29 @@ function Canvas({
           },
         ];
       });
-  }, [selectedId, relationships, people, viewer]);
+  }, [selectedId, relationships, people, viewer, editable]);
   const canEdit =
-    !!selectedPerson && canEditEntry(entrySubject(selectedPerson), viewer);
+    editable &&
+    !!selectedPerson &&
+    canEditEntry(entrySubject(selectedPerson), viewer);
   // Not theirs to edit, but theirs to fill in where it's blank (Step 44).
   const canFill =
+    editable &&
     !!selectedPerson &&
     !canEdit &&
     canFillEntry(entrySubject(selectedPerson), viewer);
   // A basic card says too little of itself for the entry's rule, so it has
   // its own: a Root's to send, when nobody is behind it (Step 84).
   const canInvite =
+    editable &&
     !!selectedPerson &&
     (selectedPerson.basic
       ? canInviteToClaimCard(selectedPerson, viewer)
       : canInviteToClaim(entrySubject(selectedPerson), viewer));
   const canDelete =
-    !!selectedPerson && canOfferDelete(entrySubject(selectedPerson), viewer);
+    editable &&
+    !!selectedPerson &&
+    canOfferDelete(entrySubject(selectedPerson), viewer);
   const selectedInvites = React.useMemo(
     () =>
       selectedId && !readOnly
@@ -1891,6 +1952,16 @@ function Canvas({
         : NO_PETS,
     [allPets, selectedId],
   );
+  // On My Family Tree, every one of the viewer's trees showing whoever is
+  // open, for their sheet to name (Step 92.2).
+  const selectedTrees = React.useMemo(() => {
+    if (!family || !selectedPerson?.tree_ids) return null;
+    const byId = new Map(family.trees.map((t) => [t.id, t]));
+    return selectedPerson.tree_ids.flatMap((id) => {
+      const tree = byId.get(id);
+      return tree ? [tree] : [];
+    });
+  }, [family, selectedPerson]);
   const selectedPanelSuggestions = React.useMemo(
     () =>
       selectedId
@@ -1955,7 +2026,7 @@ function Canvas({
         onNodeClick={onNodeClick}
         onNodeMouseEnter={panelsReady ? undefined : loadPanels}
         onEdgeClick={onEdgeClick}
-        onNodeDragStop={readOnly ? undefined : onNodeDragStop}
+        onNodeDragStop={editable ? onNodeDragStop : undefined}
         onPaneClick={() => {
           setSelectedId(null);
           setSelectedPetId(null);
@@ -1975,12 +2046,12 @@ function Canvas({
         // A card that has been pulled out of the tree is not where the reader
         // put it, so dragging is off until the spotlight closes; on a phone
         // it's off altogether (Step 49).
-        nodesDraggable={!readOnly && !spotlight && !phone}
+        nodesDraggable={editable && !spotlight && !phone}
         onPointerMove={roomMe ? onCanvasPointerMove : undefined}
         onPointerLeave={roomMe ? () => sendCursor(null) : undefined}
       >
         <ViewportPortal>
-          {graph.layout.bands.map((band) => (
+          {bands.map((band) => (
             <GenerationLane
               key={band.generation}
               band={band}
@@ -2043,12 +2114,12 @@ function Canvas({
                 Ask to join
               </RequestInviteDialog>
             </div>
-          ) : (
+          ) : editable ? (
             <AddRelativeButton
               relatedTo={addTarget}
               labelFrom={sheetOut ? "lg" : "sm"}
             />
-          )}
+          ) : null}
           {/* Under Add a relative since Step 60, its words showing from the
               same width as Add's. */}
           <TreeSearch
@@ -2073,6 +2144,9 @@ function Canvas({
             descendantChoices={sidePeople}
             labelFrom={sheetOut ? "lg" : "sm"}
           />
+          {/* The key to the cards' marks (Step 92.2), under Search: on the
+              left it would sit over the generations' names. */}
+          {family ? <TreeKey trees={family.trees} /> : null}
           {!readOnly && isAdmin ? (
             // It undoes every move anyone has made by hand, so it asks first
             // (Step 70); the dialog shows it running.
@@ -2229,13 +2303,13 @@ function Canvas({
               onPickCouple={(a, b) => onConnectionChange({ from: a, to: b })}
             />
           ) : null}
-          {!readOnly && claimCandidates.length > 0 ? (
+          {editable && claimCandidates.length > 0 ? (
             <ClaimSuggestions
               candidates={claimCandidates}
               notes={claimNotes}
             />
           ) : null}
-          {!readOnly && gettingStarted ? (
+          {editable && gettingStarted ? (
             <GettingStarted treeId={treeId} items={gettingStarted} />
           ) : null}
         </Panel>
@@ -2260,8 +2334,10 @@ function Canvas({
           claimInvites={selectedInvites}
           changeSuggestions={selectedSuggestions}
           declinedSuggestions={selectedDeclined}
-          readOnly={readOnly}
+          readOnly={!editable}
           shareToken={shareToken}
+          onTrees={selectedTrees}
+          currentTreeId={family?.currentTreeId ?? null}
           claimable={!!selectedPerson && claimableIds.has(selectedPerson.id)}
           claimNote={
             selectedPerson ? (claimNotes.get(selectedPerson.id) ?? null) : null
@@ -2285,7 +2361,7 @@ function Canvas({
           canEdit={canEditPet}
           currentUserId={currentUserId}
           isAdmin={isAdmin}
-          readOnly={readOnly}
+          readOnly={!editable}
           shareToken={shareToken}
           onClose={onClosePet}
           onSelectPerson={selectPerson}

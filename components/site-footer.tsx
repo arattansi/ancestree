@@ -14,8 +14,13 @@ const WATERMARK = (
 export function SiteFooter() {
   const pathname = usePathname();
 
-  // The tree canvas fills the viewport; a footer there would only get in the way.
-  if (pathname === "/tree" || /^\/t\/[^/]+\/tree\/?$/.test(pathname)) {
+  // The tree canvas fills the viewport, My Family Tree's too (Step 92.2); a
+  // footer there would only get in the way.
+  if (
+    pathname === "/tree" ||
+    pathname === "/family" ||
+    /^\/t\/[^/]+\/tree\/?$/.test(pathname)
+  ) {
     return null;
   }
 

@@ -6,6 +6,7 @@ import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { AccountTypeMark } from "@/components/account-type-badge";
 import { LeafCard } from "@/components/tree/leaf-card";
 import { PillCard } from "@/components/tree/pill-card";
+import { TreeMarkDot, type CardMark } from "@/components/tree/tree-mark";
 import { useSteadyPhoto } from "@/components/tree/use-steady-photo";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { FitText } from "@/components/ui/fit-text";
@@ -40,6 +41,9 @@ export type PersonNodeData = {
   compressed?: boolean;
   /** The sibling's first name, for the pill's "Spouse of …". */
   spouseOf?: string;
+  /** On My Family Tree, the mark of the tree the card comes from (Step
+   *  92.2). */
+  mark?: CardMark;
 };
 
 // The handles are anchors for the branch lines, never something the reader
@@ -59,6 +63,7 @@ function PersonNodeImpl({ data }: NodeProps) {
     blurred,
     compressed,
     spouseOf,
+    mark,
   } = data as PersonNodeData;
   // The full name for the hover preview and the tooltip; the condensed one for
   // the card itself, where a surname would otherwise be cut off mid-word.
@@ -133,6 +138,7 @@ function PersonNodeImpl({ data }: NodeProps) {
           leaf={nativeLeaf(person)}
           selected={!!selected}
           isSelf={isSelf}
+          mark={mark}
         />
       </div>
     );
@@ -243,6 +249,16 @@ function PersonNodeImpl({ data }: NodeProps) {
           position={Position.Bottom}
           className={handleClass}
         />
+
+        {/* The tree it comes from, on My Family Tree (Step 92.2): the top
+            corner across from the report count, clear of the photo. */}
+        {mark ? (
+          <TreeMarkDot
+            mark={mark}
+            label={mark.name}
+            className="absolute top-2 left-2"
+          />
+        ) : null}
 
         {/* Reports only those who can put them right see (Step 88.2). */}
         {person.open_report_count > 0 ? (

@@ -21,6 +21,7 @@ import {
   laneTitleFit,
   laneTitleLeft,
   generationLabel,
+  generationLabelFromYou,
 } from "@/lib/generation-lanes";
 import {
   COUPLE_GAP,
@@ -527,6 +528,24 @@ describe("generation bands", () => {
     expect(generationLabel(-12)).toBe("Generation Twelve");
     expect(generationLabel(-13)).toBe("Generation 13");
     expect(generationLabel(13)).toBe("Generation minus 13");
+  });
+
+  it("names My Family Tree's rows from the viewer (Step 92)", () => {
+    expect(generationLabelFromYou(0)).toBe("Your generation");
+    expect(generationLabelFromYou(-1)).toBe("Parents' generation");
+    expect(generationLabelFromYou(-2)).toBe("Grandparents' generation");
+    expect(generationLabelFromYou(-3)).toBe("Great-grandparents' generation");
+    expect(generationLabelFromYou(-4)).toBe(
+      "2× great-grandparents' generation",
+    );
+    expect(generationLabelFromYou(1)).toBe("Children's generation");
+    expect(generationLabelFromYou(2)).toBe("Grandchildren's generation");
+    expect(generationLabelFromYou(3)).toBe(
+      "Great-grandchildren's generation",
+    );
+    expect(generationLabelFromYou(6)).toBe(
+      "4× great-grandchildren's generation",
+    );
   });
 });
 
