@@ -1752,6 +1752,27 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 98.2, follow-up: the parent is told when they join** (migration
+  `20261001150000_tell_placeholder_parents_on_join`; no app change).
+  **Aalim asked for:** "tell the parent about the placeholder when they
+  join" — 98.2's first known gap. A parent who wasn't a member when their
+  placeholder child was made now gets the same `placeholder_child` notice
+  ("{Root} added a placeholder for your child (First Child). Only you can
+  fill it in.", with **Fill in**) as soon as their entry becomes theirs:
+  the claim invite, "This is me", an approved claim, or a merge that moves
+  the parent line onto their own entry. `private.tell_placeholder_parent`
+  sends one notice per member and waiting placeholder, from whoever made
+  it, never to a parent who has died; after-triggers on `profiles`
+  (`self_person_id` set), `claims` (approved) and `relationships` (a parent
+  line to a placeholder drawn or moved) call it, and `add_placeholder_child`
+  now leaves its member notice to the trigger, so nobody is told twice.
+  Existing minors 98.3 turns into placeholders get the same when their
+  parent joins. **Checked:** a rolled-back rehearsal on live, 24 checks
+  (member told once per placeholder at creation; non-members told nothing
+  until their entry is set as theirs, then once per placeholder, not again
+  on a re-set; an approved claim; a merge's line move; a deceased co-parent
+  untold; a filled-in placeholder and an ordinary child line tell nobody).
+
 - **Step 98.2 — Placeholder children** (migration
   `20261001140000_placeholder_children`, applied before the deploy: the new
   code reads its column, and the old code ignores it). **Aalim asked for:**
@@ -1791,8 +1812,8 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   Third Child if Second still waits, else First again; a deceased parent
   alone can't have one (nobody to fill it in); the Report flag stays; a
   sibling refused takes the sibling's parents. **Known gaps:** a parent who
-  joins by the claim invite isn't told about the placeholder — they find it
-  on the canvas under them; a Branch may not be allowed to invite the
+  joins by the claim invite isn't told about the placeholder (closed in the
+  follow-up above); a Branch may not be allowed to invite the
   parent (the usual claim-invite rule), then the dialog says so and a Root
   sends it; a parent who is a member but not of the placeholder's tree can't
   open it. **Checked:** tsc, lint, build, 1,737 tests (new

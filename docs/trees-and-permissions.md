@@ -99,7 +99,11 @@ Rules that follow:
   numbered after that parent's other placeholders when it's made, never
   renumbered (`people.placeholder_number`). A parent who is a member is
   told (`placeholder_child`, with **Fill in**); for one who isn't, whoever
-  added it is offered an invite for them to claim their own entry. Only
+  added it is offered an invite for them to claim their own entry, and
+  they're told the same once their entry becomes theirs — by that invite,
+  "This is me", an approved claim or a merge — once per placeholder
+  (`private.tell_placeholder_parent`, triggered from `profiles`, `claims`
+  and `relationships`). Only
   the parent (their own entry is drawn as its parent) fills it in: their
   edit clears the number and makes it theirs, an ordinary entry from then
   on. Until then nobody else edits it or fills it in (a Root's rights
