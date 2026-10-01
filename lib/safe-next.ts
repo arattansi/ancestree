@@ -4,11 +4,17 @@
  * email and back (Step 30.1) — so a Root who opens an alert email's button
  * while signed out still lands on the request. Anyone can type a `next`
  * into an address bar, so only a plain same-origin path is taken; anything
- * else falls back to the canvas.
+ * else falls back to My Family Tree.
  */
 
-/** Where signing in lands when there's nowhere better to go. */
-export const DEFAULT_NEXT = "/tree";
+import { myFamilyHref } from "@/lib/tree-links";
+
+/**
+ * Where signing in lands when there's nowhere better to go: My Family Tree,
+ * every visit (Step 92.5), which sends anyone it can't be drawn for on to
+ * the canvas.
+ */
+export const DEFAULT_NEXT = myFamilyHref();
 
 /** Longer than any address the app makes. */
 const MAX_NEXT_LENGTH = 2048;

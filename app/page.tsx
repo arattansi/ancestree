@@ -7,15 +7,16 @@ import { RequestAccessDialog } from "@/components/request-access";
 import { StartTreeButton } from "@/components/start-tree-button";
 import { Button } from "@/components/ui/button";
 import { getProfile } from "@/lib/auth";
-import { treeHref } from "@/lib/tree-links";
+import { homeHref } from "@/lib/tree-links";
 import { getTreeRequestStatus } from "@/lib/tree-requests.server";
 
 /**
- * The landing page (Step 28). Signed in: view your tree, or ask to start a
- * new one. Signed out: sign in, request access (which looks for your
- * family's tree first), or join the waitlist to start one. New trees are by
- * request during the beta. The buttons are navigation, so lower-case
- * (docs/design-system.md), even the ones that open a dialog.
+ * The landing page (Step 28). Signed in: view your tree (My Family Tree,
+ * Step 92.5), or ask to start a new one. Signed out: sign in, request
+ * access (which looks for your family's tree first), or join the waitlist
+ * to start one. New trees are by request during the beta. The buttons are
+ * navigation, so lower-case (docs/design-system.md), even the ones that
+ * open a dialog.
  *
  * Sign in stays the filled button, for members coming back; the line under
  * the buttons tells a newcomer they need an invite before sign in sends
@@ -46,7 +47,11 @@ export default async function Home() {
         <div className="flex w-full max-w-xs flex-col gap-3 sm:w-auto sm:max-w-none sm:flex-row">
           {profile ? (
             <>
-              <Button nativeButton={false} render={<Link href={treeHref()} />} size="lg">
+              <Button
+                nativeButton={false}
+                render={<Link href={homeHref(profile.self_person_id)} />}
+                size="lg"
+              >
                 view your tree
               </Button>
               <StartTreeButton status={treeRequest ?? "none"} size="lg" variant="outline">

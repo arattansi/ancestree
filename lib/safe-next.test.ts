@@ -57,9 +57,10 @@ describe("sameOriginPath", () => {
 });
 
 describe("safeNext", () => {
-  it("falls back to the canvas", () => {
+  it("falls back to My Family Tree (Step 92.5)", () => {
     expect(safeNext("//evil.example")).toBe(DEFAULT_NEXT);
-    expect(safeNext(null)).toBe("/tree");
+    expect(safeNext(null)).toBe("/family");
+    expect(safeNext("/tree")).toBe("/tree");
     expect(safeNext("/trees/new")).toBe("/trees/new");
   });
 });
@@ -83,8 +84,12 @@ describe("signInNext", () => {
   });
 
   it("carries nothing when it's where signing in lands anyway", () => {
-    expect(signInNext("/tree", "")).toBeNull();
-    expect(signInNext("/tree", "?_rsc=abc")).toBeNull();
+    expect(signInNext("/family", "")).toBeNull();
+    expect(signInNext("/family", "?_rsc=abc")).toBeNull();
+  });
+
+  it("carries the canvas, which signing in no longer lands on (Step 92.5)", () => {
+    expect(signInNext("/tree", "")).toBe("/tree");
   });
 
   it("carries nothing it wouldn't accept back", () => {

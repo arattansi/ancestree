@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/card";
 import { getProfile } from "@/lib/auth";
 import { REQUEST_ACCESS_INTRO, REQUEST_INVITE_INTRO } from "@/lib/request-forms";
+import { homeHref } from "@/lib/tree-links";
 
 export const metadata: Metadata = {
   title: "request access",
@@ -30,7 +31,8 @@ export default async function RequestInvitePage({
   searchParams,
 }: PageProps<"/request-invite">) {
   const profile = await getProfile();
-  if (profile) redirect("/tree");
+  // A member has nothing to ask for: their landing (Step 92.5).
+  if (profile) redirect(homeHref(profile.self_person_id));
   const { tree } = await searchParams;
   const treeSlug = typeof tree === "string" && tree ? tree : null;
 

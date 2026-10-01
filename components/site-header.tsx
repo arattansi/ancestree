@@ -11,21 +11,22 @@ import {
 } from "@/components/header-counts";
 import { LogoMark } from "@/components/logo-mark";
 import { SiteHeaderHeight } from "@/components/site-header-height";
-import { SiteNavLink } from "@/components/site-nav-link";
+import { SiteNavLink, TreeNavLink } from "@/components/site-nav-link";
 import { SiteNotifications } from "@/components/site-notifications";
 import { SubmitButton } from "@/components/submit-button";
 import { TreeSwitcher } from "@/components/tree-switcher";
 import { Button } from "@/components/ui/button";
 import { getProfile, getSessionUser } from "@/lib/auth";
 import { headerCounts } from "@/lib/header-counts.server";
-import { currentAccess, listMyTrees } from "@/lib/tree-context";
-import { treeHref } from "@/lib/tree-links";
+import { currentAccess, isTreeChosen, listMyTrees } from "@/lib/tree-context";
+import { homeHref } from "@/lib/tree-links";
 import { getTreeRequestStatus } from "@/lib/tree-requests.server";
 
 /**
  * The header's frame: the mark on the left, then whatever sits in the
  * centre and on the right. `site-header-bar` lets a node's details sheet
- * move the header aside while it's open (globals.css).
+ * move the header aside while it's open (globals.css). The mark goes home:
+ * the home page, or a member's landing (Step 92.5).
  *
  * One row (Step 85.2): the buttons never wrap, and the centre gives way to
  * them, a long tree name ending in "…". On a narrow bar (`header-compact`,
@@ -33,9 +34,11 @@ import { getTreeRequestStatus } from "@/lib/tree-requests.server";
  * the buttons wrap there only if even their compact row can't fit.
  */
 function HeaderFrame({
+  home = "/",
   center,
   nav,
 }: {
+  home?: string;
   center?: ReactNode;
   nav?: ReactNode;
 }) {
@@ -43,7 +46,7 @@ function HeaderFrame({
     <header className="sticky top-0 z-40 border-b bar-chrome">
       <div className="site-header-bar mx-auto grid min-h-14 w-full max-w-5xl grid-cols-[1fr_auto_1fr] items-center gap-x-4 px-4 py-2 header-compact:grid-cols-[auto_minmax(0,1fr)_auto] header-compact:gap-x-3">
         <Link
-          href="/"
+          href={home}
           className="relative flex w-fit items-center gap-2 rounded-sm text-sm font-semibold tracking-tight text-foreground outline-none tap-target focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
           <LogoMark className="size-5" />
@@ -73,8 +76,9 @@ export function SiteHeaderShell() {
 }
 
 /**
- * The site-wide header. Left, the mark; centre, the tree switcher for every
- * member (Step 92.2: My Family Tree and their trees); right, the tree's pages, the
+ * The site-wide header. Left, the mark, which takes a member to My Family
+ * Tree (Step 92.5); centre, the tree switcher for every member (Step 92.2:
+ * My Family Tree and their trees); right, the tree's pages, the
  * account — beside it, a count of anything waiting in the admin consoles
  * they run, which opens the card it's waiting on (Step 30.1) — and
  * notifications across every tree. The current tree is the one the
@@ -101,11 +105,12 @@ export async function SiteHeader() {
 }
 
 async function LoadedHeader() {
-  // All three need only the session, so they're read together (Step 77.1).
-  const [profile, trees, access] = await Promise.all([
+  // All four need only the session, so they're read together (Step 77.1).
+  const [profile, trees, access, chosen] = await Promise.all([
     getProfile(),
     listMyTrees(),
     currentAccess(),
+    isTreeChosen(),
   ]);
   const signedInNotMember = profile ? false : Boolean(await getSessionUser());
 
@@ -116,6 +121,9 @@ async function LoadedHeader() {
   // Every member gets the switcher (Step 92.2): My Family Tree is in it,
   // and starting a tree of their own until they've founded one.
   const showSwitcher = trees.length > 0;
+  // Where a member lands every visit (Step 92.5); anyone else, the home page.
+  const home =
+    profile && showSwitcher ? homeHref(profile.self_person_id) : undefined;
   // Counts only (Step 77.2): the bell reads its list when it's opened. Where
   // an ask to start a tree stands is read beside them, and only when no
   // tree of theirs says they founded one already.
@@ -130,6 +138,7 @@ async function LoadedHeader() {
 
   return (
     <HeaderFrame
+      home={home}
       center={
         profile && showSwitcher ? (
           <TreeSwitcher
@@ -139,6 +148,7 @@ async function LoadedHeader() {
               role: t.role,
             }))}
             currentId={currentMembership?.tree.id ?? null}
+            chosen={chosen}
             visiting={visiting}
             myFamily={!!profile.self_person_id}
             startTree={startTree}
@@ -151,15 +161,15 @@ async function LoadedHeader() {
           // (Step 77.2).
           <HeaderCountsProvider initial={counts}>
             {access ? (
-              // Exact, so it isn't lit beside **connections** on its
-              // /tree/review page (Step 61).
-              <SiteNavLink
-                href={treeHref()}
-                exact
+              // The tree switched to this visit, else their landing (Step
+              // 92.5).
+              <TreeNavLink
+                chosen={chosen}
+                home={home ?? homeHref(profile.self_person_id)}
                 icon={<Network className="size-4" aria-hidden />}
               >
                 tree
-              </SiteNavLink>
+              </TreeNavLink>
             ) : null}
             <ConnectionsNavLink />
             {/* Apart on a narrow bar, so each keeps a whole 44px target. */}

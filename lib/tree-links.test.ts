@@ -5,6 +5,7 @@ import {
   adminHref,
   editPersonHref,
   entryBackHref,
+  homeHref,
   joinedTreeHref,
   myFamilyFocusHref,
   myFamilyHref,
@@ -31,6 +32,12 @@ describe("tree paths", () => {
     expect(editPersonHref("p1")).toBe("/people/p1/edit");
     expect(editPersonHref("a b")).toBe("/people/a%20b/edit");
     expect(suggestChangeHref("p1")).toBe("/people/p1/suggest");
+  });
+
+  it("lands on My Family Tree once there's an entry to arrange it around (Step 92.5)", () => {
+    expect(homeHref("p1")).toBe("/family");
+    expect(homeHref(null)).toBe("/tree");
+    expect(homeHref(undefined)).toBe("/tree");
   });
 
   it("opens the suggestion form on a declined suggestion to resend (Step 71)", () => {

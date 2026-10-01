@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 
 import { FamilyTree } from "@/components/tree/family-tree";
 import { LEAF } from "@/lib/account-types";
+import { getProfile } from "@/lib/auth";
+import { readCurrentTreeId } from "@/lib/current-tree.server";
 import { companionsShowing, MY_FAMILY_VIEW } from "@/lib/my-family";
 import { loadMyFamily } from "@/lib/my-family.server";
 import { getTreePets } from "@/lib/pets";
@@ -24,13 +26,28 @@ export const metadata: Metadata = {
  * tree's own canvas, arranged around them. A view only: nothing is moved
  * or added on it. Each card's actions (Step 92.3) go to the card's own
  * tree, as who the member is there; adding goes to the tree they pick.
+ *
+ * Where a member lands, every visit (Step 92.5): signing in, the mark and
+ * the home page come here.
  */
 export default async function MyFamilyPage() {
-  // Signed out, or a member of no tree: wherever the canvas would send them.
-  const access = await requireTreeAccess();
-  const profile =
-    access.kind === "member" ? access.membership.profile : access.visit.profile;
-  const trees = await listMyTrees();
+  // Read together (Step 77.1); which tree is shown by default isn't asked,
+  // since the view needs only the one switched to this visit, if any.
+  const [profile, trees, chosenId] = await Promise.all([
+    getProfile(),
+    listMyTrees(),
+    readCurrentTreeId(),
+  ]);
+  if (!profile?.self_person_id || trees.length === 0) {
+    // Signed out, not a member yet, on no tree (unless visiting one), or
+    // nothing of their own to arrange it around: wherever the canvas would
+    // send them. The canvas never sends anyone here, so this can't loop.
+    await requireTreeAccess();
+    redirect(treeHref());
+  }
+  // Links to a tree switch to it unless it's the one switched to this visit
+  // (`TreeTarget`), so going to a tree from here holds for the visit too.
+  const currentTreeId = trees.some((t) => t.id === chosenId) ? chosenId : null;
   // Their companions are read beside the people, from the same trees, and
   // the suggested changes they can see (Step 67) as a tree's canvas reads
   // them: waiting ones to answer or their own, and their own declined.
@@ -81,8 +98,7 @@ export default async function MyFamilyPage() {
             role,
             reach,
           })),
-          currentTreeId:
-            access.kind === "member" ? access.membership.tree.id : null,
+          currentTreeId,
           // Asked of the viewer only, here (Step 92.4).
           samePeople: family.samePeople,
         }}

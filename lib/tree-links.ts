@@ -21,6 +21,15 @@ export function myFamilyHref(): string {
   return "/family";
 }
 
+/**
+ * Where a member lands (Step 92.5): My Family Tree, arranged around their
+ * own entry, every visit. Before they have one there's nothing to arrange
+ * it around, so the canvas, which asks them to add it.
+ */
+export function homeHref(selfPersonId: string | null | undefined): string {
+  return selfPersonId ? myFamilyHref() : treeHref();
+}
+
 /** The canvas opened on one person's spotlight (`FamilyTree` reads `person`). */
 export function treeFocusHref(personId: string | null | undefined): string {
   return personId ? `${treeHref()}?person=${enc(personId)}` : treeHref();

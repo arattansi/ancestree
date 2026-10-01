@@ -126,6 +126,24 @@ export const currentAccess = cache(async (): Promise<TreeAccess | null> => {
 });
 
 /**
+ * Whether the tree being looked at is one this browser chose this visit
+ * (Step 92.5) — switched to, joined, founded, or opened from an email or a
+ * link — rather than their home tree, which they're on only by default.
+ * The choice lasts until the browser closes; until there is one, the
+ * member's way back is My Family Tree.
+ */
+export const isTreeChosen = cache(async (): Promise<boolean> => {
+  const [access, chosen] = await Promise.all([
+    currentAccess(),
+    readCurrentTreeId(),
+  ]);
+  if (!access || !chosen) return false;
+  const tree =
+    access.kind === "member" ? access.membership.tree : access.visit.tree;
+  return tree.id === chosen;
+});
+
+/**
  * How the signed-in member may see the current tree. Signed-out visitors go
  * to `/join`; a member of no tree at all goes to their (empty) trees page.
  */

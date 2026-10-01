@@ -43,11 +43,14 @@ const START_TREE_LABEL: Record<TreeRequestStatus, string> = {
  * mark there, then — until they've founded one — starting a tree of their
  * own, at whatever stage their ask is (Step 28). Picking a tree remembers
  * it in the browser and opens its canvas; My Family Tree has an address of
- * its own, and leaves the remembered tree alone.
+ * its own, and leaves the remembered tree alone. From My Family Tree a tree
+ * is always switched to, even the one shown by default, so the choice holds
+ * for the rest of the visit (Step 92.5).
  */
 export function TreeSwitcher({
   trees,
   currentId,
+  chosen,
   visiting = null,
   myFamily,
   startTree,
@@ -55,6 +58,8 @@ export function TreeSwitcher({
   trees: SwitcherTree[];
   /** The tree being looked at, when it's one of theirs. */
   currentId: string | null;
+  /** `currentId` was switched to this visit, not shown by default. */
+  chosen: boolean;
   /** A tree opened to them from another: read-only, not in `trees`. */
   visiting?: { name: string } | null;
   /** They have an entry of their own to arrange My Family Tree around. */
@@ -79,10 +84,10 @@ export function TreeSwitcher({
   }
 
   function choose(tree: SwitcherTree) {
-    if (tree.id === currentId) {
-      // The tree the browser remembers already: from My Family Tree, its
-      // canvas; on it, nothing to do.
-      if (onFamily) open(treeHref());
+    if (tree.id === currentId && !onFamily) return;
+    if (tree.id === currentId && chosen) {
+      // From My Family Tree, the tree switched to this visit: its canvas.
+      open(treeHref());
       return;
     }
     // A switch redirects, and the menu stays busy until the tree has opened;

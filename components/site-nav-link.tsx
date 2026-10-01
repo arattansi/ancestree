@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { isNavActive } from "@/lib/nav-active";
+import { treeHref } from "@/lib/tree-links";
 
 /**
  * A header nav button that turns solid black once you're on the page it points
@@ -45,6 +46,33 @@ export function SiteNavLink({
       <span className="header-compact:sr-only">{children}</span>
       {count}
     </Button>
+  );
+}
+
+/**
+ * The header's **tree** (Step 92.5): on a tree's canvas, that canvas; from
+ * anywhere else, the tree the browser was switched to this visit, or —
+ * with none chosen yet — the member's landing, My Family Tree (`home`).
+ * Exact, so it isn't lit beside **connections** on its /tree/review page
+ * (Step 61).
+ */
+export function TreeNavLink({
+  chosen,
+  home,
+  icon,
+  children,
+}: {
+  /** A tree was switched to this visit (`isTreeChosen`). */
+  chosen: boolean;
+  home: string;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  const onTree = usePathname() === treeHref();
+  return (
+    <SiteNavLink href={onTree || chosen ? treeHref() : home} exact icon={icon}>
+      {children}
+    </SiteNavLink>
   );
 }
 
