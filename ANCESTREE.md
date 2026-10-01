@@ -1753,6 +1753,28 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 98.2, follow-up: a Branch invites the parent too** (migration
+  `20261001180000_branch_invites_placeholder_parents`). **Aalim asked
+  for:** "let a Branch invite the parent too" — 98.2's second known gap. A
+  Branch who added a placeholder under someone off their side was refused
+  the invite for that parent to claim their own entry, since a Branch may
+  only invite to an entry they can edit. Now a Root or a Branch of the tree
+  may invite a placeholder's parent while a placeholder waits under them on
+  that tree — living, not a placeholder, nobody behind the entry
+  (`private.can_invite_to_claim_on`, re-created from 98.3's body with that
+  one branch). The canvas offers the invite on the parent's card to a
+  Branch the same way (`EntrySubject.waitingPlaceholderParent`,
+  `canInviteToClaimHere`). **Checked:** tsc, lint, 1,745 tests (2 new in
+  `lib/branch.test.ts`); a rolled-back rehearsal on live with two Roots,
+  the parent on the second Root's side: the Branch refused before, allowed
+  after; a Leaf, a member's entry, a claimed entry and someone with no
+  placeholder still refused; Root and 98.3's placeholder rule unchanged.
+  Applied from the file with an md5 assert (statement md5 `beab827f…`);
+  headless e2e on live as a throwaway Branch: the parent's card offered no
+  invite, then No → **Add a placeholder instead** → **Invite Camila Yyy to
+  fill it in?** → invite sent, and the card now offers the invite and lists
+  it; everything deleted after.
+
 - **Step 99: stories in Markdown, with credit and a date** (migration
   `20261001160000_story_credits_and_told_on`). **Aalim asked for:** "for the
   stories feature, add the ability to write using markdown or upload a
@@ -1950,7 +1972,7 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   joins by the claim invite isn't told about the placeholder (closed in the
   follow-up above); a Branch may not be allowed to invite the
   parent (the usual claim-invite rule), then the dialog says so and a Root
-  sends it; a parent who is a member but not of the placeholder's tree can't
+  sends it (closed in a later follow-up); a parent who is a member but not of the placeholder's tree can't
   open it. **Checked:** tsc, lint, build, 1,737 tests (new
   `lib/placeholders.test.ts`, placeholder cases in `lib/branch.test.ts`);
   a rolled-back rehearsal on live, 33 checks (adds by Root/Branch, Leaf /

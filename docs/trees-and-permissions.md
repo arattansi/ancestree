@@ -99,7 +99,10 @@ Rules that follow:
   numbered after that parent's other placeholders when it's made, never
   renumbered (`people.placeholder_number`). A parent who is a member is
   told (`placeholder_child`, with **Fill in**); for one who isn't, whoever
-  added it is offered an invite for them to claim their own entry, and
+  added it is offered an invite for them to claim their own entry — any
+  Root or Branch of the tree may send it, from that offer or the parent's
+  card, while a placeholder waits under them there, though the entry is
+  off a Branch's side (`can_invite_to_claim_on`) — and
   they're told the same once their entry becomes theirs — by that invite,
   "This is me", an approved claim or a merge — once per placeholder
   (`private.tell_placeholder_parent`, triggered from `profiles`, `claims`

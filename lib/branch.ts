@@ -294,6 +294,12 @@ export type EntrySubject = {
    * child to claim it (Step 98.3).
    */
   placeholderParents?: readonly string[] | null;
+  /**
+   * A placeholder child waits under them on the tree being looked at (Step
+   * 98.2), so a Root or a Branch there may invite them to claim their own
+   * entry, to fill it in.
+   */
+  waitingPlaceholderParent?: boolean;
 };
 
 /** Whether the viewer's own entry is a placeholder's parent (Step 98.2). */
@@ -443,6 +449,18 @@ export function canInviteToClaimHere(
   home: Viewer | null,
 ): boolean {
   if (accountTypeOf(here.role).runsTree) return canInviteToClaim(entry, here);
+  // A placeholder's parent: a Branch here may invite them too (Step 98.2).
+  if (
+    here.role === "branch_admin" &&
+    entry.waitingPlaceholderParent &&
+    !entry.placeholderParents &&
+    !entry.isClaimed &&
+    !entry.isSomeoneElsesOwn &&
+    !entry.isDeceased &&
+    entry.id !== here.selfPersonId
+  ) {
+    return true;
+  }
   return !!home && canInviteToClaim(entry, home);
 }
 

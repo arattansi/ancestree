@@ -611,6 +611,10 @@ function Canvas({
         ]);
     return parents;
   }, [people, relationships]);
+  const waitingParents = React.useMemo(
+    () => new Set([...placeholderParentsOf.values()].flat()),
+    [placeholderParentsOf],
+  );
   const entrySubject = React.useCallback(
     (person: TreeGraphPerson): EntrySubject => ({
       id: person.id,
@@ -623,8 +627,9 @@ function Canvas({
         person.placeholder_number != null
           ? (placeholderParentsOf.get(person.id) ?? [])
           : null,
+      waitingPlaceholderParent: waitingParents.has(person.id),
     }),
-    [spokenFor, placeholderParentsOf],
+    [spokenFor, placeholderParentsOf, waitingParents],
   );
 
   const personById = React.useMemo(

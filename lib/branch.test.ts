@@ -982,3 +982,29 @@ describe("placeholder children (Step 98.2)", () => {
     expect(canOfferDeleteHere(placeholder(), false, parent, null)).toBe(true);
   });
 });
+
+describe("a placeholder's parent, invited by a Branch (Step 98.2)", () => {
+  // Raiya's entry, off Arzu's side, with a placeholder child waiting under it.
+  const parentOf = (over: Partial<EntrySubject> = {}) =>
+    entry({ id: "outside", waitingPlaceholderParent: true, ...over });
+  const off = parentOf({ waitingPlaceholderParent: false });
+
+  it("lets a Branch invite them, though they can't edit the entry", () => {
+    expect(canEditEntry(off, branchAdmin)).toBe(false);
+    expect(canInviteToClaimHere(off, branchAdmin, branchAdmin)).toBe(false);
+    expect(canInviteToClaimHere(parentOf(), branchAdmin, branchAdmin)).toBe(true);
+    expect(canInviteToClaimHere(parentOf(), branchAdmin, null)).toBe(true);
+  });
+
+  it("not a Leaf, and not once someone is behind the entry or they've died", () => {
+    expect(canInviteToClaimHere(parentOf(), member, member)).toBe(false);
+    for (const over of [
+      { isClaimed: true },
+      { isSomeoneElsesOwn: true },
+      { isDeceased: true },
+    ])
+      expect(
+        canInviteToClaimHere(parentOf(over), branchAdmin, branchAdmin),
+      ).toBe(false);
+  });
+});
