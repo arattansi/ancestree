@@ -120,6 +120,21 @@ turn autocomplete off, or every relative is offered the member's own name
   anyone who can't edit the entry. **Manage**, at the foot, keeps the rest
   (reposition the photo, claim, delete) and isn't shown when it holds
   nothing for the viewer.
+- On My Family Tree (Step 92.3) a person's sheet acts on the card's own
+  tree, the one whose mark it wears, as who the reader is there: its
+  **Edit**, **Fill in** and **Suggest** open that tree's page for the
+  entry, switching to the tree first when the browser is on another (busy
+  until it arrives, like **On**'s links), and the page comes back to the
+  view. Stories, the album and reports are the sheet's as on a tree; a
+  line's dates are changed there only where it was drawn on a tree the
+  reader is a Root or a Branch of. Companions only show.
+- My Family Tree adds nothing itself, so its **Add a relative** asks
+  **Which tree do you want to add to?**: the question and the trees, each
+  a button with its mark, and nothing else (Step 92.3). From someone
+  selected it offers only the trees showing them where the reader may add
+  from them; with nobody selected, or nowhere they may add from them,
+  every tree, adding without them. With one tree to offer it doesn't ask:
+  the button goes straight to that tree's add flow.
 - Sections of the sheet that matter less fold away, closed at first, their
   heading the button with a count beside it (Step 88.1:
   **Family** and **Companions**, `components/tree/sheet-fold.tsx`). One

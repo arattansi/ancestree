@@ -209,6 +209,18 @@ stays.
   ("Also on: The Suleman tree") and see it read-only: no stories, no edits,
   no album, no account types, with a "request to join" button that files
   an invite request with that tree's Roots.
+- **My Family Tree** (Step 92) shows a member everyone they're related to
+  across the trees they belong to, as one view. Nothing is done *on* it:
+  each card acts on its own tree, the one whose mark it wears (their home
+  tree when the member is on it, else the member's tree that has shown
+  them in full longest), as the member's account type there (Step 92.3).
+  Its details follow their home tree's rules, as everywhere; a story, an
+  album photo, a report or a suggested change is made from the card's tree
+  (whose inbox hears back); a line is changed from the view only where it
+  was drawn on a tree the member is a Root or a Branch of. No claim
+  invites, "This is me", deletions or companions are offered there, and
+  adding a relative goes to the tree the member picks, in that tree's own
+  add flow. The database decides every write as before.
 - Any person can mark their own entry **hidden from visitors**
   (`people.hidden_from_visitors`). A hidden entry is drawn blurred, with no
   name or details, on a tree the viewer is not a member of. A Root of the home

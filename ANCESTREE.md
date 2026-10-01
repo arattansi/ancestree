@@ -69,9 +69,11 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   route that switches to that tree for a Root of it and opens its console
   at the card (Step 30.1, `lib/open-console.server.ts`). `/family` is My
   Family Tree (Step 92.2): every tree the member is on, drawn as one canvas
-  arranged around them (`loadMyFamily`), a view only for now; an address of
-  its own, so it leaves the remembered tree alone, reached from the
-  switcher. Site-wide: `/`
+  arranged around them (`loadMyFamily`); an address of its own, so it
+  leaves the remembered tree alone, reached from the switcher. Nothing is
+  added on it: a card's actions go to its own tree (Step 92.3), and its
+  entry's pages (`/people/[id]/edit`, `/suggest`) are opened by switching
+  to that tree first, with `?back=family` to come back. Site-wide: `/`
   landing (Step 28: signed in, **view your tree** / **start a tree
   (beta)**, which asks a beta reviewer; signed out, **sign in** / **request
   access** / **start a tree (beta)**, the last two in dialogs —
@@ -419,11 +421,17 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   a card comes from (`cardShowing`, `mergeShowings`), one copy of each
   line (`mergeLines`), the trees' marks (`treeMarkOf`) (Step 92.1,
   `.test.ts`), the view's companions (`companionsShowing`) and the canvas's
-  name for it (`MY_FAMILY_VIEW`, Step 92.2); `lib/my-family.server.ts` —
-  `loadMyFamily`, every tree the member is on merged into one graph, drawn
-  by `FamilyTree`'s `family` mode (`components/tree/tree-mark.tsx`: the
-  marks and the key; lanes named from the viewer,
-  `generationLabelFromYou`, Step 92.2);
+  name for it (`MY_FAMILY_VIEW`, Step 92.2), and what a card's sheet offers
+  there, tree by tree (Step 92.3: `reachOnTree` / `viewerOnTree`, who the
+  member is on each tree; `entryRightsFromView`, the home tree's rules;
+  `lineEditableFromView`; `addTreesFromView`); `lib/my-family.server.ts` —
+  `loadMyFamily`, every tree the member is on merged into one graph, with
+  each tree's reach and whose own entry each card is, drawn by
+  `FamilyTree`'s `family` mode (`components/tree/tree-mark.tsx`: the marks
+  and the key; lanes named from the viewer, `generationLabelFromYou`, Step
+  92.2; `components/tree/add-to-tree.tsx`, its "Add a relative", and
+  `add-to-tree-dialog.tsx`, "Which tree do you want to add to?", Step
+  92.3);
   `lib/tree-layout.ts` — the anchored auto-layout engine (Step 4.6, `.test.ts`):
   generations relative to the founding admins fix `y`; partners are fused into
   one *atom*, and a family (an atom plus everything descended from it) is laid
@@ -1702,6 +1710,70 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 92.3 — Acting from My Family Tree** (the third of Step 92; no
+  migration). **Aalim asked for:** the view's sheet to offer stories, the
+  album, Edit details (or Fill in), Suggest a change and Report a
+  problem, each against the card's own tree with the member's account
+  type there; lines editable only where drawn on a tree they're a Root or
+  Branch of; no claim invites; and **Add a relative** asking **Which tree
+  do you want to add to?**, all their trees from the canvas, from a person
+  only the trees showing them where they may add, and straight into the
+  add flow when there's one. `loadMyFamily` now says, from the reads it
+  already made, who the member is on each tree (`reachOnTree`: a Branch's
+  part of a Root's side, a Leaf's own line, kept to the view's people, as
+  `getViewer` works them out; `viewerReach` in `lib/branch.ts` is that
+  walk, shared), which trees show each card in full (`full_tree_ids`) and
+  whose own entry each is (one more read beside the cards' finishing).
+  In `Canvas`'s `family` mode a card's sheet gets the card's tree as
+  `treeId` (stories, album, reports go there; `add_story`,
+  `add_album_photo`, `report_entry` and `suggest_entry_change` already
+  ask for a tree that is the member's and shows them in full, which it
+  always is unless the card is basic, when the sheet offers none of it),
+  its rights from the home tree's rules (`entryRightsFromView`, as
+  `entryAccess` reads them: the viewer on the card's tree when that's
+  home, else only their own entry), a Root badge's powers when they're a
+  Root of the card's tree, the album's tag choices kept to those the
+  card's tree shows in full, and its lines from `lineEditableFromView`.
+  **Edit**, **Fill in**, **Suggest** and **Edit and resend** on another
+  tree than the remembered one switch to it first (`switchTreeForm`, as
+  `TreeTarget`), and the page carries `?back=family` to come back.
+  `/family` reads suggested changes as `/tree` does. No migration, and no
+  server action reads the remembered tree: each takes ids, and the pages
+  that do read it are reached after the switch. **My calls, not asked:**
+  an entry's page opened from the view goes back to it (Back to tree,
+  and after filling in or suggesting); the add flow, once a tree is
+  picked, is that tree's own and lands on it, since the new person may
+  not be in the view; the canvas's button with someone selected counts as
+  adding from them, and with nobody, or nobody they may add from, offers
+  every tree unconnected; "one tree" means one to offer; **Delete entry**
+  isn't offered in the view (not in the list), **Reposition photo** is
+  (an edit); companions only show, since a pet's tree isn't read there;
+  waiting and declined suggestions show and are answered as on a tree;
+  acting on another tree moves the remembered tree there, as **On**'s
+  links do; the dialog shows each tree's mark and name, not the account
+  type. **Checked:** `viewerReach`, `reachOnTree`, `entryRightsFromView`,
+  `lineEditableFromView`, `addTreesFromView`, `full_tree_ids` and the
+  `back=family` links in tests; on live, one throwaway member who is a
+  Branch on one throwaway tree, a Leaf on a second and the Root of a
+  third, with a fourth tree they aren't on as one card's home, in
+  headless Chrome on a desktop and a phone, light and dark: every sheet's
+  buttons by the home tree's rules (Edit on their side, Suggest on a
+  Root's own entry and on the entry homed on the fourth tree, Fill in on
+  the Leaf's own line), lines changeable only on the Branch's and the
+  Root's trees, no claim invite, This is me, Delete or companion add; a
+  story told about Mom (`stories.tree_id` her tree, waiting, the notice in
+  that tree's inbox to its Root), a report raised on the Branch's tree, an
+  album photo on the Root's tree (tag choices that tree's people only,
+  approved, file in its folder), a suggestion sent from the card's tree
+  (its home's Root asked in the home's inbox), a marriage date saved;
+  Edit, Fill in and Suggest switching trees and coming back; Add from
+  nobody, from Me (three trees, then the add flow on the one picked) and
+  from Lin (straight to the Leaf's tree); a member JWT refused where the
+  account type there doesn't allow (the Leaf's line, a story on a tree
+  not showing the person, a report from a tree they aren't on, a
+  suggestion on their own Root tree, edits by PostgREST); `/tree`
+  unchanged; the dialog off both pages' first load; the production build.
+  Then removed.
 - **Step 92.2 — My Family Tree on the canvas, and the switcher** (the
   second of Step 92; no migration). **Aalim asked for:** the view drawn
   with the tree's own canvas, always arranged around the member, nothing
