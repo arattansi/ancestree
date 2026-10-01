@@ -421,6 +421,10 @@ function PersonPanelImpl({
   // fill in, comment on or manage from this tree.
   const basic = !!person?.basic;
   const locked = readOnly || basic;
+  // A placeholder child (Step 98.2) has nothing to show until their parent
+  // fills it in, and nothing anyone else can add to it.
+  const placeholder = person?.placeholder_number != null;
+  const sealed = locked || placeholder;
   // On My Family Tree (Step 92.3): its pages open on the card's own tree,
   // switched to first, and come back to the view; its companions only show.
   const inView = onTrees !== null;
@@ -431,8 +435,8 @@ function PersonPanelImpl({
   useLoadPersonSheet(person?.id ?? null, {
     // On My Family Tree the sheet names their trees itself (`onTrees`).
     trees: !readOnly && !inView,
-    album: !locked,
-    stories: !locked,
+    album: !sealed,
+    stories: !sealed,
     reports: locked ? 0 : (person?.open_report_count ?? 0),
   });
   const waiting = person
@@ -442,7 +446,9 @@ function PersonPanelImpl({
   const lifeLine = person
     ? basic
       ? BASIC_DETAILS
-      : (personLifespan(person) ?? "Living")
+      : placeholder
+        ? "Placeholder"
+        : (personLifespan(person) ?? "Living")
     : "";
   // Something here is blank, and the viewer may fill it in (Step 44).
   const fillable =
@@ -451,7 +457,7 @@ function PersonPanelImpl({
   // so for some viewers nothing is left there, and the section goes.
   const canReposition = !locked && canEdit && !!person?.photo_url;
   const canClaim = !isSelf && claimable && !person?.claim_status;
-  const lockedNote = !canEdit && !claimable && !isSelf;
+  const lockedNote = !canEdit && !claimable && !isSelf && !placeholder;
   // Whoever added an entry someone has claimed may dispute the claim, in
   // the report dialog (Step 88.2).
   const canDispute = person?.claim_status === "approved" && isCreator;
@@ -757,7 +763,7 @@ function PersonPanelImpl({
                           title={canEdit ? undefined : "Fill in what’s missing"}
                           icon={<Pencil aria-hidden />}
                         >
-                          {canEdit ? "Edit" : "Fill in"}
+                          {canEdit && !placeholder ? "Edit" : "Fill in"}
                         </TagTreeLink>
                       ) : (
                         <TagLink
@@ -765,11 +771,11 @@ function PersonPanelImpl({
                           title={canEdit ? undefined : "Fill in what’s missing"}
                         >
                           <Pencil aria-hidden />
-                          {canEdit ? "Edit" : "Fill in"}
+                          {canEdit && !placeholder ? "Edit" : "Fill in"}
                         </TagLink>
                       )
                     ) : null}
-                    {!canEdit ? (
+                    {!canEdit && !placeholder ? (
                       inView ? (
                         <TagTreeLink
                           treeId={treeId}
@@ -803,7 +809,7 @@ function PersonPanelImpl({
                   </span>
                 ) : null}
               </div>
-              {familyAdd ? (
+              {placeholder ? null : familyAdd ? (
                 // From the person on My Family Tree: the trees showing them
                 // where the viewer may add (Step 92.3).
                 familyAdd.relatedTo ? (
@@ -822,6 +828,13 @@ function PersonPanelImpl({
               {waiting ? (
                 <p className="rounded-md border border-dashed border-border bg-muted/40 px-3 py-2.5 text-sm text-muted-foreground">
                   {waiting}
+                </p>
+              ) : null}
+              {placeholder ? (
+                <p className="rounded-md border border-dashed border-border bg-muted/40 px-3 py-2.5 text-sm text-muted-foreground">
+                  {canEdit
+                    ? "Only you can fill this in."
+                    : "Only their parent can fill this in."}
                 </p>
               ) : null}
               {basic && claimButton ? <div>{claimButton}</div> : null}
@@ -855,7 +868,7 @@ function PersonPanelImpl({
               ) : !readOnly ? (
                 <PersonTrees personId={person.id} currentTreeId={treeId} />
               ) : null}
-              {basic ? (
+              {placeholder ? null : basic ? (
                 <dl className="grid grid-cols-2 gap-4">
                   <Field label="First name" value={person.first_name} />
                   <Field label="Preferred name" value={person.preferred_name} />
@@ -949,7 +962,7 @@ function PersonPanelImpl({
 
               {/* The album (Step 88.5), where documents were: not on a
                   share link or to a visitor, and not on a basic card. */}
-              {!locked ? (
+              {!sealed ? (
                 <section className="border-t border-border pt-5">
                   <EntryAlbum
                     personId={person.id}
@@ -961,7 +974,7 @@ function PersonPanelImpl({
 
               {/* Stories (Step 88.3), where the comments board was: not on
                   a share link or to a visitor, and not on a basic card. */}
-              {!locked ? (
+              {!sealed ? (
                 <section className="border-t border-border pt-5">
                   <EntryStories
                     personId={person.id}
@@ -984,7 +997,7 @@ function PersonPanelImpl({
                 pets={pets}
                 // On My Family Tree companions only show (Step 92.3): a pet
                 // lives on one tree, which the view doesn't say.
-                canAdd={!locked && !inView && canEdit}
+                canAdd={!sealed && !inView && canEdit}
                 onSelectPet={onSelectPet}
                 onAdd={() => setAddingCompanion(true)}
                 open={companionsOpen}

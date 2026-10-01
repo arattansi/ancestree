@@ -337,3 +337,46 @@ export async function revertEntryEdit(
   revalidateTreePages();
   return { restored: data?.length ?? 0 };
 }
+
+/** What a refused placeholder child says (Step 98.2). */
+function friendlyPlaceholderError(message: string | undefined): string {
+  return friendlyDbError(
+    message ?? "",
+    [
+      ["only a Root or a Branch", "Only a Root or a Branch can add a placeholder."],
+      ["living parent", "A placeholder needs a living parent to fill it in."],
+      ["isn't on this tree", "Their parent isn't on this tree."],
+      ["BLOODLINE_GATE", "Their parent has no blood tie to this tree."],
+    ],
+    "Couldn't add the placeholder. Try again.",
+  );
+}
+
+/**
+ * A placeholder child of `parentIds` (Step 98.2): a Root or a Branch can't
+ * add someone else's child under 18, but can hold their place, shown as
+ * "First Child"… under them, theirs alone to fill in. A parent who is a
+ * member is told by the database; the others come back, so whoever added it
+ * can invite them to claim their own entry.
+ */
+export async function addPlaceholderChild(
+  treeId: string,
+  parentIds: string[],
+): Promise<{ personId?: string; uninvitedParentIds?: string[]; error?: string }> {
+  await requireProfile();
+  if (parentIds.length < 1 || parentIds.length > 2) {
+    return { error: "Pick their parent first." };
+  }
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("add_placeholder_child", {
+    p_tree: treeId,
+    p_parents: parentIds,
+  });
+  if (error || !data) return { error: friendlyPlaceholderError(error?.message) };
+  const result = data as { id: string; uninvited_parents: string[] };
+  revalidateTreePages();
+  return {
+    personId: result.id,
+    uninvitedParentIds: result.uninvited_parents ?? [],
+  };
+}

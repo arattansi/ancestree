@@ -287,7 +287,18 @@ export type EntrySubject = {
   /** They have died (`personHasDied`: marked so, or given a date of death).
    *  Bears on claiming only: there is nobody to invite. */
   isDeceased?: boolean;
+  /**
+   * A placeholder child's parents (Step 98.2), or `null`/absent for any
+   * other entry. A placeholder is its parent's alone: only they edit it,
+   * nobody fills it in or is invited to claim it.
+   */
+  placeholderParents?: readonly string[] | null;
 };
+
+/** Whether the viewer's own entry is a placeholder's parent (Step 98.2). */
+function isOwnPlaceholder(entry: EntrySubject, selfId: string | null): boolean {
+  return !!selfId && !!entry.placeholderParents?.includes(selfId);
+}
 
 /**
  * Mirrors `private.can_edit_person`: a Root; their own entry; otherwise the
@@ -296,6 +307,7 @@ export type EntrySubject = {
  * else's own.
  */
 export function canEditEntry(entry: EntrySubject, viewer: Viewer): boolean {
+  if (entry.placeholderParents) return isOwnPlaceholder(entry, viewer.selfPersonId);
   const { entries } = accountTypeOf(viewer.role);
   if (entries === "tree") return true;
   if (entry.id === viewer.selfPersonId) return true;
@@ -324,6 +336,9 @@ export function entryRights(
   home: Viewer | null,
   selfId: string | null,
 ): { canEdit: boolean; canFill: boolean } {
+  if (entry.placeholderParents) {
+    return { canEdit: isOwnPlaceholder(entry, selfId), canFill: false };
+  }
   const canEdit = home ? canEditEntry(entry, home) : entry.id === selfId;
   return {
     canEdit,
@@ -353,6 +368,7 @@ export function canFillEntry(entry: EntrySubject, viewer: Viewer): boolean {
  * among their own additions.
  */
 export function canInviteToClaim(entry: EntrySubject, viewer: Viewer): boolean {
+  if (entry.placeholderParents) return false;
   if (entry.id === viewer.selfPersonId) return false;
   if (entry.isClaimed || entry.isSomeoneElsesOwn) return false;
   if (entry.isDeceased) return false;
@@ -368,11 +384,16 @@ export function canInviteToClaim(entry: EntrySubject, viewer: Viewer): boolean {
  * on what the card keeps back too.
  */
 export function canInviteToClaimCard(
-  card: { basic: boolean; asked_of: "owner" | "stewards" | null },
+  card: {
+    basic: boolean;
+    asked_of: "owner" | "stewards" | null;
+    placeholder_number?: number | null;
+  },
   viewer: Viewer,
 ): boolean {
   return (
     card.basic &&
+    card.placeholder_number == null &&
     card.asked_of === "stewards" &&
     accountTypeOf(viewer.role).runsTree
   );
@@ -388,6 +409,8 @@ export function canInviteToClaimCard(
  */
 export function canOfferDelete(entry: EntrySubject, viewer: Viewer): boolean {
   if (accountTypeOf(viewer.role).deletes === "tree") return true;
+  // A placeholder child's parent may take it away (Step 98.2).
+  if (isOwnPlaceholder(entry, viewer.selfPersonId)) return true;
   if (entry.id === viewer.selfPersonId) return false;
   if (entry.isClaimed || entry.isSomeoneElsesOwn) return false;
   return (
@@ -425,6 +448,7 @@ export function canOfferDeleteHere(
   home: Viewer | null,
 ): boolean {
   if (isHome) return canOfferDelete(entry, here);
+  if (isOwnPlaceholder(entry, here.selfPersonId)) return true;
   return !!home && accountTypeOf(home.role).deletes === "tree";
 }
 

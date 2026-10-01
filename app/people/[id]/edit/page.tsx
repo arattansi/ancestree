@@ -53,7 +53,7 @@ export default async function EditPersonPage({
       supabase
         .from("tree_people")
         .select(
-          "id, home_tree_id, is_home, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_birth_precision, birth_month, birth_day, date_of_birth_circa, place_id_birth, city_of_birth, country_of_birth, is_deceased, date_of_death, date_of_death_precision, date_of_death_circa, place_id_death, place_of_death, sex, lineage_type, photo_path, photo_crop, owner_user_id, created_by, email, email_visible",
+          "id, home_tree_id, is_home, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_birth_precision, birth_month, birth_day, date_of_birth_circa, place_id_birth, city_of_birth, country_of_birth, is_deceased, date_of_death, date_of_death_precision, date_of_death_circa, place_id_death, place_of_death, sex, lineage_type, photo_path, photo_crop, owner_user_id, created_by, email, email_visible, placeholder_number",
         )
         .eq("tree_id", tree.id)
         .eq("id", id)
@@ -66,7 +66,8 @@ export default async function EditPersonPage({
 
   if (
     !person?.id ||
-    !person.last_name ||
+    // A placeholder child (Step 98.2) has no name until it's filled in.
+    (!person.last_name && person.placeholder_number == null) ||
     !person.home_tree_id ||
     !person.owner_user_id ||
     !person.created_by
@@ -92,6 +93,7 @@ export default async function EditPersonPage({
       home_tree_id: homeTreeId,
       owner_user_id: person.owner_user_id,
       created_by: person.created_by,
+      placeholder_number: person.placeholder_number,
     }),
     person.is_home ? tree : getTreeById(homeTreeId),
     signedPhotoUrl(supabase, person.photo_path),
@@ -106,10 +108,13 @@ export default async function EditPersonPage({
     redirect(suggestChangeHref(personId, undefined, { fromFamily }));
   }
 
-  const values = personFormValues({ ...person, last_name: person.last_name });
+  const values = personFormValues({
+    ...person,
+    last_name: person.last_name ?? "",
+  });
   const displayName = personDisplayName({
     ...person,
-    last_name: person.last_name,
+    last_name: person.last_name ?? "",
   });
 
   if (canFill) {
@@ -215,7 +220,8 @@ export default async function EditPersonPage({
     <PageColumn>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
-          Edit {displayName}
+          {/* A placeholder child is filled in by their parent (Step 98.2). */}
+          {person.placeholder_number != null ? "Fill in" : "Edit"} {displayName}
         </h1>
         {/* Said only when the entry's home is another tree (Step 58). */}
         {person.is_home ? null : (

@@ -1177,6 +1177,7 @@ export type Database = {
           place_id_birth: number | null
           place_id_death: number | null
           place_of_death: string | null
+          placeholder_number: number | null
           preferred_name: string | null
           sex: string | null
           tree_id: string
@@ -1211,6 +1212,7 @@ export type Database = {
           place_id_birth?: number | null
           place_id_death?: number | null
           place_of_death?: string | null
+          placeholder_number?: number | null
           preferred_name?: string | null
           sex?: string | null
           tree_id: string
@@ -1245,6 +1247,7 @@ export type Database = {
           place_id_birth?: number | null
           place_id_death?: number | null
           place_of_death?: string | null
+          placeholder_number?: number | null
           preferred_name?: string | null
           sex?: string | null
           tree_id?: string
@@ -2529,6 +2532,7 @@ export type Database = {
           place_id_birth: number | null
           place_id_death: number | null
           place_of_death: string | null
+          placeholder_number: number | null
           placement_id: string | null
           placement_status: string | null
           pos_dx: number | null
@@ -2564,6 +2568,10 @@ export type Database = {
           p_suggestions?: Json
           p_tree?: string
         }
+        Returns: Json
+      }
+      add_placeholder_child: {
+        Args: { p_parents: string[]; p_tree: string }
         Returns: Json
       }
       add_story: {
@@ -2844,6 +2852,7 @@ export type Database = {
           place_id_birth: number | null
           place_id_death: number | null
           place_of_death: string | null
+          placeholder_number: number | null
           preferred_name: string | null
           sex: string | null
           tree_id: string

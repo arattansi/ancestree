@@ -110,8 +110,7 @@ function LeafDetail({
       ) : null}
       <div className="flex flex-col gap-0.5 px-3 py-2.5">
         <p className="text-sm leading-tight font-medium text-foreground">
-          {person.preferred_name || person.first_name}
-          {person.last_name ? ` ${person.last_name}` : ""}
+          {personDisplayName(person)}
         </p>
         {maiden ? (
           <p className="text-xs text-muted-foreground">{maiden}</p>

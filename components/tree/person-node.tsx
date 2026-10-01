@@ -409,6 +409,13 @@ function PersonNodeImpl({ data }: NodeProps) {
               {BASIC_DETAILS}
             </p>
           ) : null}
+          {/* A place held for a child under 18, until their parent fills
+              it in (Step 98.2). */}
+          {person.placeholder_number != null ? (
+            <p className="truncate text-xs text-muted-foreground italic">
+              Placeholder
+            </p>
+          ) : null}
         </div>
       </div>
     </div>

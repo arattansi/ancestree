@@ -77,6 +77,12 @@ export type TreeGraphPerson = {
   created_by: string;
   /** The tree whose rules govern this entry (Step 25). */
   home_tree_id: string;
+  /**
+   * A placeholder child's number (Step 98.2), shown as "First Child"…: no
+   * name or details of its own, its parent's alone to fill in. `null` on
+   * every other entry.
+   */
+  placeholder_number: number | null;
   /** True when the tree being drawn is the entry's home. */
   is_home: boolean;
   /** Drawn blurred to visitors from other trees (Step 25.4). */
@@ -155,7 +161,7 @@ export type TreeGraphEdge = {
  * says whether this tree is the one whose rules govern the entry.
  */
 const PERSON_COLUMNS =
-  "id, home_tree_id, is_home, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_death, date_of_birth_precision, date_of_death_precision, birth_month, birth_day, date_of_birth_circa, date_of_death_circa, city_of_birth, country_of_birth, place_id_birth, place_id_death, is_deceased, place_of_death, sex, lineage_type, photo_path, photo_crop, pos_x, pos_y, owner_user_id, created_by, pos_dx, pos_dy, hidden_from_visitors, blurred, email, email_visible, detail, approval, asked_of, nudge_due";
+  "id, home_tree_id, is_home, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_death, date_of_birth_precision, date_of_death_precision, birth_month, birth_day, date_of_birth_circa, date_of_death_circa, city_of_birth, country_of_birth, place_id_birth, place_id_death, is_deceased, place_of_death, sex, lineage_type, photo_path, photo_crop, pos_x, pos_y, owner_user_id, created_by, pos_dx, pos_dy, hidden_from_visitors, blurred, email, email_visible, detail, approval, asked_of, nudge_due, placeholder_number";
 
 /**
  * Stands in for the user ids on a public read (`forPublic`): the nil UUID,
@@ -255,15 +261,17 @@ export async function readTreesEdges(
  * every row has an id, a family name and a home, or it isn't a person —
  * unless it is a hidden person seen by a visitor, whose card is drawn from
  * the placement alone (Step 25.4), or a basic card (Step 80), whose row
- * carries a name and a place of birth and says nothing of who made it.
+ * carries a name and a place of birth and says nothing of who made it. A
+ * placeholder child (Step 98.2) has no family name: its number stands in.
  */
 export function cardOf(p: TreePersonRow, treeId: string) {
   if (!p.id) return null;
-  if (p.detail === "basic" && !p.blurred && p.last_name && p.home_tree_id) {
+  const named = !!p.last_name || p.placeholder_number != null;
+  if (p.detail === "basic" && !p.blurred && named && p.home_tree_id) {
     return {
       ...p,
       id: p.id,
-      last_name: p.last_name,
+      last_name: p.last_name ?? "",
       home_tree_id: p.home_tree_id,
       is_home: false,
       owner_user_id: "",
@@ -283,7 +291,7 @@ export function cardOf(p: TreePersonRow, treeId: string) {
   }
   if (
     p.blurred ||
-    !p.last_name ||
+    !named ||
     !p.home_tree_id ||
     !p.owner_user_id ||
     !p.created_by
@@ -297,6 +305,7 @@ export function cardOf(p: TreePersonRow, treeId: string) {
       preferred_name: null,
       maiden_name: null,
       last_name: "Hidden",
+      placeholder_number: null,
       home_tree_id: treeId,
       is_home: false,
       owner_user_id: "",
@@ -329,7 +338,7 @@ export function cardOf(p: TreePersonRow, treeId: string) {
   return {
     ...p,
     id: p.id,
-    last_name: p.last_name,
+    last_name: p.last_name ?? "",
     home_tree_id: p.home_tree_id,
     is_home: p.is_home ?? p.home_tree_id === treeId,
     owner_user_id: p.owner_user_id,

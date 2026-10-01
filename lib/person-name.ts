@@ -1,13 +1,20 @@
 import { circaDate } from "@/lib/partial-date";
+import { placeholderLabel } from "@/lib/placeholders";
 
 export type NamedPerson = {
   first_name?: string | null;
   preferred_name?: string | null;
   last_name?: string | null;
+  /** A placeholder child's number (Step 98.2): it has no name of its own. */
+  placeholder_number?: number | null;
 };
 
-/** Display name for a person: preferred name (or first name) + last name. */
+/**
+ * Display name for a person: preferred name (or first name) + last name; a
+ * placeholder child's "First Child"… (Step 98.2).
+ */
 export function personDisplayName(p: NamedPerson): string {
+  if (p.placeholder_number != null) return placeholderLabel(p.placeholder_number);
   const first = (p.preferred_name || p.first_name || "").trim();
   const last = (p.last_name || "").trim();
   return [first, last].filter(Boolean).join(" ") || "Unnamed person";
@@ -93,8 +100,9 @@ export function personHasDied(p: {
   return p.is_deceased === true || !!p.date_of_death;
 }
 
-/** Two-letter initials for the avatar fallback. */
+/** Two-letter initials for the avatar fallback; none for a placeholder. */
 export function personInitials(p: NamedPerson): string {
+  if (p.placeholder_number != null) return "?";
   const first = (p.preferred_name || p.first_name || "").trim();
   const last = (p.last_name || "").trim();
   return ((first[0] ?? "") + (last[0] ?? "")).toUpperCase() || "?";

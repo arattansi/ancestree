@@ -54,6 +54,8 @@ async function loadTree(treeId: string): Promise<TreeSnapshot> {
 
   const labelById = new Map<string, string>();
   const people: ExistingPerson[] = peopleRows.flatMap((p) => {
+    // No family name, no suggestion: a placeholder child (Step 98.2) among
+    // them, which nothing should be matched to.
     if (!p.id || !p.last_name) return [];
     const label = personDisplayName({ ...p, last_name: p.last_name });
     labelById.set(p.id, label);

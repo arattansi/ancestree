@@ -22,6 +22,7 @@ import { timeAgo } from "@/lib/time-ago";
 import {
   adminHref,
   asksHref,
+  editPersonHref,
   newTreeHref,
   suggestChangeHref,
   treeFocusHref,
@@ -242,6 +243,19 @@ function NotificationRow({
             variant="ghost"
           >
             View on tree
+          </TreeTarget>
+        ) : null}
+
+        {n.type === "placeholder_child" && n.personId && n.treeId ? (
+          // Step 98.2: a place held for their child, theirs to fill in.
+          <TreeTarget
+            treeId={n.treeId}
+            currentTreeId={currentTreeId}
+            href={editPersonHref(n.personId)}
+            size="sm"
+            variant="outline"
+          >
+            Fill in
           </TreeTarget>
         ) : null}
 

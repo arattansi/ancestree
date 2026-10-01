@@ -24,7 +24,7 @@ export default async function NewPersonPage({
   // it is asked for with the check that their own entry is on this tree
   // (Step 77.1), and the tree's lines are read once for all three.
   const {
-    membership: { tree, isRoot, profile },
+    membership: { tree, isRoot, profile, type },
     data: [members, rights, line, bloodline],
   } = await requireTreeSelfPersonWith(({ tree, type, selfPersonId }) =>
     Promise.all([
@@ -83,6 +83,8 @@ export default async function NewPersonPage({
             bloodline={bloodline}
             // Nobody is asked "18 or older?" about their own child (Step 98).
             selfPersonId={profile.self_person_id}
+            // A Root or a Branch holds a child's place instead (Step 98.2).
+            canAddPlaceholder={type.key !== "member"}
             // Whoever may add a relative may invite them to claim the entry
             // they add, as `sendClaimInvite` allows (Step 22.1).
             canInvite

@@ -613,7 +613,7 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `tree_placements`        | Which trees show a person, how much of them, and where the card sits there: `(tree_id, person_id, status, approval none\|asked\|approved\|declined, detail basic\|full (generated), asked_at, answered_by, reminded_at, lapse_told_at, pos_*)`. The home tree always shows the whole entry (trigger); others come from `place_people`, at once, as a basic card (name, place of birth, lines) while `approval` is `asked` or `declined` (Step 80). The member whose entry it is, or whoever may edit nobody's own entry, answers with `answer_placements`. An ask gets one reminder after 7 days and lapses after 30, read as `lapsed` though the row keeps `asked`; a Root asks again with `ask_placements_again` (Step 83). `status` is always `active` now; `pending` and `declined` there are Step 25's and no longer written |
 | `tree_visibility`        | A Root opens their tree, read-only, to the members of another tree they're on: `(tree_id, viewer_tree_id)`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `profiles`               | `auth.users` row: `display_name`, `self_person_id` (one entry, wherever it's shown), `relatives_can_ask` (whether a newcomer's ask may reach them, on unless they untick it; Step 41.5). No account type here: that is `tree_members.role`, per tree (the pre-Step-25 `profiles.role` was dropped in Step 25.6). A member writes only `display_name` and `relatives_can_ask`, on their own row, and never inserts one: `self_person_id` and `invited_by_user_id` are set by the security-definer RPCs alone (Step 42: column grants, `profiles_guard`) |
-| `people`                 | Demographic nodes, **one row per person across all trees**. `tree_id` is the person's **home tree** — whose rules govern their details (Step 25; moved by `set_home_tree`). `hidden_from_visitors` blurs them to visitors. Card positions live on `tree_placements`, not here (the pre-Step-25 `people.pos_*` were dropped in Step 25.6). `owner_user_id` starts as `created_by` and moves on claim. `date_of_birth_precision` / `date_of_death_precision` (`day` \| `month` \| `year`, Step 17) say how much of each date is known — a partial date is stored on the first day of its period, CHECK-enforced, so year-only readers need no change. A birthday with no year is `birth_month` / `birth_day` (Step 63), set only while `date_of_birth` is empty, so they see no year either. `date_of_birth_circa` / `date_of_death_circa` (Step 81) mark a date as a rough estimate, shown "c. 1950"; each needs its date (CHECK), and `people_before_write` clears it when the date is emptied. `place_id_birth` / `place_id_death` → `places(id)` (Step 4.5b; nullable, backfilled — legacy `city_of_birth` / `country_of_birth` / `place_of_death` text kept until reconciled). Nothing about ancestral lands is stored: a card shows Native Land Digital's names, looked up live, or nothing (Step 40; Step 27's `ancestral_lands_birth` / `ancestral_lands_death`, the family's own words, were never used and were dropped in Step 40.5) |
+| `people`                 | Demographic nodes, **one row per person across all trees**. `tree_id` is the person's **home tree** — whose rules govern their details (Step 25; moved by `set_home_tree`). `hidden_from_visitors` blurs them to visitors. Card positions live on `tree_placements`, not here (the pre-Step-25 `people.pos_*` were dropped in Step 25.6). `owner_user_id` starts as `created_by` and moves on claim. `date_of_birth_precision` / `date_of_death_precision` (`day` \| `month` \| `year`, Step 17) say how much of each date is known — a partial date is stored on the first day of its period, CHECK-enforced, so year-only readers need no change. A birthday with no year is `birth_month` / `birth_day` (Step 63), set only while `date_of_birth` is empty, so they see no year either. `date_of_birth_circa` / `date_of_death_circa` (Step 81) mark a date as a rough estimate, shown "c. 1950"; each needs its date (CHECK), and `people_before_write` clears it when the date is emptied. `place_id_birth` / `place_id_death` → `places(id)` (Step 4.5b; nullable, backfilled — legacy `city_of_birth` / `country_of_birth` / `place_of_death` text kept until reconciled). Nothing about ancestral lands is stored: a card shows Native Land Digital's names, looked up live, or nothing (Step 40; Step 27's `ancestral_lands_birth` / `ancestral_lands_death`, the family's own words, were never used and were dropped in Step 40.5). `placeholder_number` (Step 98.2) is set only on a **placeholder child** — no details at all (`people_placeholder_empty`; `people_required_identity` asks it for no name), shown "First Child", "Second Child"… — and cleared for good when their parent fills it in |
 | `relationships`          | A fact about two people, not a tree (Step 25): a tree draws it when both ends are placed there; `tree_id` records the tree it was drawn on, and uniqueness ignores it. Directed `parent` edges; undirected `spouse` pairs (optional `marriage_date`, or `marriage_month` / `marriage_day` with no year (Step 63), / `is_divorced` / `divorce_date`, spouse-only by CHECK); siblings inferred |
 | `connection_suggestions` | Implied-connection prompts surfaced by the add-person flow (`suggested_type` spouse/parent/sibling_check, `source`, `status` pending/accepted/dismissed); UNIQUE (subject, related, type, source) = no re-prompt                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `invites`                | Shareable tokens into one tree (`active` \| `accepted` \| `revoked`); `founds_tree` (Step 25) makes it a founder invite — redeeming plants a new tree with the redeemer as Root. `max_uses` set (1–20) makes it the tree's **family link** (Step 52): one per tree, open to anyone who has it, counted in `use_count` and kept after each join; made, rotated and re-capped only through `rotate_family_link` / `set_family_link_cap` (`family_link_guard`). Who joined with it: `private.family_link_joins` (read by Roots through `family_link_joins`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
@@ -1751,6 +1751,64 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 98.2 — Placeholder children** (migration
+  `20261001140000_placeholder_children`, applied before the deploy: the new
+  code reads its column, and the old code ignores it). **Aalim asked for:**
+  "a root and a branch can put placeholder nodes for parents (First Child,
+  Second Child, etc.) with no details and then invite their parent to fill
+  it in if they wish"; a parent who isn't a member yet gets a claim invite
+  to their own entry, a member a notice. Where adding someone under 18 is
+  refused (98.1), a Root or a Branch now sees **Add a placeholder instead**
+  (`components/placeholder-child.tsx`), which puts an entry with no details
+  at all under the child's parents (the ones the form drew, or a sibling's;
+  `lib/placeholders.ts#placeholderParents`), shown as **First Child**,
+  **Second Child**… with a **Placeholder** line on its card
+  (`people.placeholder_number`, numbered after that parent's other
+  placeholders, never renumbered; `lib/placeholders.ts#placeholderLabel`
+  mirrors `private.placeholder_label`). `add_placeholder_child(tree,
+  parents)` takes one or two parents on the tree, one of them living, from a
+  Root or a Branch; the bloodline gate applies; its parent lines skip
+  98.1's line question (`note_new_people`). A member parent is told
+  (`placeholder_child`: "{Root} added a placeholder for your child (First
+  Child). Only you can fill it in.", with **Fill in**); for one who isn't,
+  whoever added it is asked **Invite {parent} to fill it in?** and the
+  invite is to claim their own entry. Only the parent fills it in (sheet:
+  **Fill in**, "Only you can fill this in."; everyone else: "Only their
+  parent can fill this in."): their edit (**Fill in First Child**) clears
+  the number and makes the entry theirs (`people_before_write`). Until
+  then a Root's rights don't reach it (`can_edit_person` is the parent's
+  alone, `can_fill_person` never), and nobody suggests a change to it,
+  claims it or is invited to, tells a story or tags a photo of it
+  (`private.placeholder_entry_guard`); its sheet shows no fields, album,
+  stories or Add a relative; it's out of name search, "Same person?",
+  suggested connections and the newsletter. The parent, a Root, or the
+  Branch who made it may delete it. `people_placeholder_empty` keeps it
+  empty; `people_required_identity` asks it for no name; `person_label`
+  says "First Child"; filling one in is no Branch edit for a Root to undo.
+  **My calls, not asked:** placeholders count per parent and only among
+  placeholders still waiting, so after First Child is filled in the next is
+  Third Child if Second still waits, else First again; a deceased parent
+  alone can't have one (nobody to fill it in); the Report flag stays; a
+  sibling refused takes the sibling's parents. **Known gaps:** a parent who
+  joins by the claim invite isn't told about the placeholder — they find it
+  on the canvas under them; a Branch may not be allowed to invite the
+  parent (the usual claim-invite rule), then the dialog says so and a Root
+  sends it; a parent who is a member but not of the placeholder's tree can't
+  open it. **Checked:** tsc, lint, build, 1,737 tests (new
+  `lib/placeholders.test.ts`, placeholder cases in `lib/branch.test.ts`);
+  a rolled-back rehearsal on live, 33 checks (adds by Root/Branch, Leaf /
+  deceased-only / married-in / outsider / twice refused, numbering, notices,
+  rights as Root/parent/Leaf/Branch-creator, RLS update 0 rows, fill /
+  suggest / claim / invite / story refused, number never set, the parent's
+  edit clears it and takes ownership with no revision, a later line asks
+  nothing); applied from the file in one transaction with the
+  `schema_migrations` row and 10 body md5 asserts (statement md5 =
+  file, `01dcadad…`), regenerated types byte-identical; headless e2e on
+  live as a throwaway Root and member parent: No → **Add a placeholder
+  instead** → First Child card and sheet, member notice; non-member parent
+  → invite dialog → invite sent; the parent's **Fill in** from the notice →
+  filled, theirs; everything deleted after.
 
 - **Step 98.1, the gap closed: lines ask too** (migration
   `20261001130000_ask_when_the_line_is_drawn`). **Aalim asked for:** "close

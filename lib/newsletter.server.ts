@@ -269,7 +269,9 @@ export async function buildWeeklyNewsletters(
   const nameOfPerson = new Map<string, string>();
   for (const p of people.rows) {
     const card = p.tree_id ? cardOf(p, p.tree_id) : null;
-    if (!p.tree_id || !card || card.blurred) continue;
+    // A placeholder child (Step 98.2) is no news: nothing to tell yet.
+    if (!p.tree_id || !card || card.blurred || card.placeholder_number != null)
+      continue;
     nameOfPerson.set(card.id, personDisplayName(card));
     const list = showingsByTree.get(p.tree_id) ?? [];
     list.push({

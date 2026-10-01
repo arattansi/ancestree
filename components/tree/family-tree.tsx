@@ -596,6 +596,21 @@ function Canvas({
         : null,
     [isFamily, spokenForIds, selfPersonId, people],
   );
+  // A placeholder child's parents (Step 98.2): it's theirs alone.
+  const placeholderParentsOf = React.useMemo(() => {
+    const placeholders = new Set(
+      people.flatMap((p) => (p.placeholder_number != null ? [p.id] : [])),
+    );
+    const parents = new Map<string, string[]>();
+    if (placeholders.size === 0) return parents;
+    for (const r of relationships)
+      if (r.type === "parent" && placeholders.has(r.to_person))
+        parents.set(r.to_person, [
+          ...(parents.get(r.to_person) ?? []),
+          r.from_person,
+        ]);
+    return parents;
+  }, [people, relationships]);
   const entrySubject = React.useCallback(
     (person: TreeGraphPerson): EntrySubject => ({
       id: person.id,
@@ -604,8 +619,12 @@ function Canvas({
       isClaimed: person.claim_status === "approved",
       isSomeoneElsesOwn: spokenFor.has(person.id),
       isDeceased: personHasDied(person),
+      placeholderParents:
+        person.placeholder_number != null
+          ? (placeholderParentsOf.get(person.id) ?? [])
+          : null,
     }),
-    [spokenFor],
+    [spokenFor, placeholderParentsOf],
   );
 
   const personById = React.useMemo(
@@ -2083,7 +2102,8 @@ function Canvas({
   // changes the canvas: a drag, a search, a lit line (Step 87.2).
   const selectedTarget = React.useMemo(
     () =>
-      selectedPerson
+      // Nobody is added as a placeholder child's relative (Step 98.2).
+      selectedPerson && selectedPerson.placeholder_number == null
         ? {
             id: selectedPerson.id,
             name:

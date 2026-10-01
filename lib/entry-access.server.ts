@@ -57,6 +57,7 @@ export async function entryAccess(
     home_tree_id: string;
     owner_user_id: string;
     created_by: string;
+    placeholder_number?: number | null;
   },
 ): Promise<{
   canEdit: boolean;
@@ -64,9 +65,13 @@ export async function entryAccess(
   /** Their account type on the entry's home tree, if they're on it. */
   homeRole: AccountTypeKey | null;
 }> {
-  const [facts, homeRole] = await Promise.all([
+  const [facts, homeRole, placeholderParents] = await Promise.all([
     entryFacts(person.id, profile.auth_user_id),
     getRoleIn(person.home_tree_id),
+    // A placeholder child is its parent's alone (Step 98.2).
+    person.placeholder_number != null
+      ? placeholderParentsOf(person.id)
+      : null,
   ]);
   const viewer = homeRole
     ? await getViewer(profile, homeRole, person.home_tree_id)
@@ -76,9 +81,21 @@ export async function entryAccess(
     owner_user_id: person.owner_user_id,
     created_by: person.created_by,
     ...facts,
+    placeholderParents,
   };
   return {
     ...entryRights(subject, viewer, profile.self_person_id),
     homeRole,
   };
+}
+
+/** Who a placeholder child's parents are: its lines from a parent. */
+async function placeholderParentsOf(personId: string): Promise<string[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("relationships")
+    .select("from_person")
+    .eq("to_person", personId)
+    .eq("type", "parent");
+  return (data ?? []).map((r) => r.from_person);
 }

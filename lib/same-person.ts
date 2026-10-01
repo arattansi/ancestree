@@ -33,6 +33,8 @@ import type { WalkEdge } from "@/lib/graph-walk";
 /** What the rule reads of a card on the view. */
 export type SamePersonEntry = {
   id: string;
+  /** A placeholder child (Step 98.2): nobody to match, never paired. */
+  placeholder_number?: number | null;
   first_name: string | null;
   preferred_name: string | null;
   last_name: string;
@@ -256,6 +258,7 @@ export function likelySamePeople(
   // name first, so a view of hundreds compares only its namesakes.
   const byGivenName = new Map<string, string[]>();
   for (const p of people) {
+    if (p.placeholder_number != null) continue;
     for (const name of namesOf(p.first_name, p.preferred_name)) {
       const list = byGivenName.get(name);
       if (list) list.push(p.id);

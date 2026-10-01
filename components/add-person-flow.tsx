@@ -16,6 +16,7 @@ import {
 } from "@/components/connection-approval-dialog";
 import type { ImpliedConnection } from "@/lib/connection-suggestions";
 import { AdultQuestion } from "@/components/adult-question";
+import { AddPlaceholderButton } from "@/components/placeholder-child";
 import { CoParentOffer } from "@/components/co-parent-offer";
 import { FormError } from "@/components/form-error";
 import { JoinsAsNote } from "@/components/joins-as-note";
@@ -75,11 +76,13 @@ import {
   type RelationshipKind,
 } from "@/lib/connections";
 import {
+  ageFromBirth,
   minorRefusal,
   newPeopleToAsk,
   underAgeMessage,
   type AskAdult,
 } from "@/lib/minors";
+import { placeholderParents } from "@/lib/placeholders";
 import { personDisplayName } from "@/lib/person-name";
 import { emptyPersonValues } from "@/lib/person-schema";
 import { toStoredSpouseDates } from "@/lib/spouse-dates";
@@ -119,6 +122,7 @@ export function AddPersonFlow({
   doneHref,
   bloodline = null,
   selfPersonId = null,
+  canAddPlaceholder = false,
 }: {
   mode: "self" | "relative";
   treeId: string;
@@ -156,6 +160,11 @@ export function AddPersonFlow({
    * as the parent of isn't asked "18 or older?" (Step 98).
    */
   selfPersonId?: string | null;
+  /**
+   * A Root or a Branch (Step 98.2): where someone under 18 is refused, offer
+   * to hold their place under their parent instead.
+   */
+  canAddPlaceholder?: boolean;
 }) {
   const router = useRouter();
   // A tree with anchors refuses anyone with no blood tie (Step 55), a Root's
@@ -351,6 +360,24 @@ export function AddPersonFlow({
     nameOf: askedName,
   });
   const adultUnanswered = askedAdult.some((i) => adultAnswerOf(i) === undefined);
+  // Refused for being under 18: a Root or a Branch may hold their place
+  // under their parent instead (Step 98.2), when that parent is on the tree.
+  const refusedIndex = underAge
+    ? askedAdult.find(
+        (i) =>
+          adultAnswerOf(i) === false ||
+          ageFromBirth(watchedPeople[i]?.date_of_birth) === "minor",
+      )
+    : undefined;
+  const placeholderFor =
+    canAddPlaceholder && refusedIndex !== undefined
+      ? placeholderParents({
+          index: refusedIndex,
+          edges: pending,
+          parentsOf: (id) =>
+            members.find((m) => m.id === id)?.parents?.map((p) => p.id) ?? [],
+        })
+      : [];
 
   const tieWarning = (() => {
     if (!bloodline || !gateActive || !showChain || !anchorId) return null;
@@ -1041,6 +1068,17 @@ export function AddPersonFlow({
                       >
                         {underAge}
                       </p>
+                    ) : null}
+                    {placeholderFor.length > 0 ? (
+                      <AddPlaceholderButton
+                        treeId={treeId}
+                        parents={placeholderFor}
+                        nameOf={(id) =>
+                          members.find((m) => m.id === id)?.label ??
+                          "their parent"
+                        }
+                        disabled={action.pending}
+                      />
                     ) : null}
 
                     {tieWarning ? (

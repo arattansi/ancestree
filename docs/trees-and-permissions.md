@@ -91,6 +91,22 @@ Rules that follow:
   draws it, of their own entry, of the deceased, or of anyone who has a
   parent or sibling line already (`private.relationships_minor_guard`, on
   every insert into `relationships`).
+- **Placeholder children** (Step 98.2). Where a child under 18 is refused,
+  a Root or a Branch may hold their place instead: **Add a placeholder
+  instead** (`add_placeholder_child`) puts an entry with no details at all
+  under their parent (one or two, on the tree, one of them living; the
+  bloodline gate applies), shown as "First Child", "Second Child"… —
+  numbered after that parent's other placeholders when it's made, never
+  renumbered (`people.placeholder_number`). A parent who is a member is
+  told (`placeholder_child`, with **Fill in**); for one who isn't, whoever
+  added it is offered an invite for them to claim their own entry. Only
+  the parent (their own entry is drawn as its parent) fills it in: their
+  edit clears the number and makes it theirs, an ordinary entry from then
+  on. Until then nobody else edits it or fills it in (a Root's rights
+  don't reach it), suggests a change, claims it or is invited to, tells a
+  story or tags a photo of it (`private.placeholder_entry_guard`); it's
+  left out of name search, "Same person?" and suggested connections. The
+  parent, a Root, or the Branch who made it may delete it.
 - A member joins a tree through an invite (as a Leaf), by founding it (as
   Root), or by accepting a placement of their own entry (as a Leaf, so they
   can keep their own entry up to date there; a Root may change that).
@@ -205,7 +221,12 @@ ends are on it, a basic card among them (Step 80). Drawing a new line
 requires both ends on the tree it is drawn on, in full or not. The bloodline gate asks a blood tie of new entries
 and of people brought over, not of a line between two people already there.
 
-`private.can_delete_person(p)`: a Root of `h`; otherwise the Step 22.3 rule
+A **placeholder child** (Step 98.2) is the exception to all of it:
+`can_edit_person` is true only for its parent (`private.is_own_child`),
+whatever the caller is on `h`, and `can_fill_person` is never true.
+
+`private.can_delete_person(p)`: a Root of `h`, or a placeholder child's
+parent; otherwise the Step 22.3 rule
 for the creator, evaluated in `h`.
 
 Pets stay on one tree (the tree they were added to) and their companions must

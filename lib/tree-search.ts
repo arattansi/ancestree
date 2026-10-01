@@ -52,6 +52,8 @@ function birthYear(p: TreeGraphPerson): number | null {
 export function matchesFilter(p: TreeGraphPerson, f: TreeFilter): boolean {
   const text = f.text.trim();
   if (text) {
+    // A placeholder child (Step 98.2) has no name to find.
+    if (p.placeholder_number != null) return false;
     const needle = foldSearchText(text);
     const haystack = foldSearchText(
       [

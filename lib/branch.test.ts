@@ -914,3 +914,60 @@ describe("an entry's details follow its home tree (Step 93)", () => {
     expect(canEditEntry(entry({ id: "rehan" }), viewer)).toBe(true);
   });
 });
+
+describe("placeholder children (Step 98.2)", () => {
+  // Arzu's placeholder child, made by a Root ("a") or by Arzu as a Branch.
+  const placeholder = (over: Partial<EntrySubject> = {}) =>
+    entry({
+      id: "first-child",
+      owner_user_id: "a",
+      created_by: "a",
+      placeholderParents: ["arzu"],
+      ...over,
+    });
+  const parent: Viewer = { ...member, selfPersonId: "arzu" };
+  const someoneElse: Viewer = { ...member, userId: "x", selfPersonId: "x" };
+
+  it("is its parent's alone to edit: a Root's rights don't reach it", () => {
+    expect(canEditEntry(placeholder(), admin)).toBe(false);
+    expect(canEditEntry(placeholder(), parent)).toBe(true);
+    expect(canEditEntry(placeholder(), someoneElse)).toBe(false);
+    expect(entryRights(placeholder(), admin, null)).toEqual({
+      canEdit: false,
+      canFill: false,
+    });
+    // Its parent edits it from any tree, a member of its home or not.
+    expect(entryRights(placeholder(), null, "arzu")).toEqual({
+      canEdit: true,
+      canFill: false,
+    });
+  });
+
+  it("isn't edited by whoever made it, nor filled in by anyone", () => {
+    const madeByArzu = placeholder({
+      owner_user_id: "arzu-user",
+      created_by: "arzu-user",
+      placeholderParents: ["raiya"],
+    });
+    expect(canEditEntry(madeByArzu, branchAdmin)).toBe(false);
+    expect(entryRights(madeByArzu, branchAdmin, "arzu").canFill).toBe(false);
+  });
+
+  it("is nobody's to invite anyone to claim", () => {
+    expect(canInviteToClaim(placeholder(), admin)).toBe(false);
+    expect(canInviteToClaim(placeholder(), parent)).toBe(false);
+    expect(
+      canInviteToClaimCard(
+        { basic: true, asked_of: "stewards", placeholder_number: 1 },
+        admin,
+      ),
+    ).toBe(false);
+  });
+
+  it("can be taken away by its parent, as by a Root", () => {
+    expect(canOfferDelete(placeholder(), admin)).toBe(true);
+    expect(canOfferDelete(placeholder(), parent)).toBe(true);
+    expect(canOfferDelete(placeholder(), someoneElse)).toBe(false);
+    expect(canOfferDeleteHere(placeholder(), false, parent, null)).toBe(true);
+  });
+});
