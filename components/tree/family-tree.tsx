@@ -116,7 +116,7 @@ import {
 import type { EntryInvite } from "@/lib/claim-invites";
 import { mergeConfirmation, relativesThatMove } from "@/lib/claim-merge";
 import type { ClaimCandidate } from "@/lib/claims";
-import { connectionLabel, connectionPath } from "@/lib/connection-path";
+import { connectionLabel, connectionPath, relationOf } from "@/lib/connection-path";
 import type { PanelSuggestion } from "@/lib/connection-suggestions";
 import type { GettingStartedItem } from "@/lib/first-tree";
 import { generationLabelFromYou } from "@/lib/generation-lanes";
@@ -2359,6 +2359,13 @@ function Canvas({
         : NO_PANEL_SUGGESTIONS,
     [panelSuggestions, selectedId],
   );
+  // A story credit's card (Step 99): what they are to the story's person,
+  // from everything this canvas has, filters or not.
+  const describeConnection = React.useCallback(
+    (fromId: string, toId: string) =>
+      relationOf(fromId, toId, personById, relationships),
+    [personById, relationships],
+  );
   const onSelectPet = React.useCallback((petId: string) => {
     setSelectedId(null);
     setSelectedPetId(petId);
@@ -2764,6 +2771,7 @@ function Canvas({
           pets={selectedPets}
           people={sheetPeople}
           onSelectPet={onSelectPet}
+          describeConnection={describeConnection}
           suggestions={selectedPanelSuggestions}
           relations={relations}
           isAdmin={sheetIsAdmin}

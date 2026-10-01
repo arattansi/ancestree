@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { connectionLabel, connectionPath } from "@/lib/connection-path";
+import {
+  connectionLabel,
+  connectionPath,
+  relationOf,
+  relationText,
+} from "@/lib/connection-path";
 
 // grandad — granny                    stranger
 //        |
@@ -174,5 +179,84 @@ describe("connectionLabel", () => {
   it("names two people who only share a child", () => {
     expect(label("uncle", "aunt", relationships.filter((r) => r.type !== "spouse")))
       .toBe("Parents of the same child");
+  });
+});
+
+describe("relationOf", () => {
+  // Amarshi — Ruby
+  //    |
+  //  Sadru — Laila      Zed (no lines)
+  //    |
+  //  Nasim — Karim
+  //    |
+  //  Aalim — Sara
+  const family = [
+    { from_person: "amarshi", to_person: "sadru", type: "parent" },
+    { from_person: "ruby", to_person: "sadru", type: "parent" },
+    { from_person: "amarshi", to_person: "ruby", type: "spouse" },
+    { from_person: "sadru", to_person: "laila", type: "spouse" },
+    { from_person: "sadru", to_person: "nasim", type: "parent" },
+    { from_person: "laila", to_person: "nasim", type: "parent" },
+    { from_person: "nasim", to_person: "karim", type: "spouse", is_divorced: true },
+    { from_person: "nasim", to_person: "aalim", type: "parent" },
+    { from_person: "aalim", to_person: "sara", type: "spouse" },
+  ];
+  const sexes: Record<string, string | null> = {
+    amarshi: "male",
+    ruby: "female",
+    sadru: "male",
+    laila: "female",
+    nasim: "female",
+    karim: "male",
+    aalim: "male",
+    sara: "female",
+    zed: null,
+  };
+  const people = new Map(Object.entries(sexes).map(([id, sex]) => [id, { sex }]));
+  const say = (from: string, to: string, name = "Amarshi Sayani") => {
+    const r = relationOf(from, to, people, family);
+    return r ? relationText(r, name) : null;
+  };
+
+  it("says what the credited person is to whoever the story is about", () => {
+    expect(say("aalim", "amarshi")).toBe("Great-grandson of Amarshi Sayani");
+    expect(say("sadru", "amarshi")).toBe("Son of Amarshi Sayani");
+    expect(say("amarshi", "aalim", "Aalim")).toBe("Great-grandfather of Aalim");
+    expect(say("nasim", "amarshi")).toBe("Granddaughter of Amarshi Sayani");
+    expect(say("ruby", "amarshi")).toBe("Wife of Amarshi Sayani");
+    expect(say("karim", "nasim", "Nasim")).toBe("Former husband of Nasim");
+  });
+
+  it("uses the everyday words for in-laws and steps", () => {
+    expect(say("laila", "amarshi")).toBe("Daughter-in-law of Amarshi Sayani");
+    expect(say("amarshi", "laila", "Laila")).toBe("Father-in-law of Laila");
+    expect(say("laila", "ruby", "Ruby")).toBe("Daughter-in-law of Ruby");
+    expect(say("sara", "nasim", "Nasim")).toBe("Daughter-in-law of Nasim");
+  });
+
+  it("names cousins and the rest the way the canvas does", () => {
+    const cousins = [
+      { from_person: "g", to_person: "p1", type: "parent" },
+      { from_person: "g", to_person: "p2", type: "parent" },
+      { from_person: "p1", to_person: "c1", type: "parent" },
+      { from_person: "p2", to_person: "c2", type: "parent" },
+      { from_person: "c2", to_person: "k2", type: "parent" },
+    ];
+    const all = new Map(["g", "p1", "p2", "c1", "c2", "k2"].map((id) => [id, { sex: "female" }]));
+    const term = (a: string, b: string) => {
+      const r = relationOf(a, b, all, cousins);
+      return r && "term" in r ? r.term : r;
+    };
+    expect(term("c1", "c2")).toBe("First cousin");
+    expect(term("c1", "k2")).toBe("First cousin once removed");
+    expect(term("p1", "c2")).toBe("Aunt");
+    expect(term("k2", "p1")).toBe("Grand-niece");
+    expect(term("p1", "p2")).toBe("Sister");
+  });
+
+  it("has nothing to say when nothing joins them, or one isn't on the tree", () => {
+    expect(relationOf("zed", "amarshi", people, family)).toBeNull();
+    expect(relationOf("aalim", "elsewhere", people, family)).toBeNull();
+    expect(relationOf("aalim", "aalim", people, family)).toBeNull();
   });
 });

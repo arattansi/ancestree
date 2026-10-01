@@ -6,6 +6,7 @@ import { requireProfile } from "@/lib/auth";
 import { friendlyDbError, ownedWrite } from "@/lib/db-errors";
 import { COMMENT_MAX, STORY_MAX, STORY_TITLE_MAX } from "@/lib/limits";
 import { isStoryAudioPath } from "@/lib/story-audio";
+import { STORY_CREDIT_MAX, toldProblem } from "@/lib/story-credits";
 import {
   listStories,
   listStoryComments,
@@ -14,6 +15,7 @@ import {
   type StoryComment,
 } from "@/lib/stories";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { toStoredDate } from "@/lib/partial-date";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -25,7 +27,9 @@ import { createClient } from "@/lib/supabase/server";
  * Tell a story about someone on the viewer's tree: text, a recording they
  * have just uploaded to that person's folder, or both. It waits for the
  * person, or whoever can edit the entry, unless the teller is that person.
- * The list back includes it.
+ * It may say when it was told (`told`, as much of a date as is known: "1962"
+ * will do) and credit people on the tree as its storytellers and its
+ * interviewers (Step 99). The list back includes it.
  */
 export async function addStory(input: {
   personId: string;
@@ -35,6 +39,9 @@ export async function addStory(input: {
   body: string;
   audioPath: string | null;
   audioSeconds: number | null;
+  told?: string;
+  storytellers?: string[];
+  interviewers?: string[];
 }): Promise<{ error?: string; status?: "pending" | "approved"; stories?: EntryStory[] }> {
   const profile = await requireProfile();
   const title = input.title.trim();
@@ -50,6 +57,14 @@ export async function addStory(input: {
   if (audioPath && !isStoryAudioPath(input.personId, audioPath)) {
     return { error: "The recording didn’t upload." };
   }
+  const storytellers = [...new Set(input.storytellers ?? [])];
+  const interviewers = [...new Set(input.interviewers ?? [])];
+  if (storytellers.length > STORY_CREDIT_MAX || interviewers.length > STORY_CREDIT_MAX) {
+    return { error: `Credit ${STORY_CREDIT_MAX} people at most in each role.` };
+  }
+  const toldError = toldProblem(input.told ?? "");
+  if (toldError) return { error: toldError };
+  const toldOn = toStoredDate(input.told);
   const seconds =
     input.audioSeconds !== null && Number.isFinite(input.audioSeconds)
       ? Math.max(0, Math.round(input.audioSeconds))
@@ -64,13 +79,22 @@ export async function addStory(input: {
     p_body: body,
     p_audio_path: audioPath ?? undefined,
     p_audio_seconds: audioPath && seconds !== null ? seconds : undefined,
+    p_told_on: toldOn.date ?? undefined,
+    p_told_precision: toldOn.date ? toldOn.precision : undefined,
+    p_storytellers: storytellers,
+    p_interviewers: interviewers,
   });
   if (error) {
     return {
       error: friendlyDbError(
         error.message,
         [
-          ["not on your tree", "That entry isn’t on your tree."],
+          ["not on your tree", "That entry, or someone credited, isn’t on your tree."],
+          ["too many people", `Credit ${STORY_CREDIT_MAX} people at most in each role.`],
+          // Step 98.3: a placeholder child is told about, or credited, by
+          // their parent alone.
+          ["only their parent fills in", "Only their parent can add to a placeholder."],
+          ["told after today", "That’s after today."],
           ["didn't arrive", "The recording didn’t upload."],
           ["stories_audio_path_key", "The recording didn’t upload."],
           ["nothing to tell", "Write the story or add a recording."],

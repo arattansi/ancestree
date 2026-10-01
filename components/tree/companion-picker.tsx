@@ -30,6 +30,7 @@ export function CompanionPicker({
   locked = [],
   label = "Belongs to",
   suggested = [],
+  emptyHint = "Pick at least one person.",
 }: {
   options: CompanionOption[];
   value: string[];
@@ -43,6 +44,8 @@ export function CompanionPicker({
    * list under the search box until something's typed.
    */
   suggested?: CompanionOption[];
+  /** Said while nobody is picked; `null` for nothing (a role that may stay empty). */
+  emptyHint?: string | null;
 }) {
   const [query, setQuery] = React.useState("");
   const labelById = React.useMemo(
@@ -118,11 +121,9 @@ export function CompanionPicker({
             </li>
           ))}
         </ul>
-      ) : (
-        <p className="text-xs text-muted-foreground">
-          Pick at least one person.
-        </p>
-      )}
+      ) : emptyHint ? (
+        <p className="text-xs text-muted-foreground">{emptyHint}</p>
+      ) : null}
 
       {offered.length > 0 ? (
         <div className="flex flex-wrap items-center gap-1.5">

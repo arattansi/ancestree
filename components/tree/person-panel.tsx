@@ -18,6 +18,7 @@ import { sendClaimInvite } from "@/app/actions/invites";
 import { setPersonPhotoCrop } from "@/app/actions/people";
 import { deletePerson } from "@/app/actions/privacy";
 import { describeClaimInvite, type EntryInvite } from "@/lib/claim-invites";
+import type { Relation } from "@/lib/connection-path";
 import type { PanelSuggestion } from "@/lib/connection-suggestions";
 import { AccountTypeBadge } from "@/components/account-type-badge";
 import { AncestralLands } from "@/components/ancestral-lands";
@@ -258,6 +259,7 @@ function PersonPanelImpl({
   pets,
   people,
   onSelectPet,
+  describeConnection,
   suggestions,
   relations,
   isAdmin,
@@ -294,6 +296,9 @@ function PersonPanelImpl({
   /** Everyone on the canvas, so a new companion can be shared with them. */
   people: CompanionOption[];
   onSelectPet: (petId: string) => void;
+  /** What one person is to another on this canvas (Step 99: a story
+   *  credit's card). */
+  describeConnection?: (fromId: string, toId: string) => Relation | null;
   /** View-only (a share link, or a visitor) — hide every editing / moderation affordance. */
   readOnly?: boolean;
   /** On a share link: how its cards ask whose land a place is (Step 27.9). */
@@ -987,6 +992,9 @@ function PersonPanelImpl({
               {!sealed ? (
                 <section className="border-t border-border pt-5">
                   <EntryStories
+                    people={people}
+                    personName={personDisplayName(person)}
+                    describeConnection={describeConnection}
                     personId={person.id}
                     treeId={treeId}
                     canEdit={canEdit}

@@ -1,12 +1,14 @@
 import "server-only";
 
 import { getSiteUrl } from "@/lib/site-url";
+import { asCredits, type StoryCredit } from "@/lib/story-credits";
 import { storyLinkPath } from "@/lib/story-links";
 import { createClient } from "@/lib/supabase/server";
 
 /**
- * A story about a person (Step 88.3): long-form text, a recording, or both,
- * with who told it and when. It needs approval, from the person themself
+ * A story about a person (Step 88.3): long-form text (Markdown, Step 99), a
+ * recording, or both, with who added it and when, and, if they were named,
+ * when it was told and who it's credited to (Step 99). It needs approval, from the person themself
  * once they have claimed the entry, or else from whoever can edit it; until
  * then only they and its teller see it (`stories` RLS). It shows wherever
  * the entry does in full, to that tree's members.
@@ -20,8 +22,14 @@ export type EntryStory = {
   audioSeconds: number | null;
   status: "pending" | "approved" | "declined";
   createdAt: string;
-  /** Who told it, as the trees name them. */
+  /** Who added it, as the trees name them. */
   toldBy: string;
+  /** When it was told, on the first day of as much of it as is known
+   *  (`toldPrecision`), or null (Step 99). */
+  toldOn: string | null;
+  toldPrecision: string | null;
+  /** Who it's credited to, storytellers first (Step 99). */
+  credits: StoryCredit[];
   /** The viewer told it, so may delete it. */
   mine: boolean;
   /** Waiting, and the viewer may approve it. */
@@ -101,6 +109,9 @@ export async function listStories(
     status: asStatus(r.status),
     createdAt: r.created_at,
     toldBy: r.told_by || "A relative",
+    toldOn: r.told_on ?? null,
+    toldPrecision: r.told_on_precision ?? null,
+    credits: asCredits(r.credits),
     mine: r.created_by === viewerId,
     canDecide: r.can_decide ?? false,
     commentCount: r.comment_count ?? 0,

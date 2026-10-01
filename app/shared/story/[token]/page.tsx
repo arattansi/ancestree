@@ -9,7 +9,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { StoryCreditTag } from "@/components/story-credit-tag";
+import { StoryCreditTags } from "@/components/story-credit-tags";
+import { StoryMarkdown } from "@/components/story-markdown";
 import { getSessionUser } from "@/lib/auth";
+import { toldLabel } from "@/lib/story-credits";
 import { resolveStoryLink } from "@/lib/story-links.server";
 import { storyHref } from "@/lib/tree-links";
 
@@ -33,8 +37,10 @@ export async function generateMetadata({
 
 /**
  * A story shared by its public link (Step 88.4): read-only, with no account
- * needed. It shows the story, who it's about and who shared it; its
- * comments are for members, who sign in to reach them.
+ * needed. It shows the story (Markdown, Step 99), who it's about, who told
+ * it and who asked (Step 99: tags that open a card saying what they are to
+ * the person it's about), when it was told, and who shared it; its comments are for
+ * members, who sign in to reach them.
  */
 export default async function SharedStoryPage({
   params,
@@ -64,6 +70,7 @@ export default async function SharedStoryPage({
     );
   }
 
+  const told = toldLabel(story.toldOn, story.toldPrecision);
   return (
     <PageColumn width="lg">
       <article className="flex flex-col gap-5">
@@ -73,12 +80,18 @@ export default async function SharedStoryPage({
           </h1>
           <p className="text-sm text-muted-foreground">
             {story.title ? `About ${story.personName} · ` : null}
+            {told ? `${told} · ` : null}
             Shared by {story.sharedBy}
           </p>
+          <StoryCreditTags
+            credits={story.credits}
+            className="pt-1 text-sm text-muted-foreground"
+            tag={(p) => (
+              <StoryCreditTag name={p.name} relation={story.connections[p.id] ?? null} />
+            )}
+          />
         </header>
-        {story.body ? (
-          <p className="whitespace-pre-wrap leading-relaxed">{story.body}</p>
-        ) : null}
+        {story.body ? <StoryMarkdown>{story.body}</StoryMarkdown> : null}
         {story.audioUrl ? (
           <audio controls preload="none" src={story.audioUrl} className="w-full" />
         ) : null}

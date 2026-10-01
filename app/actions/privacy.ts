@@ -117,6 +117,17 @@ export async function exportTreeData(treeId: string): Promise<{
         )
     : { data: [], error: null };
   if (storyComments.error) return { error: "Could not read every table. Try again." };
+  // Who each is credited to (Step 99).
+  const storyCredits = stories.length
+    ? await db
+        .from("story_credits")
+        .select("*")
+        .in(
+          "story_id",
+          stories.map((s) => s.id),
+        )
+    : { data: [], error: null };
+  if (storyCredits.error) return { error: "Could not read every table. Try again." };
 
   // The photos they're in that were added on other trees.
   const here = new Set((albumHere.data ?? []).map((p) => p.id));
@@ -141,6 +152,7 @@ export async function exportTreeData(treeId: string): Promise<{
       claims: claims.data ?? [],
       stories,
       story_comments: storyComments.data ?? [],
+      story_credits: storyCredits.data ?? [],
       entry_reports: [
         ...new Map(
           [

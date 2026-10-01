@@ -625,8 +625,9 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `invite_relay_asks`      | A note of every ask to a relative, whoever the address belongs to (Step 41.5): the address asking and `created_at`, never the relative's. What the caps per address and across the site count, before anyone is looked up. Service role only (RLS on, no policies, no grants to `anon`/`authenticated`); an ask past a cap leaves no note, and notes older than a day are deleted as new asks come in |
 | `claims`                 | Auto-approve / reject a person entry (`resolved_by`); a dispute of one is an `entry_reports` row and leaves it `approved` (Step 88.2) |
 | `notifications`          | In-app notices, **one inbox per tree** (`tree_id`, Step 25; `placement_requested` \| `placement_accepted` \| `placement_declined` added; `placements_requested`, one for a batch of entries someone may edit, Step 80; `placements_lapsed`, to the Root whose ask nobody answered in 30 days, Step 83; `tree_request_approved`, Step 28; `placed_on_join`, Step 30.9, and what a claim invite did, Step 41.3; `joined_by_link`, Step 52; `story_to_approve`, `story_approved`, `story_declined`, Step 88.3; `story_commented`, Step 88.4); recipient-scoped RLS                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `stories`                | Stories about a person (Step 88.3, in place of the per-tree comments board): `title`, `body` and/or a recording (`audio_path` in the private `stories` bucket, `<person id>/<uuid>.<ext>`; `audio_seconds`), `pending` \| `approved` \| `declined`, `decided_by`, the tree it was told on (`tree_id`, where its teller hears back). Approved: read by members of every tree showing the person in full. Pending: its teller, and whoever approves it: the person themself once the entry is claimed or is their own and they're living (`private.story_owner`), else whoever `can_edit_person`. Declined: its teller alone. Told only through `add_story` (approved at once when the teller may approve it), answered through `decide_story`; deleted by its teller or whoever may edit the entry; read by the sheet through `entry_stories` (runs as the viewer, names each teller; since Step 88.4 also its comment count, whether a link to it works, whether the viewer may share it or turn its links off, and their own link). `links_off` (Step 88.4): its links were turned off. `created_by` is set null when their account goes |
+| `stories`                | Stories about a person (Step 88.3, in place of the per-tree comments board): `title`, `body` and/or a recording (`audio_path` in the private `stories` bucket, `<person id>/<uuid>.<ext>`; `audio_seconds`), `pending` \| `approved` \| `declined`, `decided_by`, the tree it was told on (`tree_id`, where its teller hears back). Approved: read by members of every tree showing the person in full. Pending: its teller, and whoever approves it: the person themself once the entry is claimed or is their own and they're living (`private.story_owner`), else whoever `can_edit_person`. Declined: its teller alone. Told only through `add_story` (approved at once when the teller may approve it), answered through `decide_story`; deleted by its teller or whoever may edit the entry; read by the sheet through `entry_stories` (runs as the viewer, names each teller; since Step 88.4 also its comment count, whether a link to it works, whether the viewer may share it or turn its links off, and their own link). `links_off` (Step 88.4): its links were turned off. `body` is Markdown (Step 99; the text as written, drawn as Markdown wherever it shows). `told_on` / `told_on_precision` (Step 99): when it was told, as much as is known, kept as a person's dates are. `created_by` is set null when their account goes |
 | `story_links`            | Public links to approved stories (Step 88.4): one working link per sharer per story (`token`, 24 URL-safe characters; `created_by`, whom the page names; `revoked_at` / `revoked_by`). A link works while the story is approved and its links aren't off (`stories.links_off`), the person isn't `hidden_from_visitors`, and its sharer is still on a tree that shows them in full (`private.story_link_live`). Made only by `share_story` (anyone who can see the story; once its links were turned off, only its person, an editor of the entry or its teller, which turns them on again), turned off by `stop_sharing_story` (every link at once; those three). A member reads only their own; the public page reads with the service role (`shared_story`) |
+| `story_credits`          | Who a story is credited to (Step 99): `(story_id, person_id, role)` with `role` `storyteller` \| `interviewer`, up to ten people each, one person may hold both. People placed in full on the tree the story is told on; set once, by `add_story` (`p_storytellers`, `p_interviewers`), with no yes of their own (the approver sees them with the story). Read by whoever reads the story (RLS follows `stories`); the sheet's `entry_stories` and the public page's `shared_story` return them as `credits`. Cascade with the story or the person; a claim or an invited-entry merge moves a placeholder's credits across (`claim_person`, `private.merge_invited_entry`) |
 | `story_comments`         | Comments on an approved story (Step 88.4), no approval: read by whoever may read the story, written only by `add_story_comment` (its teller and its person are told, `story_commented`), deleted by their author, the story's teller or whoever may edit the entry; listed through `list_story_comments`. `created_by` is set null when their account goes |
 | `entry_reports`          | Problems reported with an entry (Step 88.2): `body`, `open` \| `resolved`, `resolved_by`, the tree it was raised on (`tree_id`, where its reporter hears back), and `claim_id` when it disputes that claim (one open at a time). Seen only by its reporter and whoever can fix it: `can_edit_person` for a problem, the home tree's Roots for a dispute. Written only by `report_entry` / `resolve_entry_report` / `decide_claim_dispute`; its reporter may delete (withdraw) an open one; `created_by` is set null when their account goes |
 | `album_photos`           | Album photos (Step 88.5, in place of documents): one uploaded file (`file_path` in the private `album` bucket, `<tree id>/<uuid>.<ext>`, at most 1600px, shrunk in the browser), an optional `description` (≤ 500), when it was taken (`taken_on` + `taken_on_precision`, `day` \| `month` \| `year` on the first day of its period like a person's dates, both or neither, not after tomorrow; Step 88.6), who added it (`created_by`, set null when their account goes) and the tree it was added on (`tree_id`, where they hear back). Seen by its uploader and by whoever sees one of its tags (`private.can_see_album_photo`); added only through `add_album_photo`; deleted by its uploader. It goes by itself when nobody is in it any more (`album_tags_last_gone`), and its file with the service role from the app |
@@ -1751,6 +1752,73 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 99: stories in Markdown, with credit and a date** (migration
+  `20261001160000_story_credits_and_told_on`). **Aalim asked for:** "for the
+  stories feature, add the ability to write using markdown or upload a
+  markdown file. also, there's no tagging feature to attribute credit about
+  a story. people can be tagged in a story as an 'interviewer' or
+  'storyteller'. user can also put an optional 'date for story told'".
+  **Markdown:** a story's text is Markdown, kept as written (no column; the
+  plain-text stories before it read the same, a single line break still a
+  line break). **Add a story** has **Write** / **Preview** over the text and
+  **Upload a Markdown file** (`.md`, `.markdown`, `.txt`, up to 1 MB): its
+  text goes in after anything already written, a front-matter `title:` or
+  a first `# Heading` becomes the title if that's empty (`lib/story-markdown.ts`),
+  and a file past 20,000 characters is refused. Drawn by
+  `components/story-markdown.tsx` (`react-markdown` + `remark-gfm`: headings,
+  lists, quotes, code, tables, links; raw HTML never becomes markup, a
+  link's address is checked and opens in a new tab with no referrer, a
+  picture shows only its description so nobody else's server is called).
+  It loads when a story first shows (`story-text.tsx`, lazy, plain text
+  meanwhile) so the canvas's first load is unchanged; the public story page
+  renders it on the server. A long story folds by height now (Markdown is
+  blocks, not one run of lines), with "Read more" only when something is
+  actually hidden (measured once drawn). **Credit:** `story_credits`, **Storyteller**
+  and **Interviewer**, each a picker over the people on the canvas behind a
+  "+ Storyteller" / "+ Interviewer" link (up to ten each; the same person
+  may be both), shown under the title as "Storyteller [Nan] · Interviewer
+  [Raiya]". **Aalim (review): each credited person is a tag that opens a small card
+  saying what they are to the person the story is about**, e.g. on a story
+  about Amarshi Sayani: "Aalim Rattansi, Great-grandson of Amarshi Sayani",
+  "Sadrudin Sayani, Son of Amarshi Sayani". **No connection, or not on the
+  tree, and there's no card**: a plain tag, as the story's own person is.
+  The word is the credited person's (`relationOf` + `relationText` in
+  `lib/connection-path.ts`, over the canvas's `connectionPath`): son,
+  great-grandmother, sister, half-brother, uncle, grand-niece, first cousin
+  once removed; wife, former husband; son-in-law, mother-in-law,
+  sister-in-law, stepfather, stepdaughter; "Aunt by marriage" past those;
+  "Co-parent"; a chain no word fits reads "Connected to … through 3
+  people". `StoryCreditTag` (`components/story-credit-tag.tsx`, a Base UI
+  popover, `components/ui/popover.tsx`). On the sheet it's worked out from
+  everything the canvas has (`describeConnection` from `FamilyTree` through
+  `PersonPanel`); on the public page, on the server, from the tree the story
+  was told on (`tree_people` + `tree_edges` read with the service role,
+  `creditConnections` in `lib/story-links.server.ts`), so only the words
+  reach the page, never who is in between. **Aalim: naming the
+  credited people on the public page is fine.** **Date told:** optional, as much as is
+  known ("1962" will do), never after tomorrow, "Told 16 July 1985" on the
+  card (`stories.told_on`, `told_on_precision`, as a photo's date taken).
+  The card now says **Added by** (and "you") before the account that added it, since
+  "told by" now means the storyteller. The export carries `story_credits`.
+  My unasked calls: credits and the date are set when the story is told and
+  not edited after (as the album's tags); no notice or approval for someone
+  credited; credited people must be on the tree the story is told on
+  (add them first if not). A Markdown file is read with the title and story
+  boxes held, so typing meanwhile isn't written over; front matter must open
+  with a `key:` line, so a story that starts with a `---` rule keeps its
+  text.
+  **Follow-up migration `20261001190000_story_credits_keep_entries`:** a
+  credit in someone else's story keeps an entry, as their story about it or
+  their photo of it does (`private.can_delete_person`, re-created from
+  98.2's `20261001140000`): a Branch or Leaf deleting an entry they made is
+  refused when another member's story credits it; a Root, or a placeholder
+  child's parent, still may. Rehearsed rolled back with throwaway users
+  (refused after, allowed before; a Root allowed), along with the credit
+  move in `merge_invited_entry` (the stand-in's credits land on the
+  member's own entry, a doubled one dropped). A placeholder child (98.3's
+  guard covers `story_credits`) is credited by their parent alone; anyone
+  else is told "Only their parent can add to a placeholder."
 
 - **Step 98.3 — Existing minors become placeholders** (migration
   `20261001170000_existing_minors_become_placeholders`, applied before the

@@ -1790,6 +1790,8 @@ export type Database = {
           person_id: string
           status: string
           title: string | null
+          told_on: string | null
+          told_on_precision: string | null
           tree_id: string | null
         }
         Insert: {
@@ -1805,6 +1807,8 @@ export type Database = {
           person_id: string
           status?: string
           title?: string | null
+          told_on?: string | null
+          told_on_precision?: string | null
           tree_id?: string | null
         }
         Update: {
@@ -1820,6 +1824,8 @@ export type Database = {
           person_id?: string
           status?: string
           title?: string | null
+          told_on?: string | null
+          told_on_precision?: string | null
           tree_id?: string | null
         }
         Relationships: [
@@ -1913,6 +1919,42 @@ export type Database = {
           },
           {
             foreignKeyName: "story_comments_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "stories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      story_credits: {
+        Row: {
+          created_at: string
+          person_id: string
+          role: string
+          story_id: string
+        }
+        Insert: {
+          created_at?: string
+          person_id: string
+          role: string
+          story_id: string
+        }
+        Update: {
+          created_at?: string
+          person_id?: string
+          role?: string
+          story_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "story_credits_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "story_credits_story_id_fkey"
             columns: ["story_id"]
             isOneToOne: false
             referencedRelation: "stories"
@@ -2579,8 +2621,12 @@ export type Database = {
           p_audio_path?: string
           p_audio_seconds?: number
           p_body: string
+          p_interviewers?: string[]
           p_person: string
+          p_storytellers?: string[]
           p_title: string
+          p_told_on?: string
+          p_told_precision?: string
           p_tree: string
         }
         Returns: Json
@@ -2705,12 +2751,15 @@ export type Database = {
           comment_count: number
           created_at: string
           created_by: string
+          credits: Json
           id: string
           my_link: string
           shared: boolean
           status: string
           title: string
           told_by: string
+          told_on: string
+          told_on_precision: string
         }[]
       }
       family_link_joins: {
@@ -3051,10 +3100,13 @@ export type Database = {
           audio_path: string
           audio_seconds: number
           body: string
+          credits: Json
           person_name: string
           shared_by: string
           story_id: string
           title: string
+          told_on: string
+          told_on_precision: string
         }[]
       }
       stop_sharing_story: { Args: { p_story: string }; Returns: undefined }

@@ -256,3 +256,151 @@ export function connectionLabel(
   ]);
   return married ? `${kinship} by marriage` : kinship;
 }
+
+/** A recorded relationship, with whether a marriage has ended. */
+export type ConnectionRelationship = LayoutRelationship & {
+  is_divorced?: boolean | null;
+};
+
+const SIBLING: Term = ["sibling", "brother", "sister"];
+const SPOUSE: Term = ["spouse", "husband", "wife"];
+const CHILD_IN_LAW: Term = ["child-in-law", "son-in-law", "daughter-in-law"];
+const PARENT_IN_LAW: Term = ["parent-in-law", "father-in-law", "mother-in-law"];
+const SIBLING_IN_LAW: Term = ["sibling-in-law", "brother-in-law", "sister-in-law"];
+const STEPPARENT: Term = ["step-parent", "stepfather", "stepmother"];
+const STEPCHILD: Term = ["stepchild", "stepson", "stepdaughter"];
+
+/**
+ * What someone `up` generations up then `down` down from them is to them,
+ * in one word for the person it starts at, as their `sex` says: walking up
+ * three from a great-grandson reaches his great-grandparent, so "great-
+ * grandson".
+ */
+function bloodTerm(
+  up: number,
+  down: number,
+  halfSiblings: boolean,
+  sex: string | null | undefined,
+): string {
+  if (up === 0 || down === 0) {
+    // Down from them: they're the elder. Up: the younger.
+    const span = up + down;
+    const prefix = span === 1 ? "" : `${greats(span - 2)}grand`;
+    return `${prefix}${word(up === 0 ? PARENT : CHILD, sex)}`;
+  }
+  if (up === 1 && down === 1) return `${halfSiblings ? "half-" : ""}${word(SIBLING, sex)}`;
+  if (up === 1 || down === 1) {
+    const span = Math.max(up, down);
+    const prefix = span > 2 ? `${greats(span - 3)}grand-` : "";
+    // One up and several down: their parent is the other's grandparent or
+    // further, so they're the aunt or uncle.
+    return `${prefix}${word(up === 1 ? AUNT_UNCLE : NIECE_NEPHEW, sex)}`;
+  }
+  const degree = Math.min(up, down) - 1;
+  const removed = Math.abs(up - down);
+  const ordinal = (ORDINALS[degree] ?? `${degree}th`).toLowerCase();
+  const times = REMOVES[removed] ?? `${removed} times`;
+  return `${ordinal} cousin${removed > 0 ? ` ${times} removed` : ""}`;
+}
+
+/** Whether the chain's one step up and one down are a half-sibling's:
+ *  both have two parents on the tree, and they share just the one. */
+function halfSiblingsOn(
+  path: ConnectionPath,
+  moves: readonly string[],
+  relationships: LayoutRelationship[],
+): boolean {
+  if (path.steps.length !== moves.length) return false;
+  const offset = moves[0] === "spouse" ? 1 : 0;
+  const [a, b] = [path.people[offset], path.people[offset + 2]];
+  if (!a || !b) return false;
+  const parents = (id: string) =>
+    new Set(
+      relationships
+        .filter((r) => r.type === "parent" && r.to_person === id)
+        .map((r) => r.from_person),
+    );
+  const [pa, pb] = [parents(a), parents(b)];
+  const shared = [...pa].filter((id) => pb.has(id)).length;
+  return pa.size >= 2 && pb.size >= 2 && shared === 1;
+}
+
+/**
+ * What one person is to another (Step 99: a story credit's card), for the
+ * first of them: "Great-grandson", "Mother-in-law", "First cousin once
+ * removed". `{ through }` when a chain joins them but no everyday word
+ * does; null when nothing on the tree joins them, or either isn't on it.
+ */
+export type Relation = { term: string } | { through: number };
+
+export function relationOf(
+  fromId: string,
+  toId: string,
+  people: ReadonlyMap<string, { sex?: string | null }>,
+  relationships: ConnectionRelationship[],
+): Relation | null {
+  if (fromId === toId || !people.has(fromId) || !people.has(toId)) return null;
+  const path = connectionPath(fromId, toId, relationships);
+  if (!path) return null;
+  const sex = people.get(fromId)?.sex;
+  const named = (term: string): Relation => ({ term: capitalise(term) });
+  const through: Relation = { through: path.people.length - 2 };
+
+  // A stored sibling row stands in for the parent it skips: up one, down one.
+  const moves = path.steps.flatMap((s) =>
+    s.kind === "sibling" ? (["up", "down"] as const) : [s.kind],
+  );
+  if (moves.length === 1 && moves[0] === "spouse") {
+    // Only the edge itself knows a marriage has ended.
+    const ended = relationships.some(
+      (r) =>
+        r.type === "spouse" &&
+        r.is_divorced &&
+        ((r.from_person === fromId && r.to_person === toId) ||
+          (r.from_person === toId && r.to_person === fromId)),
+    );
+    return named(`${ended ? "former " : ""}${word(SPOUSE, sex)}`);
+  }
+
+  const core = [...moves];
+  const theirSpouse = core[0] === "spouse";
+  if (theirSpouse) core.shift();
+  const otherSpouse = core[core.length - 1] === "spouse";
+  if (otherSpouse) core.pop();
+  if (core.length === 0) return through;
+
+  const ups = core.findIndex((m) => m !== "up");
+  const up = ups === -1 ? core.length : ups;
+  const down = core.length - up;
+  if (!core.slice(up).every((m) => m === "down")) {
+    // Down to a child and up to its other parent.
+    if (!theirSpouse && !otherSpouse && core.length === 2) return named("co-parent");
+    return through;
+  }
+
+  // The everyday words for a marriage at one end.
+  if (theirSpouse !== otherSpouse) {
+    const key = `${theirSpouse ? "s" : ""}${up}${down}${otherSpouse ? "s" : ""}`;
+    const inLaw: Record<string, Term> = {
+      s10: CHILD_IN_LAW, // their spouse is the other's child
+      s01: STEPPARENT, // their spouse is the other's parent
+      s11: SIBLING_IN_LAW, // their spouse is the other's sibling
+      "01s": PARENT_IN_LAW, // their child is the other's spouse
+      "10s": STEPCHILD, // their parent is the other's spouse
+      "11s": SIBLING_IN_LAW, // their sibling is the other's spouse
+    };
+    if (inLaw[key]) return named(word(inLaw[key], sex));
+  }
+
+  const half = up === 1 && down === 1 && halfSiblingsOn(path, moves, relationships);
+  const blood = bloodTerm(up, down, half, sex);
+  return named(theirSpouse || otherSpouse ? `${blood} by marriage` : blood);
+}
+
+/** A relation as a story credit's card says it: "Great-grandson of Amarshi
+ *  Sayani", "Connected to Amarshi Sayani through 3 people". */
+export function relationText(relation: Relation, toName: string): string {
+  return "term" in relation
+    ? `${relation.term} of ${toName}`
+    : `Connected to ${toName} through ${countOf(relation.through, "person", "people")}`;
+}
