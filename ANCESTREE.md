@@ -1766,15 +1766,17 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   up to four weeks ahead**. Each member's issue is cut to their own family
   by My Family Tree's rule (`familyTies`, Step 94): blood relatives on both
   parents' sides, their spouse, and whoever married into the family, never
-  the families of those who married in. Per tree, in the order they joined:
-  "Safia Gulamani joined." (a member bringing their own entry), "Sara Khan
-  added Amina Khan, Yusuf Khan and 3 more." (a member named by their own
-  entry, else their display name, which often still reads like an
-  address), "You added …", "A new story about …", "New photos of …"; then **This Week** (the next seven
-  days, today included, as Upcoming lists them) and **Later This Month**
+  the families of those who married in. What's coming up comes first
+  (Aalim, after seeing a test): **This Week** (the next seven days, today
+  included, as Upcoming lists them) and **Later This Month**
   (round birthdays — 1, 18, 21, every ten from 30, every year from 100 —
   and anniversaries — 1st, 25th, 75th, every ten — up to 28 days out,
-  marked **Milestone**, as are round ones this week). Then, before it went
+  marked **Milestone**, as are round ones this week). Then each tree's
+  news, in the order they joined it: "Safia Gulamani joined." (a member
+  bringing their own entry), "Sara Khan added Amina Khan, Yusuf Khan and 3
+  more." (a member named by their own entry, else their display name,
+  which often still reads like an address), "You added …", "A new story
+  about …", "New photos of …". Then, before it went
   out, **Aalim asked to see them and to control the schedule**, and chose
   controls in the app over editing `vercel.json`: the beta reviewers'
   dashboard opens on a **Weekly Newsletter** card — the day (a select,
@@ -1810,7 +1812,7 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   issue, at most eight days back; one that couldn't be sent isn't retried
   that week. `buildWeeklyNewsletters` makes the emails without sending or
   marking anyone, which is how the real previews below were made.
-  **Checked:** lint, tsc, 1,510 tests, `next build`; the first migration
+  **Checked:** lint, tsc, 1,511 tests, `next build`; the first migration
   rehearsed rolled back (a member reads only their own switch,
   never the token; others and signed-out callers refused; one claim a
   week), then applied, each recorded migration's md5 = its file's. On a
@@ -1823,7 +1825,9 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   Aalim (his own session, local build against live): Pause and Resume, the
   day to Monday and back (status and next send followed; the row read
   `0`/not paused after), Email me a test delivered to him with his week
-  left unmarked, the scheduled call on a Thursday held "not today";
+  left unmarked (from a local build its logo and links pointed at
+  `localhost`, so it showed no logo; a second test built with the
+  production address loaded it, as every production email does), the scheduled call on a Thursday held "not today";
   `newsletter_schedule` rehearsed rolled back (one row only, a reviewer
   reads and sets it, a bad day, a direct write, a non-reviewer and a
   signed-out caller refused). Then this Sunday's issues of

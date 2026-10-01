@@ -21,9 +21,9 @@ const HEADING =
   "margin:28px 0 0;font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#737373;";
 
 /**
- * The weekly newsletter (Step 95), from what `weeklyIssue` found: a section
- * per tree that had news, then This Week and, past it, the round
- * birthdays and anniversaries still to come this month. Every name links
+ * The weekly newsletter (Step 95), from what `weeklyIssue` found: This
+ * Week and, past it, the round birthdays and anniversaries still to come
+ * this month, then a section per tree that had news. Every name links
  * to its card on My Family Tree, where everyone in it is (`personUrl`); the
  * button opens the view. Names are the only thing a story or a photo
  * gives away, never its words or the picture.
@@ -41,7 +41,16 @@ export function newsletterEmail(input: {
   const link = (n: IssueName) =>
     `<a href="${escapeHtml(personUrl(n.id))}" style="${LINK}">${escapeHtml(oneLine(n.name))}</a>`;
 
+  // What's coming up first (Aalim, 2026-10-01), then each tree's news.
   const sections: string[] = [];
+  if (issue.week.length) {
+    sections.push(`<p style="${HEADING}">This Week</p>${occasionRows(issue.week, link)}`);
+  }
+  if (issue.later.length) {
+    sections.push(
+      `<p style="${HEADING}">Later This Month</p>${occasionRows(issue.later, link)}`,
+    );
+  }
   for (const tree of issue.trees) {
     const lines = [
       ...(tree.joined.length ? [`${list(tree.joined, link)} joined.`] : []),
@@ -62,14 +71,6 @@ export function newsletterEmail(input: {
         lines
           .map((l) => `<p style="margin:8px 0 0;${TEXT}">${l}</p>`)
           .join(""),
-    );
-  }
-  if (issue.week.length) {
-    sections.push(`<p style="${HEADING}">This Week</p>${occasionRows(issue.week, link)}`);
-  }
-  if (issue.later.length) {
-    sections.push(
-      `<p style="${HEADING}">Later This Month</p>${occasionRows(issue.later, link)}`,
     );
   }
 
@@ -139,8 +140,9 @@ function occasionRows(
 }
 
 /**
- * The inbox's preview line: "4 added · 2 birthdays this week · 1
- * milestone later this month", each part only when there is one.
+ * The inbox's preview line, what's coming up first: "2 birthdays this week
+ * · 1 milestone later this month · 4 added", each part only when there is
+ * one.
  */
 export function preheaderOf(issue: Issue): string {
   const plural = (n: number, one: string, many: string) =>
@@ -151,9 +153,6 @@ export function preheaderOf(issue: Issue): string {
   const birthdays = issue.week.filter((o) => o.kind === "birthday").length;
   const anniversaries = issue.week.length - birthdays;
   const parts = [
-    added ? `${added} added` : "",
-    stories ? plural(stories, "new story", "new stories") : "",
-    photos ? `new photos of ${plural(photos, "person", "people")}` : "",
     birthdays ? `${plural(birthdays, "birthday", "birthdays")} this week` : "",
     anniversaries
       ? `${plural(anniversaries, "anniversary", "anniversaries")} this week`
@@ -161,6 +160,9 @@ export function preheaderOf(issue: Issue): string {
     issue.later.length
       ? `${plural(issue.later.length, "milestone", "milestones")} later this month`
       : "",
+    added ? `${added} added` : "",
+    stories ? plural(stories, "new story", "new stories") : "",
+    photos ? `new photos of ${plural(photos, "person", "people")}` : "",
   ].filter(Boolean);
   return parts.join(" · ");
 }

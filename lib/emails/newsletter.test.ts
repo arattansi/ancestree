@@ -158,6 +158,18 @@ describe("newsletterEmail", () => {
     expect(html).toMatch(/>Sat 24 Oct<\/td>[\s\S]*Zahra Khan<\/a> turns 50 <span[^>]*>Milestone/);
   });
 
+  it("puts what's coming up before each tree's news", () => {
+    const { html } = render(
+      issue({ later: [occasion({ daysAway: 20, years: 50, milestone: true })] }),
+    );
+    const week = html.indexOf(">This Week<");
+    const later = html.indexOf(">Later This Month<");
+    const tree = html.indexOf(">Khan family<");
+    expect(week).toBeGreaterThan(0);
+    expect(week).toBeLessThan(later);
+    expect(later).toBeLessThan(tree);
+  });
+
   it("leaves out the sections with nothing in them", () => {
     const { html } = render(issue({ trees: [], later: [] }));
     expect(html).not.toContain("Khan family");
@@ -186,7 +198,7 @@ describe("preheaderOf", () => {
         }),
       ),
     ).toBe(
-      "3 added · 1 new story · 2 birthdays this week · 1 anniversary this week · 1 milestone later this month",
+      "2 birthdays this week · 1 anniversary this week · 1 milestone later this month · 3 added · 1 new story",
     );
   });
 });
