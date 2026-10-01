@@ -41,6 +41,9 @@ Copy `.env.example` to `.env.local` and fill in:
   ancestral lands under a place of birth or death (Step 27). Without it no
   card or form shows any (Step 40). See
   [Reference data — Native Land Digital](#reference-data--native-land-digital)
+- `CRON_SECRET` — server-only; the secret Vercel Cron sends to
+  `/api/cron/newsletter`, the weekly newsletter (Step 95). Set it in Vercel's
+  env as well; without it the route refuses every call, so nothing is sent
 
 Until Supabase env is set, `proxy.ts` no-ops so the app still boots. With env
 set, unauthenticated visits to `/tree` redirect to `/join`.
@@ -494,6 +497,18 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   descendants of" picks and what bringing each asks (`.test.ts`);
   `lib/placement-alerts.server.ts` + `lib/emails/placement-asked.ts` — the
   email to whoever's yes a basic card waits on (`.test.ts`)
+- The weekly newsletter (Step 95): `vercel.json` — the Vercel Cron job,
+  Sundays 15:00 UTC, calling `app/api/cron/newsletter/route.ts` (checks
+  `CRON_SECRET`; `?user=<id>` narrows a test send); `lib/newsletter.server.ts`
+  — `sendWeeklyNewsletters`: who's due (`newsletter_due`), every tree they
+  are on read once with the service role, each member's issue, marked done
+  (`claim_newsletter_issues`) just before it's sent; `lib/newsletter.ts` —
+  `weeklyIssue`, cut to the reader's own family by My Family Tree's rule
+  (`familyTies`), and `isMilestone` (`.test.ts`); `lib/emails/newsletter.ts`
+  (`.test.ts`); the signed-out unsubscribe page `app/newsletter/[token]/`
+  and the mail apps' one-click `app/api/newsletter/[token]/route.ts`
+  (`lib/newsletter-settings.server.ts`); `components/weekly-newsletter.tsx` —
+  the box on settings (`app/actions/newsletter.ts`)
 - `components/site-header.tsx` (the mark, the tree switcher, **tree**,
   **connections**, **account**, the bell; `lib/nav-active.ts` says which is
   lit, Step 61; its counts come from `lib/header-counts.server.ts` and are
@@ -595,6 +610,7 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `invite_requests`        | Public invite asks — first/last name + email, `pending` \| `approved` \| `declined`, `invite_id` of the link minted on approval. Admin-only RLS; inserted server-side with the service role (no `anon` grant). One pending row per email                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `tree_requests`          | Asks to start a tree during the beta (Step 28): a member's (`user_id`) or a waitlist sign-up's (name + email only), `pending` \| `approved` \| `declined`, answered by a beta reviewer (`private.beta_reviewers`). A member's approval is their permission to `found_tree`; a sign-up's approval mints a founder invite (`invite_id`). Reviewers see and answer every row, a member only their own; members ask through `request_tree`, the waitlist is written with the service role. One pending ask per member and per waitlist address                                                                                                                                                                                                                                                                   |
 | `invite_relays`          | Asks a newcomer with no match passed on to a relative (Step 30.5): their typed first/last name + email and the member it went to (`recipient_user_id`), `pending` \| `invited` \| `dismissed`, the tree they were invited to, `email_sent`. Only that member reads and answers it (RLS; update granted on the answer's columns only); filed by the server with the service role, and the rows are what the member's caps count. One open or dismissed ask per address and member. A pending ask lapses after 30 days, and is deleted as new asks come in (Step 41.5) |
+| `newsletter_settings`    | The weekly newsletter, per member (Step 95): `subscribed` (on unless they turn it off; no row = on), `token` (the email's unsubscribe link, which works signed out), `last_issue_at` (one issue a week, however often the job runs). A member reads their own `subscribed` only (RLS + a column grant) and changes it through `set_newsletter`; the token and the rest are the service role's (`newsletter_due`, `claim_newsletter_issues`). Its own table, not a `profiles` column, since relatives can read each other's profiles |
 | `invite_relay_asks`      | A note of every ask to a relative, whoever the address belongs to (Step 41.5): the address asking and `created_at`, never the relative's. What the caps per address and across the site count, before anyone is looked up. Service role only (RLS on, no policies, no grants to `anon`/`authenticated`); an ask past a cap leaves no note, and notes older than a day are deleted as new asks come in |
 | `claims`                 | Auto-approve / reject a person entry (`resolved_by`); a dispute of one is an `entry_reports` row and leaves it `approved` (Step 88.2) |
 | `notifications`          | In-app notices, **one inbox per tree** (`tree_id`, Step 25; `placement_requested` \| `placement_accepted` \| `placement_declined` added; `placements_requested`, one for a batch of entries someone may edit, Step 80; `placements_lapsed`, to the Root whose ask nobody answered in 30 days, Step 83; `tree_request_approved`, Step 28; `placed_on_join`, Step 30.9, and what a claim invite did, Step 41.3; `joined_by_link`, Step 52; `story_to_approve`, `story_approved`, `story_declined`, Step 88.3; `story_commented`, Step 88.4); recipient-scoped RLS                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
@@ -1724,6 +1740,63 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 95 — the weekly newsletter** (migration
+  `20261001090000_weekly_newsletter`, applied before the code; additive).
+  **Aalim asked for:** a weekly "newsletter" with updates on each member's
+  family trees — what was added and on which tree — and what's coming up
+  (birthdays, milestones); then, mid-build: personal, so Karim Kanji hears
+  nothing of the Suleman side of the Rattansi-Suleman tree. **Aalim's
+  answers:** sent by **Vercel Cron, weekly** (`vercel.json`, Sundays 15:00
+  UTC — the first scheduler taken, after pg_cron in 41.5 and a daily job in
+  83 were passed on); **on for everyone**, with an unsubscribe link that
+  works signed out and a box in settings; additions are **new people on
+  each tree** and **new stories and album photos** (named by whose they
+  are, never their words or the picture); milestones are **round numbers,
+  up to four weeks ahead**. Each member's issue is cut to their own family
+  by My Family Tree's rule (`familyTies`, Step 94): blood relatives on both
+  parents' sides, their spouse, and whoever married into the family, never
+  the families of those who married in. Per tree, in the order they joined:
+  "Sara Khan added Amina Khan, Yusuf Khan and 3 more.", "You added …", "A
+  new story about …", "New photos of …"; then **This Week** (the next seven
+  days, today included, as Upcoming lists them) and **Later This Month**
+  (round birthdays — 1, 18, 21, every ten from 30, every year from 100 —
+  and anniversaries — 1st, 25th, 75th, every ten — up to 28 days out,
+  marked **Milestone**, as are round ones this week). Every name links to
+  its card on My Family Tree; the button opens it. A quiet week sends
+  nothing. `/api/cron/newsletter` answers 401 without `CRON_SECRET` and
+  counts only with it; `newsletter_due` (service role) says who's due, every
+  tree they're on is read once with the service role through `tree_people` /
+  `tree_edges` (a basic card stays a name), and `claim_newsletter_issues`
+  marks each member done for the week just before the batch goes, so a
+  second call sends nothing twice and a run that fails first leaves them
+  due. `newsletter_settings` is its own table, not a `profiles` column,
+  since relatives can read each other's profiles: nobody else learns who
+  turned it off or sees a token. The email carries `List-Unsubscribe` +
+  `List-Unsubscribe-Post` (RFC 8058: `POST /api/newsletter/<token>`), and
+  its small print links `/newsletter/<token>`, where a button (never the
+  visit) turns it off or back on. Settings' Notifications card has **Email
+  me a weekly newsletter**. Upcoming's couple naming moved to
+  `lib/person-name.ts#coupleDisplayName`; `renderEmail` takes
+  `contentHtml` and an optional paragraph; `sendEmails` carries headers.
+  The privacy notice says what the address is used for now. **My calls,
+  not asked:** Sunday 15:00 UTC (8am Pacific, 4pm UK; Hobby's crons fire
+  within the hour); the reader's own birthday and anniversary and their
+  own entry's arrival are left out; a member with no entry of their own
+  gets none (nothing to cut it to); the week told is since their last
+  issue, at most eight days back; one that couldn't be sent isn't retried
+  that week. **Checked:** lint, tsc, 1,506 tests, `next build`; the
+  migration rehearsed rolled back (a member reads only their own switch,
+  never the token; others and signed-out callers refused; one claim a
+  week), then applied, its recorded statements' md5 = the file's. On a
+  throwaway Rattansi-Suleman tree with three `delivered+zz95-…` members,
+  the real route sent three, a second call none; read back from Resend,
+  Karim's had the new baby, a story about his grandmother, the week's
+  Rattansi-side birthdays and her 80th, and nothing of Zara, Omar or Ali
+  Suleman; Raiya's had Zara and Omar and her father's 70th, and none of her
+  husband's family; phone and desktop renders. Unsubscribe page, one-click
+  POST, a made-up token (same answer), and the settings box as a signed-in
+  throwaway, all against live.
 
 - **Step 94.1 — your spouse a full card on My Family Tree** (no
   migration). **Aalim asked for:** their wife as a full card, not a pill.
