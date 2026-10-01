@@ -28,8 +28,8 @@ export function PillCard({
   selected = false,
 }: {
   person: TreeGraphPerson;
-  /** Who they are to the family: "Spouse of Karim", "Married in · Your
-   *  spouse". */
+  /** Who they are to the family: "Spouse of Karim", "Married in ·
+   *  Co-parent with you". */
   label: string;
   /** On My Family Tree, the tree the card comes from (Step 92.2). */
   mark?: CardMark;

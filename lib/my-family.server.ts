@@ -87,6 +87,9 @@ export type MyFamilyGraph = {
    * pill on the view, not a card. Everyone else is a direct relative.
    */
   marriedIn: MarriedIn[];
+  /** The viewer's own spouses, a marriage not ended, who aren't blood: a
+   *  card beside them, saying so (Step 94.1). */
+  spouseIds: string[];
 };
 
 /** When each of `treeIds` placed each of its people, by `tree:person`. */
@@ -300,5 +303,6 @@ export const loadMyFamily = cache(async (): Promise<MyFamilyGraph | null> => {
     ),
     // Of those shown: a line runs to them only when both ends are.
     marriedIn: marriedInto(ties, relationships),
+    spouseIds: familyPeople.flatMap((p) => (p.tie === "spouse" ? [p.id] : [])),
   };
 });

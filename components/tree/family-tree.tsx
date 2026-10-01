@@ -219,6 +219,9 @@ export type FamilyView = {
   /** Everyone who married into the viewer's family, and whom (Step 94):
    *  drawn as pills. Everyone else is a direct relative, on a card. */
   marriedIn: readonly MarriedIn[];
+  /** The viewer's own spouses (Step 94.1): married in, but a card beside
+   *  them that says "Your spouse". */
+  spouseIds: readonly string[];
 };
 
 type Props = {
@@ -330,6 +333,11 @@ function Canvas({
   const pillIds = React.useMemo<ReadonlySet<string>>(
     () => (marriedIn.size > 0 ? new Set(marriedIn.keys()) : NOBODY),
     [marriedIn],
+  );
+  // Their own spouse is a card beside them, and says so (Step 94.1).
+  const spouseIds = React.useMemo<ReadonlySet<string>>(
+    () => (family?.spouseIds.length ? new Set(family.spouseIds) : NOBODY),
+    [family],
   );
   // Companions stay off the canvas until the viewer switches them on (Step
   // 23). Off the canvas only: a person's details still list theirs, and
@@ -1227,6 +1235,7 @@ function Canvas({
         lineage: !!lit && inLine,
         blurred: (!!lit && !inLine) || (!isPet && !!(n.data as { person?: { blurred?: boolean } }).person?.blurred),
         ...(pillLabel ? { compressed: true, pillLabel } : {}),
+        ...(spouseIds.has(n.id) ? { yourSpouse: true } : {}),
       });
     }
     return map;
@@ -1243,6 +1252,7 @@ function Canvas({
     markById,
     sameLabelById,
     marriedToById,
+    spouseIds,
   ]);
   // A card whose flags came out the same is handed the very same `data`, so
   // it doesn't draw again when the rest of the tree changes (Step 87.1).
@@ -2223,15 +2233,16 @@ function Canvas({
   // Asked in the sheet of a card that may be someone else's too (Step
   // 92.4): naming each, to open in turn, or put away as two people.
   const selectedSame = selectedId ? sameById.get(selectedId) : undefined;
-  // Direct relative or married in, on My Family Tree (Step 94): said in
-  // the sheet as well as by the card's shape. The viewer is neither.
+  // Direct relative, their spouse or married in, on My Family Tree (Step
+  // 94): said in the sheet as well as by the card's shape. Not the viewer.
   const kinship = React.useMemo(() => {
     if (!family || !selectedId || selectedId === selfPersonId) return null;
+    if (spouseIds.has(selectedId)) return { label: "Your spouse" };
     const to = marriedToById?.get(selectedId);
     return to
-      ? { marriedIn: true as const, to }
-      : { marriedIn: false as const };
-  }, [family, selectedId, selfPersonId, marriedToById]);
+      ? { label: "Married in", detail: to }
+      : { label: "Direct relative" };
+  }, [family, selectedId, selfPersonId, spouseIds, marriedToById]);
   const samePersonPrompt = React.useMemo(
     () =>
       selectedId && selectedSame ? (

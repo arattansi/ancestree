@@ -43,6 +43,9 @@ export type PersonNodeData = {
   compressed?: boolean;
   /** Who the pill is to the family: "Spouse of Karim". */
   pillLabel?: string;
+  /** On My Family Tree, the viewer's own spouse (Step 94.1): a card that
+   *  says so, where theirs says "You". */
+  yourSpouse?: boolean;
   /** On My Family Tree, the mark of the tree the card comes from (Step
    *  92.2). */
   mark?: CardMark;
@@ -68,6 +71,7 @@ function PersonNodeImpl({ data }: NodeProps) {
     blurred,
     compressed,
     pillLabel,
+    yourSpouse,
     mark,
     same,
   } = data as PersonNodeData;
@@ -337,6 +341,10 @@ function PersonNodeImpl({ data }: NodeProps) {
           </p>
           {isSelf ? (
             <p className="truncate text-xs font-medium text-primary">You</p>
+          ) : yourSpouse ? (
+            <p className="truncate text-xs font-medium text-primary">
+              Your spouse
+            </p>
           ) : null}
           {maiden ? (
             <p

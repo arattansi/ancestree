@@ -367,10 +367,11 @@ function PersonPanelImpl({
   samePerson?: React.ReactNode;
   /**
    * On My Family Tree (Step 94), whether they're a direct relative of the
-   * viewer or married in, and to whom ("Spouse of Karim"): said outright
-   * among the badges. Never on the viewer's own entry.
+   * viewer, their spouse (94.1) or married in, and then to whom ("Spouse of
+   * Karim"): said outright among the badges. Never on the viewer's own
+   * entry.
    */
-  kinship?: { marriedIn: false } | { marriedIn: true; to: string } | null;
+  kinship?: { label: string; detail?: string } | null;
   /**
    * Folded away to a card on the canvas (Step 49), so the tree they belong
    * to can be seen. The sheet closes but stays mounted, so nothing typed in
@@ -722,13 +723,9 @@ function PersonPanelImpl({
                   with it (Step 88.2). */}
               <div className="flex flex-wrap items-center gap-1.5 empty:hidden">
                 {kinship ? (
-                  kinship.marriedIn ? (
-                    <Badge variant="outline" title={kinship.to}>
-                      Married in
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline">Direct relative</Badge>
-                  )
+                  <Badge variant="outline" title={kinship.detail}>
+                    {kinship.label}
+                  </Badge>
                 ) : null}
                 {person.is_deceased ? (
                   <Badge variant="secondary">Deceased</Badge>

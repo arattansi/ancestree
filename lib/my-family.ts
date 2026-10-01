@@ -8,15 +8,17 @@
  * not a tree's):
  * - their blood, as cards: the Step 55 walk from their own entry — up every
  *   parent line, then down parent lines and across sibling lines;
- * - as pills, everyone who married into it: anyone a blood relative married
- *   or had a child with, exes and co-parents included — and none of *their*
- *   family. Their own partner's family stays out as much as an uncle's
- *   wife's does.
+ * - their own spouse, as a card beside them (Step 94.1): a marriage of
+ *   theirs not marked ended;
+ * - as pills, everyone else who married into it: anyone a blood relative
+ *   married or had a child with, exes and co-parents included (the
+ *   viewer's own too).
+ * Nobody who married in brings their family, the viewer's spouse included.
  *
- * So Aalim sees both his parents' sides, with his uncle's wife and his
- * brother's wife as pills, and Raiya as a pill beside him; Raiya's parents
- * are on her My Family Tree, not his. (Until Step 94 a current partner's
- * whole family came in too, which made the view a copy of the tree.)
+ * So Aalim sees both his parents' sides, Raiya a card beside him, and his
+ * uncle's wife and his brother's wife as pills; Raiya's parents are on her
+ * My Family Tree, not his. (Until Step 94 a current partner's whole family
+ * came in too, which made the view a copy of the tree.)
  *
  * Pure: `lib/my-family.server.ts` reads the trees, merges them with
  * `mergeShowings` and `mergeLines`, and keeps whom `familyTies` names.
@@ -41,6 +43,9 @@ export type FamilyTie =
   /** A direct relative: shares an ancestor with the viewer, the viewer
    *  included (Step 55). A card. */
   | "blood"
+  /** The viewer's own spouse, a marriage not ended, who isn't blood: a
+   *  card beside them, without their own family (Step 94.1). */
+  | "spouse"
   /** Married, or had a child with, a blood relative, without being one: a
    *  pill, alone, without their own family. */
   | "married_in";
@@ -78,8 +83,18 @@ export function familyTies(
   const ties = new Map<string, FamilyTie>();
   const blood = bloodlineIds([selfId], edges);
   for (const id of blood) ties.set(id, "blood");
+  for (const e of edges) {
+    if (e.type !== "spouse" || e.is_divorced) continue;
+    const other =
+      e.from_person === selfId
+        ? e.to_person
+        : e.to_person === selfId
+          ? e.from_person
+          : null;
+    if (other && !ties.has(other)) ties.set(other, "spouse");
+  }
   // One step out from the blood, and no further: whoever married in never
-  // brings their own family, the viewer's partner's included.
+  // brings their own family, the viewer's spouse's included.
   for (const id of [...partnersOf(blood, edges), ...coParentsOf(blood, edges)]) {
     if (!ties.has(id)) ties.set(id, "married_in");
   }
@@ -108,6 +123,7 @@ const KIND_ORDER: Record<MarriedInKind, number> = {
  * Whom each of `ties`' married-in people married into, for the pill's
  * "Spouse of …" and the sheet: a current marriage first, then one that
  * ended, then a child together; between two of a kind, the first line.
+ * The viewer's own spouse is a card, not married in, so isn't named here.
  */
 export function marriedInto(
   ties: ReadonlyMap<string, FamilyTie>,

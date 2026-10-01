@@ -142,11 +142,12 @@ describe("familyTies", () => {
         "momNephew",
       ].sort(),
     );
-    // His wife, his brother's wife, his uncle's wife (Aalim's examples),
-    // his aunt's husband, and Karim's ex and co-parent.
+    // His wife, a card beside him (Step 94.1).
+    expect(ids("aalim", everyone, "spouse")).toEqual(["raiya"]);
+    // His brother's wife, his uncle's wife (Aalim's examples), his aunt's
+    // husband, and Karim's ex and co-parent.
     expect(ids("aalim", everyone, "married_in")).toEqual(
       [
-        "raiya",
         "brotherWife",
         "aunt",
         "momSisHusband",
@@ -207,9 +208,8 @@ describe("familyTies", () => {
     expect(ids("raiya", everyone, "blood")).toEqual(
       ["raiya", "rDad", "rMom", "rBro", "daughter"].sort(),
     );
-    expect(ids("raiya", everyone, "married_in")).toEqual(
-      ["aalim", "rBroWife"].sort(),
-    );
+    expect(ids("raiya", everyone, "spouse")).toEqual(["aalim"]);
+    expect(ids("raiya", everyone, "married_in")).toEqual(["rBroWife"]);
     // None of Aalim's family but their daughter.
     const shown = familyTies("raiya", everyone);
     for (const id of ["dad", "mom", "sister", "brother", "karim", "mgma"]) {
@@ -232,7 +232,7 @@ describe("familyTies", () => {
     }
   });
 
-  it("takes in every partner alone, and a co-parent never married", () => {
+  it("takes in every spouse of theirs alone, and a co-parent never married", () => {
     const edges = [
       spouse("me", "wife1"),
       spouse("me", "wife2"),
@@ -246,10 +246,17 @@ describe("familyTies", () => {
       [
         "me: blood",
         "kid: blood",
-        "wife1: married_in",
-        "wife2: married_in",
+        "wife1: spouse",
+        "wife2: spouse",
         "other: married_in",
       ].sort(),
+    );
+  });
+
+  it("keeps the viewer's ex married in, a pill", () => {
+    const edges = [spouse("me", "wife"), spouse("exWife", "me", true)];
+    expect(tiesOf("me", edges)).toEqual(
+      ["me: blood", "wife: spouse", "exWife: married_in"].sort(),
     );
   });
 
@@ -283,7 +290,7 @@ describe("marriedInto", () => {
   it("names whom each married into, and how", () => {
     expect(linksOf("aalim", everyone)).toEqual(
       [
-        "raiya → aalim: spouse",
+        // Not Raiya: his own spouse is a card (Step 94.1).
         "brotherWife → brother: spouse",
         "aunt → uncle: spouse",
         "momSisHusband → momSis: spouse",
@@ -295,19 +302,26 @@ describe("marriedInto", () => {
 
   it("prefers a marriage to a child together, and a current one to an ex", () => {
     const edges = [
-      parent("me", "kid1"),
-      parent("partner", "kid1"),
-      spouse("partner", "me"),
-      parent("brother", "kid2"),
-      parent("partner", "kid2"),
       parent("mum", "me"),
       parent("mum", "brother"),
+      // Married to his brother, and had a child with him.
+      spouse("partner", "brother"),
+      parent("me", "kid1"),
+      parent("partner", "kid1"),
+      // Divorced his brother, and had a child with him.
       spouse("ex", "brother", true),
-      spouse("ex", "me"),
+      parent("me", "kid2"),
+      parent("ex", "kid2"),
+      // His own ex, and someone he had a child with.
+      spouse("me", "myEx", true),
+      parent("me", "kid3"),
+      parent("other", "kid3"),
     ];
     expect(linksOf("me", edges)).toEqual([
-      "ex → me: spouse",
-      "partner → me: spouse",
+      "ex → brother: former_spouse",
+      "myEx → me: former_spouse",
+      "other → me: co_parent",
+      "partner → brother: spouse",
     ]);
   });
 

@@ -102,8 +102,9 @@ export default async function MyFamilyPage() {
           currentTreeId,
           // Asked of the viewer only, here (Step 92.4).
           samePeople: family.samePeople,
-          // Pills, not cards (Step 94).
+          // Pills, not cards (Step 94), but their spouse a card (94.1).
           marriedIn: family.marriedIn,
+          spouseIds: family.spouseIds,
         }}
       />
     </main>
