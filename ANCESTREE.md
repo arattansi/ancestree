@@ -1752,6 +1752,40 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 97.3 — Quiet off the spotlight; member mark on My Family Tree**
+  (no migration). **Aalim asked for:** "turn off hover-over effects for
+  elements not in the spotlight view. it's distracting. instead show it as
+  a soft pill element on the bottom right in line with the pill that shows
+  the description of what is being highlighted" and, on My Family Tree,
+  "don't include iconography for the account type … add a symbol to show
+  that that node has been claimed and that person has an ancestree
+  account. maybe use a tiny version of the logo where the system
+  description is 'ancestree member'". On every canvas, a card, leaf, pill
+  or companion blurred off a spotlight's line no longer grows, opens its
+  hover card, lights its border or shows a tooltip; whoever the pointer is
+  over is named in a soft pill at the bottom right (**Ali Lalji · 1922 –
+  1980 · Tanzania**), beside the minimap or the open sheet
+  (`components/tree/off-spotlight-pill.tsx`; a small hover store, so a
+  pointer crossing the cards draws only the pill). Lit leaves keep their
+  hover card. On `/family` the account-type mark gives way to the
+  ancestree mark in small (`MemberMark`, titled **Ancestree member**) for
+  the reader, members' own entries, settled claims and anyone a tree
+  names Root, Branch or Leaf; the key lists it last. **My calls, not
+  asked:** the pill says name · years · birthplace (a companion's kind ·
+  years); it sits level with the middle pill centre to centre, and just
+  above that row where the two would touch (a long "…'s tree" beside an
+  open sheet at 1440px); only with a hovering pointer, from `sm` up;
+  married-in pills stay name only, no member mark; a tree's own canvas
+  keeps its account types. **Checked:** tsc, lint, 1,727 tests; headless
+  on a throwaway fixture page (16 people, two trees, three members), light
+  and dark: three member marks and no account marks on the view; at rest
+  a hover still opens a leaf's card; with Nadia open, hovering blurred
+  Sara or Rahim showed no card and the pill, centred on **First
+  cousins**; a lit leaf kept its card and no pill; off the cards, none;
+  clicking Sara lit her and the pill went. On the tree canvas, Karim's
+  spotlight: blurred Ali showed the pill above the row. The fixture was
+  deleted after.
+
 - **Step 98.1 — Only a parent adds a child under 18** (migration
   `20261001120000_children_under_18`). **Aalim asked for:** "if a user is
   adding someone else's child, the user will get prompted 'is this person
