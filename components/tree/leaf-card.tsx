@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import { AccountTypeMark } from "@/components/account-type-badge";
+import { SamePersonMark } from "@/components/tree/same-person";
 import { TreeMarkDot, type CardMark } from "@/components/tree/tree-mark";
 import { FitText } from "@/components/ui/fit-text";
 import { cropStyle, parseCrop } from "@/lib/image-crop";
@@ -157,14 +158,21 @@ export function LeafCard({
   leaf,
   selected,
   isSelf,
+  yourSpouse = false,
   mark,
+  same,
 }: {
   person: TreeGraphPerson;
   leaf: NativeLeaf;
   selected: boolean;
   isSelf: boolean;
+  /** On My Family Tree, the viewer's own spouse (Step 94.1), said where
+   *  "You" is. */
+  yourSpouse?: boolean;
   /** On My Family Tree, the mark of the tree it comes from (Step 92.2). */
   mark?: CardMark;
+  /** On My Family Tree, "Same person as …?" (Step 92.4). */
+  same?: string;
 }) {
   // Each species' own leaf (Step 96), drawn and measured on first use.
   const geometry = leafGeometry(leaf.shape);
@@ -173,8 +181,10 @@ export function LeafCard({
   const maiden = maidenLine(person);
   // "You" has a line of its own, except beside a maiden name: there it
   // shares the years' line, so a leaf never runs past three.
-  const youAlone = isSelf && !maiden;
-  const youWithYears = isSelf && !!maiden;
+  // "Your spouse" goes where "You" would (Step 97).
+  const who = isSelf ? "You" : yourSpouse ? "Your spouse" : null;
+  const youAlone = !!who && !maiden;
+  const youWithYears = !!who && !!maiden;
   const threeLines =
     [youAlone, maiden, youWithYears || lifespan].filter(Boolean).length === 2;
   const deceased = person.is_deceased;
@@ -278,6 +288,22 @@ export function LeafCard({
           style={{ top: markTop + 5 }}
         />
       ) : null}
+      {/* Another leaf may be them too (Step 92.4): right of the marks, as
+          the tree mark sits left of them. */}
+      {same ? (
+        <SamePersonMark
+          label={same}
+          className={cn(
+            "absolute ring-[3px] ring-card",
+            person.account_type
+              ? "left-[calc(50%+16px)]"
+              : mark
+                ? "left-[calc(50%+11px)]"
+                : "left-1/2 -translate-x-1/2",
+          )}
+          style={{ top: markTop + 2 }}
+        />
+      ) : null}
 
       {/* At most three lines, under the name. Three hang from where two put
           the name rather than centring on it, or the name would rise into
@@ -299,7 +325,7 @@ export function LeafCard({
         </p>
         {youAlone ? (
           <p className="truncate text-[11px] leading-3 font-medium text-primary">
-            You
+            {who}
           </p>
         ) : null}
         {/* Stops 110px along, before the baobab's middle leaflet and the
@@ -319,7 +345,7 @@ export function LeafCard({
         {youWithYears || lifespan ? (
           <p className="truncate text-[11px] leading-3 text-muted-foreground">
             {youWithYears ? (
-              <span className="font-medium text-primary">You</span>
+              <span className="font-medium text-primary">{who}</span>
             ) : null}
             {youWithYears && lifespan ? " · " : null}
             {lifespan}

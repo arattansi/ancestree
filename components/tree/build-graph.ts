@@ -33,11 +33,15 @@ export function buildPeopleGraph(
   /** People drawn as pills: on My Family Tree, whoever married in (Step
    *  94, `LayoutOptions.compactIds`). */
   compactIds?: ReadonlySet<string>,
+  /** Laid out for leaves, as a spotlight's pulled-out line is: on My
+   *  Family Tree, where everyone is a leaf (`LayoutOptions.centreFamilies`). */
+  centreFamilies?: boolean,
 ): PeopleGraph {
   const layout = layoutTree(people, relationships, {
     anchorIds,
     generations,
     compactIds,
+    centreFamilies,
   });
   const { positions, unions } = layout;
   const ids = new Set(people.map((p) => p.id));

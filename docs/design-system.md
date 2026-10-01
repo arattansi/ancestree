@@ -141,6 +141,12 @@ turn autocomplete off, or every relative is offered the member's own name
   from them; with nobody selected, or nowhere they may add from them,
   every tree, adding without them. With one tree to offer it doesn't ask:
   the button goes straight to that tree's add flow.
+- My Family Tree rests as a spotlight does (Step 97): every direct
+  relative is a **leaf** on brown branches, laid out as a pulled-out line
+  is (`centreFamilies`), and whoever married in a pill. Clicking someone
+  still pulls their own line forward; everyone else stays a leaf, blurred
+  back. A search fades leaves as it fades cards. Where the paragraphs
+  below say "card", on My Family Tree it is drawn as a leaf.
 - On My Family Tree (Step 94) a direct relative is a card and whoever
   married in is a **pill**, the shape a sibling's partner takes in a
   spotlight (Step 19.4): name only, muted, no photo or account mark, on the
@@ -148,14 +154,16 @@ turn autocomplete off, or every relative is offered the member's own name
   pill's tooltip says **Married in · Spouse of Karim** (or **Former spouse
   of**, **Co-parent with**, **Your former spouse**). The reader's own
   spouse is the exception (Step 94.1): a card beside them, saying **Your
-  spouse** under the name where theirs says **You**. The difference is
+  spouse** under the name where theirs says **You** (on a leaf too, in
+  the same place, Step 97). The difference is
   also said outright: the key under the tree names lists a small card,
   **Direct relative**, and a small pill, **Married in**, and the sheet's
   badges start with **Direct relative**, **Your spouse** or **Married in**
   (none on the reader's own entry).
 - On My Family Tree a card that may be one person entered twice (Step
   92.4, `lib/same-person.ts`) wears a **?** in the attention yellow at its
-  foot, across from the account mark, and never on a leaf; on a pill, on
+  foot, across from the account mark; on a leaf (Step 97), hung under it
+  right of the account mark, as the tree mark hangs left; on a pill, on
   its right shoulder (Step 94). Its
   sheet asks above **On**: **Same person as ● Fatima Rattansi?**, the
   other card's name, with its tree's mark, opening that card, and **Not

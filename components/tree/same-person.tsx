@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { toast } from "sonner";
 
 import { TreeMarkDot, type CardMark } from "@/components/tree/tree-mark";
@@ -33,14 +34,18 @@ export function samePersonLabel(names: readonly string[]): string {
 export function SamePersonMark({
   label,
   className,
+  style,
 }: {
   /** What it asks, for anyone who can't see it; without one it's
    *  decoration beside the words. */
   label?: string;
   className?: string;
+  /** For placement worked out at render time, like a leaf's depth. */
+  style?: CSSProperties;
 }) {
   return (
     <span
+      style={style}
       {...(label
         ? { role: "img", "aria-label": label, title: label }
         : { "aria-hidden": true })}

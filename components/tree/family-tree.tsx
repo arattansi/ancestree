@@ -195,6 +195,8 @@ const NO_PANEL_SUGGESTIONS: PanelSuggestion[] = [];
 const NO_RELATIONS: PersonRelation[] = [];
 const NO_HOME_TREES: TreeAccess[] = [];
 const NOBODY: ReadonlySet<string> = new Set();
+/** Every line lit, as My Family Tree rests. */
+const ALL: Pick<ReadonlySet<string>, "has"> = { has: () => true };
 const NO_SAME: ReadonlyMap<string, string[]> = new Map();
 /**
  * What the camera is framing once it's put back where this tab left it
@@ -323,6 +325,10 @@ function Canvas({
   // actions go to its own tree, as who the viewer is there (Step 92.3,
   // `viewerOn` below).
   const editable = !readOnly && !family;
+  // And it rests in a spotlight's look: everyone a leaf on brown branches,
+  // whoever married in a pill, laid out as a pulled-out line is. Clicking
+  // someone still pulls their own line forward, the rest blurred back.
+  const allLeaves = !!family;
   // It's the viewer's own family tree (Step 94): their blood on cards, and
   // whoever married into it as a pill, a sibling's partner's shape in a
   // spotlight (Step 19.4), wherever they stand on the view.
@@ -463,6 +469,7 @@ function Canvas({
         descent ? descent.anchorIds : sideAnchorIds,
         rows,
         pillIds.size > 0 ? pillIds : undefined,
+        allLeaves,
       ),
     [
       placedPeople,
@@ -472,6 +479,7 @@ function Canvas({
       sideAnchorIds,
       rows,
       pillIds,
+      allLeaves,
     ],
   );
   const graph = React.useMemo(
@@ -1225,15 +1233,23 @@ function Canvas({
             : undefined);
       const mark = isPet ? undefined : markById.get(n.id);
       const same = isPet ? undefined : sameLabelById.get(n.id);
+      // The lit line stands in front, never faded or blurred; on My Family
+      // Tree everyone else is a leaf too, faded and blurred as a card is.
+      const litLeaf = !!lit && inLine;
       map.set(n.id, {
         ...n.data,
         ...(mark ? { mark } : {}),
         ...(same ? { same } : {}),
         selected,
-        dimmed,
+        dimmed: dimmed && !litLeaf,
         highlighted,
-        lineage: !!lit && inLine,
-        blurred: (!!lit && !inLine) || (!isPet && !!(n.data as { person?: { blurred?: boolean } }).person?.blurred),
+        lineage: litLeaf || (allLeaves && !isPet),
+        blurred:
+          !litLeaf &&
+          ((!!lit && !inLine) ||
+            (!isPet &&
+              !!(n.data as { person?: { blurred?: boolean } }).person
+                ?.blurred)),
         ...(pillLabel ? { compressed: true, pillLabel } : {}),
         ...(spouseIds.has(n.id) ? { yourSpouse: true } : {}),
       });
@@ -1253,6 +1269,7 @@ function Canvas({
     sameLabelById,
     marriedToById,
     spouseIds,
+    allLeaves,
   ]);
   // A card whose flags came out the same is handed the very same `data`, so
   // it doesn't draw again when the rest of the tree changes (Step 87.1).
@@ -1290,16 +1307,21 @@ function Canvas({
   // — and draw what's left in trunk brown: the lit lines are the branches the
   // leaves grow off, and they thicken as they carry more.
   const displayEdges = React.useMemo(() => {
-    const activeIds = connection?.edgeIds ?? spotlight?.edgeIds ?? null;
+    // My Family Tree at rest: every line is a lit branch.
+    const activeIds =
+      connection?.edgeIds ?? spotlight?.edgeIds ?? (allLeaves ? ALL : null);
     if (!activeIds) return edges;
     // While a tree is pulled out its descent lines come down over each leaf
     // and stop just above its blade, whose top depends on the species. Every
     // line into a leaf is routed that way, lit or not: a faded line still
-    // crosses the blade it lands on.
-    const leaves = pulled ? (spotlight?.people ?? null) : null;
+    // crosses the blade it lands on. On My Family Tree that's every line
+    // into anyone but a pill.
+    const front = pulled ? (spotlight?.people ?? null) : null;
+    const isLeaf = (id: string) =>
+      (allLeaves && !pillIds.has(id)) || !!front?.has(id);
     const shown: Edge[] = edges.map((e) => {
       const active = activeIds.has(e.id);
-      const toLeaf = !!leaves && e.type === "descent" && leaves.has(e.target);
+      const toLeaf = e.type === "descent" && isLeaf(e.target);
       // A half-sibling's other parent stays behind, blurred, in the tree
       // (Step 19.3): route their line from the parent who came along only,
       // or the trunk would start halfway to someone left out of the picture.
@@ -1307,15 +1329,17 @@ function Canvas({
         Array.isArray(e.data?.parents) ? e.data.parents : []
       ) as string[];
       const litParents =
-        toLeaf && active ? parents.filter((pid) => leaves.has(pid)) : parents;
+        front && front.has(e.target) && active
+          ? parents.filter((pid) => front.has(pid))
+          : parents;
       // A bar spans only the children drawn the same way: the leaves pulled
       // out share one, and whoever stayed behind in the tree keeps another.
       const siblings = (
         Array.isArray(e.data?.siblings) ? e.data.siblings : []
       ) as string[];
       const barSiblings =
-        leaves && e.type === "descent"
-          ? siblings.filter((cid) => leaves.has(cid) === toLeaf)
+        front && e.type === "descent"
+          ? siblings.filter((cid) => front.has(cid) === front.has(e.target))
           : siblings;
       // The pulled layout can seat a partner on the other side (a pill goes
       // on the far side of its sibling, Step 19.4), so a spouse line runs
@@ -1386,7 +1410,15 @@ function Canvas({
       }
     }
     return shown;
-  }, [edges, connection, spotlight, pulled, leafBladeTop]);
+  }, [
+    edges,
+    connection,
+    spotlight,
+    pulled,
+    leafBladeTop,
+    allLeaves,
+    pillIds,
+  ]);
 
   /**
    * A descent line is below its parents and above its child at the same time,

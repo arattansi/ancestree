@@ -1752,6 +1752,32 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 97 — My Family Tree rests as a spotlight: everyone a leaf**
+  (ad-hoc; no migration). **Aalim asked for:** "the default view, 'My
+  Family Tree' should be in the spotlight view state where everyone is
+  shown as the leaves". On `/family`, with nobody open, every direct
+  relative is now a leaf (their birthplace's tree, Step 96) on brown
+  branches, every line lit; whoever married in stays a pill (Step 94).
+  The view is laid out as a pulled-out line is (`buildPeopleGraph`'s new
+  `centreFamilies` → `layoutTree`'s), so each family hangs straight under
+  its parents' trunk and every descent line stops above its leaf's blade.
+  Clicking someone still pulls their own line forward as on any tree;
+  the rest stay leaves, blurred back (`FamilyTree`'s `allLeaves`; the
+  edge routing tells a leaf from a pulled-out one). Leaves now fade for a
+  search and blur off a spotlight's line as cards do (a lit leaf is never
+  faded, as before); on My Family Tree they say **Your spouse** where
+  "You" goes (Step 94.1) and wear the yellow **?** (Step 92.4) under the
+  leaf, right of the account mark. Trees' own canvases are unchanged.
+  **My calls, not asked:** spotlighting someone keeps the others as
+  blurred leaves rather than turning them back into cards; the "?" spot.
+  **Checked:** tsc, lint, 1,712 tests; a throwaway signed-out fixture
+  page of a read-only `FamilyTree` in `family` mode (15 people, two
+  trees, a same-person pair, two married-in pills, a spouse): 13 leaves +
+  2 pills at rest, none faded, all 14 lines brown; a spotlight on a
+  sister pulled her line forward with the rest blurred leaves, and
+  closing it came back to all leaves; a search lit the three Patels and
+  faded the rest. The fixture was deleted after.
+
 - **Step 96 — Every tree's own leaf in a spotlight** (ad-hoc; no
   migration). **Aalim asked for:** "the banyan tree leaf doesn't look
   anything like the actual leaf. make sure that there are shapes being

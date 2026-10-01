@@ -33,9 +33,10 @@ export type PersonNodeData = {
   dimmed?: boolean;
   /** An endpoint of the connection the user clicked — shown ringed. */
   highlighted?: boolean;
-  /** On the spotlighted person's own tree — drawn as a leaf, pulled forward. */
+  /** Drawn as a leaf: on the spotlighted person's own tree, pulled
+   *  forward, or anyone on My Family Tree (Step 97). */
   lineage?: boolean;
-  /** Off that tree — shown blurred back behind it. */
+  /** Off the spotlighted tree — shown blurred back behind it. */
   blurred?: boolean;
   /** Married in — drawn as a name-only pill: a sibling's partner on that
    *  tree (Step 19.4, always alongside `lineage`), or on My Family Tree
@@ -100,10 +101,8 @@ function PersonNodeImpl({ data }: NodeProps) {
       <div
         className={cn(
           "relative transition-[opacity,filter] duration-300 phone:transition-opacity",
-          !lineage && dimmed && "opacity-25",
-          !lineage &&
-            blurred &&
-            "opacity-30 blur-[2px] saturate-50 phone:filter-none",
+          dimmed && "opacity-25",
+          blurred && "opacity-30 blur-[2px] saturate-50 phone:filter-none",
         )}
       >
         <Handle type="target" position={Position.Top} className={handleClass} />
@@ -139,7 +138,15 @@ function PersonNodeImpl({ data }: NodeProps) {
   // off the branch it hangs on, shaped by where this person was born.
   if (lineage) {
     return (
-      <div className="relative">
+      <div
+        className={cn(
+          "relative transition-[opacity,filter] duration-300 phone:transition-opacity",
+          // On My Family Tree everyone is a leaf (Step 97): off a search, or
+          // off a spotlight's line, they fade and blur as a card does.
+          dimmed && "opacity-25",
+          blurred && "opacity-30 blur-[2px] saturate-50 phone:filter-none",
+        )}
+      >
         <Handle type="target" position={Position.Top} className={handleClass} />
         <Handle
           type="target"
@@ -163,7 +170,9 @@ function PersonNodeImpl({ data }: NodeProps) {
           leaf={nativeLeaf(person)}
           selected={!!selected}
           isSelf={isSelf}
+          yourSpouse={!!yourSpouse}
           mark={mark}
+          same={same}
         />
       </div>
     );
