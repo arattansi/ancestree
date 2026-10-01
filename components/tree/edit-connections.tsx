@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import { connectExistingPeople, removeRelationship } from "@/app/actions/connections";
+import { AdultQuestion } from "@/components/adult-question";
 import { CoParentOffer } from "@/components/co-parent-offer";
 import { ConfirmButton } from "@/components/confirm-dialog";
 import { FormError } from "@/components/form-error";
@@ -12,6 +13,7 @@ import {
   KIND_STATEMENT,
   type PartnerOption,
 } from "@/lib/connections";
+import { underAgeMessage, type AskAdult } from "@/lib/minors";
 import { marriageDateProblems } from "@/lib/partial-date";
 import { toStoredSpouseDates, type SpouseDates } from "@/lib/spouse-dates";
 import {
@@ -95,6 +97,13 @@ export function EditConnections({
   const [coParentIds, setCoParentIds] = React.useState<string[] | null>(null);
   const [dates, setDates] = React.useState<SpouseDates>({});
   const add = useAction({ inline: true });
+  // The line asked "18 or older?" of someone (Step 98): a yes draws it again
+  // with every yes so far, a no stops it.
+  const [lineAsk, setLineAsk] = React.useState<{
+    ask: AskAdult;
+    refused: boolean;
+  } | null>(null);
+  const [adultIds, setAdultIds] = React.useState<string[]>([]);
   const returnFocus = useFocusReturn();
   const addRef = React.useRef<HTMLDivElement>(null);
 
@@ -132,7 +141,7 @@ export function EditConnections({
       : { marriage: null, divorce: null };
   const datesOk = !dateProblems.marriage && !dateProblems.divorce;
 
-  function onAdd() {
+  function onAdd(yesIds: string[] = adultIds) {
     if (!otherId) {
       add.setError("Pick someone already in the tree.");
       return;
@@ -146,6 +155,7 @@ export function EditConnections({
         error?: string;
         alsoAdded?: string[];
         missed?: string;
+        askAdult?: AskAdult;
       }> => {
         // The main line and each ticked partner as the child's other
         // parent, in one call (Step 77.5).
@@ -156,8 +166,10 @@ export function EditConnections({
           kind,
           ...stored,
           coParentIds: partnersToAdd,
+          adultIds: yesIds,
         });
         if (res.error) return { error: res.error };
+        if (res.askAdult) return { askAdult: res.askAdult };
         const labelOf = (id: string) =>
           coParentOffer.find((p) => p.id === id)?.label;
         const alsoAdded = (res.alsoAdded ?? []).map(
@@ -178,7 +190,11 @@ export function EditConnections({
           alsoAdded.length > 0 && !missed
             ? `Connection added, with ${alsoAdded.join(" & ")} as a parent too.`
             : null,
-        onSuccess: ({ missed }) => {
+        onSuccess: ({ missed, askAdult }) => {
+          if (askAdult) {
+            setLineAsk({ ask: askAdult, refused: false });
+            return;
+          }
           resetForm();
           if (missed) add.setError(missed);
           // The Add button goes with the form: the search for the next
@@ -248,6 +264,7 @@ export function EditConnections({
           value={otherId}
           onChange={(id) => {
             setOtherId(id);
+            setLineAsk(null);
             // Someone else picked: what went wrong before was about the last.
             add.setError(null);
           }}
@@ -260,7 +277,10 @@ export function EditConnections({
               <Select
                 items={KIND_STATEMENT}
                 value={kind}
-                onValueChange={(v) => setKind(v as ConnectionKind)}
+                onValueChange={(v) => {
+                  setKind(v as ConnectionKind);
+                  setLineAsk(null);
+                }}
               >
                 <SelectTrigger className="w-48">
                   <SelectValue />
@@ -297,14 +317,38 @@ export function EditConnections({
 
         {/* Out here, so what didn't happen still shows once the form has
             closed up (a partner who couldn't also be added). */}
+        {lineAsk ? (
+          <div className="flex flex-col gap-2">
+            <AdultQuestion
+              name={lineAsk.ask.name ?? "this person"}
+              value={lineAsk.refused ? false : undefined}
+              disabled={add.pending}
+              onChange={(adult) => {
+                if (!adult) {
+                  setLineAsk({ ...lineAsk, refused: true });
+                  return;
+                }
+                const ids = [...adultIds, lineAsk.ask.id];
+                setAdultIds(ids);
+                setLineAsk(null);
+                onAdd(ids);
+              }}
+            />
+            {lineAsk.refused ? (
+              <p role="alert" className="text-sm font-medium text-destructive">
+                {underAgeMessage(lineAsk.ask.name)}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
         <FormError>{add.error}</FormError>
         {otherId ? (
           <div>
             <PendingButton
               size="sm"
-              onClick={onAdd}
+              onClick={() => onAdd()}
               pending={add.pending}
-              disabled={!datesOk}
+              disabled={!datesOk || lineAsk !== null}
               pendingLabel="Adding…"
             >
               Add connection

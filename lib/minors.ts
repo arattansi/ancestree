@@ -127,6 +127,28 @@ export function underAgeMessage(name: string | null): string {
   return `${who.charAt(0).toUpperCase()}${who.slice(1)} is under 18. Only their parent can add them.`;
 }
 
+/**
+ * Someone already on the tree whom a new line would make someone's child or
+ * sibling for the first time, with nothing yet to say they're 18 or older:
+ * the database asks (`ASK_ADULT`, Step 98), and the page puts the question
+ * and draws the line again with the answer.
+ */
+export type AskAdult = { id: string; name: string | null };
+
+/** The database's `ASK_ADULT` question, read from a PostgREST error. */
+export function readAskAdult(
+  error: { message?: string | null; details?: string | null } | null | undefined,
+): AskAdult | null {
+  const message = error?.message ?? "";
+  if (!message.includes("ASK_ADULT:")) return null;
+  const id = /^existing:(.+)$/.exec(error?.details?.trim() ?? "")?.[1];
+  if (!id) return null;
+  return {
+    id,
+    name: /ASK_ADULT: is (.+) 18 or older\?/.exec(message)?.[1]?.trim() || null,
+  };
+}
+
 /** An edit giving someone else a date of birth under 18 (Step 98). */
 export const MINOR_DATE_REFUSED =
   "Only their parent can give a date of birth under 18.";

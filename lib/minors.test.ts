@@ -6,6 +6,7 @@ import {
   ageFromBirth,
   minorRefusal,
   newPeopleToAsk,
+  readAskAdult,
   readMinorRefusal,
   underAgeMessage,
 } from "@/lib/minors";
@@ -156,6 +157,19 @@ describe("underAgeMessage", () => {
       "This person is under 18. Only their parent can add them.",
     );
     expect(underAgeMessage(null)).toMatch(/^This person/);
+  });
+});
+
+describe("readAskAdult", () => {
+  it("reads who the database asks about", () => {
+    expect(
+      readAskAdult({
+        message: "ASK_ADULT: is Sam Patel 18 or older?",
+        details: "existing:abc-123",
+      }),
+    ).toEqual({ id: "abc-123", name: "Sam Patel" });
+    expect(readAskAdult({ message: "ASK_ADULT: is X 18 or older?" })).toBeNull();
+    expect(readAskAdult({ message: "MINOR: X is under 18" })).toBeNull();
   });
 });
 

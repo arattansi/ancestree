@@ -74,7 +74,12 @@ import {
   type PersonRef,
   type RelationshipKind,
 } from "@/lib/connections";
-import { minorRefusal, newPeopleToAsk } from "@/lib/minors";
+import {
+  minorRefusal,
+  newPeopleToAsk,
+  underAgeMessage,
+  type AskAdult,
+} from "@/lib/minors";
 import { personDisplayName } from "@/lib/person-name";
 import { emptyPersonValues } from "@/lib/person-schema";
 import { toStoredSpouseDates } from "@/lib/spouse-dates";
@@ -95,7 +100,12 @@ type SaveOutcome = {
   /** The person they set out to add, once saved. */
   primaryId?: string;
   askable?: ImpliedConnection[];
+  /** A line asks "18 or older?" of someone on the tree already (Step 98). */
+  askAdult?: AskAdult;
 };
+
+/** The answers a save went with, to send it again once the question's answered. */
+type Resolved = NonNullable<Parameters<typeof addRelative>[0]["suggestions"]>;
 
 export function AddPersonFlow({
   mode,
@@ -174,6 +184,17 @@ export function AddPersonFlow({
   const [adultAnswers, setAdultAnswers] = React.useState<
     ReadonlyMap<string, boolean>
   >(new Map());
+  // Someone already on the tree whom a line would make someone's child or
+  // sibling, asked about as the save draws it (Step 98): the save waits
+  // here, and a yes sends it again with every yes so far.
+  const [lineAsk, setLineAsk] = React.useState<{
+    ask: AskAdult;
+    refused: boolean;
+    values: FlowValues;
+    edges: ReturnType<typeof buildChainEdges>;
+    resolved: Resolved | null;
+  } | null>(null);
+  const [adultIds, setAdultIds] = React.useState<string[]>([]);
   // Adding a relative asks their name, how they connect (anyone in between
   // included, Step 78) and an invite up front, and keeps everything else
   // behind "Add more details" at the bottom (Step 44). Adding yourself
@@ -208,6 +229,13 @@ export function AddPersonFlow({
       inviteEmail: "",
     },
   });
+
+  // Changing the form after a line asked puts the question away: the next
+  // save asks again if it still needs to.
+  React.useEffect(() => {
+    const sub = form.watch(() => setLineAsk(null));
+    return () => sub.unsubscribe();
+  }, [form]);
 
   const people = useFieldArray({ control: form.control, name: "people" });
   const links = useFieldArray({ control: form.control, name: "links" });
@@ -395,6 +423,7 @@ export function AddPersonFlow({
           resolution: SuggestionResolution;
         }[]
       | null,
+    yesIds: string[] = adultIds,
   ): Promise<SaveOutcome> {
     const { file, crop } = photo;
     // Asked for with the entry, so sent once it exists: an invite to claim
@@ -422,11 +451,13 @@ export function AddPersonFlow({
       adults: values.people.map((_, i) =>
         askedAdult.includes(i) ? (adultAnswerOf(i) ?? null) : null,
       ),
+      adultIds: yesIds,
       inviteEmail: address || null,
       photoFollows: file !== null,
     });
 
     if (result.askable?.length) return { askable: result.askable };
+    if (result.askAdult) return { askAdult: result.askAdult };
     if (result.error || !result.personIds) {
       // Without a blood tie (Step 55) the error names who needs one.
       return { error: result.error ?? "Couldn't save these entries." };
@@ -493,7 +524,11 @@ export function AddPersonFlow({
       "save",
       (): Promise<SaveOutcome> => save(values, edges, null),
       {
-        onSuccess: ({ askable, primaryId }) => {
+        onSuccess: ({ askable, askAdult, primaryId }) => {
+          if (askAdult) {
+            setLineAsk({ ask: askAdult, refused: false, values, edges, resolved: null });
+            return;
+          }
           if (askable) {
             // Asked first; the dialog's answers save it.
             setSuggestions(askable);
@@ -521,9 +556,37 @@ export function AddPersonFlow({
       })),
     );
     action.run("save", () => save(values, edges, resolved), {
-      onSuccess: ({ primaryId }) => {
+      onSuccess: ({ askAdult, primaryId }) => {
         setPendingSave(null);
         setSuggestions([]);
+        if (askAdult) {
+          // Asked under the form, with the dialog's answers kept for the
+          // save it sends again.
+          setLineAsk({ ask: askAdult, refused: false, values, edges, resolved });
+          return;
+        }
+        land(primaryId);
+      },
+    });
+  }
+
+  /** "18 or older?" answered for someone a line asked about (Step 98). */
+  function onLineAnswer(adult: boolean) {
+    if (!lineAsk) return;
+    if (!adult) {
+      setLineAsk({ ...lineAsk, refused: true });
+      return;
+    }
+    const { ask, values, edges, resolved } = lineAsk;
+    const yesIds = [...adultIds, ask.id];
+    setAdultIds(yesIds);
+    setLineAsk(null);
+    action.run("save", () => save(values, edges, resolved, yesIds), {
+      onSuccess: ({ askAdult, primaryId }) => {
+        if (askAdult) {
+          setLineAsk({ ask: askAdult, refused: false, values, edges, resolved });
+          return;
+        }
         land(primaryId);
       },
     });
@@ -1023,6 +1086,22 @@ export function AddPersonFlow({
           </div>
         ) : null}
 
+        {lineAsk ? (
+          <div className="flex flex-col gap-2">
+            <AdultQuestion
+              name={lineAsk.ask.name ?? "this person"}
+              value={lineAsk.refused ? false : undefined}
+              disabled={action.pending}
+              onChange={onLineAnswer}
+            />
+            {lineAsk.refused ? (
+              <p role="alert" className="text-sm font-medium text-destructive">
+                {underAgeMessage(lineAsk.ask.name)}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
         <FormError>{action.error}</FormError>
 
         <PendingButton
@@ -1034,7 +1113,8 @@ export function AddPersonFlow({
             !form.formState.isValid ||
             (needAnchor && !anchorId) ||
             underAge !== null ||
-            adultUnanswered
+            adultUnanswered ||
+            lineAsk !== null
           }
         >
           {mode === "self"

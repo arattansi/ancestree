@@ -1752,6 +1752,39 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 98.1, the gap closed: lines ask too** (migration
+  `20261001130000_ask_when_the_line_is_drawn`). **Aalim asked for:** "close
+  the gap too — ask when the line is drawn". 98.1 asked only about people
+  being added, so someone added unasked (as a partner, say) with no date
+  of birth could be drawn as a child or sibling later and nobody asked. Now
+  a trigger on `relationships` (`private.relationships_minor_guard`)
+  judges the first line that makes a living person someone's child or
+  sibling, whichever way it's drawn: born under 18 is refused (`MINOR`);
+  nothing to say they're an adult and no yes on record refuses with
+  `ASK_ADULT` (detail `existing:<id>`), which "Add a relative", the edit
+  page's **Add a connection** and a suggested connection's **Yes, add the
+  parent** turn into **Is {name} 18 or older?** — a yes draws it again
+  with every yes so far (`p_adult_existing` on
+  `add_people_with_connections`, `p_adults` on `connect_people` and
+  `resolve_implied_connection`; old signatures dropped), a no says
+  **{Name} is under 18. Only their parent can add them.** A yes is kept
+  (`private.adult_confirmations`), and so are 98.1's yeses, so nobody is
+  asked about twice. Not asked: their parent drawing it, their own entry,
+  the deceased, anyone with a parent or sibling line already. People a call
+  is adding are left to 98.1's check once all their lines are in
+  (`private.note_new_people`, also for 98.2's placeholders); 98.1's guard in
+  `connect_people` moved into the trigger. **My calls, not asked:** the
+  question is put after the press, as the line is drawn, rather than
+  foreseen in the form (the page doesn't know who already has a parent
+  line); a yes on someone's record stays for good. **Checked:** tsc, lint,
+  1,728 tests; a rolled-back rehearsal on live as a Root, 28 checks before
+  and after (98.1's 17 unchanged, the 2015 partner now refused by the
+  trigger; an undated partner then a sibling line asks, a yes draws it, a
+  yes for someone else still asks, deceased / 1990 / one's own child
+  unasked, a new parent of an undated partner asks and takes a yes, a yes
+  kept after its line is removed, an accepted implied parent asks and takes
+  a yes).
+
 - **Step 97.3 — Quiet off the spotlight; member mark on My Family Tree**
   (no migration). **Aalim asked for:** "turn off hover-over effects for
   elements not in the spotlight view. it's distracting. instead show it as

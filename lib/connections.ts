@@ -69,6 +69,11 @@ export type AddPeopleInput = {
    * (Step 98); null where it wasn't asked.
    */
   adults?: (boolean | null)[];
+  /**
+   * People already on the tree said to be 18 or older, when a line to them
+   * asked (`ASK_ADULT`, Step 98).
+   */
+  adultIds?: string[];
 };
 
 /**

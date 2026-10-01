@@ -4,7 +4,12 @@ import { OWN_LINE_REFUSAL, isOwnLineRefusal } from "@/lib/account-types";
 import { requireProfile, type Profile } from "@/lib/auth";
 import { bloodTieRefusal, readBloodTieRefusal } from "@/lib/bloodline";
 import { mintClaimInvite } from "@/lib/claim-invite-send.server";
-import { readMinorRefusal, underAgeMessage } from "@/lib/minors";
+import {
+  readAskAdult,
+  readMinorRefusal,
+  underAgeMessage,
+  type AskAdult,
+} from "@/lib/minors";
 import {
   friendlyDbError,
   ownedWrite,
@@ -63,6 +68,22 @@ const CONNECTION_RULES: readonly ErrorRule[] = [
   [RLS_REFUSED, NO_PERMISSION],
 ];
 
+/**
+ * A line the database wouldn't draw (Step 98): a question to put first
+ * ("18 or older?"), a child under 18 whose parent isn't drawing it, or
+ * whatever else it said.
+ */
+function lineRefusal(error: {
+  message: string;
+  details?: string | null;
+}): { error?: string; askAdult?: AskAdult } {
+  const askAdult = readAskAdult(error);
+  if (askAdult) return { askAdult };
+  const minor = readMinorRefusal(error);
+  if (minor) return { error: underAgeMessage(minor.name) };
+  return { error: friendlyConnectionError(error.message) };
+}
+
 function friendlyConnectionError(message: string | undefined): string {
   return friendlyDbError(
     message,
@@ -96,6 +117,8 @@ export type AddPeopleResult = {
   personIds?: string[];
   selfId?: string | null;
   error?: string;
+  /** A line asks "18 or older?" of someone already on the tree (Step 98). */
+  askAdult?: AskAdult;
 };
 
 /**
@@ -177,9 +200,14 @@ async function addPeople(
     p_self_index: input.selfIndex ?? undefined,
     p_suggestions: pSuggestions,
     p_tree: input.treeId,
+    // Only when answering: the database before Step 98's follow-up doesn't
+    // take it.
+    ...(input.adultIds?.length ? { p_adult_existing: input.adultIds } : {}),
   });
 
   if (error || !data) {
+    const askAdult = readAskAdult(error);
+    if (askAdult) return { askAdult };
     // No blood tie (Step 55): say who, so they know whom to connect.
     const refusal = readBloodTieRefusal(error);
     const minor = readMinorRefusal(error);
@@ -344,7 +372,9 @@ export async function resolveImpliedConnection(input: {
    */
   sources: SuggestionSource[];
   resolution: "accepted" | "dismissed";
-}): Promise<{ error?: string }> {
+  /** Said to be 18 or older, when the line asked (Step 98). */
+  adultIds?: string[];
+}): Promise<{ error?: string; askAdult?: AskAdult }> {
   await requireProfile();
   const supabase = await createClient();
   for (const source of input.sources) {
@@ -354,8 +384,9 @@ export async function resolveImpliedConnection(input: {
       p_type: input.suggestedType,
       p_source: source,
       p_resolution: input.resolution,
+      ...(input.adultIds?.length ? { p_adults: input.adultIds } : {}),
     });
-    if (error) return { error: friendlyConnectionError(error.message) };
+    if (error) return lineRefusal(error);
   }
   revalidateTreePages();
   return {};
@@ -387,8 +418,11 @@ export async function connectExistingPeople(input: {
   divorce_date?: string | null;
   /** The new parent's partners, as the child's other parents too. */
   coParentIds?: string[];
+  /** Said to be 18 or older, when the line asked (Step 98). */
+  adultIds?: string[];
 }): Promise<{
   error?: string;
+  askAdult?: AskAdult;
   alsoAdded?: string[];
   missed?: { id: string; error: string };
 }> {
@@ -418,7 +452,7 @@ export async function connectExistingPeople(input: {
   const connect = async (
     edge: { from: string; to: string; type: typeof type },
     dates: StoredSpouseDates,
-  ): Promise<string | null> => {
+  ): Promise<{ error?: string; askAdult?: AskAdult } | null> => {
     const { error } = await supabase.rpc("connect_people", {
       p_from: edge.from,
       p_to: edge.to,
@@ -429,14 +463,20 @@ export async function connectExistingPeople(input: {
       p_is_divorced: dates.is_divorced,
       p_divorce_date: dates.divorce_date ?? undefined,
       p_tree: input.treeId,
+      ...(input.adultIds?.length ? { p_adults: input.adultIds } : {}),
     });
-    return error
-      ? friendlyDbError(
-          error.message,
-          [DIVORCE_AFTER_MARRIAGE, ...CONNECTION_RULES],
-          "Couldn't save these entries. Check the fields and try again.",
-        )
-      : null;
+    if (!error) return null;
+    const refusal = lineRefusal(error);
+    if (refusal.askAdult) return refusal;
+    return {
+      error: readMinorRefusal(error)
+        ? refusal.error
+        : friendlyDbError(
+            error.message,
+            [DIVORCE_AFTER_MARRIAGE, ...CONNECTION_RULES],
+            "Couldn't save these entries. Check the fields and try again.",
+          ),
+    };
   };
 
   // Only a marriage carries dates.
@@ -444,7 +484,8 @@ export async function connectExistingPeople(input: {
     { from, to, type },
     normalizeSpouseDates(type === "spouse" ? input : {}),
   );
-  if (refused) return { error: refused };
+  // Asked first, or refused: nothing drawn.
+  if (refused) return refused;
 
   // The child's other parents, when the new line is a parent's.
   const alsoAdded: string[] = [];
@@ -453,9 +494,13 @@ export async function connectExistingPeople(input: {
     const noDates = normalizeSpouseDates({});
     for (const coParentId of new Set(input.coParentIds ?? [])) {
       if (!coParentId || coParentId === from || coParentId === to) continue;
-      const error = await connect({ from: coParentId, to, type }, noDates);
-      if (error) {
-        missed = { id: coParentId, error };
+      // The child has a parent line by now, so these never ask.
+      const refusedToo = await connect({ from: coParentId, to, type }, noDates);
+      if (refusedToo) {
+        missed = {
+          id: coParentId,
+          error: refusedToo.error ?? "Couldn't draw that line.",
+        };
         break;
       }
       alsoAdded.push(coParentId);

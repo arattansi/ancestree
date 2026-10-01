@@ -2557,6 +2557,7 @@ export type Database = {
       }
       add_people_with_connections: {
         Args: {
+          p_adult_existing?: string[]
           p_edges?: Json
           p_people: Json
           p_self_index?: number
@@ -2618,6 +2619,7 @@ export type Database = {
       }
       connect_people: {
         Args: {
+          p_adults?: string[]
           p_divorce_date?: string
           p_from: string
           p_is_divorced?: boolean
@@ -2961,6 +2963,7 @@ export type Database = {
       resolve_entry_report: { Args: { p_report: string }; Returns: undefined }
       resolve_implied_connection: {
         Args: {
+          p_adults?: string[]
           p_related: string
           p_resolution: string
           p_source: string

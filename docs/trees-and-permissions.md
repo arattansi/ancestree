@@ -78,10 +78,19 @@ Rules that follow:
   straddles the day isn't enough to tell, so it's asked). Nobody is asked
   about someone who has died, a parent or a partner. Behind it, only their
   parent (or they themselves) may give a living person a date of birth
-  under 18 by an edit, a fill, an accepted suggestion or an undo, and the
-  first line that makes a living child under 18 someone's child or sibling
-  is their parent's to draw (`connect_people`). Every entry is added
-  through that one call: there's no direct insert, a Root's included.
+  under 18 by an edit, a fill, an accepted suggestion or an undo. Every
+  entry is added through that one call: there's no direct insert, a
+  Root's included.
+- **Lines ask too** (Step 98.1's follow-up). However a line is drawn —
+  adding someone, "Add a connection", a suggested connection — the first
+  line that makes someone already on the tree a child or a sibling asks
+  "Is {name} 18 or older?" when they're living and nothing says they're
+  an adult: no date of birth that does, and nobody has said yes for them
+  before (`private.adult_confirmations`; a yes is kept, so it's asked once
+  per person). Born under 18, it's refused. Not asked when their parent
+  draws it, of their own entry, of the deceased, or of anyone who has a
+  parent or sibling line already (`private.relationships_minor_guard`, on
+  every insert into `relationships`).
 - A member joins a tree through an invite (as a Leaf), by founding it (as
   Root), or by accepting a placement of their own entry (as a Leaf, so they
   can keep their own entry up to date there; a Root may change that).
