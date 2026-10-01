@@ -11,6 +11,7 @@ import {
 import { revalidateTreePages } from "@/lib/revalidate";
 import { createClient } from "@/lib/supabase/server";
 import { suggestionValues } from "@/lib/suggestions";
+import { MINOR_DATE_REFUSED } from "@/lib/minors";
 
 /** What a refused suggestion says, by `suggest_entry_change`'s reason. */
 function friendlySuggestError(message: string): string {
@@ -91,6 +92,8 @@ export async function decideEntrySuggestion(
         error.message,
         [
           ["withdrawn", "It was withdrawn."],
+          // Accepting it would give someone a date of birth under 18 (Step 98).
+          ["MINOR:", MINOR_DATE_REFUSED],
           ["already answered", "Someone has already answered it."],
           [
             "not yours to answer",

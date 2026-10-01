@@ -64,6 +64,11 @@ export type AddPeopleInput = {
   edges: ConnectionEdge[];
   selfIndex: number | null;
   suggestions?: ResolvedSuggestionInput[];
+  /**
+   * Each person's answer to "18 or older?", by index, for those asked it
+   * (Step 98); null where it wasn't asked.
+   */
+  adults?: (boolean | null)[];
 };
 
 /**

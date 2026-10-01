@@ -15,6 +15,7 @@ import {
   type SuggestionResolution,
 } from "@/components/connection-approval-dialog";
 import type { ImpliedConnection } from "@/lib/connection-suggestions";
+import { AdultQuestion } from "@/components/adult-question";
 import { CoParentOffer } from "@/components/co-parent-offer";
 import { FormError } from "@/components/form-error";
 import { JoinsAsNote } from "@/components/joins-as-note";
@@ -73,6 +74,7 @@ import {
   type PersonRef,
   type RelationshipKind,
 } from "@/lib/connections";
+import { minorRefusal, newPeopleToAsk } from "@/lib/minors";
 import { personDisplayName } from "@/lib/person-name";
 import { emptyPersonValues } from "@/lib/person-schema";
 import { toStoredSpouseDates } from "@/lib/spouse-dates";
@@ -106,6 +108,7 @@ export function AddPersonFlow({
   canInvite = false,
   doneHref,
   bloodline = null,
+  selfPersonId = null,
 }: {
   mode: "self" | "relative";
   treeId: string;
@@ -138,6 +141,11 @@ export function AddPersonFlow({
    * and the database still refuses.
    */
   bloodline?: Bloodline | null;
+  /**
+   * The member's own entry, when adding a relative: whoever they're drawn
+   * as the parent of isn't asked "18 or older?" (Step 98).
+   */
+  selfPersonId?: string | null;
 }) {
   const router = useRouter();
   // A tree with anchors refuses anyone with no blood tie (Step 55), a Root's
@@ -161,6 +169,11 @@ export function AddPersonFlow({
     edges: ReturnType<typeof buildChainEdges>;
   } | null>(null);
   const [addingMore, setAddingMore] = React.useState(false);
+  // "18 or older?" answers (Step 98), by the person's field id, so they stay
+  // with the person when someone in between is removed.
+  const [adultAnswers, setAdultAnswers] = React.useState<
+    ReadonlyMap<string, boolean>
+  >(new Map());
   // Adding a relative asks their name, how they connect (anyone in between
   // included, Step 78) and an invite up front, and keeps everything else
   // behind "Add more details" at the bottom (Step 44). Adding yourself
@@ -271,15 +284,48 @@ export function AddPersonFlow({
   // they hear the rule before it refuses. Only a warning: a question at
   // submit ("is their partner also a parent?") can still draw the line it's
   // missing.
+  const pending = flowEdges({
+    anchorId: showChain ? anchorId : "",
+    inBetween: intermediateCount,
+    links: watchedLinks,
+    extraLinks: watchedExtra,
+    members,
+  });
+
+  // Who could be a child and isn't the member's own (Step 98): asked "18 or
+  // older?", and a "No", or a date of birth under 18, stops the save.
+  const self =
+    mode === "self"
+      ? ({ kind: "new", index: 0 } as const)
+      : selfPersonId
+        ? ({ kind: "existing", id: selfPersonId } as const)
+        : null;
+  const askedAdult = newPeopleToAsk({
+    people: watchedPeople,
+    edges: pending,
+    self,
+  });
+  const adultAnswerOf = (i: number) => {
+    const fieldId = people.fields[i]?.id;
+    return fieldId ? adultAnswers.get(fieldId) : undefined;
+  };
+  const askedName = (i: number) =>
+    nameOf(i, i === 0 ? "this person" : `in-between person ${i}`);
+  const underAge = minorRefusal({
+    asked: askedAdult,
+    people: watchedPeople,
+    answers: new Map(
+      askedAdult.flatMap((i) => {
+        const a = adultAnswerOf(i);
+        return a === undefined ? [] : [[i, a] as const];
+      }),
+    ),
+    nameOf: askedName,
+  });
+  const adultUnanswered = askedAdult.some((i) => adultAnswerOf(i) === undefined);
+
   const tieWarning = (() => {
     if (!bloodline || !gateActive || !showChain || !anchorId) return null;
-    const pending = flowEdges({
-      anchorId,
-      inBetween: intermediateCount,
-      links: watchedLinks,
-      extraLinks: watchedExtra,
-      members,
-    });
     const [first] = newWithoutBloodTie(
       intermediateCount + 1,
       pending,
@@ -372,6 +418,10 @@ export function AddPersonFlow({
               label: personDisplayName(p),
             })),
           },
+      // Each person's "18 or older?" answer, for those asked (Step 98).
+      adults: values.people.map((_, i) =>
+        askedAdult.includes(i) ? (adultAnswerOf(i) ?? null) : null,
+      ),
       inviteEmail: address || null,
       photoFollows: file !== null,
     });
@@ -905,6 +955,31 @@ export function AddPersonFlow({
                       </div>
                     ) : null}
 
+                    {askedAdult.map((i) => {
+                      const fieldId = people.fields[i]?.id ?? String(i);
+                      return (
+                        <AdultQuestion
+                          key={fieldId}
+                          name={askedName(i)}
+                          value={adultAnswerOf(i)}
+                          disabled={action.pending}
+                          onChange={(adult) =>
+                            setAdultAnswers((prev) =>
+                              new Map(prev).set(fieldId, adult),
+                            )
+                          }
+                        />
+                      );
+                    })}
+                    {underAge ? (
+                      <p
+                        role="alert"
+                        className="text-sm font-medium text-destructive"
+                      >
+                        {underAge}
+                      </p>
+                    ) : null}
+
                     {tieWarning ? (
                       <p
                         role="status"
@@ -955,7 +1030,11 @@ export function AddPersonFlow({
           pending={action.pending}
           pendingLabel="Saving…"
           disabled={
-            photo.busy || !form.formState.isValid || (needAnchor && !anchorId)
+            photo.busy ||
+            !form.formState.isValid ||
+            (needAnchor && !anchorId) ||
+            underAge !== null ||
+            adultUnanswered
           }
         >
           {mode === "self"

@@ -1752,6 +1752,48 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 98.1 — Only a parent adds a child under 18** (migration
+  `20261001120000_children_under_18`). **Aalim asked for:** "if a user is
+  adding someone else's child, the user will get prompted 'is this person
+  older than 18 years old?' … if they are not, then they will be refused …
+  only a parent of a child can add their child to the tree." Aalim's
+  answers: ask for anyone who could be a child (a child, a sibling, a
+  grandchild through anyone in between) unless the member is recorded as
+  their parent; never for someone who has died. "Add a relative" and the
+  founder's quick add ask **Is {name} 18 or older?** (Yes / No,
+  `components/adult-question.tsx`) under the connection, for each person
+  `lib/minors.ts#newPeopleToAsk` picks out once the form's lines are drawn;
+  a dated adult isn't asked. A No, or a date of birth under 18 whatever the
+  answer, says **{Name} is under 18. Only their parent can add them.** and
+  holds the button. The database asks the same: each person's answer goes
+  to `add_people_with_connections` as `adult`, and it refuses (`MINOR`)
+  anyone who could be a child without a yes, or born under 18, unless the
+  caller's own entry is their parent (new `private.birth_age`,
+  `private.is_own_child`). Behind it, `people_before_write` refuses a
+  living person's date of birth under 18 from anyone but their parent or
+  themselves (edits, fills, accepted suggestions and undos say **Only their
+  parent can give a date of birth under 18.**), `connect_people` refuses
+  the first child or sibling line to a living child under 18 that isn't
+  their parent's, and the unused `people_insert` policy is gone, so nobody
+  can add an unconnected entry to line it up after. Placeholder children
+  for Roots and Branches (98.2) and the two minors already on a tree
+  (98.3) follow. **My calls, not asked:** "18 or older" rather than "older
+  than 18" (18 is the age the rule means); a year of birth that straddles
+  the day is asked rather than refused; the question sits under "How they
+  connect", since the link decides whether it's asked. **Checked:** tsc,
+  lint, 1,727 tests (15 new in `lib/minors.test.ts`); a rolled-back
+  rehearsal on live as a Root, 17 checks before and after: own child
+  allowed unasked, a parent's child or a sibling refused without a yes,
+  allowed with one, refused born 2015 even with one, a straddling year
+  refused unanswered, the deceased and a 1990 birth allowed unasked, a
+  grandchild through their own child refused unanswered and allowed with a
+  yes, a parent's date of birth edited to 2015 refused, their own child's
+  allowed, a 2015-born partner then a sibling line refused (1990-born
+  allowed), a direct insert refused by RLS; on a throwaway signed-out
+  fixture page: the question under a child link, a No's refusal, gone for
+  a partner, the deceased and one's own child, asked of the grandchild only
+  through one's own child. The fixture was deleted after.
+
 - **Step 97.2 — Click again for their own tree** (no migration). **Aalim
   asked for:** "if the user clicks on the same person again, it highlights
   their individual tree". On `/family` the person open, clicked again,

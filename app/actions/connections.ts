@@ -4,6 +4,7 @@ import { OWN_LINE_REFUSAL, isOwnLineRefusal } from "@/lib/account-types";
 import { requireProfile, type Profile } from "@/lib/auth";
 import { bloodTieRefusal, readBloodTieRefusal } from "@/lib/bloodline";
 import { mintClaimInvite } from "@/lib/claim-invite-send.server";
+import { readMinorRefusal, underAgeMessage } from "@/lib/minors";
 import {
   friendlyDbError,
   ownedWrite,
@@ -128,7 +129,7 @@ async function addPeople(
 
   if (!input.treeId) return { error: "Pick a tree to add to." };
   const isAdmin = (await getRoleIn(input.treeId)) === "admin";
-  const pPeople = people.map((values) => {
+  const pPeople = people.map((values, i) => {
     const p = toPersonPayload(values);
     return {
       first_name: p.first_name ?? "",
@@ -148,6 +149,9 @@ async function addPeople(
       place_of_death: p.place_of_death ?? "",
       // lineage_type is admin-only; the DB nulls it for other writers anyway.
       lineage_type: isAdmin ? p.lineage_type : null,
+      // "18 or older?" (Step 98): the database refuses a child under 18, or
+      // one nobody said yes for, unless the member is their parent.
+      adult: input.adults?.[i] ?? null,
     };
   });
 
@@ -178,10 +182,13 @@ async function addPeople(
   if (error || !data) {
     // No blood tie (Step 55): say who, so they know whom to connect.
     const refusal = readBloodTieRefusal(error);
+    const minor = readMinorRefusal(error);
     return {
       error: refusal
         ? bloodTieRefusal(refusal, input.selfIndex)
-        : friendlyConnectionError(error?.message),
+        : minor
+          ? underAgeMessage(minor.name)
+          : friendlyConnectionError(error?.message),
     };
   }
 

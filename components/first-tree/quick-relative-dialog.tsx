@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { addRelative } from "@/app/actions/connections";
 import { setPersonPhoto } from "@/app/actions/people";
+import { AdultQuestion } from "@/components/adult-question";
 import { CoParentOffer } from "@/components/co-parent-offer";
 import { FormError } from "@/components/form-error";
 import { JoinsAsNote } from "@/components/joins-as-note";
@@ -30,6 +31,7 @@ import {
   type CloseRelativeLinks,
 } from "@/lib/first-tree";
 import { isEmailAddress } from "@/lib/email-address";
+import { minorRefusal, newPeopleToAsk } from "@/lib/minors";
 import { marriageDateProblems } from "@/lib/partial-date";
 import { personDisplayName } from "@/lib/person-name";
 import {
@@ -123,6 +125,31 @@ function QuickRelativeForm({
   // the button.
   const action = useAction({ inline: true });
   const deceased = useWatch({ control: form.control, name: "is_deceased" });
+  const dateOfBirth = useWatch({ control: form.control, name: "date_of_birth" });
+  const watchedName = useWatch({ control: form.control });
+  // A sibling could be a child, and isn't the founder's own: "18 or older?"
+  // (Step 98). The founder's own child, parent or partner isn't asked.
+  const [adult, setAdult] = React.useState<boolean | undefined>(undefined);
+  const askedAdult =
+    newPeopleToAsk({
+      people: [{ is_deceased: deceased, date_of_birth: dateOfBirth }],
+      edges: closeRelativeEdges(kind, founder.id, {
+        sharedParentIds: kind === "sibling" ? shared : undefined,
+      }),
+      self: { kind: "existing", id: founder.id },
+    }).length > 0;
+  const adultName = (() => {
+    const n = personDisplayName(watchedName);
+    return n === "Unnamed person" ? "this person" : n;
+  })();
+  const underAge = askedAdult
+    ? minorRefusal({
+        asked: [0],
+        people: [{ date_of_birth: dateOfBirth }],
+        answers: new Map(adult === undefined ? [] : [[0, adult]]),
+        nameOf: () => adultName,
+      })
+    : null;
 
   const partnerOptions: PartnerOption[] = partners.map((p) => ({
     id: p.id,
@@ -160,6 +187,11 @@ function QuickRelativeForm({
     if (kind === "child") links.coParentIds = coParentSelection(coParents, partnerOptions);
     if (kind === "sibling") links.sharedParentIds = shared;
 
+    if (askedAdult && (adult === undefined || underAge)) {
+      action.setError(underAge ?? `Say whether ${adultName} is 18 or older.`);
+      return;
+    }
+
     const problem = closeRelativeProblem(kind, links);
     if (problem) {
       action.setError(problem);
@@ -177,6 +209,7 @@ function QuickRelativeForm({
           people: [values],
           edges: closeRelativeEdges(kind, founder.id, links),
           selfIndex: null,
+          adults: [askedAdult ? (adult ?? null) : null],
           inviteEmail: address || null,
           photoFollows: file !== null,
         });
@@ -300,6 +333,20 @@ function QuickRelativeForm({
           </fieldset>
         ) : null}
 
+        {askedAdult ? (
+          <AdultQuestion
+            name={adultName}
+            value={adult}
+            onChange={setAdult}
+            disabled={submitting}
+          />
+        ) : null}
+        {underAge ? (
+          <p role="alert" className="text-sm font-medium text-destructive">
+            {underAge}
+          </p>
+        ) : null}
+
         {deceased ? null : (
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-1.5">
@@ -337,7 +384,9 @@ function QuickRelativeForm({
           <PendingButton
             type="submit"
             pending={action.pending}
-            disabled={photo.busy}
+            disabled={
+              photo.busy || underAge !== null || (askedAdult && adult === undefined)
+            }
             pendingLabel="Adding…"
           >
             {TITLES[kind]}
