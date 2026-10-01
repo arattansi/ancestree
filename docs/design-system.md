@@ -144,8 +144,12 @@ turn autocomplete off, or every relative is offered the member's own name
 - My Family Tree rests as a spotlight does (Step 97): every direct
   relative is a **leaf** on brown branches, laid out as a pulled-out line
   is (`centreFamilies`), and whoever married in a pill. Clicking someone
-  still pulls their own line forward; everyone else stays a leaf, blurred
-  back. A search fades leaves as it fades cards. Where the paragraphs
+  lights how they're connected to the reader (Step 97.1), as **Show a
+  connection** would: the chain pulled out, everyone else a blurred leaf,
+  and under it **You ↔ Nadia Patel** · **First cousins**, whose ✕ closes
+  them. Clicking the reader's own leaf lights nothing. The canvas tip there
+  says **Tap anyone to see how you're connected.** A search fades leaves
+  as it fades cards. Where the paragraphs
   below say "card", on My Family Tree it is drawn as a leaf.
 - On My Family Tree (Step 94) a direct relative is a card and whoever
   married in is a **pill**, the shape a sibling's partner takes in a

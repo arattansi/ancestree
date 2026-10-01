@@ -824,17 +824,36 @@ function Canvas({
   // the partners along it, and their brothers and sisters beside them (Step
   // 19.3) — and the connections that run through it. Everyone else is blurred
   // back so the one lineage can be read on its own.
+  // On My Family Tree a click lights how that person is connected to the
+  // viewer instead (Step 97.1), as Show a connection would; a connection
+  // picked in Search & filters still comes first.
+  const picked = !!connectionEnds.from && !!connectionEnds.to;
+  const linkedToYou =
+    !picked &&
+    !!family &&
+    !!selfPersonId &&
+    !!selectedId &&
+    selectedId !== selfPersonId;
   // The chain of relationships between the two picked people, if there is one.
   const path = React.useMemo(
     () =>
-      connectionEnds.from && connectionEnds.to
+      picked
         ? connectionPath(
-            connectionEnds.from,
-            connectionEnds.to,
+            connectionEnds.from!,
+            connectionEnds.to!,
             shownRelationships,
           )
-        : null,
-    [connectionEnds, shownRelationships],
+        : linkedToYou
+          ? connectionPath(selfPersonId!, selectedId!, shownRelationships)
+          : null,
+    [
+      picked,
+      linkedToYou,
+      connectionEnds,
+      selfPersonId,
+      selectedId,
+      shownRelationships,
+    ],
   );
 
   const spotlight = React.useMemo(() => {
@@ -884,7 +903,10 @@ function Canvas({
           .map((s) => [s.from, s.to] as [string, string]),
       };
     }
-    if (!selectedId) return null;
+    // On My Family Tree nobody's own tree is pulled out: a click lights
+    // their connection to the viewer (above), and the viewer's own leaf, or
+    // one nothing joins to them, lights nothing.
+    if (!selectedId || family) return null;
     const roles = personSpotlight(selectedId, shownRelationships);
     const { ancestors, descendants, looseSiblings, line, siblingSpouses } =
       roles;
@@ -941,7 +963,7 @@ function Canvas({
         (sibling) => [selectedId, sibling] as [string, string],
       ),
     };
-  }, [path, selectedId, shownRelationships, graph.edges, people]);
+  }, [path, selectedId, shownRelationships, graph.edges, people, family]);
 
   // A card that turns into a leaf is a different piece of DOM with its handles
   // in new elements, and the canvas has no way of knowing that on its own: it
@@ -1611,7 +1633,9 @@ function Canvas({
     // One person's tree, framed again when their details are minimized or
     // brought back (Step 49), or the connection between two.
     const framedKey = path
-      ? `${path.people[0]}~${path.people[path.people.length - 1]}`
+      ? `${path.people[0]}~${path.people[path.people.length - 1]}${
+          linkedToYou && sheetOut ? "+sheet" : ""
+        }`
       : selectedId
         ? `${selectedId}${sheetOut ? "+sheet" : ""}`
         : null;
@@ -1660,6 +1684,7 @@ function Canvas({
     canvasReady,
     recalled,
     path,
+    linkedToYou,
     selectedId,
     sheetOut,
     spotlight,
@@ -1974,7 +1999,8 @@ function Canvas({
             (r.from_person === last && r.to_person === first)),
       );
     return {
-      from: nameById.get(first) ?? "",
+      // From the viewer's own leaf on My Family Tree, it's them.
+      from: linkedToYou ? "You" : (nameById.get(first) ?? ""),
       to: nameById.get(last) ?? "",
       label: divorced
         ? "Former spouses"
@@ -1984,7 +2010,7 @@ function Canvas({
             (id) => personById.get(id)?.sex,
           ),
     };
-  }, [path, shownRelationships, nameById, personById]);
+  }, [path, shownRelationships, nameById, personById, linkedToYou]);
 
   // Offered in a searched-for person's details: light the line from them to
   // somebody else. Refused here, with the reason, when nothing joins the two —
@@ -2458,7 +2484,7 @@ function Canvas({
             </ConfirmButton>
           ) : null}
         </Panel>
-        {path && pathSummary ? (
+        {path && pathSummary && !(linkedToYou && folded) ? (
           <Panel
             position="bottom-center"
             className="w-[min(34rem,calc(100%-7rem))]"
@@ -2487,14 +2513,19 @@ function Canvas({
               <button
                 type="button"
                 className="relative tap-target text-muted-foreground hover:text-foreground"
-                onClick={() => setConnectionEnds(NO_CONNECTION)}
+                onClick={() =>
+                  // Lit by a click on My Family Tree: closing it closes them.
+                  linkedToYou
+                    ? setSelectedId(null)
+                    : setConnectionEnds(NO_CONNECTION)
+                }
                 aria-label="Show the whole tree again"
               >
                 ✕
               </button>
             </div>
           </Panel>
-        ) : spotlight && selectedPerson ? (
+        ) : selectedPerson && (spotlight || (family && folded)) ? (
           <Panel
             position="bottom-center"
             className={cn(
@@ -2511,7 +2542,7 @@ function Canvas({
                 onClose={() => setSelectedId(null)}
                 expandRef={foldedRef}
               />
-            ) : (
+            ) : spotlight ? (
               <div
                 className="flex items-center gap-3 rounded-full border bg-card px-4 py-2 text-sm shadow-md"
                 style={{
@@ -2540,14 +2571,16 @@ function Canvas({
                   ✕
                 </button>
               </div>
-            )}
+            ) : null}
             <span className="rounded-full bg-card/80 px-2 py-0.5 text-center text-[11px] text-muted-foreground">
               Each leaf is a tree that grows where that person was born.
             </span>
           </Panel>
         ) : null}
         {/* The tip shares the pills' slot, so it steps aside while one shows. */}
-        {!spotlight && !connection ? <CanvasTip /> : null}
+        {!spotlight && !connection && !folded ? (
+          <CanvasTip family={!!family} />
+        ) : null}
         {connection ? (
           <Panel position="bottom-center">
             <div className="flex items-center gap-3 rounded-full border border-border bg-card px-4 py-2 text-sm shadow-md">

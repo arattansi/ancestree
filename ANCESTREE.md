@@ -1752,6 +1752,30 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 97.1 — On My Family Tree a click shows how they're connected to
+  you** (no migration). **Aalim asked for:** "instead, when you click on
+  someone, it highlights their direct connection to you and blurs out
+  everyone else. essentially a 'show a connection' function but for that
+  person". Replaces Step 97's click (their own line pulled out). On
+  `/family`, opening anyone but yourself lights the chain from you to them
+  (`connectionPath(self, them)`, with any co-parent along it), pulled out
+  around your leaf and framed beside their sheet, everyone else a blurred
+  leaf; the pill under it reads **You ↔ Nadia Patel** · **First cousins**
+  (`connectionLabel`), and its ✕ closes them. A connection picked in
+  Search & filters still wins. Your own leaf opens your details and lights
+  nothing; nobody's own line is pulled out on the view any more. Minimized
+  details fold to their card as before, the connection staying lit. The
+  canvas tip there says **Tap anyone to see how you're connected.**, closed
+  apart from a tree's (`ancestree:family-tip-dismissed`). Trees' own
+  canvases unchanged. **My calls, not asked:** "You" for the reader's end
+  of the pill; clicking yourself lights nothing; the tip's words.
+  **Checked:** tsc, lint, 1,712 tests; the same throwaway fixture page
+  (15 people, two trees): a cousin lit you, Karim, both grandparents,
+  Zahra and Nadia ("First cousins"), the sheet open; ✕ closed her and put
+  every leaf back; your own leaf lit nothing; married-in Tom read
+  "Siblings by marriage"; minimized, the folded card showed with the
+  chain still lit. The fixture was deleted after.
+
 - **Step 97 — My Family Tree rests as a spotlight: everyone a leaf**
   (ad-hoc; no migration). **Aalim asked for:** "the default view, 'My
   Family Tree' should be in the spotlight view state where everyone is
