@@ -26,6 +26,7 @@ export function PillCard({
   mark,
   same,
   selected = false,
+  quiet = false,
 }: {
   person: TreeGraphPerson;
   /** Who they are to the family: "Spouse of Karim", "Married in ·
@@ -36,6 +37,8 @@ export function PillCard({
   /** On My Family Tree, "Same person as …?" (Step 92.4). */
   same?: string;
   selected?: boolean;
+  /** Off a spotlight's line: nothing lights on hover (Step 97.3). */
+  quiet?: boolean;
 }) {
   // Someone who married in is who most often has a maiden name, and the
   // tooltip is the only place the pill has room for it.
@@ -55,13 +58,18 @@ export function PillCard({
         event.preventDefault();
         event.currentTarget.click();
       }}
-      title={[who, label, mark?.name, same].filter(Boolean).join(" · ")}
+      title={
+        quiet
+          ? undefined
+          : [who, label, mark?.name, same].filter(Boolean).join(" · ")
+      }
       aria-label={[who, label, mark?.name, same].filter(Boolean).join(", ")}
       className={cn(
         "relative flex h-9 w-[120px] items-center justify-center rounded-full border border-border bg-muted shadow-xs",
         // A mark takes room from the name, so it sits tight against it.
         mark ? "gap-1 pr-2.5 pl-2" : "gap-1.5 px-3",
-        "text-[13px] font-medium text-muted-foreground transition-colors hover:border-ring/60 hover:text-foreground",
+        "text-[13px] font-medium text-muted-foreground transition-colors",
+        !quiet && "hover:border-ring/60 hover:text-foreground",
         "focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
         person.is_deceased && "border-dashed",
         selected && "border-ring text-foreground ring-2 ring-ring/40",

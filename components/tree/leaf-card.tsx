@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import { AccountTypeMark } from "@/components/account-type-badge";
+import { MemberMark } from "@/components/logo-mark";
 import { SamePersonMark } from "@/components/tree/same-person";
 import { TreeMarkDot, type CardMark } from "@/components/tree/tree-mark";
 import { FitText } from "@/components/ui/fit-text";
@@ -161,6 +162,8 @@ export function LeafCard({
   yourSpouse = false,
   mark,
   same,
+  member,
+  quiet = false,
 }: {
   person: TreeGraphPerson;
   leaf: NativeLeaf;
@@ -173,6 +176,13 @@ export function LeafCard({
   mark?: CardMark;
   /** On My Family Tree, "Same person as …?" (Step 92.4). */
   same?: string;
+  /** On My Family Tree, whether the person has an account (Step 97.3):
+   *  the mark in small hangs where the account type would, which the view
+   *  never shows. Left out on a tree's canvas. */
+  member?: boolean;
+  /** Off a spotlight's line: no hover card (Step 97.3). The canvas names
+   *  whoever is under the pointer in a pill of its own instead. */
+  quiet?: boolean;
 }) {
   // Each species' own leaf (Step 96), drawn and measured on first use.
   const geometry = leafGeometry(leaf.shape);
@@ -188,6 +198,9 @@ export function LeafCard({
   const threeLines =
     [youAlone, maiden, youWithYears || lifespan].filter(Boolean).length === 2;
   const deceased = person.is_deceased;
+  // What hangs centred under the leaf: on My Family Tree the member mark,
+  // elsewhere the account type.
+  const hung = member === undefined ? !!person.account_type : member;
   // Where the marks hang under the leaf (below).
   const markTop = geometry.bottom - OVERHANG + MARK_GAP;
   // Ids have to be unique per card: two leaves sharing a clip path would clip
@@ -198,7 +211,9 @@ export function LeafCard({
   return (
     <div
       className="group/leaf relative h-28 w-52"
-      onPointerEnter={previewed ? undefined : () => setPreviewed(true)}
+      onPointerEnter={
+        previewed || quiet ? undefined : () => setPreviewed(true)
+      }
     >
       {/* The blade overhangs the card box top and bottom, so the lobes that
           stick out of it are not clipped away. No shadow on a phone, where
@@ -265,15 +280,23 @@ export function LeafCard({
       {/* Whose entry this is (Step 19.1): hung centred just under its own
           leaf. Card and blade box share a scale, so the blade's depth
           converts to card pixels by the overhang alone. */}
-      {person.account_type ? (
+      {member === undefined && person.account_type ? (
         <AccountTypeMark
           typeKey={person.account_type}
           className="absolute left-1/2 size-5 -translate-x-1/2 rounded-full bg-card p-0.5"
           style={{ top: markTop }}
         />
       ) : null}
+      {/* On My Family Tree, an account rather than its type (Step 97.3):
+          which tree's Root or Leaf they are says little across trees. */}
+      {member ? (
+        <MemberMark
+          className="absolute left-1/2 size-5 -translate-x-1/2 rounded-full bg-card p-0.5"
+          style={{ top: markTop }}
+        />
+      ) : null}
       {/* Its tree's mark on My Family Tree (Step 92.2), hung under the leaf
-          with the account mark: left of it when there is one, centred
+          with the member mark: left of it when there is one, centred
           when not, ringed in card colour as that is. */}
       {mark ? (
         <TreeMarkDot
@@ -281,7 +304,7 @@ export function LeafCard({
           label={mark.name}
           className={cn(
             "absolute ring-[3px] ring-card",
-            person.account_type
+            hung
               ? "left-[calc(50%-26px)]"
               : "left-1/2 -translate-x-1/2",
           )}
@@ -295,7 +318,7 @@ export function LeafCard({
           label={same}
           className={cn(
             "absolute ring-[3px] ring-card",
-            person.account_type
+            hung
               ? "left-[calc(50%+16px)]"
               : mark
                 ? "left-[calc(50%+11px)]"
@@ -353,7 +376,9 @@ export function LeafCard({
         ) : null}
       </div>
 
-      <LeafDetail person={person} leaf={leaf} withPhoto={previewed} />
+      {quiet ? null : (
+        <LeafDetail person={person} leaf={leaf} withPhoto={previewed} />
+      )}
     </div>
   );
 }

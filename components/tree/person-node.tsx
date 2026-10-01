@@ -4,6 +4,7 @@ import * as React from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 
 import { AccountTypeMark } from "@/components/account-type-badge";
+import { MemberMark } from "@/components/logo-mark";
 import { LeafCard } from "@/components/tree/leaf-card";
 import { PillCard } from "@/components/tree/pill-card";
 import { SamePersonMark } from "@/components/tree/same-person";
@@ -53,6 +54,9 @@ export type PersonNodeData = {
   /** On My Family Tree, "Same person as …?" when another card may be them
    *  too (Step 92.4). */
   same?: string;
+  /** On My Family Tree, whether they have an account (Step 97.3): the
+   *  member mark, in place of the account type the view never shows. */
+  member?: boolean;
 };
 
 // The handles are anchors for the branch lines, never something the reader
@@ -75,6 +79,7 @@ function PersonNodeImpl({ data }: NodeProps) {
     yourSpouse,
     mark,
     same,
+    member,
   } = data as PersonNodeData;
   // The full name for the hover preview and the tooltip; the condensed one for
   // the card itself, where a surname would otherwise be cut off mid-word.
@@ -91,6 +96,8 @@ function PersonNodeImpl({ data }: NodeProps) {
   // the card is first hovered, for the preview (Step 87.5, audit C3).
   const cardPhoto = useSteadyPhoto(person.photo_card_url);
   const [previewed, setPreviewed] = React.useState(false);
+  // Nor any tooltip, off a spotlight's line (Step 97.3).
+  const tip = (text: string) => (blurred ? undefined : text);
 
   // Married in, they are named and no more (Steps 19.4, 94). The spouse
   // line reaches them at either side; top and bottom anchor the lines to
@@ -129,6 +136,7 @@ function PersonNodeImpl({ data }: NodeProps) {
           mark={mark}
           same={same}
           selected={!!selected}
+          quiet={!!blurred}
         />
       </div>
     );
@@ -173,6 +181,8 @@ function PersonNodeImpl({ data }: NodeProps) {
           yourSpouse={!!yourSpouse}
           mark={mark}
           same={same}
+          member={member}
+          quiet={!!blurred}
         />
       </div>
     );
@@ -190,9 +200,13 @@ function PersonNodeImpl({ data }: NodeProps) {
         // blurred card is drawn again on each frame of a pan (Step 87.7).
         blurred && "opacity-30 blur-[2px] saturate-50 phone:filter-none",
       )}
-      onPointerEnter={previewed ? undefined : () => setPreviewed(true)}
+      // Off a spotlight's line nothing grows on hover (Step 97.3): the
+      // canvas names them in a pill of its own.
+      onPointerEnter={
+        previewed || blurred ? undefined : () => setPreviewed(true)
+      }
     >
-      {person.photo_url && previewed ? (
+      {person.photo_url && previewed && !blurred ? (
         // On hover the card "grows": a larger copy of the card anchored to the
         // same centre, with a big photo above the name so the name stays visible.
         // Mounted on the first hover, then shown on each hover as before.
@@ -256,7 +270,7 @@ function PersonNodeImpl({ data }: NodeProps) {
           // left/right handles sit at each card's own centre, so cards of
           // differing heights would tilt the spouse line between them.
           "relative flex h-28 w-52 items-center gap-3 overflow-hidden rounded-xl border bg-card px-3 py-2.5 text-left shadow-sm transition-[colors,opacity,transform,box-shadow]",
-          "hover:border-ring/60",
+          !blurred && "hover:border-ring/60",
           deceased ? "border-dashed border-border" : "border-border",
           selected && "border-ring ring-2 ring-ring/40",
           highlighted &&
@@ -329,20 +343,29 @@ function PersonNodeImpl({ data }: NodeProps) {
 
         {/* Whose entry this is (Step 19.1). Bottom-right, away from the flag
             count on the top corner. */}
-        {person.account_type ? (
+        {member === undefined && person.account_type ? (
           <AccountTypeMark
             typeKey={person.account_type}
             className="absolute right-2 bottom-2 size-4"
           />
         ) : null}
+        {/* On My Family Tree, an account rather than its type (Step 97.3). */}
+        {member ? (
+          <MemberMark className="absolute right-2 bottom-2 size-4" />
+        ) : null}
 
-        <div className={cn("min-w-0 flex-1", person.account_type && "pr-3")}>
+        <div
+          className={cn(
+            "min-w-0 flex-1",
+            (member === undefined ? person.account_type : member) && "pr-3",
+          )}
+        >
           <p
             className={cn(
               "text-sm font-medium",
               deceased ? "text-muted-foreground" : "text-foreground",
             )}
-            title={name}
+            title={tip(name)}
           >
             <FitText max={14} min={11} className="leading-5">
               {cardName}
@@ -358,7 +381,7 @@ function PersonNodeImpl({ data }: NodeProps) {
           {maiden ? (
             <p
               className="truncate text-xs text-muted-foreground"
-              title={maiden}
+              title={tip(maiden)}
             >
               {maiden}
             </p>
@@ -366,7 +389,7 @@ function PersonNodeImpl({ data }: NodeProps) {
           {lifespan ? (
             <p
               className="truncate text-xs text-muted-foreground"
-              title={lifespan}
+              title={tip(lifespan)}
             >
               {lifespan}
             </p>
@@ -374,7 +397,7 @@ function PersonNodeImpl({ data }: NodeProps) {
           {birthplace ? (
             <p
               className="truncate text-xs text-muted-foreground"
-              title={birthplace}
+              title={tip(birthplace)}
             >
               {birthplace}
             </p>

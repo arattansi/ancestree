@@ -1,5 +1,6 @@
 import type * as React from "react";
 
+import { MEMBER_LABEL, MemberMark } from "@/components/logo-mark";
 import type { FamilyViewTree, TreeMark } from "@/lib/my-family";
 import { cn } from "@/lib/utils";
 
@@ -45,7 +46,8 @@ export function TreeMarkDot({
  * The key to My Family Tree (Steps 92.2, 94): every one of the viewer's
  * trees by its mark, in the order they joined, which is the order the marks
  * were handed out in; then the two shapes a person takes there, named
- * outright — a card for a direct relative, a pill for whoever married in.
+ * outright — a card for a direct relative, a pill for whoever married in —
+ * and the mark that says someone has an account (Step 97.3).
  */
 export function TreeKey({ trees }: { trees: FamilyViewTree[] }) {
   return (
@@ -79,6 +81,13 @@ export function TreeKey({ trees }: { trees: FamilyViewTree[] }) {
             className="inline-block h-2 w-3.5 shrink-0 rounded-full border border-muted-foreground/60 bg-muted"
           />
           <span className="truncate text-foreground">Married in</span>
+        </li>
+        <li className="flex min-w-0 items-center gap-2">
+          {/* Its width matches the shapes' above, so the names line up. */}
+          <span aria-hidden className="flex w-3.5 shrink-0 justify-center">
+            <MemberMark className="size-3.5" />
+          </span>
+          <span className="truncate text-foreground">{MEMBER_LABEL}</span>
         </li>
       </ul>
     </div>

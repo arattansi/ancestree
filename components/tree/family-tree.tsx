@@ -43,6 +43,12 @@ import { edgeTypes } from "@/components/tree/canvas-edges";
 import { FoldedDetails } from "@/components/tree/folded-details";
 import { GenerationLane } from "@/components/tree/generation-lane";
 import {
+  canHover,
+  OffSpotlightPill,
+  useHoverStore,
+  type HoverSummary,
+} from "@/components/tree/off-spotlight-pill";
+import {
   SPOTLIGHT_BROWN,
   SPOTLIGHT_GREEN,
 } from "@/components/tree/spotlight-colours";
@@ -126,6 +132,7 @@ import {
 import { nativeLeaf } from "@/lib/native-leaf";
 import { upcomingOccasions } from "@/lib/occasions";
 import { asDayMonth } from "@/lib/partial-date";
+import { petYears, speciesLabel } from "@/lib/pet-labels";
 import { personSpotlight, spotlightPeople } from "@/lib/person-spotlight";
 import {
   pairKey,
@@ -154,7 +161,11 @@ import {
 import { keptPhotoUrl } from "@/lib/signed-url";
 import { shareEqual } from "@/lib/structural-share";
 import { useKept } from "@/components/tree/use-kept";
-import { personDisplayName, personHasDied } from "@/lib/person-name";
+import {
+  personDisplayName,
+  personHasDied,
+  personLifespan,
+} from "@/lib/person-name";
 import { tagPersonOf } from "@/lib/tag-person";
 import {
   anchorPoint,
@@ -570,6 +581,21 @@ function Canvas({
     [isFamily, viewerOn, viewer, homeViewers],
   );
   const spokenFor = React.useMemo(() => new Set(spokenForIds), [spokenForIds]);
+  // On My Family Tree, who has an account (Step 97.3): the viewer, other
+  // members' own entries and settled claims, and anyone a tree names a
+  // Root, Branch or Leaf. Their leaves wear the member mark, where a
+  // tree's canvas shows the account type.
+  const memberIds = React.useMemo<ReadonlySet<string> | null>(
+    () =>
+      isFamily
+        ? new Set([
+            ...spokenForIds,
+            ...(selfPersonId ? [selfPersonId] : []),
+            ...people.flatMap((p) => (p.account_type ? [p.id] : [])),
+          ])
+        : null,
+    [isFamily, spokenForIds, selfPersonId, people],
+  );
   const entrySubject = React.useCallback(
     (person: TreeGraphPerson): EntrySubject => ({
       id: person.id,
@@ -1286,6 +1312,7 @@ function Canvas({
                 ?.blurred)),
         ...(pillLabel ? { compressed: true, pillLabel } : {}),
         ...(spouseIds.has(n.id) ? { yourSpouse: true } : {}),
+        ...(memberIds && !isPet ? { member: memberIds.has(n.id) } : {}),
       });
     }
     return map;
@@ -1303,6 +1330,7 @@ function Canvas({
     sameLabelById,
     marriedToById,
     spouseIds,
+    memberIds,
     allLeaves,
   ]);
   // A card whose flags came out the same is handed the very same `data`, so
@@ -2098,6 +2126,45 @@ function Canvas({
   // before then (a `?person=` link), and kept so they close as they always
   // did.
   const [panelsReady, loadPanels] = useLoadedSoon(preloadPanels);
+
+  // Off a spotlight's line nothing grows or lights on hover; whoever the
+  // pointer is over is named in a soft pill at the bottom right instead
+  // (Step 97.3). Kept out of the canvas's state, so a pointer crossing
+  // the cards draws the pill again and nothing else.
+  const hover = useHoverStore();
+  const onNodeMouseEnter = React.useCallback<NodeMouseHandler>(
+    (_, node) => {
+      if (!panelsReady) loadPanels();
+      const off = !!(node.data as { blurred?: boolean }).blurred;
+      hover.set(off && canHover() ? node.id : null);
+    },
+    [panelsReady, loadPanels, hover],
+  );
+  const onNodeMouseLeave = React.useCallback(() => hover.set(null), [hover]);
+  const describeOffLine = React.useCallback(
+    (id: string): HoverSummary | null => {
+      if (!(dataById.get(id) as { blurred?: boolean } | undefined)?.blurred) {
+        return null;
+      }
+      const person = personById.get(id);
+      if (person) {
+        const place = person.city_of_birth || person.country_of_birth;
+        return {
+          name: personDisplayName(person),
+          detail:
+            [personLifespan(person), place].filter(Boolean).join(" · ") ||
+            null,
+        };
+      }
+      const pet = allPets.find((p) => p.id === id);
+      if (!pet) return null;
+      return {
+        name: pet.name,
+        detail: [speciesLabel(pet), petYears(pet)].filter(Boolean).join(" · "),
+      };
+    },
+    [dataById, personById, allPets],
+  );
   const [personOpened, setPersonOpened] = React.useState(false);
   if (selectedPerson && !personOpened) setPersonOpened(true);
   const [petOpened, setPetOpened] = React.useState(false);
@@ -2353,7 +2420,8 @@ function Canvas({
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeClick={onNodeClick}
-        onNodeMouseEnter={panelsReady ? undefined : loadPanels}
+        onNodeMouseEnter={onNodeMouseEnter}
+        onNodeMouseLeave={onNodeMouseLeave}
         onEdgeClick={onEdgeClick}
         onNodeDragStop={editable ? onNodeDragStop : undefined}
         onPaneClick={() => {
@@ -2626,6 +2694,16 @@ function Canvas({
             </div>
           </Panel>
         ) : null}
+        <OffSpotlightPill
+          store={hover}
+          describe={describeOffLine}
+          className={
+            // Beside the minimap, or the open sheet that covers it.
+            sheetOut || selectedPet
+              ? "sm:!mr-[calc(24rem+15px)]"
+              : "sm:!mr-[227px]"
+          }
+        />
         <Panel position="top-left" className="flex flex-col items-start gap-2">
           {/* Who's here, above Upcoming (Step 60). */}
           <PresenceFaces

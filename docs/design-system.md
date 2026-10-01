@@ -154,6 +154,21 @@ turn autocomplete off, or every relative is offered the member's own name
   says **Tap anyone to see how you're connected, and again for their own
   tree.** A search fades leaves as it fades cards. Where the paragraphs
   below say "card", on My Family Tree it is drawn as a leaf.
+- Off a spotlight's line, on any canvas (Step 97.3), nothing answers a
+  hover: no card grows, no leaf's card opens, no border lights, no
+  tooltip. Whoever the pointer is over is named in a soft pill at the
+  bottom right instead (**Sara Zz97 · b. 1987 · Canada**; a companion's
+  kind and years), beside the minimap or the open sheet, level with the
+  pill naming what's lit, centre to centre, or just above that row when
+  the two would touch. Only with a pointer that hovers, from `sm` up.
+  Everyone on the lit line keeps their hover card.
+- On My Family Tree a leaf (or card) shows no account type (Step 97.3):
+  being one tree's Root or Leaf says little across trees. Anyone with an
+  account wears the **ancestree mark** in small instead, hung under the
+  leaf where the account type would be, beside the tree's mark (a card's
+  bottom corner), titled **Ancestree member**: the reader, members' own
+  entries and settled claims, and anyone a tree names Root, Branch or
+  Leaf. The key lists it last. Pills stay name only.
 - On My Family Tree (Step 94) a direct relative is a card and whoever
   married in is a **pill**, the shape a sibling's partner takes in a
   spotlight (Step 19.4): name only, muted, no photo or account mark, on the
@@ -169,8 +184,8 @@ turn autocomplete off, or every relative is offered the member's own name
   (none on the reader's own entry).
 - On My Family Tree a card that may be one person entered twice (Step
   92.4, `lib/same-person.ts`) wears a **?** in the attention yellow at its
-  foot, across from the account mark; on a leaf (Step 97), hung under it
-  right of the account mark, as the tree mark hangs left; on a pill, on
+  foot, across from the member mark; on a leaf (Step 97), hung under it
+  right of the member mark, as the tree mark hangs left; on a pill, on
   its right shoulder (Step 94). Its
   sheet asks above **On**: **Same person as ● Fatima Rattansi?**, the
   other card's name, with its tree's mark, opening that card, and **Not
@@ -318,7 +333,7 @@ card wears a mark for the tree it came from, and a key names them.
   sheet names every tree of theirs showing that person.
 - Where they sit (Step 92.2): a dot in a card's top corner, across from
   the report count; inside a pill, before the name (Step 94); under a leaf
-  beside the account mark, ringed in card colour like it; the key under
+  beside the member mark (Step 97.3), ringed in card colour like it; the key under
   **Search & filters**, where the lanes' names on the left stay clear; the
   sheet's **On** row, in place of **Also on**, each tree a link to it.
 

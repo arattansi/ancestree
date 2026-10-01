@@ -51,9 +51,12 @@ function PetNodeImpl({ data }: NodeProps) {
         dimmed && "opacity-25",
         blurred && "opacity-30 blur-[2px] saturate-50 phone:filter-none",
       )}
-      onPointerEnter={previewed ? undefined : () => setPreviewed(true)}
+      // Off a spotlight's line nothing grows on hover (Step 97.3).
+      onPointerEnter={
+        previewed || blurred ? undefined : () => setPreviewed(true)
+      }
     >
-      {pet.photo_url && previewed ? (
+      {pet.photo_url && previewed && !blurred ? (
         <div
           className={cn(
             "pointer-events-none absolute bottom-0 left-1/2 z-50 hidden w-40 -translate-x-1/2",
@@ -90,11 +93,16 @@ function PetNodeImpl({ data }: NodeProps) {
         className={cn(
           // h-11 / w-36 matches PET_H / PET_W in `pet-layout.ts`.
           "relative flex h-11 w-36 items-center gap-2 rounded-full border bg-muted/60 px-2 pr-3 text-left shadow-sm transition-[colors,opacity,box-shadow]",
-          "border-border/70 hover:border-ring/60",
+          "border-border/70",
+          !blurred && "hover:border-ring/60",
           pet.is_deceased && "opacity-75",
           selected && "border-ring ring-2 ring-ring/40",
         )}
-        title={`${pet.name} — ${kind}${years ? `, ${years}` : ""}`}
+        title={
+          blurred
+            ? undefined
+            : `${pet.name} — ${kind}${years ? `, ${years}` : ""}`
+        }
       >
         <Handle type="target" position={Position.Top} className={handleClass} />
 
