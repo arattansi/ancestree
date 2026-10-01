@@ -16,6 +16,7 @@ import {
   ownRoots,
   relatedRoots,
   rootSideIds,
+  viewerReach,
   type BranchEdge,
   type EntrySubject,
   type Viewer,
@@ -390,6 +391,30 @@ describe("lineIds", () => {
 
   it("gives a person with no connections a line of one", () => {
     expect(lineIds("nobody", family)).toEqual(new Set(["nobody"]));
+  });
+});
+
+describe("viewerReach (Step 92.3)", () => {
+  it("walks what a Branch tends, and their own line, as getViewer does", () => {
+    expect(viewerReach("arzu", "branch_admin", roots, family)).toEqual({
+      branch: branchReach("arzu", roots, family),
+      line: null,
+      ownLine: lineIds("arzu", family),
+    });
+  });
+
+  it("gives a Leaf their own line to grow and fill", () => {
+    const reach = viewerReach("arzu", "member", roots, family);
+    expect(reach.branch).toBeNull();
+    expect(reach.line).toEqual(lineIds("arzu", family));
+    expect(reach.ownLine).toEqual(reach.line);
+  });
+
+  it("walks nothing for a Root, who reaches everything, or anyone onboarding", () => {
+    const none = { branch: null, line: null, ownLine: null };
+    expect(viewerReach("raiya", "admin", roots, family)).toEqual(none);
+    expect(viewerReach(null, "member", roots, family)).toEqual(none);
+    expect(viewerReach(null, "branch_admin", roots, family)).toEqual(none);
   });
 });
 

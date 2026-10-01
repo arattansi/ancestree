@@ -24,14 +24,22 @@ import { personFormValues } from "@/lib/person-schema";
 import { createClient } from "@/lib/supabase/server";
 import { listTreeMembers, loadTreeEdges } from "@/lib/tree";
 import { getTreeById, requireTreeSelfPersonWith } from "@/lib/tree-context";
-import { suggestChangeHref, treeFocusHref } from "@/lib/tree-links";
+import {
+  entryBackHref,
+  openedFromFamily,
+  suggestChangeHref,
+} from "@/lib/tree-links";
 
 export const metadata: Metadata = { title: "edit entry" };
 
 export default async function EditPersonPage({
   params,
+  searchParams,
 }: PageProps<"/people/[id]/edit">) {
-  const { id } = await params;
+  const [{ id }, { back }] = await Promise.all([params, searchParams]);
+  // Opened from My Family Tree, it goes back there (Step 92.3).
+  const fromFamily = openedFromFamily(back);
+  const backHref = entryBackHref(id, fromFamily);
   const supabase = await createClient();
   // Everything that needs only the entry's id and the tree is asked for
   // with the check that their own entry is on this tree (Step 77.1): the
@@ -94,7 +102,9 @@ export default async function EditPersonPage({
   ]);
   const isHomeRoot = homeRole === "admin";
 
-  if (!canEdit && !canFill) redirect(suggestChangeHref(personId));
+  if (!canEdit && !canFill) {
+    redirect(suggestChangeHref(personId, undefined, { fromFamily }));
+  }
 
   const values = personFormValues({ ...person, last_name: person.last_name });
   const displayName = personDisplayName({
@@ -137,7 +147,7 @@ export default async function EditPersonPage({
           </div>
           <Button
             nativeButton={false}
-            render={<Link href={treeFocusHref(personId)} />}
+            render={<Link href={backHref} />}
             size="sm"
             variant="outline"
           >
@@ -149,6 +159,7 @@ export default async function EditPersonPage({
           <PersonFillForm
             treeId={tree.id}
             personId={personId}
+            doneHref={backHref}
             values={values}
             blanks={blanks}
           />
@@ -218,7 +229,7 @@ export default async function EditPersonPage({
       {/* Back to tree floats with Save changes, in reach all the way down
           (Step 59), and opens the canvas on this person again (Step 61). */}
       <PersonForm
-        backHref={treeFocusHref(personId)}
+        backHref={backHref}
         treeId={tree.id}
         isAdmin={isHomeRoot}
         person={{

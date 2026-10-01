@@ -31,11 +31,14 @@ import { treeFocusHref } from "@/lib/tree-links";
 export function PersonFillForm({
   treeId,
   personId,
+  doneHref,
   values,
   blanks,
 }: {
   treeId: string;
   personId: string;
+  /** Where saving goes: the canvas it was opened from, on this person. */
+  doneHref?: string;
   /** The entry as it stands, so what's added is checked against what's
    *  there: a death can't come before the birth already recorded. */
   values: PersonFormValues;
@@ -96,7 +99,7 @@ export function PersonFillForm({
             return;
           }
           toast.success(`Added their ${filledPhrase(filled)}.`);
-          router.push(treeFocusHref(personId));
+          router.push(doneHref ?? treeFocusHref(personId));
         },
       },
     ),

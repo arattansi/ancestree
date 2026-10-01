@@ -8,11 +8,13 @@ import {
   familyTies,
   mergeLines,
   mergeShowings,
+  reachOnTree,
   treeMarkOf,
   type FamilyLine,
   type FamilyTie,
   type Showing,
   type TreeMark,
+  type TreeReach,
 } from "@/lib/my-family";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -21,6 +23,7 @@ import {
   lineOf,
   readApprovedClaims,
   readHistoricalNames,
+  readIn,
   readPaged,
   readTreesEdges,
   readTreesPeople,
@@ -39,6 +42,9 @@ export type MyFamilyTree = {
   role: AccountTypeKey;
   /** Its mark on the cards and the key: stable while they stay on it. */
   mark: TreeMark;
+  /** What their account type reaches there, of the view's people: what
+   *  the sheet offers from a card of this tree (Step 92.3). */
+  reach: TreeReach;
 };
 
 /** Someone on My Family Tree: one card, whichever trees show them. */
@@ -50,6 +56,8 @@ export type MyFamilyPerson = TreeGraphPerson & {
   tree_id: string;
   /** Every one of the viewer's trees that shows them, in the key's order. */
   tree_ids: string[];
+  /** Those of them that show them in full (Step 92.3). */
+  full_tree_ids: string[];
 };
 
 export type MyFamilyGraph = {
@@ -60,6 +68,12 @@ export type MyFamilyGraph = {
   people: MyFamilyPerson[];
   /** Only lines one of the viewer's trees draws. */
   relationships: FamilyLine[];
+  /**
+   * Of the view's people, the entries that belong to the people they
+   * describe: other members' own and settled claims, which a Branch edits
+   * around (`getSpokenForEntryIds`, for every tree at once).
+   */
+  spokenForIds: string[];
 };
 
 /** When each of `treeIds` placed each of its people, by `tree:person`. */
@@ -131,14 +145,7 @@ export const loadMyFamily = cache(async (): Promise<MyFamilyGraph | null> => {
       Date.parse(a.joinedAt) - Date.parse(b.joinedAt) ||
       a.id.localeCompare(b.id),
   );
-  const trees: MyFamilyTree[] = joined.map((t, i) => ({
-    id: t.id,
-    name: t.name,
-    slug: t.slug,
-    role: t.role,
-    mark: treeMarkOf(i),
-  }));
-  const treeIds = trees.map((t) => t.id);
+  const treeIds = joined.map((t) => t.id);
   const mine = new Set(treeIds);
 
   const supabase = await createClient();
@@ -201,15 +208,60 @@ export const loadMyFamily = cache(async (): Promise<MyFamilyGraph | null> => {
     pos_dx: null,
     pos_dy: null,
   }));
-  const finished = await finishCards(supabase, rows, {
-    histRows,
-    claims: readApprovedClaims(
-      supabase,
-      rows.map((p) => p.id),
+  const ids = rows.map((p) => p.id);
+  // Whose own entry each is, beside the cards' finishing: members' own
+  // entries are read as each tree's canvas reads them (Step 92.3).
+  const [finished, owners] = await Promise.all([
+    finishCards(supabase, rows, {
+      histRows,
+      claims: readApprovedClaims(supabase, ids),
+      directories,
+      treeOf: (id) => treeOf.get(id) ?? "",
+    }),
+    readIn(ids, (chunk) =>
+      supabase
+        .from("profiles")
+        .select("auth_user_id, self_person_id")
+        .in("self_person_id", chunk),
     ),
-    directories,
-    treeOf: (id) => treeOf.get(id) ?? "",
+  ]);
+
+  // Who they are on each tree, measured on that tree's own people and
+  // lines, as its canvas would (`getViewer`), from the reads above.
+  const shownIds = new Set(ids);
+  const trees: MyFamilyTree[] = joined.map((t, i) => {
+    const placed = new Set(
+      people.rows.flatMap((p) => (p.tree_id === t.id && p.id ? [p.id] : [])),
+    );
+    const rootIds = (directories.get(t.id) ?? []).flatMap((m) =>
+      m.role === "admin" && m.self_person_id && placed.has(m.self_person_id)
+        ? [m.self_person_id]
+        : [],
+    );
+    const treeEdges = edges.rows.flatMap((r) =>
+      r.tree_id === t.id && r.from_person && r.to_person && r.type
+        ? [{ from_person: r.from_person, to_person: r.to_person, type: r.type }]
+        : [],
+    );
+    return {
+      id: t.id,
+      name: t.name,
+      slug: t.slug,
+      role: t.role,
+      mark: treeMarkOf(i),
+      reach: reachOnTree(selfId, t.role, rootIds, treeEdges, shownIds),
+    };
   });
+
+  const spokenFor = new Set<string>();
+  for (const o of owners) {
+    if (o.self_person_id && o.auth_user_id !== profile?.auth_user_id) {
+      spokenFor.add(o.self_person_id);
+    }
+  }
+  for (const p of finished) {
+    if (p.claim_status === "approved") spokenFor.add(p.id);
+  }
 
   return {
     selfId,
@@ -219,9 +271,11 @@ export const loadMyFamily = cache(async (): Promise<MyFamilyGraph | null> => {
       tie: ties.get(p.id) ?? "partner",
       tree_id: treeOf.get(p.id) ?? "",
       tree_ids: cards.get(p.id)?.treeIds ?? [],
+      full_tree_ids: cards.get(p.id)?.fullTreeIds ?? [],
     })),
     relationships: lines.filter(
       (l) => treeOf.has(l.from_person) && treeOf.has(l.to_person),
     ),
+    spokenForIds: [...spokenFor],
   };
 });

@@ -20,7 +20,18 @@
  * `mergeShowings` and `mergeLines`, and keeps whom `familyTies` names.
  */
 
+import { accountTypeOf, type AccountTypeKey } from "@/lib/account-types";
 import { bloodlineIds } from "@/lib/bloodline";
+import {
+  canAddRelativeOf,
+  canEditConnection,
+  canEditEntry,
+  canFillEntry,
+  viewerReach,
+  type BranchEdge,
+  type EntrySubject,
+  type Viewer,
+} from "@/lib/branch";
 import { partnersOf, type WalkEdge } from "@/lib/graph-walk";
 import type { TreeGraphEdge } from "@/lib/tree";
 
@@ -118,6 +129,8 @@ export type MergedCard<R> = {
   treeId: string;
   /** Every one of the viewer's trees that shows them, in the key's order. */
   treeIds: string[];
+  /** Those of them that show them in full, not a basic card (Step 92.3). */
+  fullTreeIds: string[];
 };
 
 /**
@@ -162,10 +175,13 @@ export function mergeShowings<R extends { id: string }>(
   for (const [id, list] of byPerson) {
     const chosen = cardShowing(list);
     if (!chosen) continue;
-    const treeIds = [...new Set(list.map((s) => s.treeId))].sort(
-      (a, b) => (order.get(a) ?? Infinity) - (order.get(b) ?? Infinity),
-    );
-    cards.set(id, { row: chosen.row, treeId: chosen.treeId, treeIds });
+    const inOrder = (a: string, b: string) =>
+      (order.get(a) ?? Infinity) - (order.get(b) ?? Infinity);
+    const treeIds = [...new Set(list.map((s) => s.treeId))].sort(inOrder);
+    const fullTreeIds = [
+      ...new Set(list.filter((s) => !s.basic).map((s) => s.treeId)),
+    ].sort(inOrder);
+    cards.set(id, { row: chosen.row, treeId: chosen.treeId, treeIds, fullTreeIds });
   }
   return cards;
 }
@@ -230,7 +246,139 @@ export type FamilyShowing = {
   tree_id: string;
   /** Every one of the viewer's trees that shows them, in the key's order. */
   tree_ids: string[];
+  /** Those of them that show them in full: where a photo of them may be
+   *  added (Step 92.3). */
+  full_tree_ids: string[];
 };
+
+/*
+ * Acting from the view (Step 92.3). Nothing is done *on* My Family Tree:
+ * each card's actions go to a tree of the viewer's, as who they are there,
+ * and the database decides again on every write. What follows says what
+ * the sheet offers, mirroring the rules each tree's canvas mirrors
+ * (`lib/branch.ts`), measured tree by tree.
+ */
+
+/**
+ * What the viewer reaches on one of their trees (`viewerReach`, as
+ * `getViewer` works it out from that tree's Roots and lines), kept to the
+ * people the view shows: those are all it's asked about. Arrays, to travel
+ * to the page.
+ */
+export type TreeReach = {
+  branch: string[] | null;
+  line: string[] | null;
+  ownLine: string[] | null;
+};
+
+/** One of the viewer's trees, with who they are there (Step 92.3). */
+export type FamilyActingTree = FamilyViewTree & {
+  role: AccountTypeKey;
+  reach: TreeReach;
+};
+
+/** `viewerReach` on one tree, kept to `shown`. */
+export function reachOnTree(
+  selfId: string,
+  role: string,
+  rootIds: readonly string[],
+  edges: readonly BranchEdge[],
+  shown: ReadonlySet<string>,
+): TreeReach {
+  const reach = viewerReach(selfId, role, rootIds, edges);
+  const kept = (ids: ReadonlySet<string> | null) =>
+    ids ? [...ids].filter((id) => shown.has(id)) : null;
+  return {
+    branch: kept(reach.branch),
+    line: kept(reach.line),
+    ownLine: kept(reach.ownLine),
+  };
+}
+
+/** The viewer as one of their trees sees them, for `lib/branch`'s rules. */
+export function viewerOnTree(
+  tree: FamilyActingTree,
+  userId: string,
+  selfId: string | null,
+): Viewer {
+  const set = (ids: string[] | null) => (ids ? new Set(ids) : null);
+  return {
+    userId,
+    role: tree.role,
+    selfPersonId: selfId,
+    branch: set(tree.reach.branch),
+    line: set(tree.reach.line),
+    ownLine: set(tree.reach.ownLine),
+  };
+}
+
+/**
+ * What the viewer may do with a card's details from the view: its home
+ * tree's rules, as `entryAccess` reads them (Step 25). A card comes from
+ * its home tree whenever the viewer is a member there (`cardShowing`), so
+ * `home` is the viewer on the card's tree when that is its home, and
+ * `null` when the home is a tree they aren't on: then it's theirs to edit
+ * only if it's their own entry, and nobody's to fill in.
+ */
+export function entryRightsFromView(
+  entry: EntrySubject,
+  home: Viewer | null,
+  selfId: string | null,
+): { canEdit: boolean; canFill: boolean } {
+  const canEdit = home ? canEditEntry(entry, home) : entry.id === selfId;
+  return {
+    canEdit,
+    canFill: !canEdit && !!home && canFillEntry(entry, home),
+  };
+}
+
+/**
+ * Whether a line may be changed from the view (Aalim, Step 92): only where
+ * it was drawn on a tree the viewer is a Root or a Branch of, and that
+ * tree's rule allows them (`private.can_edit_relationship`). A Leaf, or a
+ * line drawn on a tree they aren't on, changes it on that tree, if at all.
+ */
+export function lineEditableFromView(
+  line: {
+    from_person: string;
+    to_person: string;
+    created_by: string | null;
+    drawn_on_tree_id?: string | null;
+  },
+  viewerOn: (treeId: string) => Viewer | null,
+): boolean {
+  const viewer = line.drawn_on_tree_id ? viewerOn(line.drawn_on_tree_id) : null;
+  if (!viewer) return false;
+  const type = accountTypeOf(viewer.role);
+  if (!type.runsTree && type.entries !== "branch") return false;
+  return canEditConnection(line, viewer);
+}
+
+/**
+ * Which of the viewer's trees "Add a relative" offers from the view
+ * (Aalim, Step 92). From someone, only the trees showing them where the
+ * viewer may add from them (a Leaf only on their own line there); from
+ * nobody, or someone no tree of theirs lets them add from, every tree,
+ * adding without them. `relatedTo` says which it is.
+ */
+export function addTreesFromView<T extends FamilyActingTree>(
+  person: { id: string; tree_ids: readonly string[] } | null,
+  trees: readonly T[],
+  viewerOn: (treeId: string) => Viewer | null,
+): { relatedTo: boolean; trees: T[] } {
+  if (person) {
+    const from = trees.filter((t) => {
+      const viewer = viewerOn(t.id);
+      return (
+        !!viewer &&
+        person.tree_ids.includes(t.id) &&
+        canAddRelativeOf(person.id, viewer)
+      );
+    });
+    if (from.length > 0) return { relatedTo: true, trees: from };
+  }
+  return { relatedTo: false, trees: [...trees] };
+}
 
 /**
  * The companions My Family Tree hangs off its people (Step 92.2): those

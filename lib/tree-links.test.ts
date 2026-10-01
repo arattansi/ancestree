@@ -4,10 +4,13 @@ import {
   addRelativeHref,
   adminHref,
   editPersonHref,
+  entryBackHref,
   joinedTreeHref,
+  myFamilyFocusHref,
   myFamilyHref,
   onboardingHref,
   onboardingStepHref,
+  openedFromFamily,
   reviewHref,
   storyHref,
   suggestChangeHref,
@@ -35,6 +38,26 @@ describe("tree paths", () => {
     expect(suggestChangeHref("p 1", "s&1")).toBe(
       "/people/p%201/suggest?from=s%261",
     );
+  });
+
+  it("sends an entry's pages opened from My Family Tree back there (Step 92.3)", () => {
+    expect(editPersonHref("p1", { fromFamily: true })).toBe(
+      "/people/p1/edit?back=family",
+    );
+    expect(suggestChangeHref("p1", undefined, { fromFamily: true })).toBe(
+      "/people/p1/suggest?back=family",
+    );
+    expect(suggestChangeHref("p1", "s1", { fromFamily: true })).toBe(
+      "/people/p1/suggest?from=s1&back=family",
+    );
+    expect(editPersonHref("p1", { fromFamily: false })).toBe("/people/p1/edit");
+    expect(openedFromFamily("family")).toBe(true);
+    expect(openedFromFamily(["family", "family"])).toBe(false);
+    expect(openedFromFamily("tree")).toBe(false);
+    expect(openedFromFamily(undefined)).toBe(false);
+    expect(entryBackHref("a b", true)).toBe("/family?person=a%20b");
+    expect(entryBackHref("p1", false)).toBe("/tree?person=p1");
+    expect(myFamilyFocusHref("p1")).toBe("/family?person=p1");
   });
 
   it("opens the admin console as the account page's admin view", () => {

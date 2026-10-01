@@ -36,6 +36,7 @@ import { ConfirmButton } from "@/components/confirm-dialog";
 import { lazyComponent, useLoadedSoon } from "@/components/lazy-component";
 import { RequestInviteDialog } from "@/components/request-invite-dialog";
 import { AddRelativeButton } from "@/components/tree/add-relative-button";
+import { FamilyAddButton, type FamilyAdd } from "@/components/tree/add-to-tree";
 import { buildPeopleGraph, withPets } from "@/components/tree/build-graph";
 import { ColumnsIcon, ExpandingLabel } from "@/components/tree/canvas-controls";
 import { edgeTypes } from "@/components/tree/canvas-edges";
@@ -107,7 +108,15 @@ import { connectionLabel, connectionPath } from "@/lib/connection-path";
 import type { PanelSuggestion } from "@/lib/connection-suggestions";
 import type { GettingStartedItem } from "@/lib/first-tree";
 import { generationLabelFromYou } from "@/lib/generation-lanes";
-import type { FamilyShowing, FamilyViewTree } from "@/lib/my-family";
+import {
+  addTreesFromView,
+  entryRightsFromView,
+  lineEditableFromView,
+  viewerOnTree,
+  type FamilyActingTree,
+  type FamilyLine,
+  type FamilyShowing,
+} from "@/lib/my-family";
 import { nativeLeaf } from "@/lib/native-leaf";
 import { upcomingOccasions } from "@/lib/occasions";
 import { asDayMonth } from "@/lib/partial-date";
@@ -181,13 +190,14 @@ const NOBODY: ReadonlySet<string> = new Set();
 const KEPT_VIEW = "(kept view)";
 
 /**
- * My Family Tree (Step 92.2): the viewer's trees gathered into one view
- * that only shows. Its cards wear their tree's mark, a key names the trees,
- * and nothing is dragged, added or edited there.
+ * My Family Tree (Step 92.2): the viewer's trees gathered into one view.
+ * Its cards wear their tree's mark, a key names the trees, and nothing is
+ * dragged or added on it: each card's actions go to its own tree, as who
+ * the viewer is there (Step 92.3).
  */
 export type FamilyView = {
-  /** The viewer's trees, in the key's order. */
-  trees: FamilyViewTree[];
+  /** The viewer's trees, in the key's order, with who they are on each. */
+  trees: FamilyActingTree[];
   /** The tree the browser is looking at, for the sheet's links to theirs. */
   currentTreeId: string | null;
 };
@@ -195,7 +205,9 @@ export type FamilyView = {
 type Props = {
   /** On My Family Tree, each says which of the viewer's trees show them. */
   people: (TreeGraphPerson & Partial<FamilyShowing>)[];
-  relationships: TreeGraphEdge[];
+  /** On My Family Tree, each says which tree it was drawn on. */
+  relationships: (TreeGraphEdge &
+    Partial<Pick<FamilyLine, "drawn_on_tree_id">>)[];
   treeId: string;
   /** The tree's URL slug, for a read-only canvas's "Ask to join" (Step 41.4). */
   treeSlug: string;
@@ -277,9 +289,10 @@ function Canvas({
   family = null,
   page,
 }: Props & { page: number }) {
-  // My Family Tree moves and changes nothing (Step 92.2): no drag, no
-  // adding, no edits, nobody else's pointers. Each card's actions, against
-  // its own tree, are Step 92.3's.
+  // My Family Tree moves nothing and adds nothing itself (Step 92.2): no
+  // drag, nobody else's pointers, and none of one tree's rules. Each card's
+  // actions go to its own tree, as who the viewer is there (Step 92.3,
+  // `viewerOn` below).
   const editable = !readOnly && !family;
   // Companions stay off the canvas until the viewer switches them on (Step
   // 23). Off the canvas only: a person's details still list theirs, and
@@ -435,10 +448,13 @@ function Canvas({
   // worked out from the edges already on the canvas — `lib/branch` mirrors
   // `private.own_branch_ids` and `private.line_ids`, which are what decide.
   // Either fills in what's missing on their own line (Step 44).
+  // On My Family Tree nobody is anyone on the view itself: who they are is
+  // read per tree (`viewerOn`), so the walks are skipped.
+  const isFamily = !!family;
   const viewer = React.useMemo<Viewer>(() => {
     const type = accountTypeOf(role);
     const ownLine =
-      type.entries !== "tree" && selfPersonId
+      type.entries !== "tree" && selfPersonId && !isFamily
         ? lineIds(selfPersonId, relationships)
         : null;
     return {
@@ -446,13 +462,30 @@ function Canvas({
       role,
       selfPersonId,
       branch:
-        type.entries === "branch" && selfPersonId
+        type.entries === "branch" && selfPersonId && !isFamily
           ? branchReach(selfPersonId, rootIds, relationships)
           : null,
       line: type.addRelatives === "line" ? ownLine : null,
       ownLine,
     };
-  }, [currentUserId, role, selfPersonId, rootIds, relationships]);
+  }, [currentUserId, role, selfPersonId, rootIds, relationships, isFamily]);
+  // Who the viewer is on each of their trees, on My Family Tree (Step
+  // 92.3): what each card's sheet offers is decided on the card's own tree,
+  // and a line's on the tree it was drawn on.
+  const viewers = React.useMemo(
+    () =>
+      new Map(
+        (family?.trees ?? []).map((t) => [
+          t.id,
+          viewerOnTree(t, currentUserId, selfPersonId),
+        ]),
+      ),
+    [family, currentUserId, selfPersonId],
+  );
+  const viewerOn = React.useCallback(
+    (treeId: string) => viewers.get(treeId) ?? null,
+    [viewers],
+  );
   const spokenFor = React.useMemo(() => new Set(spokenForIds), [spokenForIds]);
   const entrySubject = React.useCallback(
     (person: TreeGraphPerson): EntrySubject => ({
@@ -1741,16 +1774,15 @@ function Canvas({
   const selectedPerson = people.find((p) => p.id === selectedId) ?? null;
   // My Family Tree is arranged around the viewer, so its rows are named
   // from them (Step 92.2): "Your generation", "Parents' generation".
-  const isView = !!family;
   const bands = React.useMemo(
     () =>
-      isView
+      isFamily
         ? graph.layout.bands.map((band) => ({
             ...band,
             label: generationLabelFromYou(band.generation),
           }))
         : graph.layout.bands,
-    [isView, graph.layout.bands],
+    [isFamily, graph.layout.bands],
   );
   // Minimized to the card that stands in for the "…'s tree" pill. Never
   // for a blurred card: it has no details to bring back.
@@ -1824,6 +1856,25 @@ function Canvas({
     editable && selectedTarget && canAddRelativeOf(selectedTarget.id, viewer)
       ? selectedTarget
       : null;
+  // On My Family Tree it goes on one of their trees (Step 92.3): from
+  // whoever is selected, the trees showing them where the viewer may add
+  // from them; else any of their trees, adding without them.
+  const selectedTreeIds = selectedPerson?.tree_ids;
+  const familyAdd = React.useMemo<FamilyAdd | null>(() => {
+    if (!family) return null;
+    const { relatedTo, trees } = addTreesFromView(
+      selectedTarget && selectedTreeIds
+        ? { id: selectedTarget.id, tree_ids: selectedTreeIds }
+        : null,
+      family.trees,
+      viewerOn,
+    );
+    return {
+      relatedTo: relatedTo ? selectedTarget : null,
+      trees,
+      currentTreeId: family.currentTreeId,
+    };
+  }, [family, selectedTarget, selectedTreeIds, viewerOn]);
   const selectedPet = allPets.find((pet) => pet.id === selectedPetId) ?? null;
 
   // The sheets, mounted once the canvas has painted and their code is here
@@ -1892,26 +1943,49 @@ function Canvas({
             marriageWithoutYear: asDayMonth(r.marriage_month, r.marriage_day),
             isDivorced: r.is_divorced,
             divorceDate: r.divorce_date,
-            canEdit:
-              editable &&
-              canEditConnection(r, viewer) &&
-              (r.drawn_here ||
-                r.created_by === viewer.userId ||
-                !(basicIds.has(r.from_person) || basicIds.has(r.to_person))),
+            // On My Family Tree, only where it was drawn on a tree they're
+            // a Root or a Branch of (Step 92.3).
+            canEdit: isFamily
+              ? lineEditableFromView(r, viewerOn)
+              : editable &&
+                canEditConnection(r, viewer) &&
+                (r.drawn_here ||
+                  r.created_by === viewer.userId ||
+                  !(basicIds.has(r.from_person) || basicIds.has(r.to_person))),
           },
         ];
       });
-  }, [selectedId, relationships, people, viewer, editable]);
-  const canEdit =
-    editable &&
-    !!selectedPerson &&
-    canEditEntry(entrySubject(selectedPerson), viewer);
+  }, [selectedId, relationships, people, viewer, editable, isFamily, viewerOn]);
+  // On My Family Tree, a card's sheet acts on the card's own tree (Step
+  // 92.3): what's told, added or reported from it goes there, and its
+  // details follow their home tree's rules, which is the card's tree
+  // whenever the viewer is on their home tree.
+  const cardTreeId = family ? (selectedPerson?.tree_id ?? null) : null;
+  const cardViewer = cardTreeId ? viewerOn(cardTreeId) : null;
+  const viewRights =
+    family && selectedPerson
+      ? entryRightsFromView(
+          entrySubject(selectedPerson),
+          selectedPerson.is_home ? cardViewer : null,
+          selfPersonId,
+        )
+      : null;
+  const canEdit = viewRights
+    ? viewRights.canEdit
+    : editable &&
+      !!selectedPerson &&
+      canEditEntry(entrySubject(selectedPerson), viewer);
   // Not theirs to edit, but theirs to fill in where it's blank (Step 44).
-  const canFill =
-    editable &&
-    !!selectedPerson &&
-    !canEdit &&
-    canFillEntry(entrySubject(selectedPerson), viewer);
+  const canFill = viewRights
+    ? viewRights.canFill
+    : editable &&
+      !!selectedPerson &&
+      !canEdit &&
+      canFillEntry(entrySubject(selectedPerson), viewer);
+  // A Root of the card's tree, on My Family Tree; of this tree, on a tree.
+  const sheetIsAdmin = family
+    ? !!cardViewer && accountTypeOf(cardViewer.role).runsTree
+    : isAdmin;
   // A basic card says too little of itself for the entry's rule, so it has
   // its own: a Root's to send, when nobody is behind it (Step 84).
   const canInvite =
@@ -1962,6 +2036,17 @@ function Canvas({
       return tree ? [tree] : [];
     });
   }, [family, selectedPerson]);
+  // Who an album photo added from the sheet may show: on My Family Tree,
+  // those the card's tree shows in full, as `add_album_photo` asks.
+  const sheetPeople = React.useMemo(() => {
+    if (!cardTreeId) return peopleOptions;
+    const onTree = new Set(
+      people.flatMap((p) =>
+        p.full_tree_ids?.includes(cardTreeId) ? [p.id] : [],
+      ),
+    );
+    return peopleOptions.filter((o) => onTree.has(o.id));
+  }, [cardTreeId, people, peopleOptions]);
   const selectedPanelSuggestions = React.useMemo(
     () =>
       selectedId
@@ -2117,6 +2202,13 @@ function Canvas({
           ) : editable ? (
             <AddRelativeButton
               relatedTo={addTarget}
+              labelFrom={sheetOut ? "lg" : "sm"}
+            />
+          ) : familyAdd ? (
+            // Which of their trees it goes on, asked when there's a choice
+            // (Step 92.3).
+            <FamilyAddButton
+              add={familyAdd}
               labelFrom={sheetOut ? "lg" : "sm"}
             />
           ) : null}
@@ -2319,13 +2411,13 @@ function Canvas({
         <PersonPanel
           // A hidden person's card is a blur to a visitor: nothing to open.
           person={selectedPerson?.blurred ? null : selectedPerson}
-          treeId={treeId}
+          treeId={cardTreeId ?? treeId}
           pets={selectedPets}
-          people={peopleOptions}
+          people={sheetPeople}
           onSelectPet={onSelectPet}
           suggestions={selectedPanelSuggestions}
           relations={relations}
-          isAdmin={isAdmin}
+          isAdmin={sheetIsAdmin}
           isSelf={selectedPerson?.id === selfPersonId}
           canEdit={canEdit}
           canFill={canFill}
@@ -2334,10 +2426,11 @@ function Canvas({
           claimInvites={selectedInvites}
           changeSuggestions={selectedSuggestions}
           declinedSuggestions={selectedDeclined}
-          readOnly={!editable}
+          readOnly={readOnly}
           shareToken={shareToken}
           onTrees={selectedTrees}
           currentTreeId={family?.currentTreeId ?? null}
+          familyAdd={familyAdd}
           claimable={!!selectedPerson && claimableIds.has(selectedPerson.id)}
           claimNote={
             selectedPerson ? (claimNotes.get(selectedPerson.id) ?? null) : null

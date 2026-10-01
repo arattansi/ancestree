@@ -12,6 +12,7 @@ import { ActionButton } from "@/components/action-button";
 import { RowCard } from "@/components/row-card";
 import { SuggestionAnswer } from "@/components/suggestion-answer";
 import { SuggestionChanges } from "@/components/suggestion-changes";
+import { TreeTarget } from "@/components/tree-target";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toastError } from "@/components/use-action";
@@ -55,12 +56,19 @@ export function EntrySuggestions({
   suggestions,
   declined = [],
   entry,
+  onTree = null,
 }: {
   suggestions: EntrySuggestion[];
   /** The viewer's own that were declined, newest first. */
   declined?: DeclinedSuggestion[];
   /** The entry as it stands, to show what each would change. */
   entry: SuggestionColumns;
+  /**
+   * On My Family Tree (Step 92.3): the card's own tree, which "Edit and
+   * resend" switches to first, and the tree the browser remembers. The
+   * form then comes back to the view.
+   */
+  onTree?: { id: string; currentTreeId: string | null } | null;
 }) {
   if (suggestions.length === 0 && declined.length === 0) return null;
 
@@ -132,14 +140,28 @@ export function EntrySuggestions({
               })}
             </p>
             <div className="flex flex-wrap gap-2">
-              <Button
-                nativeButton={false}
-                render={<Link href={suggestChangeHref(d.personId, d.id)} />}
-                size="sm"
-                variant="outline"
-              >
-                Edit and resend
-              </Button>
+              {onTree ? (
+                <TreeTarget
+                  treeId={onTree.id}
+                  currentTreeId={onTree.currentTreeId}
+                  href={suggestChangeHref(d.personId, d.id, {
+                    fromFamily: true,
+                  })}
+                  size="sm"
+                  variant="outline"
+                >
+                  Edit and resend
+                </TreeTarget>
+              ) : (
+                <Button
+                  nativeButton={false}
+                  render={<Link href={suggestChangeHref(d.personId, d.id)} />}
+                  size="sm"
+                  variant="outline"
+                >
+                  Edit and resend
+                </Button>
+              )}
               <ActionButton
                 size="sm"
                 variant="ghost"

@@ -18,8 +18,9 @@ import { loadTreeEdges } from "@/lib/tree";
 import { requireTreeSelfPersonWith } from "@/lib/tree-context";
 import {
   editPersonHref,
+  entryBackHref,
+  openedFromFamily,
   suggestChangeHref,
-  treeFocusHref,
 } from "@/lib/tree-links";
 
 export const metadata: Metadata = { title: "suggest a change" };
@@ -28,15 +29,17 @@ export const metadata: Metadata = { title: "suggest a change" };
  * Suggest a change to an entry the viewer can't edit (Step 67), from the
  * tree they're looking at. Someone who can edit it is sent to edit it.
  * `?from=` starts from one of their suggestions that was declined, to edit
- * and resend (Step 71).
+ * and resend (Step 71); `?back=family`, opened from My Family Tree, goes
+ * back there (Step 92.3).
  */
 export default async function SuggestChangePage({
   params,
   searchParams,
 }: PageProps<"/people/[id]/suggest">) {
   const { id } = await params;
-  const { from } = await searchParams;
+  const { from, back } = await searchParams;
   const fromId = typeof from === "string" ? from : undefined;
+  const fromFamily = openedFromFamily(back);
   const supabase = await createClient();
   // What needs only the entry's id is asked for with the check that their
   // own entry is on this tree (Step 77.1): the entry, their suggestions on
@@ -102,7 +105,7 @@ export default async function SuggestChangePage({
     }),
     placeLabels(shown),
   ]);
-  if (canEdit) redirect(editPersonHref(personId));
+  if (canEdit) redirect(editPersonHref(personId, { fromFamily }));
 
   return (
     <PageColumn>
@@ -127,7 +130,7 @@ export default async function SuggestChangePage({
           <p className="text-sm text-muted-foreground">
             Your last suggestion was declined.{" "}
             <Link
-              href={suggestChangeHref(personId, declined.id)}
+              href={suggestChangeHref(personId, declined.id, { fromFamily })}
               className="text-foreground underline underline-offset-2"
             >
               Edit and resend it
@@ -146,7 +149,7 @@ export default async function SuggestChangePage({
         placeLabels={labels}
         note={startingFrom?.note ?? ""}
         startsFrom={startsFrom}
-        backHref={treeFocusHref(personId)}
+        backHref={entryBackHref(personId, fromFamily)}
       />
     </PageColumn>
   );

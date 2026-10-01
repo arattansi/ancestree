@@ -26,6 +26,34 @@ export function treeFocusHref(personId: string | null | undefined): string {
   return personId ? `${treeHref()}?person=${enc(personId)}` : treeHref();
 }
 
+/** My Family Tree opened on one person's details (Step 92.3). */
+export function myFamilyFocusHref(personId: string): string {
+  return `${myFamilyHref()}?person=${enc(personId)}`;
+}
+
+/**
+ * An entry's pages opened from My Family Tree (Step 92.3) say so with
+ * `back=family`, and go back there rather than to the tree they switched
+ * to on the way.
+ */
+const BACK = "back";
+const FROM_FAMILY = "family";
+
+/** Whether a page's `back` parameter says it was opened from the view. */
+export function openedFromFamily(back: string | string[] | undefined): boolean {
+  return back === FROM_FAMILY;
+}
+
+/** Where an entry's page goes back to: the canvas it was opened from. */
+export function entryBackHref(personId: string, fromFamily: boolean): string {
+  return fromFamily ? myFamilyFocusHref(personId) : treeFocusHref(personId);
+}
+
+function withBack(href: string, fromFamily: boolean | undefined): string {
+  if (!fromFamily) return href;
+  return `${href}${href.includes("?") ? "&" : "?"}${BACK}=${FROM_FAMILY}`;
+}
+
 /**
  * The canvas opened on a person's sheet with one of their stories' comments
  * open (Step 88.4): `EntryStories` reads `story`.
@@ -64,9 +92,12 @@ export function addRelativeHref(relatedTo?: string | null): string {
   return relatedTo ? `${base}?relatedTo=${enc(relatedTo)}` : base;
 }
 
-/** Edit one entry, from the tree being viewed. */
-export function editPersonHref(personId: string): string {
-  return `/people/${enc(personId)}/edit`;
+/** Edit one entry, from the tree being viewed (or from My Family Tree). */
+export function editPersonHref(
+  personId: string,
+  { fromFamily }: { fromFamily?: boolean } = {},
+): string {
+  return withBack(`/people/${enc(personId)}/edit`, fromFamily);
 }
 
 /**
@@ -74,9 +105,13 @@ export function editPersonHref(personId: string): string {
  * `from`, starting from a suggestion of theirs that was declined, to edit
  * and resend (Step 71).
  */
-export function suggestChangeHref(personId: string, from?: string): string {
+export function suggestChangeHref(
+  personId: string,
+  from?: string,
+  { fromFamily }: { fromFamily?: boolean } = {},
+): string {
   const base = `/people/${enc(personId)}/suggest`;
-  return from ? `${base}?from=${enc(from)}` : base;
+  return withBack(from ? `${base}?from=${enc(from)}` : base, fromFamily);
 }
 
 /** First-run: find or add yourself on the tree being viewed. */

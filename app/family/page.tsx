@@ -6,6 +6,10 @@ import { LEAF } from "@/lib/account-types";
 import { companionsShowing, MY_FAMILY_VIEW } from "@/lib/my-family";
 import { loadMyFamily } from "@/lib/my-family.server";
 import { getTreePets } from "@/lib/pets";
+import {
+  listOwnDeclinedSuggestions,
+  listPendingSuggestions,
+} from "@/lib/suggestions.server";
 import { listMyTrees, requireTreeAccess } from "@/lib/tree-context";
 import { treeHref } from "@/lib/tree-links";
 
@@ -17,9 +21,9 @@ export const metadata: Metadata = {
 /**
  * My Family Tree (Step 92.2): everyone the member is related to, gathered
  * from every tree they're a member of (`loadMyFamily`) and drawn on the
- * tree's own canvas, arranged around them. A view only: nothing is moved,
- * added or edited here yet — each card's actions come with Step 92.3, and
- * each acts on the card's own tree.
+ * tree's own canvas, arranged around them. A view only: nothing is moved
+ * or added on it. Each card's actions (Step 92.3) go to the card's own
+ * tree, as who the member is there; adding goes to the tree they pick.
  */
 export default async function MyFamilyPage() {
   // Signed out, or a member of no tree: wherever the canvas would send them.
@@ -27,11 +31,16 @@ export default async function MyFamilyPage() {
   const profile =
     access.kind === "member" ? access.membership.profile : access.visit.profile;
   const trees = await listMyTrees();
-  // Their companions are read beside the people, from the same trees.
-  const [family, pets] = await Promise.all([
-    loadMyFamily(),
-    getTreePets(trees.map((t) => t.id)),
-  ]);
+  // Their companions are read beside the people, from the same trees, and
+  // the suggested changes they can see (Step 67) as a tree's canvas reads
+  // them: waiting ones to answer or their own, and their own declined.
+  const [family, pets, changeSuggestions, declinedSuggestions] =
+    await Promise.all([
+      loadMyFamily(),
+      getTreePets(trees.map((t) => t.id)),
+      listPendingSuggestions(profile.auth_user_id),
+      listOwnDeclinedSuggestions(profile.auth_user_id),
+    ]);
   // Nothing to arrange it around yet (no entry of their own, or on none of
   // their trees): the canvas sends them where they'd add it.
   if (!family) redirect(treeHref());
@@ -50,15 +59,28 @@ export default async function MyFamilyPage() {
         anchorIds={[family.selfId]}
         rootIds={[]}
         currentUserId={profile.auth_user_id}
+        // Who they are is decided per card, on its own tree (`family`).
         isAdmin={false}
-        // Nothing is offered on the view that a type would decide.
         role={LEAF.key}
-        spokenForIds={[]}
+        spokenForIds={family.spokenForIds}
+        // No "This is me" here, nor a tree's implied connections.
         claimCandidates={[]}
         panelSuggestions={[]}
         pets={companionsShowing(pets, shown)}
+        changeSuggestions={changeSuggestions.filter((s) =>
+          shown.has(s.personId),
+        )}
+        declinedSuggestions={declinedSuggestions.filter((s) =>
+          shown.has(s.personId),
+        )}
         family={{
-          trees: family.trees.map(({ id, name, mark }) => ({ id, name, mark })),
+          trees: family.trees.map(({ id, name, mark, role, reach }) => ({
+            id,
+            name,
+            mark,
+            role,
+            reach,
+          })),
           currentTreeId:
             access.kind === "member" ? access.membership.tree.id : null,
         }}

@@ -3,12 +3,7 @@ import "server-only";
 import { cache } from "react";
 
 import { accountTypeOf, type AccountTypeKey } from "@/lib/account-types";
-import {
-  branchReach,
-  lineIds,
-  relatedRoots,
-  type Viewer,
-} from "@/lib/branch";
+import { lineIds, relatedRoots, viewerReach, type Viewer } from "@/lib/branch";
 import { personDisplayName } from "@/lib/person-name";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -90,25 +85,16 @@ export async function getViewer(
   };
   const self = profile.self_person_id;
   const type = accountTypeOf(role);
-  const tends = type.entries === "branch" && !!self;
-  const grows = type.addRelatives === "line" && !!self;
-  const fills = type.entries !== "tree" && !!self;
-  if (!self || !fills) {
-    return { ...base, branch: null, line: null, ownLine: null };
+  // A Root reaches everything, and someone onboarding no one: no walks.
+  if (!self || type.entries === "tree") {
+    return { ...base, ...viewerReach(self, role, [], []) };
   }
 
   const [rootIds, edges] = await Promise.all([
-    tends ? getRootEntryIds(treeId) : [],
+    type.entries === "branch" ? getRootEntryIds(treeId) : [],
     treeEdges(treeId),
   ]);
-  const ownLine = lineIds(self, edges);
-
-  return {
-    ...base,
-    branch: tends ? branchReach(self, rootIds, edges) : null,
-    line: grows ? ownLine : null,
-    ownLine,
-  };
+  return { ...base, ...viewerReach(self, role, rootIds, edges) };
 }
 
 /**

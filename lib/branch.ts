@@ -190,6 +190,34 @@ export type Viewer = {
   ownLine: ReadonlySet<string> | null;
 };
 
+/** What a viewer reaches on one tree: `Viewer` without who they are. */
+export type ViewerReach = Pick<Viewer, "branch" | "line" | "ownLine">;
+
+/**
+ * What `role` reaches on a tree drawn by `edges`, whose Roots' own entries
+ * are `rootIds`, for the member whose entry is `selfId`: the walks
+ * `getViewer` resolves, measured on that tree's people. A Root reaches
+ * everything, so none; someone still onboarding is related to no one.
+ */
+export function viewerReach(
+  selfId: string | null,
+  role: string,
+  rootIds: readonly string[],
+  edges: readonly BranchEdge[],
+): ViewerReach {
+  const type = accountTypeOf(role);
+  if (!selfId || type.entries === "tree") {
+    return { branch: null, line: null, ownLine: null };
+  }
+  const ownLine = lineIds(selfId, edges);
+  return {
+    branch:
+      type.entries === "branch" ? branchReach(selfId, rootIds, edges) : null,
+    line: type.addRelatives === "line" ? ownLine : null,
+    ownLine,
+  };
+}
+
 /** The entry being looked at, as far as permission is concerned. */
 export type EntrySubject = {
   id: string;

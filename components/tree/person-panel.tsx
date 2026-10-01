@@ -2,9 +2,18 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Flag, Lightbulb, Mail, Minimize2, Pencil, UserPlus } from "lucide-react";
+import {
+  Flag,
+  Lightbulb,
+  Loader2Icon,
+  Mail,
+  Minimize2,
+  Pencil,
+  UserPlus,
+} from "lucide-react";
 
 import { claimPerson } from "@/app/actions/claims";
+import { switchTreeForm } from "@/app/actions/current-tree";
 import { sendClaimInvite } from "@/app/actions/invites";
 import { setPersonPhotoCrop } from "@/app/actions/people";
 import { deletePerson } from "@/app/actions/privacy";
@@ -25,6 +34,7 @@ import {
   type PersonRelation,
 } from "@/components/tree/person-family";
 import { AddRelativeButton } from "@/components/tree/add-relative-button";
+import { FamilyAddButton, type FamilyAdd } from "@/components/tree/add-to-tree";
 import type { CompanionOption } from "@/components/tree/companion-picker";
 import { EntryAlbum } from "@/components/tree/entry-album";
 import { EntryStories } from "@/components/tree/entry-stories";
@@ -114,6 +124,56 @@ function TagLink({
       render={<Link href={href} title={title} />}
       className="relative tap-target overflow-visible"
     >
+      {children}
+    </Badge>
+  );
+}
+
+/**
+ * `TagLink` to a page on another tree than the one the browser remembers
+ * (Step 92.3: from My Family Tree, a card's own): a button that switches
+ * to that tree first and stays busy until the page arrives, as
+ * `TreeTarget` does. On the remembered tree it's the plain link.
+ */
+function TagTreeLink({
+  treeId,
+  currentTreeId,
+  href,
+  title,
+  icon,
+  children,
+}: {
+  treeId: string;
+  currentTreeId: string | null;
+  href: string;
+  title?: string;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  const go = useAction();
+  if (treeId === currentTreeId) {
+    return (
+      <TagLink href={href} title={title}>
+        {icon}
+        {children}
+      </TagLink>
+    );
+  }
+  return (
+    <Badge
+      variant="outline"
+      render={
+        <button
+          type="button"
+          title={title}
+          disabled={go.pending}
+          aria-busy={go.pending || undefined}
+          onClick={() => go.run("open", () => switchTreeForm(treeId, href))}
+        />
+      }
+      className="relative tap-target overflow-visible hover:bg-muted hover:text-muted-foreground disabled:opacity-70"
+    >
+      {go.pending ? <Loader2Icon aria-hidden className="animate-spin" /> : icon}
       {children}
     </Badge>
   );
@@ -216,6 +276,7 @@ function PersonPanelImpl({
   shareToken = null,
   onTrees = null,
   currentTreeId = null,
+  familyAdd = null,
   addRelativeOf = null,
   connectionPrompt = null,
   minimized = false,
@@ -241,6 +302,12 @@ function PersonPanelImpl({
    */
   onTrees?: FamilyViewTree[] | null;
   currentTreeId?: string | null;
+  /**
+   * On My Family Tree (Step 92.3), where its "Add a relative" goes: which
+   * of the viewer's trees, asked when there's a choice. `treeId` is then
+   * the card's own tree, where what's done from the sheet goes.
+   */
+  familyAdd?: FamilyAdd | null;
   /** Pending implied connections involving this person the viewer can resolve. */
   suggestions: PanelSuggestion[];
   /** This person's parent / child / spouse links (spouse rows carry dates). */
@@ -342,12 +409,16 @@ function PersonPanelImpl({
   // fill in, comment on or manage from this tree.
   const basic = !!person?.basic;
   const locked = readOnly || basic;
+  // On My Family Tree (Step 92.3): its pages open on the card's own tree,
+  // switched to first, and come back to the view; its companions only show.
+  const inView = onTrees !== null;
   // What the sections below show beyond the card, in one read as the sheet
   // opens (Step 87.6): "Also on" unless the tree is read-only, and reports,
   // the album and stories where the entry is open to this viewer.
   // Minimized, they stay mounted, so still read.
   useLoadPersonSheet(person?.id ?? null, {
-    trees: !readOnly,
+    // On My Family Tree the sheet names their trees itself (`onTrees`).
+    trees: !readOnly && !inView,
     album: !locked,
     stories: !locked,
     reports: locked ? 0 : (person?.open_report_count ?? 0),
@@ -661,22 +732,48 @@ function PersonPanelImpl({
                 {!locked ? (
                   <span className="ml-auto flex gap-1.5">
                     {canEdit || fillable ? (
-                      <TagLink
-                        href={editPersonHref(person.id)}
-                        title={canEdit ? undefined : "Fill in what’s missing"}
-                      >
-                        <Pencil aria-hidden />
-                        {canEdit ? "Edit" : "Fill in"}
-                      </TagLink>
+                      inView ? (
+                        <TagTreeLink
+                          treeId={treeId}
+                          currentTreeId={currentTreeId}
+                          href={editPersonHref(person.id, { fromFamily: true })}
+                          title={canEdit ? undefined : "Fill in what’s missing"}
+                          icon={<Pencil aria-hidden />}
+                        >
+                          {canEdit ? "Edit" : "Fill in"}
+                        </TagTreeLink>
+                      ) : (
+                        <TagLink
+                          href={editPersonHref(person.id)}
+                          title={canEdit ? undefined : "Fill in what’s missing"}
+                        >
+                          <Pencil aria-hidden />
+                          {canEdit ? "Edit" : "Fill in"}
+                        </TagLink>
+                      )
                     ) : null}
                     {!canEdit ? (
-                      <TagLink
-                        href={suggestChangeHref(person.id)}
-                        title="Suggest a change"
-                      >
-                        <Lightbulb aria-hidden />
-                        Suggest
-                      </TagLink>
+                      inView ? (
+                        <TagTreeLink
+                          treeId={treeId}
+                          currentTreeId={currentTreeId}
+                          href={suggestChangeHref(person.id, undefined, {
+                            fromFamily: true,
+                          })}
+                          title="Suggest a change"
+                          icon={<Lightbulb aria-hidden />}
+                        >
+                          Suggest
+                        </TagTreeLink>
+                      ) : (
+                        <TagLink
+                          href={suggestChangeHref(person.id)}
+                          title="Suggest a change"
+                        >
+                          <Lightbulb aria-hidden />
+                          Suggest
+                        </TagLink>
+                      )
                     ) : null}
                     {canReport ? (
                       <TagButton
@@ -689,7 +786,13 @@ function PersonPanelImpl({
                   </span>
                 ) : null}
               </div>
-              {addRelativeOf && !readOnly ? (
+              {familyAdd ? (
+                // From the person on My Family Tree: the trees showing them
+                // where the viewer may add (Step 92.3).
+                familyAdd.relatedTo ? (
+                  <FamilyAddButton add={familyAdd} className="w-full sm:hidden" />
+                ) : null
+              ) : addRelativeOf && !readOnly ? (
                 <AddRelativeButton
                   relatedTo={addRelativeOf}
                   className="w-full sm:hidden"
@@ -711,6 +814,9 @@ function PersonPanelImpl({
                   suggestions={changeSuggestions}
                   declined={declinedSuggestions}
                   entry={person}
+                  onTree={
+                    inView ? { id: treeId, currentTreeId } : null
+                  }
                 />
               ) : null}
               {!locked ? (
@@ -858,7 +964,9 @@ function PersonPanelImpl({
 
               <CompanionsSection
                 pets={pets}
-                canAdd={!locked && canEdit}
+                // On My Family Tree companions only show (Step 92.3): a pet
+                // lives on one tree, which the view doesn't say.
+                canAdd={!locked && !inView && canEdit}
                 onSelectPet={onSelectPet}
                 onAdd={() => setAddingCompanion(true)}
                 open={companionsOpen}
@@ -954,7 +1062,7 @@ function PersonPanelImpl({
               />
             ) : null}
 
-            {!readOnly && canEdit ? (
+            {!readOnly && !inView && canEdit ? (
               <AddCompanionDialog
                 open={addingCompanion}
                 onOpenChange={setAddingCompanion}
