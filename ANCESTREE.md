@@ -406,7 +406,16 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   shared-tree + member lookups + `getTreeGraph` (canvas data), and the
   reads a request shares whoever asks (Step 77.1): `loadTreePeople`,
   `loadTreeEdges`, `loadTreeDirectory`, `loadTreeClaims` (this tree's
-  people's only), and `readIn` for a long `in` filter;
+  people's only), and `readIn` for a long `in` filter; `getTreeGraph` is
+  `cardOf` / `lineOf` over the views' rows, then `finishCards` (photos,
+  period names, claims, reports, account types, one wave for all), which
+  My Family Tree shares, with `readTreesPeople` / `readTreesEdges` reading
+  many trees at once (`readPaged` past PostgREST's 1,000 rows) (Step 92.1);
+  `lib/my-family.ts` — who's in My Family Tree (`familyTies`), which tree
+  a card comes from (`cardShowing`, `mergeShowings`), one copy of each
+  line (`mergeLines`), the trees' marks (`treeMarkOf`) (Step 92.1,
+  `.test.ts`); `lib/my-family.server.ts` — `loadMyFamily`, every tree the
+  member is on merged into one graph;
   `lib/tree-layout.ts` — the anchored auto-layout engine (Step 4.6, `.test.ts`):
   generations relative to the founding admins fix `y`; partners are fused into
   one *atom*, and a family (an atom plus everything descended from it) is laid
@@ -1685,6 +1694,60 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 92.1 — Who's in My Family Tree** (the first of Step 92; no UI;
+  no migration). **Aalim asked for:** every account's own view, pulled
+  from every tree it's a member of and joined through shared entries: the
+  member's blood (Step 55's walk from their own entry), plus the blood of
+  their current partner (a spouse line not ended; an ex's family stays
+  out), then anyone in those married or had children with, as cards
+  without their own families. A full card beats a basic one; only lines
+  one of their trees draws; each card labelled with the tree it came from
+  (home tree if theirs, else the tree of theirs that has shown it in full
+  longest) and a colour per tree. `lib/my-family.ts` holds the rule
+  (`familyTies`: `blood`, `partner_blood`, `partner`), the label
+  (`cardShowing` / `mergeShowings`, by `tree_placements.created_at`, the
+  order `delete_tree` picks a new home by), one copy of each line
+  (`mergeLines`) and the marks (`treeMarkOf`). `loadMyFamily`
+  (`lib/my-family.server.ts`) reads every member tree at once and finishes
+  only the cards that are in. `getTreeGraph` is split into `cardOf` /
+  `lineOf` and `finishCards` so both share the same card-building; its
+  output is byte-identical to before. **Tree marks:** `--tree-mark-1`
+  (blue) and `--tree-mark-2` (magenta) in `app/globals.css`, filled for a
+  member's first two trees and as rings for the next two, in the order
+  they joined (docs/design-system.md, "Tree marks"): the only pair of the
+  data-viz reference palette's hues that means nothing else here (red is a
+  card's report count, orange and brown Root and Branch, yellow
+  attention, green the leaves) and passes its validator against each
+  other in both themes; adding violet or aqua failed in dark. **My calls,
+  not asked:** a co-parent is anyone sharing a child with someone in,
+  married or not; only `is_divorced` ends a marriage, so a late spouse's
+  family is still theirs; ties in placement date go to the earlier known
+  date, then the tree id, and a basic-only card to its longest showing;
+  a card's account type and "added by" are read on its own tree; card
+  positions are dropped, since the view is always arranged around them;
+  a line's dates show if any tree of theirs shows them, `drawn_here`
+  means drawn on any tree of theirs and `drawn_on_tree_id` comes along
+  for 92.3; past four trees the marks repeat, and leaving a tree moves
+  the later trees' marks up; the loader throws rather than draw a family
+  from half its lines, and is `null` with no own entry, no tree, or no
+  tree of theirs showing them; companions wait for 92.2. **No
+  migration:** a member already reads every placement, card and line of
+  their trees (`tree_placements_select` is `can_view_tree`; both views are
+  security invoker), confirmed live as real members. **Numbers:** 9
+  requests in 3 waves whether one tree or two (`my_trees`; then
+  `tree_people`, `tree_edges`, `tree_placements`, `historical_names`,
+  `member_directory` together; then claims, reports and names, plus
+  places and photos when there are any), where two trees' canvases take
+  about 18. **Checked:** 19 new tests on Aalim's example (Karim, Raiya
+  and his mom, an ex, a co-parent, two current wives, a cousin marriage,
+  a cycle); `getTreeGraph` old against new on both live trees with every
+  option, JSON byte-identical (signed tokens masked); live, three
+  throwaway accounts on three throwaway trees (Mom on her own side and
+  Dad's, Dad basic on hers, Raiya in full on both at different dates)
+  read 16, 12 and 3 people with 23, 16 and 3 lines as expected, labels,
+  per-tree account types and marks right, and opening Raiya's tree to
+  Dad's side as a visited tree changed nothing; then removed, live back
+  to 2 trees, 202 people and 383 lines.
 - **Step 87.7 — Phone paint and hidden work** (the last of Step 87,
   audit Phase 3, findings C5–C7; the hover previews in C7 went in 87.5; no
   migration; landed after Steps 88.6 and 91). **Aalim asked for:** a

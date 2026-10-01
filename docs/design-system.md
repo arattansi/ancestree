@@ -237,6 +237,26 @@ The first is the dashboard's members active each week (Step 56,
 - Figures in a table are `tabular-nums` and right-aligned; a headline number
   on its own isn't.
 
+## Tree marks
+
+My Family Tree (Step 92) gathers a member's trees into one view, so each
+card wears a mark for the tree it came from, and a key names them.
+
+- Two hues, the data-viz reference palette's blue and magenta:
+  `--tree-mark-1` (#2a78d6 light, #3987e5 dark) and `--tree-mark-2`
+  (#d55181 in both). They're the only pair of its hues that means nothing
+  else here: not red (a card's report count, delete), orange or brown (Root
+  and Branch), yellow (`--attention`), green (leaves, Leaf, `--canopy`).
+  Every tree can sit beside every other on a card, so they were checked
+  as all pairs, against the card in each theme: 3:1 or more, and apart
+  under colour blindness. Adding blue's or magenta's neighbours in that
+  palette (violet, aqua) failed in dark.
+- A member's trees take marks in the order they joined
+  (`lib/my-family.ts#treeMarkOf`): blue, magenta, then the same two as
+  rings, so four trees each have their own. Past four the marks repeat.
+- A mark never stands alone: the key names every tree, and the details
+  sheet names every tree of theirs showing that person.
+
 ## Step-by-step flows
 
 - A flow of steps (the founder's first run, Step 29) shows where you are
