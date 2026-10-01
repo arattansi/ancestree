@@ -2,7 +2,10 @@ import { timingSafeEqual } from "node:crypto";
 
 import { NextResponse, type NextRequest } from "next/server";
 
-import { sendWeeklyNewsletters } from "@/lib/newsletter.server";
+import {
+  sendScheduledNewsletters,
+  sendWeeklyNewsletters,
+} from "@/lib/newsletter.server";
 
 /** A run reads every tree and sends in batches: allow it the full five minutes. */
 export const maxDuration = 300;
@@ -20,9 +23,11 @@ function fromTheJob(request: NextRequest): boolean {
 
 /**
  * `GET /api/cron/newsletter`: the weekly newsletter (Step 95), called by
- * Vercel Cron on Sunday (`vercel.json`) and by nobody else — without the
- * job's secret it answers 401 and does nothing. `?user=<id>` (repeatable)
- * narrows a run to some members, for a test send with the same secret.
+ * Vercel Cron every day at 15:00 UTC (`vercel.json`) and by nobody else —
+ * without the job's secret it answers 401 and does nothing. It sends only
+ * on the day the beta reviewers chose, unless they paused it
+ * (`newsletter_schedule`). `?user=<id>` (repeatable) sends to those
+ * members now, whatever the day, for a test send with the same secret.
  * Answers with counts only.
  */
 export async function GET(request: NextRequest) {
@@ -36,9 +41,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Not a member id." }, { status: 400 });
   }
   try {
-    const run = await sendWeeklyNewsletters({
-      users: users.length ? users : undefined,
-    });
+    const run = users.length
+      ? await sendWeeklyNewsletters({ users })
+      : await sendScheduledNewsletters();
     return NextResponse.json(run, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
     console.error("[newsletter] the run failed", err);

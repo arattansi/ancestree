@@ -18,6 +18,10 @@ import {
 import {
   EngagementDashboard,
 } from "@/components/dashboard/engagement-dashboard";
+import {
+  NewsletterCard,
+  NewsletterCardSkeleton,
+} from "@/components/dashboard/newsletter-card";
 import { DeleteAccount } from "@/components/delete-account";
 import { DirectInviteForm } from "@/components/direct-invite-form";
 import { EditDisplayName } from "@/components/edit-display-name";
@@ -154,7 +158,13 @@ export default async function AccountPage({
         {view === "admin" && console ? (
           <AdminConsole membership={console} />
         ) : view === "dashboard" ? (
-          <EngagementDashboard />
+          <div className="flex flex-col gap-6">
+            {/* Its preview reads every tree of theirs: the numbers don't wait. */}
+            <Suspense fallback={<NewsletterCardSkeleton />}>
+              <NewsletterCard />
+            </Suspense>
+            <EngagementDashboard />
+          </div>
         ) : view === "settings" ? (
           <SettingsView
             profile={profile}

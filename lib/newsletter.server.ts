@@ -3,7 +3,15 @@ import "server-only";
 import { sendEmails, unsentSummary, type SendEmailInput } from "@/lib/email";
 import { newsletterEmail } from "@/lib/emails/newsletter";
 import type { FamilyLine, Showing } from "@/lib/my-family";
-import { weeklyIssue, type IssuePlacement } from "@/lib/newsletter";
+import {
+  DEFAULT_SCHEDULE,
+  isSendDay,
+  nextSendAt,
+  weeklyIssue,
+  type IssuePlacement,
+  type NewsletterSchedule,
+} from "@/lib/newsletter";
+import { ensureNewsletterToken } from "@/lib/newsletter-settings.server";
 import { personDisplayName } from "@/lib/person-name";
 import { getSiteUrl } from "@/lib/site-url";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -34,7 +42,71 @@ export type NewsletterRun = {
   skipped: number;
   /** Their email didn't go. */
   unsent: number;
+  /** Nothing was due to go: the schedule is paused, or it isn't the day. */
+  held?: "paused" | "not today";
 };
+
+const NOTHING: NewsletterRun = { due: 0, sent: 0, quiet: 0, skipped: 0, unsent: 0 };
+
+/** When it goes out, as the beta reviewers set it, read with the service role. */
+export async function readNewsletterSchedule(): Promise<NewsletterSchedule> {
+  const { data, error } = await createAdminClient()
+    .from("newsletter_schedule")
+    .select("weekday, paused")
+    .maybeSingle();
+  if (error) throw new Error(`newsletter_schedule: ${error.message}`);
+  return data ?? DEFAULT_SCHEDULE;
+}
+
+/**
+ * The cron job's daily call (Step 95): the week's send on the day the beta
+ * reviewers chose, unless they paused it; nothing on any other day.
+ */
+export async function sendScheduledNewsletters(
+  now: Date = new Date(),
+): Promise<NewsletterRun> {
+  const schedule = await readNewsletterSchedule();
+  if (schedule.paused) return { ...NOTHING, held: "paused" };
+  if (!isSendDay(schedule, now)) return { ...NOTHING, held: "not today" };
+  return sendWeeklyNewsletters({ now });
+}
+
+/**
+ * A member's own issue as the next send would make it from what's there
+ * now, sent to nobody and marking nothing (the dashboard's preview and its
+ * test email): the week before that send, told on that day. Null for a
+ * quiet week, or with no entry of their own.
+ */
+export async function ownNewsletter(
+  member: {
+    userId: string;
+    email: string;
+    selfPersonId: string | null;
+    /** Their trees, in the order they joined. */
+    treeIds: string[];
+  },
+  /** For an email that goes: its unsubscribe link is theirs (made if
+   *  need be). A preview's goes nowhere and writes nothing. */
+  { sending = false }: { sending?: boolean } = {},
+): Promise<SendEmailInput | null> {
+  const now = new Date();
+  const at = nextSendAt(await readNewsletterSchedule(), now) ?? now;
+  const token = sending ? await ensureNewsletterToken(member.userId) : "preview";
+  const { emails } = await buildWeeklyNewsletters(
+    [
+      {
+        user_id: member.userId,
+        email: member.email,
+        self_person_id: member.selfPersonId,
+        token,
+        since: new Date(at.getTime() - 7 * 86_400_000).toISOString(),
+        tree_ids: member.treeIds,
+      },
+    ],
+    at,
+  );
+  return emails.get(member.userId) ?? null;
+}
 
 /** Today in UTC, `YYYY-MM-DD`: the job runs on the server's clock. */
 function utcDay(now: Date): string {
@@ -61,7 +133,7 @@ export async function sendWeeklyNewsletters(
   opts: { users?: string[]; now?: Date } = {},
 ): Promise<NewsletterRun> {
   const supabase = createAdminClient();
-  const run: NewsletterRun = { due: 0, sent: 0, quiet: 0, skipped: 0, unsent: 0 };
+  const run: NewsletterRun = { ...NOTHING };
 
   const { data: due, error } = await supabase.rpc("newsletter_due", {
     p_users: opts.users,

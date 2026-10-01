@@ -968,6 +968,30 @@ export type Database = {
         }
         Relationships: []
       }
+      newsletter_schedule: {
+        Row: {
+          id: boolean
+          paused: boolean
+          updated_at: string
+          updated_by: string | null
+          weekday: number
+        }
+        Insert: {
+          id?: boolean
+          paused?: boolean
+          updated_at?: string
+          updated_by?: string | null
+          weekday?: number
+        }
+        Update: {
+          id?: boolean
+          paused?: boolean
+          updated_at?: string
+          updated_by?: string | null
+          weekday?: number
+        }
+        Relationships: []
+      }
       newsletter_settings: {
         Row: {
           last_issue_at: string | null
@@ -2996,6 +3020,10 @@ export type Database = {
         Returns: string
       }
       set_newsletter: { Args: { p_on: boolean }; Returns: undefined }
+      set_newsletter_schedule: {
+        Args: { p_paused: boolean; p_weekday: number }
+        Returns: undefined
+      }
       share_story: { Args: { p_story: string }; Returns: string }
       shared_story: {
         Args: { p_token: string }

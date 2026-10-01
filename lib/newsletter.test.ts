@@ -4,6 +4,8 @@ import type { FamilyLine, Showing } from "@/lib/my-family";
 import {
   addedCount,
   isMilestone,
+  isSendDay,
+  nextSendAt,
   weeklyIssue,
   type IssueInput,
   type IssuePerson,
@@ -383,5 +385,35 @@ describe("isMilestone", () => {
 
   it("never without a known year", () => {
     expect(isMilestone({ kind: "birthday", years: null })).toBe(false);
+  });
+});
+
+describe("the schedule", () => {
+  // Thursday 1 October 2026, 11:00 UTC.
+  const thu = new Date("2026-10-01T11:00:00Z");
+
+  it("sends only on the chosen day, and never while paused", () => {
+    expect(isSendDay({ weekday: 4, paused: false }, thu)).toBe(true);
+    expect(isSendDay({ weekday: 0, paused: false }, thu)).toBe(false);
+    expect(isSendDay({ weekday: 4, paused: true }, thu)).toBe(false);
+  });
+
+  it("goes out next on the chosen day at 15:00 UTC", () => {
+    expect(nextSendAt({ weekday: 0, paused: false }, thu)?.toISOString()).toBe(
+      "2026-10-04T15:00:00.000Z",
+    );
+    // Today, still to come.
+    expect(nextSendAt({ weekday: 4, paused: false }, thu)?.toISOString()).toBe(
+      "2026-10-01T15:00:00.000Z",
+    );
+    // Today, gone: next week.
+    expect(
+      nextSendAt({ weekday: 4, paused: false }, new Date("2026-10-01T15:00:00Z"))?.toISOString(),
+    ).toBe("2026-10-08T15:00:00.000Z");
+    // Across a month's end.
+    expect(
+      nextSendAt({ weekday: 1, paused: false }, new Date("2026-10-31T20:00:00Z"))?.toISOString(),
+    ).toBe("2026-11-02T15:00:00.000Z");
+    expect(nextSendAt({ weekday: 0, paused: true }, thu)).toBeNull();
   });
 });

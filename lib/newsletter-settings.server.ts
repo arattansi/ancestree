@@ -40,3 +40,23 @@ export async function setNewsletterByToken(
   }
   return (data ?? []).length > 0;
 }
+
+/**
+ * A member's unsubscribe token, made now if they have no row yet (on, as
+ * every member starts), for an email built outside the weekly run: the
+ * dashboard's test email.
+ */
+export async function ensureNewsletterToken(userId: string): Promise<string> {
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("newsletter_settings")
+    .upsert({ user_id: userId }, { onConflict: "user_id", ignoreDuplicates: true });
+  if (error) throw new Error(`newsletter_settings: ${error.message}`);
+  const { data, error: readError } = await admin
+    .from("newsletter_settings")
+    .select("token")
+    .eq("user_id", userId)
+    .single();
+  if (readError) throw new Error(`newsletter_settings: ${readError.message}`);
+  return data.token;
+}

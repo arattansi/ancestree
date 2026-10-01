@@ -270,3 +270,51 @@ export function addedCount(issue: Issue): number {
     0,
   );
 }
+
+/**
+ * The hour, in UTC, the cron job calls every day (`vercel.json`: Hobby
+ * allows one run a day, so it's fixed there); 15:00 is 8am Pacific in
+ * summer. The app sends only on the chosen day.
+ */
+export const SEND_HOUR_UTC = 15;
+
+/** Days as `newsletter_schedule.weekday` counts them: 0 is Sunday. */
+export const WEEKDAY_NAMES = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+] as const;
+
+/** When it goes out, as the beta reviewers set it (Step 95). */
+export type NewsletterSchedule = { weekday: number; paused: boolean };
+
+/** Before anyone has changed it: Sundays, not paused. */
+export const DEFAULT_SCHEDULE: NewsletterSchedule = { weekday: 0, paused: false };
+
+/** Whether the job's call at `now` is the week's send. */
+export function isSendDay(s: NewsletterSchedule, now: Date): boolean {
+  return !s.paused && now.getUTCDay() === s.weekday;
+}
+
+/**
+ * When it next goes out: the next chosen day at `SEND_HOUR_UTC`, later
+ * than `now` (Hobby runs the job within that hour). Null while paused.
+ */
+export function nextSendAt(s: NewsletterSchedule, now: Date): Date | null {
+  if (s.paused) return null;
+  const days = (s.weekday - now.getUTCDay() + 7) % 7;
+  const at = new Date(
+    Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate() + days,
+      SEND_HOUR_UTC,
+    ),
+  );
+  if (at.getTime() <= now.getTime()) at.setUTCDate(at.getUTCDate() + 7);
+  return at;
+}

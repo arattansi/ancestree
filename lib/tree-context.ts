@@ -266,6 +266,19 @@ function treeOf(t: MyTree): Tree {
   };
 }
 
+/**
+ * Trees in the order the caller joined them, the switcher's: two joined in
+ * the same moment keep one order, so My Family Tree's marks don't swap
+ * between visits (Step 92) and the newsletter's sections keep theirs (Step
+ * 95).
+ */
+export function byJoined<T extends Pick<MyTree, "id" | "joinedAt">>(trees: readonly T[]): T[] {
+  return [...trees].sort(
+    (a, b) =>
+      Date.parse(a.joinedAt) - Date.parse(b.joinedAt) || a.id.localeCompare(b.id),
+  );
+}
+
 /** Every tree the caller belongs to, with their account type in each. */
 export const listMyTrees = cache(async (): Promise<MyTree[]> => {
   const user = await getSessionUser();

@@ -33,7 +33,7 @@ import {
   type TreeCard,
   type TreeGraphPerson,
 } from "@/lib/tree";
-import { listMyTrees } from "@/lib/tree-context";
+import { byJoined, listMyTrees } from "@/lib/tree-context";
 
 /** One of the viewer's trees, as My Family Tree's key shows it. */
 export type MyFamilyTree = {
@@ -154,13 +154,8 @@ export const loadMyFamily = cache(async (): Promise<MyFamilyGraph | null> => {
   const [profile, myTrees] = await Promise.all([getProfile(), listMyTrees()]);
   const selfId = profile?.self_person_id;
   if (!selfId || myTrees.length === 0) return null;
-  // In the order they joined, as the switcher lists them; two joined in the
-  // same moment keep one order, so their marks don't swap between visits.
-  const joined = [...myTrees].sort(
-    (a, b) =>
-      Date.parse(a.joinedAt) - Date.parse(b.joinedAt) ||
-      a.id.localeCompare(b.id),
-  );
+  // In the order they joined, as the switcher lists them.
+  const joined = byJoined(myTrees);
   const treeIds = joined.map((t) => t.id);
   const mine = new Set(treeIds);
 
