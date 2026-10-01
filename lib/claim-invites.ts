@@ -9,18 +9,25 @@
 
 import { isExpired } from "@/lib/expiry";
 import type { NamedPerson } from "@/lib/person-name";
+import { placeholderLabel } from "@/lib/placeholders";
 import { shortDate } from "@/lib/short-date";
 
 /**
  * The name a claim invite's "Sent invites" record carries: the entry's, as
  * its card shows it (preferred name, else first name, then last name, as
  * `private.person_label` has it). An entry always has both halves, so the
- * record's non-empty checks hold.
+ * record's non-empty checks hold. A placeholder child's (Step 98.3) is its
+ * label, split: "First" "Child".
  */
 export function claimInviteRecordName(person: NamedPerson): {
   first_name: string;
   last_name: string;
 } {
+  if (person.placeholder_number != null) {
+    const label = placeholderLabel(person.placeholder_number);
+    const at = label.lastIndexOf(" ");
+    return { first_name: label.slice(0, at), last_name: label.slice(at + 1) };
+  }
   return {
     first_name: person.preferred_name?.trim() || person.first_name?.trim() || "",
     last_name: person.last_name?.trim() ?? "",

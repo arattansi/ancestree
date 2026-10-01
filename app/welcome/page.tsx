@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { EntrySummary } from "@/components/welcome/entry-summary";
 import { WelcomeDetailsForm } from "@/components/welcome/welcome-details-form";
 import { parseCrop } from "@/lib/image-crop";
-import { loadOwnEntry } from "@/lib/own-entry.server";
+import { loadOwnEntry, ownPlaceholderId } from "@/lib/own-entry.server";
 import { personInitials } from "@/lib/person-name";
 import { requireTreeSelfPersonWith } from "@/lib/tree-context";
 import { treeFocusHref, treeHref } from "@/lib/tree-links";
@@ -41,13 +41,45 @@ export default async function WelcomePage({
   // on this tree (Step 77.1).
   const {
     membership: { tree },
-    data: [entry, inviter],
+    data: [entry, inviter, placeholderId],
   } = await requireTreeSelfPersonWith(({ tree, profile }) =>
     Promise.all([
       loadOwnEntry(profile),
       inviterName(tree.id, profile.auth_user_id),
+      ownPlaceholderId(profile),
     ]),
   );
+  // A child who claimed their placeholder (Step 98.3): nothing to fill in,
+  // and what's kept waits on their parent.
+  if (placeholderId) {
+    return (
+      <PageColumn>
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Welcome to {tree.name}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {addedYou(inviter, tree.name)}
+          </p>
+        </div>
+        <Card>
+          <CardContent className="flex flex-col gap-5">
+            <p className="text-sm text-muted-foreground">
+              Your details are hidden from the family until your parent
+              approves.
+            </p>
+            <Button
+              className="self-start"
+              nativeButton={false}
+              render={<Link href={treeFocusHref(placeholderId)} />}
+            >
+              See the tree
+            </Button>
+          </CardContent>
+        </Card>
+      </PageColumn>
+    );
+  }
   if (!entry) redirect(treeHref());
   const { person } = entry;
 

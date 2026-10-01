@@ -50,7 +50,11 @@ import { loadAccountSettings } from "@/lib/account-settings.server";
 import { getSessionUser, requireProfile, type Profile } from "@/lib/auth";
 import { readRelayParam } from "@/lib/invite-relays";
 import { INVITE_LIFETIME_DAYS } from "@/lib/limits";
-import { loadOwnEntry } from "@/lib/own-entry.server";
+import {
+  loadOwnEntry,
+  ownHeldBack,
+  ownPlaceholderId,
+} from "@/lib/own-entry.server";
 import {
   currentAccess,
   listMyTrees,
@@ -186,6 +190,35 @@ export default async function AccountPage({
 /** Your own entry — what your card says on every tree — as a form. */
 async function ProfileView({ profile }: { profile: Profile }) {
   const ownEntry = await loadOwnEntry(profile);
+  // A child's own placeholder (Step 98.3): theirs to see, not to change,
+  // and hidden from the family until their parent shows it.
+  const placeholderId = ownEntry ? null : await ownPlaceholderId(profile);
+  if (placeholderId) {
+    const rows = await ownHeldBack(placeholderId);
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Your Details</CardTitle>
+          <CardDescription>
+            Your details are hidden from the family until your parent
+            approves.
+          </CardDescription>
+        </CardHeader>
+        {rows.length > 0 ? (
+          <CardContent>
+            <dl className="grid grid-cols-2 gap-4">
+              {rows.map((r) => (
+                <div key={r.group} className="flex flex-col gap-0.5">
+                  <dt className="text-xs text-muted-foreground">{r.label}</dt>
+                  <dd className="text-sm">{r.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </CardContent>
+        ) : null}
+      </Card>
+    );
+  }
   if (!ownEntry) {
     return (
       <Card>

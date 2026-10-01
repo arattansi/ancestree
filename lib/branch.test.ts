@@ -953,9 +953,20 @@ describe("placeholder children (Step 98.2)", () => {
     expect(entryRights(madeByArzu, branchAdmin, "arzu").canFill).toBe(false);
   });
 
-  it("is nobody's to invite anyone to claim", () => {
-    expect(canInviteToClaim(placeholder(), admin)).toBe(false);
-    expect(canInviteToClaim(placeholder(), parent)).toBe(false);
+  it("is a Root's, a Branch's or its parent's to invite the child to claim (98.3)", () => {
+    expect(canInviteToClaim(placeholder(), admin)).toBe(true);
+    expect(canInviteToClaim(placeholder(), branchAdmin)).toBe(true);
+    expect(canInviteToClaim(placeholder(), parent)).toBe(true);
+    expect(canInviteToClaim(placeholder(), someoneElse)).toBe(false);
+    // Once the child has claimed it, nobody invites anyone else to.
+    expect(canInviteToClaim(placeholder({ isClaimed: true }), admin)).toBe(false);
+    expect(
+      canInviteToClaim(placeholder({ isSomeoneElsesOwn: true }), parent),
+    ).toBe(false);
+    // The child's own placeholder isn't theirs to hand on.
+    expect(
+      canInviteToClaim(placeholder(), { ...member, selfPersonId: "first-child" }),
+    ).toBe(false);
     expect(
       canInviteToClaimCard(
         { basic: true, asked_of: "stewards", placeholder_number: 1 },

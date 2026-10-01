@@ -2,6 +2,7 @@ import "server-only";
 
 import { listAlbum } from "@/lib/album";
 import { listEntryReports } from "@/lib/entry-reports";
+import type { HeldBackDetails } from "@/lib/held-back";
 import type {
   PersonSheet,
   PersonSheetAnswer,
@@ -35,6 +36,19 @@ async function personTrees(personId: string): Promise<PersonTreeLink[]> {
 }
 
 /**
+ * A placeholder's held-back details (Step 98.3), as `withheld_details`
+ * answers the viewer: only its parent, or the child themself, gets any.
+ */
+async function heldBack(personId: string): Promise<HeldBackDetails> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("withheld_details", {
+    p_person: personId,
+  });
+  if (error) throw error;
+  return (data as HeldBackDetails | null) ?? {};
+}
+
+/**
  * The sheet's sections for one person, read side by side, each as the
  * viewer through RLS, the same reads the sheet made one action at a time
  * before Step 87.6. One that fails is named, and the rest still arrive.
@@ -51,6 +65,7 @@ export async function loadPersonSheet(
     reports: () => listEntryReports(personId, viewerId),
     album: () => listAlbum(personId, viewerId),
     stories: () => listStories(personId, viewerId),
+    heldBack: () => heldBack(personId),
   };
   const read = await Promise.allSettled(sections.map((s) => readers[s]()));
   const sheet: PersonSheet = {};

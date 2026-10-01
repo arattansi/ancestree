@@ -15,6 +15,7 @@ import {
   type PersonFormValues,
 } from "@/lib/person-schema";
 import { fillFields } from "@/lib/fill-blanks";
+import { groupsToShow, type HeldBackGroup } from "@/lib/held-back";
 import { revalidateTreePages } from "@/lib/revalidate";
 import { getRoleIn, rootOf } from "@/lib/tree-context";
 import { createClient } from "@/lib/supabase/server";
@@ -379,4 +380,54 @@ export async function addPlaceholderChild(
     personId: result.id,
     uninvitedParentIds: result.uninvited_parents ?? [],
   };
+}
+
+/** What a refused show or forget of held-back details says (Step 98.3). */
+function friendlyHeldBackError(message: string | undefined): string {
+  return friendlyDbError(
+    message ?? "",
+    [
+      ["only their parent", "Only their parent can choose what to show."],
+      ["REVEAL_NAME", "Show their name too."],
+      ["nothing is held back", "Nothing is held back any more."],
+    ],
+    "Couldn't save that. Try again.",
+  );
+}
+
+/**
+ * A placeholder's parent shows the family what they ticked of its held-back
+ * details (Step 98.3), their name always among them: it's an ordinary entry
+ * from then on, theirs, or the child's if they've claimed it. What wasn't
+ * ticked is dropped.
+ */
+export async function showHeldBackDetails(
+  personId: string,
+  groups: HeldBackGroup[],
+): Promise<{ error?: string }> {
+  await requireProfile();
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("reveal_withheld_details", {
+    p_person: personId,
+    p_show: groupsToShow(groups),
+  });
+  if (error) return { error: friendlyHeldBackError(error.message) };
+  revalidateTreePages();
+  return {};
+}
+
+/**
+ * A placeholder's parent drops its held-back details for good (Step 98.3);
+ * it stays a placeholder, theirs to fill in.
+ */
+export async function forgetHeldBackDetails(
+  personId: string,
+): Promise<{ error?: string }> {
+  await requireProfile();
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("forget_withheld_details", {
+    p_person: personId,
+  });
+  if (error) return { error: friendlyHeldBackError(error.message) };
+  return {};
 }

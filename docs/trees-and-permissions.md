@@ -108,9 +108,22 @@ Rules that follow:
   edit clears the number and makes it theirs, an ordinary entry from then
   on. Until then nobody else edits it or fills it in (a Root's rights
   don't reach it), suggests a change, claims it or is invited to, tells a
-  story or tags a photo of it (`private.placeholder_entry_guard`); it's
+  story, credits it or tags a photo of it (`private.placeholder_entry_guard`); it's
   left out of name search, "Same person?" and suggested connections. The
   parent, a Root, or the Branch who made it may delete it.
+- **Held-back details and the child's claim** (Step 98.3). The children
+  under 18 added before Step 98 by someone other than their parent became
+  placeholders; what they'd been given is kept in
+  `private.withheld_details`, seen only by the parent and the child
+  (`withheld_details`). The parent shows the family what they tick, their
+  name always among it (`reveal_withheld_details`), or forgets it
+  (`forget_withheld_details`); nobody else decides. A Root, a Branch or the
+  parent may invite the child to claim any placeholder
+  (`can_invite_to_claim_on`): accepting makes it theirs (they see their own
+  held-back details and "Your details are hidden from the family until your
+  parent approves."), but it stays a placeholder to everyone else, and they
+  can't edit it, until the parent shows it. It's claimed only through such
+  an invite, and never merged into an entry of theirs.
 - A member joins a tree through an invite (as a Leaf), by founding it (as
   Root), or by accepting a placement of their own entry (as a Leaf, so they
   can keep their own entry up to date there; a Root may change that).
@@ -227,7 +240,9 @@ and of people brought over, not of a line between two people already there.
 
 A **placeholder child** (Step 98.2) is the exception to all of it:
 `can_edit_person` is true only for its parent (`private.is_own_child`),
-whatever the caller is on `h`, and `can_fill_person` is never true.
+whatever the caller is on `h`, and `can_fill_person` is never true. Not
+even the child, once they've claimed it (Step 98.3): it's theirs to edit
+only once their parent has shown it.
 
 `private.can_delete_person(p)`: a Root of `h`, or a placeholder child's
 parent; otherwise the Step 22.3 rule

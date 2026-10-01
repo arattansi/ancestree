@@ -74,6 +74,7 @@ import { BASIC_DETAILS, waitingOn } from "@/lib/carry";
 import { blankFields } from "@/lib/fill-blanks";
 import { SEX_LABELS, type Sex } from "@/lib/person-labels";
 import { PersonOnTrees, PersonTrees } from "@/components/tree/person-trees";
+import { HeldBackDetails } from "@/components/tree/held-back-details";
 import { useLoadPersonSheet } from "@/components/tree/use-person-sheet";
 import { joinedByTags } from "@/lib/joined-by";
 import { countOf } from "@/lib/plural";
@@ -438,6 +439,9 @@ function PersonPanelImpl({
     album: !sealed,
     stories: !sealed,
     reports: locked ? 0 : (person?.open_report_count ?? 0),
+    // What's held back of a placeholder: its parent's, or the child's own
+    // (Step 98.3).
+    heldBack: placeholder && !locked && (canEdit || isSelf),
   });
   const waiting = person
     ? waitingOn(person.approval, person.asked_of, personDisplayName(person))
@@ -831,11 +835,17 @@ function PersonPanelImpl({
                 </p>
               ) : null}
               {placeholder ? (
-                <p className="rounded-md border border-dashed border-border bg-muted/40 px-3 py-2.5 text-sm text-muted-foreground">
-                  {canEdit
-                    ? "Only you can fill this in."
-                    : "Only their parent can fill this in."}
-                </p>
+                canEdit || isSelf ? (
+                  <HeldBackDetails
+                    personId={person.id}
+                    name={personDisplayName(person)}
+                    asParent={canEdit}
+                  />
+                ) : (
+                  <p className="rounded-md border border-dashed border-border bg-muted/40 px-3 py-2.5 text-sm text-muted-foreground">
+                    Only their parent can fill this in.
+                  </p>
+                )
               ) : null}
               {basic && claimButton ? <div>{claimButton}</div> : null}
               {basic && !readOnly ? inviteToClaim : null}

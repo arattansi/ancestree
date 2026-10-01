@@ -2727,6 +2727,10 @@ export type Database = {
         Args: { p_fields: Json; p_person: string }
         Returns: string[]
       }
+      forget_withheld_details: {
+        Args: { p_person: string }
+        Returns: undefined
+      }
       found_tree: {
         Args: { p_name: string }
         Returns: {
@@ -2985,6 +2989,10 @@ export type Database = {
         Args: { p_accept: boolean; p_placement_id: string }
         Returns: undefined
       }
+      reveal_withheld_details: {
+        Args: { p_person: string; p_show: string[] }
+        Returns: undefined
+      }
       revert_entry_edit: { Args: { p_revision_id: string }; Returns: string[] }
       rotate_family_link: {
         Args: { p_max_uses: number; p_tree: string }
@@ -3089,6 +3097,7 @@ export type Database = {
           tree_slug: string
         }[]
       }
+      withheld_details: { Args: { p_person: string }; Returns: Json }
     }
     Enums: {
       [_ in never]: never

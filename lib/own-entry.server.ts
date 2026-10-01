@@ -2,6 +2,11 @@ import "server-only";
 
 import type { Profile } from "@/lib/auth";
 import { placeLabels, signedPhotoUrl } from "@/lib/entry-view.server";
+import {
+  heldBackRows,
+  type HeldBackDetails,
+  type HeldBackRow,
+} from "@/lib/held-back";
 import { personDisplayName } from "@/lib/person-name";
 import { personFormValues, type PersonFormValues } from "@/lib/person-schema";
 import { createClient } from "@/lib/supabase/server";
@@ -60,4 +65,30 @@ export async function loadOwnEntry(profile: Profile): Promise<OwnEntry | null> {
     photoUrl,
     placeLabels: labels,
   };
+}
+
+/**
+ * The member's own entry when it's a placeholder child (Step 98.3): a child
+ * who claimed it by an invite, whose details stay hidden from the family
+ * until their parent shows them. `null` for anyone else.
+ */
+export async function ownPlaceholderId(profile: Profile): Promise<string | null> {
+  if (!profile.self_person_id) return null;
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("people")
+    .select("id, placeholder_number")
+    .eq("id", profile.self_person_id)
+    .maybeSingle();
+  return data?.placeholder_number != null ? data.id : null;
+}
+
+/**
+ * What's held back of the member's own placeholder (Step 98.3), as the
+ * account page lists it; empty when nothing is.
+ */
+export async function ownHeldBack(personId: string): Promise<HeldBackRow[]> {
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("withheld_details", { p_person: personId });
+  return heldBackRows(data as HeldBackDetails | null);
 }

@@ -1,5 +1,6 @@
 import type { AlbumPhoto } from "@/lib/album";
 import type { EntryReport } from "@/lib/entry-reports";
+import type { HeldBackDetails } from "@/lib/held-back";
 import type { EntryStory } from "@/lib/stories";
 
 /**
@@ -9,7 +10,13 @@ import type { EntryStory } from "@/lib/stories";
  * and waited behind any save, a card drop included, and couldn't be called
  * off when the reader moved on to someone else.
  */
-export const SHEET_SECTIONS = ["trees", "reports", "album", "stories"] as const;
+export const SHEET_SECTIONS = [
+  "trees",
+  "reports",
+  "album",
+  "stories",
+  "heldBack",
+] as const;
 export type SheetSection = (typeof SHEET_SECTIONS)[number];
 
 /** Another tree the person is shown on that the viewer may open. */
@@ -30,6 +37,11 @@ export type PersonSheet = {
   album?: AlbumPhoto[];
   /** The stories the viewer may see (Step 88.3). */
   stories?: EntryStory[];
+  /**
+   * A placeholder's held-back details (Step 98.3), for its parent or the
+   * child themself; empty for anyone else, or when nothing is held back.
+   */
+  heldBack?: HeldBackDetails;
 };
 
 /** The route's answer: what it read, and which of those it couldn't. */

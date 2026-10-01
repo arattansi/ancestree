@@ -31,6 +31,8 @@ export type SheetWant = {
   stories: boolean;
   /** The open reports the canvas counts for the viewer; none, none read. */
   reports: number;
+  /** A placeholder's held-back details, for its parent or the child (98.3). */
+  heldBack?: boolean;
 };
 
 /**
@@ -85,6 +87,7 @@ function missing(personId: string, want: SheetWant, now: number): SheetSection[]
   }
   if (want.album && !fresh("album")) need.push("album");
   if (want.stories && !fresh("stories")) need.push("stories");
+  if (want.heldBack && !fresh("heldBack")) need.push("heldBack");
   return need;
 }
 
@@ -104,7 +107,7 @@ export function usePersonSheet(personId: string): PersonSheetEntry | null {
  */
 export function useLoadPersonSheet(
   personId: string | null,
-  { trees, album, stories, reports }: SheetWant,
+  { trees, album, stories, reports, heldBack = false }: SheetWant,
 ): void {
   const retries = React.useSyncExternalStore(
     subscribe,
@@ -114,7 +117,7 @@ export function useLoadPersonSheet(
 
   React.useEffect(() => {
     if (!personId) return;
-    const want = { trees, album, stories, reports };
+    const want = { trees, album, stories, reports, heldBack };
     const need = missing(personId, want, Date.now());
     if (need.length === 0) return;
 
@@ -162,7 +165,7 @@ export function useLoadPersonSheet(
       controller.abort();
       inflight.delete(personId);
     };
-  }, [personId, trees, album, stories, reports, retries]);
+  }, [personId, trees, album, stories, reports, heldBack, retries]);
 }
 
 /**

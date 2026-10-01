@@ -290,7 +290,8 @@ export type EntrySubject = {
   /**
    * A placeholder child's parents (Step 98.2), or `null`/absent for any
    * other entry. A placeholder is its parent's alone: only they edit it,
-   * nobody fills it in or is invited to claim it.
+   * and nobody fills it in. A Root, a Branch or the parent may invite the
+   * child to claim it (Step 98.3).
    */
   placeholderParents?: readonly string[] | null;
 };
@@ -368,9 +369,19 @@ export function canFillEntry(entry: EntrySubject, viewer: Viewer): boolean {
  * among their own additions.
  */
 export function canInviteToClaim(entry: EntrySubject, viewer: Viewer): boolean {
-  if (entry.placeholderParents) return false;
   if (entry.id === viewer.selfPersonId) return false;
   if (entry.isClaimed || entry.isSomeoneElsesOwn) return false;
+  // A placeholder child (Step 98.3): a Root or a Branch, or its parent, may
+  // invite the child to claim it. It stays a placeholder until the parent
+  // shows it.
+  if (entry.placeholderParents) {
+    const type = accountTypeOf(viewer.role);
+    return (
+      type.runsTree ||
+      type.entries === "branch" ||
+      isOwnPlaceholder(entry, viewer.selfPersonId)
+    );
+  }
   if (entry.isDeceased) return false;
   if (entry.owner_user_id !== entry.created_by) return false;
   return canEditEntry(entry, viewer);

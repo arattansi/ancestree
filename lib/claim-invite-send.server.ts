@@ -28,6 +28,8 @@ type InvitedEntry = {
   first_name: string | null;
   preferred_name: string | null;
   last_name: string;
+  /** A placeholder child's number (Step 98.3): its invite names "First Child". */
+  placeholder_number?: number | null;
   /**
    * Whether the entry itself could be read. Not for a basic card (Step 80):
    * its tree shows a name and keeps the rest back, the inviter included.
@@ -49,7 +51,9 @@ async function readInvitedEntry(
 ): Promise<InvitedEntry | null> {
   const { data: person } = await supabase
     .from("people")
-    .select("id, tree_id, first_name, preferred_name, last_name, owner_user_id, created_by")
+    .select(
+      "id, tree_id, first_name, preferred_name, last_name, owner_user_id, created_by, placeholder_number",
+    )
     .eq("id", personId)
     .maybeSingle();
   if (person) {
@@ -58,6 +62,7 @@ async function readInvitedEntry(
       first_name: person.first_name,
       preferred_name: person.preferred_name,
       last_name: person.last_name,
+      placeholder_number: person.placeholder_number,
       readable: true,
       spokenFor: person.owner_user_id !== person.created_by,
     };

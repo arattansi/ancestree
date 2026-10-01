@@ -37,6 +37,16 @@ describe("claimInviteRecordName (Step 38)", () => {
     ).toEqual({ first_name: "Mo", last_name: "Rattansi" });
   });
 
+  it("names a placeholder child's after its label (Step 98.3)", () => {
+    expect(
+      claimInviteRecordName({ first_name: null, last_name: "", placeholder_number: 2 }),
+    ).toEqual({ first_name: "Second", last_name: "Child" });
+    expect(claimInviteRecordName({ last_name: "", placeholder_number: 13 })).toEqual({
+      first_name: "13th",
+      last_name: "Child",
+    });
+  });
+
   it("falls back to the first name when the preferred name is blank", () => {
     expect(
       claimInviteRecordName({ first_name: " Zahra ", preferred_name: "  ", last_name: " Ali " }),
