@@ -227,7 +227,10 @@ stays.
   was drawn on a tree the member is a Root or a Branch of. No claim
   invites, "This is me", deletions or companions are offered there, and
   adding a relative goes to the tree the member picks, in that tree's own
-  add flow. The database decides every write as before.
+  add flow. The database decides every write as before. Two entries in
+  it that look like one person entered twice are asked about there,
+  **Same person?** (Step 92.4): to the member alone, worked out as the
+  page is drawn and never stored. Merging them is a later step.
 - Any person can mark their own entry **hidden from visitors**
   (`people.hidden_from_visitors`). A hidden entry is drawn blurred, with no
   name or details, on a tree the viewer is not a member of. A Root of the home

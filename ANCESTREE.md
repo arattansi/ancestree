@@ -431,7 +431,12 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   and the key; lanes named from the viewer, `generationLabelFromYou`, Step
   92.2; `components/tree/add-to-tree.tsx`, its "Add a relative", and
   `add-to-tree-dialog.tsx`, "Which tree do you want to add to?", Step
-  92.3);
+  92.3); `lib/same-person.ts` — which of the view's cards may be one
+  person entered twice (`likelySamePeople`, worked out in `loadMyFamily`,
+  never stored) and which are still asked once the reader has said some
+  are two people (`shownSamePairs`) (Step 92.4, `.test.ts`), asked on the
+  cards and sheets by `components/tree/same-person.tsx`, the answers kept
+  in this browser by `use-not-same.ts`;
   `lib/tree-layout.ts` — the anchored auto-layout engine (Step 4.6, `.test.ts`):
   generations relative to the founding admins fix `y`; partners are fused into
   one *atom*, and a family (an atom plus everything descended from it) is laid
@@ -1714,6 +1719,52 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 92.4 — "Same person?" on My Family Tree** (the fourth of Step
+  92; no migration). **Aalim asked for:** duplicates shown both, and
+  likely pairs flagged "Same person?" (two mothers with matching names);
+  merging them is a later step. `lib/same-person.ts#likelySamePeople`
+  flags two different entries in the view when their **names agree** (a
+  given name, first or preferred, and a family name, last or maiden, in
+  common, and no two different maiden names), **nothing tells them
+  apart** (no line between them, not two members' own entries, no two
+  sexes, birth or death years no more than one apart — five for a "c."
+  date — and the same birthday where both know it, no death before the
+  other's birth, no two countries of birth) and they **stand in the same
+  spot**: both parents of one child; or, unless one tree of the
+  reader's shows them side by side, children of one parent, partners or
+  siblings of one person, or born on the same known day. A pair already
+  flagged counts as one person, so a side of the family entered on both
+  trees is flagged from where it hangs on, and each pair says what it
+  stands on. `loadMyFamily` works the pairs out per request from what it
+  already read; nothing is stored and nobody else is told. On `/family`
+  each such card wears a yellow **?** at its foot, across from the
+  account mark (its name: "Same person as Fatima Rattansi?"; not on
+  leaves or pills, like report counts), and its sheet asks above **On**:
+  **Same person as ● Fatima Rattansi?**, the other card's name (with its
+  tree's mark) opening that card, and **Not the same**, which puts the
+  question away at once with **Undo** in its toast. **My calls, not
+  asked:** the rule above, tuned so ordinary namesakes aren't asked
+  about — a grandson named for his grandfather, cousins named for one
+  grandfather, a brother named for one who died young, a second wife of
+  the same name; two entries one tree already shows side by side are
+  that tree's to tell apart, except two parents of one child; "Not the
+  same" is remembered in this browser only (no stored answer, so nothing
+  new about the view for Aalim to approve), and a pair that stood only on
+  one put away goes with it (the grandfathers of two mothers said to be
+  two people); no "Yes" (nothing to do until merging exists); the
+  other's name opens their card rather than a side-by-side compare.
+  **Checked:** the rule in tests (31: the namesakes above stay unasked);
+  on live, read-only, every entry as one view, each tree alone, and with
+  the side-by-side rule off: of 5 namesake pairs, none asked; one
+  throwaway member, the Root of one throwaway tree and a Leaf of a
+  second, each with its own copy of their mother and her father, in
+  headless Chrome on a desktop and a phone, light and dark: both mothers
+  and both grandfathers asked, the cousin named for his grandfather not;
+  the sheets' names opening each other; Not the same hiding the mothers
+  and, with them, the grandfathers, Undo bringing both back, the answer
+  kept through a reload and absent in another browser; no flag, question
+  or pairs in the payload on either tree's own canvas; no server action
+  sent; the production build. Then removed.
 - **Step 93 — On a tree's canvas, Edit follows the entry's home tree**
   (ad hoc, after Step 92.3; no migration). **Aalim asked:** fix `/tree`
   offering Edit by the member's account type on the tree being looked

@@ -135,6 +135,14 @@ turn autocomplete off, or every relative is offered the member's own name
   from them; with nobody selected, or nowhere they may add from them,
   every tree, adding without them. With one tree to offer it doesn't ask:
   the button goes straight to that tree's add flow.
+- On My Family Tree a card that may be one person entered twice (Step
+  92.4, `lib/same-person.ts`) wears a **?** in the attention yellow at its
+  foot, across from the account mark, and never on a leaf or a pill. Its
+  sheet asks above **On**: **Same person as ● Fatima Rattansi?**, the
+  other card's name, with its tree's mark, opening that card, and **Not
+  the same**, which puts the question away at once, in this browser only,
+  with **Undo** in its toast. Only the reader sees it; no tree's own
+  canvas asks.
 - Sections of the sheet that matter less fold away, closed at first, their
   heading the button with a count beside it (Step 88.1:
   **Family** and **Companions**, `components/tree/sheet-fold.tsx`). One
