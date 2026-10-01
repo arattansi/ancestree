@@ -1752,6 +1752,26 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 97.2 — Click again for their own tree** (no migration). **Aalim
+  asked for:** "if the user clicks on the same person again, it highlights
+  their individual tree". On `/family` the person open, clicked again,
+  swaps their connection to you (97.1) for their own tree, as a click
+  shows on a tree's canvas (Step 19.3: their line above and below, the
+  partners along it, their siblings; **Nadia Patel's tree** · 4 ancestors ·
+  0 descendants); a third click goes back to the connection
+  (`ownTreeOf` in `FamilyTree`). Opening anyone else, or the same person
+  again after closing them, starts on the connection. **My calls, not
+  asked:** the third click toggles back rather than staying; your own leaf
+  now shows your own tree on the first click (97.1 lit nothing), there
+  being no connection to show; the tip reads **Tap anyone to see how
+  you're connected, and again for their own tree.** **Checked:** tsc,
+  lint, 1,712 tests; on the throwaway fixture page (16 people), scripted
+  clicks: cousin → "You ↔ Nadia Patel · First cousins" (you, Karim, both
+  grandparents, Zahra, Nadia), again → "Nadia Patel's tree" (her parents,
+  grandparents and brother Omar), again → the connection; Laila → "Siblings"
+  then her tree; your leaf → your tree, twice; ✕ then Nadia → the
+  connection. The fixture was deleted after.
+
 - **Step 97.1 — On My Family Tree a click shows how they're connected to
   you** (no migration). **Aalim asked for:** "instead, when you click on
   someone, it highlights their direct connection to you and blurs out

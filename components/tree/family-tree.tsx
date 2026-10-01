@@ -826,14 +826,18 @@ function Canvas({
   // back so the one lineage can be read on its own.
   // On My Family Tree a click lights how that person is connected to the
   // viewer instead (Step 97.1), as Show a connection would; a connection
-  // picked in Search & filters still comes first.
+  // picked in Search & filters still comes first. The same person clicked
+  // again shows their own tree, and once more their connection again (Step
+  // 97.2); the viewer's own leaf shows theirs at once, there being no
+  // connection to show.
   const picked = !!connectionEnds.from && !!connectionEnds.to;
-  const linkedToYou =
-    !picked &&
+  const [ownTreeOf, setOwnTreeOf] = React.useState<string | null>(null);
+  const ownTree =
     !!family &&
-    !!selfPersonId &&
     !!selectedId &&
-    selectedId !== selfPersonId;
+    (selectedId === ownTreeOf || selectedId === selfPersonId);
+  const linkedToYou =
+    !picked && !!family && !!selfPersonId && !!selectedId && !ownTree;
   // The chain of relationships between the two picked people, if there is one.
   const path = React.useMemo(
     () =>
@@ -903,10 +907,10 @@ function Canvas({
           .map((s) => [s.from, s.to] as [string, string]),
       };
     }
-    // On My Family Tree nobody's own tree is pulled out: a click lights
-    // their connection to the viewer (above), and the viewer's own leaf, or
-    // one nothing joins to them, lights nothing.
-    if (!selectedId || family) return null;
+    // On My Family Tree someone's own tree is pulled out only on a second
+    // click, or for the viewer (above); one nothing joins to the viewer
+    // lights nothing.
+    if (!selectedId || (family && !ownTree)) return null;
     const roles = personSpotlight(selectedId, shownRelationships);
     const { ancestors, descendants, looseSiblings, line, siblingSpouses } =
       roles;
@@ -963,7 +967,15 @@ function Canvas({
         (sibling) => [selectedId, sibling] as [string, string],
       ),
     };
-  }, [path, selectedId, shownRelationships, graph.edges, people, family]);
+  }, [
+    path,
+    selectedId,
+    shownRelationships,
+    graph.edges,
+    people,
+    family,
+    ownTree,
+  ]);
 
   // A card that turns into a leaf is a different piece of DOM with its handles
   // in new elements, and the canvas has no way of knowing that on its own: it
@@ -1884,19 +1896,28 @@ function Canvas({
     [startAfresh],
   );
 
-  const onNodeClick = React.useCallback<NodeMouseHandler>((_, node) => {
-    setSelectedEdgeId(null);
-    setConnectionEnds(NO_CONNECTION);
-    setSearchedId(null);
-    if (node.type === "pet") {
-      setSelectedId(null);
-      setSelectedPetId(node.id);
-      return;
-    }
-    if (node.type !== "person") return;
-    setSelectedPetId(null);
-    setSelectedId(node.id);
-  }, []);
+  const onNodeClick = React.useCallback<NodeMouseHandler>(
+    (_, node) => {
+      setSelectedEdgeId(null);
+      setConnectionEnds(NO_CONNECTION);
+      setSearchedId(null);
+      if (node.type === "pet") {
+        setSelectedId(null);
+        setSelectedPetId(node.id);
+        return;
+      }
+      if (node.type !== "person") return;
+      setSelectedPetId(null);
+      setSelectedId(node.id);
+      // On My Family Tree the one open, clicked again, swaps their
+      // connection to the viewer for their own tree and back (Step 97.2);
+      // anyone else starts on their connection.
+      setOwnTreeOf((was) =>
+        family && node.id === selectedId && was !== node.id ? node.id : null,
+      );
+    },
+    [family, selectedId],
+  );
 
   // A drag is stored as a nudge from where the layout put the card, so the
   // card keeps its offset as the tree grows instead of freezing in place.

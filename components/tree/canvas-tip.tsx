@@ -33,7 +33,7 @@ function readDismissed(key: string): boolean {
  * and appears after hydration only for people who haven't closed it.
  *
  * On My Family Tree a person lights their connection to the reader instead
- * (Step 97.1), and the tip says so.
+ * (Step 97.1), and their own tree on a second tap (97.2): the tip says so.
  */
 export function CanvasTip({ family = false }: { family?: boolean }) {
   const key = family ? FAMILY_DISMISSED_KEY : DISMISSED_KEY;
@@ -67,7 +67,7 @@ export function CanvasTip({ family = false }: { family?: boolean }) {
         <p className="text-muted-foreground">
           <span className="font-medium text-foreground">
             {family
-              ? "Tap anyone to see how you're connected."
+              ? "Tap anyone to see how you're connected, and again for their own tree."
               : "Tap anyone to see their own tree."}
           </span>{" "}
           On a line, tap near the parents for descendants, or near a child for
