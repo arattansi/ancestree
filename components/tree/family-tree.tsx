@@ -53,6 +53,10 @@ import { GettingStarted } from "@/components/tree/getting-started";
 import { bladeTop } from "@/components/tree/leaf-card";
 import { PersonNode } from "@/components/tree/person-node";
 import { PetNode } from "@/components/tree/pet-node";
+import {
+  SamePersonPrompt,
+  samePersonLabel,
+} from "@/components/tree/same-person";
 import { TreeKey, type CardMark } from "@/components/tree/tree-mark";
 import { PersonPicker } from "@/components/tree/person-picker";
 import {
@@ -62,6 +66,7 @@ import {
 } from "@/components/tree/tree-search";
 import { UpcomingFeed } from "@/components/tree/upcoming-feed";
 import { markPersonSheetsStale } from "@/components/tree/use-person-sheet";
+import { useNotSame } from "@/components/tree/use-not-same";
 import { useShowCompanions } from "@/components/tree/use-show-companions";
 import { useToday } from "@/components/tree/use-today";
 import { useTreeRoom } from "@/components/tree/use-tree-room";
@@ -120,6 +125,11 @@ import { nativeLeaf } from "@/lib/native-leaf";
 import { upcomingOccasions } from "@/lib/occasions";
 import { asDayMonth } from "@/lib/partial-date";
 import { personSpotlight, spotlightPeople } from "@/lib/person-spotlight";
+import {
+  pairKey,
+  samePeopleById,
+  type SamePair,
+} from "@/lib/same-person";
 import type { DeclinedSuggestion, EntrySuggestion } from "@/lib/suggestions";
 import { onboardingHref } from "@/lib/tree-links";
 import { cn } from "@/lib/utils";
@@ -183,6 +193,7 @@ const NO_PANEL_SUGGESTIONS: PanelSuggestion[] = [];
 const NO_RELATIONS: PersonRelation[] = [];
 const NO_HOME_TREES: TreeAccess[] = [];
 const NOBODY: ReadonlySet<string> = new Set();
+const NO_SAME: ReadonlyMap<string, string[]> = new Map();
 /**
  * What the camera is framing once it's put back where this tab left it
  * (Step 77.3): whatever is on the canvas as it opens. Never a person's id.
@@ -200,6 +211,9 @@ export type FamilyView = {
   trees: FamilyActingTree[];
   /** The tree the browser is looking at, for the sheet's links to theirs. */
   currentTreeId: string | null;
+  /** Cards that may be one person entered twice (Step 92.4), and what
+   *  each pair stands on: asked "Same person?" here only. */
+  samePeople: readonly SamePair[];
 };
 
 type Props = {
@@ -1085,6 +1099,28 @@ function Canvas({
       }),
     );
   }, [family, people]);
+  // On My Family Tree, the cards that may be someone else's too (Step
+  // 92.4), less the pairs this browser was told are two people; each card
+  // says whom, and its sheet asks.
+  const [notSame, setNotSame] = useNotSame(isFamily);
+  const sameById = React.useMemo(
+    () => (family ? samePeopleById(family.samePeople, notSame) : NO_SAME),
+    [family, notSame],
+  );
+  const sameNameOf = React.useCallback(
+    (id: string) => (id === selfPersonId ? "you" : (nameById.get(id) ?? "")),
+    [selfPersonId, nameById],
+  );
+  const sameLabelById = React.useMemo(
+    () =>
+      new Map(
+        [...sameById].map(([id, others]) => [
+          id,
+          samePersonLabel(others.map(sameNameOf)),
+        ]),
+      ),
+    [sameById, sameNameOf],
+  );
   // Everything the canvas says about a card beyond where it sits — the ring on
   // the open entry, the fade on a card the search filtered out, the ring on a
   // clicked connection's endpoints, and the spotlight's lit line against its
@@ -1135,9 +1171,11 @@ function Canvas({
       const compressed =
         !isPet && (spotlight?.siblingSpouses.has(n.id) ?? false);
       const mark = isPet ? undefined : markById.get(n.id);
+      const same = isPet ? undefined : sameLabelById.get(n.id);
       map.set(n.id, {
         ...n.data,
         ...(mark ? { mark } : {}),
+        ...(same ? { same } : {}),
         selected,
         dimmed,
         highlighted,
@@ -1160,6 +1198,7 @@ function Canvas({
     selectedId,
     selectedPetId,
     markById,
+    sameLabelById,
   ]);
   // A card whose flags came out the same is handed the very same `data`, so
   // it doesn't draw again when the rest of the tree changes (Step 87.1).
@@ -2137,6 +2176,26 @@ function Canvas({
       ) : null,
     [selectedPerson, searchedId, selectedName, shownPeople, connectFromSelected],
   );
+  // Asked in the sheet of a card that may be someone else's too (Step
+  // 92.4): naming each, to open in turn, or put away as two people.
+  const selectedSame = selectedId ? sameById.get(selectedId) : undefined;
+  const samePersonPrompt = React.useMemo(
+    () =>
+      selectedId && selectedSame ? (
+        <SamePersonPrompt
+          others={selectedSame.map((id) => ({
+            id,
+            name: sameNameOf(id),
+            mark: markById.get(id) ?? null,
+          }))}
+          onOpen={selectPerson}
+          onNotSame={(other, two) =>
+            setNotSame(pairKey(selectedId, other), two)
+          }
+        />
+      ) : null,
+    [selectedId, selectedSame, sameNameOf, markById, selectPerson, setNotSame],
+  );
 
   return (
     <>
@@ -2481,6 +2540,7 @@ function Canvas({
           currentUserId={currentUserId}
           addRelativeOf={addTarget}
           connectionPrompt={connectionPrompt}
+          samePerson={samePersonPrompt}
           minimized={minimized}
           onMinimize={onMinimize}
           minimizedFocus={foldedRef}

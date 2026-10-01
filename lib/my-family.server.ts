@@ -15,6 +15,7 @@ import {
   type TreeMark,
 } from "@/lib/my-family";
 import { reachOnTree, type TreeReach } from "@/lib/branch";
+import { likelySamePeople, type SamePair } from "@/lib/same-person";
 import { createClient } from "@/lib/supabase/server";
 import {
   cardOf,
@@ -73,6 +74,12 @@ export type MyFamilyGraph = {
    * around (`getSpokenForEntryIds`, for every tree at once).
    */
   spokenForIds: string[];
+  /**
+   * Cards likely to be one person entered twice, and what each pair stands
+   * on (Step 92.4, `lib/same-person.ts`): asked "Same person?" on the view,
+   * to the viewer only. Worked out here, never stored.
+   */
+  samePeople: SamePair[];
 };
 
 /** When each of `treeIds` placed each of its people, by `tree:person`. */
@@ -262,19 +269,27 @@ export const loadMyFamily = cache(async (): Promise<MyFamilyGraph | null> => {
     if (p.claim_status === "approved") spokenFor.add(p.id);
   }
 
+  const familyPeople = finished.map((p) => ({
+    ...p,
+    tie: ties.get(p.id) ?? "partner",
+    tree_id: treeOf.get(p.id) ?? "",
+    tree_ids: cards.get(p.id)?.treeIds ?? [],
+    full_tree_ids: cards.get(p.id)?.fullTreeIds ?? [],
+  }));
+  const relationships = lines.filter(
+    (l) => treeOf.has(l.from_person) && treeOf.has(l.to_person),
+  );
   return {
     selfId,
     trees,
-    people: finished.map((p) => ({
-      ...p,
-      tie: ties.get(p.id) ?? "partner",
-      tree_id: treeOf.get(p.id) ?? "",
-      tree_ids: cards.get(p.id)?.treeIds ?? [],
-      full_tree_ids: cards.get(p.id)?.fullTreeIds ?? [],
-    })),
-    relationships: lines.filter(
-      (l) => treeOf.has(l.from_person) && treeOf.has(l.to_person),
-    ),
+    people: familyPeople,
+    relationships,
     spokenForIds: [...spokenFor],
+    // Members' own entries, theirs included, are two people however alike.
+    samePeople: likelySamePeople(
+      familyPeople,
+      relationships,
+      new Set([...spokenFor, selfId]),
+    ),
   };
 });

@@ -279,6 +279,7 @@ function PersonPanelImpl({
   familyAdd = null,
   addRelativeOf = null,
   connectionPrompt = null,
+  samePerson = null,
   minimized = false,
   onMinimize,
   minimizedFocus,
@@ -360,6 +361,9 @@ function PersonPanelImpl({
   /** Shown first when this person was opened from a search: the canvas's
    *  offer to light their connection to somebody else. */
   connectionPrompt?: React.ReactNode;
+  /** On My Family Tree, "Same person as …?" when another card may be them
+   *  too (Step 92.4): above the trees they're on. */
+  samePerson?: React.ReactNode;
   /**
    * Folded away to a card on the canvas (Step 49), so the tree they belong
    * to can be seen. The sheet closes but stays mounted, so nothing typed in
@@ -828,6 +832,7 @@ function PersonPanelImpl({
                   canDecide={isAdmin && person.is_home}
                 />
               ) : null}
+              {samePerson}
               {onTrees ? (
                 <PersonOnTrees
                   personId={person.id}

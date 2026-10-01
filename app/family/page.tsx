@@ -83,6 +83,8 @@ export default async function MyFamilyPage() {
           })),
           currentTreeId:
             access.kind === "member" ? access.membership.tree.id : null,
+          // Asked of the viewer only, here (Step 92.4).
+          samePeople: family.samePeople,
         }}
       />
     </main>

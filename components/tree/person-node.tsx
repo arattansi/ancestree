@@ -6,6 +6,7 @@ import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { AccountTypeMark } from "@/components/account-type-badge";
 import { LeafCard } from "@/components/tree/leaf-card";
 import { PillCard } from "@/components/tree/pill-card";
+import { SamePersonMark } from "@/components/tree/same-person";
 import { TreeMarkDot, type CardMark } from "@/components/tree/tree-mark";
 import { useSteadyPhoto } from "@/components/tree/use-steady-photo";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -44,6 +45,9 @@ export type PersonNodeData = {
   /** On My Family Tree, the mark of the tree the card comes from (Step
    *  92.2). */
   mark?: CardMark;
+  /** On My Family Tree, "Same person as …?" when another card may be them
+   *  too (Step 92.4). */
+  same?: string;
 };
 
 // The handles are anchors for the branch lines, never something the reader
@@ -64,6 +68,7 @@ function PersonNodeImpl({ data }: NodeProps) {
     compressed,
     spouseOf,
     mark,
+    same,
   } = data as PersonNodeData;
   // The full name for the hover preview and the tooltip; the condensed one for
   // the card itself, where a surname would otherwise be cut off mid-word.
@@ -286,6 +291,12 @@ function PersonNodeImpl({ data }: NodeProps) {
           ) : null}
           <AvatarFallback>{personInitials(person)}</AvatarFallback>
         </Avatar>
+
+        {/* Another card may be them too, on My Family Tree (Step 92.4):
+            the foot of the card, across from the account mark. */}
+        {same ? (
+          <SamePersonMark label={same} className="absolute bottom-2 left-2" />
+        ) : null}
 
         {/* Whose entry this is (Step 19.1). Bottom-right, away from the flag
             count on the top corner. */}
