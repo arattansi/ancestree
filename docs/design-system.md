@@ -24,7 +24,8 @@ Descriptions, labels, buttons, hints and body copy stay in sentence case.
 Buttons that move you between pages or views are all lower-case: the
 header's **tree**, **connections**, **account** and **sign in**; the account
 page's view toggle **profile**, **root**, **dashboard**, **settings**. The tree switcher
-shows a tree's name, which keeps its own capitalisation. On a narrow bar
+shows a tree's name, which keeps its own capitalisation, or **My Family
+Tree**, a view's name, in Title Case. On a narrow bar
 the header's show their symbols instead, the words kept as their names
 (Step 85.2, below).
 
@@ -84,9 +85,11 @@ turn autocomplete off, or every relative is offered the member's own name
   md:grid-cols-2`); a card that needs the width spans both
   (`md:col-span-2`). Cards keep their natural height; don't stretch one to
   match its neighbour, trim its copy instead.
-- The header is three columns: the mark, the tree switcher centred (only
-  for someone with more than one tree to look at), and the navigation
-  buttons right-aligned. It stays one row from 320px up (Step 85.2): the
+- The header is three columns: the mark, the tree switcher centred (for
+  every member since Step 92.2: **My Family Tree** first, then each tree
+  with the mark of their account type there, then starting a tree of their
+  own until they've founded one — **Ask to start a tree**, **Asked to start
+  a tree**, **Start a tree**), and the navigation buttons right-aligned. It stays one row from 320px up (Step 85.2): the
   buttons never wrap and a long tree name ends in "…". On a narrow bar, a
   phone's or one beside a docked sheet below 64rem, it goes compact: the
   mark without the wordmark, **tree**, **connections** and **account** as
@@ -256,6 +259,11 @@ card wears a mark for the tree it came from, and a key names them.
   rings, so four trees each have their own. Past four the marks repeat.
 - A mark never stands alone: the key names every tree, and the details
   sheet names every tree of theirs showing that person.
+- Where they sit (Step 92.2): a dot in a card's top corner, across from
+  the report count; under a leaf beside the account mark, ringed in card
+  colour like it; the key under **Search & filters**, where the lanes'
+  names on the left stay clear; the sheet's **On** row, in place of
+  **Also on**, each tree a link to it.
 
 ## Step-by-step flows
 

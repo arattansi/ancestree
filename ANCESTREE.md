@@ -67,7 +67,11 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `components/welcome/`, `lib/welcome.ts`, Step 50); `/admin` redirects to the account page's Root console, and
   `/account/admin?tree=<id>&section=<card>` is an alert email's button — a
   route that switches to that tree for a Root of it and opens its console
-  at the card (Step 30.1, `lib/open-console.server.ts`). Site-wide: `/`
+  at the card (Step 30.1, `lib/open-console.server.ts`). `/family` is My
+  Family Tree (Step 92.2): every tree the member is on, drawn as one canvas
+  arranged around them (`loadMyFamily`), a view only for now; an address of
+  its own, so it leaves the remembered tree alone, reached from the
+  switcher. Site-wide: `/`
   landing (Step 28: signed in, **view your tree** / **start a tree
   (beta)**, which asks a beta reviewer; signed out, **sign in** / **request
   access** / **start a tree (beta)**, the last two in dialogs —
@@ -414,8 +418,12 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `lib/my-family.ts` — who's in My Family Tree (`familyTies`), which tree
   a card comes from (`cardShowing`, `mergeShowings`), one copy of each
   line (`mergeLines`), the trees' marks (`treeMarkOf`) (Step 92.1,
-  `.test.ts`); `lib/my-family.server.ts` — `loadMyFamily`, every tree the
-  member is on merged into one graph;
+  `.test.ts`), the view's companions (`companionsShowing`) and the canvas's
+  name for it (`MY_FAMILY_VIEW`, Step 92.2); `lib/my-family.server.ts` —
+  `loadMyFamily`, every tree the member is on merged into one graph, drawn
+  by `FamilyTree`'s `family` mode (`components/tree/tree-mark.tsx`: the
+  marks and the key; lanes named from the viewer,
+  `generationLabelFromYou`, Step 92.2);
   `lib/tree-layout.ts` — the anchored auto-layout engine (Step 4.6, `.test.ts`):
   generations relative to the founding admins fix `y`; partners are fused into
   one *atom*, and a family (an atom plus everything descended from it) is laid
@@ -1694,6 +1702,66 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 92.2 — My Family Tree on the canvas, and the switcher** (the
+  second of Step 92; no migration). **Aalim asked for:** the view drawn
+  with the tree's own canvas, always arranged around the member, nothing
+  dragged; each card wearing its tree's mark, a key naming the trees, and
+  the details sheet naming every tree of theirs that shows the person;
+  Search, Upcoming and companions as on a tree; and the switcher for
+  everyone, one-tree members too: My Family Tree first, each tree with
+  their account type's mark, and starting a tree for anyone who hasn't
+  founded one (Step 28's states). Not yet the landing page (92.5), and
+  nothing acts from it yet (92.3). `/family` (`app/family/page.tsx`)
+  draws `loadMyFamily` with `FamilyTree`'s new `family` mode: computed
+  layout only (positions came null from 92.1), anchored on the member,
+  `editable` off, so no drag, no Add a relative, no Auto-arrange, no
+  "Show only your Root's side", no who's-here room, no Getting started,
+  no "Is this you?", and the sheet read-only. Marks and key in
+  `components/tree/tree-mark.tsx`; lanes named by
+  `generationLabelFromYou`; the sheet's **On** row
+  (`PersonOnTrees`); companions from all their trees in one read
+  (`getTreePets` takes several trees; one tree's read is unchanged) kept
+  to those with someone shown (`companionsShowing`). The switcher reads
+  where an ask stands (`my_tree_request`) beside the header's counts,
+  only for a member who isn't on a tree they founded; `useStartTree` is
+  `StartTreeButton`'s logic shared with it, and "Request received" is its
+  own module, fetched after paint, so the header doesn't put Base UI's
+  dialog on every page's first load. **My calls, not asked:** the view has
+  an address of its own rather than a value of the tree cookie, so the
+  remembered tree, "View on tree" and "Also on" mean what they did, and
+  92.5 points the landing at `/family`; lanes are the cohorts named from
+  them — **Your generation**, **Parents'**, **Grandparents'**,
+  **Great-grandparents'**, then **2× great-grandparents'**, and
+  **Children's** / **Grandchildren's** down — not numbers; a card's mark
+  is a dot in its top corner, across from the report count, and under a
+  leaf beside the account mark, but not on a sibling's partner's pill
+  (still name only) or a companion; the key sits under **Search &
+  filters**, since on the left it covered the first lane's name; the
+  sheet's **On** row links each tree to that tree's canvas on the person,
+  as "Also on" does, and until 92.3 the sheet shows no stories, album,
+  edit, suggest, report or Manage (each would act on a tree); in the menu
+  each tree's account type is its mark (the name for screen readers and
+  as a tooltip), My Family Tree has a people icon and shows only to a
+  member with an entry of their own, and starting a tree is the last item
+  — **Ask to start a tree**, **Asked to start a tree** (shows "Request
+  received" again), **Start a tree** — with a sprout; the canvas keeps
+  this tab's view of `/family` under `my-family`. **Checked:** lane names,
+  `companionsShowing` and `myFamilyHref` tests; on live, four throwaway
+  accounts on three throwaway trees, the member Leaf, Branch and Root of
+  one each, in headless Chrome on a desktop and a phone, light and dark:
+  19 of the trees' 22 people (an aunt's father, an ex's father and an
+  unrelated entry left out), blue, magenta and blue-ring marks and the
+  key, the four lanes, nothing draggable, sheets listing one to three
+  trees with nothing to edit, no sheet reads, no server actions and no
+  realtime join on `/family` (the tree still joins its room), Search,
+  Upcoming (a birthday and an anniversary) and companions (a dog from one
+  tree, a cat from another), the switcher both ways and the sheet's tree
+  links (the remembered tree as a plain link, another by switching); the
+  page's RSC payload holds nobody outside the view; the start-a-tree
+  states on a temporary page, so no ask reached the reviewers; the header
+  one row at every width from 320 to 1,400 px on `/family` and `/tree`,
+  touch and mouse, and from 704 to 1,024 px beside an open sheet; the
+  production build. Then removed.
 - **Step 92.1 — Who's in My Family Tree** (the first of Step 92; no UI;
   no migration). **Aalim asked for:** every account's own view, pulled
   from every tree it's a member of and joined through shared entries: the
