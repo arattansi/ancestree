@@ -216,8 +216,13 @@ stays.
   ("Also on: The Suleman tree") and see it read-only: no stories, no edits,
   no album, no account types, with a "request to join" button that files
   an invite request with that tree's Roots.
-- **My Family Tree** (Step 92) shows a member everyone they're related to
-  across the trees they belong to, as one view. Nothing is done *on* it:
+- **My Family Tree** (Step 92) is a member's own family tree, gathered
+  from the trees they belong to as one view: their blood relatives (the
+  Step 55 walk from their own entry), and whoever married into that
+  family — anyone a blood relative married or had a child with, exes
+  included — but none of *their* family, the member's own partner's
+  included (Step 94; until then a current partner's whole family came in,
+  which made the view a copy of the tree). Nothing is done *on* it:
   each card acts on its own tree, the one whose mark it wears (their home
   tree when the member is on it, else the member's tree that has shown
   them in full longest), as the member's account type there (Step 92.3).

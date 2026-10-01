@@ -1725,6 +1725,48 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 94 — My Family Tree: blood relatives, and who married in as
+  pills** (no migration). **Aalim asked for:** the view had become a copy
+  of a tree they're a Root of; it's meant to be their *individual* family
+  tree — only blood relatives, their wife and none of her family, and
+  everyone who married in (their dad's brothers' wives, their brothers'
+  wives) as the small pill a sibling's partner gets in a spotlight, with
+  "direct relative" and "married in" told apart explicitly. Step 92's rule
+  brought in a current partner's whole blood family, which on a tree
+  holding both sides is the whole tree. Now `lib/my-family.ts#familyTies`
+  is `blood` (the Step 55 walk from their own entry, both parents' sides)
+  or `married_in` (anyone a blood relative married or had a child with,
+  exes and co-parents included), and nobody else: no married-in person's
+  family, their partner's included. `marriedInto` says whom each married
+  into (a current marriage first, then an ended one, then a child
+  together), and `loadMyFamily` hands that to `/family`. On the view a
+  married-in person is a pill (`PillCard`, laid out at pill size through
+  `buildPeopleGraph`'s new `compactIds`, on the far side of their partner)
+  everywhere: on the overview, lit or blurred in a spotlight, and selected.
+  It wears its tree's mark before the name and, when flagged, the **?** on
+  its right shoulder; its tooltip says **Married in · Spouse of Idris**
+  (**Former spouse of**, **Co-parent with**, **Your spouse**). The key
+  under the tree names lists a small card, **Direct relative**, and a small
+  pill, **Married in**; the sheet's badges start with one of the two (not
+  on their own entry). A couple of a card and a pill (`descentGeometry`)
+  now hang their children from the middle of the gap between them, not
+  from the midpoint of their centres, which fell inside the card; for two
+  cards of one width that's the same point, so every tree's lines are
+  unchanged. **My calls, not asked:** their own spouse is a pill too
+  (married in, as asked of everyone); exes and co-parents of a blood
+  relative stay as pills (they're a parent of blood relatives); the
+  married-in badge's tooltip names whom; a tree's own canvas is unchanged.
+  **Checked:** lint, tsc, 1,464 tests, `next build`; a throwaway Root of one 22-person
+  tree (both parents' sides, an uncle and his wife and her father, an
+  aunt's husband, a brother, his wife and her mother, a wife, her parents
+  and brother, two grandchildren), headless: `/family` shows the 13 blood
+  relatives as cards and the wife, uncle's wife, brother's wife and aunt's
+  husband as pills, and none of the 5 in-laws' relatives; sheets, the
+  spotlight of the viewer and of the wife, and the tree's own canvas
+  (everyone a card, the spotlight's sibling-spouse pills as before).
+  Phone and desktop, light and dark. All rows and the account deleted
+  after.
+
 - **Step 92.5 — land on My Family Tree, every visit** (the last of Step
   92; no migration). **Aalim asked for:** My Family Tree every visit; a
   switch to a tree lasts until the browser closes. The `ancestree.tree`

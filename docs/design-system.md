@@ -141,9 +141,19 @@ turn autocomplete off, or every relative is offered the member's own name
   from them; with nobody selected, or nowhere they may add from them,
   every tree, adding without them. With one tree to offer it doesn't ask:
   the button goes straight to that tree's add flow.
+- On My Family Tree (Step 94) a direct relative is a card and whoever
+  married in is a **pill**, the shape a sibling's partner takes in a
+  spotlight (Step 19.4): name only, muted, no photo or account mark, on the
+  far side of their partner, everywhere on the view, spotlit or not. The
+  pill's tooltip says **Married in · Spouse of Karim** (or **Former spouse
+  of**, **Co-parent with**, **Your spouse**). The difference is also said
+  outright: the key under the tree names lists a small card, **Direct
+  relative**, and a small pill, **Married in**, and the sheet's badges
+  start with one of the two (none on the reader's own entry).
 - On My Family Tree a card that may be one person entered twice (Step
   92.4, `lib/same-person.ts`) wears a **?** in the attention yellow at its
-  foot, across from the account mark, and never on a leaf or a pill. Its
+  foot, across from the account mark, and never on a leaf; on a pill, on
+  its right shoulder (Step 94). Its
   sheet asks above **On**: **Same person as ● Fatima Rattansi?**, the
   other card's name, with its tree's mark, opening that card, and **Not
   the same**, which puts the question away at once, in this browser only,
@@ -289,10 +299,10 @@ card wears a mark for the tree it came from, and a key names them.
 - A mark never stands alone: the key names every tree, and the details
   sheet names every tree of theirs showing that person.
 - Where they sit (Step 92.2): a dot in a card's top corner, across from
-  the report count; under a leaf beside the account mark, ringed in card
-  colour like it; the key under **Search & filters**, where the lanes'
-  names on the left stay clear; the sheet's **On** row, in place of
-  **Also on**, each tree a link to it.
+  the report count; inside a pill, before the name (Step 94); under a leaf
+  beside the account mark, ringed in card colour like it; the key under
+  **Search & filters**, where the lanes' names on the left stay clear; the
+  sheet's **On** row, in place of **Also on**, each tree a link to it.
 
 ## Step-by-step flows
 
