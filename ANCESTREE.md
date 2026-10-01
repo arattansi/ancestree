@@ -1757,8 +1757,10 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   by My Family Tree's rule (`familyTies`, Step 94): blood relatives on both
   parents' sides, their spouse, and whoever married into the family, never
   the families of those who married in. Per tree, in the order they joined:
-  "Sara Khan added Amina Khan, Yusuf Khan and 3 more.", "You added …", "A
-  new story about …", "New photos of …"; then **This Week** (the next seven
+  "Safia Gulamani joined." (a member bringing their own entry), "Sara Khan
+  added Amina Khan, Yusuf Khan and 3 more." (a member named by their own
+  entry, else their display name, which often still reads like an
+  address), "You added …", "A new story about …", "New photos of …"; then **This Week** (the next seven
   days, today included, as Upcoming lists them) and **Later This Month**
   (round birthdays — 1, 18, 21, every ten from 30, every year from 100 —
   and anniversaries — 1st, 25th, 75th, every ten — up to 28 days out,
@@ -1785,7 +1787,8 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   own entry's arrival are left out; a member with no entry of their own
   gets none (nothing to cut it to); the week told is since their last
   issue, at most eight days back; one that couldn't be sent isn't retried
-  that week. **Checked:** lint, tsc, 1,506 tests, `next build`; the
+  that week. `buildWeeklyNewsletters` makes the emails without sending or
+  marking anyone, which is how the real previews below were made. **Checked:** lint, tsc, 1,506 tests, `next build`; the
   migration rehearsed rolled back (a member reads only their own switch,
   never the token; others and signed-out callers refused; one claim a
   week), then applied, its recorded statements' md5 = the file's. On a
@@ -1794,7 +1797,10 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   Karim's had the new baby, a story about his grandmother, the week's
   Rattansi-side birthdays and her 80th, and nothing of Zara, Omar or Ali
   Suleman; Raiya's had Zara and Omar and her father's 70th, and none of her
-  husband's family; phone and desktop renders. Unsubscribe page, one-click
+  husband's family; phone and desktop renders. Then this Sunday's issues of
+  three real members, built from live data and not sent (Aalim's, Karim
+  Kanji's, Arzu Suleman's): Arzu's had none of the Rattansi-side additions,
+  theirs none of the Suleman side. Unsubscribe page, one-click
   POST, a made-up token (same answer), and the settings box as a signed-in
   throwaway, all against live.
 

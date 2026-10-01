@@ -22,7 +22,8 @@ const issue = (over: Partial<Issue> = {}): Issue => ({
     {
       id: "t1",
       name: "Khan family",
-      added: [
+      joined: [],
+            added: [
         { by: "Sara Khan", byYou: false, people: [{ id: "p2", name: "Yusuf Khan" }] },
         { by: null, byYou: true, people: [{ id: "p3", name: "Ali Khan" }, { id: "p4", name: "Zahra Khan" }] },
       ],
@@ -54,6 +55,25 @@ describe("newsletterEmail", () => {
     expect(html).toContain("Open My Family Tree");
   });
 
+  it("says who joined, apart from whom anyone added", () => {
+    const { html } = render(
+      issue({
+        trees: [
+          {
+            id: "t1",
+            name: "Khan family",
+            joined: [{ id: "p7", name: "Safia Gulamani" }],
+            added: [],
+            stories: [],
+            photos: [],
+          },
+        ],
+      }),
+    );
+    expect(html).toMatch(/<a[^>]*>Safia Gulamani<\/a> joined\./);
+    expect(html).not.toMatch(/added <a/);
+  });
+
   it("says who was added when nobody is recorded", () => {
     const { html } = render(
       issue({
@@ -61,6 +81,7 @@ describe("newsletterEmail", () => {
           {
             id: "t1",
             name: "Khan family",
+            joined: [],
             added: [{ by: null, byYou: false, people: [{ id: "p2", name: "Yusuf Khan" }] }],
             stories: [],
             photos: [{ id: "p2", name: "Yusuf Khan" }, { id: "p3", name: "Ali Khan" }],
@@ -76,7 +97,8 @@ describe("newsletterEmail", () => {
     const many = Array.from({ length: 104 }, (_, i) => ({ id: `x${i}`, name: `Person ${i}` }));
     const { html } = render(
       issue({
-        trees: [{ id: "t1", name: "T", added: [{ by: "Raiya", byYou: false, people: many }], stories: [], photos: [] }],
+        trees: [{ id: "t1", name: "T", joined: [],
+            added: [{ by: "Raiya", byYou: false, people: many }], stories: [], photos: [] }],
       }),
     );
     expect(html).toContain(">Person 5</a> and 98 more.");
@@ -90,6 +112,7 @@ describe("newsletterEmail", () => {
           {
             id: "t1",
             name: "<b>Khan</b>",
+            joined: [],
             added: [{ by: `<i>Sara</i>`, byYou: false, people: [{ id: "p2", name: `O'Brien <script>` }] }],
             stories: [],
             photos: [],

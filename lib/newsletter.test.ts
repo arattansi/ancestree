@@ -138,6 +138,10 @@ function input(
       ["u-aalim", "Aalim Rattansi"],
       ["u-raiya", "Raiya Rattansi"],
     ]),
+    memberEntries: new Map([
+      ["u-aalim", "aalim"],
+      ["u-raiya", "raiya"],
+    ]),
     since: SINCE,
     today: TODAY,
     ...over,
@@ -189,6 +193,17 @@ describe("weeklyIssue: only the reader's own family", () => {
       }),
     );
     expect(addedIds(issue)).toEqual([]);
+  });
+
+  it("says a member who brought their own entry joined", () => {
+    const issue = weeklyIssue(
+      input("u-karim", "karim", { placements: [placement("raiya", "u-raiya")] }),
+    );
+    expect(issue?.trees[0]).toMatchObject({
+      joined: [{ id: "raiya", name: "Raiya Rattansi" }],
+      added: [],
+    });
+    expect(addedCount(issue!)).toBe(1);
   });
 
   it("never tells the reader their own entry was added", () => {

@@ -60,7 +60,6 @@ function utcDay(now: Date): string {
 export async function sendWeeklyNewsletters(
   opts: { users?: string[]; now?: Date } = {},
 ): Promise<NewsletterRun> {
-  const now = opts.now ?? new Date();
   const supabase = createAdminClient();
   const run: NewsletterRun = { due: 0, sent: 0, quiet: 0, skipped: 0, unsent: 0 };
 
@@ -71,6 +70,61 @@ export async function sendWeeklyNewsletters(
   run.due = due?.length ?? 0;
   if (!due?.length) return run;
 
+  const { emails, quiet, failed } = await buildWeeklyNewsletters(
+    due,
+    opts.now ?? new Date(),
+  );
+  run.quiet = quiet;
+  run.unsent = failed.size;
+
+  // Done for the week, quiet or not, just before anything goes; one that
+  // couldn't be made stays due, for the next call to try again.
+  const { data: claimed, error: claimError } = await supabase.rpc(
+    "claim_newsletter_issues",
+    { p_users: due.flatMap((r) => (failed.has(r.user_id) ? [] : [r.user_id])) },
+  );
+  if (claimError) throw new Error(`claim_newsletter_issues: ${claimError.message}`);
+  const ours = new Set(claimed ?? []);
+  const toSend = [...emails].filter(([id]) => ours.has(id)).map(([, e]) => e);
+  run.skipped = emails.size - toSend.length;
+
+  const results = await sendEmails(toSend);
+  run.sent = results.filter((s) => s.ok).length;
+  run.unsent += results.length - run.sent;
+  const unsent = unsentSummary(results);
+  if (unsent) console.error(`[newsletter] ${unsent}`);
+  console.info(
+    `[newsletter] due ${run.due}, sent ${run.sent}, quiet ${run.quiet}, skipped ${run.skipped}, unsent ${run.unsent}`,
+  );
+  return run;
+}
+
+/** A member due an issue, as `newsletter_due` names them. */
+export type NewsletterRecipient = {
+  user_id: string;
+  email: string;
+  self_person_id: string | null;
+  token: string;
+  since: string;
+  tree_ids: string[];
+};
+
+/**
+ * Each recipient's email, by user id, without sending anything or marking
+ * anyone done: what `sendWeeklyNewsletters` sends, and what a preview
+ * shows. `quiet` counts those with nothing to tell (or no entry of their
+ * own to cut it to); `failed`, those whose issue couldn't be made, logged
+ * and never sent half-made.
+ */
+export async function buildWeeklyNewsletters(
+  due: readonly NewsletterRecipient[],
+  now: Date,
+): Promise<{
+  emails: Map<string, SendEmailInput>;
+  quiet: number;
+  failed: Set<string>;
+}> {
+  const supabase = createAdminClient();
   const treeIds = [...new Set(due.flatMap((r) => r.tree_ids ?? []))];
   const earliest = new Date(
     Math.min(...due.map((r) => Date.parse(r.since))),
@@ -122,8 +176,9 @@ export async function sendWeeklyNewsletters(
     throw new Error("Couldn't read the trees for the newsletter.");
   }
 
-  // Whoever placed a card, by the name their trees list them under: the
-  // name they set, else their own entry's.
+  // Whoever placed a card, by the name the family knows them by: their own
+  // entry's, else the one they set (often still their address's first
+  // half, as it starts).
   const placers = [
     ...new Set(placements.rows.flatMap((p) => (p.placed_by ? [p.placed_by] : []))),
   ];
@@ -163,11 +218,13 @@ export async function sendWeeklyNewsletters(
     linesByTree.set(r.tree_id, list);
   }
   const memberNames = new Map<string, string>();
+  const memberEntries = new Map<string, string>();
   for (const m of placerRows ?? []) {
     const name =
-      m.display_name?.trim() ||
-      (m.self_person_id ? nameOfPerson.get(m.self_person_id) : undefined);
+      (m.self_person_id ? nameOfPerson.get(m.self_person_id) : undefined) ||
+      m.display_name?.trim();
     if (name) memberNames.set(m.auth_user_id, name);
+    if (m.self_person_id) memberEntries.set(m.auth_user_id, m.self_person_id);
   }
   const treeName = new Map((trees.data ?? []).map((t) => [t.id, t.name]));
   const placementRows: IssuePlacement[] = placements.rows;
@@ -178,9 +235,10 @@ export async function sendWeeklyNewsletters(
   // out, never sent half-made.
   const emails = new Map<string, SendEmailInput>();
   const failed = new Set<string>();
+  let quiet = 0;
   for (const r of due) {
     if (!r.self_person_id) {
-      run.quiet++;
+      quiet++;
       continue;
     }
     try {
@@ -198,11 +256,12 @@ export async function sendWeeklyNewsletters(
         stories: stories.rows.filter((s) => withinWeek(s, r.since)),
         photos: tags.rows.filter((t) => withinWeek(t, r.since)),
         memberNames,
+        memberEntries,
         since: r.since,
         today,
       });
       if (!issue) {
-        run.quiet++;
+        quiet++;
         continue;
       }
       const page = `${site}${newsletterPageHref(r.token)}`;
@@ -221,31 +280,10 @@ export async function sendWeeklyNewsletters(
       });
     } catch (err) {
       failed.add(r.user_id);
-      run.unsent++;
       console.error("[newsletter] couldn't make one issue", err);
     }
   }
-
-  // Done for the week, quiet or not, just before anything goes; one that
-  // couldn't be made stays due, for the next call to try again.
-  const { data: claimed, error: claimError } = await supabase.rpc(
-    "claim_newsletter_issues",
-    { p_users: due.flatMap((r) => (failed.has(r.user_id) ? [] : [r.user_id])) },
-  );
-  if (claimError) throw new Error(`claim_newsletter_issues: ${claimError.message}`);
-  const ours = new Set(claimed ?? []);
-  const toSend = [...emails].filter(([id]) => ours.has(id)).map(([, e]) => e);
-  run.skipped = emails.size - toSend.length;
-
-  const results = await sendEmails(toSend);
-  run.sent = results.filter((s) => s.ok).length;
-  run.unsent += results.length - run.sent;
-  const unsent = unsentSummary(results);
-  if (unsent) console.error(`[newsletter] ${unsent}`);
-  console.info(
-    `[newsletter] due ${run.due}, sent ${run.sent}, quiet ${run.quiet}, skipped ${run.skipped}, unsent ${run.unsent}`,
-  );
-  return run;
+  return { emails, quiet, failed };
 }
 
 /** Approved within the member's own week: when its yes came, or it was made. */

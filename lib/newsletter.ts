@@ -86,6 +86,8 @@ export type IssueAdded = {
 export type IssueTree = {
   id: string;
   name: string;
+  /** Members who brought their own entry here that week: they joined. */
+  joined: IssueName[];
   added: IssueAdded[];
   /** People with a story approved that week, each once. */
   stories: IssueName[];
@@ -127,8 +129,10 @@ export type IssueInput<R extends IssuePerson & { id: string }> = {
   stories: readonly { person_id: string }[];
   /** Album photos approved since `since`, by who's in them. */
   photos: readonly { photo_id: string; person_id: string }[];
-  /** Members' names, by user id, as their trees list them. */
+  /** Members' names, by user id: their own entry's, else the one they set. */
   memberNames: ReadonlyMap<string, string>;
+  /** Members' own entries, by user id: placing one is joining. */
+  memberEntries: ReadonlyMap<string, string>;
   /** The start of the week being told: an ISO timestamp. */
   since: string;
   /** Today, `YYYY-MM-DD`. */
@@ -159,7 +163,7 @@ export function weeklyIssue<R extends IssuePerson & { id: string }>(
   const byTree = new Map<string, IssueTree>(
     input.trees.map((t) => [
       t.id,
-      { id: t.id, name: t.name, added: [], stories: [], photos: [] },
+      { id: t.id, name: t.name, joined: [], added: [], stories: [], photos: [] },
     ]),
   );
 
@@ -180,6 +184,14 @@ export function weeklyIssue<R extends IssuePerson & { id: string }>(
     );
   for (const p of placed) {
     const tree = byTree.get(p.tree_id)!;
+    // A member placing their own entry is them joining, not news of whom
+    // they added.
+    if (p.placed_by && input.memberEntries.get(p.placed_by) === p.person_id) {
+      if (!tree.joined.some((n) => n.id === p.person_id)) {
+        tree.joined.push({ id: p.person_id, name: nameOf(p.person_id) });
+      }
+      continue;
+    }
     const byYou = p.placed_by === input.userId;
     const by = byYou
       ? null
@@ -243,16 +255,18 @@ export function weeklyIssue<R extends IssuePerson & { id: string }>(
   const later = occasions.filter((o) => o.daysAway >= WEEK_DAYS && o.milestone);
 
   const trees = [...byTree.values()].filter(
-    (t) => t.added.length || t.stories.length || t.photos.length,
+    (t) => t.joined.length || t.added.length || t.stories.length || t.photos.length,
   );
   if (!trees.length && !week.length && !later.length) return null;
   return { trees, week, later };
 }
 
-/** How many were added across the issue's trees, each placement once. */
+/** How many were added across the issue's trees, each placement once,
+ *  those who joined included. */
 export function addedCount(issue: Issue): number {
   return issue.trees.reduce(
-    (n, t) => n + t.added.reduce((m, g) => m + g.people.length, 0),
+    (n, t) =>
+      n + t.joined.length + t.added.reduce((m, g) => m + g.people.length, 0),
     0,
   );
 }

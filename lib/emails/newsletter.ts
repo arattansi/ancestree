@@ -44,6 +44,7 @@ export function newsletterEmail(input: {
   const sections: string[] = [];
   for (const tree of issue.trees) {
     const lines = [
+      ...(tree.joined.length ? [`${list(tree.joined, link)} joined.`] : []),
       ...tree.added.map((g) => addedLine(g, link)),
       ...(tree.stories.length
         ? [
