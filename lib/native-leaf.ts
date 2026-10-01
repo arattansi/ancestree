@@ -8,22 +8,17 @@
  * identical cards into something you can read at a glance: a family that moved
  * across the world has a line of leaves that changes shape as it descends.
  *
- * Deliberately coarse. This is a piece of decoration keyed to a free-text
- * field, not a botanical claim: one representative species per place, matched
- * on whole words so `Romania` never lands on `Oman`, and a plain unnamed leaf
- * whenever the birthplace is empty or unrecognised.
+ * Coarse about places, not about leaves. This is a piece of decoration keyed
+ * to a free-text field, not a botanical claim: one representative species per
+ * place, matched on whole words so `Romania` never lands on `Oman`, and a
+ * plain unnamed leaf whenever the birthplace is empty or unrecognised. But the
+ * leaf drawn is that species' own (Step 96): a banyan's blunt fig leaf, a
+ * date palm's frond, a mopane's pair of wings — see `lib/leaf-shapes.ts`.
  */
 
-/**
- * The silhouettes the canvas can draw. All of them keep a broad band through
- * the middle, because a name and a lifespan have to sit inside one: an acacia
- * frond or a ginkgo fan is the better botany and the worse card, so places
- * whose tree has one are matched to the nearest shape that reads. `palmate` is
- * the one compound shape — a hand of leaflets, for the baobab and the ceiba,
- * which would otherwise be drawn as maples and read as maples.
- */
-export type LeafShape =
-  "ovate" | "elliptic" | "cordate" | "maple" | "palmate" | "oak" | "round";
+import type { LeafShape } from "@/lib/leaf-shapes";
+
+export type { LeafShape };
 
 export type NativeLeaf = {
   shape: LeafShape;
@@ -56,61 +51,61 @@ const LEAVES: LeafEntry[] = [
     keys: ["tanzania", "tanganyika", "dar es salaam", "moshi", "arusha"],
     species: "Baobab",
     region: "Tanzania",
-    shape: "palmate",
+    shape: "baobab",
   },
   {
     keys: ["zanzibar", "pemba"],
     species: "Clove tree",
     region: "Zanzibar",
-    shape: "elliptic",
+    shape: "clove",
   },
   {
     keys: ["uganda", "kampala", "entebbe", "jinja"],
     species: "Mvule",
     region: "Uganda",
-    shape: "elliptic",
+    shape: "iroko",
   },
   {
     keys: ["kenya", "nairobi", "mombasa"],
     species: "Mugumo fig",
     region: "Kenya",
-    shape: "cordate",
+    shape: "fig",
   },
   {
     keys: ["rwanda", "burundi"],
     species: "Umuvumu fig",
     region: "Rwanda",
-    shape: "cordate",
+    shape: "fig",
   },
   {
     keys: ["ethiopia", "eritrea", "addis ababa"],
     species: "African juniper",
     region: "Ethiopia",
-    shape: "elliptic",
+    shape: "juniper",
   },
   {
     keys: ["south africa", "johannesburg", "cape town", "durban", "pretoria"],
     species: "Real yellowwood",
     region: "South Africa",
-    shape: "elliptic",
+    shape: "yellowwood",
   },
   {
     keys: ["zimbabwe", "rhodesia", "harare", "zambia", "malawi"],
     species: "Msasa",
     region: "Zimbabwe",
-    shape: "elliptic",
+    shape: "msasa",
   },
   {
     keys: ["mozambique", "angola"],
     species: "Mopane",
     region: "Mozambique",
-    shape: "round",
+    shape: "mopane",
   },
   {
     keys: ["madagascar"],
     species: "Traveller's tree",
     region: "Madagascar",
-    shape: "elliptic",
+    shape: "travellers-tree",
   },
   {
     keys: [
@@ -129,31 +124,31 @@ const LEAVES: LeafEntry[] = [
     ],
     species: "Shea tree",
     region: "West Africa",
-    shape: "elliptic",
+    shape: "shea",
   },
   {
     keys: ["somalia", "somaliland", "djibouti", "mogadishu"],
     species: "Frankincense tree",
     region: "the Horn of Africa",
-    shape: "elliptic",
+    shape: "frankincense",
   },
   {
     keys: ["sudan", "khartoum", "chad", "niger"],
     species: "Gum arabic acacia",
     region: "Sudan",
-    shape: "elliptic",
+    shape: "acacia",
   },
   {
     keys: ["botswana", "namibia", "gaborone", "windhoek"],
     species: "Camelthorn",
     region: "the Kalahari",
-    shape: "elliptic",
+    shape: "acacia",
   },
   {
     keys: ["mauritius", "seychelles", "comoros", "reunion"],
     species: "Tambalacoque",
     region: "the Indian Ocean islands",
-    shape: "elliptic",
+    shape: "obovate",
   },
   {
     keys: [
@@ -172,25 +167,25 @@ const LEAVES: LeafEntry[] = [
     ],
     species: "Date palm",
     region: "Arabia",
-    shape: "elliptic",
+    shape: "palm",
   },
   {
     keys: ["switzerland", "zurich", "geneva", "liechtenstein"],
     species: "Norway spruce",
     region: "Switzerland",
-    shape: "elliptic",
+    shape: "spruce",
   },
   {
     keys: ["estonia", "latvia", "lithuania", "baltic"],
     species: "Scots pine",
     region: "the Baltics",
-    shape: "elliptic",
+    shape: "pine",
   },
   {
     keys: ["georgia", "armenia", "azerbaijan", "tbilisi", "yerevan", "baku"],
     species: "Caucasian walnut",
     region: "the Caucasus",
-    shape: "elliptic",
+    shape: "walnut",
   },
   {
     keys: [
@@ -204,37 +199,37 @@ const LEAVES: LeafEntry[] = [
     ],
     species: "Wild apple",
     region: "Central Asia",
-    shape: "ovate",
+    shape: "apple",
   },
   {
     keys: ["papua", "new guinea", "solomon", "vanuatu"],
     species: "Klinki pine",
     region: "New Guinea",
-    shape: "elliptic",
+    shape: "spruce",
   },
   {
     keys: ["nigeria", "ghana", "lagos", "accra"],
     species: "Iroko",
     region: "West Africa",
-    shape: "elliptic",
+    shape: "iroko",
   },
   {
     keys: ["congo", "cameroon", "gabon"],
     species: "African mahogany",
     region: "Central Africa",
-    shape: "elliptic",
+    shape: "mahogany",
   },
   {
     keys: ["egypt", "cairo", "alexandria"],
     species: "Sycamore fig",
     region: "Egypt",
-    shape: "round",
+    shape: "sycamore-fig",
   },
   {
     keys: ["morocco", "algeria", "tunisia", "libya"],
     species: "Argan",
     region: "North Africa",
-    shape: "elliptic",
+    shape: "argan",
   },
   // South and West Asia
   {
@@ -254,86 +249,86 @@ const LEAVES: LeafEntry[] = [
     ],
     species: "Banyan",
     region: "India",
-    shape: "ovate",
+    shape: "banyan",
   },
   {
     keys: ["pakistan", "karachi", "lahore", "sindh", "punjab"],
     species: "Neem",
     region: "Pakistan",
-    shape: "elliptic",
+    shape: "neem",
   },
   {
     keys: ["bangladesh", "dhaka", "bengal"],
     species: "Jackfruit",
     region: "Bangladesh",
-    shape: "elliptic",
+    shape: "obovate",
   },
   {
     keys: ["sri lanka", "ceylon", "colombo"],
     species: "Ironwood",
     region: "Sri Lanka",
-    shape: "elliptic",
+    shape: "ironwood",
   },
   {
     keys: ["nepal", "kathmandu", "bhutan"],
     species: "Rhododendron",
     region: "Nepal",
-    shape: "elliptic",
+    shape: "rhododendron",
   },
   {
     keys: ["iran", "persia", "tehran"],
     species: "Oriental plane",
     region: "Iran",
-    shape: "maple",
+    shape: "plane",
   },
   {
     keys: ["iraq", "mesopotamia", "baghdad"],
     species: "Date palm",
     region: "Iraq",
-    shape: "elliptic",
+    shape: "palm",
   },
   {
     keys: ["lebanon", "syria", "beirut", "damascus"],
     species: "Cedar of Lebanon",
     region: "Lebanon",
-    shape: "elliptic",
+    shape: "cedar",
   },
   {
     keys: ["israel", "palestine", "jerusalem", "jaffa"],
     species: "Olive",
     region: "the Levant",
-    shape: "elliptic",
+    shape: "olive",
   },
   {
     keys: ["turkey", "ottoman", "istanbul", "constantinople"],
     species: "Oriental plane",
     region: "Turkey",
-    shape: "maple",
+    shape: "plane",
   },
   {
     keys: ["afghanistan", "kabul"],
     species: "Chinar",
     region: "Afghanistan",
-    shape: "maple",
+    shape: "plane",
   },
   // East and Southeast Asia
   {
     keys: ["japan", "tokyo", "osaka", "kyoto"],
     species: "Japanese maple",
     region: "Japan",
-    shape: "maple",
+    shape: "japanese-maple",
   },
   {
     keys: ["china", "hong kong", "shanghai", "beijing", "canton", "guangzhou"],
     species: "White mulberry",
     region: "China",
-    shape: "cordate",
+    shape: "mulberry",
   },
   {
     keys: ["korea", "seoul"],
     species: "Zelkova",
     region: "Korea",
-    shape: "elliptic",
+    shape: "zelkova",
   },
   {
     keys: [
@@ -347,19 +342,19 @@ const LEAVES: LeafEntry[] = [
     ],
     species: "Teak",
     region: "Southeast Asia",
-    shape: "elliptic",
+    shape: "teak",
   },
   {
     keys: ["malaysia", "singapore", "indonesia", "java", "borneo", "sumatra"],
     species: "Rain tree",
     region: "the Malay world",
-    shape: "round",
+    shape: "rain-tree",
   },
   {
     keys: ["philippines", "manila"],
     species: "Narra",
     region: "the Philippines",
-    shape: "ovate",
+    shape: "narra",
   },
   // Europe
   {
@@ -390,43 +385,43 @@ const LEAVES: LeafEntry[] = [
     keys: ["france", "paris"],
     species: "Sweet chestnut",
     region: "France",
-    shape: "elliptic",
+    shape: "chestnut",
   },
   {
     keys: ["germany", "austria", "berlin", "vienna"],
     species: "Small-leaved lime",
     region: "Germany",
-    shape: "cordate",
+    shape: "lime",
   },
   {
     keys: ["netherlands", "holland", "belgium", "amsterdam", "brussels"],
     species: "Common beech",
     region: "the Low Countries",
-    shape: "ovate",
+    shape: "beech",
   },
   {
     keys: ["spain", "portugal", "madrid", "lisbon"],
     species: "Holm oak",
     region: "Iberia",
-    shape: "oak",
+    shape: "holm-oak",
   },
   {
     keys: ["italy", "rome", "sicily"],
     species: "Olive",
     region: "Italy",
-    shape: "elliptic",
+    shape: "olive",
   },
   {
     keys: ["greece", "cyprus", "athens"],
     species: "Olive",
     region: "Greece",
-    shape: "elliptic",
+    shape: "olive",
   },
   {
     keys: ["sweden", "norway", "finland", "denmark", "iceland"],
     species: "Silver birch",
     region: "Scandinavia",
-    shape: "ovate",
+    shape: "birch",
   },
   {
     keys: [
@@ -441,13 +436,13 @@ const LEAVES: LeafEntry[] = [
     ],
     species: "Small-leaved lime",
     region: "Central Europe",
-    shape: "cordate",
+    shape: "lime",
   },
   {
     keys: ["russia", "ukraine", "belarus", "moscow", "kyiv", "kiev", "siberia"],
     species: "Siberian birch",
     region: "Russia",
-    shape: "ovate",
+    shape: "birch",
   },
   // The Americas and Oceania
   {
@@ -480,7 +475,7 @@ const LEAVES: LeafEntry[] = [
     ],
     species: "Northern red oak",
     region: "the United States",
-    shape: "oak",
+    shape: "red-oak",
   },
   {
     keys: [
@@ -496,13 +491,13 @@ const LEAVES: LeafEntry[] = [
     ],
     species: "Ceiba",
     region: "the Caribbean and Central America",
-    shape: "palmate",
+    shape: "ceiba",
   },
   {
     keys: ["brazil", "rio de janeiro", "sao paulo"],
     species: "Brazilwood",
     region: "Brazil",
-    shape: "elliptic",
+    shape: "rain-tree",
   },
   {
     keys: [
@@ -517,25 +512,25 @@ const LEAVES: LeafEntry[] = [
     ],
     species: "Ceibo",
     region: "South America",
-    shape: "ovate",
+    shape: "ceibo",
   },
   {
     keys: ["australia", "sydney", "melbourne", "perth", "brisbane"],
     species: "Eucalyptus",
     region: "Australia",
-    shape: "elliptic",
+    shape: "eucalyptus",
   },
   {
     keys: ["new zealand", "auckland", "wellington"],
     species: "Pohutukawa",
     region: "New Zealand",
-    shape: "elliptic",
+    shape: "oblong",
   },
   {
     keys: ["fiji", "samoa", "tonga"],
     species: "Ivi",
     region: "the Pacific Islands",
-    shape: "elliptic",
+    shape: "oblong",
   },
 ];
 
