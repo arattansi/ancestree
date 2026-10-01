@@ -136,6 +136,13 @@ An ask that has lapsed (Step 83) is still `asked` in the row, so still
 4. A Branch **in `h`** on whose part of a Root's side the entry sits, unless
    it is another member's own entry.
 
+Every canvas asks this of `h`, whichever tree is showing the entry (Step
+93): on another tree, what its sheet offers (Edit, Fill in, Delete,
+inviting someone to claim it) and whether its card moves follow who the
+member is on `h`, or nothing but their own entry when they aren't on it.
+A Root of the tree being looked at still moves any card on it, and may
+invite someone to claim any claimable entry it shows (Step 84).
+
 `private.can_fill_person(p)` (Step 44), also read in `h`: a Branch or a Leaf
 **in `h`** may fill in what's missing on an entry on their own line there
 (`private.line_ids`, as for adding relatives) that is nobody's own — no

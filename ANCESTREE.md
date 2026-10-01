@@ -421,10 +421,10 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   a card comes from (`cardShowing`, `mergeShowings`), one copy of each
   line (`mergeLines`), the trees' marks (`treeMarkOf`) (Step 92.1,
   `.test.ts`), the view's companions (`companionsShowing`) and the canvas's
-  name for it (`MY_FAMILY_VIEW`, Step 92.2), and what a card's sheet offers
-  there, tree by tree (Step 92.3: `reachOnTree` / `viewerOnTree`, who the
-  member is on each tree; `entryRightsFromView`, the home tree's rules;
-  `lineEditableFromView`; `addTreesFromView`); `lib/my-family.server.ts` —
+  name for it (`MY_FAMILY_VIEW`, Step 92.2), and what only the view decides
+  (Step 92.3: `lineEditableFromView`, `addTreesFromView`; who the member is
+  on each tree and the home tree's rules are `lib/branch.ts`'s
+  `reachOnTree` / `viewerOnTree` / `entryRights`, Step 93); `lib/my-family.server.ts` —
   `loadMyFamily`, every tree the member is on merged into one graph, with
   each tree's reach and whose own entry each card is, drawn by
   `FamilyTree`'s `family` mode (`components/tree/tree-mark.tsx`: the marks
@@ -686,7 +686,11 @@ Root created or owns, the edit publishes at once and the Root can undo it
 (**Branch edits and the Root's undo**, below). Nothing else moves: deleting
 what others added, setting `lineage_type` and the Root console stay
 Root-only.
-`lib/branch.ts` mirrors the rule for the UI; the database decides.
+`lib/branch.ts` mirrors the rule for the UI; the database decides. The rule
+is the entry's **home** tree's, whichever tree shows it: a canvas asks who
+the member is there (`entryRights`; `/tree` reads their account type on
+their other trees that are home to someone shown, `getHomeTreeAccess`,
+Step 93), as the edit page (`entryAccess`) does.
 
 **Your Root's side (Step 48):** the canvas's "Show only your Root's side"
 draws just the side of the tree a member belongs on, laid out again around
@@ -1710,6 +1714,38 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 93 — On a tree's canvas, Edit follows the entry's home tree**
+  (ad hoc, after Step 92.3; no migration). **Aalim asked:** fix `/tree`
+  offering Edit by the member's account type on the tree being looked
+  at. An entry's details follow its **home** tree's rules
+  (`private.can_edit_person`, `can_fill_person`, `can_delete_person`), and
+  the edit page already asked those (`entryAccess`), but each card's sheet
+  asked the open tree's: a Branch saw **Edit** on an entry homed on
+  another tree and the page then sent them to Fill in or Suggest, a Leaf
+  saw **Fill in** on an entry their other tree lets them edit, and a Root
+  saw **Delete entry** on someone homed elsewhere, which the database
+  refuses. Cards could also be dragged that the database won't let them
+  move. Now `/tree` reads, once its people are in and only for trees of
+  theirs that are home to someone shown, who the member is there
+  (`getHomeTreeAccess`: a Root's needs no walk, a Branch's or Leaf's is
+  `getViewer` on that tree, kept to the people shown), and the canvas asks
+  each card's home tree: **Edit** and **Fill in** by `entryRights` (the
+  rule `entryAccess` and My Family Tree now share, in `lib/branch.ts`),
+  moving a card as `tree_placements_update` allows (a Root of this tree,
+  or whoever may edit the entry), **invite to claim** as
+  `can_invite_to_claim_on` (this tree's Root, or the home-tree rules:
+  `canInviteToClaimHere`) and **Delete entry** as `can_delete_person`
+  (`canOfferDeleteHere`: shown from another tree, only a Root of its
+  home). Lines, adding and Suggest are unchanged. Step 92.3's
+  `reachOnTree` / `viewerOnTree` moved to `lib/branch.ts` with
+  `TreeReach` / `TreeAccess`. **Checked:** the new rules in tests; on
+  live, one throwaway member who is a Branch on one throwaway tree, a Leaf
+  on a second and the Root of a third (a fourth, not theirs, home to one
+  card): every card on the three canvases offered exactly what the
+  database answered for them as that member (edit, fill in, delete,
+  invite, move, read in one rolled-back block), Edit, Fill in and Suggest
+  landing on the matching pages, My Family Tree unchanged, the production
+  build. Then removed.
 - **Step 92.3 — Acting from My Family Tree** (the third of Step 92; no
   migration). **Aalim asked for:** the view's sheet to offer stories, the
   album, Edit details (or Fill in), Suggest a change and Report a
