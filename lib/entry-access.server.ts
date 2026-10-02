@@ -70,7 +70,7 @@ export async function entryAccess(
     getRoleIn(person.home_tree_id),
     // A placeholder child is its parent's alone (Step 98.2).
     person.placeholder_number != null
-      ? placeholderParentsOf(person.id)
+      ? placeholderParentsOf(person.id, profile.self_person_id)
       : null,
   ]);
   const viewer = homeRole
@@ -89,13 +89,17 @@ export async function entryAccess(
   };
 }
 
-/** Who a placeholder child's parents are: its lines from a parent. */
-async function placeholderParentsOf(personId: string): Promise<string[]> {
+/**
+ * A placeholder child's parents as far as its rights go (Step 98.2): the
+ * viewer's own entry when it's drawn as its parent, which the database
+ * answers wherever the placeholder is, a tree they aren't on included.
+ */
+async function placeholderParentsOf(
+  personId: string,
+  selfPersonId: string | null,
+): Promise<string[]> {
+  if (!selfPersonId) return [];
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("relationships")
-    .select("from_person")
-    .eq("to_person", personId)
-    .eq("type", "parent");
-  return (data ?? []).map((r) => r.from_person);
+  const { data } = await supabase.rpc("is_own_child", { p_person: personId });
+  return data === true ? [selfPersonId] : [];
 }

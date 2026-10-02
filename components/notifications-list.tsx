@@ -232,7 +232,11 @@ function NotificationRow({
           </Button>
         ) : null}
 
-        {n.personId && n.treeId && !asksAboutAnotherTree(n.type) ? (
+        {n.personId &&
+        n.treeId &&
+        !asksAboutAnotherTree(n.type) &&
+        // A placeholder on a tree they aren't on: nothing to view there.
+        !(n.type === "placeholder_child" && !n.treeName) ? (
           // The item's tree may not be the one being looked at: switch
           // to it, then open the person.
           <TreeTarget
@@ -246,7 +250,17 @@ function NotificationRow({
           </TreeTarget>
         ) : null}
 
-        {n.type === "placeholder_child" && n.personId && n.treeId ? (
+        {n.type === "placeholder_child" && n.personId && !n.treeName ? (
+          // Its tree isn't one of theirs: its page opens from here.
+          <Button
+            nativeButton={false}
+            render={<Link href={editPersonHref(n.personId)} />}
+            size="sm"
+            variant="outline"
+          >
+            Fill in
+          </Button>
+        ) : n.type === "placeholder_child" && n.personId && n.treeId ? (
           // Step 98.2: a place held for their child, theirs to fill in.
           <TreeTarget
             treeId={n.treeId}

@@ -2851,6 +2851,7 @@ export type Database = {
         }[]
       }
       is_beta_reviewer: { Args: never; Returns: boolean }
+      is_own_child: { Args: { p_person: string }; Returns: boolean }
       list_story_comments: {
         Args: { p_story: string }
         Returns: {

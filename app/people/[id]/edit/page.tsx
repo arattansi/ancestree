@@ -5,6 +5,7 @@ import { notFound, redirect } from "next/navigation";
 import { PageColumn } from "@/components/page-column";
 import { PersonFillForm } from "@/components/person-fill-form";
 import { PersonForm } from "@/components/person-form";
+import { PlaceholderHeldBack } from "@/components/placeholder-child";
 import {
   EditConnections,
   type ConnectionKind,
@@ -32,6 +33,34 @@ import {
 
 export const metadata: Metadata = { title: "edit entry" };
 
+const ENTRY_COLUMNS =
+  "id, home_tree_id, is_home, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_birth_precision, birth_month, birth_day, date_of_birth_circa, place_id_birth, city_of_birth, country_of_birth, is_deceased, date_of_death, date_of_death_precision, date_of_death_circa, place_id_death, place_of_death, sex, lineage_type, photo_path, photo_crop, owner_user_id, created_by, email, email_visible, placeholder_number";
+
+/**
+ * Their own child's entry when it isn't on the tree being looked at (Step
+ * 98.2): a placeholder its parent fills in from wherever they are, a tree
+ * they aren't on included, or the child it became once they did. Read from
+ * `people`, as the database lets its parent see it.
+ */
+async function ownChildOffTree(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  id: string,
+) {
+  const [{ data: row }, { data: mine }] = await Promise.all([
+    supabase
+      .from("people")
+      .select(
+        "id, tree_id, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_birth_precision, birth_month, birth_day, date_of_birth_circa, place_id_birth, city_of_birth, country_of_birth, is_deceased, date_of_death, date_of_death_precision, date_of_death_circa, place_id_death, place_of_death, sex, lineage_type, photo_path, photo_crop, owner_user_id, created_by, email, email_visible, placeholder_number",
+      )
+      .eq("id", id)
+      .maybeSingle(),
+    supabase.rpc("is_own_child", { p_person: id }),
+  ]);
+  if (!row || mine !== true) return null;
+  const { tree_id, ...rest } = row;
+  return { ...rest, home_tree_id: tree_id, is_home: false };
+}
+
 export default async function EditPersonPage({
   params,
   searchParams,
@@ -47,14 +76,12 @@ export default async function EditPersonPage({
   // may edit what), and who is behind the entry.
   const {
     membership: { tree, profile, type },
-    data: [{ data: person }, allMembers],
+    data: [{ data: onTree }, allMembers],
   } = await requireTreeSelfPersonWith(({ tree, profile }) =>
     Promise.all([
       supabase
         .from("tree_people")
-        .select(
-          "id, home_tree_id, is_home, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_birth_precision, birth_month, birth_day, date_of_birth_circa, place_id_birth, city_of_birth, country_of_birth, is_deceased, date_of_death, date_of_death_precision, date_of_death_circa, place_id_death, place_of_death, sex, lineage_type, photo_path, photo_crop, owner_user_id, created_by, email, email_visible, placeholder_number",
-        )
+        .select(ENTRY_COLUMNS)
         .eq("tree_id", tree.id)
         .eq("id", id)
         .maybeSingle(),
@@ -64,6 +91,9 @@ export default async function EditPersonPage({
     ]),
   );
 
+  // Not on this tree: maybe their own child, theirs to fill in from here.
+  const person = onTree ?? (await ownChildOffTree(supabase, id));
+  const offTree = !onTree && !!person;
   if (
     !person?.id ||
     // A placeholder child (Step 98.2) has no name until it's filled in.
@@ -104,6 +134,18 @@ export default async function EditPersonPage({
   ]);
   const isHomeRoot = homeRole === "admin";
 
+  // Filled in from off its tree (Step 98.2): it's theirs now, and no
+  // longer theirs alone to edit there.
+  if (offTree && !canEdit) {
+    return (
+      <PageColumn>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {personDisplayName({ ...person, last_name: person.last_name ?? "" })}{" "}
+          is filled in.
+        </h1>
+      </PageColumn>
+    );
+  }
   if (!canEdit && !canFill) {
     redirect(suggestChangeHref(personId, undefined, { fromFamily }));
   }
@@ -173,7 +215,6 @@ export default async function EditPersonPage({
     );
   }
 
-
   // This person's lines on the tree being viewed, from its shared read.
   const { edges } = await loadTreeEdges(tree.id);
   const rels = edges.filter(
@@ -232,10 +273,17 @@ export default async function EditPersonPage({
         )}
       </div>
 
+      {/* A placeholder's held-back details first (Step 98.3): what its
+          parent shows, before a fill drops what's still held back. */}
+      {person.placeholder_number != null ? (
+        <PlaceholderHeldBack personId={personId} name={displayName} />
+      ) : null}
+
       {/* Back to tree floats with Save changes, in reach all the way down
-          (Step 59), and opens the canvas on this person again (Step 61). */}
+          (Step 59), and opens the canvas on this person again (Step 61):
+          not for a child filled in from off their tree, who isn't on it. */}
       <PersonForm
-        backHref={backHref}
+        backHref={offTree ? undefined : backHref}
         treeId={tree.id}
         isAdmin={isHomeRoot}
         person={{
@@ -250,16 +298,18 @@ export default async function EditPersonPage({
         self={personId === profile.self_person_id}
       />
 
-      <EditConnections
-        treeId={tree.id}
-        personId={personId}
-        personName={displayName}
-        personPartners={
-          allMembers.find((m) => m.id === personId)?.partners ?? []
-        }
-        members={members}
-        connections={connections}
-      />
+      {offTree ? null : (
+        <EditConnections
+          treeId={tree.id}
+          personId={personId}
+          personName={displayName}
+          personPartners={
+            allMembers.find((m) => m.id === personId)?.partners ?? []
+          }
+          members={members}
+          connections={connections}
+        />
+      )}
     </PageColumn>
   );
 }

@@ -1753,6 +1753,40 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 98.2, follow-up: the parent fills it in from anywhere** (migration
+  `20261001220000_parent_fills_in_from_anywhere`, applied before the deploy:
+  the new code asks `is_own_child`). **Aalim asked for:** "let the parent
+  fill it in from anywhere" — 98.2's last known gap. A placeholder sits on
+  the tree it was added to, under its parent's entry, but the parent may not
+  be a member there: their entry was brought over from their own tree and
+  their yes hasn't come, they declined, or they were removed from it. They
+  were told, but couldn't open it, since every read asks for a tree you
+  belong to. Now a parent's own placeholder child, and the child it becomes
+  once they've filled it in (it's theirs), is readable to them wherever it
+  is, photo included (`private.can_see_own_child`, added to the
+  `people_select` and `storage_photos_select` policies; `can_see_person`
+  untouched, so bringing people over from another tree still needs a tree
+  you belong to). The edit page opens it off the tree being looked at: the
+  fill-in form, with no connections and no **Back to tree**; once filled,
+  that page says **{Name} is filled in.** Their notice's **Fill in** goes
+  straight there, and **View on tree** isn't offered, when they aren't on
+  its tree. And on any tree, the fill-in page now shows a placeholder's
+  held-back details (98.3) above the form, so the parent chooses what to
+  show before typing over it — a fill drops what's still held back (the 98.3
+  session's finding). `entryAccess` asks `public.is_own_child` rather than
+  reading the parent line, which an off-tree parent can't see. **Checked:**
+  tsc, lint, 1,767 tests; a rolled-back rehearsal on live as a parent who
+  is a Root of their own tree only: before, nothing readable; after, their
+  placeholder and its photo, not the sibling's placeholder, nothing for an
+  outsider, the fill saves through RLS and leaves it theirs and readable,
+  and `can_see_person` (bringing people over) still false. Applied from
+  the file with md5 and policy asserts (statement md5 `99e491a9…`); headless
+  e2e on live as a throwaway parent who belongs only to their own tree:
+  the notice shows **Fill in** and no **View on tree**, the page is **Fill
+  in First Child** with no connections or **Back to tree**, the save makes
+  the child theirs, and the page then says **Kidlet Zzz is filled in.**;
+  everything deleted after.
+
 - **Step 99.6: the date told can be changed too** (migrations
   `20261001230000_story_details_editable`, before the deploy, and
   `20261001240000_drop_set_story_credits`, after it). **Aalim asked for:**
@@ -2046,7 +2080,7 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   follow-up above); a Branch may not be allowed to invite the
   parent (the usual claim-invite rule), then the dialog says so and a Root
   sends it (closed in a later follow-up); a parent who is a member but not of the placeholder's tree can't
-  open it. **Checked:** tsc, lint, build, 1,737 tests (new
+  open it (closed in a later follow-up). **Checked:** tsc, lint, build, 1,737 tests (new
   `lib/placeholders.test.ts`, placeholder cases in `lib/branch.test.ts`);
   a rolled-back rehearsal on live, 33 checks (adds by Root/Branch, Leaf /
   deceased-only / married-in / outsider / twice refused, numbering, notices,

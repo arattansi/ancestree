@@ -107,7 +107,10 @@ Rules that follow:
   "This is me", an approved claim or a merge — once per placeholder
   (`private.tell_placeholder_parent`, triggered from `profiles`, `claims`
   and `relationships`). Only
-  the parent (their own entry is drawn as its parent) fills it in: their
+  the parent (their own entry is drawn as its parent) fills it in, from
+  wherever they are — a tree they aren't a member of included, since their
+  own placeholder child, and the child it becomes once theirs, is always
+  readable to them (`private.can_see_own_child`): their
   edit clears the number and makes it theirs, an ordinary entry from then
   on. Until then nobody else edits it or fills it in (a Root's rights
   don't reach it), suggests a change, claims it or is invited to, tells a

@@ -18,6 +18,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAction } from "@/components/use-action";
+import { HeldBackDetails } from "@/components/tree/held-back-details";
+import {
+  useLoadPersonSheet,
+  usePersonSheet,
+} from "@/components/tree/use-person-sheet";
+import { heldBackRows } from "@/lib/held-back";
 import { treeFocusHref } from "@/lib/tree-links";
 
 /**
@@ -144,4 +150,28 @@ export function AddPlaceholderButton({
       </Dialog>
     </>
   );
+}
+
+/**
+ * A placeholder's held-back details (Step 98.3) on its fill-in page, for its
+ * parent: what they choose to show, before typing over it, since a fill
+ * drops whatever is still held back. Nothing when nothing is.
+ */
+export function PlaceholderHeldBack({
+  personId,
+  name,
+}: {
+  personId: string;
+  name: string;
+}) {
+  useLoadPersonSheet(personId, {
+    trees: false,
+    album: false,
+    stories: false,
+    reports: 0,
+    heldBack: true,
+  });
+  const rows = heldBackRows(usePersonSheet(personId)?.sheet.heldBack);
+  if (rows.length === 0) return null;
+  return <HeldBackDetails personId={personId} name={name} asParent />;
 }
