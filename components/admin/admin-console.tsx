@@ -2,6 +2,8 @@ import { AccountTypeBadge } from "@/components/account-type-badge";
 import { AccountTypeGuide } from "@/components/account-type-guide";
 import { AccountTypePicker } from "@/components/admin/account-type-picker";
 import { AdminArchivedInvites } from "@/components/admin/admin-archived-invites";
+import { AdminDeleteTree } from "@/components/admin/admin-delete-tree";
+import { AdminExport } from "@/components/admin/admin-export";
 import { AdminReports } from "@/components/admin/admin-reports";
 import { AdminInviteHistory } from "@/components/admin/admin-invite-history";
 import {
@@ -12,6 +14,10 @@ import { AdminGroup, AdminSubsection } from "@/components/admin/admin-group";
 import { AdminNotifications } from "@/components/admin/admin-notifications";
 import { AdminPlacements } from "@/components/admin/admin-placements";
 import { AdminSideNav } from "@/components/admin/admin-side-nav";
+import {
+  AdminTreeName,
+  AdminTreeVisibility,
+} from "@/components/admin/admin-tree-settings";
 import { AdminFamilyLink } from "@/components/admin/admin-family-link";
 import { DeleteMemberButton } from "@/components/admin/delete-member-button";
 import { DirectInviteForm } from "@/components/direct-invite-form";
@@ -47,14 +53,16 @@ import { membersOnOtherTrees } from "@/lib/remove-member.server";
 import { listRequestCandidates } from "@/lib/request-candidates.server";
 import { listCarried, listCarryChoices } from "@/lib/placements.server";
 import { getSiteUrl } from "@/lib/site-url";
+import { countriesRepresented, yearsDocumented } from "@/lib/tree-stats";
 import { createClient } from "@/lib/supabase/server";
-import type { TreeMembership } from "@/lib/tree-context";
+import { listMyTrees, type TreeMembership } from "@/lib/tree-context";
 
 /**
  * The current tree's Root console — the "root" view of the account page:
- * stats, members, people from other trees, requests, reports, invites and
- * share links. The tree's own settings live in the settings view (Step
- * 103.2). The account page hands it a Root's membership of that tree.
+ * stats and the tree's own settings side by side at the top (back from the
+ * settings view, Step 109), then members, people from other trees,
+ * requests, reports, invites and share links. The account page hands it a
+ * Root's membership of that tree.
  */
 export async function AdminConsole({
   membership,
@@ -105,11 +113,13 @@ export async function AdminConsole({
     carried,
     requestCandidates,
     onOtherTrees,
+    myTrees,
+    openToRes,
   ] = await Promise.all([
     membersP,
     supabase
       .from("tree_people")
-      .select("id, created_by, is_home")
+      .select("id, created_by, is_home, country_of_birth, date_of_birth")
       .eq("tree_id", tree.id),
     supabase
       .from("tree_edges")
@@ -157,7 +167,18 @@ export async function AdminConsole({
         members.filter(removable).map((m) => m.auth_user_id),
       ),
     ),
+    // Settings (Step 109): which of the Root's other trees may view this
+    // one (Step 25.4).
+    listMyTrees(),
+    supabase
+      .from("tree_visibility")
+      .select("viewer_tree_id")
+      .eq("tree_id", tree.id),
   ]);
+  const openTo = new Set((openToRes.data ?? []).map((v) => v.viewer_tree_id));
+  const viewers = myTrees
+    .filter((t) => t.id !== tree.id)
+    .map((t) => ({ id: t.id, name: t.name, visible: openTo.has(t.id) }));
 
   const selfEntryOf = new Map(
     members.map((m) => [m.auth_user_id, m.self_person_id]),
@@ -243,6 +264,9 @@ export async function AdminConsole({
     { label: "From Other Trees", value: fromElsewhere },
     { label: "Connections", value: relCountRes.count ?? 0 },
     { label: "Claimed", value: approvedClaimsRes.count ?? 0 },
+    // Step 109: where they were born, and how far back the births go.
+    { label: "Countries", value: countriesRepresented(people) },
+    { label: "Years Documented", value: yearsDocumented(people, new Date()) },
     { label: "Reports", value: reports.length },
     { label: "Invite requests", value: inviteRequests.length },
   ];
@@ -255,28 +279,54 @@ export async function AdminConsole({
 
       <AdminNotifications items={actionItems} />
 
-      <Card id="overview" className="scroll-mt-20">
-        <CardHeader>
-          <CardTitle>Overview</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {stats.map((s) => (
-              <div
-                key={s.label}
-                className="rounded-lg border border-border p-3"
-              >
-                <dt className="text-xs font-medium text-muted-foreground">
-                  {s.label}
-                </dt>
-                <dd className="text-2xl font-semibold tabular-nums">
-                  {s.value}
-                </dd>
+      {/* Overview and the tree's settings side by side (Step 109), the
+          same height (Aalim's ask, past the rule that cards keep their
+          own); the stats shrink to three across so the two fit, every
+          tile the same size, three rows of three. */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card id="overview" className="scroll-mt-20">
+          <CardHeader>
+            <CardTitle>Overview</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <dl className="grid auto-rows-fr grid-cols-3 gap-2">
+              {stats.map((s) => (
+                <div
+                  key={s.label}
+                  className="flex flex-col justify-between gap-1 rounded-lg border border-border px-2.5 py-2"
+                >
+                  <dt className="text-[11px] leading-tight font-medium text-muted-foreground">
+                    {s.label}
+                  </dt>
+                  <dd className="text-lg leading-none font-semibold tabular-nums">
+                    {s.value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </CardContent>
+        </Card>
+
+        <Card id="tree-settings" className="scroll-mt-20">
+          <CardHeader>
+            <CardTitle>Settings</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-6">
+            <AdminTreeName treeId={tree.id} name={tree.name} />
+            <section className="flex flex-col gap-3">
+              <h3 className="text-sm font-semibold">Who Else Can View</h3>
+              <AdminTreeVisibility treeId={tree.id} viewers={viewers} />
+            </section>
+            <section className="flex flex-col gap-3">
+              <h3 className="text-sm font-semibold">Data &amp; Privacy</h3>
+              <div className="flex flex-wrap items-center gap-3">
+                <AdminExport treeId={tree.id} />
+                <AdminDeleteTree treeId={tree.id} name={tree.name} />
               </div>
-            ))}
-          </dl>
-        </CardContent>
-      </Card>
+            </section>
+          </CardContent>
+        </Card>
+      </div>
 
       <AdminGroup
         title="Members"

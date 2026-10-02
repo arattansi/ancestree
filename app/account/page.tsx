@@ -12,14 +12,8 @@ import {
   type AccountView,
 } from "@/components/account-view-toggle";
 import { AdminConsole } from "@/components/admin/admin-console";
-import { AdminDeleteTree } from "@/components/admin/admin-delete-tree";
-import { AdminExport } from "@/components/admin/admin-export";
 import { AdminNicknames } from "@/components/admin/admin-nicknames";
 import { AdminSideNav } from "@/components/admin/admin-side-nav";
-import {
-  AdminTreeName,
-  AdminTreeVisibility,
-} from "@/components/admin/admin-tree-settings";
 import { BackToTop } from "@/components/back-to-top";
 import {
   ClearNotificationsButton,
@@ -250,9 +244,9 @@ async function ProfileView({ profile }: { profile: Profile }) {
 
 /**
  * Settings: relatives asking you for an invite, your trees, your entry
- * across them, each tree you run (its name, who else may view it, export
- * and deletion — Step 103.2, from the Root console), appearance, privacy,
- * invites you may send, nicknames for a Root, your inbox, and signing out
+ * across them, appearance, privacy, invites you may send, nicknames for a
+ * Root, your inbox, and signing out (each tree's own settings, here from
+ * Step 103.2, are back in its Root console since Step 109)
  * — cards in two columns, the wide ones spanning both. A floating nav
  * beside them on a wide screen names each card (Step 108), and the inbox
  * folds to its title until it's opened.
@@ -285,14 +279,13 @@ async function SettingsView({
     soleRootTrees,
     asks,
     newsletterOn,
-    viewersByTree,
     nicknameGroups,
   } = await loadAccountSettings(profile, trees, openedRelayId);
 
   // Inviting from here: every tree they don't run (Roots invite from the
   // admin page). Whoever they invite joins as a Leaf.
   const inviteFrom = trees.filter((t) => !t.type.runsTree);
-  // The trees they run, each with its own settings (Step 103.2).
+  // The trees they run, for the nicknames card.
   const runs = trees.filter((t) => t.type.runsTree);
   const founded = trees.some((t) => t.founded);
 
@@ -306,7 +299,6 @@ async function SettingsView({
     ...(profile.self_person_id && home
       ? [{ id: "your-entry", label: "Your Entry" }]
       : []),
-    ...runs.map((t) => ({ id: `tree-settings-${t.id}`, label: t.name })),
     { id: "view", label: "View" },
     { id: "privacy-and-data", label: "Privacy & Your Data" },
     ...inviteFrom.map((t) => ({
@@ -488,35 +480,6 @@ async function SettingsView({
           </CardContent>
         </Card>
       ) : null}
-
-      {runs.map((t) => (
-        <Card
-          key={t.id}
-          id={`tree-settings-${t.id}`}
-          className="scroll-mt-24"
-        >
-          <CardHeader>
-            <CardTitle>{t.name}</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-6">
-            <AdminTreeName treeId={t.id} name={t.name} />
-            <section className="flex flex-col gap-3">
-              <h3 className="text-sm font-semibold">Who Else Can View</h3>
-              <AdminTreeVisibility
-                treeId={t.id}
-                viewers={viewersByTree.get(t.id) ?? []}
-              />
-            </section>
-            <section className="flex flex-col gap-3">
-              <h3 className="text-sm font-semibold">Data &amp; Privacy</h3>
-              <div className="flex flex-wrap items-center gap-3">
-                <AdminExport treeId={t.id} />
-                <AdminDeleteTree treeId={t.id} name={t.name} />
-              </div>
-            </section>
-          </CardContent>
-        </Card>
-      ))}
 
       <Card id="view" className="scroll-mt-24">
         <CardHeader>

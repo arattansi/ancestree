@@ -10,6 +10,7 @@ describe("adminNav", () => {
         label: null,
         items: [
           { id: "overview", label: "Overview" },
+          { id: "tree-settings", label: "Settings" },
           { id: "members", label: "Members" },
           { id: "account-types", label: "Account Types" },
         ],

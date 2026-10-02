@@ -127,10 +127,11 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   that the newcomer's name matches, to invite them as (Step 41.1), and the
   date it lapses (Step 41.5); its Privacy card has the **Relatives can ask
   me to invite them** box (on unless they untick it, Step 41.5); a Root
-  gets a card for each tree they run (its name, who else may view it,
-  export, delete the tree) and one **Nicknames** card (Step 103.2) — and,
+  gets one **Nicknames** card (Step 103.2) — and,
   with `?view=admin`, the **Root console**
-  of the current tree, or the first you run: stats, members, people from
+  of the current tree, or the first you run: stats and the tree's
+  **Settings** (its name, who else may view it, export, delete the tree;
+  Step 109, in settings from Step 103.2) side by side, members, people from
   other trees, requests, reports (disputed claims among them, Step 88.2),
   invites incl. the family link
   (Step 52, `components/admin/admin-family-link.tsx`) and share
@@ -1591,7 +1592,8 @@ Canadian context → PIPEDA-minded.
 - **All PII behind auth + RLS**: every table is RLS-scoped by tree membership;
   nothing is public or indexed. Photos and recordings live in private buckets and are
   only ever served through short-lived signed URLs (unchanged from Step 2).
-- **Admin data export**: `/admin` → "Download JSON export"
+- **Admin data export**: the Root console's **Settings** (Step 109) →
+  "download JSON export"
   (`exportTreeData`, service-role read of every table scoped to the shared tree;
   `components/admin/admin-export.tsx` streams it as a client-side download).
 - **Delete a person**: `PersonPanel` → "Delete entry" (admins only,
@@ -1776,6 +1778,35 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 109: the tree's settings back in the Root console** (no
+  migration). **Aalim asked for:** the settings for a tree they're Root
+  of ("Rattansi-Suleman Tree": its name, deleting it, the JSON download)
+  in the root view, as a card at the top beside **Overview**, with the
+  overview's stat cards smaller so the two sit side by side. The console
+  now opens on a two-column row (`md` up; stacked on a phone):
+  **Overview**, its seven stats three across in smaller tiles (11px
+  label, 18px number), and **Settings** (`#tree-settings`, in the side
+  nav after Overview): **Tree name** with **rename**, **Who Else Can
+  View**, and **Data & Privacy** with **download JSON export** and
+  **delete this tree**. Settings' card per tree they run (Step 103.2) is
+  gone, with its nav label and `loadAccountSettings`' `viewersByTree`;
+  the console reads the Root's other trees and `tree_visibility` for its
+  own tree. The two cards are the same height (Aalim, same day; an
+  exception to cards keeping their own, noted in the design system).
+  Then every tile the same size (`auto-rows-fr`), and two more to fill
+  the card out to three rows of three (`lib/tree-stats.ts`, `.test.ts`):
+  **Countries**, the birth countries of the entries the tree shows, each
+  once however it's typed (accents, apostrophes, spacing, case), and
+  **Years Documented**, this year less the earliest birth year on record
+  (a yearless birthday doesn't count; a circa year does). On Aalim's tree:
+  12 countries, 128 years (1898), as live SQL counted.
+  **My call, not asked:** **Who Else Can View** moved with the
+  rest, as part of the same card. Nicknames stay in settings (shared by
+  every tree). **Checked:** tsc, lint, the full suite; Aalim's own
+  `?view=admin` at 1440 × 900, viewed only: the two cards side by side
+  (17 members, 119 entries…), **Settings** in the side nav; settings no
+  longer has rename, export or delete, and keeps Nicknames.
 
 - **Step 108: a side nav for settings, and Notifications folds** (no
   migration). **Aalim asked for:** "add floating side navigation in

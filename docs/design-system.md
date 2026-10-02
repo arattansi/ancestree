@@ -104,7 +104,9 @@ turn autocomplete off, or every relative is offered the member's own name
 - Settings-style pages lay cards out in two columns (`grid gap-6
   md:grid-cols-2`); a card that needs the width spans both
   (`md:col-span-2`). Cards keep their natural height; don't stretch one to
-  match its neighbour, trim its copy instead.
+  match its neighbour, trim its copy instead. The one exception: the Root
+  console's **Overview** and **Settings**, a pair at its top, are the same
+  height (Aalim, Step 109).
 - A long page of cards (the Root console; settings since Step 108) has a
   floating side nav at `xl` and up (`AdminSideNav`): a thin ruled column
   left of the content, one label per section repeating its title, the one

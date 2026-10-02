@@ -12,12 +12,12 @@ import { useAction } from "@/components/use-action";
 import { TREE_NAME_MAX } from "@/lib/limits";
 
 /**
- * Rename the tree (Step 25), from its card in settings (Step 103.2). The
- * action refreshes the page, so the new name shows wherever the old did.
+ * Rename the tree (Step 25), from the Root console's Settings card (Step
+ * 109; settings' card per tree from Step 103.2). The action refreshes the
+ * page, so the new name shows wherever the old did.
  */
 export function AdminTreeName({ treeId, name }: { treeId: string; name: string }) {
   const [value, setValue] = React.useState(name);
-  // One form per tree they run, side by side in settings.
   const inputId = React.useId();
   const action = useAction({ inline: true });
 

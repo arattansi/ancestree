@@ -3,7 +3,8 @@
  * nav is drawn from them, and each group on the console opens itself when
  * the nav, or a `#hash`, points at one of its own; the console draws each
  * section's content where its group is laid out. The tree's own settings
- * moved to the account page's settings view (Step 103.2).
+ * went to the account page's settings view in Step 103.2 and came back as
+ * a card beside the overview in Step 109.
  */
 
 /** The console's groups, in order down the page. */
@@ -39,6 +40,7 @@ const NAV_HEADINGS: Record<AdminGroupKey, string | null> = {
 
 const SECTIONS: readonly AdminSection[] = [
   { id: "overview", nav: "Overview", group: "members", ownCard: true },
+  { id: "tree-settings", nav: "Settings", group: "members", ownCard: true },
   { id: "members", nav: "Members", group: "members" },
   { id: "account-types", nav: "Account Types", group: "members" },
   { id: "placements", nav: "From Other Trees", group: "people" },
