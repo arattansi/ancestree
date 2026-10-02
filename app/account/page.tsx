@@ -15,6 +15,7 @@ import { AdminConsole } from "@/components/admin/admin-console";
 import { AdminDeleteTree } from "@/components/admin/admin-delete-tree";
 import { AdminExport } from "@/components/admin/admin-export";
 import { AdminNicknames } from "@/components/admin/admin-nicknames";
+import { AdminSideNav } from "@/components/admin/admin-side-nav";
 import {
   AdminTreeName,
   AdminTreeVisibility,
@@ -23,6 +24,7 @@ import { BackToTop } from "@/components/back-to-top";
 import {
   ClearNotificationsButton,
 } from "@/components/clear-notifications-button";
+import { CollapsibleCard } from "@/components/collapsible-card";
 import { DeleteAccount } from "@/components/delete-account";
 import { DirectInviteForm } from "@/components/direct-invite-form";
 import { EditDisplayName } from "@/components/edit-display-name";
@@ -48,6 +50,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { BRANCHES_PER_ROOT, countOf } from "@/lib/account-types";
+import type { AdminNavItem } from "@/lib/admin-sections";
 import { adminPageHref } from "@/lib/admin-page";
 import { loadAccountSettings } from "@/lib/account-settings.server";
 import { getSessionUser, requireProfile, type Profile } from "@/lib/auth";
@@ -250,7 +253,9 @@ async function ProfileView({ profile }: { profile: Profile }) {
  * across them, each tree you run (its name, who else may view it, export
  * and deletion — Step 103.2, from the Root console), appearance, privacy,
  * invites you may send, nicknames for a Root, your inbox, and signing out
- * — cards in two columns, the wide ones spanning both.
+ * — cards in two columns, the wide ones spanning both. A floating nav
+ * beside them on a wide screen names each card (Step 108), and the inbox
+ * folds to its title until it's opened.
  */
 async function SettingsView({
   profile,
@@ -291,8 +296,33 @@ async function SettingsView({
   const runs = trees.filter((t) => t.type.runsTree);
   const founded = trees.some((t) => t.founded);
 
+  // The side nav, one label per card, in the cards' order (Step 108).
+  const nav: AdminNavItem[] = [
+    ...(asks.length > 0 ? [{ id: "asked-of-you", label: "Asked of You" }] : []),
+    ...(relays.length > 0 || openedRelayGone
+      ? [{ id: "relatives-asking", label: "Relatives Asking for an Invite" }]
+      : []),
+    { id: "your-trees", label: "Your Trees" },
+    ...(profile.self_person_id && home
+      ? [{ id: "your-entry", label: "Your Entry" }]
+      : []),
+    ...runs.map((t) => ({ id: `tree-settings-${t.id}`, label: t.name })),
+    { id: "view", label: "View" },
+    { id: "privacy-and-data", label: "Privacy & Your Data" },
+    ...inviteFrom.map((t) => ({
+      id: `invite-${t.id}`,
+      label: `Invite a Relative to ${t.name}`,
+    })),
+    ...(runs.length > 0 ? [{ id: "nicknames", label: "Nicknames" }] : []),
+    { id: "notifications", label: "Notifications" },
+  ];
+
   return (
     <div className="grid gap-6 md:grid-cols-2">
+      <AdminSideNav
+        groups={[{ label: null, items: nav }]}
+        label="Settings sections"
+      />
       {asks.length > 0 ? (
         <Card id="asked-of-you" className="scroll-mt-24 md:col-span-2">
           <CardHeader>
@@ -305,7 +335,7 @@ async function SettingsView({
       ) : null}
 
       {relays.length > 0 || openedRelayGone ? (
-        <Card id="relatives-asking" className="md:col-span-2">
+        <Card id="relatives-asking" className="scroll-mt-24 md:col-span-2">
           <CardHeader>
             <CardTitle>Relatives Asking for an Invite</CardTitle>
           </CardHeader>
@@ -324,7 +354,7 @@ async function SettingsView({
         </Card>
       ) : null}
 
-      <Card>
+      <Card id="your-trees" className="scroll-mt-24">
         <CardHeader>
           <CardTitle>Your Trees</CardTitle>
           <CardAction>
@@ -440,7 +470,7 @@ async function SettingsView({
       </Card>
 
       {profile.self_person_id && home ? (
-        <Card>
+        <Card id="your-entry" className="scroll-mt-24">
           <CardHeader>
             <CardTitle>Your Entry</CardTitle>
           </CardHeader>
@@ -488,7 +518,7 @@ async function SettingsView({
         </Card>
       ))}
 
-      <Card>
+      <Card id="view" className="scroll-mt-24">
         <CardHeader>
           <CardTitle>View</CardTitle>
         </CardHeader>
@@ -497,7 +527,7 @@ async function SettingsView({
         </CardContent>
       </Card>
 
-      <Card>
+      <Card id="privacy-and-data" className="scroll-mt-24">
         <CardHeader>
           <CardTitle>Privacy &amp; Your Data</CardTitle>
         </CardHeader>
@@ -517,7 +547,7 @@ async function SettingsView({
 
       {inviteFrom.map((t) => {
         return (
-          <Card key={t.id}>
+          <Card key={t.id} id={`invite-${t.id}`} className="scroll-mt-24">
             <CardHeader>
               <CardTitle>Invite a Relative to {t.name}</CardTitle>
             </CardHeader>
@@ -539,36 +569,37 @@ async function SettingsView({
         </Card>
       ) : null}
 
-      <Card className="md:col-span-2">
-        <CardHeader>
-          <div className="flex items-start justify-between gap-2">
-            <CardTitle>Notifications</CardTitle>
-            <ClearNotificationsButton items={notifications} />
-          </div>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-6">
-          <WeeklyNewsletter on={newsletterOn} />
-          {trees.length > 1 ? (
-            trees.map((t) => {
-              const items = notifications.filter((n) => n.treeId === t.id);
-              return (
-                <section key={t.id} className="flex flex-col gap-2">
-                  <h3 className="text-sm font-semibold">{t.name}</h3>
-                  <NotificationsList
-                    items={items}
-                    currentTreeId={currentTreeId}
-                  />
-                </section>
-              );
-            })
-          ) : (
-            <NotificationsList
-              items={notifications}
-              currentTreeId={currentTreeId}
-            />
-          )}
-        </CardContent>
-      </Card>
+      {/* Folded until opened (Step 108); the newsletter email's
+          `#newsletter` opens it. */}
+      <CollapsibleCard
+        id="notifications"
+        title="Notifications"
+        opensFor={["newsletter"]}
+        action={<ClearNotificationsButton items={notifications} />}
+        className="md:col-span-2"
+        contentClassName="flex flex-col gap-6"
+      >
+        <WeeklyNewsletter on={newsletterOn} />
+        {trees.length > 1 ? (
+          trees.map((t) => {
+            const items = notifications.filter((n) => n.treeId === t.id);
+            return (
+              <section key={t.id} className="flex flex-col gap-2">
+                <h3 className="text-sm font-semibold">{t.name}</h3>
+                <NotificationsList
+                  items={items}
+                  currentTreeId={currentTreeId}
+                />
+              </section>
+            );
+          })
+        ) : (
+          <NotificationsList
+            items={notifications}
+            currentTreeId={currentTreeId}
+          />
+        )}
+      </CollapsibleCard>
 
       <form action={signOut} className="md:col-span-2">
         <SubmitButton variant="outline" pendingLabel="signing out…">

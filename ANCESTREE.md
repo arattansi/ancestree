@@ -1777,6 +1777,27 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 108: a side nav for settings, and Notifications folds** (no
+  migration). **Aalim asked for:** "add floating side navigation in
+  account settings and make notifications collapsible". The account
+  page's **settings** view now has the Root console's floating nav
+  (`AdminSideNav`, which takes a `label` now and is at most 10rem wide):
+  one label per card, in the cards' order (Asked of You and Relatives
+  Asking when they're there, Your Trees, Your Entry, each tree they run,
+  View, Privacy & Your Data, each Invite a Relative to…, Nicknames,
+  Notifications), every card an anchor (`scroll-mt-24`). **Notifications**
+  is a `CollapsibleCard` (`components/collapsible-card.tsx`): closed at
+  first, the chevron beside its title opens it, **clear** at the right
+  only while open, and it opens itself for the nav's link and for a
+  `#notifications` or `#newsletter` address (the newsletter email's link,
+  `lib/tree-links.ts`), scrolling to it once there. **My calls, not
+  asked:** closed by default; no unread count on the folded card (the
+  header's bell has it); the nav only from `xl`, as the Root console's.
+  **Checked:** tsc, lint, the full suite; as the test reviewer at
+  1440 × 900: the nav's four labels beside the cards, Notifications
+  folded, the nav's **Notifications** opening it, its chevron closing it,
+  and a fresh load of `?view=settings#newsletter` opening it.
+
 - **Step 107: the marketing pages and join a tree** (no migration).
   **Aalim asked for:** on the home page, the "New here? ancestree is
   invite-only…" line gone, **request access** renamed **join a tree** and

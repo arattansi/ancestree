@@ -10,9 +10,17 @@ import { cn } from "@/lib/utils";
  * Minimalist floating section nav for the admin page, Notion-style: a thin
  * ruled column of labels grouped to match the console's groups. Clicking a
  * label opens its group and scrolls to it. Desktop only — there's no room
- * beside the content until the viewport is wide.
+ * beside the content until the viewport is wide. The account page's
+ * settings use it too (Step 108), one label per card.
  */
-export function AdminSideNav({ groups }: { groups: AdminNavGroup[] }) {
+export function AdminSideNav({
+  groups,
+  label = "Root console sections",
+}: {
+  groups: AdminNavGroup[];
+  /** What a screen reader calls the nav. */
+  label?: string;
+}) {
   const allItems = React.useMemo(
     () => groups.flatMap((g) => g.items),
     [groups],
@@ -45,8 +53,8 @@ export function AdminSideNav({ groups }: { groups: AdminNavGroup[] }) {
 
   return (
     <nav
-      aria-label="Root console sections"
-      className="fixed top-1/2 left-[max(1.5rem,calc(50%-34rem))] z-10 hidden max-h-[80vh] -translate-y-1/2 overflow-y-auto xl:block"
+      aria-label={label}
+      className="fixed top-1/2 left-[max(1.5rem,calc(50%-34rem))] z-10 hidden max-h-[80vh] max-w-40 -translate-y-1/2 overflow-y-auto xl:block"
     >
       <ul className="flex flex-col gap-3 border-l border-border">
         {groups.map((group) => (

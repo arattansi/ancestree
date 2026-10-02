@@ -105,6 +105,15 @@ turn autocomplete off, or every relative is offered the member's own name
   md:grid-cols-2`); a card that needs the width spans both
   (`md:col-span-2`). Cards keep their natural height; don't stretch one to
   match its neighbour, trim its copy instead.
+- A long page of cards (the Root console; settings since Step 108) has a
+  floating side nav at `xl` and up (`AdminSideNav`): a thin ruled column
+  left of the content, one label per section repeating its title, the one
+  in view marked. A card the nav points into opens itself if it's folded.
+- A card that's long and rarely needed folds to its title
+  (`CollapsibleCard`, settings' **Notifications**, Step 108): a chevron
+  beside the title, closed at first, its action (**clear**) at the right
+  only while open. A `#hash` naming it or something in it opens it on
+  load (the newsletter email's `#newsletter`).
 - The header is three columns: the mark, the tree switcher centred (for
   every member since Step 92.2: **My Family Tree** first, then each tree
   with the mark of their account type there, then starting a tree of their
