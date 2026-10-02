@@ -1820,7 +1820,11 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   and `AdminSubsection` no longer take a `description`) and on the
   account page's cards; the empty "Your Details" keeps its one line, and
   a child's placeholder keeps "Hidden from the family until your parent
-  approves.". The console's **Settings** group moved to the account
+  approves.". Three help lines inside cards went too (Aalim, same day):
+  the home-tree rules under **move home**, the explanation under
+  **Relatives can ask me to invite them** (the privacy notice still says
+  both) and the Nicknames form's "Names are stored lowercase…". The
+  console's **Settings** group moved to the account
   page's **settings**: a card per tree they run, named for it, with the
   rename form, **Who Else Can View** and **Data & Privacy** (export,
   delete this tree), and one **Nicknames** card, shared by every tree

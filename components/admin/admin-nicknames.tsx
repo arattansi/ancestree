@@ -94,10 +94,6 @@ export function AdminNicknames({ groups }: { groups: NicknameGroup[] }) {
           </PendingButton>
         </div>
         <FormError>{add.error}</FormError>
-        <p className="text-xs text-muted-foreground">
-          Names are stored lowercase without accents or punctuation. Adding to
-          an existing root extends that group; a new root starts one.
-        </p>
       </form>
 
       <div className="flex flex-col gap-3 border-t border-border pt-6">

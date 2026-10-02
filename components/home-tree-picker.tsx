@@ -85,11 +85,6 @@ export function HomeTreePicker({
             move home
           </PendingButton>
         </div>
-        <p className="text-xs text-muted-foreground">
-          Your details follow your home tree&rsquo;s rules: its Roots can edit
-          them and undo a Branch&rsquo;s change; other trees only place your
-          card. You control your entry on every tree regardless.
-        </p>
       </div>
 
       <div className="flex items-start gap-3">

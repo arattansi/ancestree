@@ -30,21 +30,13 @@ export function RelativesCanAsk({ on }: { on: boolean }) {
             return setRelativesCanAsk(value === true);
           })
         }
-        aria-describedby="relatives-can-ask-note"
       />
-      <div className="flex flex-col gap-1">
-        <Label
-          htmlFor="relatives-can-ask"
-          className="font-normal leading-snug text-foreground"
-        >
-          {RELATIVES_CAN_ASK_LABEL}
-        </Label>
-        <p id="relatives-can-ask-note" className="text-xs">
-          Someone who can&rsquo;t find themselves on a tree can give us your
-          address, and we pass their name and email on to you. Untick this and
-          nothing reaches you. They&rsquo;re told the same either way.
-        </p>
-      </div>
+      <Label
+        htmlFor="relatives-can-ask"
+        className="font-normal leading-snug text-foreground"
+      >
+        {RELATIVES_CAN_ASK_LABEL}
+      </Label>
     </div>
   );
 }
