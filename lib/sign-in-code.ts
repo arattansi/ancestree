@@ -26,11 +26,15 @@ export function isWholeSignInCode(code: string): boolean {
   return code.length === SIGN_IN_CODE_LENGTH && /^\d+$/.test(code);
 }
 
+/** A reviewer suspended the account (Step 103.4): Supabase Auth's ban. */
+const SUSPENDED = "This account is suspended.";
+
 /**
  * What the code box says when Supabase Auth refuses a code, by its error
  * code: `otp_expired` covers a wrong code as well as a stale one.
  */
 export function signInCodeRefusal(errorCode: string | undefined): string {
+  if (errorCode === "user_banned") return SUSPENDED;
   if (errorCode === "over_request_rate_limit") {
     return "Too many tries. Wait a few minutes, then try again.";
   }
@@ -39,6 +43,7 @@ export function signInCodeRefusal(errorCode: string | undefined): string {
 
 /** What a form says when a code couldn't be sent, by Supabase Auth's error code. */
 export function sendCodeRefusal(errorCode: string | undefined): string {
+  if (errorCode === "user_banned") return SUSPENDED;
   if (errorCode === "over_email_send_rate_limit") {
     return "Wait a minute before asking for another code.";
   }

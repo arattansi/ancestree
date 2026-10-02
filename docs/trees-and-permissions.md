@@ -32,7 +32,7 @@ round trip.
 | Roots | Every tree has at least one Root, for good, and at most two (Step 39). The last Root may leave only by handing the tree to a successor (`deleteAccount(successorId)`, per tree). |
 | Naming | `trees.name` is shown; `trees.slug` is the URL segment (`/t/<slug>/…`). Slugs are unique and only a Root may rename a tree. |
 | Bloodline gate | Per tree (`bloodline_anchors.tree_id`). A founded tree is anchored on its founder's own entry, set when they add, claim or bring themselves there (Step 29: `place_people` anchors the founder's own entry); the first tree keeps its two original anchors. The bloodline climbs every parent line from the anchors, then comes down parent lines and across sibling lines (Step 55), so a partner who married in stays out. Everyone added needs a blood tie (Step 55): once their lines are drawn they are blood, or have a line straight to someone who is, as a partner or the other parent of a blood child. Nobody joins only through someone who married in — their parents, siblings, a child from another relationship, a later partner — whoever is adding, a Root or a newcomer adding themselves included, and the refusal names who. "Add a relative" and onboarding say so as soon as the form would be refused, without stopping the submit (Step 55.1). A member who married in can't add their own side of the family, which belongs on a tree of their own. |
-| Deleting a tree | A Root may delete a tree they run (`delete_tree`, from the tree's card in the account page's settings, Step 103.2). Every person whose home it was moves home to the other tree that has shown them in full the longest, or is deleted with the tree if there is none: a tree that shows only their basic card (Step 80) was never given the entry, so doesn't inherit it. A member whose own entry goes starts over on their next tree's onboarding. Its boards, banks, companions, invites and share links go with it. |
+| Deleting a tree | A Root may delete a tree they run (`delete_tree`, from the tree's card in the account page's settings, Step 103.2), and a beta reviewer any tree (from the admin page's **manage** tab, Step 103.4; typing its name confirms). Every person whose home it was moves home to the other tree that has shown them in full the longest, or is deleted with the tree if there is none: a tree that shows only their basic card (Step 80) was never given the entry, so doesn't inherit it. A member whose own entry goes starts over on their next tree's onboarding. Its boards, banks, companions, invites and share links go with it. |
 
 ## 3. Membership and account types
 
@@ -431,6 +431,14 @@ invite, and joining from there is theirs to press.
   Root of that tree; if they were the last Root of a tree they must name a
   successor there first. A Root's Branches pass the same way and count
   toward the new Root's four, even past four (Step 39).
+- A beta reviewer may delete any account but their own and the other
+  reviewers' from the admin page's **manage** tab (Step 103.4), the same
+  way (`lib/account-deletion.server.ts#deleteAccountOf`): they name the
+  successor where it was a tree's only Root, and a tree with nobody else
+  on it must be deleted first. They may also **suspend** an account, and
+  **restore** it: a ban in Supabase Auth, so it can't sign in ("This
+  account is suspended.") or refresh its session; a session already open
+  lasts until its token lapses (up to an hour). Nothing of theirs changes.
 - `profiles.self_person_id` is the member's one own entry, wherever it is
   placed. Only these set it: adding themselves on onboarding or the
   founder's first run, "that's me" on onboarding, "This is me" on an entry,

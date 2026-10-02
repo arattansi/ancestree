@@ -58,4 +58,9 @@ describe("refusals", () => {
     expect(sendCodeRefusal("over_email_send_rate_limit")).toMatch(/Wait a minute/);
     expect(sendCodeRefusal(undefined)).toBe("Could not send the code. Try again shortly.");
   });
+
+  it("says a suspended account is suspended (Step 103.4)", () => {
+    expect(signInCodeRefusal("user_banned")).toBe("This account is suspended.");
+    expect(sendCodeRefusal("user_banned")).toBe("This account is suspended.");
+  });
 });

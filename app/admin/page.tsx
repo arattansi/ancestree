@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { AdminCampaigns } from "@/components/admin/admin-campaigns";
+import { AdminAccounts, AdminTrees } from "@/components/admin/admin-manage";
 import { AdminPageTabs } from "@/components/admin/admin-page-tabs";
 import { AdminTreeRequests } from "@/components/admin/admin-tree-requests";
 import { BackToTop } from "@/components/back-to-top";
@@ -14,6 +15,8 @@ import {
 import { PageColumn } from "@/components/page-column";
 import { AccountViewSkeleton } from "@/components/page-skeletons";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { readAdminSearch } from "@/lib/admin-manage";
+import { findAccounts, findTrees } from "@/lib/admin-manage.server";
 import { readAdminTab } from "@/lib/admin-page";
 import { listCampaigns } from "@/lib/campaigns.server";
 import { getSiteUrl } from "@/lib/site-url";
@@ -27,12 +30,12 @@ export const metadata: Metadata = { title: "admin" };
  * The admin page (Step 103), the beta reviewers' own: the weekly
  * newsletter, the engagement numbers (both the account page's dashboard
  * view until now), and what they manage across the site: requests to
- * start a tree, out of every Root console, and campaign links (Step
- * 103.3). Anyone else is sent on to
+ * start a tree, out of every Root console, campaign links (Step 103.3),
+ * and accounts and trees to act on (Step 103.4). Anyone else is sent on to
  * the Root console, where this address used to lead.
  */
 export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
-  const [{ tab: requested }, reviewer] = await Promise.all([
+  const [{ tab: requested, account, tree }, reviewer] = await Promise.all([
     searchParams,
     isBetaReviewer(),
   ]);
@@ -61,7 +64,10 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
         ) : tab === "analytics" ? (
           <EngagementDashboard />
         ) : (
-          <ManageTab />
+          <ManageTab
+            accountQuery={readAdminSearch(account)}
+            treeQuery={readAdminSearch(tree)}
+          />
         )}
       </Suspense>
       <BackToTop />
@@ -71,17 +77,27 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
 
 /**
  * What a reviewer manages: requests to start a tree, from every tree and
- * the waitlist, and campaign links. A founder invite for someone on the
+ * the waitlist, campaign links, and the accounts and trees their searches
+ * (`?account=`, `?tree=`) find. A founder invite for someone on the
  * waitlist comes from the tree they're looking at if they run it, else the
  * first tree they run.
  */
-async function ManageTab() {
-  const [requests, trees, access, campaigns] = await Promise.all([
-    listTreeRequests(),
-    listMyTrees(),
-    currentAccess(),
-    listCampaigns(),
-  ]);
+async function ManageTab({
+  accountQuery,
+  treeQuery,
+}: {
+  accountQuery: string | null;
+  treeQuery: string | null;
+}) {
+  const [requests, trees, access, campaigns, foundAccounts, foundTrees] =
+    await Promise.all([
+      listTreeRequests(),
+      listMyTrees(),
+      currentAccess(),
+      listCampaigns(),
+      findAccounts(accountQuery),
+      findTrees(treeQuery),
+    ]);
   const founderTreeId =
     access?.kind === "member" && access.membership.isRoot
       ? access.membership.tree.id
@@ -103,6 +119,22 @@ async function ManageTab() {
         </CardHeader>
         <CardContent>
           <AdminCampaigns campaigns={campaigns} baseUrl={getSiteUrl()} />
+        </CardContent>
+      </Card>
+      <Card id="accounts" className="scroll-mt-20">
+        <CardHeader>
+          <CardTitle>Accounts</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <AdminAccounts query={accountQuery} accounts={foundAccounts} />
+        </CardContent>
+      </Card>
+      <Card id="trees" className="scroll-mt-20">
+        <CardHeader>
+          <CardTitle>Trees</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <AdminTrees query={treeQuery} trees={foundTrees} />
         </CardContent>
       </Card>
     </>

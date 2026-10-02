@@ -93,6 +93,11 @@ export default function PrivacyPage() {
             opened each one, signed up and started a tree, never who.
           </li>
           <li>
+            The site&rsquo;s owners can suspend an account, which stops it
+            signing in until they restore it, and delete an account or a
+            tree, as its member or Root could.
+          </li>
+          <li>
             Photos and recordings live in private storage and are only ever
             served through short-lived signed URLs.
           </li>

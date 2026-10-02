@@ -80,43 +80,13 @@ export function DeleteAccount({
           </DialogDescription>
         </DialogHeader>
 
-        {soleRootTrees.map((t) => {
-          const id = `successor-${t.treeId}`;
-          return t.successors.length > 0 ? (
-            <div key={t.treeId} className="flex flex-col gap-2">
-              <Label htmlFor={id}>Who takes over {t.treeName}?</Label>
-              <Select
-                items={t.successors.map((s) => ({ value: s.userId, label: s.name }))}
-                value={successors[t.treeId] ?? null}
-                onValueChange={(v) =>
-                  setSuccessors((prev) => {
-                    const next = { ...prev };
-                    if (typeof v === "string") next[t.treeId] = v;
-                    else delete next[t.treeId];
-                    return next;
-                  })
-                }
-                disabled={action.pending}
-              >
-                <SelectTrigger id={id} className="w-full">
-                  <SelectValue placeholder="Choose a member" />
-                </SelectTrigger>
-                <SelectContent>
-                  {t.successors.map((s) => (
-                    <SelectItem key={s.userId} value={s.userId}>
-                      {s.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          ) : (
-            <p key={t.treeId} className="text-sm text-muted-foreground">
-              Nobody else is on {t.treeName} yet. Invite someone to hand it to
-              first.
-            </p>
-          );
-        })}
+        <SuccessorPickers
+          trees={soleRootTrees}
+          successors={successors}
+          onChange={setSuccessors}
+          disabled={action.pending}
+          nobody={(tree) => `Nobody else is on ${tree} yet. Invite someone to hand it to first.`}
+        />
 
         <FormError>{action.error}</FormError>
         <DialogFooter>
@@ -139,4 +109,61 @@ export function DeleteAccount({
       </DialogContent>
     </Dialog>
   );
+}
+
+/**
+ * A "Who takes over?" choice for each tree someone is the only Root of, or
+ * the `nobody` line where there's no one to hand it to. The account page's
+ * deletion uses it, and a reviewer's on the admin page (Step 103.4).
+ */
+export function SuccessorPickers({
+  trees,
+  successors,
+  onChange,
+  disabled,
+  nobody,
+}: {
+  trees: readonly SoleRootTree[];
+  successors: Record<string, string>;
+  onChange: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  disabled?: boolean;
+  nobody: (treeName: string) => string;
+}) {
+  const baseId = React.useId();
+  return trees.map((t) => {
+    const id = `${baseId}-${t.treeId}`;
+    return t.successors.length > 0 ? (
+      <div key={t.treeId} className="flex flex-col gap-2">
+        <Label htmlFor={id}>Who takes over {t.treeName}?</Label>
+        <Select
+          items={t.successors.map((s) => ({ value: s.userId, label: s.name }))}
+          value={successors[t.treeId] ?? null}
+          onValueChange={(v) =>
+            onChange((prev) => {
+              const next = { ...prev };
+              if (typeof v === "string") next[t.treeId] = v;
+              else delete next[t.treeId];
+              return next;
+            })
+          }
+          disabled={disabled}
+        >
+          <SelectTrigger id={id} className="w-full">
+            <SelectValue placeholder="Choose a member" />
+          </SelectTrigger>
+          <SelectContent>
+            {t.successors.map((s) => (
+              <SelectItem key={s.userId} value={s.userId}>
+                {s.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    ) : (
+      <p key={t.treeId} className="text-sm text-muted-foreground">
+        {nobody(t.treeName)}
+      </p>
+    );
+  });
 }

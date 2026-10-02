@@ -2862,6 +2862,30 @@ export type Database = {
         Args: { p_fields: Json; p_person: string }
         Returns: string[]
       }
+      find_accounts: {
+        Args: { p_query?: string; p_user?: string }
+        Returns: {
+          created_at: string
+          display_name: string
+          email: string
+          last_sign_in_at: string
+          reviewer: boolean
+          suspended: boolean
+          trees: Json
+          user_id: string
+        }[]
+      }
+      find_trees: {
+        Args: { p_query?: string; p_tree?: string }
+        Returns: {
+          created_at: string
+          entries: number
+          members: number
+          name: string
+          roots: string[]
+          tree_id: string
+        }[]
+      }
       forget_withheld_details: {
         Args: { p_person: string }
         Returns: undefined

@@ -80,7 +80,9 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   members have got, what they did this week and last, each tree — from
   `engagement_dashboard()`; `components/dashboard/`, `lib/dashboard.ts`)
   and **manage** (requests to start a tree, from every tree and the
-  waitlist, and **Campaign Links**, Step 103.3), as `?tab=` links; anyone else is redirected to the account
+  waitlist, **Campaign Links**, Step 103.3, and **Accounts** and **Trees**
+  to find by address, name or tree name and suspend, restore or delete,
+  Step 103.4), as `?tab=` links; anyone else is redirected to the account
   page's Root console. `/account/admin?tree=<id>&section=<card>` is an
   alert email's button — a
   route that switches to that tree for a Root of it and opens its console
@@ -1770,8 +1772,9 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
-- **Step 103: the admin page** (migration
-  `20261002010000_invite_campaigns`, 103.3). **Aalim asked for:** the
+- **Step 103: the admin page** (migrations
+  `20261002010000_invite_campaigns`, 103.3, and
+  `20261002070000_reviewer_account_and_tree_actions`, 103.4). **Aalim asked for:** the
   admin dashboard out of the account page into a page of its own, with a
   red **admin** button before **tree** in the header, tabs **newsletter |
   analytics | manage**, and requests to start a tree out of every Root
@@ -1796,8 +1799,7 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   lands there too. The account page's **dashboard** view is gone:
   `/account?view=dashboard` goes to `/admin`. No line under any title on
   the page: the dashboard's four card descriptions and its "Engagement"
-  heading went. Account and tree actions (103.4) come later on
-  **manage**. **103.2, the Root console:** "Invite Someone to
+  heading went. Account and tree actions (103.4) are on **manage** too. **103.2, the Root console:** "Invite Someone to
   Start a Tree of Their Own" (`#found`) and "Bare Invite Links"
   (`#bare-invites`) are gone, with `AdminBareInvites`, `listBareInvites`,
   `sendFounderInvites` and `DirectInviteForm`'s `founder` (a founder
@@ -1864,7 +1866,36 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   `gen_random_bytes` off their empty search_path, so a second tree named
   "Family" (every founder's first name for it) couldn't be founded, and a
   rename onto a taken name failed; both now call
-  `extensions.gen_random_bytes`.
+  `extensions.gen_random_bytes`. **103.4, account and tree actions**
+  (migration `20261002070000_reviewer_account_and_tree_actions`):
+  **manage** has an **Accounts** card and a **Trees** card, each a search
+  box (**Email or name**, **Tree name**, **find**: a GET to
+  `/admin?tab=manage&account=…` / `&tree=…`, so the address keeps it) and
+  up to 20 matches ("No accounts found." / "No trees found."). An account
+  shows its name, address, trees with its type on each, when it joined
+  and last signed in, a **Suspended** or **Reviewer** badge, and
+  **suspend** / **restore** and **delete** (none on a reviewer's,
+  their own included). **suspend** bans it in Supabase Auth with the
+  service role (`setAccountSuspended`; Auth then refuses its sign-in,
+  token refresh and `/user`, `user_banned`, and the code box and send
+  form say "This account is suspended."); a session already open lasts
+  until its token lapses (up to an hour), since pages check the token
+  locally (Step 61). **delete** asks first ("This cannot be undone." on
+  its own line), and where it's a tree's only Root, who takes over (the
+  account page's `SuccessorPickers`, now shared; a tree with nobody else
+  says "Delete the tree first."); it runs the account page's own
+  deletion, moved to `lib/account-deletion.server.ts#deleteAccountOf`
+  (`deleteAccount` calls it; a reviewer's successor is made a Root with
+  the service role, which `tree_members_guard` lets through and
+  `tree_members_limits` still holds to two). A tree shows its members,
+  entries, when it started and its Roots, and **delete**, confirmed by
+  typing its name, runs `delete_tree` as the reviewer (`deleteTreeAsReviewer`,
+  with Step 90's file sweep). The migration adds reviewer-only
+  `find_accounts(p_query, p_user)` (address or name, or one account:
+  suspended, reviewer, trees as JSON with the successors where it's the
+  only Root) and `find_trees(p_query, p_tree)`, and lets a reviewer
+  through `delete_tree`. Nothing new is stored; the privacy page says the
+  owners may suspend or delete an account or a tree.
 
 - **Step 106: your card on another tree, name only** (migrations
   `20261002050000_card_name_only`, `20261002060000_own_card_trees`). **Aalim asked for:** people to take
