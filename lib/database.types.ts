@@ -2905,6 +2905,14 @@ export type Database = {
         }[]
       }
       note_active_day: { Args: never; Returns: boolean }
+      own_card_trees: {
+        Args: never
+        Returns: {
+          approval: string
+          tree_id: string
+          tree_name: string
+        }[]
+      }
       person_claim_candidates: {
         Args: never
         Returns: {

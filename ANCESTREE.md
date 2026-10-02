@@ -1764,8 +1764,8 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
-- **Step 106: your card on another tree, name only** (migration
-  `20261002050000_card_name_only`). **Aalim asked for:** people to take
+- **Step 106: your card on another tree, name only** (migrations
+  `20261002050000_card_name_only`, `20261002060000_own_card_trees`). **Aalim asked for:** people to take
   their own card off other trees — as a "shell" that keeps their name and
   nothing else, like a married-in pill, permanently; the tree's Root may do
   it too; a member of that tree leaves it. `tree_placements.approval` gains
@@ -1784,8 +1784,11 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   canvas (`shellIds` joins `pillIds`), **name only** / **show more** on the
   Root console's "Brought over so far" and on **Your Entry** in settings
   (`components/own-card-elsewhere.tsx`, "You'll leave {tree} too." for a
-  member), the sheet's "This tree shows only their name.", and the privacy
-  page and `docs/trees-and-permissions.md` say so.
+  member), the sheet's "Name only" and "This tree shows only their name.",
+  and the privacy page and `docs/trees-and-permissions.md` say so. Your
+  Entry reads its trees through the new `own_card_trees()`: once someone
+  leaves a tree, `trees` hides its name from them, and the browser test
+  found the row they'd undo it from gone.
 
 - **Step 105: the privacy page on children and other trees** (no
   migration). **Aalim asked for:** the privacy page to set out what's been

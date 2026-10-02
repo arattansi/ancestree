@@ -72,7 +72,7 @@ import {
 } from "@/lib/image-crop";
 import { asDayMonth, formatPartialDate } from "@/lib/partial-date";
 import { FILL_ENTRY_NOTE, LOCKED_ENTRY_NOTE } from "@/lib/account-types";
-import { BASIC_DETAILS, waitingOn } from "@/lib/carry";
+import { BASIC_DETAILS, NAME_ONLY, waitingOn } from "@/lib/carry";
 import { blankFields } from "@/lib/fill-blanks";
 import { SEX_LABELS, type Sex } from "@/lib/person-labels";
 import { PersonOnTrees, PersonTrees } from "@/components/tree/person-trees";
@@ -453,10 +453,13 @@ function PersonPanelImpl({
   const waiting = person
     ? waitingOn(person.approval, person.asked_of, personDisplayName(person))
     : null;
-  // With no dates to show, a basic card says what it is instead.
+  // With no dates to show, a basic card says what it is instead, and so
+  // does a name-only one (Step 106).
   const lifeLine = person
     ? basic
-      ? BASIC_DETAILS
+      ? person.approval === "shell"
+        ? NAME_ONLY
+        : BASIC_DETAILS
       : placeholder
         ? "Placeholder"
         : (personLifespan(person) ?? "Living")

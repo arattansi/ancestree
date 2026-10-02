@@ -109,11 +109,8 @@ export async function loadAccountSettings(
             .select("tree_id, hidden_from_visitors")
             .eq("id", selfId)
             .maybeSingle(),
-          supabase
-            .from("tree_placements")
-            .select("tree_id, approval, trees(name)")
-            .eq("person_id", selfId)
-            .eq("status", "active"),
+          // By name even where they aren't a member (Step 106).
+          supabase.rpc("own_card_trees"),
         ])
       : null,
     // What each Branch membership tends: the Root they're related to there.
@@ -187,12 +184,11 @@ export async function loadAccountSettings(
   if (selfEntry) {
     const [{ data: self }, { data: placements }] = selfEntry;
     hidden = self?.hidden_from_visitors ?? false;
-    const shown = (placements ?? []).flatMap((p) => {
-      const t = Array.isArray(p.trees) ? p.trees[0] : p.trees;
-      return t?.name
-        ? [{ id: p.tree_id, name: t.name, approval: p.approval }]
-        : [];
-    });
+    const shown = (placements ?? []).map((p) => ({
+      id: p.tree_id,
+      name: p.tree_name,
+      approval: p.approval,
+    }));
     shownOn = shown.map(({ id, name }) => ({ id, name }));
     home = shownOn.find((t) => t.id === self?.tree_id) ?? null;
     // Every other tree their card is on, and what it shows there (Step 106).
