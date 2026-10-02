@@ -7,10 +7,6 @@
 
 import { isEmailAddress } from "@/lib/email-address";
 
-/** What "request access" says before anything is typed, in its dialog or on its page. */
-export const REQUEST_ACCESS_INTRO =
-  "Tell us who you are and we’ll look for your family tree.";
-
 /**
  * What asking to join one tree says first: the share link's "Ask to join"
  * dialog, and `/request-invite?tree=` (Step 41.4).

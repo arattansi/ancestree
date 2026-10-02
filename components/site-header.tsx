@@ -26,8 +26,8 @@ import { getTreeRequestStatus } from "@/lib/tree-requests.server";
 /**
  * The header's frame: the mark on the left, then whatever sits in the
  * centre and on the right. `site-header-bar` lets a node's details sheet
- * move the header aside while it's open (globals.css). The mark goes home:
- * the home page, or a member's landing (Step 92.5).
+ * move the header aside while it's open (globals.css). The mark goes to
+ * the home page, for everyone (Step 107; a member's landing until then).
  *
  * One row (Step 85.2): the buttons never wrap, and the centre gives way to
  * them, a long tree name ending in "…". On a narrow bar (`header-compact`,
@@ -35,11 +35,9 @@ import { getTreeRequestStatus } from "@/lib/tree-requests.server";
  * the buttons wrap there only if even their compact row can't fit.
  */
 function HeaderFrame({
-  home = "/",
   center,
   nav,
 }: {
-  home?: string;
   center?: ReactNode;
   nav?: ReactNode;
 }) {
@@ -47,7 +45,7 @@ function HeaderFrame({
     <header className="sticky top-0 z-40 border-b bar-chrome">
       <div className="site-header-bar mx-auto grid min-h-14 w-full max-w-5xl grid-cols-[1fr_auto_1fr] items-center gap-x-4 px-4 py-2 header-compact:grid-cols-[auto_minmax(0,1fr)_auto] header-compact:gap-x-3">
         <Link
-          href={home}
+          href="/"
           className="relative flex w-fit items-center gap-2 rounded-sm text-sm font-semibold tracking-tight text-foreground outline-none tap-target focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
           <LogoMark className="size-5" />
@@ -77,8 +75,8 @@ export function SiteHeaderShell() {
 }
 
 /**
- * The site-wide header. Left, the mark, which takes a member to My Family
- * Tree (Step 92.5); centre, the tree switcher for every member (Step 92.2:
+ * The site-wide header. Left, the mark, which takes everyone to the home
+ * page (Step 107; members to My Family Tree from Step 92.5); centre, the tree switcher for every member (Step 92.2:
  * My Family Tree and their trees); right, a beta reviewer's **admin**
  * (Step 103), the tree's pages, the account — beside it, a count of
  * anything waiting in the admin consoles they run, which opens the card
@@ -122,7 +120,8 @@ async function LoadedHeader() {
   // Every member gets the switcher (Step 92.2): My Family Tree is in it,
   // and starting a tree of their own until they've founded one.
   const showSwitcher = trees.length > 0;
-  // Where a member lands every visit (Step 92.5); anyone else, the home page.
+  // Where a member lands every visit (Step 92.5): **tree** until a tree is
+  // switched to.
   const home =
     profile && showSwitcher ? homeHref(profile.self_person_id) : undefined;
   // Counts only (Step 77.2): the bell reads its list when it's opened. Where
@@ -139,7 +138,6 @@ async function LoadedHeader() {
 
   return (
     <HeaderFrame
-      home={home}
       center={
         profile && showSwitcher ? (
           <TreeSwitcher

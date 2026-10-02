@@ -5,7 +5,8 @@ import { RELATIVES_CAN_ASK_LABEL, RELAY_LAPSE_DAYS } from "@/lib/invite-relays";
 import { PageColumn } from "@/components/page-column";
 
 export const metadata: Metadata = {
-  title: "privacy",
+  // The marketing site's name for it (Step 107); the heading says what it is.
+  title: "shh",
   description:
     "How ancestree collects, uses, and protects your family's personal information.",
 };

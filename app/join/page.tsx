@@ -83,7 +83,7 @@ export default async function JoinPage({
                   href="/request-invite"
                   className="whitespace-nowrap underline underline-offset-4"
                 >
-                  request access
+                  join a tree
                 </Link>
                 , or open the invite a relative emailed you.
               </p>
@@ -98,7 +98,7 @@ export default async function JoinPage({
 
 /**
  * Signed in, not a member, and no invite waiting for their address (Step
- * 30.8): where their request to join stands, or request access right here
+ * 30.8): where their request to join stands, or join a tree right here
  * with that address filled in, so they type only their name. Always a way
  * to sign out, for someone who verified the wrong address.
  */

@@ -28,7 +28,7 @@ That's the header's **admin** (a beta reviewer's, red: Step 103),
 **tree**, **connections**, **account**, **sign in** and **sign out**; the
 account page's views **profile**, **root**, **settings**; the admin
 page's tabs **newsletter**, **analytics**, **manage**; the home page's **view your tree**,
-**request access**, **start a tree (beta)**; and every button that does
+**join a tree**, **start a tree (beta)**; and every button that does
 something: **save**, **rename**, **delete**, **continue**, **skip for
 now**, **add a relative**, **auto-arrange**, **ask to join**. That covers,
 alike:
@@ -110,8 +110,9 @@ turn autocomplete off, or every relative is offered the member's own name
   with the mark of their account type there, then starting a tree of their
   own until they've founded one — **Ask to start a tree**, **Asked to start
   a tree**, **Start a tree**), and the navigation buttons right-aligned.
-  Members land on My Family Tree every visit (Step 92.5), so for a member
-  the mark opens it (the home page for anyone else), and **tree** opens
+  Members land on My Family Tree every visit (Step 92.5). The mark opens
+  the home page for everyone (Step 107; for a member, My Family Tree
+  until then), and **tree** opens
   the canvas they're on, or from another page the tree they switched to
   this visit — with none chosen, My Family Tree too, lit there. A tree
   picked from My Family Tree is always switched to, even the one shown
@@ -282,6 +283,9 @@ uses them rather than its own flags and messages.
   buttons (a row's **delete**); `destructive-solid` only confirms. A count
   asking for attention (the header's Root console count) is `attention`, and a
   button that sends something (**send**, in the dispute dialog) is an ordinary one.
+- **Orange** (`orange`, Step 107) is a way back that should be seen: **try
+  a different spelling** when join a tree finds nobody. Dark amber text on
+  it, as on `attention`'s yellow, since white on orange falls short of AA.
 - **Row buttons say which row**: a list's **delete**, **remove**, **copy**
   or **download** names its row to a screen reader ("Remove Will.pdf").
 - **A switch moves when it's pressed**, before the server answers, and
@@ -356,6 +360,25 @@ card wears a mark for the tree it came from, and a key names them.
   beside the member mark (Step 97.3), ringed in card colour like it; the key under
   **Search & filters**, where the lanes' names on the left stay clear; the
   sheet's **On** row, in place of **Also on**, each tree a link to it.
+
+## Marketing pages
+
+Home, **capitalism** (`/pricing`), **why** (`/manifesto`), **what + how**
+(`/features`) and **who** (`/about-us`), Step 107, in `app/(marketing)/`.
+Their titles are lower-case as Aalim wrote them, not Title Case. **shh**
+(`/privacy`) is the privacy notice's tab title; its heading stays.
+
+- Behind each but `/privacy`, the **Elevators tree**
+  (`components/marketing/elevators-tree.tsx`, `lib/elevators-tree.ts`): a
+  family drawn as a spotlight draws one, with the canvas's own leaves,
+  account marks and branches, faded back. A leaf says how they're related
+  (**me**, **you**, **your momma**, **your cousin, too**); hovered, it comes
+  forward and its card shows a made-up name, as on the canvas.
+- A page's words go in the gap between the parents and **me** and
+  **you**, which sits in the middle of the page; the page's `main` lets
+  the pointer through to the leaves wherever it draws nothing. On a phone,
+  too narrow for the family, me and you stay in the middle and the rest
+  crops off the sides.
 
 ## Step-by-step flows
 

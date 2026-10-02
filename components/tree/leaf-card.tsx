@@ -163,6 +163,7 @@ export function LeafCard({
   same,
   member,
   quiet = false,
+  label,
 }: {
   person: TreeGraphPerson;
   leaf: NativeLeaf;
@@ -182,12 +183,15 @@ export function LeafCard({
   /** Off a spotlight's line: no hover card (Step 97.3). The canvas names
    *  whoever is under the pointer in a pill of its own instead. */
   quiet?: boolean;
+  /** Said on the blade instead of the name, maiden name and years, which
+   *  wait for the hover card: the marketing pages' "your momma" (Step 107). */
+  label?: string;
 }) {
   // Each species' own leaf (Step 96), drawn and measured on first use.
   const geometry = leafGeometry(leaf.shape);
   const blade = geometry.blade;
-  const lifespan = personLifespan(person);
-  const maiden = maidenLine(person);
+  const lifespan = label ? null : personLifespan(person);
+  const maiden = label ? null : maidenLine(person);
   // "You" has a line of its own, except beside a maiden name: there it
   // shares the years' line, so a leaf never runs past three.
   // "Your spouse" goes where "You" would (Step 97).
@@ -343,7 +347,7 @@ export function LeafCard({
             deceased ? "text-muted-foreground" : "text-foreground",
           )}
         >
-          {nodeDisplayName(person)}
+          {label ?? nodeDisplayName(person)}
         </p>
         {youAlone ? (
           <p className="truncate text-[11px] leading-3 font-medium text-primary">

@@ -23,6 +23,9 @@ const buttonVariants = cva(
           "bg-destructive text-white hover:bg-destructive/90 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:hover:bg-destructive/50 dark:focus-visible:ring-destructive/40",
         attention:
           "bg-attention text-attention-foreground hover:bg-attention/80 aria-expanded:bg-attention/80",
+        // A way back that should be seen (Step 107).
+        orange:
+          "bg-orange text-orange-foreground hover:bg-orange/80 aria-expanded:bg-orange/80",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {

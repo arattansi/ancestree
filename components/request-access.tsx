@@ -17,7 +17,6 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -26,7 +25,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { RELAY_NOTE, relayAnswer } from "@/lib/invite-relays";
-import { REQUEST_ACCESS_INTRO } from "@/lib/request-forms";
 import { waitlistReceived } from "@/lib/tree-requests";
 
 const INITIAL_SEARCH: FindTreeState = {};
@@ -34,7 +32,11 @@ const INITIAL_REQUEST: RequestInviteState = {};
 const INITIAL_WAITLIST: WaitlistState = {};
 const INITIAL_ASK: AskRelativeState = {};
 
-/** The home page's "request access" (Step 28): the flow, in a dialog. */
+/**
+ * The home page's "join a tree" (Step 28; "request access" until Step 107):
+ * the flow, in a dialog. Titled while they search and when a tree is found;
+ * not found, only the answer shows, the title kept for screen readers.
+ */
 export function RequestAccessDialog({
   children,
   ...look
@@ -45,11 +47,13 @@ export function RequestAccessDialog({
     <Dialog>
       <DialogTrigger render={<Button {...look} />}>{children}</DialogTrigger>
       <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Request access</DialogTitle>
-          <DialogDescription>{REQUEST_ACCESS_INTRO}</DialogDescription>
-        </DialogHeader>
-        <RequestAccessFlow />
+        <RequestAccessFlow
+          heading={(shown) => (
+            <DialogHeader className={shown ? undefined : "sr-only"}>
+              <DialogTitle>Join a Tree</DialogTitle>
+            </DialogHeader>
+          )}
+        />
       </DialogContent>
     </Dialog>
   );
@@ -65,8 +69,16 @@ export function RequestAccessDialog({
  * On /join, for someone signed in who isn't a member yet, `email` is the
  * address they've just verified (Step 30.8): it's filled in and fixed, so
  * they type only their name, and everything after asks with it.
+ *
+ * `heading` is the dialog's title, told whether this step shows it.
  */
-export function RequestAccessFlow({ email }: { email?: string }) {
+export function RequestAccessFlow({
+  email,
+  heading,
+}: {
+  email?: string;
+  heading?: (shown: boolean) => React.ReactNode;
+}) {
   const [search, searchAction, searching] = useActionState(
     findFamilyTree,
     INITIAL_SEARCH,
@@ -81,41 +93,50 @@ export function RequestAccessFlow({ email }: { email?: string }) {
   if (search.found && show !== "form") {
     const backToForm = () => setOverride({ search, show: "form" });
     return search.found.length > 0 && show !== "unmatched" ? (
-      <AskToJoin
-        search={search}
-        onNotMe={() => setOverride({ search, show: "unmatched" })}
-      />
+      <>
+        {heading?.(true)}
+        <AskToJoin
+          search={search}
+          onNotMe={() => setOverride({ search, show: "unmatched" })}
+        />
+      </>
     ) : (
-      <Unmatched search={search} onBack={backToForm} />
+      <>
+        {heading?.(false)}
+        <Unmatched search={search} onBack={backToForm} />
+      </>
     );
   }
 
   return (
-    <form action={searchAction} className="flex flex-col gap-4" noValidate>
-      <NameEmailFields
-        idPrefix="request-access"
-        state={search}
-        errorId={search.error ? "request-access-error" : undefined}
-        email={email}
-      />
-      {search.error ? (
-        <p id="request-access-error" role="alert" className="text-sm text-destructive">
-          {search.error}
-        </p>
-      ) : null}
-      <Button type="submit" disabled={searching}>
-        {searching ? "looking…" : "find my family’s tree"}
-      </Button>
-      {/* Signed in already, on /join: signing in would come straight back. */}
-      {email === undefined ? (
-        <p className="text-sm text-muted-foreground">
-          Already on ancestree?{" "}
-          <Link href="/join" className="underline underline-offset-4">
-            Sign in
-          </Link>
-        </p>
-      ) : null}
-    </form>
+    <>
+      {heading?.(true)}
+      <form action={searchAction} className="flex flex-col gap-4" noValidate>
+        <NameEmailFields
+          idPrefix="request-access"
+          state={search}
+          errorId={search.error ? "request-access-error" : undefined}
+          email={email}
+        />
+        {search.error ? (
+          <p id="request-access-error" role="alert" className="text-sm text-destructive">
+            {search.error}
+          </p>
+        ) : null}
+        <Button type="submit" disabled={searching}>
+          {searching ? "looking…" : "am i on a tree?"}
+        </Button>
+        {/* Signed in already, on /join: signing in would come straight back. */}
+        {email === undefined ? (
+          <p className="text-sm text-muted-foreground">
+            Already on ancestree?{" "}
+            <Link href="/join" className="underline underline-offset-4">
+              Sign in
+            </Link>
+          </p>
+        ) : null}
+      </form>
+    </>
   );
 }
 
@@ -245,7 +266,7 @@ function Unmatched({
 
       <StartATree search={search} />
 
-      <Button type="button" variant="ghost" className="self-start" onClick={onBack}>
+      <Button type="button" variant="orange" className="self-start" onClick={onBack}>
         try a different spelling
       </Button>
     </div>
@@ -347,8 +368,8 @@ function StartATree({ search }: { search: FindTreeState }) {
           <input type="hidden" name="lastName" value={search.lastName ?? ""} />
           <input type="hidden" name="email" value={search.email ?? ""} />
           <p className="text-muted-foreground">
-            Join the beta waitlist and we&rsquo;ll email {search.email} when you
-            can start a tree from scratch.
+            We&rsquo;ll email {search.email} when you can start a tree from
+            scratch.
           </p>
           {state.error ? (
             <p role="alert" className="text-destructive">

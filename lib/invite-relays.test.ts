@@ -200,9 +200,10 @@ describe("relativeEmailProblem", () => {
 });
 
 describe("what the newcomer is told", () => {
-  it("says up front that their name and email are passed on", () => {
-    expect(RELAY_NOTE).toContain("We’ll pass your name and email on");
-    expect(RELAY_NOTE).toContain("we won’t say whether they’re here");
+  it("says up front that it won't say whether the relative is here", () => {
+    expect(RELAY_NOTE).toBe(
+      "For their privacy, we won’t be able to confirm whether they are on ancestree.",
+    );
   });
 
   it("answers every ask the same way, never saying whether it reached anyone", () => {

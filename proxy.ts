@@ -13,6 +13,11 @@ const PUBLIC_PREFIXES = [
   "/auth",
   "/login",
   "/privacy",
+  // The marketing pages (Step 107); the home page is "/", below.
+  "/pricing",
+  "/manifesto",
+  "/features",
+  "/about-us",
   "/request-invite",
   "/shared",
   // Campaign links, where anyone can sign up and start a tree (Step 103.3).

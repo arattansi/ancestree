@@ -164,9 +164,13 @@ export function relativeEmailProblem(
   return null;
 }
 
-/** What the form says before anything is sent: whose details go where. */
+/**
+ * What the form says before anything is sent: that it won't tell them
+ * whether the relative is a member (Step 107 cut the line on passing their
+ * name and email on; the privacy notice still says it).
+ */
 export const RELAY_NOTE =
-  "We’ll pass your name and email on so they can invite you. For their privacy, we won’t say whether they’re here.";
+  "For their privacy, we won’t be able to confirm whether they are on ancestree.";
 
 /** The answer to every ask, whoever the address belongs to. */
 export function relayAnswer(ownEmail: string): string {

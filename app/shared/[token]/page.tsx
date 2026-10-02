@@ -51,7 +51,7 @@ export default async function SharedTreePage({
               nativeButton={false}
               render={<Link href="/request-invite" />}
             >
-              request access
+              join a tree
             </Button>
             <p className="text-sm text-muted-foreground">
               <Link href="/" className="underline underline-offset-4">

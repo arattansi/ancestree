@@ -91,20 +91,25 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   arranged around them (`loadMyFamily`); an address of its own, so it
   leaves the remembered tree alone, reached from the switcher. It's where
   members land every visit (Step 92.5, `homeHref`): signing in
-  (`DEFAULT_NEXT` in `lib/safe-next.ts`), the header's mark, the home
-  page's **view your tree**, and **tree** until a tree is switched to
+  (`DEFAULT_NEXT` in `lib/safe-next.ts`), the home page's **view your
+  tree**, and **tree** until a tree is switched to (the header's mark
+  too, until Step 107 sent it to the home page for everyone)
   (`TreeNavLink`); anyone it can't be drawn for goes on to `/tree`. Nothing is
   added on it: a card's actions go to its own tree (Step 92.3), and its
   entry's pages (`/people/[id]/edit`, `/suggest`) are opened by switching
   to that tree first, with `?back=family` to come back. Site-wide: `/`
   landing (Step 28: signed in, **view your tree** / **start a tree
-  (beta)**, which asks a beta reviewer; signed out, **sign in** / **request
-  access** / **start a tree (beta)**, the last two in dialogs —
-  `components/request-access.tsx`, `beta-waitlist-dialog.tsx`,
-  `start-tree-button.tsx`), `/join` (`?next=` is where a signed-out visit
+  (beta)**, which asks a beta reviewer; signed out, **sign in** / **join a
+  tree** ("request access" until Step 107) / **start a tree (beta)**, the
+  last two in dialogs — `components/request-access.tsx`,
+  `beta-waitlist-dialog.tsx`, `start-tree-button.tsx`), which with
+  `/pricing`, `/manifesto`, `/features` and `/about-us` makes up the
+  marketing pages (Step 107, `app/(marketing)/`, over the Elevators tree:
+  `components/marketing/elevators-tree.tsx`, `lib/elevators-tree.ts`;
+  public in `proxy.ts`), `/join` (`?next=` is where a signed-out visit
   was going, carried through the sign-in email and back; Step 30.1; signed
   in without a profile, it opens the invite waiting for their address, else
-  says where their request stands or offers request access with the
+  says where their request stands or offers join a tree with the
   address filled in, Step 30.8) (+
   `/join/[token]` invite accept — signed in, it adds a
   tree; an emailed one only for the address it was sent to, and anyone
@@ -1321,7 +1326,7 @@ mirror it for the UI.
   invite: `claim_invite`, `had_entry`, `was_member`. Plain and founder
   invites land where they did.
 - **Invite requests** (`public.invite_requests`): anyone can ask from `/`
-  ("request access") or `/request-invite` with first name, last name, and
+  ("join a tree") or `/request-invite` with first name, last name, and
   email. Without a tree in hand, `findFamilyTree` looks for one first
   (Step 28, `public.trees_matching_name`, service role only): a strong
   name match (onboarding's 0.85) on a living, unclaimed entry nobody has
@@ -1771,6 +1776,75 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 107: the marketing pages and join a tree** (no migration).
+  **Aalim asked for:** on the home page, the "New here? ancestree is
+  invite-only…" line gone, **request access** renamed **join a tree** and
+  its **find my family's tree** **am i on a tree?**; on the not-found step,
+  no "Request access" title or "Tell us who you are…" line, the relative's
+  box saying "For their privacy, we won't be able to confirm whether they
+  are on ancestree.", the waitlist "We'll email {address} when you can
+  start a tree from scratch.", and **try a different spelling** orange.
+  Then the marketing site's skeleton: `/pricing` "capitalism",
+  `/privacy` "shh", `/manifesto` "why", `/features` "what + how",
+  `/about-us` "who", and behind each but `/privacy` a faded, hoverable
+  sample of the product's leaves, a nod to OutKast's "Elevators": "me" and
+  "you" at the base, the family growing out of "you", account marks, and
+  made-up names on hover (Antwan Oswalt, André Franklin, Rumi Baldwin née
+  Morrison, René Baldwin, Tito ibn Sina, Laila Curie née Skłodowska, Stone
+  Curie). Navigation and each page's copy and styling come later. Then,
+  the same day: the header's **ancestree.space** mark goes to `/` for
+  everyone (`HeaderFrame` no longer takes a `home`); for a member it
+  opened My Family Tree since Step 92.5, which **tree**, the switcher and
+  the home page's **view your tree** still do. And **your cousin's boo**,
+  Kong Lumumba, born in the Congo (Onalua; an African mahogany leaf), a
+  Leaf, partnered to your cousin, too, on the far side. The home page's
+  line under the tagline now reads "collaborative, by invite, with the
+  people who know best: your family." (lower-case as Aalim wrote it; was
+  "Invite-only and collaborative with…").
+  **Asked and answered:** the home page gets the tree too; `/privacy`
+  changes only its tab title (its heading and notice stay); me and you
+  are joined by the couple line; the dialog is titled **Join a Tree** on
+  the name step (and when a tree is found) with no line under it, and on
+  not-found keeps the title for screen readers only. **107.1, join a
+  tree:** `RequestAccessFlow` takes the dialog's `heading`, told whether
+  each step shows it; `REQUEST_ACCESS_INTRO` is gone (`/request-invite`
+  without a tree is **Join a Tree**, no line); `RELAY_NOTE` is Aalim's line
+  (the privacy notice still says a name and email are passed on); a new
+  `orange` button variant and `--orange` token (dark amber text, 6.65:1;
+  white on orange falls short of AA). **join a tree** replaces **request
+  access** on `/join`'s line and a dead share link's button too. **107.2,
+  the pages:** `app/(marketing)/` holds home (moved from `app/page.tsx`)
+  and the four new pages, each its title in an `h1` for now, lower-case
+  as Aalim wrote them; its layout draws the tree under the page and lets
+  the pointer through `main` wherever the page draws nothing. The four are
+  public in `proxy.ts`. **107.3, the Elevators tree:**
+  `lib/elevators-tree.ts` (+ `.test.ts`) is the family on the canvas's own
+  grid; `components/marketing/elevators-tree.tsx` draws it with the real
+  `LeafCard` (a new `label` prop says "your momma" on the blade in place of
+  the name, maiden name and years, which its hover card still shows) and
+  the canvas's own line geometry (`descentGeometry`, `leafBranchPath`,
+  `siblingBracketPoints`). Faded to 30% (lines 20%, so they never pull from a page's words: Aalim, same day); a hovered leaf comes
+  forward with its card. Each person's birthplace picks a native leaf
+  (Savannah and Atlanta red oaks, Balkh's chinar, Warsaw's lime, Bukhara's
+  wild apple…). **My calls, not asked:** "your sis" (Frida Baldwin, born
+  Coyoacán) is the one relation added; your momma and your auntie are
+  sisters, joined by the canvas's dashed bracket for siblings whose
+  parents aren't on the tree; me and you are Roots, your momma and poppa
+  Branches, your auntie, sis and cousin Leaves, your unc no account. The
+  canvas's spacing, except a gap between the parents and me and you where
+  a page's words go, centred in the page; on a phone, too narrow for the
+  family, it keeps me and you in the middle and crops the sides. A
+  grandparents' row (Wangari Morrison née Maathai, Chinua Morrison) was
+  tried and dropped: two generations above the words made every leaf too
+  small. **Checked:** tsc, lint, the full suite; in the browser signed out
+  at 1440 × 900 light and dark and at 375 × 812: the words in the gap,
+  "your momma" hovered showing Rumi Baldwin · née Morrison · Balkh,
+  Afghanistan · Chinar · Afghanistan; join a tree → a made-up name → the
+  not-found step as asked, the dialog still named "Join a Tree", **try a
+  different spelling** back to the titled form; the four pages and
+  `/privacy` load signed out with their tab titles, the tree on the four
+  and not on `/privacy`.
 
 - **Step 103: the admin page** (migrations
   `20261002010000_invite_campaigns`, 103.3, and
