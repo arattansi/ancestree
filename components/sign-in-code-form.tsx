@@ -26,7 +26,8 @@ const INITIAL: SignInCodeState = {};
  * it: typed, pasted however it was copied, or offered above the keyboard
  * (`one-time-code`: Safari fills it from Apple Mail). It sends itself once
  * it's whole, so there's nothing to press. Entering it does what the
- * email's link did: redeems `inviteToken`, else lands on `next`.
+ * email's link did: redeems `inviteToken`, or starts a tree through the
+ * `campaign` link (Step 103.3), else lands on `next`.
  *
  * "Send a new code" posts `resendFields` back to whatever sent the first
  * (`resendAction`), which answers on the same state, so the caller remounts
@@ -36,6 +37,7 @@ const INITIAL: SignInCodeState = {};
 export function SignInCodeForm({
   email,
   inviteToken,
+  campaign,
   next,
   resendAction,
   resendFields,
@@ -45,6 +47,7 @@ export function SignInCodeForm({
 }: {
   email: string;
   inviteToken?: string;
+  campaign?: string;
   next?: string;
   resendAction: (formData: FormData) => void;
   resendFields: Record<string, string | undefined>;
@@ -93,6 +96,7 @@ export function SignInCodeForm({
         {inviteToken ? (
           <input type="hidden" name="inviteToken" value={inviteToken} />
         ) : null}
+        {campaign ? <input type="hidden" name="campaign" value={campaign} /> : null}
         {next ? <input type="hidden" name="next" value={next} /> : null}
         <Input
           name="code"

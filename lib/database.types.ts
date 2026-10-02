@@ -192,6 +192,45 @@ export type Database = {
           },
         ]
       }
+      campaigns: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          opens: number
+          paused_at: string | null
+          placement: string | null
+          signups: number
+          trees_founded: number
+        }
+        Insert: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          opens?: number
+          paused_at?: string | null
+          placement?: string | null
+          signups?: number
+          trees_founded?: number
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          opens?: number
+          paused_at?: string | null
+          placement?: string | null
+          signups?: number
+          trees_founded?: number
+        }
+        Relationships: []
+      }
       claims: {
         Row: {
           claimant_user_id: string
@@ -2653,6 +2692,7 @@ export type Database = {
         }[]
       }
       beta_reviewer_emails: { Args: never; Returns: string[] }
+      campaign_open: { Args: { p_code: string }; Returns: string }
       can_approve_story: { Args: { p_person: string }; Returns: boolean }
       can_delete_person: { Args: { p_person_id: string }; Returns: boolean }
       can_invite_to_claim: { Args: { p_person_id: string }; Returns: boolean }
@@ -2688,6 +2728,27 @@ export type Database = {
           p_type: string
         }
         Returns: string
+      }
+      create_campaign: {
+        Args: { p_name: string; p_placement?: string }
+        Returns: {
+          code: string
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          opens: number
+          paused_at: string | null
+          placement: string | null
+          signups: number
+          trees_founded: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "campaigns"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       decide_album_tag: {
         Args: { p_approve: boolean; p_person: string; p_photo: string }
@@ -2876,6 +2937,27 @@ export type Database = {
       }
       is_beta_reviewer: { Args: never; Returns: boolean }
       is_own_child: { Args: { p_person: string }; Returns: boolean }
+      list_campaigns: {
+        Args: never
+        Returns: {
+          code: string
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          opens: number
+          paused_at: string | null
+          placement: string | null
+          signups: number
+          trees_founded: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "campaigns"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       list_story_comments: {
         Args: { p_story: string }
         Returns: {
@@ -3004,6 +3086,10 @@ export type Database = {
         Args: { p_link_id: string }
         Returns: undefined
       }
+      redeem_campaign: {
+        Args: { p_code: string; p_display_name?: string }
+        Returns: Json
+      }
       redeem_invite: {
         Args: { p_display_name?: string; p_token: string }
         Returns: {
@@ -3115,6 +3201,27 @@ export type Database = {
           score: number
         }[]
       }
+      set_campaign_paused: {
+        Args: { p_id: string; p_paused: boolean }
+        Returns: {
+          code: string
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          opens: number
+          paused_at: string | null
+          placement: string | null
+          signups: number
+          trees_founded: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "campaigns"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       set_family_link_cap: {
         Args: { p_max_uses: number; p_tree: string }
         Returns: undefined
@@ -3192,6 +3299,27 @@ export type Database = {
           tree_name: string
           tree_slug: string
         }[]
+      }
+      update_campaign: {
+        Args: { p_id: string; p_name: string; p_placement: string }
+        Returns: {
+          code: string
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          opens: number
+          paused_at: string | null
+          placement: string | null
+          signups: number
+          trees_founded: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "campaigns"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       withheld_details: { Args: { p_person: string }; Returns: Json }
     }

@@ -15,6 +15,8 @@ const PUBLIC_PREFIXES = [
   "/privacy",
   "/request-invite",
   "/shared",
+  // Campaign links, where anyone can sign up and start a tree (Step 103.3).
+  "/start/",
   // The weekly newsletter's unsubscribe page and one-click link, which
   // work signed out, and its weekly job, which checks its own secret
   // (Step 95).

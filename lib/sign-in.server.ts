@@ -3,6 +3,7 @@ import "server-only";
 import type { EmailOtpType, User } from "@supabase/supabase-js";
 
 import { setCurrentTreeCookie } from "@/lib/current-tree.server";
+import { campaignHref } from "@/lib/campaigns";
 import { isExpired } from "@/lib/expiry";
 import { verifiedEmail } from "@/lib/first-timer";
 import { waitingInviteHref } from "@/lib/first-timer.server";
@@ -77,30 +78,77 @@ export async function redeemInvite(
       reason: isAnotherAddressRefusal(error?.message) ? "another_address" : "invalid",
     };
   }
+  const joined = readRedeemedTree(data);
+  if (!joined) return { ok: false, reason: "invalid" };
+  await setCurrentTreeCookie(joined.treeId);
+  return { ok: true, joined };
+}
+
+/** `redeem_invite_tree`'s answer, and `redeem_campaign`'s, read. */
+function readRedeemedTree(data: unknown): RedeemedTree | null {
   const row = data as Record<string, unknown>;
   if (typeof row.tree_id !== "string" || typeof row.tree_slug !== "string") {
-    return { ok: false, reason: "invalid" };
+    return null;
   }
-  await setCurrentTreeCookie(row.tree_id);
   return {
-    ok: true,
-    joined: {
-      treeId: row.tree_id,
-      treeSlug: row.tree_slug,
-      treeName: typeof row.tree_name === "string" ? row.tree_name : "",
-      selfPersonId:
-        typeof row.self_person_id === "string" ? row.self_person_id : null,
-      selfPlaced: row.self_placed === true,
-      claimInvite: row.claim_invite === true,
-      hadEntry: row.had_entry === true,
-      wasMember: row.was_member === true,
-    },
+    treeId: row.tree_id,
+    treeSlug: row.tree_slug,
+    treeName: typeof row.tree_name === "string" ? row.tree_name : "",
+    selfPersonId:
+      typeof row.self_person_id === "string" ? row.self_person_id : null,
+    selfPlaced: row.self_placed === true,
+    claimInvite: row.claim_invite === true,
+    hadEntry: row.had_entry === true,
+    wasMember: row.was_member === true,
   };
 }
 
 /**
- * Turn a fresh session into a member: redeem the invite, or provision an
- * allowlisted admin. Returns where to send them — an invite lands on their
+ * Why a campaign link didn't start a tree (Step 103.3): it's paused, or
+ * gone (`closed`), they've founded one already (`has_tree`), or it failed.
+ */
+export type CampaignRefusal = "closed" | "has_tree" | "failed";
+
+export type CampaignResult =
+  | { ok: true; joined: RedeemedTree }
+  | { ok: false; reason: CampaignRefusal };
+
+/**
+ * Start a tree through a campaign link as the signed-in user (Step 103.3):
+ * a profile if they have none, and a tree of their own with them as its
+ * Root, with no request and no approval (`redeem_campaign`). Like
+ * `redeemInvite`, it makes that tree the one their browser is looking at,
+ * so only from a server action or route handler.
+ */
+export async function redeemCampaign(
+  supabase: ServerClient,
+  code: string,
+  displayName?: string,
+): Promise<CampaignResult> {
+  const { data, error } = await supabase.rpc("redeem_campaign", {
+    p_code: code,
+    p_display_name: displayName,
+  });
+  if (error || !data) {
+    const message = error?.message ?? "";
+    return {
+      ok: false,
+      reason: message.includes("ONE_TREE_EACH")
+        ? "has_tree"
+        : message.includes("CAMPAIGN_CLOSED")
+          ? "closed"
+          : "failed",
+    };
+  }
+  const joined = readRedeemedTree(data);
+  if (!joined) return { ok: false, reason: "failed" };
+  await setCurrentTreeCookie(joined.treeId);
+  return { ok: true, joined };
+}
+
+/**
+ * Turn a fresh session into a member: redeem the invite, start a tree
+ * through a campaign link (Step 103.3), or provision an allowlisted admin. Returns where to send them — an invite lands on their
  * own entry once the joined tree shows it (a claim invite claims it on the
  * way in, and goes by the welcome first, Step 50), else on that tree's
  * onboarding, to find or add themselves there.
@@ -117,17 +165,26 @@ export async function establishMembership(
   supabase: ServerClient,
   {
     invite,
+    campaign,
     next,
     displayName,
     email,
   }: {
     invite?: string | null;
+    /** A campaign link's code, whose form this sign-in came from (Step 103.3). */
+    campaign?: string | null;
     next: string;
     displayName?: string;
     /** The account's verified address (`verifiedEmail`). */
     email?: string | null;
   },
 ): Promise<string> {
+  // A campaign link starts their tree. Refused — paused since, or they've
+  // founded one already — its page says which.
+  if (campaign) {
+    const started = await redeemCampaign(supabase, campaign, displayName);
+    return started.ok ? joinedTreeHref(started.joined) : campaignHref(campaign);
+  }
   if (invite) {
     const redeemed = await redeemInvite(supabase, invite, displayName);
     if (redeemed.ok) return joinedTreeHref(redeemed.joined);
@@ -183,8 +240,8 @@ export type CodeSignInResult =
 
 /**
  * Check the code from a sign-in email (Step 53) and return where to go next,
- * as the email's link did: the invite its form was for redeemed, else the
- * page it was asked for from. The code is typed where it was asked for, so
+ * as the email's link did: the invite its form was for redeemed (or the
+ * campaign link's tree started), else the page it was asked for from. The code is typed where it was asked for, so
  * a mail scanner opening the email spends nothing, and there's no second
  * page to press a button on.
  */
@@ -192,11 +249,13 @@ export async function completeCodeSignIn({
   email,
   code,
   invite,
+  campaign,
   next,
 }: {
   email: string;
   code: string;
   invite?: string | null;
+  campaign?: string | null;
   next: string;
 }): Promise<CodeSignInResult> {
   const supabase = await createClient();
@@ -216,7 +275,10 @@ export async function completeCodeSignIn({
     user = signedIn;
   }
 
-  return { ok: true, next: await finishEmailSignIn(supabase, user, { invite, next }) };
+  return {
+    ok: true,
+    next: await finishEmailSignIn(supabase, user, { invite, campaign, next }),
+  };
 }
 
 /**
@@ -227,10 +289,15 @@ export async function completeCodeSignIn({
 function finishEmailSignIn(
   supabase: ServerClient,
   user: User | null,
-  { invite, next }: { invite?: string | null; next: string },
+  {
+    invite,
+    campaign,
+    next,
+  }: { invite?: string | null; campaign?: string | null; next: string },
 ): Promise<string> {
   return establishMembership(supabase, {
     invite,
+    campaign,
     next,
     displayName: joiningDisplayName(readJoiningName(user?.user_metadata)),
     email: user ? verifiedEmail(user) : null,

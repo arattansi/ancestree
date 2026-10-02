@@ -80,7 +80,7 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   members have got, what they did this week and last, each tree — from
   `engagement_dashboard()`; `components/dashboard/`, `lib/dashboard.ts`)
   and **manage** (requests to start a tree, from every tree and the
-  waitlist), as `?tab=` links; anyone else is redirected to the account
+  waitlist, and **Campaign Links**, Step 103.3), as `?tab=` links; anyone else is redirected to the account
   page's Root console. `/account/admin?tree=<id>&section=<card>` is an
   alert email's button — a
   route that switches to that tree for a Root of it and opens its console
@@ -1526,6 +1526,12 @@ mirror it for the UI.
   now keeps founder wording. `my_tree_request()` says where an ask stands
   (`none` | `pending` | `approved` | `founded`) and drives every "start a
   tree" button. A Root's founder invite still needs no request.
+  **Campaign links** (Step 103.3) skip the queue: a reviewer makes one on
+  **manage** ("Campaign Links": name, where it's posted, **make link**),
+  copies `/start/<code>`, and anyone who opens it signs up and founds a
+  tree at once (`app/start/[code]/page.tsx`, `redeem_campaign`); each
+  shows its opens, sign-ups and trees, and can be paused, resumed or
+  renamed.
 - **Admin bootstrap**: `private.admin_allowlist(email)` — seeded with both
   co-admins (Aalim Rattansi, Raiya Suleman). First login by an
   allowlisted email runs `ensure_profile`, which creates the single shared
@@ -1764,6 +1770,102 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 103: the admin page** (migration
+  `20261002010000_invite_campaigns`, 103.3). **Aalim asked for:** the
+  admin dashboard out of the account page into a page of its own, with a
+  red **admin** button before **tree** in the header, tabs **newsletter |
+  analytics | manage**, and requests to start a tree out of every Root
+  console. **103.1, the page:** `/admin` (`app/admin/page.tsx`, until now a
+  redirect to the Root console, which it still is for anyone who isn't a
+  beta reviewer) has the three tabs as `?tab=` links
+  (`components/admin/admin-page-tabs.tsx`, drawn like the account page's
+  views; `lib/admin-page.ts`, `.test.ts`). **newsletter** is the weekly
+  newsletter's card, **analytics** the engagement dashboard (Step 56), and
+  **manage** "Requests to Start a Tree", moved from the Root console
+  (`lib/admin-sections`, `lib/admin-notifications`, `lib/admin-queue` and
+  the console's Requests & Reports group no longer know it). A founder
+  invite for someone on the waitlist comes from the tree being looked at
+  if they run it, else the first tree they run; with none,
+  `approveTreeRequest` says so. The header's red **admin**
+  (`AdminNavLink`, `SiteNavLink`'s `red`: tinted, solid on the page) shows
+  only for a reviewer (`HeaderCounts.treeRequests`, `null` for anyone
+  else), with how many ask to start a tree while any do, and opens
+  **manage** then; the header's yellow count beside **account** counts
+  only the Root consoles' queues now. The reviewers' alert email opens
+  `/admin?tab=manage`, and one sent before (`/account/admin?section=tree-requests`)
+  lands there too. The account page's **dashboard** view is gone:
+  `/account?view=dashboard` goes to `/admin`. No line under any title on
+  the page: the dashboard's four card descriptions and its "Engagement"
+  heading went. Account and tree actions (103.4) come later on
+  **manage**. **103.2, the Root console:** "Invite Someone to
+  Start a Tree of Their Own" (`#found`) and "Bare Invite Links"
+  (`#bare-invites`) are gone, with `AdminBareInvites`, `listBareInvites`,
+  `sendFounderInvites` and `DirectInviteForm`'s `founder` (a founder
+  invite now comes only from a reviewer's yes; links already out still
+  work until they lapse). Every line under a title went, on the console
+  (the tree name's, Overview's, each group's and section's — `AdminGroup`
+  and `AdminSubsection` no longer take a `description`) and on the
+  account page's cards; the empty "Your Details" keeps its one line, and
+  a child's placeholder keeps "Hidden from the family until your parent
+  approves.". Three help lines inside cards went too (Aalim, same day):
+  the home-tree rules under **move home**, the explanation under
+  **Relatives can ask me to invite them** (the privacy notice still says
+  both) and the Nicknames form's "Names are stored lowercase…"; then the
+  rest on the account page: "Hide my entry from visitors" is the whole
+  label, a Leaf's "Adds relatives" says "On your own line", a relative's
+  ask keeps its dates and match list without the advice after them, and
+  the invite forms (settings, the Root console, a relative's ask) lose
+  "They'll join as a Leaf" (the sent toast still says it); and last the
+  Root console's own ("so unnecessary"): the account-type cards there and
+  in **What a Root can do here** are `brief` (mark, name and table, no
+  tagline or paragraph; onboarding keeps both), the type picker's options
+  say only why one can't be picked, a full family link and a new share
+  link lose their notes, an approved request loses "Accepting it claims
+  the entry for …", and the empty states shrink ("Nothing waiting on
+  you.", "Nobody yet.", "Nobody to bring over."); on the admin page only
+  the analytics error card's "Try again in a moment." was left to go. The
+  console's **Settings** group moved to the account
+  page's **settings**: a card per tree they run, named for it, with the
+  rename form, **Who Else Can View** and **Data & Privacy** (export,
+  delete this tree), and one **Nicknames** card, shared by every tree
+  (`loadAccountSettings` reads the visibility rows and nickname groups
+  only for a Root). **View** was in settings already. Renaming stays on
+  the page and says "Tree renamed." (it went to the console's
+  `#tree-name` before). `lib/admin-sections` lost its `settings` group and
+  the `bareInvites` context; `adminNav()` and `groupSectionIds(group)`
+  take nothing else. **103.3, campaign links:** Aalim's answer: a campaign
+  link is **open**, so anyone who has it signs up and starts a tree at
+  once, no request, no approval, counted against the campaign. **manage**
+  has a "Campaign Links" card (`components/admin/admin-campaigns.tsx`):
+  **Name** and **Where it's posted**, **make link**, then each link with
+  its counts ("12 opens · 3 sign-ups · 3 trees"), its URL and **copy**,
+  **pause** / **resume** (a **Paused** badge), and **Edit** for the name
+  and where it's posted. The link is `/start/<code>` (12 random hex
+  digits; public, `proxy.ts`): signed out it's "Start Your Family Tree"
+  with name, email and the privacy tick (`MagicLinkForm`'s new
+  `campaign`, carried through the code box, `verifySignInCode`,
+  `completeCodeSignIn` and `establishMembership` to `redeemCampaign`);
+  for a member, **start my tree** (`startTreeFromCampaign`); for someone
+  who has founded a tree, "You Have a Tree" and **my trees**; paused,
+  "This Link Is Paused"; an unknown code, "Link Not Available". Founding
+  lands as a founder invite does, on the founder's first run. The
+  migration adds `public.campaigns` (RLS on, no policies, no grants to
+  anon or authenticated), reviewer-only `list_campaigns`,
+  `create_campaign`, `update_campaign`, `set_campaign_paused`,
+  service-role-only `campaign_open` (counts an open, says `open` /
+  `paused` / nothing) and `redeem_campaign` (a profile if they have none,
+  `found_tree_for`, the counts, and any pending ask of theirs to start a
+  tree deleted). Opens skip crawlers, link previews, prefetches and the
+  page drawn again after its own server action (`lib/campaigns.ts`
+  `countsAsOpen`, `lib/campaigns.server.ts`). Only counts are kept, never
+  who came in through which link; the privacy page now says so, and no
+  longer calls the site invite-only (joining a tree still is). **Fixed on
+  the way:** `private.found_tree_for` and `rename_tree` called
+  `gen_random_bytes` off their empty search_path, so a second tree named
+  "Family" (every founder's first name for it) couldn't be founded, and a
+  rename onto a taken name failed; both now call
+  `extensions.gen_random_bytes`.
+
 - **Step 106: your card on another tree, name only** (migrations
   `20261002050000_card_name_only`, `20261002060000_own_card_trees`). **Aalim asked for:** people to take
   their own card off other trees — as a "shell" that keeps their name and
@@ -1814,70 +1916,6 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   or a claim counting as a yes, non-members answered for on their home
   tree, read-only viewing by another tree and **Hide my entry from
   visitors**, and that only a tree's Roots take a card off it.
-
-- **Step 103: the admin page** (no migration). **Aalim asked for:** the
-  admin dashboard out of the account page into a page of its own, with a
-  red **admin** button before **tree** in the header, tabs **newsletter |
-  analytics | manage**, and requests to start a tree out of every Root
-  console. **103.1, the page:** `/admin` (`app/admin/page.tsx`, until now a
-  redirect to the Root console, which it still is for anyone who isn't a
-  beta reviewer) has the three tabs as `?tab=` links
-  (`components/admin/admin-page-tabs.tsx`, drawn like the account page's
-  views; `lib/admin-page.ts`, `.test.ts`). **newsletter** is the weekly
-  newsletter's card, **analytics** the engagement dashboard (Step 56), and
-  **manage** "Requests to Start a Tree", moved from the Root console
-  (`lib/admin-sections`, `lib/admin-notifications`, `lib/admin-queue` and
-  the console's Requests & Reports group no longer know it). A founder
-  invite for someone on the waitlist comes from the tree being looked at
-  if they run it, else the first tree they run; with none,
-  `approveTreeRequest` says so. The header's red **admin**
-  (`AdminNavLink`, `SiteNavLink`'s `red`: tinted, solid on the page) shows
-  only for a reviewer (`HeaderCounts.treeRequests`, `null` for anyone
-  else), with how many ask to start a tree while any do, and opens
-  **manage** then; the header's yellow count beside **account** counts
-  only the Root consoles' queues now. The reviewers' alert email opens
-  `/admin?tab=manage`, and one sent before (`/account/admin?section=tree-requests`)
-  lands there too. The account page's **dashboard** view is gone:
-  `/account?view=dashboard` goes to `/admin`. No line under any title on
-  the page: the dashboard's four card descriptions and its "Engagement"
-  heading went. Campaigns (103.3) and account and tree actions (103.4) come
-  later on **manage**. **103.2, the Root console:** "Invite Someone to
-  Start a Tree of Their Own" (`#found`) and "Bare Invite Links"
-  (`#bare-invites`) are gone, with `AdminBareInvites`, `listBareInvites`,
-  `sendFounderInvites` and `DirectInviteForm`'s `founder` (a founder
-  invite now comes only from a reviewer's yes; links already out still
-  work until they lapse). Every line under a title went, on the console
-  (the tree name's, Overview's, each group's and section's — `AdminGroup`
-  and `AdminSubsection` no longer take a `description`) and on the
-  account page's cards; the empty "Your Details" keeps its one line, and
-  a child's placeholder keeps "Hidden from the family until your parent
-  approves.". Three help lines inside cards went too (Aalim, same day):
-  the home-tree rules under **move home**, the explanation under
-  **Relatives can ask me to invite them** (the privacy notice still says
-  both) and the Nicknames form's "Names are stored lowercase…"; then the
-  rest on the account page: "Hide my entry from visitors" is the whole
-  label, a Leaf's "Adds relatives" says "On your own line", a relative's
-  ask keeps its dates and match list without the advice after them, and
-  the invite forms (settings, the Root console, a relative's ask) lose
-  "They'll join as a Leaf" (the sent toast still says it); and last the
-  Root console's own ("so unnecessary"): the account-type cards there and
-  in **What a Root can do here** are `brief` (mark, name and table, no
-  tagline or paragraph; onboarding keeps both), the type picker's options
-  say only why one can't be picked, a full family link and a new share
-  link lose their notes, an approved request loses "Accepting it claims
-  the entry for …", and the empty states shrink ("Nothing waiting on
-  you.", "Nobody yet.", "Nobody to bring over."); on the admin page only
-  the analytics error card's "Try again in a moment." was left to go. The
-  console's **Settings** group moved to the account
-  page's **settings**: a card per tree they run, named for it, with the
-  rename form, **Who Else Can View** and **Data & Privacy** (export,
-  delete this tree), and one **Nicknames** card, shared by every tree
-  (`loadAccountSettings` reads the visibility rows and nickname groups
-  only for a Root). **View** was in settings already. Renaming stays on
-  the page and says "Tree renamed." (it went to the console's
-  `#tree-name` before). `lib/admin-sections` lost its `settings` group and
-  the `bareInvites` context; `adminNav()` and `groupSectionIds(group)`
-  take nothing else.
 
 - **Step 102 follow-up: only buttons are lower-case** (no migration).
   **Aalim said:** "only buttons should be lower case". The sweep had also

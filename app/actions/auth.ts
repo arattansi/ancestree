@@ -59,9 +59,13 @@ export async function requestMagicLink(
   formData: FormData,
 ): Promise<MagicLinkState> {
   const inviteToken = String(formData.get("inviteToken") ?? "").trim();
+  // A campaign link's form (Step 103.3): someone starting a tree, so asked
+  // for a name and the privacy agreement as a bare invite link's is.
+  const campaign = String(formData.get("campaign") ?? "").trim();
+  const joining = inviteToken || campaign;
   const next = safeNext(String(formData.get("next") ?? ""));
   const consent = formData.get("consent");
-  const asksName = signInAsksName(inviteToken);
+  const asksName = signInAsksName(joining);
   const { entered, problem } = readNameAndEmail(formData);
   const email = entered.email;
   // What goes back to the form beside an error, to show again.
@@ -73,7 +77,7 @@ export async function requestMagicLink(
     return { error: "Enter a valid email address.", email };
   }
 
-  if (signInNeedsConsent(inviteToken) && consent !== "on" && consent !== "true") {
+  if (signInNeedsConsent(joining) && consent !== "on" && consent !== "true") {
     return {
       error: "Please accept the privacy notice to continue.",
       ...typed,
@@ -115,7 +119,8 @@ export type SignInCodeState = { error?: string };
 /**
  * The code box (Step 53): check the emailed code for that address and go
  * where the email's link would have — the invite it was sent for redeemed
- * (`inviteToken`), else `next`. It sends itself once the code is whole.
+ * (`inviteToken`), or a tree started through a campaign link (`campaign`),
+ * else `next`. It sends itself once the code is whole.
  */
 export async function verifySignInCode(
   _prev: SignInCodeState,
@@ -124,13 +129,14 @@ export async function verifySignInCode(
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const code = readSignInCode(String(formData.get("code") ?? ""));
   const invite = String(formData.get("inviteToken") ?? "").trim() || null;
+  const campaign = String(formData.get("campaign") ?? "").trim() || null;
   const next = safeNext(String(formData.get("next") ?? ""));
 
   if (!isEmailAddress(email) || !isWholeSignInCode(code)) {
     return { error: `Enter the ${SIGN_IN_CODE_LENGTH}-digit code from the email.` };
   }
 
-  const result = await completeCodeSignIn({ email, code, invite, next });
+  const result = await completeCodeSignIn({ email, code, invite, campaign, next });
   if (!result.ok) return { error: signInCodeRefusal(result.errorCode) };
   redirect(result.next);
 }

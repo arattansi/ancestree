@@ -26,8 +26,8 @@ round trip.
 
 | | |
 |---|---|
-| Founding | A member founds a tree from `/trees/new` once a **beta reviewer** has approved their request (Step 28, "start a tree (beta)" on the home page or `/trees`), or a newcomer founds one by redeeming a **founder invite** — sent when a reviewer approves them off the waitlist (Roots could send one from the Root console until Step 103.2). A founder is that tree's first Root. Either way they land on the founder's first run (Step 29): invite, their own entry (added, or brought over from another tree), the tree's name, their close family. |
-| Beta requests | `tree_requests`, answered by the addresses in `private.beta_reviewers` (the build owner and Raiya Suleman). A member's approval is their permission to found; `found_tree` refuses anyone else. A reviewer may always found. Only reviewers see the queue; a member sees their own ask. |
+| Founding | A member founds a tree from `/trees/new` once a **beta reviewer** has approved their request (Step 28, "start a tree (beta)" on the home page or `/trees`), or a newcomer founds one by redeeming a **founder invite** — sent when a reviewer approves them off the waitlist (Roots could send one from the Root console until Step 103.2) — or anyone founds one through a reviewer's **campaign link** (`/start/<code>`, Step 103.3), at once, with no request and no approval. A founder is that tree's first Root. Either way they land on the founder's first run (Step 29): invite, their own entry (added, or brought over from another tree), the tree's name, their close family. |
+| Beta requests | `tree_requests`, answered by the addresses in `private.beta_reviewers` (the build owner and Raiya Suleman). A member's approval is their permission to found; `found_tree` refuses anyone else. A reviewer may always found. Founding through a campaign link answers any ask of theirs still pending: it's deleted (`redeem_campaign`). Only reviewers see the queue; a member sees their own ask. |
 | One each | A member may found **one** tree (`trees.created_by` is unique). Being a Root of several trees is fine; founding several is not. |
 | Roots | Every tree has at least one Root, for good, and at most two (Step 39). The last Root may leave only by handing the tree to a successor (`deleteAccount(successorId)`, per tree). |
 | Naming | `trees.name` is shown; `trees.slug` is the URL segment (`/t/<slug>/…`). Slugs are unique and only a Root may rename a tree. |
@@ -135,7 +135,7 @@ Rules that follow:
   parent shows it. Once the child has claimed it, the parent can't delete
   it.
 - A member joins a tree through an invite (as a Leaf), by founding it (as
-  Root), or by accepting a placement of their own entry (as a Leaf, so they
+  Root, through a reviewer's yes or a campaign link), or by accepting a placement of their own entry (as a Leaf, so they
   can keep their own entry up to date there; a Root may change that).
 - A Root may remove a Branch or a Leaf from the Root console
   (`remove_tree_member`). What they added or own whose home is this tree
@@ -337,11 +337,20 @@ stays.
 | Join as a Leaf | Any member: Root, Branch or Leaf | Adds a membership in the inviter's tree. An existing member of another tree gains a second membership; no second profile. If they have their own entry, it's shown on this tree too, in full, since accepting is their say-so, a basic card of theirs there included (Step 80); every Root of the tree is told (`placed_on_join`) and can take it off from "Who This Tree Shows" (Step 30.9). They land on it. |
 | Claim an entry | As Step 22.1, evaluated in the entry's home tree, into a tree the sender belongs to that shows the entry; or a Root of a tree that shows the entry, whole or as a basic card, when nobody is behind it and they are living (Step 84, `private.can_invite_to_claim_on`: the invite is sent from that tree's canvas and joins it, names the entry as the card does, and accepting claims it and shows it there in full); or a Root approving a request to join as an entry on their tree that the name matches (Step 30.3); or the member a relative's ask went to, as an entry the newcomer's name matches on the tree they picked, where Step 22.1 lets them (Step 41.1) | As above, plus the vouch for that entry. Someone with no entry of their own claims it there and then and lands on it (Step 30.2); if it's spoken for by then, onboarding as usual. A member who already has an entry lands on theirs, shown on this tree (Step 41.3). The invite's entry folds into it when only its maker has built on it, nobody is behind it and it's on no other tree: theirs takes its place, lines, stories and album photos and all, and it's deleted. It never folds in if either of them has died, a line joins them, or they were born more than a year apart. Otherwise both stay, and every Root is told either way. |
 | **Founder** | A beta reviewer approving a waitlist sign-up, from a tree they run (the database still lets any Root bind one, `invites_guard`; the Root console stopped offering it in Step 103.2) | Creates a brand-new tree (“Family” until they rename it; `private.default_tree_name`), makes them its Root, and sends them to onboarding on it. Refused if the address already founded a tree. |
+| **Campaign link** | A beta reviewer, from the admin page's **manage** tab (Step 103.3); one open link per place it's posted, not tied to a tree or a person | Anyone may use it, as often as people open it, until a reviewer pauses it. Signed out: name, email and the privacy tick, then the emailed code makes the account and founds the tree. A member: one button, **start my tree**. Either way as a founder invite: a new tree, “Family” until renamed, them its Root, onboarding next. Refused if they've founded a tree already (the page says so and links their trees) or the link is paused. |
 
-The beta is "by invite only" because only these paths create trees: there is
-no public "start a tree" page. The home page's "start a tree (beta)" only
-asks (Step 28). Signed out it joins a waitlist, which a reviewer answers with
-a founder invite; signed in it asks for the permission `found_tree` checks.
+Trees are created only by these paths: a reviewer's yes (to a request or
+the waitlist) or a reviewer's campaign link. The home page's "start a tree
+(beta)" only asks (Step 28). Signed out it joins a waitlist, which a reviewer
+answers with a founder invite; signed in it asks for the permission
+`found_tree` checks. A campaign link (`/start/<code>`) is public on
+purpose: whoever a reviewer gives it to may start a tree without asking.
+Each counts its opens (not crawlers, link previews or prefetches), its
+sign-ups (new accounts) and the trees founded through it; nothing records
+who came in through which link (`public.campaigns`, reached only through
+its functions: `list_campaigns`, `create_campaign`, `update_campaign`,
+`set_campaign_paused` for reviewers, `campaign_open` for the service role,
+`redeem_campaign` for whoever signs up).
 
 Asking to join works the same way. A share link's "request access" names its
 tree; the home page's "request access" first looks for one showing a living,

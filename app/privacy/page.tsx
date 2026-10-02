@@ -18,7 +18,7 @@ export default function PrivacyPage() {
           Privacy &amp; your family&rsquo;s data
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          ancestree is a private, invite-only family tree. This page explains
+          ancestree is a private family tree. This page explains
           what we store and the choices you have. It is written with Canada&rsquo;s
           <abbr title="Personal Information Protection and Electronic Documents Act">
             {" "}PIPEDA
@@ -83,12 +83,14 @@ export default function PrivacyPage() {
       <Section title="How it is protected">
         <ul className="list-disc space-y-1 pl-5">
           <li>
-            Access is invite-only. Every database row is protected by row-level
-            security so only members of your tree can read it.
+            Joining a tree is by invite. Every database row is protected by
+            row-level security so only members of your tree can read it.
           </li>
           <li>
             The site&rsquo;s owners see each tree&rsquo;s name and its counts —
             members, entries, days used — never its entries or who anyone is.
+            For the links they share to start a tree, they see only how many
+            opened each one, signed up and started a tree, never who.
           </li>
           <li>
             Photos and recordings live in private storage and are only ever

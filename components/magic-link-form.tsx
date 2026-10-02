@@ -22,15 +22,19 @@ const INITIAL: MagicLinkState = {};
  * link's form: that person is joining the tree, so they agree to the
  * privacy notice here (Step 30.4), and give their name beside the email,
  * which names their account and is what onboarding searches the tree for
- * (Step 30.7). A plain sign-in asks for the email alone and only links to
- * the notice.
+ * (Step 30.7). So is a campaign link's (`campaign`, Step 103.3), whose
+ * sign-up starts a tree of their own. A plain sign-in asks for the email
+ * alone and only links to the notice.
  */
 export function MagicLinkForm({
   inviteToken,
+  campaign,
   next,
   submitLabel = "email me a code",
 }: {
   inviteToken?: string;
+  /** A campaign link's code: signing in starts their tree (Step 103.3). */
+  campaign?: string;
   /** A same-origin path to land on once signed in (Step 30.1). */
   next?: string;
   submitLabel?: string;
@@ -40,8 +44,8 @@ export function MagicLinkForm({
   // "Use another email" goes back to the form, filled in as it was, until
   // it sends again and a new state comes back.
   const [changingFrom, setChangingFrom] = useState<MagicLinkState | null>(null);
-  const needsConsent = signInNeedsConsent(inviteToken);
-  const asksName = signInAsksName(inviteToken);
+  const needsConsent = signInNeedsConsent(inviteToken || campaign);
+  const asksName = signInAsksName(inviteToken || campaign);
 
   if (state.ok && state.email && changingFrom !== state) {
     return (
@@ -50,6 +54,7 @@ export function MagicLinkForm({
         key={state.sentAt}
         email={state.email}
         inviteToken={inviteToken}
+        campaign={campaign}
         next={next}
         resendAction={formAction}
         resendFields={{
@@ -57,6 +62,7 @@ export function MagicLinkForm({
           firstName: state.firstName,
           lastName: state.lastName,
           inviteToken,
+          campaign,
           next,
           consent: needsConsent ? "on" : undefined,
           sentAt: state.sentAt ? String(state.sentAt) : undefined,
@@ -73,6 +79,7 @@ export function MagicLinkForm({
       {inviteToken ? (
         <input type="hidden" name="inviteToken" value={inviteToken} />
       ) : null}
+      {campaign ? <input type="hidden" name="campaign" value={campaign} /> : null}
       {next ? <input type="hidden" name="next" value={next} /> : null}
       {asksName ? (
         <>
