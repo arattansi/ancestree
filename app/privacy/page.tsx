@@ -191,20 +191,45 @@ export default function PrivacyPage() {
             blurred card with no name or details.
           </li>
           <li>
-            You can make your card on any tree but your home show only your
-            name, from{" "}
+            A tree&rsquo;s Roots can take you off it at any time.
+          </li>
+        </ul>
+      </Section>
+
+      <Section title="Name only">
+        <ul className="list-disc space-y-1 pl-5">
+          <li>
+            On any tree but your home, you can make your card show only your
+            name, from &ldquo;Your Entry&rdquo; in{" "}
             <Link
               href="/account?view=settings"
               className="underline underline-offset-4"
             >
               your account&rsquo;s settings
             </Link>
-            . If you&rsquo;re a member of that tree, you leave it too. No Root
-            can undo it, and taking your card off and bringing it back
-            doesn&rsquo;t either; only you can show more again.
+            . It&rsquo;s drawn as a small name tag, still joined to your
+            family there, with no place of birth, dates, photo, stories or
+            album.
           </li>
           <li>
-            A tree&rsquo;s Roots can take you off it at any time.
+            If you&rsquo;re a member of that tree, you leave it too, and what
+            you added there passes to one of its Roots. A Root can&rsquo;t
+            leave their own tree this way, and nobody can leave their only
+            tree.
+          </li>
+          <li>
+            The tree&rsquo;s Roots are told. None of them can undo it, and
+            taking your card off and bringing it back keeps it name only.
+          </li>
+          <li>
+            Only you can show more again. Your card goes back to your name
+            and place of birth, and showing the rest is still your yes to
+            give.
+          </li>
+          <li>
+            A Root may make the card of anyone brought over from another tree
+            name only, unless they&rsquo;re a member there. The Root can undo
+            that; so can you.
           </li>
         </ul>
       </Section>

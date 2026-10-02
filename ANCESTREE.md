@@ -1789,6 +1789,11 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   Entry reads its trees through the new `own_card_trees()`: once someone
   leaves a tree, `trees` hides its name from them, and the browser test
   found the row they'd undo it from gone.
+  **Follow-up:** the privacy page's one line became a **Name only**
+  section of its own: what the name tag shows, leaving the tree (what you
+  added passing to a Root; not for a Root, nor your only tree), the Roots
+  told and unable to undo it, **show more** back to name and place of birth
+  with the yes still yours, and a Root's own name-only cards.
 
 - **Step 105: the privacy page on children and other trees** (no
   migration). **Aalim asked for:** the privacy page to set out what's been
