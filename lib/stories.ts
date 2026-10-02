@@ -32,7 +32,7 @@ export type EntryStory = {
   credits: StoryCredit[];
   /** The viewer may change who it's credited to and when it was told
    *  (Steps 99.5, 99.6): its teller, whoever can edit the entry, or the
-   *  person it's about. */
+   *  person it's about. Its words are its teller's alone (`mine`, 99.7). */
   canEditCredits: boolean;
   /** The viewer told it, so may delete it. */
   mine: boolean;

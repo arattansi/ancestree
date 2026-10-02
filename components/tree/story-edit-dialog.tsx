@@ -2,11 +2,12 @@
 
 import * as React from "react";
 
-import { setStoryDetails } from "@/app/actions/stories";
+import { editStory } from "@/app/actions/stories";
 import { DateField } from "@/components/date-field";
 import { FormError } from "@/components/form-error";
 import { PendingButton } from "@/components/pending-button";
 import { CompanionPicker, type CompanionOption } from "@/components/tree/companion-picker";
+import { StoryTextFields } from "@/components/tree/story-text-fields";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -16,13 +17,16 @@ import { toPartialIso } from "@/lib/partial-date";
 import { STORY_CREDIT_MAX, toldProblem } from "@/lib/story-credits";
 
 /**
- * Change who a story is credited to and when it was told, after it's told
- * (Steps 99.5, 99.6): its storytellers, interviewers and date, opened as
- * they are now. Anyone on the canvas may be added; someone credited already
- * stays offered by name even where this canvas doesn't have them. An empty
- * date clears it. Loaded only once someone opens it.
+ * Edit a story after it's told (Steps 99.5–99.7), opened as it is now: for
+ * its teller, its title and text (Markdown, Write / Preview, or a file) as
+ * well as when it was told and who it's credited to; for whoever else may
+ * (an editor of the entry, or the person it's about), the date and credits.
+ * Anyone on the canvas may be credited; someone credited already stays
+ * offered by name even where this canvas doesn't have them. An empty date
+ * clears it. New words from someone who couldn't approve them go for
+ * approval again. Loaded only once someone opens it.
  */
-export function StoryDetailsDialog({
+export function StoryEditDialog({
   story,
   onClose,
   personId,
@@ -30,7 +34,7 @@ export function StoryDetailsDialog({
   people,
   onSaved,
 }: {
-  /** The story being credited; null while closed. */
+  /** The story being edited; null while closed. */
   story: EntryStory | null;
   onClose: () => void;
   personId: string;
@@ -43,6 +47,8 @@ export function StoryDetailsDialog({
   const save = useAction({ inline: true });
   const [tellers, setTellers] = React.useState<string[]>([]);
   const [askers, setAskers] = React.useState<string[]>([]);
+  const [title, setTitle] = React.useState("");
+  const [body, setBody] = React.useState("");
   const [told, setTold] = React.useState("");
   const [toldTouched, setToldTouched] = React.useState(false);
 
@@ -54,6 +60,8 @@ export function StoryDetailsDialog({
     if (story) {
       setTellers(story.credits.filter((c) => c.role === "storyteller").map((c) => c.id));
       setAskers(story.credits.filter((c) => c.role === "interviewer").map((c) => c.id));
+      setTitle(story.title ?? "");
+      setBody(story.body ?? "");
       setTold(toPartialIso(story.toldOn, story.toldPrecision));
       setToldTouched(false);
       save.setError(null);
@@ -75,18 +83,24 @@ export function StoryDetailsDialog({
     e.preventDefault();
     setToldTouched(true);
     if (!story || toldError) return;
+    // Only its teller changes its words.
+    const text = story.mine ? { title, body } : undefined;
+    const wasWaiting = story.status === "pending";
     save.run(
       "save",
       () =>
-        setStoryDetails({
+        editStory({
           storyId: story.id,
           personId,
           treeId,
           storytellers: tellers,
           interviewers: askers,
           told,
+          text,
         }),
       {
+        success: (res) =>
+          res.status === "pending" && !wasWaiting ? "Sent for approval." : null,
         onSuccess: (res) => {
           onSaved(res.stories);
           onClose();
@@ -103,8 +117,19 @@ export function StoryDetailsDialog({
       }}
     >
       <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg">
-        <DialogTitle>Credits and date</DialogTitle>
+        <DialogTitle>{story?.mine === false ? "Credits and date" : "Edit story"}</DialogTitle>
         <form onSubmit={onSubmit} className="flex flex-col gap-4 pt-2">
+          {story?.mine ? (
+            <StoryTextFields
+              key={openedOn ?? ""}
+              idPrefix="story-edit"
+              title={title}
+              onTitle={setTitle}
+              body={body}
+              onBody={setBody}
+              disabled={save.pending}
+            />
+          ) : null}
           <CompanionPicker
             label="Storyteller"
             options={options}

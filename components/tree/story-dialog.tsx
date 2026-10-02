@@ -1,30 +1,21 @@
 "use client";
 
 import * as React from "react";
-import { FileText, Mic, Plus, X } from "lucide-react";
+import { Mic, Plus, X } from "lucide-react";
 
 import { addStory } from "@/app/actions/stories";
 import { DateField } from "@/components/date-field";
 import { FormError } from "@/components/form-error";
 import { PendingButton } from "@/components/pending-button";
 import { CompanionPicker, type CompanionOption } from "@/components/tree/companion-picker";
-import { StoryText } from "@/components/tree/story-text";
+import { StoryTextFields } from "@/components/tree/story-text-fields";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { useAction } from "@/components/use-action";
 import { isRedirect } from "@/lib/action-feedback";
-import { STORY_MAX, STORY_TITLE_MAX } from "@/lib/limits";
 import type { EntryStory } from "@/lib/stories";
 import { STORY_CREDIT_MAX, toldProblem, type StoryCreditRole } from "@/lib/story-credits";
-import {
-  STORY_FILE_ACCEPT,
-  STORY_FILE_MAX_BYTES,
-  addToStory,
-  readStoryFile,
-} from "@/lib/story-markdown";
 import { formatDuration } from "@/lib/story-audio";
 import type { StoryAudio } from "@/lib/story-audio-shrink";
 import { AUDIO_NOT_SENT } from "@/lib/story-upload";
@@ -133,11 +124,8 @@ export function StoryDialog({
   const send = useAction({ inline: true });
   const [title, setTitle] = React.useState("");
   const [body, setBody] = React.useState("");
-  const [preview, setPreview] = React.useState(false);
-  const [fileError, setFileError] = React.useState<string | null>(null);
-  // A Markdown file being read: the title and story wait, so nothing typed
-  // meanwhile is written over.
-  const [readingFile, setReadingFile] = React.useState(false);
+  // Bumped on each opening: the title and story fields start afresh.
+  const [formKey, setFormKey] = React.useState(0);
   const [told, setTold] = React.useState("");
   // "+ Date told" pressed, or the date typed in: the field stays.
   const [toldOpened, setToldOpened] = React.useState(false);
@@ -148,7 +136,6 @@ export function StoryDialog({
   const [recording, setRecording] = React.useState<Recording | null>(null);
   const [recordingError, setRecordingError] = React.useState<string | null>(null);
   const fileRef = React.useRef<HTMLInputElement>(null);
-  const markdownRef = React.useRef<HTMLInputElement>(null);
   // Which pick is being prepared: a later pick, or a closed dialog, drops
   // an earlier one's result.
   const pick = React.useRef(0);
@@ -160,8 +147,7 @@ export function StoryDialog({
     if (open) {
       setTitle("");
       setBody("");
-      setPreview(false);
-      setFileError(null);
+      setFormKey((k) => k + 1);
       setTold("");
       setToldOpened(false);
       setToldTouched(false);
@@ -191,44 +177,6 @@ export function StoryDialog({
     document.getElementById("story-told")?.focus();
   }, [toldShown]);
   const toldError = toldProblem(told);
-
-  // A Markdown file's text goes into the story, after what's written; its
-  // title into the title if that's empty.
-  async function onMarkdownFile(file: File) {
-    setFileError(null);
-    if (file.size > STORY_FILE_MAX_BYTES) {
-      setFileError("That file is too big for a story.");
-      return;
-    }
-    let text: string;
-    setReadingFile(true);
-    try {
-      text = await file.text();
-    } catch {
-      setFileError("That file couldn’t be read.");
-      return;
-    } finally {
-      setReadingFile(false);
-    }
-    if (text.includes("\u0000")) {
-      setFileError("That isn’t a text file.");
-      return;
-    }
-    const read = readStoryFile(text, STORY_TITLE_MAX);
-    if (!read.body) {
-      setFileError("That file is empty.");
-      return;
-    }
-    const next = addToStory(body, read.body);
-    if (next.length > STORY_MAX) {
-      setFileError(
-        `That’s longer than a story may be (${STORY_MAX.toLocaleString("en")} characters).`,
-      );
-      return;
-    }
-    setBody(next);
-    if (!title.trim() && read.title) setTitle(read.title);
-  }
 
   async function onPick(file: File) {
     const mine = ++pick.current;
@@ -325,91 +273,15 @@ export function StoryDialog({
       <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg">
         <DialogTitle>Add a story</DialogTitle>
         <form onSubmit={onSubmit} className="flex flex-col gap-4 pt-2">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="story-title">Title</Label>
-            <Input
-              id="story-title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              maxLength={STORY_TITLE_MAX}
-              disabled={send.pending || readingFile}
-              autoComplete="off"
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between gap-2">
-              {/* In Preview there's no box to name: the preview names itself. */}
-              <Label htmlFor={preview ? undefined : "story-body"}>Story</Label>
-              <div className="flex gap-1">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={preview ? "ghost" : "secondary"}
-                  aria-pressed={!preview}
-                  onClick={() => setPreview(false)}
-                >
-                  Write
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={preview ? "secondary" : "ghost"}
-                  aria-pressed={preview}
-                  onClick={() => setPreview(true)}
-                >
-                  Preview
-                </Button>
-              </div>
-            </div>
-            {preview ? (
-              <div
-                role="region"
-                aria-label="Preview of the story"
-                className="max-h-[50dvh] min-h-40 overflow-y-auto rounded-md border p-3 text-sm"
-              >
-                {body.trim() ? (
-                  <StoryText>{body}</StoryText>
-                ) : (
-                  <p className="text-muted-foreground">Nothing to preview.</p>
-                )}
-              </div>
-            ) : (
-              <Textarea
-                id="story-body"
-                value={body}
-                onChange={(e) => setBody(e.target.value)}
-                rows={8}
-                maxLength={STORY_MAX}
-                disabled={send.pending || readingFile}
-                className="max-h-[50dvh]"
-              />
-            )}
-            <input
-              ref={markdownRef}
-              type="file"
-              accept={STORY_FILE_ACCEPT}
-              className="sr-only"
-              tabIndex={-1}
-              aria-hidden
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                e.target.value = "";
-                if (file) void onMarkdownFile(file);
-              }}
-            />
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="self-start"
-              disabled={send.pending || readingFile}
-              onClick={() => markdownRef.current?.click()}
-            >
-              <FileText aria-hidden />
-              Upload a Markdown file
-            </Button>
-            <FormError>{fileError}</FormError>
-          </div>
+          <StoryTextFields
+            key={formKey}
+            idPrefix="story"
+            title={title}
+            onTitle={setTitle}
+            body={body}
+            onBody={setBody}
+            disabled={send.pending}
+          />
           <div className="flex flex-col gap-2">
             <span className="text-sm font-medium">Recording</span>
             <input

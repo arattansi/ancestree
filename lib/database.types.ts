@@ -2703,6 +2703,20 @@ export type Database = {
         Returns: undefined
       }
       delete_tree: { Args: { p_tree: string }; Returns: Json }
+      edit_story: {
+        Args: {
+          p_body?: string
+          p_edit_text?: boolean
+          p_interviewers: string[]
+          p_story: string
+          p_storytellers: string[]
+          p_title?: string
+          p_told_on?: string
+          p_told_precision?: string
+          p_tree: string
+        }
+        Returns: Json
+      }
       engagement_dashboard: { Args: never; Returns: Json }
       ensure_profile: {
         Args: { p_display_name?: string }
@@ -3093,17 +3107,6 @@ export type Database = {
       set_newsletter: { Args: { p_on: boolean }; Returns: undefined }
       set_newsletter_schedule: {
         Args: { p_paused: boolean; p_weekday: number }
-        Returns: undefined
-      }
-      set_story_details: {
-        Args: {
-          p_interviewers: string[]
-          p_story: string
-          p_storytellers: string[]
-          p_told_on?: string
-          p_told_precision?: string
-          p_tree: string
-        }
         Returns: undefined
       }
       share_story: { Args: { p_story: string }; Returns: string }

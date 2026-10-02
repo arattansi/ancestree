@@ -42,8 +42,8 @@ const StoryDialog = dynamic(
   () => import("@/components/tree/story-dialog").then((m) => m.StoryDialog),
   { ssr: false },
 );
-const StoryDetailsDialog = dynamic(
-  () => import("@/components/tree/story-details-dialog").then((m) => m.StoryDetailsDialog),
+const StoryEditDialog = dynamic(
+  () => import("@/components/tree/story-edit-dialog").then((m) => m.StoryEditDialog),
   { ssr: false },
 );
 
@@ -121,8 +121,8 @@ function StoryCard({
   personName: string;
   /** What one person is to another on this canvas (Step 99). */
   describeConnection?: (fromId: string, toId: string) => Relation | null;
-  /** Opens its credits and date to change (Steps 99.5, 99.6); shown when
-   *  it's theirs to. */
+  /** Opens it to edit (Steps 99.5–99.7): its words for its teller, its
+   *  credits and date for them and whoever else may. */
   onEditCredits: () => void;
   /** Theirs to delete, and so is any comment on it. */
   canDelete: boolean;
@@ -301,7 +301,7 @@ function StoryCard({
         {story.canEditCredits ? (
           <Button type="button" size="sm" variant="ghost" onClick={onEditCredits}>
             <Pencil aria-hidden />
-            Credits and date
+            {story.mine ? "Edit" : "Credits and date"}
           </Button>
         ) : null}
         {canDelete ? (
@@ -367,7 +367,7 @@ export function EntryStories({
   const [adding, setAdding] = React.useState(false);
   // Mounted from the first press on, so it can close with its animation.
   const [dialogMounted, setDialogMounted] = React.useState(false);
-  // The story whose credits and date are being changed (Steps 99.5, 99.6).
+  // The story being edited (Steps 99.5–99.7).
   const [crediting, setCrediting] = React.useState<EntryStory | null>(null);
   const [creditsMounted, setCreditsMounted] = React.useState(false);
 
@@ -474,7 +474,7 @@ export function EntryStories({
       )}
 
       {creditsMounted ? (
-        <StoryDetailsDialog
+        <StoryEditDialog
           story={crediting}
           onClose={() => setCrediting(null)}
           personId={personId}

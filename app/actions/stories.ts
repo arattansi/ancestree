@@ -115,13 +115,15 @@ export async function addStory(input: {
 }
 
 /**
- * Change who a story is credited to and when it was told (Steps 99.5,
- * 99.6): its storytellers, its interviewers and its date, all at once. Its
- * teller, whoever can edit the entry, or the person it's about may.
- * Someone newly credited must be on the tree it's edited from; someone
- * already credited may stay. An empty date clears it. The list back has it.
+ * Edit a story after it's told (Steps 99.5–99.7): who it's credited to and
+ * when it was told (its teller, whoever can edit the entry, or the person
+ * it's about may), and, from its teller alone, its title and text (`text`).
+ * New words from someone who couldn't approve them wait for approval again
+ * (`status` back says so). Someone newly credited must be on the tree it's
+ * edited from; someone already credited may stay. An empty date clears it.
+ * The list back has it.
  */
-export async function setStoryDetails(input: {
+export async function editStory(input: {
   storyId: string;
   /** Whose sheet it's edited on: the list back is theirs. */
   personId: string;
@@ -131,7 +133,9 @@ export async function setStoryDetails(input: {
   interviewers: string[];
   /** As much of the date as is known ("1962" will do); empty for none. */
   told: string;
-}): Promise<{ error?: string; stories?: EntryStory[] }> {
+  /** Its teller's title and text; left as they are when absent. */
+  text?: { title: string; body: string };
+}): Promise<{ error?: string; status?: EntryStory["status"]; stories?: EntryStory[] }> {
   const profile = await requireProfile();
   const storytellers = [...new Set(input.storytellers)];
   const interviewers = [...new Set(input.interviewers)];
@@ -141,8 +145,18 @@ export async function setStoryDetails(input: {
   const toldError = toldProblem(input.told);
   if (toldError) return { error: toldError };
   const toldOn = toStoredDate(input.told);
+  const title = input.text?.title.trim() ?? "";
+  const body = input.text?.body.trim() ?? "";
+  if (input.text) {
+    if (title.length > STORY_TITLE_MAX) {
+      return { error: `Keep the title under ${STORY_TITLE_MAX} characters.` };
+    }
+    if (body.length > STORY_MAX) {
+      return { error: `Keep it under ${STORY_MAX.toLocaleString("en")} characters.` };
+    }
+  }
   const supabase = await createClient();
-  const { error } = await supabase.rpc("set_story_details", {
+  const { data, error } = await supabase.rpc("edit_story", {
     p_story: input.storyId,
     p_tree: input.treeId,
     p_storytellers: storytellers,
@@ -150,6 +164,10 @@ export async function setStoryDetails(input: {
     // Left out, it's cleared.
     p_told_on: toldOn.date ?? undefined,
     p_told_precision: toldOn.date ? toldOn.precision : undefined,
+    p_edit_text: !!input.text,
+    // Blank is none: `edit_story` keeps only what has words in it.
+    p_title: input.text ? title : undefined,
+    p_body: input.text ? body : undefined,
   });
   if (error) {
     return {
@@ -157,6 +175,9 @@ export async function setStoryDetails(input: {
         error.message,
         [
           ["not yours to credit", "It isn’t yours to change."],
+          ["not yours to edit", "Only whoever added it can change its words."],
+          ["nothing to tell", "Write the story or add a recording."],
+          ["longer than a story may be", "That’s longer than a story may be."],
           ["not a story you can see", "That story is gone."],
           ["not on your tree", "Someone credited isn’t on this tree."],
           ["too many people", `Credit ${STORY_CREDIT_MAX} people at most in each role.`],
@@ -168,7 +189,12 @@ export async function setStoryDetails(input: {
       ),
     };
   }
+  const edited = data as { status?: string } | null;
   return {
+    status:
+      edited?.status === "approved" || edited?.status === "declined"
+        ? edited.status
+        : "pending",
     // Saved either way; a list that can't be read now is read again.
     stories: await listStories(input.personId, profile.auth_user_id).catch(
       () => undefined,
