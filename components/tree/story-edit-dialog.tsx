@@ -7,19 +7,25 @@ import { DateField } from "@/components/date-field";
 import { FormError } from "@/components/form-error";
 import { PendingButton } from "@/components/pending-button";
 import { CompanionPicker, type CompanionOption } from "@/components/tree/companion-picker";
+import { StoryRecordingField, type RecordingChoice } from "@/components/tree/story-recording-field";
 import { StoryTextFields } from "@/components/tree/story-text-fields";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { useAction } from "@/components/use-action";
+import { isRedirect } from "@/lib/action-feedback";
 import type { EntryStory } from "@/lib/stories";
 import { toPartialIso } from "@/lib/partial-date";
+import { AUDIO_NOT_SENT } from "@/lib/story-upload";
 import { STORY_CREDIT_MAX, toldProblem } from "@/lib/story-credits";
 
+const KEEP: RecordingChoice = { kind: "keep" };
+
 /**
- * Edit a story after it's told (Steps 99.5–99.7), opened as it is now: for
- * its teller, its title and text (Markdown, Write / Preview, or a file) as
- * well as when it was told and who it's credited to; for whoever else may
+ * Edit a story after it's told (Steps 99.5–99.8), opened as it is now: for
+ * its teller, its title and text (Markdown, Write / Preview, or a file) and
+ * its recording (replace or remove it) as well as when it was told and who
+ * it's credited to; for whoever else may
  * (an editor of the entry, or the person it's about), the date and credits.
  * Anyone on the canvas may be credited; someone credited already stays
  * offered by name even where this canvas doesn't have them. An empty date
@@ -50,6 +56,8 @@ export function StoryEditDialog({
   const [title, setTitle] = React.useState("");
   const [body, setBody] = React.useState("");
   const [told, setTold] = React.useState("");
+  const [recording, setRecording] = React.useState<RecordingChoice>(KEEP);
+  const [preparing, setPreparing] = React.useState(false);
   const [toldTouched, setToldTouched] = React.useState(false);
 
   // Opened on a story: whoever it credits now.
@@ -63,6 +71,8 @@ export function StoryEditDialog({
       setTitle(story.title ?? "");
       setBody(story.body ?? "");
       setTold(toPartialIso(story.toldOn, story.toldPrecision));
+      setRecording(KEEP);
+      setPreparing(false);
       setToldTouched(false);
       save.setError(null);
     }
@@ -82,22 +92,53 @@ export function StoryEditDialog({
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setToldTouched(true);
-    if (!story || toldError) return;
-    // Only its teller changes its words.
+    if (!story || toldError || preparing) return;
+    // Only its teller changes its words and its recording.
     const text = story.mine ? { title, body } : undefined;
+    const choice = story.mine ? recording : KEEP;
     const wasWaiting = story.status === "pending";
     save.run(
       "save",
-      () =>
-        editStory({
-          storyId: story.id,
-          personId,
-          treeId,
-          storytellers: tellers,
-          interviewers: askers,
-          told,
-          text,
-        }),
+      async () => {
+        // A new recording goes up first, into the person's folder.
+        let audio: { path: string | null; seconds: number | null } | undefined;
+        if (choice.kind === "new") {
+          const { uploadStoryAudio } = await import("@/lib/story-upload");
+          try {
+            audio = {
+              path: await uploadStoryAudio(personId, choice.audio),
+              seconds: choice.audio.seconds,
+            };
+          } catch {
+            return { error: AUDIO_NOT_SENT };
+          }
+        } else if (choice.kind === "none" && story.hasRecording) {
+          audio = { path: null, seconds: null };
+        }
+        const uploaded = audio?.path ?? null;
+        try {
+          const res = await editStory({
+            storyId: story.id,
+            personId,
+            treeId,
+            storytellers: tellers,
+            interviewers: askers,
+            told,
+            text,
+            audio,
+          });
+          // Refused: the recording nothing took goes again.
+          if (res.error && uploaded) {
+            const { discardStoryAudio } = await import("@/lib/story-upload");
+            await discardStoryAudio(uploaded);
+          }
+          return res;
+        } catch (thrown) {
+          // Unreachable: it may have saved, so the recording stays.
+          if (isRedirect(thrown)) throw thrown;
+          return { error: "Couldn’t save it. Try again." };
+        }
+      },
       {
         success: (res) =>
           res.status === "pending" && !wasWaiting ? "Sent for approval." : null,
@@ -130,6 +171,19 @@ export function StoryEditDialog({
               disabled={save.pending}
             />
           ) : null}
+          {story?.mine ? (
+            <StoryRecordingField
+              key={openedOn ?? ""}
+              existing={
+                story.hasRecording
+                  ? { url: story.audioUrl, seconds: story.audioSeconds }
+                  : null
+              }
+              disabled={save.pending}
+              onChange={setRecording}
+              onPreparing={setPreparing}
+            />
+          ) : null}
           <CompanionPicker
             label="Storyteller"
             options={options}
@@ -160,7 +214,13 @@ export function StoryEditDialog({
           </div>
           <FormError>{save.error}</FormError>
           <div className="flex gap-2">
-            <PendingButton type="submit" size="sm" pending={save.pending} pendingLabel="Saving…">
+            <PendingButton
+              type="submit"
+              size="sm"
+              pending={save.pending}
+              disabled={preparing}
+              pendingLabel="Saving…"
+            >
               Save
             </PendingButton>
             <Button

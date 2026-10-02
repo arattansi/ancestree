@@ -1753,6 +1753,27 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 99.8: a story's recording can be replaced or removed** (migration
+  `20261001270000_story_recording_editable`). **Aalim asked for:** "let the
+  recording be edited too". **Edit story** now has the **Recording**: the
+  one it has plays there, to **Replace** (pick a file, shrunk and played
+  back before it goes, as when telling) or **Remove** (with **Undo**), or
+  **Add a recording** if it has none (`components/tree/story-recording-field.tsx`,
+  now shared with **Add a story**; `EntryStory.hasRecording`). The new file
+  goes up first into the person's folder, then `edit_story` (made again
+  with `p_edit_audio`, `p_audio_path`, `p_audio_seconds`, all defaulted, the
+  nine-argument version dropped in the same go so the deployed app's calls
+  still resolve) checks it as `add_story` does; a refusal discards it. The
+  recording it no longer has comes back as `removed_audio` and `editStory`
+  removes it with the service role in `after()`. Same rules as the words:
+  its teller alone, a story keeps words or a recording, and a new recording
+  from someone who couldn't approve it waits again. Rehearsed rolled back
+  (add, replace, remove, someone else's upload or none refused, both gone
+  refused, a Root refused on another's, an approver's own stays approved,
+  the old nine-argument call), then in the browser as a throwaway Root with
+  generated WAV tones (added 0:03 → replaced 0:02, the old file gone from
+  storage → removed, the file gone, Undo in between).
+
 - **Step 98.3, follow-up: the child's invite email and "18 or older?" first**
   (no migration). **Aalim asked for:** "fix the email greeting and ask 18
   first", two findings from tracing the journey map (J12, J14). **The

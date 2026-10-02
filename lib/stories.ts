@@ -19,6 +19,8 @@ export type EntryStory = {
   body: string | null;
   /** A signed link to its recording, for an hour. */
   audioUrl: string | null;
+  /** It has a recording, even if its link couldn't be made (Step 99.8). */
+  hasRecording: boolean;
   audioSeconds: number | null;
   status: "pending" | "approved" | "declined";
   createdAt: string;
@@ -109,6 +111,7 @@ export async function listStories(
     title: r.title ?? null,
     body: r.body ?? null,
     audioUrl: r.audio_path ? (links.get(r.audio_path) ?? null) : null,
+    hasRecording: !!r.audio_path,
     audioSeconds: r.audio_seconds ?? null,
     status: asStatus(r.status),
     createdAt: r.created_at,

@@ -115,11 +115,13 @@ export async function addStory(input: {
 }
 
 /**
- * Edit a story after it's told (Steps 99.5–99.7): who it's credited to and
+ * Edit a story after it's told (Steps 99.5–99.8): who it's credited to and
  * when it was told (its teller, whoever can edit the entry, or the person
- * it's about may), and, from its teller alone, its title and text (`text`).
- * New words from someone who couldn't approve them wait for approval again
- * (`status` back says so). Someone newly credited must be on the tree it's
+ * it's about may), and, from its teller alone, its title and text (`text`)
+ * and its recording (`audio`: one they've just uploaded, or none). New
+ * words or a new recording from someone who couldn't approve them wait for
+ * approval again (`status` back says so). A recording it no longer has is
+ * removed from storage after the response. Someone newly credited must be on the tree it's
  * edited from; someone already credited may stay. An empty date clears it.
  * The list back has it.
  */
@@ -135,6 +137,9 @@ export async function editStory(input: {
   told: string;
   /** Its teller's title and text; left as they are when absent. */
   text?: { title: string; body: string };
+  /** Its teller's recording: a path they've uploaded, or null for none;
+   *  left as it is when absent. */
+  audio?: { path: string | null; seconds: number | null };
 }): Promise<{ error?: string; status?: EntryStory["status"]; stories?: EntryStory[] }> {
   const profile = await requireProfile();
   const storytellers = [...new Set(input.storytellers)];
@@ -155,6 +160,14 @@ export async function editStory(input: {
       return { error: `Keep it under ${STORY_MAX.toLocaleString("en")} characters.` };
     }
   }
+  const audioPath = input.audio?.path ?? null;
+  if (audioPath && !isStoryAudioPath(input.personId, audioPath)) {
+    return { error: "The recording didn’t upload." };
+  }
+  const seconds =
+    input.audio?.seconds != null && Number.isFinite(input.audio.seconds)
+      ? Math.max(0, Math.round(input.audio.seconds))
+      : undefined;
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("edit_story", {
     p_story: input.storyId,
@@ -168,6 +181,10 @@ export async function editStory(input: {
     // Blank is none: `edit_story` keeps only what has words in it.
     p_title: input.text ? title : undefined,
     p_body: input.text ? body : undefined,
+    p_edit_audio: !!input.audio,
+    // Left out, it has none.
+    p_audio_path: audioPath ?? undefined,
+    p_audio_seconds: audioPath ? seconds : undefined,
   });
   if (error) {
     return {
@@ -175,9 +192,11 @@ export async function editStory(input: {
         error.message,
         [
           ["not yours to credit", "It isn’t yours to change."],
-          ["not yours to edit", "Only whoever added it can change its words."],
+          ["not yours to edit", "Only whoever added it can change its words or recording."],
           ["nothing to tell", "Write the story or add a recording."],
           ["longer than a story may be", "That’s longer than a story may be."],
+          ["didn't arrive", "The recording didn’t upload."],
+          ["stories_audio_path_key", "The recording didn’t upload."],
           ["not a story you can see", "That story is gone."],
           ["not on your tree", "Someone credited isn’t on this tree."],
           ["too many people", `Credit ${STORY_CREDIT_MAX} people at most in each role.`],
@@ -189,7 +208,16 @@ export async function editStory(input: {
       ),
     };
   }
-  const edited = data as { status?: string } | null;
+  const edited = data as { status?: string; removed_audio?: string | null } | null;
+  // The recording it no longer has: nothing points at it now, so it goes
+  // with the service role, as a deleted story's does.
+  const removed = edited?.removed_audio;
+  if (removed) {
+    after(async () => {
+      const { error } = await createAdminClient().storage.from("stories").remove([removed]);
+      if (error) console.error("[stories] a replaced recording stayed", error.message);
+    });
+  }
   return {
     status:
       edited?.status === "approved" || edited?.status === "declined"

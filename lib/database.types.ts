@@ -2705,7 +2705,10 @@ export type Database = {
       delete_tree: { Args: { p_tree: string }; Returns: Json }
       edit_story: {
         Args: {
+          p_audio_path?: string
+          p_audio_seconds?: number
           p_body?: string
+          p_edit_audio?: boolean
           p_edit_text?: boolean
           p_interviewers: string[]
           p_story: string
