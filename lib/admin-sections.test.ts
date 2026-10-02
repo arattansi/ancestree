@@ -1,18 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { QUEUE_SECTIONS } from "@/lib/admin-queue";
-import {
-  ADMIN_SECTION_IDS,
-  adminNav,
-  groupSectionIds,
-  sectionShown,
-} from "@/lib/admin-sections";
-
-const ROOT = { bareInvites: false };
+import { ADMIN_SECTION_IDS, adminNav, groupSectionIds } from "@/lib/admin-sections";
 
 describe("adminNav", () => {
   it("lists a Root's sections under their groups' headings", () => {
-    expect(adminNav(ROOT)).toEqual([
+    expect(adminNav()).toEqual([
       {
         label: null,
         items: [
@@ -34,52 +27,38 @@ describe("adminNav", () => {
         items: [
           { id: "invite", label: "Invite a Relative" },
           { id: "family-link", label: "Family Link" },
-          { id: "found", label: "Invite Someone to Start a Tree" },
           { id: "share", label: "Share a Link" },
           { id: "sent-invites", label: "Sent Invites" },
           { id: "archived-invites", label: "Archived" },
         ],
       },
-      {
-        label: "Settings",
-        items: [
-          { id: "tree-name", label: "Tree Name" },
-          { id: "visibility", label: "Who Else Can View" },
-          { id: "data-privacy", label: "Data & Privacy" },
-          { id: "nicknames", label: "Nicknames" },
-          { id: "view", label: "View" },
-        ],
-      },
     ]);
   });
 
-  it("adds bare links while any are left, and never requests to start a tree (Step 103)", () => {
-    const ids = (ctx: typeof ROOT) => adminNav(ctx).flatMap((g) => g.items.map((i) => i.id));
-    expect(ids(ROOT)).not.toContain("tree-requests");
-    expect(ADMIN_SECTION_IDS).not.toContain("tree-requests");
-    const withBare = ids({ ...ROOT, bareInvites: true });
-    expect(withBare.slice(withBare.indexOf("sent-invites"), withBare.indexOf("sent-invites") + 3)).toEqual([
-      "sent-invites",
+  it("has no founder invites, bare links, settings, or requests to start a tree (Step 103)", () => {
+    for (const gone of [
+      "tree-requests",
+      "found",
       "bare-invites",
-      "archived-invites",
-    ]);
+      "tree-name",
+      "visibility",
+      "data-privacy",
+      "nicknames",
+      "view",
+    ]) {
+      expect(ADMIN_SECTION_IDS).not.toContain(gone);
+    }
   });
 });
 
 describe("groupSectionIds", () => {
   it("opens a group for its own sections, not for the overview above it", () => {
-    expect(groupSectionIds("members", ROOT)).toEqual(["members", "account-types"]);
-    expect(groupSectionIds("requests", ROOT)).toEqual(["invite-requests", "reports"]);
+    expect(groupSectionIds("members")).toEqual(["members", "account-types"]);
+    expect(groupSectionIds("requests")).toEqual(["invite-requests", "reports"]);
   });
 });
 
-describe("sectionShown", () => {
-  it("says whether this Root sees a section", () => {
-    expect(sectionShown("tree-requests", ROOT)).toBe(false);
-    expect(sectionShown("bare-invites", { ...ROOT, bareInvites: true })).toBe(true);
-    expect(sectionShown("share", ROOT)).toBe(true);
-  });
-
+describe("ADMIN_SECTION_IDS", () => {
   it("knows every queue the header and alert emails open", () => {
     for (const section of QUEUE_SECTIONS) expect(ADMIN_SECTION_IDS).toContain(section);
   });

@@ -4,7 +4,7 @@ import * as React from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { sendDirectInvites, sendFounderInvites } from "@/app/actions/invites";
+import { sendDirectInvites } from "@/app/actions/invites";
 import { FormError } from "@/components/form-error";
 import { JoinsAsNote } from "@/components/joins-as-note";
 import { PendingButton } from "@/components/pending-button";
@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAction } from "@/components/use-action";
-import { INVITED_AS, ROOT } from "@/lib/account-types";
+import { INVITED_AS } from "@/lib/account-types";
 
 type Row = { key: string; firstName: string; lastName: string; email: string };
 
@@ -23,15 +23,9 @@ function emptyRow(n: number): Row {
 /** Email invites by name and address. Each joins as a Leaf. */
 export function DirectInviteForm({
   treeId,
-  founder = false,
 }: {
-  /** The tree the invites are sent from (and, unless `founder`, into). */
+  /** The tree the invites are sent from, and into. */
   treeId: string;
-  /**
-   * Founder invites (Step 25): each recipient starts a tree of their own as
-   * its Root, rather than joining this one.
-   */
-  founder?: boolean;
 }) {
   // Rows are counted by the form, from its first: a count kept by the module
   // ran on with every page the server drew, so its ids never matched the
@@ -75,23 +69,16 @@ export function DirectInviteForm({
     }));
     action.run(
       "send",
-      () =>
-        founder
-          ? sendFounderInvites(treeId, rowsToSend)
-          : sendDirectInvites(treeId, rowsToSend),
+      () => sendDirectInvites(treeId, rowsToSend),
       {
         // The emails are out of sight: say they went.
         success: (res) => {
           const succeeded = (res.results ?? []).filter((r) => r.minted && r.emailed);
           if (succeeded.length === 0) return null;
-          // A founder invite doesn't join this tree: they become the Root of a
-          // tree of their own.
-          const outcome = founder
-            ? `start a tree of their own as its ${ROOT.name}`
-            : `join as a ${INVITED_AS.name}`;
+          const outcome = `join as a ${INVITED_AS.name}`;
           return succeeded.length === 1
             ? `Invite emailed to ${succeeded[0].email} — they'll ${outcome}.`
-            : `${succeeded.length} invites emailed — they'll ${founder ? "each " : ""}${outcome}.`;
+            : `${succeeded.length} invites emailed — they'll ${outcome}.`;
         },
         onSuccess: (res) => {
           const results = res.results ?? [];
@@ -175,7 +162,7 @@ export function DirectInviteForm({
         ))}
       </div>
 
-      {founder ? null : <JoinsAsNote />}
+      <JoinsAsNote />
 
       <FormError>{action.error}</FormError>
       <div className="flex gap-2">

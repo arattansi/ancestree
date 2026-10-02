@@ -7,12 +7,11 @@ import {
 } from "@/lib/claim-invite-send.server";
 import { isEmailAddress } from "@/lib/email-address";
 import { inviteSentEmail } from "@/lib/emails/invite-sent";
-import { mintFounderInvites } from "@/lib/founder-invites.server";
 import { mintInvites, type MintedInvite } from "@/lib/invite-mint.server";
 import { createClient } from "@/lib/supabase/server";
 import { revalidateTreePages } from "@/lib/revalidate";
 import { MAX_NAME_LENGTH } from "@/lib/request-forms";
-import { membershipOf, rootOf } from "@/lib/tree-context";
+import { membershipOf } from "@/lib/tree-context";
 
 const MAX_DIRECT_INVITE_ROWS = 20;
 
@@ -98,35 +97,6 @@ export async function sendDirectInvites(
     email: (row, { url, inviterName }) =>
       inviteSentEmail({ firstName: row.firstName, inviterName, url }),
   });
-
-  revalidateTreePages();
-  return { results: minted.map(directInviteResult) };
-}
-
-/**
- * Root: invite someone to found a tree of their own (Step 25). With a beta
- * reviewer approving someone off the waitlist (Step 28, `approveTreeRequest`),
- * it's how a brand-new family gets in. Redeeming creates a fresh tree (named
- * by `private.default_tree_name`), makes them its Root, and lands them on its
- * onboarding. The invite is recorded against the inviting tree so it shows up
- * in that tree's history; nothing from this tree is copied over.
- */
-export async function sendFounderInvites(
-  treeId: string,
-  rows: DirectInviteRow[],
-): Promise<SendDirectInvitesState> {
-  const { membership, error: notRoot } = await rootOf(treeId);
-  if (!membership) return { error: notRoot };
-
-  const checked = checkRows(rows);
-  if (checked.error || !checked.rows) return { error: checked.error };
-
-  const minted = await mintFounderInvites(
-    treeId,
-    membership.profile,
-    checked.rows,
-    "direct",
-  );
 
   revalidateTreePages();
   return { results: minted.map(directInviteResult) };

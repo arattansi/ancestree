@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 
 import { renameTree, setTreeVisibility } from "@/app/actions/trees";
 import { FormError } from "@/components/form-error";
@@ -11,12 +10,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAction } from "@/components/use-action";
 import { TREE_NAME_MAX } from "@/lib/limits";
-import { adminHref } from "@/lib/tree-links";
 
-/** Rename the tree (Step 25). Its web address follows the name. */
+/**
+ * Rename the tree (Step 25), from its card in settings (Step 103.2). The
+ * action refreshes the page, so the new name shows wherever the old did.
+ */
 export function AdminTreeName({ treeId, name }: { treeId: string; name: string }) {
-  const router = useRouter();
   const [value, setValue] = React.useState(name);
+  // One form per tree they run, side by side in settings.
+  const inputId = React.useId();
   const action = useAction({ inline: true });
 
   function onSubmit(event: React.FormEvent) {
@@ -29,7 +31,7 @@ export function AdminTreeName({ treeId, name }: { treeId: string; name: string }
         if (!res.error && !res.slug) return { error: "Couldn't rename the tree." };
         return res;
       },
-      { onSuccess: () => router.replace(adminHref("tree-name")) },
+      { success: "Tree renamed." },
     );
   }
 
@@ -37,9 +39,9 @@ export function AdminTreeName({ treeId, name }: { treeId: string; name: string }
     <form onSubmit={onSubmit} className="flex flex-col gap-2">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
         <div className="flex flex-1 flex-col gap-2">
-          <Label htmlFor="tree-name">Tree name</Label>
+          <Label htmlFor={inputId}>Tree name</Label>
           <Input
-            id="tree-name"
+            id={inputId}
             value={value}
             onChange={(e) => setValue(e.target.value)}
             maxLength={TREE_NAME_MAX}
@@ -105,7 +107,8 @@ export function AdminTreeVisibility({
 function ViewerRow({ treeId, viewer }: { treeId: string; viewer: ViewerTreeOption }) {
   const action = useAction();
   const [visible, setVisible] = React.useOptimistic(viewer.visible);
-  const id = `view-${viewer.id}`;
+  // A Root running two trees has a list on each tree's card.
+  const id = `view-${treeId}-${viewer.id}`;
 
   return (
     <li className="flex items-center gap-3 text-sm">

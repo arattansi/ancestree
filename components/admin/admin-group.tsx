@@ -17,7 +17,6 @@ import { cn } from "@/lib/utils";
 export function AdminGroup({
   id,
   title,
-  description,
   sectionIds,
   defaultOpen = false,
   badge = 0,
@@ -27,7 +26,6 @@ export function AdminGroup({
    *  scroll/nav target and no inner {@link AdminSubsection} is needed. */
   id?: string;
   title: string;
-  description?: React.ReactNode;
   sectionIds: string[];
   defaultOpen?: boolean;
   badge?: number;
@@ -61,16 +59,11 @@ export function AdminGroup({
         aria-expanded={open}
         className="flex w-full items-start justify-between gap-3 px-(--card-spacing) text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <span className="flex flex-col gap-1">
-          <span className="flex items-center gap-2">
-            <span className="font-heading text-lg leading-snug font-medium">
-              {title}
-            </span>
-            {badge > 0 ? <Badge variant="destructive">{badge}</Badge> : null}
+        <span className="flex items-center gap-2">
+          <span className="font-heading text-lg leading-snug font-medium">
+            {title}
           </span>
-          {description ? (
-            <span className="text-sm text-muted-foreground">{description}</span>
-          ) : null}
+          {badge > 0 ? <Badge variant="destructive">{badge}</Badge> : null}
         </span>
         <ChevronDown
           aria-hidden
@@ -99,7 +92,6 @@ export function AdminGroup({
 export function AdminSubsection({
   id,
   title,
-  description,
   contentClassName,
   collapsible = false,
   defaultOpen = false,
@@ -107,7 +99,6 @@ export function AdminSubsection({
 }: {
   id: string;
   title: string;
-  description?: React.ReactNode;
   contentClassName?: string;
   collapsible?: boolean;
   defaultOpen?: boolean;
@@ -138,15 +129,11 @@ export function AdminSubsection({
     return () => window.removeEventListener(ADMIN_NAVIGATE_EVENT, onNavigate);
   }, [collapsible, id]);
 
+  // A title only: no line under it (Step 103.2).
   const heading = (
-    <div className="flex flex-col gap-1">
-      <h3 className="font-heading text-base leading-snug font-medium">
-        {title}
-      </h3>
-      {description ? (
-        <p className="text-sm text-muted-foreground">{description}</p>
-      ) : null}
-    </div>
+    <h3 className="font-heading text-base leading-snug font-medium">
+      {title}
+    </h3>
   );
 
   if (!collapsible) {

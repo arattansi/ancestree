@@ -12,6 +12,13 @@ import {
   type AccountView,
 } from "@/components/account-view-toggle";
 import { AdminConsole } from "@/components/admin/admin-console";
+import { AdminDeleteTree } from "@/components/admin/admin-delete-tree";
+import { AdminExport } from "@/components/admin/admin-export";
+import { AdminNicknames } from "@/components/admin/admin-nicknames";
+import {
+  AdminTreeName,
+  AdminTreeVisibility,
+} from "@/components/admin/admin-tree-settings";
 import { BackToTop } from "@/components/back-to-top";
 import {
   ClearNotificationsButton,
@@ -34,8 +41,8 @@ import { TreeTarget } from "@/components/tree-target";
 import { Button } from "@/components/ui/button";
 import {
   Card,
+  CardAction,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -44,7 +51,6 @@ import { adminPageHref } from "@/lib/admin-page";
 import { loadAccountSettings } from "@/lib/account-settings.server";
 import { getSessionUser, requireProfile, type Profile } from "@/lib/auth";
 import { readRelayParam } from "@/lib/invite-relays";
-import { INVITE_LIFETIME_DAYS } from "@/lib/limits";
 import {
   loadOwnEntry,
   ownHeldBack,
@@ -179,13 +185,12 @@ async function ProfileView({ profile }: { profile: Profile }) {
       <Card>
         <CardHeader>
           <CardTitle>Your Details</CardTitle>
-          <CardDescription>
-            Your details are hidden from the family until your parent
-            approves.
-          </CardDescription>
         </CardHeader>
-        {rows.length > 0 ? (
-          <CardContent>
+        <CardContent className="flex flex-col gap-4">
+          <p className="text-sm text-muted-foreground">
+            Hidden from the family until your parent approves.
+          </p>
+          {rows.length > 0 ? (
             <dl className="grid grid-cols-2 gap-4">
               {rows.map((r) => (
                 <div key={r.group} className="flex flex-col gap-0.5">
@@ -194,8 +199,8 @@ async function ProfileView({ profile }: { profile: Profile }) {
                 </div>
               ))}
             </dl>
-          </CardContent>
-        ) : null}
+          ) : null}
+        </CardContent>
       </Card>
     );
   }
@@ -204,12 +209,11 @@ async function ProfileView({ profile }: { profile: Profile }) {
       <Card>
         <CardHeader>
           <CardTitle>Your Details</CardTitle>
-          <CardDescription>
-            You don&rsquo;t have an entry of your own yet. Find yourself on the
-            tree, or add yourself, and your details will live here.
-          </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col items-start gap-3">
+          <p className="text-sm text-muted-foreground">
+            You don&rsquo;t have an entry of your own yet.
+          </p>
           <Button
             nativeButton={false}
             render={<Link href={onboardingHref()} />}
@@ -224,11 +228,6 @@ async function ProfileView({ profile }: { profile: Profile }) {
     <Card>
       <CardHeader>
         <CardTitle>Your Details</CardTitle>
-        <CardDescription>
-          What your own card says on every tree you&rsquo;re on. Yours to keep
-          up to date; a relative who wants something changed flags it on the
-          tree.
-        </CardDescription>
       </CardHeader>
       <CardContent>
         <PersonForm
@@ -247,8 +246,10 @@ async function ProfileView({ profile }: { profile: Profile }) {
 
 /**
  * Settings: relatives asking you for an invite, your trees, your entry
- * across them, appearance, privacy, invites you may send, your inbox, and
- * signing out — cards in two columns, the wide ones spanning both.
+ * across them, each tree you run (its name, who else may view it, export
+ * and deletion — Step 103.2, from the Root console), appearance, privacy,
+ * invites you may send, nicknames for a Root, your inbox, and signing out
+ * — cards in two columns, the wide ones spanning both.
  */
 async function SettingsView({
   profile,
@@ -277,11 +278,15 @@ async function SettingsView({
     soleRootTrees,
     asks,
     newsletterOn,
+    viewersByTree,
+    nicknameGroups,
   } = await loadAccountSettings(profile, trees, openedRelayId);
 
   // Inviting from here: every tree they don't run (Roots invite from the
   // admin page). Whoever they invite joins as a Leaf.
   const inviteFrom = trees.filter((t) => !t.type.runsTree);
+  // The trees they run, each with its own settings (Step 103.2).
+  const runs = trees.filter((t) => t.type.runsTree);
   const founded = trees.some((t) => t.founded);
 
   return (
@@ -290,10 +295,6 @@ async function SettingsView({
         <Card id="asked-of-you" className="scroll-mt-24 md:col-span-2">
           <CardHeader>
             <CardTitle>Asked of You</CardTitle>
-            <CardDescription>
-              These trees show a name and place of birth already. The rest
-              shows once approved.
-            </CardDescription>
           </CardHeader>
           <CardContent>
             <PlacementAsks asks={asks} />
@@ -305,12 +306,6 @@ async function SettingsView({
         <Card id="relatives-asking" className="md:col-span-2">
           <CardHeader>
             <CardTitle>Relatives Asking for an Invite</CardTitle>
-            <CardDescription>
-              They couldn&rsquo;t find themselves on a tree, so they gave us
-              your address. If you know them, send the invite: it&rsquo;s
-              filled in from what they typed. If you don&rsquo;t, dismiss it;
-              they aren&rsquo;t told either way.
-            </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             {openedRelayLine ? (
@@ -330,13 +325,14 @@ async function SettingsView({
       <Card>
         <CardHeader>
           <CardTitle>Your Trees</CardTitle>
-          <CardDescription>
-            Your account type on each tree, set by that tree&rsquo;s Roots.{" "}
-            <Link href={treesHref()} className="underline underline-offset-4">
+          <CardAction>
+            <Link
+              href={treesHref()}
+              className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
+            >
               See them all
             </Link>
-            .
-          </CardDescription>
+          </CardAction>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           {trees.length === 0 ? (
@@ -448,12 +444,6 @@ async function SettingsView({
         <Card>
           <CardHeader>
             <CardTitle>Your Entry</CardTitle>
-            <CardDescription>
-              One entry, shown on{" "}
-              {shownOn.length === 1 ? "one tree" : `${shownOn.length} trees`}:{" "}
-              {shownOn.map((t) => t.name).join(", ")}. Other trees can show
-              your name and place of birth; the rest waits for your yes.
-            </CardDescription>
           </CardHeader>
           <CardContent>
             <HomeTreePicker
@@ -466,12 +456,40 @@ async function SettingsView({
         </Card>
       ) : null}
 
+      {runs.map((t) => (
+        <Card
+          key={t.id}
+          id={`tree-settings-${t.id}`}
+          className="scroll-mt-24"
+        >
+          <CardHeader>
+            <CardTitle>{t.name}</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-6">
+            <AdminTreeName treeId={t.id} name={t.name} />
+            <section className="flex flex-col gap-3">
+              <h3 className="text-sm font-semibold">Who Else Can View</h3>
+              <AdminTreeVisibility
+                treeId={t.id}
+                viewers={viewersByTree.get(t.id) ?? []}
+              />
+            </section>
+            <section className="flex flex-col gap-3">
+              <h3 className="text-sm font-semibold">Data &amp; Privacy</h3>
+              <div className="flex flex-wrap items-center gap-3">
+                <AdminExport treeId={t.id} />
+                <AdminDeleteTree treeId={t.id} name={t.name} />
+              </div>
+            </section>
+          </CardContent>
+        </Card>
+      ))}
+
       <Card>
         <CardHeader>
           <CardTitle>View</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col gap-3 text-sm text-muted-foreground">
-          <p>Light, dark, or follow your device. Saved to this browser.</p>
+        <CardContent>
           <ThemeToggle />
         </CardContent>
       </Card>
@@ -481,13 +499,12 @@ async function SettingsView({
           <CardTitle>Privacy &amp; Your Data</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3 text-sm text-muted-foreground">
-          <p>
-            Read how your family&rsquo;s data is stored and protected in the{" "}
-            <Link href="/privacy" className="underline underline-offset-4">
-              privacy notice
-            </Link>
-            .
-          </p>
+          <Link
+            href="/privacy"
+            className="self-start underline underline-offset-4 hover:text-foreground"
+          >
+            Privacy notice
+          </Link>
           <RelativesCanAsk on={profile.relatives_can_ask} />
           <div>
             <DeleteAccount soleRootTrees={soleRootTrees} />
@@ -500,12 +517,6 @@ async function SettingsView({
           <Card key={t.id}>
             <CardHeader>
               <CardTitle>Invite a Relative to {t.name}</CardTitle>
-              <CardDescription>
-                Email them an invite and the link signs them straight in —
-                nothing for them to set up. It is tied to you, works once, and
-                expires after {INVITE_LIFETIME_DAYS} days. For a link to share
-                in a family group chat, ask a Root.
-              </CardDescription>
             </CardHeader>
             <CardContent>
               <DirectInviteForm treeId={t.id} />
@@ -514,17 +525,23 @@ async function SettingsView({
         );
       })}
 
+      {runs.length > 0 ? (
+        <Card id="nicknames" className="scroll-mt-24 md:col-span-2">
+          <CardHeader>
+            <CardTitle>Nicknames</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <AdminNicknames groups={nicknameGroups} />
+          </CardContent>
+        </Card>
+      ) : null}
+
       <Card className="md:col-span-2">
         <CardHeader>
           <div className="flex items-start justify-between gap-2">
             <CardTitle>Notifications</CardTitle>
             <ClearNotificationsButton items={notifications} />
           </div>
-          <CardDescription>
-            {trees.length > 1
-              ? "One inbox per tree; each item says which."
-              : null}
-          </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
           <WeeklyNewsletter on={newsletterOn} />

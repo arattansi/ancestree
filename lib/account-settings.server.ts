@@ -1,11 +1,14 @@
 import "server-only";
 
+import type { ViewerTreeOption } from "@/components/admin/admin-tree-settings";
 import type { SoleRootTree } from "@/components/delete-account";
 import type { PendingRelay } from "@/components/relay-invites";
 import { accountTypeOf, branchSideLabel } from "@/lib/account-types";
 import type { Profile } from "@/lib/auth";
 import { branchSidesOn } from "@/lib/branch.server";
 import { listNotifications } from "@/lib/claims";
+import type { NicknameGroup } from "@/lib/nicknames";
+import { listNicknameGroups } from "@/lib/nicknames.server";
 import { relayLapseCutoff } from "@/lib/invite-relays";
 import { openedRelayNote } from "@/lib/opened-relay";
 import { loadOpenedRelay } from "@/lib/opened-relay.server";
@@ -19,7 +22,9 @@ import type { MyTree } from "@/lib/tree-context";
  * `app/account/page.tsx`): relatives' asks and the entries they match, the
  * member's own entry across their trees, what each Branch membership
  * tends, the trees they'd leave without a Root, what other trees have asked
- * of them, their inbox and whether they get the weekly newsletter.
+ * of them, their inbox and whether they get the weekly newsletter; and,
+ * for a Root, each tree they run's settings (Step 103.2, from the Root
+ * console): who else may view it, and the nickname groups.
  * Everything that needs only them, their trees or the address is asked for
  * at once; what needs an answer first starts as soon as it has it (Step
  * 77.1).
@@ -53,6 +58,8 @@ export async function loadAccountSettings(
     { data: otherMembers },
     asks,
     { data: newsletter },
+    { data: openTo },
+    nicknameGroups,
   ] = await Promise.all([
     listNotifications(profile.auth_user_id),
     supabase
@@ -124,6 +131,15 @@ export async function loadAccountSettings(
       .select("subscribed")
       .eq("user_id", profile.auth_user_id)
       .maybeSingle(),
+    // Which of their other trees may view each tree they run (Step 25.4).
+    runIds.length > 0
+      ? supabase
+          .from("tree_visibility")
+          .select("tree_id, viewer_tree_id")
+          .in("tree_id", runIds)
+      : { data: [] },
+    // Shared by every tree, so one list for whoever runs any.
+    runIds.length > 0 ? listNicknameGroups() : ([] as NicknameGroup[]),
   ]);
   const invitedByTree = new Map(
     (directory ?? []).map((d) => [d.tree_id, d.invited_by_name]),
@@ -184,6 +200,22 @@ export async function loadAccountSettings(
     });
   }
 
+  // Each tree they run, with their other trees and whether each may view it.
+  const viewersByTree = new Map<string, ViewerTreeOption[]>(
+    runIds.map((id) => [
+      id,
+      trees
+        .filter((t) => t.id !== id)
+        .map((t) => ({
+          id: t.id,
+          name: t.name,
+          visible: (openTo ?? []).some(
+            (v) => v.tree_id === id && v.viewer_tree_id === t.id,
+          ),
+        })),
+    ]),
+  );
+
   return {
     notifications,
     invitedByTree,
@@ -198,5 +230,7 @@ export async function loadAccountSettings(
     soleRootTrees,
     asks,
     newsletterOn: newsletter?.subscribed ?? true,
+    viewersByTree,
+    nicknameGroups,
   };
 }

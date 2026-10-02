@@ -119,13 +119,16 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `&relay=<id>` from the email), each listing the entries on the picked tree
   that the newcomer's name matches, to invite them as (Step 41.1), and the
   date it lapses (Step 41.5); its Privacy card has the **Relatives can ask
-  me to invite them** box (on unless they untick it, Step 41.5) — and, with `?view=admin`, the **Root console**
+  me to invite them** box (on unless they untick it, Step 41.5); a Root
+  gets a card for each tree they run (its name, who else may view it,
+  export, delete the tree) and one **Nicknames** card (Step 103.2) — and,
+  with `?view=admin`, the **Root console**
   of the current tree, or the first you run: stats, members, people from
   other trees, requests, reports (disputed claims among them, Step 88.2),
-  invites incl. founder invites and the family link
-  (Step 52, `components/admin/admin-family-link.tsx`), share
-  links, tree name, who else may view, export, delete the tree;
-  `components/admin/admin-console.tsx`; the old `?view=dashboard` goes to
+  invites incl. the family link
+  (Step 52, `components/admin/admin-family-link.tsx`) and share
+  links; `components/admin/admin-console.tsx`; no line under any title on
+  either view (Step 103.2); the old `?view=dashboard` goes to
   `/admin`, Step 103),
   `/request-invite` (public; `?tree=<slug>` asks that tree's Roots, and
   without one it's the request-access search),
@@ -1787,7 +1790,26 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   `/account?view=dashboard` goes to `/admin`. No line under any title on
   the page: the dashboard's four card descriptions and its "Engagement"
   heading went. Campaigns (103.3) and account and tree actions (103.4) come
-  later on **manage**.
+  later on **manage**. **103.2, the Root console:** "Invite Someone to
+  Start a Tree of Their Own" (`#found`) and "Bare Invite Links"
+  (`#bare-invites`) are gone, with `AdminBareInvites`, `listBareInvites`,
+  `sendFounderInvites` and `DirectInviteForm`'s `founder` (a founder
+  invite now comes only from a reviewer's yes; links already out still
+  work until they lapse). Every line under a title went, on the console
+  (the tree name's, Overview's, each group's and section's — `AdminGroup`
+  and `AdminSubsection` no longer take a `description`) and on the
+  account page's cards; the empty "Your Details" keeps its one line, and
+  a child's placeholder keeps "Hidden from the family until your parent
+  approves.". The console's **Settings** group moved to the account
+  page's **settings**: a card per tree they run, named for it, with the
+  rename form, **Who Else Can View** and **Data & Privacy** (export,
+  delete this tree), and one **Nicknames** card, shared by every tree
+  (`loadAccountSettings` reads the visibility rows and nickname groups
+  only for a Root). **View** was in settings already. Renaming stays on
+  the page and says "Tree renamed." (it went to the console's
+  `#tree-name` before). `lib/admin-sections` lost its `settings` group and
+  the `bareInvites` context; `adminNav()` and `groupSectionIds(group)`
+  take nothing else.
 
 - **Step 102 follow-up: only buttons are lower-case** (no migration).
   **Aalim said:** "only buttons should be lower case". The sweep had also

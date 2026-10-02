@@ -2,11 +2,8 @@ import { AccountTypeBadge } from "@/components/account-type-badge";
 import { AccountTypeGuide } from "@/components/account-type-guide";
 import { AccountTypePicker } from "@/components/admin/account-type-picker";
 import { AdminArchivedInvites } from "@/components/admin/admin-archived-invites";
-import { AdminBareInvites } from "@/components/admin/admin-bare-invites";
 import { AdminReports } from "@/components/admin/admin-reports";
-import { AdminExport } from "@/components/admin/admin-export";
 import { AdminInviteHistory } from "@/components/admin/admin-invite-history";
-import { AdminNicknames } from "@/components/admin/admin-nicknames";
 import {
   AdminInviteRequests,
   type PendingInviteRequest,
@@ -15,16 +12,9 @@ import { AdminGroup, AdminSubsection } from "@/components/admin/admin-group";
 import { AdminNotifications } from "@/components/admin/admin-notifications";
 import { AdminPlacements } from "@/components/admin/admin-placements";
 import { AdminSideNav } from "@/components/admin/admin-side-nav";
-import {
-  AdminTreeName,
-  AdminTreeVisibility,
-  type ViewerTreeOption,
-} from "@/components/admin/admin-tree-settings";
-import { AdminDeleteTree } from "@/components/admin/admin-delete-tree";
 import { AdminFamilyLink } from "@/components/admin/admin-family-link";
 import { DeleteMemberButton } from "@/components/admin/delete-member-button";
 import { DirectInviteForm } from "@/components/direct-invite-form";
-import { ThemeToggle } from "@/components/theme-toggle";
 import {
   ShareLinkManager,
   type ShareLinkRow,
@@ -32,53 +22,39 @@ import {
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import {
   BRANCH,
-  BRANCHES_PER_ROOT,
   ROOT,
-  ROOTS_PER_TREE,
   accountTypeOf,
   branchSideLabel,
-  inWords,
-  treeRoomLine,
   unavailableTypes,
   type TreeRoom,
 } from "@/lib/account-types";
 import { branchSidesOn } from "@/lib/branch.server";
 import { buildAdminActionItems } from "@/lib/admin-notifications";
-import {
-  adminNav,
-  groupSectionIds,
-  sectionShown,
-  type AdminSectionContext,
-} from "@/lib/admin-sections";
+import { adminNav, groupSectionIds } from "@/lib/admin-sections";
 import { listTreeReports } from "@/lib/entry-reports";
-import { FAMILY_LINK_MAX_USES } from "@/lib/family-link";
 import { getFamilyLink, listFamilyLinkJoins } from "@/lib/family-link.server";
 import {
   archiveExpiredInvites,
   listArchivedInvites,
-  listBareInvites,
   listInviteHistory,
 } from "@/lib/invites";
-import { INVITE_LIFETIME_DAYS } from "@/lib/limits";
-import { listNicknameGroups } from "@/lib/nicknames.server";
-import { countOf } from "@/lib/plural";
 import { membersOnOtherTrees } from "@/lib/remove-member.server";
 import { listRequestCandidates } from "@/lib/request-candidates.server";
 import { listCarried, listCarryChoices } from "@/lib/placements.server";
 import { getSiteUrl } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/server";
-import { listMyTrees, type TreeMembership } from "@/lib/tree-context";
+import type { TreeMembership } from "@/lib/tree-context";
 
 /**
- * The current tree's admin console — the "Admin" view of the account page: stats, members, people from other trees, requests, disputes,
- * invites, share links, the tree's name, who else may view it, export and
- * deletion. The account page hands it a Root's membership of that tree.
+ * The current tree's Root console — the "root" view of the account page:
+ * stats, members, people from other trees, requests, reports, invites and
+ * share links. The tree's own settings live in the settings view (Step
+ * 103.2). The account page hands it a Root's membership of that tree.
  */
 export async function AdminConsole({
   membership,
@@ -120,16 +96,13 @@ export async function AdminConsole({
     approvedClaimsRes,
     pendingRequests,
     shareLinksRes,
-    visibilityRes,
-    myTrees,
     sideOf,
     reports,
-    [inviteHistory, bareInvites, archivedInvites],
+    [inviteHistory, archivedInvites],
     familyLink,
     familyLinkJoins,
     carry,
     carried,
-    nicknameGroups,
     requestCandidates,
     onOtherTrees,
   ] = await Promise.all([
@@ -155,11 +128,6 @@ export async function AdminConsole({
       )
       .eq("tree_id", tree.id)
       .order("created_at", { ascending: false }),
-    supabase
-      .from("tree_visibility")
-      .select("viewer_tree_id")
-      .eq("tree_id", tree.id),
-    listMyTrees(),
     // Whose side each Branch tends part of — the Root their own entry is
     // related to. They tend the part of it they are related through (Step
     // 22.2).
@@ -170,7 +138,6 @@ export async function AdminConsole({
     archiveExpiredInvites(tree.id).then(() =>
       Promise.all([
         listInviteHistory(tree.id),
-        listBareInvites(tree.id),
         listArchivedInvites(tree.id),
       ]),
     ),
@@ -179,7 +146,6 @@ export async function AdminConsole({
     familyLinkP.then((link) => listFamilyLinkJoins(tree.id, link?.id ?? null)),
     listCarryChoices(tree.id),
     listCarried(tree.id),
-    listNicknameGroups(),
     // Who on the tree each requester's name matches (Step 30.3).
     pendingRequestsP.then((requests) =>
       listRequestCandidates(requests.map((r) => r.id)),
@@ -219,13 +185,6 @@ export async function AdminConsole({
     roots: roots.length,
     branchesMade: branchesMadeBy.get(currentAdmin.auth_user_id) ?? 0,
   };
-  const roomLine = treeRoomLine(
-    roots.map((r) => ({
-      name: r.display_name ?? "The other Root",
-      isYou: r.auth_user_id === currentAdmin.auth_user_id,
-      branchesMade: branchesMadeBy.get(r.auth_user_id) ?? 0,
-    })),
-  );
   const madeBranchBy = (
     grantedBy: string | null,
     grantedByName: string | null,
@@ -255,13 +214,6 @@ export async function AdminConsole({
     lastViewedAt: l.last_viewed_at,
     viewCount: l.view_count,
   }));
-
-  const openTo = new Set(
-    (visibilityRes.data ?? []).map((v) => v.viewer_tree_id),
-  );
-  const viewers: ViewerTreeOption[] = myTrees
-    .filter((t) => t.id !== tree.id)
-    .map((t) => ({ id: t.id, name: t.name, visible: openTo.has(t.id) }));
 
   const entryCountByCreator = new Map<string, number>();
   let fromElsewhere = 0;
@@ -295,29 +247,17 @@ export async function AdminConsole({
     { label: "Invite requests", value: inviteRequests.length },
   ];
 
-  // Which of the console's sections this Root sees (`lib/admin-sections`).
-  const sections: AdminSectionContext = {
-    bareInvites: bareInvites.length > 0,
-  };
-
   return (
     <div className="flex flex-col gap-4">
-      <AdminSideNav groups={adminNav(sections)} />
+      <AdminSideNav groups={adminNav()} />
 
-      <div>
-        <h2 className="text-xl font-semibold tracking-tight">{tree.name}</h2>
-        <p className="text-sm text-muted-foreground">
-          Members, invites, reports, who this tree shows, and its health at a
-          glance.
-        </p>
-      </div>
+      <h2 className="text-xl font-semibold tracking-tight">{tree.name}</h2>
 
       <AdminNotifications items={actionItems} />
 
       <Card id="overview" className="scroll-mt-20">
         <CardHeader>
           <CardTitle>Overview</CardTitle>
-          <CardDescription>Counts across this tree.</CardDescription>
         </CardHeader>
         <CardContent>
           <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -340,13 +280,11 @@ export async function AdminConsole({
 
       <AdminGroup
         title="Members"
-        description={`${countOf(members.length, "member")} — their account type on this tree, who invited them, and entries created.`}
-        sectionIds={groupSectionIds("members", sections)}
+        sectionIds={groupSectionIds("members")}
       >
         <AdminSubsection
           id="members"
           title="Who’s on the Tree"
-          description={roomLine}
         >
           <div className="-mx-(--card-spacing) overflow-x-auto">
             <table className="w-full text-sm">
@@ -455,7 +393,6 @@ export async function AdminConsole({
           id="account-types"
           collapsible
           title="Account Types"
-          description={`What each kind of member can reach on this tree. New members join as Leaves, who add relatives on their own line. Anyone who isn’t a Root can be switched between Leaf and Branch from the table above, or made a Root — which is for good: a Root is never demoted or removed. A tree has at most ${inWords(ROOTS_PER_TREE)} Roots, and each Root can make up to ${inWords(BRANCHES_PER_ROOT)} Branches; a Branch counts toward the Root who made them one, until they’re a Leaf again. A member’s type on another tree is that tree’s business. A Branch tends the part of a Root’s side they’re related through — a Root’s father’s family, say, not their mother’s — and a child of two Roots tends their part of both.`}
         >
           <AccountTypeGuide />
         </AdminSubsection>
@@ -463,15 +400,13 @@ export async function AdminConsole({
 
       <AdminGroup
         title="People from Other Trees"
-        description="Everyone has one entry. Bring people you can see on your other trees onto this one; their details stay theirs to keep, and each tree arranges them on its own canvas."
-        sectionIds={groupSectionIds("people", sections)}
+        sectionIds={groupSectionIds("people")}
         badge={pendingPlacements}
         defaultOpen={fromElsewhere === 0 && carry.people.some((p) => !p.here)}
       >
         <AdminSubsection
           id="placements"
           title="Who This Tree Shows"
-          description={`${countOf(fromElsewhere, "person", "people")} on this tree call another tree home. Each arrives with their name and place of birth; the rest shows once they, or a Root or Branch of their home tree, approve.`}
         >
           <AdminPlacements
             treeId={tree.id}
@@ -484,8 +419,7 @@ export async function AdminConsole({
 
       <AdminGroup
         title="Requests & Reports"
-        description="People asking to join, and problems reported with entries."
-        sectionIds={groupSectionIds("requests", sections)}
+        sectionIds={groupSectionIds("requests")}
         badge={requestsBadge}
         defaultOpen={requestsBadge > 0}
       >
@@ -494,7 +428,6 @@ export async function AdminConsole({
           collapsible
           defaultOpen={inviteRequests.length > 0}
           title="Requests for Access"
-          description={`${inviteRequests.length} awaiting review. Approving mints a single-use link and emails it to the person who asked — if the email fails to send, you can still copy the link yourself. Where their name matches someone on the tree, approve them as that entry and it’s theirs the moment they accept; approve without one and they find or add themselves when they join. Declining keeps a record; deleting leaves none and lets them ask again.`}
         >
           <AdminInviteRequests requests={inviteRequests} />
         </AdminSubsection>
@@ -504,7 +437,6 @@ export async function AdminConsole({
           collapsible
           defaultOpen={reports.length > 0}
           title="Reports"
-          description={`${reports.length} open. A report is seen only by the Roots, whoever can edit the entry, and whoever made it. Upholding a disputed claim keeps its owner; reversing returns the entry to whoever added it.`}
         >
           <AdminReports reports={reports} />
         </AdminSubsection>
@@ -513,13 +445,11 @@ export async function AdminConsole({
 
       <AdminGroup
         title="Invites"
-        description="Bring relatives in by email or the family link, start someone on a tree of their own, and share this tree read-only."
-        sectionIds={groupSectionIds("invites", sections)}
+        sectionIds={groupSectionIds("invites")}
       >
         <AdminSubsection
           id="invite"
           title="Invite a Relative"
-          description={`Send by name and email and it’s emailed for you: the link signs them straight in, works once, and expires after ${INVITE_LIFETIME_DAYS} days. They join as a Leaf, and you can make them a Branch from the members table once they’re in; Branches and Leaves invite relatives from their account page. Someone who already has an account on another tree joins this one with the same link.`}
         >
           <DirectInviteForm treeId={tree.id} />
         </AdminSubsection>
@@ -527,7 +457,6 @@ export async function AdminConsole({
         <AdminSubsection
           id="family-link"
           title="Family Link"
-          description={`One link for a family group chat. Anyone who opens it joins as a Leaf, up to ${FAMILY_LINK_MAX_USES} people. Rotate it for a new link and a new count; the old one stops working. Each Root is told who joins.`}
         >
           <AdminFamilyLink
             treeId={tree.id}
@@ -539,19 +468,9 @@ export async function AdminConsole({
         </AdminSubsection>
 
         <AdminSubsection
-          id="found"
-          collapsible
-          title="Invite Someone to Start a Tree of Their Own"
-          description="For a family that isn’t yours: the link signs them in and plants a brand-new, empty tree with them as its first Root. Nothing from this tree goes with it. One founded tree per person; a member who already has one can still be a Root elsewhere."
-        >
-          <DirectInviteForm treeId={tree.id} founder />
-        </AdminSubsection>
-
-        <AdminSubsection
           id="share"
           collapsible
           title="Share a View-Only Link"
-          description="Anyone with a share link can view this tree without signing in, but can’t edit anything. They’ll see a prompt to request access. Revoke a link any time to cut off access."
         >
           <ShareLinkManager
             treeId={tree.id}
@@ -564,80 +483,16 @@ export async function AdminConsole({
           id="sent-invites"
           collapsible
           title="Sent Invites"
-          description={`Invites still waiting on someone, however they started — sent from here, a member’s account page or an entry’s card, or a request a Root approved — the last ${inviteHistory.length}, with who sent each. An invite disappears once they join, and moves to Archived if it expires first. Deleting one also kills its link.`}
         >
           <AdminInviteHistory items={inviteHistory} />
         </AdminSubsection>
-
-        {sectionShown("bare-invites", sections) ? (
-          <AdminSubsection
-            id="bare-invites"
-            collapsible
-            title="Bare Invite Links"
-            description="Single-use links made before the family link replaced them. Each works once until it expires. Delete one to stop it working."
-          >
-            <AdminBareInvites invites={bareInvites} baseUrl={getSiteUrl()} />
-          </AdminSubsection>
-        ) : null}
 
         <AdminSubsection
           id="archived-invites"
           collapsible
           title="Archived Invites"
-          description="Invites that expired before anyone used them. They can’t be used; they’re kept only as a record. To try again, send a fresh invite."
         >
           <AdminArchivedInvites invites={archivedInvites} />
-        </AdminSubsection>
-      </AdminGroup>
-
-      <AdminGroup
-        title="Settings"
-        description="The tree’s name, who else may view it, data exports, nickname matching, and appearance."
-        sectionIds={groupSectionIds("settings", sections)}
-      >
-        <AdminSubsection
-          id="tree-name"
-          title="Tree Name"
-          description="Shown in the header and the tree switcher. The web address follows it, so links you’ve shared before change with it."
-        >
-          <AdminTreeName treeId={tree.id} name={tree.name} />
-        </AdminSubsection>
-
-        <AdminSubsection
-          id="visibility"
-          collapsible
-          title="Who Else Can View This Tree"
-          description="Open this tree, read-only, to the members of another tree you belong to. They reach it from the card of someone shown on both, and can ask to join. Anyone can mark their own entry hidden from visitors; it then appears blurred to them."
-        >
-          <AdminTreeVisibility treeId={tree.id} viewers={viewers} />
-        </AdminSubsection>
-
-        <AdminSubsection
-          id="data-privacy"
-          title="Data & Privacy"
-          description="Export this tree as JSON for a data-access request. To erase a specific person and their photos, open their entry on the tree and use “Delete entry”. Deleting the whole tree moves everyone whose home it is to another tree that shows them, and removes the rest."
-        >
-          <div className="flex flex-wrap items-center gap-3">
-            <AdminExport treeId={tree.id} />
-            <AdminDeleteTree treeId={tree.id} name={tree.name} />
-          </div>
-        </AdminSubsection>
-
-        <AdminSubsection
-          id="nicknames"
-          collapsible
-          title="Nicknames"
-          description={`${nicknameGroups.length} groups behind the “is one of these you?” search a new member sees when they join. Spelling mistakes and accents are handled automatically — this is for names that share neither spelling nor sound with the root, like Bob for Robert. The seed is English, so add the ones this family uses. Shared by every tree.`}
-        >
-          <AdminNicknames groups={nicknameGroups} />
-        </AdminSubsection>
-
-        <AdminSubsection
-          id="view"
-          title="View"
-          description="Light, dark, or follow your device. Saved to this browser."
-        >
-          <ThemeToggle />
         </AdminSubsection>
       </AdminGroup>
     </div>
