@@ -1885,6 +1885,7 @@ export type Database = {
           body: string
           created_at: string
           created_by: string | null
+          edited_at: string | null
           id: string
           story_id: string
         }
@@ -1892,6 +1893,7 @@ export type Database = {
           body: string
           created_at?: string
           created_by?: string | null
+          edited_at?: string | null
           id?: string
           story_id: string
         }
@@ -1899,6 +1901,7 @@ export type Database = {
           body?: string
           created_at?: string
           created_by?: string | null
+          edited_at?: string | null
           id?: string
           story_id?: string
         }
@@ -2720,6 +2723,10 @@ export type Database = {
         }
         Returns: Json
       }
+      edit_story_comment: {
+        Args: { p_body: string; p_comment: string }
+        Returns: undefined
+      }
       engagement_dashboard: { Args: never; Returns: Json }
       ensure_profile: {
         Args: { p_display_name?: string }
@@ -2875,6 +2882,7 @@ export type Database = {
           body: string
           created_at: string
           created_by: string
+          edited_at: string
           id: string
           said_by: string
         }[]

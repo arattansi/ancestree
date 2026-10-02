@@ -5,14 +5,16 @@ import * as React from "react";
 import {
   addStoryComment,
   deleteStoryComment,
+  editStoryComment,
   getStoryComments,
 } from "@/app/actions/stories";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { FormError } from "@/components/form-error";
 import { PendingButton } from "@/components/pending-button";
+import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useAction } from "@/components/use-action";
-import { focusIsLost } from "@/components/use-focus-return";
+import { focusIsLost, useFocusReturn } from "@/components/use-focus-return";
 import { COMMENT_MAX } from "@/lib/limits";
 import type { StoryComment } from "@/lib/stories";
 import { timeAgo } from "@/lib/time-ago";
@@ -20,9 +22,70 @@ import { timeAgo } from "@/lib/time-ago";
 /**
  * A story's own comments (Step 88.4), opened under it: oldest first, then a
  * box for another. Any member who can read the story may comment, with no
- * approval; a comment is deleted by whoever wrote it, the story's teller or
- * whoever can edit the entry. Read when it opens; kept here after that.
+ * approval; a comment is edited by whoever wrote it (Step 99.9, then marked
+ * "edited") and deleted by them, the story's teller or whoever can edit the
+ * entry. Read when it opens; kept here after that.
  */
+function CommentEditor({
+  comment,
+  storyId,
+  onSaved,
+  onDone,
+}: {
+  comment: StoryComment;
+  storyId: string;
+  onSaved: (comments: StoryComment[] | undefined) => void;
+  /** Saved or let go: back to reading it. */
+  onDone: () => void;
+}) {
+  const [text, setText] = React.useState(comment.body);
+  const save = useAction({ inline: true });
+  return (
+    <form
+      className="flex flex-col gap-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!text.trim()) return;
+        save.run(
+          "save",
+          () => editStoryComment({ commentId: comment.id, storyId, body: text }),
+          {
+            onSuccess: ({ comments }) => {
+              onSaved(comments);
+              onDone();
+            },
+          },
+        );
+      }}
+    >
+      <Textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        aria-label="Your comment"
+        rows={2}
+        maxLength={COMMENT_MAX}
+        disabled={save.pending}
+        autoFocus
+      />
+      <FormError>{save.error}</FormError>
+      <div className="flex justify-end gap-2">
+        <Button type="button" size="sm" variant="ghost" disabled={save.pending} onClick={onDone}>
+          Cancel
+        </Button>
+        <PendingButton
+          type="submit"
+          size="sm"
+          pending={save.pending}
+          pendingLabel="Saving…"
+          disabled={!text.trim()}
+        >
+          Save
+        </PendingButton>
+      </div>
+    </form>
+  );
+}
+
 export function StoryComments({
   storyId,
   canTend,
@@ -38,6 +101,10 @@ export function StoryComments({
   const [failed, setFailed] = React.useState(false);
   const [version, setVersion] = React.useState(0);
   const [body, setBody] = React.useState("");
+  // The viewer's comment being changed, if any (Step 99.9).
+  const [editing, setEditing] = React.useState<string | null>(null);
+  const listRef = React.useRef<HTMLUListElement>(null);
+  const returnFocus = useFocusReturn();
   const post = useAction({ inline: true });
   const formRef = React.useRef<HTMLFormElement>(null);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
@@ -112,7 +179,7 @@ export function StoryComments({
       ) : items.length === 0 ? (
         <p className="text-sm text-muted-foreground">No comments yet.</p>
       ) : (
-        <ul className="flex flex-col gap-3">
+        <ul ref={listRef} className="flex flex-col gap-3">
           {items.map((c) => (
             <li key={c.id} className="flex flex-col gap-0.5">
               <div className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
@@ -120,6 +187,18 @@ export function StoryComments({
                   {c.mine ? "You" : c.saidBy}
                 </span>
                 <span>{timeAgo(c.createdAt)}</span>
+                {c.editedAt ? <span>edited</span> : null}
+                {c.mine && editing !== c.id ? (
+                  <button
+                    type="button"
+                    data-comment-edit={c.id}
+                    className="relative tap-target underline underline-offset-2 hover:text-foreground"
+                    aria-label="Edit your comment"
+                    onClick={() => setEditing(c.id)}
+                  >
+                    Edit
+                  </button>
+                ) : null}
                 {c.mine || canTend ? (
                   // It leaves the list once the server has deleted it, so a
                   // failure leaves it where it was.
@@ -148,7 +227,27 @@ export function StoryComments({
                   />
                 ) : null}
               </div>
-              <p className="whitespace-pre-wrap">{c.body}</p>
+              {editing === c.id ? (
+                <CommentEditor
+                  comment={c}
+                  storyId={storyId}
+                  onSaved={(comments) => {
+                    if (comments) setItems(comments);
+                    else setVersion((v) => v + 1);
+                  }}
+                  onDone={() => {
+                    setEditing(null);
+                    // Back to its Edit, once it's drawn again (Step 70).
+                    returnFocus(() =>
+                      listRef.current?.querySelector<HTMLButtonElement>(
+                        `[data-comment-edit="${c.id}"]`,
+                      ),
+                    );
+                  }}
+                />
+              ) : (
+                <p className="whitespace-pre-wrap">{c.body}</p>
+              )}
             </li>
           ))}
         </ul>

@@ -62,8 +62,10 @@ export type StoryComment = {
   createdAt: string;
   /** Who wrote it, as the trees name them. */
   saidBy: string;
-  /** The viewer wrote it, so may delete it. */
+  /** The viewer wrote it, so may edit or delete it. */
   mine: boolean;
+  /** When its author last changed it (Step 99.9), or null. */
+  editedAt: string | null;
 };
 
 /** How long a recording's link lasts: longer than anyone keeps a sheet open. */
@@ -149,5 +151,6 @@ export async function listStoryComments(
     createdAt: r.created_at,
     saidBy: r.said_by || "A relative",
     mine: r.created_by === viewerId,
+    editedAt: r.edited_at ?? null,
   }));
 }

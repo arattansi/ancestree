@@ -375,6 +375,49 @@ export async function addStoryComment(input: {
   };
 }
 
+/**
+ * Change a comment the viewer wrote (Step 99.9), on a story they can still
+ * read. No approval, nobody told; it says it was edited. The list back has it.
+ */
+export async function editStoryComment(input: {
+  commentId: string;
+  storyId: string;
+  body: string;
+}): Promise<{ error?: string; comments?: StoryComment[] }> {
+  const profile = await requireProfile();
+  const body = input.body.trim();
+  if (!body) return { error: "Write a comment first." };
+  if (body.length > COMMENT_MAX) {
+    return { error: `Keep it under ${COMMENT_MAX.toLocaleString("en")} characters.` };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("edit_story_comment", {
+    p_comment: input.commentId,
+    p_body: body,
+  });
+  if (error) {
+    return {
+      error: friendlyDbError(
+        error.message,
+        [
+          ["not your comment", "Only whoever wrote it can change it."],
+          ["not a story you can see", "That story isn’t on your tree."],
+          ["nothing to say", "Write a comment first."],
+          ["longer than a comment may be", `Keep it under ${COMMENT_MAX.toLocaleString("en")} characters.`],
+        ],
+        "Couldn’t save it. Try again.",
+      ),
+    };
+  }
+  return {
+    // Saved either way; a list that can't be read now is read again.
+    comments: await listStoryComments(input.storyId, profile.auth_user_id).catch(
+      () => undefined,
+    ),
+  };
+}
+
 /** Delete a comment: its author, the story's teller, or an editor of the entry. */
 export async function deleteStoryComment(commentId: string): Promise<{ error?: string }> {
   await requireProfile();
