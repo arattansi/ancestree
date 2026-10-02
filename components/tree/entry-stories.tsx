@@ -3,7 +3,7 @@
 import * as React from "react";
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
-import { Globe, MessageCircle, Mic, Plus, Share } from "lucide-react";
+import { Globe, MessageCircle, Mic, Pencil, Plus, Share } from "lucide-react";
 
 import {
   decideStory,
@@ -40,6 +40,10 @@ import { cn } from "@/lib/utils";
 // Opened by a press, so it and what it loads wait for one (Step 87.4).
 const StoryDialog = dynamic(
   () => import("@/components/tree/story-dialog").then((m) => m.StoryDialog),
+  { ssr: false },
+);
+const StoryCreditsDialog = dynamic(
+  () => import("@/components/tree/story-credits-dialog").then((m) => m.StoryCreditsDialog),
   { ssr: false },
 );
 
@@ -104,6 +108,7 @@ function StoryCard({
   personId,
   personName,
   describeConnection,
+  onEditCredits,
   canDelete,
   focused,
   onDecided,
@@ -116,6 +121,8 @@ function StoryCard({
   personName: string;
   /** What one person is to another on this canvas (Step 99). */
   describeConnection?: (fromId: string, toId: string) => Relation | null;
+  /** Opens its credits to change (Step 99.5); shown when it's theirs to. */
+  onEditCredits: () => void;
   /** Theirs to delete, and so is any comment on it. */
   canDelete: boolean;
   /** A link to its comments opened the sheet. */
@@ -290,6 +297,12 @@ function StoryCard({
             </ActionButton>
           </>
         ) : null}
+        {story.canEditCredits ? (
+          <Button type="button" size="sm" variant="ghost" onClick={onEditCredits}>
+            <Pencil aria-hidden />
+            Edit credits
+          </Button>
+        ) : null}
         {canDelete ? (
           <ConfirmButton
             size="sm"
@@ -353,6 +366,9 @@ export function EntryStories({
   const [adding, setAdding] = React.useState(false);
   // Mounted from the first press on, so it can close with its animation.
   const [dialogMounted, setDialogMounted] = React.useState(false);
+  // The story whose credits are being changed (Step 99.5).
+  const [crediting, setCrediting] = React.useState<EntryStory | null>(null);
+  const [creditsMounted, setCreditsMounted] = React.useState(false);
 
   // The stories of the person being viewed; `null` while loading.
   const items = sheet?.sheet.stories ?? null;
@@ -375,6 +391,7 @@ export function EntryStories({
   if (personId !== prevPerson) {
     setPrevPerson(personId);
     setAdding(false);
+    setCrediting(null);
   }
 
   function update(change: (items: EntryStory[]) => EntryStory[]) {
@@ -422,6 +439,10 @@ export function EntryStories({
               personId={personId}
               personName={personName}
               describeConnection={describeConnection}
+              onEditCredits={() => {
+                setCreditsMounted(true);
+                setCrediting(story);
+              }}
               canDelete={story.mine || canEdit}
               focused={focusFound && story.id === focusStory}
               onDecided={(approved) =>
@@ -450,6 +471,23 @@ export function EntryStories({
           )}
         </RowList>
       )}
+
+      {creditsMounted ? (
+        <StoryCreditsDialog
+          story={crediting}
+          onClose={() => setCrediting(null)}
+          personId={personId}
+          treeId={treeId}
+          people={people}
+          onSaved={(stories) => {
+            if (stories) {
+              setPersonSheet(personId, "stories", () => stories);
+            } else {
+              invalidatePersonSheet(personId, ["stories"]);
+            }
+          }}
+        />
+      ) : null}
 
       {dialogMounted ? (
         <StoryDialog

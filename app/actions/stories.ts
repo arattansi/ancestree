@@ -115,6 +115,58 @@ export async function addStory(input: {
 }
 
 /**
+ * Change who a story is credited to (Step 99.5): its storytellers and its
+ * interviewers, all at once. Its teller, whoever can edit the entry, or the
+ * person it's about may. Someone newly credited must be on the tree it's
+ * edited from; someone already credited may stay. The list back has it.
+ */
+export async function setStoryCredits(input: {
+  storyId: string;
+  /** Whose sheet it's edited on: the list back is theirs. */
+  personId: string;
+  /** The tree it's edited from, which anyone newly credited must be on. */
+  treeId: string;
+  storytellers: string[];
+  interviewers: string[];
+}): Promise<{ error?: string; stories?: EntryStory[] }> {
+  const profile = await requireProfile();
+  const storytellers = [...new Set(input.storytellers)];
+  const interviewers = [...new Set(input.interviewers)];
+  if (storytellers.length > STORY_CREDIT_MAX || interviewers.length > STORY_CREDIT_MAX) {
+    return { error: `Credit ${STORY_CREDIT_MAX} people at most in each role.` };
+  }
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_story_credits", {
+    p_story: input.storyId,
+    p_tree: input.treeId,
+    p_storytellers: storytellers,
+    p_interviewers: interviewers,
+  });
+  if (error) {
+    return {
+      error: friendlyDbError(
+        error.message,
+        [
+          ["not yours to credit", "It isn’t yours to change."],
+          ["not a story you can see", "That story is gone."],
+          ["not on your tree", "Someone credited isn’t on this tree."],
+          ["too many people", `Credit ${STORY_CREDIT_MAX} people at most in each role.`],
+          // Step 98.3: a placeholder child is credited by their parent alone.
+          ["only their parent fills in", "Only their parent can add to a placeholder."],
+        ],
+        "Couldn’t save the credits. Try again.",
+      ),
+    };
+  }
+  return {
+    // Saved either way; a list that can't be read now is read again.
+    stories: await listStories(input.personId, profile.auth_user_id).catch(
+      () => undefined,
+    ),
+  };
+}
+
+/**
  * Approve or decline a story waiting on the viewer. Its teller is told; a
  * declined one stays for them alone.
  */

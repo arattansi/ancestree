@@ -30,6 +30,9 @@ export type EntryStory = {
   toldPrecision: string | null;
   /** Who it's credited to, storytellers first (Step 99). */
   credits: StoryCredit[];
+  /** The viewer may change who it's credited to (Step 99.5): its teller,
+   *  whoever can edit the entry, or the person it's about. */
+  canEditCredits: boolean;
   /** The viewer told it, so may delete it. */
   mine: boolean;
   /** Waiting, and the viewer may approve it. */
@@ -112,6 +115,7 @@ export async function listStories(
     toldOn: r.told_on ?? null,
     toldPrecision: r.told_on_precision ?? null,
     credits: asCredits(r.credits),
+    canEditCredits: r.can_edit_credits ?? false,
     mine: r.created_by === viewerId,
     canDecide: r.can_decide ?? false,
     commentCount: r.comment_count ?? 0,

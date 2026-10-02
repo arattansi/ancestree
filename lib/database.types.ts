@@ -2746,6 +2746,7 @@ export type Database = {
           audio_seconds: number
           body: string
           can_decide: boolean
+          can_edit_credits: boolean
           can_share: boolean
           can_stop_sharing: boolean
           comment_count: number
@@ -3091,6 +3092,15 @@ export type Database = {
       set_newsletter: { Args: { p_on: boolean }; Returns: undefined }
       set_newsletter_schedule: {
         Args: { p_paused: boolean; p_weekday: number }
+        Returns: undefined
+      }
+      set_story_credits: {
+        Args: {
+          p_interviewers: string[]
+          p_story: string
+          p_storytellers: string[]
+          p_tree: string
+        }
         Returns: undefined
       }
       share_story: { Args: { p_story: string }; Returns: string }
