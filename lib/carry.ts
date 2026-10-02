@@ -138,20 +138,24 @@ export const LAPSE_AFTER_DAYS = 30;
 
 /**
  * Where a yes stands, as a tree reads it: `none` when there was nothing to
- * ask, `lapsed` once an ask has waited `LAPSE_AFTER_DAYS` unanswered.
+ * ask, `lapsed` once an ask has waited `LAPSE_AFTER_DAYS` unanswered, and
+ * `shell` when the card shows only a name (Step 106): the person made it so,
+ * or a Root of the tree did.
  */
 export type CarryApproval =
   | "none"
   | "asked"
   | "approved"
   | "declined"
-  | "lapsed";
+  | "lapsed"
+  | "shell";
 
 export function carryApprovalOf(value: unknown): CarryApproval {
   return value === "asked" ||
     value === "approved" ||
     value === "declined" ||
-    value === "lapsed"
+    value === "lapsed" ||
+    value === "shell"
     ? value
     : "none";
 }
@@ -160,6 +164,10 @@ export function carryApprovalOf(value: unknown): CarryApproval {
 export function showsBasic(approval: CarryApproval): boolean {
   return approval === "asked" || approval === "declined" || approval === "lapsed";
 }
+
+/** What a name-only card says of itself: on its sheet, the Root's list and
+ *  the person's own account (Step 106). */
+export const NAME_ONLY = "Name only";
 
 /**
  * What a basic card waits on, for its details sheet and the Root's list:
@@ -185,6 +193,7 @@ export function waitingOn(
       ? `${name} declined to show more.`
       : "Their home tree declined to show more.";
   }
+  if (approval === "shell") return "This tree shows only their name.";
   return null;
 }
 
@@ -200,6 +209,7 @@ export function carriedNote(
   }
   if (approval === "declined") return "Basic · declined";
   if (approval === "lapsed") return "Basic · no answer";
+  if (approval === "shell") return NAME_ONLY;
   return null;
 }
 
@@ -210,10 +220,13 @@ export function carriedSummary(
   const basic = placed.filter((p) =>
     showsBasic(carryApprovalOf(p.approval)),
   ).length;
-  const full = placed.length - basic;
+  // Brought back after making their card name only, they stay so.
+  const shells = placed.filter((p) => p.approval === "shell").length;
+  const full = placed.length - basic - shells;
   return [
     full > 0 ? `${full} in full` : null,
     basic > 0 ? `${basic} basic until approved` : null,
+    shells > 0 ? `${shells} name only` : null,
   ]
     .filter(Boolean)
     .join(" · ");

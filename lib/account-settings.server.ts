@@ -17,6 +17,20 @@ import { listRelayCandidates } from "@/lib/relay-candidates.server";
 import { createClient } from "@/lib/supabase/server";
 import type { MyTree } from "@/lib/tree-context";
 
+/** A tree, not its home, that shows the member's own card (Step 106). */
+export type OwnCardElsewhere = {
+  id: string;
+  name: string;
+  /** Only their name shows there. */
+  nameOnly: boolean;
+  /** They're a member of it: making it name only leaves it. */
+  member: boolean;
+  /** A Root of it, who can't leave it. */
+  root: boolean;
+  /** It's the only tree they're a member of. */
+  onlyTree: boolean;
+};
+
 /**
  * What the account page's settings view shows (Step 77.6, moved out of
  * `app/account/page.tsx`): relatives' asks and the entries they match, the
@@ -97,7 +111,7 @@ export async function loadAccountSettings(
             .maybeSingle(),
           supabase
             .from("tree_placements")
-            .select("tree_id, trees(name)")
+            .select("tree_id, approval, trees(name)")
             .eq("person_id", selfId)
             .eq("status", "active"),
         ])
@@ -168,15 +182,34 @@ export async function loadAccountSettings(
 
   let home: { id: string; name: string } | null = null;
   let shownOn: { id: string; name: string }[] = [];
+  let elsewhere: OwnCardElsewhere[] = [];
   let hidden = false;
   if (selfEntry) {
     const [{ data: self }, { data: placements }] = selfEntry;
     hidden = self?.hidden_from_visitors ?? false;
-    shownOn = (placements ?? []).flatMap((p) => {
+    const shown = (placements ?? []).flatMap((p) => {
       const t = Array.isArray(p.trees) ? p.trees[0] : p.trees;
-      return t?.name ? [{ id: p.tree_id, name: t.name }] : [];
+      return t?.name
+        ? [{ id: p.tree_id, name: t.name, approval: p.approval }]
+        : [];
     });
+    shownOn = shown.map(({ id, name }) => ({ id, name }));
     home = shownOn.find((t) => t.id === self?.tree_id) ?? null;
+    // Every other tree their card is on, and what it shows there (Step 106).
+    const memberOf = new Map(trees.map((t) => [t.id, t]));
+    elsewhere = shown
+      .filter((t) => t.id !== self?.tree_id)
+      .map((t) => {
+        const membership = memberOf.get(t.id);
+        return {
+          id: t.id,
+          name: t.name,
+          nameOnly: t.approval === "shell",
+          member: !!membership,
+          root: !!membership?.type.runsTree,
+          onlyTree: !!membership && trees.length === 1,
+        };
+      });
   }
 
   // Every tree they are the only Root of needs a successor before they go.
@@ -225,6 +258,7 @@ export async function loadAccountSettings(
     openedRelayLine,
     home,
     shownOn,
+    elsewhere,
     hidden,
     branchSideByTree,
     soleRootTrees,

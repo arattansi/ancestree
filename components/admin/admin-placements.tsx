@@ -2,7 +2,12 @@
 
 import * as React from "react";
 
-import { askPlacementsAgain, removePlacement } from "@/app/actions/trees";
+import {
+  askPlacementsAgain,
+  makeCardNameOnly,
+  removePlacement,
+  showCardAgain,
+} from "@/app/actions/trees";
 import { CarryPicker } from "@/components/carry-picker";
 import { ConfirmButton } from "@/components/confirm-dialog";
 import { PendingButton } from "@/components/pending-button";
@@ -16,8 +21,9 @@ import type { CarriedPerson } from "@/lib/placements.server";
  * over from a tree they're on, or anyone they can see there one by one.
  * Everyone arrives at once, whole or as a basic card while someone is asked.
  * Below, who has been brought over so far, how much of each is shown, a way
- * to ask again about an ask nobody answered (Step 83), and a way to take
- * them off again.
+ * to ask again about an ask nobody answered (Step 83), a way to show only
+ * their name (Step 106) — and to undo it, unless they chose it themselves —
+ * and a way to take them off again.
  */
 export function AdminPlacements({
   treeId,
@@ -31,6 +37,7 @@ export function AdminPlacements({
   carried: CarriedPerson[];
 }) {
   const again = useAction();
+  const shell = useAction();
   const full = carried.filter(
     (p) => p.approval === "none" || p.approval === "approved",
   ).length;
@@ -97,6 +104,43 @@ export function AdminPlacements({
                         ask again
                       </PendingButton>
                     ) : null}
+                    {p.approval === "shell" ? (
+                      p.nameOnlyKept ? null : (
+                        <PendingButton
+                          size="sm"
+                          variant="outline"
+                          pending={shell.pendingKey === p.personId}
+                          disabled={shell.pending}
+                          pendingLabel="showing…"
+                          aria-label={`Show more of ${p.name}`}
+                          onClick={() =>
+                            shell.run(
+                              p.personId,
+                              () => showCardAgain(treeId, p.personId),
+                              { success: "Shown again." },
+                            )
+                          }
+                        >
+                          show more
+                        </PendingButton>
+                      )
+                    ) : (
+                      <ConfirmButton
+                        size="sm"
+                        variant="ghost"
+                        aria-label={`Show only ${p.name}'s name`}
+                        confirm={{
+                          title: `Show only ${p.name}'s name here?`,
+                          confirmLabel: "name only",
+                          pendingLabel: "saving…",
+                          destructive: false,
+                          onConfirm: () =>
+                            makeCardNameOnly(treeId, p.personId),
+                        }}
+                      >
+                        name only
+                      </ConfirmButton>
+                    )}
                     <ConfirmButton
                       size="sm"
                       variant="ghost"

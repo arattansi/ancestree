@@ -328,6 +328,75 @@ export async function removePlacement(
   return {};
 }
 
+/** What `make_card_name_only` and `show_card_again` refuse, said plainly. */
+const NAME_ONLY_RULES: [string, string][] = [
+  ["NOT_PLACED", "They aren’t on this tree any more."],
+  ["HOME_PLACEMENT", "This is the entry's home tree. Move its home first."],
+  ["MEMBER", "They're a member of this tree. Remove them from it first."],
+  ["ROOT_STAYS", "A Root can't leave their tree."],
+  ["ONLY_TREE", "It's your only tree, so you can't leave it."],
+  ["NOT_SHELL", "This card isn't name only any more."],
+  ["NAME_ONLY_KEPT", "They made it name only. Only they can show more."],
+  ["Only they or a Root", "Only they or a Root of this tree can do that."],
+];
+
+/**
+ * Step 106: a card on a tree that isn't its home shows only a name, drawn
+ * as a pill. The person may do it to their own card, leaving the tree too
+ * if they're a member there; a Root of the tree to anyone on it who isn't.
+ * What the person did, no Root undoes. Resolves `left` when they left.
+ */
+export async function makeCardNameOnly(
+  treeId: string,
+  personId: string,
+): Promise<{ left?: boolean; error?: string }> {
+  await requireProfile();
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("make_card_name_only", {
+    p_tree: treeId,
+    p_person: personId,
+  });
+  if (error) {
+    return {
+      error: friendlyDbError(
+        error.message,
+        [...NAME_ONLY_RULES, ...TREE_RULES],
+        TREE_FALLBACK,
+      ),
+    };
+  }
+  revalidateTreePages();
+  return { left: data === "left" };
+}
+
+/**
+ * Lift a name-only card (Step 106): the person, back to their basic card
+ * with their yes still to give; a Root, one a Root made, back to what it
+ * was.
+ */
+export async function showCardAgain(
+  treeId: string,
+  personId: string,
+): Promise<{ error?: string }> {
+  await requireProfile();
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("show_card_again", {
+    p_tree: treeId,
+    p_person: personId,
+  });
+  if (error) {
+    return {
+      error: friendlyDbError(
+        error.message,
+        [...NAME_ONLY_RULES, ...TREE_RULES],
+        TREE_FALLBACK,
+      ),
+    };
+  }
+  revalidateTreePages();
+  return {};
+}
+
 /**
  * Move a person's home to another tree that already shows them: the person
  * themselves, or a Root of the current home for an unclaimed entry.

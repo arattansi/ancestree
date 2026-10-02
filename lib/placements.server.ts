@@ -136,6 +136,8 @@ export type CarriedPerson = {
   approval: CarryApproval;
   /** Whose yes it waits on, or waited on; `null` when nobody was asked. */
   askedOf: "owner" | "stewards" | null;
+  /** Name only by the person's own choice (Step 106): no Root lifts it. */
+  nameOnlyKept: boolean;
 };
 
 /**
@@ -156,6 +158,7 @@ export async function listCarried(treeId: string): Promise<CarriedPerson[]> {
       row.asked_of === "owner" || row.asked_of === "stewards"
         ? row.asked_of
         : null,
+    nameOnlyKept: row.name_only_kept === true,
   }));
 }
 

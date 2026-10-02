@@ -27,6 +27,7 @@ import { DeleteAccount } from "@/components/delete-account";
 import { DirectInviteForm } from "@/components/direct-invite-form";
 import { EditDisplayName } from "@/components/edit-display-name";
 import { HomeTreePicker } from "@/components/home-tree-picker";
+import { OwnCardElsewhereList } from "@/components/own-card-elsewhere";
 import { NotificationsList } from "@/components/notifications-list";
 import { PageColumn } from "@/components/page-column";
 import { AccountViewSkeleton } from "@/components/page-skeletons";
@@ -273,6 +274,7 @@ async function SettingsView({
     openedRelayLine,
     home,
     shownOn,
+    elsewhere,
     hidden,
     branchSideByTree,
     soleRootTrees,
@@ -442,12 +444,16 @@ async function SettingsView({
           <CardHeader>
             <CardTitle>Your Entry</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex flex-col gap-4">
             <HomeTreePicker
               personId={profile.self_person_id}
               homeTreeId={home.id}
               options={shownOn}
               hiddenFromVisitors={hidden}
+            />
+            <OwnCardElsewhereList
+              personId={profile.self_person_id}
+              trees={elsewhere}
             />
           </CardContent>
         </Card>

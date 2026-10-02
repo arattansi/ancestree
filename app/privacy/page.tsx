@@ -191,9 +191,20 @@ export default function PrivacyPage() {
             blurred card with no name or details.
           </li>
           <li>
-            A tree&rsquo;s Roots can take you off it at any time. You
-            can&rsquo;t remove your name and place of birth from another tree
-            yourself; ask one of its Roots.
+            You can make your card on any tree but your home show only your
+            name, from{" "}
+            <Link
+              href="/account?view=settings"
+              className="underline underline-offset-4"
+            >
+              your account&rsquo;s settings
+            </Link>
+            . If you&rsquo;re a member of that tree, you leave it too. No Root
+            can undo it, and taking your card off and bringing it back
+            doesn&rsquo;t either; only you can show more again.
+          </li>
+          <li>
+            A tree&rsquo;s Roots can take you off it at any time.
           </li>
         </ul>
       </Section>

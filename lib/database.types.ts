@@ -2887,6 +2887,10 @@ export type Database = {
           said_by: string
         }[]
       }
+      make_card_name_only: {
+        Args: { p_person: string; p_tree: string }
+        Returns: string
+      }
       my_growth_rights: { Args: { p_tree?: string }; Returns: Json }
       my_tree_request: { Args: never; Returns: string }
       newsletter_due: {
@@ -3136,6 +3140,10 @@ export type Database = {
           told_on_precision: string
         }[]
       }
+      show_card_again: {
+        Args: { p_person: string; p_tree: string }
+        Returns: string
+      }
       stop_sharing_story: { Args: { p_story: string }; Returns: undefined }
       story_place: {
         Args: { p_prefer?: string; p_story: string }
@@ -3161,6 +3169,7 @@ export type Database = {
           asked_of: string
           detail: string
           home_tree_name: string
+          name_only_kept: boolean
           person_id: string
           person_name: string
           placement_id: string

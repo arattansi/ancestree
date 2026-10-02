@@ -1764,6 +1764,29 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 106: your card on another tree, name only** (migration
+  `20261002050000_card_name_only`). **Aalim asked for:** people to take
+  their own card off other trees — as a "shell" that keeps their name and
+  nothing else, like a married-in pill, permanently; the tree's Root may do
+  it too; a member of that tree leaves it. `tree_placements.approval` gains
+  `shell`, which `detail` reads as `basic` (a basic card's rules all hold)
+  and `private.basic_tree_people` shows without a place of birth;
+  `private.card_shells` records who made each and what it was. New
+  `make_card_name_only` (the person, or a Root of the tree for anyone not a
+  member there; a member leaves the tree through the new
+  `private.remove_member_from_tree`, which `remove_tree_member` now wraps,
+  and its Roots get a `placement_declined` notice; refused for a Root there,
+  someone's only tree and the home tree) and `show_card_again` (the person,
+  back to the basic card; a Root, only a Root's shell, back to what it was).
+  `answer_placements` refuses a shell, `placement_asks` leaves it out,
+  `place_people` brings back a shell the person made, `tree_carried` says
+  whose it is (`name_only_kept`). App: a pill labelled "Name only" on every
+  canvas (`shellIds` joins `pillIds`), **name only** / **show more** on the
+  Root console's "Brought over so far" and on **Your Entry** in settings
+  (`components/own-card-elsewhere.tsx`, "You'll leave {tree} too." for a
+  member), the sheet's "This tree shows only their name.", and the privacy
+  page and `docs/trees-and-permissions.md` say so.
+
 - **Step 105: the privacy page on children and other trees** (no
   migration). **Aalim asked for:** the privacy page to set out what's been
   done to protect children's data and the say a member has over being

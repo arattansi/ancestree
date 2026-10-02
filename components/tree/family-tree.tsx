@@ -94,6 +94,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { toastError } from "@/components/use-action";
 import { accountTypeOf } from "@/lib/account-types";
+import { NAME_ONLY } from "@/lib/carry";
 import { isRedirect, UNREACHABLE } from "@/lib/action-feedback";
 import {
   branchReach,
@@ -359,9 +360,17 @@ function Canvas({
     () => new Map((family?.marriedIn ?? []).map((m) => [m.id, m])),
     [family],
   );
+  // A card made name only on this tree (Step 106) is a pill too, anywhere.
+  const shellIds = React.useMemo<ReadonlySet<string>>(() => {
+    const shells = people.filter((p) => p.approval === "shell");
+    return shells.length > 0 ? new Set(shells.map((p) => p.id)) : NOBODY;
+  }, [people]);
   const pillIds = React.useMemo<ReadonlySet<string>>(
-    () => (marriedIn.size > 0 ? new Set(marriedIn.keys()) : NOBODY),
-    [marriedIn],
+    () =>
+      marriedIn.size === 0 && shellIds.size === 0
+        ? NOBODY
+        : new Set([...marriedIn.keys(), ...shellIds]),
+    [marriedIn, shellIds],
   );
   // Their own spouse is a card beside them, and says so (Step 94.1).
   const spouseIds = React.useMemo<ReadonlySet<string>>(
@@ -1305,15 +1314,18 @@ function Canvas({
         : isPet
           ? !!pet?.companions.some((id) => spotlight?.line.has(id))
           : lit.has(n.id);
-      // A pill: whoever married in, on My Family Tree (Step 94), or a
-      // sibling's partner in a spotlight (Step 19.4).
+      // A pill: whoever married in, on My Family Tree (Step 94), a card
+      // made name only (Step 106), or a sibling's partner in a spotlight
+      // (Step 19.4).
       const pillLabel = isPet
         ? undefined
         : marriedToById?.has(n.id)
           ? `Married in · ${marriedToById.get(n.id)}`
-          : (spotlight?.siblingSpouses.has(n.id)
-            ? `Spouse of ${spotlight.spouseOf.get(n.id) || "a sibling"}`
-            : undefined);
+          : shellIds.has(n.id)
+            ? NAME_ONLY
+            : (spotlight?.siblingSpouses.has(n.id)
+              ? `Spouse of ${spotlight.spouseOf.get(n.id) || "a sibling"}`
+              : undefined);
       const mark = isPet ? undefined : markById.get(n.id);
       const same = isPet ? undefined : sameLabelById.get(n.id);
       // The lit line stands in front, never faded or blurred; on My Family
@@ -1352,6 +1364,7 @@ function Canvas({
     markById,
     sameLabelById,
     marriedToById,
+    shellIds,
     spouseIds,
     memberIds,
     allLeaves,

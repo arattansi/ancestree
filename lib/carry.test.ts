@@ -236,3 +236,24 @@ describe("carriedSummary", () => {
     expect(carriedSummary([])).toBe("");
   });
 });
+
+describe("name only (Step 106)", () => {
+  it("reads a shell, and keeps it apart from the basic card", () => {
+    expect(carryApprovalOf("shell")).toBe("shell");
+    expect(showsBasic("shell")).toBe(false);
+    expect(carriedNote("shell", "owner")).toBe("Name only");
+    expect(waitingOn("shell", "owner", "Amina")).toBe(
+      "This tree shows only their name.",
+    );
+  });
+
+  it("counts someone brought back name only on their own", () => {
+    expect(
+      carriedSummary([
+        { approval: "none" },
+        { approval: "asked" },
+        { approval: "shell" },
+      ]),
+    ).toBe("1 in full · 1 basic until approved · 1 name only");
+  });
+});
