@@ -42,15 +42,20 @@ export default async function JoinPage({
   const step = email ? await loadFirstTimerStep(email) : null;
   if (step?.kind === "invite") redirect(step.href);
 
-  const alert =
-    error === "invite" ? (
-      <p
-        role="alert"
-        className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
-      >
-        That invite link is invalid, already used, or expired.
-      </p>
-    ) : null;
+  const alertText =
+    error === "invite"
+      ? "That invite link is invalid, already used, or expired."
+      : error === "suspended"
+        ? "This account is suspended."
+        : null;
+  const alert = alertText ? (
+    <p
+      role="alert"
+      className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
+    >
+      {alertText}
+    </p>
+  ) : null;
 
   return (
     <CenteredPage>

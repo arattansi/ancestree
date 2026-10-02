@@ -1878,9 +1878,15 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   their own included). **suspend** bans it in Supabase Auth with the
   service role (`setAccountSuspended`; Auth then refuses its sign-in,
   token refresh and `/user`, `user_banned`, and the code box and send
-  form say "This account is suspended."); a session already open lasts
-  until its token lapses (up to an hour), since pages check the token
-  locally (Step 61). **delete** asks first ("This cannot be undone." on
+  form say "This account is suspended."). A session already open ends
+  at once (Aalim: "make suspend sign them out immediately"; migration
+  `20261002090000_suspended_signs_out`): pages check the token locally
+  (Step 61), so `getProfile` — which the header, every action and every
+  API route read — asks `profiles.suspended`, a computed field true only
+  for the caller's own banned account, on the query it already makes,
+  and sends a suspended account to `/auth/suspended`, a route that signs
+  this browser out and lands on `/join?error=suspended` ("This account is
+  suspended."). **delete** asks first ("This cannot be undone." on
   its own line), and where it's a tree's only Root, who takes over (the
   account page's `SuccessorPickers`, now shared; a tree with nobody else
   says "Delete the tree first."); it runs the account page's own

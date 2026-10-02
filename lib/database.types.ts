@@ -3300,6 +3300,10 @@ export type Database = {
         }
         Returns: string[]
       }
+      suspended: {
+        Args: { p: Database["public"]["Tables"]["profiles"]["Row"] }
+        Returns: boolean
+      }
       tree_carried: {
         Args: { p_tree: string }
         Returns: {

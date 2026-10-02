@@ -437,8 +437,10 @@ invite, and joining from there is theirs to press.
   successor where it was a tree's only Root, and a tree with nobody else
   on it must be deleted first. They may also **suspend** an account, and
   **restore** it: a ban in Supabase Auth, so it can't sign in ("This
-  account is suspended.") or refresh its session; a session already open
-  lasts until its token lapses (up to an hour). Nothing of theirs changes.
+  account is suspended.") or refresh its session, and a session already
+  open is signed out on its next page, action or API call (`getProfile`
+  reads `suspended`, true only for the caller's own banned account).
+  Nothing of theirs changes.
 - `profiles.self_person_id` is the member's one own entry, wherever it is
   placed. Only these set it: adding themselves on onboarding or the
   founder's first run, "that's me" on onboarding, "This is me" on an entry,

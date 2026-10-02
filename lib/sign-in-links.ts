@@ -10,6 +10,13 @@
  */
 export const PENDING_HREF = "/join?status=pending";
 
+/**
+ * Where a suspended account is sent (Step 103.4): a route that signs it
+ * out, then /join, which says it's suspended (`SUSPENDED_JOIN_HREF`).
+ */
+export const SUSPENDED_HREF = "/auth/suspended";
+export const SUSPENDED_JOIN_HREF = "/join?error=suspended";
+
 /** An invite's own page, where it's accepted. */
 export function inviteHref(token: string): string {
   return `/join/${encodeURIComponent(token)}`;

@@ -3,7 +3,7 @@ import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
 
-import { PENDING_HREF } from "@/lib/sign-in-links";
+import { PENDING_HREF, SUSPENDED_HREF } from "@/lib/sign-in-links";
 import { createClient } from "@/lib/supabase/server";
 import type { Tables } from "@/lib/database.types";
 
@@ -48,6 +48,12 @@ export const getUser = cache(async () => {
  * The signed-in user's member profile, or `null` if they are not signed in or
  * have authenticated but never completed the invite / bootstrap flow. Once
  * per render.
+ *
+ * A suspended account (Step 103.4) is signed out here and now: its token
+ * still checks out locally until it lapses, so the same query asks
+ * `suspended` (a computed field, true only for the caller's own banned
+ * account), and every page (the header reads this), action and API route
+ * sends them to be signed out.
  */
 export const getProfile = cache(async (): Promise<Profile | null> => {
   const user = await getSessionUser();
@@ -56,11 +62,15 @@ export const getProfile = cache(async (): Promise<Profile | null> => {
   const supabase = await createClient();
   const { data } = await supabase
     .from("profiles")
-    .select("*")
+    // The types don't follow a computed field, so it's named here.
+    .select("*, suspended")
     .eq("auth_user_id", user.id)
-    .maybeSingle();
+    .maybeSingle<Profile & { suspended: boolean | null }>();
+  if (!data) return null;
 
-  return data ?? null;
+  const { suspended, ...profile } = data;
+  if (suspended) redirect(SUSPENDED_HREF);
+  return profile;
 });
 
 /**
