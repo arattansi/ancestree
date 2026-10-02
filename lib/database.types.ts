@@ -3094,11 +3094,13 @@ export type Database = {
         Args: { p_paused: boolean; p_weekday: number }
         Returns: undefined
       }
-      set_story_credits: {
+      set_story_details: {
         Args: {
           p_interviewers: string[]
           p_story: string
           p_storytellers: string[]
+          p_told_on?: string
+          p_told_precision?: string
           p_tree: string
         }
         Returns: undefined

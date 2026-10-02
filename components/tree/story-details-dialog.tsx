@@ -2,24 +2,27 @@
 
 import * as React from "react";
 
-import { setStoryCredits } from "@/app/actions/stories";
+import { setStoryDetails } from "@/app/actions/stories";
+import { DateField } from "@/components/date-field";
 import { FormError } from "@/components/form-error";
 import { PendingButton } from "@/components/pending-button";
 import { CompanionPicker, type CompanionOption } from "@/components/tree/companion-picker";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { useAction } from "@/components/use-action";
 import type { EntryStory } from "@/lib/stories";
-import { STORY_CREDIT_MAX } from "@/lib/story-credits";
+import { toPartialIso } from "@/lib/partial-date";
+import { STORY_CREDIT_MAX, toldProblem } from "@/lib/story-credits";
 
 /**
- * Change who a story is credited to, after it's told (Step 99.5): its
- * storytellers and interviewers, opened with whoever it credits now. Anyone
- * on the canvas may be added; someone credited already stays offered by
- * name even where this canvas doesn't have them. Loaded only once someone
- * opens it.
+ * Change who a story is credited to and when it was told, after it's told
+ * (Steps 99.5, 99.6): its storytellers, interviewers and date, opened as
+ * they are now. Anyone on the canvas may be added; someone credited already
+ * stays offered by name even where this canvas doesn't have them. An empty
+ * date clears it. Loaded only once someone opens it.
  */
-export function StoryCreditsDialog({
+export function StoryDetailsDialog({
   story,
   onClose,
   personId,
@@ -40,6 +43,8 @@ export function StoryCreditsDialog({
   const save = useAction({ inline: true });
   const [tellers, setTellers] = React.useState<string[]>([]);
   const [askers, setAskers] = React.useState<string[]>([]);
+  const [told, setTold] = React.useState("");
+  const [toldTouched, setToldTouched] = React.useState(false);
 
   // Opened on a story: whoever it credits now.
   const [openedOn, setOpenedOn] = React.useState<string | null>(null);
@@ -49,6 +54,8 @@ export function StoryCreditsDialog({
     if (story) {
       setTellers(story.credits.filter((c) => c.role === "storyteller").map((c) => c.id));
       setAskers(story.credits.filter((c) => c.role === "interviewer").map((c) => c.id));
+      setTold(toPartialIso(story.toldOn, story.toldPrecision));
+      setToldTouched(false);
       save.setError(null);
     }
   }
@@ -62,18 +69,22 @@ export function StoryCreditsDialog({
     return [...people, ...extra.filter((e, i, all) => all.findIndex((o) => o.id === e.id) === i)];
   }, [people, story]);
 
+  const toldError = toldProblem(told);
+
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!story) return;
+    setToldTouched(true);
+    if (!story || toldError) return;
     save.run(
       "save",
       () =>
-        setStoryCredits({
+        setStoryDetails({
           storyId: story.id,
           personId,
           treeId,
           storytellers: tellers,
           interviewers: askers,
+          told,
         }),
       {
         onSuccess: (res) => {
@@ -92,7 +103,7 @@ export function StoryCreditsDialog({
       }}
     >
       <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg">
-        <DialogTitle>Credits</DialogTitle>
+        <DialogTitle>Credits and date</DialogTitle>
         <form onSubmit={onSubmit} className="flex flex-col gap-4 pt-2">
           <CompanionPicker
             label="Storyteller"
@@ -110,6 +121,18 @@ export function StoryCreditsDialog({
             disabled={save.pending}
             emptyHint={null}
           />
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="story-edit-told">Date told</Label>
+            <DateField
+              id="story-edit-told"
+              value={told}
+              onChange={setTold}
+              onBlur={() => setToldTouched(true)}
+              disabled={save.pending}
+              aria-invalid={toldTouched && !!toldError}
+            />
+            <FormError>{toldTouched ? toldError : null}</FormError>
+          </div>
           <FormError>{save.error}</FormError>
           <div className="flex gap-2">
             <PendingButton type="submit" size="sm" pending={save.pending} pendingLabel="Saving…">

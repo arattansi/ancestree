@@ -30,8 +30,9 @@ export type EntryStory = {
   toldPrecision: string | null;
   /** Who it's credited to, storytellers first (Step 99). */
   credits: StoryCredit[];
-  /** The viewer may change who it's credited to (Step 99.5): its teller,
-   *  whoever can edit the entry, or the person it's about. */
+  /** The viewer may change who it's credited to and when it was told
+   *  (Steps 99.5, 99.6): its teller, whoever can edit the entry, or the
+   *  person it's about. */
   canEditCredits: boolean;
   /** The viewer told it, so may delete it. */
   mine: boolean;

@@ -42,8 +42,8 @@ const StoryDialog = dynamic(
   () => import("@/components/tree/story-dialog").then((m) => m.StoryDialog),
   { ssr: false },
 );
-const StoryCreditsDialog = dynamic(
-  () => import("@/components/tree/story-credits-dialog").then((m) => m.StoryCreditsDialog),
+const StoryDetailsDialog = dynamic(
+  () => import("@/components/tree/story-details-dialog").then((m) => m.StoryDetailsDialog),
   { ssr: false },
 );
 
@@ -121,7 +121,8 @@ function StoryCard({
   personName: string;
   /** What one person is to another on this canvas (Step 99). */
   describeConnection?: (fromId: string, toId: string) => Relation | null;
-  /** Opens its credits to change (Step 99.5); shown when it's theirs to. */
+  /** Opens its credits and date to change (Steps 99.5, 99.6); shown when
+   *  it's theirs to. */
   onEditCredits: () => void;
   /** Theirs to delete, and so is any comment on it. */
   canDelete: boolean;
@@ -300,7 +301,7 @@ function StoryCard({
         {story.canEditCredits ? (
           <Button type="button" size="sm" variant="ghost" onClick={onEditCredits}>
             <Pencil aria-hidden />
-            Edit credits
+            Credits and date
           </Button>
         ) : null}
         {canDelete ? (
@@ -366,7 +367,7 @@ export function EntryStories({
   const [adding, setAdding] = React.useState(false);
   // Mounted from the first press on, so it can close with its animation.
   const [dialogMounted, setDialogMounted] = React.useState(false);
-  // The story whose credits are being changed (Step 99.5).
+  // The story whose credits and date are being changed (Steps 99.5, 99.6).
   const [crediting, setCrediting] = React.useState<EntryStory | null>(null);
   const [creditsMounted, setCreditsMounted] = React.useState(false);
 
@@ -473,7 +474,7 @@ export function EntryStories({
       )}
 
       {creditsMounted ? (
-        <StoryCreditsDialog
+        <StoryDetailsDialog
           story={crediting}
           onClose={() => setCrediting(null)}
           personId={personId}

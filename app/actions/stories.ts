@@ -115,12 +115,13 @@ export async function addStory(input: {
 }
 
 /**
- * Change who a story is credited to (Step 99.5): its storytellers and its
- * interviewers, all at once. Its teller, whoever can edit the entry, or the
- * person it's about may. Someone newly credited must be on the tree it's
- * edited from; someone already credited may stay. The list back has it.
+ * Change who a story is credited to and when it was told (Steps 99.5,
+ * 99.6): its storytellers, its interviewers and its date, all at once. Its
+ * teller, whoever can edit the entry, or the person it's about may.
+ * Someone newly credited must be on the tree it's edited from; someone
+ * already credited may stay. An empty date clears it. The list back has it.
  */
-export async function setStoryCredits(input: {
+export async function setStoryDetails(input: {
   storyId: string;
   /** Whose sheet it's edited on: the list back is theirs. */
   personId: string;
@@ -128,6 +129,8 @@ export async function setStoryCredits(input: {
   treeId: string;
   storytellers: string[];
   interviewers: string[];
+  /** As much of the date as is known ("1962" will do); empty for none. */
+  told: string;
 }): Promise<{ error?: string; stories?: EntryStory[] }> {
   const profile = await requireProfile();
   const storytellers = [...new Set(input.storytellers)];
@@ -135,12 +138,18 @@ export async function setStoryCredits(input: {
   if (storytellers.length > STORY_CREDIT_MAX || interviewers.length > STORY_CREDIT_MAX) {
     return { error: `Credit ${STORY_CREDIT_MAX} people at most in each role.` };
   }
+  const toldError = toldProblem(input.told);
+  if (toldError) return { error: toldError };
+  const toldOn = toStoredDate(input.told);
   const supabase = await createClient();
-  const { error } = await supabase.rpc("set_story_credits", {
+  const { error } = await supabase.rpc("set_story_details", {
     p_story: input.storyId,
     p_tree: input.treeId,
     p_storytellers: storytellers,
     p_interviewers: interviewers,
+    // Left out, it's cleared.
+    p_told_on: toldOn.date ?? undefined,
+    p_told_precision: toldOn.date ? toldOn.precision : undefined,
   });
   if (error) {
     return {
@@ -151,10 +160,11 @@ export async function setStoryCredits(input: {
           ["not a story you can see", "That story is gone."],
           ["not on your tree", "Someone credited isn’t on this tree."],
           ["too many people", `Credit ${STORY_CREDIT_MAX} people at most in each role.`],
+          ["told after today", "That’s after today."],
           // Step 98.3: a placeholder child is credited by their parent alone.
           ["only their parent fills in", "Only their parent can add to a placeholder."],
         ],
-        "Couldn’t save the credits. Try again.",
+        "Couldn’t save it. Try again.",
       ),
     };
   }
