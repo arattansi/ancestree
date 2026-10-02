@@ -5,7 +5,8 @@
  *   public/brand/ancestree-mark.svg       the mark; <LogoMark /> serves this
  *   public/brand/ancestree-mark-mono.svg  one-colour silhouette (currentColor)
  *   public/brand/ancestree-mark-512.png   for avatars and anywhere SVG isn't taken
- *   public/brand/ancestree-mark-132.png   the emails' logo (shown at 44px)
+ *   public/brand/ancestree-mark-132.png   the emails' logo (shown at 44px), and
+ *                                         <MemberMark /> on the canvas
  *   app/icon.svg                          favicon (same drawing)
  *   app/favicon.ico                       16/32/48 fallback for older browsers
  *   app/apple-icon.png                    180px home-screen icon on cream

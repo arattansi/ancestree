@@ -9,7 +9,6 @@ import {
   BackgroundVariant,
   ControlButton,
   Controls,
-  MiniMap,
   Panel,
   ReactFlow,
   ReactFlowProvider,
@@ -40,6 +39,7 @@ import { FamilyAddButton, type FamilyAdd } from "@/components/tree/add-to-tree";
 import { buildPeopleGraph, withPets } from "@/components/tree/build-graph";
 import { ColumnsIcon, ExpandingLabel } from "@/components/tree/canvas-controls";
 import { edgeTypes } from "@/components/tree/canvas-edges";
+import { CanvasMiniMap } from "@/components/tree/canvas-minimap";
 import { FoldedDetails } from "@/components/tree/folded-details";
 import { GenerationLane } from "@/components/tree/generation-lane";
 import {
@@ -2881,15 +2881,7 @@ function keepProps(prev: Props, next: Props): Props {
 function WideMiniMap() {
   const wide = useIsSm();
   if (!wide) return null;
-  return (
-    <MiniMap
-      pannable
-      zoomable
-      nodeColor="var(--muted-foreground)"
-      maskColor="var(--muted)"
-      className="!bg-card"
-    />
-  );
+  return <CanvasMiniMap />;
 }
 
 export function FamilyTree(given: Props) {

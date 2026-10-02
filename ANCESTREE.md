@@ -1753,6 +1753,29 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 104: less work on each frame of a camera move** (no migration).
+  **Aalim asked for:** "fix those three too and push", the per-frame costs
+  Step 101 left. **The minimap** is our own now
+  (`components/tree/canvas-minimap.tsx`, in place of React Flow's
+  `<MiniMap>`): on every frame React Flow measured every card again and,
+  with the canvas reaching past them, moved its viewBox, so the browser laid
+  out each card's rect again (1,795 re-layouts over a switch). The cards
+  are now one path in an svg of their own, drawn only when they move, in a
+  viewBox that grows to take in the window in steps of a quarter of the
+  cards' longer side; each frame changes only the shade round the window,
+  in a second svg. Drag to pan and wheel to zoom go through React Flow's own
+  `XYMinimap` (`@xyflow/system` now a direct dependency at the version
+  `@xyflow/react` pins). Looks as before in both themes; the shade still
+  hides cards outside the window, as `--muted` did. **The lane titles**
+  (`generation-lane.tsx`) are placed straight onto the element from a store
+  subscription, only when the answer changes, and by `transform` alone (no
+  `left`/`top`), so a frame no longer renders every lane in React or costs a
+  layout; pinning and magnifying unchanged. **The member mark** is the
+  mark's 132px PNG (the emails' logo, `brand:build` says so now), not the
+  SVG with blur filters. **Numbers** (76-person /family fixture with 15
+  members, real Chrome, CPU slowed 4×, per switch): layout 26 → 9–11ms,
+  paint 64 → ~52ms, raster 34 → 27ms. Seen and left: Chrome rebuilds the
+  SVG favicon on each `?person=` change; nothing measurable.
 - **Step 102: every button is lower-case** (no migration). **Aalim asked
   for:** "all buttons are lower case characters. that should be
   established in the design system", on the weekly newsletter's **Open My

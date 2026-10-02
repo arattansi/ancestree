@@ -32,8 +32,11 @@ export const MEMBER_LABEL = "Ancestree member";
 /**
  * The mark in small, on a leaf or card on My Family Tree: this entry has
  * been claimed, and the person it describes has an account. A plain <img>
- * of the same file the header's mark already loaded, so the dozens of
- * leaves that wear it fetch nothing more.
+ * of the mark's 132px PNG (made with the SVG by `npm run brand:build`), not
+ * the SVG the header shows: that one is drawn with blur filters and dozens
+ * of leaves, and as an image it was laid out and drawn again for every
+ * member at every step of a zoom (Step 102). 132px covers the 16px mark at
+ * the canvas's closest zoom (1.75×) on a 3× screen.
  */
 export function MemberMark({
   className,
@@ -45,7 +48,7 @@ export function MemberMark({
 }) {
   return (
     <img
-      src="/brand/ancestree-mark.svg"
+      src="/brand/ancestree-mark-132.png"
       alt={MEMBER_LABEL}
       title={MEMBER_LABEL}
       width={16}
