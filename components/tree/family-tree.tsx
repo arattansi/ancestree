@@ -300,6 +300,18 @@ type Props = {
   homeTrees?: TreeAccess[];
 };
 
+/**
+ * How the camera moves when a click aims it: as the cards do (`.tree-pulled`
+ * in globals.css: 560ms, ease-out quint), so the two travel together, and
+ * straight there. The default eases in, swoops out and back in on a long
+ * move, and arrives well after the cards.
+ */
+const CAMERA = {
+  duration: 560,
+  ease: (t: number) => 1 - (1 - t) ** 5,
+  interpolate: "linear",
+} as const;
+
 /** Which way a bloodline spotlight runs from the person who was clicked. */
 type BloodlineDirection = "up" | "down";
 
@@ -1027,19 +1039,6 @@ function Canvas({
     ownTree,
   ]);
 
-  // A card that turns into a leaf is a different piece of DOM with its handles
-  // in new elements, and the canvas has no way of knowing that on its own: it
-  // keeps the bounds it measured for the rectangle, stops considering the graph
-  // initialised, and every edge stays pinned to where a handle used to be.
-  // Telling it which cards changed shape puts all of that right.
-  const shapeShifted = React.useRef<Set<string>>(new Set());
-  React.useEffect(() => {
-    const lit = spotlight?.people ?? new Set<string>();
-    const changed = [...new Set([...shapeShifted.current, ...lit])];
-    shapeShifted.current = new Set(lit);
-    if (changed.length > 0) updateNodeInternals(changed);
-  }, [spotlight, updateNodeInternals]);
-
   /**
    * Pull the line clear of the tree it sits in.
    *
@@ -1361,6 +1360,27 @@ function Canvas({
   // it doesn't draw again when the rest of the tree changes (Step 87.1).
   const dataById = useKept(freshDataById, keepEntries);
 
+  // A card that turns into a leaf is a different piece of DOM with its handles
+  // in new elements, and the canvas has no way of knowing that on its own: it
+  // keeps the bounds it measured for the rectangle, stops considering the graph
+  // initialised, and every edge stays pinned to where a handle used to be.
+  // Telling it which cards changed shape puts all of that right — and only
+  // those: measuring a card forces a layout, and on My Family Tree, where
+  // everyone is a leaf already, a click changes nobody's shape.
+  const shapes = React.useRef<Map<string, string>>(new Map());
+  React.useEffect(() => {
+    const changed: string[] = [];
+    const next = new Map<string, string>();
+    for (const [id, data] of dataById) {
+      const shape = data.compressed ? "pill" : data.lineage ? "leaf" : "card";
+      next.set(id, shape);
+      const was = shapes.current.get(id);
+      if (was !== undefined && was !== shape) changed.push(id);
+    }
+    shapes.current = next;
+    if (changed.length > 0) updateNodeInternals(changed);
+  }, [dataById, updateNodeInternals]);
+
   const displayNodes = React.useMemo(
     () =>
       nodes.map((n) => {
@@ -1628,7 +1648,7 @@ function Canvas({
   // watches the store for the instance itself.
   const canvasReady = useStore((state: ReactFlowState) => !!state.panZoom);
   const frame = React.useCallback(
-    (spots: XY[], panelWidth: number, maxZoom: number, duration = 650) => {
+    (spots: XY[], panelWidth: number, maxZoom: number, instant = false) => {
       if (spots.length === 0 || !paneWidth || !paneHeight) return;
       const minX = Math.min(...spots.map((s) => s.x));
       const maxX = Math.max(...spots.map((s) => s.x)) + NODE_W;
@@ -1644,7 +1664,7 @@ function Canvas({
       void setCenter(
         (minX + maxX) / 2 + panelWidth / 2 / zoom,
         (minY + maxY) / 2,
-        { zoom, duration },
+        instant ? { zoom, duration: 0 } : { zoom, ...CAMERA },
       );
     },
     [paneWidth, paneHeight, setCenter],
@@ -1674,7 +1694,7 @@ function Canvas({
     if (selectedId) return;
     // Instant, not animated: the opening view has nothing to animate from, and
     // an animated camera move this early is dropped before it starts.
-    frame([...graph.layout.positions.values()], 0, 1, 0);
+    frame([...graph.layout.positions.values()], 0, 1, true);
   }, [
     canvasReady,
     paneWidth,
@@ -1711,11 +1731,9 @@ function Canvas({
     if (!framedKey || !spotlight) {
       if (!framedRef.current) return;
       framedRef.current = null;
-      // Back out to the whole tree, never magnified past life size — and on
-      // the same delay as the way in, for the same reason.
-      const spots = [...graph.layout.positions.values()];
-      const timer = setTimeout(() => frame(spots, 0, 1), 120);
-      return () => clearTimeout(timer);
+      // Back out to the whole tree, never magnified past life size.
+      frame([...graph.layout.positions.values()], 0, 1);
+      return;
     }
     if (framedRef.current === framedKey) return;
     framedRef.current = framedKey;
@@ -1733,17 +1751,14 @@ function Canvas({
           return spot ? [spot] : [];
         })
       : [];
-    // Aimed a beat after the cards have moved, not with them. Selecting a
-    // person changes every card's position and re-measures the ones that just
-    // became leaves; the canvas responds by re-applying its own transform,
-    // which cancels an animated camera move that is already in flight. Letting
-    // that settle first is the difference between the camera arriving and the
-    // camera never leaving.
+    // Aimed as the cards set off, and moving as they do (`CAMERA`). It once
+    // waited 120ms for the re-measure of cards turned into leaves, and so
+    // arrived last; with only those cards re-measured (above), a camera
+    // move in flight runs to the end without the wait.
     const alone = graph.layout.positions.get(spotlight.anchorId);
     const target = spots.length > 0 ? spots : alone ? [alone] : [];
     if (target.length === 0) return;
-    const timer = setTimeout(() => frame(target, panel, 1.15), 120);
-    return () => clearTimeout(timer);
+    frame(target, panel, 1.15);
   }, [
     canvasReady,
     recalled,

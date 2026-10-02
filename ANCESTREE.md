@@ -1753,6 +1753,29 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 100: switching people on the canvas without the lag** (no
+  migration). **Aalim asked for:** "the my family tree view UX is very
+  choppy. like switching from one node to another is so buffered", then
+  "do the tree canvas too". **Why it lagged:** three motions out of step.
+  The cards fade (300ms) and slide into their pulled-out places (560ms,
+  ease-out), but the camera waited 120ms, then eased in and out over 650ms
+  along React Flow's default "smooth" path, which zooms out and back in on
+  any long move; it arrived ~850ms after the click, last. Every click also
+  re-measured every lit card (`updateNodeInternals`, a forced layout), though
+  on My Family Tree nobody's shape ever changes. **Now** (`family-tree.tsx`,
+  both canvases): the camera sets off on the click, straight there
+  (`interpolate: "linear"`), on the cards' own 560ms ease-out quint
+  (`CAMERA`), opening a line, switching people and closing alike; only the
+  cards that change shape (card, leaf, pill) are re-measured. The 120ms wait
+  was there because a re-measure cancelled a camera move in flight; with
+  only the reshaped cards re-measured it doesn't: on a 76-person fixture the
+  camera ends on the same transform, to the pixel, with and without the
+  wait, at full and 4× slowed CPU, first click (cards turn into leaves),
+  person to person, Escape, and a `?person=` link. **Numbers** (real Chrome,
+  M1 Pro GPU): camera in place ~850ms (swooping) → ~270ms (straight), done
+  by ~570ms; with the CPU slowed 4× on My Family Tree, script per switch
+  529 → 317ms, click to first paint 264 → 184ms, longest frame 150 → 83ms.
+  Left alone: the ~50–100ms (4×) commit of all cards blurring or not.
 - **Step 99.9: a comment on a story can be edited** (migration
   `20261001280000_story_comments_editable`). **Aalim asked for:** "let the
   comments on a story be edited too". Each of the viewer's own comments has
