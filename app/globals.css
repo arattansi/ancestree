@@ -229,7 +229,8 @@
 }
 
 /* A node's details sheet — a person's or a companion's, marked
-   `data-docked-sheet` — sits on the right and leaves the page live, so the
+   `data-docked-sheet`, which puts `data-docked-sheet-open` on the root while
+   it's open (`useDockedSheet`; never a `:has()`, Step 101) — sits on the right and leaves the page live, so the
    header's buttons (tree, account, notifications) have to stay in reach
    while it's open. From `sm` up the sheet is 24rem wide, and from 44rem up
    the header lays itself out in the space to its left, its right padding
@@ -241,7 +242,7 @@
    SiteHeaderHeight keeps in `--site-header-height`. */
 @media (width >= 40rem) {
   /* The Toaster keeps its toasts left of the sheet (Step 70). */
-  :root:has([data-docked-sheet][data-open]) {
+  :root[data-docked-sheet-open] {
     --docked-sheet-width: 24rem;
   }
 }
@@ -250,7 +251,7 @@
   .site-header-bar {
     transition: padding-right 200ms ease-in-out;
   }
-  body:has([data-docked-sheet][data-open]) .site-header-bar {
+  :root[data-docked-sheet-open] .site-header-bar {
     grid-template-columns: auto minmax(0, 1fr) auto;
     padding-right: max(1rem, calc(25rem - max(0px, 50vw - 32rem)));
   }
@@ -272,7 +273,7 @@
     @slot;
   }
   @media (44rem <= width < 64rem) {
-    body:has([data-docked-sheet][data-open]) & {
+    :root[data-docked-sheet-open] & {
       @slot;
     }
   }

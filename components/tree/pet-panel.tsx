@@ -34,6 +34,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { toastError, useAction } from "@/components/use-action";
+import { useDockedSheet } from "@/components/use-docked-sheet";
 import { useFocusReturn } from "@/components/use-focus-return";
 import { usePhotoDraft } from "@/components/use-photo-draft";
 import { UNREACHABLE } from "@/lib/action-feedback";
@@ -218,6 +219,7 @@ function PetPanelImpl({
   onClose: () => void;
   onSelectPerson: (personId: string) => void;
 }) {
+  useDockedSheet(pet !== null);
   const [editing, setEditing] = React.useState(false);
   const [prevId, setPrevId] = React.useState(pet?.id);
 
@@ -311,7 +313,8 @@ function PetPanelImpl({
 
   return (
     // Docked like a person's panel: no scrim, and the page stays live, so the
-    // site header moves aside and its buttons stay in reach (globals.css). A
+    // site header moves aside and its buttons stay in reach (`useDockedSheet`,
+    // globals.css). A
     // click outside still closes it.
     <Sheet
       open={pet !== null}

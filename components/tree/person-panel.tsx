@@ -55,6 +55,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { toastError, useAction } from "@/components/use-action";
+import { useDockedSheet } from "@/components/use-docked-sheet";
 import { useFocusReturn } from "@/components/use-focus-return";
 import { INVITE_LIFETIME_DAYS } from "@/lib/limits";
 import {
@@ -391,6 +392,7 @@ function PersonPanelImpl({
   onClose: () => void;
 }) {
   const open = person !== null && !minimized;
+  useDockedSheet(open);
   // A handle each, so one running leaves the others alone: pressing Delete
   // entry no longer shows the invite as sending (Step 70). Claim and Delete
   // ask first, and their dialogs carry their own.
@@ -601,8 +603,8 @@ function PersonPanelImpl({
     // this person's own tree lit against the blurred rest of the family, and a
     // backdrop would blur the spotlight away along with everything else. It
     // stays live too, so clicking another relative moves the spotlight onto
-    // them rather than only dismissing the panel. `data-docked-sheet` moves
-    // the site header aside while it's open (globals.css).
+    // them rather than only dismissing the panel. `useDockedSheet` moves the
+    // site header aside while it's open (globals.css).
     <Sheet
       open={open}
       modal={false}

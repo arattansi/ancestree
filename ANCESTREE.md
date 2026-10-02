@@ -1753,6 +1753,31 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 101: a click no longer restyles the whole page** (no migration).
+  **Aalim asked for:** "fix the blur commit lag too", the cost Step 100
+  left of a click on the canvas. **Why it cost so much:** not the blur. A
+  trace with Chrome's invalidation tracking showed each click restyling
+  ~2,510 elements, the whole document, "affected by :has()" at the root:
+  `:root:has([data-docked-sheet][data-open])` (the toasts' offset) and the
+  header rules beside it (`body:has(…) .site-header-bar`, the
+  `header-compact` variant). `data-open` is on every open Base UI popup,
+  tooltip and collapsible, so the browser checked that `:has()` again each
+  time one appeared or toggled anywhere, and restyled from the root down.
+  **Now** `useDockedSheet(open)` (`components/use-docked-sheet.ts`, in
+  PersonPanel and PetPanel) puts `data-docked-sheet-open` on the root
+  while a sheet is open (a layout effect, counted), and globals.css reads
+  `:root[data-docked-sheet-open]`; the header moves aside exactly as before
+  (checked at 1440, 900 and 390px through open, switch, minimize, close:
+  same padding, columns, `--docked-sheet-width`, sheet top). It helps every
+  page with a sheet, and any popup opening on them. **Numbers** (76-person
+  /family fixture, real Chrome, CPU slowed 4×): the restyle after a click
+  29–47ms over ~2,510 elements → 4–9ms over ~82; style per switch 65 →
+  39ms; longest frame 83 → 50ms; click to first paint 184 → 120ms; a long
+  task in 1 click of 8 (was every click). Seen and left: the member mark is
+  an `<img>` of an SVG with a blur filter, laid out again at each zoom step
+  under every member's leaf; the minimap's cards and the lane labels are
+  restyled on each camera frame.
+
 - **Step 100: switching people on the canvas without the lag** (no
   migration). **Aalim asked for:** "the my family tree view UX is very
   choppy. like switching from one node to another is so buffered", then
