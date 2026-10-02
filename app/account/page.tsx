@@ -390,7 +390,7 @@ async function SettingsView({
                         variant="link"
                         className="relative tap-target h-auto border-0 p-0 text-xs font-normal text-muted-foreground underline hover:text-foreground"
                       >
-                        root console
+                        Root console
                       </TreeTarget>
                     ) : null}
                     <AccountTypeBadge role={t.role} />

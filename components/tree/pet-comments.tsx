@@ -164,7 +164,7 @@ export function PetComments({
                             : `Delete the comment from ${c.authorName}`
                         }
                       >
-                        delete
+                        Delete
                       </button>
                     }
                     title="Delete this comment?"

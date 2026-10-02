@@ -150,7 +150,7 @@ function ClearButton({ onClick }: { onClick: () => void }) {
       onClick={onClick}
       className="shrink-0 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
     >
-      clear
+      Clear
     </button>
   );
 }

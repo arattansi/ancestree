@@ -66,7 +66,7 @@ export function RelationshipPicker({
               setQuery("");
             }}
           >
-            change
+            Change
           </button>
         </div>
       ) : (

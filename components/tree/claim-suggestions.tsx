@@ -34,7 +34,7 @@ export function ClaimSuggestions({
           className="relative tap-target text-xs text-muted-foreground underline underline-offset-2"
           onClick={() => setDismissed(true)}
         >
-          dismiss
+          Dismiss
         </button>
       </div>
       <p className="mt-1 text-xs text-muted-foreground">

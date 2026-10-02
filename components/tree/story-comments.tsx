@@ -171,7 +171,7 @@ export function StoryComments({
             className="font-medium underline underline-offset-2"
             onClick={() => setVersion((v) => v + 1)}
           >
-            try again
+            Try again
           </button>
         </p>
       ) : items === null ? (
@@ -196,7 +196,7 @@ export function StoryComments({
                     aria-label="Edit your comment"
                     onClick={() => setEditing(c.id)}
                   >
-                    edit
+                    Edit
                   </button>
                 ) : null}
                 {c.mine || canTend ? (
@@ -213,7 +213,7 @@ export function StoryComments({
                             : `Delete the comment from ${c.saidBy}`
                         }
                       >
-                        delete
+                        Delete
                       </button>
                     }
                     title="Delete this comment?"

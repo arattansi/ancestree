@@ -232,7 +232,7 @@ function StoryCard({
               aria-expanded={expanded}
               onClick={() => setExpanded((v) => !v)}
             >
-              {expanded ? "show less" : "read more"}
+              {expanded ? "Show less" : "Read more"}
             </button>
           ) : null}
         </div>
@@ -426,7 +426,7 @@ export function EntryStories({
             className="font-medium underline underline-offset-2"
             onClick={() => invalidatePersonSheet(personId, ["stories"])}
           >
-            try again
+            Try again
           </button>
         </p>
       ) : items === null ? (

@@ -325,7 +325,7 @@ export function AlbumDialog({
               }}
             >
               <Plus aria-hidden />
-              date taken
+              Date taken
             </Button>
           )}
           <div className="flex flex-col gap-2">

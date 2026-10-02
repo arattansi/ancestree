@@ -134,7 +134,7 @@ export function SignInCodeForm({
             onClick={onChangeEmail}
             className="underline underline-offset-4 hover:text-foreground"
           >
-            use another email
+            Use another email
           </button>
         ) : null}
       </div>
@@ -150,7 +150,7 @@ function ResendButton() {
       disabled={pending}
       className="underline underline-offset-4 hover:text-foreground disabled:no-underline disabled:opacity-60"
     >
-      {pending ? "sending…" : "send a new code"}
+      {pending ? "Sending…" : "Send a new code"}
     </button>
   );
 }

@@ -443,7 +443,7 @@ function PetPanelImpl({
                               }
                               disabled={primary.pending}
                             >
-                              make primary
+                              Make primary
                             </button>
                           ) : null}
                         </li>

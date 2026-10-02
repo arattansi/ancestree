@@ -1753,6 +1753,24 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 102 follow-up: only buttons are lower-case** (no migration).
+  **Aalim said:** "only buttons should be lower case". The sweep had also
+  lower-cased controls drawn as links (an underlined `<button>`, or
+  `variant="link"`), which read as text, not buttons. **Now** those are
+  sentence case again, as they were: **Edit**, **Delete** and **Try
+  again** under comments, **Read more**, **+ Middle name**, **Remove**,
+  **Change**, **Use another email** / **Send a new code** on sign-in,
+  **Date taken**, **Make primary**, the account page's **Root console**
+  link and the rest (32 places), plus the place search's **Add “…”**
+  option, the dashboard's **Show the numbers** disclosure and the theme
+  radios **Light** / **Dark** / **System**. A dialog such a link opens
+  keeps its lower-case buttons. Everything drawn as a button, filled,
+  outlined, tinted or ghost (the bordered **anyone** / **living** /
+  **deceased** too), stays lower-case. `docs/design-system.md` says
+  "only buttons: what's drawn as one", and `lib/button-case.test.ts`
+  passes over link-drawn controls (`variant="link"` or an underlined
+  class).
+
 - **Step 104: less work on each frame of a camera move** (no migration).
   **Aalim asked for:** "fix those three too and push", the per-frame costs
   Step 101 left. **The minimap** is our own now

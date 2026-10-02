@@ -370,7 +370,7 @@ export function EntryAlbum({
             className="font-medium underline underline-offset-2"
             onClick={() => invalidatePersonSheet(personId, ["album"])}
           >
-            try again
+            Try again
           </button>
         </p>
       ) : items === null ? (

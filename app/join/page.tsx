@@ -160,10 +160,10 @@ function NotYetMember({
           ) : null}
           <SubmitButton
             variant="link"
-            pendingLabel="signing out…"
+            pendingLabel="Signing out…"
             className="h-auto p-0 align-baseline text-sm font-normal text-inherit underline"
           >
-            use another email
+            Use another email
           </SubmitButton>
         </form>
         <BackHome />

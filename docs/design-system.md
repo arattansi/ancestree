@@ -22,8 +22,9 @@ don't: they're all lower-case (below).
 
 ### Buttons: lower-case
 
-Every button is lower-case (Step 102; navigation only since Step 30.4):
-the header's **tree**, **connections**, **account**, **sign in** and
+Every button is lower-case (Step 102; navigation only since Step 30.4),
+and only buttons: what's drawn as one, filled, outlined, tinted or ghost.
+That's the header's **tree**, **connections**, **account**, **sign in** and
 **sign out**; the account page's views **profile**, **root**,
 **dashboard**, **settings**; the home page's **view your tree**,
 **request access**, **start a tree (beta)**; and every button that does
@@ -34,12 +35,9 @@ alike:
 - what a button says while it works: **saving…**, **deleting…**;
 - a dialog's buttons, **cancel** and its confirm (**delete**, **yes,
   merge**), though its title stays Title Case or a question;
-- text buttons and links drawn as buttons: **edit**, **try again**,
-  **read more**, **+ middle name**, the sheet header's **edit**, **fill
-  in** and **suggest**;
-- a toast's action (**undo**, **copy**) and a choice of a few
-  (**light** / **dark** / **system**, **anyone** / **living** /
-  **deceased**);
+- the sheet header's **edit**, **fill in** and **suggest** tags, and a
+  row of bordered choices (**anyone** / **living** / **deceased**);
+- a toast's action (**undo**, **copy**);
 - an email's button: **open my family tree**, **review the request**,
   **join ancestree**.
 
@@ -51,16 +49,22 @@ don't: the switcher says **my family tree** and **your trees**, a Root
 confirms **make a root**, and a notification offers **view in root
 console**.
 
-Not buttons, so not lower-case: a section heading that opens and closes
-(**Getting Started**, **Family**) is a title; a card, a picker's row or a
-photo that is pressed shows a person's details as anywhere else; a
-menu's items, a select's value, a badge, a field's label and an
-icon-only button's name (**Report a problem**) are sentence case.
+Not buttons, so sentence case: anything drawn as a link, even a
+`<button>` or `variant="link"` (**Edit**, **Delete**, **Try again**,
+**Read more**, **+ Middle name**, **Use another email**, the account
+page's **Root console**), though the dialog it opens has lower-case
+buttons; a section heading that opens and closes (**Getting Started**,
+**Family**, **Show the numbers**), which is a title; a card, a picker's
+row, a search's options or a photo that is pressed; radio choices
+(**Light** / **Dark** / **System**); a menu's items, a select's value, a
+badge, a field's label and an icon-only button's name (**Report a
+problem**).
 
 Write the words lower-case in the source rather than with CSS
 (`text-transform`), so a screen reader, a copy and a search see what the
 button shows. `lib/button-case.test.ts` fails on a capital in any
-button's words; a new product name goes in its list.
+button's words, and passes over what's drawn as a link (`variant="link"`
+or an underlined class); a new product name goes in its list.
 
 ### Root, never admin
 
@@ -317,7 +321,7 @@ The first is the dashboard's members active each week (Step 56,
   baseline. Gridlines are solid hairlines in `--border`, a whole round step
   apart (`lib/dashboard.ts#countAxis`), labelled on the left.
 - Only the newest column carries its number. Hovering or focusing a column
-  shows its week and count, and a table under the chart (**show the
+  shows its week and count, and a table under the chart (**Show the
   numbers**) has every value, so nothing needs a hover.
 - On a phone, labels under the columns thin to every other one, counted
   back from the newest; each stays centred on its column.

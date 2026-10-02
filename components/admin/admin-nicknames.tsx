@@ -158,7 +158,7 @@ export function AdminNicknames({ groups }: { groups: NicknameGroup[] }) {
                     onConfirm: () => removeNicknameGroup(g.canonical),
                   }}
                 >
-                  remove group
+                  Remove group
                 </ConfirmButton>
               </li>
             ))}

@@ -163,7 +163,7 @@ export function WelcomeDetailsForm({
                   className="shrink-0 self-start px-0"
                   onClick={() => setShowAll(true)}
                 >
-                  change
+                  Change
                 </Button>
               )
             }

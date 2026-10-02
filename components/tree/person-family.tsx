@@ -121,8 +121,8 @@ function SpouseRow({
           }}
         >
           {savedMarriage || relation.isDivorced
-            ? "edit marriage / divorce"
-            : "add marriage / divorce dates"}
+            ? "Edit marriage / divorce"
+            : "Add marriage / divorce dates"}
         </button>
       ) : null}
 

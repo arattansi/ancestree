@@ -145,7 +145,7 @@ export function PhotoPicker({
                   returnFocus(() => firstFocusable(editor.current));
                 }}
               >
-                reposition
+                Reposition
               </button>
             ) : null}
             {value ? (
@@ -160,7 +160,7 @@ export function PhotoPicker({
                   returnFocus(() => fileInput.current);
                 }}
               >
-                remove selected photo
+                Remove selected photo
               </button>
             ) : null}
           </div>

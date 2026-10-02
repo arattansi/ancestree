@@ -243,7 +243,7 @@ export function EditConnections({
                     onConfirm: () => removeRelationship(c.id),
                   }}
                 >
-                  remove
+                  Remove
                 </ConfirmButton>
               ) : null}
             </li>

@@ -7,9 +7,9 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 const OPTIONS = [
-  { value: "light", label: "light", icon: Sun },
-  { value: "dark", label: "dark", icon: Moon },
-  { value: "system", label: "system", icon: Monitor },
+  { value: "light", label: "Light", icon: Sun },
+  { value: "dark", label: "Dark", icon: Moon },
+  { value: "system", label: "System", icon: Monitor },
 ] as const;
 
 /**

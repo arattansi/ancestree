@@ -112,7 +112,7 @@ export function OnboardingSelfFlow({
             className="self-start text-sm text-muted-foreground underline underline-offset-2"
             onClick={() => setStep(candidates.length > 0 ? "results" : "name")}
           >
-            back to the search
+            Back to the search
           </button>
         )}
       </div>

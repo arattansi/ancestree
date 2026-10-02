@@ -7,11 +7,12 @@ import { describe, expect, it } from "vitest";
 /*
  * Every button is lower-case (Step 102, docs/design-system.md "Buttons:
  * lower-case"): its words, what it says while it works, a dialog's confirm
- * and cancel, a toast's action and an email's call to action. Names keep
- * their capitals, so a person's or a tree's comes in as `{name}` and other
- * products' are listed below. Section headings that open and close are
- * titles, and cards and pickers that are buttons show names and details:
- * those files are left out.
+ * and cancel, a toast's action and an email's call to action. Only what's
+ * drawn as a button: a control drawn as a link (`variant="link"`, or
+ * underlined) is sentence case. Names keep their capitals, so a person's
+ * or a tree's comes in as `{name}` and other products' are listed below.
+ * Section headings that open and close are titles, and cards and pickers
+ * that are buttons show names and details: those files are left out.
  */
 
 const ROOT = path.resolve(__dirname, "..");
@@ -27,6 +28,7 @@ const NAMES = [
   " · Your entry", // the caption on a person's photo, which opens it
   "Someone on the tree", // stands in for a person's name
   "Visiting", // a badge in the tree switcher
+  "Add “", // a place search's last option, drawn as one
 ];
 
 /** Files whose buttons hold titles or entries, not a button's own words. */
@@ -100,7 +102,21 @@ function capitalised(file: string): string[] {
     return null;
   };
 
+  // A control drawn as a link isn't a button, whatever element it is.
+  const drawnAsLink = (opening: ts.JsxOpeningLikeElement) =>
+    opening.attributes.properties.some(
+      (a) =>
+        ts.isJsxAttribute(a) &&
+        ((a.name.getText() === "variant" && a.initializer?.getText() === '"link"') ||
+          (a.name.getText() === "className" && /\bunderline\b/.test(a.initializer?.getText() ?? ""))),
+    );
+
   const visit = (node: ts.Node) => {
+    if (ts.isJsxElement(node) && drawnAsLink(node.openingElement)) {
+      // Its words are sentence case; a dialog it opens still has buttons.
+      node.openingElement.attributes.properties.forEach((a) => ts.forEachChild(a, visit));
+      return;
+    }
     if (ts.isJsxElement(node)) {
       const opening = node.openingElement;
       const rendersButton = opening.attributes.properties.some(
@@ -178,11 +194,14 @@ describe("buttons are lower-case (Step 102)", () => {
           `toast("Saved.", { action: { label: "Undo" } });`,
           `send({ cta: { label: "Open My Family Tree", url } });`,
           `<button><span className="sr-only">Close</span></button>;`,
+          `<Button variant="link">Read more</Button>;`,
+          `<button className="text-xs underline">Try again</button>;`,
+          `<ConfirmButton variant="link" confirm={{ confirmLabel: "Remove" }}>Remove</ConfirmButton>;`,
           `function Form({ submitLabel = "Email me a code" }) {}`,
         ].join("\n"),
       );
       const found = capitalised(path.relative(ROOT, file)).map((f) => f.split("  ")[1]);
-      expect(found).toEqual(["Save", "Delete", "Undo", "Open My Family Tree", "Email me a code"]);
+      expect(found).toEqual(["Save", "Delete", "Undo", "Open My Family Tree", "Remove", "Email me a code"]);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }

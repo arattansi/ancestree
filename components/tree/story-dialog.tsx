@@ -270,7 +270,7 @@ export function StoryDialog({
               }}
             >
               <Plus aria-hidden />
-              date told
+              Date told
             </Button>
           )}
           <CreditField
