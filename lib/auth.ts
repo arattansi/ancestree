@@ -50,28 +50,28 @@ export const getUser = cache(async () => {
  * per render.
  *
  * A suspended account (Step 103.4) is signed out here and now: its token
- * still checks out locally until it lapses, so the same query asks
- * `suspended` (a computed field, true only for the caller's own banned
- * account), and every page (the header reads this), action and API route
- * sends them to be signed out.
+ * still checks out locally until it lapses, but the Data API refuses every
+ * request it makes (`public.refuse_suspended`, PostgREST's pre-request),
+ * this one included, so every page (the header reads this), action and API
+ * route sends it to be signed out.
  */
 export const getProfile = cache(async (): Promise<Profile | null> => {
   const user = await getSessionUser();
   if (!user) return null;
 
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("profiles")
-    // The types don't follow a computed field, so it's named here.
-    .select("*, suspended")
+    .select("*")
     .eq("auth_user_id", user.id)
-    .maybeSingle<Profile & { suspended: boolean | null }>();
-  if (!data) return null;
+    .maybeSingle();
+  if (error?.message === ACCOUNT_SUSPENDED) redirect(SUSPENDED_HREF);
 
-  const { suspended, ...profile } = data;
-  if (suspended) redirect(SUSPENDED_HREF);
-  return profile;
+  return data ?? null;
 });
+
+/** What the Data API raises for a suspended account (Step 103.4). */
+const ACCOUNT_SUSPENDED = "ACCOUNT_SUSPENDED";
 
 /**
  * Require a member profile for a route. Redirects unauthenticated users to

@@ -3136,6 +3136,7 @@ export type Database = {
         Args: { p_display_name?: string; p_token: string }
         Returns: Json
       }
+      refuse_suspended: { Args: never; Returns: undefined }
       remove_tree_member: {
         Args: { p_tree: string; p_user_id: string }
         Returns: boolean
@@ -3299,10 +3300,6 @@ export type Database = {
           p_values: Json
         }
         Returns: string[]
-      }
-      suspended: {
-        Args: { p: Database["public"]["Tables"]["profiles"]["Row"] }
-        Returns: boolean
       }
       tree_carried: {
         Args: { p_tree: string }

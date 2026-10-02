@@ -1880,13 +1880,22 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   token refresh and `/user`, `user_banned`, and the code box and send
   form say "This account is suspended."). A session already open ends
   at once (Aalim: "make suspend sign them out immediately"; migration
-  `20261002090000_suspended_signs_out`): pages check the token locally
-  (Step 61), so `getProfile` — which the header, every action and every
-  API route read — asks `profiles.suspended`, a computed field true only
-  for the caller's own banned account, on the query it already makes,
-  and sends a suspended account to `/auth/suspended`, a route that signs
-  this browser out and lands on `/join?error=suspended` ("This account is
-  suspended."). **delete** asks first ("This cannot be undone." on
+  `20261002090000_suspended_signs_out`, then `20261002100000_suspended_refused`
+  and `20261002110000_drop_suspended_field`): pages check the token
+  locally (Step 61), but the database itself refuses it (Aalim: "close
+  the direct-database gap too") — PostgREST's pre-request
+  (`pgrst.db_pre_request` on `authenticator`) runs
+  `public.refuse_suspended()`, which raises `ACCOUNT_SUSPENDED` (403) for
+  a banned caller on every table, RPC and GraphQL call, and restrictive
+  `suspended_refused` policies on `storage.objects` and
+  `realtime.messages` stop uploads, downloads, signed URLs and joining a
+  tree's room (`private.is_suspended()`). `getProfile` — which the header,
+  every action and every API route read — takes that refusal as the sign
+  and sends the account to `/auth/suspended`, a route that signs this
+  browser out and lands on `/join?error=suspended` ("This account is
+  suspended."). Left: a file the token already downloaded can come back
+  from Storage's CDN cache for a short while, and a room already joined
+  stays open until the token lapses. **delete** asks first ("This cannot be undone." on
   its own line), and where it's a tree's only Root, who takes over (the
   account page's `SuccessorPickers`, now shared; a tree with nobody else
   says "Delete the tree first."); it runs the account page's own
