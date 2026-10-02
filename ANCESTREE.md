@@ -1823,7 +1823,12 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   approves.". Three help lines inside cards went too (Aalim, same day):
   the home-tree rules under **move home**, the explanation under
   **Relatives can ask me to invite them** (the privacy notice still says
-  both) and the Nicknames form's "Names are stored lowercase…". The
+  both) and the Nicknames form's "Names are stored lowercase…"; then the
+  rest on the account page: "Hide my entry from visitors" is the whole
+  label, a Leaf's "Adds relatives" says "On your own line", a relative's
+  ask keeps its dates and match list without the advice after them, and
+  the invite forms (settings, the Root console, a relative's ask) lose
+  "They'll join as a Leaf" (the sent toast still says it). The
   console's **Settings** group moved to the account
   page's **settings**: a card per tree they run, named for it, with the
   rename form, **Who Else Can View** and **Data & Privacy** (export,

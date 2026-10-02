@@ -12,7 +12,6 @@ import {
 import type { DirectInviteResult } from "@/app/actions/invites";
 import { CandidateRow } from "@/components/candidate-row";
 import { FormError } from "@/components/form-error";
-import { JoinsAsNote } from "@/components/joins-as-note";
 import { PendingButton } from "@/components/pending-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -231,9 +230,7 @@ function RelayInviteForm({
           {/* Unanswered, it lapses after 30 days (Step 41.5). The same
               day on the server and in the browser (Step 77.4). */}
           Asked {shortDate(relay.createdAt)}, and waits until{" "}
-          {shortDate(relayLapsesAt(relay.createdAt))}
-          . Their details are as they typed them, so put anything right before
-          you send.
+          {shortDate(relayLapsesAt(relay.createdAt))}.
         </p>
       </div>
 
@@ -313,8 +310,7 @@ function RelayInviteForm({
             <span className="font-medium text-foreground">
               {tree?.name ?? "the tree"}
             </span>
-            . Inviting them as an entry hands it to them: accepting claims it
-            and opens the tree on it.
+            .
           </p>
           <ul className="flex flex-col gap-2">
             {matches.map((c) => (
@@ -334,8 +330,6 @@ function RelayInviteForm({
           </ul>
         </div>
       ) : null}
-
-      <JoinsAsNote />
 
       <FormError>{action.error}</FormError>
       <div className="flex flex-wrap gap-2">

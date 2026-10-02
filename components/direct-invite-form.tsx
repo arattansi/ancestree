@@ -6,7 +6,6 @@ import { toast } from "sonner";
 
 import { sendDirectInvites } from "@/app/actions/invites";
 import { FormError } from "@/components/form-error";
-import { JoinsAsNote } from "@/components/joins-as-note";
 import { PendingButton } from "@/components/pending-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -161,8 +160,6 @@ export function DirectInviteForm({
           </div>
         ))}
       </div>
-
-      <JoinsAsNote />
 
       <FormError>{action.error}</FormError>
       <div className="flex gap-2">

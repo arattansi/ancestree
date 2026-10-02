@@ -99,8 +99,7 @@ export function HomeTreePicker({
           }
         />
         <Label htmlFor="hide-visitors" className="font-normal leading-snug">
-          Hide my entry from visitors — people viewing a tree I&rsquo;m on from
-          another tree see a blurred card with no name or details.
+          Hide my entry from visitors
         </Label>
       </div>
     </div>

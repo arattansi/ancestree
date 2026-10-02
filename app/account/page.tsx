@@ -398,10 +398,7 @@ async function SettingsView({
                   {t.type.addRelatives === "line" ? (
                     <>
                       <dt>Adds relatives</dt>
-                      <dd className="text-foreground">
-                        On your own line. A Root can make you a Branch, to look
-                        after more of the family.
-                      </dd>
+                      <dd className="text-foreground">On your own line</dd>
                     </>
                   ) : null}
                   {t.type.entries === "branch" ? (
