@@ -116,8 +116,8 @@ export function renderEmail(input: {
  * send, a claim invite, a founder invite. Only the body paragraph differs.
  */
 export function renderInviteEmail(input: {
-  /** Already HTML-escaped. */
-  firstName: string;
+  /** Already HTML-escaped; none for a child's placeholder (Step 98.3). */
+  firstName?: string;
   /** Pre-built HTML for the paragraph under the greeting — caller escapes any interpolated names. */
   bodyHtml: string;
   /** Our own https://…/join/<token> URL — never user-supplied text, safe to interpolate raw. */
@@ -126,7 +126,9 @@ export function renderInviteEmail(input: {
   return renderEmail({
     title: "You&rsquo;re invited to ancestree",
     preheader: "You&rsquo;re invited to help build the family tree on ancestree.",
-    heading: `You&rsquo;re invited, ${input.firstName}`,
+    heading: input.firstName
+      ? `You&rsquo;re invited, ${input.firstName}`
+      : "You&rsquo;re invited",
     bodyHtml: input.bodyHtml,
     cta: { label: "Join ancestree", url: input.url },
     footnoteHtml: `Didn&rsquo;t expect this? You can ignore this email &mdash;

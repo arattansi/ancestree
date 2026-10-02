@@ -18,10 +18,31 @@ export function claimInviteEmail(input: {
   entryName: string;
   inviterName: string;
   url: string;
+  /**
+   * The entry is a child's placeholder (Step 98.3): it has no name of its
+   * own to greet them by, only "Second Child", and it stays hidden from the
+   * family until their parent approves, so the email says that instead.
+   */
+  placeholder?: boolean;
 }): { subject: string; html: string } {
   const firstName = escapeHtml(input.firstName);
   const entryName = escapeHtml(input.entryName);
   const inviterName = escapeHtml(input.inviterName);
+
+  if (input.placeholder) {
+    return {
+      subject: INVITE_EMAIL_SUBJECT,
+      html: renderInviteEmail({
+        bodyHtml: `${inviterName} has kept a place for you on your
+                  family&rsquo;s tree on ancestree. The link below signs you
+                  straight in and makes it yours. Your details are hidden
+                  from the family until your parent approves. It&rsquo;s
+                  yours alone, so please don&rsquo;t forward it. It works once
+                  and expires in ${INVITE_LIFETIME_DAYS} days.`,
+        url: input.url,
+      }),
+    };
+  }
 
   const html = renderInviteEmail({
     firstName,

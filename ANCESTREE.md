@@ -1753,6 +1753,30 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 98.3, follow-up: the child's invite email and "18 or older?" first**
+  (no migration). **Aalim asked for:** "fix the email greeting and ask 18
+  first", two findings from tracing the journey map (J12, J14). **The
+  email:** a claim invite to a placeholder greeted the child as "Second
+  Child" and said there was an entry for Second Child. Now it says
+  "You're invited", "{Inviter} has kept a place for you on your family's
+  tree on ancestree. The link below signs you straight in and makes it
+  yours. Your details are hidden from the family until your parent
+  approves." (`claimInviteEmail` `placeholder`, sent by `mintClaimInvite`
+  when the entry is one; `renderInviteEmail` greets nobody by name when
+  given none). **The form:** the person being added is asked "Is this
+  person 18 or older?" before their names, not below the connection, once
+  the connection makes them someone's child or sibling; a No hides the
+  names, the invite box and Add more details, and shows the refusal with
+  **Add a placeholder instead** right there, so nothing is typed for
+  nothing. Someone added in between is still asked lower down, beside the
+  chain. J12 goes from 4 taps and 3 fields to 4 and 1 (the parent's email).
+  **Checked:** tsc, lint, 1,769 tests (+2 for the email); headless on a
+  phone-sized browser as a throwaway Root (question above the names; No:
+  names gone, refusal + placeholder button, Add relative off, the
+  placeholder made; Yes: names back and the question names them; an
+  in-between person asked below); the email rendered from the template;
+  throwaways deleted.
+
 - **Step 99.7: a story's text can be edited too** (migrations
   `20261001250000_story_text_editable`, before the deploy, and
   `20261001260000_drop_set_story_details`, after it). **Aalim asked for:**

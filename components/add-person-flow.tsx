@@ -359,7 +359,9 @@ export function AddPersonFlow({
     ),
     nameOf: askedName,
   });
-  const adultUnanswered = askedAdult.some((i) => adultAnswerOf(i) === undefined);
+  const adultUnanswered = askedAdult.some(
+    (i) => adultAnswerOf(i) === undefined,
+  );
   // Refused for being under 18: a Root or a Branch may hold their place
   // under their parent instead (Step 98.2), when that parent is on the tree.
   const refusedIndex = underAge
@@ -369,6 +371,10 @@ export function AddPersonFlow({
           ageFromBirth(watchedPeople[i]?.date_of_birth) === "minor",
       )
     : undefined;
+  // The person being added is asked before their names (Step 98.3): a No
+  // there means nothing to type, only a place to hold.
+  const primaryAsked = askedAdult.includes(0);
+  const primaryRefused = primaryAsked && adultAnswerOf(0) === false;
   const placeholderFor =
     canAddPlaceholder && refusedIndex !== undefined
       ? placeholderParents({
@@ -547,25 +553,27 @@ export function AddPersonFlow({
     // Looking for implied connections, saving and landing are one run: the
     // button is busy all the way, and a failure anywhere, the server out of
     // reach included, is said by it.
-    action.run(
-      "save",
-      (): Promise<SaveOutcome> => save(values, edges, null),
-      {
-        onSuccess: ({ askable, askAdult, primaryId }) => {
-          if (askAdult) {
-            setLineAsk({ ask: askAdult, refused: false, values, edges, resolved: null });
-            return;
-          }
-          if (askable) {
-            // Asked first; the dialog's answers save it.
-            setSuggestions(askable);
-            setPendingSave({ values, edges });
-            return;
-          }
-          land(primaryId);
-        },
+    action.run("save", (): Promise<SaveOutcome> => save(values, edges, null), {
+      onSuccess: ({ askable, askAdult, primaryId }) => {
+        if (askAdult) {
+          setLineAsk({
+            ask: askAdult,
+            refused: false,
+            values,
+            edges,
+            resolved: null,
+          });
+          return;
+        }
+        if (askable) {
+          // Asked first; the dialog's answers save it.
+          setSuggestions(askable);
+          setPendingSave({ values, edges });
+          return;
+        }
+        land(primaryId);
       },
-    );
+    });
   });
 
   function onResolve(resolutions: SuggestionResolution[]) {
@@ -589,7 +597,13 @@ export function AddPersonFlow({
         if (askAdult) {
           // Asked under the form, with the dialog's answers kept for the
           // save it sends again.
-          setLineAsk({ ask: askAdult, refused: false, values, edges, resolved });
+          setLineAsk({
+            ask: askAdult,
+            refused: false,
+            values,
+            edges,
+            resolved,
+          });
           return;
         }
         land(primaryId);
@@ -611,7 +625,13 @@ export function AddPersonFlow({
     action.run("save", () => save(values, edges, resolved, yesIds), {
       onSuccess: ({ askAdult, primaryId }) => {
         if (askAdult) {
-          setLineAsk({ ask: askAdult, refused: false, values, edges, resolved });
+          setLineAsk({
+            ask: askAdult,
+            refused: false,
+            values,
+            edges,
+            resolved,
+          });
           return;
         }
         land(primaryId);
@@ -627,75 +647,113 @@ export function AddPersonFlow({
     />
   );
 
+  const adultQuestion = (i: number) => {
+    const fieldId = people.fields[i]?.id ?? String(i);
+    return (
+      <AdultQuestion
+        key={fieldId}
+        name={askedName(i)}
+        value={adultAnswerOf(i)}
+        disabled={action.pending}
+        onChange={(adult) =>
+          setAdultAnswers((prev) => new Map(prev).set(fieldId, adult))
+        }
+      />
+    );
+  };
+  // Under 18, and who may hold their place instead (Step 98.2).
+  const refusal = underAge ? (
+    <>
+      <p role="alert" className="text-sm font-medium text-destructive">
+        {underAge}
+      </p>
+      {placeholderFor.length > 0 ? (
+        <AddPlaceholderButton
+          treeId={treeId}
+          parents={placeholderFor}
+          nameOf={(id) =>
+            members.find((m) => m.id === id)?.label ?? "their parent"
+          }
+          disabled={action.pending}
+        />
+      ) : null}
+    </>
+  ) : null;
+
   return (
     <Form {...form}>
-      <form
-        onSubmit={onSubmit}
-        className="flex flex-col gap-8"
-        noValidate
-      >
+      <form onSubmit={onSubmit} className="flex flex-col gap-8" noValidate>
+        {primaryAsked ? (
+          <div className="flex flex-col gap-3">
+            {adultQuestion(0)}
+            {refusedIndex === 0 ? refusal : null}
+          </div>
+        ) : null}
+
         {/* No heading over the names and no line explaining the form: the
             labels say it (Step 58). */}
-        <section className="flex flex-col gap-6">
-          {compact ? (
-            <>
-              <PersonNameFields control={form.control} prefix="people.0" />
-              {/* Up front, since it decides whether to ask for an invite. */}
-              <PersonDiedField
-                control={form.control}
-                prefix="people.0"
-                idPrefix="primary"
-              />
-            </>
-          ) : (
-            <>
-              <PersonFields
-                control={form.control}
-                isAdmin={isAdmin}
-                // Lineage describes the link to a parent; the first person on
-                // an empty tree has none to describe (Step 29).
-                lineage={members.length > 0 ? undefined : false}
-                self={mode === "self"}
-                prefix="people.0"
-                idPrefix="primary"
-              />
-              {photoField}
-            </>
-          )}
+        {primaryRefused ? null : (
+          <section className="flex flex-col gap-6">
+            {compact ? (
+              <>
+                <PersonNameFields control={form.control} prefix="people.0" />
+                {/* Up front, since it decides whether to ask for an invite. */}
+                <PersonDiedField
+                  control={form.control}
+                  prefix="people.0"
+                  idPrefix="primary"
+                />
+              </>
+            ) : (
+              <>
+                <PersonFields
+                  control={form.control}
+                  isAdmin={isAdmin}
+                  // Lineage describes the link to a parent; the first person on
+                  // an empty tree has none to describe (Step 29).
+                  lineage={members.length > 0 ? undefined : false}
+                  self={mode === "self"}
+                  prefix="people.0"
+                  idPrefix="primary"
+                />
+                {photoField}
+              </>
+            )}
 
-          {/* Nobody can be invited to claim a deceased person's entry
+            {/* Nobody can be invited to claim a deceased person's entry
               (`private.can_invite_to_claim`), so the question goes with them. */}
-          {asksInvite && !primaryDeceased ? (
-            <div className="flex flex-col gap-3">
-              <FormField
-                control={form.control}
-                name="inviteEmail"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Invite them by email</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="email"
-                        inputMode="email"
-                        // Not "email": that would fill in the member's own.
-                        autoComplete="off"
-                        placeholder="them@example.com"
-                        {...field}
-                        value={field.value ?? ""}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Optional. We&rsquo;ll email them a link to join and take
-                      over this entry.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              {invitesOnSave ? <JoinsAsNote /> : null}
-            </div>
-          ) : null}
-        </section>
+            {asksInvite && !primaryDeceased ? (
+              <div className="flex flex-col gap-3">
+                <FormField
+                  control={form.control}
+                  name="inviteEmail"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Invite them by email</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="email"
+                          inputMode="email"
+                          // Not "email": that would fill in the member's own.
+                          autoComplete="off"
+                          placeholder="them@example.com"
+                          {...field}
+                          value={field.value ?? ""}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Optional. We&rsquo;ll email them a link to join and take
+                        over this entry.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                {invitesOnSave ? <JoinsAsNote /> : null}
+              </div>
+            ) : null}
+          </section>
+        )}
 
         {/* Nobody on the tree yet — a founder starting it — means nobody to
             connect to, so there's nothing to ask (Step 29). */}
@@ -847,7 +905,9 @@ export function AddPersonFlow({
                                   // The one before is the last now, with
                                   // the Remove.
                                   focusAfterRemove(
-                                    j > 1 ? `intermediate-${j - 1}-remove` : null,
+                                    j > 1
+                                      ? `intermediate-${j - 1}-remove`
+                                      : null,
                                     addInBetweenButton,
                                   );
                                 }}
@@ -890,7 +950,10 @@ export function AddPersonFlow({
                               const on = c === true;
                               setAddingMore(on);
                               if (on && extraLinks.fields.length === 0) {
-                                extraLinks.append({ targetId: "", kind: "child" });
+                                extraLinks.append({
+                                  targetId: "",
+                                  kind: "child",
+                                });
                               }
                               if (!on) extraLinks.replace([]);
                             }}
@@ -940,7 +1003,10 @@ export function AddPersonFlow({
                                       form.setValue(
                                         `extraLinks.${i}.kind`,
                                         v as RelationshipKind,
-                                        { shouldDirty: true, shouldValidate: true },
+                                        {
+                                          shouldDirty: true,
+                                          shouldValidate: true,
+                                        },
                                       )
                                     }
                                   >
@@ -960,17 +1026,22 @@ export function AddPersonFlow({
                                   members={members}
                                   value={watchedExtra[i]?.targetId ?? ""}
                                   onChange={(id) =>
-                                    form.setValue(`extraLinks.${i}.targetId`, id, {
-                                      shouldDirty: true,
-                                      shouldValidate: true,
-                                    })
+                                    form.setValue(
+                                      `extraLinks.${i}.targetId`,
+                                      id,
+                                      {
+                                        shouldDirty: true,
+                                        shouldValidate: true,
+                                      },
+                                    )
                                   }
                                 />
-                                {form.formState.errors.extraLinks?.[i]?.targetId ? (
+                                {form.formState.errors.extraLinks?.[i]
+                                  ?.targetId ? (
                                   <p className="text-xs font-medium text-destructive">
                                     {
-                                      form.formState.errors.extraLinks[i]?.targetId
-                                        ?.message
+                                      form.formState.errors.extraLinks[i]
+                                        ?.targetId?.message
                                     }
                                   </p>
                                 ) : null}
@@ -979,13 +1050,17 @@ export function AddPersonFlow({
                                     idBase={`extra-${i}`}
                                     partners={
                                       members.find(
-                                        (m) => m.id === watchedExtra[i]?.targetId,
+                                        (m) =>
+                                          m.id === watchedExtra[i]?.targetId,
                                       )?.partners ?? []
                                     }
-                                    chosen={watchedExtra[i]?.coParentIds ?? null}
+                                    chosen={
+                                      watchedExtra[i]?.coParentIds ?? null
+                                    }
                                     parentLabel={
                                       members.find(
-                                        (m) => m.id === watchedExtra[i]?.targetId,
+                                        (m) =>
+                                          m.id === watchedExtra[i]?.targetId,
                                       )?.label
                                     }
                                     onChange={(ids) =>
@@ -1010,7 +1085,9 @@ export function AddPersonFlow({
                                           ?.divorce_date?.message,
                                     }}
                                     onPatch={(patch) => {
-                                      for (const [k, v] of Object.entries(patch)) {
+                                      for (const [k, v] of Object.entries(
+                                        patch,
+                                      )) {
                                         form.setValue(
                                           `extraLinks.${i}.${k}` as `extraLinks.${number}.marriage_date`,
                                           v as never,
@@ -1045,41 +1122,10 @@ export function AddPersonFlow({
                       </div>
                     ) : null}
 
-                    {askedAdult.map((i) => {
-                      const fieldId = people.fields[i]?.id ?? String(i);
-                      return (
-                        <AdultQuestion
-                          key={fieldId}
-                          name={askedName(i)}
-                          value={adultAnswerOf(i)}
-                          disabled={action.pending}
-                          onChange={(adult) =>
-                            setAdultAnswers((prev) =>
-                              new Map(prev).set(fieldId, adult),
-                            )
-                          }
-                        />
-                      );
-                    })}
-                    {underAge ? (
-                      <p
-                        role="alert"
-                        className="text-sm font-medium text-destructive"
-                      >
-                        {underAge}
-                      </p>
-                    ) : null}
-                    {placeholderFor.length > 0 ? (
-                      <AddPlaceholderButton
-                        treeId={treeId}
-                        parents={placeholderFor}
-                        nameOf={(id) =>
-                          members.find((m) => m.id === id)?.label ??
-                          "their parent"
-                        }
-                        disabled={action.pending}
-                      />
-                    ) : null}
+                    {/* Someone in between is asked here; the person
+                        being added was asked first, above. */}
+                    {askedAdult.filter((i) => i !== 0).map(adultQuestion)}
+                    {refusedIndex !== 0 ? refusal : null}
 
                     {tieWarning ? (
                       <p
@@ -1096,7 +1142,8 @@ export function AddPersonFlow({
           </section>
         ) : null}
 
-        {compact && moreDetails ? (
+        {/* Nothing more to give of someone under 18 (Step 98.3). */}
+        {primaryRefused ? null : compact && moreDetails ? (
           <section className="flex flex-col gap-6 border-t border-border pt-6">
             {/* Heard, not seen: where focus lands once it opens. */}
             <h2 ref={detailsHeading} tabIndex={-1} className="sr-only">

@@ -181,6 +181,7 @@ export async function mintClaimInvite(
         entryName,
         inviterName,
         url,
+        placeholder: person.placeholder_number != null,
       }),
   });
 
