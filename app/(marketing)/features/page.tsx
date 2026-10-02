@@ -5,13 +5,15 @@ import { CenteredPage } from "@/components/page-column";
 export const metadata: Metadata = { title: "what + how" };
 
 /**
- * /features, "what + how" (Step 107): the title alone over the Elevators tree
- * until Aalim's copy and styling for it arrive. Lower-case as Aalim wrote it.
+ * /features, "what + how" (Step 107): its title and "details coming soon" over the
+ * Elevators tree (Step 110) until Aalim's copy and styling for it arrive.
+ * Lower-case as Aalim wrote them.
  */
 export default function FeaturesPage() {
   return (
-    <CenteredPage>
+    <CenteredPage className="gap-3 text-center">
       <h1 className="text-4xl font-semibold tracking-tight">what + how</h1>
+      <p className="text-muted-foreground">details coming soon</p>
     </CenteredPage>
   );
 }

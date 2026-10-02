@@ -385,6 +385,24 @@ Their titles are lower-case as Aalim wrote them, not Title Case. **shh**
   account marks and branches, faded back. A leaf says how they're related
   (**me**, **you**, **your momma**, **your cousin, too**); hovered, it comes
   forward and its card shows a made-up name, as on the canvas.
+- The site's menu is Aalim's handwriting (Step 110,
+  `components/site-nav-menu.tsx`): **who**, **what + how**, **why**,
+  **capitalism**, **shh**, traced to vectors (`lib/nav-words.ts`, and as
+  SVG files in `public/brand/nav/` for anything else). Closed, the five
+  words lie on top of one another in the header, the size of
+  "ancestree" beside them: in the bar's top-left corner from 1240px,
+  just before the mark below that. Pressed, each word flies out of the
+  pile, a beat after the one before, and grows into its place in a list
+  down the left of the page, each word across where Aalim drew it and
+  the five evenly spaced, the page you're on boxed in a square (a 2px
+  outline in the word's ink); a × takes the pile's
+  place. It folds back the same way for the ×, Esc, a press outside or a
+  page chosen. Below `xl` the page washes back behind the list. On the
+  home page and the marketing pages it stays open from 1240px (no ×, no
+  wash; the words fly out once the page loads, and back into the pile on
+  leaving for the app); narrower, those pages work as the app does. In
+  `currentColor`, so it's black or white with the theme; with reduced
+  motion it opens and closes without the flight.
 - A page's words go in the gap between the parents and **me** and
   **you**, which sits in the middle of the page; the page's `main` lets
   the pointer through to the leaves wherever it draws nothing. On a phone,

@@ -1779,6 +1779,63 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 110: the handwritten menu** (no migration). **Aalim asked for:**
+  the navigation drawn in his handwriting, "who", "what + how", "why",
+  "capitalism", "shh", collapsed as the words jumbled together at the
+  header's top left, the height and width of "ancestree" in the home
+  button, with an animation in which they grow as they expand into the
+  menu; and the words vectorized "for higher quality reproduction". He
+  sent each word as its own image (ink in the alpha channel). **Traced:**
+  each word cropped to its ink, upscaled 8× (Lanczos, a light blur), traced
+  with potrace (the npm port, in a scratch folder, not a dependency) and
+  scaled back to the drawing's pixels: `lib/nav-words.ts` (paths, sizes,
+  each word's place in the open menu as drawn) and `public/brand/nav/`
+  (`who.svg`, `what-how.svg`, `why.svg`, `capitalism.svg`, `shh.svg`,
+  `menu-collapsed.svg`, `menu-expanded.svg`; `currentColor`, titled).
+  **The menu:** `components/site-nav-menu.tsx`, in `HeaderFrame` before
+  the mark (absolute in the bar's top-left corner from 1240px, where the
+  page leaves room). Closed: the five words on one centre, 63 × 16px.
+  Open: a list fixed down the left (56px in, centred), the words at 0.75 of
+  the drawing; each flies from its place in the pile to its place in the
+  list, growing as it goes (measured both ends, Web Animations, 45ms
+  apart, a slight overshoot), and back, quicker, to close: the ×, Esc
+  (focus back on the button), a press outside, or any page chosen. The
+  list is portalled to `body`, since the header's backdrop blur would
+  hold anything fixed inside it; a close that can't animate (a hidden
+  tab) still finishes on a timer. Links: who → `/about-us`, what + how →
+  `/features`, why → `/manifesto`, capitalism → `/pricing`, shh →
+  `/privacy`. **My calls, not asked (I asked; Aalim answered only the
+  tracing):** the jumble is built from the same five vectors rather than
+  drawn separately; it opens on a press, not a hover; it's on every page,
+  signed in or out; below `xl` a wash of the page behind the list; a word
+  tilts a little under the pointer; the current page isn't marked beyond
+  `aria-current`. **Checked:** tsc, lint, the full suite
+  (`lib/nav-words.test.ts`: order, links to real pages, the boxes, the
+  files); the traces beside the originals at 8×; in the browser at
+  1440 × 900 light and 375 × 812 dark: the pile in the corner and before
+  the mark, the flight frame by frame, the list as drawn, Esc back to the
+  button, and **capitalism** to `/pricing` with the menu folded. Then,
+  the same day (Aalim: "on the home screen and marketing site, the
+  navigation stays open. it only goes to the jumbled state in app"): on
+  `/` and the five pages it names (`navHeldOpenOn`, `lib/nav-words.ts`)
+  the list is held open from 1240px, the width the pile moves to the
+  corner (no ×, no wash, Esc does nothing; the pile's place stays,
+  hidden, for the words to fly back to). It flies out once a marketing
+  page has loaded, stays across them, and flies back into the pile on
+  leaving for the app; a word picked from the app's menu that's a
+  marketing page lands with the list still open. Narrower than 1240px,
+  the marketing pages keep the pile, as the app does (my call: the list
+  would sit on the page's words there). Checked at 1440 × 900: open on
+  `/` with nothing focused, folded on `/join`, and from `/join`'s menu
+  **who** to `/about-us`, held open with `aria-current` on who. And
+  then: the words evenly spaced (`NAV_GAP`, 16 in the drawing, 12px on
+  screen; drawn, the gaps ran 5 to 29; `menu-expanded.svg` redrawn to
+  match), the page you're on boxed in a square (a 2px outline, 4px out,
+  in the word's own ink, so white in dark), and "details coming soon"
+  under the title of `/pricing`, `/manifesto`, `/features` and
+  `/about-us`. Checked on `/features` at 1440 × 900: 12px between every
+  word, the box round **what + how** and on no other.
+
 - **Step 109: the tree's settings back in the Root console** (no
   migration). **Aalim asked for:** the settings for a tree they're Root
   of ("Rattansi-Suleman Tree": its name, deleting it, the JSON download)
