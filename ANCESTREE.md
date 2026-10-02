@@ -1866,7 +1866,8 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   say only why one can't be picked, a full family link and a new share
   link lose their notes, an approved request loses "Accepting it claims
   the entry for …", and the empty states shrink ("Nothing waiting on
-  you.", "Nobody yet.", "Nobody to bring over."). The
+  you.", "Nobody yet.", "Nobody to bring over."); on the admin page only
+  the analytics error card's "Try again in a moment." was left to go. The
   console's **Settings** group moved to the account
   page's **settings**: a card per tree they run, named for it, with the
   rename form, **Who Else Can View** and **Data & Privacy** (export,

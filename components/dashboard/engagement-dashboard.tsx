@@ -2,7 +2,6 @@ import { WeeklyActiveChart } from "@/components/dashboard/weekly-active-chart";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -36,7 +35,6 @@ export async function EngagementDashboard() {
         <Card>
           <CardHeader>
             <CardTitle>Couldn&rsquo;t Load the Numbers</CardTitle>
-            <CardDescription>Try again in a moment.</CardDescription>
           </CardHeader>
         </Card>
       )}
