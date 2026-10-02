@@ -41,7 +41,6 @@ type Approved = {
   request: PendingInviteRequest;
   url: string;
   emailed: boolean;
-  entryName: string | null;
 };
 
 export function AdminInviteRequests({
@@ -122,7 +121,6 @@ function RequestRow({
               request: r,
               url: res.url,
               emailed: !!res.emailed,
-              entryName: res.entryName ?? null,
             });
             // The buttons give way to the link: focus goes to its Copy.
             returnFocus(() => copyRef.current);
@@ -181,11 +179,6 @@ function RequestRow({
               copy
             </Button>
           </div>
-          {result.entryName ? (
-            <p className="text-muted-foreground">
-              Accepting it claims the entry for {result.entryName}.
-            </p>
-          ) : null}
           <div>
             <DeleteInviteButton
               id={r.id}

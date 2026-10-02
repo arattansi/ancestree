@@ -101,10 +101,6 @@ export function ShareLinkManager({
 
       {freshUrl ? (
         <div className="flex flex-col gap-2 rounded-lg border border-border p-3">
-          <p className="text-sm text-muted-foreground">
-            View-only link — copied to your clipboard. Anyone with it can see the
-            tree but not edit it.
-          </p>
           <div className="flex gap-2">
             <Input readOnly value={freshUrl} className="font-mono text-xs" />
             <Button type="button" variant="outline" onClick={() => copy(freshUrl)}>

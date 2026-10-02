@@ -54,7 +54,7 @@ export function AdminNotifications({ items }: { items: AdminActionItem[] }) {
         <CardContent>
           {total === 0 ? (
             <p className="text-sm text-muted-foreground">
-              Nothing waiting on you — the queue is clear.
+              Nothing waiting on you.
             </p>
           ) : (
             <ul className="flex flex-col gap-1">

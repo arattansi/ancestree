@@ -93,9 +93,12 @@ export function AccountTypePicker({
               <AccountTypeGlyph type={t} tinted />
               <span className="flex flex-col">
                 <span>{t.name}</span>
-                <span className="text-xs text-muted-foreground">
-                  {unavailable[t.key] ?? t.tagline}
-                </span>
+                {/* Why it can't be picked; nothing when it can. */}
+                {unavailable[t.key] ? (
+                  <span className="text-xs text-muted-foreground">
+                    {unavailable[t.key]}
+                  </span>
+                ) : null}
               </span>
             </SelectItem>
           ))}

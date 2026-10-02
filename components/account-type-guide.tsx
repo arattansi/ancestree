@@ -14,16 +14,20 @@ import { cn } from "@/lib/utils";
 /**
  * One account type, spelled out: its mark, name and line, who it's for, and
  * what it can do — everything read off `lib/account-types`, so the card can't
- * promise what the model doesn't say.
+ * promise what the model doesn't say. `brief` leaves only the mark, name and
+ * what it can do (the Root console and the account page, Step 103.2).
  */
 export function AccountTypeCard({
   type,
   current = false,
+  brief = false,
   className,
 }: {
   type: AccountType;
   /** Mark it as the viewer's own. */
   current?: boolean;
+  /** No line under the name, no paragraph: the table says it. */
+  brief?: boolean;
   className?: string;
 }) {
   return (
@@ -52,10 +56,14 @@ export function AccountTypeCard({
               </span>
             ) : null}
           </h3>
-          <p className="text-xs text-muted-foreground">{type.tagline}</p>
+          {brief ? null : (
+            <p className="text-xs text-muted-foreground">{type.tagline}</p>
+          )}
         </div>
       </header>
-      <p className="text-sm text-muted-foreground">{type.description}</p>
+      {brief ? null : (
+        <p className="text-sm text-muted-foreground">{type.description}</p>
+      )}
       {/* Pinned to the bottom so side-by-side cards line their lists up. */}
       <dl className="mt-auto flex flex-col gap-1.5 border-t border-border pt-3 text-sm">
         {describeAccess(type).map((a) => (
@@ -84,7 +92,13 @@ export function AccountTypeCard({
 }
 
 /** Every account type side by side, from the ground up. */
-export function AccountTypeGuide({ currentRole }: { currentRole?: string }) {
+export function AccountTypeGuide({
+  currentRole,
+  brief = false,
+}: {
+  currentRole?: string;
+  brief?: boolean;
+}) {
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       {ACCOUNT_TYPES.map((type) => (
@@ -92,6 +106,7 @@ export function AccountTypeGuide({ currentRole }: { currentRole?: string }) {
           key={type.key}
           type={type}
           current={type.key === currentRole}
+          brief={brief}
         />
       ))}
     </div>

@@ -162,13 +162,6 @@ export function AdminFamilyLink({
               </Button>
             </div>
           </div>
-          {full ? (
-            <p className="text-sm text-muted-foreground">
-              {link.maxUses < FAMILY_LINK_MAX_USES
-                ? "Nobody else can join with it. Raise the cap or rotate it."
-                : "Nobody else can join with it. Rotate it for a new one."}
-            </p>
-          ) : null}
           <div className="flex flex-wrap items-center justify-between gap-3">
             {capPicker}
             <div className="flex gap-2">

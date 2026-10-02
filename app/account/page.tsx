@@ -419,7 +419,7 @@ async function SettingsView({
                     What a {t.type.name} can do here
                   </summary>
                   <div className="pt-2">
-                    <AccountTypeCard type={t.type} />
+                    <AccountTypeCard type={t.type} brief />
                   </div>
                 </details>
               </div>

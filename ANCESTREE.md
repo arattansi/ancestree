@@ -1854,7 +1854,14 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   label, a Leaf's "Adds relatives" says "On your own line", a relative's
   ask keeps its dates and match list without the advice after them, and
   the invite forms (settings, the Root console, a relative's ask) lose
-  "They'll join as a Leaf" (the sent toast still says it). The
+  "They'll join as a Leaf" (the sent toast still says it); and last the
+  Root console's own ("so unnecessary"): the account-type cards there and
+  in **What a Root can do here** are `brief` (mark, name and table, no
+  tagline or paragraph; onboarding keeps both), the type picker's options
+  say only why one can't be picked, a full family link and a new share
+  link lose their notes, an approved request loses "Accepting it claims
+  the entry for …", and the empty states shrink ("Nothing waiting on
+  you.", "Nobody yet.", "Nobody to bring over."). The
   console's **Settings** group moved to the account
   page's **settings**: a card per tree they run, named for it, with the
   rename form, **Who Else Can View** and **Data & Privacy** (export,

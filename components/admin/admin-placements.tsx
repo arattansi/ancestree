@@ -60,7 +60,7 @@ export function AdminPlacements({
         </div>
         {carried.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            Nobody yet. Everyone on the tree so far calls it home.
+            Nobody yet.
           </p>
         ) : (
           <ul className="divide-y divide-border rounded-md border border-border">

@@ -143,8 +143,7 @@ export function CarryPicker({
   if (candidates.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        Everyone you can see on your other trees is already here, or you
-        aren&rsquo;t on another tree yet.
+        Nobody to bring over.
       </p>
     );
   }

@@ -394,7 +394,7 @@ export async function AdminConsole({
           collapsible
           title="Account Types"
         >
-          <AccountTypeGuide />
+          <AccountTypeGuide brief />
         </AdminSubsection>
       </AdminGroup>
 
