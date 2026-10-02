@@ -41,6 +41,12 @@ describe("the Elevators tree", () => {
     expect(named("unc")).toEqual(["your unc", "Stone Curie", null]);
     expect(named("cousins-boo")).toEqual(["your cousin’s boo", "Kong Lumumba", null]);
     expect(ELEVATORS_COUPLES).toContainEqual(["cousin", "cousins-boo"]);
+    expect(named("niece")).toEqual(["your niece", "Penelope Nishida", null]);
+    expect(named("nephew")).toEqual(["your nephew", "Mohandas Bohr", null]);
+    expect(ELEVATORS_FAMILIES).toContainEqual({
+      parents: ["cousin", "cousins-boo"],
+      children: ["niece", "nephew"],
+    });
   });
 
   it("gives everyone a native tree's leaf, not the plain one", () => {
@@ -68,12 +74,14 @@ describe("the Elevators tree", () => {
     }
   });
 
-  it("hangs each family straight under its parents' trunk", () => {
+  it("hangs each family straight under its parents' trunk, but your cousin", () => {
     for (const { parents, children } of ELEVATORS_FAMILIES) {
       const [left, right] = parents.map(elevatorsPerson);
       const trunk = (left.x + NODE_W + right.x) / 2;
       const xs = children.map(centre);
-      expect((Math.min(...xs) + Math.max(...xs)) / 2, parents.join("+")).toBe(trunk);
+      // Hung under your unc, clear of the page's words: the trunk jogs.
+      if (children.includes("cousin")) expect(elevatorsPerson("cousin").x).toBe(right.x);
+      else expect((Math.min(...xs) + Math.max(...xs)) / 2, parents.join("+")).toBe(trunk);
       for (const child of children) {
         expect(elevatorsPerson(child).y).toBeGreaterThan(left.y);
       }

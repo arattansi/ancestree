@@ -4,12 +4,13 @@
  * they're related ("me", "you", "your momma"); hovering one shows a made-up
  * name, as the canvas's leaf shows a real one.
  *
- * Aalim named the first seven and "your cousin's boo"; "your sis" follows
- * the same idea: a first name and a surname borrowed from writers,
- * thinkers, artists and leaders, a married-in name kept as "née". "me" and
- * "you" are the two Roots at the base, and the family grows out of "you":
- * your momma and poppa above, your auntie (momma's sister) and unc beside
- * them, your cousin, too, theirs, with their boo on the far side.
+ * Aalim named the first seven, "your cousin's boo" and the cousin's kids
+ * ("your niece", "your nephew"); "your sis" follows the same idea: a first
+ * name and a surname borrowed from writers, thinkers, artists and leaders,
+ * a married-in name kept as "née". "me" and "you" are the two Roots at the
+ * base, and the family grows out of "you": your momma and poppa above,
+ * your auntie (momma's sister) and unc beside them, your cousin, too,
+ * theirs, with their boo on the far side and their two kids under them.
  *
  * Laid out on the canvas's own grid (`lib/tree-dimensions.ts`) as a pulled-
  * out line is: partners `COUPLE_GAP` apart, everyone else at least
@@ -17,11 +18,20 @@
  * no parents on the tree joined by a bracket over the row. One thing the
  * canvas wouldn't do: me and you sit `PAGE_ROOM` under the parents rather
  * than a row's gap, so a page's own words land between the generations
- * instead of on a leaf.
+ * instead of on a leaf. Your cousin, too, sits a row under your auntie and
+ * unc, as the canvas would put them, but hangs under your unc rather than
+ * centred under the pair (the trunk jogs across), so their row stays to
+ * the right of those words; their kids share the base row with me and you.
  */
 
 import type { AccountTypeKey } from "@/lib/account-types";
-import { COUPLE_GAP, GUTTER, NODE_H, NODE_W } from "@/lib/tree-dimensions";
+import {
+  COUPLE_GAP,
+  GUTTER,
+  NODE_H,
+  NODE_W,
+  ROW_H,
+} from "@/lib/tree-dimensions";
 
 export type ElevatorsPerson = {
   id: string;
@@ -49,6 +59,9 @@ const BASE_Y = NODE_H + PAGE_ROOM;
 /** The middle of that gap: what the backdrop puts in the middle of a page. */
 export const ELEVATORS_FOCUS_Y = NODE_H + PAGE_ROOM / 2;
 
+/** One row down: your cousin, too, and their boo. */
+const COUSIN_Y = ROW_H;
+
 // Row by row, left to right. Each couple's children sit centred under the
 // middle of the gap between them, so every trunk drops straight. Momma is
 // on her side's outside, so the bracket to her sister rises clear of the
@@ -56,7 +69,11 @@ export const ELEVATORS_FOCUS_Y = NODE_H + PAGE_ROOM / 2;
 const MOMMA_X = 0;
 const AUNTIE_X = MOMMA_X + 2 * NODE_W + COUPLE_GAP + GUTTER;
 const YOU_X = MOMMA_X + NODE_W + COUPLE_GAP / 2 - NODE_W - GUTTER / 2;
-const COUSIN_X = AUNTIE_X + NODE_W + COUPLE_GAP / 2 - NODE_W / 2;
+const UNC_X = AUNTIE_X + NODE_W + COUPLE_GAP;
+const COUSIN_X = UNC_X;
+const BOO_X = COUSIN_X + NODE_W + COUPLE_GAP;
+// The kids, centred under the middle of their parents' line.
+const NIECE_X = BOO_X - COUPLE_GAP / 2 - NODE_W - GUTTER / 2;
 
 export const ELEVATORS_PEOPLE: ElevatorsPerson[] = [
   {
@@ -104,7 +121,7 @@ export const ELEVATORS_PEOPLE: ElevatorsPerson[] = [
     city: "Paris",
     country: "France",
     account: null,
-    x: AUNTIE_X + NODE_W + COUPLE_GAP,
+    x: UNC_X,
     y: 0,
   },
   {
@@ -153,7 +170,7 @@ export const ELEVATORS_PEOPLE: ElevatorsPerson[] = [
     country: "Uzbekistan",
     account: "member",
     x: COUSIN_X,
-    y: BASE_Y,
+    y: COUSIN_Y,
   },
   {
     id: "cousins-boo",
@@ -164,7 +181,31 @@ export const ELEVATORS_PEOPLE: ElevatorsPerson[] = [
     city: "Onalua",
     country: "Congo",
     account: "member",
-    x: COUSIN_X + NODE_W + COUPLE_GAP,
+    x: BOO_X,
+    y: COUSIN_Y,
+  },
+  {
+    id: "niece",
+    label: "your niece",
+    first: "Penelope",
+    last: "Nishida",
+    maiden: null,
+    city: "Kyoto",
+    country: "Japan",
+    account: null,
+    x: NIECE_X,
+    y: BASE_Y,
+  },
+  {
+    id: "nephew",
+    label: "your nephew",
+    first: "Mohandas",
+    last: "Bohr",
+    maiden: null,
+    city: "Porbandar",
+    country: "India",
+    account: null,
+    x: NIECE_X + NODE_W + GUTTER,
     y: BASE_Y,
   },
 ];
@@ -180,6 +221,7 @@ export const ELEVATORS_COUPLES: [string, string][] = [
 export const ELEVATORS_FAMILIES: ElevatorsFamily[] = [
   { parents: ["momma", "poppa"], children: ["you", "sis"] },
   { parents: ["auntie", "unc"], children: ["cousin"] },
+  { parents: ["cousin", "cousins-boo"], children: ["niece", "nephew"] },
 ];
 
 /** Sisters whose parents aren't on the tree: a dashed bracket (Step 19.3). */

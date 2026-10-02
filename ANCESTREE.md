@@ -1822,7 +1822,13 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   Leaf, partnered to your cousin, too, on the far side. The home page's
   line under the tagline now reads "collaborative, by invite, with the
   people who know best: your family." (lower-case as Aalim wrote it; was
-  "Invite-only and collaborative with…").
+  "Invite-only and collaborative with…"). Then the cousin's kids, **your
+  niece** Penelope Nishida (Kyoto, a Japanese maple) and **your nephew**
+  Mohandas Bohr (Porbandar, a banyan), no accounts; your cousin, too, and
+  their boo moved up a row, under your auntie and unc, with the kids
+  below them on the base row "to add a little density". The cousin hangs
+  under your unc rather than centred under the pair, so their row clears
+  the home page's words (the trunk jogs across, as the canvas's does).
   **Asked and answered:** the home page gets the tree too; `/privacy`
   changes only its tab title (its heading and notice stay); me and you
   are joined by the couple line; the dialog is titled **Join a Tree** on
