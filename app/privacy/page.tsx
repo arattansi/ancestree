@@ -108,6 +108,96 @@ export default function PrivacyPage() {
         </ul>
       </Section>
 
+      <Section title="Children under 18">
+        <ul className="list-disc space-y-1 pl-5">
+          <li>
+            Only a parent adds their own child under 18 — not a Root, not
+            anyone else. Whoever adds someone who could be a child, or draws
+            a line that makes them one, is asked whether they&rsquo;re 18 or
+            older. A no, or a date of birth under 18, is refused.
+          </li>
+          <li>
+            Only a parent, or the child themselves, can give someone a date
+            of birth under 18 later.
+          </li>
+          <li>
+            A Root or a Branch may hold a child&rsquo;s place instead: a
+            placeholder shown as &ldquo;First Child&rdquo;,
+            &ldquo;Second Child&rdquo;…, with no name, dates, photo or any
+            other detail. The parent is told, or can be invited to join if
+            they&rsquo;re not a member yet.
+          </li>
+          <li>
+            Only the parent fills a placeholder in. Until they do, nobody else
+            can edit it, suggest a change, claim it, tell a story about it or
+            tag it in a photo, and it never comes up in search.
+          </li>
+          <li>
+            Children added by someone else before these rules became
+            placeholders. What had been entered about them is held back, seen
+            only by their parent and the child. The parent chooses what, if
+            anything, the family sees, or deletes it. Nobody else decides.
+          </li>
+          <li>
+            A child may be invited to claim their placeholder. It becomes
+            theirs, but stays a placeholder to everyone else until their
+            parent approves showing it.
+          </li>
+          <li>
+            The parent can delete their child&rsquo;s placeholder until the
+            child has claimed it.
+          </li>
+        </ul>
+      </Section>
+
+      <Section title="Your entry on other trees">
+        <ul className="list-disc space-y-1 pl-5">
+          <li>
+            You&rsquo;re one entry, shown on every tree that brings you in.
+            Your details follow your home tree&rsquo;s rules, and you choose
+            which tree that is.
+          </li>
+          <li>
+            A Root of another tree can bring you over only from a tree they
+            belong to that already shows you. Until you say yes, that tree
+            shows just your name, your place of birth and who you&rsquo;re
+            connected to — no dates, photo, stories or album.
+          </li>
+          <li>
+            You&rsquo;re told by notice and email, and answer under
+            &ldquo;Asked of You&rdquo; in{" "}
+            <Link
+              href="/account?view=settings"
+              className="underline underline-offset-4"
+            >
+              your account&rsquo;s settings
+            </Link>
+            . A no isn&rsquo;t asked again. Either answer can be changed
+            later; a yes taken back hides the rest again. Asks left
+            unanswered for 30 days lapse, and the rest stays hidden.
+          </li>
+          <li>
+            Accepting an invite to a tree, or claiming your entry on it,
+            counts as a yes there.
+          </li>
+          <li>
+            For a relative who isn&rsquo;t a member, whoever looks after their
+            entry on its home tree answers for them.
+          </li>
+          <li>
+            A Root may let members of another tree they belong to view their
+            tree, read-only: no stories, album or edits. Tick &ldquo;Hide my
+            entry from visitors&rdquo; in settings and those visitors see a
+            blurred card with no name or details.
+          </li>
+          <li>
+            A tree&rsquo;s Roots can take you off it at any time. You
+            can&rsquo;t remove your name and place of birth from another tree
+            yourself; ask one of its Roots.
+          </li>
+        </ul>
+      </Section>
+
       <Section title="Your choices">
         <ul className="list-disc space-y-1 pl-5">
           <li>

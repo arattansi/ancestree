@@ -1764,6 +1764,26 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 105: the privacy page on children and other trees** (no
+  migration). **Aalim asked for:** the privacy page to set out what's been
+  done to protect children's data and the say a member has over being
+  added to other trees. `app/privacy/page.tsx` gains two sections.
+  **Children under 18** (Step 98): only a parent adds their own child, the
+  18-or-older question on adding and on drawing a line, only a parent or
+  the child sets a date of birth under 18, placeholders with no details
+  that only the parent fills in and nobody else edits, claims, suggests,
+  tells a story about or tags, held-back details seen only by parent and
+  child that the parent shows or forgets (live `entry_revisions` hold no
+  older copy of them, checked 2026-10-01), the child's claim staying a
+  placeholder until the parent approves, and the parent's delete until
+  the child claims it. **Your entry on other trees** (Steps 25, 80, 83):
+  one entry, your home tree's rules, a basic card (name, place of birth,
+  lines) until your yes, asked by notice and email under Asked of You,
+  a no not asked again, either answer changeable, 30-day lapse, an invite
+  or a claim counting as a yes, non-members answered for on their home
+  tree, read-only viewing by another tree and **Hide my entry from
+  visitors**, and that only a tree's Roots take a card off it.
+
 - **Step 103: the admin page** (no migration). **Aalim asked for:** the
   admin dashboard out of the account page into a page of its own, with a
   red **admin** button before **tree** in the header, tabs **newsletter |
