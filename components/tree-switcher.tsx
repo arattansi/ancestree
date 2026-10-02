@@ -52,8 +52,8 @@ const START_TREE_LABEL: Record<TreeRequestStatus, string> = {
  * it in the browser and opens its canvas; My Family Tree has an address of
  * its own, and leaves the remembered tree alone. From My Family Tree a tree
  * is always switched to, even the one shown by default, so the choice holds
- * for the rest of the visit (Step 92.5). On the home page it names My Family
- * Tree too, until a tree is chosen, rather than the tree they're Root of.
+ * for the rest of the visit (Step 92.5). On every page it names My Family
+ * Tree until a tree is chosen, rather than the tree they're Root of.
  */
 export function TreeSwitcher({
   trees,

@@ -1779,6 +1779,21 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 92.5 follow-up: the header names My Family Tree on every page**
+  (no migration). **Aalim said:** "make the other pages say my family tree
+  too", after the home page did. **Now** the switcher says **my family
+  tree** on every page, not only `/` and `/family`, for a member with an
+  entry of their own until a tree is switched to this visit; from then on
+  every page but `/family` names that tree, as **tree** opens it
+  (`switcherShowsMyFamily`, `lib/tree-links.ts`, no longer looks at the
+  address beyond `/family`). The menu ticks **My Family Tree** the same
+  way, and picking the default tree from a page that was naming it
+  switches to it, as from `/family`. **My call:** `/tree` too: with no tree
+  chosen it still shows the member's default tree, which is only reached
+  that way from a link that doesn't switch (onboarding, the welcome page,
+  a typed address). A member with no entry yet sees their default tree
+  everywhere, as before.
+
 - **Step 111: the pricing copy, and plain marketing pages** (no migration).
   **Aalim asked for:** the copy for `/pricing` from the Marketing Site page
   in Notion, word for word; left-aligned text on every marketing page but

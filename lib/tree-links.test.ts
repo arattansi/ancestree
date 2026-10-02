@@ -41,23 +41,31 @@ describe("tree paths", () => {
     expect(homeHref(undefined)).toBe("/tree");
   });
 
-  it("has the header switcher name My Family Tree by default on the home page", () => {
+  it("has the header switcher name My Family Tree on every page until a tree is chosen", () => {
     const base = { hasOwnEntry: true, treeChosen: false };
-    expect(switcherShowsMyFamily({ ...base, pathname: "/" })).toBe(true);
-    expect(switcherShowsMyFamily({ ...base, pathname: "/family" })).toBe(true);
+    for (const pathname of [
+      "/",
+      "/family",
+      "/tree",
+      "/account",
+      "/people/p1/edit",
+    ]) {
+      expect(switcherShowsMyFamily({ ...base, pathname })).toBe(true);
+    }
     // A tree switched to this visit, or no entry to arrange the view around.
     expect(
       switcherShowsMyFamily({ ...base, pathname: "/", treeChosen: true }),
     ).toBe(false);
     expect(
-      switcherShowsMyFamily({ ...base, pathname: "/", hasOwnEntry: false }),
+      switcherShowsMyFamily({ ...base, pathname: "/tree", treeChosen: true }),
     ).toBe(false);
-    // Its own page always, whatever was chosen; the tree's pages never.
+    expect(
+      switcherShowsMyFamily({ ...base, pathname: "/tree", hasOwnEntry: false }),
+    ).toBe(false);
+    // Its own page always, whatever was chosen.
     expect(
       switcherShowsMyFamily({ ...base, pathname: "/family", treeChosen: true }),
     ).toBe(true);
-    expect(switcherShowsMyFamily({ ...base, pathname: "/tree" })).toBe(false);
-    expect(switcherShowsMyFamily({ ...base, pathname: "/account" })).toBe(false);
   });
 
   it("opens the suggestion form on a declined suggestion to resend (Step 71)", () => {

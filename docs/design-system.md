@@ -127,7 +127,10 @@ turn autocomplete off, or every relative is offered the member's own name
   the canvas they're on, or from another page the tree they switched to
   this visit — with none chosen, My Family Tree too, lit there. A tree
   picked from My Family Tree is always switched to, even the one shown
-  by default, so the choice holds until the browser closes. It stays one row from 320px up (Step 85.2): the
+  by default, so the choice holds until the browser closes. Until one is
+  chosen the switcher says **my family tree** on every page (a member with
+  an entry of their own), then the chosen tree's name, and always **my
+  family tree** on the view itself. It stays one row from 320px up (Step 85.2): the
   buttons never wrap and a long tree name ends in "…". On a narrow bar, a
   phone's or one beside a docked sheet below 64rem, it goes compact: the
   mark without the wordmark, **tree**, **connections** and **account** as
