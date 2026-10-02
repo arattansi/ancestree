@@ -1779,6 +1779,20 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 111: the pricing copy, and plain marketing pages** (no migration).
+  **Aalim asked for:** the copy for `/pricing` from the Marketing Site page
+  in Notion, word for word; left-aligned text on every marketing page but
+  home; headings that are each page's real name in brackets, not the
+  menu's ("(about us)", "(how to + features)", "(product manifesto)",
+  "(pricing)", "(privacy + your family's data)"); the privacy page's column
+  and type; PIPEDA linked to priv.gc.ca; and the family-tree background on
+  the home page only. **Built:** the four marketing pages use `PageColumn`
+  (centred, top-aligned) with the privacy page's `text-2xl` heading and
+  `text-sm text-muted-foreground` body; `/pricing` has the copy, `gap-8`
+  between its paragraphs; `/privacy`'s heading is bracketed and PIPEDA
+  links out; `app/(marketing)/layout.tsx` is gone and the home page draws
+  the Elevators tree itself. Tab titles are unchanged (the menu's words).
+
 - **Step 92.5 follow-up: the header names My Family Tree on the home page**
   (no migration). **Aalim said:** "in the logged in view, when a user is on
   the home page, the default tree on the header should be 'my family tree'.

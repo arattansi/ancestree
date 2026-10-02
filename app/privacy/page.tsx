@@ -5,7 +5,8 @@ import { RELATIVES_CAN_ASK_LABEL, RELAY_LAPSE_DAYS } from "@/lib/invite-relays";
 import { PageColumn } from "@/components/page-column";
 
 export const metadata: Metadata = {
-  // The marketing site's name for it (Step 107); the heading says what it is.
+  // The marketing site's name for it (Step 107); the heading, in brackets,
+  // says what it is.
   title: "shh",
   description:
     "How ancestree collects, uses, and protects your family's personal information.",
@@ -16,14 +17,21 @@ export default function PrivacyPage() {
     <PageColumn>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
-          Privacy &amp; your family&rsquo;s data
+          (privacy + your family&rsquo;s data)
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
           ancestree is a private family tree. This page explains
-          what we store and the choices you have. It is written with Canada&rsquo;s
-          <abbr title="Personal Information Protection and Electronic Documents Act">
-            {" "}PIPEDA
-          </abbr>{" "}
+          what we store and the choices you have. It is written with Canada&rsquo;s{" "}
+          <a
+            href="https://www.priv.gc.ca/en/privacy-topics/privacy-laws-in-canada/the-personal-information-protection-and-electronic-documents-act-pipeda/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-4"
+          >
+            <abbr title="Personal Information Protection and Electronic Documents Act">
+              PIPEDA
+            </abbr>
+          </a>{" "}
           principles in mind.
         </p>
       </div>

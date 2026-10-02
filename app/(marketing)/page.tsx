@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { BetaWaitlistDialog } from "@/components/beta-waitlist-dialog";
 import { LogoMark } from "@/components/logo-mark";
+import { ElevatorsTree } from "@/components/marketing/elevators-tree";
 import { CenteredPage } from "@/components/page-column";
 import { RequestAccessDialog } from "@/components/request-access";
 import { StartTreeButton } from "@/components/start-tree-button";
@@ -17,58 +18,65 @@ import { getTreeRequestStatus } from "@/lib/tree-requests.server";
  * 107), or join the waitlist to start one. New trees are by request during
  * the beta. Its buttons are lower-case, as every button is
  * (docs/design-system.md). Sign in stays the filled button, for members
- * coming back. Since Step 107 it's the first of the marketing pages, over
- * the Elevators tree (`app/(marketing)/layout.tsx`).
+ * coming back. Since Step 107 it's the first of the marketing pages, and the
+ * only one over the Elevators tree: the other marketing pages are plain. Its
+ * `main` lets the pointer through wherever it draws nothing, so the leaves
+ * answer a hover there and its own words and buttons still work.
  */
 export default async function Home() {
   const profile = await getProfile();
   const treeRequest = profile ? await getTreeRequestStatus() : null;
 
   return (
-    <CenteredPage className="gap-8 text-center">
-      <div className="flex flex-col items-center gap-4">
-        <LogoMark className="size-16" />
-        <div className="flex flex-col items-center gap-1">
-          <h1 className="text-4xl font-semibold tracking-tight">ancestree</h1>
-          <p className="text-sm font-medium tracking-wide text-foreground [font-variant:small-caps]">
-            a space to grow your tree.
-          </p>
-        </div>
-        <div className="flex max-w-md flex-col gap-2 text-lg text-muted-foreground">
-          <p>
-            collaborative, by invite, with the people who know best: your
-            family.
-          </p>
-        </div>
+    <div className="relative isolate flex flex-1 flex-col">
+      <ElevatorsTree className="absolute inset-0 -z-10" />
+      <div className="pointer-events-none flex flex-1 flex-col [&_main>*]:pointer-events-auto">
+        <CenteredPage className="gap-8 text-center">
+          <div className="flex flex-col items-center gap-4">
+            <LogoMark className="size-16" />
+            <div className="flex flex-col items-center gap-1">
+              <h1 className="text-4xl font-semibold tracking-tight">ancestree</h1>
+              <p className="text-sm font-medium tracking-wide text-foreground [font-variant:small-caps]">
+                a space to grow your tree.
+              </p>
+            </div>
+            <div className="flex max-w-md flex-col gap-2 text-lg text-muted-foreground">
+              <p>
+                collaborative, by invite, with the people who know best: your
+                family.
+              </p>
+            </div>
+          </div>
+          <div className="flex w-full max-w-xs flex-col gap-3 sm:w-auto sm:max-w-none sm:flex-row">
+            {profile ? (
+              <>
+                <Button
+                  nativeButton={false}
+                  render={<Link href={homeHref(profile.self_person_id)} />}
+                  size="lg"
+                >
+                  view your tree
+                </Button>
+                <StartTreeButton status={treeRequest ?? "none"} size="lg" variant="outline">
+                  start a tree (beta)
+                </StartTreeButton>
+              </>
+            ) : (
+              <>
+                <Button nativeButton={false} render={<Link href="/join" />} size="lg">
+                  sign in
+                </Button>
+                <RequestAccessDialog size="lg" variant="outline">
+                  join a tree
+                </RequestAccessDialog>
+                <BetaWaitlistDialog size="lg" variant="outline">
+                  start a tree (beta)
+                </BetaWaitlistDialog>
+              </>
+            )}
+          </div>
+        </CenteredPage>
       </div>
-      <div className="flex w-full max-w-xs flex-col gap-3 sm:w-auto sm:max-w-none sm:flex-row">
-        {profile ? (
-          <>
-            <Button
-              nativeButton={false}
-              render={<Link href={homeHref(profile.self_person_id)} />}
-              size="lg"
-            >
-              view your tree
-            </Button>
-            <StartTreeButton status={treeRequest ?? "none"} size="lg" variant="outline">
-              start a tree (beta)
-            </StartTreeButton>
-          </>
-        ) : (
-          <>
-            <Button nativeButton={false} render={<Link href="/join" />} size="lg">
-              sign in
-            </Button>
-            <RequestAccessDialog size="lg" variant="outline">
-              join a tree
-            </RequestAccessDialog>
-            <BetaWaitlistDialog size="lg" variant="outline">
-              start a tree (beta)
-            </BetaWaitlistDialog>
-          </>
-        )}
-      </div>
-    </CenteredPage>
+    </div>
   );
 }

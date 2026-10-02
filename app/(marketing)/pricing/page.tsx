@@ -1,19 +1,48 @@
 import type { Metadata } from "next";
 
-import { CenteredPage } from "@/components/page-column";
+import { PageColumn } from "@/components/page-column";
 
 export const metadata: Metadata = { title: "capitalism" };
 
 /**
- * /pricing, "capitalism" (Step 107): its title and "details coming soon" over the
- * Elevators tree (Step 110) until Aalim's copy and styling for it arrive.
- * Lower-case as Aalim wrote them.
+ * /pricing, "capitalism" in the menu (Step 107): its heading is the page's
+ * real name, in brackets. Aalim's copy from the Marketing Site page in
+ * Notion, word for word and lower-case as he wrote it, in the privacy
+ * page's column and type, over the Elevators tree (Step 110).
  */
 export default function PricingPage() {
   return (
-    <CenteredPage className="gap-3 text-center">
-      <h1 className="text-4xl font-semibold tracking-tight">capitalism</h1>
-      <p className="text-muted-foreground">details coming soon</p>
-    </CenteredPage>
+    <PageColumn>
+      <h1 className="text-2xl font-semibold tracking-tight">(pricing)</h1>
+      <div className="flex flex-col gap-8 text-sm text-muted-foreground">
+        <p>ancestree is in beta, so it’s free to use.</p>
+        <p>
+          well, it costs us right now. but hey, you need to crack a few eggs
+          if you don’t understand metaphors.
+        </p>
+        <p>
+          if it comes out of beta, we’ll probably need to charge something.
+        </p>
+        <p>
+          most of it will be put towards improving ancestree and avoiding ad
+          revenue dependence.
+        </p>
+        <p>
+          some of it will be put towards us visiting where our ancestors lived.
+        </p>
+        <p>
+          the rest will be used by us to avoid working for companies we don’t
+          care about.
+        </p>
+        <p>
+          either way, whatever you grow on ancestree will be stay accessible
+          for free.
+        </p>
+        <p>
+          if we do start charging for the ability to continue growing, we’ll
+          make it significantly discounted for our beta users.
+        </p>
+      </div>
+    </PageColumn>
   );
 }

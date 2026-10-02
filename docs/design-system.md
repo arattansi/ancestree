@@ -376,10 +376,14 @@ card wears a mark for the tree it came from, and a key names them.
 
 Home, **capitalism** (`/pricing`), **why** (`/manifesto`), **what + how**
 (`/features`) and **who** (`/about-us`), Step 107, in `app/(marketing)/`.
-Their titles are lower-case as Aalim wrote them, not Title Case. **shh**
-(`/privacy`) is the privacy notice's tab title; its heading stays.
+Their tab titles are lower-case as Aalim wrote them, not Title Case. Each
+page's heading is its real name in brackets, not the menu's: **(about
+us)**, **(how to + features)**, **(product manifesto)**, **(pricing)** and
+**(privacy + your family's data)**. All but home are left-aligned, in the
+privacy page's column (`PageColumn`) and type: `text-2xl` heading,
+`text-sm text-muted-foreground` body.
 
-- Behind each but `/privacy`, the **Elevators tree**
+- Behind the home page only, the **Elevators tree**
   (`components/marketing/elevators-tree.tsx`, `lib/elevators-tree.ts`): a
   family drawn as a spotlight draws one, with the canvas's own leaves,
   account marks and branches, faded back. A leaf says how they're related

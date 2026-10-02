@@ -1,19 +1,22 @@
 import type { Metadata } from "next";
 
-import { CenteredPage } from "@/components/page-column";
+import { PageColumn } from "@/components/page-column";
 
 export const metadata: Metadata = { title: "what + how" };
 
 /**
- * /features, "what + how" (Step 107): its title and "details coming soon" over the
- * Elevators tree (Step 110) until Aalim's copy and styling for it arrive.
- * Lower-case as Aalim wrote them.
+ * /features, "what + how" in the menu (Step 107): its heading is the page's
+ * real name, in brackets, with "details coming soon" under it, in the
+ * privacy page's column and type, over the Elevators tree (Step 110) until
+ * Aalim's copy for it arrives.
  */
 export default function FeaturesPage() {
   return (
-    <CenteredPage className="gap-3 text-center">
-      <h1 className="text-4xl font-semibold tracking-tight">what + how</h1>
-      <p className="text-muted-foreground">details coming soon</p>
-    </CenteredPage>
+    <PageColumn>
+      <h1 className="text-2xl font-semibold tracking-tight">
+        (how to + features)
+      </h1>
+      <p className="text-sm text-muted-foreground">details coming soon</p>
+    </PageColumn>
   );
 }
