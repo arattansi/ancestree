@@ -184,12 +184,12 @@ function TagTreeLink({
 
 /** A button drawn like `TagLink` beside it. */
 function TagButton({
-  label,
+  title,
   onClick,
   children,
 }: {
   /** Its name, for a button that shows only an icon. */
-  label: string;
+  title: string;
   onClick: () => void;
   children: React.ReactNode;
 }) {
@@ -200,8 +200,8 @@ function TagButton({
         <button
           type="button"
           onClick={onClick}
-          aria-label={label}
-          title={label}
+          aria-label={title}
+          title={title}
         />
       }
       className="relative tap-target overflow-visible hover:bg-muted hover:text-muted-foreground"
@@ -497,14 +497,14 @@ function PersonPanelImpl({
         confirm={{
           title: "Make this your entry?",
           description: claimNote ?? undefined,
-          confirmLabel: "Yes, merge",
-          pendingLabel: "Merging…",
+          confirmLabel: "yes, merge",
+          pendingLabel: "merging…",
           onConfirm: () => claimPerson(person.id),
           success: "Merged — this is now your entry.",
           onSuccess: onClose,
         }}
       >
-        This is me — claim it
+        this is me — claim it
       </ConfirmButton>
     ) : null;
 
@@ -536,9 +536,9 @@ function PersonPanelImpl({
           onClick={onSendClaimInvite}
           pending={invite.pending}
           disabled={claimEmail.trim().length === 0}
-          pendingLabel="Sending…"
+          pendingLabel="sending…"
         >
-          {claimInvites.some((i) => i.live) ? "Send another" : "Send invite"}
+          {claimInvites.some((i) => i.live) ? "send another" : "send invite"}
         </PendingButton>
       </div>
       <FormError>{invite.error}</FormError>
@@ -774,7 +774,7 @@ function PersonPanelImpl({
                           title={canEdit ? undefined : "Fill in what’s missing"}
                           icon={<Pencil aria-hidden />}
                         >
-                          {canEdit && !placeholder ? "Edit" : "Fill in"}
+                          {canEdit && !placeholder ? "edit" : "fill in"}
                         </TagTreeLink>
                       ) : (
                         <TagLink
@@ -782,7 +782,7 @@ function PersonPanelImpl({
                           title={canEdit ? undefined : "Fill in what’s missing"}
                         >
                           <Pencil aria-hidden />
-                          {canEdit && !placeholder ? "Edit" : "Fill in"}
+                          {canEdit && !placeholder ? "edit" : "fill in"}
                         </TagLink>
                       )
                     ) : null}
@@ -797,7 +797,7 @@ function PersonPanelImpl({
                           title="Suggest a change"
                           icon={<Lightbulb aria-hidden />}
                         >
-                          Suggest
+                          suggest
                         </TagTreeLink>
                       ) : (
                         <TagLink
@@ -805,13 +805,13 @@ function PersonPanelImpl({
                           title="Suggest a change"
                         >
                           <Lightbulb aria-hidden />
-                          Suggest
+                          suggest
                         </TagLink>
                       )
                     ) : null}
                     {canReport ? (
                       <TagButton
-                        label="Report a problem"
+                        title="Report a problem"
                         onClick={() => setReporting(true)}
                       >
                         <Flag aria-hidden />
@@ -1039,7 +1039,7 @@ function PersonPanelImpl({
                           setCropOpen(true);
                         }}
                       >
-                        Reposition photo
+                        reposition photo
                       </Button>
                     ) : null}
 
@@ -1054,8 +1054,8 @@ function PersonPanelImpl({
                           title: `Delete ${personDisplayName(person)}?`,
                           description:
                             "Their connections, photos and stories go too.\nThis cannot be undone.",
-                          confirmLabel: "Delete",
-                          pendingLabel: "Deleting…",
+                          confirmLabel: "delete",
+                          pendingLabel: "deleting…",
                           onConfirm: () => deletePerson(person.id),
                           onSuccess: onClose,
                           // The sheet closes and their card is gone: focus
@@ -1066,7 +1066,7 @@ function PersonPanelImpl({
                             ),
                         }}
                       >
-                        Delete entry
+                        delete entry
                       </ConfirmButton>
                     ) : null}
                   </div>
@@ -1152,9 +1152,9 @@ function PersonPanelImpl({
                         size="sm"
                         onClick={onSaveCrop}
                         pending={cropSave.pending}
-                        pendingLabel="Saving…"
+                        pendingLabel="saving…"
                       >
-                        Save
+                        save
                       </PendingButton>
                       <Button
                         size="sm"
@@ -1165,7 +1165,7 @@ function PersonPanelImpl({
                         }}
                         disabled={cropSave.pending}
                       >
-                        Cancel
+                        cancel
                       </Button>
                       <Button
                         size="sm"
@@ -1173,7 +1173,7 @@ function PersonPanelImpl({
                         onClick={() => setCrop(DEFAULT_CROP)}
                         disabled={cropSave.pending}
                       >
-                        Reset
+                        reset
                       </Button>
                     </div>
                   </div>

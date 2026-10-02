@@ -121,8 +121,8 @@ function SpouseRow({
           }}
         >
           {savedMarriage || relation.isDivorced
-            ? "Edit marriage / divorce"
-            : "Add marriage / divorce dates"}
+            ? "edit marriage / divorce"
+            : "add marriage / divorce dates"}
         </button>
       ) : null}
 
@@ -142,9 +142,9 @@ function SpouseRow({
               onClick={save}
               pending={action.pending}
               disabled={!datesOk}
-              pendingLabel="Saving…"
+              pendingLabel="saving…"
             >
-              Save
+              save
             </PendingButton>
             <Button
               size="sm"
@@ -157,7 +157,7 @@ function SpouseRow({
                 action.setError(null);
               }}
             >
-              Cancel
+              cancel
             </Button>
           </div>
         </div>

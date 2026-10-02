@@ -33,7 +33,7 @@ export async function sendLink(url: string, title?: string): Promise<void> {
       if (thrown instanceof DOMException && thrown.name === "AbortError") return;
       toast("Link ready", {
         action: {
-          label: "Share",
+          label: "share",
           onClick: () => void navigator.share(data).catch(() => {}),
         },
       });
@@ -46,7 +46,7 @@ export async function sendLink(url: string, title?: string): Promise<void> {
     toast.success(COPIED);
   } catch {
     toast("Link ready", {
-      action: { label: "Copy", onClick: () => void copyText(url, { copied: COPIED }) },
+      action: { label: "copy", onClick: () => void copyText(url, { copied: COPIED }) },
     });
   }
 }

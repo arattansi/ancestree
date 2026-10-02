@@ -150,7 +150,7 @@ function ClearButton({ onClick }: { onClick: () => void }) {
       onClick={onClick}
       className="shrink-0 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
     >
-      Clear
+      clear
     </button>
   );
 }
@@ -380,7 +380,7 @@ export function TreeSearch({
             labelFrom === "lg" ? "hidden lg:inline" : "hidden sm:inline"
           }
         >
-          Search &amp; filters
+          search &amp; filters
         </span>
         {switchedOn > 0 ? (
           <span
@@ -483,13 +483,13 @@ export function TreeSearch({
               type="button"
               onClick={() => set({ living: s })}
               className={
-                "flex-1 rounded-md border px-2 py-1 text-xs capitalize transition-colors " +
+                "flex-1 rounded-md border px-2 py-1 text-xs transition-colors " +
                 (filter.living === s
                   ? "border-ring bg-accent text-accent-foreground"
                   : "border-border text-muted-foreground hover:bg-accent/50")
               }
             >
-              {s === "any" ? "Anyone" : s}
+              {s === "any" ? "anyone" : s}
             </button>
           ))}
         </div>

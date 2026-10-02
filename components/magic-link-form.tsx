@@ -28,7 +28,7 @@ const INITIAL: MagicLinkState = {};
 export function MagicLinkForm({
   inviteToken,
   next,
-  submitLabel = "Email me a code",
+  submitLabel = "email me a code",
 }: {
   inviteToken?: string;
   /** A same-origin path to land on once signed in (Step 30.1). */
@@ -153,7 +153,7 @@ export function MagicLinkForm({
       )}
 
       <Button type="submit" disabled={pending || (needsConsent && !consented)}>
-        {pending ? "Sending…" : submitLabel}
+        {pending ? "sending…" : submitLabel}
       </Button>
     </form>
   );

@@ -17,35 +17,50 @@ This applies to `CardTitle`, `AdminGroup` and `AdminSubsection` titles, and
 the `h1` of a page. A table of contents that points at sections (the Root
 console's side nav) repeats their titles, so it uses the same case.
 
-Descriptions, labels, buttons, hints and body copy stay in sentence case.
+Descriptions, labels, hints and body copy stay in sentence case. Buttons
+don't: they're all lower-case (below).
 
-### Navigation buttons: lower-case
+### Buttons: lower-case
 
-Buttons that move you between pages or views are all lower-case: the
-header's **tree**, **connections**, **account** and **sign in**; the account
-page's view toggle **profile**, **root**, **dashboard**, **settings**. The tree switcher
-shows a tree's name, which keeps its own capitalisation, or **My Family
-Tree**, a view's name, in Title Case. On a narrow bar
-the header's show their symbols instead, the words kept as their names
-(Step 85.2, below).
+Every button is lower-case (Step 102; navigation only since Step 30.4):
+the header's **tree**, **connections**, **account**, **sign in** and
+**sign out**; the account page's views **profile**, **root**,
+**dashboard**, **settings**; the home page's **view your tree**,
+**request access**, **start a tree (beta)**; and every button that does
+something: **save**, **rename**, **delete**, **continue**, **skip for
+now**, **add a relative**, **auto-arrange**, **ask to join**. That covers,
+alike:
 
-Buttons that *do* something — **Save**, **Rename**, **Start my tree**,
-**Sign out** — are sentence case, like any other button. That includes the
-header's **Sign out**, which replaces **sign in** for someone signed in who
-isn't a member yet (Step 30.8).
+- what a button says while it works: **saving…**, **deleting…**;
+- a dialog's buttons, **cancel** and its confirm (**delete**, **yes,
+  merge**), though its title stays Title Case or a question;
+- text buttons and links drawn as buttons: **edit**, **try again**,
+  **read more**, **+ middle name**, the sheet header's **edit**, **fill
+  in** and **suggest**;
+- a toast's action (**undo**, **copy**) and a choice of a few
+  (**light** / **dark** / **system**, **anyone** / **living** /
+  **deceased**);
+- an email's button: **open my family tree**, **review the request**,
+  **join ancestree**.
 
-The home page's calls to action count as navigation, so they're lower-case
-too — **view your tree** (My Family Tree, Step 92.5), **sign in**, **request access**, **start a tree
-(beta)** — even the ones that open a dialog rather than a page. Inside the
-dialog, titles and buttons go back to sentence case (**Request access**,
-**Join the waitlist**), as dialog titles are everywhere. **sign in** stays
-the filled one, for members coming back; the sentence-case line under the
-buttons tells a newcomer that ancestree is invite-only (Step 30.4).
+Names keep their capitals: a person's or a tree's, which a button shows
+as it is (**invite as Amarshi Sayani**, **open The Sayanis**, the tree
+switcher showing a tree's name), and other products' (**WhatsApp**,
+**download JSON export**, **upload a Markdown file**). Our own names
+don't: the switcher says **my family tree** and **your trees**, a Root
+confirms **make a root**, and a notification offers **view in root
+console**.
 
-A share link's **Ask to join** (Step 41.4) is sentence case. It sits on the
-read-only canvas and opens the request form in a dialog over it, so it's an
-action there, like **Add a relative** or **Auto-arrange**, rather than a way
-to another page. Its dialog is titled **Ask to join** too.
+Not buttons, so not lower-case: a section heading that opens and closes
+(**Getting Started**, **Family**) is a title; a card, a picker's row or a
+photo that is pressed shows a person's details as anywhere else; a
+menu's items, a select's value, a badge, a field's label and an
+icon-only button's name (**Report a problem**) are sentence case.
+
+Write the words lower-case in the source rather than with CSS
+(`text-transform`), so a screen reader, a copy and a search see what the
+button shows. `lib/button-case.test.ts` fails on a capital in any
+button's words; a new product name goes in its list.
 
 ### Root, never admin
 
@@ -121,20 +136,20 @@ turn autocomplete off, or every relative is offered the member's own name
   people, until nobody is open.
 - A person's details sheet keeps its edit button in its header (Step 62),
   so it's found without scrolling: at the right end of the badges' row,
-  drawn like the account type tag and its size (Step 88.1). **Edit**, or
-  **Fill in** for a Leaf who may only fill blanks, and **Suggest** for
+  drawn like the account type tag and its size (Step 88.1). **edit**, or
+  **fill in** for a Leaf who may only fill blanks, and **suggest** for
   anyone who can't edit the entry. **Manage**, at the foot, keeps the rest
   (reposition the photo, claim, delete) and isn't shown when it holds
   nothing for the viewer.
 - On My Family Tree (Step 92.3) a person's sheet acts on the card's own
   tree, the one whose mark it wears, as who the reader is there: its
-  **Edit**, **Fill in** and **Suggest** open that tree's page for the
+  **edit**, **fill in** and **suggest** open that tree's page for the
   entry, switching to the tree first when the browser is on another (busy
   until it arrives, like **On**'s links), and the page comes back to the
   view. Stories, the album and reports are the sheet's as on a tree; a
   line's dates are changed there only where it was drawn on a tree the
   reader is a Root or a Branch of. Companions only show.
-- My Family Tree adds nothing itself, so its **Add a relative** asks
+- My Family Tree adds nothing itself, so its **add a relative** asks
   **Which tree do you want to add to?**: the question and the trees, each
   a button with its mark, and nothing else (Step 92.3). From someone
   selected it offers only the trees showing them where the reader may add
@@ -188,9 +203,9 @@ turn autocomplete off, or every relative is offered the member's own name
   right of the member mark, as the tree mark hangs left; on a pill, on
   its right shoulder (Step 94). Its
   sheet asks above **On**: **Same person as ● Fatima Rattansi?**, the
-  other card's name, with its tree's mark, opening that card, and **Not
+  other card's name, with its tree's mark, opening that card, and **not
   the same**, which puts the question away at once, in this browser only,
-  with **Undo** in its toast. Only the reader sees it; no tree's own
+  with **undo** in its toast. Only the reader sees it; no tree's own
   canvas asks.
 - Sections of the sheet that matter less fold away, closed at first, their
   heading the button with a count beside it (Step 88.1:
@@ -198,7 +213,7 @@ turn autocomplete off, or every relative is offered the member's own name
   opened stays open as the reader moves from person to person, until the
   details close. A folded section keeps what was typed in it.
 - A long form's buttons float, so they're in reach wherever someone is in
-  it (Step 59; the edit entry page's **Save changes** and **Back to
+  it (Step 59; the edit entry page's **save changes** and **back to
   tree**): from `lg` up in a column just right of the form, level with the
   page title; below that in a bar along the bottom of the screen, styled
   like the header (both `bar-chrome`, in `app/globals.css`). The primary button comes first, as in any row of
@@ -216,9 +231,9 @@ turn autocomplete off, or every relative is offered the member's own name
   is read when it's opened (grey rows until it arrives), and the counts are
   asked for again as someone moves between pages or comes back to the tab
   (Step 77.2).
-- A page that fails says **Something Went Wrong**, with **Try again** and
-  **Back to tree**, the header kept; a missing one says **Page Not Found**,
-  with **Back to tree** (Step 61).
+- A page that fails says **Something Went Wrong**, with **try again** and
+  **back to tree**, the header kept; a missing one says **Page Not Found**,
+  with **back to tree** (Step 61).
 
 ## Feedback
 
@@ -230,7 +245,7 @@ uses them rather than its own flags and messages.
   (`components/use-action.ts`), or a button built on it: `ActionButton`
   for one button and one action, `ConfirmButton` for one that asks first,
   `SubmitButton` in a `<form action>`. Only the pressed button shows it's
-  busy, with a spinner and its own words ("Deleting…"); the others that
+  busy, with a spinner and its own words ("deleting…"); the others that
   would clash are disabled but keep their labels. It stays busy until the
   page has redrawn, or the next page has arrived, so a second press can't
   save twice, and it ends however the call went: a failure never leaves a
@@ -254,16 +269,16 @@ uses them rather than its own flags and messages.
   the only solid red button anywhere. A change that can't be reversed but
   loses nothing (making someone a Root) asks the same way with a plain
   confirm. A failure shows inside the dialog, which stays open. Nothing
-  asks before an ordinary decision (Approve, Decline, Dismiss).
+  asks before an ordinary decision (**approve**, **decline**, **dismiss**).
 - **Cheap to put back, no question:** unlinking a person from a companion,
   a name from a nickname group, or dismissing a declined suggestion from its
-  card (Step 74) happens at once, with **Undo** in the toast.
+  card (Step 74) happens at once, with **undo** in the toast.
 - **Red:** the tinted `destructive` button is for a removal among other
-  buttons (a row's **Delete**); `destructive-solid` only confirms. A count
+  buttons (a row's **delete**); `destructive-solid` only confirms. A count
   asking for attention (the header's Root console count) is `attention`, and a
-  button that sends something (**Send dispute**) is an ordinary one.
-- **Row buttons say which row**: a list's **Delete**, **Remove**, **Copy**
-  or **Download** names its row to a screen reader ("Remove Will.pdf").
+  button that sends something (**send**, in the dispute dialog) is an ordinary one.
+- **Row buttons say which row**: a list's **delete**, **remove**, **copy**
+  or **download** names its row to a screen reader ("Remove Will.pdf").
 - **A switch moves when it's pressed**, before the server answers, and
   goes back by itself if the change fails (`useOptimistic`); a removed row
   leaves the list at once and returns to its place if it fails.
@@ -302,7 +317,7 @@ The first is the dashboard's members active each week (Step 56,
   baseline. Gridlines are solid hairlines in `--border`, a whole round step
   apart (`lib/dashboard.ts#countAxis`), labelled on the left.
 - Only the newest column carries its number. Hovering or focusing a column
-  shows its week and count, and a table under the chart (**Show the
+  shows its week and count, and a table under the chart (**show the
   numbers**) has every value, so nothing needs a hover.
 - On a phone, labels under the columns thin to every other one, counted
   back from the newest; each stays centred on its column.
@@ -345,11 +360,10 @@ card wears a mark for the tree it came from, and a key names them.
   the current step keeps its name.
 - Each step has its own address (`?step=`), so a refresh or a save that
   refreshes the page stays on it.
-- Its buttons — **Continue**, **Skip for now**, **Save and continue** —
-  finish a step rather than move between views, so they're sentence case
-  like any other action. Everything but the one step the flow can't do
-  without can be skipped, and whatever's left is offered again where the
-  flow ends (the canvas's **Getting Started** list).
+- Its buttons — **continue**, **skip for now**, **save and continue** —
+  are lower-case like every button. Everything but the one step the flow
+  can't do without can be skipped, and whatever's left is offered again
+  where the flow ends (the canvas's **Getting Started** list).
 - A list like that, laid over the canvas, starts collapsed to its header
   on a phone (below `sm`), so it never covers the top of the tree, and open
   anywhere wider.
@@ -358,4 +372,4 @@ card wears a mark for the tree it came from, and a key names them.
   at the top, as a line under their name with **Change** to open every
   field, and asks below it only for a photo and what's empty. A middle,
   preferred or maiden name is offered as a link, never counted as missing. Its
-  buttons are **Save and see the tree** and **Skip for now**.
+  buttons are **save and see the tree** and **skip for now**.

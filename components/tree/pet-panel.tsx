@@ -161,10 +161,10 @@ function PetEditForm({
             type="submit"
             size="sm"
             pending={edit.pending}
-            pendingLabel="Saving…"
+            pendingLabel="saving…"
             disabled={photo.busy}
           >
-            Save
+            save
           </PendingButton>
           <Button
             type="button"
@@ -173,7 +173,7 @@ function PetEditForm({
             disabled={edit.pending}
             onClick={onDone}
           >
-            Cancel
+            cancel
           </Button>
         </div>
       </form>
@@ -280,7 +280,7 @@ function PetPanelImpl({
           onSuccess: () => {
             toast(`${name} unlinked.`, {
               action: {
-                label: "Undo",
+                label: "undo",
                 onClick: () => {
                   void addPetCompanion(petId, dropped).then(
                     (r) => r?.error && toastError(r.error),
@@ -443,7 +443,7 @@ function PetPanelImpl({
                               }
                               disabled={primary.pending}
                             >
-                              Make primary
+                              make primary
                             </button>
                           ) : null}
                         </li>
@@ -486,7 +486,7 @@ function PetPanelImpl({
                         setEditing(true);
                       }}
                     >
-                      Edit companion
+                      edit companion
                     </Button>
                     <ConfirmButton
                       size="sm"
@@ -496,13 +496,13 @@ function PetPanelImpl({
                         title: `Remove ${pet.name}?`,
                         description:
                           "Their photo and comments go too.\nThis cannot be undone.",
-                        confirmLabel: "Remove",
-                        pendingLabel: "Removing…",
+                        confirmLabel: "remove",
+                        pendingLabel: "removing…",
                         onConfirm: () => removePet(pet.id),
                         onSuccess: () => onClose(),
                       }}
                     >
-                      Remove
+                      remove
                     </ConfirmButton>
                   </div>
                 </section>

@@ -181,10 +181,10 @@ export function DirectInviteForm({
       <div className="flex gap-2">
         <Button type="button" variant="outline" size="sm" onClick={addRow}>
           <Plus aria-hidden />
-          Add another
+          add another
         </Button>
-        <PendingButton type="submit" size="sm" pending={action.pending} pendingLabel="Sending…">
-          Send invites
+        <PendingButton type="submit" size="sm" pending={action.pending} pendingLabel="sending…">
+          send invites
         </PendingButton>
       </div>
     </form>

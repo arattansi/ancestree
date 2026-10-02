@@ -185,15 +185,13 @@ async function LoadedHeader() {
             <SiteNotifications />
           </HeaderCountsProvider>
         ) : signedInNotMember ? (
-          // It does something rather than go somewhere, so sentence case
-          // (docs/design-system.md).
           <form action={signOut}>
             <SubmitButton
               size="sm"
               variant="outline"
               className="relative tap-target"
             >
-              Sign out
+              sign out
             </SubmitButton>
           </form>
         ) : (

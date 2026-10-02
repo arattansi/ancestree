@@ -145,7 +145,7 @@ export function AdminFamilyLink({
             />
             <div className="flex gap-2">
               <Button ref={copyRef} type="button" variant="outline" onClick={() => copy(url)}>
-                Copy
+                copy
               </Button>
               <Button
                 variant="outline"
@@ -180,12 +180,12 @@ export function AdminFamilyLink({
                   title: "Rotate the family link?",
                   description: "The current link stops working and the count starts again.",
                   destructive: false,
-                  confirmLabel: "Rotate",
-                  pendingLabel: "Rotating…",
+                  confirmLabel: "rotate",
+                  pendingLabel: "rotating…",
                   onConfirm: () => rotateFamilyLink(treeId, cap),
                 }}
               >
-                Rotate
+                rotate
               </ConfirmButton>
               <ConfirmButton
                 variant="outline"
@@ -195,13 +195,13 @@ export function AdminFamilyLink({
                 confirm={{
                   title: "Turn off the family link?",
                   description: "It stops working for anyone who hasn’t used it.",
-                  confirmLabel: "Turn off",
-                  pendingLabel: "Turning off…",
+                  confirmLabel: "turn off",
+                  pendingLabel: "turning off…",
                   onConfirm: () => turnOffFamilyLink(treeId),
                   onSuccess: () => returnFocus(() => makeRef.current),
                 }}
               >
-                Turn off
+                turn off
               </ConfirmButton>
             </div>
           </div>
@@ -215,9 +215,9 @@ export function AdminFamilyLink({
             onClick={make}
             pending={action.pendingKey === "make"}
             disabled={action.pending}
-            pendingLabel="Making…"
+            pendingLabel="making…"
           >
-            Make family link
+            make family link
           </PendingButton>
         </div>
       )}

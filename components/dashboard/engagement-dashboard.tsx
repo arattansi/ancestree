@@ -98,7 +98,7 @@ export function DashboardView({ d }: { d: Dashboard }) {
           <WeeklyActiveChart weeks={weeks} />
           <details className="text-sm">
             <summary className="cursor-pointer text-xs text-muted-foreground">
-              Show the numbers
+              show the numbers
             </summary>
             <div className="-mx-(--card-spacing) overflow-x-auto pt-2">
               <table className="w-full text-sm">

@@ -82,7 +82,7 @@ export function newsletterEmail(input: {
       preheader: escapeHtml(preheaderOf(issue)),
       heading: "Your family this week",
       contentHtml: sections.join(""),
-      cta: { label: "Open My Family Tree", url: input.familyUrl },
+      cta: { label: "open my family tree", url: input.familyUrl },
       footnoteHtml: `Sent every Sunday.
                   <a href="${unsubscribe}" style="color:#737373;">Unsubscribe</a>.`,
     }),

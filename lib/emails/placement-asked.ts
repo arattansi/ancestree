@@ -48,7 +48,7 @@ export function placementAskedEmail(input: {
         bodyHtml: `Your name and place of birth are on ${treeHtml} already.
                   Your photo, dates and everything else show there only if
                   you approve.`,
-        cta: { label: "Approve or decline", url: input.url },
+        cta: { label: "approve or decline", url: input.url },
         footnoteHtml: `${lapses} You can change your answer later, from
                   your account&rsquo;s settings. If you&rsquo;re signed out,
                   sign in with this address first.`,
@@ -81,7 +81,7 @@ export function placementAskedEmail(input: {
         : `Their names and places of birth are on ${treeHtml} already. The
                   rest shows there only if someone who can edit the entries
                   on ${homeHtml} approves, and you can.`,
-      cta: { label: one ? "Approve or decline" : "Review them", url: input.url },
+      cta: { label: one ? "approve or decline" : "review them", url: input.url },
       footnoteHtml: `Whoever answers first answers for everyone asked.
                   ${lapses} If you&rsquo;re signed out, sign in with this
                   address first.`,

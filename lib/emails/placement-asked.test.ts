@@ -42,7 +42,7 @@ describe("placementAskedEmail (Step 80)", () => {
     expect(html).toContain(
       `href="${SITE}/account?view=settings#asked-of-you"`,
     );
-    expect(html).toContain(">Approve or decline</a>");
+    expect(html).toContain(">approve or decline</a>");
   });
 
   it("names the one entry someone who may edit it is asked about", () => {
@@ -52,7 +52,7 @@ describe("placementAskedEmail (Step 80)", () => {
     );
     expect(html).toContain("Zahra Rattansi&rsquo;s full entry");
     expect(html).toMatch(/who can edit the entry on\s+The Rattansi Tree approves/);
-    expect(html).toContain(">Approve or decline</a>");
+    expect(html).toContain(">approve or decline</a>");
   });
 
   it("counts them when there are several, and says where they're from", () => {
@@ -65,7 +65,7 @@ describe("placementAskedEmail (Step 80)", () => {
       "Raiya Suleman would like to show 12 full entries from The Rattansi Tree on The Suleman Tree",
     );
     expect(html).toContain("12 full entries from The Rattansi Tree");
-    expect(html).toContain(">Review them</a>");
+    expect(html).toContain(">review them</a>");
   });
 
   it("says one answer answers for everyone asked", () => {
@@ -122,7 +122,7 @@ describe("placementAskedEmail (Step 80)", () => {
     expect(again.html).toContain(
       "Raiya Suleman would like to show your full entry on The Suleman Tree</p>",
     );
-    expect(again.html).toContain(">Approve or decline</a>");
+    expect(again.html).toContain(">approve or decline</a>");
 
     const several = placementAskedEmail({
       ...steward,

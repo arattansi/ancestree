@@ -178,7 +178,7 @@ function RequestRow({
               onClick={() => copy(result.url)}
               aria-label={`Copy the invite link for ${name}`}
             >
-              Copy
+              copy
             </Button>
           </div>
           {result.entryName ? (
@@ -216,10 +216,10 @@ function RequestRow({
                       size="sm"
                       pending={action.pendingKey === `approve:${c.id}`}
                       disabled={action.pending}
-                      pendingLabel="Approving…"
+                      pendingLabel="approving…"
                       onClick={() => approve(c.id)}
                     >
-                      {`Approve as ${c.name}`}
+                      {`approve as ${c.name}`}
                     </PendingButton>
                   </CandidateRow>
                 ))}
@@ -232,20 +232,20 @@ function RequestRow({
               variant={matched ? "outline" : "default"}
               pending={action.pendingKey === "approve"}
               disabled={action.pending}
-              pendingLabel="Approving…"
+              pendingLabel="approving…"
               onClick={() => approve(null)}
             >
-              {matched ? "Approve without an entry" : "Approve & send invite"}
+              {matched ? "approve without an entry" : "approve & send invite"}
             </PendingButton>
             <PendingButton
               size="sm"
               variant="outline"
               pending={action.pendingKey === "decline"}
               disabled={action.pending}
-              pendingLabel="Declining…"
+              pendingLabel="declining…"
               onClick={decline}
             >
-              Decline
+              decline
             </PendingButton>
             <DeleteInviteButton
               id={r.id}

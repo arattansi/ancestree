@@ -92,7 +92,7 @@ export function AcceptInviteForm({
       ) : null}
 
       <Button type="submit" disabled={pending || !consented}>
-        {pending ? "Opening the tree…" : "Accept & open the tree"}
+        {pending ? "opening the tree…" : "accept & open the tree"}
       </Button>
     </form>
   );
@@ -152,7 +152,7 @@ export function SignInToAccept({
         </p>
       ) : null}
       <Button type="submit" disabled={pending}>
-        {pending ? "Sending…" : "Email me a code"}
+        {pending ? "sending…" : "email me a code"}
       </Button>
     </form>
   );

@@ -63,7 +63,7 @@ export function DeleteAccount({
       <DialogTrigger
         render={
           <Button variant="outline" className="text-destructive">
-            Delete my account
+            delete my account
           </Button>
         }
       />
@@ -122,7 +122,7 @@ export function DeleteAccount({
         <DialogFooter>
           <DialogClose
             disabled={action.pending}
-            render={<Button variant="outline">Keep my account</Button>}
+            render={<Button variant="outline">keep my account</Button>}
           />
           <PendingButton
             variant="destructive-solid"
@@ -131,9 +131,9 @@ export function DeleteAccount({
             }
             pending={action.pending}
             disabled={stuck || (handingOver && !everyTreeCovered)}
-            pendingLabel="Deleting…"
+            pendingLabel="deleting…"
           >
-            {handingOver ? "Hand over and delete" : "Delete permanently"}
+            {handingOver ? "hand over and delete" : "delete permanently"}
           </PendingButton>
         </DialogFooter>
       </DialogContent>

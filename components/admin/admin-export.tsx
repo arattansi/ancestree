@@ -32,9 +32,9 @@ export function AdminExport({ treeId }: { treeId: string }) {
       size="sm"
       onClick={onExport}
       pending={action.pending}
-      pendingLabel="Preparing…"
+      pendingLabel="preparing…"
     >
-      Download JSON export
+      download JSON export
     </PendingButton>
   );
 }

@@ -116,10 +116,10 @@ export function PersonForm({
     <PendingButton
       type="submit"
       pending={action.pending}
-      pendingLabel="Saving…"
+      pendingLabel="saving…"
       disabled={photo.busy || !form.formState.isValid}
     >
-      Save changes
+      save changes
     </PendingButton>
   );
 
@@ -154,7 +154,7 @@ export function PersonForm({
               render={<Link href={backHref} />}
               variant="outline"
             >
-              Back to tree
+              back to tree
             </Button>
           </FloatingFormActions>
         ) : (

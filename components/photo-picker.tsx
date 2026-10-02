@@ -145,7 +145,7 @@ export function PhotoPicker({
                   returnFocus(() => firstFocusable(editor.current));
                 }}
               >
-                Reposition
+                reposition
               </button>
             ) : null}
             {value ? (
@@ -160,7 +160,7 @@ export function PhotoPicker({
                   returnFocus(() => fileInput.current);
                 }}
               >
-                Remove selected photo
+                remove selected photo
               </button>
             ) : null}
           </div>
@@ -186,7 +186,7 @@ export function PhotoPicker({
           />
           <div className="flex gap-2">
             <Button type="button" size="sm" onClick={closeEditor}>
-              Done
+              done
             </Button>
             <Button
               type="button"
@@ -197,7 +197,7 @@ export function PhotoPicker({
                 closeEditor();
               }}
             >
-              Cancel
+              cancel
             </Button>
             <Button
               type="button"
@@ -205,7 +205,7 @@ export function PhotoPicker({
               variant="ghost"
               onClick={() => onCropChange(DEFAULT_CROP)}
             >
-              Reset
+              reset
             </Button>
           </div>
         </div>

@@ -66,10 +66,10 @@ export function SuggestionAnswer({
             size="sm"
             pending={action.pendingKey === "accept"}
             disabled={action.pending}
-            pendingLabel="Accepting…"
+            pendingLabel="accepting…"
             onClick={(e) => answer(true, e.currentTarget)}
           >
-            Accept
+            accept
           </PendingButton>
           <Button
             ref={declineRef}
@@ -83,7 +83,7 @@ export function SuggestionAnswer({
               returnFocus(() => document.getElementById(reasonId));
             }}
           >
-            Decline
+            decline
           </Button>
         </div>
         <FormError>{action.error}</FormError>
@@ -117,9 +117,9 @@ export function SuggestionAnswer({
           size="sm"
           variant="outline"
           pending={action.pending}
-          pendingLabel="Declining…"
+          pendingLabel="declining…"
         >
-          Decline
+          decline
         </PendingButton>
         <Button
           type="button"
@@ -133,7 +133,7 @@ export function SuggestionAnswer({
             returnFocus(() => declineRef.current);
           }}
         >
-          Cancel
+          cancel
         </Button>
       </div>
     </form>

@@ -78,11 +78,11 @@ export function ReportCard({
             size="sm"
             variant="outline"
             action={() => resolveEntryReport(report.id)}
-            pendingLabel="Resolving…"
+            pendingLabel="resolving…"
             removesRow
             onSuccess={done}
           >
-            Mark resolved
+            mark resolved
           </ActionButton>
         ) : null}
         {report.dispute && canDecide ? (
@@ -92,13 +92,13 @@ export function ReportCard({
               confirm={{
                 title: `Uphold ${claim}?`,
                 destructive: false,
-                confirmLabel: "Uphold claim",
-                pendingLabel: "Upholding…",
+                confirmLabel: "uphold claim",
+                pendingLabel: "upholding…",
                 onConfirm: () => decideClaimDispute(report.id, true),
                 onSuccess: done,
               }}
             >
-              Uphold claim
+              uphold claim
             </ConfirmButton>
             <ConfirmButton
               size="sm"
@@ -108,13 +108,13 @@ export function ReportCard({
                 // `decide_claim_dispute` hands the entry back to whoever
                 // added it, who is whoever disputed it.
                 description: `${personName} goes back to ${report.mine ? "you" : report.authorName}.`,
-                confirmLabel: "Reverse claim",
-                pendingLabel: "Reversing…",
+                confirmLabel: "reverse claim",
+                pendingLabel: "reversing…",
                 onConfirm: () => decideClaimDispute(report.id, false),
                 onSuccess: done,
               }}
             >
-              Reverse claim
+              reverse claim
             </ConfirmButton>
           </>
         ) : null}
@@ -123,11 +123,11 @@ export function ReportCard({
             size="sm"
             variant="ghost"
             action={() => withdrawEntryReport(report.id)}
-            pendingLabel="Withdrawing…"
+            pendingLabel="withdrawing…"
             removesRow
             onSuccess={done}
           >
-            Withdraw
+            withdraw
           </ActionButton>
         ) : null}
       </div>

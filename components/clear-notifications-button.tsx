@@ -53,8 +53,8 @@ export function ClearNotificationsButton({
           ? "Requests waiting on your answer stay."
           : undefined
       }
-      confirmLabel="Clear"
-      pendingLabel="Clearing…"
+      confirmLabel="clear"
+      pendingLabel="clearing…"
       onConfirm={() => clearNotifications(clearable)}
       onSuccess={() => {
         cleared.current = true;
@@ -72,7 +72,7 @@ export function ClearNotificationsButton({
             cleared.current = false;
           }}
         >
-          Clear
+          clear
         </Button>
       }
     />

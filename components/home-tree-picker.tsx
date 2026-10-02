@@ -80,9 +80,9 @@ export function HomeTreePicker({
             onClick={onMove}
             pending={move.pending}
             disabled={choice === homeTreeId || options.length < 2}
-            pendingLabel="Moving…"
+            pendingLabel="moving…"
           >
-            Move home
+            move home
           </PendingButton>
         </div>
         <p className="text-xs text-muted-foreground">

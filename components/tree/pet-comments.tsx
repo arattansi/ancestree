@@ -124,10 +124,10 @@ export function PetComments({
           size="sm"
           className="self-end"
           pending={post.pending}
-          pendingLabel="Posting…"
+          pendingLabel="posting…"
           disabled={!body.trim()}
         >
-          Comment
+          comment
         </PendingButton>
       </form>
 
@@ -164,13 +164,13 @@ export function PetComments({
                             : `Delete the comment from ${c.authorName}`
                         }
                       >
-                        Delete
+                        delete
                       </button>
                     }
                     title="Delete this comment?"
                     description="This cannot be undone."
-                    confirmLabel="Delete"
-                    pendingLabel="Deleting…"
+                    confirmLabel="delete"
+                    pendingLabel="deleting…"
                     onConfirm={() => deletePetComment(c.id)}
                     onSuccess={() =>
                       setItems(

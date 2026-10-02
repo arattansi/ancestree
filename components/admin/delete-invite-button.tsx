@@ -30,13 +30,13 @@ export function DeleteInviteButton({
       aria-label={`Delete the invite record for ${name}`}
       confirm={{
         ...confirm,
-        confirmLabel: "Delete",
-        pendingLabel: "Deleting…",
+        confirmLabel: "delete",
+        pendingLabel: "deleting…",
         onConfirm: () => deleteInviteRequest(id),
         onSuccess: () => onDeleted?.(),
       }}
     >
-      Delete
+      delete
     </ConfirmButton>
   );
 }

@@ -84,8 +84,8 @@ export default async function NewTreePage() {
           </CardHeader>
           {request === "none" ? (
             <CardContent>
-              <StartTreeButton status="none" pendingLabel="Request sent">
-                Ask to start a tree
+              <StartTreeButton status="none" pendingLabel="request sent">
+                ask to start a tree
               </StartTreeButton>
             </CardContent>
           ) : null}

@@ -130,20 +130,20 @@ function OpenRequest({
           size="sm"
           pending={action.pendingKey === "approve"}
           disabled={action.pending}
-          pendingLabel="Approving…"
+          pendingLabel="approving…"
           onClick={onApprove}
         >
-          {r.kind === "member" ? "Approve" : "Approve & send invite"}
+          {r.kind === "member" ? "approve" : "approve & send invite"}
         </PendingButton>
         <PendingButton
           size="sm"
           variant="outline"
           pending={action.pendingKey === "decline"}
           disabled={action.pending}
-          pendingLabel="Declining…"
+          pendingLabel="declining…"
           onClick={onDecline}
         >
-          Decline
+          decline
         </PendingButton>
         <DeleteRequestButton request={r} disabled={action.pending} />
       </div>
@@ -166,12 +166,12 @@ function DeleteRequestButton({
       aria-label={`Delete the request from ${fullName(r)}`}
       confirm={{
         ...deleteConfirm(r),
-        confirmLabel: "Delete",
-        pendingLabel: "Deleting…",
+        confirmLabel: "delete",
+        pendingLabel: "deleting…",
         onConfirm: () => deleteTreeRequest(r.id),
       }}
     >
-      Delete
+      delete
     </ConfirmButton>
   );
 }

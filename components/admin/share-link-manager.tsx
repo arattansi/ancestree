@@ -92,10 +92,10 @@ export function ShareLinkManager({
           type="button"
           onClick={mint}
           pending={action.pending}
-          pendingLabel="Creating…"
+          pendingLabel="creating…"
           className="self-start"
         >
-          Create share link
+          create share link
         </PendingButton>
       </div>
 
@@ -108,7 +108,7 @@ export function ShareLinkManager({
           <div className="flex gap-2">
             <Input readOnly value={freshUrl} className="font-mono text-xs" />
             <Button type="button" variant="outline" onClick={() => copy(freshUrl)}>
-              Copy
+              copy
             </Button>
           </div>
         </div>
@@ -170,7 +170,7 @@ export function ShareLinkManager({
                       onClick={() => copy(shareUrl(link.token))}
                       aria-label={`Copy ${which}`}
                     >
-                      Copy
+                      copy
                     </Button>
                     <ConfirmButton
                       variant="outline"
@@ -180,12 +180,12 @@ export function ShareLinkManager({
                       confirm={{
                         title: link.label ? `Revoke “${link.label}”?` : "Revoke this link?",
                         description: "It stops working for anyone who has it.",
-                        confirmLabel: "Revoke",
-                        pendingLabel: "Revoking…",
+                        confirmLabel: "revoke",
+                        pendingLabel: "revoking…",
                         onConfirm: () => revokeShareLink(link.id),
                       }}
                     >
-                      Revoke
+                      revoke
                     </ConfirmButton>
                   </div>
                 </li>

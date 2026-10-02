@@ -112,7 +112,7 @@ export function StoryRecordingField({
       onClick={() => fileRef.current?.click()}
     >
       <Mic aria-hidden />
-      {preparing ? `Preparing… ${Math.round(progress * 100)}%` : label}
+      {preparing ? `preparing… ${Math.round(progress * 100)}%` : label}
     </Button>
   );
 
@@ -148,7 +148,7 @@ export function StoryRecordingField({
               onClick={() => choose(null, removed)}
             >
               <X aria-hidden />
-              Remove
+              remove
             </Button>
           </div>
         </div>
@@ -168,7 +168,7 @@ export function StoryRecordingField({
                 onClick={() => fileRef.current?.click()}
               >
                 <Mic aria-hidden />
-                Replace
+                replace
               </Button>
               <Button
                 type="button"
@@ -178,7 +178,7 @@ export function StoryRecordingField({
                 onClick={() => choose(null, true)}
               >
                 <X aria-hidden />
-                Remove
+                remove
               </Button>
             </div>
           </div>
@@ -195,7 +195,7 @@ export function StoryRecordingField({
               onClick={() => choose(null, false)}
             >
               <Undo2 aria-hidden />
-              Undo
+              undo
             </Button>
           ) : null}
         </div>

@@ -256,7 +256,7 @@ export function PersonNameFields<T extends FieldValues>({
                   onClick={() => reveal(key)}
                 >
                   <Plus />
-                  {label}
+                  {label.toLowerCase()}
                 </Button>
               ) : null,
             )}

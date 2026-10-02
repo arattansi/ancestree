@@ -163,7 +163,7 @@ export function WelcomeDetailsForm({
                   className="shrink-0 self-start px-0"
                   onClick={() => setShowAll(true)}
                 >
-                  Change
+                  change
                 </Button>
               )
             }
@@ -200,17 +200,17 @@ export function WelcomeDetailsForm({
           <PendingButton
             type="submit"
             pending={action.pending}
-            pendingLabel="Saving…"
+            pendingLabel="saving…"
             disabled={photo.busy || !somethingToSave || !isValid}
           >
-            Save and see the tree
+            save and see the tree
           </PendingButton>
           <Button
             nativeButton={false}
             render={<Link href={treeFocusHref(personId)} />}
             variant="ghost"
           >
-            {missesAnything(asks) ? "Skip for now" : "See the tree"}
+            {missesAnything(asks) ? "skip for now" : "see the tree"}
           </Button>
         </div>
       </form>

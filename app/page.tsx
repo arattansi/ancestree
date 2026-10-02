@@ -14,9 +14,8 @@ import { getTreeRequestStatus } from "@/lib/tree-requests.server";
  * The landing page (Step 28). Signed in: view your tree (My Family Tree,
  * Step 92.5), or ask to start a new one. Signed out: sign in, request
  * access (which looks for your family's tree first), or join the waitlist
- * to start one. New trees are by request during the beta. The buttons are
- * navigation, so lower-case (docs/design-system.md), even the ones that
- * open a dialog.
+ * to start one. New trees are by request during the beta. Its buttons are
+ * lower-case, as every button is (docs/design-system.md).
  *
  * Sign in stays the filled button, for members coming back; the line under
  * the buttons tells a newcomer they need an invite before sign in sends

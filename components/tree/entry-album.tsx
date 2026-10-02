@@ -99,20 +99,20 @@ function PhotoDetails({
             <ActionButton
               size="sm"
               action={() => decideAlbumPhoto(photo.id, personId, true)}
-              pendingLabel="Approving…"
+              pendingLabel="approving…"
               onSuccess={() => onDecided(true)}
             >
-              Approve
+              approve
             </ActionButton>
             <ActionButton
               size="sm"
               variant="outline"
               action={() => decideAlbumPhoto(photo.id, personId, false)}
-              pendingLabel="Declining…"
+              pendingLabel="declining…"
               removesRow={!photo.mine}
               onSuccess={() => onDecided(false)}
             >
-              Decline
+              decline
             </ActionButton>
           </>
         ) : null}
@@ -122,13 +122,13 @@ function PhotoDetails({
             variant="ghost"
             confirm={{
               title: "Remove this photo from the album?",
-              confirmLabel: "Remove",
-              pendingLabel: "Removing…",
+              confirmLabel: "remove",
+              pendingLabel: "removing…",
               onConfirm: () => removeFromAlbum(photo.id, personId),
               onSuccess: onGone,
             }}
           >
-            Remove
+            remove
           </ConfirmButton>
         ) : null}
         {photo.mine ? (
@@ -142,13 +142,13 @@ function PhotoDetails({
                 photo.others.length > 0
                   ? "It goes from every album it’s in.\nThis cannot be undone."
                   : "This cannot be undone.",
-              confirmLabel: "Delete",
-              pendingLabel: "Deleting…",
+              confirmLabel: "delete",
+              pendingLabel: "deleting…",
               onConfirm: () => deleteAlbumPhoto(photo.id),
               onSuccess: onGone,
             }}
           >
-            Delete
+            delete
           </ConfirmButton>
         ) : null}
       </div>
@@ -358,7 +358,7 @@ export function EntryAlbum({
           }}
         >
           <Plus aria-hidden />
-          Add
+          add
         </Button>
       </div>
 
@@ -370,7 +370,7 @@ export function EntryAlbum({
             className="font-medium underline underline-offset-2"
             onClick={() => invalidatePersonSheet(personId, ["album"])}
           >
-            Try again
+            try again
           </button>
         </p>
       ) : items === null ? (

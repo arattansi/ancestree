@@ -72,7 +72,7 @@ function ShareButton({
       size="sm"
       variant="ghost"
       pending={share.pending}
-      pendingLabel="Sharing…"
+      pendingLabel="sharing…"
       onClick={() => {
         if (story.shareUrl) {
           void sendLink(story.shareUrl, title);
@@ -88,7 +88,7 @@ function ShareButton({
       }}
     >
       <Share aria-hidden />
-      Share
+      share
     </PendingButton>
   );
 }
@@ -232,7 +232,7 @@ function StoryCard({
               aria-expanded={expanded}
               onClick={() => setExpanded((v) => !v)}
             >
-              {expanded ? "Show less" : "Read more"}
+              {expanded ? "show less" : "read more"}
             </button>
           ) : null}
         </div>
@@ -266,14 +266,14 @@ function StoryCard({
             confirm={{
               title: "Stop sharing this story?",
               description: "Its links stop working.",
-              confirmLabel: "Stop sharing",
-              pendingLabel: "Stopping…",
+              confirmLabel: "stop sharing",
+              pendingLabel: "stopping…",
               destructive: false,
               onConfirm: () => stopSharingStory(story.id),
               onSuccess: () => onChanged({ shared: false, shareUrl: null }),
             }}
           >
-            Stop sharing
+            stop sharing
           </ConfirmButton>
         ) : null}
         {story.canDecide ? (
@@ -281,27 +281,27 @@ function StoryCard({
             <ActionButton
               size="sm"
               action={() => decideStory(story.id, true)}
-              pendingLabel="Approving…"
+              pendingLabel="approving…"
               onSuccess={() => onDecided(true)}
             >
-              Approve
+              approve
             </ActionButton>
             <ActionButton
               size="sm"
               variant="outline"
               action={() => decideStory(story.id, false)}
-              pendingLabel="Declining…"
+              pendingLabel="declining…"
               removesRow={!story.mine}
               onSuccess={() => onDecided(false)}
             >
-              Decline
+              decline
             </ActionButton>
           </>
         ) : null}
         {story.canEditCredits ? (
           <Button type="button" size="sm" variant="ghost" onClick={onEditCredits}>
             <Pencil aria-hidden />
-            {story.mine ? "Edit" : "Credits and date"}
+            {story.mine ? "edit" : "credits and date"}
           </Button>
         ) : null}
         {canDelete ? (
@@ -312,13 +312,13 @@ function StoryCard({
             confirm={{
               title: "Delete this story?",
               description: "This cannot be undone.",
-              confirmLabel: "Delete",
-              pendingLabel: "Deleting…",
+              confirmLabel: "delete",
+              pendingLabel: "deleting…",
               onConfirm: () => deleteStory(story.id),
               onSuccess: onDeleted,
             }}
           >
-            Delete
+            delete
           </ConfirmButton>
         ) : null}
       </div>
@@ -414,7 +414,7 @@ export function EntryStories({
           }}
         >
           <Plus aria-hidden />
-          Add
+          add
         </Button>
       </div>
 
@@ -426,7 +426,7 @@ export function EntryStories({
             className="font-medium underline underline-offset-2"
             onClick={() => invalidatePersonSheet(personId, ["stories"])}
           >
-            Try again
+            try again
           </button>
         </p>
       ) : items === null ? (

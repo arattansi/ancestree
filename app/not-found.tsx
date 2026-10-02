@@ -32,7 +32,7 @@ export default function NotFound() {
         </CardHeader>
         <CardContent>
           <Button nativeButton={false} render={<Link href="/tree" />}>
-            Back to tree
+            back to tree
           </Button>
         </CardContent>
       </Card>

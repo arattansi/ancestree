@@ -33,7 +33,7 @@ describe("inviteRelayedEmail (Step 30.5)", () => {
     const href = `${SITE}/account?view=settings&amp;relay=${RELAY}`;
     expect(html).toContain(`href="${href}"`);
     expect(html).toContain(`>${href}</a>`);
-    expect(html).toContain(">Invite them</a>");
+    expect(html).toContain(">invite them</a>");
   });
 
   it("tells the member the newcomer hasn't learned they're on ancestree", () => {

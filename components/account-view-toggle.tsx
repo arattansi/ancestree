@@ -14,7 +14,7 @@ export type AdminTreeOption = { id: string; name: string };
  * dashboard (beta reviewers only, Step 56), and settings. A Root of several
  * trees picks which console beneath the toggle — which also makes it the
  * tree the rest of the site shows. Labels are lower-case, like every
- * navigation button (docs/design-system.md).
+ * button (docs/design-system.md).
  */
 export function AccountViewToggle({
   view,

@@ -25,7 +25,10 @@ import { cn } from "@/lib/utils";
 
 export type SwitcherTree = { id: string; name: string; role: AccountTypeKey };
 
-/** What My Family Tree is called, in the menu and on the button. */
+/**
+ * What My Family Tree is called in the menu. The button says it
+ * lower-case, as every button does (Step 102).
+ */
 const MY_FAMILY_TREE = "My Family Tree";
 
 /** What starting a tree says in the menu, by where the ask stands. */
@@ -74,8 +77,8 @@ export function TreeSwitcher({
   const onFamily = usePathname() === myFamilyHref();
   const current = trees.find((t) => t.id === currentId) ?? null;
   const label = onFamily
-    ? MY_FAMILY_TREE
-    : (visiting?.name ?? current?.name ?? "Your trees");
+    ? "my family tree"
+    : (visiting?.name ?? current?.name ?? "your trees");
   const busy = action.pending || opening || start.pending;
 
   function open(href: string) {

@@ -324,10 +324,10 @@ function RelayInviteForm({
                   size="sm"
                   pending={action.pendingKey === `claim:${c.id}`}
                   disabled={action.pending}
-                  pendingLabel="Sending…"
+                  pendingLabel="sending…"
                   onClick={() => onSendClaim(c)}
                 >
-                  Invite as {c.name}
+                  invite as {c.name}
                 </PendingButton>
               </CandidateRow>
             ))}
@@ -348,11 +348,11 @@ function RelayInviteForm({
           variant={matches.length > 0 ? "outline" : "default"}
           pending={action.pendingKey === "send"}
           disabled={action.pending || !treeId}
-          pendingLabel="Sending…"
+          pendingLabel="sending…"
         >
           {matches.length > 0
-            ? "None of these, invite without an entry"
-            : "Send invite"}
+            ? "none of these, invite without an entry"
+            : "send invite"}
         </PendingButton>
         <PendingButton
           type="button"
@@ -360,10 +360,10 @@ function RelayInviteForm({
           variant="ghost"
           pending={action.pendingKey === "dismiss"}
           disabled={action.pending}
-          pendingLabel="Dismissing…"
+          pendingLabel="dismissing…"
           onClick={onDismiss}
         >
-          Dismiss
+          dismiss
         </PendingButton>
       </div>
     </form>

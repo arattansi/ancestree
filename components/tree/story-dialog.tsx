@@ -270,7 +270,7 @@ export function StoryDialog({
               }}
             >
               <Plus aria-hidden />
-              Date told
+              date told
             </Button>
           )}
           <CreditField
@@ -298,9 +298,9 @@ export function StoryDialog({
               size="sm"
               pending={send.pending}
               disabled={!canSend}
-              pendingLabel="Adding…"
+              pendingLabel="adding…"
             >
-              Add
+              add
             </PendingButton>
             <Button
               type="button"
@@ -309,7 +309,7 @@ export function StoryDialog({
               disabled={send.pending}
               onClick={() => onOpenChange(false)}
             >
-              Cancel
+              cancel
             </Button>
           </div>
         </form>

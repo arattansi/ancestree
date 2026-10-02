@@ -284,7 +284,7 @@ export function PlaceAutocomplete({
                   }}
                 >
                   <PlusIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                  <span className="flex-1">Add “{addName}”</span>
+                  <span className="flex-1">add “{addName}”</span>
                 </button>
               ) : null}
             </Combobox.Popup>
@@ -300,7 +300,7 @@ export function PlaceAutocomplete({
           className="relative tap-target self-start text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground pointer-coarse:mt-2"
           onClick={() => setAddOpen(true)}
         >
-          Can’t find it? Add a place
+          can’t find it? add a place
         </button>
       ) : null}
 
@@ -437,7 +437,7 @@ function AddPlaceDialog({
           <DialogClose
             render={
               <Button type="button" variant="outline">
-                Cancel
+                cancel
               </Button>
             }
           />
@@ -445,9 +445,9 @@ function AddPlaceDialog({
             type="button"
             onClick={submit}
             pending={action.pending}
-            pendingLabel="Adding…"
+            pendingLabel="adding…"
           >
-            Add place
+            add place
           </PendingButton>
         </DialogFooter>
       </DialogContent>

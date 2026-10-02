@@ -134,10 +134,10 @@ export function PersonFillForm({
         <PendingButton
           type="submit"
           pending={action.pending}
-          pendingLabel="Saving…"
+          pendingLabel="saving…"
           disabled={photoDraft.busy || !somethingToAdd || !isValid}
         >
-          Add these details
+          add these details
         </PendingButton>
       </form>
     </Form>

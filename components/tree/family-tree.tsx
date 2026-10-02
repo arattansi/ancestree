@@ -2548,14 +2548,13 @@ function Canvas({
                 You&rsquo;re viewing a read-only copy of this family tree.
               </span>
               {/* In a dialog over the canvas, so asking keeps their place
-                  (Step 41.4). An action here, not a way to another page,
-                  so sentence case (docs/design-system.md). */}
+                  (Step 41.4). */}
               <RequestInviteDialog
                 treeSlug={treeSlug}
                 signedIn={currentUserId !== ""}
                 size="sm"
               >
-                Ask to join
+                ask to join
               </RequestInviteDialog>
             </div>
           ) : editable ? (
@@ -2610,13 +2609,13 @@ function Canvas({
                 title: "Auto-arrange the tree?",
                 description:
                   "Every card moved by hand goes back to its place.\nThis cannot be undone.",
-                confirmLabel: "Auto-arrange",
-                pendingLabel: "Arranging…",
+                confirmLabel: "auto-arrange",
+                pendingLabel: "arranging…",
                 onConfirm: () => autoArrangeTree(treeId),
               }}
             >
               <ColumnsIcon />
-              <ExpandingLabel>Auto-arrange</ExpandingLabel>
+              <ExpandingLabel>auto-arrange</ExpandingLabel>
             </ConfirmButton>
           ) : null}
         </Panel>
@@ -2912,7 +2911,7 @@ export function FamilyTree(given: Props) {
           nativeButton={false}
           render={<Link href={onboardingHref()} />}
         >
-          Add yourself
+          add yourself
         </Button>
       </div>
     );

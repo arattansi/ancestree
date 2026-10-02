@@ -31,7 +31,7 @@ export function accessRequestedEmail(input: {
     bodyHtml: `They asked on ancestree to join the family tree you look after.
                   Approve their request and we&rsquo;ll email them a link that
                   signs them straight in; decline it and nothing is sent.`,
-    cta: { label: "Review the request", url: input.url },
+    cta: { label: "review the request", url: input.url },
     footnoteHtml: `You&rsquo;re a Root of ${treeHtml}, so requests to join it
                   come to you.${alertCapNoteHtml(input.lastFor, input.cap, "requests to join it")}`,
   });

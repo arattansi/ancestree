@@ -34,7 +34,7 @@ export function ClaimSuggestions({
           className="relative tap-target text-xs text-muted-foreground underline underline-offset-2"
           onClick={() => setDismissed(true)}
         >
-          Dismiss
+          dismiss
         </button>
       </div>
       <p className="mt-1 text-xs text-muted-foreground">
@@ -60,13 +60,13 @@ export function ClaimSuggestions({
                 // Several may be listed: the question names which.
                 title: `Make ${c.name} your entry?`,
                 description: notes.get(c.id),
-                confirmLabel: "Yes, merge",
-                pendingLabel: "Merging…",
+                confirmLabel: "yes, merge",
+                pendingLabel: "merging…",
                 onConfirm: () => claimPerson(c.id),
                 success: "Merged — this is now your entry.",
               }}
             >
-              This is me
+              this is me
             </ConfirmButton>
           </li>
         ))}

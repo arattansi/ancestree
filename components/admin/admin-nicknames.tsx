@@ -89,8 +89,8 @@ export function AdminNicknames({ groups }: { groups: NicknameGroup[] }) {
               onChange={(e) => setNickname(e.target.value)}
             />
           </div>
-          <PendingButton type="submit" pending={add.pending} pendingLabel="Adding…">
-            Add
+          <PendingButton type="submit" pending={add.pending} pendingLabel="adding…">
+            add
           </PendingButton>
         </div>
         <FormError>{add.error}</FormError>
@@ -153,12 +153,12 @@ export function AdminNicknames({ groups }: { groups: NicknameGroup[] }) {
                       g.variants.length > 0
                         ? `Search on every tree stops matching ${g.canonical} with its nicknames.\nThis cannot be undone.`
                         : undefined,
-                    confirmLabel: "Remove",
-                    pendingLabel: "Removing…",
+                    confirmLabel: "remove",
+                    pendingLabel: "removing…",
                     onConfirm: () => removeNicknameGroup(g.canonical),
                   }}
                 >
-                  Remove group
+                  remove group
                 </ConfirmButton>
               </li>
             ))}
@@ -194,7 +194,7 @@ function Nickname({
         onSuccess: () =>
           toast(`Removed ${variant} from ${canonical}.`, {
             action: {
-              label: "Undo",
+              label: "undo",
               onClick: () => {
                 void addNickname(canonical, variant).then(
                   (res) => res?.error && toastError(res.error),

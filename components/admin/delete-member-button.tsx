@@ -35,8 +35,8 @@ export function DeleteMemberButton({
       aria-label={`Remove ${name}`}
       confirm={{
         ...removeMemberConfirm({ name, treeName, entryCount, onlyTree }),
-        confirmLabel: "Remove",
-        pendingLabel: "Removing…",
+        confirmLabel: "remove",
+        pendingLabel: "removing…",
         onConfirm: () => deleteMember(treeId, userId),
         // Whether their login went, as the removal found it: nothing on the
         // page says so.
@@ -48,7 +48,7 @@ export function DeleteMemberButton({
           }),
       }}
     >
-      Remove
+      remove
     </ConfirmButton>
   );
 }

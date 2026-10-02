@@ -110,7 +110,7 @@ export function StoryTextFields({
               aria-pressed={!preview}
               onClick={() => setPreview(false)}
             >
-              Write
+              write
             </Button>
             <Button
               type="button"
@@ -119,7 +119,7 @@ export function StoryTextFields({
               aria-pressed={preview}
               onClick={() => setPreview(true)}
             >
-              Preview
+              preview
             </Button>
           </div>
         </div>
@@ -168,7 +168,7 @@ export function StoryTextFields({
           onClick={() => markdownRef.current?.click()}
         >
           <FileText aria-hidden />
-          Upload a Markdown file
+          upload a Markdown file
         </Button>
         <FormError>{fileError}</FormError>
       </div>

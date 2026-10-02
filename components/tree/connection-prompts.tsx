@@ -153,7 +153,7 @@ export function ConnectionPrompt({
           disabled={action.pending}
           onClick={(e) => resolve("dismissed", e.currentTarget)}
         >
-          No
+          no
         </PendingButton>
       </div>
     </RowCard>

@@ -103,7 +103,7 @@ export function RequestInviteForm({ treeSlug }: { treeSlug: string }) {
       />
 
       <Button type="submit" disabled={pending || !consented}>
-        {pending ? "Sending…" : "Request an invite"}
+        {pending ? "sending…" : "request an invite"}
       </Button>
     </form>
   );

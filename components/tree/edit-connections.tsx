@@ -238,12 +238,12 @@ export function EditConnections({
                   confirm={{
                     title: `Remove the connection to ${c.otherName}?`,
                     description: removalNote(c),
-                    confirmLabel: "Remove",
-                    pendingLabel: "Removing…",
+                    confirmLabel: "remove",
+                    pendingLabel: "removing…",
                     onConfirm: () => removeRelationship(c.id),
                   }}
                 >
-                  Remove
+                  remove
                 </ConfirmButton>
               ) : null}
             </li>
@@ -349,9 +349,9 @@ export function EditConnections({
               onClick={() => onAdd()}
               pending={add.pending}
               disabled={!datesOk || lineAsk !== null}
-              pendingLabel="Adding…"
+              pendingLabel="adding…"
             >
-              Add connection
+              add connection
             </PendingButton>
           </div>
         ) : null}

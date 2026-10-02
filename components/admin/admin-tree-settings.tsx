@@ -50,10 +50,10 @@ export function AdminTreeName({ treeId, name }: { treeId: string; name: string }
           type="submit"
           size="sm"
           pending={action.pending}
-          pendingLabel="Saving…"
+          pendingLabel="saving…"
           disabled={!value.trim() || value.trim() === name}
         >
-          Rename
+          rename
         </PendingButton>
       </div>
       <FormError>{action.error}</FormError>

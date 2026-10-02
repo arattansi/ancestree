@@ -1753,6 +1753,35 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 102: every button is lower-case** (no migration). **Aalim asked
+  for:** "all buttons are lower case characters. that should be
+  established in the design system", on the weekly newsletter's **Open My
+  Family Tree** button; asked how far, they chose every button,
+  everywhere. Until now only navigation was lower-case (Step 30.4) and a
+  button that did something was sentence case. **Now** every button's
+  words are lower-case across ~115 files: labels, what a busy button says
+  (**saving…**), a dialog's **cancel** and confirm (`ConfirmDialog`'s
+  default too), toasts' **undo** / **copy** / **share**, text buttons
+  (**edit**, **try again**, **+ middle name**), the sheet header's
+  **edit** / **fill in** / **suggest**, the theme and living filters
+  (the filter lost its CSS `capitalize`), the tree switcher's **my family
+  tree** / **your trees**, and every email's call to action (**open my
+  family tree**, **review the request**, **join ancestree**). Names keep
+  their capitals: a person's or a tree's as data (**invite as Amarshi
+  Sayani**), and other products' (**WhatsApp**, **JSON**, **Markdown**).
+  Not buttons, so unchanged: collapsible section titles (**Getting
+  Started**), cards, menu items, select values, badges, field labels, and
+  icon-only buttons' names (`TagButton`'s prop is now `title`, as that's
+  all it sets). **Rule** in `docs/design-system.md` ("Buttons:
+  lower-case"), with the doc's own button names brought in line.
+  **Guard:** `lib/button-case.test.ts` parses `app/`, `components/` and
+  `lib/` with the TypeScript compiler and fails on a capital in any
+  button's words, label props (`confirmLabel`, `pendingLabel`, …, and
+  their defaults), toast actions or email CTAs; it's how
+  **Email me a code** (a default prop) was found after the sweep.
+  Checked in the browser: the home page, its two dialogs, /join, and the
+  newsletter email rendered from `newsletterEmail`.
+
 - **Step 101: a click no longer restyles the whole page** (no migration).
   **Aalim asked for:** "fix the blur commit lag too", the cost Step 100
   left of a click on the canvas. **Why it cost so much:** not the blur. A

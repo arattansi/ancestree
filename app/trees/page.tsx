@@ -80,7 +80,7 @@ export default async function TreesPage() {
                     href={treeHref()}
                     size="sm"
                   >
-                    Open the tree
+                    open the tree
                   </TreeTarget>
                   {t.type.runsTree ? (
                     <TreeTarget
@@ -90,7 +90,7 @@ export default async function TreesPage() {
                       size="sm"
                       variant="outline"
                     >
-                      Root console
+                      root console
                     </TreeTarget>
                   ) : null}
                 </CardContent>
@@ -117,8 +117,8 @@ export default async function TreesPage() {
           </CardHeader>
           {request === "pending" ? null : (
             <CardContent>
-              <StartTreeButton status={request} pendingLabel="Request sent">
-                {request === "approved" ? "Start a tree" : "Ask to start a tree"}
+              <StartTreeButton status={request} pendingLabel="request sent">
+                {request === "approved" ? "start a tree" : "ask to start a tree"}
               </StartTreeButton>
             </CardContent>
           )}

@@ -78,9 +78,9 @@ export function EditDisplayName({ name }: { name: string | null }) {
           type="submit"
           size="sm"
           pending={action.pending}
-          pendingLabel="Saving…"
+          pendingLabel="saving…"
         >
-          Save
+          save
         </PendingButton>
         <Button
           type="button"
@@ -93,7 +93,7 @@ export function EditDisplayName({ name }: { name: string | null }) {
             close();
           }}
         >
-          Cancel
+          cancel
         </Button>
       </div>
     </form>

@@ -34,7 +34,7 @@ import { suggestChangeHref } from "@/lib/tree-links";
 function toastDismissed(suggestionId: string) {
   toast("Suggestion dismissed.", {
     action: {
-      label: "Undo",
+      label: "undo",
       onClick: () => {
         void restoreEntrySuggestion(suggestionId).then(
           (res) => res.error && toastError(res.error),
@@ -106,10 +106,10 @@ export function EntrySuggestions({
                 variant="outline"
                 className="self-start"
                 action={() => withdrawEntrySuggestion(s.id)}
-                pendingLabel="Withdrawing…"
+                pendingLabel="withdrawing…"
                 removesRow
               >
-                Withdraw
+                withdraw
               </ActionButton>
             ) : (
               <SuggestionAnswer suggestionId={s.id} />
@@ -150,7 +150,7 @@ export function EntrySuggestions({
                   size="sm"
                   variant="outline"
                 >
-                  Edit and resend
+                  edit and resend
                 </TreeTarget>
               ) : (
                 <Button
@@ -159,18 +159,18 @@ export function EntrySuggestions({
                   size="sm"
                   variant="outline"
                 >
-                  Edit and resend
+                  edit and resend
                 </Button>
               )}
               <ActionButton
                 size="sm"
                 variant="ghost"
                 action={() => dismissEntrySuggestion(d.id)}
-                pendingLabel="Dismissing…"
+                pendingLabel="dismissing…"
                 removesRow
                 onSuccess={() => toastDismissed(d.id)}
               >
-                Dismiss
+                dismiss
               </ActionButton>
             </div>
           </RowCard>

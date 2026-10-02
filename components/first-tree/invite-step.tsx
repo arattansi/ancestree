@@ -304,15 +304,15 @@ export function InviteStep({
                 onClick={() => setRows((prev) => [...prev, newRow()])}
               >
                 <Plus aria-hidden />
-                Add another
+                add another
               </Button>
               <PendingButton
                 type="submit"
                 size="sm"
                 pending={action.pending}
-                pendingLabel="Sending…"
+                pendingLabel="sending…"
               >
-                Send invites
+                send invites
               </PendingButton>
             </div>
           </form>
@@ -326,7 +326,7 @@ export function InviteStep({
           variant={invites.length > 0 ? "default" : "outline"}
         >
           <LinkPendingLabel>
-            {invites.length > 0 ? "Continue" : "Skip for now"}
+            {invites.length > 0 ? "continue" : "skip for now"}
           </LinkPendingLabel>
         </Button>
         <p className="text-xs text-muted-foreground">

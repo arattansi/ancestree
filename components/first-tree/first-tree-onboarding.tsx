@@ -93,7 +93,7 @@ export async function FirstTreeOnboarding({
                   is on {tree.name}.
                 </p>
                 <Button nativeButton={false} render={<Link href={next} />}>
-                  <LinkPendingLabel>Continue</LinkPendingLabel>
+                  <LinkPendingLabel>continue</LinkPendingLabel>
                 </Button>
               </CardContent>
             </Card>

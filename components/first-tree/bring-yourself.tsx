@@ -43,9 +43,9 @@ export function BringYourself({
         <PendingButton
           onClick={onBring}
           pending={action.pending}
-          pendingLabel="Bringing you across…"
+          pendingLabel="bringing you across…"
         >
-          Put me on {treeName}
+          put me on {treeName}
         </PendingButton>
       </CardContent>
     </Card>

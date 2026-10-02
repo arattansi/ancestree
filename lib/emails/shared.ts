@@ -130,7 +130,7 @@ export function renderInviteEmail(input: {
       ? `You&rsquo;re invited, ${input.firstName}`
       : "You&rsquo;re invited",
     bodyHtml: input.bodyHtml,
-    cta: { label: "Join ancestree", url: input.url },
+    cta: { label: "join ancestree", url: input.url },
     footnoteHtml: `Didn&rsquo;t expect this? You can ignore this email &mdash;
                   the link only works once and nobody can join without it.`,
   });

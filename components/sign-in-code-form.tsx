@@ -116,7 +116,7 @@ export function SignInCodeForm({
           </p>
         ) : null}
         <Button type="submit" disabled={pending || !whole}>
-          {pending ? "Signing in…" : "Sign in"}
+          {pending ? "signing in…" : "sign in"}
         </Button>
       </form>
 
@@ -134,7 +134,7 @@ export function SignInCodeForm({
             onClick={onChangeEmail}
             className="underline underline-offset-4 hover:text-foreground"
           >
-            Use another email
+            use another email
           </button>
         ) : null}
       </div>
@@ -150,7 +150,7 @@ function ResendButton() {
       disabled={pending}
       className="underline underline-offset-4 hover:text-foreground disabled:no-underline disabled:opacity-60"
     >
-      {pending ? "Sending…" : "Send a new code"}
+      {pending ? "sending…" : "send a new code"}
     </button>
   );
 }

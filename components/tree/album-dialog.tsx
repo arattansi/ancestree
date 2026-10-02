@@ -278,7 +278,7 @@ export function AlbumDialog({
                   }}
                 >
                   <X aria-hidden />
-                  Remove
+                  remove
                 </Button>
               </div>
             ) : (
@@ -291,7 +291,7 @@ export function AlbumDialog({
                 onClick={() => fileRef.current?.click()}
               >
                 <ImagePlus aria-hidden />
-                {preparing ? "Preparing…" : "Choose a photo"}
+                {preparing ? "preparing…" : "choose a photo"}
               </Button>
             )}
             <FormError>{pickError}</FormError>
@@ -325,7 +325,7 @@ export function AlbumDialog({
               }}
             >
               <Plus aria-hidden />
-              Date taken
+              date taken
             </Button>
           )}
           <div className="flex flex-col gap-2">
@@ -355,9 +355,9 @@ export function AlbumDialog({
               size="sm"
               pending={send.pending}
               disabled={!ready}
-              pendingLabel="Adding…"
+              pendingLabel="adding…"
             >
-              Add
+              add
             </PendingButton>
             <Button
               type="button"
@@ -366,7 +366,7 @@ export function AlbumDialog({
               disabled={send.pending}
               onClick={() => onOpenChange(false)}
             >
-              Cancel
+              cancel
             </Button>
           </div>
         </form>

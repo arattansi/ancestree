@@ -89,14 +89,14 @@ export function HeldBackDetails({
           size="sm"
           confirm={{
             title: `Show ${listOf(chosen.map((r) => r.label.toLowerCase()))} to the family?`,
-            confirmLabel: "Show",
-            pendingLabel: "Showing…",
+            confirmLabel: "show",
+            pendingLabel: "showing…",
             destructive: false,
             onConfirm: () => showHeldBackDetails(personId, [...ticked]),
             onSuccess: () => setPersonSheet(personId, "heldBack", () => ({})),
           }}
         >
-          Show to the family
+          show to the family
         </ConfirmButton>
         <ConfirmButton
           size="sm"
@@ -104,13 +104,13 @@ export function HeldBackDetails({
           confirm={{
             title: `Forget ${name}’s hidden details?`,
             description: "This cannot be undone.",
-            confirmLabel: "Forget",
-            pendingLabel: "Forgetting…",
+            confirmLabel: "forget",
+            pendingLabel: "forgetting…",
             onConfirm: () => forgetHeldBackDetails(personId),
             onSuccess: () => setPersonSheet(personId, "heldBack", () => ({})),
           }}
         >
-          Forget them
+          forget them
         </ConfirmButton>
       </div>
     </div>

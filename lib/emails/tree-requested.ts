@@ -36,7 +36,7 @@ export function treeRequestedEmail(input: {
     preheader: `${nameHtml} asked to start a tree on ancestree.`,
     heading: `${nameHtml} asked to start a tree`,
     bodyHtml,
-    cta: { label: "Review the request", url: input.url },
+    cta: { label: "review the request", url: input.url },
     footnoteHtml: `You&rsquo;re a beta reviewer, so requests to start a tree
                   come to you.${alertCapNoteHtml(input.lastFor, input.cap, "requests from the waitlist")}`,
   });

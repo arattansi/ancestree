@@ -104,7 +104,7 @@ export function RequestAccessFlow({ email }: { email?: string }) {
         </p>
       ) : null}
       <Button type="submit" disabled={searching}>
-        {searching ? "Looking…" : "Find my family’s tree"}
+        {searching ? "looking…" : "find my family’s tree"}
       </Button>
       {/* Signed in already, on /join: signing in would come straight back. */}
       {email === undefined ? (
@@ -200,10 +200,10 @@ function AskToJoin({
 
       <div className="flex flex-wrap gap-2">
         <Button type="submit" disabled={pending || !consented}>
-          {pending ? "Sending…" : "Request an invite"}
+          {pending ? "sending…" : "request an invite"}
         </Button>
         <Button type="button" variant="ghost" onClick={onNotMe} disabled={pending}>
-          That&rsquo;s not me
+          that&rsquo;s not me
         </Button>
       </div>
     </form>
@@ -246,7 +246,7 @@ function Unmatched({
       <StartATree search={search} />
 
       <Button type="button" variant="ghost" className="self-start" onClick={onBack}>
-        Try a different spelling
+        try a different spelling
       </Button>
     </div>
   );
@@ -283,7 +283,7 @@ function AskRelative({
             className="self-start"
             onClick={onAskAnother}
           >
-            Ask another relative
+            ask another relative
           </Button>
         </div>
       ) : (
@@ -314,7 +314,7 @@ function AskRelative({
             </p>
           ) : null}
           <Button type="submit" size="sm" className="self-start" disabled={pending}>
-            {pending ? "Sending…" : "Ask them to invite me"}
+            {pending ? "sending…" : "ask them to invite me"}
           </Button>
         </form>
       )}
@@ -366,7 +366,7 @@ function StartATree({ search }: { search: FindTreeState }) {
             className="self-start"
             disabled={pending || !consented}
           >
-            {pending ? "Sending…" : "Join the beta waitlist"}
+            {pending ? "sending…" : "join the beta waitlist"}
           </Button>
         </form>
       )}

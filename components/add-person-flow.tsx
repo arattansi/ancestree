@@ -285,12 +285,12 @@ export function AddPersonFlow({
         question: s.reason,
         yesLabel:
           s.suggestedType === "spouse"
-            ? "Yes, they're partners"
+            ? "yes, they're partners"
             : s.suggestedType === "parent"
-              ? "Yes, add the parent"
+              ? "yes, add the parent"
               : s.suggestedType === "duplicate_check"
-                ? "Yes, same person"
-                : "Yes",
+                ? "yes, same person"
+                : "yes",
       })),
     [suggestions],
   );
@@ -912,7 +912,7 @@ export function AddPersonFlow({
                                   );
                                 }}
                               >
-                                Remove
+                                remove
                               </button>
                             ) : null}
                           </div>
@@ -937,7 +937,7 @@ export function AddPersonFlow({
                       className="self-start"
                       onClick={addIntermediate}
                     >
-                      Add someone in between
+                      add someone in between
                     </Button>
 
                     {details ? (
@@ -989,7 +989,7 @@ export function AddPersonFlow({
                                       );
                                     }}
                                   >
-                                    Remove
+                                    remove
                                   </button>
                                 </div>
                                 <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -1116,7 +1116,7 @@ export function AddPersonFlow({
                               extraLinks.append({ targetId: "", kind: "child" })
                             }
                           >
-                            Add another connection
+                            add another connection
                           </Button>
                         ) : null}
                       </div>
@@ -1166,7 +1166,7 @@ export function AddPersonFlow({
               onClick={() => setMoreDetails(true)}
             >
               <Plus />
-              Add more details
+              add more details
             </Button>
           </div>
         ) : null}
@@ -1192,7 +1192,7 @@ export function AddPersonFlow({
         <PendingButton
           type="submit"
           pending={action.pending}
-          pendingLabel="Saving…"
+          pendingLabel="saving…"
           disabled={
             photo.busy ||
             !form.formState.isValid ||
@@ -1203,10 +1203,10 @@ export function AddPersonFlow({
           }
         >
           {mode === "self"
-            ? "Add me to the tree"
+            ? "add me to the tree"
             : invitesOnSave
-              ? "Add relative & send invite"
-              : "Add relative"}
+              ? "add relative & send invite"
+              : "add relative"}
         </PendingButton>
       </form>
 

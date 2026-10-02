@@ -198,7 +198,7 @@ export function SiteNotifications() {
                   setAttempt((n) => n + 1);
                 }}
               >
-                Try again
+                try again
               </Button>
             </div>
           ) : (

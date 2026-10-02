@@ -26,10 +26,10 @@ export function ResendInviteButton({
       variant={failed ? "default" : "outline"}
       action={() => resendInviteEmail(id)}
       success={`Invite emailed to ${email}.`}
-      pendingLabel="Sending…"
+      pendingLabel="sending…"
       aria-label={`Email ${name}'s invite link to ${email} again`}
     >
-      {failed ? "Retry email" : "Resend"}
+      {failed ? "retry email" : "resend"}
     </ActionButton>
   );
 }

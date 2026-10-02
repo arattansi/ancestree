@@ -89,7 +89,7 @@ export function PlacementAsks({ asks }: { asks: PlacementAsk[] }) {
                 size="sm"
                 pending={action.pendingKey === `all:${group.treeId}`}
                 disabled={action.pending}
-                pendingLabel="Approving…"
+                pendingLabel="approving…"
                 onClick={() =>
                   answer(
                     `all:${group.treeId}`,
@@ -98,7 +98,7 @@ export function PlacementAsks({ asks }: { asks: PlacementAsk[] }) {
                   )
                 }
               >
-                Approve all {group.asks.length}
+                approve all {group.asks.length}
               </PendingButton>
             ) : null}
           </div>
@@ -122,26 +122,26 @@ export function PlacementAsks({ asks }: { asks: PlacementAsk[] }) {
                     variant={group.asks.length > 1 ? "outline" : "default"}
                     pending={action.pendingKey === `yes:${ask.placementId}`}
                     disabled={action.pending}
-                    pendingLabel="Approving…"
+                    pendingLabel="approving…"
                     aria-label={`Approve ${whose(ask)} on ${group.treeName}`}
                     onClick={() =>
                       answer(`yes:${ask.placementId}`, [ask.placementId], true)
                     }
                   >
-                    Approve
+                    approve
                   </PendingButton>
                   <PendingButton
                     size="sm"
                     variant="ghost"
                     pending={action.pendingKey === `no:${ask.placementId}`}
                     disabled={action.pending}
-                    pendingLabel="Declining…"
+                    pendingLabel="declining…"
                     aria-label={`Decline ${whose(ask)} on ${group.treeName}`}
                     onClick={() =>
                       answer(`no:${ask.placementId}`, [ask.placementId], false)
                     }
                   >
-                    Decline
+                    decline
                   </PendingButton>
                 </div>
               </li>
@@ -174,7 +174,7 @@ export function PlacementAsks({ asks }: { asks: PlacementAsk[] }) {
                     variant="outline"
                     pending={action.pendingKey === `change:${ask.placementId}`}
                     disabled={action.pending}
-                    pendingLabel="Saving…"
+                    pendingLabel="saving…"
                     aria-label={`${full ? "Show basic details only of" : "Show in full"} ${whose(ask)} on ${ask.treeName}`}
                     onClick={() =>
                       answer(
@@ -185,7 +185,7 @@ export function PlacementAsks({ asks }: { asks: PlacementAsk[] }) {
                       )
                     }
                   >
-                    {full ? "Show basic details only" : "Show in full"}
+                    {full ? "show basic details only" : "show in full"}
                   </PendingButton>
                 </li>
               );

@@ -112,7 +112,7 @@ export function OnboardingSelfFlow({
             className="self-start text-sm text-muted-foreground underline underline-offset-2"
             onClick={() => setStep(candidates.length > 0 ? "results" : "name")}
           >
-            Back to the search
+            back to the search
           </button>
         )}
       </div>
@@ -144,9 +144,9 @@ export function OnboardingSelfFlow({
                   onClick={() => onClaim(c)}
                   pending={action.pendingKey === `claim:${c.id}`}
                   disabled={action.pending}
-                  pendingLabel="Claiming…"
+                  pendingLabel="claiming…"
                 >
-                  This is me
+                  this is me
                 </PendingButton>
               </CandidateRow>
             ))}
@@ -162,8 +162,8 @@ export function OnboardingSelfFlow({
             disabled={action.pending}
           >
             {candidates.length > 0
-              ? "None of these are me — add me"
-              : "Add myself to the tree"}
+              ? "none of these are me — add me"
+              : "add myself to the tree"}
           </Button>
           <Button
             variant="ghost"
@@ -173,7 +173,7 @@ export function OnboardingSelfFlow({
             }}
             disabled={action.pending}
           >
-            Change my name
+            change my name
           </Button>
         </div>
       </div>
@@ -217,9 +217,9 @@ export function OnboardingSelfFlow({
         type="submit"
         className="self-start"
         pending={action.pending}
-        pendingLabel="Searching…"
+        pendingLabel="searching…"
       >
-        Search the tree
+        search the tree
       </PendingButton>
     </form>
   );

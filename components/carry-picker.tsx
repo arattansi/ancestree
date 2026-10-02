@@ -300,10 +300,10 @@ export function CarryPicker({
           size="sm"
           onClick={onBring}
           pending={bring.pending}
-          pendingLabel="Bringing…"
+          pendingLabel="bringing…"
           disabled={picked.length === 0}
         >
-          {picked.length === 0 ? "Bring over" : `Bring ${picked.length} over`}
+          {picked.length === 0 ? "bring over" : `bring ${picked.length} over`}
         </PendingButton>
       </div>
     </div>

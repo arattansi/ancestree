@@ -387,7 +387,7 @@ function QuickRelativeForm({
             disabled={
               photo.busy || underAge !== null || (askedAdult && adult === undefined)
             }
-            pendingLabel="Adding…"
+            pendingLabel="adding…"
           >
             {TITLES[kind]}
           </PendingButton>
@@ -397,7 +397,7 @@ function QuickRelativeForm({
             disabled={submitting}
             onClick={onDone}
           >
-            Cancel
+            cancel
           </Button>
         </div>
       </form>

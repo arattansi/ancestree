@@ -159,7 +159,7 @@ export function FamilyStep({
 
       <div className="flex flex-wrap items-center gap-3">
         <Button nativeButton={false} render={<Link href={doneHref} />}>
-          <LinkPendingLabel>Done — open my tree</LinkPendingLabel>
+          <LinkPendingLabel>done — open my tree</LinkPendingLabel>
         </Button>
         <p className="text-xs text-muted-foreground">
           Add everyone else from the tree.

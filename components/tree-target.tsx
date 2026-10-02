@@ -38,7 +38,7 @@ export function TreeTarget({
   treeId,
   currentTreeId,
   href,
-  pendingLabel = "Opening…",
+  pendingLabel = "opening…",
   children,
   ...look
 }: ButtonLook & {

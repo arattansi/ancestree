@@ -58,7 +58,7 @@ export function AdminBareInvites({
                 onClick={() => copy(invite.token)}
                 aria-label={`Copy the link ${minted}`}
               >
-                Copy
+                copy
               </Button>
               <ConfirmButton
                 variant="destructive"
@@ -66,12 +66,12 @@ export function AdminBareInvites({
                 confirm={{
                   title: "Delete this link?",
                   description: consequence(invite),
-                  confirmLabel: "Delete",
-                  pendingLabel: "Deleting…",
+                  confirmLabel: "delete",
+                  pendingLabel: "deleting…",
                   onConfirm: () => deleteInvite(invite.id),
                 }}
               >
-                Delete
+                delete
               </ConfirmButton>
             </div>
           </RowCard>

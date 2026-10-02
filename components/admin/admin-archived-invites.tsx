@@ -40,12 +40,12 @@ export function AdminArchivedInvites({ invites }: { invites: ArchivedInvite[] })
               aria-label={`Delete the archived invite for ${describe(invite)}`}
               confirm={{
                 title: `Delete the record of ${describe(invite)}?`,
-                confirmLabel: "Delete",
-                pendingLabel: "Deleting…",
+                confirmLabel: "delete",
+                pendingLabel: "deleting…",
                 onConfirm: () => deleteInvite(invite.id),
               }}
             >
-              Delete
+              delete
             </ConfirmButton>
           </div>
         </RowCard>

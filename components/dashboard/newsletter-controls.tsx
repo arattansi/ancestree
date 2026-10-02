@@ -97,9 +97,9 @@ export function NewsletterControls({
           onClick={() => save({ ...shown, paused: !shown.paused }, "pause")}
           pending={action.pendingKey === "pause"}
           disabled={action.pending}
-          pendingLabel="Saving…"
+          pendingLabel="saving…"
         >
-          {shown.paused ? "Resume" : "Pause"}
+          {shown.paused ? "resume" : "pause"}
         </PendingButton>
         <PendingButton
           variant="outline"
@@ -111,9 +111,9 @@ export function NewsletterControls({
           }
           pending={action.pendingKey === "test"}
           disabled={action.pending}
-          pendingLabel="Sending…"
+          pendingLabel="sending…"
         >
-          Email me a test
+          email me a test
         </PendingButton>
       </div>
     </div>

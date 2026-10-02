@@ -110,7 +110,7 @@ function ShareWeek({ text }: { text: string }) {
         aria-label="Share this week"
       >
         <Share className="size-3.5" />
-        Share
+        share
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-36">
         <ShareItems text={text} />
@@ -226,7 +226,7 @@ export function UpcomingFeed({
         aria-expanded={false}
       >
         <Cake />
-        <span className="hidden sm:inline">Upcoming</span>
+        <span className="hidden sm:inline">upcoming</span>
         {thisWeek > 0 ? (
           <span
             className="flex size-4 items-center justify-center rounded-full bg-primary text-[10px] leading-none font-semibold text-primary-foreground"

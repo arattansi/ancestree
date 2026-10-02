@@ -55,8 +55,8 @@ export default async function ConfirmSignInPage({
             <input type="hidden" name="type" value={type} />
             <input type="hidden" name="invite" value={invite} />
             <input type="hidden" name="next" value={next} />
-            <SubmitButton pendingLabel="Signing in…">
-              {invite ? "Accept & open the tree" : "Sign in to ancestree"}
+            <SubmitButton pendingLabel="signing in…">
+              {invite ? "accept & open the tree" : "sign in to ancestree"}
             </SubmitButton>
           </form>
         </CardContent>

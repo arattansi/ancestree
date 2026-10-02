@@ -23,7 +23,7 @@ export function treeRequestApprovedEmail(input: {
                   of your own on ancestree. Name it and you&rsquo;re its first
                   Root &mdash; then bring along anyone you can already see on
                   your other trees.`,
-    cta: { label: "Start your tree", url: input.url },
+    cta: { label: "start your tree", url: input.url },
     footnoteHtml: `You asked to start a tree on ancestree. If you&rsquo;re
                   signed out, sign in with this address first.`,
   });

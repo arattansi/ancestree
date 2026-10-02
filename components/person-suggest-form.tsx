@@ -113,17 +113,17 @@ export function PersonSuggestForm({
           <PendingButton
             type="submit"
             pending={action.pending}
-            pendingLabel="Sending…"
+            pendingLabel="sending…"
             disabled={!somethingToSend || !isValid}
           >
-            Send suggestion
+            send suggestion
           </PendingButton>
           <Button
             nativeButton={false}
             render={<Link href={backHref} />}
             variant="outline"
           >
-            Back to tree
+            back to tree
           </Button>
         </FloatingFormActions>
       </form>

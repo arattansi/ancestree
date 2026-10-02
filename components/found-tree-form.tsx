@@ -64,9 +64,9 @@ export function FoundTreeForm({ suggestedName }: { suggestedName: string }) {
         type="submit"
         pending={action.pending}
         disabled={!name.trim()}
-        pendingLabel="Planting…"
+        pendingLabel="planting…"
       >
-        Start my tree
+        start my tree
       </PendingButton>
     </form>
   );

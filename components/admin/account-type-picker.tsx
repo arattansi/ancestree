@@ -108,8 +108,8 @@ export function AccountTypePicker({
         description={`They’ll hold the whole tree, as you do.\n${rootPlacesAfter(roots)}.\nThis cannot be undone.`}
         // Nothing is lost, but there's no way back: a plain confirm.
         destructive={false}
-        confirmLabel="Make a Root"
-        pendingLabel="Saving…"
+        confirmLabel="make a root"
+        pendingLabel="saving…"
         onConfirm={() => setAccountType(treeId, userId, ROOT.key)}
       />
     </>

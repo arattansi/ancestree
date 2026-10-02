@@ -219,9 +219,9 @@ export function StoryEditDialog({
               size="sm"
               pending={save.pending}
               disabled={preparing}
-              pendingLabel="Saving…"
+              pendingLabel="saving…"
             >
-              Save
+              save
             </PendingButton>
             <Button
               type="button"
@@ -230,7 +230,7 @@ export function StoryEditDialog({
               disabled={save.pending}
               onClick={onClose}
             >
-              Cancel
+              cancel
             </Button>
           </div>
         </form>

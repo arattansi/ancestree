@@ -38,13 +38,13 @@ export default function ErrorPage({
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => retry()}>Try again</Button>
+            <Button onClick={() => retry()}>try again</Button>
             <Button
               variant="outline"
               nativeButton={false}
               render={<Link href="/tree" />}
             >
-              Back to tree
+              back to tree
             </Button>
           </div>
           {error.digest ? (

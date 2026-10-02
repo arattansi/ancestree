@@ -185,20 +185,20 @@ function NotificationRow({
               size="sm"
               pending={action.pendingKey === "placement:accept"}
               disabled={busy}
-              pendingLabel="Approving…"
+              pendingLabel="approving…"
               onClick={() => onPlacement(placementId, true)}
             >
-              Approve
+              approve
             </PendingButton>
             <PendingButton
               size="sm"
               variant="outline"
               pending={action.pendingKey === "placement:decline"}
               disabled={busy}
-              pendingLabel="Declining…"
+              pendingLabel="declining…"
               onClick={() => onPlacement(placementId, false)}
             >
-              Decline
+              decline
             </PendingButton>
           </>
         ) : null}
@@ -216,7 +216,7 @@ function NotificationRow({
             size="sm"
             variant="outline"
           >
-            Edit and resend
+            edit and resend
           </TreeTarget>
         ) : null}
 
@@ -228,7 +228,7 @@ function NotificationRow({
             render={<Link href={asksHref()} />}
             size="sm"
           >
-            Review
+            review
           </Button>
         ) : null}
 
@@ -246,7 +246,7 @@ function NotificationRow({
             size="sm"
             variant="ghost"
           >
-            View on tree
+            view on tree
           </TreeTarget>
         ) : null}
 
@@ -258,7 +258,7 @@ function NotificationRow({
             size="sm"
             variant="outline"
           >
-            Fill in
+            fill in
           </Button>
         ) : n.type === "placeholder_child" && n.personId && n.treeId ? (
           // Step 98.2: a place held for their child, theirs to fill in.
@@ -269,7 +269,7 @@ function NotificationRow({
             size="sm"
             variant="outline"
           >
-            Fill in
+            fill in
           </TreeTarget>
         ) : null}
 
@@ -283,7 +283,7 @@ function NotificationRow({
             size="sm"
             variant="outline"
           >
-            Ask again
+            ask again
           </TreeTarget>
         ) : null}
 
@@ -299,7 +299,7 @@ function NotificationRow({
             size="sm"
             variant="outline"
           >
-            View in Root console
+            view in root console
           </TreeTarget>
         ) : null}
 
@@ -313,7 +313,7 @@ function NotificationRow({
             size="sm"
             variant="outline"
           >
-            View family link
+            view family link
           </TreeTarget>
         ) : null}
 
@@ -325,7 +325,7 @@ function NotificationRow({
             size="sm"
             variant="outline"
           >
-            Start your tree
+            start your tree
           </Button>
         ) : null}
 
@@ -335,16 +335,16 @@ function NotificationRow({
             variant="outline"
             pending={action.pendingKey === "undo"}
             disabled={busy}
-            pendingLabel="Undoing…"
+            pendingLabel="undoing…"
             onClick={() => onRevert(revisionId)}
           >
-            Undo this change
+            undo this change
           </PendingButton>
         ) : null}
 
         {n.canDispute && n.personId && n.treeId ? (
           <Button size="sm" variant="outline" onClick={() => setDisputing(true)}>
-            Dispute this claim
+            dispute this claim
           </Button>
         ) : null}
       </div>

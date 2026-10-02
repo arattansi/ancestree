@@ -115,7 +115,7 @@ export function ConnectionApprovalDialog({
                       }
                       className={cn(!selected && "text-muted-foreground")}
                     >
-                      {choice.label(p.yesLabel ?? "Yes")}
+                      {choice.label(p.yesLabel ?? "yes")}
                     </Button>
                   );
                 })}
@@ -143,19 +143,19 @@ export function ConnectionApprovalDialog({
             disabled={busy}
             onClick={onCancel}
           >
-            Back to form
+            back to form
           </Button>
           <PendingButton
             type="button"
             size="sm"
             pending={busy}
-            pendingLabel="Saving…"
+            pendingLabel="saving…"
             disabled={!allAnswered}
             onClick={() =>
               onResolve(choices.filter((c): c is SuggestionResolution => c !== null))
             }
           >
-            Save entry
+            save entry
           </PendingButton>
         </div>
       </DialogContent>

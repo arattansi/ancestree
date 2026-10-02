@@ -41,7 +41,7 @@ export default async function NewsletterPage({
           </CardHeader>
           <CardContent>
             <Button variant="outline" render={<Link href={newsletterSettingsHref()} />}>
-              Change it in settings
+              change it in settings
             </Button>
           </CardContent>
         </Card>
@@ -65,9 +65,9 @@ export default async function NewsletterPage({
           <form action={setNewsletterFromLink.bind(null, token, !on)}>
             <SubmitButton
               variant={on ? "default" : "outline"}
-              pendingLabel="Saving…"
+              pendingLabel="saving…"
             >
-              {on ? "Unsubscribe" : "Subscribe again"}
+              {on ? "unsubscribe" : "subscribe again"}
             </SubmitButton>
           </form>
         </CardContent>

@@ -198,7 +198,7 @@ export default async function EditPersonPage({
             size="sm"
             variant="outline"
           >
-            Back to tree
+            back to tree
           </Button>
         </div>
 

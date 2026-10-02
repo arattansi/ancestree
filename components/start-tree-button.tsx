@@ -124,7 +124,7 @@ export function StartTreeButton({
         type="button"
         onClick={start}
         pending={pending}
-        pendingLabel="Sending…"
+        pendingLabel="sending…"
         {...look}
       >
         {current === "pending" && pendingLabel ? pendingLabel : children}

@@ -84,7 +84,7 @@ function WaitlistForm() {
           onCheckedChange={setConsented}
         />
         <Button type="submit" disabled={pending || !consented}>
-          {pending ? "Sending…" : "Join the waitlist"}
+          {pending ? "sending…" : "join the waitlist"}
         </Button>
       </form>
     </>

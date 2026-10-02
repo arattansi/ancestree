@@ -118,13 +118,13 @@ export function SamePersonPrompt({
                 onNotSame(other.id, true);
                 toast("Marked as two people.", {
                   action: {
-                    label: "Undo",
+                    label: "undo",
                     onClick: () => onNotSame(other.id, false),
                   },
                 });
               }}
             >
-              Not the same
+              not the same
             </Button>
           </div>
         </li>

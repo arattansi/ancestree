@@ -36,8 +36,8 @@ export function AddRelativeButton({
   pending?: boolean;
 }) {
   const label = relatedTo
-    ? `Add a relative of ${relatedTo.name}`
-    : "Add a relative";
+    ? `add a relative of ${relatedTo.name}`
+    : "add a relative";
   const look = {
     size: "lg" as const,
     className: cn(

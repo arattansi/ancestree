@@ -59,7 +59,7 @@ export function ConfirmDialog<T>({
   description,
   confirmLabel,
   pendingLabel,
-  cancelLabel = "Cancel",
+  cancelLabel = "cancel",
   destructive = true,
   onConfirm,
   fallbackFocus,

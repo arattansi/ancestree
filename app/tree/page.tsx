@@ -147,7 +147,7 @@ export default async function TreePage() {
           Add yourself first, then connect relatives to build out the tree.
         </p>
         <Button nativeButton={false} render={<Link href={onboardingHref()} />}>
-          Add yourself
+          add yourself
         </Button>
       </CenteredPage>
     );

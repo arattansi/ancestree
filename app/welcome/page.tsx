@@ -73,7 +73,7 @@ export default async function WelcomePage({
               nativeButton={false}
               render={<Link href={treeFocusHref(placeholderId)} />}
             >
-              See the tree
+              see the tree
             </Button>
           </CardContent>
         </Card>
@@ -108,7 +108,7 @@ export default async function WelcomePage({
               nativeButton={false}
               render={<Link href={treeFocusHref(person.id)} />}
             >
-              See the tree
+              see the tree
             </Button>
           </CardContent>
         </Card>

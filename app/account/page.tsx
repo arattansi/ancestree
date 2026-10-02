@@ -234,7 +234,7 @@ async function ProfileView({ profile }: { profile: Profile }) {
             nativeButton={false}
             render={<Link href={onboardingHref()} />}
           >
-            Find yourself on the tree
+            find yourself on the tree
           </Button>
         </CardContent>
       </Card>
@@ -390,7 +390,7 @@ async function SettingsView({
                         variant="link"
                         className="relative tap-target h-auto border-0 p-0 text-xs font-normal text-muted-foreground underline hover:text-foreground"
                       >
-                        Root console
+                        root console
                       </TreeTarget>
                     ) : null}
                     <AccountTypeBadge role={t.role} />
@@ -458,7 +458,7 @@ async function SettingsView({
               variant="outline"
               className="self-start"
             >
-              Start a tree of your own
+              start a tree of your own
             </Button>
           ) : null}
         </CardContent>
@@ -571,8 +571,8 @@ async function SettingsView({
       </Card>
 
       <form action={signOut} className="md:col-span-2">
-        <SubmitButton variant="outline" pendingLabel="Signing out…">
-          Sign out
+        <SubmitButton variant="outline" pendingLabel="signing out…">
+          sign out
         </SubmitButton>
       </form>
     </div>

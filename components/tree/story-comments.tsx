@@ -70,16 +70,16 @@ function CommentEditor({
       <FormError>{save.error}</FormError>
       <div className="flex justify-end gap-2">
         <Button type="button" size="sm" variant="ghost" disabled={save.pending} onClick={onDone}>
-          Cancel
+          cancel
         </Button>
         <PendingButton
           type="submit"
           size="sm"
           pending={save.pending}
-          pendingLabel="Saving…"
+          pendingLabel="saving…"
           disabled={!text.trim()}
         >
-          Save
+          save
         </PendingButton>
       </div>
     </form>
@@ -171,7 +171,7 @@ export function StoryComments({
             className="font-medium underline underline-offset-2"
             onClick={() => setVersion((v) => v + 1)}
           >
-            Try again
+            try again
           </button>
         </p>
       ) : items === null ? (
@@ -196,7 +196,7 @@ export function StoryComments({
                     aria-label="Edit your comment"
                     onClick={() => setEditing(c.id)}
                   >
-                    Edit
+                    edit
                   </button>
                 ) : null}
                 {c.mine || canTend ? (
@@ -213,13 +213,13 @@ export function StoryComments({
                             : `Delete the comment from ${c.saidBy}`
                         }
                       >
-                        Delete
+                        delete
                       </button>
                     }
                     title="Delete this comment?"
                     description="This cannot be undone."
-                    confirmLabel="Delete"
-                    pendingLabel="Deleting…"
+                    confirmLabel="delete"
+                    pendingLabel="deleting…"
                     onConfirm={() => deleteStoryComment(c.id)}
                     onSuccess={() =>
                       setItems((cur) => cur?.filter((x) => x.id !== c.id) ?? null)
@@ -270,10 +270,10 @@ export function StoryComments({
           size="sm"
           className="self-end"
           pending={post.pending}
-          pendingLabel="Posting…"
+          pendingLabel="posting…"
           disabled={!body.trim()}
         >
-          Post
+          post
         </PendingButton>
       </form>
     </div>

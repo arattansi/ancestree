@@ -52,7 +52,7 @@ describe("newsletterEmail", () => {
     expect(html).toMatch(/Sara Khan added <a href="https:\/\/www\.ancestree\.space\/family\?person=p2"[^>]*>Yusuf Khan<\/a>\./);
     expect(html).toMatch(/You added <a[^>]*>Ali Khan<\/a> and <a[^>]*>Zahra Khan<\/a>\./);
     expect(html).toMatch(/A new story about <a[^>]*>Amina Khan<\/a>\./);
-    expect(html).toContain("Open My Family Tree");
+    expect(html).toContain("open my family tree");
   });
 
   it("says who joined, apart from whom anyone added", () => {

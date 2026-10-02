@@ -183,7 +183,7 @@ export default async function InvitePage({
               {profile ? (
                 <JoinTreeButton
                   token={token}
-                  label={founds ? "Start my tree" : `Join ${preview.tree_name}`}
+                  label={founds ? "start my tree" : `join ${preview.tree_name}`}
                 />
               ) : recipient && signInFirst ? (
                 <SignInToAccept inviteToken={token} email={recipient.email} />
@@ -194,7 +194,7 @@ export default async function InvitePage({
                   consentGiven={recipient.requested}
                 />
               ) : (
-                <MagicLinkForm inviteToken={token} submitLabel="Accept &amp; sign in" />
+                <MagicLinkForm inviteToken={token} submitLabel="accept &amp; sign in" />
               )}
               {!profile && recipient?.requested ? (
                 // They ticked the privacy notice when they asked to join, or
@@ -263,7 +263,7 @@ function AlreadyOnTree({
           href={treeHref()}
           className="w-full"
         >
-          Open {treeName}
+          open {treeName}
         </TreeTarget>
       </CardContent>
     </>
@@ -325,8 +325,8 @@ function ForAnotherAddress({
         </p>
         <form action={signOut}>
           <input type="hidden" name="next" value={inviteHref(token)} />
-          <SubmitButton className="w-full" pendingLabel="Signing out…">
-            Sign out
+          <SubmitButton className="w-full" pendingLabel="signing out…">
+            sign out
           </SubmitButton>
         </form>
         <p className="text-xs text-muted-foreground">

@@ -34,7 +34,7 @@ export function inviteRelayedEmail(input: {
                   invite to ${emailHtml} for you: one tap sends it, and they
                   join as a ${INVITED_AS.name}. If you don&rsquo;t, ignore this
                   email: their request lapses after ${RELAY_LAPSE_DAYS} days.`,
-    cta: { label: "Invite them", url: input.url },
+    cta: { label: "invite them", url: input.url },
     footnoteHtml: `They typed your address on ancestree&rsquo;s request access
                   form. We haven&rsquo;t told them whether you&rsquo;re on
                   ancestree, and nothing reaches them unless you invite

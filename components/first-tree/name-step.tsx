@@ -78,16 +78,16 @@ export function NameStep({
             <PendingButton
               type="submit"
               pending={action.pending}
-              pendingLabel="Saving…"
+              pendingLabel="saving…"
             >
-              Save and continue
+              save and continue
             </PendingButton>
             <Button
               nativeButton={false}
               render={<Link href={nextHref} />}
               variant="ghost"
             >
-              <LinkPendingLabel>Skip for now</LinkPendingLabel>
+              <LinkPendingLabel>skip for now</LinkPendingLabel>
             </Button>
           </div>
         </form>

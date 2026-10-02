@@ -61,7 +61,7 @@ export function InBetweenFields({
           onClick={() => setOpen(true)}
         >
           <Plus />
-          More about them
+          more about them
         </Button>
       )}
     </div>

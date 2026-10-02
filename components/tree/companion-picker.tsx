@@ -160,7 +160,7 @@ export function CompanionPicker({
                 onChange([...value, ...offered.map((o) => o.id)]);
               }}
             >
-              Add all
+              add all
             </Button>
           ) : null}
         </div>

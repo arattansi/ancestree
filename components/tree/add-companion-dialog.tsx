@@ -157,10 +157,10 @@ export function AddCompanionDialog({
                 type="submit"
                 size="sm"
                 pending={action.pending}
-                pendingLabel="Adding…"
+                pendingLabel="adding…"
                 disabled={photo.busy}
               >
-                Add companion
+                add companion
               </PendingButton>
               <Button
                 type="button"
@@ -169,7 +169,7 @@ export function AddCompanionDialog({
                 disabled={submitting}
                 onClick={() => onOpenChange(false)}
               >
-                Cancel
+                cancel
               </Button>
             </div>
           </form>

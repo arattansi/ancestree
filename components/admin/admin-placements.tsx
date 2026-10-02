@@ -84,7 +84,7 @@ export function AdminPlacements({
                         variant="outline"
                         pending={again.pendingKey === p.personId}
                         disabled={again.pending}
-                        pendingLabel="Asking…"
+                        pendingLabel="asking…"
                         aria-label={`Ask again about ${p.name}`}
                         onClick={() =>
                           again.run(
@@ -94,7 +94,7 @@ export function AdminPlacements({
                           )
                         }
                       >
-                        Ask again
+                        ask again
                       </PendingButton>
                     ) : null}
                     <ConfirmButton
@@ -103,12 +103,12 @@ export function AdminPlacements({
                       aria-label={`Remove ${p.name}`}
                       confirm={{
                         title: `Take ${p.name} off this tree?`,
-                        confirmLabel: "Remove",
-                        pendingLabel: "Removing…",
+                        confirmLabel: "remove",
+                        pendingLabel: "removing…",
                         onConfirm: () => removePlacement(treeId, p.personId),
                       }}
                     >
-                      Remove
+                      remove
                     </ConfirmButton>
                   </div>
                 </li>

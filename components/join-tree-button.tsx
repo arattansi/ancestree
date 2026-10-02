@@ -19,7 +19,7 @@ export function JoinTreeButton({
   return (
     <ActionButton
       action={() => joinTreeWithInvite(token)}
-      pendingLabel="Joining…"
+      pendingLabel="joining…"
       className="w-full"
     >
       {label}

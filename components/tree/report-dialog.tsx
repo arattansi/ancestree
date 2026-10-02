@@ -117,9 +117,9 @@ export function ReportDialog({
               size="sm"
               pending={send.pending}
               disabled={!body.trim()}
-              pendingLabel="Sending…"
+              pendingLabel="sending…"
             >
-              Send
+              send
             </PendingButton>
             <Button
               type="button"
@@ -128,7 +128,7 @@ export function ReportDialog({
               disabled={send.pending}
               onClick={() => onOpenChange(false)}
             >
-              Cancel
+              cancel
             </Button>
           </div>
         </form>

@@ -65,7 +65,7 @@ export function AddPlaceholderButton({
           variant="outline"
           className="self-start"
           pending={add.pending}
-          pendingLabel="Adding…"
+          pendingLabel="adding…"
           disabled={disabled || parents.length === 0}
           onClick={() =>
             add.run("add", () => addPlaceholderChild(treeId, [...parents]), {
@@ -82,7 +82,7 @@ export function AddPlaceholderButton({
             })
           }
         >
-          Add a placeholder instead
+          add a placeholder instead
         </PendingButton>
         <FormError>{add.error}</FormError>
       </div>
@@ -134,15 +134,15 @@ export function AddPlaceholderButton({
                 disabled={invite.pending}
                 onClick={() => made && done(made.personId)}
               >
-                Not now
+                not now
               </Button>
               <PendingButton
                 type="submit"
                 pending={invite.pending}
-                pendingLabel="Sending…"
+                pendingLabel="sending…"
                 disabled={email.trim().length === 0}
               >
-                Send invite
+                send invite
               </PendingButton>
             </DialogFooter>
           </form>

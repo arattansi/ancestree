@@ -48,7 +48,7 @@ export function AdminDeleteTree({ treeId, name }: { treeId: string; name: string
       <DialogTrigger
         render={
           <Button variant="outline" className="text-destructive">
-            Delete this tree
+            delete this tree
           </Button>
         }
       />
@@ -73,16 +73,16 @@ export function AdminDeleteTree({ treeId, name }: { treeId: string; name: string
         <DialogFooter>
           <DialogClose
             disabled={action.pending}
-            render={<Button variant="outline">Keep the tree</Button>}
+            render={<Button variant="outline">keep the tree</Button>}
           />
           <PendingButton
             variant="destructive-solid"
             onClick={onConfirm}
             pending={action.pending}
-            pendingLabel="Deleting…"
+            pendingLabel="deleting…"
             disabled={typed.trim() !== name}
           >
-            Delete permanently
+            delete permanently
           </PendingButton>
         </DialogFooter>
       </DialogContent>
