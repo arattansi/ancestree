@@ -1,5 +1,6 @@
 import "server-only";
 
+import { adminPageHref } from "@/lib/admin-page";
 import { openConsoleHref } from "@/lib/admin-queue";
 import { sendEmails, unsentSummary } from "@/lib/email";
 import { accessRequestedEmail } from "@/lib/emails/access-requested";
@@ -164,7 +165,7 @@ export async function alertReviewersOfTreeRequest(
       treeRequestedEmail({
         kind: request.kind,
         ...name,
-        url: `${getSiteUrl()}${openConsoleHref("tree-requests")}`,
+        url: `${getSiteUrl()}${adminPageHref("manage")}`,
         lastFor,
         cap: WAITLIST_ALERT_CAP,
       }),

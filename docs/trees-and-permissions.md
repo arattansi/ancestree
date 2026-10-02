@@ -366,7 +366,9 @@ ask again.
 Whoever answers hears at once (Step 30.1). A new request to join emails every
 Root of that tree, and a new request to start one — from the waitlist or a
 member — emails every beta reviewer who runs a tree; each email's button opens
-the request on the right Root console, signing them in first if need be.
+the request where it's answered (a Root console, or for a request to start a
+tree the admin page's manage tab, Step 103), signing them in first if need
+be.
 Asking again emails nobody. The forms are public, so the alerts are capped (5
 an hour and 20 a day per tree; 10 an hour and 30 a day for the waitlist; a
 member's ask isn't capped): past the cap a request still waits in the queue,

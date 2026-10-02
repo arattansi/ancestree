@@ -13,7 +13,10 @@ import {
   type TreeAccess,
 } from "@/lib/tree-context";
 import { adminHref } from "@/lib/tree-links";
-import { countPendingTreeRequests } from "@/lib/tree-requests.server";
+import {
+  countPendingTreeRequests,
+  isBetaReviewer,
+} from "@/lib/tree-requests.server";
 
 /**
  * The header's counts for a signed-in member (Step 77.2): counts only, one
@@ -36,19 +39,20 @@ export async function headerCounts({
     // The same audit the canvas reads, once per request between them.
     currentTreeId ? countOpenConnectionSuggestions(currentTreeId) : 0,
     Promise.all(runs.map((t) => countAdminQueue(t.id))),
-    // A beta reviewer answers from an admin console, so has a tree to run.
-    runs.length > 0 ? countPendingTreeRequests() : 0,
+    // A beta reviewer's, on their **admin** link (Step 103).
+    isBetaReviewer().then((reviewer) =>
+      reviewer ? countPendingTreeRequests() : null,
+    ),
   ]);
-  const count =
-    queues.reduce((sum, q) => sum + q.inviteRequests + q.reports, 0) +
-    treeRequests;
+  const count = queues.reduce((sum, q) => sum + q.inviteRequests + q.reports, 0);
   // One tap from the count to what's waiting, on whichever tree it's on.
-  const queue = pickQueueTarget({ trees: queues, treeRequests, currentTreeId });
+  const queue = pickQueueTarget({ trees: queues, currentTreeId });
   return {
     unread: unread.count,
     latestUnreadAt: unread.latestAt,
     connections,
     currentTreeId,
+    treeRequests,
     admin: queue
       ? {
           count,

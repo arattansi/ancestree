@@ -1,11 +1,12 @@
 "use client";
 
-import { Link2 } from "lucide-react";
+import { Link2, Shield } from "lucide-react";
 import * as React from "react";
 import { usePathname } from "next/navigation";
 
 import { NavCount, SiteNavLink } from "@/components/site-nav-link";
 import { TreeTarget } from "@/components/tree-target";
+import { adminPageHref } from "@/lib/admin-page";
 import {
   countsStale,
   parseHeaderCounts,
@@ -129,6 +130,28 @@ export function ConnectionsNavLink() {
       count={<NavCount variant="secondary">{counts.connections}</NavCount>}
     >
       connections
+    </SiteNavLink>
+  );
+}
+
+/**
+ * **admin**, a beta reviewer's way to the admin page (Step 103), red, with
+ * how many ask to start a tree while any do — which opens them.
+ */
+export function AdminNavLink() {
+  const { counts } = useHeaderCounts();
+  const waiting = counts.treeRequests;
+  if (waiting === null) return null;
+  return (
+    <SiteNavLink
+      href={adminPageHref(waiting > 0 ? "manage" : undefined)}
+      red
+      icon={<Shield className="size-4" aria-hidden />}
+      count={
+        waiting > 0 ? <NavCount variant="secondary">{waiting}</NavCount> : null
+      }
+    >
+      admin
     </SiteNavLink>
   );
 }

@@ -70,8 +70,19 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   Step 29), `/welcome` (where a claim invite, or claiming an entry on
   onboarding, lands: their entry, with a photo and what's missing asked up
   front; `?returning=1` only greets a member who brought their own —
-  `components/welcome/`, `lib/welcome.ts`, Step 50); `/admin` redirects to the account page's Root console, and
-  `/account/admin?tree=<id>&section=<card>` is an alert email's button — a
+  `components/welcome/`, `lib/welcome.ts`, Step 50); `/admin` is the
+  **admin page** for beta reviewers (Step 103, `app/admin/page.tsx`,
+  `lib/admin-page.ts`; the header's red **admin**, before **tree**, with
+  how many ask to start a tree): tabs **newsletter** (the weekly
+  newsletter's schedule and their own issue, Step 95), **analytics** (the
+  **engagement dashboard**, Step 56: counts across every tree — members,
+  who's active, trees and entries, members active each week, how far
+  members have got, what they did this week and last, each tree — from
+  `engagement_dashboard()`; `components/dashboard/`, `lib/dashboard.ts`)
+  and **manage** (requests to start a tree, from every tree and the
+  waitlist), as `?tab=` links; anyone else is redirected to the account
+  page's Root console. `/account/admin?tree=<id>&section=<card>` is an
+  alert email's button — a
   route that switches to that tree for a Root of it and opens its console
   at the card (Step 30.1, `lib/open-console.server.ts`). `/family` is My
   Family Tree (Step 92.2): every tree the member is on, drawn as one canvas
@@ -111,16 +122,11 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   me to invite them** box (on unless they untick it, Step 41.5) — and, with `?view=admin`, the **Root console**
   of the current tree, or the first you run: stats, members, people from
   other trees, requests, reports (disputed claims among them, Step 88.2),
-  requests to start a tree (beta
-  reviewers only), invites incl. founder invites and the family link
+  invites incl. founder invites and the family link
   (Step 52, `components/admin/admin-family-link.tsx`), share
   links, tree name, who else may view, export, delete the tree;
-  `components/admin/admin-console.tsx`; and, with `?view=dashboard`, for a
-  beta reviewer only, the **engagement dashboard** (Step 56): counts across
-  every tree — members, who's active, trees and entries, members active
-  each week, how far members have got, what they did this week and last,
-  each tree — from `engagement_dashboard()`; `components/dashboard/`,
-  `lib/dashboard.ts`),
+  `components/admin/admin-console.tsx`; the old `?view=dashboard` goes to
+  `/admin`, Step 103),
   `/request-invite` (public; `?tree=<slug>` asks that tree's Roots, and
   without one it's the request-access search),
   `/shared/[token]` (public read-only canvas; its **Ask to join** opens the
@@ -509,7 +515,7 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   (`newsletter_due`), `buildWeeklyNewsletters` (every tree they're on read
   once with the service role, each member's issue; sends nothing), marked
   done (`claim_newsletter_issues`) just before it's sent; `ownNewsletter` —
-  a member's own, for the dashboard; `lib/newsletter.ts` — `weeklyIssue`,
+  a member's own, for the admin page's newsletter tab; `lib/newsletter.ts` — `weeklyIssue`,
   cut to the reader's own family by My Family Tree's rule (`familyTies`),
   `isMilestone`, `isSendDay`, `nextSendAt` (`.test.ts`);
   `lib/emails/newsletter.ts` (`.test.ts`); the signed-out unsubscribe page
@@ -519,7 +525,8 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `components/dashboard/newsletter-card.tsx` + `newsletter-controls.tsx` —
   the beta reviewers' day, pause, test email and preview
   (`app/actions/newsletter.ts`)
-- `components/site-header.tsx` (the mark, the tree switcher, **tree**,
+- `components/site-header.tsx` (the mark, the tree switcher, a beta
+  reviewer's red **admin** (Step 103, `AdminNavLink`), **tree**,
   **connections**, **account**, the bell; `lib/nav-active.ts` says which is
   lit, Step 61; its counts come from `lib/header-counts.server.ts` and are
   kept fresh between saves by `components/header-counts.tsx`, which asks
@@ -1499,9 +1506,10 @@ mirror it for the UI.
   access's no-match screen. **Beta reviewers** — `private.beta_reviewers`
   (email): the build owner and, since `20260923043000`, Raiya Suleman; add
   a row (by migration) to share the queue further, which also shares the
-  account page's **dashboard** tab (Step 56) —
-  answer both from "Requests to Start a Tree" on any Root console they run,
-  counted in the header badge — and emailed to every reviewer who runs a tree
+  admin page (Step 103; its **analytics** tab is Step 56's dashboard) —
+  answer both from "Requests to Start a Tree" on the admin page's
+  **manage** tab (Step 103; Root consoles had it before), counted on the
+  header's **admin** — and emailed to every reviewer who runs a tree
   the moment a new one lands (Step 30.1, `lib/emails/tree-requested.ts`;
   the waitlist capped at 10 an hour and 30 a day, members not at all, since
   each has one ask and an account). Approving a member lets `found_tree` through
@@ -1752,6 +1760,34 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 103: the admin page** (no migration). **Aalim asked for:** the
+  admin dashboard out of the account page into a page of its own, with a
+  red **admin** button before **tree** in the header, tabs **newsletter |
+  analytics | manage**, and requests to start a tree out of every Root
+  console. **103.1, the page:** `/admin` (`app/admin/page.tsx`, until now a
+  redirect to the Root console, which it still is for anyone who isn't a
+  beta reviewer) has the three tabs as `?tab=` links
+  (`components/admin/admin-page-tabs.tsx`, drawn like the account page's
+  views; `lib/admin-page.ts`, `.test.ts`). **newsletter** is the weekly
+  newsletter's card, **analytics** the engagement dashboard (Step 56), and
+  **manage** "Requests to Start a Tree", moved from the Root console
+  (`lib/admin-sections`, `lib/admin-notifications`, `lib/admin-queue` and
+  the console's Requests & Reports group no longer know it). A founder
+  invite for someone on the waitlist comes from the tree being looked at
+  if they run it, else the first tree they run; with none,
+  `approveTreeRequest` says so. The header's red **admin**
+  (`AdminNavLink`, `SiteNavLink`'s `red`: tinted, solid on the page) shows
+  only for a reviewer (`HeaderCounts.treeRequests`, `null` for anyone
+  else), with how many ask to start a tree while any do, and opens
+  **manage** then; the header's yellow count beside **account** counts
+  only the Root consoles' queues now. The reviewers' alert email opens
+  `/admin?tab=manage`, and one sent before (`/account/admin?section=tree-requests`)
+  lands there too. The account page's **dashboard** view is gone:
+  `/account?view=dashboard` goes to `/admin`. No line under any title on
+  the page: the dashboard's four card descriptions and its "Engagement"
+  heading went. Campaigns (103.3) and account and tree actions (103.4) come
+  later on **manage**.
 
 - **Step 102 follow-up: only buttons are lower-case** (no migration).
   **Aalim said:** "only buttons should be lower case". The sweep had also

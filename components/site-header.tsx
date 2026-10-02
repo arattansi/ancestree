@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 
 import { signOut } from "@/app/actions/auth";
 import {
+  AdminNavLink,
   AdminQueueButton,
   ConnectionsNavLink,
   HeaderCountsProvider,
@@ -78,10 +79,10 @@ export function SiteHeaderShell() {
 /**
  * The site-wide header. Left, the mark, which takes a member to My Family
  * Tree (Step 92.5); centre, the tree switcher for every member (Step 92.2:
- * My Family Tree and their trees); right, the tree's pages, the
- * account — beside it, a count of anything waiting in the admin consoles
- * they run, which opens the card it's waiting on (Step 30.1) — and
- * notifications across every tree. The current tree is the one the
+ * My Family Tree and their trees); right, a beta reviewer's **admin**
+ * (Step 103), the tree's pages, the account — beside it, a count of
+ * anything waiting in the admin consoles they run, which opens the card
+ * it's waiting on (Step 30.1) — and notifications across every tree. The current tree is the one the
  * browser remembers, so it's known here without reading the address.
  * While a node's details sheet is open on the canvas, the header moves
  * aside for it so these buttons stay in reach (globals.css).
@@ -160,6 +161,8 @@ async function LoadedHeader() {
           // The counts are kept fresh between saves by the page itself
           // (Step 77.2).
           <HeaderCountsProvider initial={counts}>
+            {/* A beta reviewer's, before **tree** (Step 103). */}
+            <AdminNavLink />
             {access ? (
               // The tree switched to this visit, else their landing (Step
               // 92.5).

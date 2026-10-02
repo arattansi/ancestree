@@ -7,8 +7,6 @@
  */
 
 export type AdminSectionContext = {
-  /** A beta reviewer: requests to start a tree show on every console they run. */
-  reviewer: boolean;
   /** Bare invite links are left from before the family link (Step 52). */
   bareInvites: boolean;
 };
@@ -59,12 +57,6 @@ const SECTIONS: readonly AdminSection[] = [
   { id: "placements", nav: "From Other Trees", group: "people" },
   { id: "invite-requests", nav: "Requests for Access", group: "requests" },
   { id: "reports", nav: "Reports", group: "requests" },
-  {
-    id: "tree-requests",
-    nav: "Requests to Start a Tree",
-    group: "requests",
-    shown: (ctx) => ctx.reviewer,
-  },
   { id: "invite", nav: "Invite a Relative", group: "invites" },
   { id: "family-link", nav: "Family Link", group: "invites" },
   { id: "found", nav: "Invite Someone to Start a Tree", group: "invites" },

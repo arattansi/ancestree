@@ -13,7 +13,7 @@ import { createClient } from "@/lib/supabase/server";
 import { byJoined, listMyTrees } from "@/lib/tree-context";
 
 /**
- * The weekly newsletter on the beta reviewers' dashboard (Step 95): when
+ * The weekly newsletter, the admin page's first tab (Steps 95, 103): when
  * it goes out, the controls, and the reviewer's own issue as the next send
  * would make it from what's there now. The schedule is read as the
  * reviewer, so anyone else gets nothing to show (`newsletter_schedule`'s

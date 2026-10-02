@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import { signOut } from "@/app/actions/auth";
 import { AccountTypeBadge } from "@/components/account-type-badge";
@@ -15,13 +16,6 @@ import { BackToTop } from "@/components/back-to-top";
 import {
   ClearNotificationsButton,
 } from "@/components/clear-notifications-button";
-import {
-  EngagementDashboard,
-} from "@/components/dashboard/engagement-dashboard";
-import {
-  NewsletterCard,
-  NewsletterCardSkeleton,
-} from "@/components/dashboard/newsletter-card";
 import { DeleteAccount } from "@/components/delete-account";
 import { DirectInviteForm } from "@/components/direct-invite-form";
 import { EditDisplayName } from "@/components/edit-display-name";
@@ -46,6 +40,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { BRANCHES_PER_ROOT, countOf } from "@/lib/account-types";
+import { adminPageHref } from "@/lib/admin-page";
 import { loadAccountSettings } from "@/lib/account-settings.server";
 import { getSessionUser, requireProfile, type Profile } from "@/lib/auth";
 import { readRelayParam } from "@/lib/invite-relays";
@@ -62,7 +57,6 @@ import {
   type MyTree,
   type TreeMembership,
 } from "@/lib/tree-context";
-import { isBetaReviewer } from "@/lib/tree-requests.server";
 import {
   adminHref,
   newTreeHref,
@@ -81,34 +75,31 @@ export async function generateMetadata({
       description: "Manage members, invites, reports, and entry counts.",
     };
   }
-  if (view === "dashboard" && (await isBetaReviewer())) {
-    return { title: "dashboard" };
-  }
   if (view === "settings") return { title: "settings" };
   return { title: "your account" };
 }
 
 /**
- * The account page, in four views: your profile — your own entry, as a
+ * The account page, in three views: your profile — your own entry, as a
  * form — then, for a Root, the admin console (`?view=admin`) of the tree
  * they're looking at, or of the first tree they run when the current one
- * isn't theirs to run; for a beta reviewer, the engagement dashboard
- * (`?view=dashboard`, Step 56); and settings (`?view=settings`) for
- * everything else. The email about a relative's ask opens settings
- * (`&relay=<id>`, Step 30.5), where the invite waits filled in.
+ * isn't theirs to run; and settings (`?view=settings`) for everything
+ * else. The email about a relative's ask opens settings (`&relay=<id>`,
+ * Step 30.5), where the invite waits filled in. The old `?view=dashboard`
+ * is the admin page now (Step 103).
  */
 export default async function AccountPage({
   searchParams,
 }: PageProps<"/account">) {
   const { view: requested, relay } = await searchParams;
+  if (requested === "dashboard") redirect(adminPageHref());
   // All of it needs only the session, so it's asked for at once (Step
   // 77.1); each view then reads what it shows, and only that.
-  const [profile, user, trees, access, reviewer] = await Promise.all([
+  const [profile, user, trees, access] = await Promise.all([
     requireProfile(),
     getSessionUser(),
     listMyTrees(),
     currentAccess(),
-    isBetaReviewer(),
   ]);
 
   const runs = trees.filter((t) => t.type.runsTree);
@@ -122,11 +113,9 @@ export default async function AccountPage({
   }
   const view: AccountView = console
     ? "admin"
-    : requested === "dashboard" && reviewer
-      ? "dashboard"
-      : requested === "settings"
-        ? "settings"
-        : "profile";
+    : requested === "settings"
+      ? "settings"
+      : "profile";
 
   return (
     <PageColumn width="3xl">
@@ -148,7 +137,6 @@ export default async function AccountPage({
           view={view}
           consoleTreeId={console?.tree.id ?? runs[0]?.id ?? null}
           adminTrees={runs}
-          dashboard={reviewer}
         />
       </div>
 
@@ -161,14 +149,6 @@ export default async function AccountPage({
       >
         {view === "admin" && console ? (
           <AdminConsole membership={console} />
-        ) : view === "dashboard" ? (
-          <div className="flex flex-col gap-6">
-            {/* Its preview reads every tree of theirs: the numbers don't wait. */}
-            <Suspense fallback={<NewsletterCardSkeleton />}>
-              <NewsletterCard />
-            </Suspense>
-            <EngagementDashboard />
-          </div>
         ) : view === "settings" ? (
           <SettingsView
             profile={profile}

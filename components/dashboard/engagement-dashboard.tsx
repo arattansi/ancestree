@@ -8,37 +8,28 @@ import {
 } from "@/components/ui/card";
 import {
   ACTIVITY_GROUPS,
-  NOTED_FROM,
   PROGRESS_ROWS,
   dayWithYear,
   headlineTiles,
   lastActiveLabel,
   percentOf,
-  shortDay,
   weekRange,
   weeksSinceFirstActivity,
   type Dashboard,
 } from "@/lib/dashboard";
 import { loadDashboard } from "@/lib/dashboard.server";
-import { countOf } from "@/lib/plural";
 
 /**
- * The beta reviewers' dashboard (Step 56) — the "dashboard" view of the
- * account page: how much ancestree is used across every tree, in counts
- * that never name anyone. The account page shows it only to a reviewer,
- * and `engagement_dashboard()` answers nobody else.
+ * The beta reviewers' dashboard (Step 56) — the admin page's analytics tab
+ * (Step 103): how much ancestree is used across every tree, in counts that
+ * never name anyone. The admin page shows it only to a reviewer, and
+ * `engagement_dashboard()` answers nobody else.
  */
 export async function EngagementDashboard() {
   const dashboard = await loadDashboard();
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h2 className="text-xl font-semibold tracking-tight">Engagement</h2>
-        <p className="text-sm text-muted-foreground">
-          Every tree, in counts that name nobody. Only beta reviewers see this.
-        </p>
-      </div>
       {dashboard ? (
         <DashboardView d={dashboard} />
       ) : (
@@ -63,9 +54,6 @@ export function DashboardView({ d }: { d: Dashboard }) {
       <Card>
         <CardHeader>
           <CardTitle>Overview</CardTitle>
-          <CardDescription>
-            The last 7 days are today and the 6 before, in UTC.
-          </CardDescription>
         </CardHeader>
         <CardContent>
           <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -88,11 +76,6 @@ export function DashboardView({ d }: { d: Dashboard }) {
       <Card>
         <CardHeader>
           <CardTitle>Members Active Each Week</CardTitle>
-          <CardDescription>
-            Who used ancestree on any day of the week. Before{" "}
-            {shortDay(NOTED_FROM)}, only a day they signed in or added
-            something counts.
-          </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <WeeklyActiveChart weeks={weeks} />
@@ -146,10 +129,6 @@ export function DashboardView({ d }: { d: Dashboard }) {
       <Card>
         <CardHeader>
           <CardTitle>How Far Members Have Got</CardTitle>
-          <CardDescription>
-            Of {countOf(d.members, "member")}, how many
-            have done each at least once.
-          </CardDescription>
         </CardHeader>
         <CardContent>
           <ul className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
@@ -250,10 +229,6 @@ export function DashboardView({ d }: { d: Dashboard }) {
       <Card>
         <CardHeader>
           <CardTitle>Trees</CardTitle>
-          <CardDescription>
-            Active and Added are the last 7 days. A member active on any tree
-            counts on each of theirs.
-          </CardDescription>
         </CardHeader>
         <CardContent>
           {d.trees.length === 0 ? (

@@ -1,5 +1,6 @@
 import "server-only";
 
+import { adminPageHref } from "@/lib/admin-page";
 import { OPEN_CONSOLE_PATH, readOpenConsole } from "@/lib/admin-queue";
 import { setCurrentTreeCookie } from "@/lib/current-tree.server";
 import { rootOf } from "@/lib/tree-context";
@@ -10,9 +11,11 @@ import { adminHref } from "@/lib/tree-links";
  * its tree the one the browser is looking at — if the signed-in member is
  * a Root of it — and say where the waiting card is. Anyone else gets
  * whichever console the account page would open, if any. Only from a route
- * handler or server action, since it writes a cookie.
+ * handler or server action, since it writes a cookie. An alert sent before
+ * requests to start a tree moved to the admin page (Step 103) opens it there.
  */
 export async function openConsole(params: URLSearchParams): Promise<string> {
+  if (params.get("section") === "tree-requests") return adminPageHref("manage");
   const { treeId, section } = readOpenConsole(params);
   if (treeId) {
     const { membership } = await rootOf(treeId);

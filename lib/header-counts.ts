@@ -12,6 +12,11 @@ export type HeaderCounts = {
   connections: number;
   /** The tree being looked at, when they're a member of it. */
   currentTreeId: string | null;
+  /**
+   * Open requests to start a tree, for a beta reviewer's **admin** link
+   * (Step 103); `null` for anyone else, who has no such link.
+   */
+  treeRequests: number | null;
   /** What waits in the admin consoles they run, and where it opens. */
   admin: {
     count: number;
@@ -60,6 +65,7 @@ export function parseHeaderCounts(value: unknown): HeaderCounts | null {
   if (unread === null || latestUnreadAt === null || connections === null) return null;
   const currentTreeId =
     typeof v.currentTreeId === "string" ? v.currentTreeId : null;
+  const treeRequests = num(v.treeRequests);
   const a = v.admin as Record<string, unknown> | null | undefined;
   const admin =
     a &&
@@ -69,5 +75,5 @@ export function parseHeaderCounts(value: unknown): HeaderCounts | null {
     typeof a.label === "string"
       ? { count: a.count as number, treeId: a.treeId, href: a.href, label: a.label }
       : null;
-  return { unread, latestUnreadAt, connections, currentTreeId, admin };
+  return { unread, latestUnreadAt, connections, currentTreeId, treeRequests, admin };
 }

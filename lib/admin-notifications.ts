@@ -19,7 +19,6 @@ export type AdminActionItem = {
 const QUEUE_LABELS: Record<QueueSection, string> = {
   "invite-requests": "requests for access",
   reports: "reports",
-  "tree-requests": "requests to start a tree",
 };
 
 /**
@@ -30,13 +29,10 @@ const QUEUE_LABELS: Record<QueueSection, string> = {
 export function buildAdminActionItems(counts: {
   inviteRequests: number;
   reports: number;
-  /** Requests to start a tree (Step 28) — a beta reviewer's only. */
-  treeRequests?: number;
 }): AdminActionItem[] {
   const waiting: Record<QueueSection, number> = {
     "invite-requests": counts.inviteRequests,
     reports: counts.reports,
-    "tree-requests": counts.treeRequests ?? 0,
   };
   return QUEUE_SECTIONS.map((target) => ({
     target,

@@ -142,11 +142,12 @@ export type ApproveTreeRequestResult = {
  * (`tree_request_notify`) and this emails them. Someone from the waitlist
  * has no account, so they get a founder invite instead, minted on `treeId`
  * — a tree the reviewer runs, whose "Sent invites" keeps the record and can
- * resend it if the email doesn't go.
+ * resend it if the email doesn't go. The admin page passes `null` when they
+ * run none (Step 103).
  */
 export async function approveTreeRequest(
   id: string,
-  treeId: string,
+  treeId: string | null,
 ): Promise<ApproveTreeRequestResult> {
   const reviewer = await requireProfile();
   if (!(await isBetaReviewer())) {
@@ -166,11 +167,12 @@ export async function approveTreeRequest(
 
   // Someone with no account gets a founder invite, minted on a tree the
   // reviewer runs, from them.
-  let inviter: Profile | null = null;
+  let founder: { inviter: Profile; treeId: string } | null = null;
   if (!request.user_id) {
+    if (!treeId) return { error: "A founder invite comes from a tree you run." };
     const { membership, error: notRoot } = await rootOf(treeId);
     if (!membership) return { error: notRoot };
-    inviter = membership.profile;
+    founder = { inviter: membership.profile, treeId };
   }
 
   // Answer it before acting on it, so a second press can't send twice.
@@ -190,7 +192,7 @@ export async function approveTreeRequest(
   }
 
   // A member: they found it themselves, so they're told they can.
-  if (!inviter) {
+  if (!founder) {
     const { subject, html } = treeRequestApprovedEmail({
       firstName: request.first_name,
       reviewerName: reviewer.display_name ?? "The ancestree team",
@@ -203,8 +205,8 @@ export async function approveTreeRequest(
   }
 
   const [minted] = await mintFounderInvites(
-    treeId,
-    inviter,
+    founder.treeId,
+    founder.inviter,
     [
       {
         firstName: request.first_name,

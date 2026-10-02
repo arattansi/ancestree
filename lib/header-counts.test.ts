@@ -39,9 +39,17 @@ describe("header counts (Step 77.2)", () => {
         latestUnreadAt: 9,
         connections: 0,
         currentTreeId: "t1",
+        treeRequests: 2,
         admin,
       }),
-    ).toEqual({ unread: 1, latestUnreadAt: 9, connections: 0, currentTreeId: "t1", admin });
+    ).toEqual({
+      unread: 1,
+      latestUnreadAt: 9,
+      connections: 0,
+      currentTreeId: "t1",
+      treeRequests: 2,
+      admin,
+    });
     // A visitor, or someone on no tree: no tree of theirs is being looked at.
     expect(
       parseHeaderCounts({ unread: 1, latestUnreadAt: 9, connections: 4, admin: null }),
@@ -50,6 +58,8 @@ describe("header counts (Step 77.2)", () => {
       latestUnreadAt: 9,
       connections: 4,
       currentTreeId: null,
+      // Not a beta reviewer: no **admin** link.
+      treeRequests: null,
       admin: null,
     });
     // A half-formed queue is no queue.

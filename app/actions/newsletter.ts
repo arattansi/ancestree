@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { adminPageHref } from "@/lib/admin-page";
 import { getSessionUser, requireProfile } from "@/lib/auth";
 import { sendEmail } from "@/lib/email";
 import { setNewsletterByToken } from "@/lib/newsletter-settings.server";
@@ -42,8 +43,8 @@ export async function setNewsletterFromLink(
 
 /**
  * Beta reviewer: when the weekly newsletter goes out (Step 95), from the
- * dashboard — the day, and whether it's paused for everyone. The database
- * refuses anyone else (`set_newsletter_schedule`).
+ * admin page's newsletter tab — the day, and whether it's paused for
+ * everyone. The database refuses anyone else (`set_newsletter_schedule`).
  */
 export async function setNewsletterSchedule(
   weekday: number,
@@ -59,7 +60,7 @@ export async function setNewsletterSchedule(
     p_paused: paused,
   });
   if (error) return { error: "Couldn't save that. Try again." };
-  revalidatePath("/account");
+  revalidatePath(adminPageHref());
   return {};
 }
 

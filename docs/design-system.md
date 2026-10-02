@@ -24,9 +24,10 @@ don't: they're all lower-case (below).
 
 Every button is lower-case (Step 102; navigation only since Step 30.4),
 and only buttons: what's drawn as one, filled, outlined, tinted or ghost.
-That's the header's **tree**, **connections**, **account**, **sign in** and
-**sign out**; the account page's views **profile**, **root**,
-**dashboard**, **settings**; the home page's **view your tree**,
+That's the header's **admin** (a beta reviewer's, red: Step 103),
+**tree**, **connections**, **account**, **sign in** and **sign out**; the
+account page's views **profile**, **root**, **settings**; the admin
+page's tabs **newsletter**, **analytics**, **manage**; the home page's **view your tree**,
 **request access**, **start a tree (beta)**; and every button that does
 something: **save**, **rename**, **delete**, **continue**, **skip for
 now**, **add a relative**, **auto-arrange**, **ask to join**. That covers,

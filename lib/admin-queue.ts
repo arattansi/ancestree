@@ -9,11 +9,7 @@
 import { plural } from "@/lib/plural";
 
 /** The console cards that hold a queue, in the order they're worked. */
-export const QUEUE_SECTIONS = [
-  "invite-requests",
-  "reports",
-  "tree-requests",
-] as const;
+export const QUEUE_SECTIONS = ["invite-requests", "reports"] as const;
 
 export type QueueSection = (typeof QUEUE_SECTIONS)[number];
 
@@ -72,33 +68,25 @@ export type QueueTarget = { treeId: string; section: QueueSection };
 /**
  * Where the header's count takes an approver: the tree they're looking at,
  * when anything waits there; else the first tree they run with something
- * waiting. On that tree, requests for access first, then reports, then
- * requests to start a tree — a beta reviewer's, the same on every console
- * they run. `null` when nothing waits.
+ * waiting. On that tree, requests for access first, then reports. `null`
+ * when nothing waits. (Requests to start a tree are the admin page's,
+ * Step 103: the header's **admin** counts them.)
  */
 export function pickQueueTarget({
   trees,
-  treeRequests,
   currentTreeId,
 }: {
   /** The trees they run, in the order the header lists them. */
   trees: readonly TreeQueue[];
-  treeRequests: number;
   currentTreeId: string | null;
 }): QueueTarget | null {
-  const own = (q: TreeQueue) => q.inviteRequests + q.reports;
+  const waiting = (q: TreeQueue) => q.inviteRequests + q.reports > 0;
   const current = trees.find((q) => q.treeId === currentTreeId);
   const tree =
-    (current && own(current) + treeRequests > 0 ? current : undefined) ??
-    trees.find((q) => own(q) > 0) ??
-    (treeRequests > 0 ? (current ?? trees[0]) : undefined);
+    (current && waiting(current) ? current : undefined) ?? trees.find(waiting);
   if (!tree) return null;
   const section: QueueSection =
-    tree.inviteRequests > 0
-      ? "invite-requests"
-      : tree.reports > 0
-        ? "reports"
-        : "tree-requests";
+    tree.inviteRequests > 0 ? "invite-requests" : "reports";
   return { treeId: tree.treeId, section };
 }
 

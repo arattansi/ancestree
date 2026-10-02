@@ -13,13 +13,15 @@ import { treeHref } from "@/lib/tree-links";
  * at, and stays white with a grey outline everywhere else. It's lit on the
  * pages under it too, unless `exact`. On a narrow bar its symbol stands in
  * for its words, which still name it (Step 85.2, `header-compact` in
- * globals.css).
+ * globals.css). A `red` one (the reviewers' **admin**, Step 103) is red
+ * either way, solid once you're there.
  */
 export function SiteNavLink({
   href,
   exact = false,
   icon,
   count,
+  red = false,
   children,
 }: {
   href: string;
@@ -28,17 +30,25 @@ export function SiteNavLink({
   icon: React.ReactNode;
   /** A `NavCount` after the words. */
   count?: React.ReactNode;
+  red?: boolean;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
   const active = isNavActive(pathname, href, exact);
+  const variant = red
+    ? active
+      ? "destructive-solid"
+      : "destructive"
+    : active
+      ? "default"
+      : "outline";
 
   return (
     <Button
       nativeButton={false}
       render={<Link href={href} />}
       size="sm"
-      variant={active ? "default" : "outline"}
+      variant={variant}
       aria-current={active ? "page" : undefined}
       className="relative tap-target"
     >

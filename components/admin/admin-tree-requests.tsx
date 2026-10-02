@@ -22,16 +22,17 @@ function fullName(r: TreeRequestItem): string {
 }
 
 /**
- * Requests to start a tree (Step 28), on a beta reviewer's admin console:
- * members asking from the home page or their trees page, and sign-ups from
- * the waitlist. Approving a member lets them start one; approving a sign-up
- * sends a founder invite from `treeId`, the tree whose console this is.
+ * Requests to start a tree (Step 28), on the admin page's manage tab (Step
+ * 103): members asking from the home page or their trees page, and sign-ups
+ * from the waitlist. Approving a member lets them start one; approving a
+ * sign-up sends a founder invite from `treeId`, a tree the reviewer runs.
  */
 export function AdminTreeRequests({
   treeId,
   requests,
 }: {
-  treeId: string;
+  /** The tree founder invites come from; `null` when they run none. */
+  treeId: string | null;
   requests: TreeRequestItem[];
 }) {
   const open = requests.filter((r) => r.status === "pending");
@@ -81,7 +82,7 @@ function OpenRequest({
   treeId,
   request: r,
 }: {
-  treeId: string;
+  treeId: string | null;
   request: TreeRequestItem;
 }) {
   const action = useAction();

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
+import { adminPageHref } from "@/lib/admin-page";
 import { openConsoleHref } from "@/lib/admin-queue";
 import { accessRequestedEmail } from "@/lib/emails/access-requested";
 import { inviteApprovedEmail } from "@/lib/emails/invite-approved";
@@ -82,7 +83,7 @@ describe("treeRequestedEmail", () => {
   const base = {
     firstName: "Imran",
     lastName: "Suleman",
-    url: `${SITE}${openConsoleHref("tree-requests")}`,
+    url: `${SITE}${adminPageHref("manage")}`,
     cap: WAITLIST_ALERT_CAP,
   };
 
@@ -97,9 +98,9 @@ describe("treeRequestedEmail", () => {
     expect(member.html).not.toContain("waitlist");
   });
 
-  it("links to the queue on a console they run", () => {
+  it("links to the queue on the admin page", () => {
     const { html } = treeRequestedEmail({ ...base, kind: "waitlist" });
-    expect(html).toContain(`href="${SITE}/account/admin?section=tree-requests"`);
+    expect(html).toContain(`href="${SITE}/admin?tab=manage"`);
   });
 
   it("copes with a member whose entry has no last name", () => {

@@ -40,10 +40,17 @@ describe("openConsole", () => {
   });
 
   it("opens a console they run when the alert isn't about one tree", async () => {
-    const url = new URL(openConsoleHref("tree-requests"), "https://x.test");
+    const url = new URL(openConsoleHref("reports"), "https://x.test");
     await expect(openConsole(url.searchParams)).resolves.toBe(
-      "/account?view=admin#tree-requests",
+      "/account?view=admin#reports",
     );
+    expect(rootOf).not.toHaveBeenCalled();
+  });
+
+  it("sends an older alert about requests to start a tree to the admin page", async () => {
+    await expect(
+      openConsole(new URLSearchParams("section=tree-requests")),
+    ).resolves.toBe("/admin?tab=manage");
     expect(rootOf).not.toHaveBeenCalled();
   });
 

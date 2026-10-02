@@ -8,8 +8,7 @@ import {
   sectionShown,
 } from "@/lib/admin-sections";
 
-const ROOT = { reviewer: false, bareInvites: false };
-const REVIEWER = { reviewer: true, bareInvites: false };
+const ROOT = { bareInvites: false };
 
 describe("adminNav", () => {
   it("lists a Root's sections under their groups' headings", () => {
@@ -54,10 +53,10 @@ describe("adminNav", () => {
     ]);
   });
 
-  it("adds requests to start a tree for a beta reviewer, and bare links while any are left", () => {
+  it("adds bare links while any are left, and never requests to start a tree (Step 103)", () => {
     const ids = (ctx: typeof ROOT) => adminNav(ctx).flatMap((g) => g.items.map((i) => i.id));
-    expect(ids(REVIEWER)).toContain("tree-requests");
     expect(ids(ROOT)).not.toContain("tree-requests");
+    expect(ADMIN_SECTION_IDS).not.toContain("tree-requests");
     const withBare = ids({ ...ROOT, bareInvites: true });
     expect(withBare.slice(withBare.indexOf("sent-invites"), withBare.indexOf("sent-invites") + 3)).toEqual([
       "sent-invites",
@@ -71,18 +70,12 @@ describe("groupSectionIds", () => {
   it("opens a group for its own sections, not for the overview above it", () => {
     expect(groupSectionIds("members", ROOT)).toEqual(["members", "account-types"]);
     expect(groupSectionIds("requests", ROOT)).toEqual(["invite-requests", "reports"]);
-    expect(groupSectionIds("requests", REVIEWER)).toEqual([
-      "invite-requests",
-      "reports",
-      "tree-requests",
-    ]);
   });
 });
 
 describe("sectionShown", () => {
   it("says whether this Root sees a section", () => {
     expect(sectionShown("tree-requests", ROOT)).toBe(false);
-    expect(sectionShown("tree-requests", REVIEWER)).toBe(true);
     expect(sectionShown("bare-invites", { ...ROOT, bareInvites: true })).toBe(true);
     expect(sectionShown("share", ROOT)).toBe(true);
   });

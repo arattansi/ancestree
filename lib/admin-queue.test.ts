@@ -35,13 +35,19 @@ describe("openConsoleHref / readOpenConsole", () => {
   });
 
   it("leaves the tree out when the alert isn't about one", () => {
-    const href = openConsoleHref("tree-requests");
-    expect(href).toBe("/account/admin?section=tree-requests");
+    const href = openConsoleHref("reports");
+    expect(href).toBe("/account/admin?section=reports");
     const url = new URL(href, "https://www.ancestree.space");
     expect(readOpenConsole(url.searchParams)).toEqual({
       treeId: null,
-      section: "tree-requests",
+      section: "reports",
     });
+  });
+
+  it("no longer knows requests to start a tree, which are the admin page's", () => {
+    expect(
+      readOpenConsole(new URLSearchParams("section=tree-requests")).section,
+    ).toBeNull();
   });
 
   it("opens a tree's console at its top when no card is named", () => {
@@ -75,7 +81,6 @@ describe("isQueueSection", () => {
     const targets = buildAdminActionItems({
       inviteRequests: 1,
       reports: 1,
-      treeRequests: 1,
     }).map((i) => i.target);
     expect(targets.every(isQueueSection)).toBe(true);
     expect(isQueueSection("share")).toBe(false);
@@ -86,16 +91,15 @@ describe("isQueueSection", () => {
 describe("pickQueueTarget", () => {
   it("is nothing when nothing waits", () => {
     expect(
-      pickQueueTarget({ trees: [queue(A), queue(B)], treeRequests: 0, currentTreeId: A }),
+      pickQueueTarget({ trees: [queue(A), queue(B)], currentTreeId: A }),
     ).toBeNull();
-    expect(pickQueueTarget({ trees: [], treeRequests: 0, currentTreeId: null })).toBeNull();
+    expect(pickQueueTarget({ trees: [], currentTreeId: null })).toBeNull();
   });
 
   it("opens the tree being looked at when something waits there", () => {
     expect(
       pickQueueTarget({
         trees: [queue(A, 1), queue(B, 2)],
-        treeRequests: 0,
         currentTreeId: B,
       }),
     ).toEqual({ treeId: B, section: "invite-requests" });
@@ -105,7 +109,6 @@ describe("pickQueueTarget", () => {
     expect(
       pickQueueTarget({
         trees: [queue(A), queue(B, 0, 1)],
-        treeRequests: 0,
         currentTreeId: A,
       }),
     ).toEqual({ treeId: B, section: "reports" });
@@ -115,7 +118,6 @@ describe("pickQueueTarget", () => {
     expect(
       pickQueueTarget({
         trees: [queue(A), queue(B, 3)],
-        treeRequests: 0,
         currentTreeId: "33333333-3333-4333-8333-333333333333",
       }),
     ).toEqual({ treeId: B, section: "invite-requests" });
@@ -123,30 +125,8 @@ describe("pickQueueTarget", () => {
 
   it("puts requests for access before reports", () => {
     expect(
-      pickQueueTarget({ trees: [queue(A, 1, 4)], treeRequests: 2, currentTreeId: A }),
+      pickQueueTarget({ trees: [queue(A, 1, 4)], currentTreeId: A }),
     ).toEqual({ treeId: A, section: "invite-requests" });
-  });
-
-  it("shows requests to start a tree on the console being looked at", () => {
-    expect(
-      pickQueueTarget({ trees: [queue(A), queue(B)], treeRequests: 1, currentTreeId: B }),
-    ).toEqual({ treeId: B, section: "tree-requests" });
-  });
-
-  it("shows them on the first tree they run when they're looking elsewhere", () => {
-    expect(
-      pickQueueTarget({ trees: [queue(A), queue(B)], treeRequests: 1, currentTreeId: null }),
-    ).toEqual({ treeId: A, section: "tree-requests" });
-  });
-
-  it("lets a tree's own queue come before requests to start a tree elsewhere", () => {
-    expect(
-      pickQueueTarget({
-        trees: [queue(A), queue(B, 1)],
-        treeRequests: 1,
-        currentTreeId: "33333333-3333-4333-8333-333333333333",
-      }),
-    ).toEqual({ treeId: B, section: "invite-requests" });
   });
 });
 
