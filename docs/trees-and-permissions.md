@@ -319,7 +319,9 @@ stays.
   **connections** and the Root console mean that tree, and **tree** goes
   back to it, for the rest of that visit. A new visit starts on My Family
   Tree again, with no tree chosen (the tree pages then mean the member's
-  home tree). Joining or founding a tree, an invite, and an email's button
+  home tree). Until one is, the header's switcher names My Family Tree on
+  the home page as well as on the view, and a tree's name on the pages that
+  act on a tree. Joining or founding a tree, an invite, and an email's button
   or link that names a tree (an alert's Root console, a story) open that
   tree as before and make it the chosen one. A member it can't be drawn
   for yet — no entry of their own, or on no tree — lands where the canvas

@@ -30,6 +30,25 @@ export function homeHref(selfPersonId: string | null | undefined): string {
   return selfPersonId ? myFamilyHref() : treeHref();
 }
 
+/**
+ * Whether the header's tree switcher names My Family Tree: on its own page,
+ * and on the home page until a tree has been chosen this visit — a member
+ * with an entry of their own lands on My Family Tree, so that, not the tree
+ * they happen to be Root of, is what the switcher defaults to there.
+ */
+export function switcherShowsMyFamily({
+  pathname,
+  hasOwnEntry,
+  treeChosen,
+}: {
+  pathname: string;
+  hasOwnEntry: boolean;
+  treeChosen: boolean;
+}): boolean {
+  if (pathname === myFamilyHref()) return true;
+  return pathname === "/" && hasOwnEntry && !treeChosen;
+}
+
 /** The canvas opened on one person's spotlight (`FamilyTree` reads `person`). */
 export function treeFocusHref(personId: string | null | undefined): string {
   return personId ? `${treeHref()}?person=${enc(personId)}` : treeHref();

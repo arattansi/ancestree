@@ -1779,6 +1779,24 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 92.5 follow-up: the header names My Family Tree on the home page**
+  (no migration). **Aalim said:** "in the logged in view, when a user is on
+  the home page, the default tree on the header should be 'my family tree'.
+  right now, for me, it's showing the tree that i'm a root for". The
+  switcher (`components/tree-switcher.tsx`) named My Family Tree only on
+  `/family`; anywhere else with no tree chosen this visit it named the
+  default tree, the one they're Root of, though **tree** on the home page
+  already led to My Family Tree (the mismatch Step 92.5 left). **Now** on
+  `/` a member with an entry of their own, and no tree switched to this
+  visit, sees **my family tree** on the button and a tick beside **My
+  Family Tree** in the menu (`switcherShowsMyFamily` in
+  `lib/tree-links.ts`, tested). Switch to a tree and the home page names it,
+  as **tree** opens it; a member with no entry yet still sees their default
+  tree. Picking a tree from the menu there switches to it, even the default
+  tree, as from `/family`. **My call:** only the home page, as asked: the
+  pages that act on the default tree (`/tree`, an entry's pages, the
+  account) still name it.
+
 - **Step 110: the handwritten menu** (no migration). **Aalim asked for:**
   the navigation drawn in his handwriting, "who", "what + how", "why",
   "capitalism", "shh", collapsed as the words jumbled together at the

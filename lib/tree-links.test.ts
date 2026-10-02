@@ -15,6 +15,7 @@ import {
   reviewHref,
   storyHref,
   suggestChangeHref,
+  switcherShowsMyFamily,
   treeFocusHref,
   treeHref,
   treeStoryHref,
@@ -38,6 +39,25 @@ describe("tree paths", () => {
     expect(homeHref("p1")).toBe("/family");
     expect(homeHref(null)).toBe("/tree");
     expect(homeHref(undefined)).toBe("/tree");
+  });
+
+  it("has the header switcher name My Family Tree by default on the home page", () => {
+    const base = { hasOwnEntry: true, treeChosen: false };
+    expect(switcherShowsMyFamily({ ...base, pathname: "/" })).toBe(true);
+    expect(switcherShowsMyFamily({ ...base, pathname: "/family" })).toBe(true);
+    // A tree switched to this visit, or no entry to arrange the view around.
+    expect(
+      switcherShowsMyFamily({ ...base, pathname: "/", treeChosen: true }),
+    ).toBe(false);
+    expect(
+      switcherShowsMyFamily({ ...base, pathname: "/", hasOwnEntry: false }),
+    ).toBe(false);
+    // Its own page always, whatever was chosen; the tree's pages never.
+    expect(
+      switcherShowsMyFamily({ ...base, pathname: "/family", treeChosen: true }),
+    ).toBe(true);
+    expect(switcherShowsMyFamily({ ...base, pathname: "/tree" })).toBe(false);
+    expect(switcherShowsMyFamily({ ...base, pathname: "/account" })).toBe(false);
   });
 
   it("opens the suggestion form on a declined suggestion to resend (Step 71)", () => {

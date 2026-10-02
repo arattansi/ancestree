@@ -19,7 +19,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAction } from "@/components/use-action";
 import { accountTypeOf, type AccountTypeKey } from "@/lib/account-types";
-import { myFamilyHref, treeHref } from "@/lib/tree-links";
+import {
+  myFamilyHref,
+  switcherShowsMyFamily,
+  treeHref,
+} from "@/lib/tree-links";
 import type { TreeRequestStatus } from "@/lib/tree-requests";
 import { cn } from "@/lib/utils";
 
@@ -48,7 +52,8 @@ const START_TREE_LABEL: Record<TreeRequestStatus, string> = {
  * it in the browser and opens its canvas; My Family Tree has an address of
  * its own, and leaves the remembered tree alone. From My Family Tree a tree
  * is always switched to, even the one shown by default, so the choice holds
- * for the rest of the visit (Step 92.5).
+ * for the rest of the visit (Step 92.5). On the home page it names My Family
+ * Tree too, until a tree is chosen, rather than the tree they're Root of.
  */
 export function TreeSwitcher({
   trees,
@@ -74,9 +79,17 @@ export function TreeSwitcher({
   const action = useAction();
   const start = useStartTree(startTree);
   const [opening, startOpening] = React.useTransition();
-  const onFamily = usePathname() === myFamilyHref();
+  const pathname = usePathname();
+  const onFamily = pathname === myFamilyHref();
+  // What the menu has ticked and the button names; `onFamily` is only where
+  // they are, which decides whether picking My Family Tree goes anywhere.
+  const showsFamily = switcherShowsMyFamily({
+    pathname,
+    hasOwnEntry: myFamily,
+    treeChosen: chosen,
+  });
   const current = trees.find((t) => t.id === currentId) ?? null;
-  const label = onFamily
+  const label = showsFamily
     ? "my family tree"
     : (visiting?.name ?? current?.name ?? "your trees");
   const busy = action.pending || opening || start.pending;
@@ -87,7 +100,7 @@ export function TreeSwitcher({
   }
 
   function choose(tree: SwitcherTree) {
-    if (tree.id === currentId && !onFamily) return;
+    if (tree.id === currentId && !showsFamily) return;
     if (tree.id === currentId && chosen) {
       // From My Family Tree, the tree switched to this visit: its canvas.
       open(treeHref());
@@ -107,7 +120,7 @@ export function TreeSwitcher({
           aria-label={`Tree: ${label}. Switch tree`}
         >
           <span className="truncate">{label}</span>
-          {visiting && !onFamily ? (
+          {visiting && !showsFamily ? (
             <Badge variant="outline" className="ml-1 shrink-0 font-medium">
               Visiting
             </Badge>
@@ -122,12 +135,12 @@ export function TreeSwitcher({
                   onClick={() => {
                     if (!onFamily) open(myFamilyHref());
                   }}
-                  aria-current={onFamily ? "true" : undefined}
+                  aria-current={showsFamily ? "true" : undefined}
                 >
                   <CheckIcon
                     className={cn(
                       "size-4",
-                      onFamily ? "opacity-100" : "opacity-0",
+                      showsFamily ? "opacity-100" : "opacity-0",
                     )}
                     aria-hidden
                   />
@@ -143,7 +156,7 @@ export function TreeSwitcher({
           <DropdownMenuGroup>
             <DropdownMenuLabel>Your trees</DropdownMenuLabel>
             {trees.map((t) => {
-              const isCurrent = !onFamily && t.id === currentId;
+              const isCurrent = !showsFamily && t.id === currentId;
               const type = accountTypeOf(t.role);
               return (
                 <DropdownMenuItem
