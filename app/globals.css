@@ -315,3 +315,31 @@
     padding-bottom: var(--floating-actions-height);
   }
 }
+
+/* The /features demo (Step 112): a branch draws itself out to a leaf just
+   added (its path has `pathLength="1"` and a dash of 1), and a leaf lands
+   with a small grow. */
+@keyframes branch-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes leaf-settle {
+  from {
+    transform: scale(0.9);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [class*="animate-[branch-draw"],
+  [class*="animate-[leaf-settle"] {
+    animation: none;
+  }
+}

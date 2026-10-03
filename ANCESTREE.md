@@ -1780,6 +1780,33 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 112: the /features demo, a form that grows leaves** (no
+  migration). **Aalim asked for:** on how-to + features, "a standing form
+  on the left side of the basic fields for adding a node (first name, last
+  name, place of birth) and then on the right side it shows the leaf that
+  is generated", looping "connections being added", capped for space, with
+  a CTA to stop the loop and try it, and none of the input stored. **Now**
+  `/features` (in `MarketingColumn`, like about-us) has the add-a-relative
+  form's three fields as the app labels them, a **Connect to** line saying
+  where the next leaf hangs ("partner of Rumi", "child of Rumi and René")
+  and **add relative**; beside it (under it on a phone) the leaves. The
+  loop types the Elevators parents and two of their children (Rumi
+  Baldwin, Balkh; René Baldwin, Touraine; André Franklin, Atlanta; Frida
+  Baldwin, Coyoacán) one field at a time, the next leaf pale in its place
+  and changing shape once the birthplace names somewhere with a tree; on
+  add it settles and its branch draws in, routed as a spotlight routes
+  them (`descentGeometry` / `leafBranchPath`). Four leaves (a couple and
+  two children) is the cap; the loop holds, fades, and starts again.
+  **try it yourself** (or clicking into a field) stops it and clears both
+  halves; the visitor's leaves fill the same four places, then **start
+  over**. "Nothing you type is saved." and **Watch it again** sit under
+  the form. Nothing leaves the page: no server call, no storage, inputs
+  without `name`s and `autoComplete="off"`. The loop waits while both
+  halves are off screen or the tab is hidden; with reduced motion there's
+  no loop, just the finished family. `components/marketing/leaf-demo.tsx`,
+  keyframes `branch-draw` / `leaf-settle` in `globals.css`. "details coming
+  soon" is gone from the page.
+
 - **Step 92.5 follow-up: /tree opens My Family Tree with nothing picked**
   (no migration). **Aalim asked for:** "make /tree open my family tree when
   nothing's picked". **Now** a bare `/tree`, for a member with an entry of
