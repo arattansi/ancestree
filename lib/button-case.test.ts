@@ -41,7 +41,7 @@ const NOT_BUTTON_WORDS = new Set([
 
 /** Elements whose words are a button's, and wrappers that put theirs in one. */
 const BUTTONS =
-  /^(button|Button|[A-Z]\w*Button|TreeTarget|ToggleLink|\w*NavLink|\w*\.?Close|DropdownMenuTrigger|RequestInviteDialog|RequestAccessDialog|BetaWaitlistDialog)$/;
+  /^(button|Button|[A-Z]\w*Button|TreeTarget|ToggleLink|\w*NavLink|\w*\.?Close|DropdownMenuTrigger|RequestInviteDialog|RequestAccessDialog)$/;
 const LABEL_PROPS = new Set(["confirmLabel", "pendingLabel", "cancelLabel", "submitLabel", "yesLabel"]);
 
 function sourceFiles(dir: string, out: string[] = []): string[] {

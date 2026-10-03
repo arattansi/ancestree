@@ -6,12 +6,7 @@ import Link from "next/link";
 
 import { askRelative, type AskRelativeState } from "@/app/actions/invite-relays";
 import { requestInvite, type RequestInviteState } from "@/app/actions/invite-requests";
-import {
-  findFamilyTree,
-  joinBetaWaitlist,
-  type FindTreeState,
-  type WaitlistState,
-} from "@/app/actions/tree-requests";
+import { findFamilyTree, type FindTreeState } from "@/app/actions/tree-requests";
 import { InviteConsent, NameEmailFields } from "@/components/request-fields";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,11 +20,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { RELAY_NOTE, relayAnswer } from "@/lib/invite-relays";
-import { waitlistReceived } from "@/lib/tree-requests";
+import { campaignHref, HOME_CAMPAIGN_CODE } from "@/lib/campaigns";
 
 const INITIAL_SEARCH: FindTreeState = {};
 const INITIAL_REQUEST: RequestInviteState = {};
-const INITIAL_WAITLIST: WaitlistState = {};
 const INITIAL_ASK: AskRelativeState = {};
 
 /**
@@ -64,7 +58,7 @@ export function RequestAccessDialog({
  * `findFamilyTree` looks for a tree showing someone by that name. Found, they
  * ask that tree's Roots for an invite — choosing which, when more than one
  * has them. Not found (or "not me"), they can ask a relative to invite them
- * directly, or join the waitlist to start a tree of their own.
+ * directly, or start a tree of their own.
  *
  * On /join, for someone signed in who isn't a member yet, `email` is the
  * address they've just verified (Step 30.8): it's filled in and fixed, so
@@ -233,8 +227,7 @@ function AskToJoin({
 
 /**
  * Not found: ask a relative who's on ancestree to invite them (Step 30.5),
- * or join the waitlist to start a tree of their own, with what they've
- * already typed.
+ * with what they've already typed, or start a tree of their own.
  */
 function Unmatched({
   search,
@@ -264,7 +257,7 @@ function Unmatched({
         onAskAnother={() => setAsks((n) => n + 1)}
       />
 
-      <StartATree search={search} />
+      <StartATree />
 
       <Button type="button" variant="orange" className="self-start" onClick={onBack}>
         try a different spelling
@@ -344,53 +337,24 @@ function AskRelative({
 }
 
 /**
- * The waitlist, to start a tree of their own. A new tree starts from
- * scratch, so it says so before the button (Step 30.5), and it takes the
- * privacy agreement, as asking to join does (Step 30.6).
+ * Start a tree of their own (Step 119; the waitlist until then): the home
+ * page's campaign link, where they sign up, or start it at once if signed
+ * in. A new tree starts from scratch, so it says so before the button (Step
+ * 30.5); the link's form takes the privacy agreement.
  */
-function StartATree({ search }: { search: FindTreeState }) {
-  const [state, formAction, pending] = useActionState(
-    joinBetaWaitlist,
-    INITIAL_WAITLIST,
-  );
-  const [consented, setConsented] = React.useState(false);
-
+function StartATree() {
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-border p-3">
       <p className="font-medium text-foreground">Start a new tree</p>
-      {state.ok && state.email ? (
-        <p role="status" className="text-muted-foreground">
-          {waitlistReceived(state.email)}
-        </p>
-      ) : (
-        <form action={formAction} className="flex flex-col gap-3">
-          <input type="hidden" name="firstName" value={search.firstName ?? ""} />
-          <input type="hidden" name="lastName" value={search.lastName ?? ""} />
-          <input type="hidden" name="email" value={search.email ?? ""} />
-          <p className="text-muted-foreground">
-            We&rsquo;ll email {search.email} when you can start a tree from
-            scratch.
-          </p>
-          {state.error ? (
-            <p role="alert" className="text-destructive">
-              {state.error}
-            </p>
-          ) : null}
-          <InviteConsent
-            id="request-access-waitlist-consent"
-            checked={consented}
-            onCheckedChange={setConsented}
-          />
-          <Button
-            type="submit"
-            size="sm"
-            className="self-start"
-            disabled={pending || !consented}
-          >
-            {pending ? "sending…" : "join the beta waitlist"}
-          </Button>
-        </form>
-      )}
+      <p className="text-muted-foreground">From scratch, with you as its Root.</p>
+      <Button
+        nativeButton={false}
+        render={<Link href={campaignHref(HOME_CAMPAIGN_CODE)} />}
+        size="sm"
+        className="self-start"
+      >
+        start a tree
+      </Button>
     </div>
   );
 }

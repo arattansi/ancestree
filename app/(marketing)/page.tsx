@@ -1,6 +1,5 @@
 import Link from "next/link";
 
-import { BetaWaitlistDialog } from "@/components/beta-waitlist-dialog";
 import { LogoMark } from "@/components/logo-mark";
 import { ElevatorsTree } from "@/components/marketing/elevators-tree";
 import { CenteredPage } from "@/components/page-column";
@@ -8,15 +7,17 @@ import { RequestAccessDialog } from "@/components/request-access";
 import { StartTreeButton } from "@/components/start-tree-button";
 import { Button } from "@/components/ui/button";
 import { getProfile } from "@/lib/auth";
+import { campaignHref, HOME_CAMPAIGN_CODE } from "@/lib/campaigns";
 import { homeHref } from "@/lib/tree-links";
 import { getTreeRequestStatus } from "@/lib/tree-requests.server";
 
 /**
  * The landing page (Step 28). Signed in: view your tree (My Family Tree,
- * Step 92.5), or ask to start a new one. Signed out: sign in, join a tree
- * (which looks for your family's tree first; "request access" until Step
- * 107), or join the waitlist to start one. New trees are by request during
- * the beta. Its buttons are lower-case, as every button is
+ * Step 92.5), or start a new one. Signed out: sign in, join a tree (which
+ * looks for your family's tree first; "request access" until Step 107), or
+ * start a tree: sign up through the home page's own campaign link, which
+ * starts it at once (Step 119; a waitlist and a reviewer's yes until then).
+ * Its buttons are lower-case, as every button is
  * (docs/design-system.md). Sign in stays the filled button, for members
  * coming back. Since Step 107 it's the first of the marketing pages, and the
  * only one over the Elevators tree: the other marketing pages are plain. Its
@@ -58,7 +59,7 @@ export default async function Home() {
                   view your tree
                 </Button>
                 <StartTreeButton status={treeRequest ?? "none"} size="lg" variant="outline">
-                  start a tree (beta)
+                  start a tree
                 </StartTreeButton>
               </>
             ) : (
@@ -69,9 +70,14 @@ export default async function Home() {
                 <RequestAccessDialog size="lg" variant="outline">
                   join a tree
                 </RequestAccessDialog>
-                <BetaWaitlistDialog size="lg" variant="outline">
-                  start a tree (beta)
-                </BetaWaitlistDialog>
+                <Button
+                  nativeButton={false}
+                  render={<Link href={campaignHref(HOME_CAMPAIGN_CODE)} />}
+                  size="lg"
+                  variant="outline"
+                >
+                  start a tree
+                </Button>
               </>
             )}
           </div>

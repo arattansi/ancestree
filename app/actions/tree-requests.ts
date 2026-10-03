@@ -6,7 +6,6 @@ import { requireProfile, type Profile } from "@/lib/auth";
 import { sendEmail, whyNotSent } from "@/lib/email";
 import { treeRequestApprovedEmail } from "@/lib/emails/tree-request-approved";
 import { mintFounderInvites } from "@/lib/founder-invites.server";
-import { CONSENT_NEEDED, consentGiven } from "@/lib/privacy-consent";
 import {
   problemState,
   readNameAndEmail,
@@ -48,50 +47,6 @@ export async function requestNewTree(): Promise<{
   }
   revalidateTreePages();
   return { status };
-}
-
-export type WaitlistState = RequestFormState & { ok?: boolean };
-
-/**
- * Public: join the waitlist to start a tree (Step 28). Written with the
- * service role, because the person isn't signed in and `tree_requests` isn't
- * reachable from anon. A reviewer answers with a founder invite by email.
- * A new sign-up emails the reviewers once the person has their answer (Step
- * 30.1); signing up again emails nobody.
- *
- * It needs the privacy agreement (Step 30.6): the founder invite is filed
- * as a request (`mintFounderInvites`), and the join page skips the box for a
- * request, taking it as ticked when they asked.
- */
-export async function joinBetaWaitlist(
-  _prev: WaitlistState,
-  formData: FormData,
-): Promise<WaitlistState> {
-  const { entered, problem } = readNameAndEmail(formData);
-  if (problem) return problemState(problem, entered);
-  if (!consentGiven(formData)) return { error: CONSENT_NEEDED, ...entered };
-
-  const { error } = await createAdminClient().from("tree_requests").insert({
-    first_name: entered.firstName,
-    last_name: entered.lastName,
-    email: entered.email,
-  });
-  if (error) {
-    // The pending-address index: they're on the list already.
-    if (error.code === "23505") return { ok: true, ...entered };
-    return { error: "Couldn't add you to the waitlist. Try again shortly.", ...entered };
-  }
-
-  // After the response, so the email never slows or fails the form.
-  after(() =>
-    alertReviewersOfTreeRequest({
-      kind: "waitlist",
-      firstName: entered.firstName,
-      lastName: entered.lastName,
-    }),
-  );
-  revalidateTreePages();
-  return { ok: true, ...entered };
 }
 
 export type FoundTree = { name: string; slug: string };

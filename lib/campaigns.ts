@@ -24,6 +24,14 @@ export type Campaign = {
   createdAt: string;
 };
 
+/**
+ * The home page's own link (Step 119): "start a tree" for anyone signed
+ * out, there and in join a tree. Made by migration
+ * `20261003160000_anyone_starts_a_tree`; paused on /admin, it closes
+ * sign-ups from the home page.
+ */
+export const HOME_CAMPAIGN_CODE = "df9590fa4260";
+
 /** The link's own page, where people sign up through it. */
 export function campaignHref(code: string): string {
   return `/start/${encodeURIComponent(code)}`;

@@ -73,8 +73,8 @@ export default function PrivacyPage() {
             through a share link, or from another tree, don&rsquo;t see it.
           </li>
           <li>
-            If you ask to join a tree, ask a relative on ancestree to invite
-            you, or join the waitlist to start one, the name and email you
+            If you ask to join a tree, or ask a relative on ancestree to
+            invite you, the name and email you
             give — kept only so a relative or the site owner can answer you,
             and deleted on request.
           </li>

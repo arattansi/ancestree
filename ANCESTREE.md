@@ -1784,6 +1784,24 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 119: anyone can start a tree** (migration
+  `20261003160000_anyone_starts_a_tree`). **Aalim asked:** "turn off the
+  waitlist and remove beta tag from 'start a tree' on home page. just let
+  users start using ancestree". **Now** `private.may_found_tree()` is true
+  for anyone signed in, so `found_tree` no longer needs a reviewer's yes and
+  `my_tree_request` says `approved` until they've founded one (still one
+  founded tree each). A member's **start a tree** (home page, /trees, the
+  tree switcher) goes straight to naming it. Signed out, the home page's
+  **start a tree** (no "(beta)") and join a tree's **Start a new tree**
+  lead to the home page's own campaign link (`HOME_CAMPAIGN_CODE`,
+  `df9590fa4260`, "Home page"): sign up and the tree starts at once, as any
+  campaign link does (Step 103.3). Its opens, sign-ups and trees show on
+  /admin; pausing it there closes sign-ups from the home page. The waitlist
+  dialog and `joinBetaWaitlist` are gone. The admin's Requests to Start a
+  Tree queue stays for anything already in it (empty on the day). Step 118
+  was dropped the same day and 118.1 (the sample family) reverted in
+  `a94f888`, with its data, account, seal and migration row undone live.
+
 - **Step 117: tagging people is a dropdown** (no migration). **Aalim
   asked:** "when tagging people, make it a drop down function. it's so
   busy having a long list to scroll through. put date above
