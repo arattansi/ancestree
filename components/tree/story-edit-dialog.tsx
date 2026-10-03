@@ -209,6 +209,18 @@ export function StoryEditDialog({
               onPreparing={setPreparing}
             />
           ) : null}
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="story-edit-told">Date told</Label>
+            <DateField
+              id="story-edit-told"
+              value={told}
+              onChange={setTold}
+              onBlur={() => setToldTouched(true)}
+              disabled={save.pending}
+              aria-invalid={toldTouched && !!toldError}
+            />
+            <FormError>{toldTouched ? toldError : null}</FormError>
+          </div>
           {/* A recording is credited; a written story tags who it mentions,
               its teller alone (Step 116). */}
           {story && !story.hasRecording ? (
@@ -225,7 +237,8 @@ export function StoryEditDialog({
               />
             ) : null
           ) : (
-            <>
+            // Side by side where there's room (Step 117).
+            <div className="grid items-start gap-4 sm:grid-cols-2">
               <CompanionPicker
                 label="Storyteller"
                 options={options}
@@ -242,20 +255,8 @@ export function StoryEditDialog({
                 disabled={save.pending}
                 emptyHint={null}
               />
-            </>
+            </div>
           )}
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="story-edit-told">Date told</Label>
-            <DateField
-              id="story-edit-told"
-              value={told}
-              onChange={setTold}
-              onBlur={() => setToldTouched(true)}
-              disabled={save.pending}
-              aria-invalid={toldTouched && !!toldError}
-            />
-            <FormError>{toldTouched ? toldError : null}</FormError>
-          </div>
           <FormError>{save.error}</FormError>
           <div className="flex gap-2">
             <PendingButton

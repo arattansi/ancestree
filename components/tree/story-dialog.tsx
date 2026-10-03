@@ -62,7 +62,7 @@ function CreditField({
         type="button"
         variant="link"
         size="sm"
-        className="self-start px-0"
+        className="self-start justify-self-start px-0"
         disabled={disabled}
         onClick={() => {
           focus.current = true;
@@ -355,7 +355,8 @@ export function StoryDialog({
             )}
             {/* A recording is credited; a written story tags who it mentions. */}
             {writing ? null : (
-              <>
+              // Side by side where there's room (Step 117).
+              <div className="grid items-start gap-4 sm:grid-cols-2">
                 <CreditField
                   label="Storyteller"
                   people={people}
@@ -374,7 +375,7 @@ export function StoryDialog({
                   onChange={(ids) => setCredits((c) => ({ ...c, interviewer: ids }))}
                   disabled={send.pending}
                 />
-              </>
+              </div>
             )}
             <FormError>{send.error}</FormError>
             <div className="flex gap-2">

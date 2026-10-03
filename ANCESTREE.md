@@ -1784,6 +1784,22 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 117: tagging people is a dropdown** (no migration). **Aalim
+  asked:** "when tagging people, make it a drop down function. it's so
+  busy having a long list to scroll through. put date above
+  interviewer/storyteller. place storyteller and interviewer sidebyside".
+  **Now** every people picker (`CompanionPicker`: a photo's Who's in it,
+  Storyteller, Interviewer, People mentioned, a pet's Belongs to) keeps
+  only its chips, its Suggested row and a search box. The rest of the tree
+  drops down from the box while it's in use, on Base UI's Combobox (in a
+  portal, so a dialog's scroll area can't clip it, and nested so a pick
+  doesn't close the dialog). The arrow keys move, Enter picks without
+  submitting the form, Escape closes the list but not the dialog. It stays
+  open after a pick, the search clears, and up to 50 names show at once.
+  **Edit story** has Date told above the credits, as Add a story already
+  did. Storyteller and Interviewer sit side by side from the `sm`
+  breakpoint up, stacked on a phone, in both dialogs.
+
 - **Step 116: written stories tag who they mention** (migration
   `20261003140000_story_mentions`). **Aalim asked:** "remove current tags
   for written stories. replace with tags for people mentioned in the

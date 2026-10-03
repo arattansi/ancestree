@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { Combobox as ComboboxPrimitive } from "@base-ui/react/combobox";
 import { Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -8,7 +9,9 @@ import { Input } from "@/components/ui/input";
 import { useFocusReturn } from "@/components/use-focus-return";
 import type { TagOption } from "@/lib/tag-person";
 import { foldSearchText } from "@/lib/tree-search";
-import { cn } from "@/lib/utils";
+
+/** The most names the dropdown lists at once; typing narrows it. */
+const LIST_MAX = 50;
 
 /** Someone on the canvas, with what the album matches a photo's names
  *  and date against (Step 88.6). */
@@ -20,6 +23,12 @@ export type CompanionOption = TagOption;
  * Multi-select by design: a household pet belongs to everyone who lived with
  * it, and forcing a single "owner" is what would make it read as a child of
  * one person. Already-picked people show as removable chips.
+ *
+ * The rest of the tree drops down from the search box (Step 117), only
+ * while it's in use, rather than sitting open under it: Base UI's combobox,
+ * drawn above whatever dialog it's in, so nothing clips it. The arrow keys
+ * move through it, Enter picks, Escape closes it; it stays open after a
+ * pick, so several are added in a row.
  */
 export function CompanionPicker({
   options,
@@ -48,6 +57,7 @@ export function CompanionPicker({
   emptyHint?: string | null;
 }) {
   const [query, setQuery] = React.useState("");
+  const inputId = React.useId();
   const labelById = React.useMemo(
     () => new Map(options.map((o) => [o.id, o.label])),
     [options],
@@ -78,16 +88,27 @@ export function CompanionPicker({
     if (!q) {
       return unpicked
         .filter((o) => !offered.some((s) => s.id === o.id))
-        .slice(0, 8);
+        .slice(0, LIST_MAX);
     }
     return unpicked
       .filter((o) => foldSearchText(o.label).includes(q))
-      .slice(0, 8);
+      .slice(0, LIST_MAX);
   }, [options, value, query, offered]);
+
+  // Who's picked, as the dropdown knows them: someone this canvas lacks
+  // by the name they're shown with.
+  const picked = React.useMemo(() => {
+    const byId = new Map(options.map((o) => [o.id, o]));
+    return value.map(
+      (id) => byId.get(id) ?? { id, label: labelById.get(id) ?? "Someone on the tree" },
+    );
+  }, [options, value, labelById]);
 
   return (
     <div className="flex flex-col gap-2">
-      <span className="text-sm font-medium">{label}</span>
+      <label htmlFor={inputId} className="text-sm font-medium">
+        {label}
+      </label>
 
       {value.length > 0 ? (
         <ul className="flex flex-wrap gap-1.5">
@@ -166,38 +187,47 @@ export function CompanionPicker({
         </div>
       ) : null}
 
-      <Input
-        ref={inputRef}
-        type="search"
-        placeholder="Add someone else on the tree…"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
+      <ComboboxPrimitive.Root
+        multiple
+        items={options}
+        filteredItems={matches}
+        value={picked}
+        onValueChange={(next: CompanionOption[]) => {
+          onChange(next.map((o) => o.id));
+          setQuery("");
+        }}
+        inputValue={query}
+        onInputValueChange={(next) => setQuery(next)}
+        itemToStringLabel={(o: CompanionOption) => o.label}
+        isItemEqualToValue={(a: CompanionOption, b: CompanionOption) => a.id === b.id}
+        openOnInputClick
+        autoHighlight
         disabled={disabled}
-      />
-
-      {matches.length > 0 ? (
-        <ul className="max-h-40 divide-y divide-border overflow-y-auto rounded-md border border-border">
-          {matches.map((o) => (
-            <li key={o.id}>
-              <button
-                type="button"
-                disabled={disabled}
-                className={cn(
-                  "w-full px-3 py-1.5 text-left text-sm hover:bg-accent hover:text-accent-foreground",
-                  "focus-visible:bg-accent focus-visible:outline-none",
+      >
+        <ComboboxPrimitive.Input
+          ref={inputRef}
+          id={inputId}
+          placeholder="Add someone else on the tree…"
+          render={<Input type="search" />}
+        />
+        <ComboboxPrimitive.Portal>
+          <ComboboxPrimitive.Positioner sideOffset={4} className="z-50">
+            <ComboboxPrimitive.Popup className="max-h-[min(14rem,var(--available-height))] w-(--anchor-width) overflow-y-auto rounded-md border border-border bg-popover py-1 text-popover-foreground shadow-md empty:hidden">
+              <ComboboxPrimitive.List aria-label={label}>
+                {(o: CompanionOption) => (
+                  <ComboboxPrimitive.Item
+                    key={o.id}
+                    value={o}
+                    className="cursor-pointer px-3 py-1.5 text-sm outline-none data-highlighted:bg-accent data-highlighted:text-accent-foreground"
+                  >
+                    {o.label}
+                  </ComboboxPrimitive.Item>
                 )}
-                onClick={(event) => {
-                  handOn(event.currentTarget, null);
-                  onChange([...value, o.id]);
-                  setQuery("");
-                }}
-              >
-                {o.label}
-              </button>
-            </li>
-          ))}
-        </ul>
-      ) : null}
+              </ComboboxPrimitive.List>
+            </ComboboxPrimitive.Popup>
+          </ComboboxPrimitive.Positioner>
+        </ComboboxPrimitive.Portal>
+      </ComboboxPrimitive.Root>
     </div>
   );
 }
