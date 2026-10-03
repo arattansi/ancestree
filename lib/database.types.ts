@@ -2462,6 +2462,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          is_sample: boolean
           name: string
           slug: string
           updated_at: string
@@ -2470,6 +2471,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          is_sample?: boolean
           name: string
           slug: string
           updated_at?: string
@@ -2478,6 +2480,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          is_sample?: boolean
           name?: string
           slug?: string
           updated_at?: string
@@ -2959,6 +2962,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          is_sample: boolean
           name: string
           slug: string
           updated_at: string
@@ -3210,6 +3214,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          is_sample: boolean
           name: string
           slug: string
           updated_at: string

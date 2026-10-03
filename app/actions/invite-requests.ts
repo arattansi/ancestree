@@ -62,6 +62,8 @@ export async function requestInvite(
     .from("trees")
     .select("id, name")
     .eq("slug", treeSlug)
+    // Nobody joins the sample family (Step 118.1; the database refuses too).
+    .eq("is_sample", false)
     .maybeSingle();
   if (!tree) {
     return { error: "That tree isn't taking requests. Ask the person who shared it with you.", ...entered };

@@ -10,7 +10,8 @@
     "test": "vitest run",
     "import:geonames": "tsx --env-file=.env.local scripts/import-geonames.ts",
     "email:push": "tsx --env-file=.env.local scripts/push-email-templates.ts",
-    "brand:build": "tsx scripts/brand-mark.ts"
+    "brand:build": "tsx scripts/brand-mark.ts",
+    "sample:seed": "tsx --env-file=.env.local scripts/seed-sample-tree.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
