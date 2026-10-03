@@ -8,73 +8,96 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  descentGeometry,
-  leafBranchPath,
-  leafLandX,
-  type CardRect,
-} from "@/lib/edge-geometry";
+  addRelative,
+  canRelate,
+  demoLines,
+  layoutDemo,
+  RELATIONS,
+  type DemoPerson,
+  type Person,
+  type Relation,
+} from "@/lib/leaf-demo-layout";
 import { marketingEntry } from "@/lib/marketing-entry";
 import { nativeLeaf } from "@/lib/native-leaf";
-import {
-  COUPLE_GAP,
-  GUTTER,
-  NODE_H,
-  NODE_W,
-  ROW_H,
-} from "@/lib/tree-dimensions";
 import { cn } from "@/lib/utils";
 
 /**
- * The /features demo (Step 112): the add-a-relative form's basic fields on
- * the left and the leaves they make on the right. On its own it plays
- * through once, typing the Elevators family's parents and two of their
- * children (`lib/elevators-tree.ts`) in one at a time, each turning into a
- * leaf as it's added and joined to the others as a spotlight joins them.
- * Then it stops with the family in place and draws an arrow to "try it
- * yourself", which hands the form over (as clicking into a field does).
- * Nothing typed leaves the page: no server call, no storage, and the
- * inputs have no names, so a browser has nothing to remember them by.
+ * The /features demo (Step 112): the add-a-relative form's basic fields and
+ * how the new person connects on the left, the leaves they make on the
+ * right. On its own it plays through once: Rumi Baldwin is on the tree, and
+ * it types in René (her partner), André (their child) and Frida (André's
+ * sibling), the Elevators family (`lib/elevators-tree.ts`), each turning
+ * into a leaf joined to the rest as a spotlight joins them. Then it stops
+ * and draws an arrow to "try it yourself", which hands the form over (as
+ * clicking into a field does): the visitor adds up to two people of their
+ * own to that family, the tree shrinking to fit. Nothing typed leaves the
+ * page: no server call, no storage, and the inputs have no names, so a
+ * browser has nothing to remember them by.
  */
 
-type Person = { first: string; last: string; place: string };
 type Field = keyof Person;
 
 const EMPTY: Person = { first: "", last: "", place: "" };
 
-/** The loop's family, in the order it adds them. */
-const FAMILY: Person[] = [
-  { first: "Rumi", last: "Baldwin", place: "Balkh, Afghanistan" },
-  { first: "René", last: "Baldwin", place: "Touraine, France" },
-  { first: "André", last: "Franklin", place: "Atlanta, United States" },
-  { first: "Frida", last: "Baldwin", place: "Coyoacán, Mexico" },
+/** Who's on the tree before the loop starts. */
+const ROOT: DemoPerson[] = [
+  {
+    id: "rumi",
+    first: "Rumi",
+    last: "Baldwin",
+    place: "Balkh, Afghanistan",
+    parents: [],
+    partner: null,
+    siblingOf: null,
+  },
 ];
 
-/**
- * Where each leaf goes, in the order they're added: a couple, then their
- * two children on the row under them, either side of the couple's trunk.
- * Four is all the column has room for.
- */
-const MID_X = NODE_W + COUPLE_GAP / 2;
-const SLOTS: CardRect[] = [
-  { x: 0, y: 0 },
-  { x: NODE_W + COUPLE_GAP, y: 0 },
-  { x: MID_X - GUTTER / 2 - NODE_W, y: ROW_H },
-  { x: MID_X + GUTTER / 2, y: ROW_H },
-].map((p) => ({ ...p, w: NODE_W, h: NODE_H }));
-const ROOM = SLOTS.length;
+/** What the loop types in, in order: one of each relation. */
+const STEPS: { id: string; person: Person; relation: Relation; of: string }[] =
+  [
+    {
+      id: "rene",
+      person: { first: "René", last: "Baldwin", place: "Touraine, France" },
+      relation: "partner",
+      of: "rumi",
+    },
+    {
+      id: "andre",
+      person: {
+        first: "André",
+        last: "Franklin",
+        place: "Atlanta, United States",
+      },
+      relation: "child",
+      of: "rumi",
+    },
+    {
+      id: "frida",
+      person: { first: "Frida", last: "Baldwin", place: "Coyoacán, Mexico" },
+      relation: "sibling",
+      of: "andre",
+    },
+  ];
 
-/** Room around the leaves: blades overhang their boxes top and bottom. */
-const PAD = { x: 8, top: 32, bottom: 24 };
-const LEFT = Math.min(...SLOTS.map((s) => s.x)) - PAD.x;
-const TOP = -PAD.top;
-const WIDTH = Math.max(...SLOTS.map((s) => s.x + s.w)) + PAD.x - LEFT;
-const HEIGHT = ROW_H + NODE_H + PAD.bottom - TOP;
+/** The tree as the loop leaves it, which a visitor's turn starts from. */
+const SAMPLE = STEPS.reduce(
+  (people, s) => addRelative(people, s.person, s.id, s.relation, s.of),
+  ROOT,
+);
 
-/** The children's trunk, from the couple down to the bar over their row. */
-const DESCENT = descentGeometry([SLOTS[0], SLOTS[1]], ROW_H, { leafy: true });
-const LAND_XS = [SLOTS[2], SLOTS[3]].map(leafLandX);
+/** How many people a visitor may add. */
+const YOURS = 2;
+
+/** What the connect fields show before anything is picked. */
+const DEFAULT_RELATION: Relation = "child";
+const DEFAULT_OF = "rumi";
+
+/** The tree's box when the sample is all there: the frame keeps its height. */
+const SAMPLE_BOUNDS = layoutDemo(SAMPLE).bounds;
 
 const leafOf = (p: Person) => nativeLeaf({ city_of_birth: p.place });
+const named = (p: Person) => !!(p.first.trim() || p.last.trim());
+const nameOf = (p: Person) => `${p.first} ${p.last}`.trim();
 
 function entryOf(p: Person, id: string) {
   return marketingEntry({
@@ -88,56 +111,26 @@ function entryOf(p: Person, id: string) {
   });
 }
 
-/** The lines between the leaves placed so far, as a spotlight routes them. */
-function linesFor(placed: Person[]): string[] {
-  const lines: string[] = [];
-  if (placed.length >= 2) {
-    const y = NODE_H / 2;
-    lines.push(`M ${NODE_W},${y} L ${NODE_W + COUPLE_GAP},${y}`);
-  }
-  if (DESCENT) {
-    for (let i = 2; i < placed.length; i++) {
-      lines.push(
-        leafBranchPath(
-          DESCENT,
-          SLOTS[i],
-          bladeTop(leafOf(placed[i]).shape),
-          10,
-          LAND_XS,
-        ),
-      );
-    }
-  }
-  return lines;
-}
-
-/** How the next leaf will join the ones already there. */
-function connectionFor(placed: Person[]): string {
-  const first = (i: number) => placed[i]?.first.trim() || "them";
-  switch (placed.length) {
-    case 0:
-      return "starts the tree";
-    case 1:
-      return `partner of ${first(0)}`;
-    default:
-      return `child of ${first(0)} and ${first(1)}`;
-  }
-}
-
 type Mode = "loop" | "try";
+type Focus = Field | "relation" | "of";
 
 type Demo = {
   mode: Mode;
-  placed: Person[];
+  people: DemoPerson[];
   draft: Person;
-  /** The field the loop is typing into. */
-  typing: Field | null;
+  relation: Relation;
+  of: string;
+  /** The field the loop is filling in. */
+  typing: Focus | null;
   /** The loop is pressing add. */
   pressing: boolean;
-  /** The loop has added its whole family and stopped, pointing at "try
-   *  it yourself". */
+  /** The loop has played and stopped, pointing at "try it yourself". */
   finished: boolean;
+  /** How many more people the visitor may add. */
+  left: number;
   setDraft: (draft: Person) => void;
+  setRelation: (relation: Relation) => void;
+  setOf: (of: string) => void;
   add: () => void;
   tryIt: (focus: boolean) => void;
   startOver: () => void;
@@ -196,15 +189,18 @@ function useReducedMotion(): boolean {
 
 /**
  * Holds the demo's state for its two halves, which sit in different
- * columns of the page (`LeafDemoForm`, `LeafDemoTree`), and runs the loop
- * while it's on screen. With reduced motion there is no loop: the whole
- * family is there from the start.
+ * columns of the page (`LeafDemoForm`, `LeafDemoTree`), and plays the loop
+ * while it's on screen. With reduced motion there is no loop: the sample
+ * is there from the start.
  */
 export function LeafDemo({ children }: { children: React.ReactNode }) {
   const [mode, setMode] = React.useState<Mode>("loop");
-  const [added, setPlaced] = React.useState<Person[]>([]);
+  const [tree, setPeople] = React.useState<DemoPerson[]>(ROOT);
   const [draft, setDraft] = React.useState<Person>(EMPTY);
-  const [typing, setTyping] = React.useState<Field | null>(null);
+  const [relation, setRelationState] =
+    React.useState<Relation>(DEFAULT_RELATION);
+  const [of, setOf] = React.useState(DEFAULT_OF);
+  const [typing, setTyping] = React.useState<Focus | null>(null);
   const [pressing, setPressing] = React.useState(false);
   const [ended, setEnded] = React.useState(false);
   const firstField = React.useRef<HTMLInputElement>(null);
@@ -217,8 +213,8 @@ export function LeafDemo({ children }: { children: React.ReactNode }) {
   }, []);
 
   const reduced = useReducedMotion();
-  // With less motion, no loop: the family as the loop would finish it.
-  const placed = reduced && mode === "loop" ? FAMILY : added;
+  // With less motion, no loop: the sample as the loop would leave it.
+  const people = reduced && mode === "loop" ? SAMPLE : tree;
   const finished = mode === "loop" && (reduced || ended);
 
   React.useEffect(() => {
@@ -242,24 +238,38 @@ export function LeafDemo({ children }: { children: React.ReactNode }) {
       }
       await wait(250);
     };
-    // Once through, then it stops with the family in place.
+    // Once through, then it stops with the sample in place.
     (async () => {
-      setPlaced([]);
+      setPeople(ROOT);
       setDraft(EMPTY);
+      setRelationState(DEFAULT_RELATION);
+      setOf(DEFAULT_OF);
       setEnded(false);
-      await wait(700);
-      for (const person of FAMILY) {
-        await type("first", person.first);
-        await type("last", person.last);
-        await type("place", person.place);
+      await wait(900);
+      for (const step of STEPS) {
+        await type("first", step.person.first);
+        await type("last", step.person.last);
+        await type("place", step.person.place);
+        setTyping("relation");
+        await wait(350);
+        setRelationState(step.relation);
+        await wait(600);
+        setTyping("of");
+        await wait(350);
+        setOf(step.of);
+        await wait(600);
         setTyping(null);
-        await wait(450);
+        await wait(300);
         setPressing(true);
         await wait(180);
         setPressing(false);
-        setPlaced((p) => [...p, person]);
+        setPeople((p) =>
+          addRelative(p, step.person, step.id, step.relation, step.of),
+        );
         setDraft(EMPTY);
-        await wait(1100);
+        setRelationState(DEFAULT_RELATION);
+        setOf(DEFAULT_OF);
+        await wait(1300);
       }
       setEnded(true);
     })().catch((error) => {
@@ -273,36 +283,62 @@ export function LeafDemo({ children }: { children: React.ReactNode }) {
     };
   }, [mode, reduced]);
 
+  const resetForm = () => {
+    setDraft(EMPTY);
+    setRelationState(DEFAULT_RELATION);
+    setOf(DEFAULT_OF);
+  };
+  const left = YOURS - (people.length - SAMPLE.length);
+
   const demo: Demo = {
     mode,
-    placed,
+    people,
     draft,
+    relation,
+    of,
     typing,
     pressing,
     finished,
+    left: mode === "try" ? left : YOURS,
     setDraft,
+    setRelation: (next) => {
+      setRelationState(next);
+      // A partner only for someone without one.
+      if (!canRelate(people, next, of)) {
+        const free = people.find((p) => canRelate(people, next, p.id));
+        if (free) setOf(free.id);
+      }
+    },
+    setOf,
     firstFieldRef,
     setOnScreen,
     add: () => {
-      if (mode !== "try" || !draft.first.trim() || placed.length >= ROOM)
+      if (
+        mode !== "try" ||
+        left <= 0 ||
+        !draft.first.trim() ||
+        !canRelate(people, relation, of)
+      )
         return;
-      setPlaced((p) => [...p, draft]);
-      setDraft(EMPTY);
+      setPeople((p) =>
+        addRelative(p, draft, `yours-${p.length}`, relation, of),
+      );
+      resetForm();
       firstField.current?.focus();
     },
     tryIt: (focus) => {
       setMode("try");
-      setPlaced([]);
-      setDraft(EMPTY);
+      setPeople(SAMPLE);
+      resetForm();
       if (focus) firstField.current?.focus();
     },
     startOver: () => {
-      setPlaced([]);
-      setDraft(EMPTY);
+      setPeople(SAMPLE);
+      resetForm();
       firstField.current?.focus();
     },
     watch: () => {
-      setDraft(EMPTY);
+      resetForm();
       setMode("loop");
     },
   };
@@ -320,20 +356,30 @@ const FIELDS: { field: Field; label: string; placeholder?: string }[] = [
   },
 ];
 
+/** The loop's highlight on the field it's filling in. */
+const FILLING = "border-ring ring-3 ring-ring/50";
+
+/** A native select drawn as the app's inputs are. */
+const SELECT = cn(
+  "h-8 w-full min-w-0 rounded-lg border border-input bg-background px-2 text-base transition-colors outline-none md:text-sm dark:bg-input/30",
+  "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50",
+);
+
 /**
  * The form's half: the add-a-relative form's basic fields, as the app
- * labels them, with where the next leaf will hang. While the loop runs,
- * the fields are its to type in; clicking into one, or "try it yourself",
- * hands them over.
+ * labels them, and how the new person connects: partner, child or sibling
+ * of someone on the tree. While the loop runs the fields are its to fill
+ * in; clicking into one, or "try it yourself", hands them over.
  */
 export function LeafDemoForm() {
   const demo = useDemo();
-  const { mode, draft, placed, typing, pressing } = demo;
+  const { mode, draft, people, typing, pressing } = demo;
   const looping = mode === "loop";
-  const full = placed.length >= ROOM;
+  const done = !looping && demo.left <= 0;
   const id = React.useId();
   const box = React.useRef<HTMLDivElement>(null);
   useOnScreen(box, "form", demo.setOnScreen);
+  const takeOver = looping ? () => demo.tryIt(false) : undefined;
 
   return (
     <div ref={box} className="flex flex-col gap-4">
@@ -364,25 +410,56 @@ export function LeafDemoForm() {
                 autoComplete="off"
                 spellCheck={false}
                 readOnly={looping}
-                disabled={!looping && full}
-                onFocus={looping ? () => demo.tryIt(false) : undefined}
+                disabled={done}
+                onFocus={takeOver}
                 onChange={(e) =>
                   demo.setDraft({ ...draft, [field]: e.target.value })
                 }
-                className={cn(
-                  typing === field && "border-ring ring-3 ring-ring/50",
-                )}
+                className={cn(typing === field && FILLING)}
               />
             </div>
           ))}
         </div>
         <div className="flex flex-col gap-2">
-          <span className="text-sm leading-none font-medium">Connect to</span>
-          <span className="self-start rounded-full border border-brand-brown/30 px-2.5 py-0.5 text-xs text-muted-foreground">
-            {full ? "the tree is full" : connectionFor(placed)}
-          </span>
+          <Label htmlFor={`${id}-relation`}>How they connect</Label>
+          <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-2">
+            <select
+              id={`${id}-relation`}
+              value={demo.relation}
+              disabled={done}
+              onPointerDown={takeOver}
+              onFocus={takeOver}
+              onChange={(e) => demo.setRelation(e.target.value as Relation)}
+              className={cn(SELECT, typing === "relation" && FILLING)}
+            >
+              {RELATIONS.map((r) => (
+                <option key={r.value} value={r.value}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
+            <select
+              aria-label="Who they're related to"
+              value={demo.of}
+              disabled={done}
+              onPointerDown={takeOver}
+              onFocus={takeOver}
+              onChange={(e) => demo.setOf(e.target.value)}
+              className={cn(SELECT, typing === "of" && FILLING)}
+            >
+              {people.map((p) => (
+                <option
+                  key={p.id}
+                  value={p.id}
+                  disabled={!canRelate(people, demo.relation, p.id)}
+                >
+                  {nameOf(p)}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
-        {full && !looping ? (
+        {done ? (
           <Button type="button" variant="outline" onClick={demo.startOver}>
             start over
           </Button>
@@ -391,7 +468,11 @@ export function LeafDemoForm() {
             type="submit"
             tabIndex={looping ? -1 : undefined}
             aria-hidden={looping || undefined}
-            disabled={!looping && !draft.first.trim()}
+            disabled={
+              !looping &&
+              (!draft.first.trim() ||
+                !canRelate(people, demo.relation, demo.of))
+            }
             className={cn(pressing && "translate-y-px bg-primary/80")}
           >
             add relative
@@ -428,8 +509,8 @@ export function LeafDemoForm() {
 
 /**
  * A hand-drawn arrow pointing back at "try it yourself" once the loop has
- * finished its family, drawing itself in as a branch does: the shaft from
- * the right, then the head.
+ * played, drawing itself in as a branch does: the shaft from the right,
+ * then the head.
  */
 function TryArrow() {
   return (
@@ -462,23 +543,25 @@ function TryArrow() {
   );
 }
 
+/** Leaves and the whole tree glide to where a new leaf puts them. */
+const GLIDE = "duration-500 ease-out";
+
 /**
- * The tree's half: each person added as their leaf, joined to the rest,
- * and the one being typed in still pale in the next place, its shape
- * changing as the birthplace names somewhere with a tree of its own. Drawn
- * at its full size where it fits and scaled down to the column where it
- * doesn't, as /about-us's family is.
+ * The tree's half: everyone on it as their leaf, joined to the rest, and
+ * the one being typed in pale where they'll go, its shape changing as the
+ * birthplace names somewhere with a tree of its own. The frame keeps the
+ * height the sample needs at the column's width; as the tree grows past
+ * it, the leaves already there shrink so it all still fits.
  */
 export function LeafDemoTree({ className }: { className?: string }) {
-  const { placed, draft, setOnScreen } = useDemo();
+  const { people, draft, relation, of, left, setOnScreen } = useDemo();
   const frame = React.useRef<HTMLDivElement>(null);
-  const [scale, setScale] = React.useState<number | null>(null);
+  const [frameWidth, setFrameWidth] = React.useState<number | null>(null);
 
   React.useEffect(() => {
     const el = frame.current;
     if (!el) return;
-    const measure = () =>
-      setScale(Math.min(1, el.getBoundingClientRect().width / WIDTH));
+    const measure = () => setFrameWidth(el.getBoundingClientRect().width);
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(el);
@@ -487,82 +570,114 @@ export function LeafDemoTree({ className }: { className?: string }) {
   useOnScreen(frame, "tree", setOnScreen);
 
   const drafting =
-    placed.length < ROOM && Object.values(draft).some((v) => v.trim());
+    left > 0 &&
+    Object.values(draft).some((v) => v.trim()) &&
+    canRelate(people, relation, of);
+  const shown = drafting
+    ? addRelative(people, draft, "draft", relation, of)
+    : people;
+  const { cards, bounds } = layoutDemo(shown);
+  const lines = demoLines(people, cards);
+  const leafById = new Map(people.map((p) => [p.id, leafOf(p)]));
   const draftLeaf = leafOf(draft);
-  const named = (p: Person) => !!(p.first.trim() || p.last.trim());
+  const draftCard = cards.get("draft");
+
+  const width = frameWidth ?? SAMPLE_BOUNDS.width;
+  const height =
+    SAMPLE_BOUNDS.height * Math.min(1, width / SAMPLE_BOUNDS.width);
+  const scale = Math.min(1, width / bounds.width, height / bounds.height);
+  const x = (width - bounds.width * scale) / 2 - bounds.left * scale;
+  const y = -bounds.top * scale;
 
   return (
     <div
       ref={frame}
       role="img"
-      aria-label={
-        placed.length
-          ? `Leaves for ${placed.map((p) => `${p.first} ${p.last}`.trim()).join(", ")}`
-          : "An empty family tree"
-      }
-      className={cn("w-full", className)}
-      style={{ height: HEIGHT * (scale ?? 1) }}
+      aria-label={`Leaves for ${people.map(nameOf).join(", ")}`}
+      className={cn("relative w-full", className)}
+      style={{ height }}
     >
       <div
         className={cn(
-          "relative transition-opacity duration-500",
-          scale === null && "opacity-0",
+          "absolute top-0 left-0 transition-[transform,opacity]",
+          GLIDE,
+          frameWidth === null && "opacity-0",
         )}
         style={{
-          width: WIDTH,
-          height: HEIGHT,
           transformOrigin: "0 0",
-          transform: `scale(${scale ?? 1})`,
+          transform: `translate(${x}px, ${y}px) scale(${scale})`,
         }}
       >
         <svg
-          viewBox={`${LEFT} ${TOP} ${WIDTH} ${HEIGHT}`}
-          width={WIDTH}
-          height={HEIGHT}
+          width={1}
+          height={1}
           aria-hidden
-          className="absolute inset-0 overflow-visible"
+          className="absolute top-0 left-0 overflow-visible"
         >
-          {linesFor(placed).map((d) => (
-            <path
-              key={d}
-              d={d}
-              pathLength={1}
-              fill="none"
-              stroke={SPOTLIGHT_BROWN}
-              strokeWidth={3}
-              strokeLinecap="round"
-              strokeDasharray={1}
-              className="animate-[branch-draw_700ms_ease-out_both]"
-            />
-          ))}
-        </svg>
-        {placed.map((p, i) => (
-          <div
-            key={i}
-            className="absolute animate-[leaf-settle_450ms_ease-out_both] hover:z-10"
-            style={{ left: SLOTS[i].x - LEFT, top: SLOTS[i].y - TOP }}
+          <g
+            fill="none"
+            stroke={SPOTLIGHT_BROWN}
+            strokeWidth={3}
+            strokeLinecap="round"
           >
-            <LeafCard
-              person={entryOf(p, `demo-${i}`)}
-              leaf={leafOf(p)}
-              selected={false}
-              isSelf={false}
-              label={named(p) ? undefined : ""}
-            />
-          </div>
-        ))}
-        {drafting ? (
+            {[
+              ...lines.couples,
+              ...lines.branches.map(({ child, path }) =>
+                path(bladeTop(leafById.get(child)!.shape)),
+              ),
+            ].map((d) => (
+              <path
+                key={d}
+                d={d}
+                pathLength={1}
+                strokeDasharray={1}
+                className="animate-[branch-draw_700ms_ease-out_both]"
+              />
+            ))}
+            {lines.brackets.map((d) => (
+              <path
+                key={d}
+                d={d}
+                strokeDasharray="6 6"
+                className="animate-[leaf-settle_450ms_ease-out_both]"
+              />
+            ))}
+          </g>
+        </svg>
+        {people.map((p) => {
+          const card = cards.get(p.id);
+          if (!card) return null;
+          return (
+            <div
+              key={p.id}
+              className={cn(
+                "absolute animate-[leaf-settle_450ms_ease-out_both] transition-[left,top] hover:z-10",
+                GLIDE,
+              )}
+              style={{ left: card.x, top: card.y }}
+            >
+              <LeafCard
+                person={entryOf(p, p.id)}
+                leaf={leafById.get(p.id)!}
+                selected={false}
+                isSelf={false}
+                label={named(p) ? undefined : ""}
+              />
+            </div>
+          );
+        })}
+        {draftCard ? (
           <div
             // A new shape lands as a new leaf would.
-            key={draftLeaf.shape}
-            className="pointer-events-none absolute animate-[leaf-settle_300ms_ease-out_both] opacity-60"
-            style={{
-              left: SLOTS[placed.length].x - LEFT,
-              top: SLOTS[placed.length].y - TOP,
-            }}
+            key={`draft-${draftLeaf.shape}`}
+            className={cn(
+              "pointer-events-none absolute animate-[leaf-settle_300ms_ease-out_both] opacity-60 transition-[left,top]",
+              GLIDE,
+            )}
+            style={{ left: draftCard.x, top: draftCard.y }}
           >
             <LeafCard
-              person={entryOf(draft, "demo-draft")}
+              person={entryOf(draft, "draft")}
               leaf={draftLeaf}
               selected={false}
               isSelf={false}

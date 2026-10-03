@@ -1783,32 +1783,38 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 - **Step 112: the /features demo, a form that grows leaves** (no
   migration). **Aalim asked for:** on how-to + features, "a standing form
   on the left side of the basic fields for adding a node (first name, last
-  name, place of birth) and then on the right side it shows the leaf that
-  is generated", looping "connections being added", capped for space, with
-  a CTA to stop the loop and try it, and none of the input stored. **Now**
-  `/features` (in `MarketingColumn`, like about-us) has the add-a-relative
-  form's three fields as the app labels them, a **Connect to** line saying
-  where the next leaf hangs ("partner of Rumi", "child of Rumi and René")
-  and **add relative**; beside it (under it on a phone) the leaves. The
-  loop types the Elevators parents and two of their children (Rumi
-  Baldwin, Balkh; René Baldwin, Touraine; André Franklin, Atlanta; Frida
-  Baldwin, Coyoacán) one field at a time, the next leaf pale in its place
-  and changing shape once the birthplace names somewhere with a tree; on
-  add it settles and its branch draws in, routed as a spotlight routes
-  them (`descentGeometry` / `leafBranchPath`). Four leaves (a couple and
-  two children) is the cap. **Aalim then asked** to "pause after 1 cycle"
-  and "draw an arrow to the try it yourself": it plays through once and
-  stops with the family in place, and a hand-drawn arrow (brand brown)
-  draws itself in beside **try it yourself**, pointing at it.
-  **try it yourself** (or clicking into a field) clears both
-  halves; the visitor's leaves fill the same four places, then **start
-  over**. "Nothing you type is saved." and **Watch it again** sit under
-  the form (it plays the family once more). Nothing leaves the page: no server call, no storage, inputs
-  without `name`s and `autoComplete="off"`. The loop waits while both
-  halves are off screen or the tab is hidden; with reduced motion there's
-  no loop, just the finished family and the arrow. `components/marketing/leaf-demo.tsx`,
-  keyframes `branch-draw` / `leaf-settle` in `globals.css`. "details coming
-  soon" is gone from the page.
+  name, place of birth)" and "on the right side … the leaf that is
+  generated", playing "connections being added", with a CTA to stop it and
+  try it, and none of the input stored. Then: "pause after 1 cycle" and
+  "draw an arrow to the try it yourself"; then drop "the tree is full",
+  have visitors "add to that sample tree" with "the existing leaves
+  shrink[ing]", add a relation field (sibling, child, partner), and limit
+  visitors to 2 entries (Aalim chose "visitor adds at most 2" and a second
+  dropdown for who they're related to). **Now** `/features` (in
+  `MarketingColumn`, like about-us) has First name, Last name, Place of
+  birth and **How they connect** ([Partner of / Child of / Sibling of] +
+  anyone on the tree), then **add relative**; the leaves beside it (under
+  it on a phone). Rumi Baldwin starts on the tree and the demo types in
+  René (partner of Rumi), André (child of Rumi, so of Rumi and René) and
+  Frida (sibling of André), one field at a time, the next leaf pale where
+  it'll go and changing shape once the birthplace names somewhere with a
+  tree; on add it settles and its branch draws in, routed as a spotlight
+  routes them. Then it stops, and a hand-drawn arrow (brand brown) draws
+  itself beside **try it yourself**. That (or clicking into a field) hands
+  the form over with the sample in place; the visitor adds up to 2 people
+  to it, then **start over** puts the sample back. A partner only for
+  someone without one; a child is the anchor's and their partner's; a
+  sibling shares the anchor's parents, or with none on the tree stands
+  beside them under a dashed bracket. `lib/leaf-demo-layout.ts` (tested:
+  every sample + 2 combination keeps leaves apart and draws every line)
+  lays it out on the canvas grid; the frame keeps the sample's height and
+  the tree scales down to fit as it grows, leaves gliding to their new
+  places. "Nothing you type is saved." and **Watch it again** (plays the
+  demo once more) sit under the form. Nothing leaves the page: no server
+  call, no storage, inputs without `name`s. The demo waits while both
+  halves are off screen or the tab is hidden; with reduced motion it
+  shows the finished sample and the arrow. Keyframes `branch-draw` /
+  `leaf-settle` in `globals.css`. "details coming soon" is gone.
 
 - **Step 92.5 follow-up: /tree opens My Family Tree with nothing picked**
   (no migration). **Aalim asked for:** "make /tree open my family tree when
