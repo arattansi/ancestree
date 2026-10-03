@@ -1784,6 +1784,12 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 128: two manifesto sentences** (no migration). **Aalim asked:**
+  the Notion "why" page was updated. **Now** /manifesto reads "people who
+  were born, who lived, and who died." and "…someone we are connected to
+  and they come from someone else we are connected to.", word for word;
+  the rest already matched.
+
 - **Step 127: who each account type is, on /features** (no migration).
   **Aalim asked:** the account-types table on the Notion "what + how" page
   was updated. **Now** /features' table has a row under each type's

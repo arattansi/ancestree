@@ -23,8 +23,8 @@ export default function ManifestoPage() {
       </h1>
       <MarketingCopy>
         <p>
-          we are part of a long line of people. people who were born, lived, and
-          died.
+          we are part of a long line of people. people who were born, who lived,
+          and who died.
         </p>
         <p>
           some in the line have yet to die. and some who have yet to be born.
@@ -46,7 +46,7 @@ export default function ManifestoPage() {
         <p>our dynamics are very different and very similar.</p>
         <p>
           despite that chaos, each person in our families is someone we are
-          connected to and come from someone else we are connected to.
+          connected to and they come from someone else we are connected to.
         </p>
         <p>that connection means something.</p>
         <p>
