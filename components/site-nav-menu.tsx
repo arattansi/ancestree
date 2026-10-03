@@ -1,13 +1,13 @@
 "use client";
 
-import { X } from "lucide-react";
+import { Menu } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import * as React from "react";
 import { createPortal } from "react-dom";
 
+import { Button } from "@/components/ui/button";
 import {
-  NAV_JUMBLE_SIZE,
   NAV_LIST_SIZE,
   NAV_WORDS,
   navHeldOpenOn,
@@ -17,8 +17,8 @@ import { cn } from "@/lib/utils";
 
 /** The open menu, in CSS pixels per pixel of Aalim's drawing. */
 const LIST_SCALE = 0.75;
-/** Collapsed, about the size of "ancestree" beside it in the header. */
-const JUMBLE_SCALE = 0.3;
+/** Where the words fly from: a small pile, unseen, inside **menu**. */
+const PILE_SCALE = 0.2;
 
 const OPEN_MS = 560;
 const CLOSE_MS = 360;
@@ -62,9 +62,9 @@ function Word({ word }: { word: NavWord }) {
 
 /**
  * The site's navigation in Aalim's handwriting (Step 110). In the app it's
- * his five words piled on one another in the header, the size of
- * "ancestree" beside it; pressed, each word flies out of the pile and
- * grows into its place in a list (who, what + how, why, capitalism, shh),
+ * a **menu** button drawn like **tree** and **account**, solid while open;
+ * pressed, each of his five words flies out of it and grows into its
+ * place in a list (who, what + how, why, capitalism, shh),
  * centred on the screen, or down the left of the page from `xl`, and flies
  * back when it closes: Esc, a press
  * outside, the button again, or going to a page. On the home page and
@@ -187,17 +187,16 @@ export function SiteNavMenu({ className }: { className?: string }) {
     }
   }, [pathname, pinned, close]);
 
-  const hidden = open || closing;
-
   return (
     <>
-      <button
+      <Button
         ref={trigger}
-        type="button"
+        size="sm"
+        variant={open && !closing ? "default" : "outline"}
         aria-expanded={open && !closing}
         aria-controls={open ? listId : undefined}
-        aria-label={open && !closing ? "Close menu" : "Menu"}
-        // Held open, the list is the menu: the pile's place stays, empty,
+        aria-label={open && !closing ? "Close menu" : undefined}
+        // Held open, the list is the menu: the button's place stays, empty,
         // for the words to fly back to.
         aria-hidden={pinned || undefined}
         tabIndex={pinned ? -1 : undefined}
@@ -207,42 +206,28 @@ export function SiteNavMenu({ className }: { className?: string }) {
           setByHand(true);
           setOpen(true);
         }}
-        className={cn(
-          "relative shrink-0 rounded-sm text-foreground outline-none tap-target focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-          pinned && "invisible",
-          className,
-        )}
-        style={{
-          width: NAV_JUMBLE_SIZE.width * JUMBLE_SCALE,
-          height: NAV_JUMBLE_SIZE.height * JUMBLE_SCALE,
-        }}
+        className={cn("relative tap-target", pinned && "invisible", className)}
       >
+        {/* The words, piled out of sight, so they fly from the button. */}
         {NAV_WORDS.map((word, i) => (
           <span
             key={word.id}
             ref={(el) => {
               piled.current[i] = el;
             }}
-            className={cn(
-              "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2",
-              hidden && "opacity-0",
-            )}
+            aria-hidden
+            className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0"
             style={{
-              width: word.width * JUMBLE_SCALE,
-              height: word.height * JUMBLE_SCALE,
+              width: word.width * PILE_SCALE,
+              height: word.height * PILE_SCALE,
             }}
-          >
-            <Word word={word} />
-          </span>
+          />
         ))}
-        <X
-          aria-hidden
-          className={cn(
-            "absolute top-1/2 left-1/2 size-4 -translate-x-1/2 -translate-y-1/2 text-muted-foreground transition-opacity duration-300",
-            open && !closing ? "opacity-100 delay-200" : "opacity-0",
-          )}
-        />
-      </button>
+        <span className="hidden header-compact:contents">
+          <Menu className="size-4" aria-hidden />
+        </span>
+        <span className="header-compact:sr-only">menu</span>
+      </Button>
 
       {open
         ? createPortal(

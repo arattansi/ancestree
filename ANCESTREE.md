@@ -1784,6 +1784,14 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 121: a "menu" button** (no migration). **Aalim asked:** "update
+  the jumbled menu button and turn it into just 'menu' with the same format
+  as 'tree' and 'account'". **Now** the header's handwritten pile is a
+  **menu** button drawn like **tree** and **account**: outlined, solid
+  while open, a ☰ in its place on a narrow bar. The words still fly out of
+  it into the list and back; held open on the wide marketing pages, it
+  stays hidden as before.
+
 - **Step 120: "free to use" on the home page** (no migration). **Aalim
   asked:** "add a 'free to use' tag below the home page ctas". **Now** a
   small secondary badge, "free to use", sits centred under the home page's

@@ -35,7 +35,7 @@ import { getTreeRequestStatus } from "@/lib/tree-requests.server";
  * globals.css) the centre is what's left between the mark and the buttons;
  * the buttons wrap there only if even their compact row can't fit.
  *
- * The handwritten menu (Step 110) sits in the bar's top-left corner where
+ * **menu** (Step 110) sits in the bar's top-left corner where
  * the page is wide enough to leave it room, and just before the mark
  * where it isn't.
  */
