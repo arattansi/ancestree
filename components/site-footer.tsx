@@ -12,8 +12,20 @@ const WATERMARK = (
 
 /** A page's own footnote, in the footer's bottom-right corner: the
  *  asterisk at the end of /about-us's story (Step 111 follow-up). */
-const FOOTNOTES: Record<string, string> = {
-  "/about-us": "*RIP Mitch Hedberg",
+const FOOTNOTES: Record<string, React.ReactNode> = {
+  "/about-us": (
+    <>
+      *RIP{" "}
+      <a
+        href="https://www.youtube.com/watch?v=rXWbyfhLMkg"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="underline underline-offset-2 hover:text-foreground"
+      >
+        Mitch Hedberg
+      </a>
+    </>
+  ),
 };
 
 export function SiteFooter() {
@@ -32,11 +44,15 @@ export function SiteFooter() {
   const footnote = FOOTNOTES[pathname];
 
   // The watermark centred, a footnote in the page's bottom-right corner;
-  // on a phone, under the watermark, still at the right.
+  // on a phone, centred above the watermark.
   return (
-    <footer className="w-full px-4 py-6 text-xs text-muted-foreground sm:grid sm:grid-cols-[1fr_auto_1fr] sm:items-baseline sm:gap-4">
-      <p className="text-center sm:col-start-2">{WATERMARK}</p>
-      {footnote ? <p className="mt-2 text-right sm:mt-0">{footnote}</p> : null}
+    <footer className="flex w-full flex-col px-4 py-6 text-xs text-muted-foreground sm:grid sm:grid-cols-[1fr_auto_1fr] sm:items-baseline sm:gap-4">
+      <p className="text-center sm:col-start-2 sm:row-start-1">{WATERMARK}</p>
+      {footnote ? (
+        <p className="order-first mb-2 text-center sm:order-none sm:col-start-3 sm:row-start-1 sm:mb-0 sm:text-right">
+          {footnote}
+        </p>
+      ) : null}
     </footer>
   );
 }
