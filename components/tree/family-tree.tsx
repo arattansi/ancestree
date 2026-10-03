@@ -993,14 +993,8 @@ function Canvas({
     // lights nothing.
     if (!selectedId || (family && !ownTree)) return null;
     const roles = personSpotlight(selectedId, shownRelationships);
-    const {
-      ancestors,
-      descendants,
-      looseSiblings,
-      seatedSiblings,
-      line,
-      siblingSpouses,
-    } = roles;
+    const { ancestors, descendants, looseSiblings, line, siblingSpouses } =
+      roles;
     const lit = spotlightPeople(roles);
     // Whose partner each pill is (Step 19.4), for its "Spouse of …".
     const firstNameById = new Map(
@@ -1018,6 +1012,8 @@ function Canvas({
       }
     }
     const edgeIds = new Set<string>();
+    // Whoever a lit bracket of the tree's own joins in (Steps 125, 126).
+    const bracketed = new Set<string>();
     for (const e of graph.edges) {
       if (e.type === "descent") {
         const parents = (
@@ -1034,12 +1030,14 @@ function Canvas({
         if (pair.length > 0 && pair.every((pid) => lit.has(pid)))
           edgeIds.add(e.id);
       } else if (e.type === "siblingBracket") {
-        // The tree's own bracket between siblings with no parent (Step 125).
+        // The tree's own bracket between siblings (Steps 125, 126).
         const pair = (
           Array.isArray(e.data?.pair) ? e.data.pair : []
         ) as string[];
-        if (pair.length > 0 && pair.every((pid) => lit.has(pid)))
+        if (pair.length > 0 && pair.every((pid) => lit.has(pid))) {
           edgeIds.add(e.id);
+          for (const pid of pair) bracketed.add(pid);
+        }
       } else if (line.has(e.source)) {
         // A companion's dotted lead, hanging off somebody on the line. A
         // sibling's companion stays behind with their children (Step 19.3).
@@ -1056,10 +1054,10 @@ function Canvas({
       ancestors,
       descendants,
       // A sibling with no parents on the tree gets a bracket to the person
-      // instead of a bus (Step 19.3), unless the tree seats them together
-      // and brackets them itself (Step 125).
+      // instead of a bus (Step 19.3), unless one of the tree's own brackets
+      // joins them in already (Steps 125, 126).
       brackets: [...looseSiblings]
-        .filter((sibling) => !seatedSiblings.has(sibling))
+        .filter((sibling) => !bracketed.has(sibling))
         .map((sibling) => [selectedId, sibling] as [string, string]),
     };
   }, [

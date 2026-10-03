@@ -88,26 +88,23 @@ export function buildPeopleGraph(
     }
   }
 
-  // Siblings seated together with no parent on the tree (Step 125): a
-  // bracket between each neighbouring pair, dashed like the spotlight's,
+  // Siblings seated together by a sibling row, not a parent they share
+  // (Steps 125, 126): a bracket for each pair, dashed like the spotlight's,
   // since it stands for a stated tie rather than a line of descent.
-  for (const group of layout.siblingGroups) {
-    for (let i = 1; i < group.length; i++) {
-      const [left, right] = [group[i - 1], group[i]];
-      edges.push({
-        id: `sb:${left}~${right}`,
-        source: left,
-        target: right,
-        // Handles only anchor the edge; the path comes from the cards.
-        sourceHandle: "r",
-        targetHandle: "l",
-        type: "siblingBracket",
-        data: { pair: [left, right] },
-        selectable: false,
-        focusable: false,
-        style: { ...parentEdgeStyle, strokeDasharray: "6 6" },
-      });
-    }
+  for (const [left, right] of layout.siblingBrackets) {
+    edges.push({
+      id: `sb:${left}~${right}`,
+      source: left,
+      target: right,
+      // Handles only anchor the edge; the path comes from the cards.
+      sourceHandle: "r",
+      targetHandle: "l",
+      type: "siblingBracket",
+      data: { pair: [left, right] },
+      selectable: false,
+      focusable: false,
+      style: { ...parentEdgeStyle, strokeDasharray: "6 6" },
+    });
   }
 
   for (const r of relationships) {

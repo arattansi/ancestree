@@ -1784,6 +1784,21 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 126: a parentless sibling beside one who has parents** (no
+  migration). **Aalim asked:** seat the floating half-sibling beside them
+  too. **Now** someone with no parent on the tree, joined by sibling rows
+  to someone who has parents, is laid out as if those parents were theirs
+  as well: among that person's brothers and sisters by age, with no line
+  from the parents to them, and a dashed bracket to the sibling they sit
+  beside (their eldest such sibling by a row of their own, else the
+  family's eldest with parents). `siblingSeating` in `lib/tree-layout.ts`
+  replaces `looseSiblingGroups`; `TreeLayout.siblingBrackets` (pairs)
+  replaces `siblingGroups`. Unions are built from the drawn parents only,
+  and a spotlight centres each family on the children its trunk reaches,
+  with the seated sibling sliding along. A spotlight adds its own bracket
+  only for a loose sibling no lit bracket of the tree's joins in. No live
+  tree had such a pair.
+
 - **Step 125: siblings before a parent** (no migration). **Aalim asked:**
   let siblings be added before a parent, drawn with a bracket and no
   parent card. **Now** the family step's **Add a sibling** works with no

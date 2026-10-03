@@ -35,7 +35,7 @@ import {
 } from "@/lib/tree-dimensions";
 import {
   layoutTree,
-  looseSiblingGroups,
+  siblingSeating,
   ancestorsOf,
   descendantsOf,
   bloodline,
@@ -1853,8 +1853,11 @@ describe("siblings with no parent on the tree (Step 125)", () => {
       expect(xs[i] - xs[i - 1]).toBeGreaterThanOrEqual(NODE_W + COUPLE_GAP);
   });
 
-  it("names the group left to right for the brackets", () => {
-    expect(laid().siblingGroups).toEqual([["elder", "me", "younger"]]);
+  it("brackets each neighbouring pair, left to right", () => {
+    expect(laid().siblingBrackets).toEqual([
+      ["elder", "me"],
+      ["me", "younger"],
+    ]);
   });
 
   it("leaves no trace of the parent it hung them from", () => {
@@ -1870,26 +1873,16 @@ describe("siblings with no parent on the tree (Step 125)", () => {
 
   it("joins siblings found only through each other", () => {
     expect(
-      looseSiblingGroups(
+      siblingSeating(
         [person("a", "1990-01-01"), person("b", "1980-01-01"), person("c")],
         [sibling("a", "b"), sibling("b", "c")],
-      ),
+      ).groups,
     ).toEqual([["b", "a", "c"]]);
-  });
-
-  it("leaves a pair alone once either has a parent", () => {
-    expect(
-      looseSiblingGroups(
-        [person("mum"), person("a"), person("b")],
-        [parent("mum", "a"), sibling("a", "b")],
-      ),
-    ).toEqual([]);
   });
 
   it("lights the whole group in a spotlight, a sibling's sibling too", () => {
     const sees = personSpotlight("elder", relationships);
     expect([...sees.siblings].sort()).toEqual(["me", "younger"]);
-    expect([...sees.seatedSiblings].sort()).toEqual(["me", "younger"]);
     const at = layoutTree(
       people.filter((p) => spotlightPeople(sees).has(p.id)),
       relationships,
@@ -1905,6 +1898,70 @@ describe("siblings with no parent on the tree (Step 125)", () => {
       anchorIds: ["adminA", "adminB"],
     });
     expect(withOwnRow.autoPositions).toEqual(before.autoPositions);
-    expect(before.siblingGroups).toEqual([]);
+    expect(before.siblingBrackets).toEqual([]);
+  });
+});
+
+describe("a sibling with no parent beside one who has them (Step 126)", () => {
+  const sibling = (a: string, b: string): LayoutRelationship => ({
+    from_person: a,
+    to_person: b,
+    type: "sibling",
+  });
+
+  //        mum — dad
+  //     ┌─────┴─────┐
+  //   elder        me — partner     half: "sibling of" me, no parents
+  const people = [
+    person("mum", "1950-01-01"),
+    person("dad", "1948-01-01"),
+    person("elder", "1978-01-01"),
+    person("half", "1980-01-01"),
+    person("me", "1982-01-01"),
+    person("partner", "1983-01-01"),
+  ];
+  const relationships: LayoutRelationship[] = [
+    spouse("mum", "dad"),
+    ...["elder", "me"].flatMap((c) => [parent("mum", c), parent("dad", c)]),
+    spouse("me", "partner"),
+    sibling("me", "half"),
+  ];
+  const laid = () => layoutTree(people, relationships, { anchorIds: ["me"] });
+
+  it("seats them among the siblings by age, on the same row", () => {
+    const at = laid().autoPositions;
+    for (const id of ["elder", "half", "partner"])
+      expect(at.get(id)?.y).toBe(at.get("me")?.y);
+    const order = ["elder", "half", "me", "partner"].sort(
+      (a, b) => at.get(a)!.x - at.get(b)!.x,
+    );
+    expect(order).toEqual(["elder", "half", "me", "partner"]);
+  });
+
+  it("draws no line from the parents to them", () => {
+    const union = laid().unions.find((u) => u.parents.includes("mum"));
+    expect([...union!.children].sort()).toEqual(["elder", "me"]);
+  });
+
+  it("brackets them to the sibling they're seated beside", () => {
+    expect(laid().siblingBrackets).toEqual([["half", "me"]]);
+  });
+
+  it("seats them beside their own sibling, or the family's eldest with parents", () => {
+    const seating = siblingSeating(people, [
+      ...relationships,
+      sibling("half", "other"),
+      sibling("other", "elder"),
+    ]);
+    // "other" isn't among the people: only rows between people count.
+    expect([...seating.beside]).toEqual([["half", "me"]]);
+    const viaHalf = siblingSeating(
+      [...people, person("cousin", "1990-01-01")],
+      [...relationships, sibling("half", "cousin")],
+    );
+    // The cousin's only row is to "half", who has no parent: they sit by
+    // the family's eldest with parents.
+    expect(viaHalf.beside.get("cousin")).toBe("me");
+    expect(viaHalf.groups).toEqual([]);
   });
 });
