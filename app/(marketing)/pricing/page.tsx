@@ -24,8 +24,8 @@ export default function PricingPage() {
           if it comes out of beta, we’ll probably need to charge something.
         </p>
         <p>
-          most of it will be put towards improving ancestree and avoiding ad
-          revenue dependence.
+          most of it will be put towards improving ancestree and resisting ad
+          revenue.
         </p>
         <p>
           some of it will be put towards us visiting where our ancestors lived.
@@ -40,7 +40,7 @@ export default function PricingPage() {
         </p>
         <p>
           if we do start charging for the ability to continue growing, we’ll
-          make it significantly discounted for our beta users.
+          make it discounted for our beta users.
         </p>
       </div>
     </PageColumn>
