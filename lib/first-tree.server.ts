@@ -61,7 +61,9 @@ export type FirstTreeData = {
     parents: FamilyCard[];
     partners: (FamilyCard & { isDivorced: boolean })[];
     children: FamilyCard[];
-    siblings: FamilyCard[];
+    /** `parentless`: no parent on the tree yet, so a parent added later is
+     *  offered as theirs too (Step 125). */
+    siblings: (FamilyCard & { parentless: boolean })[];
   };
   /** Who the founder could bring over from their other trees, if anyone. */
   bring: BringChoices | null;
@@ -226,7 +228,12 @@ export async function loadFirstTree(
         return p ? [{ ...card(p), isDivorced: partner.isDivorced }] : [];
       }),
       children: cards(close.children),
-      siblings: cards(close.siblings),
+      siblings: cards(close.siblings).map((c) => ({
+        ...c,
+        parentless: !relationships.some(
+          (r) => r.type === "parent" && r.to_person === c.id,
+        ),
+      })),
     },
     bring,
     invites: invited.invites,

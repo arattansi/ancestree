@@ -221,22 +221,33 @@ export const BRACKET_RISE = ROW_GAP / 4;
  * The bracket joining two siblings who share no parent on the tree (Step
  * 19.3): a stored "sibling of" row whose parents were never entered. With no
  * parents there is no bus to hang them from, so they get a short one of their
- * own — up out of each leaf's stem lane, across just above the row, and down
- * into the other's, exactly as a real sibling bus arrives.
+ * own, just above the row, arriving at each end as a real sibling bus does:
+ * at a leaf, up out of its stem lane; at a card, straight up from the middle
+ * of its top (the tree's own bracket, Step 125). `leaves` says which ends are
+ * leaves, `a`'s first.
  */
-export function siblingBracketPoints(a: CardRect, b: CardRect): XY[] {
-  const [left, right] = a.x <= b.x ? [a, b] : [b, a];
+export function siblingBracketPoints(
+  a: CardRect,
+  b: CardRect,
+  leaves: readonly [boolean, boolean] = [true, true],
+): XY[] {
+  const flip = a.x > b.x;
+  const [left, right] = flip ? [b, a] : [a, b];
+  const [leftLeaf, rightLeaf] = flip ? [leaves[1], leaves[0]] : leaves;
   const y = Math.min(left.y, right.y) - BRACKET_RISE;
-  const from = stemPoint(left);
-  const to = stemPoint(right);
-  return [
-    from,
-    { x: left.x - STEM_LANE, y: from.y },
-    { x: left.x - STEM_LANE, y },
-    { x: right.x - STEM_LANE, y },
-    { x: right.x - STEM_LANE, y: to.y },
-    to,
-  ];
+  const leg = (card: CardRect, leaf: boolean): XY[] => {
+    if (!leaf) {
+      const x = card.x + card.w / 2;
+      return [{ x, y: card.y }, { x, y }];
+    }
+    const stem = stemPoint(card);
+    return [
+      stem,
+      { x: card.x - STEM_LANE, y: stem.y },
+      { x: card.x - STEM_LANE, y },
+    ];
+  };
+  return [...leg(left, leftLeaf), ...leg(right, rightLeaf).reverse()];
 }
 
 /**

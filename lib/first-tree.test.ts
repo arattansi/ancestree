@@ -261,9 +261,26 @@ describe("closeRelativeEdges", () => {
     ]);
   });
 
-  it("won't add a sibling with no parent to share", () => {
-    expect(closeRelativeProblem("sibling", {})).toMatch(/parent you share/);
-    expect(closeRelativeProblem("sibling", { sharedParentIds: ["mum"] })).toBeNull();
+  it("joins a sibling added before any parent by sibling lines (Step 125)", () => {
+    expect(closeRelativeEdges("sibling", "me", { siblingIds: ["sis", "me"] })).toEqual([
+      { type: "sibling", a: me, b: added },
+      { type: "sibling", a: { kind: "existing", id: "sis" }, b: added },
+    ]);
+  });
+
+  it("makes a new parent the parent of siblings who had none (Step 125)", () => {
+    expect(closeRelativeEdges("parent", "me", { alsoParentOf: ["sis"] })).toEqual([
+      { type: "parent", a: added, b: me },
+      { type: "parent", a: added, b: { kind: "existing", id: "sis" } },
+    ]);
+  });
+
+  it("wants a shared parent only once the founder has one", () => {
+    const one = { parentsOnTree: 1 };
+    expect(closeRelativeProblem("sibling", {}, one)).toMatch(/parent you share/);
+    expect(closeRelativeProblem("sibling", { sharedParentIds: ["mum"] }, one)).toBeNull();
+    // Before any parent (Step 125).
+    expect(closeRelativeProblem("sibling", {})).toBeNull();
     expect(closeRelativeProblem("parent")).toBeNull();
   });
 });

@@ -18,8 +18,9 @@ export type PeopleGraph = {
 
 /**
  * A tree as the canvas draws it (Step 77.6, moved out of `family-tree.tsx`):
- * a card per person where the layout puts them, a descent line per child
- * and a line per marriage. Companions are hung off their people apart
+ * a card per person where the layout puts them, a descent line per child,
+ * a line per marriage, and a bracket between siblings with no parent on the
+ * tree (Step 125). Companions are hung off their people apart
  * (`withPets`), so switching them on or off doesn't lay the people out again
  * (Step 87.1, audit C8). Pure: the same tree gives the same graph.
  */
@@ -83,6 +84,28 @@ export function buildPeopleGraph(
           stepY: union.stepY,
         },
         style: parentEdgeStyle,
+      });
+    }
+  }
+
+  // Siblings seated together with no parent on the tree (Step 125): a
+  // bracket between each neighbouring pair, dashed like the spotlight's,
+  // since it stands for a stated tie rather than a line of descent.
+  for (const group of layout.siblingGroups) {
+    for (let i = 1; i < group.length; i++) {
+      const [left, right] = [group[i - 1], group[i]];
+      edges.push({
+        id: `sb:${left}~${right}`,
+        source: left,
+        target: right,
+        // Handles only anchor the edge; the path comes from the cards.
+        sourceHandle: "r",
+        targetHandle: "l",
+        type: "siblingBracket",
+        data: { pair: [left, right] },
+        selectable: false,
+        focusable: false,
+        style: { ...parentEdgeStyle, strokeDasharray: "6 6" },
       });
     }
   }

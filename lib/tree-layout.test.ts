@@ -35,6 +35,7 @@ import {
 } from "@/lib/tree-dimensions";
 import {
   layoutTree,
+  looseSiblingGroups,
   ancestorsOf,
   descendantsOf,
   bloodline,
@@ -1271,6 +1272,18 @@ describe("siblingBracketPoints (Step 19.3)", () => {
 
   it("is the same line whichever way round the pair is given", () => {
     expect(siblingBracketPoints(sib, me)).toEqual(siblingBracketPoints(me, sib));
+    expect(siblingBracketPoints(sib, me, [false, true])).toEqual(
+      siblingBracketPoints(me, sib, [true, false]),
+    );
+  });
+
+  it("meets a card at the middle of its top, as a bus does (Step 125)", () => {
+    expect(siblingBracketPoints(me, sib, [false, false])).toEqual([
+      { x: NODE_W / 2, y: 0 },
+      { x: NODE_W / 2, y: -BRACKET_RISE },
+      { x: 3 * NODE_W + NODE_W / 2, y: -BRACKET_RISE },
+      { x: 3 * NODE_W + NODE_W / 2, y: 0 },
+    ]);
   });
 });
 
@@ -1790,5 +1803,108 @@ describe("spotlight families hang straight under their trunk", () => {
     const centred = offset(true);
     expect(centred.size).toBe(4);
     for (const [key, off] of centred) expect(off, key).toBeLessThan(1);
+  });
+});
+
+describe("siblings with no parent on the tree (Step 125)", () => {
+  const sibling = (a: string, b: string): LayoutRelationship => ({
+    from_person: a,
+    to_person: b,
+    type: "sibling",
+  });
+
+  //   me — partner      elder, younger: "sibling of" me, no parents yet
+  //        |
+  //       kid
+  const people = [
+    person("elder", "1978-01-01"),
+    person("me", "1982-01-01"),
+    person("partner", "1983-01-01"),
+    person("younger", "1986-01-01"),
+    person("kid", "2010-01-01"),
+  ];
+  const relationships: LayoutRelationship[] = [
+    spouse("me", "partner"),
+    parent("me", "kid"),
+    parent("partner", "kid"),
+    sibling("me", "elder"),
+    sibling("younger", "me"),
+  ];
+  const laid = () => layoutTree(people, relationships, { anchorIds: ["me"] });
+
+  it("seats them on the person's row, eldest first, the partner beside them", () => {
+    const at = laid().autoPositions;
+    for (const id of ["elder", "younger", "partner"])
+      expect(at.get(id)?.y).toBe(at.get("me")?.y);
+    const order = ["elder", "me", "partner", "younger"].sort(
+      (a, b) => at.get(a)!.x - at.get(b)!.x,
+    );
+    // Nothing between me and my partner, and the siblings either side.
+    expect(order).toEqual(["elder", "me", "partner", "younger"]);
+  });
+
+  it("overlaps nothing", () => {
+    const at = laid().autoPositions;
+    const xs = [...at.values()]
+      .filter((p) => p.y === at.get("me")!.y)
+      .map((p) => p.x)
+      .sort((l, r) => l - r);
+    for (let i = 1; i < xs.length; i++)
+      expect(xs[i] - xs[i - 1]).toBeGreaterThanOrEqual(NODE_W + COUPLE_GAP);
+  });
+
+  it("names the group left to right for the brackets", () => {
+    expect(laid().siblingGroups).toEqual([["elder", "me", "younger"]]);
+  });
+
+  it("leaves no trace of the parent it hung them from", () => {
+    const layout = laid();
+    const ids = new Set(people.map((p) => p.id));
+    for (const map of [layout.positions, layout.autoPositions, layout.generations])
+      for (const id of map.keys()) expect(ids.has(id)).toBe(true);
+    for (const u of layout.unions)
+      for (const id of [...u.parents, ...u.children]) expect(ids.has(id)).toBe(true);
+    // No row above them: nothing is drawn there.
+    expect(layout.bands.map((b) => b.generation)).toEqual([0, 1]);
+  });
+
+  it("joins siblings found only through each other", () => {
+    expect(
+      looseSiblingGroups(
+        [person("a", "1990-01-01"), person("b", "1980-01-01"), person("c")],
+        [sibling("a", "b"), sibling("b", "c")],
+      ),
+    ).toEqual([["b", "a", "c"]]);
+  });
+
+  it("leaves a pair alone once either has a parent", () => {
+    expect(
+      looseSiblingGroups(
+        [person("mum"), person("a"), person("b")],
+        [parent("mum", "a"), sibling("a", "b")],
+      ),
+    ).toEqual([]);
+  });
+
+  it("lights the whole group in a spotlight, a sibling's sibling too", () => {
+    const sees = personSpotlight("elder", relationships);
+    expect([...sees.siblings].sort()).toEqual(["me", "younger"]);
+    expect([...sees.seatedSiblings].sort()).toEqual(["me", "younger"]);
+    const at = layoutTree(
+      people.filter((p) => spotlightPeople(sees).has(p.id)),
+      relationships,
+      { anchorIds: ["elder"], centreFamilies: true },
+    ).autoPositions;
+    expect(at.get("younger")?.y).toBe(at.get("elder")?.y);
+  });
+
+  it("lays a tree with no such siblings out exactly as before", () => {
+    const { people: p, relationships: r } = family();
+    const before = layoutTree(p, r, { anchorIds: ["adminA", "adminB"] });
+    const withOwnRow = layoutTree(p, [...r, sibling("gpaA", "gpaA")], {
+      anchorIds: ["adminA", "adminB"],
+    });
+    expect(withOwnRow.autoPositions).toEqual(before.autoPositions);
+    expect(before.siblingGroups).toEqual([]);
   });
 });

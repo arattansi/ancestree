@@ -993,8 +993,14 @@ function Canvas({
     // lights nothing.
     if (!selectedId || (family && !ownTree)) return null;
     const roles = personSpotlight(selectedId, shownRelationships);
-    const { ancestors, descendants, looseSiblings, line, siblingSpouses } =
-      roles;
+    const {
+      ancestors,
+      descendants,
+      looseSiblings,
+      seatedSiblings,
+      line,
+      siblingSpouses,
+    } = roles;
     const lit = spotlightPeople(roles);
     // Whose partner each pill is (Step 19.4), for its "Spouse of …".
     const firstNameById = new Map(
@@ -1027,6 +1033,13 @@ function Canvas({
         ) as string[];
         if (pair.length > 0 && pair.every((pid) => lit.has(pid)))
           edgeIds.add(e.id);
+      } else if (e.type === "siblingBracket") {
+        // The tree's own bracket between siblings with no parent (Step 125).
+        const pair = (
+          Array.isArray(e.data?.pair) ? e.data.pair : []
+        ) as string[];
+        if (pair.length > 0 && pair.every((pid) => lit.has(pid)))
+          edgeIds.add(e.id);
       } else if (line.has(e.source)) {
         // A companion's dotted lead, hanging off somebody on the line. A
         // sibling's companion stays behind with their children (Step 19.3).
@@ -1043,10 +1056,11 @@ function Canvas({
       ancestors,
       descendants,
       // A sibling with no parents on the tree gets a bracket to the person
-      // instead of a bus (Step 19.3).
-      brackets: [...looseSiblings].map(
-        (sibling) => [selectedId, sibling] as [string, string],
-      ),
+      // instead of a bus (Step 19.3), unless the tree seats them together
+      // and brackets them itself (Step 125).
+      brackets: [...looseSiblings]
+        .filter((sibling) => !seatedSiblings.has(sibling))
+        .map((sibling) => [selectedId, sibling] as [string, string]),
     };
   }, [
     path,
@@ -1475,8 +1489,14 @@ function Canvas({
       // from whoever is on the left now, or it would cross both cards.
       const [from, to] = [pulled?.get(e.source), pulled?.get(e.target)];
       const flip = e.type === "spouse" && !!from && !!to && from.x > to.x;
+      // A bracket comes up out of a leaf's stem, or off a card's top.
+      const leaves =
+        e.type === "siblingBracket"
+          ? { data: { ...e.data, leaves: [isLeaf(e.source), isLeaf(e.target)] } }
+          : {};
       return {
         ...e,
+        ...leaves,
         ...(flip
           ? {
               source: e.target,
@@ -1525,7 +1545,10 @@ function Canvas({
           sourceHandle: "r",
           targetHandle: "l",
           type: "siblingBracket",
-          data: { pair: [from, sibling] },
+          data: {
+            pair: [from, sibling],
+            leaves: [isLeaf(from), isLeaf(sibling)],
+          },
           selectable: false,
           focusable: false,
           style: {
@@ -1558,6 +1581,8 @@ function Canvas({
    */
   const onEdgeClick = React.useCallback(
     (event: React.MouseEvent, edge: Edge) => {
+      // A bracket says nothing a click could light (Step 125).
+      if (edge.type === "siblingBracket") return;
       setSelectedId(null);
       setConnectionEnds(NO_CONNECTION);
       let direction: BloodlineDirection = "up";

@@ -346,24 +346,31 @@ function SpouseEdge({
 }
 
 /**
- * The bracket between the spotlighted person and a sibling who shares no
- * parent on the tree (Step 19.3) — joined by a stored "sibling of" row alone,
- * so there is no parents' bus to hang them from. Spotlight-only, and routed
- * from the live cards like every other line so it follows them as they move.
+ * The bracket between two siblings who share no parent on the tree (Step
+ * 19.3) — joined by a stored "sibling of" row alone, so there is no parents'
+ * bus to hang them from. The tree draws one between siblings it seats
+ * together under no parent (Step 125); a spotlight adds one to a sibling
+ * seated elsewhere. Routed from the live cards like every other line, so it
+ * follows them as they move.
  */
 function SiblingBracketEdge({ id, data, style }: EdgeProps) {
   const pair = React.useMemo(
     () => (Array.isArray(data?.pair) ? (data.pair as string[]) : []),
     [data],
   );
+  // Which ends are leaves, the pair's order; cards unless the canvas says.
+  const leafA = Array.isArray(data?.leaves) && data.leaves[0] === true;
+  const leafB = Array.isArray(data?.leaves) && data.leaves[1] === true;
   const path = useCardsStore(
     pair,
     React.useCallback(
       (state: ReactFlowState): string | null => {
         const [a, b] = pair.map((nodeId) => rectOf(state, nodeId));
-        return a && b ? roundedPolyline(siblingBracketPoints(a, b), 10) : null;
+        return a && b
+          ? roundedPolyline(siblingBracketPoints(a, b, [leafA, leafB]), 10)
+          : null;
       },
-      [pair],
+      [pair, leafA, leafB],
     ),
   );
   return path ? <BaseEdge id={id} path={path} style={style} /> : null;

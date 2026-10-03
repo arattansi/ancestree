@@ -36,6 +36,12 @@
  * parent set with children gets a **union point** on the couple's spouse line;
  * the canvas hangs one descent bus off it rather than one line per parent.
  *
+ * Siblings joined only by stored `sibling` rows, with no parent on the tree
+ * between them (Step 125), are laid out as the children of an *unseen*
+ * parent: a zero-width stand-in that seats them side by side, eldest first,
+ * exactly as real parents would, and is dropped from everything returned.
+ * The canvas joins them with a bracket (`siblingGroups`) instead of a bus.
+ *
  * Everything here is deterministic and side-effect free, so the same tree
  * always lays out the same way and the whole thing is unit-testable.
  */
@@ -107,6 +113,11 @@ export type TreeLayout = {
   bands: GenerationBand[];
   /** Horizontal extent of the laid-out cards, for full-width band drawing. */
   extent: { minX: number; maxX: number };
+  /**
+   * Siblings seated together with no parent on the tree (Step 125), each
+   * group left to right: the canvas brackets each neighbouring pair.
+   */
+  siblingGroups: string[][];
 };
 
 export type LayoutOptions = {
@@ -181,10 +192,59 @@ type Atom = {
 
 const atomWidth = (n: number) => n * NODE_W + (n - 1) * COUPLE_GAP;
 
+/** The unseen parent's id prefix: no real id (a uuid) can start with it. */
+const UNSEEN = "unseen-parent:";
+
+/**
+ * Siblings joined by stored `sibling` rows alone (Step 125): everyone linked
+ * that way, transitively, where nobody in the group has a parent among
+ * `people`. A sibling row with a parent at either end is left out — that
+ * pair hangs off the parent's bus, or would need one they don't share.
+ * Each group comes eldest first; groups of one never form.
+ */
+export function looseSiblingGroups(
+  people: readonly { id: string; date_of_birth?: string | null }[],
+  relationships: readonly LayoutRelationship[],
+): string[][] {
+  const ids = new Set(people.map((p) => p.id));
+  const hasParent = new Set<string>();
+  for (const r of relationships) {
+    if (r.type === "parent" && ids.has(r.from_person) && ids.has(r.to_person))
+      hasParent.add(r.to_person);
+  }
+  const uf = new UnionFind();
+  let any = false;
+  for (const r of relationships) {
+    if (r.type !== "sibling" || r.from_person === r.to_person) continue;
+    if (!ids.has(r.from_person) || !ids.has(r.to_person)) continue;
+    if (hasParent.has(r.from_person) || hasParent.has(r.to_person)) continue;
+    uf.union(r.from_person, r.to_person);
+    any = true;
+  }
+  if (!any) return [];
+
+  const dob = new Map(people.map((p) => [p.id, p.date_of_birth || FAR_FUTURE]));
+  const groups = new Map<string, string[]>();
+  for (const p of people) {
+    if (!hasParent.has(p.id)) push(groups, uf.find(p.id), p.id);
+  }
+  return [...groups.values()]
+    .filter((g) => g.length > 1)
+    .map((g) =>
+      g.sort((a, b) => {
+        const da = dob.get(a)!;
+        const db = dob.get(b)!;
+        return da < db ? -1 : da > db ? 1 : a.localeCompare(b);
+      }),
+    );
+}
+
 /** A person's card size: a pill if they are compact, otherwise a full card. */
 type SizeOf = (id: string) => { w: number; h: number };
 const FULL_CARD = { w: NODE_W, h: NODE_H };
 const PILL = { w: PILL_W, h: PILL_H };
+/** The unseen parent (Step 125): it takes no room on its row. */
+const NO_CARD = { w: 0, h: NODE_H };
 
 /** Where member `index` starts, measured from the atom's left edge. */
 function memberOffset(atom: Atom, index: number, sizeOf: SizeOf): number {
@@ -199,10 +259,24 @@ function memberOffset(atom: Atom, index: number, sizeOf: SizeOf): number {
  * draw generation bands and descent buses.
  */
 export function layoutTree(
-  people: LayoutPerson[],
-  relationships: LayoutRelationship[],
+  shownPeople: LayoutPerson[],
+  shownRelationships: LayoutRelationship[],
   options: LayoutOptions = {},
 ): TreeLayout {
+  // Each group of siblings with no parent on the tree hangs off an unseen
+  // parent of its own (Step 125), laid out like any other and dropped below.
+  const looseGroups = looseSiblingGroups(shownPeople, shownRelationships);
+  const unseen = new Set<string>();
+  const people = [...shownPeople];
+  const relationships = [...shownRelationships];
+  for (const group of looseGroups) {
+    const id = `${UNSEEN}${group[0]}`;
+    unseen.add(id);
+    people.push({ id, pos_x: null, pos_y: null });
+    for (const child of group)
+      relationships.push({ from_person: id, to_person: child, type: "parent" });
+  }
+
   const ids = new Set(people.map((p) => p.id));
   const parentEdges = relationships.filter(
     (r) => r.type === "parent" && ids.has(r.from_person) && ids.has(r.to_person),
@@ -250,7 +324,8 @@ export function layoutTree(
 
   const anchors = (options.anchorIds ?? []).filter((id) => ids.has(id));
   const compact = options.compactIds;
-  const sizeOf: SizeOf = (id) => (compact?.has(id) ? PILL : FULL_CARD);
+  const sizeOf: SizeOf = (id) =>
+    unseen.has(id) ? NO_CARD : compact?.has(id) ? PILL : FULL_CARD;
   const generations = assignGenerations(
     people,
     anchors,
@@ -320,17 +395,33 @@ export function layoutTree(
       const { w, h } = sizeOf(member);
       const y = atom.generation * ROW_H;
       // A pill sits on the row's centre line, where the spouse line runs.
-      base.set(member, { x, y: h === NODE_H ? y : y + (NODE_H - h) / 2 });
+      // The unseen parent has nowhere to be drawn, so no position: its
+      // union finds no parent card and is never made.
+      if (!unseen.has(member))
+        base.set(member, { x, y: h === NODE_H ? y : y + (NODE_H - h) / 2 });
       x += w + COUPLE_GAP;
     }
   }
+  for (const id of unseen) generations.delete(id);
 
   const unions = buildUnions(base, parentsOf, byAge, sizeOf);
-  const positions = applyManualPositions(people, base);
+  const positions = applyManualPositions(shownPeople, base);
   const extent = measure(base);
-  const bands = buildBands(people, generations, dob);
+  const bands = buildBands(shownPeople, generations, dob);
+  // Left to right as seated, for the canvas's brackets.
+  const siblingGroups = looseGroups.map((group) =>
+    [...group].sort((a, b) => (base.get(a)?.x ?? 0) - (base.get(b)?.x ?? 0)),
+  );
 
-  return { positions, autoPositions: base, generations, unions, bands, extent };
+  return {
+    positions,
+    autoPositions: base,
+    generations,
+    unions,
+    bands,
+    extent,
+    siblingGroups,
+  };
 }
 
 /**

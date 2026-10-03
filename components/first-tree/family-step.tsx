@@ -24,8 +24,8 @@ import { cn } from "@/lib/utils";
  * The founder's close family, laid out the way the tree will hold them
  * (Step 29): parents above, partners and siblings either side, children
  * below. Each empty place is a button that adds someone there, drawing the
- * lines for them (`QuickRelativeDialog`). A sibling waits for a parent to
- * share. A member who founded the tree first gets to bring family already
+ * lines for them (`QuickRelativeDialog`). A sibling can come before any
+ * parent (Step 125). A member who founded the tree first gets to bring family already
  * on their other trees, a whole line of it if they like (Step 80), rather
  * than add them twice.
  */
@@ -42,7 +42,7 @@ export function FamilyStep({
     parents: FamilyCard[];
     partners: (FamilyCard & { isDivorced: boolean })[];
     children: FamilyCard[];
-    siblings: FamilyCard[];
+    siblings: (FamilyCard & { parentless: boolean })[];
   };
   bring: BringChoices | null;
   doneHref: string;
@@ -54,7 +54,6 @@ export function FamilyStep({
     setKind(k);
     setAdding(k);
   };
-  const siblingHint = React.useId();
   const anyone =
     family.parents.length +
       family.partners.length +
@@ -129,22 +128,8 @@ export function FamilyStep({
                 <FamilyPersonChip person={p} />
               </li>
             ))}
-            <li className="flex flex-col items-center gap-1 sm:items-end">
-              <Slot
-                onClick={() => add("sibling")}
-                disabled={family.parents.length === 0}
-                describedBy={family.parents.length === 0 ? siblingHint : undefined}
-              >
-                Add a sibling
-              </Slot>
-              {family.parents.length === 0 ? (
-                <p
-                  id={siblingHint}
-                  className="max-w-44 text-center text-xs text-muted-foreground sm:text-right"
-                >
-                  Add a parent first.
-                </p>
-              ) : null}
+            <li>
+              <Slot onClick={() => add("sibling")}>Add a sibling</Slot>
             </li>
           </Group>
         </div>
@@ -185,6 +170,9 @@ export function FamilyStep({
         treeId={treeId}
         founder={{ id: founder.id, lastName: founder.lastName }}
         parents={family.parents.map((p) => ({ id: p.id, name: p.name }))}
+        parentlessSiblings={family.siblings
+          .filter((p) => p.parentless)
+          .map((p) => ({ id: p.id, name: p.name }))}
         partners={family.partners.map((p) => ({
           id: p.id,
           name: p.name,
@@ -236,22 +224,16 @@ function Group({
 
 function Slot({
   onClick,
-  disabled = false,
-  describedBy,
   children,
 }: {
   onClick: () => void;
-  disabled?: boolean;
-  describedBy?: string;
   children: React.ReactNode;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      disabled={disabled}
-      aria-describedby={describedBy}
-      className="flex h-[3.25rem] w-44 items-center justify-center gap-1.5 rounded-lg border border-dashed border-border bg-background/60 text-sm text-muted-foreground transition-colors outline-none hover:border-ring hover:text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-border disabled:hover:text-muted-foreground"
+      className="flex h-[3.25rem] w-44 items-center justify-center gap-1.5 rounded-lg border border-dashed border-border bg-background/60 text-sm text-muted-foreground transition-colors outline-none hover:border-ring hover:text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
     >
       <Plus aria-hidden className="size-4" />
       {children}

@@ -229,6 +229,12 @@ export type CloseKind = (typeof CLOSE_KINDS)[number];
 export type CloseRelativeLinks = {
   /** A parent: the founder's other parents to record as this one's partner. */
   partnerIds?: readonly string[];
+  /** A parent: the founder's siblings with no parent yet who are theirs too
+   *  (Step 125). */
+  alsoParentOf?: readonly string[];
+  /** A sibling added before any parent (Step 125): the founder's other
+   *  siblings with no parent, who are this one's too. */
+  siblingIds?: readonly string[];
   /** A child: the founder's partners to record as its other parent. */
   coParentIds?: readonly string[];
   /** A sibling: the founder's parents this sibling shares — all, or one for a half-sibling. */
@@ -244,15 +250,22 @@ export type CloseRelativeLinks = {
 };
 
 /**
- * Why a close relative can't be added as asked, or `null`. A sibling needs
- * a parent to share: the tree seats siblings side by side only under a
- * parent they have in common, and a bare sibling line isn't drawn there.
+ * Why a close relative can't be added as asked, or `null`. Once the founder
+ * has a parent on the tree, a sibling shares at least one of them: one who
+ * shares none would have no parent of theirs to sit under. Before any
+ * parent, a sibling is joined by a sibling line alone, and the tree seats
+ * them together all the same (Step 125).
  */
 export function closeRelativeProblem(
   kind: CloseKind,
   links: CloseRelativeLinks = {},
+  { parentsOnTree = 0 }: { parentsOnTree?: number } = {},
 ): string | null {
-  if (kind === "sibling" && (links.sharedParentIds ?? []).length === 0) {
+  if (
+    kind === "sibling" &&
+    parentsOnTree > 0 &&
+    (links.sharedParentIds ?? []).length === 0
+  ) {
     return "Pick at least one parent you share, so they sit beside you on the tree.";
   }
   return null;
@@ -279,6 +292,9 @@ export function closeRelativeEdges(
         ...unique(links.partnerIds).map(
           (id): ConnectionEdge => ({ type: "spouse", a: existing(id), b: added }),
         ),
+        ...unique(links.alsoParentOf).map(
+          (id): ConnectionEdge => ({ type: "parent", a: added, b: existing(id) }),
+        ),
       ];
     case "partner":
       return [
@@ -302,9 +318,18 @@ export function closeRelativeEdges(
           (id): ConnectionEdge => ({ type: "parent", a: existing(id), b: added }),
         ),
       ];
-    case "sibling":
-      return unique(links.sharedParentIds).map(
-        (id): ConnectionEdge => ({ type: "parent", a: existing(id), b: added }),
+    case "sibling": {
+      const shared = unique(links.sharedParentIds);
+      if (shared.length > 0) {
+        return shared.map(
+          (id): ConnectionEdge => ({ type: "parent", a: existing(id), b: added }),
+        );
+      }
+      // No parent yet (Step 125): a sibling line to the founder, and to
+      // their other siblings with none, so the whole group is joined.
+      return [founderId, ...unique(links.siblingIds)].map(
+        (id): ConnectionEdge => ({ type: "sibling", a: existing(id), b: added }),
       );
+    }
   }
 }

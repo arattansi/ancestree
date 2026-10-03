@@ -3,6 +3,7 @@ import { inferSiblings } from "@/lib/siblings";
 import {
   ancestorsOf,
   descendantsOf,
+  looseSiblingGroups,
   type LayoutRelationship,
 } from "@/lib/tree-layout";
 
@@ -35,6 +36,9 @@ export type PersonSpotlight = {
   /** Siblings known only from a stored `sibling` row, sharing no parent on
    *  the tree — no bus joins them, so the canvas draws a bracket instead. */
   looseSiblings: Set<string>;
+  /** Of those, the ones seated with the person under no parent at all
+   *  (Step 125): the tree's own brackets join them already. */
+  seatedSiblings: Set<string>;
   /** The siblings' partners. */
   siblingSpouses: Set<string>;
   /** How many people the line reaches above and below the person. */
@@ -62,13 +66,29 @@ export function personSpotlight(
     if (r.from_person === personId) stored.add(r.to_person);
     if (r.to_person === personId) stored.add(r.from_person);
   }
+  // With no parent on the tree, a sibling's sibling is theirs too: the
+  // whole group the tree seats together (Step 125).
+  const everyone = new Set<string>();
+  for (const r of relationships) {
+    everyone.add(r.from_person);
+    everyone.add(r.to_person);
+  }
+  const seated = new Set(
+    looseSiblingGroups(
+      [...everyone].map((id) => ({ id })),
+      relationships,
+    ).find((group) => group.includes(personId)) ?? [],
+  );
+  for (const id of seated) stored.add(id);
 
   const siblings = new Set<string>();
   const looseSiblings = new Set<string>();
+  const seatedSiblings = new Set<string>();
   for (const id of [...shared, ...stored]) {
     if (id === personId || line.has(id)) continue;
     siblings.add(id);
     if (!shared.has(id)) looseSiblings.add(id);
+    if (seated.has(id)) seatedSiblings.add(id);
   }
 
   const siblingSpouses = new Set<string>();
@@ -81,6 +101,7 @@ export function personSpotlight(
     line,
     siblings,
     looseSiblings,
+    seatedSiblings,
     siblingSpouses,
     ancestors: ancestors.size,
     descendants: descendants.size,

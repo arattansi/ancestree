@@ -1784,6 +1784,24 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 125: siblings before a parent** (no migration). **Aalim asked:**
+  let siblings be added before a parent, drawn with a bracket and no
+  parent card. **Now** the family step's **Add a sibling** works with no
+  parent on the tree: the sibling is joined to the founder, and to their
+  other parentless siblings, by `sibling` lines. The layout seats any
+  group of siblings joined only by sibling lines, none of them with a
+  parent, under an unseen zero-width parent (`looseSiblingGroups` in
+  `lib/tree-layout.ts`), so they sit side by side, eldest first, the way
+  real parents would place them; the stand-in is dropped from everything
+  the layout returns. The canvas joins each neighbouring pair with a
+  dashed bracket (off a card's top on a tree, out of a leaf's stem on My
+  Family Tree and in a spotlight), and a spotlight lights the whole
+  group. Adding a parent later offers "Also their parent" for each
+  parentless sibling, ticked to begin with; once they have a parent they
+  hang off its line as usual. Four sibling pairs on live already had no
+  parents: they now sit together too. Once the founder has a parent, a
+  new sibling still picks the parents they share.
+
 - **Step 124: founder onboarding reordered, account types beside the
   invite form** (no migration). **Aalim asked:** move "Who Can Do What" to
   an info panel on the right of the forms, and run the steps you, family,

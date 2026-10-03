@@ -57,6 +57,8 @@ type QuickRelativeProps = {
   founder: { id: string; lastName: string };
   /** The founder's parents on the tree. */
   parents: Named[];
+  /** The founder's siblings with no parent on the tree yet (Step 125). */
+  parentlessSiblings: Named[];
   /** The founder's partners on the tree. */
   partners: (Named & { isDivorced: boolean })[];
 };
@@ -65,7 +67,8 @@ type QuickRelativeProps = {
  * Add one close relative in the founder's first run (Step 29): the person's
  * details, plus the one or two questions that place them — whether a second
  * parent partnered the first, who a child's other parent is, which parents
- * a sibling shares. The lines are drawn from those answers
+ * a sibling shares, and whether a parent is also theirs for siblings who
+ * had none (Step 125). The lines are drawn from those answers
  * (`closeRelativeEdges`), so there's no connection to build by hand.
  */
 export function QuickRelativeDialog({
@@ -97,6 +100,7 @@ function QuickRelativeForm({
   treeId,
   founder,
   parents,
+  parentlessSiblings,
   partners,
   onDone,
 }: QuickRelativeProps & { onDone: () => void }) {
@@ -119,6 +123,15 @@ function QuickRelativeForm({
   }>({});
   const [coParents, setCoParents] = React.useState<string[] | null>(null);
   const [shared, setShared] = React.useState<string[]>(parents.map((p) => p.id));
+  // A new parent is, to begin with, the parent of every sibling who has none.
+  const [alsoParentOf, setAlsoParentOf] = React.useState<string[]>(
+    parentlessSiblings.map((p) => p.id),
+  );
+  // Before any parent, a sibling is every parentless sibling's too.
+  const siblingLinks: CloseRelativeLinks = {
+    sharedParentIds: shared,
+    siblingIds: parentlessSiblings.map((p) => p.id),
+  };
   const photo = usePhotoDraft();
   const [inviteEmail, setInviteEmail] = React.useState("");
   // Busy until the family step has drawn them in; what goes wrong shows by
@@ -133,9 +146,11 @@ function QuickRelativeForm({
   const askedAdult =
     newPeopleToAsk({
       people: [{ is_deceased: deceased, date_of_birth: dateOfBirth }],
-      edges: closeRelativeEdges(kind, founder.id, {
-        sharedParentIds: kind === "sibling" ? shared : undefined,
-      }),
+      edges: closeRelativeEdges(
+        kind,
+        founder.id,
+        kind === "sibling" ? siblingLinks : {},
+      ),
       self: { kind: "existing", id: founder.id },
     }).length > 0;
   const adultName = (() => {
@@ -169,6 +184,7 @@ function QuickRelativeForm({
     }
     const links: CloseRelativeLinks = {};
     if (otherParent && partnered) links.partnerIds = [otherParent.id];
+    if (kind === "parent") links.alsoParentOf = alsoParentOf;
     if (kind === "partner") {
       const problems = marriageDateProblems({
         marriageDate: marriage.marriage_date,
@@ -185,14 +201,16 @@ function QuickRelativeForm({
       links.marriage = toStoredSpouseDates(marriage);
     }
     if (kind === "child") links.coParentIds = coParentSelection(coParents, partnerOptions);
-    if (kind === "sibling") links.sharedParentIds = shared;
+    if (kind === "sibling") Object.assign(links, siblingLinks);
 
     if (askedAdult && (adult === undefined || underAge)) {
       action.setError(underAge ?? `Say whether ${adultName} is 18 or older.`);
       return;
     }
 
-    const problem = closeRelativeProblem(kind, links);
+    const problem = closeRelativeProblem(kind, links, {
+      parentsOnTree: parents.length,
+    });
     if (problem) {
       action.setError(problem);
       return;
@@ -303,7 +321,34 @@ function QuickRelativeForm({
           />
         ) : null}
 
-        {kind === "sibling" ? (
+        {kind === "parent" && parentlessSiblings.length > 0 ? (
+          <fieldset className="flex flex-col gap-1.5">
+            <legend className="mb-1 text-sm font-medium">
+              Also their parent
+            </legend>
+            {parentlessSiblings.map((sibling) => (
+              <label
+                key={sibling.id}
+                className="flex items-center gap-2 text-sm"
+              >
+                <Checkbox
+                  id={`quick-parent-of-${sibling.id}`}
+                  checked={alsoParentOf.includes(sibling.id)}
+                  onCheckedChange={(c) =>
+                    setAlsoParentOf((prev) =>
+                      c === true
+                        ? [...prev, sibling.id]
+                        : prev.filter((id) => id !== sibling.id),
+                    )
+                  }
+                />
+                {sibling.name}
+              </label>
+            ))}
+          </fieldset>
+        ) : null}
+
+        {kind === "sibling" && parents.length > 0 ? (
           <fieldset className="flex flex-col gap-1.5">
             <legend className="mb-1 text-sm font-medium">
               Parents you share
