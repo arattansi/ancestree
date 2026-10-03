@@ -10,8 +10,8 @@ const WATERMARK = (
   </>
 );
 
-/** A page's own footnote, said on the watermark's line: the asterisk at the
- *  end of /about-us's story (Step 111 follow-up). */
+/** A page's own footnote, in the footer's bottom-right corner: the
+ *  asterisk at the end of /about-us's story (Step 111 follow-up). */
 const FOOTNOTES: Record<string, string> = {
   "/about-us": "*RIP Mitch Hedberg",
 };
@@ -29,14 +29,14 @@ export function SiteFooter() {
     return null;
   }
 
+  const footnote = FOOTNOTES[pathname];
+
+  // The watermark centred, a footnote in the page's bottom-right corner;
+  // on a phone, under the watermark, still at the right.
   return (
-    <footer className="mx-auto w-full max-w-5xl px-4 py-6">
-      <p className="text-center text-xs text-muted-foreground">
-        {WATERMARK}
-        {FOOTNOTES[pathname] ? (
-          <span className="whitespace-nowrap"> · {FOOTNOTES[pathname]}</span>
-        ) : null}
-      </p>
+    <footer className="w-full px-4 py-6 text-xs text-muted-foreground sm:grid sm:grid-cols-[1fr_auto_1fr] sm:items-baseline sm:gap-4">
+      <p className="text-center sm:col-start-2">{WATERMARK}</p>
+      {footnote ? <p className="mt-2 text-right sm:mt-0">{footnote}</p> : null}
     </footer>
   );
 }

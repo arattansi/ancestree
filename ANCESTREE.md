@@ -1796,9 +1796,10 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   the leaves and the wedding card (440px) beside them; from 1240px the
   column starts at least 18rem in, clear of the menu held open on the left.
   On a phone the drawing follows the story. The heading is **(about-us)** as
-  written; the story is one paragraph a line, `gap-8`, as `/pricing`; "· *RIP
-  Mitch Hedberg" is on the footer's line on `/about-us` only (`FOOTNOTES`,
-  `components/site-footer.tsx`), kept on one line. The Elevators tree's
+  written; the story is one paragraph a line, `gap-8`, as `/pricing`; "*RIP Mitch
+  Hedberg" sits in the footer's bottom-right corner, the watermark still
+  centred, on `/about-us` only (`FOOTNOTES`, `components/site-footer.tsx`);
+  on a phone it goes under the watermark, at the right. The Elevators tree's
   stand-in entry is now `marketingEntry` (`lib/marketing-entry.ts`), shared
   by both.
 
