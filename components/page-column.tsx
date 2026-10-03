@@ -7,6 +7,7 @@ const WIDTHS = {
   lg: "max-w-lg",
   "2xl": "max-w-2xl",
   "3xl": "max-w-3xl",
+  "5xl": "max-w-5xl",
 } as const;
 
 export type PageWidth = keyof typeof WIDTHS;

@@ -95,12 +95,14 @@ export function AccountTypeCard({
 export function AccountTypeGuide({
   currentRole,
   brief = false,
+  className,
 }: {
   currentRole?: string;
   brief?: boolean;
+  className?: string;
 }) {
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
+    <div className={cn("grid gap-3 sm:grid-cols-2", className)}>
       {ACCOUNT_TYPES.map((type) => (
         <AccountTypeCard
           key={type.key}

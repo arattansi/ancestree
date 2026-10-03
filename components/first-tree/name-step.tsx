@@ -80,7 +80,7 @@ export function NameStep({
               pending={action.pending}
               pendingLabel="saving…"
             >
-              save and continue
+              save and open my tree
             </PendingButton>
             <Button
               nativeButton={false}

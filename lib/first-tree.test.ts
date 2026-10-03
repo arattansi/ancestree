@@ -32,19 +32,21 @@ describe("the steps", () => {
     expect(isFirstTreeStep(undefined)).toBe(false);
   });
 
-  it("opens on inviting for a founder who hasn't started", () => {
-    expect(openingStep(fresh)).toBe("invite");
-  });
-
-  it("opens on their own entry once they've invited someone", () => {
+  it("opens on their own entry for a founder who hasn't started", () => {
+    expect(openingStep(fresh)).toBe("you");
+    // Even once they've invited someone.
     expect(openingStep({ ...fresh, invited: true })).toBe("you");
   });
 
-  it("opens on the name, then the family, once they're on the tree", () => {
-    expect(openingStep({ ...fresh, selfPlaced: true })).toBe("name");
-    expect(openingStep({ ...fresh, selfPlaced: true, defaultName: false })).toBe(
-      "family",
-    );
+  it("opens on the first step not yet done once they're on the tree", () => {
+    const placed = { ...fresh, selfPlaced: true };
+    expect(openingStep(placed)).toBe("family");
+    expect(openingStep({ ...placed, parents: 1 })).toBe("invite");
+    expect(openingStep({ ...placed, parents: 1, invited: true })).toBe("name");
+    // Everything done: their close family, to add more.
+    expect(
+      openingStep({ ...placed, parents: 1, invited: true, defaultName: false }),
+    ).toBe("family");
   });
 
   it("holds naming and family until the founder is on the tree", () => {
@@ -54,20 +56,18 @@ describe("the steps", () => {
     expect(reachableStep("family", { ...fresh, selfPlaced: true })).toBe("family");
   });
 
-  it("walks invite → you → name → family → the canvas", () => {
-    expect(stepAfter("invite", fresh)).toBe("you");
-    expect(stepAfter("you", fresh)).toBe("name");
-    expect(stepAfter("name", fresh)).toBe("family");
-    expect(stepAfter("family", fresh)).toBeNull();
+  it("walks you → family → invite → name → the canvas", () => {
+    expect(stepAfter("you", fresh)).toBe("family");
+    expect(stepAfter("family", fresh)).toBe("invite");
+    expect(stepAfter("invite", fresh)).toBe("name");
+    expect(stepAfter("name", fresh)).toBeNull();
   });
 
-  it("passes over what's already done", () => {
-    const placed = { ...fresh, selfPlaced: true };
-    expect(stepAfter("invite", placed)).toBe("name");
+  it("passes over a name someone already chose", () => {
     // A member named their tree when they founded it.
-    const named = { ...placed, defaultName: false };
-    expect(stepAfter("invite", named)).toBe("family");
-    expect(stepAfter("you", named)).toBe("family");
+    const named = { ...fresh, selfPlaced: true, defaultName: false };
+    expect(stepAfter("family", named)).toBe("invite");
+    expect(stepAfter("invite", named)).toBeNull();
   });
 
   it("ticks a step off by what's on the tree", () => {
@@ -87,11 +87,11 @@ describe("gettingStartedItems", () => {
   it("lists the steps with the family split in two", () => {
     const items = gettingStartedItems({ ...fresh, selfPlaced: true, parents: 2 });
     expect(items.map((i) => [i.key, i.done])).toEqual([
-      ["invite", false],
       ["you", true],
-      ["name", false],
       ["parents", true],
       ["more-family", false],
+      ["invite", false],
+      ["name", false],
     ]);
   });
 
@@ -104,11 +104,11 @@ describe("gettingStartedItems", () => {
 
   it("points each item at the step that does it", () => {
     expect(gettingStartedItems(fresh).map((i) => i.step)).toEqual([
-      "invite",
       "you",
+      "family",
+      "family",
+      "invite",
       "name",
-      "family",
-      "family",
     ]);
   });
 });

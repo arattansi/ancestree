@@ -55,6 +55,12 @@ export function FamilyStep({
     setAdding(k);
   };
   const siblingHint = React.useId();
+  const anyone =
+    family.parents.length +
+      family.partners.length +
+      family.children.length +
+      family.siblings.length >
+    0;
 
   return (
     <div className="flex flex-col gap-6">
@@ -158,8 +164,12 @@ export function FamilyStep({
       </section>
 
       <div className="flex flex-wrap items-center gap-3">
-        <Button nativeButton={false} render={<Link href={doneHref} />}>
-          <LinkPendingLabel>done — open my tree</LinkPendingLabel>
+        <Button
+          nativeButton={false}
+          render={<Link href={doneHref} />}
+          variant={anyone ? "default" : "outline"}
+        >
+          <LinkPendingLabel>{anyone ? "continue" : "skip for now"}</LinkPendingLabel>
         </Button>
         <p className="text-xs text-muted-foreground">
           Add everyone else from the tree.

@@ -1784,6 +1784,19 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 124: founder onboarding reordered, account types beside the
+  invite form** (no migration). **Aalim asked:** move "Who Can Do What" to
+  an info panel on the right of the forms, and run the steps you, family,
+  invite, then the tree. **Now** the first run goes You → Family → Invite
+  → The tree (naming it, relabelled), and opens on the first step not yet
+  done. On the invite step the column widens (`PageColumn` `5xl`) and
+  "Who Can Do What" sits beside the invite form as a muted panel; on a
+  phone it drops below the form. Family's button is "continue" (or "skip
+  for now" with nobody added) and naming's is "save and open my tree",
+  since naming ends the run. "Getting started" on the canvas lists in the
+  same order. Siblings still wait for a parent: the overview seats
+  siblings only under a parent they share.
+
 - **Step 123: home page tagline and "free to use"** (no migration).
   **Aalim asked:** move "free to use" under "a space to grow your tree.",
   make it the brand green, and make the tagline "collaborative with the

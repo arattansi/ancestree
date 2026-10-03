@@ -33,10 +33,10 @@ function hrefAfter(step: FirstTreeStep, state: FirstTreeState): string {
 
 /**
  * A founder's first run on the tree they've just started (Step 29), one
- * step at a time: invite who'll help (which is where the account types are
- * introduced), their own entry, the tree's name, then their close family.
- * Everything but their own entry can be skipped; the canvas's "Getting
- * started" list keeps what's left.
+ * step at a time: their own entry, their close family, who'll help (which
+ * is where the account types are introduced), then the tree's name (Step
+ * 124). Everything but their own entry can be skipped; the canvas's
+ * "Getting started" list keeps what's left.
  */
 export async function FirstTreeOnboarding({
   membership,
@@ -59,13 +59,13 @@ export async function FirstTreeOnboarding({
   const next = hrefAfter(step, state);
 
   return (
-    <PageColumn>
+    // The invite step is wider, for "Who Can Do What" beside its form.
+    <PageColumn width={step === "invite" ? "5xl" : undefined}>
       <FirstTreeProgress current={step} state={state} />
 
       {step === "invite" ? (
         <>
           <StepHeading
-            eyebrow="Your tree is planted"
             title="Build It Together"
             lead="Invite the relatives who know your family best."
           />
@@ -76,6 +76,7 @@ export async function FirstTreeOnboarding({
       {step === "you" ? (
         <>
           <StepHeading
+            eyebrow="Your tree is planted"
             title="Start With You"
             lead={
               founder && !founder.placedHere
@@ -159,7 +160,8 @@ export async function FirstTreeOnboarding({
         </>
       ) : null}
 
-      {state.selfPlaced && step !== "family" ? (
+      {/* Not on the last step, whose own button opens the tree. */}
+      {state.selfPlaced && stepAfter(step, state) ? (
         <p className="text-sm text-muted-foreground">
           <Link href={treeHref()} className="underline underline-offset-4">
             Go to your tree

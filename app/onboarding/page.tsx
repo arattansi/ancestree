@@ -48,7 +48,12 @@ export default async function OnboardingPage({
     return (
       <Suspense
         key={asked ?? ""}
-        fallback={<FormPageSkeleton label="Loading the step…" />}
+        fallback={
+          <FormPageSkeleton
+            label="Loading the step…"
+            width={asked === "invite" ? "5xl" : undefined}
+          />
+        }
       >
         <FirstTreeOnboarding membership={membership} asked={asked} />
       </Suspense>

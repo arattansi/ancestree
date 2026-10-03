@@ -2,12 +2,13 @@
  * A founder's first run on the tree they've just started (Step 29): the
  * steps, in order, and what each one looks at, read off the tree as it
  * stands. Pure, so the onboarding page, the canvas checklist and the tests
- * all agree on what "done" means.
+ * all agree on what "done" means. Since Step 124 it starts with the founder
+ * and their family, then invites, then the tree's name:
  *
- *   invite  who'll help build it, and the account types they can have
  *   you     the founder's own entry, added or brought over from another tree
- *   name    the tree's name, if it still has the one it was planted with
  *   family  parents, partners, children and siblings, around the founder
+ *   invite  who'll help build it, and the account types they can have
+ *   name    the tree's name, if it still has the one it was planted with
  *
  * Only `you` is required: the canvas waits for the founder's own entry. The
  * rest can be skipped, and the canvas's "Getting started" list comes back to
@@ -16,15 +17,15 @@
 
 import type { ConnectionEdge, PersonRef } from "@/lib/connections";
 
-export const FIRST_TREE_STEPS = ["invite", "you", "name", "family"] as const;
+export const FIRST_TREE_STEPS = ["you", "family", "invite", "name"] as const;
 export type FirstTreeStep = (typeof FIRST_TREE_STEPS)[number];
 
 /** The steps as the progress list names them. */
 export const FIRST_TREE_STEP_NAMES: Record<FirstTreeStep, string> = {
-  invite: "Invite",
   you: "You",
-  name: "Name",
   family: "Family",
+  invite: "Invite",
+  name: "The tree",
 };
 
 export function isFirstTreeStep(value: unknown): value is FirstTreeStep {
@@ -49,13 +50,11 @@ export type FirstTreeState = {
 };
 
 /**
- * Where `/onboarding` opens with no step asked for: inviting first for a
- * founder who hasn't started, then their own entry; once that's on the
- * tree, naming it if it's still "Family", else their close family.
+ * Where `/onboarding` opens with no step asked for: the first step not yet
+ * done, or their close family once everything is.
  */
 export function openingStep(state: FirstTreeState): FirstTreeStep {
-  if (!state.selfPlaced) return state.invited ? "you" : "invite";
-  return state.defaultName ? "name" : "family";
+  return FIRST_TREE_STEPS.find((step) => !stepDone(step, state)) ?? "family";
 }
 
 /**
@@ -105,7 +104,7 @@ export function stepDone(step: FirstTreeStep, state: FirstTreeState): boolean {
 }
 
 export type GettingStartedItem = {
-  key: "invite" | "you" | "name" | "parents" | "more-family";
+  key: "you" | "parents" | "more-family" | "invite" | "name";
   label: string;
   done: boolean;
   /** The onboarding step that does it. */
@@ -118,9 +117,7 @@ export type GettingStartedItem = {
  */
 export function gettingStartedItems(state: FirstTreeState): GettingStartedItem[] {
   return [
-    { key: "invite", label: "Invite someone to help", done: state.invited, step: "invite" },
     { key: "you", label: "Add yourself", done: state.selfPlaced, step: "you" },
-    { key: "name", label: "Name your tree", done: !state.defaultName, step: "name" },
     { key: "parents", label: "Add your parents", done: state.parents > 0, step: "family" },
     {
       key: "more-family",
@@ -128,6 +125,8 @@ export function gettingStartedItems(state: FirstTreeState): GettingStartedItem[]
       done: state.partners + state.children + state.siblings > 0,
       step: "family",
     },
+    { key: "invite", label: "Invite someone to help", done: state.invited, step: "invite" },
+    { key: "name", label: "Name your tree", done: !state.defaultName, step: "name" },
   ];
 }
 

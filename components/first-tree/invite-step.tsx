@@ -60,9 +60,9 @@ function blankRow(key: string): Row {
 }
 
 /**
- * The founder's first step (Step 29): who can do what on a tree, then an
- * invite for anyone they'd like to help, each joining as a Leaf (Step 34).
- * Skippable — the canvas's "Getting started" list keeps it.
+ * The founder's invite step (Step 29): an invite for anyone they'd like to
+ * help, each joining as a Leaf (Step 34), with who can do what on a tree
+ * beside it. Skippable — the canvas's "Getting started" list keeps it.
  */
 export function InviteStep({
   treeId,
@@ -150,189 +150,195 @@ export function InviteStep({
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Who Can Do What</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <ul className="flex flex-col gap-3">
-            {ACCOUNT_TYPES.map((type) => (
-              <li key={type.key} className="flex items-start gap-3">
-                <span
-                  className={cn(
-                    "flex size-9 shrink-0 items-center justify-center rounded-md border",
-                    ACCOUNT_TYPE_TONE[type.key],
-                  )}
-                >
-                  <AccountTypeGlyph type={type} className="size-5" />
-                </span>
-                <div className="flex min-w-0 flex-col gap-0.5 text-sm">
-                  <p className="flex flex-wrap items-center gap-x-2">
-                    <span className="font-medium text-foreground">{type.name}</span>
-                    <span className="text-muted-foreground">{type.tagline}</span>
-                    {type.key === ROOT.key ? (
-                      <span className="rounded-full bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
-                        You
+    // The forms first, and what each account type can do beside them on a
+    // wide screen, below them on a narrow one (Step 124).
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+      <div className="flex flex-col gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Invite Relatives</CardTitle>
+            <CardDescription>
+              Each gets an email that links them to the tree.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-5">
+            {invites.length > 0 ? (
+              <div className="flex flex-col gap-2">
+                <p className="text-sm font-medium">Invited so far</p>
+                <ul className="flex flex-col gap-1.5">
+                  {invites.map((invite) => (
+                    <li
+                      key={invite.id}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2 text-sm"
+                    >
+                      <span className="min-w-0">
+                        <span className="font-medium text-foreground">{invite.name}</span>{" "}
+                        <span className="text-muted-foreground">{invite.email}</span>
+                        {invite.claims ? (
+                          <span className="block text-xs text-muted-foreground">
+                            To take over the entry for {invite.claims}
+                          </span>
+                        ) : null}
                       </span>
-                    ) : null}
-                  </p>
-                  <p className="text-muted-foreground">{HOW_THEY_GET_IT[type.key]}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
-          <details className="group rounded-lg border border-border">
-            <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-foreground marker:text-muted-foreground">
-              Everything each type can do
-            </summary>
-            <div className="border-t border-border p-3">
-              <AccountTypeGuide currentRole={ROOT.key} />
-            </div>
-          </details>
-        </CardContent>
-      </Card>
+                      <span className="text-xs text-muted-foreground">
+                        {invite.emailSent === false ? "Email didn’t send" : "Emailed"}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Invite Relatives</CardTitle>
-          <CardDescription>
-            Each gets an email that links them to the tree.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-5">
-          {invites.length > 0 ? (
-            <div className="flex flex-col gap-2">
-              <p className="text-sm font-medium">Invited so far</p>
-              <ul className="flex flex-col gap-1.5">
-                {invites.map((invite) => (
-                  <li
-                    key={invite.id}
-                    className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2 text-sm"
+            <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
+              <div className="flex flex-col gap-3">
+                {rows.map((row, i) => (
+                  <fieldset
+                    key={row.key}
+                    className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_1.4fr_auto] sm:items-end"
                   >
-                    <span className="min-w-0">
-                      <span className="font-medium text-foreground">{invite.name}</span>{" "}
-                      <span className="text-muted-foreground">{invite.email}</span>
-                      {invite.claims ? (
-                        <span className="block text-xs text-muted-foreground">
-                          To take over the entry for {invite.claims}
+                    <legend className="sr-only">Person {i + 1}</legend>
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor={`${row.key}-first`} className={cn(i > 0 && "sm:sr-only")}>
+                        First name
+                      </Label>
+                      <Input
+                        id={`${row.key}-first`}
+                        value={row.firstName}
+                        onChange={(e) => update(row.key, { firstName: e.target.value })}
+                        autoComplete="off"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor={`${row.key}-last`} className={cn(i > 0 && "sm:sr-only")}>
+                        Last name
+                      </Label>
+                      <Input
+                        id={`${row.key}-last`}
+                        value={row.lastName}
+                        onChange={(e) => update(row.key, { lastName: e.target.value })}
+                        autoComplete="off"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor={`${row.key}-email`} className={cn(i > 0 && "sm:sr-only")}>
+                        Email
+                      </Label>
+                      <Input
+                        id={`${row.key}-email`}
+                        type="email"
+                        value={row.email}
+                        onChange={(e) => update(row.key, { email: e.target.value })}
+                        placeholder="name@example.com"
+                        autoComplete="off"
+                        aria-describedby={reasons[row.key] ? `${row.key}-why` : undefined}
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      disabled={rows.length === 1}
+                      onClick={() =>
+                        setRows((prev) => prev.filter((r) => r.key !== row.key))
+                      }
+                      aria-label={`Remove person ${i + 1}`}
+                    >
+                      <Trash2 aria-hidden />
+                    </Button>
+                    {reasons[row.key] ? (
+                      <p
+                        id={`${row.key}-why`}
+                        className="text-sm text-destructive sm:col-span-4"
+                      >
+                        {reasons[row.key]}
+                      </p>
+                    ) : null}
+                  </fieldset>
+                ))}
+              </div>
+              <FormError>{action.error}</FormError>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setRows((prev) => [...prev, newRow()])}
+                >
+                  <Plus aria-hidden />
+                  add another
+                </Button>
+                <PendingButton
+                  type="submit"
+                  size="sm"
+                  pending={action.pending}
+                  pendingLabel="sending…"
+                >
+                  send invites
+                </PendingButton>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            nativeButton={false}
+            render={<Link href={nextHref} />}
+            variant={invites.length > 0 ? "default" : "outline"}
+          >
+            <LinkPendingLabel>
+              {invites.length > 0 ? "continue" : "skip for now"}
+            </LinkPendingLabel>
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            You can invite people later too.
+          </p>
+        </div>
+      </div>
+
+      <aside aria-label="Who can do what">
+        <Card size="sm" className="bg-muted/30">
+          <CardHeader>
+            <CardTitle>Who Can Do What</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            <ul className="flex flex-col gap-3">
+              {ACCOUNT_TYPES.map((type) => (
+                <li key={type.key} className="flex items-start gap-3">
+                  <span
+                    className={cn(
+                      "flex size-9 shrink-0 items-center justify-center rounded-md border",
+                      ACCOUNT_TYPE_TONE[type.key],
+                    )}
+                  >
+                    <AccountTypeGlyph type={type} className="size-5" />
+                  </span>
+                  <div className="flex min-w-0 flex-col gap-0.5 text-sm">
+                    <p className="flex flex-wrap items-center gap-x-2">
+                      <span className="font-medium text-foreground">{type.name}</span>
+                      <span className="text-muted-foreground">{type.tagline}</span>
+                      {type.key === ROOT.key ? (
+                        <span className="rounded-full bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                          You
                         </span>
                       ) : null}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {invite.emailSent === false ? "Email didn’t send" : "Emailed"}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-
-          <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
-            <div className="flex flex-col gap-3">
-              {rows.map((row, i) => (
-                <fieldset
-                  key={row.key}
-                  className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_1.4fr_auto] sm:items-end"
-                >
-                  <legend className="sr-only">Person {i + 1}</legend>
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor={`${row.key}-first`} className={cn(i > 0 && "sm:sr-only")}>
-                      First name
-                    </Label>
-                    <Input
-                      id={`${row.key}-first`}
-                      value={row.firstName}
-                      onChange={(e) => update(row.key, { firstName: e.target.value })}
-                      autoComplete="off"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor={`${row.key}-last`} className={cn(i > 0 && "sm:sr-only")}>
-                      Last name
-                    </Label>
-                    <Input
-                      id={`${row.key}-last`}
-                      value={row.lastName}
-                      onChange={(e) => update(row.key, { lastName: e.target.value })}
-                      autoComplete="off"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor={`${row.key}-email`} className={cn(i > 0 && "sm:sr-only")}>
-                      Email
-                    </Label>
-                    <Input
-                      id={`${row.key}-email`}
-                      type="email"
-                      value={row.email}
-                      onChange={(e) => update(row.key, { email: e.target.value })}
-                      placeholder="name@example.com"
-                      autoComplete="off"
-                      aria-describedby={reasons[row.key] ? `${row.key}-why` : undefined}
-                    />
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    disabled={rows.length === 1}
-                    onClick={() =>
-                      setRows((prev) => prev.filter((r) => r.key !== row.key))
-                    }
-                    aria-label={`Remove person ${i + 1}`}
-                  >
-                    <Trash2 aria-hidden />
-                  </Button>
-                  {reasons[row.key] ? (
-                    <p
-                      id={`${row.key}-why`}
-                      className="text-sm text-destructive sm:col-span-4"
-                    >
-                      {reasons[row.key]}
                     </p>
-                  ) : null}
-                </fieldset>
+                    <p className="text-muted-foreground">{HOW_THEY_GET_IT[type.key]}</p>
+                  </div>
+                </li>
               ))}
-            </div>
-            <FormError>{action.error}</FormError>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setRows((prev) => [...prev, newRow()])}
-              >
-                <Plus aria-hidden />
-                add another
-              </Button>
-              <PendingButton
-                type="submit"
-                size="sm"
-                pending={action.pending}
-                pendingLabel="sending…"
-              >
-                send invites
-              </PendingButton>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <Button
-          nativeButton={false}
-          render={<Link href={nextHref} />}
-          variant={invites.length > 0 ? "default" : "outline"}
-        >
-          <LinkPendingLabel>
-            {invites.length > 0 ? "continue" : "skip for now"}
-          </LinkPendingLabel>
-        </Button>
-        <p className="text-xs text-muted-foreground">
-          You can invite people later too.
-        </p>
-      </div>
+            </ul>
+            <details className="group rounded-lg border border-border">
+              <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-foreground marker:text-muted-foreground">
+                Everything each type can do
+              </summary>
+              <div className="border-t border-border p-3">
+                <AccountTypeGuide currentRole={ROOT.key} className="sm:grid-cols-1" />
+              </div>
+            </details>
+          </CardContent>
+        </Card>
+      </aside>
     </div>
   );
 }
