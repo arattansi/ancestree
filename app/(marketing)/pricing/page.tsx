@@ -38,7 +38,7 @@ export default function PricingPage() {
           care about.
         </p>
         <p>
-          either way, whatever you grow on ancestree will be stay accessible
+          either way, whatever you grow on ancestree will stay accessible
           for free.
         </p>
         <p>
