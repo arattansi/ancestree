@@ -39,8 +39,8 @@ export default function AboutUsPage() {
           to East Africa to Canada.
         </p>
         <p>
-          Raiya and Aalim met and then liked each other and then got married and
-          then built ancestree.space.
+          Raiya and Aalim met in Hamilton, Ontario and then liked each other and
+          then got married and then built ancestree.space.
         </p>
         <p>they still like each other.</p>
         <p>but they used to like each other, too*.</p>
