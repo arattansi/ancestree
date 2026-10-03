@@ -1789,9 +1789,16 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   maples, Root marks, hover cards with no dates), a partner line between
   them and a trunk from it down to the wedding card (the photo,
   `public/about-us/wedding.jpg`, 960px wide, with the three lines under
-  it), scaled down to the column on a phone. The heading is **(about-us)**
-  as written; the story is one paragraph a line, `gap-8`, as `/pricing`;
-  the footnote sits at the foot of the column. The Elevators tree's
+  it), scaled down to the column on a phone. **Then Aalim asked for** the
+  married card on the right, so the text starts as close to the top as it
+  can, and the footnote in the footer, on the watermark's line. **Now**
+  from `lg` the page is two columns: the heading and the story on the left,
+  the leaves and the wedding card (440px) beside them; from 1240px the
+  column starts at least 18rem in, clear of the menu held open on the left.
+  On a phone the drawing follows the story. The heading is **(about-us)** as
+  written; the story is one paragraph a line, `gap-8`, as `/pricing`; "· *RIP
+  Mitch Hedberg" is on the footer's line on `/about-us` only (`FOOTNOTES`,
+  `components/site-footer.tsx`), kept on one line. The Elevators tree's
   stand-in entry is now `marketingEntry` (`lib/marketing-entry.ts`), shared
   by both.
 

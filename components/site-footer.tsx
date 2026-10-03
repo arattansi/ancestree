@@ -5,11 +5,16 @@ import { usePathname } from "next/navigation";
 
 const WATERMARK = (
   <>
-    built with ai{" "}
-    <Bot className="inline size-3.5 -mt-0.5" aria-hidden /> because love
-    wasn&apos;t enough.
+    built with ai <Bot className="inline size-3.5 -mt-0.5" aria-hidden />{" "}
+    because love wasn&apos;t enough.
   </>
 );
+
+/** A page's own footnote, said on the watermark's line: the asterisk at the
+ *  end of /about-us's story (Step 111 follow-up). */
+const FOOTNOTES: Record<string, string> = {
+  "/about-us": "*RIP Mitch Hedberg",
+};
 
 export function SiteFooter() {
   const pathname = usePathname();
@@ -26,7 +31,12 @@ export function SiteFooter() {
 
   return (
     <footer className="mx-auto w-full max-w-5xl px-4 py-6">
-      <p className="text-center text-xs text-muted-foreground">{WATERMARK}</p>
+      <p className="text-center text-xs text-muted-foreground">
+        {WATERMARK}
+        {FOOTNOTES[pathname] ? (
+          <span className="whitespace-nowrap"> · {FOOTNOTES[pathname]}</span>
+        ) : null}
+      </p>
     </footer>
   );
 }
