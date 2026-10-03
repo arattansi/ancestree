@@ -1784,6 +1784,15 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 123: home page tagline and "free to use"** (no migration).
+  **Aalim asked:** move "free to use" under "a space to grow your tree.",
+  make it the brand green, and make the tagline "collaborative with the
+  people who know best: your family.", in a wider box, less spread out.
+  **Now** "free to use" is a `--brand-green` badge (near-black words: white
+  on it fails contrast) right under the small-caps line, evenly spaced; the
+  tagline sits on one line on a laptop and two balanced lines on a phone;
+  the gaps between the mark, the words and the buttons are tighter.
+
 - **Step 122: menu between the edge and the mark** (no migration).
   **Aalim asked:** "move it to be in between the ancestree button and the
   end of shell". **Now** from 1240px **menu** sits centred halfway between

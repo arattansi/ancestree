@@ -18,7 +18,8 @@ import { getTreeRequestStatus } from "@/lib/tree-requests.server";
  * looks for your family's tree first; "request access" until Step 107), or
  * start a tree: sign up through the home page's own campaign link, which
  * starts it at once (Step 119; a waitlist and a reviewer's yes until then).
- * Under them, "free to use" (Step 120).
+ * "free to use" (Step 120) sits under "a space to grow your tree." (Step
+ * 123).
  * Its buttons are lower-case, as every button is
  * (docs/design-system.md). Sign in stays the filled button, for members
  * coming back. Since Step 107 it's the first of the marketing pages, and the
@@ -34,23 +35,27 @@ export default async function Home() {
     <div className="relative isolate flex flex-1 flex-col">
       <ElevatorsTree className="absolute inset-0 -z-10" />
       <div className="pointer-events-none flex flex-1 flex-col [&_main>*]:pointer-events-auto">
-        <CenteredPage className="gap-8 text-center">
-          <div className="flex flex-col items-center gap-4">
+        <CenteredPage className="gap-6 text-center">
+          <div className="flex flex-col items-center gap-3">
             <LogoMark className="size-16" />
             <div className="flex flex-col items-center gap-1">
               <h1 className="text-4xl font-semibold tracking-tight">ancestree</h1>
               <p className="text-sm font-medium tracking-wide text-foreground [font-variant:small-caps]">
                 a space to grow your tree.
               </p>
+              {/* The logo's green, with near-black words: white on it fails
+                  contrast, and it's the same green in both themes. */}
+              <Badge className="mt-2.5 bg-brand-green text-neutral-950">
+                free to use
+              </Badge>
             </div>
-            <div className="flex max-w-md flex-col gap-2 text-lg text-muted-foreground">
-              <p>
-                collaborative, by invite, with the people who know best: your
-                family.
+            <div className="flex max-w-xl flex-col gap-2 text-lg text-muted-foreground">
+              <p className="text-balance">
+                collaborative with the people who know best: your family.
               </p>
             </div>
           </div>
-          <div className="flex w-full flex-col items-center gap-3">
+          <div className="flex w-full flex-col items-center">
             <div className="flex w-full max-w-xs flex-col gap-3 sm:w-auto sm:max-w-none sm:flex-row">
               {profile ? (
                 <>
@@ -84,7 +89,6 @@ export default async function Home() {
                 </>
               )}
             </div>
-            <Badge variant="secondary">free to use</Badge>
           </div>
         </CenteredPage>
       </div>
