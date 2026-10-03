@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import { LogoMark } from "@/components/logo-mark";
-import { PageColumn } from "@/components/page-column";
+import { MarketingColumn } from "@/components/marketing/marketing-column";
 
 export const metadata: Metadata = { title: "why" };
 
@@ -14,7 +14,7 @@ export const metadata: Metadata = { title: "why" };
  */
 export default function ManifestoPage() {
   return (
-    <PageColumn>
+    <MarketingColumn>
       <h1 className="text-2xl font-semibold tracking-tight">
         (product-manifesto)
       </h1>
@@ -75,7 +75,7 @@ export default function ManifestoPage() {
           grow their tree and nurture those connections.
         </p>
       </div>
-    </PageColumn>
+    </MarketingColumn>
   );
 }
 

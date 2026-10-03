@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { RELATIVES_CAN_ASK_LABEL, RELAY_LAPSE_DAYS } from "@/lib/invite-relays";
-import { PageColumn } from "@/components/page-column";
+import { MarketingColumn } from "@/components/marketing/marketing-column";
 
 export const metadata: Metadata = {
   // The marketing site's name for it (Step 107); the heading, in brackets,
@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
-    <PageColumn>
+    <MarketingColumn>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
           (privacy + your family&rsquo;s data)
@@ -301,7 +301,7 @@ export default function PrivacyPage() {
           Back home
         </Link>
       </p>
-    </PageColumn>
+    </MarketingColumn>
   );
 }
 

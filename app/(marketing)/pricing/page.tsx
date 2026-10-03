@@ -1,18 +1,18 @@
 import type { Metadata } from "next";
 
-import { PageColumn } from "@/components/page-column";
+import { MarketingColumn } from "@/components/marketing/marketing-column";
 
 export const metadata: Metadata = { title: "capitalism" };
 
 /**
  * /pricing, "capitalism" in the menu (Step 107): its heading is the page's
  * real name, in brackets. Aalim's copy from the Marketing Site page in
- * Notion, word for word and lower-case as he wrote it, in the privacy
- * page's column and type, over the Elevators tree (Step 110).
+ * Notion, word for word and lower-case as he wrote it, in about-us's
+ * column and type, over the Elevators tree (Step 110).
  */
 export default function PricingPage() {
   return (
-    <PageColumn>
+    <MarketingColumn>
       <h1 className="text-2xl font-semibold tracking-tight">(pricing)</h1>
       <div className="flex flex-col gap-8 text-sm text-muted-foreground">
         <p>ancestree is in beta, so it’s free to use.</p>
@@ -43,6 +43,6 @@ export default function PricingPage() {
           make it discounted for our beta users.
         </p>
       </div>
-    </PageColumn>
+    </MarketingColumn>
   );
 }
