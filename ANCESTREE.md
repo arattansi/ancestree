@@ -29,9 +29,6 @@ Product brief and build plan live in the **🌳 Ancestree** Notion teamspace.
 - `npm run lint` — ESLint
 - `supabase db push` — apply local migrations to the linked remote project
 - `supabase start` — local stack (requires Docker Desktop)
-- `npm run sample:seed` — write the sample family (Step 118.1,
-  `lib/sample-family.ts`) to the hosted project with the service role;
-  idempotent, `-- --dry-run` to preview; Node 22+
 
 ## Environment variables
 
@@ -1786,43 +1783,6 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
-
-- **Step 118.1: the sample family** (migration
-  `20261003150000_sample_tree`, data by `npm run sample:seed`). **Aalim
-  asked** for a tree anyone can look through before signing up, after a
-  Reddit reply on the beta campaign link ("You can't tell how
-  good/bad/useful/capable the site is without creating an account"):
-  invented, a migration story, four generations, every name and date
-  fiction, no faces, look only. Step 118.2 shows it at `/sample`.
-  **The family** (`lib/sample-family.ts`): the Damanis, 20 people from
-  Bhuj and Jamnagar to Zanzibar (1919), then Dar es Salaam, Kampala,
-  Leicester and Toronto, on real `places` rows, so ancestral lands show
-  under the Canadian births. It has 4 written stories with people
-  mentioned (the dhow from Mandvi, Kanbai's tin of cardamom, the shop with
-  the carved door, leaving Uganda), and 6 album photos of places and
-  things, public domain or CC0 from Wikimedia Commons, each credited in its
-  description and tagged to the person it belongs with (the album shows
-  only through tags). Cards keep their leaf. The photos live in
-  `scripts/sample-tree/photos/` and go to `album/{tree}/{photo}.jpg`. A
-  carried line was left out: it needs a second tree (Aalim's call).
-  **Who holds it:** a system account (`sample@ancestree.invalid`, banned,
-  "Zahra Damani" as the "Added by" name), not a reviewer's. It is a member
-  of no tree, so no Root or member rule reaches the sample, nobody signs in
-  as it, and no reviewer's suspension or deletion can take the sample with
-  it.
-  **Kept out** (`trees.is_sample`, at most one): `private.sample_sealed()`
-  on 24 tables refuses anyone signed in any write touching the sample (its
-  tree, an entry homed there, a story or photo on it). Members, invites,
-  requests to join, share links, visibility and claims are refused even to
-  the service role. `person_is_claimable` is false for its people (no
-  "This is me", claims, claim invites, request matches or "join a tree"
-  search). `engagement_dashboard` leaves it and its owner out of every
-  count, and `find_trees` / `find_accounts` never list them. The "ask to
-  join" form treats its slug as no tree. The newsletter needs nothing (it
-  goes to members). Checked live in a rolled-back run as a reviewer, a Root
-  and the service role.
-  The seed is idempotent (fixed ids, relationship ids derived from their
-  ends) and needs Node 22+.
 
 - **Step 117: tagging people is a dropdown** (no migration). **Aalim
   asked:** "when tagging people, make it a drop down function. it's so
