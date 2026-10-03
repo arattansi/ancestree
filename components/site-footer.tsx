@@ -11,7 +11,8 @@ const WATERMARK = (
 );
 
 /** A page's own footnote, in the footer's bottom-right corner: the
- *  asterisk at the end of /about-us's story (Step 111 follow-up). */
+ *  asterisk at the end of /about-us's story (Step 111 follow-up), and
+ *  the one after /features's "lucidchart" (Step 115). */
 const FOOTNOTES: Record<string, React.ReactNode> = {
   "/about-us": (
     <>
@@ -24,6 +25,12 @@ const FOOTNOTES: Record<string, React.ReactNode> = {
       >
         Mitch Hedberg
       </a>
+    </>
+  ),
+  "/features": (
+    <>
+      *end of list for collaborative software tools not monopolized by tech
+      oligarchs.
     </>
   ),
 };

@@ -2,6 +2,12 @@
 
 import * as React from "react";
 
+import {
+  play,
+  useOnScreen as useSeen,
+  useReducedMotion,
+  waiter,
+} from "@/components/marketing/demo-play";
 import { bladeTop, LeafCard } from "@/components/tree/leaf-card";
 import { SPOTLIGHT_BROWN } from "@/components/tree/spotlight-colours";
 import { Button } from "@/components/ui/button";
@@ -149,15 +155,11 @@ function useOnScreen(
   part: Part,
   setOnScreen: Demo["setOnScreen"],
 ) {
-  React.useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(([entry]) =>
-      setOnScreen(part, entry.isIntersecting),
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [ref, part, setOnScreen]);
+  const report = React.useCallback(
+    (onScreen: boolean) => setOnScreen(part, onScreen),
+    [part, setOnScreen],
+  );
+  useSeen(ref, report);
 }
 
 const DemoContext = React.createContext<Demo | null>(null);
@@ -166,25 +168,6 @@ function useDemo(): Demo {
   const demo = React.useContext(DemoContext);
   if (!demo) throw new Error("A leaf demo part outside <LeafDemo>");
   return demo;
-}
-
-class Stopped extends Error {}
-
-const REDUCED = "(prefers-reduced-motion: reduce)";
-
-function subscribeReduced(onChange: () => void) {
-  const query = window.matchMedia(REDUCED);
-  query.addEventListener("change", onChange);
-  return () => query.removeEventListener("change", onChange);
-}
-
-/** Whether the visitor asked for less motion; no on the server. */
-function useReducedMotion(): boolean {
-  return React.useSyncExternalStore(
-    subscribeReduced,
-    () => window.matchMedia(REDUCED).matches,
-    () => false,
-  );
 }
 
 /**
@@ -220,15 +203,12 @@ export function LeafDemo({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     if (mode !== "loop" || reduced) return;
     let stopped = false;
-    // Waits `ms`, then for as long as the demo is scrolled out of view or
-    // its tab is hidden: the loop picks up where it was left.
-    const seen = () =>
-      !document.hidden && (onScreen.current.form || onScreen.current.tree);
-    const wait = async (ms: number) => {
-      await new Promise((r) => setTimeout(r, ms));
-      while (!stopped && !seen()) await new Promise((r) => setTimeout(r, 250));
-      if (stopped) throw new Stopped();
-    };
+    // Waits while the demo is scrolled out of view or its tab is hidden:
+    // the loop picks up where it was left.
+    const wait = waiter(
+      () => onScreen.current.form || onScreen.current.tree,
+      () => stopped,
+    );
     const type = async (field: Field, text: string) => {
       setTyping(field);
       const chars = Array.from(text);
@@ -239,7 +219,7 @@ export function LeafDemo({ children }: { children: React.ReactNode }) {
       await wait(250);
     };
     // Once through, then it stops with the sample in place.
-    (async () => {
+    play(async () => {
       setPeople(ROOT);
       setDraft(EMPTY);
       setRelationState(DEFAULT_RELATION);
@@ -272,8 +252,6 @@ export function LeafDemo({ children }: { children: React.ReactNode }) {
         await wait(1300);
       }
       setEnded(true);
-    })().catch((error) => {
-      if (!(error instanceof Stopped)) throw error;
     });
     return () => {
       stopped = true;

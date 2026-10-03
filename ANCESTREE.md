@@ -1783,6 +1783,45 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 115: /features copy and two moving samples; recordings get a
+  description** (no migration). **Aalim asked for:** the "what + how" copy
+  from the Marketing Site page in Notion and "a couple more interactive
+  tools": inviting someone to claim their node, and a story with an audio
+  recording, title, description, storyteller and interviewer; then, for
+  the description, "add it to the app too"; then "only the first demo
+  needs to have 'try it yourself'. all of the other ones are just the
+  sample", each no taller than the words beside it; then "shouldn't be on
+  a loop. just play them once and have the button for 'watch again'", and
+  newsletter and native lands as wide as the demos reach.
+  **The page** (`app/(marketing)/features/page.tsx`): heading
+  "(how-to + features)", the Step 112 demo (still the one to try), then
+  **1. collaborate**, **2. account-types** (Aalim's root / branch / leaf
+  table, each headed by the mark that hangs under a leaf), **3. stories &
+  albums**, **4. newsletter** and **5. native lands** (link to
+  native-land.ca), word for word. The "lucidchart*" footnote sits on the
+  footer's line (`FOOTNOTES`). `MarketingRows` / `MarketingRow`
+  (`marketing-column.tsx`) give each part its own aside in the shared
+  column; a `flush` aside starts level with the part's heading, and a
+  `wide` part (newsletter, native lands) runs across both columns.
+  **Claim sample** (`components/marketing/claim-demo.tsx`): a pointer
+  clicks André Franklin's leaf, his details open beside it with the person
+  sheet's "Invite André Franklin to claim this entry", an address is
+  typed, **send invite**, "Invite sent to …", then his leaf gets the Leaf
+  mark and the card says "Claimed by André". **Story sample**
+  (`story-demo.tsx`): "Upload a recording" fills itself in (Title,
+  Description, the recording preparing, Storyteller Rumi, Interviewer
+  André), **add**, then the story as Rumi's stories show it, "Waiting for
+  approval". Each plays once when first on screen, then shows **watch
+  again** inside its card (`useSamplePlay` in `demo-play.ts`, which the
+  Step 112 demo now shares its helpers with; `watch-again.tsx`); with
+  reduced motion they show the last frame. From `lg` they are 160px and 168px
+  tall, under their words' 172px (they grow on a phone, where they sit
+  under the words).
+  **In the app:** **upload a recording** now has an optional
+  **Description** (3 rows) under the title, saved as the story's body,
+  shown above the player. The teller's **Edit story** on a recording
+  labels it Description and stays in the small window.
+
 - **Step 114: the uploader edits a photo** (migration
   `20261003130000_album_photo_editable`, additive). **Aalim asked:** "let
   the uploader edit a photo's description and tags later". **Now** the

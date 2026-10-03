@@ -12,13 +12,12 @@ import { StoryRecordingField, type RecordingChoice } from "@/components/tree/sto
 import { StoryTextFields } from "@/components/tree/story-text-fields";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAction } from "@/components/use-action";
 import { isRedirect } from "@/lib/action-feedback";
 import type { EntryStory } from "@/lib/stories";
 import { STORY_CREDIT_MAX, toldProblem, type StoryCreditRole } from "@/lib/story-credits";
-import { STORY_MAX, STORY_TITLE_MAX } from "@/lib/limits";
+import { STORY_MAX } from "@/lib/limits";
 import { AUDIO_NOT_SENT } from "@/lib/story-upload";
 import { cn } from "@/lib/utils";
 
@@ -100,7 +99,8 @@ const NONE_SHOWN: Record<StoryCreditRole, boolean> = {
 /**
  * Tell a story about someone (Step 88.3). It first asks which (Step 113):
  * **write a story**, in a big window with room for a whole one, or **upload
- * a recording**; either may have a title. It may say when it was told and
+ * a recording**; either may have a title, and a recording a description
+ * (Step 115). It may say when it was told and
  * credit people on the tree as its storytellers and interviewers (Step 99).
  * A picked recording is shrunk as soon as it's picked, and played back here
  * before it goes. A form is its labels. Loaded only once someone opens it.
@@ -172,7 +172,9 @@ export function StoryDialog({
   const ready = kind === "record" && recording.kind === "new" ? recording.audio : null;
   const length = body.trim().length;
   const canSend =
-    !preparing && (writing ? length > 0 && length <= STORY_MAX : ready !== null);
+    !preparing &&
+    length <= STORY_MAX &&
+    (writing ? length > 0 : ready !== null);
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -196,7 +198,7 @@ export function StoryDialog({
             personId,
             treeId,
             title,
-            body: writing ? body : "",
+            body,
             audioPath,
             audioSeconds: audio?.seconds ?? null,
             told,
@@ -282,17 +284,16 @@ export function StoryDialog({
               />
             ) : (
               <>
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="story-title">Title</Label>
-                  <Input
-                    id="story-title"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    maxLength={STORY_TITLE_MAX}
-                    disabled={send.pending}
-                    autoComplete="off"
-                  />
-                </div>
+                <StoryTextFields
+                  key={formKey}
+                  idPrefix="story"
+                  title={title}
+                  onTitle={setTitle}
+                  body={body}
+                  onBody={setBody}
+                  disabled={send.pending}
+                  description
+                />
                 <StoryRecordingField
                   key={formKey}
                   existing={null}

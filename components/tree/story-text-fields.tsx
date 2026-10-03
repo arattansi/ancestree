@@ -13,6 +13,8 @@ import { cn } from "@/lib/utils";
  * the file upload (Aalim: "pointless"); stories saved with Markdown still
  * show it. `roomy` gives the text most of the window, for a story written
  * here. Text past the limit stays, and says so, rather than being cut off.
+ * A recording's text is its `description` (Step 115): a few lines saying
+ * what it's about.
  */
 export function StoryTextFields({
   idPrefix,
@@ -22,6 +24,7 @@ export function StoryTextFields({
   onBody,
   disabled,
   roomy = false,
+  description = false,
 }: {
   /** Keeps the labels' ids apart from another form's. */
   idPrefix: string;
@@ -32,6 +35,8 @@ export function StoryTextFields({
   disabled: boolean;
   /** A tall box, in a big window (Step 113). */
   roomy?: boolean;
+  /** The text says what a recording is about: "Description", a few lines. */
+  description?: boolean;
 }) {
   const titleId = `${idPrefix}-title`;
   const bodyId = `${idPrefix}-body`;
@@ -51,12 +56,12 @@ export function StoryTextFields({
         />
       </div>
       <div className="flex flex-col gap-2">
-        <Label htmlFor={bodyId}>Story</Label>
+        <Label htmlFor={bodyId}>{description ? "Description" : "Story"}</Label>
         <Textarea
           id={bodyId}
           value={body}
           onChange={(e) => onBody(e.target.value)}
-          rows={8}
+          rows={description ? 3 : 8}
           disabled={disabled}
           aria-invalid={over > 0}
           className={cn(roomy ? "h-[55dvh] resize-none" : "max-h-[50dvh]")}

@@ -153,8 +153,8 @@ export function StoryEditDialog({
   }
 
   // Its teller's written story: edited in the big window it was written in
-  // (Step 113).
-  const written = !!story?.mine && !!story.body;
+  // (Step 113). A recording's text is its description (Step 115).
+  const written = !!story?.mine && !!story.body && !story.hasRecording;
 
   return (
     <Dialog
@@ -181,6 +181,7 @@ export function StoryEditDialog({
               onBody={setBody}
               disabled={save.pending}
               roomy={written}
+              description={story.hasRecording}
             />
           ) : null}
           {story?.mine ? (
