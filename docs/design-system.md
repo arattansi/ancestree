@@ -127,7 +127,7 @@ turn autocomplete off, or every relative is offered the member's own name
   the canvas they're on, or from another page the tree they switched to
   this visit — with none chosen, My Family Tree too, lit there. A tree
   picked from My Family Tree is always switched to, even the one shown
-  by default, so the choice holds until the browser closes. The switcher
+  by default, so the choice holds until two hours pass without a visit. The switcher
   names a tree only on its canvas (`/tree`) and says **my family tree**
   everywhere else, for a member with an entry of their own, even after a
   tree is picked. It stays one row from 320px up (Step 85.2): the

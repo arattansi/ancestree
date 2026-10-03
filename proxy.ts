@@ -1,5 +1,15 @@
-import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
+import {
+  NextResponse,
+  type NextFetchEvent,
+  type NextRequest,
+} from "next/server";
 
+import {
+  CURRENT_TREE_COOKIE,
+  currentTreeCookieOptions,
+  isTreeIdCookie,
+  renewsPick,
+} from "@/lib/current-tree-cookie";
 import { signInNext } from "@/lib/safe-next";
 import {
   isSupabaseConfigured,
@@ -59,6 +69,21 @@ export async function proxy(request: NextRequest, event: NextFetchEvent) {
         : null;
     if (next) url.searchParams.set("next", next);
     return NextResponse.redirect(url);
+  }
+
+  // A tree picked this visit stays picked while they keep using the site,
+  // two hours from their last page (`lib/current-tree-cookie.ts`).
+  const picked = request.cookies.get(CURRENT_TREE_COOKIE)?.value;
+  if (
+    userId &&
+    isTreeIdCookie(picked) &&
+    renewsPick(request.method, pathname)
+  ) {
+    supabaseResponse.cookies.set(
+      CURRENT_TREE_COOKIE,
+      picked,
+      currentTreeCookieOptions(),
+    );
   }
 
   return supabaseResponse;

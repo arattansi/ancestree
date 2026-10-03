@@ -129,8 +129,8 @@ export const currentAccess = cache(async (): Promise<TreeAccess | null> => {
  * Whether the tree being looked at is one this browser chose this visit
  * (Step 92.5) — switched to, joined, founded, or opened from an email or a
  * link — rather than their home tree, which they're on only by default.
- * The choice lasts until the browser closes; until there is one, the
- * member's way back is My Family Tree.
+ * The choice lasts until two hours pass without a visit; until there is
+ * one, the member's way back is My Family Tree.
  */
 export const isTreeChosen = cache(async (): Promise<boolean> => {
   const [access, chosen] = await Promise.all([

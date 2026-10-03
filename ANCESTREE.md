@@ -52,7 +52,8 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
 ## Project structure
 
 - `app/` — App Router pages. **Tree pages have plain addresses** and read
-  the tree from a cookie that lasts until the browser closes (Step 92.5;
+  the tree from a cookie that lasts until two hours pass without a page
+  (Step 92.5, `lib/current-tree-cookie.ts`, renewed in `proxy.ts`;
   `lib/current-tree.server.ts`; the header's
   switcher, the header's admin count beside **account** (it opens the card
   that's waiting, on whichever tree it's on; Step 30.1), a notification's
@@ -1778,6 +1779,25 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 92.5 follow-up: a picked tree lapses after two idle hours** (no
+  migration). **Aalim said:** "when i navigate to /tree it still goes to
+  the tree i'm a root on". The header already said My Family Tree on every
+  page with no tree picked (`af30d32`, live when Aalim saw Rattansi-Suleman
+  across the site), so his browser was holding a pick: the
+  `ancestree.tree` cookie lasted "until the browser closes", and a browser
+  that restores its tabs keeps such cookies for days. **Aalim chose** (of:
+  a pick that lapses after idle, that plus `/tree` → My Family Tree with
+  no pick, or as is): **lapse after idle.** The cookie now has a two-hour
+  `maxAge` (`lib/current-tree-cookie.ts`, tested), and the proxy renews it
+  on each signed-in page GET, so a pick holds while the member is using
+  the site and two hours after the last page they're back on My Family
+  Tree (`/tree` then means their home tree again). The proxy never renews
+  on a POST (server actions switch trees) or on the two GET routes that
+  switch (`/stories/[id]`, `/account/admin`), so it can't undo a switch.
+  `/tree` with no pick still opens the home tree: sending it to My Family
+  Tree would first need every link that opens a tree to pick it (Aalim
+  was told).
 
 - **Step 92.5 follow-up: the header names a tree only on its canvas** (no
   migration). **Aalim said:** "i'm still seeing Rattansi-Suleman as the

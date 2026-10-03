@@ -315,10 +315,10 @@ stays.
   header's mark and the home page's **view your tree** open it, and so
   does **tree** until they switch. Picking a tree — in the switcher, or by
   any link from the view that goes to one — makes it the tree the browser
-  remembers until it closes (a session cookie): `/tree`, the add flow,
+  remembers while they keep using the site, until two hours pass without a
+  page (a cookie the proxy renews on each page): `/tree`, the add flow,
   **connections** and the Root console mean that tree, and **tree** goes
-  back to it, for the rest of that visit. A new visit starts on My Family
-  Tree again, with no tree chosen (the tree pages then mean the member's
+  back to it. After two idle hours they're on My Family Tree again, with no tree chosen (the tree pages then mean the member's
   home tree). The header's switcher names a tree only on its canvas
   (`/tree`); everywhere else it says My Family Tree, picked tree or not. Joining or founding a tree, an invite, and an email's button
   or link that names a tree (an alert's Root console, a story) open that
