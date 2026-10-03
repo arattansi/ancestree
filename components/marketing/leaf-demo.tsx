@@ -26,13 +26,14 @@ import { cn } from "@/lib/utils";
 
 /**
  * The /features demo (Step 112): the add-a-relative form's basic fields on
- * the left and the leaves they make on the right. On its own it loops,
- * typing the Elevators family's parents and two of their children
- * (`lib/elevators-tree.ts`) in one at a time, each turning into a leaf as
- * it's added and joined to the others as a spotlight joins them. "try it
- * yourself" stops the loop and hands the form over. Nothing typed leaves
- * the page: no server call, no storage, and the inputs have no names, so a
- * browser has nothing to remember them by.
+ * the left and the leaves they make on the right. On its own it plays
+ * through once, typing the Elevators family's parents and two of their
+ * children (`lib/elevators-tree.ts`) in one at a time, each turning into a
+ * leaf as it's added and joined to the others as a spotlight joins them.
+ * Then it stops with the family in place and draws an arrow to "try it
+ * yourself", which hands the form over (as clicking into a field does).
+ * Nothing typed leaves the page: no server call, no storage, and the
+ * inputs have no names, so a browser has nothing to remember them by.
  */
 
 type Person = { first: string; last: string; place: string };
@@ -133,8 +134,9 @@ type Demo = {
   typing: Field | null;
   /** The loop is pressing add. */
   pressing: boolean;
-  /** The loop's family is fading out before it starts again. */
-  fading: boolean;
+  /** The loop has added its whole family and stopped, pointing at "try
+   *  it yourself". */
+  finished: boolean;
   setDraft: (draft: Person) => void;
   add: () => void;
   tryIt: (focus: boolean) => void;
@@ -204,7 +206,7 @@ export function LeafDemo({ children }: { children: React.ReactNode }) {
   const [draft, setDraft] = React.useState<Person>(EMPTY);
   const [typing, setTyping] = React.useState<Field | null>(null);
   const [pressing, setPressing] = React.useState(false);
-  const [fading, setFading] = React.useState(false);
+  const [ended, setEnded] = React.useState(false);
   const firstField = React.useRef<HTMLInputElement>(null);
   const onScreen = React.useRef({ form: false, tree: false });
   const firstFieldRef = React.useCallback((el: HTMLInputElement | null) => {
@@ -217,6 +219,7 @@ export function LeafDemo({ children }: { children: React.ReactNode }) {
   const reduced = useReducedMotion();
   // With less motion, no loop: the family as the loop would finish it.
   const placed = reduced && mode === "loop" ? FAMILY : added;
+  const finished = mode === "loop" && (reduced || ended);
 
   React.useEffect(() => {
     if (mode !== "loop" || reduced) return;
@@ -239,29 +242,26 @@ export function LeafDemo({ children }: { children: React.ReactNode }) {
       }
       await wait(250);
     };
+    // Once through, then it stops with the family in place.
     (async () => {
-      for (;;) {
-        setPlaced([]);
+      setPlaced([]);
+      setDraft(EMPTY);
+      setEnded(false);
+      await wait(700);
+      for (const person of FAMILY) {
+        await type("first", person.first);
+        await type("last", person.last);
+        await type("place", person.place);
+        setTyping(null);
+        await wait(450);
+        setPressing(true);
+        await wait(180);
+        setPressing(false);
+        setPlaced((p) => [...p, person]);
         setDraft(EMPTY);
-        setFading(false);
-        await wait(700);
-        for (const person of FAMILY) {
-          await type("first", person.first);
-          await type("last", person.last);
-          await type("place", person.place);
-          setTyping(null);
-          await wait(450);
-          setPressing(true);
-          await wait(180);
-          setPressing(false);
-          setPlaced((p) => [...p, person]);
-          setDraft(EMPTY);
-          await wait(1100);
-        }
-        await wait(3000);
-        setFading(true);
-        await wait(600);
+        await wait(1100);
       }
+      setEnded(true);
     })().catch((error) => {
       if (!(error instanceof Stopped)) throw error;
     });
@@ -269,7 +269,7 @@ export function LeafDemo({ children }: { children: React.ReactNode }) {
       stopped = true;
       setTyping(null);
       setPressing(false);
-      setFading(false);
+      setEnded(false);
     };
   }, [mode, reduced]);
 
@@ -279,7 +279,7 @@ export function LeafDemo({ children }: { children: React.ReactNode }) {
     draft,
     typing,
     pressing,
-    fading,
+    finished,
     setDraft,
     firstFieldRef,
     setOnScreen,
@@ -399,14 +399,16 @@ export function LeafDemoForm() {
         )}
       </form>
       {looping ? (
-        <Button
-          type="button"
-          variant="attention"
-          className="self-start"
-          onClick={() => demo.tryIt(true)}
-        >
-          try it yourself
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="attention"
+            onClick={() => demo.tryIt(true)}
+          >
+            try it yourself
+          </Button>
+          {demo.finished ? <TryArrow /> : null}
+        </div>
       ) : (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
           <span>Nothing you type is saved.</span>
@@ -425,6 +427,42 @@ export function LeafDemoForm() {
 }
 
 /**
+ * A hand-drawn arrow pointing back at "try it yourself" once the loop has
+ * finished its family, drawing itself in as a branch does: the shaft from
+ * the right, then the head.
+ */
+function TryArrow() {
+  return (
+    <svg
+      viewBox="0 0 96 48"
+      className="h-12 w-24 shrink-0 overflow-visible"
+      aria-hidden
+    >
+      <g
+        fill="none"
+        stroke={SPOTLIGHT_BROWN}
+        strokeWidth={2.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path
+          d="M 92 8 C 74 1, 50 4, 38 15 S 22 31, 6 30"
+          pathLength={1}
+          strokeDasharray={1}
+          className="animate-[branch-draw_600ms_ease-out_both]"
+        />
+        <path
+          d="M 17 21 L 6 30 L 18 37"
+          pathLength={1}
+          strokeDasharray={1}
+          className="animate-[branch-draw_250ms_ease-out_550ms_both]"
+        />
+      </g>
+    </svg>
+  );
+}
+
+/**
  * The tree's half: each person added as their leaf, joined to the rest,
  * and the one being typed in still pale in the next place, its shape
  * changing as the birthplace names somewhere with a tree of its own. Drawn
@@ -432,7 +470,7 @@ export function LeafDemoForm() {
  * doesn't, as /about-us's family is.
  */
 export function LeafDemoTree({ className }: { className?: string }) {
-  const { placed, draft, fading, setOnScreen } = useDemo();
+  const { placed, draft, setOnScreen } = useDemo();
   const frame = React.useRef<HTMLDivElement>(null);
   const [scale, setScale] = React.useState<number | null>(null);
 
@@ -468,7 +506,7 @@ export function LeafDemoTree({ className }: { className?: string }) {
       <div
         className={cn(
           "relative transition-opacity duration-500",
-          (scale === null || fading) && "opacity-0",
+          scale === null && "opacity-0",
         )}
         style={{
           width: WIDTH,

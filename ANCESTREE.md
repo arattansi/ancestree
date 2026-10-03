@@ -1796,14 +1796,17 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   and changing shape once the birthplace names somewhere with a tree; on
   add it settles and its branch draws in, routed as a spotlight routes
   them (`descentGeometry` / `leafBranchPath`). Four leaves (a couple and
-  two children) is the cap; the loop holds, fades, and starts again.
-  **try it yourself** (or clicking into a field) stops it and clears both
+  two children) is the cap. **Aalim then asked** to "pause after 1 cycle"
+  and "draw an arrow to the try it yourself": it plays through once and
+  stops with the family in place, and a hand-drawn arrow (brand brown)
+  draws itself in beside **try it yourself**, pointing at it.
+  **try it yourself** (or clicking into a field) clears both
   halves; the visitor's leaves fill the same four places, then **start
   over**. "Nothing you type is saved." and **Watch it again** sit under
-  the form. Nothing leaves the page: no server call, no storage, inputs
+  the form (it plays the family once more). Nothing leaves the page: no server call, no storage, inputs
   without `name`s and `autoComplete="off"`. The loop waits while both
   halves are off screen or the tab is hidden; with reduced motion there's
-  no loop, just the finished family. `components/marketing/leaf-demo.tsx`,
+  no loop, just the finished family and the arrow. `components/marketing/leaf-demo.tsx`,
   keyframes `branch-draw` / `leaf-settle` in `globals.css`. "details coming
   soon" is gone from the page.
 
