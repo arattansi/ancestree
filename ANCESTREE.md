@@ -1784,6 +1784,14 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 127: who each account type is, on /features** (no migration).
+  **Aalim asked:** the account-types table on the Notion "what + how" page
+  was updated. **Now** /features' table has a row under each type's
+  description, word for word: "the one who plans the family reunions."
+  (root), "the one that knows everything about the family." (branch),
+  "everyone else." (leaf); the leaf's limit reads "no limit", no full
+  stop, as in Notion.
+
 - **Step 126: a parentless sibling beside one who has parents** (no
   migration). **Aalim asked:** seat the floating half-sibling beside them
   too. **Now** someone with no parent on the tree, joined by sibling rows

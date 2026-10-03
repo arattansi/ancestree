@@ -125,25 +125,29 @@ const ACCOUNT_TYPES: {
   key: AccountTypeKey;
   name: string;
   what: string;
+  who: string;
   limit: string;
 }[] = [
   {
     key: "admin",
     name: "root",
     what: "the node that starts the tree and has admin control over it.",
+    who: "the one who plans the family reunions.",
     limit: "up to 2 roots per tree",
   },
   {
     key: "branch_admin",
     name: "branch",
     what: "the node given admin control over their branch to the root.",
+    who: "the one that knows everything about the family.",
     limit: "up to 4 branches per root",
   },
   {
     key: "member",
     name: "leaf",
     what: "base node. can add to their branch and view the whole tree.",
-    limit: "no limit.",
+    who: "everyone else.",
+    limit: "no limit",
   },
 ];
 
@@ -172,6 +176,13 @@ function AccountTypes() {
           {ACCOUNT_TYPES.map((t) => (
             <td key={t.key} className="border-b py-2 pr-4 align-top">
               {t.what}
+            </td>
+          ))}
+        </tr>
+        <tr>
+          {ACCOUNT_TYPES.map((t) => (
+            <td key={t.key} className="border-b py-2 pr-4 align-top">
+              {t.who}
             </td>
           ))}
         </tr>
