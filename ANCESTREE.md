@@ -1779,6 +1779,20 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 92.5 follow-up: the header names a tree only on its canvas** (no
+  migration). **Aalim said:** "i'm still seeing Rattansi-Suleman as the
+  default tree when i'm navigating across the site". Once a tree was
+  picked (the switcher, an **On** or "View on tree" link, a story link, an
+  alert's console button) every page named it until the browser closed,
+  and Chrome's session restore keeps that cookie for days. **Aalim chose**
+  (of: only on the canvas, pages that work on a tree, a shorter-lived pick,
+  as is): **only on the canvas.** `switcherShowsMyFamily`
+  (`lib/tree-links.ts`) is now `/family`, or anywhere but `/tree` for a
+  member with an entry of their own; it no longer reads whether a tree was
+  picked. **tree** still opens the picked tree, so off the canvas the
+  label and that button can point different ways (as Aalim was told).
+  A member without an entry still sees their tree's name.
+
 - **Step 111 follow-up: the about-us copy and layout** (no migration).
   **Aalim asked for:** the "who" page in the Marketing Site database in
   Notion, word for word: Raiya's and Aalim's nodes joined to their wedding

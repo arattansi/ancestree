@@ -41,30 +41,24 @@ describe("tree paths", () => {
     expect(homeHref(undefined)).toBe("/tree");
   });
 
-  it("has the header switcher name My Family Tree on every page until a tree is chosen", () => {
-    const base = { hasOwnEntry: true, treeChosen: false };
+  it("has the header switcher name a tree only on its canvas", () => {
+    const base = { hasOwnEntry: true };
     for (const pathname of [
       "/",
       "/family",
-      "/tree",
       "/account",
+      "/tree/review",
       "/people/p1/edit",
     ]) {
       expect(switcherShowsMyFamily({ ...base, pathname })).toBe(true);
     }
-    // A tree switched to this visit, or no entry to arrange the view around.
+    expect(switcherShowsMyFamily({ ...base, pathname: "/tree" })).toBe(false);
+    // No entry yet, so no My Family Tree: their tree, except on the view.
+    expect(switcherShowsMyFamily({ hasOwnEntry: false, pathname: "/" })).toBe(
+      false,
+    );
     expect(
-      switcherShowsMyFamily({ ...base, pathname: "/", treeChosen: true }),
-    ).toBe(false);
-    expect(
-      switcherShowsMyFamily({ ...base, pathname: "/tree", treeChosen: true }),
-    ).toBe(false);
-    expect(
-      switcherShowsMyFamily({ ...base, pathname: "/tree", hasOwnEntry: false }),
-    ).toBe(false);
-    // Its own page always, whatever was chosen.
-    expect(
-      switcherShowsMyFamily({ ...base, pathname: "/family", treeChosen: true }),
+      switcherShowsMyFamily({ hasOwnEntry: false, pathname: "/family" }),
     ).toBe(true);
   });
 

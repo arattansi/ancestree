@@ -31,23 +31,22 @@ export function homeHref(selfPersonId: string | null | undefined): string {
 }
 
 /**
- * Whether the header's tree switcher names My Family Tree: on its own page,
- * and on every page until a tree has been chosen this visit — a member with
- * an entry of their own lands on My Family Tree, so that, not the tree they
- * happen to be Root of, is what the switcher defaults to. It agrees with
- * what **tree** opens (`TreeNavLink`).
+ * Whether the header's tree switcher names My Family Tree rather than a
+ * tree: everywhere but a tree's canvas, which names the tree it shows. A
+ * member with an entry of their own lands on My Family Tree, so that is
+ * what the switcher says, even after a tree has been picked this visit
+ * (**tree** still opens that one). Before they have an entry there's no
+ * My Family Tree, so it names their tree.
  */
 export function switcherShowsMyFamily({
   pathname,
   hasOwnEntry,
-  treeChosen,
 }: {
   pathname: string;
   hasOwnEntry: boolean;
-  treeChosen: boolean;
 }): boolean {
   if (pathname === myFamilyHref()) return true;
-  return hasOwnEntry && !treeChosen;
+  return hasOwnEntry && pathname !== treeHref();
 }
 
 /** The canvas opened on one person's spotlight (`FamilyTree` reads `person`). */
