@@ -1784,6 +1784,12 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 122: menu between the edge and the mark** (no migration).
+  **Aalim asked:** "move it to be in between the ancestree button and the
+  end of shell". **Now** from 1240px **menu** sits centred halfway between
+  the header's left end and the ancestree mark; narrower, it's still just
+  before the mark.
+
 - **Step 121: a "menu" button** (no migration). **Aalim asked:** "update
   the jumbled menu button and turn it into just 'menu' with the same format
   as 'tree' and 'account'". **Now** the header's handwritten pile is a

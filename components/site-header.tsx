@@ -35,9 +35,9 @@ import { getTreeRequestStatus } from "@/lib/tree-requests.server";
  * globals.css) the centre is what's left between the mark and the buttons;
  * the buttons wrap there only if even their compact row can't fit.
  *
- * **menu** (Step 110) sits in the bar's top-left corner where
- * the page is wide enough to leave it room, and just before the mark
- * where it isn't.
+ * **menu** (Step 110) sits halfway between the bar's left end and the
+ * mark where the page is wide enough to leave it room (Step 122), and
+ * just before the mark where it isn't.
  */
 function HeaderFrame({
   center,
@@ -50,7 +50,7 @@ function HeaderFrame({
     <header className="sticky top-0 z-40 border-b bar-chrome">
       <div className="site-header-bar mx-auto grid min-h-14 w-full max-w-5xl grid-cols-[1fr_auto_1fr] items-center gap-x-4 px-4 py-2 header-compact:grid-cols-[auto_minmax(0,1fr)_auto] header-compact:gap-x-3">
         <div className="flex min-w-0 items-center gap-3">
-          <SiteNavMenu className="min-[1240px]:absolute min-[1240px]:top-1/2 min-[1240px]:left-6 min-[1240px]:-translate-y-1/2" />
+          <SiteNavMenu className="min-[1240px]:absolute min-[1240px]:top-1/2 min-[1240px]:left-[calc((100%-64rem)/4+0.5rem)] min-[1240px]:-translate-x-1/2 min-[1240px]:-translate-y-1/2" />
           <Link
             href="/"
             className="relative flex w-fit items-center gap-2 rounded-sm text-sm font-semibold tracking-tight text-foreground outline-none tap-target focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
