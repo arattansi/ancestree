@@ -6,7 +6,7 @@ import { ConnectionReview } from "@/components/tree/connection-review";
 import { Button } from "@/components/ui/button";
 import { auditTreeConnections } from "@/lib/connection-suggestions.server";
 import { requireTreeSelfPersonWith } from "@/lib/tree-context";
-import { treeHref } from "@/lib/tree-links";
+import { treeCanvasHref } from "@/lib/tree-links";
 
 export const metadata: Metadata = {
   title: "connections to review",
@@ -34,7 +34,7 @@ export default async function ConnectionReviewPage() {
           <h1 className="text-lg font-semibold">Connections to review</h1>
           <Button
             nativeButton={false}
-            render={<Link href={treeHref()} />}
+            render={<Link href={treeCanvasHref()} />}
             size="sm"
             variant="outline"
           >

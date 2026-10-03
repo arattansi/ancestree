@@ -23,7 +23,11 @@ import { sentToAnotherAddress } from "@/lib/invite-address";
 import { inviteHref } from "@/lib/sign-in-links";
 import { opensOnSignInLink, readInvite } from "@/lib/sign-in.server";
 import { createClient } from "@/lib/supabase/server";
-import { currentAccess, listMyTrees } from "@/lib/tree-context";
+import {
+  currentAccess,
+  isTreeChosen,
+  listMyTrees,
+} from "@/lib/tree-context";
 import { treeHref, treesHref } from "@/lib/tree-links";
 
 export const metadata: Metadata = {
@@ -43,7 +47,7 @@ export default async function InvitePage({
   // 77.1). A member already: the invite adds a tree, not an account (Step
   // 25). The invite itself is read by its token, which is its secret, so
   // reading it before the preview has said it's live reveals nothing.
-  const [profile, sessionUser, { data }, invite, myTrees, access] =
+  const [profile, sessionUser, { data }, invite, myTrees, access, chosen] =
     await Promise.all([
       getProfile(),
       getSessionUser(),
@@ -51,9 +55,12 @@ export default async function InvitePage({
       readInvite(token),
       listMyTrees(),
       currentAccess(),
+      isTreeChosen(),
     ]);
+  // Only the tree picked this visit opens with a plain link: a bare /tree
+  // with nothing picked opens My Family Tree.
   const currentTreeId =
-    access?.kind === "member" ? access.membership.tree.id : null;
+    access?.kind === "member" && chosen ? access.membership.tree.id : null;
   const preview = data?.[0];
 
   // An invite emailed to someone is their sign-in link: one button, no second

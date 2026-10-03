@@ -319,7 +319,9 @@ stays.
   page (a cookie the proxy renews on each page): `/tree`, the add flow,
   **connections** and the Root console mean that tree, and **tree** goes
   back to it. After two idle hours they're on My Family Tree again, with no tree chosen (the tree pages then mean the member's
-  home tree). The header's switcher names a tree only on its canvas
+  home tree, except a bare `/tree`, which opens My Family Tree; a link that
+  opens a tree picks it first, and `/tree?person=…` or `/tree?view=tree`
+  still show the home tree's canvas). The header's switcher names a tree only on its canvas
   (`/tree`); everywhere else it says My Family Tree, picked tree or not. Joining or founding a tree, an invite, and an email's button
   or link that names a tree (an alert's Root console, a story) open that
   tree as before and make it the chosen one. A member it can't be drawn

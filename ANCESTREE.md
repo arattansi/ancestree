@@ -1780,6 +1780,23 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 92.5 follow-up: /tree opens My Family Tree with nothing picked**
+  (no migration). **Aalim asked for:** "make /tree open my family tree when
+  nothing's picked". **Now** a bare `/tree`, for a member with an entry of
+  their own and no tree picked this visit, redirects to `/family`
+  (`treeOpensMyFamily`, `lib/tree-links.ts`, tested). An address that names
+  the canvas still opens the home tree: `/tree?person=…` (notifications,
+  reports, the end of the add and fill flows, the welcome page) and
+  `/tree?view=tree` (`treeCanvasHref`: My Family Tree's own fallback when it
+  can't be drawn, so the two can't loop, and **back to the tree** on
+  connections). A canvas opened that way with nothing picked writes
+  `view=tree` into its own address when a person is closed (`unpicked` on
+  `FamilyTree`), so the next refresh keeps them there. The links that
+  meant "the tree shown by default" now pick it first, since the tree
+  picked this visit is the only one counted as open: **open the tree** on
+  `/trees` (and its **root console**), the tree list in account settings,
+  and **open** on an invite to a tree they're already on.
+
 - **Step 92.5 follow-up: a picked tree lapses after two idle hours** (no
   migration). **Aalim said:** "when i navigate to /tree it still goes to
   the tree i'm a root on". The header already said My Family Tree on every

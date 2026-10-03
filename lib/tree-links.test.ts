@@ -16,8 +16,10 @@ import {
   storyHref,
   suggestChangeHref,
   switcherShowsMyFamily,
+  treeCanvasHref,
   treeFocusHref,
   treeHref,
+  treeOpensMyFamily,
   treeStoryHref,
   validRelatedTo,
   welcomeHref,
@@ -60,6 +62,22 @@ describe("tree paths", () => {
     expect(
       switcherShowsMyFamily({ hasOwnEntry: false, pathname: "/family" }),
     ).toBe(true);
+  });
+
+  it("opens My Family Tree at a bare /tree with no tree picked", () => {
+    const base = { hasOwnEntry: true, treeChosen: false, search: {} };
+    expect(treeOpensMyFamily(base)).toBe(true);
+    // A tree picked this visit, or no entry to arrange the view around.
+    expect(treeOpensMyFamily({ ...base, treeChosen: true })).toBe(false);
+    expect(treeOpensMyFamily({ ...base, hasOwnEntry: false })).toBe(false);
+    // An address that names the canvas: a person on it, or the canvas itself.
+    expect(treeOpensMyFamily({ ...base, search: { person: "p1" } })).toBe(
+      false,
+    );
+    expect(treeOpensMyFamily({ ...base, search: { view: "tree" } })).toBe(
+      false,
+    );
+    expect(treeCanvasHref()).toBe("/tree?view=tree");
   });
 
   it("opens the suggestion form on a declined suggestion to resend (Step 71)", () => {

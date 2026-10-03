@@ -277,6 +277,12 @@ type Props = {
   shareToken?: string;
   /** A visitor from another tree (Step 25.4): said once, above the canvas. */
   visitorNote?: string | null;
+  /**
+   * The canvas was opened with no tree picked this visit, by an address that
+   * names it (`?person`, `?view=tree`). A bare /tree would open My Family
+   * Tree then, so the address it writes for itself keeps `view=tree`.
+   */
+  unpicked?: boolean;
   /** What's left of the founder's first run (Step 29), for the tree's founder. */
   gettingStarted?: GettingStartedItem[] | null;
   /**
@@ -342,6 +348,7 @@ function Canvas({
   declinedSuggestions = NO_DECLINED,
   family = null,
   homeTrees = NO_HOME_TREES,
+  unpicked = false,
   page,
 }: Props & { page: number }) {
   // My Family Tree moves nothing and adds nothing itself (Step 92.2): no
@@ -803,12 +810,15 @@ function Canvas({
     if (url.searchParams.get("person") === selectedId) return;
     if (selectedId) url.searchParams.set("person", selectedId);
     else url.searchParams.delete("person");
+    // With no tree picked, a bare /tree means My Family Tree: the next
+    // refresh mustn't take them off this canvas.
+    if (unpicked && url.search === "") url.searchParams.set("view", "tree");
     window.history.replaceState(
       null,
       "",
       `${url.pathname}${url.search}${url.hash}`,
     );
-  }, [selectedId]);
+  }, [selectedId, unpicked]);
   // Bumped to aim the camera again: at the viewer ("Go to me"), or at all of
   // what's drawn once the Root's side is switched (Step 48).
   const [aimTick, setAimTick] = React.useState(0);

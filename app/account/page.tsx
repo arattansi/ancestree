@@ -56,6 +56,7 @@ import {
 } from "@/lib/own-entry.server";
 import {
   currentAccess,
+  isTreeChosen,
   listMyTrees,
   membershipOf,
   type MyTree,
@@ -99,11 +100,12 @@ export default async function AccountPage({
   if (requested === "dashboard") redirect(adminPageHref());
   // All of it needs only the session, so it's asked for at once (Step
   // 77.1); each view then reads what it shows, and only that.
-  const [profile, user, trees, access] = await Promise.all([
+  const [profile, user, trees, access, chosen] = await Promise.all([
     requireProfile(),
     getSessionUser(),
     listMyTrees(),
     currentAccess(),
+    isTreeChosen(),
   ]);
 
   const runs = trees.filter((t) => t.type.runsTree);
@@ -159,6 +161,11 @@ export default async function AccountPage({
             trees={trees}
             currentTreeId={
               access?.kind === "member" ? access.membership.tree.id : null
+            }
+            pickedTreeId={
+              access?.kind === "member" && chosen
+                ? access.membership.tree.id
+                : null
             }
             openedRelayId={readRelayParam(relay)}
           />
@@ -255,12 +262,18 @@ async function SettingsView({
   profile,
   trees,
   currentTreeId,
+  pickedTreeId,
   openedRelayId,
 }: {
   profile: Profile;
   trees: MyTree[];
   /** The tree they're looking at, if they're a member of it. */
   currentTreeId: string | null;
+  /**
+   * The tree picked this visit, if any: only it opens with a plain link,
+   * since a bare /tree with nothing picked opens My Family Tree.
+   */
+  pickedTreeId: string | null;
   /** The ask named by the email's button (`relayHref`), if that's how they came. */
   openedRelayId: string | null;
 }) {
@@ -374,7 +387,7 @@ async function SettingsView({
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <TreeTarget
                     treeId={t.id}
-                    currentTreeId={currentTreeId}
+                    currentTreeId={pickedTreeId}
                     href={treeHref()}
                     variant="link"
                     className="h-auto border-0 p-0 whitespace-normal text-inherit underline-offset-auto"

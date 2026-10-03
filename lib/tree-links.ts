@@ -13,6 +13,38 @@ export function treeHref(): string {
 }
 
 /**
+ * The canvas even with no tree picked: the tree the pages fall back to, the
+ * member's home tree. A bare `/tree` with nothing picked opens My Family
+ * Tree instead (`treeOpensMyFamily`); this is for the ways to the canvas
+ * that mean that tree, where picking it would be wrong (My Family Tree's
+ * own fallback) or needless (back from its connections).
+ */
+export function treeCanvasHref(): string {
+  return `${treeHref()}?view=tree`;
+}
+
+/**
+ * Whether `/tree` sends a member to My Family Tree: with no tree picked
+ * this visit there's no tree they asked for, and My Family Tree is where
+ * they land. Only a bare `/tree`: anything after it (`person`, `view`)
+ * means the tree the pages fall back to. Before they have an entry of
+ * their own there's no My Family Tree to send them to.
+ */
+export function treeOpensMyFamily({
+  hasOwnEntry,
+  treeChosen,
+  search,
+}: {
+  hasOwnEntry: boolean;
+  treeChosen: boolean;
+  /** The request's query, as `URLSearchParams` would take it. */
+  search: Record<string, string | string[] | undefined>;
+}): boolean {
+  if (!hasOwnEntry || treeChosen) return false;
+  return Object.values(search).every((v) => v === undefined);
+}
+
+/**
  * My Family Tree (Step 92): everyone the member is related to, from every
  * tree of theirs, arranged around them. A view, not a tree, so it has an
  * address of its own and leaves the tree the browser remembers alone.

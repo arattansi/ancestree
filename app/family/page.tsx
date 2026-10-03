@@ -13,7 +13,7 @@ import {
   listPendingSuggestions,
 } from "@/lib/suggestions.server";
 import { listMyTrees, requireTreeAccess } from "@/lib/tree-context";
-import { treeHref } from "@/lib/tree-links";
+import { treeCanvasHref, treeHref } from "@/lib/tree-links";
 
 export const metadata: Metadata = {
   title: "My Family Tree",
@@ -60,8 +60,9 @@ export default async function MyFamilyPage() {
       listOwnDeclinedSuggestions(profile.auth_user_id),
     ]);
   // Nothing to arrange it around yet (no entry of their own, or on none of
-  // their trees): the canvas sends them where they'd add it.
-  if (!family) redirect(treeHref());
+  // their trees): the canvas sends them where they'd add it. The canvas
+  // itself, since a bare /tree with nothing picked comes back here.
+  if (!family) redirect(treeCanvasHref());
 
   const shown = new Set(family.people.map((p) => p.id));
   return (

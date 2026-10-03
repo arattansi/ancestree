@@ -28,16 +28,41 @@ import {
   loadTreePeople,
   placedIds,
 } from "@/lib/tree";
-import { listMyTrees, requireTreeAccess } from "@/lib/tree-context";
-import { onboardingHref } from "@/lib/tree-links";
+import {
+  isTreeChosen,
+  listMyTrees,
+  requireTreeAccess,
+} from "@/lib/tree-context";
+import {
+  myFamilyHref,
+  onboardingHref,
+  treeOpensMyFamily,
+} from "@/lib/tree-links";
 
 export const metadata: Metadata = {
   title: "family",
   description: "The family tree canvas.",
 };
 
-export default async function TreePage() {
-  const access = await requireTreeAccess();
+export default async function TreePage({ searchParams }: PageProps<"/tree">) {
+  const [access, chosen, search] = await Promise.all([
+    requireTreeAccess(),
+    isTreeChosen(),
+    searchParams,
+  ]);
+
+  // Nothing picked this visit: no tree was asked for, so where a member
+  // lands, My Family Tree.
+  if (
+    access.kind === "member" &&
+    treeOpensMyFamily({
+      hasOwnEntry: !!access.membership.profile.self_person_id,
+      treeChosen: chosen,
+      search,
+    })
+  ) {
+    redirect(myFamilyHref());
+  }
 
   // A visitor (Step 25.4): the canvas, read-only, with hidden entries blurred.
   if (access.kind === "visitor") {
@@ -158,6 +183,7 @@ export default async function TreePage() {
       <FamilyTree
         // One canvas per tree (Step 77.3), as above.
         key={tree.id}
+        unpicked={!chosen}
         people={people}
         relationships={relationships}
         treeId={tree.id}

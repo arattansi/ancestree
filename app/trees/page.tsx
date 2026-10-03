@@ -13,7 +13,11 @@ import {
 } from "@/components/ui/card";
 import { requireProfile } from "@/lib/auth";
 import { plural } from "@/lib/plural";
-import { currentAccess, listMyTrees } from "@/lib/tree-context";
+import {
+  currentAccess,
+  isTreeChosen,
+  listMyTrees,
+} from "@/lib/tree-context";
 import { adminHref, treeHref } from "@/lib/tree-links";
 import { TREE_REQUEST_RECEIVED } from "@/lib/tree-requests";
 import { getTreeRequestStatus } from "@/lib/tree-requests.server";
@@ -25,15 +29,18 @@ export const metadata: Metadata = {
 
 export default async function TreesPage() {
   // Asked for together (Step 77.1): the trees need only the session.
-  const [, trees, request, access] = await Promise.all([
+  const [, trees, request, access, chosen] = await Promise.all([
     requireProfile(),
     listMyTrees(),
     getTreeRequestStatus(),
     currentAccess(),
+    isTreeChosen(),
   ]);
-  // The tree they're looking at opens with a plain link (Step 77.3).
+  // The tree picked this visit opens with a plain link (Step 77.3); any
+  // other is switched to, the one shown by default too, since a bare /tree
+  // with nothing picked opens My Family Tree.
   const currentTreeId =
-    access?.kind === "member" ? access.membership.tree.id : null;
+    access?.kind === "member" && chosen ? access.membership.tree.id : null;
   const founded = trees.some((t) => t.founded);
 
   return (
