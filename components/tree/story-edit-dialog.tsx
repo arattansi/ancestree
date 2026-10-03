@@ -14,19 +14,21 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { useAction } from "@/components/use-action";
 import { isRedirect } from "@/lib/action-feedback";
+import { STORY_MAX } from "@/lib/limits";
 import type { EntryStory } from "@/lib/stories";
 import { toPartialIso } from "@/lib/partial-date";
 import { AUDIO_NOT_SENT } from "@/lib/story-upload";
+import { cn } from "@/lib/utils";
 import { STORY_CREDIT_MAX, toldProblem } from "@/lib/story-credits";
 
 const KEEP: RecordingChoice = { kind: "keep" };
 
 /**
  * Edit a story after it's told (Steps 99.5–99.8), opened as it is now: for
- * its teller, its title and text (Markdown, Write / Preview, or a file) and
- * its recording (replace or remove it) as well as when it was told and who
- * it's credited to; for whoever else may
+ * its teller, its title and text and its recording (replace or remove it)
+ * as well as when it was told and who it's credited to; for whoever else may
  * (an editor of the entry, or the person it's about), the date and credits.
+ * A written story opens in the big window it was written in (Step 113).
  * Anyone on the canvas may be credited; someone credited already stays
  * offered by name even where this canvas doesn't have them. An empty date
  * clears it. New words from someone who couldn't approve them go for
@@ -150,6 +152,10 @@ export function StoryEditDialog({
     );
   }
 
+  // Its teller's written story: edited in the big window it was written in
+  // (Step 113).
+  const written = !!story?.mine && !!story.body;
+
   return (
     <Dialog
       open={!!story}
@@ -157,7 +163,12 @@ export function StoryEditDialog({
         if (!next && !save.pending) onClose();
       }}
     >
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg">
+      <DialogContent
+        className={cn(
+          "max-h-[calc(100dvh-2rem)] overflow-y-auto",
+          written ? "sm:max-w-4xl" : "sm:max-w-lg",
+        )}
+      >
         <DialogTitle>{story?.mine === false ? "Credits and date" : "Edit story"}</DialogTitle>
         <form onSubmit={onSubmit} className="flex flex-col gap-4 pt-2">
           {story?.mine ? (
@@ -169,6 +180,7 @@ export function StoryEditDialog({
               body={body}
               onBody={setBody}
               disabled={save.pending}
+              roomy={written}
             />
           ) : null}
           {story?.mine ? (
@@ -218,7 +230,7 @@ export function StoryEditDialog({
               type="submit"
               size="sm"
               pending={save.pending}
-              disabled={preparing}
+              disabled={preparing || body.trim().length > STORY_MAX}
               pendingLabel="saving…"
             >
               save

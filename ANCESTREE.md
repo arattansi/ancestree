@@ -284,12 +284,14 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   Step 88.3; **Share**, **Stop sharing** and each story's comments, Step
   88.4, `story-comments.tsx`; `components/send-link.ts` sends a link by a
   phone's share sheet, else copies it) + `story-dialog.tsx` (Add a story,
-  loaded on the first press), `entry-album.tsx` (the sheet's Album, in
+  loaded on the first press; since Step 113 it asks **write a story**, in a
+  big window, or **upload a recording**), `entry-album.tsx` (the sheet's Album, in
   place of Documents, Step 88.5: a carousel of the photos the person is
   in, one at a time, swiped or stepped through, each photo's details and
   actions under it, the whole photo in a dialog on a press) +
   `album-dialog.tsx` (Add a photo: shrunk as it's picked, a description,
-  who's in it; loaded on the first press; since Step 88.6 the date taken
+  who's in it; loaded on the first press; since Step 113 several picked at
+  once, each described, tagged and added in turn; since Step 88.6 the date taken
   and suggested tags, read from the photo's own details before it's
   shrunk),
   `claim-suggestions.tsx` "Is this you?" canvas prompt;
@@ -644,7 +646,7 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `invite_relay_asks`      | A note of every ask to a relative, whoever the address belongs to (Step 41.5): the address asking and `created_at`, never the relative's. What the caps per address and across the site count, before anyone is looked up. Service role only (RLS on, no policies, no grants to `anon`/`authenticated`); an ask past a cap leaves no note, and notes older than a day are deleted as new asks come in |
 | `claims`                 | Auto-approve / reject a person entry (`resolved_by`); a dispute of one is an `entry_reports` row and leaves it `approved` (Step 88.2) |
 | `notifications`          | In-app notices, **one inbox per tree** (`tree_id`, Step 25; `placement_requested` \| `placement_accepted` \| `placement_declined` added; `placements_requested`, one for a batch of entries someone may edit, Step 80; `placements_lapsed`, to the Root whose ask nobody answered in 30 days, Step 83; `tree_request_approved`, Step 28; `placed_on_join`, Step 30.9, and what a claim invite did, Step 41.3; `joined_by_link`, Step 52; `story_to_approve`, `story_approved`, `story_declined`, Step 88.3; `story_commented`, Step 88.4); recipient-scoped RLS                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `stories`                | Stories about a person (Step 88.3, in place of the per-tree comments board): `title`, `body` and/or a recording (`audio_path` in the private `stories` bucket, `<person id>/<uuid>.<ext>`; `audio_seconds`), `pending` \| `approved` \| `declined`, `decided_by`, the tree it was told on (`tree_id`, where its teller hears back). Approved: read by members of every tree showing the person in full. Pending: its teller, and whoever approves it: the person themself once the entry is claimed or is their own and they're living (`private.story_owner`), else whoever `can_edit_person`. Declined: its teller alone. Told only through `add_story` (approved at once when the teller may approve it), answered through `decide_story`; deleted by its teller or whoever may edit the entry; read by the sheet through `entry_stories` (runs as the viewer, names each teller; since Step 88.4 also its comment count, whether a link to it works, whether the viewer may share it or turn its links off, and their own link). `links_off` (Step 88.4): its links were turned off. `body` is Markdown (Step 99; the text as written, drawn as Markdown wherever it shows). `told_on` / `told_on_precision` (Step 99): when it was told, as much as is known, kept as a person's dates are. `created_by` is set null when their account goes |
+| `stories`                | Stories about a person (Step 88.3, in place of the per-tree comments board): `title`, `body` and/or a recording (`audio_path` in the private `stories` bucket, `<person id>/<uuid>.<ext>`; `audio_seconds`), `pending` \| `approved` \| `declined`, `decided_by`, the tree it was told on (`tree_id`, where its teller hears back). Approved: read by members of every tree showing the person in full. Pending: its teller, and whoever approves it: the person themself once the entry is claimed or is their own and they're living (`private.story_owner`), else whoever `can_edit_person`. Declined: its teller alone. Told only through `add_story` (approved at once when the teller may approve it), answered through `decide_story`; deleted by its teller or whoever may edit the entry; read by the sheet through `entry_stories` (runs as the viewer, names each teller; since Step 88.4 also its comment count, whether a link to it works, whether the viewer may share it or turn its links off, and their own link). `links_off` (Step 88.4): its links were turned off. `body` is Markdown (Step 99; the text as written, drawn as Markdown wherever it shows; Step 113 took out the Write / Preview and file upload, so new stories are plain text in practice), up to 200,000 characters (Step 113; 20,000 before). `told_on` / `told_on_precision` (Step 99): when it was told, as much as is known, kept as a person's dates are. `created_by` is set null when their account goes |
 | `story_links`            | Public links to approved stories (Step 88.4): one working link per sharer per story (`token`, 24 URL-safe characters; `created_by`, whom the page names; `revoked_at` / `revoked_by`). A link works while the story is approved and its links aren't off (`stories.links_off`), the person isn't `hidden_from_visitors`, and its sharer is still on a tree that shows them in full (`private.story_link_live`). Made only by `share_story` (anyone who can see the story; once its links were turned off, only its person, an editor of the entry or its teller, which turns them on again), turned off by `stop_sharing_story` (every link at once; those three). A member reads only their own; the public page reads with the service role (`shared_story`) |
 | `story_credits`          | Who a story is credited to (Step 99): `(story_id, person_id, role)` with `role` `storyteller` \| `interviewer`, up to ten people each, one person may hold both. People placed in full on the tree the story is told on; set once, by `add_story` (`p_storytellers`, `p_interviewers`), with no yes of their own (the approver sees them with the story). Read by whoever reads the story (RLS follows `stories`); the sheet's `entry_stories` and the public page's `shared_story` return them as `credits`. Changed afterwards, with the date told, by `edit_story` (Steps 99.5–99.7: teller, entry editors, or the person it's about; the words by the teller alone, back to waiting unless they may approve). Cascade with the story or the person; a claim or an invited-entry merge moves a placeholder's credits across (`claim_person`, `private.merge_invited_entry`) |
 | `story_comments`         | Comments on an approved story (Step 88.4), no approval; edited by their author through `edit_story_comment` (Step 99.9, `edited_at`): read by whoever may read the story, written only by `add_story_comment` (its teller and its person are told, `story_commented`), deleted by their author, the story's teller or whoever may edit the entry; listed through `list_story_comments`. `created_by` is set null when their account goes |
@@ -1779,6 +1781,43 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 113: add a story asks which; photos many at a time** (migration
+  `20261003120000_story_length`). **Aalim asked:** "why is there a
+  character limit for stories? when a user presses 'add a story' have them
+  choose between uploading an audio recording and writing a full story. if
+  they choose 'write a story' the pop-up window should be much bigger";
+  then "allow for multiple photos to be uploaded at once and then the user
+  can input descriptions and tags for the photos one at a time"; then "turn
+  off the markdown option. it's a pointless feature".
+  **The limit** was my own unasked default from Step 88.3 (20,000
+  characters, about 3,500 words). Now **200,000** (about 35,000 words): the
+  `stories_body_check`, `add_story` and `edit_story` (re-made from
+  `20261001160000` / `20261001270000` with only that number changed) and
+  `STORY_MAX`. A cap stays because a server action takes 1 MB at most and
+  the sheet loads a person's stories whole. The text box no longer has a
+  `maxLength`, which silently cut a long paste short: past the limit it
+  says "Too long by n characters." and **add** / **save** wait.
+  **Add a story** opens on two buttons, **write a story** and **upload a
+  recording**. Writing: Title and Story in a window up to 896px wide with a
+  box 55% of the screen tall (full width on a phone), then date told and
+  credits. Recording: Title and the recording, then the same. **back**
+  returns to the choice. The teller's **Edit story** on a written story
+  opens just as big. The recording button reads **choose a recording**
+  (Step 102's lower case).
+  **Markdown:** the Write / Preview switch and "upload a Markdown file" are
+  gone (`lib/story-markdown.ts` and its test too). Saved stories still
+  show their Markdown; the renderer stays.
+  **Add a photo** takes up to 20 photos in one pick
+  (`ALBUM_BATCH_MAX`). They line up as thumbnails along the top (with a
+  **+** for more), shrunk one after another; the title reads "Photo 2 of
+  5". Each keeps its own date taken, description and who's in it (tag
+  suggestions per photo). **add, then next** sends that one and brings up
+  the next; the dialog closes after the last. A file that can't be read
+  drops out with its name and the reason. My calls, not asked: each photo
+  goes up when it's added, not all at the end, so a refusal only stops
+  that one; tags don't carry over from one photo to the next; closing
+  leaves the rest unsent.
 
 - **Step 112: the /features demo, a form that grows leaves** (no
   migration). **Aalim asked for:** on how-to + features, "a standing form

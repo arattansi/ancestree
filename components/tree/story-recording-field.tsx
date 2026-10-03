@@ -185,7 +185,7 @@ export function StoryRecordingField({
         </div>
       ) : (
         <div className="flex flex-wrap items-center gap-2">
-          {pickButton("Add a recording")}
+          {pickButton("choose a recording")}
           {existing && removed && !preparing ? (
             <Button
               type="button"

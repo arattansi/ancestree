@@ -22,9 +22,10 @@ export const SHARE_LINK_LABEL_MAX = 80;
 /** A comment on a companion, or on a story (Step 88.4). */
 export const COMMENT_MAX = 2000;
 
-/** A story's title, and the story itself (Step 88.3). */
+/** A story's title, and the story itself (Step 88.3): about 35,000 words
+ *  since Step 113 (20,000 characters before); the database holds the same. */
 export const STORY_TITLE_MAX = 120;
-export const STORY_MAX = 20000;
+export const STORY_MAX = 200000;
 
 /**
  * A story's recording, as stored (the `stories` bucket's limit): about an
@@ -43,6 +44,9 @@ export const ALBUM_PEOPLE_MAX = 20;
  */
 export const ALBUM_PHOTO_EDGE = 1600;
 export const ALBUM_PHOTO_MAX_MB = 10;
+
+/** How many photos one pick may bring into the album's add form (Step 113). */
+export const ALBUM_BATCH_MAX = 20;
 
 /** What's wrong, in a report on an entry (Step 88.2). */
 export const REPORT_MAX = 1000;

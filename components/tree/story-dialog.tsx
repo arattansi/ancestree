@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Plus } from "lucide-react";
+import { Mic, PenLine, Plus } from "lucide-react";
 
 import { addStory } from "@/app/actions/stories";
 import { DateField } from "@/components/date-field";
@@ -12,14 +12,20 @@ import { StoryRecordingField, type RecordingChoice } from "@/components/tree/sto
 import { StoryTextFields } from "@/components/tree/story-text-fields";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAction } from "@/components/use-action";
 import { isRedirect } from "@/lib/action-feedback";
 import type { EntryStory } from "@/lib/stories";
 import { STORY_CREDIT_MAX, toldProblem, type StoryCreditRole } from "@/lib/story-credits";
+import { STORY_MAX, STORY_TITLE_MAX } from "@/lib/limits";
 import { AUDIO_NOT_SENT } from "@/lib/story-upload";
+import { cn } from "@/lib/utils";
 
 const NO_RECORDING: RecordingChoice = { kind: "none" };
+
+/** What's being added (Step 113): a story written here, or a recording. */
+type StoryKind = "write" | "record";
 
 /**
  * One role's people on a story (Step 99): a link to add some, and once
@@ -92,13 +98,12 @@ const NONE_SHOWN: Record<StoryCreditRole, boolean> = {
 };
 
 /**
- * Tell a story about someone (Step 88.3): a title, the story, a recording,
- * or any of them but the title alone. The story is written in Markdown, with
- * a preview, or comes from a Markdown file (Step 99), which can name its
- * title. It may say when it was told and credit people on the tree as its
- * storytellers and interviewers (Step 99). A picked recording is shrunk as
- * soon as it's picked, and played back here before it goes. A form is its
- * labels. Loaded only once someone opens it.
+ * Tell a story about someone (Step 88.3). It first asks which (Step 113):
+ * **write a story**, in a big window with room for a whole one, or **upload
+ * a recording**; either may have a title. It may say when it was told and
+ * credit people on the tree as its storytellers and interviewers (Step 99).
+ * A picked recording is shrunk as soon as it's picked, and played back here
+ * before it goes. A form is its labels. Loaded only once someone opens it.
  */
 export function StoryDialog({
   open,
@@ -123,6 +128,8 @@ export function StoryDialog({
   const [body, setBody] = React.useState("");
   // Bumped on each opening: the title and story fields start afresh.
   const [formKey, setFormKey] = React.useState(0);
+  // Null until one is picked.
+  const [kind, setKind] = React.useState<StoryKind | null>(null);
   const [told, setTold] = React.useState("");
   // "+ Date told" pressed, or the date typed in: the field stays.
   const [toldOpened, setToldOpened] = React.useState(false);
@@ -141,6 +148,7 @@ export function StoryDialog({
       setTitle("");
       setBody("");
       setFormKey((k) => k + 1);
+      setKind(null);
       setTold("");
       setToldOpened(false);
       setToldTouched(false);
@@ -160,8 +168,11 @@ export function StoryDialog({
   }, [toldShown]);
   const toldError = toldProblem(told);
 
-  const ready = recording.kind === "new" ? recording.audio : null;
-  const canSend = !preparing && (body.trim().length > 0 || ready !== null);
+  const writing = kind === "write";
+  const ready = kind === "record" && recording.kind === "new" ? recording.audio : null;
+  const length = body.trim().length;
+  const canSend =
+    !preparing && (writing ? length > 0 && length <= STORY_MAX : ready !== null);
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -185,7 +196,7 @@ export function StoryDialog({
             personId,
             treeId,
             title,
-            body,
+            body: writing ? body : "",
             audioPath,
             audioSeconds: audio?.seconds ?? null,
             told,
@@ -222,97 +233,162 @@ export function StoryDialog({
         if (!send.pending) onOpenChange(next);
       }}
     >
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg">
-        <DialogTitle>Add a story</DialogTitle>
-        <form onSubmit={onSubmit} className="flex flex-col gap-4 pt-2">
-          <StoryTextFields
-            key={formKey}
-            idPrefix="story"
-            title={title}
-            onTitle={setTitle}
-            body={body}
-            onBody={setBody}
-            disabled={send.pending}
-          />
-          <StoryRecordingField
-            key={formKey}
-            existing={null}
-            disabled={send.pending}
-            onChange={setRecording}
-            onPreparing={setPreparing}
-          />
-          {toldShown ? (
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="story-told">Date told</Label>
-              <DateField
-                id="story-told"
-                value={told}
-                onChange={(value) => {
-                  setTold(value);
-                  setToldOpened(true);
-                }}
-                onBlur={() => setToldTouched(true)}
-                disabled={send.pending}
-                aria-invalid={toldTouched && !!toldError}
-              />
-              <FormError>{toldTouched ? toldError : null}</FormError>
-            </div>
-          ) : (
+      <DialogContent
+        className={cn(
+          "max-h-[calc(100dvh-2rem)] overflow-y-auto",
+          writing ? "sm:max-w-4xl" : "sm:max-w-lg",
+        )}
+      >
+        <DialogTitle>
+          {kind === "write"
+            ? "Write a story"
+            : kind === "record"
+              ? "Upload a recording"
+              : "Add a story"}
+        </DialogTitle>
+        {kind === null ? (
+          <div className="grid gap-2 pt-2 sm:grid-cols-2">
             <Button
               type="button"
-              variant="link"
-              size="sm"
-              className="self-start px-0"
-              disabled={send.pending}
-              onClick={() => {
-                focusTold.current = true;
-                setToldOpened(true);
-              }}
+              variant="outline"
+              className="h-auto flex-col gap-2 py-6"
+              onClick={() => setKind("write")}
             >
-              <Plus aria-hidden />
-              Date told
+              <PenLine aria-hidden className="size-5" />
+              write a story
             </Button>
-          )}
-          <CreditField
-            label="Storyteller"
-            people={people}
-            value={credits.storyteller}
-            shown={creditsShown.storyteller}
-            onShow={() => setCreditsShown((s) => ({ ...s, storyteller: true }))}
-            onChange={(ids) => setCredits((c) => ({ ...c, storyteller: ids }))}
-            disabled={send.pending}
-          />
-          <CreditField
-            label="Interviewer"
-            people={people}
-            value={credits.interviewer}
-            shown={creditsShown.interviewer}
-            onShow={() => setCreditsShown((s) => ({ ...s, interviewer: true }))}
-            onChange={(ids) => setCredits((c) => ({ ...c, interviewer: ids }))}
-            disabled={send.pending}
-          />
-          <FormError>{send.error}</FormError>
-          <div className="flex gap-2">
-            <PendingButton
-              type="submit"
-              size="sm"
-              pending={send.pending}
-              disabled={!canSend}
-              pendingLabel="adding…"
-            >
-              add
-            </PendingButton>
             <Button
               type="button"
-              size="sm"
-              variant="ghost"
-              disabled={send.pending}
-              onClick={() => onOpenChange(false)}
+              variant="outline"
+              className="h-auto flex-col gap-2 py-6"
+              onClick={() => setKind("record")}
             >
-              cancel
+              <Mic aria-hidden className="size-5" />
+              upload a recording
             </Button>
           </div>
-        </form>
+        ) : (
+          <form onSubmit={onSubmit} className="flex flex-col gap-4 pt-2">
+            {writing ? (
+              <StoryTextFields
+                key={formKey}
+                idPrefix="story"
+                title={title}
+                onTitle={setTitle}
+                body={body}
+                onBody={setBody}
+                disabled={send.pending}
+                roomy
+              />
+            ) : (
+              <>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="story-title">Title</Label>
+                  <Input
+                    id="story-title"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    maxLength={STORY_TITLE_MAX}
+                    disabled={send.pending}
+                    autoComplete="off"
+                  />
+                </div>
+                <StoryRecordingField
+                  key={formKey}
+                  existing={null}
+                  disabled={send.pending}
+                  onChange={setRecording}
+                  onPreparing={setPreparing}
+                />
+              </>
+            )}
+            {toldShown ? (
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="story-told">Date told</Label>
+                <DateField
+                  id="story-told"
+                  value={told}
+                  onChange={(value) => {
+                    setTold(value);
+                    setToldOpened(true);
+                  }}
+                  onBlur={() => setToldTouched(true)}
+                  disabled={send.pending}
+                  aria-invalid={toldTouched && !!toldError}
+                />
+                <FormError>{toldTouched ? toldError : null}</FormError>
+              </div>
+            ) : (
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                className="self-start px-0"
+                disabled={send.pending}
+                onClick={() => {
+                  focusTold.current = true;
+                  setToldOpened(true);
+                }}
+              >
+                <Plus aria-hidden />
+                Date told
+              </Button>
+            )}
+            <CreditField
+              label="Storyteller"
+              people={people}
+              value={credits.storyteller}
+              shown={creditsShown.storyteller}
+              onShow={() => setCreditsShown((s) => ({ ...s, storyteller: true }))}
+              onChange={(ids) => setCredits((c) => ({ ...c, storyteller: ids }))}
+              disabled={send.pending}
+            />
+            <CreditField
+              label="Interviewer"
+              people={people}
+              value={credits.interviewer}
+              shown={creditsShown.interviewer}
+              onShow={() => setCreditsShown((s) => ({ ...s, interviewer: true }))}
+              onChange={(ids) => setCredits((c) => ({ ...c, interviewer: ids }))}
+              disabled={send.pending}
+            />
+            <FormError>{send.error}</FormError>
+            <div className="flex gap-2">
+              <PendingButton
+                type="submit"
+                size="sm"
+                pending={send.pending}
+                disabled={!canSend}
+                pendingLabel="adding…"
+              >
+                add
+              </PendingButton>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                disabled={send.pending}
+                onClick={() => {
+                  // A recording being readied goes with its field.
+                  setRecording(NO_RECORDING);
+                  setPreparing(false);
+                  setKind(null);
+                }}
+              >
+                back
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                disabled={send.pending}
+                onClick={() => onOpenChange(false)}
+              >
+                cancel
+              </Button>
+            </div>
+          </form>
+        )}
       </DialogContent>
     </Dialog>
   );
