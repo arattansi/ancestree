@@ -64,8 +64,9 @@ function Word({ word }: { word: NavWord }) {
  * The site's navigation in Aalim's handwriting (Step 110). In the app it's
  * his five words piled on one another in the header, the size of
  * "ancestree" beside it; pressed, each word flies out of the pile and
- * grows into its place in a list down the left of the page (who, what +
- * how, why, capitalism, shh), and flies back when it closes: Esc, a press
+ * grows into its place in a list (who, what + how, why, capitalism, shh),
+ * centred on the screen, or down the left of the page from `xl`, and flies
+ * back when it closes: Esc, a press
  * outside, the button again, or going to a page. On the home page and
  * the marketing pages the list stays open (from 1240px; narrower, they
  * work as the app does): it flies out once the page has loaded, and back
@@ -262,7 +263,7 @@ export function SiteNavMenu({ className }: { className?: string }) {
               <nav
                 id={listId}
                 aria-label="Site"
-                className="fixed top-1/2 left-14 z-50 -translate-y-1/2 text-foreground"
+                className="fixed top-1/2 left-1/2 z-50 -translate-x-1/2 -translate-y-1/2 text-foreground xl:left-14 xl:translate-x-0"
                 style={{
                   width: NAV_LIST_SIZE.width * LIST_SCALE,
                   height: NAV_LIST_SIZE.height * LIST_SCALE,
