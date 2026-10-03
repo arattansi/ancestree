@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 
 import { LogoMark } from "@/components/logo-mark";
-import { MarketingColumn } from "@/components/marketing/marketing-column";
+import {
+  MarketingColumn,
+  MarketingCopy,
+} from "@/components/marketing/marketing-column";
 
 export const metadata: Metadata = { title: "why" };
 
@@ -18,7 +21,7 @@ export default function ManifestoPage() {
       <h1 className="text-2xl font-semibold tracking-tight">
         (product-manifesto)
       </h1>
-      <div className="flex flex-col gap-8 text-sm text-muted-foreground">
+      <MarketingCopy>
         <p>
           we are part of a long line of people. people who were born, lived, and
           died.
@@ -74,7 +77,7 @@ export default function ManifestoPage() {
           we built ancestree to be the soil where families can come together to
           grow their tree and nurture those connections.
         </p>
-      </div>
+      </MarketingCopy>
     </MarketingColumn>
   );
 }

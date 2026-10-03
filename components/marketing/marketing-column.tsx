@@ -24,3 +24,16 @@ export function MarketingColumn({
     </PageColumn>
   );
 }
+
+/**
+ * A marketing page's words, Aalim's paragraphs one blank line apart: `gap-5`
+ * is `text-sm`'s line height (Step 111 follow-up). Not the privacy page's,
+ * which has its own sections.
+ */
+export function MarketingCopy({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-5 text-sm text-muted-foreground">
+      {children}
+    </div>
+  );
+}

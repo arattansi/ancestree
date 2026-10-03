@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 
-import { MarketingColumn } from "@/components/marketing/marketing-column";
+import {
+  MarketingColumn,
+  MarketingCopy,
+} from "@/components/marketing/marketing-column";
 import { OurNodes } from "@/components/marketing/our-nodes";
 
 export const metadata: Metadata = { title: "who" };
@@ -18,7 +21,7 @@ export default function AboutUsPage() {
   return (
     <MarketingColumn aside={<OurNodes />}>
       <h1 className="text-2xl font-semibold tracking-tight">(about-us)</h1>
-      <div className="flex flex-col gap-8 text-sm text-muted-foreground">
+      <MarketingCopy>
         <p>
           Raiya grew up in the lower mainland of British Columbia and was raised
           very close to her grandparents and extended family.
@@ -41,7 +44,7 @@ export default function AboutUsPage() {
         </p>
         <p>they still like each other.</p>
         <p>but they used to like each other, too*.</p>
-      </div>
+      </MarketingCopy>
     </MarketingColumn>
   );
 }

@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 
-import { MarketingColumn } from "@/components/marketing/marketing-column";
+import {
+  MarketingColumn,
+  MarketingCopy,
+} from "@/components/marketing/marketing-column";
 
 export const metadata: Metadata = { title: "capitalism" };
 
@@ -14,7 +17,7 @@ export default function PricingPage() {
   return (
     <MarketingColumn>
       <h1 className="text-2xl font-semibold tracking-tight">(pricing)</h1>
-      <div className="flex flex-col gap-8 text-sm text-muted-foreground">
+      <MarketingCopy>
         <p>ancestree is in beta, so it’s free to use.</p>
         <p>
           well, it costs us right now. but hey, you need to crack a few eggs
@@ -42,7 +45,7 @@ export default function PricingPage() {
           if we do start charging for the ability to continue growing, we’ll
           make it discounted for our beta users.
         </p>
-      </div>
+      </MarketingCopy>
     </MarketingColumn>
   );
 }
