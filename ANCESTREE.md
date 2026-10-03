@@ -291,7 +291,8 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   actions under it, the whole photo in a dialog on a press) +
   `album-dialog.tsx` (Add a photo: shrunk as it's picked, a description,
   who's in it; loaded on the first press; since Step 113 several picked at
-  once, each described, tagged and added in turn; since Step 88.6 the date taken
+  once, each described, tagged and added in turn; since Step 114 its
+  uploader edits the description and who's in it, `album-edit-dialog.tsx`; since Step 88.6 the date taken
   and suggested tags, read from the photo's own details before it's
   shrunk),
   `claim-suggestions.tsx` "Is this you?" canvas prompt;
@@ -1781,6 +1782,26 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 114: the uploader edits a photo** (migration
+  `20261003130000_album_photo_editable`, additive). **Aalim asked:** "let
+  the uploader edit a photo's description and tags later". **Now** the
+  uploader's photo has **edit** beside remove/delete. It opens **Edit
+  photo** (`album-edit-dialog.tsx`): the photo, Description and Who's in
+  it, as they are now. The album it's edited from stays locked in, and
+  someone tagged who isn't on this canvas is still offered by name. One RPC,
+  `edit_album_photo(photo, tree, description, people)`, from the uploader
+  alone: someone newly in it is tagged as `add_album_photo` tags them
+  (approved where the uploader could approve, else waiting and asked; on
+  the tree it's edited from, in full). Someone left out is untagged, after
+  the new tags go in, so the photo is never briefly empty (which deletes
+  it). Asking goes through a new helper, `private.ask_photo_approval(people,
+  tree, verb)`, the same asking as `add_album_photo`'s ("added a photo of
+  you"). **My call, not asked:** new words go back to whoever else
+  approved the old ones, as a story's do (Step 99.7). Those tags wait again
+  and their approvers get "edited a photo of you, waiting for your
+  approval". Changing who's in it alone touches nothing already approved.
+  The date taken isn't editable (not asked).
 
 - **Step 113: add a story asks which; photos many at a time** (migration
   `20261003120000_story_length`). **Aalim asked:** "why is there a

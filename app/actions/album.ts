@@ -98,6 +98,61 @@ export async function addAlbumPhoto(input: {
 }
 
 /**
+ * Its uploader changes what a photo is of and who's in it (Step 114): the
+ * whole new description and list of people, `personId`'s album always
+ * among them. Someone newly in it waits, as when it was added; new words
+ * go back to whoever else approved the old ones. The album back is
+ * `personId`'s.
+ */
+export async function editAlbumPhoto(input: {
+  photoId: string;
+  /** Whose album it's edited from, who stays in it. */
+  personId: string;
+  /** The tree it's edited on: anyone newly in it is on it. */
+  treeId: string;
+  description: string;
+  people: string[];
+}): Promise<{ error?: string; pending?: number; photos?: AlbumPhoto[] }> {
+  const profile = await requireProfile();
+  const description = input.description.trim();
+  const people = [...new Set([input.personId, ...input.people])];
+  if (description.length > ALBUM_DESCRIPTION_MAX) {
+    return { error: `Keep the description under ${ALBUM_DESCRIPTION_MAX} characters.` };
+  }
+  if (people.length > ALBUM_PEOPLE_MAX) {
+    return { error: `Tag ${ALBUM_PEOPLE_MAX} people at most.` };
+  }
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("edit_album_photo", {
+    p_photo: input.photoId,
+    p_tree: input.treeId,
+    p_description: description,
+    p_people: people,
+  });
+  if (error) {
+    return {
+      error: friendlyDbError(
+        error.message,
+        [
+          ["not yours to edit", "Only whoever added it can edit it."],
+          ["not on your tree", "Someone tagged isn’t on this tree."],
+          ["nobody in it", "Tag who’s in it."],
+          ["too many people", `Tag ${ALBUM_PEOPLE_MAX} people at most.`],
+          ["longer than a description may be", `Keep the description under ${ALBUM_DESCRIPTION_MAX} characters.`],
+        ],
+        "Couldn’t save it. Try again.",
+      ),
+    };
+  }
+  const edited = data as { pending?: number } | null;
+  return {
+    pending: edited?.pending ?? 0,
+    // Saved either way; an album that can't be read now is read again.
+    photos: await listAlbum(input.personId, profile.auth_user_id).catch(() => undefined),
+  };
+}
+
+/**
  * Approve or decline a photo waiting on the viewer in someone's album. Its
  * uploader is told; a declined one stays for them alone.
  */

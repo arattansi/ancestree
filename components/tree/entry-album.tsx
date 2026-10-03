@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import dynamic from "next/dynamic";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pencil, Plus } from "lucide-react";
 
 import {
   decideAlbumPhoto,
@@ -29,6 +29,10 @@ const AlbumDialog = dynamic(
   () => import("@/components/tree/album-dialog").then((m) => m.AlbumDialog),
   { ssr: false },
 );
+const AlbumEditDialog = dynamic(
+  () => import("@/components/tree/album-edit-dialog").then((m) => m.AlbumEditDialog),
+  { ssr: false },
+);
 
 /** Who else is in a photo, as far as the viewer may see. */
 function withLine(others: AlbumPhoto["others"]): string | null {
@@ -49,7 +53,8 @@ function withLine(others: AlbumPhoto["others"]): string | null {
  * what the viewer may do with it. Whoever approves the person's photos
  * answers a waiting one here; it can be taken out of the album by its
  * uploader, by whoever approves them, or by whoever can edit the entry; its
- * uploader may delete it from every album.
+ * uploader may edit what it's of and who's in it (Step 114), or delete it
+ * from every album.
  */
 function PhotoDetails({
   photo,
@@ -57,6 +62,7 @@ function PhotoDetails({
   position,
   onDecided,
   onGone,
+  onEdit,
 }: {
   photo: AlbumPhoto;
   personId: string;
@@ -64,6 +70,7 @@ function PhotoDetails({
   position: string | null;
   onDecided: (approved: boolean) => void;
   onGone: () => void;
+  onEdit: () => void;
 }) {
   const others = withLine(photo.others);
   const taken = formatPartialDate(photo.takenOn, photo.takenPrecision);
@@ -116,6 +123,12 @@ function PhotoDetails({
             </ActionButton>
           </>
         ) : null}
+        {photo.mine ? (
+          <Button size="sm" variant="outline" onClick={onEdit}>
+            <Pencil aria-hidden />
+            edit
+          </Button>
+        ) : null}
         {canRemove ? (
           <ConfirmButton
             size="sm"
@@ -166,11 +179,13 @@ function AlbumCarousel({
   personId,
   onDecided,
   onGone,
+  onEdit,
 }: {
   photos: AlbumPhoto[];
   personId: string;
   onDecided: (photo: AlbumPhoto, approved: boolean) => void;
   onGone: (photo: AlbumPhoto) => void;
+  onEdit: (photo: AlbumPhoto) => void;
 }) {
   const stripRef = React.useRef<HTMLUListElement>(null);
   const [index, setIndex] = React.useState(0);
@@ -283,6 +298,7 @@ function AlbumCarousel({
         position={count > 1 ? `${at + 1} / ${count}` : null}
         onDecided={(approved) => onDecided(photo, approved)}
         onGone={() => onGone(photo)}
+        onEdit={() => onEdit(photo)}
       />
 
       <Dialog open={viewing !== null} onOpenChange={(open) => !open && setViewing(null)}>
@@ -305,7 +321,8 @@ function AlbumCarousel({
 /**
  * Someone's album (Step 88.5), in place of the documents it replaced: the
  * photos they're in that the viewer may see, newest first, and a way for
- * anyone on the tree to add one. Read when the entry opens
+ * anyone on the tree to add one, and for its uploader to edit one (Step
+ * 114). Read when the entry opens
  * (`useLoadPersonSheet`, Step 87.6); added, answered and removed here, so
  * the album keeps itself without the page being drawn again.
  */
@@ -327,6 +344,9 @@ export function EntryAlbum({
   const [dialogMounted, setDialogMounted] = React.useState(false);
   // A photo just added is the newest: the carousel starts over, on it.
   const [added, setAdded] = React.useState(0);
+  // The photo its uploader is editing (Step 114).
+  const [editing, setEditing] = React.useState<AlbumPhoto | null>(null);
+  const [editMounted, setEditMounted] = React.useState(false);
 
   // The album of the person being viewed; `null` while loading.
   const items = sheet?.sheet.album ?? null;
@@ -337,6 +357,7 @@ export function EntryAlbum({
   if (personId !== prevPerson) {
     setPrevPerson(personId);
     setAdding(false);
+    setEditing(null);
   }
 
   function update(change: (items: AlbumPhoto[]) => AlbumPhoto[]) {
@@ -395,8 +416,29 @@ export function EntryAlbum({
             )
           }
           onGone={(photo) => update((all) => all.filter((p) => p.id !== photo.id))}
+          onEdit={(photo) => {
+            setEditMounted(true);
+            setEditing(photo);
+          }}
         />
       )}
+
+      {editMounted ? (
+        <AlbumEditDialog
+          photo={editing}
+          onClose={() => setEditing(null)}
+          personId={personId}
+          treeId={treeId}
+          people={people}
+          onSaved={(photos) => {
+            if (photos) {
+              setPersonSheet(personId, "album", () => photos);
+            } else {
+              invalidatePersonSheet(personId, ["album"]);
+            }
+          }}
+        />
+      ) : null}
 
       {dialogMounted ? (
         <AlbumDialog
