@@ -7,6 +7,7 @@ import { DateField } from "@/components/date-field";
 import { FormError } from "@/components/form-error";
 import { PendingButton } from "@/components/pending-button";
 import { CompanionPicker, type CompanionOption } from "@/components/tree/companion-picker";
+import { StoryMentionsField } from "@/components/tree/story-mentions-field";
 import { StoryRecordingField, type RecordingChoice } from "@/components/tree/story-recording-field";
 import { StoryTextFields } from "@/components/tree/story-text-fields";
 import { Button } from "@/components/ui/button";
@@ -28,7 +29,8 @@ const KEEP: RecordingChoice = { kind: "keep" };
  * its teller, its title and text and its recording (replace or remove it)
  * as well as when it was told and who it's credited to; for whoever else may
  * (an editor of the entry, or the person it's about), the date and credits.
- * A written story opens in the big window it was written in (Step 113).
+ * A written story opens in the big window it was written in (Step 113),
+ * and its teller tags who it mentions there in place of credits (Step 116).
  * Anyone on the canvas may be credited; someone credited already stays
  * offered by name even where this canvas doesn't have them. An empty date
  * clears it. New words from someone who couldn't approve them go for
@@ -55,6 +57,7 @@ export function StoryEditDialog({
   const save = useAction({ inline: true });
   const [tellers, setTellers] = React.useState<string[]>([]);
   const [askers, setAskers] = React.useState<string[]>([]);
+  const [mentions, setMentions] = React.useState<string[]>([]);
   const [title, setTitle] = React.useState("");
   const [body, setBody] = React.useState("");
   const [told, setTold] = React.useState("");
@@ -70,6 +73,7 @@ export function StoryEditDialog({
     if (story) {
       setTellers(story.credits.filter((c) => c.role === "storyteller").map((c) => c.id));
       setAskers(story.credits.filter((c) => c.role === "interviewer").map((c) => c.id));
+      setMentions(story.mentions.map((m) => m.id));
       setTitle(story.title ?? "");
       setBody(story.body ?? "");
       setTold(toPartialIso(story.toldOn, story.toldPrecision));
@@ -95,8 +99,9 @@ export function StoryEditDialog({
     e.preventDefault();
     setToldTouched(true);
     if (!story || toldError || preparing) return;
-    // Only its teller changes its words and its recording.
+    // Only its teller changes its words, its recording, and who it mentions.
     const text = story.mine ? { title, body } : undefined;
+    const tagged = story.mine && !story.hasRecording ? mentions : undefined;
     const choice = story.mine ? recording : KEEP;
     const wasWaiting = story.status === "pending";
     save.run(
@@ -128,6 +133,7 @@ export function StoryEditDialog({
             told,
             text,
             audio,
+            mentions: tagged,
           });
           // Refused: the recording nothing took goes again.
           if (res.error && uploaded) {
@@ -169,7 +175,13 @@ export function StoryEditDialog({
           written ? "sm:max-w-4xl" : "sm:max-w-lg",
         )}
       >
-        <DialogTitle>{story?.mine === false ? "Credits and date" : "Edit story"}</DialogTitle>
+        <DialogTitle>
+          {story?.mine !== false
+            ? "Edit story"
+            : story.hasRecording
+              ? "Credits and date"
+              : "Date told"}
+        </DialogTitle>
         <form onSubmit={onSubmit} className="flex flex-col gap-4 pt-2">
           {story?.mine ? (
             <StoryTextFields
@@ -197,22 +209,41 @@ export function StoryEditDialog({
               onPreparing={setPreparing}
             />
           ) : null}
-          <CompanionPicker
-            label="Storyteller"
-            options={options}
-            value={tellers}
-            onChange={(ids) => setTellers(ids.slice(0, STORY_CREDIT_MAX))}
-            disabled={save.pending}
-            emptyHint={null}
-          />
-          <CompanionPicker
-            label="Interviewer"
-            options={options}
-            value={askers}
-            onChange={(ids) => setAskers(ids.slice(0, STORY_CREDIT_MAX))}
-            disabled={save.pending}
-            emptyHint={null}
-          />
+          {/* A recording is credited; a written story tags who it mentions,
+              its teller alone (Step 116). */}
+          {story && !story.hasRecording ? (
+            story.mine ? (
+              <StoryMentionsField
+                key={openedOn ?? ""}
+                people={people}
+                personId={personId}
+                body={body}
+                value={mentions}
+                onChange={setMentions}
+                disabled={save.pending}
+                known={story.mentions}
+              />
+            ) : null
+          ) : (
+            <>
+              <CompanionPicker
+                label="Storyteller"
+                options={options}
+                value={tellers}
+                onChange={(ids) => setTellers(ids.slice(0, STORY_CREDIT_MAX))}
+                disabled={save.pending}
+                emptyHint={null}
+              />
+              <CompanionPicker
+                label="Interviewer"
+                options={options}
+                value={askers}
+                onChange={(ids) => setAskers(ids.slice(0, STORY_CREDIT_MAX))}
+                disabled={save.pending}
+                emptyHint={null}
+              />
+            </>
+          )}
           <div className="flex flex-col gap-2">
             <Label htmlFor="story-edit-told">Date told</Label>
             <DateField

@@ -2004,6 +2004,48 @@ export type Database = {
           },
         ]
       }
+      story_mentions: {
+        Row: {
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          person_id: string
+          status: string
+          story_id: string
+        }
+        Insert: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          person_id: string
+          status?: string
+          story_id: string
+        }
+        Update: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          person_id?: string
+          status?: string
+          story_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "story_mentions_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "story_mentions_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "stories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       story_links: {
         Row: {
           created_at: string
@@ -2664,6 +2706,7 @@ export type Database = {
           p_audio_seconds?: number
           p_body: string
           p_interviewers?: string[]
+          p_mentions?: string[]
           p_person: string
           p_storytellers?: string[]
           p_title: string
@@ -2766,6 +2809,10 @@ export type Database = {
         Args: { p_approve: boolean; p_story: string }
         Returns: undefined
       }
+      decide_story_mention: {
+        Args: { p_approve: boolean; p_person: string; p_story: string }
+        Returns: undefined
+      }
       delete_tree: { Args: { p_tree: string }; Returns: Json }
       edit_album_photo: {
         Args: {
@@ -2784,6 +2831,7 @@ export type Database = {
           p_edit_audio?: boolean
           p_edit_text?: boolean
           p_interviewers: string[]
+          p_mentions?: string[]
           p_story: string
           p_storytellers: string[]
           p_title?: string
@@ -2836,11 +2884,15 @@ export type Database = {
       entry_stories: {
         Args: { p_person: string }
         Returns: {
+          about_id: string
+          about_name: string
           audio_path: string
           audio_seconds: number
           body: string
           can_decide: boolean
+          can_decide_mention: boolean
           can_edit_credits: boolean
+          can_remove_mention: boolean
           can_share: boolean
           can_stop_sharing: boolean
           comment_count: number
@@ -2848,6 +2900,8 @@ export type Database = {
           created_by: string
           credits: Json
           id: string
+          mention_status: string
+          mentions: Json
           my_link: string
           shared: boolean
           status: string

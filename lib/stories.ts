@@ -8,7 +8,8 @@ import { createClient } from "@/lib/supabase/server";
 /**
  * A story about a person (Step 88.3): long-form text (Markdown, Step 99), a
  * recording, or both, with who added it and when, and, if they were named,
- * when it was told and who it's credited to (Step 99). It needs approval, from the person themself
+ * when it was told and who it's credited to (Step 99), or, written, who it
+ * mentions (Step 116), where it shows too. It needs approval, from the person themself
  * once they have claimed the entry, or else from whoever can edit it; until
  * then only they and its teller see it (`stories` RLS). It shows wherever
  * the entry does in full, to that tree's members.
@@ -53,7 +54,23 @@ export type EntryStory = {
   canStopSharing: boolean;
   /** The viewer's own working link to it, once they've shared it. */
   shareUrl: string | null;
+  /** Who a written story mentions (Step 116), as far as the viewer may
+   *  see, each with their answer. */
+  mentions: StoryMention[];
+  /** Who it's about, when it's on this sheet because it mentions this
+   *  person (Step 116); null on its own person's sheet. */
+  about: { id: string; name: string } | null;
+  /** This person's answer to being mentioned in it, when it's here for
+   *  that; null otherwise. */
+  mentionStatus: EntryStory["status"] | null;
+  /** Waiting on the viewer to answer for this person being mentioned. */
+  canDecideMention: boolean;
+  /** The viewer may take it off this person's sheet. */
+  canRemoveMention: boolean;
 };
+
+/** Someone a written story mentions (Step 116), and their answer. */
+export type StoryMention = { id: string; name: string; status: EntryStory["status"] };
 
 /** A comment on a story (Step 88.4). */
 export type StoryComment = {
@@ -78,6 +95,23 @@ export function storyLinkUrl(token: string): string {
 
 function asStatus(status: string): EntryStory["status"] {
   return status === "approved" || status === "declined" ? status : "pending";
+}
+
+/** The mentions a database row holds, whatever its shape (`jsonb`). */
+function asMentions(value: unknown): StoryMention[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((m): StoryMention[] => {
+    if (!m || typeof m !== "object") return [];
+    const { id, name, status } = m as Record<string, unknown>;
+    if (typeof id !== "string") return [];
+    return [
+      {
+        id,
+        name: typeof name === "string" && name ? name : "A relative",
+        status: asStatus(typeof status === "string" ? status : ""),
+      },
+    ];
+  });
 }
 
 /**
@@ -129,6 +163,14 @@ export async function listStories(
     canShare: r.can_share ?? false,
     canStopSharing: r.can_stop_sharing ?? false,
     shareUrl: r.my_link ? storyLinkUrl(r.my_link) : null,
+    mentions: asMentions(r.mentions),
+    about:
+      r.about_id && r.about_id !== personId
+        ? { id: r.about_id, name: r.about_name || "A relative" }
+        : null,
+    mentionStatus: r.mention_status ? asStatus(r.mention_status) : null,
+    canDecideMention: r.can_decide_mention ?? false,
+    canRemoveMention: r.can_remove_mention ?? false,
   }));
 }
 

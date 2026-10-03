@@ -8,6 +8,7 @@ import { DateField } from "@/components/date-field";
 import { FormError } from "@/components/form-error";
 import { PendingButton } from "@/components/pending-button";
 import { CompanionPicker, type CompanionOption } from "@/components/tree/companion-picker";
+import { StoryMentionsField } from "@/components/tree/story-mentions-field";
 import { StoryRecordingField, type RecordingChoice } from "@/components/tree/story-recording-field";
 import { StoryTextFields } from "@/components/tree/story-text-fields";
 import { Button } from "@/components/ui/button";
@@ -100,8 +101,10 @@ const NONE_SHOWN: Record<StoryCreditRole, boolean> = {
  * Tell a story about someone (Step 88.3). It first asks which (Step 113):
  * **write a story**, in a big window with room for a whole one, or **upload
  * a recording**; either may have a title, and a recording a description
- * (Step 115). It may say when it was told and
- * credit people on the tree as its storytellers and interviewers (Step 99).
+ * (Step 115). It may say when it was told. A recording may credit people on
+ * the tree as its storytellers and interviewers (Step 99); a written story
+ * tags the people it mentions instead, those its words name offered first
+ * (Step 116).
  * A picked recording is shrunk as soon as it's picked, and played back here
  * before it goes. A form is its labels. Loaded only once someone opens it.
  */
@@ -137,6 +140,8 @@ export function StoryDialog({
   const focusTold = React.useRef(false);
   const [credits, setCredits] = React.useState(EMPTY_CREDITS);
   const [creditsShown, setCreditsShown] = React.useState(NONE_SHOWN);
+  // Who a written story mentions (Step 116).
+  const [mentions, setMentions] = React.useState<string[]>([]);
   const [recording, setRecording] = React.useState<RecordingChoice>(NO_RECORDING);
   const [preparing, setPreparing] = React.useState(false);
 
@@ -153,6 +158,7 @@ export function StoryDialog({
       setToldOpened(false);
       setToldTouched(false);
       setCredits(EMPTY_CREDITS);
+      setMentions([]);
       setCreditsShown(NONE_SHOWN);
       setRecording(NO_RECORDING);
       setPreparing(false);
@@ -202,8 +208,9 @@ export function StoryDialog({
             audioPath,
             audioSeconds: audio?.seconds ?? null,
             told,
-            storytellers: credits.storyteller,
-            interviewers: credits.interviewer,
+            storytellers: writing ? [] : credits.storyteller,
+            interviewers: writing ? [] : credits.interviewer,
+            mentions: writing ? mentions : [],
           });
           // Refused: the recording nothing took goes again.
           if (res.error && audioPath) {
@@ -272,16 +279,27 @@ export function StoryDialog({
         ) : (
           <form onSubmit={onSubmit} className="flex flex-col gap-4 pt-2">
             {writing ? (
-              <StoryTextFields
-                key={formKey}
-                idPrefix="story"
-                title={title}
-                onTitle={setTitle}
-                body={body}
-                onBody={setBody}
-                disabled={send.pending}
-                roomy
-              />
+              <>
+                <StoryTextFields
+                  key={formKey}
+                  idPrefix="story"
+                  title={title}
+                  onTitle={setTitle}
+                  body={body}
+                  onBody={setBody}
+                  disabled={send.pending}
+                  roomy
+                />
+                <StoryMentionsField
+                  key={`mentions-${formKey}`}
+                  people={people}
+                  personId={personId}
+                  body={body}
+                  value={mentions}
+                  onChange={setMentions}
+                  disabled={send.pending}
+                />
+              </>
             ) : (
               <>
                 <StoryTextFields
@@ -295,7 +313,7 @@ export function StoryDialog({
                   description
                 />
                 <StoryRecordingField
-                  key={formKey}
+                  key={`recording-${formKey}`}
                   existing={null}
                   disabled={send.pending}
                   onChange={setRecording}
@@ -335,24 +353,29 @@ export function StoryDialog({
                 Date told
               </Button>
             )}
-            <CreditField
-              label="Storyteller"
-              people={people}
-              value={credits.storyteller}
-              shown={creditsShown.storyteller}
-              onShow={() => setCreditsShown((s) => ({ ...s, storyteller: true }))}
-              onChange={(ids) => setCredits((c) => ({ ...c, storyteller: ids }))}
-              disabled={send.pending}
-            />
-            <CreditField
-              label="Interviewer"
-              people={people}
-              value={credits.interviewer}
-              shown={creditsShown.interviewer}
-              onShow={() => setCreditsShown((s) => ({ ...s, interviewer: true }))}
-              onChange={(ids) => setCredits((c) => ({ ...c, interviewer: ids }))}
-              disabled={send.pending}
-            />
+            {/* A recording is credited; a written story tags who it mentions. */}
+            {writing ? null : (
+              <>
+                <CreditField
+                  label="Storyteller"
+                  people={people}
+                  value={credits.storyteller}
+                  shown={creditsShown.storyteller}
+                  onShow={() => setCreditsShown((s) => ({ ...s, storyteller: true }))}
+                  onChange={(ids) => setCredits((c) => ({ ...c, storyteller: ids }))}
+                  disabled={send.pending}
+                />
+                <CreditField
+                  label="Interviewer"
+                  people={people}
+                  value={credits.interviewer}
+                  shown={creditsShown.interviewer}
+                  onShow={() => setCreditsShown((s) => ({ ...s, interviewer: true }))}
+                  onChange={(ids) => setCredits((c) => ({ ...c, interviewer: ids }))}
+                  disabled={send.pending}
+                />
+              </>
+            )}
             <FormError>{send.error}</FormError>
             <div className="flex gap-2">
               <PendingButton

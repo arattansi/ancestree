@@ -27,6 +27,9 @@ export const COMMENT_MAX = 2000;
 export const STORY_TITLE_MAX = 120;
 export const STORY_MAX = 200000;
 
+/** At most this many people tagged as mentioned in one story (Step 116). */
+export const STORY_MENTION_MAX = 20;
+
 /**
  * A story's recording, as stored (the `stories` bucket's limit): about an
  * hour and a quarter of speech once the browser has shrunk it.

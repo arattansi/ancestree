@@ -650,6 +650,7 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `stories`                | Stories about a person (Step 88.3, in place of the per-tree comments board): `title`, `body` and/or a recording (`audio_path` in the private `stories` bucket, `<person id>/<uuid>.<ext>`; `audio_seconds`), `pending` \| `approved` \| `declined`, `decided_by`, the tree it was told on (`tree_id`, where its teller hears back). Approved: read by members of every tree showing the person in full. Pending: its teller, and whoever approves it: the person themself once the entry is claimed or is their own and they're living (`private.story_owner`), else whoever `can_edit_person`. Declined: its teller alone. Told only through `add_story` (approved at once when the teller may approve it), answered through `decide_story`; deleted by its teller or whoever may edit the entry; read by the sheet through `entry_stories` (runs as the viewer, names each teller; since Step 88.4 also its comment count, whether a link to it works, whether the viewer may share it or turn its links off, and their own link). `links_off` (Step 88.4): its links were turned off. `body` is Markdown (Step 99; the text as written, drawn as Markdown wherever it shows; Step 113 took out the Write / Preview and file upload, so new stories are plain text in practice), up to 200,000 characters (Step 113; 20,000 before). `told_on` / `told_on_precision` (Step 99): when it was told, as much as is known, kept as a person's dates are. `created_by` is set null when their account goes |
 | `story_links`            | Public links to approved stories (Step 88.4): one working link per sharer per story (`token`, 24 URL-safe characters; `created_by`, whom the page names; `revoked_at` / `revoked_by`). A link works while the story is approved and its links aren't off (`stories.links_off`), the person isn't `hidden_from_visitors`, and its sharer is still on a tree that shows them in full (`private.story_link_live`). Made only by `share_story` (anyone who can see the story; once its links were turned off, only its person, an editor of the entry or its teller, which turns them on again), turned off by `stop_sharing_story` (every link at once; those three). A member reads only their own; the public page reads with the service role (`shared_story`) |
 | `story_credits`          | Who a story is credited to (Step 99): `(story_id, person_id, role)` with `role` `storyteller` \| `interviewer`, up to ten people each, one person may hold both. People placed in full on the tree the story is told on; set once, by `add_story` (`p_storytellers`, `p_interviewers`), with no yes of their own (the approver sees them with the story). Read by whoever reads the story (RLS follows `stories`); the sheet's `entry_stories` and the public page's `shared_story` return them as `credits`. Changed afterwards, with the date told, by `edit_story` (Steps 99.5–99.7: teller, entry editors, or the person it's about; the words by the teller alone, back to waiting unless they may approve). Cascade with the story or the person; a claim or an invited-entry merge moves a placeholder's credits across (`claim_person`, `private.merge_invited_entry`) |
+| `story_mentions`         | Who a written story mentions (Step 116): `(story_id, person_id)`, `pending` \| `approved` \| `declined`, `decided_by/at`, each approved on its own by `private.can_approve_story(person)` (at once where the teller could). Written only by `add_story` / `edit_story` (through `private.set_story_mentions`) and `decide_story_mention`; asked (`private.ask_story_mentions`, a `story_to_approve` notice) only once the story is approved. An approved story with an approved mention is read, and commented on, by anyone who can see that person (`private.can_read_story`), and shows on their sheet (`entry_stories`). Removed by the teller, or by whoever answers for or edits the person mentioned. Never the story's own person. |
 | `story_comments`         | Comments on an approved story (Step 88.4), no approval; edited by their author through `edit_story_comment` (Step 99.9, `edited_at`): read by whoever may read the story, written only by `add_story_comment` (its teller and its person are told, `story_commented`), deleted by their author, the story's teller or whoever may edit the entry; listed through `list_story_comments`. `created_by` is set null when their account goes |
 | `entry_reports`          | Problems reported with an entry (Step 88.2): `body`, `open` \| `resolved`, `resolved_by`, the tree it was raised on (`tree_id`, where its reporter hears back), and `claim_id` when it disputes that claim (one open at a time). Seen only by its reporter and whoever can fix it: `can_edit_person` for a problem, the home tree's Roots for a dispute. Written only by `report_entry` / `resolve_entry_report` / `decide_claim_dispute`; its reporter may delete (withdraw) an open one; `created_by` is set null when their account goes |
 | `album_photos`           | Album photos (Step 88.5, in place of documents): one uploaded file (`file_path` in the private `album` bucket, `<tree id>/<uuid>.<ext>`, at most 1600px, shrunk in the browser), an optional `description` (≤ 500), when it was taken (`taken_on` + `taken_on_precision`, `day` \| `month` \| `year` on the first day of its period like a person's dates, both or neither, not after tomorrow; Step 88.6), who added it (`created_by`, set null when their account goes) and the tree it was added on (`tree_id`, where they hear back). Seen by its uploader and by whoever sees one of its tags (`private.can_see_album_photo`); added only through `add_album_photo`; deleted by its uploader. It goes by itself when nobody is in it any more (`album_tags_last_gone`), and its file with the service role from the app |
@@ -1782,6 +1783,48 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 116: written stories tag who they mention** (migration
+  `20261003140000_story_mentions`). **Aalim asked:** "remove current tags
+  for written stories. replace with tags for people mentioned in the
+  story". Asked whether the story should also show on those people's
+  sheets, as a photo shows in each tagged person's album, Aalim chose
+  "Show on their sheets too". No written story had credits on live (3
+  written, 0 credited), so nothing moved.
+  **Now** Write a story has **People mentioned** in place of Storyteller
+  and Interviewer, and a recording keeps those two. People mentioned is
+  anyone on the canvas but the story's own person, offered first when the
+  text names them (`mentionedIn`, `lib/story-mentions.ts`: a full name with
+  any middle names or initials, a preferred or maiden name in either place;
+  a given name alone only if capitalised and nobody else on the tree goes
+  by it). The text is read 400ms after typing rests, from a set of word
+  runs built once: 50ms for 200,000 characters against 300 people. The
+  teller's **Edit story** on a written story edits the tags. Anyone else
+  who may edit its details gets "date told" only.
+  **Approval** works per person, as album tags do: the person themself,
+  else whoever edits their entry, approving at once where the teller could.
+  They're asked only once the story is approved, so they can read it:
+  `add_story` when it's approved at once, `decide_story` on its yes,
+  `edit_story` when it shows. The notice reads "Aalim mentioned you in a
+  story about Amarshi Sayani, waiting for your approval" (`story_to_approve`).
+  New words go back to anyone else who said yes, as a photo's do (Step
+  114). Once approved, the story shows on their sheet under "A story about
+  …", with comments, and is readable by anyone who can see them
+  (`stories_select` and `can_see_story_comments` now use
+  `private.can_read_story`). Its share links still come only from those who
+  see its own person. Whoever answers for them may **approve**, **decline**
+  or later **remove** it from their sheet. The card lists "Mentions [A] [B]",
+  each tag opening the relation card relative to the story's person; ones
+  still waiting read "(waiting)".
+  `add_story`, `edit_story` (each one more defaulted argument, old version
+  dropped in the same go), `decide_story`, `entry_stories`,
+  `can_see_story_comments` and `placeholder_entry_guard` (now also guarding
+  `story_mentions`: only a placeholder's parent mentions it) are re-made
+  from their newest files with only these lines changed.
+  **Known gaps:** a merge (claim, invite, placeholder) doesn't carry
+  mentions over (they go with the merged-away entry); the public story page
+  and the data export leave mentions out; the teller hears nothing back
+  when someone answers.
 
 - **Step 115: /features copy and two moving samples; recordings get a
   description** (no migration). **Aalim asked for:** the "what + how" copy

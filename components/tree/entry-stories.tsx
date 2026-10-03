@@ -7,7 +7,9 @@ import { Globe, MessageCircle, Mic, Pencil, Plus, Share } from "lucide-react";
 
 import {
   decideStory,
+  decideStoryMention,
   deleteStory,
+  removeStoryMention,
   shareStory,
   stopSharingStory,
 } from "@/app/actions/stories";
@@ -18,7 +20,7 @@ import { RowCard, RowList } from "@/components/row-card";
 import { sendLink } from "@/components/send-link";
 import type { CompanionOption } from "@/components/tree/companion-picker";
 import { StoryCreditTag } from "@/components/story-credit-tag";
-import { StoryCreditTags } from "@/components/story-credit-tags";
+import { StoryCreditTags, creditTagClass } from "@/components/story-credit-tags";
 import { StoryComments } from "@/components/tree/story-comments";
 import { StoryText } from "@/components/tree/story-text";
 import {
@@ -94,8 +96,10 @@ function ShareButton({
 }
 
 /**
- * One story (Step 88.3): its title, who added it and when, when it was told
- * and who it's credited to as storyteller and interviewer, each a tag that
+ * One story (Step 88.3): whom it's about, when it's here because it mentions
+ * this person (Step 116), its title, who added it and when, when it was told
+ * and who it's credited to as storyteller and interviewer, or, written, who
+ * it mentions (Step 116), each a tag that
  * opens a card saying what they are to its person ("Great-grandson of
  * Amarshi Sayani"), if anything joins them (Step 99), the
  * text (Markdown, folded when it's long) and the recording. Whoever may approve a waiting story
@@ -112,6 +116,7 @@ function StoryCard({
   canDelete,
   focused,
   onDecided,
+  onMentionDecided,
   onDeleted,
   onChanged,
 }: {
@@ -129,6 +134,8 @@ function StoryCard({
   /** A link to its comments opened the sheet. */
   focused: boolean;
   onDecided: (approved: boolean) => void;
+  /** This person's mention answered (Step 116). */
+  onMentionDecided: (approved: boolean) => void;
   onDeleted: () => void;
   onChanged: (change: Partial<EntryStory>) => void;
 }) {
@@ -163,8 +170,19 @@ function StoryCard({
   const folds = long && overflows;
   const approved = story.status === "approved";
   const told = toldLabel(story.toldOn, story.toldPrecision);
+  // Whom it's about: this person, or another it mentions this one in.
+  const aboutId = story.about?.id ?? personId;
+  const aboutName = story.about?.name ?? personName;
+  const waiting =
+    story.status === "pending" || (!!story.about && story.mentionStatus === "pending");
   return (
     <RowCard ref={cardRef} className="gap-2">
+      {story.about ? (
+        <p className="text-xs text-muted-foreground">
+          A story about{" "}
+          <span className="font-medium text-foreground">{story.about.name}</span>
+        </p>
+      ) : null}
       {story.title ? <p className="font-medium">{story.title}</p> : null}
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
         <span>
@@ -181,7 +199,7 @@ function StoryCard({
             {formatDuration(story.audioSeconds)}
           </span>
         ) : null}
-        {story.status === "pending" ? (
+        {waiting ? (
           <Badge variant="secondary">Waiting for approval</Badge>
         ) : story.status === "declined" ? (
           <Badge variant="destructive">Not approved</Badge>
@@ -197,15 +215,38 @@ function StoryCard({
         credits={story.credits}
         className="text-xs text-muted-foreground"
         tag={(p) => {
-          const relation = describeConnection?.(p.id, personId);
+          const relation = describeConnection?.(p.id, aboutId);
           return (
             <StoryCreditTag
               name={p.name}
-              relation={relation ? relationText(relation, personName) : null}
+              relation={relation ? relationText(relation, aboutName) : null}
             />
           );
         }}
       />
+      {story.mentions.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+          <span>Mentions</span>
+          {story.mentions.map((m) => {
+            if (m.status !== "approved") {
+              return (
+                <span key={m.id} className={creditTagClass}>
+                  {m.name} ({m.status === "pending" ? "waiting" : "not approved"})
+                </span>
+              );
+            }
+            const relation = describeConnection?.(m.id, aboutId);
+            return (
+              <span key={m.id} className="contents">
+                <StoryCreditTag
+                  name={m.name}
+                  relation={relation ? relationText(relation, aboutName) : null}
+                />
+              </span>
+            );
+          })}
+        </div>
+      ) : null}
       {story.body ? (
         <div className="flex flex-col items-start gap-1">
           {/* Folded by height, not lines: Markdown is blocks, not one run of text. */}
@@ -298,11 +339,50 @@ function StoryCard({
             </ActionButton>
           </>
         ) : null}
+        {story.canDecideMention ? (
+          <>
+            <ActionButton
+              size="sm"
+              action={() => decideStoryMention(story.id, personId, true)}
+              pendingLabel="approving…"
+              onSuccess={() => onMentionDecided(true)}
+            >
+              approve
+            </ActionButton>
+            <ActionButton
+              size="sm"
+              variant="outline"
+              action={() => decideStoryMention(story.id, personId, false)}
+              pendingLabel="declining…"
+              removesRow={!story.mine}
+              onSuccess={() => onMentionDecided(false)}
+            >
+              decline
+            </ActionButton>
+          </>
+        ) : null}
         {story.canEditCredits ? (
           <Button type="button" size="sm" variant="ghost" onClick={onEditCredits}>
             <Pencil aria-hidden />
-            {story.mine ? "edit" : "credits and date"}
+            {story.mine ? "edit" : story.hasRecording ? "credits and date" : "date told"}
           </Button>
+        ) : null}
+        {story.about && story.canRemoveMention && !story.canDecideMention ? (
+          <ConfirmButton
+            size="sm"
+            variant="ghost"
+            confirm={{
+              title: `Take this story off ${personName}’s details?`,
+              description: `It stays on ${story.about.name}’s.`,
+              confirmLabel: "remove",
+              pendingLabel: "removing…",
+              destructive: false,
+              onConfirm: () => removeStoryMention(story.id, personId),
+              onSuccess: onDeleted,
+            }}
+          >
+            remove
+          </ConfirmButton>
         ) : null}
         {canDelete ? (
           <ConfirmButton
@@ -444,7 +524,7 @@ export function EntryStories({
                 setCreditsMounted(true);
                 setCrediting(story);
               }}
-              canDelete={story.mine || canEdit}
+              canDelete={story.mine || (canEdit && !story.about)}
               focused={focusFound && story.id === focusStory}
               onDecided={(approved) =>
                 update((all) =>
@@ -459,6 +539,22 @@ export function EntryStories({
                           : s,
                       )
                     : // Declined, it's its teller's alone to see.
+                      all.filter((s) => s.id !== story.id),
+                )
+              }
+              onMentionDecided={(approved) =>
+                update((all) =>
+                  approved || story.mine
+                    ? all.map((s) =>
+                        s.id === story.id
+                          ? {
+                              ...s,
+                              mentionStatus: approved ? "approved" : "declined",
+                              canDecideMention: false,
+                            }
+                          : s,
+                      )
+                    : // Declined, it's off this sheet.
                       all.filter((s) => s.id !== story.id),
                 )
               }
