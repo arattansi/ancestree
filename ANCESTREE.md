@@ -1779,6 +1779,22 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 111 follow-up: the about-us copy and layout** (no migration).
+  **Aalim asked for:** the "who" page in the Marketing Site database in
+  Notion, word for word: Raiya's and Aalim's nodes joined to their wedding
+  photo, which is a node of its own ("Rattansi-Suleman", b. August 2026,
+  Vancouver, Canada), no birthdates on their nodes, then the story, and a
+  footnote ("*RIP Mitch Hedberg"). **Built:** `components/marketing/our-nodes.tsx`
+  draws their two leaves as their entries do (Burnaby and Scarborough
+  maples, Root marks, hover cards with no dates), a partner line between
+  them and a trunk from it down to the wedding card (the photo,
+  `public/about-us/wedding.jpg`, 960px wide, with the three lines under
+  it), scaled down to the column on a phone. The heading is **(about-us)**
+  as written; the story is one paragraph a line, `gap-8`, as `/pricing`;
+  the footnote sits at the foot of the column. The Elevators tree's
+  stand-in entry is now `marketingEntry` (`lib/marketing-entry.ts`), shared
+  by both.
+
 - **Step 92.5 follow-up: the header names My Family Tree on every page**
   (no migration). **Aalim said:** "make the other pages say my family tree
   too", after the home page did. **Now** the switcher says **my family

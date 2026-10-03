@@ -380,8 +380,8 @@ card wears a mark for the tree it came from, and a key names them.
 Home, **capitalism** (`/pricing`), **why** (`/manifesto`), **what + how**
 (`/features`) and **who** (`/about-us`), Step 107, in `app/(marketing)/`.
 Their tab titles are lower-case as Aalim wrote them, not Title Case. Each
-page's heading is its real name in brackets, not the menu's: **(about
-us)**, **(how to + features)**, **(product manifesto)**, **(pricing)** and
+page's heading is its real name in brackets, not the menu's:
+**(about-us)**, **(how to + features)**, **(product manifesto)**, **(pricing)** and
 **(privacy + your family's data)**. All but home are left-aligned, in the
 privacy page's column (`PageColumn`) and type: `text-2xl` heading,
 `text-sm text-muted-foreground` body.
