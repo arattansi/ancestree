@@ -1784,6 +1784,11 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 120: "free to use" on the home page** (no migration). **Aalim
+  asked:** "add a 'free to use' tag below the home page ctas". **Now** a
+  small secondary badge, "free to use", sits centred under the home page's
+  buttons, signed in or out, on a phone as well.
+
 - **Step 119: anyone can start a tree** (migration
   `20261003160000_anyone_starts_a_tree`). **Aalim asked:** "turn off the
   waitlist and remove beta tag from 'start a tree' on home page. just let

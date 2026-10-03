@@ -5,6 +5,7 @@ import { ElevatorsTree } from "@/components/marketing/elevators-tree";
 import { CenteredPage } from "@/components/page-column";
 import { RequestAccessDialog } from "@/components/request-access";
 import { StartTreeButton } from "@/components/start-tree-button";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getProfile } from "@/lib/auth";
 import { campaignHref, HOME_CAMPAIGN_CODE } from "@/lib/campaigns";
@@ -17,6 +18,7 @@ import { getTreeRequestStatus } from "@/lib/tree-requests.server";
  * looks for your family's tree first; "request access" until Step 107), or
  * start a tree: sign up through the home page's own campaign link, which
  * starts it at once (Step 119; a waitlist and a reviewer's yes until then).
+ * Under them, "free to use" (Step 120).
  * Its buttons are lower-case, as every button is
  * (docs/design-system.md). Sign in stays the filled button, for members
  * coming back. Since Step 107 it's the first of the marketing pages, and the
@@ -48,38 +50,41 @@ export default async function Home() {
               </p>
             </div>
           </div>
-          <div className="flex w-full max-w-xs flex-col gap-3 sm:w-auto sm:max-w-none sm:flex-row">
-            {profile ? (
-              <>
-                <Button
-                  nativeButton={false}
-                  render={<Link href={homeHref(profile.self_person_id)} />}
-                  size="lg"
-                >
-                  view your tree
-                </Button>
-                <StartTreeButton status={treeRequest ?? "none"} size="lg" variant="outline">
-                  start a tree
-                </StartTreeButton>
-              </>
-            ) : (
-              <>
-                <Button nativeButton={false} render={<Link href="/join" />} size="lg">
-                  sign in
-                </Button>
-                <RequestAccessDialog size="lg" variant="outline">
-                  join a tree
-                </RequestAccessDialog>
-                <Button
-                  nativeButton={false}
-                  render={<Link href={campaignHref(HOME_CAMPAIGN_CODE)} />}
-                  size="lg"
-                  variant="outline"
-                >
-                  start a tree
-                </Button>
-              </>
-            )}
+          <div className="flex w-full flex-col items-center gap-3">
+            <div className="flex w-full max-w-xs flex-col gap-3 sm:w-auto sm:max-w-none sm:flex-row">
+              {profile ? (
+                <>
+                  <Button
+                    nativeButton={false}
+                    render={<Link href={homeHref(profile.self_person_id)} />}
+                    size="lg"
+                  >
+                    view your tree
+                  </Button>
+                  <StartTreeButton status={treeRequest ?? "none"} size="lg" variant="outline">
+                    start a tree
+                  </StartTreeButton>
+                </>
+              ) : (
+                <>
+                  <Button nativeButton={false} render={<Link href="/join" />} size="lg">
+                    sign in
+                  </Button>
+                  <RequestAccessDialog size="lg" variant="outline">
+                    join a tree
+                  </RequestAccessDialog>
+                  <Button
+                    nativeButton={false}
+                    render={<Link href={campaignHref(HOME_CAMPAIGN_CODE)} />}
+                    size="lg"
+                    variant="outline"
+                  >
+                    start a tree
+                  </Button>
+                </>
+              )}
+            </div>
+            <Badge variant="secondary">free to use</Badge>
           </div>
         </CenteredPage>
       </div>
