@@ -291,7 +291,8 @@ async function main() {
   out("public/brand/ancestree-mark-512.png", await png(colour, 512));
   out("public/brand/ancestree-mark-132.png", await png(colour, 132));
 
-  // Full-bleed cream square: iOS rounds the corners itself.
+  // Full-bleed cream square (`--brand-cream` in app/globals.css): iOS rounds
+  // the corners itself.
   const inner = colour.replace(/^\s*<svg[^>]*>|<\/svg>\s*$/g, "");
   const apple = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180"><rect width="180" height="180" fill="#fbf8f1"/><g transform="translate(18 18) scale(2.25)">${inner}</g></svg>`;
   out("app/apple-icon.png", await png(apple, 180));

@@ -51,7 +51,7 @@ export default async function Home() {
             </div>
             <div className="flex max-w-xl flex-col gap-2 text-lg text-muted-foreground">
               <p className="text-balance">
-                collaborative with the people who know best: your family.
+                connect with your family, share stories, meet your ancestors.
               </p>
             </div>
           </div>

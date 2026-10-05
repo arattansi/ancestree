@@ -60,7 +60,7 @@ export function renderEmail(input: {
 
                 <img src="${getSiteUrl()}/brand/ancestree-mark-132.png" width="44" height="44" alt="" style="display:block;width:44px;height:44px;border:0;" />
                 <p style="margin:16px 0 0;font-size:20px;font-weight:600;letter-spacing:-0.02em;color:#0a0a0a;">ancestree</p>
-                <p style="margin:6px 0 0;font-size:11px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;color:#0a0a0a;">A space to grow your tree.</p>
+                <p style="margin:6px 0 0;font-size:14px;font-weight:500;letter-spacing:0.025em;font-variant:small-caps;color:#0a0a0a;">a space to grow your tree.</p>
 
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                   <tr><td style="padding:28px 0;"><div style="height:1px;background-color:#e5e5e5;line-height:1px;font-size:0;">&nbsp;</div></td></tr>
@@ -101,7 +101,7 @@ export function renderEmail(input: {
           </table>
 
           <p style="margin:20px 0 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:1.6;color:#737373;">
-            ancestree &middot; a private, invite-only family tree
+            ancestree &middot; a private family tree
           </p>
 
         </td>

@@ -27,7 +27,7 @@ export function LogoMark({ className }: { className?: string }) {
 }
 
 /** Says so wherever the mark marks someone with an account. */
-export const MEMBER_LABEL = "Ancestree member";
+export const MEMBER_LABEL = "ancestree member";
 
 /**
  * The mark in small, on a leaf or card on My Family Tree: this entry has

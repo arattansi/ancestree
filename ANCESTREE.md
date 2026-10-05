@@ -1,6 +1,7 @@
 # Ancestree
 
-Invite-only, auth-required, collaborative family-tree web app. Relatives add
+Auth-required, collaborative family-tree web app (anyone can start a tree
+since Step 119; joining one is by invite). Relatives add
 themselves and their connections into a shared, editable, canvas-style tree.
 Since Step 25 there can be many trees: a person is one entry shown on every
 tree that has brought them in, and a member's account type is per tree. The
@@ -1783,6 +1784,23 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 129: brand audit fixes** (no migration). **Aalim asked:** audit
+  the branding, write it up as a Notion page (ancestree — Brand Identity,
+  under Product, now the brand's source of truth) and fix what it found.
+  **Now** nothing calls the site invite-only (the site's description, the
+  sign-in page, which offers **start a tree** beside joining one, and the
+  emails' footer); the home page's line under the tagline, and the site's
+  description, is Aalim's new promise, "connect with your family, share
+  stories, meet your ancestors."; the tagline is written lower-case and
+  drawn in small caps in the emails as on the home page (push the auth
+  templates after the deploy: `npm run email:push`); the member mark says
+  **ancestree member**; cream is a token (`--brand-cream`);
+  `docs/design-system.md` has a **Brand** section (the mark's sizes and
+  when the one-colour mark is used, buttons kept near-black, **node** in
+  marketing and **entry** in the product, both Aalim's choices) and its
+  stale lines are fixed (**start a tree**, the **menu** button, the
+  pages' hyphenated headings).
 
 - **Step 128: two manifesto sentences** (no migration). **Aalim asked:**
   the Notion "why" page was updated. **Now** /manifesto reads "people who

@@ -53,6 +53,7 @@
   --color-tree-mark-2: var(--tree-mark-2);
   --color-brand-green: var(--brand-green);
   --color-brand-brown: var(--brand-brown);
+  --color-brand-cream: var(--brand-cream);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -67,6 +68,10 @@
      brown. The same in both themes, so .dark doesn't redefine them. */
   --brand-green: #77b255;
   --brand-brown: #a57939;
+  /* The paper the mark sits on where it needs a ground of its own: the
+     link preview and the home-screen icon, which can't read this token
+     and repeat its value (app/opengraph-image.tsx, scripts/brand-mark.ts). */
+  --brand-cream: #fbf8f1;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);

@@ -15,13 +15,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getProfile, getUser } from "@/lib/auth";
+import { campaignHref, HOME_CAMPAIGN_CODE } from "@/lib/campaigns";
 import { verifiedEmail, type FirstTimerStep } from "@/lib/first-timer";
 import { loadFirstTimerStep } from "@/lib/first-timer.server";
 import { DEFAULT_NEXT, sameOriginPath } from "@/lib/safe-next";
 
 export const metadata: Metadata = {
   title: "join",
-  description: "ancestree is invite-only. Sign in with a family invite link.",
+  description: "Sign in to ancestree, or join your family’s tree.",
 };
 
 export default async function JoinPage({
@@ -74,16 +75,24 @@ export default async function JoinPage({
             <CardContent className="flex flex-col gap-4">
               {alert}
               <MagicLinkForm next={next ?? undefined} />
-              {/* Signing in without an invite goes round the whole email loop
-                  only to land on "Almost There", so say it's invite-only
-                  before they send one (Step 30.4), as the home page does. */}
+              {/* Signing in with no tree to go to goes round the whole email
+                  loop only to land on "Almost There", so the ways in are
+                  said before they send one (Step 30.4), as the home page
+                  does: joining a tree, or starting one (Step 119). */}
               <p className="text-sm text-muted-foreground">
-                New here? ancestree is invite-only:{" "}
+                New here?{" "}
                 <Link
                   href="/request-invite"
                   className="whitespace-nowrap underline underline-offset-4"
                 >
-                  join a tree
+                  Join a tree
+                </Link>
+                ,{" "}
+                <Link
+                  href={campaignHref(HOME_CAMPAIGN_CODE)}
+                  className="whitespace-nowrap underline underline-offset-4"
+                >
+                  start a tree
                 </Link>
                 , or open the invite a relative emailed you.
               </p>

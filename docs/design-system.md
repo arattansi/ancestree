@@ -3,6 +3,38 @@
 The rules the interface follows, so a new screen looks like the rest. Add
 to this file when a rule is decided; cite it from the code that applies it.
 
+## Brand
+
+The brand's summary, and its source of truth, is the Notion page
+[ancestree — Brand Identity](https://app.notion.com/p/3f0e5c10937e81d1ad83fa9c2a749ef0):
+name, tagline and promise, the mark, colour, type, voice and vocabulary.
+This file holds the interface's rules in full; where the two disagree
+about the brand, the Notion page is right and this file is behind.
+
+- **ancestree** is lower-case everywhere, a sentence's first word
+  included, and in what a screen reader is told (**ancestree member**).
+- The tagline is **a space to grow your tree.**, written lower-case and
+  drawn in small caps with wide tracking (the home page, the emails).
+  The link preview draws capitals at that size, since an image has no
+  small caps. Under it the promise: **connect with your family, share
+  stories, meet your ancestors.**, also the site's description.
+- The mark is `public/brand/ancestree-mark.svg`, in colour, wherever it
+  can be. `ancestree-mark-mono.svg` (one colour, `currentColor`) is for
+  where colour can't be had or would fight its ground: one-ink print, a
+  photo, the brand green itself. Never recoloured, stretched or redrawn:
+  `npm run brand:build` makes every file.
+- The mark is never under 16px (its size as the member mark), and keeps a
+  quarter of its own width clear on every side.
+- The page is white, or the theme's dark. `--brand-cream` is the mark's
+  ground only where it stands alone outside the site: the link preview
+  and the home-screen icon.
+- Buttons stay near-black (white in dark), on purpose: `--brand-green`
+  and `--brand-brown` belong to the tree, its leaves and branches, and
+  the home page's **free to use**.
+- The marketing pages say **node** for a person on a tree, Aalim's word;
+  the product says **entry**, and **leaf** or **card** for how it's
+  drawn. Each keeps its own.
+
 ## Wording
 
 ### Titles: Title Case
@@ -28,7 +60,7 @@ That's the header's **admin** (a beta reviewer's, red: Step 103),
 **tree**, **connections**, **account**, **sign in** and **sign out**; the
 account page's views **profile**, **root**, **settings**; the admin
 page's tabs **newsletter**, **analytics**, **manage**; the home page's **view your tree**,
-**join a tree**, **start a tree (beta)**; and every button that does
+**join a tree**, **start a tree**; and every button that does
 something: **save**, **rename**, **delete**, **continue**, **skip for
 now**, **add a relative**, **auto-arrange**, **ask to join**. That covers,
 alike:
@@ -201,7 +233,7 @@ turn autocomplete off, or every relative is offered the member's own name
   being one tree's Root or Leaf says little across trees. Anyone with an
   account wears the **ancestree mark** in small instead, hung under the
   leaf where the account type would be, beside the tree's mark (a card's
-  bottom corner), titled **Ancestree member**: the reader, members' own
+  bottom corner), titled **ancestree member**: the reader, members' own
   entries and settled claims, and anyone a tree names Root, Branch or
   Leaf. The key lists it last. Pills stay name only.
 - On My Family Tree (Step 94) a direct relative is a card and whoever
@@ -381,7 +413,7 @@ Home, **capitalism** (`/pricing`), **why** (`/manifesto`), **what + how**
 (`/features`) and **who** (`/about-us`), Step 107, in `app/(marketing)/`.
 Their tab titles are lower-case as Aalim wrote them, not Title Case. Each
 page's heading is its real name in brackets, not the menu's:
-**(about-us)**, **(how to + features)**, **(product manifesto)**, **(pricing)** and
+**(about-us)**, **(how-to + features)**, **(product-manifesto)**, **(pricing)** and
 **(privacy + your family's data)**. All but home are left-aligned, in the
 privacy page's column (`PageColumn`) and type: `text-2xl` heading,
 `text-sm text-muted-foreground` body.
@@ -395,17 +427,17 @@ privacy page's column (`PageColumn`) and type: `text-2xl` heading,
 - The site's menu is Aalim's handwriting (Step 110,
   `components/site-nav-menu.tsx`): **who**, **what + how**, **why**,
   **capitalism**, **shh**, traced to vectors (`lib/nav-words.ts`, and as
-  SVG files in `public/brand/nav/` for anything else). Closed, the five
-  words lie on top of one another in the header, the size of
-  "ancestree" beside them: in the bar's top-left corner from 1240px,
-  just before the mark below that. Pressed, each word flies out of the
-  pile, a beat after the one before, and grows into its place in a list
-  down the left of the page, each word across where Aalim drew it and
+  SVG files in `public/brand/nav/` for anything else). Closed, it's a
+  **menu** button in the header, drawn like **tree** and **account**
+  (Step 121; ☰ on a narrow bar), solid while open. Pressed, each word
+  flies out of an unseen pile inside it, a beat after the one before,
+  and grows into its place in a list, centred on the screen or down the
+  left of the page from `xl`, each word across where Aalim drew it and
   the five evenly spaced, the page you're on boxed in a square (a 2px
-  outline in the word's ink); a × takes the pile's
-  place. It folds back the same way for the ×, Esc, a press outside or a
-  page chosen. Below `xl` the page washes back behind the list. On the
-  home page and the marketing pages it stays open from 1240px (no ×, no
+  outline in the word's ink). It folds back the same way for the button
+  again, Esc, a press outside or a page chosen. Below `xl` the page
+  washes back behind the list. On the
+  home page and the marketing pages it stays open from 1240px (no
   wash; the words fly out once the page loads, and back into the pile on
   leaving for the app); narrower, those pages work as the app does. In
   `currentColor`, so it's black or white with the theme; with reduced

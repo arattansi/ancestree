@@ -22,7 +22,8 @@ const geistMono = Geist_Mono({
   display: "swap",
 });
 
-const description = "Invite-only, collaborative family tree.";
+// The promise under the home page's tagline (the brand page in Notion).
+const description = "connect with your family, share stories, meet your ancestors.";
 
 export const metadata: Metadata = {
   // The link preview (app/opengraph-image.tsx) needs an absolute URL.

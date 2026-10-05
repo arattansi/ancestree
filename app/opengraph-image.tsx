@@ -8,7 +8,11 @@ export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
 const NAME = "ancestree";
+// The tagline is small caps everywhere; ImageResponse has none, so here
+// it's capitals at their size.
 const TAGLINE = "A SPACE TO GROW YOUR TREE.";
+/** `--brand-cream` in app/globals.css, which an image can't read. */
+const CREAM = "#fbf8f1";
 
 /**
  * Public Sans, subset to the characters drawn here. ImageResponse can't read
@@ -48,7 +52,7 @@ export default function OpengraphImage() {
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          background: "#fbf8f1",
+          background: CREAM,
           color: "#0a0a0a",
           fontFamily: "Public Sans",
         }}
