@@ -58,7 +58,8 @@ const FILLING = "border-ring ring-2 ring-ring/50";
 
 type Typing = "title" | "description";
 
-export function StoryDemo() {
+/** `turn`: its place in a `DemoQueue`. */
+export function StoryDemo({ turn }: { turn?: number }) {
   const [told, setTold] = React.useState(false);
   const [draft, setDraft] = React.useState<Draft>(EMPTY);
   const [typing, setTyping] = React.useState<Typing | null>(null);
@@ -101,6 +102,7 @@ export function StoryDemo() {
       setTyping(null);
       setPressing(false);
     },
+    turn,
   );
   const shown = reduced ? DONE : draft;
 

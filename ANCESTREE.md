@@ -1785,6 +1785,21 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 132: the /features demos take turns** (no migration). **Aalim
+  asked:** "start each animation/demo after the previous one ends or when
+  that section is scrolled to". **Before**, each demo started on its own
+  once on screen, so a tall screen played all three at once. **Now** they
+  play in page order inside a `DemoQueue` (`demo-play.tsx`, a `turn` each):
+  the add-a-relative loop first; the claim sample once it has ended or
+  been taken over (**try it yourself**); the story sample once the claim
+  sample has ended. A demo starts sooner once the visitor has scrolled and
+  it sits in the middle 30% of the screen while the one before doesn't.
+  Each still pauses off screen; **watch again** and reduced motion are
+  unchanged. My call: "scrolled to" needs a real scroll, so a tall screen
+  that shows everything at load still plays them in turn. Checked headless
+  at 1400×2000 (no scroll: leaf ends 20s → claim → story), 1400×900
+  (scroll to stories: it plays, claim waits) and 390×844 (scroll to claim:
+  it plays at once).
 - **Step 130: Upcoming and two speech bubbles on the home page's tree**
   (no migration). **Aalim asked:** on the home page's sample tree, an
   "upcoming tab" of birthdays and milestones, three or four, and a
@@ -2009,7 +2024,7 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   Description, the recording preparing, Storyteller Rumi, Interviewer
   André), **add**, then the story as Rumi's stories show it, "Waiting for
   approval". Each plays once when first on screen, then shows **watch
-  again** inside its card (`useSamplePlay` in `demo-play.ts`, which the
+  again** inside its card (`useSamplePlay` in `demo-play.tsx`, which the
   Step 112 demo now shares its helpers with; `watch-again.tsx`); with
   reduced motion they show the last frame. From `lg` they are 160px and 168px
   tall, under their words' 172px (they grow on a phone, where they sit

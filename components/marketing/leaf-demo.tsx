@@ -4,8 +4,10 @@ import * as React from "react";
 
 import {
   play,
+  useLookedAt,
   useOnScreen as useSeen,
   useReducedMotion,
+  useTurn,
   waiter,
 } from "@/components/marketing/demo-play";
 import { bladeTop, LeafCard } from "@/components/tree/leaf-card";
@@ -145,21 +147,24 @@ type Demo = {
   firstFieldRef: (el: HTMLInputElement | null) => void;
   /** Whether a half is on screen: the loop waits while neither is. */
   setOnScreen: (part: Part, onScreen: boolean) => void;
+  /** Its place in a `DemoQueue`. */
+  turn?: number;
 };
 
 type Part = "form" | "tree";
 
-/** Reports to the loop whether `ref`'s element is on screen. */
+/** Reports to the loop, and the queue, whether `ref`'s element is on screen. */
 function useOnScreen(
   ref: React.RefObject<HTMLElement | null>,
   part: Part,
-  setOnScreen: Demo["setOnScreen"],
+  { setOnScreen, turn }: Demo,
 ) {
   const report = React.useCallback(
     (onScreen: boolean) => setOnScreen(part, onScreen),
     [part, setOnScreen],
   );
   useSeen(ref, report);
+  useLookedAt(ref, turn);
 }
 
 const DemoContext = React.createContext<Demo | null>(null);
@@ -173,10 +178,17 @@ function useDemo(): Demo {
 /**
  * Holds the demo's state for its two halves, which sit in different
  * columns of the page (`LeafDemoForm`, `LeafDemoTree`), and plays the loop
- * while it's on screen. With reduced motion there is no loop: the sample
- * is there from the start.
+ * while it's on screen and its `turn` in a `DemoQueue`; it has ended for
+ * the queue once played or taken over. With reduced motion there is no
+ * loop: the sample is there from the start.
  */
-export function LeafDemo({ children }: { children: React.ReactNode }) {
+export function LeafDemo({
+  turn,
+  children,
+}: {
+  turn?: number;
+  children: React.ReactNode;
+}) {
   const [mode, setMode] = React.useState<Mode>("loop");
   const [tree, setPeople] = React.useState<DemoPerson[]>(ROOT);
   const [draft, setDraft] = React.useState<Person>(EMPTY);
@@ -199,9 +211,10 @@ export function LeafDemo({ children }: { children: React.ReactNode }) {
   // With less motion, no loop: the sample as the loop would leave it.
   const people = reduced && mode === "loop" ? SAMPLE : tree;
   const finished = mode === "loop" && (reduced || ended);
+  const go = useTurn(turn, finished || mode === "try");
 
   React.useEffect(() => {
-    if (mode !== "loop" || reduced) return;
+    if (mode !== "loop" || reduced || !go) return;
     let stopped = false;
     // Waits while the demo is scrolled out of view or its tab is hidden:
     // the loop picks up where it was left.
@@ -259,7 +272,7 @@ export function LeafDemo({ children }: { children: React.ReactNode }) {
       setPressing(false);
       setEnded(false);
     };
-  }, [mode, reduced]);
+  }, [mode, reduced, go]);
 
   const resetForm = () => {
     setDraft(EMPTY);
@@ -290,6 +303,7 @@ export function LeafDemo({ children }: { children: React.ReactNode }) {
     setOf,
     firstFieldRef,
     setOnScreen,
+    turn,
     add: () => {
       if (
         mode !== "try" ||
@@ -356,7 +370,7 @@ export function LeafDemoForm() {
   const done = !looping && demo.left <= 0;
   const id = React.useId();
   const box = React.useRef<HTMLDivElement>(null);
-  useOnScreen(box, "form", demo.setOnScreen);
+  useOnScreen(box, "form", demo);
   const takeOver = looping ? () => demo.tryIt(false) : undefined;
 
   return (
@@ -532,7 +546,8 @@ const GLIDE = "duration-500 ease-out";
  * it, the leaves already there shrink so it all still fits.
  */
 export function LeafDemoTree({ className }: { className?: string }) {
-  const { people, draft, relation, of, left, setOnScreen } = useDemo();
+  const demo = useDemo();
+  const { people, draft, relation, of, left } = demo;
   const frame = React.useRef<HTMLDivElement>(null);
   const [frameWidth, setFrameWidth] = React.useState<number | null>(null);
 
@@ -545,7 +560,7 @@ export function LeafDemoTree({ className }: { className?: string }) {
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
-  useOnScreen(frame, "tree", setOnScreen);
+  useOnScreen(frame, "tree", demo);
 
   const drafting =
     left > 0 &&

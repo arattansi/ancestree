@@ -39,7 +39,8 @@ const EMAIL = "andre@example.com";
 /** How small the leaf is drawn. */
 const SCALE = 0.6;
 
-export function ClaimDemo() {
+/** `turn`: its place in a `DemoQueue`. */
+export function ClaimDemo({ turn }: { turn?: number }) {
   const [stage, setStage] = React.useState<Stage>("closed");
   const [email, setEmail] = React.useState("");
   // The pointer: off to the side, on the leaf, or pressing it.
@@ -72,6 +73,7 @@ export function ClaimDemo() {
       setPointer("away");
       setPressing(false);
     },
+    turn,
   );
   const shown = reduced ? "claimed" : stage;
   const open = shown !== "closed";
