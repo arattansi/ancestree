@@ -423,7 +423,16 @@ privacy page's column (`PageColumn`) and type: `text-2xl` heading,
   family drawn as a spotlight draws one, with the canvas's own leaves,
   account marks and branches, faded back. A leaf says how they're related
   (**me**, **you**, **your momma**, **your cousin, too**); hovered, it comes
-  forward and its card shows a made-up name, as on the canvas.
+  forward and its card shows a made-up name, as on the canvas. Over it,
+  as on a tree in use (Step 130): the canvas's **Upcoming** card, open in
+  the top right corner (clear of the menu held open on the left), with
+  the family's next four birthdays and anniversaries, each named as their
+  leaf is (**your momma**, **me & you**), counted from today; and two
+  speech bubbles by a leaf saying what that relative just did (**shared a
+  story about your great-great-grandmother**, **uploaded a family photo
+  from your wedding**), which keep their size as the tree scales. Samples:
+  nothing in them is pressed. The bubbles show from `md`, the card from
+  `lg` and only where the whole family fits.
 - The site's menu is Aalim's handwriting (Step 110,
   `components/site-nav-menu.tsx`): **who**, **what + how**, **why**,
   **capitalism**, **shh**, traced to vectors (`lib/nav-words.ts`, and as

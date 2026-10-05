@@ -228,6 +228,43 @@ export const ELEVATORS_FAMILIES: ElevatorsFamily[] = [
 export const ELEVATORS_SIBLINGS: [string, string][] = [["momma", "auntie"]];
 
 /**
+ * What's coming up in the family (Step 130), for the sample **Upcoming**
+ * card on the home page: who, what, how many days from whenever it's
+ * looked at, and the age or years it marks. A few, as Aalim asked.
+ */
+export type ElevatorsOccasion = {
+  kind: "birthday" | "anniversary";
+  people: string[];
+  daysAway: number;
+  years: number;
+};
+
+export const ELEVATORS_UPCOMING: ElevatorsOccasion[] = [
+  { kind: "birthday", people: ["momma"], daysAway: 0, years: 70 },
+  { kind: "anniversary", people: ["me", "you"], daysAway: 1, years: 5 },
+  { kind: "birthday", people: ["niece"], daysAway: 4, years: 6 },
+  { kind: "birthday", people: ["sis"], daysAway: 11, years: 30 },
+];
+
+/** What a relative just did, said in a bubble by their leaf (Step 130):
+ *  Aalim's two lines. Each sits where a page's words and the Upcoming card
+ *  in the top corner never reach, at any size: your cousin's under their
+ *  leaf, over the trunk down to their kids, and mine over my leaf, whose
+ *  wedding it was as well. */
+export const ELEVATORS_BUBBLES: {
+  id: string;
+  says: string;
+  side: "over" | "under";
+}[] = [
+  {
+    id: "cousin",
+    says: "shared a story about your great-great-grandmother",
+    side: "under",
+  },
+  { id: "me", says: "uploaded a family photo from your wedding", side: "over" },
+];
+
+/**
  * Room left around the leaves: a blade overhangs its card box, a bracket
  * rises over its row, and the account mark hangs under the leaf.
  */

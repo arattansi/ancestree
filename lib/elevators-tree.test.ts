@@ -3,10 +3,12 @@ import { describe, expect, it } from "vitest";
 import {
   ELEVATORS_BASE_X,
   ELEVATORS_BOUNDS,
+  ELEVATORS_BUBBLES,
   ELEVATORS_COUPLES,
   ELEVATORS_FAMILIES,
   ELEVATORS_PEOPLE,
   ELEVATORS_SIBLINGS,
+  ELEVATORS_UPCOMING,
   elevatorsPerson,
 } from "@/lib/elevators-tree";
 import { nativeLeaf } from "@/lib/native-leaf";
@@ -106,6 +108,25 @@ describe("the Elevators tree", () => {
       expect(p.y).toBeGreaterThan(top);
       expect(p.x + NODE_W).toBeLessThan(left + width);
       expect(p.y + NODE_H).toBeLessThan(top + height);
+    }
+  });
+
+  it("has a few things coming up, soonest first, and two bubbles (Step 130)", () => {
+    expect(ELEVATORS_UPCOMING.length).toBeGreaterThanOrEqual(3);
+    expect(ELEVATORS_UPCOMING.length).toBeLessThanOrEqual(4);
+    const days = ELEVATORS_UPCOMING.map((o) => o.daysAway);
+    expect(days).toEqual([...days].sort((a, b) => a - b));
+    for (const o of ELEVATORS_UPCOMING) {
+      expect(o.people).toHaveLength(o.kind === "anniversary" ? 2 : 1);
+      o.people.forEach((id) => expect(elevatorsPerson(id)).toBeDefined());
+    }
+    expect(ELEVATORS_BUBBLES.map((b) => b.says).sort()).toEqual([
+      "shared a story about your great-great-grandmother",
+      "uploaded a family photo from your wedding",
+    ]);
+    // Only someone with an account shares anything.
+    for (const { id } of ELEVATORS_BUBBLES) {
+      expect(elevatorsPerson(id).account).not.toBeNull();
     }
   });
 });

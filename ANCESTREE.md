@@ -1785,6 +1785,20 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 130: Upcoming and two speech bubbles on the home page's tree**
+  (no migration). **Aalim asked:** on the home page's sample tree, an
+  "upcoming tab" of birthdays and milestones, three or four, and a
+  dialogue cloud over a node saying "shared a story about your
+  great-great-grandmother" and another saying "uploaded a family photo
+  from your wedding". **Now** the Elevators tree has the canvas's
+  **Upcoming** card open in its top right corner (your momma turns 70
+  today, me & you's 5th anniversary tomorrow, your niece, your sis; days
+  counted from today) and two bubbles: the story under your cousin,
+  too's leaf, the photo over mine. My calls: who says what, the card on
+  the right since the menu holds the left, bubbles from `md` and the
+  card from `lg` where the whole family fits, so a phone shows neither.
+  `ELEVATORS_UPCOMING`, `ELEVATORS_BUBBLES` in `lib/elevators-tree.ts`.
+
 - **Step 129: brand audit fixes** (no migration). **Aalim asked:** audit
   the branding, write it up as a Notion page (ancestree — Brand Identity,
   under Product, now the brand's source of truth) and fix what it found.
