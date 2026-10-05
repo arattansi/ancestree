@@ -1323,11 +1323,12 @@ mirror it for the UI.
   Uganda") with **Change**, then a photo and whatever else is empty
   (`blankFields`; a middle, preferred or maiden name is offered, never
   "missing").
-  Change opens every name and birth field. **Save and see the tree** (one
-  `updatePerson` for the details, `setPersonPhoto` for a photo) or **Skip
-  for now** opens the tree on them. A member who brings their own entry to
+  Change opens every name and birth field. **Save and see my family tree**
+  (one `updatePerson` for the details, `setPersonPhoto` for a photo) or
+  **Skip for now** opens My Family Tree, which offers the tree they joined
+  (Step 131). A member who brings their own entry to
   a claim invite's tree (Step 41.3) gets `/welcome?returning=1` instead:
-  "Welcome to {tree}", who added them, their entry, and **See the tree**,
+  "Welcome to {tree}", who added them, their entry, and **See my family tree**,
   with nothing to fill in; none at all on a tree they were on already.
   `redeem_invite_tree` says which, as things stood before it redeemed the
   invite: `claim_invite`, `had_entry`, `was_member`. Plain and founder
@@ -1800,6 +1801,30 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   at 1400×2000 (no scroll: leaf ends 20s → claim → story), 1400×900
   (scroll to stories: it plays, claim waits) and 390×844 (scroll to claim:
   it plays at once).
+
+- **Step 131: joining lands on My Family Tree; a tree opens on you;
+  closing a spotlight stays put** (no migration). **Aalim asked:** someone
+  invited to claim an entry, or who joins once their request is approved,
+  should finish on their default view, My Family Tree, not on the tree
+  they joined, and be offered that tree from there; on a tree, leaving a
+  spotlight shouldn't zoom out to the whole tree but stay on that person
+  among whoever stands around them; and a tree they're on should open at
+  a spotlight's zoom with them in the middle. **Now** the welcome's
+  buttons (**save and see my family tree**, **skip for now**), adding
+  yourself on onboarding, and accepting an invite whose tree shows your
+  entry all go to `/family?joined=<tree>` (`joinedFamilyHref`), where a
+  card over the tip says "You're on {tree} now." with **view {tree}**
+  (`JoinedTreePrompt`; closing it takes `joined` off the address). On a
+  tree's canvas, closing a person's tree keeps the zoom and centres their
+  card (`centreOf`), and a tree showing your own entry opens centred on
+  you at the zoom your own tree would be pulled out at
+  (`spotlightZoomOf`), nothing pulled out; a view kept from earlier in
+  the tab still comes back first. My calls: My Family Tree itself still
+  closes back to all of it, as does a lit connection between two people;
+  a tree you were on already, or have just started from a campaign link,
+  still opens on you there; the canvas's fit button is the way back to
+  the whole tree.
+
 - **Step 130: Upcoming and two speech bubbles on the home page's tree**
   (no migration). **Aalim asked:** on the home page's sample tree, an
   "upcoming tab" of birthdays and milestones, three or four, and a

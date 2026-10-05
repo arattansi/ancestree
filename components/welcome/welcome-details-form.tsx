@@ -25,7 +25,6 @@ import { parseCrop } from "@/lib/image-crop";
 import { personDisplayName, personInitials } from "@/lib/person-name";
 import { personSchema, type PersonFormValues } from "@/lib/person-schema";
 import { discardPhoto, uploadPhoto } from "@/lib/photo-upload";
-import { treeFocusHref } from "@/lib/tree-links";
 import {
   enteredLine,
   missesAnything,
@@ -36,10 +35,11 @@ import {
  * Their entry on the welcome (Step 50), theirs since a moment ago: what a
  * relative entered at the top, a photo and whatever's empty below it, and
  * "Change" for the rest (docs/design-system.md, "Step-by-step flows").
- * Saving, or skipping, opens the tree on them.
+ * Saving, or skipping, opens My Family Tree (`doneHref`, Step 131).
  */
 export function WelcomeDetailsForm({
   homeTreeId,
+  doneHref,
   entry,
   photoUrl,
   birthPlace,
@@ -47,6 +47,8 @@ export function WelcomeDetailsForm({
 }: {
   /** Where the entry's photos live. */
   homeTreeId: string;
+  /** Where saving, or skipping, goes. */
+  doneHref: string;
   entry: WelcomeEntry & { id: string; photo_crop: unknown };
   photoUrl: string | null;
   /** The place of birth as it's recorded, for the line at the top. */
@@ -136,7 +138,7 @@ export function WelcomeDetailsForm({
       },
       // Here, so the button stays busy until the tree shows: pressed again
       // on the way, it would upload the photo a second time.
-      { onSuccess: () => router.push(treeFocusHref(personId)) },
+      { onSuccess: () => router.push(doneHref) },
     ),
   );
 
@@ -203,14 +205,14 @@ export function WelcomeDetailsForm({
             pendingLabel="saving…"
             disabled={photo.busy || !somethingToSave || !isValid}
           >
-            save and see the tree
+            save and see my family tree
           </PendingButton>
           <Button
             nativeButton={false}
-            render={<Link href={treeFocusHref(personId)} />}
+            render={<Link href={doneHref} />}
             variant="ghost"
           >
-            {missesAnything(asks) ? "skip for now" : "see the tree"}
+            {missesAnything(asks) ? "skip for now" : "see my family tree"}
           </Button>
         </div>
       </form>

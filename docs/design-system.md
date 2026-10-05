@@ -479,4 +479,5 @@ privacy page's column (`PageColumn`) and type: `text-2xl` heading,
   at the top, as a line under their name with **Change** to open every
   field, and asks below it only for a photo and what's empty. A middle,
   preferred or maiden name is offered as a link, never counted as missing. Its
-  buttons are **save and see the tree** and **skip for now**.
+  buttons are **save and see my family tree** and **skip for now**; both
+  open My Family Tree, which offers the tree they joined (Step 131).

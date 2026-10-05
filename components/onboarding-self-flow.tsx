@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import type { TreeMemberOption } from "@/components/relationship-picker";
 import { useAction } from "@/components/use-action";
 import type { Bloodline } from "@/lib/bloodline";
-import { welcomeHref } from "@/lib/tree-links";
+import { joinedFamilyHref, welcomeHref } from "@/lib/tree-links";
 import {
   canSearchName,
   type OnboardingStart,
@@ -104,6 +104,8 @@ export function OnboardingSelfFlow({
           isAdmin={isAdmin}
           members={members}
           initialName={{ first_name: first, last_name: last }}
+          // My Family Tree, which offers this tree (Step 131).
+          doneHref={joinedFamilyHref(treeId)}
           bloodline={bloodline}
         />
         {treeIsEmpty ? null : (

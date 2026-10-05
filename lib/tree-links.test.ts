@@ -213,6 +213,25 @@ describe("joinedTreeHref", () => {
     ).toBe("/tree?person=own");
   });
 
+  it("lands on My Family Tree, offering the tree that was joined", () => {
+    const joined = {
+      treeId: "t 1",
+      selfPersonId: "own",
+      selfPlaced: true,
+      claimInvite: false,
+      hadEntry: true,
+      wasMember: false,
+    };
+    expect(joinedTreeHref(joined)).toBe("/family?joined=t%201");
+    // A tree they were on already, or have just started, opens on them.
+    expect(joinedTreeHref({ ...joined, wasMember: true })).toBe(
+      "/tree?person=own",
+    );
+    expect(joinedTreeHref({ ...joined, founded: true })).toBe(
+      "/tree?person=own",
+    );
+  });
+
   it("sends a claim invite whose claim didn't happen to onboarding", () => {
     // The entry went to someone else, or left the tree, meanwhile.
     expect(

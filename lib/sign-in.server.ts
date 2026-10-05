@@ -183,7 +183,7 @@ export async function establishMembership(
   // founded one already — its page says which.
   if (campaign) {
     const started = await redeemCampaign(supabase, campaign, displayName);
-    return started.ok ? joinedTreeHref(started.joined) : campaignHref(campaign);
+    return started.ok ? joinedTreeHref({ ...started.joined, founded: true }) : campaignHref(campaign);
   }
   if (invite) {
     const redeemed = await redeemInvite(supabase, invite, displayName);

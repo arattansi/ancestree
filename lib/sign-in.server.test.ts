@@ -239,11 +239,11 @@ describe("establishMembership", () => {
     ).toBe("/welcome");
   });
 
-  it("opens the canvas on their own entry after an ordinary invite", async () => {
+  it("lands on My Family Tree, offering the tree, after an ordinary invite (Step 131)", async () => {
     server = fakeServer(redeemed({ self_person_id: "p1", self_placed: true }));
     expect(
       await establishMembership(server as never, { invite: "tok", next: "/tree" }),
-    ).toBe("/tree?person=p1");
+    ).toBe("/family?joined=t1");
   });
 
   it("sends someone with no entry on the tree to onboarding", async () => {

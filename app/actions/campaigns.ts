@@ -98,5 +98,5 @@ export async function startTreeFromCampaign(code: string): Promise<CampaignActio
     };
   }
   revalidateTreePages();
-  redirect(joinedTreeHref(started.joined));
+  redirect(joinedTreeHref({ ...started.joined, founded: true }));
 }

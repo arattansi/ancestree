@@ -29,15 +29,19 @@ export const metadata: Metadata = {
  * tree, as who the member is there; adding goes to the tree they pick.
  *
  * Where a member lands, every visit (Step 92.5): signing in, the mark and
- * the home page come here.
+ * the home page come here. So does joining a tree (Step 131), with
+ * `?joined=` naming it for the view to offer.
  */
-export default async function MyFamilyPage() {
+export default async function MyFamilyPage({
+  searchParams,
+}: PageProps<"/family">) {
   // Read together (Step 77.1); which tree is shown by default isn't asked,
   // since the view needs only the one switched to this visit, if any.
-  const [profile, trees, chosenId] = await Promise.all([
+  const [profile, trees, chosenId, { joined }] = await Promise.all([
     getProfile(),
     listMyTrees(),
     readCurrentTreeId(),
+    searchParams,
   ]);
   if (!profile?.self_person_id || trees.length === 0) {
     // Signed out, not a member yet, on no tree (unless visiting one), or
@@ -63,6 +67,13 @@ export default async function MyFamilyPage() {
   // their trees): the canvas sends them where they'd add it. The canvas
   // itself, since a bare /tree with nothing picked comes back here.
   if (!family) redirect(treeCanvasHref());
+
+  // The tree they've just joined (Step 131: the welcome, onboarding and an
+  // accepted invite land here), when it's one of theirs.
+  const joinedTree =
+    typeof joined === "string"
+      ? (family.trees.find((t) => t.id === joined) ?? null)
+      : null;
 
   const shown = new Set(family.people.map((p) => p.id));
   return (
@@ -106,6 +117,10 @@ export default async function MyFamilyPage() {
           // Pills, not cards (Step 94), but their spouse a card (94.1).
           marriedIn: family.marriedIn,
           spouseIds: family.spouseIds,
+          // Just joined (Step 131): the view offers that tree.
+          joined: joinedTree
+            ? { id: joinedTree.id, name: joinedTree.name }
+            : null,
         }}
       />
     </main>

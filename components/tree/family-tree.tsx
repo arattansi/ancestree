@@ -54,6 +54,7 @@ import {
 } from "@/components/tree/spotlight-colours";
 import { useIsPhone, useIsSm } from "@/components/tree/use-is-phone";
 import { CanvasTip } from "@/components/tree/canvas-tip";
+import { JoinedTreePrompt } from "@/components/tree/joined-tree-prompt";
 import { ClaimSuggestions } from "@/components/tree/claim-suggestions";
 import { GettingStarted } from "@/components/tree/getting-started";
 import { bladeTop } from "@/components/tree/leaf-card";
@@ -236,6 +237,8 @@ export type FamilyView = {
   /** The viewer's own spouses (Step 94.1): married in, but a card beside
    *  them that says "Your spouse". */
   spouseIds: readonly string[];
+  /** The tree they've just joined (Step 131), offered from here. */
+  joined?: { id: string; name: string } | null;
 };
 
 type Props = {
@@ -306,6 +309,9 @@ type Props = {
    */
   homeTrees?: TreeAccess[];
 };
+
+/** As close as a pulled-out tree is ever drawn. */
+const SPOTLIGHT_ZOOM = 1.15;
 
 /**
  * How the camera moves when a click aims it: as the cards do (`.tree-pulled`
@@ -1678,9 +1684,10 @@ function Canvas({
    * Aim the camera, in both directions.
    *
    * Opening a person's tree frames the *compact* positions their cards are
-   * travelling to; closing it frames every card again, so the reader is handed
-   * back the whole family rather than left on the patch of canvas the lineage
-   * happened to occupy. Both do the arithmetic here rather than calling
+   * travelling to. Closing it on a tree leaves the camera on that person, as
+   * close as it was (Step 131), with the tree back around them; on My Family
+   * Tree, and after a connection between two people, it frames every card
+   * again. Both do the arithmetic here rather than calling
    * `fitView`, which reads the canvas's own store — during a pull-out that
    * store is a frame behind, and it holds nothing about the details sheet
    * covering the right-hand side.
@@ -1693,9 +1700,9 @@ function Canvas({
   // camera move is silently dropped. `onInit` fires earlier than that, so this
   // watches the store for the instance itself.
   const canvasReady = useStore((state: ReactFlowState) => !!state.panZoom);
-  const frame = React.useCallback(
-    (spots: XY[], panelWidth: number, maxZoom: number, instant = false) => {
-      if (spots.length === 0 || !paneWidth || !paneHeight) return;
+  const fit = React.useCallback(
+    (spots: XY[], panelWidth: number, maxZoom: number) => {
+      if (spots.length === 0 || !paneWidth || !paneHeight) return null;
       const minX = Math.min(...spots.map((s) => s.x));
       const maxX = Math.max(...spots.map((s) => s.x)) + NODE_W;
       const minY = Math.min(...spots.map((s) => s.y));
@@ -1707,20 +1714,72 @@ function Canvas({
         usableW / (maxX - minX),
         usableH / (maxY - minY),
       );
+      return {
+        x: (minX + maxX) / 2 + panelWidth / 2 / zoom,
+        y: (minY + maxY) / 2,
+        zoom,
+      };
+    },
+    [paneWidth, paneHeight],
+  );
+  const frame = React.useCallback(
+    (spots: XY[], panelWidth: number, maxZoom: number, instant = false) => {
+      const view = fit(spots, panelWidth, maxZoom);
+      if (!view) return;
       void setCenter(
-        (minX + maxX) / 2 + panelWidth / 2 / zoom,
-        (minY + maxY) / 2,
-        instant ? { zoom, duration: 0 } : { zoom, ...CAMERA },
+        view.x,
+        view.y,
+        instant
+          ? { zoom: view.zoom, duration: 0 }
+          : { zoom: view.zoom, ...CAMERA },
       );
     },
-    [paneWidth, paneHeight, setCenter],
+    [fit, setCenter],
   );
+
+  // A tree's canvas rests on one person (Step 131): the middle of their
+  // card, among whoever stands around them on the tree. My Family Tree,
+  // arranged around the viewer, rests on all of it.
+  const centreOf = React.useCallback(
+    (personId: string | null): XY | null => {
+      if (family || !personId) return null;
+      const spot = graph.layout.positions.get(personId);
+      return spot ? { x: spot.x + NODE_W / 2, y: spot.y + NODE_H / 2 } : null;
+    },
+    [family, graph.layout.positions],
+  );
+  /** As close as their own tree would be drawn, were it pulled out. */
+  const spotlightZoomOf = React.useCallback(
+    (personId: string): number => {
+      const roles = personSpotlight(personId, shownRelationships);
+      const lit = spotlightPeople(roles);
+      const compact = layoutTree(
+        shownPeople.filter((p) => lit.has(p.id)),
+        shownRelationships,
+        {
+          anchorIds: [personId],
+          compactIds: roles.siblingSpouses,
+          centreFamilies: true,
+        },
+      );
+      return (
+        fit([...compact.autoPositions.values()], 0, SPOTLIGHT_ZOOM)?.zoom ??
+        SPOTLIGHT_ZOOM
+      );
+    },
+    [shownPeople, shownRelationships, fit],
+  );
+  const flowStore = useStoreApi();
 
   /** The person whose tree the camera is currently framing. */
   const framedRef = React.useRef<string | null>(null);
+  /** The same, as their id alone: `null` for a connection, or nobody. */
+  const framedPersonRef = React.useRef<string | null>(null);
 
-  // The opening view: the whole tree, once the canvas can be aimed at all,
-  // and what this tab kept of the canvas has been brought back.
+  // The opening view, once the canvas can be aimed at all, and what this tab
+  // kept of the canvas has been brought back: a tree the viewer is on opens
+  // on them, as close as their own tree would be drawn but with nothing
+  // pulled out (Step 131); any other canvas, on all of it.
   const openedRef = React.useRef(false);
   React.useEffect(() => {
     if (!canvasReady || !paneWidth || recalled === undefined) return;
@@ -1740,14 +1799,25 @@ function Canvas({
     if (selectedId) return;
     // Instant, not animated: the opening view has nothing to animate from, and
     // an animated camera move this early is dropped before it starts.
+    const me = centreOf(selfPersonId);
+    if (me && selfPersonId) {
+      void setCenter(me.x, me.y, {
+        zoom: spotlightZoomOf(selfPersonId),
+        duration: 0,
+      });
+      return;
+    }
     frame([...graph.layout.positions.values()], 0, 1, true);
   }, [
     canvasReady,
     paneWidth,
     recalled,
     selectedId,
+    selfPersonId,
     graph.layout.positions,
     frame,
+    centreOf,
+    spotlightZoomOf,
     setCenter,
   ]);
 
@@ -1769,6 +1839,11 @@ function Canvas({
       : selectedId
         ? `${selectedId}${sheetOut ? "+sheet" : ""}`
         : null;
+    // Whoever's own tree was framed until now, for the canvas to rest on
+    // once it closes; a connection between two people has no one middle.
+    const wasOn = framedPersonRef.current;
+    framedPersonRef.current =
+      framedKey && spotlight && !path ? selectedId : null;
     // The camera put back where it was left (above) already frames it.
     if (framedRef.current === KEPT_VIEW) {
       framedRef.current = framedKey && spotlight ? framedKey : null;
@@ -1777,6 +1852,17 @@ function Canvas({
     if (!framedKey || !spotlight) {
       if (!framedRef.current) return;
       framedRef.current = null;
+      // A tree stays where the reader was (Step 131): on the person whose
+      // tree has just closed, as close as it was drawn, among whoever
+      // stands around them on the tree itself.
+      const rest = centreOf(wasOn);
+      if (rest) {
+        void setCenter(rest.x, rest.y, {
+          zoom: flowStore.getState().transform[2],
+          ...CAMERA,
+        });
+        return;
+      }
       // Back out to the whole tree, never magnified past life size.
       frame([...graph.layout.positions.values()], 0, 1);
       return;
@@ -1804,7 +1890,7 @@ function Canvas({
     const alone = graph.layout.positions.get(spotlight.anchorId);
     const target = spots.length > 0 ? spots : alone ? [alone] : [];
     if (target.length === 0) return;
-    frame(target, panel, 1.15);
+    frame(target, panel, SPOTLIGHT_ZOOM);
   }, [
     canvasReady,
     recalled,
@@ -1818,6 +1904,9 @@ function Canvas({
     paneHeight,
     graph.layout.positions,
     frame,
+    centreOf,
+    setCenter,
+    flowStore,
     aimTick,
   ]);
 
@@ -1870,7 +1959,6 @@ function Canvas({
       presenceColours([currentUserId, ...room.peers.map((p) => p.userId)]),
     [currentUserId, room.peers],
   );
-  const flowStore = useStoreApi();
   const { sendCursor } = room;
   const onCanvasPointerMove = React.useCallback(
     (event: React.PointerEvent) => {
@@ -2747,7 +2835,9 @@ function Canvas({
                   type="button"
                   className="relative tap-target text-muted-foreground hover:text-foreground"
                   onClick={() => setSelectedId(null)}
-                  aria-label="Show the whole tree again"
+                  aria-label={
+                    family ? "Show the whole tree again" : "Close their tree"
+                  }
                 >
                   ✕
                 </button>
@@ -2760,7 +2850,24 @@ function Canvas({
         ) : null}
         {/* The tip shares the pills' slot, so it steps aside while one shows. */}
         {!spotlight && !connection && !folded ? (
-          <CanvasTip family={!!family} />
+          // Sized off the canvas, not the text: a centred panel only gets the
+          // half of the canvas right of its anchor to shrink-wrap into, which
+          // on a phone stacked the tip into a tall column. 7rem keeps it
+          // clear of the zoom controls in the corner.
+          <Panel
+            position="bottom-center"
+            className="flex w-[min(28rem,calc(100%-7rem))] flex-col gap-2"
+          >
+            {/* The tree they've just joined, offered from their own view
+                (Step 131). */}
+            {family?.joined ? (
+              <JoinedTreePrompt
+                tree={family.joined}
+                currentTreeId={family.currentTreeId}
+              />
+            ) : null}
+            <CanvasTip family={!!family} />
+          </Panel>
         ) : null}
         {connection ? (
           <Panel position="bottom-center">

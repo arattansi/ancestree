@@ -81,6 +81,15 @@ export function switcherShowsMyFamily({
   return hasOwnEntry && pathname !== treeHref();
 }
 
+/**
+ * My Family Tree just after joining a tree (Step 131): where the welcome,
+ * onboarding and an accepted invite land, not on the tree that was joined.
+ * The view offers that tree from there (`joined`, read by `/family`).
+ */
+export function joinedFamilyHref(treeId: string): string {
+  return `${myFamilyHref()}?joined=${enc(treeId)}`;
+}
+
 /** The canvas opened on one person's spotlight (`FamilyTree` reads `person`). */
 export function treeFocusHref(personId: string | null | undefined): string {
   return personId ? `${treeHref()}?person=${enc(personId)}` : treeHref();
@@ -199,8 +208,8 @@ export function welcomeHref({
 }
 
 /**
- * Where accepting an invite lands (Step 30.2): their own entry when the tree
- * they joined shows it — a claim invite claims its entry as it's accepted,
+ * Where accepting an invite lands (Step 30.2): My Family Tree, which offers
+ * the tree they joined (Step 131), when that tree shows their own entry — a claim invite claims its entry as it's accepted,
  * and a member's own entry comes with them (Steps 30.9 and 41.3) — else that
  * tree's onboarding, to find or add themselves. A claim invite goes by the
  * welcome first (Step 50): with its entry theirs now, to fill it in; with
@@ -215,13 +224,22 @@ export function joinedTreeHref(joined: {
   hadEntry?: boolean;
   /** They were on the invite's tree before accepting. */
   wasMember?: boolean;
+  /** The tree that was joined. */
+  treeId?: string;
+  /** The tree is one they've just started (a campaign link): its canvas,
+   *  where a founder's first run carries on. */
+  founded?: boolean;
 }): string {
   if (!joined.selfPersonId || !joined.selfPlaced) return onboardingHref();
   if (joined.claimInvite && !joined.hadEntry) return welcomeHref();
   if (joined.claimInvite && !joined.wasMember) {
     return welcomeHref({ returning: true });
   }
-  return treeFocusHref(joined.selfPersonId);
+  // A tree they were on already, or have just started, opens on them.
+  if (!joined.treeId || joined.wasMember || joined.founded) {
+    return treeFocusHref(joined.selfPersonId);
+  }
+  return joinedFamilyHref(joined.treeId);
 }
 
 /** The member's trees, and starting one. */
