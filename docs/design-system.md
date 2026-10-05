@@ -431,7 +431,8 @@ privacy page's column (`PageColumn`) and type: `text-2xl` heading,
   speech bubbles by a leaf saying what that relative just did (**shared a
   story about your great-great-grandmother**, **uploaded a family photo
   from your wedding**), which keep their size as the tree scales. Samples:
-  nothing in them is pressed. The bubbles show from `md`, the card from
+  nothing in them is pressed, and they're faded back as far as the
+  leaves (30%), coming forward on hover. The bubbles show from `md`, the card from
   `lg` and only where the whole family fits.
 - The site's menu is Aalim's handwriting (Step 110,
   `components/site-nav-menu.tsx`): **who**, **what + how**, **why**,

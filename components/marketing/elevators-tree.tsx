@@ -109,7 +109,7 @@ const BUBBLE_AT = {
 /**
  * What a relative just did, in a speech bubble by their leaf (Step 130).
  * It keeps its own size while the tree scales under it, so its words stay
- * readable.
+ * readable, and is faded back as the leaves are, coming forward on hover.
  */
 function Bubble({
   id,
@@ -122,7 +122,7 @@ function Bubble({
   const over = side === "over";
   return (
     <div
-      className="absolute hidden md:block"
+      className="absolute hidden opacity-30 transition-opacity duration-300 hover:z-10 hover:opacity-100 md:block"
       style={{ left: p.x - left + at.x, top: p.y - top + at.y }}
     >
       <div
@@ -160,12 +160,12 @@ function when(o: ElevatorsOccasion, now: Date): string {
  * The canvas's **Upcoming** card (`components/tree/upcoming-feed.tsx`),
  * open, with the family's next few birthdays and anniversaries (Step 130):
  * a sample, so nothing in it is pressed. Each is named as their leaf is,
- * by how they're related. Its days count from today, so it's drawn once
+ * by how they're related, and faded back as the leaves are. Its days count from today, so it's drawn once
  * the browser has said what day that is.
  */
 function Upcoming({ now }: { now: Date }) {
   return (
-    <div className="absolute top-4 right-4 hidden w-64 flex-col gap-2 rounded-xl border border-border bg-card p-3 opacity-70 shadow-md transition-opacity duration-300 hover:opacity-100 lg:flex">
+    <div className="absolute top-4 right-4 hidden w-64 flex-col gap-2 rounded-xl border border-border bg-card p-3 opacity-30 shadow-md transition-opacity duration-300 hover:opacity-100 lg:flex">
       <p className="flex items-center gap-1.5 text-sm font-medium">
         <Cake className="size-3.5 text-muted-foreground" />
         Upcoming
