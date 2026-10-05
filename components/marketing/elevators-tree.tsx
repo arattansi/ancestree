@@ -127,14 +127,19 @@ function Bubble({
     >
       <div
         className={cn(
-          "absolute left-0 w-44 rounded-2xl border border-border bg-card px-3 py-2 text-xs leading-snug text-card-foreground shadow-md",
+          "absolute left-0 w-52 rounded-2xl border border-border bg-card px-3 py-2 text-xs leading-snug text-card-foreground shadow-md",
           over
             ? "bottom-2 origin-bottom-left rounded-bl-sm"
             : "top-2 origin-top-left rounded-tl-sm",
         )}
         style={{ transform: `scale(${1 / scale})` }}
       >
-        {says}
+        {says}{" "}
+        {/* Drawn as the button that would open it; a sample, so it's not
+            one. */}
+        <span className="ml-0.5 inline-block rounded-md border border-border px-1.5 text-[11px] leading-4 font-medium">
+          view
+        </span>
         {/* The tail: a corner of the card, turned to point at the leaf. */}
         <span
           className={cn(
