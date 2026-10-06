@@ -442,16 +442,18 @@ privacy page's column (`PageColumn`) and type: `text-2xl` heading,
   **menu** button in the header, drawn like **tree** and **account**
   (Step 121; ☰ on a narrow bar), solid while open. Pressed, each word
   flies out of an unseen pile inside it, a beat after the one before,
-  and grows into its place in a list, centred on the screen or down the
-  left of the page from `xl`, each word across where Aalim drew it and
-  the five evenly spaced, the page you're on boxed in a square (a 2px
-  outline in the word's ink). It folds back the same way for the button
+  and grows into its place in a tree (Step 133, `lib/nav-tree.ts`),
+  centred on the screen or down the left of the page from `xl`: **why**
+  at the top, **what + how** beneath it, **capitalism** turned upright as
+  the trunk, read from the ground up, **who** and **shh** either side of
+  it. The canopy is `brand-green`, the trunk `brand-brown`, and the page
+  you're on is encircled (a 2px outline in the word's ink). It folds back the same way for the button
   again, Esc, a press outside or a page chosen. Below `xl` the page
   washes back behind the list. On the
   home page and the marketing pages it stays open from 1240px (no
   wash; the words fly out once the page loads, and back into the pile on
-  leaving for the app); narrower, those pages work as the app does. In
-  `currentColor`, so it's black or white with the theme; with reduced
+  leaving for the app); narrower, those pages work as the app does. The
+  brand colours are the same in both themes; with reduced
   motion it opens and closes without the flight.
 - A page's words go in the gap between the parents and **me** and
   **you**, which sits in the middle of the page; the page's `main` lets

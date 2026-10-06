@@ -1786,6 +1786,29 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 133: the menu shaped as a tree** (no migration). **Aalim asked:**
+  shape the menu's words into a tree, some green as the canopy and some
+  brown as the branches and trunk, the page you're on encircled, to see
+  what it looks like and whether it works as UI; then, trying it: turn
+  **capitalism** upright as the trunk, **what + how** at the top of the
+  canopy, **who** and **why** either side of the trunk; then **why**
+  above **what + how** with **shh** where why was; then shh green. **Now**
+  the open menu is laid out by `lib/nav-tree.ts` (`NAV_TREE`,
+  `NAV_TREE_SIZE`, the same drawing pixels as `lib/nav-words.ts`, which
+  still holds the words and their order): **why** at the top, **what +
+  how** across beneath it, **capitalism** turned a quarter anticlockwise
+  to stand as the trunk, read from the ground up, with **who** to its
+  left and **shh** to its right, level with its top. Each word has a
+  `part`: the canopy (who, what + how, why, shh) is drawn in
+  `brand-green`, the trunk in `brand-brown`; the page you're on is
+  encircled (`rounded-full`, a 2px outline in the word's ink, 6px out)
+  rather than boxed. A turned word's box is its drawn box on its side,
+  and its ink is rotated inside the SVG
+  (`translate(0 width) rotate(-90)`), so the flight in and out of the
+  pile still measures plain rectangles. My calls: nothing drawn behind
+  the words (no trunk line or canopy), the brown is the brand's trunk
+  brown as it is (about 3.4:1 on white, fine for big handwriting), and
+  who and shh sit at the trunk's shoulders rather than lower.
 - **Step 132: the /features demos take turns** (no migration). **Aalim
   asked:** "start each animation/demo after the previous one ends or when
   that section is scrolled to". **Before**, each demo started on its own

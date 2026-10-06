@@ -7,12 +7,11 @@ import * as React from "react";
 import { createPortal } from "react-dom";
 
 import { Button } from "@/components/ui/button";
-import {
-  NAV_LIST_SIZE,
-  NAV_WORDS,
-  navHeldOpenOn,
-  type NavWord,
-} from "@/lib/nav-words";
+import { NAV_TREE, NAV_TREE_SIZE, type NavTreeWord } from "@/lib/nav-tree";
+import { navHeldOpenOn } from "@/lib/nav-words";
+
+/** The words, in the order they fly: the same in the pile and the tree. */
+const NAV_WORDS = NAV_TREE;
 import { cn } from "@/lib/utils";
 
 /** The open menu, in CSS pixels per pixel of Aalim's drawing. */
@@ -47,7 +46,12 @@ function useRoomForIt(): boolean {
   );
 }
 
-function Word({ word }: { word: NavWord }) {
+function Word({ word }: { word: NavTreeWord }) {
+  // A turned word's box is already on its side; its ink is turned to match,
+  // a quarter turn anticlockwise so it reads from the ground up.
+  const drawn = word.turned
+    ? { width: word.height, height: word.width }
+    : { width: word.width, height: word.height };
   return (
     <svg
       viewBox={`0 0 ${word.width} ${word.height}`}
@@ -55,7 +59,13 @@ function Word({ word }: { word: NavWord }) {
       fill="currentColor"
       aria-hidden
     >
-      <path fillRule="evenodd" d={word.d} />
+      <path
+        fillRule="evenodd"
+        d={word.d}
+        transform={
+          word.turned ? `translate(0 ${drawn.width}) rotate(-90)` : undefined
+        }
+      />
     </svg>
   );
 }
@@ -64,7 +74,9 @@ function Word({ word }: { word: NavWord }) {
  * The site's navigation in Aalim's handwriting (Step 110). In the app it's
  * a **menu** button drawn like **tree** and **account**, solid while open;
  * pressed, each of his five words flies out of it and grows into its
- * place in a list (who, what + how, why, capitalism, shh),
+ * place in a tree (Step 133, `lib/nav-tree.ts`: why over what + how,
+ * capitalism upright as the trunk, who and shh either side; the canopy
+ * green, the trunk brown, the page you're on encircled),
  * centred on the screen, or down the left of the page from `xl`, and flies
  * back when it closes: Esc, a press
  * outside, the button again, or going to a page. On the home page and
@@ -250,8 +262,8 @@ export function SiteNavMenu({ className }: { className?: string }) {
                 aria-label="Site"
                 className="fixed top-1/2 left-1/2 z-50 -translate-x-1/2 -translate-y-1/2 text-foreground xl:left-14 xl:translate-x-0"
                 style={{
-                  width: NAV_LIST_SIZE.width * LIST_SCALE,
-                  height: NAV_LIST_SIZE.height * LIST_SCALE,
+                  width: NAV_TREE_SIZE.width * LIST_SCALE,
+                  height: NAV_TREE_SIZE.height * LIST_SCALE,
                 }}
               >
                 <ul>
@@ -264,9 +276,14 @@ export function SiteNavMenu({ className }: { className?: string }) {
                         href={word.href}
                         aria-label={word.label}
                         aria-current={pathname === word.href ? "page" : undefined}
-                        // The page you're on is boxed: a square around its
-                        // word, in the word's ink.
-                        className="absolute block origin-top-left rounded-sm outline-none transition-[rotate] duration-200 hover:-rotate-3 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background aria-[current=page]:rounded-none aria-[current=page]:outline-2 aria-[current=page]:outline-solid aria-[current=page]:outline-offset-4 aria-[current=page]:outline-current"
+                        // The tree's canopy is green, its trunk brown; the
+                        // page you're on is encircled, in the word's ink.
+                        className={cn(
+                          "absolute block origin-top-left rounded-full outline-none transition-[rotate] duration-200 hover:-rotate-3 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background aria-[current=page]:outline-2 aria-[current=page]:outline-solid aria-[current=page]:outline-offset-6 aria-[current=page]:outline-current",
+                          word.part === "canopy"
+                            ? "text-brand-green"
+                            : "text-brand-brown",
+                        )}
                         style={{
                           left: word.x * LIST_SCALE,
                           top: word.y * LIST_SCALE,
