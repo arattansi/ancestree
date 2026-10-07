@@ -30,7 +30,8 @@ export default async function LibraryPage() {
     <MarketingColumn>
       <h1 className="text-2xl font-semibold tracking-tight">({BLOG_NAME})</h1>
       <MarketingCopy>
-        <p>the people our families came from, one story at a time.</p>
+        <p>when an elder dies, a library burns to the ground.</p>
+        <p>– African proverb</p>
       </MarketingCopy>
       {posts.length === 0 ? (
         <MarketingCopy>
