@@ -22,19 +22,21 @@ export default function ManifestoPage() {
         (product-manifesto)
       </h1>
       <MarketingCopy>
+        <p>this isn’t a genealogy tool.</p>
         <p>
-          we are part of a long line of people. people who were born, who lived,
-          and who died.
+          or rather, this isn’t <em>just</em> a genealogy tool.
         </p>
         <p>
-          some in the line have yet to die. and some who have yet to be born.
+          there are many great platforms that allow you to study and chart your
+          lines of descent.
         </p>
         <p>
-          they had, and will have, stories that make up their life between being
-          born and having died.
+          ancestree is as much about connecting with your family today as it is
+          about connecting with your family that has passed.
         </p>
         <p>
-          those stories are connected to us as part of that long line of people.
+          it is about stories and it is about the milestones, celebrations, and
+          memories with people that make those stories mean something.
         </p>
         <Separator />
         <p>
