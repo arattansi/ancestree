@@ -134,30 +134,42 @@ export type Database = {
       }
       blog_posts: {
         Row: {
+          announced_at: string | null
           body: string
+          cover_path: string | null
           created_at: string
           created_by: string | null
           id: string
+          kind: string
+          people: Json
           published_at: string | null
           slug: string
           title: string
           updated_at: string
         }
         Insert: {
+          announced_at?: string | null
           body?: string
+          cover_path?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
+          kind?: string
+          people?: Json
           published_at?: string | null
           slug: string
           title: string
           updated_at?: string
         }
         Update: {
+          announced_at?: string | null
           body?: string
+          cover_path?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
+          kind?: string
+          people?: Json
           published_at?: string | null
           slug?: string
           title?: string
@@ -1021,6 +1033,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      library_subscribers: {
+        Row: {
+          confirmed_at: string | null
+          created_at: string
+          email: string
+          id: string
+          token: string
+          unsubscribed_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          confirmed_at?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          token?: string
+          unsubscribed_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          confirmed_at?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          token?: string
+          unsubscribed_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       name_nicknames: {
         Row: {
@@ -2786,7 +2828,10 @@ export type Database = {
         Args: { p_slug: string }
         Returns: {
           body: string
+          cover_path: string
           id: string
+          kind: string
+          people: Json
           published_at: string
           slug: string
           title: string
@@ -2831,12 +2876,21 @@ export type Database = {
         Returns: string
       }
       create_blog_post: {
-        Args: { p_body?: string; p_title: string }
+        Args: {
+          p_body?: string
+          p_kind?: string
+          p_people?: Json
+          p_title: string
+        }
         Returns: {
+          announced_at: string | null
           body: string
+          cover_path: string | null
           created_at: string
           created_by: string | null
           id: string
+          kind: string
+          people: Json
           published_at: string | null
           slug: string
           title: string
@@ -3105,10 +3159,14 @@ export type Database = {
       list_blog_posts: {
         Args: never
         Returns: {
+          announced_at: string | null
           body: string
+          cover_path: string | null
           created_at: string
           created_by: string | null
           id: string
+          kind: string
+          people: Json
           published_at: string | null
           slug: string
           title: string
@@ -3270,7 +3328,10 @@ export type Database = {
         Args: never
         Returns: {
           body: string
+          cover_path: string
           id: string
+          kind: string
+          people: Json
           published_at: string
           slug: string
           title: string
@@ -3397,13 +3458,21 @@ export type Database = {
           score: number
         }[]
       }
+      set_blog_post_cover: {
+        Args: { p_id: string; p_path: string }
+        Returns: string
+      }
       set_blog_post_published: {
         Args: { p_id: string; p_published: boolean }
         Returns: {
+          announced_at: string | null
           body: string
+          cover_path: string | null
           created_at: string
           created_by: string | null
           id: string
+          kind: string
+          people: Json
           published_at: string | null
           slug: string
           title: string
@@ -3516,12 +3585,22 @@ export type Database = {
         }[]
       }
       update_blog_post: {
-        Args: { p_body: string; p_id: string; p_title: string }
+        Args: {
+          p_body: string
+          p_id: string
+          p_kind?: string
+          p_people?: Json
+          p_title: string
+        }
         Returns: {
+          announced_at: string | null
           body: string
+          cover_path: string | null
           created_at: string
           created_by: string | null
           id: string
+          kind: string
+          people: Json
           published_at: string | null
           slug: string
           title: string

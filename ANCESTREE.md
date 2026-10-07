@@ -1786,6 +1786,43 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 135: the library** (migration `20261007100000_library`, applied
+  live). **Aalim asked:** the blog's slug becomes `/library` (he'll draw
+  the menu word); a cover photo per post and a live preview beside the
+  editor; subscribe by RSS or email; the ancestree logo between
+  paragraphs; a sitemap for Search Console; and the posts are
+  Humans-of-New-York-style spotlights on people who have passed — an
+  individual, a couple or a family — each drawn on /library as the
+  leaf/leaves of the people profiled (first/last name, maiden name,
+  place of birth for the species), the hover over all the leaves showing
+  the cover photo, title and a preview of the text. **Now** 135.1: /blog
+  → /library everywhere, `StoryMarkdown blockMarks` draws the mark before
+  every top-level block but the first (`components/story-markdown.tsx`),
+  `app/sitemap.ts` + `app/robots.ts` (both let through `proxy.ts`), and
+  `/library/feed.xml` (RSS 2.0, linked as the page's alternate). 135.2:
+  `blog_posts` gains `kind` (person | couple | family), `cover_path` (the
+  public `library` bucket, the file shrunk in the browser to 1600px and
+  stored by the service role under the post's id, the old file removed
+  in `after()`), `people` (jsonb, cleaned by `private.blog_people`) and
+  `announced_at`; one `saveBlogPost(FormData)` action creates or updates;
+  the editor (`components/admin/admin-blog.tsx`) is a two-column form
+  with the card and the post (`components/library/post-article.tsx`) as a
+  live preview. 135.3: `components/library/library-card.tsx` draws each
+  profiled person with the canvas's own `LeafCard` via `marketingEntry` +
+  `nativeLeaf` (quiet, no dates, not marked deceased, so only the name,
+  née line and species show), the overlay on hover/focus over all the
+  leaves, the title under the leaves where there's no hover. 135.4:
+  `library_subscribers` (service role only), `subscribeToStories` sends a
+  confirm email (`lib/emails/library.ts`), `/library/subscription/<token>`
+  confirms on `?confirm=1` and unsubscribes by a button, one-click
+  unsubscribe at `/api/library/subscription/<token>`; the first publish
+  of a post claims `announced_at` and emails every confirmed subscriber
+  in `after()` (`lib/library-subscribers.server.ts`). My calls: the
+  subscribe form always says "check your email" (nothing reveals whether
+  an address is on the list); re-publishing never re-sends; a draft's
+  cover and people show in the reviewer's preview; GA is not installed on
+  the site at all, and GSC needs the domain verified before a sitemap
+  can be submitted (see the Step 135 session).
 - **Step 134: the blog** (migration `20261006100000_blog_posts`, applied
   live). **Aalim asked:** a native blog at `/blog`, titled
   **stories-of-our-wise**, with a section in the admin console for

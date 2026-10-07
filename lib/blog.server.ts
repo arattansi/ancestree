@@ -1,6 +1,6 @@
 import "server-only";
 
-import { isBlogSlug, type BlogPost } from "@/lib/blog";
+import { isBlogSlug, readBlogKind, readBlogPeople, type BlogPost } from "@/lib/blog";
 import { createClient } from "@/lib/supabase/server";
 
 type PostRow = {
@@ -8,16 +8,22 @@ type PostRow = {
   slug: string;
   title: string;
   body: string;
+  kind: string;
+  cover_path: string | null;
+  people: unknown;
   published_at: string | null;
   updated_at: string;
 };
 
-function toPost(row: PostRow): BlogPost {
+export function toPost(row: PostRow): BlogPost {
   return {
     id: row.id,
     slug: row.slug,
     title: row.title,
     body: row.body,
+    kind: readBlogKind(row.kind),
+    coverPath: row.cover_path,
+    people: readBlogPeople(row.people),
     publishedAt: row.published_at,
     updatedAt: row.updated_at,
   };

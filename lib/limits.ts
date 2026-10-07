@@ -63,3 +63,10 @@ export const DISPLAY_NAME_MAX = 60;
 /** A blog post's title, and the post itself (Step 134): a story's limits. */
 export const BLOG_TITLE_MAX = 120;
 export const BLOG_BODY_MAX = 200000;
+
+/**
+ * A library post's cover photo (Step 135): its longest side once the
+ * browser has shrunk it, and the `library` bucket's limit.
+ */
+export const BLOG_COVER_EDGE = 1600;
+export const BLOG_COVER_MAX_MB = 10;

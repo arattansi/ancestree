@@ -30,6 +30,7 @@ const PUBLIC_PREFIXES = [
   "/about-us",
   // The blog, /library (Step 134): its published posts are anyone's to read.
   "/library",
+  "/api/library/",
   // For search engines (Step 135).
   "/sitemap.xml",
   "/robots.txt",

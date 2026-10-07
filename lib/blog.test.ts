@@ -1,10 +1,17 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  BLOG_PEOPLE_MAX,
   blogExcerpt,
+  blogFeedHref,
   blogHref,
+  blogOneClickUnsubscribeHref,
   blogPostHref,
+  blogSubscriptionHref,
+  coverPhotoUrl,
   isBlogSlug,
+  readBlogKind,
+  readBlogPeople,
   readBlogPostFields,
 } from "@/lib/blog";
 import { BLOG_BODY_MAX, BLOG_TITLE_MAX } from "@/lib/limits";
@@ -31,12 +38,14 @@ describe("readBlogPostFields", () => {
       ok: true,
       title: "Our first story",
       body: "Once upon a time.",
+      kind: "person",
+      people: [],
     });
   });
 
   it("allows an empty text: a draft with only a title", () => {
-    expect(readBlogPostFields("Soon", "")).toEqual({ ok: true, title: "Soon", body: "" });
-    expect(readBlogPostFields("Soon", undefined)).toEqual({ ok: true, title: "Soon", body: "" });
+    expect(readBlogPostFields("Soon", "")).toMatchObject({ ok: true, title: "Soon", body: "" });
+    expect(readBlogPostFields("Soon", undefined)).toMatchObject({ ok: true, body: "" });
   });
 
   it("needs a title within the database's limits", () => {
@@ -77,5 +86,55 @@ describe("blogExcerpt", () => {
     );
     expect(blogExcerpt("Twenty characters!!", 20)).toBe("Twenty characters!!");
     expect(blogExcerpt("a".repeat(30), 10)).toBe("aaaaaaaaaa…");
+  });
+});
+
+describe("readBlogPeople", () => {
+  it("trims each person, keeps the nameless out, and stops at the limit", () => {
+    expect(
+      readBlogPeople([
+        { first: " Amarshi ", last: "Sayani", maiden: "", place: " Kutch,  India " },
+        { first: "", last: "", maiden: "", place: "Mombasa" },
+        "not a person",
+        { first: "Sakina", maiden: "Ladha" },
+      ]),
+    ).toEqual([
+      { first: "Amarshi", last: "Sayani", maiden: "", place: "Kutch, India" },
+      { first: "Sakina", last: "", maiden: "Ladha", place: "" },
+    ]);
+    expect(readBlogPeople("nobody")).toEqual([]);
+    expect(
+      readBlogPeople(Array.from({ length: BLOG_PEOPLE_MAX + 3 }, (_, i) => ({ first: `P${i}` }))),
+    ).toHaveLength(BLOG_PEOPLE_MAX);
+  });
+});
+
+describe("readBlogKind and the rest of the fields", () => {
+  it("falls back to a person", () => {
+    expect(readBlogKind("couple")).toBe("couple");
+    expect(readBlogKind("crowd")).toBe("person");
+    expect(readBlogKind(undefined)).toBe("person");
+    const fields = readBlogPostFields("T", "", "family", [{ first: "A", last: "B" }]);
+    expect(fields).toMatchObject({ ok: true, kind: "family" });
+    expect(fields.ok && fields.people).toHaveLength(1);
+  });
+});
+
+describe("library links", () => {
+  it("know the feed and a subscription's pages", () => {
+    expect(blogFeedHref()).toBe("/library/feed.xml");
+    expect(blogSubscriptionHref("abc")).toBe("/library/subscription/abc");
+    expect(blogSubscriptionHref("abc", true)).toBe("/library/subscription/abc?confirm=1");
+    expect(blogOneClickUnsubscribeHref("abc")).toBe("/api/library/subscription/abc");
+  });
+
+  it("address a cover photo in the public bucket", () => {
+    const was = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://x.supabase.co/";
+    expect(coverPhotoUrl("id/a b.jpg")).toBe(
+      "https://x.supabase.co/storage/v1/object/public/library/id/a%20b.jpg",
+    );
+    expect(coverPhotoUrl(null)).toBeNull();
+    process.env.NEXT_PUBLIC_SUPABASE_URL = was;
   });
 });
