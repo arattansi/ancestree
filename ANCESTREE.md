@@ -1804,8 +1804,18 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   `@next/third-parties`' `GoogleAnalytics` in the root layout, loaded
   after the page is interactive. The privacy page's "What we collect"
   says so (pages, source, device, duration; a cookie; nothing about the
-  family, never who you are). Open: the EEA consent mode GA suggests
-  isn't set up.
+  family, never who you are). Then, Aalim: set up the EEA consent mode.
+  **Now** Google's consent mode v2 (`lib/consent.ts`): a
+  `beforeInteractive` script in the root layout sets the defaults before
+  the tag loads — ads signals denied everywhere (never used), and the
+  Analytics cookie denied in the EEA, the UK and Switzerland
+  (`CONSENT_REGIONS`, Google's `region` list) unless the browser holds an
+  earlier "granted". Where Vercel's `x-vercel-ip-country` names one of
+  those countries, `components/consent-banner.tsx` asks once ("allow" /
+  "no thanks", kept in localStorage; "allow" sends Google's consent
+  update); elsewhere, and where the country is unknown (local dev),
+  nothing is asked and nothing changes. Until allowed, Analytics runs
+  cookieless there. The privacy page says so.
 - **Step 136: the menu tree redrawn, with library** (no migration).
   **Aalim asked:** update the menu tree per his new drawing — retrace the
   words and add **library**; add the asterisk by **who** and its

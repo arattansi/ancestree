@@ -1,12 +1,17 @@
 import { GoogleAnalytics } from "@next/third-parties/google";
 import type { Metadata } from "next";
 import { Public_Sans, Geist_Mono } from "next/font/google";
+import { headers } from "next/headers";
+import Script from "next/script";
 import { Suspense } from "react";
+
+import { ConsentBanner } from "@/components/consent-banner";
 
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader, SiteHeaderShell } from "@/components/site-header";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { consentDefaultScript, needsConsent } from "@/lib/consent";
 import { getSiteUrl } from "@/lib/site-url";
 
 import "./globals.css";
@@ -50,7 +55,10 @@ export const metadata: Metadata = {
   verification: { google: "s_-HgW3jWQk4FeFbjJREzJ86qOPNeLUigdUtNV0hI5I" },
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  // Where the visitor is, as Vercel says: the consent banner shows where
+  // the law asks before a cookie (Step 137). Unknown (local dev), it doesn't.
+  const askConsent = needsConsent((await headers()).get("x-vercel-ip-country"));
   return (
     <html
       lang="en"
@@ -58,6 +66,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${publicSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col bg-background text-foreground">
+        {/* Google's consent defaults, before its tag loads: the Analytics
+            cookie denied in the EEA, the UK and Switzerland until allowed. */}
+        <Script id="consent-default" strategy="beforeInteractive">
+          {consentDefaultScript()}
+        </Script>
         <ThemeProvider>
           <a
             href="#main-content"
@@ -81,6 +94,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             (Step 137): its tag on every page, loaded after the page is
             interactive. */}
         <GoogleAnalytics gaId={GA_MEASUREMENT_ID} />
+        {askConsent ? <ConsentBanner /> : null}
       </body>
     </html>
   );
