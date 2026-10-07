@@ -40,6 +40,9 @@ export const metadata: Metadata = {
     description,
   },
   twitter: { card: "summary_large_image" },
+  // Search Console's ownership tag for https://www.ancestree.space/
+  // (Step 137): the home page carries it, so the property stays verified.
+  verification: { google: "s_-HgW3jWQk4FeFbjJREzJ86qOPNeLUigdUtNV0hI5I" },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
