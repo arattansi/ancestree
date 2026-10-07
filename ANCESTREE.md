@@ -1786,6 +1786,24 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 137: Search Console and Google Analytics** (no migration).
+  **Aalim asked:** add the sitemap to his existing GSC and GA, where he
+  holds Medfair, and whether the agent could set it up. **Now** Search
+  Console has a URL-prefix property for `https://www.ancestree.space/`,
+  owned by his account and verified by the HTML meta tag
+  (`metadata.verification.google` in `app/layout.tsx`, so every page
+  carries it; the existing `google-site-verification` TXT on the domain
+  belongs to another account or service, and a Domain property would
+  need a new TXT at GoDaddy, which only Aalim can add). `/sitemap.xml`
+  is submitted there; Google showed "Couldn't fetch" at first, as it
+  does on a new property before its first crawl — the file answers
+  Googlebot with 200 and the right URLs. Analytics has a new GA4
+  property **ancestree** in the Medfair account (Canada, Toronto time,
+  CAD, People & Society, small), with the web stream `ancestree.space`
+  (Measurement ID `G-WRNLXD8WBF`), tagged on every page by
+  `@next/third-parties`' `GoogleAnalytics` in the root layout, loaded
+  after the page is interactive. Open: the privacy page says nothing
+  about Analytics yet, and the EEA consent mode GA suggests isn't set up.
 - **Step 136: the menu tree redrawn, with library** (no migration).
   **Aalim asked:** update the menu tree per his new drawing — retrace the
   words and add **library**; add the asterisk by **who** and its
