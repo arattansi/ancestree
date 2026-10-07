@@ -1786,6 +1786,27 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 134: the blog** (migration `20261006100000_blog_posts`, applied
+  live). **Aalim asked:** a native blog at `/blog`, titled
+  **stories-of-our-wise**, with a section in the admin console for
+  writing drafts and publishing from there. **Now** `/blog` is a
+  marketing page headed `(stories-of-our-wise)` listing the published
+  posts newest first (title, date, first words), each at `/blog/<slug>`
+  drawn with `StoryMarkdown`; both are public (`proxy.ts`). The admin page
+  has a fourth tab, **blog**: a draft is written there in Markdown (title +
+  text, a story's limits), and each post is edited, previewed, published,
+  unpublished and deleted (`components/admin/admin-blog.tsx`,
+  `app/actions/blog.ts`). Posts are `public.blog_posts`, RLS on with no
+  policies, reached only through definer functions: the reviewers'
+  `list_blog_posts`, `create_blog_post`, `update_blog_post`,
+  `set_blog_post_published`, `delete_blog_post`, and the readers'
+  `published_blog_posts` and `blog_post(p_slug)`, which answers a draft
+  only to a reviewer (so a reviewer previews a draft at its address;
+  anyone else gets not found). My calls: a draft's slug follows its
+  title (`private.blog_slug_for`, a random suffix when taken) and is kept
+  once published, so shared links go on working; publishing again after
+  unpublishing keeps the first date; drafts sit first on the tab; the
+  blog has no entry in the handwritten menu yet.
 - **Step 133: the menu shaped as a tree** (no migration). **Aalim asked:**
   shape the menu's words into a tree, some green as the canopy and some
   brown as the branches and trunk, the page you're on encircled, to see

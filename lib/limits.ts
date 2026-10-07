@@ -59,3 +59,7 @@ export const SUGGESTION_NOTE_MAX = 500;
 
 /** A member's display name. */
 export const DISPLAY_NAME_MAX = 60;
+
+/** A blog post's title, and the post itself (Step 134): a story's limits. */
+export const BLOG_TITLE_MAX = 120;
+export const BLOG_BODY_MAX = 200000;

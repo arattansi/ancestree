@@ -132,6 +132,39 @@ export type Database = {
           },
         ]
       }
+      blog_posts: {
+        Row: {
+          body: string
+          created_at: string
+          created_by: string | null
+          id: string
+          published_at: string | null
+          slug: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          body?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          published_at?: string | null
+          slug: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          published_at?: string | null
+          slug?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       bloodline_anchors: {
         Row: {
           created_at: string
@@ -2004,48 +2037,6 @@ export type Database = {
           },
         ]
       }
-      story_mentions: {
-        Row: {
-          created_at: string
-          decided_at: string | null
-          decided_by: string | null
-          person_id: string
-          status: string
-          story_id: string
-        }
-        Insert: {
-          created_at?: string
-          decided_at?: string | null
-          decided_by?: string | null
-          person_id: string
-          status?: string
-          story_id: string
-        }
-        Update: {
-          created_at?: string
-          decided_at?: string | null
-          decided_by?: string | null
-          person_id?: string
-          status?: string
-          story_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "story_mentions_person_id_fkey"
-            columns: ["person_id"]
-            isOneToOne: false
-            referencedRelation: "people"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "story_mentions_story_id_fkey"
-            columns: ["story_id"]
-            isOneToOne: false
-            referencedRelation: "stories"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       story_links: {
         Row: {
           created_at: string
@@ -2105,6 +2096,62 @@ export type Database = {
           },
           {
             foreignKeyName: "story_links_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "stories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      story_mentions: {
+        Row: {
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          person_id: string
+          status: string
+          story_id: string
+        }
+        Insert: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          person_id: string
+          status?: string
+          story_id: string
+        }
+        Update: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          person_id?: string
+          status?: string
+          story_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "story_mentions_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "story_mentions_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "story_mentions_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "story_mentions_story_id_fkey"
             columns: ["story_id"]
             isOneToOne: false
             referencedRelation: "stories"
@@ -2575,14 +2622,14 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "relationships_to_person_fkey"
-            columns: ["person_a"]
+            columns: ["person_b"]
             isOneToOne: false
             referencedRelation: "people"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "relationships_to_person_fkey"
-            columns: ["person_b"]
+            columns: ["person_a"]
             isOneToOne: false
             referencedRelation: "people"
             referencedColumns: ["id"]
@@ -2735,6 +2782,17 @@ export type Database = {
         }[]
       }
       beta_reviewer_emails: { Args: never; Returns: string[] }
+      blog_post: {
+        Args: { p_slug: string }
+        Returns: {
+          body: string
+          id: string
+          published_at: string
+          slug: string
+          title: string
+          updated_at: string
+        }[]
+      }
       campaign_open: { Args: { p_code: string }; Returns: string }
       can_approve_story: { Args: { p_person: string }; Returns: boolean }
       can_delete_person: { Args: { p_person_id: string }; Returns: boolean }
@@ -2771,6 +2829,25 @@ export type Database = {
           p_type: string
         }
         Returns: string
+      }
+      create_blog_post: {
+        Args: { p_body?: string; p_title: string }
+        Returns: {
+          body: string
+          created_at: string
+          created_by: string | null
+          id: string
+          published_at: string | null
+          slug: string
+          title: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "blog_posts"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       create_campaign: {
         Args: { p_name: string; p_placement?: string }
@@ -2813,6 +2890,7 @@ export type Database = {
         Args: { p_approve: boolean; p_person: string; p_story: string }
         Returns: undefined
       }
+      delete_blog_post: { Args: { p_id: string }; Returns: undefined }
       delete_tree: { Args: { p_tree: string }; Returns: Json }
       edit_album_photo: {
         Args: {
@@ -3024,6 +3102,25 @@ export type Database = {
       }
       is_beta_reviewer: { Args: never; Returns: boolean }
       is_own_child: { Args: { p_person: string }; Returns: boolean }
+      list_blog_posts: {
+        Args: never
+        Returns: {
+          body: string
+          created_at: string
+          created_by: string | null
+          id: string
+          published_at: string | null
+          slug: string
+          title: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "blog_posts"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       list_campaigns: {
         Args: never
         Returns: {
@@ -3169,6 +3266,17 @@ export type Database = {
           person_id: string
         }[]
       }
+      published_blog_posts: {
+        Args: never
+        Returns: {
+          body: string
+          id: string
+          published_at: string
+          slug: string
+          title: string
+          updated_at: string
+        }[]
+      }
       record_share_link_view: {
         Args: { p_link_id: string }
         Returns: undefined
@@ -3289,6 +3397,25 @@ export type Database = {
           score: number
         }[]
       }
+      set_blog_post_published: {
+        Args: { p_id: string; p_published: boolean }
+        Returns: {
+          body: string
+          created_at: string
+          created_by: string | null
+          id: string
+          published_at: string | null
+          slug: string
+          title: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "blog_posts"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       set_campaign_paused: {
         Args: { p_id: string; p_paused: boolean }
         Returns: {
@@ -3387,6 +3514,25 @@ export type Database = {
           tree_name: string
           tree_slug: string
         }[]
+      }
+      update_blog_post: {
+        Args: { p_body: string; p_id: string; p_title: string }
+        Returns: {
+          body: string
+          created_at: string
+          created_by: string | null
+          id: string
+          published_at: string | null
+          slug: string
+          title: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "blog_posts"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       update_campaign: {
         Args: { p_id: string; p_name: string; p_placement: string }

@@ -1,10 +1,11 @@
 /**
  * The admin page (Step 103): the beta reviewers' own page at `/admin`, in
  * tabs — the weekly newsletter, the engagement numbers, and what they
- * manage across the site. Its tabs are `?tab=` links; the first needs none.
+ * manage across the site, and the blog's drafts and posts (Step 134). Its
+ * tabs are `?tab=` links; the first needs none.
  */
 
-export const ADMIN_TABS = ["newsletter", "analytics", "manage"] as const;
+export const ADMIN_TABS = ["newsletter", "analytics", "manage", "blog"] as const;
 
 export type AdminTab = (typeof ADMIN_TABS)[number];
 

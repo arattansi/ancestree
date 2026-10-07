@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
+import { AdminBlog } from "@/components/admin/admin-blog";
 import { AdminCampaigns } from "@/components/admin/admin-campaigns";
 import { AdminAccounts, AdminTrees } from "@/components/admin/admin-manage";
 import { AdminPageTabs } from "@/components/admin/admin-page-tabs";
@@ -18,6 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { readAdminSearch } from "@/lib/admin-manage";
 import { findAccounts, findTrees } from "@/lib/admin-manage.server";
 import { readAdminTab } from "@/lib/admin-page";
+import { listBlogPosts } from "@/lib/blog.server";
 import { listCampaigns } from "@/lib/campaigns.server";
 import { getSiteUrl } from "@/lib/site-url";
 import { currentAccess, listMyTrees } from "@/lib/tree-context";
@@ -31,8 +33,9 @@ export const metadata: Metadata = { title: "admin" };
  * newsletter, the engagement numbers (both the account page's dashboard
  * view until now), and what they manage across the site: requests to
  * start a tree, out of every Root console, campaign links (Step 103.3),
- * and accounts and trees to act on (Step 103.4). Anyone else is sent on to
- * the Root console, where this address used to lead.
+ * and accounts and trees to act on (Step 103.4), and the blog's drafts and
+ * posts (Step 134). Anyone else is sent on to the Root console, where this
+ * address used to lead.
  */
 export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
   const [{ tab: requested, account, tree }, reviewer] = await Promise.all([
@@ -63,6 +66,8 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
           <NewsletterCard />
         ) : tab === "analytics" ? (
           <EngagementDashboard />
+        ) : tab === "blog" ? (
+          <BlogTab />
         ) : (
           <ManageTab
             accountQuery={readAdminSearch(account)}
@@ -138,5 +143,23 @@ async function ManageTab({
         </CardContent>
       </Card>
     </>
+  );
+}
+
+/**
+ * The blog's drafts and posts (Step 134): a draft written here, and every
+ * post to edit, preview, publish and delete.
+ */
+async function BlogTab() {
+  const posts = await listBlogPosts();
+  return (
+    <Card id="blog" className="scroll-mt-20">
+      <CardHeader>
+        <CardTitle>Stories of Our Wise</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <AdminBlog posts={posts} />
+      </CardContent>
+    </Card>
   );
 }
