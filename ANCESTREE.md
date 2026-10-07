@@ -1813,7 +1813,10 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   helper)" — and closed by its button; the About section is **Individual / Couple / Family** on
   the left with one small person container beside them, a couple or a
   family switching people with **person 1 / person 2 …** toggles along
-  its top, a family adding one with **+** and removing the shown one.
+  its top (always drawn, "person 1" alone for an individual, so nothing
+  moves when a couple or a family is picked; the kinds centred against
+  the container), a family adding one with **+** and removing the shown
+  one.
 - **Step 135: the library** (migration `20261007100000_library`, applied
   live). **Aalim asked:** the blog's slug becomes `/library` (he'll draw
   the menu word); a cover photo per post and a live preview beside the
