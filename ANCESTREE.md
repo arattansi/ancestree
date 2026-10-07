@@ -1790,19 +1790,19 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   **Aalim asked:** update the menu tree per his new drawing — retrace the
   words and add **library**; add the asterisk by **who** and its
   footnote, "* kind've a metaphor"; keep the tree green and brown, the
-  footnote black. Then: float the library editor's preview outside the
-  card, to its right, and add a Markdown helper on the left. **Now** all
-  six words are retraced from the drawing (a Python potrace port on a 4×
-  bilinear upscale of each word's ink, back to the drawing's pixels;
-  `lib/nav-words.ts`, the SVGs in `public/brand/nav/` including a new
-  `library.svg`, `asterisk.svg`, `footnote.svg` and `menu-tree.svg`), and
+  footnote black; then take the asterisk and footnote off again, and
+  sharpen the words, which looked pixelated. Then: float the library
+  editor's preview outside the card, to its right, and add a Markdown
+  helper on the left. **Now** all six words are retraced from the
+  drawing: a Python potrace port (`potracer`) on the ink's anti-aliased
+  grey, upscaled 8× bicubic with a little blur and traced with
+  `alphamax=1.3`, so every segment is a curve and none a corner (a hard
+  mask upscaled nearest-neighbour came out as pixel staircases), back to
+  the drawing's pixels; `lib/nav-words.ts`, the SVGs in
+  `public/brand/nav/` including a new `library.svg` and `menu-tree.svg`.
   `lib/nav-tree.ts` places them where he drew them (why, library, what +
-  how, who / capitalism upright / shh) rather than computing a layout;
-  `NAV_ASTERISK` sits at who's shoulder inside the tree's box and
-  `NAV_FOOTNOTE` is drawn fixed at the page's foot, beside the tree in the
-  portal rather than inside it (a fixed child of the transformed box sat
-  in the box, over the trunk). The list order (`NAV_WORDS`) is now the
-  tree's, top to bottom. In the editor, the preview is a fixed panel from
+  how, who / capitalism upright / shh) rather than computing a layout.
+  The list order (`NAV_WORDS`) is now the tree's, top to bottom. In the editor, the preview is a fixed panel from
   `xl` (`xl:w-[min(26rem,calc(50vw-26rem))]`, so it never covers the
   column), one at a time (`ActiveEditor` context: the new post's until a
   row's editor is opened or pressed), in flow below `xl`; a `<details>`
