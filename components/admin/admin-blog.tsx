@@ -350,7 +350,18 @@ function PostEditor({
         </div>
 
         <div className="flex flex-col gap-2">
-          <Label htmlFor={`${idPrefix}-body`}>Post (Markdown)</Label>
+          <Label htmlFor={`${idPrefix}-body`}>
+            Post (
+            <button
+              type="button"
+              onClick={() => setHelpOpen((o) => !o)}
+              aria-expanded={helpOpen}
+              className="underline underline-offset-4 hover:text-muted-foreground"
+            >
+              Markdown helper
+            </button>
+            )
+          </Label>
           <Textarea
             id={`${idPrefix}-body`}
             value={body}
@@ -363,17 +374,7 @@ function PostEditor({
           <FormError>
             {over > 0 ? `Too long by ${over.toLocaleString("en")} characters.` : null}
           </FormError>
-          {helpOpen ? (
-            <MarkdownHelp onClose={() => setHelpOpen(false)} />
-          ) : (
-            <button
-              type="button"
-              onClick={() => setHelpOpen(true)}
-              className="self-start text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
-            >
-              Markdown help
-            </button>
-          )}
+          {helpOpen ? <MarkdownHelp onClose={() => setHelpOpen(false)} /> : null}
         </div>
 
         <FormError>{action.error}</FormError>

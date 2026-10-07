@@ -1809,8 +1809,8 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   Markdown helper lists bold, italics, headings, points, numbers, quotes,
   links, a line and paragraphs. Then (same step): the helper is a pop-up
   that floats to the card's left from `xl` (the preview's mirror; under
-  the text box narrower), opened by a "Markdown help" link and closed by
-  its button; the About section is **Individual / Couple / Family** on
+  the text box narrower), opened from the label itself — "Post (Markdown
+  helper)" — and closed by its button; the About section is **Individual / Couple / Family** on
   the left with one small person container beside them, a couple or a
   family switching people with **person 1 / person 2 …** toggles along
   its top, a family adding one with **+** and removing the shown one.
