@@ -447,7 +447,9 @@ privacy page's column (`PageColumn`) and type: `text-2xl` heading,
   at the top, **what + how** beneath it, **capitalism** turned upright as
   the trunk, read from the ground up, **who** and **shh** either side of
   it. The canopy is `brand-green`, the trunk `brand-brown`, and the page
-  you're on is encircled (a 2px outline in the word's ink). It folds back the same way for the button
+  you're on is encircled (a 2px outline in the word's ink). Hovered or
+  focused, a word swells and tips about its middle and a faint ring (35%
+  of its ink) shows where it'd be encircled. It folds back the same way for the button
   again, Esc, a press outside or a page chosen. Below `xl` the page
   washes back behind the list. On the
   home page and the marketing pages it stays open from 1240px (no

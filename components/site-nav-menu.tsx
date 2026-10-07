@@ -55,7 +55,7 @@ function Word({ word }: { word: NavTreeWord }) {
   return (
     <svg
       viewBox={`0 0 ${word.width} ${word.height}`}
-      className="block size-full"
+      className="block size-full transition-[scale,rotate] duration-200 ease-out group-hover:-rotate-4 group-hover:scale-110 group-focus-visible:-rotate-4 group-focus-visible:scale-110 group-active:scale-95 motion-reduce:transition-none"
       fill="currentColor"
       aria-hidden
     >
@@ -278,8 +278,11 @@ export function SiteNavMenu({ className }: { className?: string }) {
                         aria-current={pathname === word.href ? "page" : undefined}
                         // The tree's canopy is green, its trunk brown; the
                         // page you're on is encircled, in the word's ink.
+                        // Hovered, a word swells and tips about its middle
+                        // (its ink, so the flight's top-left origin holds)
+                        // and a faint ring shows where it'd be encircled.
                         className={cn(
-                          "absolute block origin-top-left rounded-full outline-none transition-[rotate] duration-200 hover:-rotate-3 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background aria-[current=page]:outline-2 aria-[current=page]:outline-solid aria-[current=page]:outline-offset-6 aria-[current=page]:outline-current",
+                          "group absolute block origin-top-left rounded-full outline-2 outline-offset-6 outline-transparent outline-solid transition-[outline-color] duration-200 hover:outline-current/35 focus-visible:outline-current/35 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background aria-[current=page]:outline-current",
                           word.part === "canopy"
                             ? "text-brand-green"
                             : "text-brand-brown",

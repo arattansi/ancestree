@@ -1809,6 +1809,12 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   the words (no trunk line or canopy), the brown is the brand's trunk
   brown as it is (about 3.4:1 on white, fine for big handwriting), and
   who and shh sit at the trunk's shoulders rather than lower.
+  **Then Aalim asked:** the words should answer a hover, not only a
+  press (the old 3° tilt from the top-left corner went unnoticed). Now a
+  hovered or focused word's ink swells to 110% and tips 4° about its
+  middle (on the SVG, so the link keeps the top-left origin the flight
+  measures from), presses down to 95%, and a faint ring, the current
+  page's outline at 35% of the word's ink, fades in around it.
 - **Step 132: the /features demos take turns** (no migration). **Aalim
   asked:** "start each animation/demo after the previous one ends or when
   that section is scrolled to". **Before**, each demo started on its own
