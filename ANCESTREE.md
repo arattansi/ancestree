@@ -1807,7 +1807,13 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   column), one at a time (`ActiveEditor` context: the new post's until a
   row's editor is opened or pressed), in flow below `xl`; a `<details>`
   Markdown helper lists bold, italics, headings, points, numbers, quotes,
-  links, a line and paragraphs.
+  links, a line and paragraphs. Then (same step): the helper is a pop-up
+  that floats to the card's left from `xl` (the preview's mirror; under
+  the text box narrower), opened by a "Markdown help" link and closed by
+  its button; the About section is **Individual / Couple / Family** on
+  the left with one small person container beside them, a couple or a
+  family switching people with **person 1 / person 2 …** toggles along
+  its top, a family adding one with **+** and removing the shown one.
 - **Step 135: the library** (migration `20261007100000_library`, applied
   live). **Aalim asked:** the blog's slug becomes `/library` (he'll draw
   the menu word); a cover photo per post and a live preview beside the

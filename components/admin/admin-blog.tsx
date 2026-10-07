@@ -78,11 +78,24 @@ const MARKDOWN_HELP: [syntax: string, means: string][] = [
   ["blank line", "a new paragraph (the mark goes between them)"],
 ];
 
-function MarkdownHelp() {
+/**
+ * The helper, while it's open: a pop-up to the card's left from `xl`
+ * (the preview's mirror), under the text box narrower.
+ */
+function MarkdownHelp({ onClose }: { onClose: () => void }) {
   return (
-    <details className="rounded-md border px-3 py-2 text-xs text-muted-foreground">
-      <summary className="cursor-pointer font-medium text-foreground">Markdown</summary>
-      <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+    <div
+      role="dialog"
+      aria-label="Markdown"
+      className="rounded-lg border bg-background p-3 text-xs text-muted-foreground shadow-sm xl:fixed xl:top-20 xl:left-6 xl:z-20 xl:w-[min(20rem,calc(50vw-26rem))] xl:shadow-xl"
+    >
+      <div className="mb-2 flex items-center justify-between">
+        <p className="font-medium text-foreground">Markdown</p>
+        <Button type="button" size="sm" variant="ghost" onClick={onClose}>
+          close
+        </Button>
+      </div>
+      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
         {MARKDOWN_HELP.map(([syntax, means]) => (
           <React.Fragment key={syntax}>
             <dt className="font-mono text-foreground">{syntax}</dt>
@@ -90,14 +103,14 @@ function MarkdownHelp() {
           </React.Fragment>
         ))}
       </dl>
-    </details>
+    </div>
   );
 }
 
 const KIND_LABEL: Record<BlogKind, string> = {
-  person: "One person",
-  couple: "A couple",
-  family: "A family",
+  person: "Individual",
+  couple: "Couple",
+  family: "Family",
 };
 
 const EMPTY_PERSON: BlogPerson = { first: "", last: "", maiden: "", place: "" };
@@ -141,6 +154,8 @@ function PostEditor({
   );
   const [removeCover, setRemoveCover] = React.useState(false);
   const [coverBusy, setCoverBusy] = React.useState(false);
+  const [shown, setShown] = React.useState(0);
+  const [helpOpen, setHelpOpen] = React.useState(false);
   const coverInput = React.useRef<HTMLInputElement>(null);
   const over = body.trim().length - BLOG_BODY_MAX;
   const editing = !!post;
@@ -156,6 +171,17 @@ function PostEditor({
   function changeKind(next: BlogKind) {
     setKind(next);
     setPeople((p) => peopleFor(next, p));
+    setShown(0);
+  }
+
+  function addPerson() {
+    setPeople((p) => [...p, { ...EMPTY_PERSON }]);
+    setShown(people.length);
+  }
+
+  function removePerson(index: number) {
+    setPeople((p) => p.filter((_, j) => j !== index));
+    setShown((i) => Math.max(0, Math.min(i, people.length - 2)));
   }
 
   function setPerson(index: number, field: keyof BlogPerson, value: string) {
@@ -246,51 +272,46 @@ function PostEditor({
           />
         </div>
 
-        <fieldset className="flex flex-col gap-2">
-          <legend className="text-sm font-medium">About</legend>
-          <RadioGroup
-            value={kind}
-            onValueChange={(v) => changeKind(v as BlogKind)}
-            className="flex flex-wrap gap-4"
-            disabled={action.pending}
-          >
-            {BLOG_KINDS.map((k) => (
-              <label key={k} className="flex items-center gap-2 text-sm">
-                <RadioGroupItem value={k} />
-                {KIND_LABEL[k]}
-              </label>
-            ))}
-          </RadioGroup>
-        </fieldset>
-
-        <div className="flex flex-col gap-3">
-          {people.map((person, i) => (
-            <PersonFields
-              key={i}
-              idPrefix={`${idPrefix}-person-${i}`}
-              index={i}
-              person={person}
-              onChange={(field, value) => setPerson(i, field, value)}
-              onRemove={
-                kind === "family" && people.length > 1
-                  ? () => setPeople((p) => p.filter((_, j) => j !== i))
-                  : undefined
-              }
+        <div className="grid gap-3 sm:grid-cols-[auto_minmax(0,1fr)] sm:gap-4">
+          <fieldset className="flex flex-col gap-2">
+            <legend className="text-sm font-medium">About</legend>
+            <RadioGroup
+              value={kind}
+              onValueChange={(v) => changeKind(v as BlogKind)}
+              className="flex flex-row flex-wrap gap-x-4 gap-y-2 sm:flex-col"
               disabled={action.pending}
-            />
-          ))}
-          {kind === "family" && people.length < BLOG_PEOPLE_MAX ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="self-start"
-              disabled={action.pending}
-              onClick={() => setPeople((p) => [...p, { ...EMPTY_PERSON }])}
             >
-              add a person
-            </Button>
-          ) : null}
+              {BLOG_KINDS.map((k) => (
+                <label key={k} className="flex items-center gap-2 text-sm">
+                  <RadioGroupItem value={k} />
+                  {KIND_LABEL[k]}
+                </label>
+              ))}
+            </RadioGroup>
+          </fieldset>
+          <PersonFields
+            idPrefix={`${idPrefix}-person-${shown}`}
+            person={people[shown] ?? people[0]}
+            onChange={(field, value) => setPerson(shown, field, value)}
+            tabs={
+              people.length > 1 || kind === "family"
+                ? {
+                    count: people.length,
+                    shown,
+                    onShow: setShown,
+                    onAdd:
+                      kind === "family" && people.length < BLOG_PEOPLE_MAX
+                        ? addPerson
+                        : undefined,
+                    onRemove:
+                      kind === "family" && people.length > 1
+                        ? () => removePerson(shown)
+                        : undefined,
+                  }
+                : undefined
+            }
+            disabled={action.pending}
+          />
         </div>
 
         <div className="flex flex-col gap-2">
@@ -342,7 +363,17 @@ function PostEditor({
           <FormError>
             {over > 0 ? `Too long by ${over.toLocaleString("en")} characters.` : null}
           </FormError>
-          <MarkdownHelp />
+          {helpOpen ? (
+            <MarkdownHelp onClose={() => setHelpOpen(false)} />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setHelpOpen(true)}
+              className="self-start text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
+            >
+              Markdown help
+            </button>
+          )}
         </div>
 
         <FormError>{action.error}</FormError>
@@ -401,27 +432,31 @@ function PostEditor({
   );
 }
 
+/**
+ * One person's fields, in a small container beside the kinds. A couple or
+ * a family switch between their people with the toggles along its top
+ * ("person 1", "person 2" …); a family adds and removes them there too.
+ */
 function PersonFields({
   idPrefix,
-  index,
   person,
   onChange,
-  onRemove,
+  tabs,
   disabled,
 }: {
   idPrefix: string;
-  index: number;
   person: BlogPerson;
   onChange: (field: keyof BlogPerson, value: string) => void;
-  onRemove?: () => void;
+  tabs?: {
+    count: number;
+    shown: number;
+    onShow: (index: number) => void;
+    onAdd?: () => void;
+    onRemove?: () => void;
+  };
   disabled: boolean;
 }) {
-  const field = (
-    key: keyof BlogPerson,
-    label: string,
-    max: number,
-    autoComplete = "off",
-  ) => (
+  const field = (key: keyof BlogPerson, label: string, max: number) => (
     <div className="flex flex-col gap-1">
       <Label htmlFor={`${idPrefix}-${key}`} className="text-xs">
         {label}
@@ -432,25 +467,60 @@ function PersonFields({
         onChange={(e) => onChange(key, e.target.value)}
         maxLength={max}
         disabled={disabled}
-        autoComplete={autoComplete}
+        autoComplete="off"
+        className="h-8"
       />
     </div>
   );
   return (
-    <div className="flex flex-col gap-2 rounded-md border p-3">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-medium text-muted-foreground">Person {index + 1}</p>
-        {onRemove ? (
-          <button
-            type="button"
-            onClick={onRemove}
-            disabled={disabled}
-            className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
+    <div className="flex min-w-0 flex-col gap-2 rounded-md border p-3">
+      {tabs ? (
+        <div className="flex flex-wrap items-center gap-1">
+          <div
+            role="group"
+            aria-label="Person"
+            className="inline-flex flex-wrap items-center gap-0.5 rounded-lg border border-border bg-muted/40 p-0.5"
           >
-            Remove
-          </button>
-        ) : null}
-      </div>
+            {Array.from({ length: tabs.count }, (_, i) => (
+              <Button
+                key={i}
+                type="button"
+                size="sm"
+                variant={i === tabs.shown ? "default" : "ghost"}
+                aria-pressed={i === tabs.shown}
+                disabled={disabled}
+                onClick={() => tabs.onShow(i)}
+                className="h-7 px-2"
+              >
+                person {i + 1}
+              </Button>
+            ))}
+            {tabs.onAdd ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                aria-label="Add a person"
+                disabled={disabled}
+                onClick={tabs.onAdd}
+                className="h-7 px-2"
+              >
+                +
+              </Button>
+            ) : null}
+          </div>
+          {tabs.onRemove ? (
+            <button
+              type="button"
+              onClick={tabs.onRemove}
+              disabled={disabled}
+              className="ml-auto text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
+            >
+              Remove
+            </button>
+          ) : null}
+        </div>
+      ) : null}
       <div className="grid gap-2 sm:grid-cols-2">
         {field("first", "First name", BLOG_PERSON_NAME_MAX)}
         {field("last", "Last name", BLOG_PERSON_NAME_MAX)}
