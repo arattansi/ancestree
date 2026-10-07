@@ -86,6 +86,13 @@ export default function PrivacyPage() {
             leaves unanswered for {RELAY_LAPSE_DAYS} days, are deleted as new
             asks come in.
           </li>
+          <li>
+            Google Analytics, on every page: which pages are visited, from
+            where, on what kind of device, and for how long. It sets a cookie
+            to tell one visit from the next. Nothing you enter about your
+            family goes to it, and it never sees who you are on ancestree.
+            The site&rsquo;s owners use it to see which pages are read.
+          </li>
         </ul>
       </Section>
 

@@ -1802,8 +1802,10 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   CAD, People & Society, small), with the web stream `ancestree.space`
   (Measurement ID `G-WRNLXD8WBF`), tagged on every page by
   `@next/third-parties`' `GoogleAnalytics` in the root layout, loaded
-  after the page is interactive. Open: the privacy page says nothing
-  about Analytics yet, and the EEA consent mode GA suggests isn't set up.
+  after the page is interactive. The privacy page's "What we collect"
+  says so (pages, source, device, duration; a cookie; nothing about the
+  family, never who you are). Open: the EEA consent mode GA suggests
+  isn't set up.
 - **Step 136: the menu tree redrawn, with library** (no migration).
   **Aalim asked:** update the menu tree per his new drawing — retrace the
   words and add **library**; add the asterisk by **who** and its
