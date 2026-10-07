@@ -1,3 +1,4 @@
+import { GoogleAnalytics } from "@next/third-parties/google";
 import type { Metadata } from "next";
 import { Public_Sans, Geist_Mono } from "next/font/google";
 import { Suspense } from "react";
@@ -23,7 +24,11 @@ const geistMono = Geist_Mono({
 });
 
 // The promise under the home page's tagline (the brand page in Notion).
-const description = "connect with your family, share stories, meet your ancestors.";
+const description =
+  "connect with your family, share stories, meet your ancestors.";
+
+/** The ancestree GA4 property's web stream (Step 137). */
+const GA_MEASUREMENT_ID = "G-WRNLXD8WBF";
 
 export const metadata: Metadata = {
   // The link preview (app/opengraph-image.tsx) needs an absolute URL.
@@ -72,6 +77,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <SiteFooter />
           <Toaster />
         </ThemeProvider>
+        {/* Google Analytics, the ancestree property in the Medfair account
+            (Step 137): its tag on every page, loaded after the page is
+            interactive. */}
+        <GoogleAnalytics gaId={GA_MEASUREMENT_ID} />
       </body>
     </html>
   );
