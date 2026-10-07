@@ -7,7 +7,14 @@ import * as React from "react";
 import { createPortal } from "react-dom";
 
 import { Button } from "@/components/ui/button";
-import { NAV_TREE, NAV_TREE_SIZE, type NavTreeWord } from "@/lib/nav-tree";
+import {
+  NAV_ASTERISK,
+  NAV_FOOTNOTE,
+  NAV_TREE,
+  NAV_TREE_SIZE,
+  type NavMark,
+  type NavTreeWord,
+} from "@/lib/nav-tree";
 import { navHeldOpenOn } from "@/lib/nav-words";
 
 /** The words, in the order they fly: the same in the pile and the tree. */
@@ -46,10 +53,11 @@ function useRoomForIt(): boolean {
   );
 }
 
-function Word({ word }: { word: NavTreeWord }) {
+function Word({ word }: { word: NavMark | NavTreeWord }) {
   // A turned word's box is already on its side; its ink is turned to match,
   // a quarter turn anticlockwise so it reads from the ground up.
-  const drawn = word.turned
+  const turned = "turned" in word && word.turned;
+  const drawn = turned
     ? { width: word.height, height: word.width }
     : { width: word.width, height: word.height };
   return (
@@ -62,9 +70,7 @@ function Word({ word }: { word: NavTreeWord }) {
       <path
         fillRule="evenodd"
         d={word.d}
-        transform={
-          word.turned ? `translate(0 ${drawn.width}) rotate(-90)` : undefined
-        }
+        transform={turned ? `translate(0 ${drawn.width}) rotate(-90)` : undefined}
       />
     </svg>
   );
@@ -299,7 +305,37 @@ export function SiteNavMenu({ className }: { className?: string }) {
                     </li>
                   ))}
                 </ul>
+                {/* Aalim's asterisk at who's shoulder, in black as he drew it. */}
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute block text-foreground"
+                  style={{
+                    left: NAV_ASTERISK.x * LIST_SCALE,
+                    top: NAV_ASTERISK.y * LIST_SCALE,
+                    width: NAV_ASTERISK.width * LIST_SCALE,
+                    height: NAV_ASTERISK.height * LIST_SCALE,
+                  }}
+                >
+                  <Word word={NAV_ASTERISK} />
+                </span>
               </nav>
+              {/* His footnote to the asterisk, at the page's foot. Beside the
+                  tree, not inside it: the tree's box is transformed, and a
+                  fixed child of it would sit in the box, not the page. */}
+              <span
+                role="note"
+                aria-label={NAV_FOOTNOTE.label}
+                className={cn(
+                  "pointer-events-none fixed bottom-6 left-4 z-50 block text-foreground xl:left-14",
+                  closing && "opacity-0",
+                )}
+                style={{
+                  width: NAV_FOOTNOTE.width * LIST_SCALE,
+                  height: NAV_FOOTNOTE.height * LIST_SCALE,
+                }}
+              >
+                <Word word={NAV_FOOTNOTE} />
+              </span>
             </>,
             document.body,
           )

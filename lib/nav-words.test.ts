@@ -12,11 +12,12 @@ import {
 } from "@/lib/nav-words";
 
 describe("the handwritten navigation", () => {
-  it("names the marketing pages in Aalim's order", () => {
+  it("names the marketing pages as the tree reads, top to bottom", () => {
     expect(NAV_WORDS.map((w) => [w.label, w.href])).toEqual([
-      ["who", "/about-us"],
-      ["what + how", "/features"],
       ["why", "/manifesto"],
+      ["library", "/library"],
+      ["what + how", "/features"],
+      ["who", "/about-us"],
       ["capitalism", "/pricing"],
       ["shh", "/privacy"],
     ]);
@@ -58,7 +59,7 @@ describe("the handwritten navigation", () => {
   });
 
   it("stays open on the home page and the marketing pages, not in the app", () => {
-    for (const page of ["/", "/about-us", "/features", "/manifesto", "/pricing", "/privacy"]) {
+    for (const page of ["/", "/about-us", "/features", "/library", "/manifesto", "/pricing", "/privacy"]) {
       expect(navHeldOpenOn(page), page).toBe(true);
     }
     for (const page of ["/join", "/family", "/tree", "/account", "/admin", "/pricing/x"]) {

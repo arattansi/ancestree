@@ -30,6 +30,7 @@ import {
 import { compressImage } from "@/lib/image";
 import { BLOG_BODY_MAX, BLOG_COVER_EDGE, BLOG_TITLE_MAX } from "@/lib/limits";
 import { shortDate } from "@/lib/short-date";
+import { cn } from "@/lib/utils";
 
 /**
  * The library on the admin page's blog tab (Step 134, Step 135): write a
@@ -39,13 +40,57 @@ import { shortDate } from "@/lib/short-date";
  * first in the list.
  */
 export function AdminBlog({ posts }: { posts: BlogPost[] }) {
+  const [active, setActive] = React.useState(NEW_EDITOR);
   return (
-    <div className="flex flex-col gap-6">
-      <PostEditor idPrefix="blog-new" />
-      <RowList items={posts} empty="No posts yet.">
-        {(p) => <PostRow key={p.id} post={p} />}
-      </RowList>
-    </div>
+    <ActiveEditor.Provider value={{ active, setActive }}>
+      <div className="flex flex-col gap-6">
+        <PostEditor idPrefix={NEW_EDITOR} />
+        <RowList items={posts} empty="No posts yet.">
+          {(p) => <PostRow key={p.id} post={p} />}
+        </RowList>
+      </div>
+    </ActiveEditor.Provider>
+  );
+}
+
+const NEW_EDITOR = "blog-new";
+
+/**
+ * Which editor's preview floats beside the page from `xl` (the new post's
+ * until a post is opened for editing, or either once it's pressed or
+ * typed in): one at a time, since they share the same spot.
+ */
+const ActiveEditor = React.createContext<{
+  active: string;
+  setActive: (id: string) => void;
+}>({ active: NEW_EDITOR, setActive: () => {} });
+
+/** How to write it, beside the text: the Markdown a post can use. */
+const MARKDOWN_HELP: [syntax: string, means: string][] = [
+  ["**bold**", "bold"],
+  ["_italics_", "italics"],
+  ["# Heading", "a heading (## for a smaller one)"],
+  ["- point", "a bullet point, one per line"],
+  ["1. first", "a numbered list"],
+  ["> words", "a quotation"],
+  ["[words](https://…)", "a link"],
+  ["---", "a line across"],
+  ["blank line", "a new paragraph (the mark goes between them)"],
+];
+
+function MarkdownHelp() {
+  return (
+    <details className="rounded-md border px-3 py-2 text-xs text-muted-foreground">
+      <summary className="cursor-pointer font-medium text-foreground">Markdown</summary>
+      <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+        {MARKDOWN_HELP.map(([syntax, means]) => (
+          <React.Fragment key={syntax}>
+            <dt className="font-mono text-foreground">{syntax}</dt>
+            <dd>{means}</dd>
+          </React.Fragment>
+        ))}
+      </dl>
+    </details>
   );
 }
 
@@ -66,8 +111,10 @@ function peopleFor(kind: BlogKind, people: BlogPerson[]): BlogPerson[] {
 }
 
 /**
- * The form for a post, new or being edited, with the preview beside it
- * from `lg`: the card as it sits on /library and the post as it reads.
+ * The form for a post, new or being edited, with its preview: the card as
+ * it sits on /library and the post as it reads. From `xl` the preview
+ * floats at the page's right, outside the card, so it stays in view
+ * however long the text gets; narrower, it follows the form.
  */
 function PostEditor({
   idPrefix,
@@ -80,6 +127,8 @@ function PostEditor({
   onDone?: () => void;
 }) {
   const action = useAction({ inline: true });
+  const focus = React.useContext(ActiveEditor);
+  const active = focus.active === idPrefix;
   const [title, setTitle] = React.useState(post?.title ?? "");
   const [body, setBody] = React.useState(post?.body ?? "");
   const [kind, setKind] = React.useState<BlogKind>(post?.kind ?? "person");
@@ -175,12 +224,14 @@ function PostEditor({
   };
 
   return (
-    <form
-      onSubmit={submit}
-      className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"
-      noValidate
-    >
-      <div className="flex min-w-0 flex-col gap-4">
+    <>
+      <form
+        onSubmit={submit}
+        onFocusCapture={() => focus.setActive(idPrefix)}
+        onPointerDownCapture={() => focus.setActive(idPrefix)}
+        className="flex min-w-0 flex-col gap-4"
+        noValidate
+      >
         <div className="flex flex-col gap-2">
           <Label htmlFor={`${idPrefix}-title`}>Title</Label>
           <Input
@@ -291,6 +342,7 @@ function PostEditor({
           <FormError>
             {over > 0 ? `Too long by ${over.toLocaleString("en")} characters.` : null}
           </FormError>
+          <MarkdownHelp />
         </div>
 
         <FormError>{action.error}</FormError>
@@ -316,9 +368,14 @@ function PostEditor({
             </Button>
           ) : null}
         </div>
-      </div>
+      </form>
 
-      <div className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-20 lg:self-start">
+      <div
+        className={cn(
+          "flex min-w-0 flex-col gap-4 xl:fixed xl:top-20 xl:right-6 xl:bottom-6 xl:z-20 xl:w-[min(26rem,calc(50vw-26rem))] xl:overflow-y-auto",
+          !active && "xl:hidden",
+        )}
+      >
         <p className="text-xs font-medium text-muted-foreground">Preview</p>
         <div className="rounded-lg border bg-background p-4">
           <p className="mb-3 text-xs text-muted-foreground">On /library (hover to see the card)</p>
@@ -326,7 +383,7 @@ function PostEditor({
             <LibraryCard post={{ ...preview, coverPath: null }} href={null} coverUrl={coverUrl} />
           </div>
         </div>
-        <div className="max-h-[70dvh] overflow-y-auto rounded-lg border bg-background p-4">
+        <div className="max-h-[70dvh] overflow-y-auto rounded-lg border bg-background p-4 xl:max-h-none xl:overflow-visible">
           <PostArticle
             title={title}
             dateLine={
@@ -340,7 +397,7 @@ function PostEditor({
           />
         </div>
       </div>
-    </form>
+    </>
   );
 }
 
@@ -406,13 +463,25 @@ function PersonFields({
 
 function PostRow({ post: p }: { post: BlogPost }) {
   const action = useAction();
+  const focus = React.useContext(ActiveEditor);
   const [editing, setEditing] = React.useState(false);
   const published = p.publishedAt !== null;
+  const editorId = `blog-${p.id}`;
+
+  function startEditing() {
+    focus.setActive(editorId);
+    setEditing(true);
+  }
+
+  function stopEditing() {
+    focus.setActive(NEW_EDITOR);
+    setEditing(false);
+  }
 
   return (
     <RowCard>
       {editing ? (
-        <PostEditor idPrefix={`blog-${p.id}`} post={p} onDone={() => setEditing(false)} />
+        <PostEditor idPrefix={editorId} post={p} onDone={stopEditing} />
       ) : (
         <>
           <div className="flex flex-wrap items-start justify-between gap-2">
@@ -447,7 +516,7 @@ function PostRow({ post: p }: { post: BlogPost }) {
             </div>
             <button
               type="button"
-              onClick={() => setEditing(true)}
+              onClick={startEditing}
               className="text-muted-foreground underline underline-offset-4 hover:text-foreground"
             >
               Edit

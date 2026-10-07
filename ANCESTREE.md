@@ -1786,6 +1786,28 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 136: the menu tree redrawn, with library** (no migration).
+  **Aalim asked:** update the menu tree per his new drawing — retrace the
+  words and add **library**; add the asterisk by **who** and its
+  footnote, "* kind've a metaphor"; keep the tree green and brown, the
+  footnote black. Then: float the library editor's preview outside the
+  card, to its right, and add a Markdown helper on the left. **Now** all
+  six words are retraced from the drawing (a Python potrace port on a 4×
+  bilinear upscale of each word's ink, back to the drawing's pixels;
+  `lib/nav-words.ts`, the SVGs in `public/brand/nav/` including a new
+  `library.svg`, `asterisk.svg`, `footnote.svg` and `menu-tree.svg`), and
+  `lib/nav-tree.ts` places them where he drew them (why, library, what +
+  how, who / capitalism upright / shh) rather than computing a layout;
+  `NAV_ASTERISK` sits at who's shoulder inside the tree's box and
+  `NAV_FOOTNOTE` is drawn fixed at the page's foot, beside the tree in the
+  portal rather than inside it (a fixed child of the transformed box sat
+  in the box, over the trunk). The list order (`NAV_WORDS`) is now the
+  tree's, top to bottom. In the editor, the preview is a fixed panel from
+  `xl` (`xl:w-[min(26rem,calc(50vw-26rem))]`, so it never covers the
+  column), one at a time (`ActiveEditor` context: the new post's until a
+  row's editor is opened or pressed), in flow below `xl`; a `<details>`
+  Markdown helper lists bold, italics, headings, points, numbers, quotes,
+  links, a line and paragraphs.
 - **Step 135: the library** (migration `20261007100000_library`, applied
   live). **Aalim asked:** the blog's slug becomes `/library` (he'll draw
   the menu word); a cover photo per post and a live preview beside the
