@@ -1,8 +1,8 @@
 import { BLOG_BODY_MAX, BLOG_TITLE_MAX } from "@/lib/limits";
 
 /**
- * The blog (Step 134): posts at /blog, headed "stories-of-our-wise", each
- * at /blog/<slug>. A beta reviewer writes one in Markdown on the admin
+ * The blog (Step 134): posts at /library (Step 135; /blog before), headed
+ * "stories-of-our-wise", each at /library/<slug>. A beta reviewer writes one in Markdown on the admin
  * page's blog tab, as a draft until it's published. Pure, for the admin
  * tab, the blog's pages and their tests.
  */
@@ -24,12 +24,12 @@ export type BlogPost = {
 
 /** The blog's own page. */
 export function blogHref(): string {
-  return "/blog";
+  return "/library";
 }
 
 /** A post's page: a published one for anyone, a draft for a reviewer. */
 export function blogPostHref(slug: string): string {
-  return `/blog/${encodeURIComponent(slug)}`;
+  return `/library/${encodeURIComponent(slug)}`;
 }
 
 /** A post's slug, as the database makes them: words of letters and digits, dashed. */

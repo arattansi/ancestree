@@ -28,8 +28,11 @@ const PUBLIC_PREFIXES = [
   "/manifesto",
   "/features",
   "/about-us",
-  // The blog (Step 134): its published posts are anyone's to read.
-  "/blog",
+  // The blog, /library (Step 134): its published posts are anyone's to read.
+  "/library",
+  // For search engines (Step 135).
+  "/sitemap.xml",
+  "/robots.txt",
   "/request-invite",
   "/shared",
   // Campaign links, where anyone can sign up and start a tree (Step 103.3).

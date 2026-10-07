@@ -2,6 +2,7 @@ import type { Components } from "react-markdown";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+import { LogoMark } from "@/components/logo-mark";
 import { cn } from "@/lib/utils";
 
 /**
@@ -74,16 +75,62 @@ const components: Components = {
   ),
 };
 
+/**
+ * The ancestree mark between a post's paragraphs (Step 135, the library):
+ * drawn before every top-level block and hidden before the first, and
+ * never inside a list, a quote or a table (only the container's own
+ * children are shown, `[&>[data-mark]]`).
+ */
+function BlockMark() {
+  return (
+    <span data-mark aria-hidden className="hidden justify-center py-1">
+      <LogoMark className="size-5" />
+    </span>
+  );
+}
+
+const MARKED_BLOCKS = ["p", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "blockquote", "pre", "table"] as const;
+
+/** The same components, each block preceded by the mark. */
+const markedComponents: Components = Object.fromEntries(
+  Object.entries(components).map(([tag, Component]) => {
+    if (!(MARKED_BLOCKS as readonly string[]).includes(tag) || typeof Component !== "function") {
+      return [tag, Component];
+    }
+    const Marked = (props: Record<string, unknown>) => (
+      <>
+        <BlockMark />
+        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+        {(Component as any)(props)}
+      </>
+    );
+    Marked.displayName = `Marked(${tag})`;
+    return [tag, Marked];
+  }),
+);
+
 export function StoryMarkdown({
   children,
   className,
+  blockMarks = false,
 }: {
   children: string;
   className?: string;
+  /** The ancestree mark between the blocks: a library post (Step 135). */
+  blockMarks?: boolean;
 }) {
   return (
-    <div className={cn("flex flex-col gap-3 leading-relaxed break-words", className)}>
-      <Markdown remarkPlugins={[remarkGfm]} components={components}>
+    <div
+      className={cn(
+        "flex flex-col gap-3 leading-relaxed break-words",
+        blockMarks && "[&>[data-mark]:not(:first-child)]:flex",
+        className,
+      )}
+    >
+      <Markdown
+        remarkPlugins={[remarkGfm]}
+        components={blockMarks ? markedComponents : components}
+      >
         {children}
       </Markdown>
     </div>

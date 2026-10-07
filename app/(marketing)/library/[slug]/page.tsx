@@ -22,8 +22,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 /**
- * One post (Step 134): its title, its date and its Markdown, under a link
- * back to the blog. A published post is anyone's to read; a draft only
+ * One post (Step 134): its title, its date and its Markdown, the
+ * ancestree mark between its paragraphs (Step 135), under a link back to
+ * the library. A published post is anyone's to read; a draft only
  * opens for a reviewer, who sees it marked as one, and is nowhere for
  * anyone else.
  */
@@ -53,7 +54,9 @@ export default async function BlogPostPage({ params }: Props) {
           )}
         </p>
       </div>
-      <StoryMarkdown className="text-sm text-muted-foreground">{post.body}</StoryMarkdown>
+      <StoryMarkdown blockMarks className="text-sm text-muted-foreground">
+        {post.body}
+      </StoryMarkdown>
     </MarketingColumn>
   );
 }

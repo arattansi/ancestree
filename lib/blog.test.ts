@@ -10,9 +10,9 @@ import {
 import { BLOG_BODY_MAX, BLOG_TITLE_MAX } from "@/lib/limits";
 
 describe("blog links", () => {
-  it("live under /blog", () => {
-    expect(blogHref()).toBe("/blog");
-    expect(blogPostHref("our-first-story")).toBe("/blog/our-first-story");
+  it("live under /library", () => {
+    expect(blogHref()).toBe("/library");
+    expect(blogPostHref("our-first-story")).toBe("/library/our-first-story");
   });
 
   it("know their slugs", () => {

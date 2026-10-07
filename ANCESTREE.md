@@ -1789,9 +1789,10 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 - **Step 134: the blog** (migration `20261006100000_blog_posts`, applied
   live). **Aalim asked:** a native blog at `/blog`, titled
   **stories-of-our-wise**, with a section in the admin console for
-  writing drafts and publishing from there. **Now** `/blog` is a
-  marketing page headed `(stories-of-our-wise)` listing the published
-  posts newest first (title, date, first words), each at `/blog/<slug>`
+  writing drafts and publishing from there (moved to `/library` in Step
+  135, before it shipped). **Now** `/library` is a marketing page headed
+  `(stories-of-our-wise)` listing the published posts newest first
+  (title, date, first words), each at `/library/<slug>`
   drawn with `StoryMarkdown`; both are public (`proxy.ts`). The admin page
   has a fourth tab, **blog**: a draft is written there in Markdown (title +
   text, a story's limits), and each post is edited, previewed, published,

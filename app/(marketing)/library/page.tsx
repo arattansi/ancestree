@@ -5,17 +5,20 @@ import {
   MarketingColumn,
   MarketingCopy,
 } from "@/components/marketing/marketing-column";
-import { BLOG_NAME, blogExcerpt, blogPostHref } from "@/lib/blog";
+import { BLOG_NAME, blogExcerpt, blogHref, blogPostHref } from "@/lib/blog";
 import { listPublishedPosts } from "@/lib/blog.server";
 import { shortDate } from "@/lib/short-date";
 
 export const metadata: Metadata = {
   title: BLOG_NAME,
-  description: "Stories from the families growing their trees on ancestree.",
+  description: "Stories of our wise: the people our families came from, on ancestree.",
+  alternates: {
+    types: { "application/rss+xml": `${blogHref()}/feed.xml` },
+  },
 };
 
 /**
- * /blog, "stories-of-our-wise" (Step 134): the published posts, newest
+ * /library, "stories-of-our-wise" (Step 134; /blog until Step 135): the published posts, newest
  * first, in the marketing pages' column and type, each its title, its
  * date and its first words. A reviewer writes them on the admin page.
  */
