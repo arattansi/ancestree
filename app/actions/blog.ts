@@ -48,7 +48,8 @@ function removeCoverLater(path: string | null | undefined) {
 
 /**
  * Reviewer: a post saved (Step 134, Step 135): a new draft when there's no
- * `id`, else the post's title, text, kind and people, and its cover photo
+ * `id`, else the post's title, text, kind, people and meta title and
+ * description, and its cover photo
  * put on, replaced or taken off. The browser has already shrunk the photo;
  * it's stored with the service role under the post's own folder in the
  * public `library` bucket. Each function checks the reviewer again.
@@ -67,6 +68,8 @@ export async function saveBlogPost(formData: FormData): Promise<BlogActionResult
     formData.get("body"),
     formData.get("kind"),
     people,
+    formData.get("metaTitle"),
+    formData.get("metaDescription"),
   );
   if (!fields.ok) return { error: fields.error };
 
@@ -90,12 +93,16 @@ export async function saveBlogPost(formData: FormData): Promise<BlogActionResult
           p_body: fields.body,
           p_kind: fields.kind,
           p_people: fields.people,
+          p_meta_title: fields.metaTitle,
+          p_meta_description: fields.metaDescription,
         })
       : await supabase.rpc("create_blog_post", {
           p_title: fields.title,
           p_body: fields.body,
           p_kind: fields.kind,
           p_people: fields.people,
+          p_meta_title: fields.metaTitle,
+          p_meta_description: fields.metaDescription,
         });
   if (saved.error || !saved.data) return { error: "Could not save the post. Try again." };
   const post = toPost(saved.data);

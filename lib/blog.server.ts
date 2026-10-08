@@ -11,6 +11,9 @@ type PostRow = {
   kind: string;
   cover_path: string | null;
   people: unknown;
+  /** Not answered with the library's list (`published_blog_posts`). */
+  meta_title?: string;
+  meta_description?: string;
   published_at: string | null;
   updated_at: string;
 };
@@ -24,6 +27,8 @@ export function toPost(row: PostRow): BlogPost {
     kind: readBlogKind(row.kind),
     coverPath: row.cover_path,
     people: readBlogPeople(row.people),
+    metaTitle: row.meta_title ?? "",
+    metaDescription: row.meta_description ?? "",
     publishedAt: row.published_at,
     updatedAt: row.updated_at,
   };

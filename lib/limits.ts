@@ -70,3 +70,10 @@ export const BLOG_BODY_MAX = 200000;
  */
 export const BLOG_COVER_EDGE = 1600;
 export const BLOG_COVER_MAX_MB = 10;
+
+/**
+ * A library post's own title and description for search engines and link
+ * previews (`blog_posts_meta_*_check`): about what a search result shows.
+ */
+export const BLOG_META_TITLE_MAX = 70;
+export const BLOG_META_DESCRIPTION_MAX = 160;

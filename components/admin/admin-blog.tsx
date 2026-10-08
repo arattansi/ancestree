@@ -25,21 +25,30 @@ import {
   BLOG_PEOPLE_MAX,
   BLOG_PERSON_NAME_MAX,
   BLOG_PERSON_PLACE_MAX,
+  blogExcerpt,
   blogPostHref,
+  BLOG_MARK,
   coverPhotoUrl,
   type BlogKind,
   type BlogPerson,
   type BlogPost,
 } from "@/lib/blog";
 import { compressImage } from "@/lib/image";
-import { BLOG_BODY_MAX, BLOG_COVER_EDGE, BLOG_TITLE_MAX } from "@/lib/limits";
+import {
+  BLOG_BODY_MAX,
+  BLOG_COVER_EDGE,
+  BLOG_META_DESCRIPTION_MAX,
+  BLOG_META_TITLE_MAX,
+  BLOG_TITLE_MAX,
+} from "@/lib/limits";
 import { shortDate } from "@/lib/short-date";
 import { cn } from "@/lib/utils";
 
 /**
  * The library on the admin page's blog tab (Step 134, Step 135): write a
- * post as a draft, with its kind, the people it profiles, a cover photo
- * and its Markdown, a live preview beside the form; then edit it, open
+ * post as a draft, with its kind, the people it profiles, a cover photo,
+ * its Markdown and its meta title and description, a live preview beside
+ * the form that puts the ancestree mark between blocks; then edit it, open
  * it, publish it (or take it back to a draft), and delete it. Drafts sit
  * first in the list.
  */
@@ -79,7 +88,8 @@ const MARKDOWN_HELP: [syntax: string, means: string][] = [
   ["> words", "a quotation"],
   ["[words](https://…)", "a link"],
   ["---", "a line across"],
-  ["blank line", "a new paragraph (the mark goes between them)"],
+  ["blank line", "a new paragraph"],
+  [BLOG_MARK, "the ancestree mark (or + between blocks in the preview)"],
 ];
 
 /**
@@ -149,6 +159,10 @@ function PostEditor({
   const active = focus.active === idPrefix;
   const [title, setTitle] = React.useState(post?.title ?? "");
   const [body, setBody] = React.useState(post?.body ?? "");
+  const [metaTitle, setMetaTitle] = React.useState(post?.metaTitle ?? "");
+  const [metaDescription, setMetaDescription] = React.useState(
+    post?.metaDescription ?? "",
+  );
   const [kind, setKind] = React.useState<BlogKind>(post?.kind ?? "person");
   const [people, setPeople] = React.useState<BlogPerson[]>(() =>
     peopleFor(post?.kind ?? "person", post?.people ?? []),
@@ -232,6 +246,8 @@ function PostEditor({
     data.set("body", body);
     data.set("kind", kind);
     data.set("people", JSON.stringify(people));
+    data.set("metaTitle", metaTitle);
+    data.set("metaDescription", metaDescription);
     if (cover) data.set("cover", cover, cover.name);
     if (removeCover) data.set("removeCover", "1");
     action.run("save", () => saveBlogPost(data), {
@@ -242,6 +258,8 @@ function PostEditor({
         }
         setTitle("");
         setBody("");
+        setMetaTitle("");
+        setMetaDescription("");
         setKind("person");
         setPeople(peopleFor("person", []));
         setCover(null);
@@ -392,6 +410,26 @@ function PostEditor({
           ) : null}
         </div>
 
+        <MetaField
+          id={`${idPrefix}-meta-title`}
+          label="Meta title"
+          value={metaTitle}
+          onChange={setMetaTitle}
+          max={BLOG_META_TITLE_MAX}
+          placeholder={title.trim() ? `${title.trim()} · ancestree` : undefined}
+          disabled={action.pending}
+        />
+        <MetaField
+          id={`${idPrefix}-meta-description`}
+          label="Meta description"
+          value={metaDescription}
+          onChange={setMetaDescription}
+          max={BLOG_META_DESCRIPTION_MAX}
+          placeholder={blogExcerpt(body, BLOG_META_DESCRIPTION_MAX) || undefined}
+          disabled={action.pending}
+          multiline
+        />
+
         <FormError>{action.error}</FormError>
         <div className="flex gap-2">
           <PendingButton
@@ -447,10 +485,69 @@ function PostEditor({
             draft={!post?.publishedAt}
             coverUrl={coverUrl}
             body={body}
+            onBodyChange={action.pending ? undefined : setBody}
           />
         </div>
       </div>
     </>
+  );
+}
+
+/**
+ * A post's meta title or description: what search engines and link
+ * previews show, the post's own title and first words (its placeholder)
+ * when left empty; its count against the limit beside the label.
+ */
+function MetaField({
+  id,
+  label,
+  value,
+  onChange,
+  max,
+  placeholder,
+  disabled,
+  multiline = false,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  max: number;
+  placeholder?: string;
+  disabled: boolean;
+  multiline?: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-baseline justify-between gap-2">
+        <Label htmlFor={id}>{label}</Label>
+        <span className="text-xs text-muted-foreground tabular-nums">
+          {value.trim().length}/{max}
+        </span>
+      </div>
+      {multiline ? (
+        <Textarea
+          id={id}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          maxLength={max}
+          rows={2}
+          placeholder={placeholder}
+          disabled={disabled}
+          className="text-sm"
+        />
+      ) : (
+        <Input
+          id={id}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          maxLength={max}
+          placeholder={placeholder}
+          disabled={disabled}
+          autoComplete="off"
+        />
+      )}
+    </div>
   );
 }
 

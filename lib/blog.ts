@@ -1,4 +1,9 @@
-import { BLOG_BODY_MAX, BLOG_TITLE_MAX } from "@/lib/limits";
+import {
+  BLOG_BODY_MAX,
+  BLOG_META_DESCRIPTION_MAX,
+  BLOG_META_TITLE_MAX,
+  BLOG_TITLE_MAX,
+} from "@/lib/limits";
 
 /**
  * The library (Step 134 as /blog, /library since Step 135): posts headed
@@ -44,6 +49,10 @@ export type BlogPost = {
   /** The cover photo's path in the `library` bucket, or `null`. */
   coverPath: string | null;
   people: BlogPerson[];
+  /** Its title for search engines and link previews; empty for the post's own. */
+  metaTitle: string;
+  /** Its description for them; empty for the post's first words. */
+  metaDescription: string;
   /** When it was published, or `null` for a draft. */
   publishedAt: string | null;
   updatedAt: string;
@@ -125,18 +134,31 @@ export function readBlogPeople(raw: unknown): BlogPerson[] {
 }
 
 export type BlogPostFields =
-  | { ok: true; title: string; body: string; kind: BlogKind; people: BlogPerson[] }
+  | {
+      ok: true;
+      title: string;
+      body: string;
+      kind: BlogKind;
+      people: BlogPerson[];
+      metaTitle: string;
+      metaDescription: string;
+    }
   | { ok: false; error: string };
 
-/** A post's title, text, kind and people, as typed, checked and trimmed. */
+/** A post's title, text, kind, people and meta title and description, as typed, checked and trimmed. */
 export function readBlogPostFields(
   title: unknown,
   body: unknown,
   kind: unknown = "person",
   people: unknown = [],
+  metaTitle: unknown = "",
+  metaDescription: unknown = "",
 ): BlogPostFields {
   const t = typeof title === "string" ? title.trim().replace(/\s+/g, " ") : "";
   const b = typeof body === "string" ? body.trim() : "";
+  const mt = typeof metaTitle === "string" ? metaTitle.trim().replace(/\s+/g, " ") : "";
+  const md =
+    typeof metaDescription === "string" ? metaDescription.trim().replace(/\s+/g, " ") : "";
   if (!t) return { ok: false, error: "Give the post a title." };
   if (t.length > BLOG_TITLE_MAX) {
     return { ok: false, error: `Keep the title under ${BLOG_TITLE_MAX} characters.` };
@@ -147,7 +169,64 @@ export function readBlogPostFields(
       error: `Too long by ${(b.length - BLOG_BODY_MAX).toLocaleString("en")} characters.`,
     };
   }
-  return { ok: true, title: t, body: b, kind: readBlogKind(kind), people: readBlogPeople(people) };
+  if (mt.length > BLOG_META_TITLE_MAX) {
+    return { ok: false, error: `Keep the meta title under ${BLOG_META_TITLE_MAX} characters.` };
+  }
+  if (md.length > BLOG_META_DESCRIPTION_MAX) {
+    return {
+      ok: false,
+      error: `Keep the meta description under ${BLOG_META_DESCRIPTION_MAX} characters.`,
+    };
+  }
+  return {
+    ok: true,
+    title: t,
+    body: b,
+    kind: readBlogKind(kind),
+    people: readBlogPeople(people),
+    metaTitle: mt,
+    metaDescription: md,
+  };
+}
+
+/**
+ * What a post's page tells search engines and link previews: its own meta
+ * title and description, or else its title and its first words.
+ */
+export function blogPostMeta(
+  post: Pick<BlogPost, "title" | "body" | "metaTitle" | "metaDescription">,
+): { title: string; description: string } {
+  return {
+    title: post.metaTitle || post.title,
+    description: post.metaDescription || blogExcerpt(post.body, BLOG_META_DESCRIPTION_MAX),
+  };
+}
+
+/**
+ * The ancestree mark in a post's Markdown: a line of its own, put there
+ * from the editor's preview, drawn as the logo between two blocks. An
+ * HTML comment, so anything else that reads the Markdown shows nothing.
+ */
+export const BLOG_MARK = "<!-- ancestree -->";
+
+/** Whether a top-level HTML block is the mark. */
+export function isBlogMark(html: string): boolean {
+  return /^<!--\s*ancestree\s*-->$/.test(html.trim());
+}
+
+/** `body` with the mark put on its own line at `offset`, a block's start. */
+export function withBlogMarkAt(body: string, offset: number): string {
+  const before = body.slice(0, offset).replace(/\s+$/, "");
+  const after = body.slice(offset).replace(/^(?:[ \t\r]*\n)+/, "");
+  return `${before}\n\n${BLOG_MARK}\n\n${after}`;
+}
+
+/** `body` without the mark between `start` and `end`, one blank line left in its place. */
+export function withoutBlogMarkAt(body: string, start: number, end: number): string {
+  const before = body.slice(0, start).replace(/\s+$/, "");
+  const after = body.slice(end).replace(/^[ \t\r]*\n/, "").replace(/^(?:[ \t\r]*\n)+/, "");
+  if (!after.trim()) return before;
+  return before ? `${before}\n\n${after}` : after;
 }
 
 /**
@@ -158,6 +237,7 @@ export function readBlogPostFields(
  */
 export function blogExcerpt(body: string, max = 200): string {
   const text = body
+    .replace(/<!--[\s\S]*?-->/g, " ")
     .replace(/```[\s\S]*?```/g, " ")
     .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
     .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")

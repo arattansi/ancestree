@@ -141,6 +141,8 @@ export type Database = {
           created_by: string | null
           id: string
           kind: string
+          meta_description: string
+          meta_title: string
           people: Json
           published_at: string | null
           slug: string
@@ -155,6 +157,8 @@ export type Database = {
           created_by?: string | null
           id?: string
           kind?: string
+          meta_description?: string
+          meta_title?: string
           people?: Json
           published_at?: string | null
           slug: string
@@ -169,6 +173,8 @@ export type Database = {
           created_by?: string | null
           id?: string
           kind?: string
+          meta_description?: string
+          meta_title?: string
           people?: Json
           published_at?: string | null
           slug?: string
@@ -2831,6 +2837,8 @@ export type Database = {
           cover_path: string
           id: string
           kind: string
+          meta_description: string
+          meta_title: string
           people: Json
           published_at: string
           slug: string
@@ -2879,6 +2887,8 @@ export type Database = {
         Args: {
           p_body?: string
           p_kind?: string
+          p_meta_description?: string
+          p_meta_title?: string
           p_people?: Json
           p_title: string
         }
@@ -2890,6 +2900,8 @@ export type Database = {
           created_by: string | null
           id: string
           kind: string
+          meta_description: string
+          meta_title: string
           people: Json
           published_at: string | null
           slug: string
@@ -3166,6 +3178,8 @@ export type Database = {
           created_by: string | null
           id: string
           kind: string
+          meta_description: string
+          meta_title: string
           people: Json
           published_at: string | null
           slug: string
@@ -3472,6 +3486,8 @@ export type Database = {
           created_by: string | null
           id: string
           kind: string
+          meta_description: string
+          meta_title: string
           people: Json
           published_at: string | null
           slug: string
@@ -3589,6 +3605,8 @@ export type Database = {
           p_body: string
           p_id: string
           p_kind?: string
+          p_meta_description?: string
+          p_meta_title?: string
           p_people?: Json
           p_title: string
         }
@@ -3600,6 +3618,8 @@ export type Database = {
           created_by: string | null
           id: string
           kind: string
+          meta_description: string
+          meta_title: string
           people: Json
           published_at: string | null
           slug: string

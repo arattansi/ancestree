@@ -1,20 +1,30 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  BLOG_MARK,
   BLOG_PEOPLE_MAX,
   blogExcerpt,
   blogFeedHref,
   blogHref,
   blogOneClickUnsubscribeHref,
   blogPostHref,
+  blogPostMeta,
   blogSubscriptionHref,
   coverPhotoUrl,
+  isBlogMark,
   isBlogSlug,
   readBlogKind,
   readBlogPeople,
   readBlogPostFields,
+  withBlogMarkAt,
+  withoutBlogMarkAt,
 } from "@/lib/blog";
-import { BLOG_BODY_MAX, BLOG_TITLE_MAX } from "@/lib/limits";
+import {
+  BLOG_BODY_MAX,
+  BLOG_META_DESCRIPTION_MAX,
+  BLOG_META_TITLE_MAX,
+  BLOG_TITLE_MAX,
+} from "@/lib/limits";
 
 describe("blog links", () => {
   it("live under /library", () => {
@@ -40,7 +50,25 @@ describe("readBlogPostFields", () => {
       body: "Once upon a time.",
       kind: "person",
       people: [],
+      metaTitle: "",
+      metaDescription: "",
     });
+  });
+
+  it("trims the meta title and description and keeps them within limits", () => {
+    expect(
+      readBlogPostFields("T", "", "person", [], "  A   title ", " Some\n words. "),
+    ).toMatchObject({ ok: true, metaTitle: "A title", metaDescription: "Some words." });
+    expect(readBlogPostFields("T", "", "person", [], "x".repeat(BLOG_META_TITLE_MAX)).ok).toBe(
+      true,
+    );
+    expect(
+      readBlogPostFields("T", "", "person", [], "x".repeat(BLOG_META_TITLE_MAX + 1)).ok,
+    ).toBe(false);
+    expect(
+      readBlogPostFields("T", "", "person", [], "", "x".repeat(BLOG_META_DESCRIPTION_MAX + 1))
+        .ok,
+    ).toBe(false);
   });
 
   it("allows an empty text: a draft with only a title", () => {
@@ -136,5 +164,53 @@ describe("library links", () => {
     );
     expect(coverPhotoUrl(null)).toBeNull();
     process.env.NEXT_PUBLIC_SUPABASE_URL = was;
+  });
+});
+
+describe("blogPostMeta", () => {
+  it("uses the meta title and description when written", () => {
+    expect(
+      blogPostMeta({ title: "T", body: "Body.", metaTitle: "M", metaDescription: "D" }),
+    ).toEqual({ title: "M", description: "D" });
+  });
+
+  it("falls back to the title and the first words", () => {
+    expect(
+      blogPostMeta({ title: "T", body: "**Once** upon a time.", metaTitle: "", metaDescription: "" }),
+    ).toEqual({ title: "T", description: "Once upon a time." });
+  });
+});
+
+describe("the ancestree mark", () => {
+  it("is its own comment line", () => {
+    expect(isBlogMark(BLOG_MARK)).toBe(true);
+    expect(isBlogMark("<!--ancestree-->\n")).toBe(true);
+    expect(isBlogMark("<!-- something else -->")).toBe(false);
+  });
+
+  it("goes in before a block, on its own line", () => {
+    const body = "One.\n\nTwo.\n\nThree.";
+    expect(withBlogMarkAt(body, body.indexOf("Two."))).toBe(
+      `One.\n\n${BLOG_MARK}\n\nTwo.\n\nThree.`,
+    );
+    expect(withBlogMarkAt("One.\n\n\n\n- a\n- b", 8)).toBe(`One.\n\n${BLOG_MARK}\n\n- a\n- b`);
+  });
+
+  it("comes out, one blank line left in its place", () => {
+    const body = `One.\n\n${BLOG_MARK}\n\nTwo.`;
+    const start = body.indexOf(BLOG_MARK);
+    expect(withoutBlogMarkAt(body, start, start + BLOG_MARK.length)).toBe("One.\n\nTwo.");
+    const last = `One.\n\n${BLOG_MARK}\n`;
+    expect(withoutBlogMarkAt(last, 6, 6 + BLOG_MARK.length)).toBe("One.");
+  });
+
+  it("comes out of text saved with CRLF line ends", () => {
+    const body = `One.\r\n\r\n${BLOG_MARK}\r\n\r\nTwo.`;
+    const start = body.indexOf(BLOG_MARK);
+    expect(withoutBlogMarkAt(body, start, start + BLOG_MARK.length)).toBe("One.\n\nTwo.");
+  });
+
+  it("is left out of excerpts", () => {
+    expect(blogExcerpt(`One.\n\n${BLOG_MARK}\n\nTwo.`)).toBe("One. Two.");
   });
 });

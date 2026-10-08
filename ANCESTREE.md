@@ -1786,6 +1786,27 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 138: the mark placed by hand; a post's meta title and description**
+  (migration `20261007120000_library_post_meta`, live). **Aalim asked:** the
+  ancestree logo shouldn't sit at every paragraph break; add it from an
+  inline button on the post's preview; and let a post's meta title and
+  description be edited. **Now** the mark is a line of its own in the
+  Markdown, `<!-- ancestree -->` (`BLOG_MARK`), drawn as the logo only where
+  it's put (`StoryMarkdown marks`, a remark step turning top-level ones into
+  an `hr data-mark`); the editor's preview shows a small **+** pill in each
+  gap between two top-level blocks (faint while the post is hovered, always
+  on touch screens, none beside a mark already there) that writes the line
+  into the text, and a **remove** beside each mark that takes it out
+  (`withBlogMarkAt` / `withoutBlogMarkAt`, by react-markdown's source
+  offsets). Excerpts, the feed and the subscriber email leave it out; any
+  other Markdown reader shows nothing. The helper lists it. Each post has
+  **Meta title** (≤70) and **Meta description** (≤160) under the text, with
+  counts and the fallbacks as placeholders; empty, the page keeps
+  "title · ancestree" and the first words. A written meta title is used as
+  is (`absolute`), for `<title>`, Open Graph and Twitter; the post page now
+  names the site's own preview picture when there's no cover, since setting
+  `openGraph` drops the inherited one. **My calls:** the marker as an HTML
+  comment; the limits; existing posts get no marks (the one draft had none).
 - **Step 137: Search Console and Google Analytics** (no migration).
   **Aalim asked:** add the sitemap to his existing GSC and GA, where he
   holds Medfair, and whether the agent could set it up. **Now** Search

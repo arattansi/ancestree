@@ -3,6 +3,7 @@ import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { LogoMark } from "@/components/logo-mark";
+import { isBlogMark, withBlogMarkAt, withoutBlogMarkAt } from "@/lib/blog";
 import { cn } from "@/lib/utils";
 
 /**
@@ -76,60 +77,157 @@ const components: Components = {
 };
 
 /**
- * The ancestree mark between a post's paragraphs (Step 135, the library):
- * drawn before every top-level block and hidden before the first, and
- * never inside a list, a quote or a table (only the container's own
- * children are shown, `[&>[data-mark]]`).
+ * A library post's marks (Step 135; placed by hand since): each
+ * top-level `<!-- ancestree -->` line, as an `hr` marked `data-mark`,
+ * which the `hr` below draws as the logo. Anywhere else the comment stays
+ * text, as raw HTML is in every story.
  */
-function BlockMark() {
+type MdNode = { type: string; value?: string; position?: unknown; data?: unknown };
+function remarkBlogMarks() {
+  return (tree: { children: MdNode[] }) => {
+    tree.children = tree.children.map((node) =>
+      node.type === "html" && isBlogMark(node.value ?? "")
+        ? {
+            type: "thematicBreak",
+            position: node.position,
+            data: { hProperties: { dataMark: true } },
+          }
+        : node,
+    );
+  };
+}
+
+type HastNode = {
+  properties?: Record<string, unknown>;
+  position?: { start: { offset?: number }; end: { offset?: number } };
+};
+
+/** The ancestree mark, between two blocks; in the editor, with a button that takes it off. */
+function BlockMark({ onRemove }: { onRemove?: () => void }) {
   return (
-    <span data-mark aria-hidden className="hidden justify-center py-1">
+    <span data-mark className="group/mark relative flex justify-center py-1">
       <LogoMark className="size-5" />
+      {onRemove ? (
+        <button
+          type="button"
+          onClick={onRemove}
+          className="absolute top-1/2 left-1/2 ml-5 -translate-y-1/2 rounded-full px-1.5 text-[10px] text-muted-foreground opacity-0 group-hover/mark:opacity-100 hover:text-foreground focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
+        >
+          remove
+        </button>
+      ) : null}
     </span>
   );
 }
 
-const MARKED_BLOCKS = ["p", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "blockquote", "pre", "table"] as const;
+/**
+ * Where the editor's preview puts a mark: a button over the gap before a
+ * block, shown only between two top-level blocks with no mark already
+ * there (`[&>[data-mark-slot]…]` on the container), faint while the post is
+ * hovered and full over its own gap. It takes no room of its own.
+ */
+function MarkSlot({ onAdd }: { onAdd: () => void }) {
+  return (
+    <span data-mark-slot className="relative -my-1.5 hidden h-0">
+      <span className="group/slot absolute inset-x-0 -top-1.5 z-10 flex h-3 items-center justify-center">
+        <button
+          type="button"
+          onClick={onAdd}
+          aria-label="add the mark here"
+          title="add the mark here"
+          className="flex items-center gap-1 rounded-full border bg-background px-2 py-0.5 text-[10px] leading-none text-muted-foreground opacity-0 shadow-sm transition-opacity group-hover/marks:opacity-50 group-hover/slot:opacity-100 hover:text-foreground focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
+        >
+          +
+          <LogoMark className="size-3" />
+        </button>
+      </span>
+    </span>
+  );
+}
 
-/** The same components, each block preceded by the mark. */
-const markedComponents: Components = Object.fromEntries(
-  Object.entries(components).map(([tag, Component]) => {
-    if (!(MARKED_BLOCKS as readonly string[]).includes(tag) || typeof Component !== "function") {
-      return [tag, Component];
-    }
-    const Marked = (props: Record<string, unknown>) => (
-      <>
-        <BlockMark />
-        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-        {(Component as any)(props)}
-      </>
-    );
-    Marked.displayName = `Marked(${tag})`;
-    return [tag, Marked];
-  }),
-);
+const MARKABLE_BLOCKS = ["p", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "blockquote", "pre", "table"] as const;
+
+/** The components with an `hr` that draws the marks. */
+function markComponents(onRemove?: (start: number, end: number) => void): Components {
+  return {
+    ...components,
+    hr: ({ node }) => {
+      const n = node as HastNode | undefined;
+      if (!n?.properties?.dataMark) return <hr className="border-border" />;
+      const start = n.position?.start.offset;
+      const end = n.position?.end.offset;
+      return (
+        <BlockMark
+          onRemove={
+            onRemove && start !== undefined && end !== undefined
+              ? () => onRemove(start, end)
+              : undefined
+          }
+        />
+      );
+    },
+  };
+}
+
+/** The same, each block preceded by a place to put a mark (the editor's preview). */
+function editableComponents(body: string, onChange: (body: string) => void): Components {
+  const marked = markComponents((start, end) => onChange(withoutBlogMarkAt(body, start, end)));
+  return Object.fromEntries(
+    Object.entries(marked).map(([tag, Component]) => {
+      if (!(MARKABLE_BLOCKS as readonly string[]).includes(tag) || typeof Component !== "function") {
+        return [tag, Component];
+      }
+      const WithSlot = (props: Record<string, unknown>) => {
+        const offset = (props.node as HastNode | undefined)?.position?.start.offset;
+        return (
+          <>
+            {offset !== undefined ? (
+              <MarkSlot onAdd={() => onChange(withBlogMarkAt(body, offset))} />
+            ) : null}
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+            {(Component as any)(props)}
+          </>
+        );
+      };
+      WithSlot.displayName = `WithSlot(${tag})`;
+      return [tag, WithSlot];
+    }),
+  );
+}
+
+const MARKED = markComponents();
 
 export function StoryMarkdown({
   children,
   className,
-  blockMarks = false,
+  marks = false,
+  onMarksChange,
 }: {
   children: string;
   className?: string;
-  /** The ancestree mark between the blocks: a library post (Step 135). */
-  blockMarks?: boolean;
+  /** A library post: its `<!-- ancestree -->` lines drawn as the mark. */
+  marks?: boolean;
+  /**
+   * The editor's preview: a button between the blocks puts the mark
+   * there and one on each mark takes it off, handing back the new text.
+   */
+  onMarksChange?: (body: string) => void;
 }) {
+  const editable = marks && !!onMarksChange;
   return (
     <div
       className={cn(
         "flex flex-col gap-3 leading-relaxed break-words",
-        blockMarks && "[&>[data-mark]:not(:first-child)]:flex",
+        editable &&
+          "group/marks [&>[data-mark-slot]:not(:first-child):not([data-mark]+*)]:block",
         className,
       )}
     >
       <Markdown
-        remarkPlugins={[remarkGfm]}
-        components={blockMarks ? markedComponents : components}
+        remarkPlugins={marks ? [remarkGfm, remarkBlogMarks] : [remarkGfm]}
+        components={
+          editable ? editableComponents(children, onMarksChange) : marks ? MARKED : components
+        }
       >
         {children}
       </Markdown>

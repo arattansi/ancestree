@@ -4,8 +4,9 @@ import { cn } from "@/lib/utils";
 
 /**
  * A library post as it reads (Step 135): its cover photo, its title, its
- * date (or "Draft"), and its Markdown with the ancestree mark between the
- * paragraphs. The post's page and the editor's live preview both draw it.
+ * date (or "Draft"), and its Markdown with the ancestree mark wherever it
+ * was put. The post's page and the editor's live preview both draw it; the
+ * preview puts marks in and takes them out (`onBodyChange`).
  */
 export function PostArticle({
   title,
@@ -13,6 +14,7 @@ export function PostArticle({
   draft = false,
   coverUrl,
   body,
+  onBodyChange,
   className,
 }: {
   title: string;
@@ -21,6 +23,8 @@ export function PostArticle({
   draft?: boolean;
   coverUrl: string | null;
   body: string;
+  /** The editor's preview: the text with a mark put in or taken out. */
+  onBodyChange?: (body: string) => void;
   className?: string;
 }) {
   return (
@@ -43,7 +47,11 @@ export function PostArticle({
           <span>{dateLine}</span>
         </p>
       </div>
-      <StoryMarkdown blockMarks className="text-sm text-muted-foreground">
+      <StoryMarkdown
+        marks
+        onMarksChange={onBodyChange}
+        className="text-sm text-muted-foreground"
+      >
         {body}
       </StoryMarkdown>
     </article>

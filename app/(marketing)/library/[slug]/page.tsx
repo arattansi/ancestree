@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { PostArticle } from "@/components/library/post-article";
 import { SubscribeForm } from "@/components/library/subscribe-form";
 import { MarketingColumn } from "@/components/marketing/marketing-column";
-import { BLOG_NAME, blogExcerpt, blogHref, coverPhotoUrl } from "@/lib/blog";
+import { BLOG_NAME, blogHref, blogPostMeta, coverPhotoUrl } from "@/lib/blog";
 import { findBlogPost } from "@/lib/blog.server";
 import { shortDate } from "@/lib/short-date";
 
@@ -16,10 +16,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const post = await findBlogPost(slug);
   if (!post) return { title: BLOG_NAME };
   const cover = coverPhotoUrl(post.coverPath);
+  const { title, description } = blogPostMeta(post);
   return {
-    title: post.title,
-    description: post.body ? blogExcerpt(post.body, 160) : undefined,
-    openGraph: cover ? { images: [{ url: cover }] } : undefined,
+    // A meta title is used as written; the post's own title is "… · ancestree".
+    title: post.metaTitle ? { absolute: title } : title,
+    description: description || undefined,
+    openGraph: {
+      type: "article",
+      siteName: "ancestree",
+      title,
+      description: description || undefined,
+      // Setting openGraph here drops the site's own picture, so it's named.
+      images: [{ url: cover ?? "/opengraph-image" }],
+    },
   };
 }
 
