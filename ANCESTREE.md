@@ -1786,6 +1786,12 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 139: no "built with ai" footer** (no migration). **Aalim asked:**
+  remove the "made with ai" footer across the website and the app. **Now**
+  the footer's watermark ("built with ai … because love wasn't enough.") is
+  gone from every page; the footer shows only a page's own footnote
+  (`FOOTNOTES`: `/about-us`, `/features`), in the bottom-right corner,
+  centred on a phone, and every other page has no footer.
 - **Step 138: the mark placed by hand; a post's meta title and description**
   (migration `20261007120000_library_post_meta`, live). **Aalim asked:** the
   ancestree logo shouldn't sit at every paragraph break; add it from an

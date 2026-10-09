@@ -1,14 +1,6 @@
 "use client";
 
-import { Bot } from "lucide-react";
 import { usePathname } from "next/navigation";
-
-const WATERMARK = (
-  <>
-    built with ai <Bot className="inline size-3.5 -mt-0.5" aria-hidden />{" "}
-    because love wasn&apos;t enough.
-  </>
-);
 
 /** A page's own footnote, in the footer's bottom-right corner: the
  *  asterisk at the end of /about-us's story (Step 111 follow-up), and
@@ -49,17 +41,12 @@ export function SiteFooter() {
   }
 
   const footnote = FOOTNOTES[pathname];
+  if (!footnote) return null;
 
-  // The watermark centred, a footnote in the page's bottom-right corner;
-  // on a phone, centred above the watermark.
+  // A page's footnote in its bottom-right corner; on a phone, centred.
   return (
-    <footer className="flex w-full flex-col px-4 py-6 text-xs text-muted-foreground sm:grid sm:grid-cols-[1fr_auto_1fr] sm:items-baseline sm:gap-4">
-      <p className="text-center sm:col-start-2 sm:row-start-1">{WATERMARK}</p>
-      {footnote ? (
-        <p className="order-first mb-2 text-center sm:order-none sm:col-start-3 sm:row-start-1 sm:mb-0 sm:text-right">
-          {footnote}
-        </p>
-      ) : null}
+    <footer className="w-full px-4 py-6 text-xs text-muted-foreground">
+      <p className="text-center sm:text-right">{footnote}</p>
     </footer>
   );
 }
