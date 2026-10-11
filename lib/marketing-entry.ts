@@ -43,7 +43,6 @@ export function marketingEntry(p: {
     email_visible: false,
     birth_place_historical: null,
     death_place_historical: null,
-    lineage_type: null,
     photo_path: null,
     photo_crop: null,
     pos_x: null,

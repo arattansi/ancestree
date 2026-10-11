@@ -89,7 +89,6 @@ export default async function SuggestChangePage({
     : entry;
   const values = personFormValues({
     ...shown,
-    lineage_type: null,
     email: null,
     email_visible: false,
   });

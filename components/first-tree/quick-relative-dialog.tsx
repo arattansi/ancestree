@@ -282,9 +282,6 @@ function QuickRelativeForm({
         <PersonFields
           control={form.control}
           isAdmin
-          // Lineage is about the link to this person's own parent — for
-          // a child, the founder adding them.
-          lineage={kind === "child"}
           idPrefix={`quick-${kind}`}
         />
 

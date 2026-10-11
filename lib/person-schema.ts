@@ -9,16 +9,9 @@ import {
   toPartialIso,
   toStoredDate,
 } from "@/lib/partial-date";
-import { LINEAGE_TYPES, SEX_VALUES } from "@/lib/person-labels";
+import { SEX_VALUES } from "@/lib/person-labels";
 
-export {
-  LINEAGE_LABELS,
-  LINEAGE_TYPES,
-  SEX_LABELS,
-  SEX_VALUES,
-  type LineageType,
-  type Sex,
-} from "@/lib/person-labels";
+export { SEX_LABELS, SEX_VALUES, type Sex } from "@/lib/person-labels";
 
 const optionalText = (max: number) =>
   z
@@ -79,7 +72,6 @@ export const personSchema = z
     place_id_death: z.number().int().positive().nullable(),
     place_of_death: optionalText(160),
     sex: z.enum(SEX_VALUES).optional(),
-    lineage_type: z.enum(LINEAGE_TYPES).optional(),
     // Contact details live on the entry, shown to other members only when
     // the person chooses (`email_visible`); their own address is seeded from
     // the one they sign in with.
@@ -140,7 +132,6 @@ export const emptyPersonValues: PersonFormValues = {
   place_id_death: null,
   place_of_death: "",
   sex: undefined,
-  lineage_type: undefined,
   email: "",
   email_visible: false,
 };
@@ -168,7 +159,6 @@ export type PersonRow = {
   place_id_death: number | null;
   place_of_death: string | null;
   sex: string | null;
-  lineage_type: string | null;
   email: string | null;
   email_visible: boolean | null;
 };
@@ -202,8 +192,6 @@ export function personFormValues(row: PersonRow): PersonFormValues {
     place_id_death: row.place_id_death ?? null,
     place_of_death: row.place_of_death ?? "",
     sex: (row.sex as PersonFormValues["sex"]) ?? undefined,
-    lineage_type:
-      (row.lineage_type as PersonFormValues["lineage_type"]) ?? undefined,
     email: row.email ?? "",
     email_visible: row.email_visible ?? false,
   };
@@ -246,7 +234,6 @@ export function toPersonPayload(values: PersonFormValues) {
       ? trimOrNull(values.place_of_death)
       : null,
     sex: values.sex ?? null,
-    lineage_type: values.lineage_type ?? null,
     email: trimOrNull(values.email)?.toLowerCase() ?? null,
     email_visible: values.email_visible ?? false,
   };

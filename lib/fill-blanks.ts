@@ -12,7 +12,7 @@ import type { toPersonPayload } from "@/lib/person-schema";
 
 /**
  * What can be filled in, in the order the form shows it. Whether someone has
- * died, their last name (never empty), lineage and contact details stay with
+ * died, their last name (never empty) and contact details stay with
  * whoever can edit the entry.
  */
 export const FILLABLE = [

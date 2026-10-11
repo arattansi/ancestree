@@ -65,7 +65,6 @@ export type TreeGraphPerson = {
    *  birth/death year (Step 4.5d); otherwise null and the plain text is shown. */
   birth_place_historical: string | null;
   death_place_historical: string | null;
-  lineage_type: string | null;
   photo_path: string | null;
   /** Thumbnail framing for `photo_path`; null means the centred default. */
   photo_crop: unknown;
@@ -161,7 +160,7 @@ export type TreeGraphEdge = {
  * says whether this tree is the one whose rules govern the entry.
  */
 const PERSON_COLUMNS =
-  "id, home_tree_id, is_home, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_death, date_of_birth_precision, date_of_death_precision, birth_month, birth_day, date_of_birth_circa, date_of_death_circa, city_of_birth, country_of_birth, place_id_birth, place_id_death, is_deceased, place_of_death, sex, lineage_type, photo_path, photo_crop, pos_x, pos_y, owner_user_id, created_by, pos_dx, pos_dy, hidden_from_visitors, blurred, email, email_visible, detail, approval, asked_of, nudge_due, placeholder_number";
+  "id, home_tree_id, is_home, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_death, date_of_birth_precision, date_of_death_precision, birth_month, birth_day, date_of_birth_circa, date_of_death_circa, city_of_birth, country_of_birth, place_id_birth, place_id_death, is_deceased, place_of_death, sex, photo_path, photo_crop, pos_x, pos_y, owner_user_id, created_by, pos_dx, pos_dy, hidden_from_visitors, blurred, email, email_visible, detail, approval, asked_of, nudge_due, placeholder_number";
 
 /**
  * Stands in for the user ids on a public read (`forPublic`): the nil UUID,
@@ -325,7 +324,6 @@ export function cardOf(p: TreePersonRow, treeId: string) {
       place_id_death: null,
       place_of_death: null,
       sex: null,
-      lineage_type: null,
       photo_path: null,
       photo_crop: null,
       hidden_from_visitors: true,

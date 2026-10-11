@@ -92,7 +92,6 @@ export function PersonSuggestForm({
         <PersonFields
           control={form.control}
           isAdmin={false}
-          lineage={false}
           idPrefix={`suggest-${personId}`}
           placeLabels={placeLabels}
         />

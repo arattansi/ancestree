@@ -761,11 +761,6 @@ function PersonPanelImpl({
                 {person.account_type ? (
                   <AccountTypeBadge role={person.account_type} />
                 ) : null}
-                {isAdmin && person.lineage_type ? (
-                  <Badge variant="outline">
-                    Lineage: {person.lineage_type}
-                  </Badge>
-                ) : null}
                 {!locked ? (
                   <span className="ml-auto flex gap-1.5">
                     {canEdit || fillable ? (

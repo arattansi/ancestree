@@ -709,9 +709,6 @@ export function AddPersonFlow({
                 <PersonFields
                   control={form.control}
                   isAdmin={isAdmin}
-                  // Lineage describes the link to a parent; the first person on
-                  // an empty tree has none to describe (Step 29).
-                  lineage={members.length > 0 ? undefined : false}
                   self={mode === "self"}
                   prefix="people.0"
                   idPrefix="primary"
@@ -1152,7 +1149,6 @@ export function AddPersonFlow({
             <PersonDetailFields
               control={form.control}
               isAdmin={isAdmin}
-              lineage={members.length > 0 ? undefined : false}
               prefix="people.0"
               idPrefix="primary"
             />

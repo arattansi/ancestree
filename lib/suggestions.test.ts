@@ -88,7 +88,6 @@ describe("suggestionValues", () => {
         last_name: "Sayani",
         date_of_birth: "1931-03",
         email: "someone@example.com",
-        lineage_type: "adoptive",
       }),
     );
     expect(Object.keys(values).sort()).toEqual(

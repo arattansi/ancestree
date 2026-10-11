@@ -225,7 +225,6 @@ describe("personFormValues", () => {
     place_id_death: null,
     place_of_death: null,
     sex: "male",
-    lineage_type: null,
     email: null,
     email_visible: null,
     ...over,
@@ -246,7 +245,6 @@ describe("personFormValues", () => {
     expect(values.date_of_death).toBe("1999");
     expect(values.middle_name).toBe("");
     expect(values.sex).toBe("male");
-    expect(values.lineage_type).toBeUndefined();
     expect(values.email_visible).toBe(false);
   });
 

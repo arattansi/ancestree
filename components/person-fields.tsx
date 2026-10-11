@@ -30,20 +30,8 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import {
-  SEX_LABELS,
-  SEX_VALUES,
-  LINEAGE_LABELS,
-  LINEAGE_TYPES,
-} from "@/lib/person-labels";
+import { SEX_LABELS, SEX_VALUES } from "@/lib/person-labels";
 
 /** The mark on a label whose field has to be filled in. */
 function RequiredMark() {
@@ -343,8 +331,7 @@ export function PersonDiedField<T extends FieldValues>({
 
 /**
  * Everything about a person past their names: sex, birth, and death once
- * they're marked as having died; the contact block and lineage when asked
- * for. Labels only, with no line under a field explaining it (Step 58).
+ * they're marked as having died; the contact block when asked for. Labels only, with no line under a field explaining it (Step 58).
  */
 export function PersonDetailFields<T extends FieldValues>({
   control,
@@ -354,7 +341,6 @@ export function PersonDetailFields<T extends FieldValues>({
   prefix,
   idPrefix,
   placeLabels,
-  lineage,
   show,
 }: {
   control: Control<T>;
@@ -371,12 +357,6 @@ export function PersonDetailFields<T extends FieldValues>({
   idPrefix: string;
   /** Labels for already-selected places, so the edit form shows them on load. */
   placeLabels?: { birth?: string | null; death?: string | null };
-  /**
-   * Offer the lineage choice (a Root's, about the link to this person's
-   * parent). Defaults to `isAdmin`; the first run's family step asks it only
-   * about a child, whose parent is the founder adding them (Step 29).
-   */
-  lineage?: boolean;
   show?: FieldFilter;
 }) {
   const { setValue } = useFormContext<T>();
@@ -627,39 +607,6 @@ export function PersonDetailFields<T extends FieldValues>({
         </div>
       ) : null}
 
-      {(lineage ?? isAdmin) ? (
-        <FormField
-          control={control}
-          name={name("lineage_type")}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Lineage</FormLabel>
-              <Select
-                // Without its labels, the closed button shows the stored key.
-                items={LINEAGE_LABELS}
-                // null, not undefined: "not set" still counts as controlled,
-                // so picking one doesn't flip the Select to controlled.
-                value={field.value ?? null}
-                onValueChange={(v) => field.onChange(v || undefined)}
-              >
-                <FormControl>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Not set" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {LINEAGE_TYPES.map((t) => (
-                    <SelectItem key={t} value={t}>
-                      {LINEAGE_LABELS[t]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-      ) : null}
     </>
   );
 }
@@ -677,7 +624,6 @@ export function PersonFields<T extends FieldValues>({
   prefix,
   idPrefix,
   placeLabels,
-  lineage,
 }: {
   control: Control<T>;
   isAdmin: boolean;
@@ -696,12 +642,6 @@ export function PersonFields<T extends FieldValues>({
   idPrefix: string;
   /** Labels for already-selected places, so the edit form shows them on load. */
   placeLabels?: { birth?: string | null; death?: string | null };
-  /**
-   * Offer the lineage choice (a Root's, about the link to this person's
-   * parent). Defaults to `isAdmin`; the first run's family step asks it only
-   * about a child, whose parent is the founder adding them (Step 29).
-   */
-  lineage?: boolean;
 }) {
   return (
     <div className="flex flex-col gap-6">
@@ -714,7 +654,6 @@ export function PersonFields<T extends FieldValues>({
         prefix={prefix}
         idPrefix={idPrefix}
         placeLabels={placeLabels}
-        lineage={lineage}
       />
     </div>
   );

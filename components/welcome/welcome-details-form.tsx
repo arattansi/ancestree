@@ -190,7 +190,6 @@ export function WelcomeDetailsForm({
         <PersonDetailFields
           control={form.control}
           isAdmin={false}
-          lineage={false}
           idPrefix={`welcome-${personId}`}
           placeLabels={{ birth: birthPlace }}
           show={show}

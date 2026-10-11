@@ -116,7 +116,6 @@ export function PersonFillForm({
         <PersonDetailFields
           control={form.control}
           isAdmin={false}
-          lineage={false}
           idPrefix={`fill-${personId}`}
           show={show}
         />

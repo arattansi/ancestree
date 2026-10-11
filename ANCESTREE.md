@@ -434,7 +434,7 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `lib/ancestral-lands.server.ts` — `landsAtPlace`, what both answer;
   `components/ancestral-lands.tsx` — the lands line on a card and in a form:
   NLD's names, or nothing (Step 40)
-- `lib/person-schema.ts` — shared zod schema, its labels (sex, lineage) in
+- `lib/person-schema.ts` — shared zod schema, its labels (sex) in
   zod-free `lib/person-labels.ts` (Step 87.4; `lib/first-load.test.ts` keeps
   zod, react-hook-form and the browser Supabase client out of the header's
   and the canvas's static imports); `lib/connections.ts` — chain/edge
@@ -669,7 +669,9 @@ holds `''` in `country_of_birth`). When one is picked it's a
 **`place_id_birth`** (GeoNames `places` FK, Step 4.5c), and `city_of_birth` /
 `country_of_birth` are still written (derived from the picked place). It can
 be a whole country (Step 79): then `city_of_birth` is empty, and a place of
-death's `place_of_death` is just the country's name. `lineage_type` is writable by admins only.
+death's `place_of_death` is just the country's name. `lineage_type` is still a
+column (Root-only in the database) but the app neither shows nor writes it
+since Step 141.
 `middle_name` and `maiden_name` are optional nullable text columns, visible to and
 editable by any member who can already edit the entry.
 
@@ -747,7 +749,7 @@ the branch (`private.can_edit_relationship`) — one end alone would let them
 redraw a line into someone else's family. When a Branch changes an entry a
 Root created or owns, the edit publishes at once and the Root can undo it
 (**Branch edits and the Root's undo**, below). Nothing else moves: deleting
-what others added, setting `lineage_type` and the Root console stay
+what others added and the Root console stay
 Root-only.
 `lib/branch.ts` mirrors the rule for the UI; the database decides. The rule
 is the entry's **home** tree's, whichever tree shows it: a canvas asks who
@@ -831,7 +833,7 @@ the database, which enforces them.
 
 | Stored `role`  | Name       | Reach                                                                                                                                                                                                                                                                                              |
 | -------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `admin`        | **Root**   | Everything, plus running the tree: members and their account types, invites, share links, deletes, lineage                                                                                                                                                                                         |
+| `admin`        | **Root**   | Everything, plus running the tree: members and their account types, invites, share links, deletes                                                                                                                                                                                                 |
 | `branch_admin` | **Branch** | Every entry and connection on their part of the side of the Root they're related to (see **Branches**); invites relatives as Leaves, and invites someone to claim an unclaimed entry on that side                                                                                                  |
 | `member`       | **Leaf**   | Adds relatives on their own line — their ancestors, everyone descended from them, and the people those relatives married; edits what they add, the lines they draw, and their own entry. Invites relatives as Leaves, and invites someone to claim an entry they added. New members join as Leaves |
 
@@ -1056,7 +1058,7 @@ mirror it for the UI.
 | Invite someone to claim an entry                   | Any unclaimed, living entry, as a Leaf                                                                          | Unclaimed on their side, as Leaves                                           | Unclaimed ones they added, as Leaves |
 | Change account types                               | Anyone not a Root: Leaf, Branch, or Root (for good)                                                             | —                                                                            | —                                    |
 | Demote or remove a Root                            | Never, themselves included; a Root may delete their own account, handing over to a new Root if they're the last | —                                                                            | —                                    |
-| Root console, lineage, share links                 | ✓                                                                                                               | —                                                                            | —                                    |
+| Root console, share links                          | ✓                                                                                                               | —                                                                            | —                                    |
 
 ## Auth & invites (Step 3)
 
@@ -1785,6 +1787,21 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 141: lineage turned off for everyone** (no migration). **Aalim
+  asked:** turn off the "biological, adoptive, other" choice, which
+  shouldn't exist for non-Roots, and turn it off for Roots too. **Now** the
+  person form's **Lineage** select (Biological / Adoptive / Unknown, a
+  Root's alone) is gone from every form that used it (add, edit, fill,
+  suggest, welcome, the first run's quick relative), and so is the
+  "Lineage: …" badge Roots saw on the person panel. `LINEAGE_TYPES` /
+  `LINEAGE_LABELS` are gone from `lib/person-labels.ts`, `lineage_type`
+  from the form schema, its payload, the reads that fed the panel, and
+  both writers (`updatePerson` and `addPeople`), so saving a form no
+  longer blanks a stored value. **My calls, not asked:** the
+  `lineage_type` column, its Root-only trigger and the values already
+  stored stay in the database, unseen; the manifesto's "biological,
+  adoptive, estranged" line is copy, not the setting, and stays.
 
 - **Step 140: apples fall from the menu tree to spell menu** (no
   migration). **Aalim asked:** on the web only, trace the red **menu** he

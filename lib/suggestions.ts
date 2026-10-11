@@ -21,7 +21,7 @@ import type { toPersonPayload } from "@/lib/person-schema";
 /**
  * What a suggestion may change, in the order it's shown, and the columns
  * each detail changes together. Mirrors `private.suggestion_columns`. A
- * photo, lineage and contact details aren't among them.
+ * photo and contact details aren't among them.
  */
 export const SUGGESTION_DETAILS = [
   { key: "first_name", label: "First name", columns: ["first_name"] },

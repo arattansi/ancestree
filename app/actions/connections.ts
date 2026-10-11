@@ -39,7 +39,6 @@ import type {
   SuggestionSource,
 } from "@/lib/connection-suggestions";
 import { revalidateTreePages } from "@/lib/revalidate";
-import { getRoleIn } from "@/lib/tree-context";
 import { createClient } from "@/lib/supabase/server";
 
 /** A marriage's dates in the wrong order, however the write was made. */
@@ -151,7 +150,6 @@ async function addPeople(
   }
 
   if (!input.treeId) return { error: "Pick a tree to add to." };
-  const isAdmin = (await getRoleIn(input.treeId)) === "admin";
   const pPeople = people.map((values, i) => {
     const p = toPersonPayload(values);
     return {
@@ -170,8 +168,6 @@ async function addPeople(
       date_of_death: p.date_of_death ?? "",
       date_of_death_precision: p.date_of_death_precision,
       place_of_death: p.place_of_death ?? "",
-      // lineage_type is admin-only; the DB nulls it for other writers anyway.
-      lineage_type: isAdmin ? p.lineage_type : null,
       // "18 or older?" (Step 98): the database refuses a child under 18, or
       // one nobody said yes for, unless the member is their parent.
       adult: input.adults?.[i] ?? null,

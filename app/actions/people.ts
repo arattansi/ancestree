@@ -17,7 +17,7 @@ import {
 import { fillFields } from "@/lib/fill-blanks";
 import { groupsToShow, type HeldBackGroup } from "@/lib/held-back";
 import { revalidateTreePages } from "@/lib/revalidate";
-import { getRoleIn, rootOf } from "@/lib/tree-context";
+import { rootOf } from "@/lib/tree-context";
 import { createClient } from "@/lib/supabase/server";
 import type { TablesUpdate } from "@/lib/database.types";
 
@@ -98,11 +98,6 @@ export async function updatePerson(
     .select("tree_id, owner_user_id, photo_path")
     .eq("id", personId)
     .maybeSingle();
-  // lineage_type is a home-tree Root's alone; the DB trigger rejects other
-  // writers, so only send it when the caller is one.
-  if (home && (await getRoleIn(home.tree_id)) === "admin") {
-    update.lineage_type = payload.lineage_type ?? null;
-  }
   // Contact details are the entry owner's alone: anyone else's form never
   // showed them, so writing its blanks would wipe them.
   if (home?.owner_user_id === profile.auth_user_id) {
