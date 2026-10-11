@@ -21,7 +21,7 @@ const APPLE_MS = 1500;
 /** Its letter starts to show as the apple hops back down. */
 const LETTER_AT = 0.88;
 const LETTER_MS = 320;
-const SHAFT_MS = 560;
+const SHAFT_MS = 320;
 const HEAD_MS = 220;
 /** Back again (from the app, or a second visit), menu and arrow fade in. */
 const FADE_MS = 400;

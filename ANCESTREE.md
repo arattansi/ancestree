@@ -1817,7 +1817,9 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   leans left, stopping short of the words below **shh**; `--brand-red` is
   `#e8452c`, the body of the mark's apple (`#at-apple`), for **menu** and
   the falling apples alike; the shaft is `--brand-brown`, the head
-  `--brand-green`.
+  `--brand-green`. Then, Aalim: make the arrow shorter, like a stem for
+  **menu**. **Now** it rises about 20 drawing pixels from between the **e**
+  and the **n**, leaning left towards the tree, drawn in 320ms.
 - **Step 139: no "built with ai" footer** (no migration). **Aalim asked:**
   remove the "made with ai" footer across the website and the app. **Now**
   the footer's watermark ("built with ai … because love wasn't enough.") is

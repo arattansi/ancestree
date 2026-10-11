@@ -71,13 +71,13 @@ export const NAV_APPLE = {
 };
 
 /**
- * The arrow from **menu** to the tree: up from over the **e**, leaning left,
- * stopping short of the words to point the way up into the tree rather
- * than at any one of them. Stroked, in the drawing's pixels; `shaft` (in
- * the trunk's brown) is drawn first, then `head` (in the canopy's green).
+ * The arrow from **menu** to the tree: short, like the word's stem, up from
+ * between the **e** and the **n** and leaning left, the way up into the
+ * tree. Stroked, in the drawing's pixels; `shaft` (in the trunk's brown) is
+ * drawn first, then `head` (in the canopy's green).
  */
 export const NAV_MENU_ARROW = {
-  shaft: "M 198 338 C 200 318, 194 290, 176 262",
-  head: "M 175.6 271 L 176 262 L 184.3 265.4",
+  shaft: "M 213 341 C 213 333, 207 325, 201 318",
+  head: "M 201.7 325 L 201 318 L 207.8 319.7",
   width: 2.6,
 };
