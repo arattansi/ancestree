@@ -49,7 +49,8 @@ function rememberFallen() {
  * **menu**, under the tree while it's held open (Step 140, `lib/nav-apples.ts`):
  * once the tree has grown, an apple ripens under a canopy word for each
  * letter, wobbles, falls, hops once where Aalim wrote the letter, and turns
- * into it, in his red; then an arrow is drawn from **menu** to the trunk.
+ * into it, in the mark's apple red; then an arrow is drawn from **menu** up
+ * towards the tree, its line brown and its head green.
  * Once a visit (this tab's session); after that, and for reduced motion,
  * **menu** and the arrow are simply there. A picture, so it's hidden from
  * assistive technology and lets every press through.
@@ -173,21 +174,23 @@ export function NavMenuApples({
         viewBox={`0 0 ${NAV_TREE_SIZE.width} ${NAV_TREE_SIZE.height}`}
         className="absolute inset-0 size-full overflow-visible"
         fill="none"
-        stroke="currentColor"
         strokeWidth={NAV_MENU_ARROW.width}
         strokeLinecap="round"
         strokeLinejoin="round"
       >
-        {/* Drawn along their length: a dash as long as the path. */}
+        {/* Drawn along their length: a dash as long as the path. The line
+            is the trunk's brown, the head the canopy's green. */}
         <path
           ref={shaft}
           d={NAV_MENU_ARROW.shaft}
+          stroke="var(--brand-brown)"
           pathLength={1}
           strokeDasharray="1 1"
         />
         <path
           ref={head}
           d={NAV_MENU_ARROW.head}
+          stroke="var(--brand-green)"
           pathLength={1}
           strokeDasharray="1 1"
         />

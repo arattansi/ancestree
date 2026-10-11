@@ -1810,7 +1810,14 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   (sessionStorage `ancestree:menu-apples-fallen`; afterwards, and back
   from the app, **menu** and the arrow fade in once the tree has grown);
   decorative, `aria-hidden` and click-through. Reduced motion shows it
-  all in place. It fades with the words as they fly home.
+  all in place. It fades with the words as they fly home. Then, Aalim:
+  point the arrow the tree's general way, not right at **capitalism**;
+  **menu** in the logo's apple colour; the arrow's line brand brown and
+  its head brand green. **Now** the arrow rises from over the **e** and
+  leans left, stopping short of the words below **shh**; `--brand-red` is
+  `#e8452c`, the body of the mark's apple (`#at-apple`), for **menu** and
+  the falling apples alike; the shaft is `--brand-brown`, the head
+  `--brand-green`.
 - **Step 139: no "built with ai" footer** (no migration). **Aalim asked:**
   remove the "made with ai" footer across the website and the app. **Now**
   the footer's watermark ("built with ai … because love wasn't enough.") is

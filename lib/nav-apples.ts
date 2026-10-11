@@ -3,7 +3,7 @@
  * from his drawing the way the tree's words were (`lib/nav-words.ts`), one
  * letter at a time, since each falls on its own: an apple hangs in the
  * canopy at `hang`, drops, and turns into its letter where he wrote it.
- * Then an arrow is drawn from **menu** to the trunk.
+ * Then an arrow is drawn from **menu** up towards the tree.
  *
  * Places are in the drawing's pixels, as `NAV_TREE` are, from the tree's
  * top left; **menu** runs a little past `NAV_TREE_SIZE` on the right.
@@ -71,12 +71,13 @@ export const NAV_APPLE = {
 };
 
 /**
- * The arrow from **menu** to the tree: up from over the **m**, curling left
- * to point at the trunk. Stroked, in the drawing's pixels; `shaft` is drawn
- * first, then `head`.
+ * The arrow from **menu** to the tree: up from over the **e**, leaning left,
+ * stopping short of the words to point the way up into the tree rather
+ * than at any one of them. Stroked, in the drawing's pixels; `shaft` (in
+ * the trunk's brown) is drawn first, then `head` (in the canopy's green).
  */
 export const NAV_MENU_ARROW = {
-  shaft: "M 186 339 C 185 318, 170 301, 146 297",
-  head: "M 154 289 L 145.5 297 L 155 303",
+  shaft: "M 198 338 C 200 318, 194 290, 176 262",
+  head: "M 175.6 271 L 176 262 L 184.3 265.4",
   width: 2.6,
 };
