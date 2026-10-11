@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import * as React from "react";
 import { createPortal } from "react-dom";
 
+import { NavMenuApples } from "@/components/nav-menu-apples";
 import { Button } from "@/components/ui/button";
 import { NAV_TREE, NAV_TREE_SIZE, type NavTreeWord } from "@/lib/nav-tree";
 import { navHeldOpenOn } from "@/lib/nav-words";
@@ -81,8 +82,10 @@ function Word({ word }: { word: NavTreeWord }) {
  * outside, the button again, or going to a page. On the home page and
  * the marketing pages the list stays open (from 1240px; narrower, they
  * work as the app does): it flies out once the page has loaded, and back
- * into the pile on leaving for the app. The list is drawn into the page's
- * body, since the header's blur would hold anything fixed inside it.
+ * into the pile on leaving for the app; held open, apples fall from it to
+ * spell **menu** under it (Step 140, `NavMenuApples`). The list is drawn
+ * into the page's body, since the header's blur would hold anything fixed
+ * inside it.
  */
 export function SiteNavMenu({ className }: { className?: string }) {
   const pathname = usePathname();
@@ -298,6 +301,15 @@ export function SiteNavMenu({ className }: { className?: string }) {
                     </li>
                   ))}
                 </ul>
+                {/* Held open, apples fall from the grown tree to spell
+                    **menu** under it, with an arrow up to it. */}
+                {byHand ? null : (
+                  <NavMenuApples
+                    scale={LIST_SCALE}
+                    after={OPEN_MS + STAGGER_MS * (NAV_WORDS.length - 1) + 150}
+                    leaving={closing}
+                  />
+                )}
               </nav>
             </>,
             document.body,

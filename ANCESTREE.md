@@ -1786,6 +1786,31 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 140: apples fall from the menu tree to spell menu** (no
+  migration). **Aalim asked:** on the web only, trace the red **menu** he
+  wrote under the tree, and once the tree has formed, have each letter
+  fall from it as an apple and take its place in **menu**; then draw an
+  arrow from **menu** to the tree. **Now** the four letters are traced
+  from his screenshot as the tree's words were (`potracer`, 8× bicubic
+  with a little blur, `alphamax=1.3`; his red read as its coverage over
+  white, back to the drawing's pixels by the tree's own scale, 1.5
+  screenshot pixels each), one path per letter: `lib/nav-apples.ts`
+  (`NAV_MENU_LETTERS`, each with where its apple hangs, `NAV_APPLE`,
+  `NAV_MENU_ARROW`) and `public/brand/nav/menu.svg`. A new
+  `--brand-red` (`#ea3323`, his red) is the apples and **menu**.
+  `components/nav-menu-apples.tsx`, inside the open `<nav>` while the
+  tree is held open (home and marketing pages, from 1240px; not the menu
+  opened by hand in the app): once the words have flown in, an apple
+  ripens under **how** or **shh** for each letter, wobbles, falls (ease-in
+  as gravity, a little tumble), hops once where he wrote its letter and
+  turns into it, 260ms apart; then the arrow's shaft is drawn from over
+  the **m** up to the trunk, and its head after (stroke-dashoffset on
+  `pathLength` 1). **My calls (asked, Aalim chose):** an apple that turns
+  into its letter, rather than the letter itself falling; once a visit
+  (sessionStorage `ancestree:menu-apples-fallen`; afterwards, and back
+  from the app, **menu** and the arrow fade in once the tree has grown);
+  decorative, `aria-hidden` and click-through. Reduced motion shows it
+  all in place. It fades with the words as they fly home.
 - **Step 139: no "built with ai" footer** (no migration). **Aalim asked:**
   remove the "made with ai" footer across the website and the app. **Now**
   the footer's watermark ("built with ai … because love wasn't enough.") is
