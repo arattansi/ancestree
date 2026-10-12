@@ -4,10 +4,14 @@ import * as React from "react";
 
 import {
   emailMeANewsletterTest,
+  setNewsletterNote,
   setNewsletterSchedule,
 } from "@/app/actions/newsletter";
+import { FormError } from "@/components/form-error";
 import { PendingButton } from "@/components/pending-button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -16,7 +20,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAction } from "@/components/use-action";
-import { WEEKDAY_NAMES, type NewsletterSchedule } from "@/lib/newsletter";
+import {
+  NOTE_MAX,
+  WEEKDAY_NAMES,
+  type NewsletterSchedule,
+} from "@/lib/newsletter";
 import { MONTH_NAMES } from "@/lib/partial-date";
 
 const noop = () => () => {};
@@ -62,60 +70,128 @@ export function NewsletterControls({
     });
 
   return (
-    <div className="flex flex-col gap-4">
-      <p className="text-sm text-muted-foreground">
-        {shown.paused
-          ? "Paused. Nobody gets it."
-          : `${WEEKDAY_NAMES[shown.weekday]}s at 15:00 UTC.${local ? ` Next: ${local} your time.` : ""}`}
-      </p>
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="newsletter-day">Day</Label>
-          <Select
-            value={String(shown.weekday)}
-            onValueChange={(v) =>
-              save({ ...shown, weekday: Number(v ?? shown.weekday) }, "day")
-            }
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-4">
+        <p className="text-sm text-muted-foreground">
+          {shown.paused
+            ? "Paused. Nobody gets it."
+            : `${WEEKDAY_NAMES[shown.weekday]}s at 15:00 UTC.${local ? ` Next: ${local} your time.` : ""}`}
+        </p>
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="newsletter-day">Day</Label>
+            <Select
+              value={String(shown.weekday)}
+              onValueChange={(v) =>
+                save({ ...shown, weekday: Number(v ?? shown.weekday) }, "day")
+              }
+              disabled={action.pending}
+            >
+              <SelectTrigger id="newsletter-day" className="w-40">
+                <SelectValue>
+                  {(value: string) => WEEKDAY_NAMES[Number(value)] ?? ""}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {WEEKDAY_NAMES.map((name, i) => (
+                  <SelectItem key={name} value={String(i)}>
+                    {name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <PendingButton
+            variant="outline"
+            onClick={() => save({ ...shown, paused: !shown.paused }, "pause")}
+            pending={action.pendingKey === "pause"}
             disabled={action.pending}
+            pendingLabel="saving…"
           >
-            <SelectTrigger id="newsletter-day" className="w-40">
-              <SelectValue>
-                {(value: string) => WEEKDAY_NAMES[Number(value)] ?? ""}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {WEEKDAY_NAMES.map((name, i) => (
-                <SelectItem key={name} value={String(i)}>
-                  {name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            {shown.paused ? "resume" : "pause"}
+          </PendingButton>
+          <PendingButton
+            variant="outline"
+            onClick={() =>
+              action.run("test", emailMeANewsletterTest, {
+                success: (r) =>
+                  r.sent
+                    ? "Sent to your address."
+                    : "Nothing to tell you this week.",
+              })
+            }
+            pending={action.pendingKey === "test"}
+            disabled={action.pending}
+            pendingLabel="sending…"
+          >
+            email me a test
+          </PendingButton>
         </div>
-        <PendingButton
-          variant="outline"
-          onClick={() => save({ ...shown, paused: !shown.paused }, "pause")}
-          pending={action.pendingKey === "pause"}
-          disabled={action.pending}
-          pendingLabel="saving…"
-        >
-          {shown.paused ? "resume" : "pause"}
-        </PendingButton>
-        <PendingButton
-          variant="outline"
-          onClick={() =>
-            action.run("test", emailMeANewsletterTest, {
-              success: (r) =>
-                r.sent ? "Sent to your address." : "Nothing to tell you this week.",
-            })
-          }
-          pending={action.pendingKey === "test"}
-          disabled={action.pending}
-          pendingLabel="sending…"
-        >
-          email me a test
-        </PendingButton>
       </div>
+      <NextSendExtras note={schedule.note} allStories={schedule.all_stories} />
     </div>
+  );
+}
+
+/**
+ * What the next newsletter carries besides its news (Step 144): a note at
+ * its top, and whether it tells every story so far. Both go with the next
+ * send only.
+ */
+function NextSendExtras({
+  note: saved,
+  allStories: savedAll,
+}: {
+  note: string | null;
+  allStories: boolean;
+}) {
+  const action = useAction({ inline: true });
+  const [note, setNote] = React.useState(saved ?? "");
+  const [allStories, setAllStories] = React.useState(savedAll);
+  const changed = note.trim() !== (saved ?? "") || allStories !== savedAll;
+
+  return (
+    <form
+      className="flex flex-col gap-3"
+      onSubmit={(e) => {
+        e.preventDefault();
+        action.run("note", () => setNewsletterNote(note, allStories), {
+          success: "Saved for the next newsletter.",
+        });
+      }}
+    >
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="newsletter-note">Note for the next newsletter</Label>
+        <Textarea
+          id="newsletter-note"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          maxLength={NOTE_MAX}
+          rows={4}
+          className="max-w-xl"
+        />
+      </div>
+      <div className="flex items-center gap-2">
+        <Checkbox
+          id="newsletter-all-stories"
+          checked={allStories}
+          onCheckedChange={(v) => setAllStories(v === true)}
+        />
+        <Label htmlFor="newsletter-all-stories" className="font-normal">
+          Every story so far
+        </Label>
+      </div>
+      <FormError>{action.error}</FormError>
+      <PendingButton
+        type="submit"
+        variant="outline"
+        className="self-start"
+        pending={action.pendingKey === "note"}
+        disabled={action.pending || !changed}
+        pendingLabel="saving…"
+      >
+        save
+      </PendingButton>
+    </form>
   );
 }

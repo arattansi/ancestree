@@ -3,7 +3,6 @@ import "server-only";
 import { ROOT } from "@/lib/account-types";
 import { openConsoleHref } from "@/lib/admin-queue";
 import { sendEmails, unsentSummary, type SendEmailInput } from "@/lib/email";
-import { isInvitable } from "@/lib/invitable";
 import { newsletterEmail } from "@/lib/emails/newsletter";
 import type { FamilyLine, Showing } from "@/lib/my-family";
 import {
@@ -21,8 +20,6 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import {
   cardOf,
   lineOf,
-  readApprovedClaims,
-  readIn,
   readPaged,
   readTreesEdges,
   readTreesPeople,
@@ -34,6 +31,7 @@ import {
   myFamilyHref,
   newsletterOneClickHref,
   newsletterPageHref,
+  storyHref,
 } from "@/lib/tree-links";
 
 /** What a run did, for the cron job's answer and the logs: counts only. */
@@ -58,7 +56,7 @@ const NOTHING: NewsletterRun = { due: 0, sent: 0, quiet: 0, skipped: 0, unsent: 
 export async function readNewsletterSchedule(): Promise<NewsletterSchedule> {
   const { data, error } = await createAdminClient()
     .from("newsletter_schedule")
-    .select("weekday, paused")
+    .select("weekday, paused, note, all_stories")
     .maybeSingle();
   if (error) throw new Error(`newsletter_schedule: ${error.message}`);
   return data ?? DEFAULT_SCHEDULE;
@@ -74,7 +72,16 @@ export async function sendScheduledNewsletters(
   const schedule = await readNewsletterSchedule();
   if (schedule.paused) return { ...NOTHING, held: "paused" };
   if (!isSendDay(schedule, now)) return { ...NOTHING, held: "not today" };
-  return sendWeeklyNewsletters({ now });
+  const run = await sendWeeklyNewsletters({ now, schedule });
+  // The note and the catch-up were for this send only (Step 144).
+  if (schedule.note || schedule.all_stories) {
+    const { error } = await createAdminClient()
+      .from("newsletter_schedule")
+      .update({ note: null, all_stories: false })
+      .eq("id", true);
+    if (error) console.error(`[newsletter] note not cleared — ${error.message}`);
+  }
+  return run;
 }
 
 /**
@@ -96,7 +103,8 @@ export async function ownNewsletter(
   { sending = false }: { sending?: boolean } = {},
 ): Promise<SendEmailInput | null> {
   const now = new Date();
-  const at = nextSendAt(await readNewsletterSchedule(), now) ?? now;
+  const schedule = await readNewsletterSchedule();
+  const at = nextSendAt(schedule, now) ?? now;
   const token = sending ? await ensureNewsletterToken(member.userId) : "preview";
   const { emails } = await buildWeeklyNewsletters(
     [
@@ -110,6 +118,7 @@ export async function ownNewsletter(
       },
     ],
     at,
+    schedule,
   );
   return emails.get(member.userId) ?? null;
 }
@@ -136,10 +145,12 @@ function utcDay(now: Date): string {
  * never an address.
  */
 export async function sendWeeklyNewsletters(
-  opts: { users?: string[]; now?: Date } = {},
+  opts: { users?: string[]; now?: Date; schedule?: NewsletterSchedule } = {},
 ): Promise<NewsletterRun> {
   const supabase = createAdminClient();
   const run: NewsletterRun = { ...NOTHING };
+  // A test send carries what the next one will: the note, the catch-up.
+  const schedule = opts.schedule ?? (await readNewsletterSchedule());
 
   const { data: due, error } = await supabase.rpc("newsletter_due", {
     p_users: opts.users,
@@ -151,6 +162,7 @@ export async function sendWeeklyNewsletters(
   const { emails, quiet, failed } = await buildWeeklyNewsletters(
     due,
     opts.now ?? new Date(),
+    schedule,
   );
   run.quiet = quiet;
   run.unsent = failed.size;
@@ -197,6 +209,8 @@ export type NewsletterRecipient = {
 export async function buildWeeklyNewsletters(
   due: readonly NewsletterRecipient[],
   now: Date,
+  /** What the send carries besides (Step 144): the note, every story. */
+  { note, all_stories: allStories }: Pick<NewsletterSchedule, "note" | "all_stories"> = DEFAULT_SCHEDULE,
 ): Promise<{
   emails: Map<string, SendEmailInput>;
   quiet: number;
@@ -222,16 +236,22 @@ export async function buildWeeklyNewsletters(
         .range(from, to),
     ),
     // Approved since the earliest week told: a story when its yes was
-    // given, or when it was told if it needed none.
-    readPaged((from, to) =>
-      supabase
+    // given, or when it was told if it needed none. Every one, oldest
+    // first, for a catch-up (Step 144).
+    readPaged((from, to) => {
+      const q = supabase
         .from("stories")
-        .select("person_id, decided_at, created_at")
-        .eq("status", "approved")
-        .or(`decided_at.gte."${earliest}",and(decided_at.is.null,created_at.gte."${earliest}")`)
+        .select("id, person_id, title, decided_at, created_at, story_credits(person_id, role)")
+        .eq("status", "approved");
+      return (
+        allStories
+          ? q
+          : q.or(`decided_at.gte."${earliest}",and(decided_at.is.null,created_at.gte."${earliest}")`)
+      )
+        .order("created_at")
         .order("id")
-        .range(from, to),
-    ),
+        .range(from, to);
+    }),
     readPaged((from, to) =>
       supabase
         .from("album_tags")
@@ -269,34 +289,13 @@ export async function buildWeeklyNewsletters(
   const placers = [
     ...new Set(placements.rows.flatMap((p) => (p.placed_by ? [p.placed_by] : []))),
   ];
-  // Who's behind each full card, to name those nobody is (Step 143): the
-  // settled claims, and every member's own entry.
-  const fullIds = [
-    ...new Set(
-      people.rows.flatMap((p) =>
-        p.id && p.detail !== "basic" && !p.blurred ? [p.id] : [],
-      ),
-    ),
-  ];
-  const [{ data: placerRows, error: placerError }, claims, owners] =
-    await Promise.all([
-      placers.length
-        ? supabase
-            .from("profiles")
-            .select("auth_user_id, display_name, self_person_id")
-            .in("auth_user_id", placers)
-        : Promise.resolve({ data: [], error: null }),
-      readApprovedClaims(supabase, fullIds),
-      readIn(fullIds, (chunk) =>
-        supabase.from("profiles").select("self_person_id").in("self_person_id", chunk),
-      ),
-    ]);
+  const { data: placerRows, error: placerError } = placers.length
+    ? await supabase
+        .from("profiles")
+        .select("auth_user_id, display_name, self_person_id")
+        .in("auth_user_id", placers)
+    : { data: [], error: null };
   if (placerError) throw new Error(`profiles: ${placerError.message}`);
-  const claimed = new Set(claims.map((c) => c.person_id));
-  const ownEntries = new Set(
-    owners.flatMap((o) => (o.self_person_id ? [o.self_person_id] : [])),
-  );
-  const invitable = new Set<string>();
 
   const showingsByTree = new Map<string, Showing<TreeCard>[]>();
   const placedAt = new Map(
@@ -309,9 +308,6 @@ export async function buildWeeklyNewsletters(
     if (!p.tree_id || !card || card.blurred || card.placeholder_number != null)
       continue;
     nameOfPerson.set(card.id, personDisplayName(card));
-    if (!card.basic && isInvitable(card, claimed, ownEntries)) {
-      invitable.add(card.id);
-    }
     const list = showingsByTree.get(p.tree_id) ?? [];
     list.push({
       treeId: p.tree_id,
@@ -367,11 +363,17 @@ export async function buildWeeklyNewsletters(
         showings: theirTrees.flatMap((t) => showingsByTree.get(t.id) ?? []),
         lines: theirTrees.flatMap((t) => linesByTree.get(t.id) ?? []),
         placements: placementRows,
-        stories: stories.rows.filter((s) => withinWeek(s, r.since)),
+        stories: stories.rows
+          .filter((s) => allStories || withinWeek(s, r.since))
+          .map((s) => ({
+            id: s.id,
+            person_id: s.person_id,
+            title: s.title,
+            credits: s.story_credits ?? [],
+          })),
         photos: tags.rows.filter((t) => withinWeek(t, r.since)),
         memberNames,
         memberEntries,
-        invitable,
         since: r.since,
         today,
       });
@@ -394,6 +396,8 @@ export async function buildWeeklyNewsletters(
           familyUrl: `${site}${myFamilyHref()}`,
           unsubscribeUrl: page,
           inviteUrl: `${site}${invite}`,
+          storyUrl: (id) => `${site}${storyHref(id)}`,
+          note,
         }),
         headers: {
           "List-Unsubscribe": `<${site}${newsletterOneClickHref(r.token)}>`,

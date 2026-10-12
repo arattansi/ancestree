@@ -17,9 +17,10 @@
  * time to plan. The dead stay out, as on the card, and so do the reader's
  * own birthday and anniversary.
  *
- * Past the news, who isn't here yet (Step 143): the living relatives in
- * the same family nobody is behind, closest first, so the reader can bring
- * them in.
+ * Whoever was added is named with what they are to the reader, "your
+ * first cousin" (Step 144), and each story shared is linked, with who told
+ * it and who asked. Once, at the beta reviewers' say, every story so far
+ * rather than the week's (`all_stories`).
  *
  * Pure: `lib/newsletter.server.ts` reads the trees with the service role,
  * as their members see them, and sends what this returns.
@@ -38,6 +39,7 @@ import {
   type Occasion,
   type OccasionPerson,
 } from "@/lib/occasions";
+import { relationOf } from "@/lib/connection-path";
 import { coupleDisplayName, personDisplayName } from "@/lib/person-name";
 
 /** How far ahead a round birthday or anniversary is named: four weeks. */
@@ -62,6 +64,8 @@ export type IssuePerson = OccasionPerson & {
   first_name: string | null;
   preferred_name: string | null;
   last_name: string;
+  /** Picks the word for a relation: "your aunt" over "your aunt or uncle". */
+  sex?: string | null;
 };
 
 /** A card being placed on a tree: when, and by whom. */
@@ -74,7 +78,33 @@ export type IssuePlacement = {
 };
 
 /** Someone named in the newsletter, linked to their card. */
-export type IssueName = { id: string; name: string };
+export type IssueName = {
+  id: string;
+  name: string;
+  /** What they are to the reader, where there's an everyday word for it:
+   *  "your first cousin" (Step 144). */
+  relation?: string;
+};
+
+/** A story shared that week, linked to itself (Step 144). */
+export type IssueStory = {
+  id: string;
+  /** Its title; null when it has none. */
+  title: string | null;
+  /** Whom it's about. */
+  about: IssueName;
+  /** Who told it and who asked, as the story credits them (Step 99). */
+  storytellers: IssueName[];
+  interviewers: IssueName[];
+};
+
+/** A story as the newsletter reads it: whose, and who's credited. */
+export type IssueStoryRow = {
+  id: string;
+  person_id: string;
+  title: string | null;
+  credits: readonly { person_id: string; role: string }[];
+};
 
 /** Whoever added people to a tree that week, and whom. */
 export type IssueAdded = {
@@ -93,8 +123,8 @@ export type IssueTree = {
   /** Members who brought their own entry here that week: they joined. */
   joined: IssueName[];
   added: IssueAdded[];
-  /** People with a story approved that week, each once. */
-  stories: IssueName[];
+  /** Stories approved that week, oldest first. */
+  stories: IssueStory[];
   /** People in an album photo approved that week, each once. */
   photos: IssueName[];
 };
@@ -114,11 +144,6 @@ export type Issue = {
   week: IssueOccasion[];
   /** Round ones after that, up to four weeks out. */
   later: IssueOccasion[];
-  /**
-   * Living relatives nobody is behind yet, to invite (Step 143): closest
-   * first, then by name.
-   */
-  missing: IssueName[];
 };
 
 export type IssueInput<R extends IssuePerson & { id: string }> = {
@@ -134,19 +159,15 @@ export type IssueInput<R extends IssuePerson & { id: string }> = {
   lines: readonly FamilyLine[];
   /** Placements on those trees, at least those since `since`. */
   placements: readonly IssuePlacement[];
-  /** Whose stories were approved since `since`. */
-  stories: readonly { person_id: string }[];
+  /** Stories approved since `since` (or every one, for a catch-up). */
+  stories: readonly IssueStoryRow[];
   /** Album photos approved since `since`, by who's in them. */
   photos: readonly { photo_id: string; person_id: string }[];
   /** Members' names, by user id: their own entry's, else the one they set. */
   memberNames: ReadonlyMap<string, string>;
   /** Members' own entries, by user id: placing one is joining. */
   memberEntries: ReadonlyMap<string, string>;
-  /**
-   * Entries anyone may still be invited to claim (`isInvitable`): living,
-   * and nobody behind them. Left out, nobody is named as missing.
-   */
-  invitable?: ReadonlySet<string>;
+
   /** The start of the week being told: an ISO timestamp. */
   since: string;
   /** Today, `YYYY-MM-DD`. */
@@ -173,6 +194,18 @@ export function weeklyIssue<R extends IssuePerson & { id: string }>(
   const inFamily = (id: string) => ties.has(id) && cards.has(id);
   const nameOf = (id: string) => personDisplayName(cards.get(id)!.row);
   const since = Date.parse(input.since);
+  // What each one is to the reader (Step 144), in their words: "your
+  // first cousin". None where the chain has no everyday name.
+  const sexOf = new Map([...cards].map(([id, c]) => [id, { sex: c.row.sex }]));
+  const relationTo = (id: string): string | undefined => {
+    const r = relationOf(id, input.selfId, sexOf, lines);
+    if (!r || !("term" in r)) return undefined;
+    return `your ${r.term.charAt(0).toLowerCase()}${r.term.slice(1)}`;
+  };
+  const named = (id: string): IssueName => {
+    const relation = relationTo(id);
+    return relation ? { id, name: nameOf(id), relation } : { id, name: nameOf(id) };
+  };
 
   const byTree = new Map<string, IssueTree>(
     input.trees.map((t) => [
@@ -202,7 +235,7 @@ export function weeklyIssue<R extends IssuePerson & { id: string }>(
     // they added.
     if (p.placed_by && input.memberEntries.get(p.placed_by) === p.person_id) {
       if (!tree.joined.some((n) => n.id === p.person_id)) {
-        tree.joined.push({ id: p.person_id, name: nameOf(p.person_id) });
+        tree.joined.push(named(p.person_id));
       }
       continue;
     }
@@ -216,7 +249,7 @@ export function weeklyIssue<R extends IssuePerson & { id: string }>(
       tree.added.push(group);
     }
     if (!group.people.some((n) => n.id === p.person_id)) {
-      group.people.push({ id: p.person_id, name: nameOf(p.person_id) });
+      group.people.push(named(p.person_id));
     }
   }
 
@@ -230,15 +263,34 @@ export function weeklyIssue<R extends IssuePerson & { id: string }>(
       ? card.treeId
       : card.fullTreeIds[0];
   };
-  const mention = (list: "stories" | "photos", personId: string) => {
-    if (!inFamily(personId)) return;
+  const treeShowing = (personId: string): IssueTree | undefined => {
+    if (!inFamily(personId)) return undefined;
     const treeId = fullTreeOf(personId);
-    const tree = treeId ? byTree.get(treeId) : undefined;
-    if (!tree || tree[list].some((n) => n.id === personId)) return;
-    tree[list].push({ id: personId, name: nameOf(personId) });
+    return treeId ? byTree.get(treeId) : undefined;
   };
-  for (const s of input.stories) mention("stories", s.person_id);
-  for (const p of input.photos) mention("photos", p.person_id);
+  // Credited by name only where the reader's trees name them.
+  const credited = (row: IssueStoryRow, role: string): IssueName[] =>
+    row.credits.flatMap((c) =>
+      c.role === role && cards.has(c.person_id)
+        ? [{ id: c.person_id, name: nameOf(c.person_id) }]
+        : [],
+    );
+  for (const row of input.stories) {
+    const tree = treeShowing(row.person_id);
+    if (!tree || tree.stories.some((s) => s.id === row.id)) continue;
+    tree.stories.push({
+      id: row.id,
+      title: row.title?.trim() || null,
+      about: { id: row.person_id, name: nameOf(row.person_id) },
+      storytellers: credited(row, "storyteller"),
+      interviewers: credited(row, "interviewer"),
+    });
+  }
+  for (const p of input.photos) {
+    const tree = treeShowing(p.person_id);
+    if (!tree || tree.photos.some((n) => n.id === p.person_id)) continue;
+    tree.photos.push({ id: p.person_id, name: nameOf(p.person_id) });
+  }
 
   // Birthdays and anniversaries of everyone in, as their cards show them:
   // a basic card has no dates to give.
@@ -272,51 +324,7 @@ export function weeklyIssue<R extends IssuePerson & { id: string }>(
     (t) => t.joined.length || t.added.length || t.stories.length || t.photos.length,
   );
   if (!trees.length && !week.length && !later.length) return null;
-
-  // Who's missing (Step 143): shown in full somewhere, so their tree has
-  // said they're living, and nobody behind them. Not news in itself: a
-  // quiet week stays quiet.
-  const away = stepsFrom(input.selfId, lines);
-  const missing = [...(input.invitable ?? [])]
-    .filter(
-      (id) =>
-        id !== input.selfId &&
-        inFamily(id) &&
-        (cards.get(id)?.fullTreeIds.length ?? 0) > 0,
-    )
-    .map((id) => ({ id, name: nameOf(id) }))
-    .sort(
-      (a, b) =>
-        (away.get(a.id) ?? Infinity) - (away.get(b.id) ?? Infinity) ||
-        a.name.localeCompare(b.name),
-    );
-  return { trees, week, later, missing };
-}
-
-/**
- * How many lines apart each person is from `selfId`, any line counted as
- * one step: a parent, a child, a partner or a sibling is 1.
- */
-function stepsFrom(
-  selfId: string,
-  lines: readonly { from_person: string; to_person: string }[],
-): Map<string, number> {
-  const next = new Map<string, string[]>();
-  for (const l of lines) {
-    next.set(l.from_person, [...(next.get(l.from_person) ?? []), l.to_person]);
-    next.set(l.to_person, [...(next.get(l.to_person) ?? []), l.from_person]);
-  }
-  const steps = new Map([[selfId, 0]]);
-  const queue = [selfId];
-  for (let i = 0; i < queue.length; i++) {
-    const at = queue[i];
-    for (const id of next.get(at) ?? []) {
-      if (steps.has(id)) continue;
-      steps.set(id, steps.get(at)! + 1);
-      queue.push(id);
-    }
-  }
-  return steps;
+  return { trees, week, later };
 }
 
 /** How many were added across the issue's trees, each placement once,
@@ -347,14 +355,34 @@ export const WEEKDAY_NAMES = [
   "Saturday",
 ] as const;
 
-/** When it goes out, as the beta reviewers set it (Step 95). */
-export type NewsletterSchedule = { weekday: number; paused: boolean };
+/**
+ * When it goes out, as the beta reviewers set it (Step 95), and what the
+ * next send carries besides (Step 144): their note at its top, and every
+ * story so far rather than the week's. Both clear once it has gone.
+ */
+export type NewsletterSchedule = {
+  weekday: number;
+  paused: boolean;
+  note: string | null;
+  all_stories: boolean;
+};
 
-/** Before anyone has changed it: Sundays, not paused. */
-export const DEFAULT_SCHEDULE: NewsletterSchedule = { weekday: 0, paused: false };
+/** Before anyone has changed it: Sundays, not paused, nothing extra. */
+export const DEFAULT_SCHEDULE: NewsletterSchedule = {
+  weekday: 0,
+  paused: false,
+  note: null,
+  all_stories: false,
+};
+
+/** The longest note the newsletter carries. */
+export const NOTE_MAX = 2000;
 
 /** Whether the job's call at `now` is the week's send. */
-export function isSendDay(s: NewsletterSchedule, now: Date): boolean {
+export function isSendDay(
+  s: Pick<NewsletterSchedule, "weekday" | "paused">,
+  now: Date,
+): boolean {
   return !s.paused && now.getUTCDay() === s.weekday;
 }
 
@@ -362,7 +390,10 @@ export function isSendDay(s: NewsletterSchedule, now: Date): boolean {
  * When it next goes out: the next chosen day at `SEND_HOUR_UTC`, later
  * than `now` (Hobby runs the job within that hour). Null while paused.
  */
-export function nextSendAt(s: NewsletterSchedule, now: Date): Date | null {
+export function nextSendAt(
+  s: Pick<NewsletterSchedule, "weekday" | "paused">,
+  now: Date,
+): Date | null {
   if (s.paused) return null;
   const days = (s.weekday - now.getUTCDay() + 7) % 7;
   const at = new Date(

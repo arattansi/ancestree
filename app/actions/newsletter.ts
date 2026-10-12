@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { adminPageHref } from "@/lib/admin-page";
 import { getSessionUser, requireProfile } from "@/lib/auth";
 import { sendEmail } from "@/lib/email";
+import { NOTE_MAX } from "@/lib/newsletter";
 import { setNewsletterByToken } from "@/lib/newsletter-settings.server";
 import { ownNewsletter } from "@/lib/newsletter.server";
 import { createClient } from "@/lib/supabase/server";
@@ -58,6 +59,33 @@ export async function setNewsletterSchedule(
   const { error } = await supabase.rpc("set_newsletter_schedule", {
     p_weekday: weekday,
     p_paused: paused,
+  });
+  if (error) return { error: "Couldn't save that. Try again." };
+  revalidatePath(adminPageHref());
+  return {};
+}
+
+/**
+ * Beta reviewer: what the next newsletter carries besides its news (Step
+ * 144) — a note at its top, empty for none, and whether it tells every
+ * story so far. Both clear once it has gone. The database refuses anyone
+ * else (`set_newsletter_note`).
+ */
+export async function setNewsletterNote(
+  note: string,
+  allStories: boolean,
+): Promise<{ error?: string }> {
+  await requireProfile();
+  if (typeof note !== "string" || typeof allStories !== "boolean") {
+    return { error: "Couldn't save that. Try again." };
+  }
+  if (note.trim().length > NOTE_MAX) {
+    return { error: `Keep it under ${NOTE_MAX} characters.` };
+  }
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_newsletter_note", {
+    p_note: note,
+    p_all_stories: allStories,
   });
   if (error) return { error: "Couldn't save that. Try again." };
   revalidatePath(adminPageHref());

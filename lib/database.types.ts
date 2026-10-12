@@ -1090,21 +1090,27 @@ export type Database = {
       }
       newsletter_schedule: {
         Row: {
+          all_stories: boolean
           id: boolean
+          note: string | null
           paused: boolean
           updated_at: string
           updated_by: string | null
           weekday: number
         }
         Insert: {
+          all_stories?: boolean
           id?: boolean
+          note?: string | null
           paused?: boolean
           updated_at?: string
           updated_by?: string | null
           weekday?: number
         }
         Update: {
+          all_stories?: boolean
           id?: boolean
+          note?: string | null
           paused?: boolean
           updated_at?: string
           updated_by?: string | null
@@ -3535,6 +3541,10 @@ export type Database = {
         Returns: string
       }
       set_newsletter: { Args: { p_on: boolean }; Returns: undefined }
+      set_newsletter_note: {
+        Args: { p_all_stories: boolean; p_note: string }
+        Returns: undefined
+      }
       set_newsletter_schedule: {
         Args: { p_paused: boolean; p_weekday: number }
         Returns: undefined

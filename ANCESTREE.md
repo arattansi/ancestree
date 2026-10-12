@@ -1789,6 +1789,33 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 144: the newsletter says who the added are to you, links stories
+  with their credits, and carries a note** (migration
+  `20261012120000_newsletter_note`). **Aalim asked:** say what each person
+  added is to the reader; drop the names of whom to invite; link the
+  stories shared, with their storytellers and interviewers, every story in
+  the first send; and room at the top for a note of his some weeks.
+  **Answers (asked):** stories of the reader's own family, as the rest of
+  it (My Family Tree's rule); every story only in the send he makes
+  tomorrow (13 Oct), the first anyone gets; the note goes with the next
+  send only. **Now** whoever was added or joined reads "Yusuf Khan (your
+  first cousin)" (`relationOf`, Step 99's words, none for a chain with no
+  everyday name); each story is its own line, its title (or "A story")
+  linking to `/stories/<id>`: "“Leaving Zanzibar”, about Amina Khan. Told
+  by …; interviewed by …." (`IssueStory`, credits named only where the
+  reader's trees name them); the Step 143 "aren't on ancestree yet" line
+  is gone, the **invite family** button stays. `newsletter_schedule` gains
+  `note` and `all_stories` (on, for that first send), set on the admin
+  page's newsletter tab (**Note for the next newsletter**, **Every story so
+  far**, `set_newsletter_note`), shown first in the email, lines kept, and
+  cleared by `sendScheduledNewsletters` once the send has gone; a test
+  send and the preview carry them too. **My calls, not asked:** the
+  footnote says "Sent weekly." rather than "Sent every Sunday." (the send
+  day moves); a note doesn't make a quiet week send. Checked on live data,
+  nothing sent: Aalim's and Karim Kanji's previews each link the one
+  family story (4 approved; the other 3 are about Amrat Keshavjee, outside
+  both families).
+
 - **Step 143: inviting family, from the newsletter and the Root console**
   (no migration). **Aalim asked:** calls to action in the newsletter for
   inviting family to join the tree; and for Roots, in their account, a

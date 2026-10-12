@@ -6,6 +6,7 @@ import {
   type IssueAdded,
   type IssueName,
   type IssueOccasion,
+  type IssueStory,
 } from "@/lib/newsletter";
 import { occasionDay, ordinal } from "@/lib/occasions";
 
@@ -25,9 +26,11 @@ const HEADING =
  * Week and, past it, the round birthdays and anniversaries still to come
  * this month, then a section per tree that had news. Every name links
  * to its card on My Family Tree, where everyone in it is (`personUrl`); the
- * button opens the view. Names are the only thing a story or a photo
- * gives away, never its words or the picture. Last, the living relatives
- * not here yet, and "invite family" beside the main button (Step 143).
+ * button opens the view. Whoever was added says what they are to the
+ * reader, and each story links to itself with who told it and who asked
+ * (Step 144); a photo gives away only whom it's of. A note from the beta
+ * reviewers, when there is one, goes first, and "invite family" sits
+ * beside the main button (Step 143).
  */
 export function newsletterEmail(input: {
   issue: Issue;
@@ -39,13 +42,27 @@ export function newsletterEmail(input: {
   unsubscribeUrl: string;
   /** Where they invite family, on the site's origin (Step 143). */
   inviteUrl: string;
+  /** A story, on the site's origin (Step 144). */
+  storyUrl: (storyId: string) => string;
+  /** The beta reviewers' note for this send, as they wrote it (Step 144). */
+  note?: string | null;
 }): { subject: string; html: string } {
   const { issue, personUrl } = input;
   const link = (n: IssueName) =>
     `<a href="${escapeHtml(personUrl(n.id))}" style="${LINK}">${escapeHtml(oneLine(n.name))}</a>`;
+  // "Yusuf Khan (your first cousin)", where there's a word for it.
+  const linkKin = (n: IssueName) =>
+    n.relation ? `${link(n)} (${escapeHtml(n.relation)})` : link(n);
 
-  // What's coming up first (Aalim, 2026-10-01), then each tree's news.
   const sections: string[] = [];
+  // Their note first, as written: lines kept, nothing else (Step 144).
+  const note = input.note?.trim();
+  if (note) {
+    sections.push(
+      `<p style="margin:12px 0 0;${TEXT}">${escapeHtml(note).replace(/\r?\n/g, "<br />")}</p>`,
+    );
+  }
+  // What's coming up first (Aalim, 2026-10-01), then each tree's news.
   if (issue.week.length) {
     sections.push(`<p style="${HEADING}">This Week</p>${occasionRows(issue.week, link)}`);
   }
@@ -56,13 +73,9 @@ export function newsletterEmail(input: {
   }
   for (const tree of issue.trees) {
     const lines = [
-      ...(tree.joined.length ? [`${list(tree.joined, link)} joined.`] : []),
-      ...tree.added.map((g) => addedLine(g, link)),
-      ...(tree.stories.length
-        ? [
-            `${tree.stories.length === 1 ? "A new story" : "New stories"} about ${list(tree.stories, link)}.`,
-          ]
-        : []),
+      ...(tree.joined.length ? [`${list(tree.joined, linkKin)} joined.`] : []),
+      ...tree.added.map((g) => addedLine(g, linkKin)),
+      ...tree.stories.map((st) => storyLine(st, input.storyUrl(st.id), link)),
       ...(tree.photos.length
         ? [
             `${tree.photos.length === 1 ? "A new photo" : "New photos"} of ${list(tree.photos, link)}.`,
@@ -77,16 +90,6 @@ export function newsletterEmail(input: {
     );
   }
 
-  // Bringing them in (Step 143): who's missing, if anyone is. The button
-  // sits beside the main one, first.
-  if (issue.missing.length) {
-    sections.push(
-      `<p style="${HEADING}">Invite Family</p><p style="margin:8px 0 0;${TEXT}">${list(issue.missing, link)} ${
-        issue.missing.length === 1 ? "isn&rsquo;t" : "aren&rsquo;t"
-      } on ancestree yet.</p>`,
-    );
-  }
-
   const unsubscribe = escapeHtml(input.unsubscribeUrl);
   return {
     subject: NEWSLETTER_SUBJECT,
@@ -97,7 +100,7 @@ export function newsletterEmail(input: {
       contentHtml: sections.join(""),
       cta: { label: "open my family tree", url: input.familyUrl },
       secondaryCta: { label: "invite family", url: input.inviteUrl },
-      footnoteHtml: `Sent every Sunday.
+      footnoteHtml: `Sent weekly.
                   <a href="${unsubscribe}" style="color:#737373;">Unsubscribe</a>.`,
     }),
   };
@@ -113,6 +116,31 @@ function addedLine(g: IssueAdded, link: (n: IssueName) => string): string {
   if (g.byYou) return `You added ${names}.`;
   if (g.by) return `${escapeHtml(oneLine(g.by))} added ${names}.`;
   return `${names} ${g.people.length === 1 ? "was" : "were"} added.`;
+}
+
+/**
+ * "<Leaving Zanzibar>, about Amina Khan. Told by Hassan Rattansi;
+ * interviewed by Aalim Rattansi." The title (or "A story", untitled) links
+ * to the story; each credit says itself only when there's someone in it.
+ */
+function storyLine(
+  story: IssueStory,
+  url: string,
+  link: (n: IssueName) => string,
+): string {
+  const title = story.title
+    ? `&ldquo;${escapeHtml(oneLine(story.title))}&rdquo;`
+    : "A story";
+  const head = `<a href="${escapeHtml(url)}" style="${LINK}">${title}</a>${
+    story.title ? "," : ""
+  } about ${link(story.about)}.`;
+  const credits = [
+    story.storytellers.length ? `told by ${list(story.storytellers, link)}` : "",
+    story.interviewers.length ? `interviewed by ${list(story.interviewers, link)}` : "",
+  ].filter(Boolean);
+  if (!credits.length) return head;
+  const said = credits.join("; ");
+  return `${head} ${said.charAt(0).toUpperCase()}${said.slice(1)}.`;
 }
 
 /** "A", "A and B", "A, B and C", "A, B, … and 4 more", each linked. */

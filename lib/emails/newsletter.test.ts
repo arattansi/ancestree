@@ -24,22 +24,35 @@ const issue = (over: Partial<Issue> = {}): Issue => ({
       name: "Khan family",
       joined: [],
             added: [
-        { by: "Sara Khan", byYou: false, people: [{ id: "p2", name: "Yusuf Khan" }] },
+        {
+          by: "Sara Khan",
+          byYou: false,
+          people: [{ id: "p2", name: "Yusuf Khan", relation: "your first cousin" }],
+        },
         { by: null, byYou: true, people: [{ id: "p3", name: "Ali Khan" }, { id: "p4", name: "Zahra Khan" }] },
       ],
-      stories: [{ id: "p1", name: "Amina Khan" }],
+      stories: [
+        {
+          id: "s1",
+          title: "Leaving Zanzibar",
+          about: { id: "p1", name: "Amina Khan" },
+          storytellers: [{ id: "p1", name: "Amina Khan" }],
+          interviewers: [{ id: "p5", name: "Sara Khan" }, { id: "p6", name: "Ali Khan" }],
+        },
+      ],
       photos: [],
     },
   ],
   week: [occasion({})],
   later: [],
-  missing: [],
   ...over,
 });
 
-const render = (i: Issue) =>
+const render = (i: Issue, note?: string | null) =>
   newsletterEmail({
     issue: i,
+    note,
+    storyUrl: (id) => `https://www.ancestree.space/stories/${id}`,
     personUrl: (id) => `https://www.ancestree.space/family?person=${id}`,
     familyUrl: "https://www.ancestree.space/family",
     unsubscribeUrl: "https://www.ancestree.space/newsletter/tok-1",
@@ -47,26 +60,7 @@ const render = (i: Issue) =>
   });
 
 describe("newsletterEmail", () => {
-  it("offers to invite family, naming who isn't here yet (Step 143)", () => {
-    const { html } = render(
-      issue({
-        missing: [
-          { id: "p8", name: "Omar Khan" },
-          { id: "p9", name: "Layla Khan" },
-        ],
-      }),
-    );
-    expect(html).toContain("Invite Family");
-    expect(html).toMatch(
-      /<a href="https:\/\/www\.ancestree\.space\/family\?person=p8"[^>]*>Omar Khan<\/a> and <a[^>]*>Layla Khan<\/a> aren&rsquo;t on ancestree yet\./,
-    );
-    expect(html).toContain(
-      'href="https://www.ancestree.space/account/admin?tree=t1&amp;section=invite-to-claim"',
-    );
-    expect(html).toContain(">invite family</a>");
-  });
-
-  it("still offers the invite when everyone is here, with no section for it", () => {
+  it("offers to invite family, naming nobody (Step 144)", () => {
     const { html } = render(issue());
     expect(html).toContain(">invite family</a>");
     expect(html).not.toContain("Invite Family");
@@ -84,18 +78,64 @@ describe("newsletterEmail", () => {
     expect(html.match(/display:inline-table/g)).toHaveLength(2);
   });
 
-  it("says one person isn't here, not that they aren't", () => {
-    const { html } = render(issue({ missing: [{ id: "p8", name: "Omar Khan" }] }));
-    expect(html).toMatch(/Omar Khan<\/a> isn&rsquo;t on ancestree yet\./);
+  it("says what each one added is to the reader (Step 144)", () => {
+    const { html } = render(issue());
+    expect(html).toMatch(/Sara Khan added <a[^>]*>Yusuf Khan<\/a> \(your first cousin\)\./);
+  });
+
+  it("links each story, with who told it and who asked (Step 144)", () => {
+    const { html } = render(issue());
+    expect(html).toContain(
+      '<a href="https://www.ancestree.space/stories/s1" style="color:#0a0a0a;text-decoration:underline;">&ldquo;Leaving Zanzibar&rdquo;</a>, about <a',
+    );
+    expect(html).toMatch(
+      /Told by <a[^>]*>Amina Khan<\/a>; interviewed by <a[^>]*>Sara Khan<\/a> and <a[^>]*>Ali Khan<\/a>\./,
+    );
+  });
+
+  it("calls an untitled story with no credits just that", () => {
+    const { html } = render(
+      issue({
+        trees: [
+          {
+            id: "t1",
+            name: "Khan family",
+            joined: [],
+            added: [],
+            stories: [
+              {
+                id: "s2",
+                title: null,
+                about: { id: "p1", name: "Amina Khan" },
+                storytellers: [],
+                interviewers: [],
+              },
+            ],
+            photos: [],
+          },
+        ],
+      }),
+    );
+    expect(html).toMatch(/>A story<\/a> about <a[^>]*>Amina Khan<\/a>\.<\/p>/);
+  });
+
+  it("puts the beta reviewers' note first, escaped, its lines kept (Step 144)", () => {
+    const { html } = render(issue(), "Eid Mubarak <3\nSee you Sunday.");
+    expect(html).toContain("Eid Mubarak &lt;3<br />See you Sunday.");
+    expect(html.indexOf("Eid Mubarak")).toBeLessThan(html.indexOf("This Week"));
+  });
+
+  it("has no note when there's none", () => {
+    expect(render(issue(), "  ").html).not.toContain("<br />See");
   });
 
   it("names who added whom on each tree, and links every name to its card", () => {
     const { subject, html } = render(issue());
     expect(subject).toBe("Your family this week");
     expect(html).toContain("Khan family");
-    expect(html).toMatch(/Sara Khan added <a href="https:\/\/www\.ancestree\.space\/family\?person=p2"[^>]*>Yusuf Khan<\/a>\./);
+    expect(html).toMatch(/Sara Khan added <a href="https:\/\/www\.ancestree\.space\/family\?person=p2"[^>]*>Yusuf Khan<\/a> \(your first cousin\)\./);
     expect(html).toMatch(/You added <a[^>]*>Ali Khan<\/a> and <a[^>]*>Zahra Khan<\/a>\./);
-    expect(html).toMatch(/A new story about <a[^>]*>Amina Khan<\/a>\./);
+    expect(html).toMatch(/&rdquo;<\/a>, about <a[^>]*>Amina Khan<\/a>\./);
     expect(html).toContain("open my family tree");
   });
 

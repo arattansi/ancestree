@@ -25,7 +25,10 @@ export async function NewsletterCard() {
     requireProfile(),
     getSessionUser(),
     listMyTrees(),
-    supabase.from("newsletter_schedule").select("weekday, paused").maybeSingle(),
+    supabase
+      .from("newsletter_schedule")
+      .select("weekday, paused, note, all_stories")
+      .maybeSingle(),
   ]);
   if (!schedule || !user?.email) return null;
 

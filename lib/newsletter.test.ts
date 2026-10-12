@@ -150,6 +150,13 @@ function input(
   };
 }
 
+const story = (
+  id: string,
+  personId: string,
+  title: string | null,
+  credits: { person_id: string; role: string }[] = [],
+) => ({ id, person_id: personId, title, credits });
+
 const addedIds = (issue: ReturnType<typeof weeklyIssue>) =>
   issue?.trees.flatMap((t) => t.added.flatMap((g) => g.people.map((n) => n.id))) ?? [];
 const occasionIds = (issue: ReturnType<typeof weeklyIssue>) =>
@@ -232,26 +239,61 @@ describe("weeklyIssue: only the reader's own family", () => {
       }),
     );
     expect(issue?.trees.map((t) => [t.name, t.added])).toEqual([
-      ["Rattansi-Suleman", [{ by: null, byYou: false, people: [{ id: "baby", name: "Noor Rattansi" }] }]],
-      ["Kanji", [{ by: null, byYou: false, people: [{ id: "kanjiDad", name: "Salim Kanji" }] }]],
+      [
+        "Rattansi-Suleman",
+        [
+          {
+            by: null,
+            byYou: false,
+            people: [
+              { id: "baby", name: "Noor Rattansi", relation: "your first cousin once removed" },
+            ],
+          },
+        ],
+      ],
+      [
+        "Kanji",
+        [
+          {
+            by: null,
+            byYou: false,
+            people: [{ id: "kanjiDad", name: "Salim Kanji", relation: "your parent" }],
+          },
+        ],
+      ],
     ]);
     expect(addedCount(issue!)).toBe(2);
   });
 });
 
 describe("weeklyIssue: stories and photos", () => {
-  it("lists each person once, under a tree that shows them in full", () => {
+  it("lists each story once, with who told it and who asked, under a tree that shows its person in full", () => {
     const issue = weeklyIssue(
       input("u-karim", "karim", {
         placements: [],
-        stories: [{ person_id: "gma" }, { person_id: "gma" }, { person_id: "sMom" }],
+        stories: [
+          story("s1", "gma", "Leaving Zanzibar", [
+            { person_id: "gma", role: "storyteller" },
+            { person_id: "karim", role: "interviewer" },
+          ]),
+          story("s1", "gma", "Leaving Zanzibar"),
+          story("s2", "sMom", null),
+        ],
         photos: [
           { photo_id: "ph1", person_id: "dad" },
           { photo_id: "ph2", person_id: "dad" },
         ],
       }),
     );
-    expect(issue?.trees[0].stories).toEqual([{ id: "gma", name: "Fatma Rattansi" }]);
+    expect(issue?.trees[0].stories).toEqual([
+      {
+        id: "s1",
+        title: "Leaving Zanzibar",
+        about: { id: "gma", name: "Fatma Rattansi" },
+        storytellers: [{ id: "gma", name: "Fatma Rattansi" }],
+        interviewers: [{ id: "karim", name: "Karim Kanji" }],
+      },
+    ]);
     expect(issue?.trees[0].photos).toEqual([{ id: "dad", name: "Amir Rattansi" }]);
   });
 
@@ -262,7 +304,7 @@ describe("weeklyIssue: stories and photos", () => {
         showings: Object.values(people).map((p) =>
           showing(TREE.id, p.id === "gma" ? { ...p, date_of_birth: null } : p, p.id === "gma"),
         ),
-        stories: [{ person_id: "gma" }],
+        stories: [story("s1", "gma", "Leaving Zanzibar")],
       }),
     );
     expect(issue?.trees ?? []).toEqual([]);
@@ -361,45 +403,29 @@ describe("weeklyIssue: what's coming up", () => {
   });
 });
 
-describe("weeklyIssue: who isn't here yet (Step 143)", () => {
-  const invitable = new Set(["aalim", "gpa", "sDad", "karim", "kanjiDad"]);
-
-  it("names the reader's own living relatives nobody is behind, closest first", () => {
-    const issue = weeklyIssue(input("u-karim", "karim", { invitable }));
-    expect(issue?.missing.map((n) => n.id)).toEqual(["kanjiDad", "gpa", "aalim"]);
-    expect(issue?.missing[0]).toEqual({ id: "kanjiDad", name: "Salim Kanji" });
+describe("weeklyIssue: what each one added is to the reader (Step 144)", () => {
+  it("says what the baby is to Karim, and to Raiya", () => {
+    const toKarim = weeklyIssue(input("u-karim", "karim"));
+    expect(toKarim?.trees[0].added[0].people[0]).toEqual({
+      id: "baby",
+      name: "Noor Rattansi",
+      relation: "your first cousin once removed",
+    });
+    const toRaiya = weeklyIssue(input("u-raiya", "raiya"));
+    const baby = toRaiya?.trees[0].added.flatMap((g) => g.people).find((n) => n.id === "baby");
+    expect(baby?.relation).toBe("your child");
   });
 
-  it("names nobody when none is known to be invitable", () => {
-    expect(weeklyIssue(input("u-karim", "karim"))?.missing).toEqual([]);
-  });
-
-  it("leaves out someone shown only as a basic card", () => {
+  it("uses the word for their sex when the tree records it", () => {
     const issue = weeklyIssue(
-      input("u-karim", "karim", {
-        invitable,
+      input("u-raiya", "raiya", {
         showings: Object.values(people).map((p) =>
-          showing(TREE.id, p, p.id === "gpa"),
+          showing(TREE.id, p.id === "zara" ? { ...p, sex: "female" } : p),
         ),
       }),
     );
-    expect(issue?.missing.map((n) => n.id)).not.toContain("gpa");
-  });
-
-  it("doesn't make a quiet week worth sending", () => {
-    const quiet = Object.values(people).map((p) =>
-      showing(TREE.id, { ...p, date_of_birth: null }),
-    );
-    expect(
-      weeklyIssue(
-        input("u-karim", "karim", {
-          invitable,
-          placements: [],
-          showings: quiet,
-          lines: lines.map((l) => ({ ...l, marriage_date: null })),
-        }),
-      ),
-    ).toBeNull();
+    const zara = issue?.trees[0].added.flatMap((g) => g.people).find((n) => n.id === "zara");
+    expect(zara?.relation).toBe("your sister-in-law");
   });
 });
 
