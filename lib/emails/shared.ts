@@ -32,12 +32,29 @@ export function renderEmail(input: {
    * the start of an entity (`&sect…` shows as "§" in the pasteable copy).
    */
   cta: { label: string; url: string };
+  /**
+   * An outlined button beside it, drawn first (the newsletter's "invite
+   * family", Step 143). The two wrap onto two lines on a narrow screen.
+   */
+  secondaryCta?: { label: string; url: string };
   /** The small print under the divider. Already HTML-safe. */
   footnoteHtml: string;
 }): string {
-  const { title, preheader, heading, bodyHtml, contentHtml, cta, footnoteHtml } =
+  const { title, preheader, heading, bodyHtml, contentHtml, cta, secondaryCta, footnoteHtml } =
     input;
   const href = escapeHtml(cta.url);
+  const buttons = secondaryCta
+    ? `<div style="margin:28px 0 0;font-size:0;">
+                  ${button(secondaryCta, "outline")}
+                  ${button(cta, "filled")}
+                </div>`
+    : `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 0;">
+                  <tr>
+                    <td style="border-radius:10px;background-color:#171717;">
+                      <a href="${href}" style="${BUTTON_LINK}color:#fafafa;">${cta.label}</a>
+                    </td>
+                  </tr>
+                </table>`;
 
   return `<!doctype html>
 <html lang="en">
@@ -75,13 +92,7 @@ export function renderEmail(input: {
                     : ""
                 }${contentHtml ?? ""}
 
-                <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 0;">
-                  <tr>
-                    <td style="border-radius:10px;background-color:#171717;">
-                      <a href="${href}" style="display:inline-block;padding:12px 22px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;font-weight:500;line-height:1;color:#fafafa;text-decoration:none;border-radius:10px;">${cta.label}</a>
-                    </td>
-                  </tr>
-                </table>
+                ${buttons}
 
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                   <tr><td style="padding:28px 0;"><div style="height:1px;background-color:#e5e5e5;line-height:1px;font-size:0;">&nbsp;</div></td></tr>
@@ -109,6 +120,34 @@ export function renderEmail(input: {
     </table>
   </body>
 </html>`;
+}
+
+const BUTTON_LINK =
+  "display:inline-block;padding:12px 22px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;font-weight:500;line-height:1;text-decoration:none;border-radius:10px;";
+
+/**
+ * One of two buttons side by side: an inline table each, so they sit in a
+ * row and wrap when the screen is too narrow for both.
+ */
+function button(
+  cta: { label: string; url: string },
+  look: "filled" | "outline",
+): string {
+  const cell =
+    look === "filled"
+      ? "border-radius:10px;background-color:#171717;"
+      : "border-radius:10px;border:1px solid #171717;background-color:#ffffff;";
+  const color = look === "filled" ? "#fafafa" : "#171717";
+  // The outline's border takes a pixel each side: one off the padding keeps
+  // the two the same height.
+  const padding = look === "filled" ? "" : "padding:11px 21px;";
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="display:inline-table;margin:0 8px 8px 0;vertical-align:top;">
+                    <tr>
+                      <td style="${cell}">
+                        <a href="${escapeHtml(cta.url)}" style="${BUTTON_LINK}${padding}color:${color};">${cta.label}</a>
+                      </td>
+                    </tr>
+                  </table>`;
 }
 
 /**

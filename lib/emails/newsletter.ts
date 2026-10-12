@@ -26,8 +26,8 @@ const HEADING =
  * this month, then a section per tree that had news. Every name links
  * to its card on My Family Tree, where everyone in it is (`personUrl`); the
  * button opens the view. Names are the only thing a story or a photo
- * gives away, never its words or the picture. Last, a button to invite
- * family (Step 143), naming the living relatives not here yet.
+ * gives away, never its words or the picture. Last, the living relatives
+ * not here yet, and "invite family" beside the main button (Step 143).
  */
 export function newsletterEmail(input: {
   issue: Issue;
@@ -77,15 +77,15 @@ export function newsletterEmail(input: {
     );
   }
 
-  // Bringing them in (Step 143): who's missing, if anyone is, and a button.
-  const missing = issue.missing.length
-    ? `<p style="margin:8px 0 0;${TEXT}">${list(issue.missing, link)} ${
+  // Bringing them in (Step 143): who's missing, if anyone is. The button
+  // sits beside the main one, first.
+  if (issue.missing.length) {
+    sections.push(
+      `<p style="${HEADING}">Invite Family</p><p style="margin:8px 0 0;${TEXT}">${list(issue.missing, link)} ${
         issue.missing.length === 1 ? "isn&rsquo;t" : "aren&rsquo;t"
-      } on ancestree yet.</p>`
-    : "";
-  sections.push(
-    `<p style="${HEADING}">Invite Family</p>${missing}${secondaryButton("invite family", input.inviteUrl)}`,
-  );
+      } on ancestree yet.</p>`,
+    );
+  }
 
   const unsubscribe = escapeHtml(input.unsubscribeUrl);
   return {
@@ -96,6 +96,7 @@ export function newsletterEmail(input: {
       heading: "Your family this week",
       contentHtml: sections.join(""),
       cta: { label: "open my family tree", url: input.familyUrl },
+      secondaryCta: { label: "invite family", url: input.inviteUrl },
       footnoteHtml: `Sent every Sunday.
                   <a href="${unsubscribe}" style="color:#737373;">Unsubscribe</a>.`,
     }),
@@ -112,17 +113,6 @@ function addedLine(g: IssueAdded, link: (n: IssueName) => string): string {
   if (g.byYou) return `You added ${names}.`;
   if (g.by) return `${escapeHtml(oneLine(g.by))} added ${names}.`;
   return `${names} ${g.people.length === 1 ? "was" : "were"} added.`;
-}
-
-/** An outlined button, under the dark one in weight: our own address. */
-function secondaryButton(label: string, url: string): string {
-  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:12px 0 0;">
-                  <tr>
-                    <td style="border-radius:10px;border:1px solid #171717;background-color:#ffffff;">
-                      <a href="${escapeHtml(url)}" style="display:inline-block;padding:10px 18px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14px;font-weight:500;line-height:1;color:#171717;text-decoration:none;border-radius:10px;">${label}</a>
-                    </td>
-                  </tr>
-                </table>`;
 }
 
 /** "A", "A and B", "A, B and C", "A, B, … and 4 more", each linked. */

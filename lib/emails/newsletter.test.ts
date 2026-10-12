@@ -66,10 +66,22 @@ describe("newsletterEmail", () => {
     expect(html).toContain(">invite family</a>");
   });
 
-  it("still offers the invite when everyone is here", () => {
+  it("still offers the invite when everyone is here, with no section for it", () => {
     const { html } = render(issue());
     expect(html).toContain(">invite family</a>");
+    expect(html).not.toContain("Invite Family");
     expect(html).not.toContain("on ancestree yet");
+  });
+
+  it("puts invite family first, beside open my family tree", () => {
+    const { html } = render(issue());
+    const invite = html.indexOf(">invite family</a>");
+    const open = html.indexOf(">open my family tree</a>");
+    expect(invite).toBeGreaterThan(-1);
+    expect(open).toBeGreaterThan(invite);
+    // Both in the one row, nothing but the other button between them.
+    expect(html.slice(invite, open)).not.toMatch(/<p\b/);
+    expect(html.match(/display:inline-table/g)).toHaveLength(2);
   });
 
   it("says one person isn't here, not that they aren't", () => {

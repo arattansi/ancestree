@@ -1807,8 +1807,11 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   expired** from `listClaimInvites`; past 10 names a **Find a name** box
   and **Show all N**. The weekly newsletter ends with **Invite Family**:
   the reader's own living relatives nobody is behind ("A, B and 4 more
-  aren't on ancestree yet.", closest by lines first, `Issue.missing`), and
-  an outlined **invite family** button. It opens the Root console's list
+  aren't on ancestree yet.", closest by lines first, `Issue.missing`, the
+  section only when there's someone to name), and an outlined **invite
+  family** button beside **open my family tree**, first (Aalim's ask:
+  side by side; `renderEmail`'s `secondaryCta`, inline tables that stack
+  on a narrow phone). It opens the Root console's list
   for a Root (`openConsoleHref("invite-to-claim", tree)`;
   `LINKED_SECTIONS` lets the console route accept it), and settings'
   **Invite a Relative to {tree}** for anyone else (`inviteRelativeHref`).
