@@ -17,6 +17,10 @@
  * time to plan. The dead stay out, as on the card, and so do the reader's
  * own birthday and anniversary.
  *
+ * Past the news, who isn't here yet (Step 143): the living relatives in
+ * the same family nobody is behind, closest first, so the reader can bring
+ * them in.
+ *
  * Pure: `lib/newsletter.server.ts` reads the trees with the service role,
  * as their members see them, and sends what this returns.
  */
@@ -110,6 +114,11 @@ export type Issue = {
   week: IssueOccasion[];
   /** Round ones after that, up to four weeks out. */
   later: IssueOccasion[];
+  /**
+   * Living relatives nobody is behind yet, to invite (Step 143): closest
+   * first, then by name.
+   */
+  missing: IssueName[];
 };
 
 export type IssueInput<R extends IssuePerson & { id: string }> = {
@@ -133,6 +142,11 @@ export type IssueInput<R extends IssuePerson & { id: string }> = {
   memberNames: ReadonlyMap<string, string>;
   /** Members' own entries, by user id: placing one is joining. */
   memberEntries: ReadonlyMap<string, string>;
+  /**
+   * Entries anyone may still be invited to claim (`isInvitable`): living,
+   * and nobody behind them. Left out, nobody is named as missing.
+   */
+  invitable?: ReadonlySet<string>;
   /** The start of the week being told: an ISO timestamp. */
   since: string;
   /** Today, `YYYY-MM-DD`. */
@@ -258,7 +272,51 @@ export function weeklyIssue<R extends IssuePerson & { id: string }>(
     (t) => t.joined.length || t.added.length || t.stories.length || t.photos.length,
   );
   if (!trees.length && !week.length && !later.length) return null;
-  return { trees, week, later };
+
+  // Who's missing (Step 143): shown in full somewhere, so their tree has
+  // said they're living, and nobody behind them. Not news in itself: a
+  // quiet week stays quiet.
+  const away = stepsFrom(input.selfId, lines);
+  const missing = [...(input.invitable ?? [])]
+    .filter(
+      (id) =>
+        id !== input.selfId &&
+        inFamily(id) &&
+        (cards.get(id)?.fullTreeIds.length ?? 0) > 0,
+    )
+    .map((id) => ({ id, name: nameOf(id) }))
+    .sort(
+      (a, b) =>
+        (away.get(a.id) ?? Infinity) - (away.get(b.id) ?? Infinity) ||
+        a.name.localeCompare(b.name),
+    );
+  return { trees, week, later, missing };
+}
+
+/**
+ * How many lines apart each person is from `selfId`, any line counted as
+ * one step: a parent, a child, a partner or a sibling is 1.
+ */
+function stepsFrom(
+  selfId: string,
+  lines: readonly { from_person: string; to_person: string }[],
+): Map<string, number> {
+  const next = new Map<string, string[]>();
+  for (const l of lines) {
+    next.set(l.from_person, [...(next.get(l.from_person) ?? []), l.to_person]);
+    next.set(l.to_person, [...(next.get(l.to_person) ?? []), l.from_person]);
+  }
+  const steps = new Map([[selfId, 0]]);
+  const queue = [selfId];
+  for (let i = 0; i < queue.length; i++) {
+    const at = queue[i];
+    for (const id of next.get(at) ?? []) {
+      if (steps.has(id)) continue;
+      steps.set(id, steps.get(at)! + 1);
+      queue.push(id);
+    }
+  }
+  return steps;
 }
 
 /** How many were added across the issue's trees, each placement once,

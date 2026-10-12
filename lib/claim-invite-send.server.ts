@@ -1,13 +1,16 @@
 import "server-only";
 
-import { accountTypeOf } from "@/lib/account-types";
+import { accountTypeOf, INVITED_AS } from "@/lib/account-types";
 import type { Profile } from "@/lib/auth";
 import { claimInviteRecordName } from "@/lib/claim-invites";
 import { isEmailAddress } from "@/lib/email-address";
 import { claimInviteEmail } from "@/lib/emails/claim-invite";
-import { mintInvites } from "@/lib/invite-mint.server";
+import { expiresAfter } from "@/lib/expiry";
+import { inviteUrl, mintInvites } from "@/lib/invite-mint.server";
+import { INVITE_LIFETIME_DAYS } from "@/lib/limits";
 import { personDisplayName } from "@/lib/person-name";
 import { isPlacedOn } from "@/lib/placements.server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getRoleIn } from "@/lib/tree-context";
 
@@ -198,4 +201,67 @@ export async function mintClaimInvite(
   }
 
   return { email: address, minted: true };
+}
+
+/**
+ * A link to claim one entry, for a Root to send however they like (Step
+ * 143): bound to no address, so whoever opens it may join `treeId` and
+ * claim the entry, once (`redeem_invite`). The Root console's list makes
+ * one beside each name. A link still live for the entry, bare like this
+ * one, is handed back rather than a second made.
+ */
+export async function mintClaimLink(
+  inviter: Profile,
+  personId: string,
+  treeId: string,
+): Promise<{ url?: string; minted?: boolean; error?: string }> {
+  const supabase = await createClient();
+  const [role, { data: mayInvite }] = await Promise.all([
+    getRoleIn(treeId),
+    supabase.rpc("can_invite_to_claim_on", {
+      p_tree: treeId,
+      p_person_id: personId,
+    }),
+  ]);
+  if (!role || !accountTypeOf(role).runsTree) {
+    return { error: "Only a Root of this tree can make that link." };
+  }
+  if (mayInvite !== true) return { error: "That entry can’t be claimed." };
+
+  // Bound to nobody: the service role reads and makes it, the right to
+  // having been checked above.
+  const admin = createAdminClient();
+  const { data: live } = await admin
+    .from("invites")
+    .select("token")
+    .eq("tree_id", treeId)
+    .eq("person_id", personId)
+    .eq("status", "active")
+    .eq("founds_tree", false)
+    .is("invited_email", null)
+    .is("max_uses", null)
+    .is("archived_at", null)
+    .gt("expires_at", new Date().toISOString())
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (live) return { url: inviteUrl(live.token) };
+
+  const { data: made, error } = await admin
+    .from("invites")
+    .insert({
+      tree_id: treeId,
+      created_by: inviter.auth_user_id,
+      status: "active",
+      expires_at: expiresAfter(INVITE_LIFETIME_DAYS),
+      joins_as: INVITED_AS.key,
+      person_id: personId,
+    })
+    .select("token")
+    .single();
+  if (error || !made) {
+    console.error(`[invites] claim link not made — ${error?.message}`);
+    return { error: "Could not create a link. Try again." };
+  }
+  return { url: inviteUrl(made.token), minted: true };
 }

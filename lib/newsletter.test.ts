@@ -361,6 +361,48 @@ describe("weeklyIssue: what's coming up", () => {
   });
 });
 
+describe("weeklyIssue: who isn't here yet (Step 143)", () => {
+  const invitable = new Set(["aalim", "gpa", "sDad", "karim", "kanjiDad"]);
+
+  it("names the reader's own living relatives nobody is behind, closest first", () => {
+    const issue = weeklyIssue(input("u-karim", "karim", { invitable }));
+    expect(issue?.missing.map((n) => n.id)).toEqual(["kanjiDad", "gpa", "aalim"]);
+    expect(issue?.missing[0]).toEqual({ id: "kanjiDad", name: "Salim Kanji" });
+  });
+
+  it("names nobody when none is known to be invitable", () => {
+    expect(weeklyIssue(input("u-karim", "karim"))?.missing).toEqual([]);
+  });
+
+  it("leaves out someone shown only as a basic card", () => {
+    const issue = weeklyIssue(
+      input("u-karim", "karim", {
+        invitable,
+        showings: Object.values(people).map((p) =>
+          showing(TREE.id, p, p.id === "gpa"),
+        ),
+      }),
+    );
+    expect(issue?.missing.map((n) => n.id)).not.toContain("gpa");
+  });
+
+  it("doesn't make a quiet week worth sending", () => {
+    const quiet = Object.values(people).map((p) =>
+      showing(TREE.id, { ...p, date_of_birth: null }),
+    );
+    expect(
+      weeklyIssue(
+        input("u-karim", "karim", {
+          invitable,
+          placements: [],
+          showings: quiet,
+          lines: lines.map((l) => ({ ...l, marriage_date: null })),
+        }),
+      ),
+    ).toBeNull();
+  });
+});
+
 describe("isMilestone", () => {
   it.each([
     ["birthday", 1, true],

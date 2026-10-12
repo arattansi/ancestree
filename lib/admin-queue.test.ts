@@ -44,6 +44,14 @@ describe("openConsoleHref / readOpenConsole", () => {
     });
   });
 
+  it("opens the list of whom to invite, for the newsletter (Step 143)", () => {
+    const url = new URL(
+      openConsoleHref("invite-to-claim", A),
+      "https://www.ancestree.space",
+    );
+    expect(readOpenConsole(url.searchParams).section).toBe("invite-to-claim");
+  });
+
   it("no longer knows requests to start a tree, which are the admin page's", () => {
     expect(
       readOpenConsole(new URLSearchParams("section=tree-requests")).section,

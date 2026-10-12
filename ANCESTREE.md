@@ -1789,6 +1789,37 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 143: inviting family, from the newsletter and the Root console**
+  (no migration). **Aalim asked:** calls to action in the newsletter for
+  inviting family to join the tree; and for Roots, in their account, a
+  list of people to invite to claim their entries, by email or by a link
+  to send them, listing only people who are alive. **Now** the Root
+  console's Invites group has **Invite to Claim** (`#invite-to-claim`,
+  `AdminClaimInvites`): everyone on the tree who is living and nobody is
+  behind (`isInvitable` in `lib/invitable.ts`, the app's copy of
+  `person_is_claimable` + living; a basic card is asked of
+  `can_invite_to_claim_on`), surname first, each with **email** (an inline
+  box sending `sendClaimInvite`) and **copy link** (`makeClaimLink` →
+  `mintClaimLink`: a claim invite bound to no address, made with the
+  service role after the Root and `can_invite_to_claim_on` checks; a live
+  one for the entry is handed back instead of a second; shown with
+  **copy** and **WhatsApp**). A row says **Invited {date}** or **Invite
+  expired** from `listClaimInvites`; past 10 names a **Find a name** box
+  and **Show all N**. The weekly newsletter ends with **Invite Family**:
+  the reader's own living relatives nobody is behind ("A, B and 4 more
+  aren't on ancestree yet.", closest by lines first, `Issue.missing`), and
+  an outlined **invite family** button. It opens the Root console's list
+  for a Root (`openConsoleHref("invite-to-claim", tree)`;
+  `LINKED_SECTIONS` lets the console route accept it), and settings'
+  **Invite a Relative to {tree}** for anyone else (`inviteRelativeHref`).
+  **My calls, not asked:** placeholder children are left off the list
+  (they come in through a parent); the section never makes a quiet week
+  worth sending; a Root of several trees is sent to the first they run;
+  only full cards are named in the email. Checked against live data,
+  nothing sent: Aalim's preview names 17, Karim
+  Kanji's 12 and opens his settings; the list for the Rattansi-Suleman tree
+  would hold 64 of 131.
+
 - **Step 142: the analytics tab names each tree by its Roots** (migration
   `20261012100000_dashboard_tree_roots`). **Aalim asked:** on the admin
   page, where the trees that have been created are listed, show the name

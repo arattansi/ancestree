@@ -3,6 +3,7 @@
 import { requireProfile } from "@/lib/auth";
 import {
   mintClaimInvite,
+  mintClaimLink,
   type ClaimInviteState,
 } from "@/lib/claim-invite-send.server";
 import { isEmailAddress } from "@/lib/email-address";
@@ -150,6 +151,21 @@ export async function sendClaimInvite(
   const result = await mintClaimInvite(inviter, personId, email, treeId);
   if (result.minted) revalidateTreePages();
   return result;
+}
+
+/**
+ * Root: a link to claim one living, unclaimed entry on `treeId`, bound to
+ * no address, for them to send however they like (Step 143, the Root
+ * console's list). A live one already made for it comes back instead.
+ */
+export async function makeClaimLink(
+  personId: string,
+  treeId: string,
+): Promise<{ url?: string; error?: string }> {
+  const inviter = await requireProfile();
+  const { url, minted, error } = await mintClaimLink(inviter, personId, treeId);
+  if (minted) revalidateTreePages();
+  return { url, error };
 }
 
 /**

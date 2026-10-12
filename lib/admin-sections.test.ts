@@ -27,6 +27,7 @@ describe("adminNav", () => {
         label: "Invites",
         items: [
           { id: "invite", label: "Invite a Relative" },
+          { id: "invite-to-claim", label: "Invite to Claim" },
           { id: "family-link", label: "Family Link" },
           { id: "share", label: "Share a Link" },
           { id: "sent-invites", label: "Sent Invites" },

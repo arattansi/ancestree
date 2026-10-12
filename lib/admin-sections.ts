@@ -47,6 +47,7 @@ const SECTIONS: readonly AdminSection[] = [
   { id: "invite-requests", nav: "Requests for Access", group: "requests" },
   { id: "reports", nav: "Reports", group: "requests" },
   { id: "invite", nav: "Invite a Relative", group: "invites" },
+  { id: "invite-to-claim", nav: "Invite to Claim", group: "invites" },
   { id: "family-link", nav: "Family Link", group: "invites" },
   { id: "share", nav: "Share a Link", group: "invites" },
   { id: "sent-invites", nav: "Sent Invites", group: "invites" },

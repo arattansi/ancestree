@@ -275,6 +275,14 @@ export function newsletterOneClickHref(token: string): string {
   return `/api/newsletter/${enc(token)}`;
 }
 
+/**
+ * Settings, at the card inviting a relative to `treeId`: how a Branch or
+ * a Leaf brings family in (a Root's is the Root console's list, Step 143).
+ */
+export function inviteRelativeHref(treeId: string): string {
+  return `/account?view=settings#invite-${enc(treeId)}`;
+}
+
 /** Settings, at the newsletter's box. */
 export function newsletterSettingsHref(): string {
   return "/account?view=settings#newsletter";

@@ -33,6 +33,7 @@ const issue = (over: Partial<Issue> = {}): Issue => ({
   ],
   week: [occasion({})],
   later: [],
+  missing: [],
   ...over,
 });
 
@@ -42,9 +43,40 @@ const render = (i: Issue) =>
     personUrl: (id) => `https://www.ancestree.space/family?person=${id}`,
     familyUrl: "https://www.ancestree.space/family",
     unsubscribeUrl: "https://www.ancestree.space/newsletter/tok-1",
+    inviteUrl: "https://www.ancestree.space/account/admin?tree=t1&section=invite-to-claim",
   });
 
 describe("newsletterEmail", () => {
+  it("offers to invite family, naming who isn't here yet (Step 143)", () => {
+    const { html } = render(
+      issue({
+        missing: [
+          { id: "p8", name: "Omar Khan" },
+          { id: "p9", name: "Layla Khan" },
+        ],
+      }),
+    );
+    expect(html).toContain("Invite Family");
+    expect(html).toMatch(
+      /<a href="https:\/\/www\.ancestree\.space\/family\?person=p8"[^>]*>Omar Khan<\/a> and <a[^>]*>Layla Khan<\/a> aren&rsquo;t on ancestree yet\./,
+    );
+    expect(html).toContain(
+      'href="https://www.ancestree.space/account/admin?tree=t1&amp;section=invite-to-claim"',
+    );
+    expect(html).toContain(">invite family</a>");
+  });
+
+  it("still offers the invite when everyone is here", () => {
+    const { html } = render(issue());
+    expect(html).toContain(">invite family</a>");
+    expect(html).not.toContain("on ancestree yet");
+  });
+
+  it("says one person isn't here, not that they aren't", () => {
+    const { html } = render(issue({ missing: [{ id: "p8", name: "Omar Khan" }] }));
+    expect(html).toMatch(/Omar Khan<\/a> isn&rsquo;t on ancestree yet\./);
+  });
+
   it("names who added whom on each tree, and links every name to its card", () => {
     const { subject, html } = render(issue());
     expect(subject).toBe("Your family this week");

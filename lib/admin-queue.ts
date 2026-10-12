@@ -19,6 +19,20 @@ export function isQueueSection(raw: unknown): raw is QueueSection {
   );
 }
 
+/**
+ * Every card an email's button may open: the queues, and the list of
+ * whom to invite, from the weekly newsletter (Step 143).
+ */
+export const LINKED_SECTIONS = [...QUEUE_SECTIONS, "invite-to-claim"] as const;
+
+export type LinkedSection = (typeof LINKED_SECTIONS)[number];
+
+function isLinkedSection(raw: unknown): raw is LinkedSection {
+  return (
+    typeof raw === "string" && (LINKED_SECTIONS as readonly string[]).includes(raw)
+  );
+}
+
 /** The route an alert email's button opens (`app/account/admin/route.ts`). */
 export const OPEN_CONSOLE_PATH = "/account/admin";
 
@@ -31,7 +45,7 @@ export const OPEN_CONSOLE_PATH = "/account/admin";
  * (a founder sent to the tree they started, Step 61).
  */
 export function openConsoleHref(
-  section: QueueSection | null,
+  section: LinkedSection | null,
   treeId?: string | null,
 ): string {
   const params = new URLSearchParams();
@@ -45,13 +59,13 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** What `openConsoleHref` put in the address; anything else is dropped. */
 export function readOpenConsole(params: URLSearchParams): {
   treeId: string | null;
-  section: QueueSection | null;
+  section: LinkedSection | null;
 } {
   const tree = params.get("tree");
   const section = params.get("section");
   return {
     treeId: tree && UUID.test(tree) ? tree.toLowerCase() : null,
-    section: isQueueSection(section) ? section : null,
+    section: isLinkedSection(section) ? section : null,
   };
 }
 

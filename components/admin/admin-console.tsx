@@ -2,6 +2,7 @@ import { AccountTypeBadge } from "@/components/account-type-badge";
 import { AccountTypeGuide } from "@/components/account-type-guide";
 import { AccountTypePicker } from "@/components/admin/account-type-picker";
 import { AdminArchivedInvites } from "@/components/admin/admin-archived-invites";
+import { AdminClaimInvites } from "@/components/admin/admin-claim-invites";
 import { AdminDeleteTree } from "@/components/admin/admin-delete-tree";
 import { AdminExport } from "@/components/admin/admin-export";
 import { AdminReports } from "@/components/admin/admin-reports";
@@ -50,6 +51,7 @@ import {
   listInviteHistory,
 } from "@/lib/invites";
 import { membersOnOtherTrees } from "@/lib/remove-member.server";
+import { listInvitable } from "@/lib/invitable.server";
 import { listRequestCandidates } from "@/lib/request-candidates.server";
 import { listCarried, listCarryChoices } from "@/lib/placements.server";
 import { getSiteUrl } from "@/lib/site-url";
@@ -115,6 +117,7 @@ export async function AdminConsole({
     onOtherTrees,
     myTrees,
     openToRes,
+    invitable,
   ] = await Promise.all([
     membersP,
     supabase
@@ -174,6 +177,8 @@ export async function AdminConsole({
       .from("tree_visibility")
       .select("viewer_tree_id")
       .eq("tree_id", tree.id),
+    // Everyone living nobody is behind yet, to invite (Step 143).
+    listInvitable(tree.id, currentAdmin.auth_user_id),
   ]);
   const openTo = new Set((openToRes.data ?? []).map((v) => v.viewer_tree_id));
   const viewers = myTrees
@@ -502,6 +507,17 @@ export async function AdminConsole({
           title="Invite a Relative"
         >
           <DirectInviteForm treeId={tree.id} />
+        </AdminSubsection>
+
+        <AdminSubsection
+          id="invite-to-claim"
+          title="Invite to Claim"
+        >
+          <AdminClaimInvites
+            treeId={tree.id}
+            treeName={tree.name}
+            people={invitable}
+          />
         </AdminSubsection>
 
         <AdminSubsection

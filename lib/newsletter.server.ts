@@ -1,6 +1,9 @@
 import "server-only";
 
+import { ROOT } from "@/lib/account-types";
+import { openConsoleHref } from "@/lib/admin-queue";
 import { sendEmails, unsentSummary, type SendEmailInput } from "@/lib/email";
+import { isInvitable } from "@/lib/invitable";
 import { newsletterEmail } from "@/lib/emails/newsletter";
 import type { FamilyLine, Showing } from "@/lib/my-family";
 import {
@@ -18,12 +21,15 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import {
   cardOf,
   lineOf,
+  readApprovedClaims,
+  readIn,
   readPaged,
   readTreesEdges,
   readTreesPeople,
   type TreeCard,
 } from "@/lib/tree";
 import {
+  inviteRelativeHref,
   myFamilyFocusHref,
   myFamilyHref,
   newsletterOneClickHref,
@@ -202,7 +208,7 @@ export async function buildWeeklyNewsletters(
     Math.min(...due.map((r) => Date.parse(r.since))),
   ).toISOString();
 
-  const [trees, people, edges, placements, stories, tags] = await Promise.all([
+  const [trees, people, edges, placements, stories, tags, roles] = await Promise.all([
     supabase.from("trees").select("id, name").in("id", treeIds),
     readTreesPeople(supabase, treeIds),
     readTreesEdges(supabase, treeIds),
@@ -236,8 +242,17 @@ export async function buildWeeklyNewsletters(
         .order("person_id")
         .range(from, to),
     ),
+    // Which of their trees each one runs: a Root invites from its console
+    // (Step 143).
+    supabase
+      .from("tree_members")
+      .select("tree_id, user_id")
+      .eq("role", ROOT.key)
+      .in("tree_id", treeIds)
+      .in("user_id", due.map((r) => r.user_id)),
   ]);
   if (
+    roles.error ||
     trees.error ||
     people.failed ||
     edges.failed ||
@@ -254,13 +269,34 @@ export async function buildWeeklyNewsletters(
   const placers = [
     ...new Set(placements.rows.flatMap((p) => (p.placed_by ? [p.placed_by] : []))),
   ];
-  const { data: placerRows, error: placerError } = placers.length
-    ? await supabase
-        .from("profiles")
-        .select("auth_user_id, display_name, self_person_id")
-        .in("auth_user_id", placers)
-    : { data: [], error: null };
+  // Who's behind each full card, to name those nobody is (Step 143): the
+  // settled claims, and every member's own entry.
+  const fullIds = [
+    ...new Set(
+      people.rows.flatMap((p) =>
+        p.id && p.detail !== "basic" && !p.blurred ? [p.id] : [],
+      ),
+    ),
+  ];
+  const [{ data: placerRows, error: placerError }, claims, owners] =
+    await Promise.all([
+      placers.length
+        ? supabase
+            .from("profiles")
+            .select("auth_user_id, display_name, self_person_id")
+            .in("auth_user_id", placers)
+        : Promise.resolve({ data: [], error: null }),
+      readApprovedClaims(supabase, fullIds),
+      readIn(fullIds, (chunk) =>
+        supabase.from("profiles").select("self_person_id").in("self_person_id", chunk),
+      ),
+    ]);
   if (placerError) throw new Error(`profiles: ${placerError.message}`);
+  const claimed = new Set(claims.map((c) => c.person_id));
+  const ownEntries = new Set(
+    owners.flatMap((o) => (o.self_person_id ? [o.self_person_id] : [])),
+  );
+  const invitable = new Set<string>();
 
   const showingsByTree = new Map<string, Showing<TreeCard>[]>();
   const placedAt = new Map(
@@ -273,6 +309,9 @@ export async function buildWeeklyNewsletters(
     if (!p.tree_id || !card || card.blurred || card.placeholder_number != null)
       continue;
     nameOfPerson.set(card.id, personDisplayName(card));
+    if (!card.basic && isInvitable(card, claimed, ownEntries)) {
+      invitable.add(card.id);
+    }
     const list = showingsByTree.get(p.tree_id) ?? [];
     list.push({
       treeId: p.tree_id,
@@ -301,6 +340,7 @@ export async function buildWeeklyNewsletters(
     if (m.self_person_id) memberEntries.set(m.auth_user_id, m.self_person_id);
   }
   const treeName = new Map((trees.data ?? []).map((t) => [t.id, t.name]));
+  const runs = new Set((roles.data ?? []).map((m) => `${m.user_id}:${m.tree_id}`));
   const placementRows: IssuePlacement[] = placements.rows;
   const today = utcDay(now);
   const site = getSiteUrl();
@@ -331,6 +371,7 @@ export async function buildWeeklyNewsletters(
         photos: tags.rows.filter((t) => withinWeek(t, r.since)),
         memberNames,
         memberEntries,
+        invitable,
         since: r.since,
         today,
       });
@@ -339,6 +380,12 @@ export async function buildWeeklyNewsletters(
         continue;
       }
       const page = `${site}${newsletterPageHref(r.token)}`;
+      // A Root invites from the console of the first tree they run; anyone
+      // else, from settings, into the first tree they joined (Step 143).
+      const ran = theirTrees.find((t) => runs.has(`${r.user_id}:${t.id}`));
+      const invite = ran
+        ? openConsoleHref("invite-to-claim", ran.id)
+        : inviteRelativeHref(theirTrees[0]?.id ?? "");
       emails.set(r.user_id, {
         to: r.email,
         ...newsletterEmail({
@@ -346,6 +393,7 @@ export async function buildWeeklyNewsletters(
           personUrl: (id) => `${site}${myFamilyFocusHref(id)}`,
           familyUrl: `${site}${myFamilyHref()}`,
           unsubscribeUrl: page,
+          inviteUrl: `${site}${invite}`,
         }),
         headers: {
           "List-Unsubscribe": `<${site}${newsletterOneClickHref(r.token)}>`,
