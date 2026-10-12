@@ -12,6 +12,7 @@ import {
   headlineTiles,
   lastActiveLabel,
   percentOf,
+  treeLabel,
   weekRange,
   weeksSinceFirstActivity,
   type Dashboard,
@@ -21,7 +22,7 @@ import { loadDashboard } from "@/lib/dashboard.server";
 /**
  * The beta reviewers' dashboard (Step 56) — the admin page's analytics tab
  * (Step 103): how much ancestree is used across every tree, in counts that
- * never name anyone. The admin page shows it only to a reviewer, and
+ * name nobody but each tree's Roots. The admin page shows it only to a reviewer, and
  * `engagement_dashboard()` answers nobody else.
  */
 export async function EngagementDashboard() {
@@ -235,14 +236,14 @@ export function DashboardView({ d }: { d: Dashboard }) {
             <div className="-mx-(--card-spacing) overflow-x-auto">
               <table className="w-full text-sm">
                 <caption className="sr-only">
-                  Each tree&rsquo;s members, members active in the last 7
+                  Each tree&rsquo;s Roots, members, members active in the last 7
                   days, entries, entries added in the last 7 days, and when
                   its members were last active
                 </caption>
                 <thead>
                   <tr className="border-b border-border whitespace-nowrap text-muted-foreground">
                     <th scope="col" className="px-4 py-2 text-left font-medium">
-                      Tree
+                      Roots
                     </th>
                     <th scope="col" className="px-4 py-2 text-right font-medium">
                       Members
@@ -268,7 +269,7 @@ export function DashboardView({ d }: { d: Dashboard }) {
                       className="border-b border-border last:border-0"
                     >
                       <th scope="row" className="min-w-40 px-4 py-2 text-left font-normal">
-                        <span className="block font-medium">{t.name}</span>
+                        <span className="block font-medium">{treeLabel(t)}</span>
                         <span className="block text-xs text-muted-foreground">
                           Founded {dayWithYear(t.founded)}
                         </span>

@@ -10,6 +10,7 @@ import {
   dayWithYear,
   headlineTiles,
   lastActiveLabel,
+  treeLabel,
   percentOf,
   readDashboard,
   shortDay,
@@ -45,6 +46,7 @@ const ANSWER = {
     {
       id: "t1",
       name: "The Example Family",
+      roots: ["Ada Example", "Ben Example"],
       founded: "2026-08-30",
       members: 8,
       active_7: 8,
@@ -110,6 +112,7 @@ describe("readDashboard (Step 56)", () => {
       {
         id: "t1",
         name: "The Example Family",
+        roots: ["Ada Example", "Ben Example"],
         founded: "2026-08-30",
         members: 8,
         active7: 8,
@@ -120,6 +123,7 @@ describe("readDashboard (Step 56)", () => {
       {
         id: "t2",
         name: "Another Family",
+        roots: [],
         founded: "2026-09-23",
         members: 1,
         active7: 1,
@@ -231,6 +235,13 @@ describe("days (Step 56)", () => {
     expect(weekStart("2026-09-26")).toBe("20 Sep");
     expect(weekRange("2026-09-26")).toBe("20–26 Sep");
     expect(weekRange("2026-09-05")).toBe("30 Aug – 5 Sep");
+  });
+
+  it("names a tree by its Roots, or by its name when it has none", () => {
+    expect(treeLabel({ name: "The Example Family", roots: ["Ada Example", "Ben Example"] })).toBe(
+      "Ada Example, Ben Example",
+    );
+    expect(treeLabel({ name: "Another Family", roots: [] })).toBe("Another Family");
   });
 
   it("says when a tree's members were last on", () => {

@@ -79,7 +79,8 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   newsletter's schedule and their own issue, Step 95), **analytics** (the
   **engagement dashboard**, Step 56: counts across every tree — members,
   who's active, trees and entries, members active each week, how far
-  members have got, what they did this week and last, each tree — from
+  members have got, what they did this week and last, each tree, named
+  by its Roots since Step 142 — from
   `engagement_dashboard()`; `components/dashboard/`, `lib/dashboard.ts`)
   and **manage** (requests to start a tree, from every tree and the
   waitlist, **Campaign Links**, Step 103.3, and **Accounts** and **Trees**
@@ -1787,6 +1788,22 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 142: the analytics tab names each tree by its Roots** (migration
+  `20261012100000_dashboard_tree_roots`). **Aalim asked:** on the admin
+  page, where the trees that have been created are listed, show the name
+  of each tree's Root(s) instead of the tree's name. **Now**
+  `engagement_dashboard()` sends each tree's `roots` (display names,
+  earliest Root first, "Unnamed member" without one, as `find_trees()`
+  lists them; body otherwise as in `20260930020000_documents_become_album`,
+  which is what was live), `readDashboard` reads them, and the analytics
+  tab's **Trees** table heads its first column **Roots** and shows them
+  comma-separated (`treeLabel` in `lib/dashboard.ts`, `.test.ts`), with
+  the founded date under them as before. **My calls, not asked:** a tree
+  with no Root falls back to its name; the manage tab's tree search still
+  finds and shows trees by name, since that's what it searches. Aalim ran
+  the migration in the SQL editor; the history row was inserted after,
+  its statements md5 = the file's, and the live body's md5 = the file's.
 
 - **Step 141: lineage turned off for everyone** (no migration). **Aalim
   asked:** turn off the "biological, adoptive, other" choice, which

@@ -75,6 +75,8 @@ export type MemberProgress = {
 export type DashboardTree = {
   id: string;
   name: string;
+  /** Its Roots' names, earliest first. */
+  roots: string[];
   founded: string;
   members: number;
   /** Its members who used ancestree in the last seven days, on any tree. */
@@ -186,6 +188,7 @@ export function readDashboard(raw: unknown): Dashboard | null {
         {
           id: t.id,
           name: t.name,
+          roots: list(t.roots).filter((r): r is string => typeof r === "string"),
           founded,
           members: count(t.members),
           active7: count(t.active_7),
@@ -280,6 +283,11 @@ export function weekRange(end: string): string {
   return start.month === last.month
     ? `${start.date}–${last.date} ${MONTHS[last.month - 1]}`
     : `${start.date} ${MONTHS[start.month - 1]} – ${last.date} ${MONTHS[last.month - 1]}`;
+}
+
+/** Who a tree is, on the Trees table: its Roots, or its name if it has none. */
+export function treeLabel(tree: Pick<DashboardTree, "name" | "roots">): string {
+  return tree.roots.length ? tree.roots.join(", ") : tree.name;
 }
 
 /** When a tree's members were last on: "Today", "Yesterday", "21 Sep", or "Not yet". */
