@@ -62,7 +62,7 @@ account page's views **profile**, **root**, **settings**; the admin
 page's tabs **newsletter**, **analytics**, **manage**; the home page's **view your tree**,
 **join a tree**, **start a tree**; and every button that does
 something: **save**, **rename**, **delete**, **continue**, **skip for
-now**, **add a relative**, **auto-arrange**, **ask to join**. That covers,
+now**, **add**, **auto-arrange**, **ask to join**. That covers,
 alike:
 
 - what a button says while it works: **saving…**, **deleting…**;
@@ -208,6 +208,13 @@ turn autocomplete off, or every relative is offered the member's own name
   from them; with nobody selected, or nowhere they may add from them,
   every tree, adding without them. With one tree to offer it doesn't ask:
   the button goes straight to that tree's add flow.
+- The canvas's **+ add** (Step 145, where **add a relative** was) is a
+  menu: **Relative**, **Photos**, **Story**, each naming the selected
+  person when there is one ("Story about Amarshi"). Menu items are
+  sentence case. Photos ask **Who's in it** and a **Description**; a story
+  asks **About** (one person), and a recording **Storyteller** and
+  **Interviewer** too. On My Family Tree, photos and a story go on the
+  selected card's tree, or, with nobody selected, ask **Which tree?**.
 - My Family Tree rests as a spotlight does (Step 97): every direct
   relative is a **leaf** on brown branches, laid out as a pulled-out line
   is (`centreFamilies`), and whoever married in a pill. Clicking someone

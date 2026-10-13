@@ -254,7 +254,7 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   dragged (a tablet's can), so a finger on one pans, Step 49; the zoom
   controls end with
   **Go to me**, which opens the viewer's own tree and details, Step 48),
-  `tree-search.tsx` the **Search & filters** card under **Add a relative**
+  `tree-search.tsx` the **Search & filters** card under the **+ add** menu (`add-menu.tsx`, Step 145; **Add a relative** until then)
   (its results, and `person-picker.tsx`'s, show a `née` maiden name under
   the name, Step 76.8;
   Find a person, Show a connection, Filters: only your Root's side, only the
@@ -1788,6 +1788,29 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 145: one + for a relative, photos or a story.** **Aalim asked:**
+  make "+ add a relative" a general + offering relative, photo or story;
+  photos tag who's in them with a caption, a story whom it's about, its
+  storyteller and its interviewer. `components/tree/add-menu.tsx` replaces
+  `add-relative-button.tsx` on the canvas, on My Family Tree
+  (`FamilyAddButton`) and in a phone's sheet: **+ add** opens a menu,
+  **Relative** (the add flow, as before), **Photos**, **Story**, naming
+  the selected person when there is one. Photos open `album-dialog.tsx`
+  with no album of its own (`personId` null): the selected person tagged
+  to start with but removable, and each photo needs someone in it; the
+  album handed back is the first tagged's. A story opens
+  `story-dialog.tsx` with `chooseAbout`: an **About** picker (one person,
+  the selected one to start with) above the rest. Offered: whoever the
+  tree shows in full, not basic cards or placeholder children (the RPCs'
+  `is_placed_in_full`). On My Family Tree they go on the selected card's
+  tree, or ask **Which tree?** among the viewer's. Added away from a
+  sheet says "Added."; the sheets of those tagged or told about are read
+  again. No migration. **My calls:** written stories keep **People
+  mentioned** rather than storyteller/interviewer (Step 116 took those off
+  written stories at Aalim's word), so storyteller and interviewer are a
+  recording's; the phone sheet's + shows only where its relative could
+  be added, as before.
 
 - **Step 144: the newsletter says who the added are to you, links stories
   with their credits, and carries a note** (migration

@@ -34,7 +34,7 @@ import {
   FamilySection,
   type PersonRelation,
 } from "@/components/tree/person-family";
-import { AddRelativeButton } from "@/components/tree/add-relative-button";
+import { AddMenu, type AddMedia } from "@/components/tree/add-menu";
 import { FamilyAddButton, type FamilyAdd } from "@/components/tree/add-to-tree";
 import type { CompanionOption } from "@/components/tree/companion-picker";
 import { EntryAlbum } from "@/components/tree/entry-album";
@@ -82,7 +82,7 @@ import { joinedByTags } from "@/lib/joined-by";
 import { countOf } from "@/lib/plural";
 import type { FamilyViewTree } from "@/lib/my-family";
 import type { DeclinedSuggestion, EntrySuggestion } from "@/lib/suggestions";
-import { editPersonHref, suggestChangeHref } from "@/lib/tree-links";
+import { addRelativeHref, editPersonHref, suggestChangeHref } from "@/lib/tree-links";
 import { cn } from "@/lib/utils";
 import type { TreePet } from "@/lib/pets";
 import type { TreeGraphPerson } from "@/lib/tree";
@@ -282,6 +282,7 @@ function PersonPanelImpl({
   currentTreeId = null,
   familyAdd = null,
   addRelativeOf = null,
+  addMedia = null,
   connectionPrompt = null,
   samePerson = null,
   kinship = null,
@@ -366,6 +367,8 @@ function PersonPanelImpl({
    *  covers the canvas and its Add button (Step 19.2). `null` when the
    *  viewer can't add relatives. */
   addRelativeOf?: { id: string; name: string } | null;
+  /** Where that + (Step 145) puts photos and stories. */
+  addMedia?: AddMedia | null;
   /** Shown first when this person was opened from a search: the canvas's
    *  offer to light their connection to somebody else. */
   connectionPrompt?: React.ReactNode;
@@ -822,11 +825,19 @@ function PersonPanelImpl({
                 // From the person on My Family Tree: the trees showing them
                 // where the viewer may add (Step 92.3).
                 familyAdd.relatedTo ? (
-                  <FamilyAddButton add={familyAdd} className="w-full sm:hidden" />
+                  <FamilyAddButton
+                    add={familyAdd}
+                    subject={familyAdd.relatedTo}
+                    media={addMedia}
+                    className="w-full sm:hidden"
+                  />
                 ) : null
               ) : addRelativeOf && !readOnly ? (
-                <AddRelativeButton
+                <AddMenu
                   relatedTo={addRelativeOf}
+                  subject={addRelativeOf}
+                  relative={{ href: addRelativeHref(addRelativeOf.id) }}
+                  media={addMedia}
                   className="w-full sm:hidden"
                 />
               ) : null}

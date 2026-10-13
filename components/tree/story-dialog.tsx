@@ -107,24 +107,31 @@ const NONE_SHOWN: Record<StoryCreditRole, boolean> = {
  * (Step 116).
  * A picked recording is shrunk as soon as it's picked, and played back here
  * before it goes. A form is its labels. Loaded only once someone opens it.
+ *
+ * From the canvas's + (Step 145) it asks who the story is about as well,
+ * whoever is selected picked to start with.
  */
 export function StoryDialog({
   open,
   onOpenChange,
   personId,
+  chooseAbout = false,
   treeId,
   people,
   onTold,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  personId: string;
+  /** Whom it's about; with `chooseAbout`, who's picked to start with. */
+  personId: string | null;
+  /** Asks whom it's about (Step 145), from `people`. */
+  chooseAbout?: boolean;
   /** The tree it's told on, whose inbox its teller hears back in. */
   treeId: string;
   /** Everyone on the canvas, who may be credited. */
   people: CompanionOption[];
-  /** Told: the entry's stories now, when they could be read. */
-  onTold: (stories: EntryStory[] | undefined) => void;
+  /** Told: the stories of whom it's about now, when they could be read. */
+  onTold: (stories: EntryStory[] | undefined, personId: string) => void;
 }) {
   const send = useAction({ inline: true });
   const [title, setTitle] = React.useState("");
@@ -144,6 +151,9 @@ export function StoryDialog({
   const [mentions, setMentions] = React.useState<string[]>([]);
   const [recording, setRecording] = React.useState<RecordingChoice>(NO_RECORDING);
   const [preparing, setPreparing] = React.useState(false);
+  // Whom it's about, when it asks (Step 145).
+  const [about, setAbout] = React.useState<string | null>(personId);
+  const subject = chooseAbout ? about : personId;
 
   // Opened afresh, empty.
   const [wasOpen, setWasOpen] = React.useState(open);
@@ -162,6 +172,7 @@ export function StoryDialog({
       setCreditsShown(NONE_SHOWN);
       setRecording(NO_RECORDING);
       setPreparing(false);
+      setAbout(personId);
       send.setError(null);
     }
   }
@@ -178,6 +189,7 @@ export function StoryDialog({
   const ready = kind === "record" && recording.kind === "new" ? recording.audio : null;
   const length = body.trim().length;
   const canSend =
+    !!subject &&
     !preparing &&
     length <= STORY_MAX &&
     (writing ? length > 0 : ready !== null);
@@ -185,8 +197,9 @@ export function StoryDialog({
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setToldTouched(true);
-    if (!canSend || toldError) return;
+    if (!canSend || toldError || !subject) return;
     const audio = ready;
+    const personId = subject;
     send.run(
       "send",
       async () => {
@@ -210,7 +223,8 @@ export function StoryDialog({
             told,
             storytellers: writing ? [] : credits.storyteller,
             interviewers: writing ? [] : credits.interviewer,
-            mentions: writing ? mentions : [],
+            // Not whom it's about, picked before they were (Step 145).
+            mentions: writing ? mentions.filter((id) => id !== personId) : [],
           });
           // Refused: the recording nothing took goes again.
           if (res.error && audioPath) {
@@ -226,9 +240,14 @@ export function StoryDialog({
       },
       {
         success: (res) =>
-          res.status === "pending" ? "Sent for approval." : null,
+          res.status === "pending"
+            ? "Sent for approval."
+            : // Away from the sheet, nothing else shows it went.
+              chooseAbout
+              ? "Added."
+              : null,
         onSuccess: (res) => {
-          onTold(res.stories);
+          onTold(res.stories, personId);
           onOpenChange(false);
         },
       },
@@ -278,6 +297,17 @@ export function StoryDialog({
           </div>
         ) : (
           <form onSubmit={onSubmit} className="flex flex-col gap-4 pt-2">
+            {chooseAbout ? (
+              <CompanionPicker
+                label="About"
+                options={people}
+                value={about ? [about] : []}
+                // One person: a second picked takes the first's place.
+                onChange={(ids) => setAbout(ids.at(-1) ?? null)}
+                disabled={send.pending}
+                emptyHint={null}
+              />
+            ) : null}
             {writing ? (
               <>
                 <StoryTextFields
@@ -293,7 +323,7 @@ export function StoryDialog({
                 <StoryMentionsField
                   key={`mentions-${formKey}`}
                   people={people}
-                  personId={personId}
+                  personId={subject ?? ""}
                   body={body}
                   value={mentions}
                   onChange={setMentions}

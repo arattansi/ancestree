@@ -4,7 +4,7 @@ import * as React from "react";
 
 import { switchTreeForm } from "@/app/actions/current-tree";
 import { lazyComponent, useLoadedSoon } from "@/components/lazy-component";
-import { AddRelativeButton } from "@/components/tree/add-relative-button";
+import { AddMenu, type AddMedia } from "@/components/tree/add-menu";
 import { useAction } from "@/components/use-action";
 import type { FamilyViewTree } from "@/lib/my-family";
 import { addRelativeHref } from "@/lib/tree-links";
@@ -30,14 +30,19 @@ export type FamilyAdd = {
  * itself, so the relative goes on one of the member's trees, in that
  * tree's own add flow. With one tree to choose it goes straight there,
  * switching to it first if the browser is looking at another; with more,
- * it asks which.
+ * it asks which. It's the + (Step 145), with photos and a story beside it.
  */
 export function FamilyAddButton({
   add,
+  subject,
+  media,
   labelFrom,
   className,
 }: {
   add: FamilyAdd;
+  /** Who photos and a story start with. */
+  subject: { id: string; name: string } | null;
+  media: AddMedia | null;
   labelFrom?: "always" | "sm" | "lg";
   className?: string;
 }) {
@@ -48,27 +53,29 @@ export function FamilyAddButton({
   const href = addRelativeHref(relatedTo?.id);
   const only = trees.length === 1 ? trees[0] : null;
 
-  if (trees.length === 0) return null;
+  const menu = {
+    relatedTo,
+    subject,
+    media,
+    labelFrom,
+    className,
+  };
+  // No tree to add a relative on: photos and stories only.
+  if (trees.length === 0) return <AddMenu {...menu} relative={null} />;
   // The tree the browser is on already: the add flow, as on its canvas.
   if (only && only.id === currentTreeId) {
-    return (
-      <AddRelativeButton
-        relatedTo={relatedTo}
-        labelFrom={labelFrom}
-        className={className}
-      />
-    );
+    return <AddMenu {...menu} relative={{ href }} />;
   }
   return (
     <>
-      <AddRelativeButton
-        relatedTo={relatedTo}
-        labelFrom={labelFrom}
-        className={className}
-        pending={go.pending}
-        onClick={() => {
-          if (only) go.run("add", () => switchTreeForm(only.id, href));
-          else setAsking(true);
+      <AddMenu
+        {...menu}
+        relative={{
+          pending: go.pending,
+          onClick: () => {
+            if (only) go.run("add", () => switchTreeForm(only.id, href));
+            else setAsking(true);
+          },
         }}
       />
       {!only && (dialogReady || asking) ? (

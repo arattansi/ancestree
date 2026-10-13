@@ -34,7 +34,7 @@ import { setPetPosition } from "@/app/actions/pets";
 import { ConfirmButton } from "@/components/confirm-dialog";
 import { lazyComponent, useLoadedSoon } from "@/components/lazy-component";
 import { RequestInviteDialog } from "@/components/request-invite-dialog";
-import { AddRelativeButton } from "@/components/tree/add-relative-button";
+import { AddMenu, type AddMedia } from "@/components/tree/add-menu";
 import { FamilyAddButton, type FamilyAdd } from "@/components/tree/add-to-tree";
 import { buildPeopleGraph, withPets } from "@/components/tree/build-graph";
 import { ColumnsIcon, ExpandingLabel } from "@/components/tree/canvas-controls";
@@ -142,7 +142,7 @@ import {
   type SamePair,
 } from "@/lib/same-person";
 import type { DeclinedSuggestion, EntrySuggestion } from "@/lib/suggestions";
-import { onboardingHref } from "@/lib/tree-links";
+import { addRelativeHref, onboardingHref } from "@/lib/tree-links";
 import { cn } from "@/lib/utils";
 import { descentGeometry, type CardRect } from "@/lib/edge-geometry";
 import { NODE_H, NODE_W, type XY } from "@/lib/tree-dimensions";
@@ -2493,6 +2493,26 @@ function Canvas({
   }, [family, selectedPerson]);
   // Who an album photo added from the sheet may show: on My Family Tree,
   // those the card's tree shows in full, as `add_album_photo` asks.
+  // Where the +'s photos and stories go (Step 145): this tree; on My
+  // Family Tree, the selected card's, or any of the viewer's, asked which.
+  // Who's offered is whoever the tree shows in full, but a placeholder
+  // child, who nobody else adds to (Step 98.2).
+  const addMedia = React.useMemo<AddMedia | null>(() => {
+    if (readOnly) return null;
+    const optionById = new Map(peopleOptions.map((o) => [o.id, o]));
+    const peopleOn = (id: string) =>
+      people.flatMap((p) => {
+        if (p.basic || p.blurred || p.placeholder_number != null) return [];
+        if (family && !p.full_tree_ids?.includes(id)) return [];
+        const option = optionById.get(p.id);
+        return option ? [option] : [];
+      });
+    if (!family) return { trees: [{ id: treeId, name: "" }], peopleOn };
+    const trees = cardTreeId
+      ? family.trees.filter((t) => t.id === cardTreeId)
+      : family.trees;
+    return trees.length > 0 ? { trees, peopleOn } : null;
+  }, [readOnly, family, treeId, cardTreeId, people, peopleOptions]);
   const sheetPeople = React.useMemo(() => {
     if (!cardTreeId) return peopleOptions;
     const onTree = new Set(
@@ -2692,8 +2712,11 @@ function Canvas({
               </RequestInviteDialog>
             </div>
           ) : editable ? (
-            <AddRelativeButton
+            <AddMenu
               relatedTo={addTarget}
+              subject={selectedTarget}
+              relative={{ href: addRelativeHref(addTarget?.id) }}
+              media={addMedia}
               labelFrom={sheetOut ? "lg" : "sm"}
             />
           ) : familyAdd ? (
@@ -2701,11 +2724,13 @@ function Canvas({
             // (Step 92.3).
             <FamilyAddButton
               add={familyAdd}
+              subject={selectedTarget}
+              media={addMedia}
               labelFrom={sheetOut ? "lg" : "sm"}
             />
           ) : null}
-          {/* Under Add a relative since Step 60, its words showing from the
-              same width as Add's. */}
+          {/* Under the + (Add a relative until Step 145) since Step 60, its
+              words showing from the same width as the +'s. */}
           <TreeSearch
             open={openCard === "search"}
             onOpenChange={onSearchOpenChange}
@@ -2967,6 +2992,7 @@ function Canvas({
           isCreator={selectedPerson?.created_by === currentUserId}
           currentUserId={currentUserId}
           addRelativeOf={addTarget}
+          addMedia={addMedia}
           connectionPrompt={connectionPrompt}
           samePerson={samePersonPrompt}
           kinship={kinship}

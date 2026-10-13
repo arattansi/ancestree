@@ -70,24 +70,32 @@ type Item = {
  * on the tree are suggested, those alive when it was taken first. Only the
  * copy drawn afresh goes up, which carries none of it: not where it was
  * taken.
+ *
+ * From the canvas's + (Step 145) it's nobody's album: whoever is selected
+ * is tagged to start with, and may be untagged, and each photo needs
+ * someone in it.
  */
 export function AlbumDialog({
   open,
   onOpenChange,
   personId,
+  tagFirst = null,
   treeId,
   people,
   onAdded,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  personId: string;
+  /** Whose album it's added from, always tagged; null from the + (Step 145). */
+  personId: string | null;
+  /** Without `personId`, who each photo is tagged with to start with. */
+  tagFirst?: string | null;
   /** The tree it's added on, whose inbox its uploader hears back in. */
   treeId: string;
   /** Everyone on the canvas, who may be tagged. */
   people: CompanionOption[];
-  /** One added: the album now, when it could be read. */
-  onAdded: (photos: AlbumPhoto[] | undefined) => void;
+  /** One added: the album now, when it could be read, and who's in it. */
+  onAdded: (photos: AlbumPhoto[] | undefined, people: string[]) => void;
 }) {
   const send = useAction({ inline: true });
   const [items, setItems] = React.useState<Item[]>([]);
@@ -136,7 +144,9 @@ export function AlbumDialog({
   }, [items]);
 
   const current = items.find((i) => i.key === currentKey) ?? items[0] ?? null;
-  const ready = current?.file ? current : null;
+  // Shrunk and shown; ready to add once someone's in it.
+  const shown = current?.file ? current : null;
+  const ready = shown && shown.tagged.length > 0 ? shown : null;
 
   function update(key: number, change: Partial<Item> | ((item: Item) => Partial<Item>)) {
     setItems((all) =>
@@ -244,7 +254,7 @@ export function AlbumDialog({
         url: null,
         meta: null,
         description: "",
-        tagged: [personId],
+        tagged: personId ? [personId] : tagFirst ? [tagFirst] : [],
         taken: NO_DATE,
         takenOpened: false,
         takenTouched: false,
@@ -287,7 +297,8 @@ export function AlbumDialog({
         try {
           // Refused, it takes the upload away again itself.
           return await addAlbumPhoto({
-            personId,
+            // From the +, the album back is the first one tagged.
+            personId: personId ?? tagged[0],
             treeId,
             path,
             description,
@@ -301,9 +312,15 @@ export function AlbumDialog({
         }
       },
       {
-        success: (res) => (res.pending ? "Sent for approval." : null),
+        success: (res) =>
+          res.pending
+            ? "Sent for approval."
+            : // Away from the sheet, nothing else shows it went.
+              !personId && last
+              ? "Added."
+              : null,
         onSuccess: (res) => {
-          onAdded(res.photos);
+          onAdded(res.photos, tagged);
           if (last) {
             onOpenChange(false);
           } else {
@@ -393,11 +410,11 @@ export function AlbumDialog({
                   </li>
                 ) : null}
               </ul>
-              {ready?.url ? (
+              {shown?.url ? (
                 <div className="flex flex-col gap-2 rounded-md border p-2">
                   {/* eslint-disable-next-line @next/next/no-img-element -- a picked file */}
                   <img
-                    src={ready.url}
+                    src={shown.url}
                     alt=""
                     className="max-h-72 w-full rounded bg-muted object-contain"
                   />
@@ -407,7 +424,7 @@ export function AlbumDialog({
                     variant="ghost"
                     className="self-end"
                     disabled={send.pending}
-                    onClick={() => drop(ready.key)}
+                    onClick={() => drop(shown.key)}
                   >
                     <X aria-hidden />
                     remove
@@ -480,7 +497,7 @@ export function AlbumDialog({
                 onChange={(ids) =>
                   update(current.key, { tagged: ids.slice(0, ALBUM_PEOPLE_MAX) })
                 }
-                locked={[personId]}
+                locked={personId ? [personId] : []}
                 disabled={send.pending}
               />
             </>
