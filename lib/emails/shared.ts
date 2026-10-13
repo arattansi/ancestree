@@ -45,8 +45,8 @@ export function renderEmail(input: {
   const href = escapeHtml(cta.url);
   const buttons = secondaryCta
     ? `<div style="margin:28px 0 0;font-size:0;">
-                  ${button(secondaryCta, "outline")}
-                  ${button(cta, "filled")}
+                  ${emailButton(secondaryCta, "outline")}
+                  ${emailButton(cta, "filled")}
                 </div>`
     : `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 0;">
                   <tr>
@@ -126,10 +126,11 @@ const BUTTON_LINK =
   "display:inline-block;padding:12px 22px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;font-weight:500;line-height:1;text-decoration:none;border-radius:10px;";
 
 /**
- * One of two buttons side by side: an inline table each, so they sit in a
- * row and wrap when the screen is too narrow for both.
+ * A button as an inline table, so two sit in a row and wrap when the
+ * screen is too narrow for both; an outlined one also stands alone in a
+ * section (the newsletter's "write a story", Step 144).
  */
-function button(
+export function emailButton(
   cta: { label: string; url: string },
   look: "filled" | "outline",
 ): string {

@@ -1800,10 +1800,14 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   tomorrow (13 Oct), the first anyone gets; the note goes with the next
   send only. **Now** whoever was added or joined reads "Yusuf Khan (your
   first cousin)" (`relationOf`, Step 99's words, none for a chain with no
-  everyday name); each story is its own line, its title (or "A story")
-  linking to `/stories/<id>`: "“Leaving Zanzibar”, about Amina Khan. Told
-  by …; interviewed by …." (`IssueStory`, credits named only where the
-  reader's trees name them); the Step 143 "aren't on ancestree yet" line
+  everyday name); each story is its own line, never titled (Aalim's
+  follow-up): "A story about Amina Khan. Told by …; interviewed by …."
+  with "A story" linking to `/stories/<id>` (`IssueStory`, credits named
+  only where the reader's trees name them), and a week with no stories
+  for the reader gets **Share a Story**: "No new stories this week. Write
+  one about someone for the family to read." and an outlined **write a
+  story** opening My Family Tree, where it's written on whoever's card
+  they pick (nothing opens the story writer by link); the Step 143 "aren't on ancestree yet" line
   is gone, the **invite family** button stays. `newsletter_schedule` gains
   `note` and `all_stories` (on, for that first send), set on the admin
   page's newsletter tab (**Note for the next newsletter**, **Every story so
@@ -1812,8 +1816,8 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   send and the preview carry them too. **My calls, not asked:** the
   footnote says "Sent weekly." rather than "Sent every Sunday." (the send
   day moves); a note doesn't make a quiet week send. Checked on live data,
-  nothing sent: Aalim's and Karim Kanji's previews each link the one
-  family story (4 approved; the other 3 are about Amrat Keshavjee, outside
+  nothing sent: Aalim's and Karim Kanji's catch-up previews each link the
+  one family story, and Karim's week without it asks for one (4 approved; the other 3 are about Amrat Keshavjee, outside
   both families).
 
 - **Step 143: inviting family, from the newsletter and the Root console**

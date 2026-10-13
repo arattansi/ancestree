@@ -34,7 +34,6 @@ const issue = (over: Partial<Issue> = {}): Issue => ({
       stories: [
         {
           id: "s1",
-          title: "Leaving Zanzibar",
           about: { id: "p1", name: "Amina Khan" },
           storytellers: [{ id: "p1", name: "Amina Khan" }],
           interviewers: [{ id: "p5", name: "Sara Khan" }, { id: "p6", name: "Ali Khan" }],
@@ -86,14 +85,14 @@ describe("newsletterEmail", () => {
   it("links each story, with who told it and who asked (Step 144)", () => {
     const { html } = render(issue());
     expect(html).toContain(
-      '<a href="https://www.ancestree.space/stories/s1" style="color:#0a0a0a;text-decoration:underline;">&ldquo;Leaving Zanzibar&rdquo;</a>, about <a',
+      '<a href="https://www.ancestree.space/stories/s1" style="color:#0a0a0a;text-decoration:underline;">A story</a> about <a',
     );
     expect(html).toMatch(
       /Told by <a[^>]*>Amina Khan<\/a>; interviewed by <a[^>]*>Sara Khan<\/a> and <a[^>]*>Ali Khan<\/a>\./,
     );
   });
 
-  it("calls an untitled story with no credits just that", () => {
+  it("says just that of a story with no credits", () => {
     const { html } = render(
       issue({
         trees: [
@@ -105,7 +104,6 @@ describe("newsletterEmail", () => {
             stories: [
               {
                 id: "s2",
-                title: null,
                 about: { id: "p1", name: "Amina Khan" },
                 storytellers: [],
                 interviewers: [],
@@ -117,6 +115,21 @@ describe("newsletterEmail", () => {
       }),
     );
     expect(html).toMatch(/>A story<\/a> about <a[^>]*>Amina Khan<\/a>\.<\/p>/);
+  });
+
+  it("never shows a story's title (Aalim, 2026-10-12)", () => {
+    const { html } = render(issue());
+    expect(html).not.toContain("&ldquo;");
+  });
+
+  it("asks for a story in a week with none (Step 144)", () => {
+    const quiet = issue();
+    quiet.trees[0].stories = [];
+    const { html } = render(quiet);
+    expect(html).toContain("Share a Story");
+    expect(html).toContain("No new stories this week.");
+    expect(html).toMatch(/href="https:\/\/www\.ancestree\.space\/family"[^>]*>write a story<\/a>/);
+    expect(render(issue()).html).not.toContain("write a story");
   });
 
   it("puts the beta reviewers' note first, escaped, its lines kept (Step 144)", () => {
@@ -135,7 +148,7 @@ describe("newsletterEmail", () => {
     expect(html).toContain("Khan family");
     expect(html).toMatch(/Sara Khan added <a href="https:\/\/www\.ancestree\.space\/family\?person=p2"[^>]*>Yusuf Khan<\/a> \(your first cousin\)\./);
     expect(html).toMatch(/You added <a[^>]*>Ali Khan<\/a> and <a[^>]*>Zahra Khan<\/a>\./);
-    expect(html).toMatch(/&rdquo;<\/a>, about <a[^>]*>Amina Khan<\/a>\./);
+    expect(html).toMatch(/>A story<\/a> about <a[^>]*>Amina Khan<\/a>\./);
     expect(html).toContain("open my family tree");
   });
 

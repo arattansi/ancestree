@@ -86,11 +86,9 @@ export type IssueName = {
   relation?: string;
 };
 
-/** A story shared that week, linked to itself (Step 144). */
+/** A story shared that week, linked to itself (Step 144); never titled. */
 export type IssueStory = {
   id: string;
-  /** Its title; null when it has none. */
-  title: string | null;
   /** Whom it's about. */
   about: IssueName;
   /** Who told it and who asked, as the story credits them (Step 99). */
@@ -102,7 +100,6 @@ export type IssueStory = {
 export type IssueStoryRow = {
   id: string;
   person_id: string;
-  title: string | null;
   credits: readonly { person_id: string; role: string }[];
 };
 
@@ -280,7 +277,6 @@ export function weeklyIssue<R extends IssuePerson & { id: string }>(
     if (!tree || tree.stories.some((s) => s.id === row.id)) continue;
     tree.stories.push({
       id: row.id,
-      title: row.title?.trim() || null,
       about: { id: row.person_id, name: nameOf(row.person_id) },
       storytellers: credited(row, "storyteller"),
       interviewers: credited(row, "interviewer"),

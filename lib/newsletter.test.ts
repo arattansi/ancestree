@@ -153,9 +153,8 @@ function input(
 const story = (
   id: string,
   personId: string,
-  title: string | null,
   credits: { person_id: string; role: string }[] = [],
-) => ({ id, person_id: personId, title, credits });
+) => ({ id, person_id: personId, credits });
 
 const addedIds = (issue: ReturnType<typeof weeklyIssue>) =>
   issue?.trees.flatMap((t) => t.added.flatMap((g) => g.people.map((n) => n.id))) ?? [];
@@ -272,12 +271,12 @@ describe("weeklyIssue: stories and photos", () => {
       input("u-karim", "karim", {
         placements: [],
         stories: [
-          story("s1", "gma", "Leaving Zanzibar", [
+          story("s1", "gma", [
             { person_id: "gma", role: "storyteller" },
             { person_id: "karim", role: "interviewer" },
           ]),
-          story("s1", "gma", "Leaving Zanzibar"),
-          story("s2", "sMom", null),
+          story("s1", "gma"),
+          story("s2", "sMom"),
         ],
         photos: [
           { photo_id: "ph1", person_id: "dad" },
@@ -288,7 +287,6 @@ describe("weeklyIssue: stories and photos", () => {
     expect(issue?.trees[0].stories).toEqual([
       {
         id: "s1",
-        title: "Leaving Zanzibar",
         about: { id: "gma", name: "Fatma Rattansi" },
         storytellers: [{ id: "gma", name: "Fatma Rattansi" }],
         interviewers: [{ id: "karim", name: "Karim Kanji" }],
@@ -304,7 +302,7 @@ describe("weeklyIssue: stories and photos", () => {
         showings: Object.values(people).map((p) =>
           showing(TREE.id, p.id === "gma" ? { ...p, date_of_birth: null } : p, p.id === "gma"),
         ),
-        stories: [story("s1", "gma", "Leaving Zanzibar")],
+        stories: [story("s1", "gma")],
       }),
     );
     expect(issue?.trees ?? []).toEqual([]);

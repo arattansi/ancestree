@@ -241,7 +241,7 @@ export async function buildWeeklyNewsletters(
     readPaged((from, to) => {
       const q = supabase
         .from("stories")
-        .select("id, person_id, title, decided_at, created_at, story_credits(person_id, role)")
+        .select("id, person_id, decided_at, created_at, story_credits(person_id, role)")
         .eq("status", "approved");
       return (
         allStories
@@ -368,7 +368,6 @@ export async function buildWeeklyNewsletters(
           .map((s) => ({
             id: s.id,
             person_id: s.person_id,
-            title: s.title,
             credits: s.story_credits ?? [],
           })),
         photos: tags.rows.filter((t) => withinWeek(t, r.since)),

@@ -1,5 +1,5 @@
 import { escapeHtml } from "@/lib/email";
-import { oneLine, renderEmail } from "@/lib/emails/shared";
+import { emailButton, oneLine, renderEmail } from "@/lib/emails/shared";
 import {
   addedCount,
   type Issue,
@@ -28,7 +28,8 @@ const HEADING =
  * to its card on My Family Tree, where everyone in it is (`personUrl`); the
  * button opens the view. Whoever was added says what they are to the
  * reader, and each story links to itself with who told it and who asked
- * (Step 144); a photo gives away only whom it's of. A note from the beta
+ * (Step 144), or, in a week with none, a button to write one; a photo
+ * gives away only whom it's of. A note from the beta
  * reviewers, when there is one, goes first, and "invite family" sits
  * beside the main button (Step 143).
  */
@@ -90,6 +91,14 @@ export function newsletterEmail(input: {
     );
   }
 
+  // A week with no stories asks for one (Step 144): written on whoever's
+  // card they pick on My Family Tree.
+  if (!issue.trees.some((t) => t.stories.length)) {
+    sections.push(
+      `<p style="${HEADING}">Share a Story</p><p style="margin:8px 0 0;${TEXT}">No new stories this week. Write one about someone for the family to read.</p><div style="margin:12px 0 0;font-size:0;">${emailButton({ label: "write a story", url: input.familyUrl }, "outline")}</div>`,
+    );
+  }
+
   const unsubscribe = escapeHtml(input.unsubscribeUrl);
   return {
     subject: NEWSLETTER_SUBJECT,
@@ -119,21 +128,16 @@ function addedLine(g: IssueAdded, link: (n: IssueName) => string): string {
 }
 
 /**
- * "<Leaving Zanzibar>, about Amina Khan. Told by Hassan Rattansi;
- * interviewed by Aalim Rattansi." The title (or "A story", untitled) links
- * to the story; each credit says itself only when there's someone in it.
+ * "<A story> about Amina Khan. Told by Hassan Rattansi; interviewed by
+ * Aalim Rattansi." No title, ever (Aalim, 2026-10-12): "A story" links to
+ * it, and each credit says itself only when there's someone in it.
  */
 function storyLine(
   story: IssueStory,
   url: string,
   link: (n: IssueName) => string,
 ): string {
-  const title = story.title
-    ? `&ldquo;${escapeHtml(oneLine(story.title))}&rdquo;`
-    : "A story";
-  const head = `<a href="${escapeHtml(url)}" style="${LINK}">${title}</a>${
-    story.title ? "," : ""
-  } about ${link(story.about)}.`;
+  const head = `<a href="${escapeHtml(url)}" style="${LINK}">A story</a> about ${link(story.about)}.`;
   const credits = [
     story.storytellers.length ? `told by ${list(story.storytellers, link)}` : "",
     story.interviewers.length ? `interviewed by ${list(story.interviewers, link)}` : "",
