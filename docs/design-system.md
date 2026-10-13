@@ -212,8 +212,8 @@ turn autocomplete off, or every relative is offered the member's own name
   menu: **Relative**, **Photos**, **Story**, each naming the selected
   person when there is one ("Story about Amarshi"). Menu items are
   sentence case. Photos ask **Who's in it** and a **Description**; a story
-  asks **About** (one person), and a recording **Storyteller** and
-  **Interviewer** too. On My Family Tree, photos and a story go on the
+  asks **About** (one person) and **Storyteller**, a written one **People
+  mentioned** too and a recording **Interviewer**. On My Family Tree, photos and a story go on the
   selected card's tree, or, with nobody selected, ask **Which tree?**.
 - My Family Tree rests as a spotlight does (Step 97): every direct
   relative is a **leaf** on brown branches, laid out as a pulled-out line

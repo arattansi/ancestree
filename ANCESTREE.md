@@ -1789,6 +1789,16 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 145 follow-up: written stories credit a storyteller.** **Aalim
+  said:** written stories are a storyteller (author) and whom they're
+  about; asked, he kept **People mentioned** and chose the word
+  **Storyteller**. Adding or editing a written story now offers
+  **Storyteller** (no **Interviewer**, a recording's alone); others who
+  may credit it get **credits and date** on it, as on a recording, in
+  place of **date told**. Its hidden interviewers, if any from before
+  Step 116, are sent back unchanged. No migration: `add_story` and
+  `edit_story` already took credits on any story.
+
 - **Step 145: one + for a relative, photos or a story.** **Aalim asked:**
   make "+ add a relative" a general + offering relative, photo or story;
   photos tag who's in them with a caption, a story whom it's about, its
@@ -1806,11 +1816,9 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   `is_placed_in_full`). On My Family Tree they go on the selected card's
   tree, or ask **Which tree?** among the viewer's. Added away from a
   sheet says "Added."; the sheets of those tagged or told about are read
-  again. No migration. **My calls:** written stories keep **People
-  mentioned** rather than storyteller/interviewer (Step 116 took those off
-  written stories at Aalim's word), so storyteller and interviewer are a
-  recording's; the phone sheet's + shows only where its relative could
-  be added, as before.
+  again. No migration. **My call:** the phone sheet's + shows only where
+  its relative could be added, as before. (Written stories' credits: see
+  the follow-up above.)
 
 - **Step 144: the newsletter says who the added are to you, links stories
   with their credits, and carries a note** (migration

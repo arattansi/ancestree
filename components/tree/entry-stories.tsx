@@ -364,7 +364,7 @@ function StoryCard({
         {story.canEditCredits ? (
           <Button type="button" size="sm" variant="ghost" onClick={onEditCredits}>
             <Pencil aria-hidden />
-            {story.mine ? "edit" : story.hasRecording ? "credits and date" : "date told"}
+            {story.mine ? "edit" : "credits and date"}
           </Button>
         ) : null}
         {story.about && story.canRemoveMention && !story.canDecideMention ? (

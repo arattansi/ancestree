@@ -30,7 +30,8 @@ const KEEP: RecordingChoice = { kind: "keep" };
  * as well as when it was told and who it's credited to; for whoever else may
  * (an editor of the entry, or the person it's about), the date and credits.
  * A written story opens in the big window it was written in (Step 113),
- * and its teller tags who it mentions there in place of credits (Step 116).
+ * and its teller tags who it mentions there (Step 116); it's credited a
+ * storyteller but no interviewer (Step 145).
  * Anyone on the canvas may be credited; someone credited already stays
  * offered by name even where this canvas doesn't have them. An empty date
  * clears it. New words from someone who couldn't approve them go for
@@ -176,11 +177,7 @@ export function StoryEditDialog({
         )}
       >
         <DialogTitle>
-          {story?.mine !== false
-            ? "Edit story"
-            : story.hasRecording
-              ? "Credits and date"
-              : "Date told"}
+          {story?.mine !== false ? "Edit story" : "Credits and date"}
         </DialogTitle>
         <form onSubmit={onSubmit} className="flex flex-col gap-4 pt-2">
           {story?.mine ? (
@@ -221,32 +218,32 @@ export function StoryEditDialog({
             />
             <FormError>{toldTouched ? toldError : null}</FormError>
           </div>
-          {/* A recording is credited; a written story tags who it mentions,
-              its teller alone (Step 116). */}
-          {story && !story.hasRecording ? (
-            story.mine ? (
-              <StoryMentionsField
-                key={openedOn ?? ""}
-                people={people}
-                personId={personId}
-                body={body}
-                value={mentions}
-                onChange={setMentions}
-                disabled={save.pending}
-                known={story.mentions}
-              />
-            ) : null
-          ) : (
-            // Side by side where there's room (Step 117).
-            <div className="grid items-start gap-4 sm:grid-cols-2">
-              <CompanionPicker
-                label="Storyteller"
-                options={options}
-                value={tellers}
-                onChange={(ids) => setTellers(ids.slice(0, STORY_CREDIT_MAX))}
-                disabled={save.pending}
-                emptyHint={null}
-              />
+          {/* A written story tags who it mentions, its teller alone (Step
+              116). */}
+          {story && !story.hasRecording && story.mine ? (
+            <StoryMentionsField
+              key={openedOn ?? ""}
+              people={people}
+              personId={personId}
+              body={body}
+              value={mentions}
+              onChange={setMentions}
+              disabled={save.pending}
+              known={story.mentions}
+            />
+          ) : null}
+          {/* Either has a storyteller; only a recording an interviewer (Step
+              145). Side by side where there's room (Step 117). */}
+          <div className="grid items-start gap-4 sm:grid-cols-2">
+            <CompanionPicker
+              label="Storyteller"
+              options={options}
+              value={tellers}
+              onChange={(ids) => setTellers(ids.slice(0, STORY_CREDIT_MAX))}
+              disabled={save.pending}
+              emptyHint={null}
+            />
+            {story?.hasRecording ? (
               <CompanionPicker
                 label="Interviewer"
                 options={options}
@@ -255,8 +252,8 @@ export function StoryEditDialog({
                 disabled={save.pending}
                 emptyHint={null}
               />
-            </div>
-          )}
+            ) : null}
+          </div>
           <FormError>{save.error}</FormError>
           <div className="flex gap-2">
             <PendingButton

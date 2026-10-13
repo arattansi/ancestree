@@ -101,10 +101,10 @@ const NONE_SHOWN: Record<StoryCreditRole, boolean> = {
  * Tell a story about someone (Step 88.3). It first asks which (Step 113):
  * **write a story**, in a big window with room for a whole one, or **upload
  * a recording**; either may have a title, and a recording a description
- * (Step 115). It may say when it was told. A recording may credit people on
- * the tree as its storytellers and interviewers (Step 99); a written story
- * tags the people it mentions instead, those its words name offered first
- * (Step 116).
+ * (Step 115). It may say when it was told. It may credit people on the
+ * tree as its storytellers (Step 99; a written one too since Step 145), and
+ * a recording its interviewers; a written story tags the people it
+ * mentions as well, those its words name offered first (Step 116).
  * A picked recording is shrunk as soon as it's picked, and played back here
  * before it goes. A form is its labels. Loaded only once someone opens it.
  *
@@ -221,7 +221,7 @@ export function StoryDialog({
             audioPath,
             audioSeconds: audio?.seconds ?? null,
             told,
-            storytellers: writing ? [] : credits.storyteller,
+            storytellers: credits.storyteller,
             interviewers: writing ? [] : credits.interviewer,
             // Not whom it's about, picked before they were (Step 145).
             mentions: writing ? mentions.filter((id) => id !== personId) : [],
@@ -383,19 +383,19 @@ export function StoryDialog({
                 Date told
               </Button>
             )}
-            {/* A recording is credited; a written story tags who it mentions. */}
-            {writing ? null : (
-              // Side by side where there's room (Step 117).
-              <div className="grid items-start gap-4 sm:grid-cols-2">
-                <CreditField
-                  label="Storyteller"
-                  people={people}
-                  value={credits.storyteller}
-                  shown={creditsShown.storyteller}
-                  onShow={() => setCreditsShown((s) => ({ ...s, storyteller: true }))}
-                  onChange={(ids) => setCredits((c) => ({ ...c, storyteller: ids }))}
-                  disabled={send.pending}
-                />
+            {/* Either has a storyteller; only a recording an interviewer
+                (Step 145). Side by side where there's room (Step 117). */}
+            <div className="grid items-start gap-4 sm:grid-cols-2">
+              <CreditField
+                label="Storyteller"
+                people={people}
+                value={credits.storyteller}
+                shown={creditsShown.storyteller}
+                onShow={() => setCreditsShown((s) => ({ ...s, storyteller: true }))}
+                onChange={(ids) => setCredits((c) => ({ ...c, storyteller: ids }))}
+                disabled={send.pending}
+              />
+              {writing ? null : (
                 <CreditField
                   label="Interviewer"
                   people={people}
@@ -405,8 +405,8 @@ export function StoryDialog({
                   onChange={(ids) => setCredits((c) => ({ ...c, interviewer: ids }))}
                   disabled={send.pending}
                 />
-              </div>
-            )}
+              )}
+            </div>
             <FormError>{send.error}</FormError>
             <div className="flex gap-2">
               <PendingButton
