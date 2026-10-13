@@ -2964,15 +2964,27 @@ export type Database = {
       }
       delete_blog_post: { Args: { p_id: string }; Returns: undefined }
       delete_tree: { Args: { p_tree: string }; Returns: Json }
-      edit_album_photo: {
-        Args: {
-          p_description: string
-          p_people: string[]
-          p_photo: string
-          p_tree: string
-        }
-        Returns: Json
-      }
+      edit_album_photo:
+        | {
+            Args: {
+              p_description: string
+              p_people: string[]
+              p_photo: string
+              p_tree: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_description: string
+              p_people: string[]
+              p_photo: string
+              p_taken_on: string
+              p_taken_precision: string
+              p_tree: string
+            }
+            Returns: Json
+          }
       edit_story: {
         Args: {
           p_audio_path?: string

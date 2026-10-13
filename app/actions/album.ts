@@ -98,9 +98,9 @@ export async function addAlbumPhoto(input: {
 }
 
 /**
- * Its uploader changes what a photo is of and who's in it (Step 114): the
- * whole new description and list of people, `personId`'s album always
- * among them. Someone newly in it waits, as when it was added; new words
+ * Its uploader changes what a photo is of and who's in it (Step 114), and
+ * when it was taken (Step 146): the whole new description, list of people
+ * and date ("" clears it), `personId`'s album always among them. Someone newly in it waits, as when it was added; new words
  * go back to whoever else approved the old ones. The album back is
  * `personId`'s.
  */
@@ -112,10 +112,15 @@ export async function editAlbumPhoto(input: {
   treeId: string;
   description: string;
   people: string[];
+  /** Partial ISO ("1962", "1962-03", "1962-03-05"), or "". */
+  taken: string;
 }): Promise<{ error?: string; pending?: number; photos?: AlbumPhoto[] }> {
   const profile = await requireProfile();
   const description = input.description.trim();
   const people = [...new Set([input.personId, ...input.people])];
+  const takenError = takenProblem(input.taken);
+  if (takenError) return { error: takenError };
+  const taken = toStoredDate(input.taken);
   if (description.length > ALBUM_DESCRIPTION_MAX) {
     return { error: `Keep the description under ${ALBUM_DESCRIPTION_MAX} characters.` };
   }
@@ -128,6 +133,9 @@ export async function editAlbumPhoto(input: {
     p_tree: input.treeId,
     p_description: description,
     p_people: people,
+    // Null clears it; the generated types don't say a date may be null.
+    p_taken_on: (taken.date ?? null) as unknown as string,
+    p_taken_precision: (taken.date ? taken.precision : null) as unknown as string,
   });
   if (error) {
     return {
@@ -139,6 +147,7 @@ export async function editAlbumPhoto(input: {
           ["nobody in it", "Tag who’s in it."],
           ["too many people", `Tag ${ALBUM_PEOPLE_MAX} people at most.`],
           ["longer than a description may be", `Keep the description under ${ALBUM_DESCRIPTION_MAX} characters.`],
+          ["taken after today", "That’s after today."],
         ],
         "Couldn’t save it. Try again.",
       ),

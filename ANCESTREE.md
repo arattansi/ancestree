@@ -1789,6 +1789,20 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 146: a photo's date taken, added or changed later** (migration
+  `20261012140000_album_photo_date_editable`, additive). **Aalim asked:**
+  "user can choose to add 'date taken' for photos". Adding photos already
+  offered **+ Date taken** (Step 88.6); **Edit photo** (Step 114) now does
+  too: the date as it is now, or **+ Date taken** on a photo without one.
+  A year alone will do; emptying it clears it. Checked as on adding
+  (`takenProblem`), and Who's in it ranks people alive then by the date
+  being typed. A second `edit_album_photo(photo, tree, description,
+  people, taken_on, taken_precision)` checks and keeps the date as
+  `add_album_photo` does (null clears it), then hands the rest to the
+  four-argument one, which the code before this still calls. **My call,
+  not asked:** a new date asks nobody again; it's when, not what, the
+  photo is.
+
 - **Step 145 follow-up: written stories credit a storyteller.** **Aalim
   said:** written stories are a storyteller (author) and whom they're
   about; asked, he kept **People mentioned** and chose the word
