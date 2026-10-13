@@ -7,7 +7,8 @@
  * Every blade lies on its side in a 208 × 150 box: the stem comes in from
  * the left along the midrib at y 75 (the card draws it, out to x 46) and the
  * tip points right. A leaf may overhang the box top and bottom, as a maple's
- * lobes do, but never its sides: the next card is only a gutter away.
+ * lobes do (by `BLADE_OVERHANG` at most), but never its sides: the next card
+ * is only a gutter away.
  *
  * Whatever the species, a blade has to hold the name and the lines under it
  * (`lib/leaf-shapes.test.ts` checks every one): a frond, a sprig of needles
@@ -54,6 +55,13 @@ export type LeafGeometry = Required<Drawing> & {
 
 /** The midrib every blade lies along. */
 export const MIDRIB = 75;
+
+/**
+ * How far a blade may stand above its box and hang below it: the Japanese
+ * maple's lobes reach 11.4. Whatever draws a leaf leaves it this much room,
+ * or the lobes are cut off flat (Step 150).
+ */
+export const BLADE_OVERHANG = 12;
 
 // ---------------------------------------------------------------------------
 // Outlines

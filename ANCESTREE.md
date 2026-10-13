@@ -1804,6 +1804,27 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 150: the phone shows every leaf whole** (no migration). **Aalim
+  asked:** the maple leaf on the iPhone leaf view had its top and bottom
+  lobes cut off flat; find why and show all 47 shapes whole. The shared
+  shapes let a blade overhang its 208 × 150 box top and bottom (the maple
+  from −10.6 to 160.6, the Japanese maple 11.4 each way; the plane, ceiba,
+  ceibo, baobab and rain tree too), which the web draws with
+  `overflow-visible`. The phone used that box as its SVG's viewBox, and
+  `react-native-svg` draws nothing outside its own view, so the lobes
+  were clipped, and so was half the outline on the ten tips that end on
+  the box's right side. `lib/leaf-shapes.ts` now names the most a blade
+  may overhang (`BLADE_OVERHANG`, 12, which its test already held every
+  shape to); the phone's leaf draws on a canvas that bleeds that far past
+  the box, plus half the stroke all round, while its view stays the box
+  so the name and the lines' anchors don't move; and `orbitLayout`
+  counts the overhang in the leaf's height, for every leaf, so the
+  parents' and children's rows and their bars never sit on a lobe and
+  never move from leaf to leaf (a new test checks the bars). The web's
+  card is unchanged. Checked on the iPhone 18 Pro simulator (iOS 27): the
+  maple whole on the signed-in leaf, and all 47 shapes whole on a
+  throwaway page (removed).
+
 - **Step 149: the phone app launches when built with Xcode 27** (no
   migration). **Aalim asked:** "xcode is installed. i want to see the
   updated state of the app", then "yes, make the config plugin". The

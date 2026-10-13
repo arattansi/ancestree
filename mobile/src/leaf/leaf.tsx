@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 import Svg, { ClipPath, Defs, G, Path } from "react-native-svg";
 
 import {
+  BLADE_OVERHANG,
   inside,
   leafGeometry,
   MIDRIB,
@@ -18,6 +19,19 @@ export const BOX_H = 150;
 
 /** Where the text stops short of the tip, in box units, as on the web card. */
 const TEXT_RIGHT = 32;
+
+/** The outline's width; half of it lies outside the outline. */
+const STROKE = 4;
+
+/**
+ * How far the drawing runs past the box, in box units: a maple's lobes stand
+ * above it and hang below it, and the outline and the stem's round end reach
+ * half a stroke further all round (ten tips end on the box's right side). An
+ * SVG on the phone draws nothing outside its own view, so the view takes this
+ * much more room, as the web's `overflow-visible` does (Step 150).
+ */
+const BLEED_X = STROKE / 2;
+const BLEED_Y = BLADE_OVERHANG + STROKE / 2;
 
 type XY = { x: number; y: number };
 
@@ -59,6 +73,9 @@ export function leafAnchors(shape: LeafShape): Record<OrbitSide, XY> {
  *
  * The web fits text by measuring it in the browser; here iOS does it,
  * shrinking the name to fit its line (`adjustsFontSizeToFit`).
+ *
+ * The view is the box; the drawing hangs out of it by `BLEED_X` and
+ * `BLEED_Y`, so the anchors and the text keep the box's units.
  */
 export function Leaf({
   shape,
@@ -86,7 +103,12 @@ export function Leaf({
 
   return (
     <View style={{ width, height }}>
-      <Svg width={width} height={height} viewBox={`0 0 ${BOX_W} ${BOX_H}`}>
+      <Svg
+        width={(BOX_W + 2 * BLEED_X) * scale}
+        height={(BOX_H + 2 * BLEED_Y) * scale}
+        viewBox={`${-BLEED_X} ${-BLEED_Y} ${BOX_W + 2 * BLEED_X} ${BOX_H + 2 * BLEED_Y}`}
+        style={{ position: "absolute", left: -BLEED_X * scale, top: -BLEED_Y * scale }}
+      >
         <Defs>
           <ClipPath id={clipId}>
             <Path d={geometry.blade} />
@@ -96,7 +118,7 @@ export function Leaf({
         <Path
           d={`M0,${MIDRIB} L46,${MIDRIB}`}
           stroke={palette.brown}
-          strokeWidth={4}
+          strokeWidth={STROKE}
           strokeLinecap="round"
           fill="none"
         />
@@ -105,7 +127,7 @@ export function Leaf({
           d={geometry.blade}
           fill="none"
           stroke={palette.green}
-          strokeWidth={4}
+          strokeWidth={STROKE}
           strokeDasharray={deceased ? "6 5" : undefined}
           strokeLinejoin="round"
         />

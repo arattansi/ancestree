@@ -16,8 +16,13 @@
  *
  * The columns are as tall as the larger of the leaf and the longer column;
  * the rows sit outside that band, so a long row never runs into a column.
+ * The leaf's height counts the room a maple's lobes take above and below
+ * its box (`BLADE_OVERHANG`), whatever the leaf, so the rows keep their
+ * places from leaf to leaf and never sit on a lobe (Step 150).
  * Everything is centred in the frame. Pure, so it is tested without a phone.
  */
+
+import { BLADE_OVERHANG } from "@/lib/leaf-shapes";
 
 export type OrbitSide = "parents" | "children" | "spouses" | "siblings";
 
@@ -42,7 +47,10 @@ export type OrbitDot = {
 };
 
 export type OrbitLayout = {
-  /** The leaf's box (`BOX_W` × `BOX_H` scaled), from its top left. */
+  /**
+   * The leaf's box (`BOX_W` × `BOX_H` scaled), from its top left. Its blade
+   * may stand `BLADE_OVERHANG` (scaled) above it and hang as far below.
+   */
   leaf: { x: number; y: number; width: number; height: number };
   /** Every circle's diameter. */
   dot: number;
@@ -53,6 +61,8 @@ export type OrbitLayout = {
 
 /** The blade box's proportions (`lib/leaf-shapes.ts`). */
 const LEAF_ASPECT = 150 / 208;
+/** The height a leaf takes for its width, with its overhang top and bottom. */
+const LEAF_REACH = (150 + 2 * BLADE_OVERHANG) / 208;
 
 /** The circle sizes, largest first. */
 export const DOT_SIZES = [
@@ -85,7 +95,7 @@ export function leafWidth(width: number, height: number): number {
   // column is whole, a gap past the tip.
   const across = width - 2 * EDGE - NAME_W * 1.5 - RING;
   // Room for a named row above and below.
-  const tall = (height - 2 * EDGE - 2 * (cellH(DOT_SIZES[0]) + RING)) / LEAF_ASPECT;
+  const tall = (height - 2 * EDGE - 2 * (cellH(DOT_SIZES[0]) + RING)) / LEAF_REACH;
   return Math.max(LEAF_MIN, Math.min(LEAF_MAX, across, tall));
 }
 
@@ -109,6 +119,7 @@ export function orbitLayout(
   const { width, height } = frame;
   const leafW = leafWidth(width, height);
   const leafH = leafW * LEAF_ASPECT;
+  const reachH = leafW * LEAF_REACH;
   const has = (side: OrbitSide) => groups[side].length > 0;
 
   // The band the columns may take: the frame, less any row and its gap.
@@ -140,7 +151,7 @@ export function orbitLayout(
     g.shown.length + (g.more ? 1 : 0);
 
   const colLen = (n: number) => (n ? n * pitchY - GAP : 0);
-  const band = Math.max(leafH, colLen(count(spouses)), colLen(count(siblings)));
+  const band = Math.max(reachH, colLen(count(spouses)), colLen(count(siblings)));
   const total =
     band +
     (count(parents) ? cellH(size) + RING : 0) +

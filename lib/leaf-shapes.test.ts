@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  BLADE_OVERHANG,
   inside,
   LEAF_SHAPES,
   leafGeometry,
@@ -64,12 +65,12 @@ describe("leaf shapes", () => {
     const points = polygons(leafGeometry(shape).blade).flat();
     for (const { x, y } of points) {
       // Never past the sides — the next card is a gutter away — and no
-      // further above or below the card than the flag's maple has always
-      // reached.
+      // further above or below the box than the room every drawing of a
+      // leaf leaves it.
       expect(x).toBeGreaterThanOrEqual(0);
       expect(x).toBeLessThanOrEqual(208.5);
-      expect(y).toBeGreaterThanOrEqual(-12);
-      expect(y).toBeLessThanOrEqual(162);
+      expect(y).toBeGreaterThanOrEqual(-BLADE_OVERHANG);
+      expect(y).toBeLessThanOrEqual(150 + BLADE_OVERHANG);
     }
   });
 

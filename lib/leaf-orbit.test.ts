@@ -12,6 +12,7 @@ import {
   type OrbitGroups,
   type OrbitLayout,
 } from "@/lib/leaf-orbit";
+import { BLADE_OVERHANG } from "@/lib/leaf-shapes";
 
 /** An iPhone 15's screen, less the header and the bars. */
 const PHONE = { width: 393, height: 600 };
@@ -30,6 +31,17 @@ const family = (counts: Partial<Record<keyof OrbitGroups, number>>): OrbitGroups
 
 const of = (layout: OrbitLayout, side: OrbitDot["side"]) =>
   layout.dots.filter((d) => d.side === side);
+
+/** Where the blade may reach: its box, and a maple's lobes above and below. */
+function bladeOf({ leaf }: OrbitLayout) {
+  const overhang = (BLADE_OVERHANG * leaf.width) / 208;
+  return {
+    left: leaf.x + leaf.width * 0.22,
+    right: leaf.x + leaf.width,
+    top: leaf.y - overhang,
+    bottom: leaf.y + leaf.height + overhang,
+  };
+}
 
 /** A circle's box, with its name. */
 function box(layout: OrbitLayout, d: OrbitDot) {
@@ -55,15 +67,12 @@ function expectTidy(layout: OrbitLayout, frame: { width: number; height: number 
   for (let i = 0; i < boxes.length; i++)
     for (let j = i + 1; j < boxes.length; j++)
       expect(overlap(boxes[i], boxes[j])).toBe(false);
-  // Nobody sits on the leaf's blade (its stem's start is the spouses' column).
-  const { leaf } = layout;
-  const blade = {
-    left: leaf.x + leaf.width * 0.22,
-    right: leaf.x + leaf.width,
-    top: leaf.y,
-    bottom: leaf.y + leaf.height,
-  };
+  // Nobody sits on the leaf's blade (its stem's start is the spouses' column),
+  // lobes and all, and the lobes stay on the screen.
+  const blade = bladeOf(layout);
   for (const b of boxes) expect(overlap(b, blade)).toBe(false);
+  expect(blade.top).toBeGreaterThanOrEqual(EDGE - 0.01);
+  expect(blade.bottom).toBeLessThanOrEqual(frame.height - EDGE + 0.01);
 }
 
 describe("orbitLayout", () => {
@@ -178,6 +187,19 @@ describe("orbitLines", () => {
           Math.min(y1, y2) < n.bottom;
         expect(crosses).toBe(false);
       }
+    }
+  });
+
+  it("keeps the rows' bars off a maple's lobes", () => {
+    for (const frame of [PHONE, SMALL]) {
+      const layout = orbitLayout(frame, family({ parents: 2, children: 3 }));
+      const blade = bladeOf(layout);
+      const bars = orbitLines(layout, anchorsOf(layout)).filter(
+        ([x1, y1, x2, y2]) => y1 === y2 && x1 !== x2,
+      );
+      expect(bars).toHaveLength(2);
+      for (const [, y] of bars)
+        expect(y < blade.top || y > blade.bottom).toBe(true);
     }
   });
 
