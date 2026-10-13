@@ -3043,6 +3043,15 @@ export type Database = {
           taken_on_precision: string
         }[]
       }
+      entry_rights: {
+        Args: { p_people: string[] }
+        Returns: {
+          can_edit: boolean
+          can_fill: boolean
+          person_id: string
+          suggest_tree: string
+        }[]
+      }
       entry_stories: {
         Args: { p_person: string }
         Returns: {

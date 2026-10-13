@@ -1,6 +1,9 @@
 import "server-only";
 
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 import { countryName, isCountryPlace } from "@/lib/country-names";
+import type { Database } from "@/lib/database.types";
 import {
   choosePlaces,
   isCountryRow,
@@ -49,13 +52,18 @@ const CANDIDATES = 200;
  * ILIKE`, shaped and ranked by lib/place-search.ts (the part before a comma
  * is searched, what follows prefers a region; Step 66). Two letters only
  * match a whole name, which the index serves (Step 66.5). The countries the
- * search names are ranked in with the places (Step 79).
+ * search names are ranked in with the places (Step 79). The phone's scribe
+ * (Step 148.2) searches with its member's own client (`db`).
  */
-export async function searchPlaces(query: string, limit = 8): Promise<PlaceHit[]> {
+export async function searchPlaces(
+  query: string,
+  limit = 8,
+  db?: SupabaseClient<Database>,
+): Promise<PlaceHit[]> {
   const q = shapePlaceQuery(query);
   if (!q) return [];
 
-  const supabase = await createClient();
+  const supabase = db ?? (await createClient());
   const candidates = async ({ name, exact }: PlaceSearch) => {
     const { data, error } = await supabase
       .from("places")

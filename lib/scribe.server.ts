@@ -6,7 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
 import type { Database } from "@/lib/database.types";
-import { personDisplayName } from "@/lib/person-name";
+import { personFullName as fullName } from "@/lib/person-name";
 import { scribeTitle, type ScribeDraft, type ScribeRequest } from "@/lib/scribe";
 
 /**
@@ -44,21 +44,6 @@ type NameRow = {
 
 const NAME_COLUMNS =
   "id, first_name, middle_name, preferred_name, maiden_name, last_name, placeholder_number";
-
-/** Every name someone goes by, once each: "Amina (Mina) Sayani née Lalani". */
-function fullName(p: NameRow): string {
-  if (p.placeholder_number != null) return personDisplayName(p);
-  const first = p.first_name?.trim();
-  const preferred = p.preferred_name?.trim();
-  const parts = [
-    first,
-    preferred && preferred !== first ? `(${preferred})` : null,
-    p.middle_name?.trim(),
-    p.last_name?.trim(),
-    p.maiden_name?.trim() ? `née ${p.maiden_name.trim()}` : null,
-  ];
-  return parts.filter(Boolean).join(" ") || personDisplayName(p);
-}
 
 /**
  * What Claude is told besides the words: whose leaf, who's recording, and

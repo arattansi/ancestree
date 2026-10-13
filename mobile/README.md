@@ -19,7 +19,11 @@ What it does so far:
   a title, the story in the teller's own words and language, and English
   under it when it was told in another. Read it over, say who told it,
   and it's saved as a story with its recording, waiting for approval as
-  any story does. Recordings stop at 12 minutes.
+  any story does. Recordings stop at 12 minutes. Under the write-up comes
+  what the story tells the tree (Step 148.2, `/api/mobile/scribe/facts`):
+  births and deaths to tick, each made as an edit, a fill or a suggestion
+  as you could on the web; people it mentions, to tag; and relatives not
+  on the tree yet. Nothing changes until you tick it and save.
 
 ## The scribe needs the app's own build
 
@@ -87,8 +91,8 @@ the phone uses the Keychain.
 - `src/scribe/`: the scribe. `speech.ts` loads the recognizer only where
   it exists, `use-listening.ts` listens (pauses, the 12-minute stop,
   listening that stops on its own and carries on), `story.ts` makes the
-  three trips (write-up, recording, `add_story`), `scribe.tsx` is the
-  screen. What was heard is pieced together by `@/lib/scribe-heard`, the
+  trips (write-up, facts, recording, `add_story`, the facts ticked),
+  `facts-review.tsx` shows the facts, `scribe.tsx` is the screen. What was heard is pieced together by `@/lib/scribe-heard`, the
   recordings joined by `@/lib/wav`.
 
 **Shared code is the web's `lib/`.** `@/lib/*` resolves to `../lib/*`

@@ -7,13 +7,25 @@ import {
   type ScribeDraft,
   type ScribeRequest,
 } from "@/lib/scribe";
+import {
+  factNote,
+  fillFieldsFor,
+  isScribeFacts,
+  type FactWay,
+  type FactWrite,
+  type ScribeFacts,
+} from "@/lib/scribe-facts";
+import type { Json, TablesUpdate } from "@/lib/database.types";
+import { asSuggestionColumns } from "@/lib/suggestions";
 import { joinWav, wavSeconds } from "@/lib/wav";
 import { supabase } from "@/auth/supabase";
 
 /**
- * The scribe's three trips from the phone (Step 148): what was heard goes
- * to Claude through the web's server, the recording goes to the `stories`
- * bucket, and the story is told through `add_story`, as on the web.
+ * The scribe's trips from the phone (Step 148): what was heard goes to
+ * Claude through the web's server, once to be written up and once to be
+ * read for facts (148.2); the recording goes to the `stories` bucket; the
+ * story is told through `add_story`, and each fact the member accepts is
+ * made as the web would make it.
  */
 
 const SITE = process.env.EXPO_PUBLIC_SITE_URL ?? "https://www.ancestree.space";
@@ -21,14 +33,18 @@ const SITE = process.env.EXPO_PUBLIC_SITE_URL ?? "https://www.ancestree.space";
 /** Something to say when a trip fails. */
 export class ScribeError extends Error {}
 
-/** Claude's write-up of what was heard, to read over before it's told. */
-export async function writeUp(request: ScribeRequest): Promise<ScribeDraft> {
+/** One of the web's phone endpoints, as the member: its answer, or why not. */
+async function askServer(
+  path: string,
+  request: ScribeRequest,
+  failed: string,
+): Promise<Record<string, unknown>> {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
   if (!token) throw new ScribeError("Sign in again.");
   let response: Response;
   try {
-    response = await fetch(`${SITE}/api/mobile/scribe`, {
+    response = await fetch(`${SITE}${path}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -39,14 +55,32 @@ export async function writeUp(request: ScribeRequest): Promise<ScribeDraft> {
   } catch {
     throw new ScribeError("No connection. Try again.");
   }
-  const body = (await response.json().catch(() => null)) as {
-    draft?: unknown;
-    error?: string;
-  } | null;
-  if (!response.ok || !isScribeDraft(body?.draft)) {
-    throw new ScribeError(body?.error ?? "Couldn’t write it up. Try again.");
+  const body = (await response.json().catch(() => null)) as Record<
+    string,
+    unknown
+  > | null;
+  if (!response.ok || !body) {
+    throw new ScribeError(
+      typeof body?.error === "string" ? body.error : failed,
+    );
   }
+  return body;
+}
+
+/** Claude's write-up of what was heard, to read over before it's told. */
+export async function writeUp(request: ScribeRequest): Promise<ScribeDraft> {
+  const failed = "Couldn’t write it up. Try again.";
+  const body = await askServer("/api/mobile/scribe", request, failed);
+  if (!isScribeDraft(body.draft)) throw new ScribeError(failed);
   return body.draft;
+}
+
+/** What the story tells the tree (Step 148.2), each to accept or not. */
+export async function findFacts(request: ScribeRequest): Promise<ScribeFacts> {
+  const failed = "Couldn’t look for facts.";
+  const body = await askServer("/api/mobile/scribe/facts", request, failed);
+  if (!isScribeFacts(body.facts)) throw new ScribeError(failed);
+  return body.facts;
 }
 
 /** A name no other file in the folder has. */
@@ -124,6 +158,8 @@ export async function tellStory(story: {
   recording: { path: string; seconds: number | null } | null;
   storytellers: string[];
   interviewers: string[];
+  /** Who it mentions (Step 116), each on the tree it's told on. */
+  mentions: string[];
 }): Promise<"approved" | "pending"> {
   const { data, error } = await supabase.rpc("add_story", {
     p_person: story.personId,
@@ -136,6 +172,7 @@ export async function tellStory(story: {
     p_told_precision: "day",
     p_storytellers: story.storytellers,
     p_interviewers: story.interviewers,
+    p_mentions: story.mentions,
   });
   if (error) {
     const said = error.message;
@@ -154,4 +191,82 @@ export async function tellStory(story: {
   return (data as { status?: string } | null)?.status === "approved"
     ? "approved"
     : "pending";
+}
+
+/** What a refused fact says, by what the database said. */
+function factError(message: string): string {
+  return message.includes("not on your tree")
+    ? "That entry isn’t on your tree."
+    : message.includes("yours to edit")
+      ? "That entry is yours to edit now. Try again."
+      : message.includes("not yours to fill in")
+        ? "That entry isn’t yours to fill in any more."
+        : message.includes("nothing changed")
+          ? "The entry already says that."
+          : message.includes("fit the entry") || message.includes("check")
+            ? "That doesn’t fit the entry."
+            : "Couldn’t save it.";
+}
+
+/**
+ * Make one accepted write (`factWrites`): an edit through the same row
+ * policy the web's edit form meets, a fill through `fill_person_blanks`
+ * (Step 44), or a suggestion through `suggest_entry_change` (Step 67),
+ * taking in the member's own suggestion still waiting on that entry, which
+ * a new one would otherwise replace. Null when it's made, else why not.
+ */
+async function makeFact(write: FactWrite, title: string): Promise<string | null> {
+  if (write.way === "edit") {
+    const { data, error } = await supabase
+      .from("people")
+      // Only the details that change: the columns a suggestion names.
+      .update(write.changes as TablesUpdate<"people">)
+      .eq("id", write.personId)
+      .select("id");
+    if (error) return factError(error.message);
+    return data?.length ? null : "Only someone who looks after that entry can change it.";
+  }
+  if (write.way === "fill") {
+    const { error } = await supabase.rpc("fill_person_blanks", {
+      p_person: write.personId,
+      p_fields: fillFieldsFor(write.changes),
+    });
+    return error ? factError(error.message) : null;
+  }
+  if (!write.treeId) return "That entry isn’t on your tree.";
+  const { data: session } = await supabase.auth.getSession();
+  const userId = session.session?.user.id;
+  const { data: waiting } = userId
+    ? await supabase
+        .from("entry_suggestions")
+        .select("changes, note")
+        .eq("person_id", write.personId)
+        .eq("suggested_by", userId)
+        .eq("status", "pending")
+        .maybeSingle()
+    : { data: null };
+  const note = [waiting?.note?.trim(), factNote(title, write.evidence)]
+    .filter(Boolean)
+    .join(" ")
+    .slice(0, 500);
+  const { error } = await supabase.rpc("suggest_entry_change", {
+    p_person: write.personId,
+    p_tree: write.treeId,
+    p_values: { ...asSuggestionColumns(waiting?.changes), ...write.changes } as Json,
+    p_note: note,
+  });
+  return error ? factError(error.message) : null;
+}
+
+/** Make every accepted write, each on its own: how each went. */
+export async function makeFacts(
+  writes: FactWrite[],
+  title: string,
+): Promise<{ way: FactWay; error: string | null }[]> {
+  return Promise.all(
+    writes.map(async (write) => ({
+      way: write.way,
+      error: await makeFact(write, title).catch(() => "Couldn’t save it."),
+    })),
+  );
 }

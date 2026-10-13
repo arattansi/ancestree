@@ -133,9 +133,11 @@ export default function PrivacyPage() {
             A story told aloud in the phone app is heard by the phone&rsquo;s
             own speech recognition (Apple&rsquo;s or Google&rsquo;s, which may
             send the sound to them to do it) and written up by Claude,
-            Anthropic&rsquo;s AI: what was heard, and the names of the family
-            around whoever it&rsquo;s about, go to Anthropic for that alone.
-            Nothing goes on the tree until whoever recorded it has read it over.
+            Anthropic&rsquo;s AI, which also looks in it for births, deaths and
+            relatives to suggest for the tree: what was heard, and the names,
+            births and deaths of the family on your trees around whoever
+            it&rsquo;s about, go to Anthropic for that alone. Nothing goes on
+            the tree until whoever recorded it has read it over and said yes.
           </li>
           <li>We never sell or share this data with third parties.</li>
         </ul>

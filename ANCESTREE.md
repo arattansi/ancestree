@@ -48,8 +48,9 @@ Copy `.env.example` to `.env.local` and fill in:
   nothing is sent
 - `ANTHROPIC_API_KEY` — server-only; the Claude API key the phone app's
   scribe (`/api/mobile/scribe`, Step 148) writes stories up with, billed to
-  that Anthropic account. Without it the scribe answers "The scribe isn't
-  set up yet."
+  that Anthropic account, and finds facts in them with
+  (`/api/mobile/scribe/facts`, Step 148.2). Without it the scribe answers
+  "The scribe isn't set up yet."
 
 Until Supabase env is set, `proxy.ts` no-ops so the app still boots. With env
 set, unauthenticated visits to `/tree` redirect to `/join`.
@@ -1800,6 +1801,55 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 148.2: the scribe finds facts for the tree** (migration
+  `20261013150000_entry_rights`, applied before the code). **Asked for:**
+  the scribe also proposes concrete facts from a story, each reviewed on
+  the phone before anything changes. While Claude writes a story up it
+  also reads what was heard for facts (`POST /api/mobile/scribe/facts`,
+  bearer as before, sent at the same time): it's given everyone the
+  member's trees show in full, nearest the leaf first (up to 150, the
+  member always), each with a code, what the tree says of their birth and
+  death, and what they are to the leaf and to the member
+  (`lib/scribe-roster.ts`), and answers with births and deaths (date,
+  place), the people the story mentions, and relatives it names who aren't
+  on the tree (`lib/scribe-facts.server.ts`). The server keeps only what's
+  news (not a rougher date, a guess against an exact one, the same place,
+  or a bare country of a place the tree has; a birthday without its year
+  gains the year), finds each place in `places` in the country the story
+  named ("Kutch, India" isn't Kutchan, Japan), falling back to the country
+  alone, and asks the new `entry_rights(uuid[])` (definer, read-only:
+  `private.can_edit_person`, `private.can_fill_person`, and a tree of the
+  member's that shows the entry in full, home tree first) how the member
+  may make each one: as an **edit** (`people` update, the edit form's
+  policy), **filled in** (`fill_person_blanks`, Step 44) when it only
+  fills blanks, else a **suggestion** (`suggest_entry_change`, Step 67,
+  from that tree, with a note quoting the story and taking in the
+  member's own suggestion still waiting on that entry, which a new one
+  would otherwise replace). On the phone they come under the write-up
+  (`mobile/src/scribe/facts-review.tsx`): **For the tree**, each detail a
+  card to tick with the words it rests on and what ticking does; **People
+  mentioned**, tags (Step 116, `p_mentions` on `add_story`, only those
+  on the tree it's told on); **Not on the tree yet**, listed only. Nothing
+  is ticked or tagged until the member says so; **save story** tells the
+  story, then makes what was ticked, one write a person and way, and says
+  how it went ("2 changes made, 1 suggestion sent."). Facts that fail to
+  come never hold up the story (**Try again**). **Aalim chose:** Sonnet
+  5.5 at medium effort for facts, after a side-by-side on eight invented
+  fixture stories (one in Gujarati script, one long with a self-correction):
+  every model from Sonnet medium up found all 14 facts and offered none
+  wrong; Opus and Fable 5.1 caught one more mention, at 3× and 8× the price
+  and 2–4× the wait (Haiku missed a vague birth year; Sonnet low missed
+  mentions and relatives). And relatives not on the tree are shown now,
+  added in 148.3 (it needs the add form's rules: 18 or older, blood ties,
+  implied lines). **My calls, not asked:** births and deaths only (no
+  names or marriages yet); unticked by default; a derived date ("died when
+  dadi was ten") offered as circa; the recorder is never offered as having
+  died; the family read again on closing when an edit or fill was made.
+  `searchPlaces` takes a client (`db`); `personFullName` moved to
+  `lib/person-name.ts`. Checked end to end on live with a throwaway member
+  and tree (removed after): 401/400/404, real Claude, real places, an
+  accepted edit, then not offered again.
 
 - **Step 148: the AI scribe on the phone** (no migration). **Aalim asked:**
   "continue building the mobile app. start with the ai scribe for

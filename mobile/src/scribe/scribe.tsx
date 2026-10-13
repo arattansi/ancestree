@@ -13,12 +13,16 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { personDisplayName, personHasDied } from "@/lib/person-name";
 import { scribeBody, scribeBodyFits } from "@/lib/scribe";
+import { factsDone, factWrites } from "@/lib/scribe-facts";
 import { relativesOf } from "@/family/family";
 import type { Family, FamilyPerson } from "@/family/load";
+import { FactsReview, type FactsState } from "@/scribe/facts-review";
 import { tonguesHeard, type Tongue } from "@/scribe/speech";
 import {
   discardRecording,
+  findFacts,
   keepRecording,
+  makeFacts,
   ScribeError,
   tellStory,
   writeUp,
@@ -26,6 +30,7 @@ import {
 import { LISTEN_MAX_SECONDS, useListening } from "@/scribe/use-listening";
 import { font, GUTTER, usePalette } from "@/theme";
 import { Button } from "@/ui/button";
+import { Chip } from "@/ui/chip";
 import { MicIcon, PauseIcon, XIcon } from "@/ui/icons";
 import { TextField } from "@/ui/text-field";
 
@@ -41,7 +46,12 @@ type Step =
   | { at: "tell" }
   | { at: "writing"; heard: string; locale: string | null; error?: string }
   | { at: "review" }
-  | { at: "saved"; status: "approved" | "pending" };
+  | {
+      at: "saved";
+      status: "approved" | "pending";
+      /** How the facts accepted with it went (Step 148.2). */
+      facts: string | null;
+    };
 
 const clock = (s: number) =>
   `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
@@ -73,6 +83,10 @@ function namesNear(family: Family, id: string): string[] {
  * it over, then it's told on their tree like any story, recording and all.
  * Where the app can't listen (Expo Go), it takes typed words, or the
  * keyboard's own dictation, instead.
+ *
+ * While Claude writes it up it also reads it for facts (Step 148.2): what
+ * it tells the tree comes under the write-up, each to tick or not, and
+ * saving the story makes what was ticked.
  */
 export function Scribe({
   family,
@@ -82,7 +96,8 @@ export function Scribe({
   family: Family;
   /** Whose leaf the story is told on. */
   personId: string;
-  onClose: () => void;
+  /** `changed` when an accepted fact changed someone on the tree. */
+  onClose: (changed?: boolean) => void;
 }) {
   const palette = usePalette();
   const person = family.people.get(personId) ?? null;
@@ -103,6 +118,13 @@ export function Scribe({
   const [picked, setTellers] = React.useState<string[] | null>(null);
   const [saving, setSaving] = React.useState(false);
   const [saveError, setSaveError] = React.useState<string | null>(null);
+  const [facts, setFacts] = React.useState<FactsState | null>(null);
+  const [accepted, setAccepted] = React.useState<ReadonlySet<string>>(new Set());
+  const [tagged, setTagged] = React.useState<ReadonlySet<string>>(new Set());
+  /** Whether a fact made with the story changed the tree. */
+  const changed = React.useRef(false);
+  /** What was heard, to look for facts in again. */
+  const told = React.useRef<{ heard: string; locale: string | null } | null>(null);
   const scroll = React.useRef<ScrollView>(null);
   /** The recording on its way up, which saving waits for. */
   const uploading = React.useRef<Promise<Kept> | null>(null);
@@ -143,6 +165,28 @@ export function Scribe({
     return creditable.some((p) => p.id === teller.id) ? [teller.id] : [];
   }, [person, self, creditable]);
   const tellers = picked ?? tellersAtFirst;
+
+  /** What the story tells the tree, looked for while it's written up. */
+  async function lookForFacts(heard: string, heardIn: string | null) {
+    if (!person) return;
+    setFacts({ at: "looking" });
+    try {
+      const found = await findFacts({ personId: person.id, heard, locale: heardIn });
+      setFacts({ at: "found", facts: found });
+    } catch (error) {
+      setFacts({
+        at: "failed",
+        error: error instanceof ScribeError ? error.message : "Couldn’t look for facts.",
+      });
+    }
+  }
+
+  /** Heard it all: Claude writes it up and reads it for facts at once. */
+  function heardIt(heard: string, heardIn: string | null) {
+    told.current = { heard, locale: heardIn };
+    void lookForFacts(heard, heardIn);
+    void writeItUp(heard, heardIn);
+  }
 
   async function writeItUp(heard: string, heardIn: string | null) {
     if (!person) return;
@@ -193,7 +237,7 @@ export function Scribe({
         );
         return null;
       });
-    void writeItUp(heard, locale);
+    heardIt(heard, locale);
   }
 
   function close() {
@@ -204,11 +248,23 @@ export function Scribe({
         (recording) => recording && discardRecording(recording.path),
       );
     }
-    onClose();
+    onClose(changed.current);
   }
 
   if (!person) return null;
   const name = personDisplayName(person);
+  // Someone mentioned is tagged on the tree the story is told on (Step 116).
+  const mentions =
+    facts?.at === "found" && treeId
+      ? facts.facts.mentions.filter((m) =>
+          family.people.get(m.personId)?.fullOn.includes(treeId),
+        )
+      : [];
+  const toggle = (set: ReadonlySet<string>, key: string) => {
+    const next = new Set(set);
+    if (!next.delete(key)) next.add(key);
+    return next;
+  };
 
   async function save() {
     if (!draft || !person || !treeId || !self) return;
@@ -236,8 +292,20 @@ export function Scribe({
           creditable.some((p) => p.id === self.id)
             ? [self.id]
             : [],
+        mentions: mentions
+          .filter((m) => tagged.has(m.personId))
+          .map((m) => m.personId),
       });
-      setStep({ at: "saved", status });
+      // The story's told; then what was ticked, each on its own.
+      const ticked =
+        facts?.at === "found"
+          ? facts.facts.facts.filter((f) => accepted.has(f.key))
+          : [];
+      const made = ticked.length
+        ? await makeFacts(factWrites(ticked), draft.title)
+        : [];
+      changed.current = made.some((m) => !m.error && m.way !== "suggest");
+      setStep({ at: "saved", status, facts: factsDone(made) });
     } catch (error) {
       setSaveError(
         error instanceof ScribeError
@@ -404,7 +472,7 @@ export function Scribe({
             <Button
               label="write it up"
               disabled={!typed.trim()}
-              onPress={() => void writeItUp(typed.trim(), null)}
+              onPress={() => heardIt(typed.trim(), null)}
             />
           </ScrollView>
         </KeyboardAvoidingView>
@@ -484,6 +552,21 @@ export function Scribe({
                 </View>
               </View>
             ) : null}
+            {facts ? (
+              <FactsReview
+                state={facts}
+                onRetry={() => {
+                  if (told.current) {
+                    void lookForFacts(told.current.heard, told.current.locale);
+                  }
+                }}
+                accepted={accepted}
+                onToggleFact={(key) => setAccepted((a) => toggle(a, key))}
+                mentions={mentions}
+                tagged={tagged}
+                onToggleMention={(id) => setTagged((t) => toggle(t, id))}
+              />
+            ) : null}
             {keptProblem ? (
               <Text style={[styles.note, { color: palette.mutedForeground }]}>
                 {keptProblem}
@@ -510,45 +593,15 @@ export function Scribe({
           <Text style={[styles.done, { color: palette.foreground }]}>
             {step.status === "pending" ? "Sent for approval." : "Added."}
           </Text>
-          <Button label="done" onPress={() => onClose()} />
+          {step.facts ? (
+            <Text style={[styles.note, { color: palette.mutedForeground }]}>
+              {step.facts}
+            </Text>
+          ) : null}
+          <Button label="done" onPress={() => onClose(changed.current)} />
         </View>
       ) : null}
     </SafeAreaView>
-  );
-}
-
-function Chip({
-  label,
-  on,
-  onPress,
-}: {
-  label: string;
-  on: boolean;
-  onPress: () => void;
-}) {
-  const palette = usePalette();
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ selected: on }}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.chip,
-        on
-          ? { backgroundColor: palette.primary, borderColor: palette.primary }
-          : { borderColor: palette.border },
-        pressed && { opacity: 0.7 },
-      ]}
-    >
-      <Text
-        style={[
-          styles.chipText,
-          { color: on ? palette.primaryForeground : palette.foreground },
-        ]}
-      >
-        {label}
-      </Text>
-    </Pressable>
   );
 }
 
@@ -592,14 +645,6 @@ const styles = StyleSheet.create({
   credits: { gap: 8 },
   label: { fontFamily: font.medium, fontSize: 14 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chip: {
-    minHeight: 40,
-    paddingHorizontal: 14,
-    borderRadius: 20,
-    borderWidth: 1,
-    justifyContent: "center",
-  },
-  chipText: { fontFamily: font.medium, fontSize: 15 },
   centre: {
     flex: 1,
     alignItems: "center",

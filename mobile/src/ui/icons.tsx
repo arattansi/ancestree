@@ -69,3 +69,9 @@ export const PauseIcon = (p: IconProps) => (
     <Rect x={5} y={3} width={5} height={18} rx={1} />
   </Icon>
 );
+
+export const CheckIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <Path d="M20 6 9 17l-5-5" />
+  </Icon>
+);

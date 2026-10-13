@@ -55,6 +55,27 @@ export function nodeDisplayName(p: NamedPerson, limit = 16): string {
 }
 
 /**
+ * Every name someone goes by, once each: "Amina (Mina) Sayani née Lalani".
+ * What the scribe tells Claude a name is (Step 148), so a garbled one can be
+ * matched whichever of them was said.
+ */
+export function personFullName(
+  p: NamedPerson & { middle_name?: string | null; maiden_name?: string | null },
+): string {
+  if (p.placeholder_number != null) return personDisplayName(p);
+  const first = p.first_name?.trim();
+  const preferred = p.preferred_name?.trim();
+  const parts = [
+    first,
+    preferred && preferred !== first ? `(${preferred})` : null,
+    p.middle_name?.trim(),
+    p.last_name?.trim(),
+    p.maiden_name?.trim() ? `née ${p.maiden_name.trim()}` : null,
+  ];
+  return parts.filter(Boolean).join(" ") || personDisplayName(p);
+}
+
+/**
  * A maiden name as it's written under a name: "née Jaffer". Null when there
  * is none, so the line can be left out.
  */

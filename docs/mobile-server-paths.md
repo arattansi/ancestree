@@ -86,14 +86,20 @@ All carry a top-level `"use server"`; none is inline.
   `decide_story`, comments are RPCs too.
 - **Notifications:** `notifications` reads and writes; `/api/notifications`
   and `/api/header-counts` are cookie-only but user-scoped.
+- **The scribe's facts (Step 148.2)** are made from the phone directly,
+  once the member ticks them: a `people` update where they may edit,
+  `fill_person_blanks` where they may only fill blanks, else
+  `suggest_entry_change`. Which it is comes from the RPC `entry_rights`,
+  the phone's stand-in for the web's `entryAccess` (cookie-bound).
 - **Everything else in A:** suggestions, reports, placements, home tree,
   name-only cards, share links, family link, nicknames, pets: the same RPC
   or write.
 
-## Route Handlers: 15 (14 before Step 148)
+## Route Handlers: 16 (14 before Step 148)
 
-- **One takes a Supabase bearer token, since Step 148:** `POST
-  /api/mobile/scribe`, the scribe's write-up. `/api/mobile/` is in
+- **Two take a Supabase bearer token:** `POST /api/mobile/scribe`, the
+  scribe's write-up (Step 148), and `POST /api/mobile/scribe/facts`, the
+  facts it finds for the tree (148.2). `/api/mobile/` is in
   `proxy.ts`'s `PUBLIC_PREFIXES`, and `lib/supabase/bearer.ts` checks the
   token (`bearerToken`, `bearerClient`) and gives a client acting as the
   member, under RLS. Every new phone endpoint goes under `/api/mobile/`
