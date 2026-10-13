@@ -140,7 +140,7 @@ export async function judge(
 
 /**
  * Add them as ticked and answered, then set what the call doesn't take, as
- * the web does: null once they're on the tree, else why not.
+ * the web does: their new entry's id, else why not.
  */
 export async function addRelative(
   supabase: DbClient,
@@ -154,7 +154,7 @@ export async function addRelative(
     /** Those on the tree a line asked about, who said yes. */
     adultIds: string[];
   },
-): Promise<string | null> {
+): Promise<{ id: string } | { error: string }> {
   const { r, draft } = input;
   const { data, error } = await supabase.rpc("add_people_with_connections", {
     p_people: [relativeRow(r, draft, input.adult)] as Json,
@@ -163,13 +163,13 @@ export async function addRelative(
     p_tree: input.treeId,
     ...(input.adultIds.length ? { p_adult_existing: input.adultIds } : {}),
   });
-  if (error || !data) {
+  const id = (data as { ids?: string[] } | null)?.ids?.[0];
+  if (error || !id) {
     const read = readRelativeRefusal(error, relativeName(draft));
-    return "error" in read ? read.error : "Couldn’t add them.";
+    return { error: "error" in read ? read.error : "Couldn’t add them." };
   }
-  const id = (data as { ids?: string[] }).ids?.[0];
   const after = relativeAfter(r);
-  if (id && after) {
+  if (after) {
     // On the tree either way: a place or "c." that doesn't take isn't worth
     // saying they weren't added.
     await supabase
@@ -177,5 +177,5 @@ export async function addRelative(
       .update(after as TablesUpdate<"people">)
       .eq("id", id);
   }
-  return null;
+  return { id };
 }

@@ -7,6 +7,7 @@ import {
   type ScribeDraft,
   type ScribeRequest,
 } from "@/lib/scribe";
+import type { ClaimInviteRequest } from "@/lib/claim-invites";
 import {
   factNote,
   fillFieldsFor,
@@ -25,7 +26,8 @@ import { supabase } from "@/auth/supabase";
  * Claude through the web's server, once to be written up and once to be
  * read for facts (148.2); the recording goes to the `stories` bucket; the
  * story is told through `add_story`, and each fact the member accepts is
- * made as the web would make it.
+ * made as the web would make it; a relative it adds may be invited to
+ * claim their entry (148.4).
  */
 
 const SITE = process.env.EXPO_PUBLIC_SITE_URL ?? "https://www.ancestree.space";
@@ -36,7 +38,7 @@ export class ScribeError extends Error {}
 /** One of the web's phone endpoints, as the member: its answer, or why not. */
 async function askServer(
   path: string,
-  request: ScribeRequest,
+  request: ScribeRequest | ClaimInviteRequest,
   failed: string,
 ): Promise<Record<string, unknown>> {
   const { data } = await supabase.auth.getSession();
@@ -81,6 +83,34 @@ export async function findFacts(request: ScribeRequest): Promise<ScribeFacts> {
   const body = await askServer("/api/mobile/scribe/facts", request, failed);
   if (!isScribeFacts(body.facts)) throw new ScribeError(failed);
   return body.facts;
+}
+
+/**
+ * Invite someone just added to claim their entry, as the web's add form
+ * does (`/api/mobile/claim-invite`): where it went, or why it didn't. An
+ * invite made whose email didn't send says so too.
+ */
+export async function inviteToClaim(
+  request: ClaimInviteRequest,
+): Promise<{ invited: string } | { error: string }> {
+  try {
+    const body = await askServer(
+      "/api/mobile/claim-invite",
+      request,
+      "Couldn’t send the invite.",
+    );
+    if (typeof body.error === "string") return { error: body.error };
+    return {
+      invited: typeof body.email === "string" ? body.email : request.email,
+    };
+  } catch (error) {
+    return {
+      error:
+        error instanceof ScribeError
+          ? error.message
+          : "Couldn’t send the invite.",
+    };
+  }
 }
 
 /** A name no other file in the folder has. */

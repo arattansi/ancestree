@@ -10,6 +10,7 @@ import {
   asksAdult,
   questionKey,
   relativeDraft,
+  relativeInviteAddress,
   relativeName,
   relativeQuestions,
   relativeStatus,
@@ -17,11 +18,13 @@ import {
   sameAs,
   type Judged,
   type RelativeDraft,
+  type RelativeMade,
   type RelativeStatus,
 } from "@/lib/scribe-relatives";
 import { supabase } from "@/auth/supabase";
 import type { Family } from "@/family/load";
 import { addRelative, judge, loadDetectionTree } from "@/scribe/relatives";
+import { inviteToClaim } from "@/scribe/story";
 
 /** One relative the scribe found, as its card shows it. */
 export type RelativeView = {
@@ -220,23 +223,39 @@ export function useRelatives(family: Family, proposals: RelativeProposal[]) {
     return null;
   }
 
-  /** Add each ticked relative who's ready, one after another: how each went. */
-  async function addTicked(): Promise<
-    { name: string; error: string | null }[]
-  > {
-    const made: { name: string; error: string | null }[] = [];
+  /**
+   * Add each ticked relative who's ready, one after another, and invite
+   * those given an address to claim their entry once it's there (148.4):
+   * how each went. An invite that doesn't go never undoes the add.
+   */
+  async function addTicked(): Promise<RelativeMade[]> {
+    const made: RelativeMade[] = [];
     for (const v of views) {
       const treeId = treeOf(v.r);
       if (!v.ticked || v.status.at !== "ready" || !treeId) continue;
-      const error = await addRelative(supabase, {
+      const name = relativeName(v.draft);
+      const added = await addRelative(supabase, {
         r: v.r,
         draft: v.draft,
         treeId,
         suggestions: relativeSuggestions(v.questions ?? [], v.draft.answers),
         adult: v.asksAdult ? v.draft.adult : null,
         adultIds: v.asks.filter((a) => v.draft.existing[a.id]).map((a) => a.id),
-      }).catch(() => "Couldn’t add them.");
-      made.push({ name: relativeName(v.draft), error });
+      }).catch(() => ({ error: "Couldn’t add them." }));
+      if ("error" in added) {
+        made.push({ name, error: added.error });
+        continue;
+      }
+      const email = relativeInviteAddress(v.r, v.draft);
+      const invite = email
+        ? await inviteToClaim({ personId: added.id, email, treeId })
+        : null;
+      made.push({
+        name,
+        error: null,
+        ...(invite && "invited" in invite ? { invited: invite.invited } : {}),
+        ...(invite && "error" in invite ? { inviteError: invite.error } : {}),
+      });
     }
     return made;
   }

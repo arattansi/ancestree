@@ -33,7 +33,7 @@ All carry a top-level `"use server"`; none is inline.
 | --- | --- |
 | `deleteAccount` (`app/actions/privacy.ts`) | Service-role hand-off of ownership across about ten tables, then `auth.admin.deleteUser`. **Required in-app by the App Store.** |
 | `claimPerson` (`app/actions/claims.ts`) | `moveClaimedPhoto` moves the photo with the service role; without it a claimed entry's photo breaks. (`claimSelfCandidate` is A.) |
-| `sendClaimInvite`, `sendDirectInvites`, `makeClaimLink` (`app/actions/invites.ts`) | Service-role inserts into `invites` / `invite_requests`, and Resend. Also the "invite them to claim" tail of `addRelative`. |
+| `sendClaimInvite`, `sendDirectInvites`, `makeClaimLink` (`app/actions/invites.ts`) | Service-role inserts into `invites` / `invite_requests`, and Resend. Also the "invite them to claim" tail of `addRelative`. A claim invite has a phone route since Step 148.4 (`/api/mobile/claim-invite`). |
 | `deletePerson` (`app/actions/privacy.ts`) | Reads the files to remove with the service role before the delete, then removes them. |
 | `deleteMember` (`app/actions/members.ts`) | `auth.admin.deleteUser` when it was their last tree. |
 | `requestNewPlace` (`app/actions/places.ts`) | No insert grant on `places`. |
@@ -83,7 +83,7 @@ All carry a top-level `"use server"`; none is inline.
   the tree read as the member and shaped by `detectionTree`, the add
   checked first with `check_add_people_with_connections` (the same call,
   always undone), then made as the web makes it. The claim invite that can
-  follow an add is still B.
+  follow an add goes through `/api/mobile/claim-invite` (148.4).
 - **Photos:** uploaded from the client to `photos` (`lib/photo-upload.ts`)
   or `album`, then `people.update` or RPC `add_album_photo`.
 - **Stories:** uploaded from the client to `stories`
@@ -100,11 +100,14 @@ All carry a top-level `"use server"`; none is inline.
   name-only cards, share links, family link, nicknames, pets: the same RPC
   or write.
 
-## Route Handlers: 16 (14 before Step 148)
+## Route Handlers: 17 (14 before Step 148)
 
-- **Two take a Supabase bearer token:** `POST /api/mobile/scribe`, the
-  scribe's write-up (Step 148), and `POST /api/mobile/scribe/facts`, the
-  facts it finds for the tree (148.2). `/api/mobile/` is in
+- **Three take a Supabase bearer token:** `POST /api/mobile/scribe`, the
+  scribe's write-up (Step 148), `POST /api/mobile/scribe/facts`, the
+  facts it finds for the tree (148.2), and `POST /api/mobile/claim-invite`,
+  an invite to claim one entry (148.4: `mintClaimInvite` with the bearer
+  client for its checks, the service role for the invite and its email,
+  as `sendClaimInvite`). `/api/mobile/` is in
   `proxy.ts`'s `PUBLIC_PREFIXES`, and `lib/supabase/bearer.ts` checks the
   token (`bearerToken`, `bearerClient`) and gives a client acting as the
   member, under RLS. Every new phone endpoint goes under `/api/mobile/`

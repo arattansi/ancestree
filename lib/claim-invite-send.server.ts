@@ -1,8 +1,16 @@
 import "server-only";
 
-import { accountTypeOf, INVITED_AS } from "@/lib/account-types";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+import {
+  accountTypeOf,
+  INVITED_AS,
+  isAccountTypeKey,
+  type AccountTypeKey,
+} from "@/lib/account-types";
 import type { Profile } from "@/lib/auth";
 import { claimInviteRecordName } from "@/lib/claim-invites";
+import type { Database } from "@/lib/database.types";
 import { isEmailAddress } from "@/lib/email-address";
 import { claimInviteEmail } from "@/lib/emails/claim-invite";
 import { expiresAfter } from "@/lib/expiry";
@@ -13,6 +21,8 @@ import { isPlacedOn } from "@/lib/placements.server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getRoleIn } from "@/lib/tree-context";
+
+type DbClient = SupabaseClient<Database>;
 
 export type ClaimInviteState = {
   /** The address the link went to, for the confirmation message. */
@@ -48,7 +58,7 @@ type InvitedEntry = {
  * its name, which is all an invite says.
  */
 async function readInvitedEntry(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  supabase: DbClient,
   personId: string,
   treeId: string | undefined,
 ): Promise<InvitedEntry | null> {
@@ -99,18 +109,23 @@ async function readInvitedEntry(
  * The checks that need only the entry run side by side: who may join which
  * tree, whether it's placed there, whether the inviter may hand it over, and
  * whether someone has it already.
+ *
+ * `db` is a client acting as the inviter for a request with no cookie: the
+ * phone's (`/api/mobile/claim-invite`, Step 148.4). Without it the checks go
+ * through the web's cookie client and its once-a-request reads.
  */
 export async function mintClaimInvite(
   inviter: Profile,
   personId: string,
   email: string,
   treeId?: string,
+  db?: DbClient,
 ): Promise<ClaimInviteState> {
   const address = email.trim().toLowerCase();
   if (!isEmailAddress(address)) {
     return { error: "That doesn't look like an email address." };
   }
-  const supabase = await createClient();
+  const supabase = db ?? (await createClient());
 
   const person = await readInvitedEntry(supabase, personId, treeId);
   if (!person) return { error: "That entry no longer exists." };
@@ -119,8 +134,12 @@ export async function mintClaimInvite(
   const joinTreeId = treeId ?? person.tree_id;
   const [role, placed, { data: mayInvite }, { data: claim }, { data: member }] =
     await Promise.all([
-      getRoleIn(joinTreeId),
-      joinTreeId === person.tree_id ? true : isPlacedOn(joinTreeId, personId),
+      db ? roleWith(db, joinTreeId) : getRoleIn(joinTreeId),
+      joinTreeId === person.tree_id
+        ? true
+        : db
+          ? placedWith(db, joinTreeId, personId)
+          : isPlacedOn(joinTreeId, personId),
       // Asked as the inviter: is this entry theirs to hand over, into this
       // tree (Step 84)? It also covers the entry having gone, being out of
       // their sight, or spoken for where they can't see.
@@ -201,6 +220,24 @@ export async function mintClaimInvite(
   }
 
   return { email: address, minted: true };
+}
+
+/** The inviter's role on a tree, read through `db` (`getRoleIn`'s read). */
+async function roleWith(db: DbClient, treeId: string): Promise<AccountTypeKey | null> {
+  const { data } = await db.from("my_trees").select("role").eq("id", treeId).maybeSingle();
+  return data?.role && isAccountTypeKey(data.role) ? data.role : null;
+}
+
+/** Whether an entry is on a tree now, read through `db` (`isPlacedOn`'s read). */
+async function placedWith(db: DbClient, treeId: string, personId: string): Promise<boolean> {
+  const { data } = await db
+    .from("tree_placements")
+    .select("id")
+    .eq("tree_id", treeId)
+    .eq("person_id", personId)
+    .eq("status", "active")
+    .maybeSingle();
+  return !!data;
 }
 
 /**

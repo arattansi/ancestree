@@ -129,6 +129,24 @@ export function RelativeCard({
             </View>
           </View>
 
+          {/* Nobody is invited to claim the entry of someone who has died
+              (`private.can_invite_to_claim`), so it isn't asked. */}
+          {r.died ? null : (
+            <TextField
+              label="Invite them by email"
+              value={draft.email}
+              onChangeText={(email) => onEdit({ email })}
+              placeholder="them@example.com"
+              keyboardType="email-address"
+              inputMode="email"
+              autoCapitalize="none"
+              autoCorrect={false}
+              // Not "email": that would fill in the member's own.
+              autoComplete="off"
+              textContentType="none"
+            />
+          )}
+
           {status.at === "refused" ? (
             <Text
               accessibilityLiveRegion="polite"

@@ -11,6 +11,7 @@ import {
   relativeAfter,
   relativeDraft,
   relativeEdges,
+  relativeInviteAddress,
   relativeQuestions,
   relativeRow,
   relativeStatus,
@@ -364,6 +365,18 @@ describe("relativeStatus", () => {
     expect(status({ r, judged: { error: BLOOD_TIE_RULE } })).toEqual({ at: "refused", why: BLOOD_TIE_RULE });
   });
 
+  it("waits on an address that isn't one, and asks none of someone who has died", () => {
+    expect(status({ r, draft: drafted(r, { email: "rahim@" }) })).toEqual({
+      at: "waiting",
+      why: "Check Rahim’s email address.",
+    });
+    expect(status({ r, draft: drafted(r, { email: " Rahim@Example.com " }) })).toEqual({ at: "ready" });
+    expect(relativeInviteAddress(r, drafted(r, { email: " Rahim@Example.com " }))).toBe("rahim@example.com");
+    const gone = relative({ relation: "parent", ofId: AALIM, died: true });
+    expect(relativeInviteAddress(gone, drafted(gone, { email: "rahim@" }))).toBe("");
+    expect(status({ r: gone, draft: drafted(gone, { email: "rahim@" }) })).toEqual({ at: "ready" });
+  });
+
   it("is on the tree already after a yes to “same person”", () => {
     const twin = relative({ relation: "child", firstName: "Aalim" });
     const draft = drafted(twin, { lastName: "Jaffer" });
@@ -384,6 +397,21 @@ describe("relativesDone", () => {
         { name: "Amina", error: BLOOD_TIE_RULE },
       ]),
     ).toBe(`2 relatives added. Amina couldn’t be added: ${BLOOD_TIE_RULE}`);
+  });
+
+  it("says where invites went, and one that didn't", () => {
+    expect(relativesDone([{ name: "Rahim Sayani", error: null, invited: "rahim@example.com" }])).toBe(
+      "Rahim Sayani added. Invite sent to rahim@example.com.",
+    );
+    expect(
+      relativesDone([
+        { name: "Rahim Sayani", error: null, invited: "rahim@example.com" },
+        { name: "Zahra Jaffer", error: null, invited: "zahra@example.com" },
+        { name: "Nia Jaffer", error: null, inviteError: "That entry already belongs to a member." },
+      ]),
+    ).toBe(
+      "3 relatives added. 2 invites sent. Nia Jaffer’s invite didn’t send: That entry already belongs to a member.",
+    );
   });
 });
 

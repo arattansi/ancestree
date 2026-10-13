@@ -4,6 +4,7 @@ import {
   claimInviteRecordName,
   claimInvitesShown,
   describeClaimInvite,
+  readClaimInviteRequest,
   type ClaimInviteRow,
   type EntryInvite,
 } from "@/lib/claim-invites";
@@ -185,5 +186,29 @@ describe("describeClaimInvite (Step 38)", () => {
     expect(describeClaimInvite(invite({ sentByName: null, expiresAt: null }), fmt)).toBe(
       "A member sent an invite on 2026-09-23. It hasn’t been accepted yet.",
     );
+  });
+});
+
+describe("readClaimInviteRequest", () => {
+  const PERSON = "00000000-0000-4000-8000-000000000001";
+  const TREE = "00000000-0000-4000-8000-0000000000aa";
+
+  it("takes an entry, a tree and an address, the address tidied", () => {
+    expect(readClaimInviteRequest({ personId: PERSON, treeId: TREE, email: " Rahim@Example.com " })).toEqual({
+      request: { personId: PERSON, treeId: TREE, email: "rahim@example.com" },
+    });
+  });
+
+  it("says what's missing or wrong", () => {
+    expect(readClaimInviteRequest(null)).toEqual({ problem: "Nothing was sent." });
+    expect(readClaimInviteRequest({ personId: "1", treeId: TREE, email: "a@b.co" })).toEqual({
+      problem: "Whom is it for?",
+    });
+    expect(readClaimInviteRequest({ personId: PERSON, email: "a@b.co" })).toEqual({
+      problem: "Which tree would they join?",
+    });
+    expect(readClaimInviteRequest({ personId: PERSON, treeId: TREE, email: "a@b" })).toEqual({
+      problem: "That doesn't look like an email address.",
+    });
   });
 });

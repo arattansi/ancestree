@@ -1802,6 +1802,30 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 148.4: the scribe invites the relatives it adds** (no
+  migration). **Aalim asked:** "let the phone send a claim invite to an
+  added relative". A ticked relative's card now asks **Invite them by
+  email**, as the web's add form does, and not of someone who has died
+  (nobody can claim their entry). An address that isn't one stops the
+  save ("Check Salim's email address."). Once the relative is added, the
+  phone asks the new `POST /api/mobile/claim-invite` (bearer, as the
+  scribe's other routes; `{ personId, email, treeId }`, read by
+  `lib/claim-invites.ts#readClaimInviteRequest`) for the invite, joining
+  the tree they were added on. The route makes it as the web's
+  `sendClaimInvite` does: `mintClaimInvite` now takes an optional client,
+  so its checks (the entry, `can_invite_to_claim_on`, nobody behind it,
+  the inviter's role, the placement) are made as the member through the
+  bearer client, and the invite, its "Sent invites" record and its email
+  with the service role, as before. An invite that doesn't go never undoes
+  the add: the summary says so ("Salim Testa added. Invite sent to
+  salim@example.com." / "Nia's invite didn't send: …"). The web's own path
+  is unchanged. Checked with a local server on Node 22 and throwaway
+  members on live (all removed): 401 and 400; a Root invites the brother
+  they added (invite bound to the address, filed, emailed to a Resend
+  test inbox); a member's own entry, someone who has died, and an entry a
+  Leaf can't edit refused; a Leaf invites the wife they added; then the
+  real scribe screen in the browser sending one through the route.
+
 - **Step 148.3: the scribe adds the relatives it finds** (migration
   `20261013170000_check_add_people`, additive, applied before the code).
   **Asked for:** from the phone's scribe, let the member add the relatives

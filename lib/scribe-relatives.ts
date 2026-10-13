@@ -1,5 +1,6 @@
 import { OWN_LINE_REFUSAL, isOwnLineRefusal } from "@/lib/account-types";
 import { readBloodTieRefusal } from "@/lib/bloodline";
+import { isEmailAddress } from "@/lib/email-address";
 import {
   computeImpliedConnections,
   type DetectionTree,
@@ -50,6 +51,8 @@ export type RelativeDraft = {
   answers: Record<string, Resolution>;
   /** Someone on the tree a line asks about ("is X 18 or older?"), answered, by id. */
   existing: Record<string, boolean>;
+  /** Where to invite them to claim their entry once added (148.4); "" for nowhere. */
+  email: string;
 };
 
 export function relativeDraft(r: RelativeProposal): RelativeDraft {
@@ -59,7 +62,17 @@ export function relativeDraft(r: RelativeProposal): RelativeDraft {
     adult: null,
     answers: {},
     existing: {},
+    email: "",
   };
+}
+
+/**
+ * Where their invite to claim the entry goes once they're added, or "" for
+ * none, as the web's add form has it (`inviteAddress`): nobody is invited
+ * to claim the entry of someone who has died.
+ */
+export function relativeInviteAddress(r: RelativeProposal, draft: RelativeDraft): string {
+  return r.died ? "" : draft.email.trim().toLowerCase();
 }
 
 const NEW: PersonRef = { kind: "new", index: 0 };
@@ -361,6 +374,10 @@ export function relativeStatus(input: {
   }
   const same = questions && tree ? sameAs(questions, draft, tree) : null;
   if (same) return { at: "same", as: same };
+  const address = relativeInviteAddress(r, draft);
+  if (address && !isEmailAddress(address)) {
+    return { at: "waiting", why: `Check ${draft.firstName.trim()}’s email address.` };
+  }
 
   const asked = asksAdult(r, selfId, today);
   if (asked) {
@@ -386,23 +403,43 @@ export function relativeStatus(input: {
   return { at: "ready" };
 }
 
-/** How adding the relatives went: "Rahim Jaffer added." */
-export function relativesDone(
-  made: { name: string; error: string | null }[],
-): string | null {
+/** How adding one relative went, and their invite if one was asked for. */
+export type RelativeMade = {
+  name: string;
+  /** Why they weren't added; null when they were. */
+  error: string | null;
+  /** The address their invite to claim went to (148.4). */
+  invited?: string;
+  /** Added, but the invite didn't go: why. */
+  inviteError?: string;
+};
+
+/** How adding the relatives went: "Rahim Jaffer added. Invite sent to rahim@example.com." */
+export function relativesDone(made: RelativeMade[]): string | null {
   const added = made.filter((m) => !m.error);
   const failed = made.filter((m) => m.error);
+  const invited = added.filter((m) => m.invited);
+  const unsent = added.filter((m) => m.inviteError);
   const said =
     added.length === 1
       ? `${added[0].name} added.`
       : added.length > 1
         ? `${added.length} relatives added.`
         : "";
+  const sent =
+    invited.length === 1
+      ? `Invite sent to ${invited[0].invited}.`
+      : invited.length > 1
+        ? `${invited.length} invites sent.`
+        : "";
+  const notSent = unsent.length
+    ? `${unsent[0].name}’s invite didn’t send: ${unsent[0].inviteError}`
+    : "";
   const missed =
     failed.length === 1
       ? `${failed[0].name} couldn’t be added: ${failed[0].error}`
       : failed.length > 1
         ? `${failed.length} couldn’t be added: ${failed[0].error}`
         : "";
-  return [said, missed].filter(Boolean).join(" ") || null;
+  return [said, sent, notSent, missed].filter(Boolean).join(" ") || null;
 }

@@ -7,6 +7,7 @@
  * without knowing about the first. Pure; `claim-invites.server.ts` loads them.
  */
 
+import { isEmailAddress } from "@/lib/email-address";
 import { isExpired } from "@/lib/expiry";
 import type { NamedPerson } from "@/lib/person-name";
 import { placeholderLabel } from "@/lib/placeholders";
@@ -146,4 +147,31 @@ export function describeClaimInvite(
 
 function capitalise(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/**
+ * What the phone asks `/api/mobile/claim-invite` for (Step 148.4): an
+ * invite to claim one entry, sent to one address, joining one tree.
+ */
+export type ClaimInviteRequest = { personId: string; email: string; treeId: string };
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** A request the server can act on, or what's wrong with it. */
+export function readClaimInviteRequest(
+  input: unknown,
+): { request: ClaimInviteRequest } | { problem: string } {
+  if (!input || typeof input !== "object") return { problem: "Nothing was sent." };
+  const { personId, email, treeId } = input as Record<string, unknown>;
+  if (typeof personId !== "string" || !UUID.test(personId)) {
+    return { problem: "Whom is it for?" };
+  }
+  if (typeof treeId !== "string" || !UUID.test(treeId)) {
+    return { problem: "Which tree would they join?" };
+  }
+  const address = typeof email === "string" ? email.trim().toLowerCase() : "";
+  if (!isEmailAddress(address)) {
+    return { problem: "That doesn't look like an email address." };
+  }
+  return { request: { personId, email: address, treeId } };
 }
