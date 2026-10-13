@@ -62,9 +62,9 @@ function fakeClient(message: object) {
 const USAGE = { input_tokens: 10, output_tokens: 20 };
 
 describe("writeUp", () => {
-  it("asks Opus, with fallbacks, and hands back the draft tidied", async () => {
+  it("asks Sonnet, with fallbacks, and hands back the draft tidied", async () => {
     const { client, asked } = fakeClient({
-      model: "claude-opus-5-5",
+      model: "claude-sonnet-5-5",
       stop_reason: "end_turn",
       usage: USAGE,
       parsed_output: {
@@ -82,16 +82,16 @@ describe("writeUp", () => {
       english: "We came by boat.",
     });
     expect(asked[0]).toMatchObject({
-      model: "claude-opus-5-5",
+      model: "claude-sonnet-5-5",
       fallbacks: "default",
       betas: ["server-side-fallback-2026-07-01"],
-      output_config: { effort: "medium" },
+      output_config: { effort: "low" },
     });
   });
 
   it("drops an English that only repeats the story", async () => {
     const { client } = fakeClient({
-      model: "claude-opus-5-5",
+      model: "claude-sonnet-5-5",
       stop_reason: "end_turn",
       usage: USAGE,
       parsed_output: { title: "T", language: "English", story: "We came.", english: "We came." },

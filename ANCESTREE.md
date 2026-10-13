@@ -1817,8 +1817,8 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   session as a bearer token (`lib/supabase/bearer.ts`; `/api/mobile/` is
   public in `proxy.ts`, each route checks its token), which reads whose
   leaf it is and the family names around them as the member (RLS) and
-  asks Claude Opus 5.5 (`lib/scribe.server.ts`, medium effort, server-side
-  refusal fallbacks) for a title, the story in the teller's words and
+  asks Claude Sonnet 5.5 (`lib/scribe.server.ts`, low effort, server-side
+  refusal fallbacks; Opus 5.5 at first, Sonnet at Aalim's word) for a title, the story in the teller's words and
   language, and an English translation. The member reads it over, picks
   the storyteller, and it's told through `add_story` as any story is
   (same approval; told today; whoever recorded someone else is credited
@@ -1826,7 +1826,7 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   takes typed words, or the keyboard's own dictation, instead; the
   recognizer needs the app's own build (`npx expo run:ios` / `run:android`
   in `mobile/`). Needs `ANTHROPIC_API_KEY` in Vercel. **My calls, not
-  asked:** Opus 5.5 at medium effort; the title in English; the two
+  asked:** low effort; the title in English; the two
   languages in one story body under a rule ("*In English*"); English,
   Gujarati, Hindi, Urdu and Swahili offered where the phone hears them;
   on-device recognition on an iPhone when it has it; the 12-minute cap;

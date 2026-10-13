@@ -15,7 +15,12 @@ import { scribeTitle, type ScribeDraft, type ScribeRequest } from "@/lib/scribe"
  * `ANTHROPIC_API_KEY`.
  */
 
-export const SCRIBE_MODEL = "claude-opus-5-5";
+/**
+ * Sonnet, at low effort: tidying a transcript, titling it and translating
+ * it is writing, not hard reasoning, and every draft is read over before
+ * it's told. Half Opus's price (Aalim, 2026-10-13).
+ */
+export const SCRIBE_MODEL = "claude-sonnet-5-5";
 
 /** Who the story is told about, and the names it may well mention. */
 export type ScribeContext = {
@@ -153,9 +158,9 @@ const DraftSchema = z.object({
 export type ScribeFailure = "refused" | "too-long" | "failed";
 
 /**
- * Claude's write-up of what was heard, or why there isn't one. Opus at
- * medium effort, streamed so a long story doesn't time out; a policy decline
- * falls back to the model Anthropic picks (`fallbacks: "default"`).
+ * Claude's write-up of what was heard, or why there isn't one. Streamed so
+ * a long story doesn't time out; some policy declines fall back to the
+ * model Anthropic picks (`fallbacks: "default"`).
  */
 export async function writeUp(
   request: ScribeRequest,
@@ -167,7 +172,7 @@ export async function writeUp(
     max_tokens: 64000,
     betas: ["server-side-fallback-2026-07-01"],
     fallbacks: "default",
-    output_config: { effort: "medium", format: betaZodOutputFormat(DraftSchema) },
+    output_config: { effort: "low", format: betaZodOutputFormat(DraftSchema) },
     system: SYSTEM,
     messages: [{ role: "user", content: scribePrompt(request, context) }],
   });
