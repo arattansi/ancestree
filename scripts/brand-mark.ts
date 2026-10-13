@@ -299,6 +299,20 @@ async function main() {
 
   const sizes = [16, 32, 48];
   out("app/favicon.ico", ico(await Promise.all(sizes.map(async (size) => ({ size, png: await png(colour, size) })))));
+
+  // The iPhone app (Step 147): its home-screen icon is the apple icon at the
+  // stores' 1024px; the splash shows the mark alone on the app's own white.
+  out("mobile/assets/icon.png", await png(apple, 1024));
+  out("mobile/assets/splash-icon.png", await png(colour, 512));
+  out("mobile/assets/favicon.png", await png(colour, 48));
+  // Android masks its icon to a circle inside the middle two thirds.
+  const inset = (svg: string) =>
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108"><g transform="translate(24 24) scale(0.9375)">${svg.replace(/^\s*<svg[^>]*>|<\/svg>\s*$/g, "")}</g></svg>`;
+  out("mobile/assets/android-icon-foreground.png", await png(inset(colour), 1024));
+  out(
+    "mobile/assets/android-icon-monochrome.png",
+    await png(inset(mono.replace('fill="currentColor"', 'fill="#000"')), 1024),
+  );
 }
 
 main().catch((error) => {

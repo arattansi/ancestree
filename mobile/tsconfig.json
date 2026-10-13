@@ -1,0 +1,14 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    // "@/lib/*" is the web app's own lib/, the code both apps share: its
+    // files import each other as "@/lib/…", which reads the same here.
+    // Everything else under "@/" is this app's src/ (so never add a src/lib).
+    "paths": {
+      "@/lib/*": ["../lib/*"],
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"]
+}

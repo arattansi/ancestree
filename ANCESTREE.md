@@ -616,6 +616,14 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
 - `lib/supabase/` — `client.ts` (browser), `server.ts` (RSC/actions), `middleware.ts` (session refresh), `admin.ts` (service role, server-only)
 - `lib/database.types.ts` — generated Supabase types (regenerate after schema changes)
 - `supabase/` — local CLI project linked to `kkmemshpkxrzogijxgnb` (`Product-Ancestree`)
+- `mobile/` — the iPhone app (Step 147): Expo SDK 57 + Expo Router,
+  its own `package.json` and Node 22; see `mobile/README.md`. It shares
+  the web's `lib/` as `@/lib/*` (pure TypeScript only), and is left out of
+  the web's `tsconfig.json` and ESLint. `lib/first-degree.ts` (who is one
+  line from a person) and `lib/leaf-orbit.ts` (where the leaf and its
+  circles go, and the lines between them) are its, tested here.
+  `docs/mobile-server-paths.md` — every server action and service-role
+  path, and what the app does instead
 
 ## Conventions
 
@@ -1788,6 +1796,38 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 147: the iPhone app's scaffold, and one leaf at a time** (no
+  migration). **Aalim asked:** "start scaffolding the infrastructure of a
+  mobile app (iphone first)", following the Notion build plan (Phase 0),
+  while his Apple developer account is pending, and "the tree view will be
+  a spotlight of a single node (as a leaf) with small circles around it for
+  all first degree connections; above is parents, below is kids, left is
+  spouse, right is siblings." `mobile/` is an Expo SDK 57 app (Expo Router,
+  supabase-js, the session in the Keychain) that runs on a phone through
+  Expo Go, with no developer account. **Sign in** is the web's: an email,
+  then the 8-digit code, then `ensure_profile`. Signed in, it reads
+  everyone on every tree the member belongs to (`tree_people` /
+  `tree_edges`, as My Family Tree does) and opens on their own leaf: the
+  species of their birthplace, drawn from `lib/leaf-shapes.ts`. Parents
+  sit above it, children below, spouses left and siblings right, each a
+  small circle (`lib/first-degree.ts` says who is which;
+  `lib/leaf-orbit.ts` places them, and hangs them off bars as the canvas
+  hangs children off a bus). A tap walks to that leaf, **you** walks home,
+  search finds anyone by name, and a "+n" circle lists a group too big to
+  show. Tapping the leaf opens its details (read-only for now). The web
+  is unchanged; its `lib/` is the shared code (`@/lib/*` in both apps),
+  and `docs/mobile-server-paths.md` lists what the app can't reach
+  without a server (132 server actions: 91 it can call through, 17
+  needing bearer-auth handlers, 4 for Edge Functions, 20 web-only).
+  `npm run brand:build` now also draws the app's icon and splash.
+  **My calls, not asked:** `mobile/` beside the web app rather than moving
+  the web into `apps/web` (the plan's "Repo layout" row was open; the move
+  would have touched every open worktree and Vercel's root directory),
+  bundle id `space.ancestree.app`, sign-in creates the account as the web
+  does (joining a tree stays on the web), circles show initials until
+  photos come with Phase 1, and the circles shrink, then lose their names,
+  then show "+n", in that order, when a family is large.
 
 - **Step 146: a photo's date taken, added or changed later** (migration
   `20261012140000_album_photo_date_editable`, additive). **Aalim asked:**

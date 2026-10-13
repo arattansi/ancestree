@@ -1,0 +1,35 @@
+import { Stack } from "expo-router";
+import * as React from "react";
+
+import { FamilyProvider } from "@/family/family";
+import { usePalette } from "@/theme";
+
+/** A signed-in member's screens, all over the one family read. */
+export default function FamilyLayout() {
+  const palette = usePalette();
+  const sheet = {
+    presentation: "formSheet" as const,
+    sheetGrabberVisible: true,
+    sheetAllowedDetents: [0.5, 1],
+    contentStyle: { backgroundColor: palette.background },
+  };
+  return (
+    <FamilyProvider>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: palette.background },
+        }}
+      >
+        <Stack.Screen name="index" />
+        <Stack.Screen name="person/[id]" options={sheet} />
+        <Stack.Screen name="relatives/[side]" options={sheet} />
+        <Stack.Screen name="account" options={sheet} />
+        <Stack.Screen
+          name="search"
+          options={{ presentation: "modal", contentStyle: sheet.contentStyle }}
+        />
+      </Stack>
+    </FamilyProvider>
+  );
+}

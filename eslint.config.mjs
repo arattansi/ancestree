@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // The iPhone app (Step 147) lints with its own Expo config.
+    "mobile/**",
   ]),
 ]);
 
