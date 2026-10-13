@@ -71,8 +71,12 @@ Expo Go runs the app straight from your Mac.
 `NEXT_PUBLIC_SITE_URL`. Never the service-role key: everything in
 `EXPO_PUBLIC_*` ships inside the app.
 
-For the iOS Simulator, install Xcode from the Mac App Store, then press `i`
-in `npx expo start`. `npm run web` opens the same app in a browser, which
+For the iOS Simulator, install Xcode from the Mac App Store, point the
+command-line tools at it once
+(`sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`),
+install CocoaPods (`brew install cocoapods`), then build the app onto a
+simulator with `npx expo run:ios`. Add `--port 8083` when another
+`expo start` already holds 8081. `npm run web` opens the same app in a browser, which
 is handy for layout. The browser keeps the session in localStorage, where
 the phone uses the Keychain.
 
@@ -88,6 +92,11 @@ the phone uses the Keychain.
   where you are in it.
 - `src/leaf/`: the leaf, drawn from the web's own leaf shapes, and the
   circles around it.
+- `plugins/with-scene-life-cycle.js`: an app built with the iOS 27 SDK
+  won't open without UIKit's scene life cycle, and Expo 57's template
+  doesn't adopt it yet. On every prebuild this hands the window to Expo's
+  own scene delegate (Step 149). It leaves a template that already adopts
+  scenes alone, so drop it once Expo's does.
 - `src/scribe/`: the scribe. `speech.ts` loads the recognizer only where
   it exists, `use-listening.ts` listens (pauses, the 12-minute stop,
   listening that stops on its own and carries on), `story.ts` makes the

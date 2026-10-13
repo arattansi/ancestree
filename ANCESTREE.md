@@ -627,6 +627,8 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   the web's `tsconfig.json` and ESLint. `lib/first-degree.ts` (who is one
   line from a person) and `lib/leaf-orbit.ts` (where the leaf and its
   circles go, and the lines between them) are its, tested here.
+  `mobile/plugins/with-scene-life-cycle.js` makes builds with the iOS 27
+  SDK launch (Step 149).
   `docs/mobile-server-paths.md` — every server action and service-role
   path, and what the app does instead
 
@@ -1801,6 +1803,24 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 149: the phone app launches when built with Xcode 27** (no
+  migration). **Aalim asked:** "xcode is installed. i want to see the
+  updated state of the app", then "yes, make the config plugin". The
+  first simulator build compiled but iOS 27 refused to open it ("UIScene
+  life cycle is required for apps built with this SDK"): Expo 57 ships a
+  scene delegate (`EXExpoAppSceneDelegate`), but its template, even the
+  newest (57.0.30), still makes the window in the app delegate. The new
+  config plugin `mobile/plugins/with-scene-life-cycle.js` (in `app.json`)
+  names that scene delegate in Info.plist and makes `AppDelegate` an
+  `ExpoReactNativeFactoryProvider` that no longer makes the window itself,
+  so every prebuild, for a simulator or a phone, comes out able to launch.
+  A template that already adopts scenes is left alone; one the plugin
+  can't read fails the prebuild rather than building an app that won't
+  open. `mobile/README.md` now gives the simulator steps (xcode-select,
+  CocoaPods, `npx expo run:ios`). Checked on an iPhone 18 Pro simulator
+  (iOS 27): `prebuild --clean`, a second prebuild changing nothing, and a
+  full build that opens on the signed-in leaf.
 
 - **Step 148.5 follow-up: Branches tag them too** (no migration).
   **Aalim asked:** "let Branches tag them in the story too". The **tag in

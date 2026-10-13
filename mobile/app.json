@@ -44,6 +44,7 @@
       "expo-status-bar",
       "expo-secure-store",
       "expo-font",
+      "./plugins/with-scene-life-cycle",
       [
         "expo-speech-recognition",
         {
