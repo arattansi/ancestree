@@ -16,6 +16,11 @@ export function renderEmail(input: {
   title: string;
   /** The hidden preview line an inbox shows. Already HTML-safe. */
   preheader: string;
+  /**
+   * A block above the greeting: the newsletter's note from the beta
+   * reviewers (Step 144). Pre-built HTML; the caller escapes it.
+   */
+  leadHtml?: string;
   /** The greeting. Already HTML-escaped. */
   heading: string;
   /** Pre-built HTML for the paragraph under the greeting — caller escapes any interpolated names. */
@@ -40,8 +45,17 @@ export function renderEmail(input: {
   /** The small print under the divider. Already HTML-safe. */
   footnoteHtml: string;
 }): string {
-  const { title, preheader, heading, bodyHtml, contentHtml, cta, secondaryCta, footnoteHtml } =
-    input;
+  const {
+    title,
+    preheader,
+    leadHtml,
+    heading,
+    bodyHtml,
+    contentHtml,
+    cta,
+    secondaryCta,
+    footnoteHtml,
+  } = input;
   const href = escapeHtml(cta.url);
   const buttons = secondaryCta
     ? `<div style="margin:28px 0 0;font-size:0;">
@@ -83,7 +97,7 @@ export function renderEmail(input: {
                   <tr><td style="padding:28px 0;"><div style="height:1px;background-color:#e5e5e5;line-height:1px;font-size:0;">&nbsp;</div></td></tr>
                 </table>
 
-                <p style="margin:0;font-size:16px;font-weight:600;color:#0a0a0a;">${heading}</p>${
+                ${leadHtml ?? ""}<p style="margin:0;font-size:16px;font-weight:600;color:#0a0a0a;">${heading}</p>${
                   bodyHtml
                     ? `
                 <p style="margin:10px 0 0;font-size:15px;line-height:1.6;color:#737373;">

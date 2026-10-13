@@ -132,10 +132,13 @@ describe("newsletterEmail", () => {
     expect(render(issue()).html).not.toContain("write a story");
   });
 
-  it("puts the beta reviewers' note first, escaped, its lines kept (Step 144)", () => {
+  it("puts the beta reviewers' note above the greeting, escaped, its lines kept (Step 144)", () => {
     const { html } = render(issue(), "Eid Mubarak <3\nSee you Sunday.");
     expect(html).toContain("Eid Mubarak &lt;3<br />See you Sunday.");
-    expect(html.indexOf("Eid Mubarak")).toBeLessThan(html.indexOf("This Week"));
+    // Above the greeting (Aalim, 2026-10-12), not under it.
+    expect(html.indexOf("Eid Mubarak")).toBeLessThan(
+      html.indexOf(">Your family this week</p>"),
+    );
   });
 
   it("has no note when there's none", () => {

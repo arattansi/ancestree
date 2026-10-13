@@ -30,7 +30,7 @@ const HEADING =
  * reader, and each story links to itself with who told it and who asked
  * (Step 144), or, in a week with none, a button to write one; a photo
  * gives away only whom it's of. A note from the beta
- * reviewers, when there is one, goes first, and "invite family" sits
+ * reviewers, when there is one, goes above the greeting, and "invite family" sits
  * beside the main button (Step 143).
  */
 export function newsletterEmail(input: {
@@ -56,13 +56,12 @@ export function newsletterEmail(input: {
     n.relation ? `${link(n)} (${escapeHtml(n.relation)})` : link(n);
 
   const sections: string[] = [];
-  // Their note first, as written: lines kept, nothing else (Step 144).
+  // Their note above everything, as written: lines kept, nothing else
+  // (Step 144; above the greeting at Aalim's ask).
   const note = input.note?.trim();
-  if (note) {
-    sections.push(
-      `<p style="margin:12px 0 0;${TEXT}">${escapeHtml(note).replace(/\r?\n/g, "<br />")}</p>`,
-    );
-  }
+  const lead = note
+    ? `<p style="margin:0 0 28px;${TEXT}">${escapeHtml(note).replace(/\r?\n/g, "<br />")}</p>`
+    : undefined;
   // What's coming up first (Aalim, 2026-10-01), then each tree's news.
   if (issue.week.length) {
     sections.push(`<p style="${HEADING}">This Week</p>${occasionRows(issue.week, link)}`);
@@ -105,6 +104,7 @@ export function newsletterEmail(input: {
     html: renderEmail({
       title: "Your family this week",
       preheader: escapeHtml(preheaderOf(issue)),
+      leadHtml: lead,
       heading: "Your family this week",
       contentHtml: sections.join(""),
       cta: { label: "open my family tree", url: input.familyUrl },

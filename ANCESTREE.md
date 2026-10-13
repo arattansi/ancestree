@@ -1811,7 +1811,8 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   is gone, the **invite family** button stays. `newsletter_schedule` gains
   `note` and `all_stories` (on, for that first send), set on the admin
   page's newsletter tab (**Note for the next newsletter**, **Every story so
-  far**, `set_newsletter_note`), shown first in the email, lines kept, and
+  far**, `set_newsletter_note`), shown above the greeting (Aalim's
+  follow-up; `renderEmail`'s `leadHtml`), lines kept, and
   cleared by `sendScheduledNewsletters` once the send has gone; a test
   send and the preview carry them too. **My calls, not asked:** the
   footnote says "Sent weekly." rather than "Sent every Sunday." (the send
