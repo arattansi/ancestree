@@ -147,6 +147,16 @@ export function RelativeCard({
             />
           )}
 
+          {view.canTag ? (
+            <View style={styles.tag}>
+              <Chip
+                label="tag in the story"
+                on={draft.tag}
+                onPress={() => onEdit({ tag: !draft.tag })}
+              />
+            </View>
+          ) : null}
+
           {status.at === "refused" ? (
             <Text
               accessibilityLiveRegion="polite"
@@ -286,4 +296,5 @@ const styles = StyleSheet.create({
   ask: { fontFamily: font.medium, fontSize: 15, lineHeight: 21 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   checking: { flexDirection: "row", alignItems: "center", gap: 8 },
+  tag: { flexDirection: "row" },
 });

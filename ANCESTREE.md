@@ -1802,6 +1802,23 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 148.5: a Root tags the relative the scribe added in the story**
+  (no migration). **Aalim asked:** "let a Root tag the new relative in the
+  story too". For a Root of the tree the story is told on (its role read
+  from `my_trees`), a ticked relative who'd be added on that same tree
+  gets a **tag in the story** chip, off until pressed, like the scribe's
+  other tags (a mention must be on the story's tree, Step 116). The story
+  is saved before they're on the tree, so once they're added its mentions
+  are set again through `edit_story` as its teller: those it was told with
+  plus the new ones, its credits and the day it was told sent again as
+  they were (`add_story` hands back the story's id; `tagInStory` in the
+  phone's `story.ts`). The summary says so ("Salim Testa tagged in the
+  story."), and a tag that fails never undoes the add. Branches and Leaves
+  aren't offered it. Checked in the browser on live as a throwaway Root
+  and Leaf (all removed): the Leaf saw no chip; the Root's story ended up
+  approved, mentioning the existing person and the new brother, both
+  approved, its storyteller and day told unchanged.
+
 - **Step 148.4: the scribe invites the relatives it adds** (no
   migration). **Aalim asked:** "let the phone send a claim invite to an
   added relative". A ticked relative's card now asks **Invite them by

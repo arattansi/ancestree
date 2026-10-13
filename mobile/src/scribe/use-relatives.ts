@@ -1,5 +1,6 @@
 import * as React from "react";
 
+import { accountTypeOf, isAccountTypeKey } from "@/lib/account-types";
 import type {
   DetectionTree,
   ImpliedConnection,
@@ -41,6 +42,11 @@ export type RelativeView = {
   checking: boolean;
   /** It couldn't be asked: to try again. */
   checkFailed: boolean;
+  /**
+   * They may be tagged in the story (148.5): the member is a Root of the
+   * tree it's told on, and they'd be added on that tree.
+   */
+  canTag: boolean;
   status: RelativeStatus;
 };
 
@@ -53,9 +59,13 @@ type TreeRead = DetectionTree | "failed";
  * The relatives the scribe found that aren't on the tree (Step 148.3):
  * which are ticked, their names as edited, the answers given, and what the
  * database says to adding each. Nothing is written until `addTicked`, once
- * the story's saved.
+ * the story's saved. `storyTree` is the tree the story is told on.
  */
-export function useRelatives(family: Family, proposals: RelativeProposal[]) {
+export function useRelatives(
+  family: Family,
+  proposals: RelativeProposal[],
+  storyTree: string | null,
+) {
   const [ticked, setTicked] = React.useState<ReadonlySet<string>>(new Set());
   const [drafts, setDrafts] = React.useState<Record<string, RelativeDraft>>({});
   const [trees, setTrees] = React.useState<Record<string, TreeRead>>({});
@@ -63,6 +73,28 @@ export function useRelatives(family: Family, proposals: RelativeProposal[]) {
   const reading = React.useRef(new Set<string>());
   const asking = React.useRef(new Map<string, string>());
   const today = React.useMemo(() => new Date(), []);
+  /** Whether the member is a Root of the story's tree: only a Root tags (148.5). */
+  const [rootOfStory, setRootOfStory] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!storyTree) return;
+    let live = true;
+    void supabase
+      .from("my_trees")
+      .select("role")
+      .eq("id", storyTree)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!live) return;
+        const role = data?.role;
+        setRootOfStory(
+          !!role && isAccountTypeKey(role) && accountTypeOf(role).runsTree,
+        );
+      });
+    return () => {
+      live = false;
+    };
+  }, [storyTree]);
 
   /** A relative is added on the first tree of the member's showing whom they're named for. */
   const treeOf = React.useCallback(
@@ -112,10 +144,22 @@ export function useRelatives(family: Family, proposals: RelativeProposal[]) {
           asks,
           checking: !!key && !current,
           checkFailed: current === "failed",
+          canTag: rootOfStory && !!treeId && treeId === storyTree,
           status,
         };
       }),
-    [proposals, drafts, treeOf, trees, checks, family.selfId, ticked, today],
+    [
+      proposals,
+      drafts,
+      treeOf,
+      trees,
+      checks,
+      family.selfId,
+      ticked,
+      today,
+      rootOfStory,
+      storyTree,
+    ],
   );
 
   // Each ticked relative's tree, read once.
@@ -253,6 +297,8 @@ export function useRelatives(family: Family, proposals: RelativeProposal[]) {
       made.push({
         name,
         error: null,
+        id: added.id,
+        tag: v.canTag && v.draft.tag,
         ...(invite && "invited" in invite ? { invited: invite.invited } : {}),
         ...(invite && "error" in invite ? { inviteError: invite.error } : {}),
       });

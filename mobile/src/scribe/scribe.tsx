@@ -25,6 +25,7 @@ import {
   keepRecording,
   makeFacts,
   ScribeError,
+  tagInStory,
   tellStory,
   writeUp,
 } from "@/scribe/story";
@@ -129,6 +130,7 @@ export function Scribe({
   const relatives = useRelatives(
     family,
     facts?.at === "found" ? facts.facts.relatives : NO_RELATIVES,
+    person?.fullOn[0] ?? null,
   );
   /** Whether a fact or relative saved with the story changed the tree. */
   const changed = React.useRef(false);
@@ -288,7 +290,18 @@ export function Scribe({
     setSaveError(null);
     try {
       const recording = uploading.current ? await uploading.current : kept;
-      const status = await tellStory({
+      // Whoever recorded someone else telling it asked them (Step 99); a
+      // typed story has no interviewer (Step 145).
+      const interviewers =
+        recording &&
+        !tellers.includes(self.id) &&
+        creditable.some((p) => p.id === self.id)
+          ? [self.id]
+          : [];
+      const mentioned = mentions
+        .filter((m) => tagged.has(m.personId))
+        .map((m) => m.personId);
+      const saved = await tellStory({
         personId: person.id,
         treeId,
         title: draft.title,
@@ -296,17 +309,8 @@ export function Scribe({
         english: draft.english,
         recording,
         storytellers: tellers,
-        // Whoever recorded someone else telling it asked them (Step 99); a
-        // typed story has no interviewer (Step 145).
-        interviewers:
-          recording &&
-          !tellers.includes(self.id) &&
-          creditable.some((p) => p.id === self.id)
-            ? [self.id]
-            : [],
-        mentions: mentions
-          .filter((m) => tagged.has(m.personId))
-          .map((m) => m.personId),
+        interviewers,
+        mentions: mentioned,
       });
       // The story's told; then what was ticked, each on its own.
       const ticked =
@@ -316,14 +320,33 @@ export function Scribe({
       const made = ticked.length
         ? await makeFacts(factWrites(ticked), draft.title)
         : [];
-      // Then the relatives ticked, one after another.
+      // Then the relatives ticked, one after another, and those a Root
+      // tagged put in the story with the rest it mentions (148.5).
       const added = await relatives.addTicked();
+      const toTag = added.filter((a) => a.id && a.tag);
+      if (toTag.length) {
+        const tagError = saved.id
+          ? await tagInStory({
+              id: saved.id,
+              treeId,
+              toldOn: saved.toldOn,
+              storytellers: tellers,
+              interviewers,
+              mentions: mentioned,
+              add: toTag.map((a) => a.id!),
+            }).catch(() => "Couldn’t tag them.")
+          : "Couldn’t tag them.";
+        for (const a of toTag) {
+          if (tagError) a.tagError = tagError;
+          else a.tagged = true;
+        }
+      }
       changed.current =
         made.some((m) => !m.error && m.way !== "suggest") ||
         added.some((a) => !a.error);
       setStep({
         at: "saved",
-        status,
+        status: saved.status,
         facts:
           [factsDone(made), relativesDone(added)].filter(Boolean).join(" ") ||
           null,

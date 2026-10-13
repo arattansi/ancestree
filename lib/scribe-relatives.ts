@@ -53,6 +53,8 @@ export type RelativeDraft = {
   existing: Record<string, boolean>;
   /** Where to invite them to claim their entry once added (148.4); "" for nowhere. */
   email: string;
+  /** Tag them in the story once they're added (148.5, a Root's to offer). */
+  tag: boolean;
 };
 
 export function relativeDraft(r: RelativeProposal): RelativeDraft {
@@ -63,6 +65,7 @@ export function relativeDraft(r: RelativeProposal): RelativeDraft {
     answers: {},
     existing: {},
     email: "",
+    tag: false,
   };
 }
 
@@ -403,23 +406,36 @@ export function relativeStatus(input: {
   return { at: "ready" };
 }
 
-/** How adding one relative went, and their invite if one was asked for. */
+/** How adding one relative went, and their invite and tag if asked for. */
 export type RelativeMade = {
   name: string;
   /** Why they weren't added; null when they were. */
   error: string | null;
+  /** Their new entry, once added. */
+  id?: string;
+  /** To be tagged in the story once added (148.5). */
+  tag?: boolean;
+  /** Tagged in the story. */
+  tagged?: boolean;
+  /** Added, but not tagged: why. */
+  tagError?: string;
   /** The address their invite to claim went to (148.4). */
   invited?: string;
   /** Added, but the invite didn't go: why. */
   inviteError?: string;
 };
 
-/** How adding the relatives went: "Rahim Jaffer added. Invite sent to rahim@example.com." */
+/**
+ * How adding the relatives went: "Rahim Jaffer added. Invite sent to
+ * rahim@example.com. Rahim Jaffer tagged in the story."
+ */
 export function relativesDone(made: RelativeMade[]): string | null {
   const added = made.filter((m) => !m.error);
   const failed = made.filter((m) => m.error);
   const invited = added.filter((m) => m.invited);
   const unsent = added.filter((m) => m.inviteError);
+  const tagged = added.filter((m) => m.tagged);
+  const untagged = added.filter((m) => m.tagError);
   const said =
     added.length === 1
       ? `${added[0].name} added.`
@@ -435,11 +451,20 @@ export function relativesDone(made: RelativeMade[]): string | null {
   const notSent = unsent.length
     ? `${unsent[0].name}’s invite didn’t send: ${unsent[0].inviteError}`
     : "";
+  const tags =
+    tagged.length === 1
+      ? `${tagged[0].name} tagged in the story.`
+      : tagged.length > 1
+        ? `${tagged.length} tagged in the story.`
+        : "";
+  const notTagged = untagged.length
+    ? `${untagged.length === 1 ? untagged[0].name : `${untagged.length} relatives`} couldn’t be tagged in the story: ${untagged[0].tagError}`
+    : "";
   const missed =
     failed.length === 1
       ? `${failed[0].name} couldn’t be added: ${failed[0].error}`
       : failed.length > 1
         ? `${failed.length} couldn’t be added: ${failed[0].error}`
         : "";
-  return [said, sent, notSent, missed].filter(Boolean).join(" ") || null;
+  return [said, sent, notSent, tags, notTagged, missed].filter(Boolean).join(" ") || null;
 }

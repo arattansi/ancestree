@@ -177,7 +177,8 @@ function today(): string {
 /**
  * Tell the story on the person's tree, told today, with its recording and
  * credits: approved at once when the teller may approve it, else waiting
- * on whoever can, as every story is.
+ * on whoever can, as every story is. Its id comes back too, for tagging
+ * the relatives added after it (148.5).
  */
 export async function tellStory(story: {
   personId: string;
@@ -190,7 +191,13 @@ export async function tellStory(story: {
   interviewers: string[];
   /** Who it mentions (Step 116), each on the tree it's told on. */
   mentions: string[];
-}): Promise<"approved" | "pending"> {
+}): Promise<{
+  id: string | null;
+  status: "approved" | "pending";
+  /** The day it was told on, as kept. */
+  toldOn: string;
+}> {
+  const toldOn = today();
   const { data, error } = await supabase.rpc("add_story", {
     p_person: story.personId,
     p_tree: story.treeId,
@@ -198,7 +205,7 @@ export async function tellStory(story: {
     p_body: scribeBody(story.story, story.english),
     p_audio_path: story.recording?.path,
     p_audio_seconds: story.recording?.seconds ?? undefined,
-    p_told_on: today(),
+    p_told_on: toldOn,
     p_told_precision: "day",
     p_storytellers: story.storytellers,
     p_interviewers: story.interviewers,
@@ -218,9 +225,46 @@ export async function tellStory(story: {
               : "Couldn’t save it. Try again.",
     );
   }
-  return (data as { status?: string } | null)?.status === "approved"
-    ? "approved"
-    : "pending";
+  const told = data as { id?: string; status?: string } | null;
+  return {
+    id: told?.id ?? null,
+    status: told?.status === "approved" ? "approved" : "pending",
+    toldOn,
+  };
+}
+
+/**
+ * Tag people in a story just told (148.5): its mentions set again, these
+ * added to those it was told with, through `edit_story` as its teller,
+ * its credits and the day it was told sent again as they were. Null when
+ * they're tagged, else why not.
+ */
+export async function tagInStory(story: {
+  id: string;
+  treeId: string;
+  toldOn: string;
+  storytellers: string[];
+  interviewers: string[];
+  /** Who it was told with mentioning. */
+  mentions: string[];
+  /** Who it's to mention too. */
+  add: string[];
+}): Promise<string | null> {
+  const { error } = await supabase.rpc("edit_story", {
+    p_story: story.id,
+    p_tree: story.treeId,
+    p_storytellers: story.storytellers,
+    p_interviewers: story.interviewers,
+    p_told_on: story.toldOn,
+    p_told_precision: "day",
+    p_mentions: [...new Set([...story.mentions, ...story.add])],
+  });
+  if (!error) return null;
+  return error.message.includes("not on your tree")
+    ? "They aren’t on the tree it’s told on."
+    : error.message.includes("too many people")
+      ? "That’s more people than a story may mention."
+      : "Couldn’t tag them.";
 }
 
 /** What a refused fact says, by what the database said. */

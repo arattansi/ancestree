@@ -399,6 +399,24 @@ describe("relativesDone", () => {
     ).toBe(`2 relatives added. Amina couldn’t be added: ${BLOOD_TIE_RULE}`);
   });
 
+  it("says who was tagged in the story, and who couldn't be", () => {
+    expect(relativesDone([{ name: "Rahim Sayani", error: null, id: "a", tag: true, tagged: true }])).toBe(
+      "Rahim Sayani added. Rahim Sayani tagged in the story.",
+    );
+    expect(
+      relativesDone([
+        { name: "Rahim Sayani", error: null, tagged: true },
+        { name: "Zahra Jaffer", error: null, tagged: true, invited: "zahra@example.com" },
+      ]),
+    ).toBe("2 relatives added. Invite sent to zahra@example.com. 2 tagged in the story.");
+    expect(
+      relativesDone([
+        { name: "Rahim Sayani", error: null, tagError: "Couldn’t tag them." },
+        { name: "Zahra Jaffer", error: null, tagError: "Couldn’t tag them." },
+      ]),
+    ).toBe("2 relatives added. 2 relatives couldn’t be tagged in the story: Couldn’t tag them.");
+  });
+
   it("says where invites went, and one that didn't", () => {
     expect(relativesDone([{ name: "Rahim Sayani", error: null, invited: "rahim@example.com" }])).toBe(
       "Rahim Sayani added. Invite sent to rahim@example.com.",
