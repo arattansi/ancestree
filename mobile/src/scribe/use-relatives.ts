@@ -1,6 +1,6 @@
 import * as React from "react";
 
-import { accountTypeOf, isAccountTypeKey } from "@/lib/account-types";
+import { BRANCH, ROOT } from "@/lib/account-types";
 import type {
   DetectionTree,
   ImpliedConnection,
@@ -43,8 +43,8 @@ export type RelativeView = {
   /** It couldn't be asked: to try again. */
   checkFailed: boolean;
   /**
-   * They may be tagged in the story (148.5): the member is a Root of the
-   * tree it's told on, and they'd be added on that tree.
+   * They may be tagged in the story (148.5): the member is a Root or a
+   * Branch of the tree it's told on, and they'd be added on that tree.
    */
   canTag: boolean;
   status: RelativeStatus;
@@ -73,8 +73,11 @@ export function useRelatives(
   const reading = React.useRef(new Set<string>());
   const asking = React.useRef(new Map<string, string>());
   const today = React.useMemo(() => new Date(), []);
-  /** Whether the member is a Root of the story's tree: only a Root tags (148.5). */
-  const [rootOfStory, setRootOfStory] = React.useState(false);
+  /**
+   * Whether the member is a Root or a Branch of the story's tree: only
+   * they tag a relative they add (148.5).
+   */
+  const [mayTag, setMayTag] = React.useState(false);
 
   React.useEffect(() => {
     if (!storyTree) return;
@@ -86,10 +89,7 @@ export function useRelatives(
       .maybeSingle()
       .then(({ data }) => {
         if (!live) return;
-        const role = data?.role;
-        setRootOfStory(
-          !!role && isAccountTypeKey(role) && accountTypeOf(role).runsTree,
-        );
+        setMayTag(data?.role === ROOT.key || data?.role === BRANCH.key);
       });
     return () => {
       live = false;
@@ -144,7 +144,7 @@ export function useRelatives(
           asks,
           checking: !!key && !current,
           checkFailed: current === "failed",
-          canTag: rootOfStory && !!treeId && treeId === storyTree,
+          canTag: mayTag && !!treeId && treeId === storyTree,
           status,
         };
       }),
@@ -157,7 +157,7 @@ export function useRelatives(
       family.selfId,
       ticked,
       today,
-      rootOfStory,
+      mayTag,
       storyTree,
     ],
   );

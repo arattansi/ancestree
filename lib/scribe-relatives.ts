@@ -53,7 +53,7 @@ export type RelativeDraft = {
   existing: Record<string, boolean>;
   /** Where to invite them to claim their entry once added (148.4); "" for nowhere. */
   email: string;
-  /** Tag them in the story once they're added (148.5, a Root's to offer). */
+  /** Tag them in the story once they're added (148.5, a Root's or Branch's to offer). */
   tag: boolean;
 };
 

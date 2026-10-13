@@ -1802,6 +1802,15 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 148.5 follow-up: Branches tag them too** (no migration).
+  **Aalim asked:** "let Branches tag them in the story too". The **tag in
+  the story** chip now shows for a Root or a Branch of the tree the story
+  is told on (still only for a relative added on that tree); Leaves still
+  don't get it. Checked in the browser on live as a throwaway Branch (all
+  removed): the chip showed, and the story ended up approved, mentioning
+  the existing person and the new brother, credits and day told
+  unchanged.
+
 - **Step 148.5: a Root tags the relative the scribe added in the story**
   (no migration). **Aalim asked:** "let a Root tag the new relative in the
   story too". For a Root of the tree the story is told on (its role read
