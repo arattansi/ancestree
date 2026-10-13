@@ -1802,6 +1802,53 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 148.3: the scribe adds the relatives it finds** (migration
+  `20261013170000_check_add_people`, additive, applied before the code).
+  **Asked for:** from the phone's scribe, let the member add the relatives
+  a story names who aren't on the tree yet, as the web's "Add a relative"
+  adds them. Under **Not on the tree yet** each relative is now a card to
+  tick (`mobile/src/scribe/relative-card.tsx`); ticked, it takes their
+  first and last name to correct (a last name is needed, as on the web)
+  and asks what the add form asks: **"Is {name} 18 or older?"** of a
+  living child or sibling the member isn't the parent of (Step 98), and
+  the connections the tree implies, **yes / no / skip for now**, with the
+  web's words ("Is Gul also Rahim's parent? They're Mina's sibling.",
+  `computeImpliedConnections` run on the phone over the tree it's added
+  to, read as the member; the shaping moved into
+  `lib/connection-suggestions.ts#detectionTree`, shared with the web's
+  server). Then the database is asked whether the add would go, nothing
+  kept: new `check_add_people_with_connections` (security invoker) makes
+  the member's own `add_people_with_connections` call inside a block that
+  always ends in an error and returns `{ok}` or what it said. A line that
+  asks "is X 18 or older?" of someone on the tree is asked again as if
+  they'd said yes, so the card puts the question only when a yes would let
+  the relative in, and a refusal behind it (no blood tie, Step 55; not on
+  a Leaf's own line; under 18) shows at once. **save story** waits until
+  every ticked relative is named and answered ("Ines Inlaw can't be added.
+  Untick them to save."), tells the story, makes the ticked facts, then
+  adds each ticked relative with one line to the person the story named,
+  on the first tree of the member's showing them in full, with the answers
+  as `p_suggestions`, the yeses as `adult` / `p_adult_existing`, then
+  their place of birth, sex and "c." set after, as the web does ("2
+  relatives added."). Shared, tested logic in `lib/scribe-relatives.ts`;
+  148.2's proposals now carry the year, circa and place found
+  (`bornYear`, `bornPlace`, `diedYear`; a death before the birth dropped).
+  **My calls, not asked:** a yes to "the same person?" means they're on
+  the tree already, so they aren't added (the web's form records it and
+  adds them anyway); a yes that draws a parent or partner line asks what
+  that line implies too, so a brother the tree already has is caught (the
+  web draws those parents before it asks); relatives added last, after
+  the facts, one at a time; no invite to claim, placeholder child or
+  story tag for them from the phone yet. Checked on live as throwaway
+  members (all removed): a rolled-back rehearsal on Aalim's tree before
+  applying; 25 cases through the phone's own code as a throwaway Root and
+  Leaf (implied parents drawn, Gul asked about and added with the yes,
+  blood tie, under 18 both ways, own line, checks keep nothing); the real
+  scribe screen in the browser, signed in as the throwaway Root with only
+  Claude's two calls stubbed: four relatives, each state, two added, the
+  story saved, then "the same person?" for a repeat. `lib/database.types.ts`
+  regenerated (PostgREST's reported version moved 14.5 → 14.15 on live).
+
 - **Step 148.2: the scribe finds facts for the tree** (migration
   `20261013150000_entry_rights`, applied before the code). **Asked for:**
   the scribe also proposes concrete facts from a story, each reviewed on

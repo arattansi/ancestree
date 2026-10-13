@@ -549,8 +549,12 @@ export function proposeFacts(input: {
         (!last || [p.row.last_name, p.row.maiden_name].some((n) => nameKey(n) === nameKey(last))),
     );
     if (known) continue;
-    const bornYear = r.born_year != null && r.born_year >= 1000 && r.born_year <= today.getUTCFullYear() ? r.born_year : null;
-    const diedYear = r.died_year != null && r.died_year >= 1000 && r.died_year <= today.getUTCFullYear() ? r.died_year : null;
+    const year = (y: number | null) =>
+      y != null && Number.isInteger(y) && y >= 1000 && y <= today.getUTCFullYear() ? y : null;
+    const bornYear = year(r.born_year);
+    // A death before the birth isn't kept.
+    const diedYear = bornYear != null && (year(r.died_year) ?? bornYear) < bornYear ? null : year(r.died_year);
+    const bornPlace = found(r.born_place);
     relatives.push({
       key: `r${relatives.length + 1}`,
       firstName: first,
@@ -559,10 +563,13 @@ export function proposeFacts(input: {
       relation: r.relation,
       ofId: of.row.id,
       ofName: personDisplayName(of.row),
-      born: lifeText(bornYear, r.born_circa, found(r.born_place)),
+      born: lifeText(bornYear, r.born_circa, bornPlace),
       died: r.has_died || diedYear != null,
       diedWhen: lifeText(diedYear, r.died_circa, null),
       evidence: clean(r.evidence),
+      bornYear: bornYear != null ? { year: bornYear, circa: !!r.born_circa } : null,
+      bornPlace: bornPlace ? { id: bornPlace.id, city: bornPlace.city, country: bornPlace.country } : null,
+      diedYear: diedYear != null ? { year: diedYear, circa: !!r.died_circa } : null,
     });
   }
 

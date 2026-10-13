@@ -3,11 +3,13 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-nati
 
 import {
   FACT_WAY_WORDS,
-  relativeLine,
   type FactProposal,
   type MentionOffer,
   type ScribeFacts,
 } from "@/lib/scribe-facts";
+import type { RelativeDraft } from "@/lib/scribe-relatives";
+import { RelativeCard } from "@/scribe/relative-card";
+import type { RelativeView } from "@/scribe/use-relatives";
 import { font, usePalette } from "@/theme";
 import { Button } from "@/ui/button";
 import { Chip } from "@/ui/chip";
@@ -22,8 +24,9 @@ export type FactsState =
 /**
  * What the story tells the tree (Step 148.2), under the write-up: each
  * detail about someone on it to tick, the people it mentions to tag, and
- * the relatives it names who aren't on it yet. Nothing is ticked or tagged
- * until the member says so; saving the story makes what they ticked.
+ * the relatives it names who aren't on it yet, to tick and add (148.3).
+ * Nothing is ticked or tagged until the member says so; saving the story
+ * makes what they ticked.
  */
 export function FactsReview({
   state,
@@ -33,6 +36,7 @@ export function FactsReview({
   mentions,
   tagged,
   onToggleMention,
+  relatives,
 }: {
   state: FactsState;
   onRetry: () => void;
@@ -42,6 +46,13 @@ export function FactsReview({
   mentions: MentionOffer[];
   tagged: ReadonlySet<string>;
   onToggleMention: (personId: string) => void;
+  /** Those it names who aren't on the tree (`useRelatives`). */
+  relatives: {
+    views: RelativeView[];
+    toggle: (key: string) => void;
+    edit: (r: RelativeView["r"], patch: Partial<RelativeDraft>) => void;
+    retry: (r: RelativeView["r"]) => void;
+  };
 }) {
   const palette = usePalette();
   const muted = { color: palette.mutedForeground };
@@ -63,8 +74,8 @@ export function FactsReview({
     );
   }
 
-  const { facts, relatives } = state.facts;
-  if (!facts.length && !mentions.length && !relatives.length) {
+  const { facts } = state.facts;
+  if (!facts.length && !mentions.length && !relatives.views.length) {
     return <Text style={[styles.note, muted]}>Nothing new for the tree.</Text>;
   }
   return (
@@ -97,18 +108,17 @@ export function FactsReview({
           </View>
         </View>
       ) : null}
-      {relatives.length ? (
+      {relatives.views.length ? (
         <View style={styles.section}>
           <Text style={[styles.label, { color: palette.foreground }]}>Not on the tree yet</Text>
-          {relatives.map((r) => (
-            <View key={r.key} style={styles.relative}>
-              <Text style={[styles.body, { color: palette.foreground }]}>
-                {[relativeLine(r), r.born ? `born ${r.born}` : null, r.died ? (r.diedWhen ? `died ${r.diedWhen}` : "has died") : null]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </Text>
-              {r.evidence ? <Text style={[styles.said, muted]}>“{r.evidence}”</Text> : null}
-            </View>
+          {relatives.views.map((view) => (
+            <RelativeCard
+              key={view.r.key}
+              view={view}
+              onToggle={() => relatives.toggle(view.r.key)}
+              onEdit={(patch) => relatives.edit(view.r, patch)}
+              onRetry={() => relatives.retry(view.r)}
+            />
           ))}
         </View>
       ) : null}
@@ -196,5 +206,4 @@ const styles = StyleSheet.create({
   body: { fontFamily: font.regular, fontSize: 15, lineHeight: 21 },
   said: { fontFamily: font.regular, fontSize: 14, lineHeight: 20, fontStyle: "italic" },
   way: { fontFamily: font.medium, fontSize: 13 },
-  relative: { gap: 2 },
 });

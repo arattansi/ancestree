@@ -3,47 +3,33 @@ import "server-only";
 import { cache } from "react";
 
 import { createClient } from "@/lib/supabase/server";
-import { personDisplayName } from "@/lib/person-name";
 import { loadTreeEdges, loadTreePeople } from "@/lib/tree";
 import {
   auditTree,
   computeImpliedConnections,
+  detectionTree,
   suggestionDedupeKey,
-  type ExistingEdge,
-  type ExistingPerson,
+  type DetectionTree,
   type ImpliedConnection,
   type NewPersonInput,
   type PanelSuggestion,
   type PendingEdge,
-  type SuggestedType,
-  type SuggestionSource,
 } from "@/lib/connection-suggestions";
-
-type TreeSnapshot = {
-  people: ExistingPerson[];
-  edges: ExistingEdge[];
-  resolvedKeys: Set<string>;
-  nicknameGroups: string[][];
-  labelById: Map<string, string>;
-};
 
 /**
  * Everything the engine reasons over, in one round trip: the tree's people and
  * edges, the ledger of suggestions members have already answered, and the
- * nickname groups that let duplicate detection see "Fateh" and "Fatehali" as
- * one name.
+ * nickname groups (`detectionTree`).
  */
-async function loadTree(treeId: string): Promise<TreeSnapshot> {
+async function loadTree(treeId: string): Promise<DetectionTree> {
   const supabase = await createClient();
 
-  const [peopleRows, { edges: edgeRows }, sugRes, nickRes] = await Promise.all([
+  const [people, { edges }, sugRes, nickRes] = await Promise.all([
     // What the tree shows (Step 25): its placed people and the lines between
     // them, from the tree views, read once with the canvas (Step 77.1).
     loadTreePeople(treeId),
     loadTreeEdges(treeId),
-    // Answered rows only. The add-person modal still offers "Skip for now",
-    // which writes a `pending` row and promises to ask again — counting those
-    // as resolved would turn skipping into a silent permanent dismissal.
+    // Answered rows only (`detectionTree`).
     supabase
       .from("connection_suggestions")
       .select("subject_person_id, related_person_id, suggested_type, source")
@@ -52,61 +38,12 @@ async function loadTree(treeId: string): Promise<TreeSnapshot> {
     supabase.from("name_nicknames").select("variant, canonical"),
   ]);
 
-  const labelById = new Map<string, string>();
-  const people: ExistingPerson[] = peopleRows.flatMap((p) => {
-    // No family name, no suggestion: a placeholder child (Step 98.2) among
-    // them, which nothing should be matched to.
-    if (!p.id || !p.last_name) return [];
-    const label = personDisplayName({ ...p, last_name: p.last_name });
-    labelById.set(p.id, label);
-    return [
-      {
-        id: p.id,
-        label,
-        givenName: p.preferred_name ?? p.first_name,
-        familyName: p.last_name,
-        dateOfBirth: p.date_of_birth,
-      },
-    ];
-  });
-
-  const byCanonical = new Map<string, Set<string>>();
-  for (const row of nickRes.data ?? []) {
-    const group = byCanonical.get(row.canonical) ?? new Set<string>();
-    group.add(row.canonical);
-    group.add(row.variant);
-    byCanonical.set(row.canonical, group);
-  }
-
-  return {
+  return detectionTree({
     people,
-    edges: edgeRows.flatMap((e) =>
-      e.from_person && e.to_person && e.type
-        ? [
-            {
-              from: e.from_person,
-              to: e.to_person,
-              type: e.type,
-              marriageDate: e.marriage_date,
-              divorceDate: e.divorce_date,
-              isDivorced: e.is_divorced ?? false,
-            },
-          ]
-        : [],
-    ),
-    resolvedKeys: new Set(
-      (sugRes.data ?? []).map((r) =>
-        suggestionDedupeKey(
-          r.subject_person_id,
-          r.related_person_id,
-          r.suggested_type as SuggestedType,
-          r.source as SuggestionSource,
-        ),
-      ),
-    ),
-    nicknameGroups: [...byCanonical.values()].map((g) => [...g]),
-    labelById,
-  };
+    edges,
+    answered: sugRes.data ?? [],
+    nicknames: nickRes.data ?? [],
+  });
 }
 
 /**

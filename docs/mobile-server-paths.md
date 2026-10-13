@@ -78,7 +78,12 @@ All carry a top-level `"use server"`; none is inline.
   `add_people_with_connections`, then a `people` update for
   `place_id_birth`, `place_id_death`, `sex` and the `*_circa` flags (the
   RPC doesn't take them). Implied-connection detection is TypeScript over
-  user reads (`lib/connection-suggestions*.ts`), shareable.
+  user reads (`lib/connection-suggestions*.ts`), shareable. **Done for the
+  scribe's relatives in Step 148.3** (`mobile/src/scribe/relatives.ts`):
+  the tree read as the member and shaped by `detectionTree`, the add
+  checked first with `check_add_people_with_connections` (the same call,
+  always undone), then made as the web makes it. The claim invite that can
+  follow an add is still B.
 - **Photos:** uploaded from the client to `photos` (`lib/photo-upload.ts`)
   or `album`, then `people.update` or RPC `add_album_photo`.
 - **Stories:** uploaded from the client to `stories`

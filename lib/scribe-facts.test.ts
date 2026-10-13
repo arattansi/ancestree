@@ -44,6 +44,10 @@ describe("isScribeFacts", () => {
   it("takes a whole answer and nothing less", () => {
     expect(isScribeFacts({ facts: [proposal({})], mentions: [{ personId: ID, name: "A" }], relatives: [relative] })).toBe(true);
     expect(isScribeFacts({ facts: [], mentions: [], relatives: [] })).toBe(true);
+    const years = { ...relative, bornYear: { year: 1938, circa: true }, bornPlace: { id: 1, city: "", country: "Kenya" }, diedYear: null };
+    expect(isScribeFacts({ facts: [], mentions: [], relatives: [years] })).toBe(true);
+    expect(isScribeFacts({ facts: [], mentions: [], relatives: [{ ...years, bornYear: { year: "1938" } }] })).toBe(false);
+    expect(isScribeFacts({ facts: [], mentions: [], relatives: [{ ...years, bornPlace: { id: 1 } }] })).toBe(false);
     expect(isScribeFacts({ facts: [proposal({ way: "suggest", treeId: null })], mentions: [], relatives: [] })).toBe(false);
     expect(isScribeFacts({ facts: [proposal({ way: "guess" as never })], mentions: [], relatives: [] })).toBe(false);
     expect(isScribeFacts({ facts: [], mentions: [] })).toBe(false);

@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.15"
   }
   public: {
     Tables: {
@@ -2859,6 +2859,16 @@ export type Database = {
       can_invite_to_claim_on: {
         Args: { p_person_id: string; p_tree: string }
         Returns: boolean
+      }
+      check_add_people_with_connections: {
+        Args: {
+          p_adult_existing?: string[]
+          p_edges?: Json
+          p_people: Json
+          p_suggestions?: Json
+          p_tree?: string
+        }
+        Returns: Json
       }
       claim_newsletter_issues: {
         Args: { p_users: string[] }

@@ -13,7 +13,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { personDisplayName, personHasDied } from "@/lib/person-name";
 import { scribeBody, scribeBodyFits } from "@/lib/scribe";
-import { factsDone, factWrites } from "@/lib/scribe-facts";
+import { factsDone, factWrites, type RelativeProposal } from "@/lib/scribe-facts";
+import { relativesDone } from "@/lib/scribe-relatives";
 import { relativesOf } from "@/family/family";
 import type { Family, FamilyPerson } from "@/family/load";
 import { FactsReview, type FactsState } from "@/scribe/facts-review";
@@ -28,6 +29,7 @@ import {
   writeUp,
 } from "@/scribe/story";
 import { LISTEN_MAX_SECONDS, useListening } from "@/scribe/use-listening";
+import { useRelatives } from "@/scribe/use-relatives";
 import { font, GUTTER, usePalette } from "@/theme";
 import { Button } from "@/ui/button";
 import { Chip } from "@/ui/chip";
@@ -49,9 +51,11 @@ type Step =
   | {
       at: "saved";
       status: "approved" | "pending";
-      /** How the facts accepted with it went (Step 148.2). */
+      /** How the facts and relatives accepted with it went (Steps 148.2–148.3). */
       facts: string | null;
     };
+
+const NO_RELATIVES: RelativeProposal[] = [];
 
 const clock = (s: number) =>
   `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
@@ -86,7 +90,8 @@ function namesNear(family: Family, id: string): string[] {
  *
  * While Claude writes it up it also reads it for facts (Step 148.2): what
  * it tells the tree comes under the write-up, each to tick or not, and
- * saving the story makes what was ticked.
+ * saving the story makes what was ticked, the relatives it names who
+ * aren't on the tree added last (148.3).
  */
 export function Scribe({
   family,
@@ -121,7 +126,11 @@ export function Scribe({
   const [facts, setFacts] = React.useState<FactsState | null>(null);
   const [accepted, setAccepted] = React.useState<ReadonlySet<string>>(new Set());
   const [tagged, setTagged] = React.useState<ReadonlySet<string>>(new Set());
-  /** Whether a fact made with the story changed the tree. */
+  const relatives = useRelatives(
+    family,
+    facts?.at === "found" ? facts.facts.relatives : NO_RELATIVES,
+  );
+  /** Whether a fact or relative saved with the story changed the tree. */
   const changed = React.useRef(false);
   /** What was heard, to look for facts in again. */
   const told = React.useRef<{ heard: string; locale: string | null } | null>(null);
@@ -272,6 +281,9 @@ export function Scribe({
     if (!draft.story.trim()) return setSaveError("Write the story.");
     if (!scribeBodyFits(body))
       return setSaveError("That’s longer than a story may be.");
+    // A relative ticked to add is answered for before anything's saved.
+    const waiting = relatives.problem();
+    if (waiting) return setSaveError(waiting);
     setSaving(true);
     setSaveError(null);
     try {
@@ -304,8 +316,18 @@ export function Scribe({
       const made = ticked.length
         ? await makeFacts(factWrites(ticked), draft.title)
         : [];
-      changed.current = made.some((m) => !m.error && m.way !== "suggest");
-      setStep({ at: "saved", status, facts: factsDone(made) });
+      // Then the relatives ticked, one after another.
+      const added = await relatives.addTicked();
+      changed.current =
+        made.some((m) => !m.error && m.way !== "suggest") ||
+        added.some((a) => !a.error);
+      setStep({
+        at: "saved",
+        status,
+        facts:
+          [factsDone(made), relativesDone(added)].filter(Boolean).join(" ") ||
+          null,
+      });
     } catch (error) {
       setSaveError(
         error instanceof ScribeError
@@ -565,6 +587,7 @@ export function Scribe({
                 mentions={mentions}
                 tagged={tagged}
                 onToggleMention={(id) => setTagged((t) => toggle(t, id))}
+                relatives={relatives}
               />
             ) : null}
             {keptProblem ? (

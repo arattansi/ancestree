@@ -357,7 +357,44 @@ describe("proposeFacts", () => {
         died: false,
         diedWhen: null,
         evidence: "her younger brother Rahim",
+        bornYear: { year: 1938, circa: true },
+        bornPlace: { id: 186301, city: "Mombasa", country: "Kenya" },
+        diedYear: null,
       },
     ]);
+  });
+
+  it("keeps a relative's years as the story gave them, but not a death before the birth or a year to come", () => {
+    const base = {
+      evidence: "his father Ali died in 1950",
+      first_name: "Ali",
+      last_name: "Jaffer",
+      sex: "male" as const,
+      relation: "parent" as const,
+      of: "P1",
+      has_died: true,
+      born_year: 1890,
+      born_circa: true,
+      born_place: null,
+      died_year: 1950,
+      died_circa: false,
+    };
+    const [ali, early, later] = propose([], everyone(EDIT), {
+      new_relatives: [
+        base,
+        { ...base, first_name: "Abbas", died_year: 1880 },
+        { ...base, first_name: "Amin", born_year: 2030, died_year: null },
+      ],
+    }).relatives;
+    expect(ali).toMatchObject({
+      born: "c. 1890",
+      died: true,
+      diedWhen: "1950",
+      bornYear: { year: 1890, circa: true },
+      bornPlace: null,
+      diedYear: { year: 1950, circa: false },
+    });
+    expect(early).toMatchObject({ died: true, diedWhen: null, diedYear: null });
+    expect(later).toMatchObject({ born: null, bornYear: null, died: true });
   });
 });

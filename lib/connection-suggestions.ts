@@ -1,5 +1,6 @@
 import { refToString, type PersonRef } from "@/lib/connections";
 import { foldName } from "@/lib/nicknames";
+import { personDisplayName, type NamedPerson } from "@/lib/person-name";
 
 /**
  * Connection-suggestion engine.
@@ -137,6 +138,106 @@ export type DetectionInput = {
 
 /** The whole-tree audit takes the same input minus anything pending. */
 export type AuditInput = Omit<DetectionInput, "newPeople" | "pendingEdges">;
+
+/** One tree as the engine reasons over it, with each person's name. */
+export type DetectionTree = {
+  people: ExistingPerson[];
+  edges: ExistingEdge[];
+  resolvedKeys: Set<string>;
+  nicknameGroups: string[][];
+  labelById: Map<string, string>;
+};
+
+/**
+ * One tree as the engine reasons over it, from the rows read for it: its
+ * people and lines (the `tree_people` and `tree_edges` views), the
+ * suggestions members have already answered there, and the nickname groups
+ * that let duplicate detection see "Fateh" and "Fatehali" as one name. The
+ * web reads them on the server (`connection-suggestions.server.ts`), the
+ * phone's scribe as the member (Step 148.3).
+ */
+export function detectionTree(rows: {
+  people: readonly (NamedPerson & {
+    id: string | null;
+    date_of_birth: string | null;
+  })[];
+  edges: readonly {
+    from_person: string | null;
+    to_person: string | null;
+    type: string | null;
+    marriage_date: string | null;
+    divorce_date: string | null;
+    is_divorced: boolean | null;
+  }[];
+  /**
+   * Answered rows only. The add-person modal still offers "Skip for now",
+   * which writes a `pending` row and promises to ask again — counting those
+   * as resolved would turn skipping into a silent permanent dismissal.
+   */
+  answered: readonly {
+    subject_person_id: string;
+    related_person_id: string;
+    suggested_type: string;
+    source: string;
+  }[];
+  nicknames: readonly { variant: string; canonical: string }[];
+}): DetectionTree {
+  const labelById = new Map<string, string>();
+  const people: ExistingPerson[] = rows.people.flatMap((p) => {
+    // No family name, no suggestion: a placeholder child (Step 98.2) among
+    // them, which nothing should be matched to.
+    if (!p.id || !p.last_name) return [];
+    const label = personDisplayName({ ...p, last_name: p.last_name });
+    labelById.set(p.id, label);
+    return [
+      {
+        id: p.id,
+        label,
+        givenName: p.preferred_name ?? p.first_name,
+        familyName: p.last_name,
+        dateOfBirth: p.date_of_birth,
+      },
+    ];
+  });
+
+  const byCanonical = new Map<string, Set<string>>();
+  for (const row of rows.nicknames) {
+    const group = byCanonical.get(row.canonical) ?? new Set<string>();
+    group.add(row.canonical);
+    group.add(row.variant);
+    byCanonical.set(row.canonical, group);
+  }
+
+  return {
+    people,
+    edges: rows.edges.flatMap((e) =>
+      e.from_person && e.to_person && e.type
+        ? [
+            {
+              from: e.from_person,
+              to: e.to_person,
+              type: e.type,
+              marriageDate: e.marriage_date,
+              divorceDate: e.divorce_date,
+              isDivorced: e.is_divorced ?? false,
+            },
+          ]
+        : [],
+    ),
+    resolvedKeys: new Set(
+      rows.answered.map((r) =>
+        suggestionDedupeKey(
+          r.subject_person_id,
+          r.related_person_id,
+          r.suggested_type as SuggestedType,
+          r.source as SuggestionSource,
+        ),
+      ),
+    ),
+    nicknameGroups: [...byCanonical.values()].map((g) => [...g]),
+    labelById,
+  };
+}
 
 /** A pending suggestion shown inline on a person's detail panel. */
 export type PanelSuggestion = {

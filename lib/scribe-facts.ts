@@ -41,6 +41,12 @@ export type FactProposal = {
 /** Someone on the tree the story mentions, to offer as a tag (Step 116). */
 export type MentionOffer = { personId: string; name: string };
 
+/** A year the story gives for a relative's birth or death. */
+export type RelativeYear = { year: number; circa: boolean };
+
+/** Where a relative was born, as found in `places`; `city` is "" for a country. */
+export type RelativePlace = { id: number; city: string; country: string };
+
 /** Someone the story names who isn't on the tree yet. */
 export type RelativeProposal = {
   key: string;
@@ -57,6 +63,13 @@ export type RelativeProposal = {
   died: boolean;
   diedWhen: string | null;
   evidence: string;
+  /**
+   * The birth and death behind `born` and `diedWhen`, for adding them
+   * (148.3). Absent from a server before it.
+   */
+  bornYear?: RelativeYear | null;
+  bornPlace?: RelativePlace | null;
+  diedYear?: RelativeYear | null;
 };
 
 /** What `/api/mobile/scribe/facts` answers with. */
@@ -87,6 +100,13 @@ function isProposal(v: unknown): v is FactProposal {
   );
 }
 
+const isYear = (v: unknown) =>
+  v == null || (isObject(v) && Number.isInteger(v.year) && typeof v.circa === "boolean");
+
+const isPlace = (v: unknown) =>
+  v == null ||
+  (isObject(v) && Number.isInteger(v.id) && isText(v.city) && isText(v.country));
+
 function isRelative(v: unknown): v is RelativeProposal {
   return (
     isObject(v) &&
@@ -96,7 +116,10 @@ function isRelative(v: unknown): v is RelativeProposal {
     ["parent", "child", "sibling", "spouse"].includes(v.relation as string) &&
     isText(v.ofId) &&
     isText(v.ofName) &&
-    isText(v.evidence)
+    isText(v.evidence) &&
+    isYear(v.bornYear) &&
+    isPlace(v.bornPlace) &&
+    isYear(v.diedYear)
   );
 }
 
