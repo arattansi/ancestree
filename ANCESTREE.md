@@ -617,7 +617,7 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
 - `lib/database.types.ts` — generated Supabase types (regenerate after schema changes)
 - `supabase/` — local CLI project linked to `kkmemshpkxrzogijxgnb` (`Product-Ancestree`)
 - `mobile/` — the iPhone app (Step 147): Expo SDK 57 + Expo Router,
-  its own `package.json` and Node 22; see `mobile/README.md`. It shares
+  its own `package.json`; see `mobile/README.md`. It shares
   the web's `lib/` as `@/lib/*` (pure TypeScript only), and is left out of
   the web's `tsconfig.json` and ESLint. `lib/first-degree.ts` (who is one
   line from a person) and `lib/leaf-orbit.ts` (where the leaf and its

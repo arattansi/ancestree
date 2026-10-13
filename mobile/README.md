@@ -19,7 +19,7 @@ What it does so far:
 Expo Go runs the app straight from your Mac.
 
 1. Install **Expo Go** from the App Store on the iPhone.
-2. On the Mac, with Node 22 or later (`/opt/homebrew/bin/node` is 22):
+2. On the Mac, with Node 20.19.4 or later:
 
    ```bash
    cd mobile

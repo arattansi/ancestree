@@ -12,7 +12,9 @@ This is an Expo/React Native mobile application. Prioritize mobile-first pattern
 - The app has the anon key only. Anything the web does with a server
   action or the service role is in `docs/mobile-server-paths.md`; new writes
   should be RPCs, so both apps can call them.
-- Node 22+ (`/opt/homebrew/bin/node`); the repo's nvm default is 20.
+- Node 20.19.4 or later (the nvm default, 20.19.6, works). Supabase's
+  packages warn that they want Node 22; that is about running them in
+  Node, not in the app, and is harmless.
 - Run `npm run typecheck` and `npm run lint` here, and `npm test` at the
   root when `lib/` changed.
 
