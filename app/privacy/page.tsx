@@ -129,6 +129,14 @@ export default function PrivacyPage() {
             that story, never its comments. The person it&rsquo;s about, whoever
             can edit their entry, or whoever told it can turn its links off.
           </li>
+          <li>
+            A story told aloud in the phone app is heard by the phone&rsquo;s
+            own speech recognition (Apple&rsquo;s or Google&rsquo;s, which may
+            send the sound to them to do it) and written up by Claude,
+            Anthropic&rsquo;s AI: what was heard, and the names of the family
+            around whoever it&rsquo;s about, go to Anthropic for that alone.
+            Nothing goes on the tree until whoever recorded it has read it over.
+          </li>
           <li>We never sell or share this data with third parties.</li>
         </ul>
       </Section>

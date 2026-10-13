@@ -29,6 +29,16 @@ export default function FamilyLayout() {
           name="search"
           options={{ presentation: "modal", contentStyle: sheet.contentStyle }}
         />
+        {/* Full screen, and no swipe away: a story half told isn't lost to a
+            stray gesture (Step 148). */}
+        <Stack.Screen
+          name="scribe/[id]"
+          options={{
+            presentation: "fullScreenModal",
+            gestureEnabled: false,
+            contentStyle: sheet.contentStyle,
+          }}
+        />
       </Stack>
     </FamilyProvider>
   );

@@ -25,6 +25,12 @@ export type FamilyPerson = {
   sex: string | null;
   /** Only a name and a place of birth, waiting on a yes (Step 80). */
   basic: boolean;
+  /**
+   * The member's trees that show them in full, the one they're read from
+   * first: where a story about them is told (`add_story`, Step 148), and
+   * whom it may credit.
+   */
+  fullOn: string[];
 };
 
 export type FamilyLine = {
@@ -129,11 +135,15 @@ export async function loadFamily(
   const rank = (row: (typeof personRows)[number]) =>
     row.detail === "basic" ? 2 : row.is_home ? 0 : 1;
   const chosen = new Map<string, (typeof personRows)[number]>();
+  const fullOn = new Map<string, string[]>();
   for (const row of personRows) {
     if (!row.id || row.blurred) continue;
     if (!row.last_name && row.placeholder_number == null) continue;
     const seen = chosen.get(row.id);
     if (!seen || rank(row) < rank(seen)) chosen.set(row.id, row);
+    if (row.detail === "full" && row.tree_id) {
+      fullOn.set(row.id, [...(fullOn.get(row.id) ?? []), row.tree_id]);
+    }
   }
   const people = new Map<string, FamilyPerson>();
   for (const [id, row] of chosen) {
@@ -158,6 +168,9 @@ export async function loadFamily(
       country_of_birth: row.country_of_birth,
       sex: row.sex,
       basic: row.detail === "basic",
+      fullOn: (fullOn.get(id) ?? []).sort((a, b) =>
+        a === row.tree_id ? -1 : b === row.tree_id ? 1 : 0,
+      ),
     });
   }
   if (!people.has(profile.self_person_id)) return "no-tree";

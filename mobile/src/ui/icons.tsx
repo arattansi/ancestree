@@ -1,5 +1,5 @@
 import * as React from "react";
-import Svg, { Circle, Path } from "react-native-svg";
+import Svg, { Circle, Path, Rect } from "react-native-svg";
 
 /**
  * The few icons the app needs, drawn as Lucide draws them (the web's icon
@@ -52,5 +52,20 @@ export const XIcon = (p: IconProps) => (
   <Icon {...p}>
     <Path d="M18 6 6 18" />
     <Path d="m6 6 12 12" />
+  </Icon>
+);
+
+export const MicIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <Path d="M12 19v3" />
+    <Path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+    <Rect x={9} y={2} width={6} height={13} rx={3} />
+  </Icon>
+);
+
+export const PauseIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <Rect x={14} y={3} width={5} height={18} rx={1} />
+    <Rect x={5} y={3} width={5} height={18} rx={1} />
   </Icon>
 );

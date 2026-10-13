@@ -13,6 +13,36 @@ What it does so far:
   the leaf for its details. **you** brings you home, the magnifier finds
   anyone on your trees by name, and a "+n" circle lists the rest of a group
   too big to show.
+- **Tell a story** to the scribe (Step 148), from a leaf's details. The
+  phone listens and shows the words as they come; pause, carry on, then
+  **done**. Claude writes it up on the web's server (`/api/mobile/scribe`):
+  a title, the story in the teller's own words and language, and English
+  under it when it was told in another. Read it over, say who told it,
+  and it's saved as a story with its recording, waiting for approval as
+  any story does. Recordings stop at 12 minutes.
+
+## The scribe needs the app's own build
+
+Listening uses the phone's own speech recognizer (Apple's on an iPhone,
+Google's on Android) through `expo-speech-recognition`, which is native
+code Expo Go doesn't have. In Expo Go, and in the browser, the scribe takes
+typed words instead; the keyboard's microphone dictates them. To listen
+for real, build the app onto a phone from the Mac:
+
+```bash
+npx expo run:ios --device
+```
+
+That needs Xcode, which signs the build with an ordinary Apple ID (no
+developer account; the build lasts a week). For an Android phone, with
+Android Studio's SDK and the phone in developer mode:
+
+```bash
+npx expo run:android --device
+```
+
+The write-up needs `ANTHROPIC_API_KEY` set on the web's server (Vercel),
+and `EXPO_PUBLIC_SITE_URL` pointing at it.
 
 ## Run it on your iPhone (no developer account needed)
 
@@ -54,6 +84,12 @@ the phone uses the Keychain.
   where you are in it.
 - `src/leaf/`: the leaf, drawn from the web's own leaf shapes, and the
   circles around it.
+- `src/scribe/`: the scribe. `speech.ts` loads the recognizer only where
+  it exists, `use-listening.ts` listens (pauses, the 12-minute stop,
+  listening that stops on its own and carries on), `story.ts` makes the
+  three trips (write-up, recording, `add_story`), `scribe.tsx` is the
+  screen. What was heard is pieced together by `@/lib/scribe-heard`, the
+  recordings joined by `@/lib/wav`.
 
 **Shared code is the web's `lib/`.** `@/lib/*` resolves to `../lib/*`
 (`tsconfig.json` and `metro.config.js`), so the app imports

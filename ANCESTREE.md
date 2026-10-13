@@ -46,6 +46,10 @@ Copy `.env.example` to `.env.local` and fill in:
   `/api/cron/newsletter`, the weekly newsletter (Step 95). Set in Vercel's
   Production env (2026-10-01); without it the route refuses every call, so
   nothing is sent
+- `ANTHROPIC_API_KEY` — server-only; the Claude API key the phone app's
+  scribe (`/api/mobile/scribe`, Step 148) writes stories up with, billed to
+  that Anthropic account. Without it the scribe answers "The scribe isn't
+  set up yet."
 
 Until Supabase env is set, `proxy.ts` no-ops so the app still boots. With env
 set, unauthenticated visits to `/tree` redirect to `/join`.
@@ -1796,6 +1800,38 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 148: the AI scribe on the phone** (no migration). **Aalim asked:**
+  "continue building the mobile app. start with the ai scribe for
+  recording stories. use Claude API credits on this account for the
+  scribe". Claude's API reads text, not sound, so the words come from the
+  phone first: Aalim chose "phone first, hosted later" (Apple's recognizer
+  on an iPhone, Google's on Android, through `expo-speech-recognition`;
+  a hosted transcriber may follow for languages or phones that fall
+  short), and stories told in another language keep its words with
+  Claude's English under them. A leaf's details now offer **tell a
+  story**: the phone listens and shows the words as they come, with
+  pause, carry on and **done**; it keeps a 16 kHz WAV of each stretch and
+  joins them (`lib/wav.ts`), up to 12 minutes (23 MB, under the `stories`
+  bucket's 25). What it heard goes to `POST /api/mobile/scribe` with the
+  session as a bearer token (`lib/supabase/bearer.ts`; `/api/mobile/` is
+  public in `proxy.ts`, each route checks its token), which reads whose
+  leaf it is and the family names around them as the member (RLS) and
+  asks Claude Opus 5.5 (`lib/scribe.server.ts`, medium effort, server-side
+  refusal fallbacks) for a title, the story in the teller's words and
+  language, and an English translation. The member reads it over, picks
+  the storyteller, and it's told through `add_story` as any story is
+  (same approval; told today; whoever recorded someone else is credited
+  as interviewer). Expo Go can't run the recognizer, so there the scribe
+  takes typed words, or the keyboard's own dictation, instead; the
+  recognizer needs the app's own build (`npx expo run:ios` / `run:android`
+  in `mobile/`). Needs `ANTHROPIC_API_KEY` in Vercel. **My calls, not
+  asked:** Opus 5.5 at medium effort; the title in English; the two
+  languages in one story body under a rule ("*In English*"); English,
+  Gujarati, Hindi, Urdu and Swahili offered where the phone hears them;
+  on-device recognition on an iPhone when it has it; the 12-minute cap;
+  the story credited to the leaf when they're alive, else to the member.
+  Fact extraction into Suggest a change is the next subtask.
 
 - **Step 147: the iPhone app's scaffold, and one leaf at a time** (no
   migration). **Aalim asked:** "start scaffolding the infrastructure of a

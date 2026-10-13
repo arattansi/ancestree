@@ -13,6 +13,7 @@
     "brand:build": "tsx scripts/brand-mark.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.133.0",
     "@base-ui/react": "^1.7.0",
     "@hookform/resolvers": "^5.9.1",
     "@next/third-parties": "^16.4.0",

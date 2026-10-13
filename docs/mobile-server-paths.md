@@ -90,15 +90,15 @@ All carry a top-level `"use server"`; none is inline.
   name-only cards, share links, family link, nicknames, pets: the same RPC
   or write.
 
-## Route Handlers: 14
+## Route Handlers: 15 (14 before Step 148)
 
-- **None takes a Supabase bearer token.** `/api/cron/newsletter` reads
-  `Authorization`, but compares it with `CRON_SECRET`.
-- **`proxy.ts` redirects every cookieless request** outside
-  `PUBLIC_PREFIXES` to `/join` (307) before a handler runs.
-- A mobile endpoint therefore needs a public prefix (`/api/mobile/` is
-  the proposal) and a request-scoped Supabase client built from the
-  bearer token.
+- **One takes a Supabase bearer token, since Step 148:** `POST
+  /api/mobile/scribe`, the scribe's write-up. `/api/mobile/` is in
+  `proxy.ts`'s `PUBLIC_PREFIXES`, and `lib/supabase/bearer.ts` checks the
+  token (`bearerToken`, `bearerClient`) and gives a client acting as the
+  member, under RLS. Every new phone endpoint goes under `/api/mobile/`
+  the same way. (`/api/cron/newsletter` reads `Authorization` too, but
+  compares it with `CRON_SECRET`.)
 - The web's helpers can't be reused as they are. `requireProfile`,
   `getProfile`, `rootOf`, `membershipOf`, `getRoleIn`, `listStories`,
   `listAlbum` and `mintClaimInvite` all call the cookie-bound

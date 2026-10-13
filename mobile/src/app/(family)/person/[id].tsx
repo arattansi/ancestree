@@ -1,4 +1,4 @@
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import * as React from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 
@@ -7,11 +7,13 @@ import { asDayMonth, formatPartialDate } from "@/lib/partial-date";
 import { maidenLine, personDisplayName } from "@/lib/person-name";
 import { useFamily } from "@/family/family";
 import { font, GUTTER, usePalette } from "@/theme";
+import { Button } from "@/ui/button";
 
 /**
- * A leaf's details, read-only for now: who they are, when and where they
- * were born and died, and the tree their leaf comes from. Stories and the
- * album come next (Phase 1 of the mobile plan).
+ * A leaf's details: who they are, when and where they were born and died,
+ * and the tree their leaf comes from; and a story to tell about them, out
+ * loud, to the scribe (Step 148). Reading their stories and the album come
+ * next (Phase 1 of the mobile plan).
  */
 export default function PersonSheet() {
   const palette = usePalette();
@@ -77,6 +79,19 @@ export default function PersonSheet() {
             </View>
           ))}
       </View>
+      {person.fullOn.length ? (
+        <View style={styles.actions}>
+          <Button
+            label="tell a story"
+            onPress={() =>
+              router.push({
+                pathname: "/scribe/[id]",
+                params: { id: person.id },
+              })
+            }
+          />
+        </View>
+      ) : null}
     </ScrollView>
   );
 }
@@ -89,4 +104,5 @@ const styles = StyleSheet.create({
   row: { gap: 2 },
   label: { fontFamily: font.medium, fontSize: 13 },
   value: { fontFamily: font.regular, fontSize: 17 },
+  actions: { marginTop: 28 },
 });

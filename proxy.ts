@@ -44,6 +44,9 @@ const PUBLIC_PREFIXES = [
   "/newsletter",
   "/api/newsletter",
   "/api/cron",
+  // The phone app's routes, which hold no cookie: each checks the bearer
+  // token it's sent (`lib/supabase/bearer.ts`, Step 148).
+  "/api/mobile/",
 ];
 
 export async function proxy(request: NextRequest, event: NextFetchEvent) {
