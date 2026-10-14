@@ -22,6 +22,12 @@
  * day after it starts, and it ends 60 days in or once every step is
  * taken.
  *
+ * Whoever's first email would be a win-back or the last one (members
+ * already away when the drip began) gets their step instead (Aalim,
+ * 2026-10-14: "let existing members start with their step email"), and
+ * it stands in for that absence's win-back, or its last email when it
+ * went at 30 days away.
+ *
  * Pure: `lib/onboarding.server.ts` reads each member's signals
  * (`onboarding_due`) and sends what this picks.
  */
@@ -183,8 +189,13 @@ export function pickOnboardingEmail(
 
   if (test) {
     if (!next) return hold("done");
-    const kind: OnboardingKind =
-      band === "at_risk" ? "winback" : band === "lapsed" ? "last" : next.step;
+    const kind: OnboardingKind = !s.sends.length
+      ? next.step
+      : band === "at_risk"
+        ? "winback"
+        : band === "lapsed"
+          ? "last"
+          : next.step;
     return { kind, step: next.step, reminder: next.reminder, band };
   }
 
@@ -206,6 +217,13 @@ export function pickOnboardingEmail(
         (s.last_active === null || utcDay(x.sent_at) > s.last_active),
     );
   const step = { step: next.step, reminder: next.reminder, band };
+  // Their first email, if it went this absence when they were already
+  // `days` away: their step, standing in for the win-back or the last.
+  const first = s.sends[0];
+  const stoodIn = (days: number) =>
+    !!first &&
+    (s.last_active === null || utcDay(first.sent_at) > s.last_active) &&
+    daysBetween(s.last_active ?? utcDay(s.started_at), utcDay(first.sent_at)) >= days;
 
   switch (band) {
     case "engaged":
@@ -214,11 +232,14 @@ export function pickOnboardingEmail(
       if (next.waiting) return hold("waiting");
       return { kind: next.step, ...step };
     case "at_risk":
-      if (thisAbsence(["winback", "last"])) return hold("away");
+      if (!first) return { kind: next.step, ...step };
+      if (thisAbsence(["winback", "last"]) || stoodIn(AT_RISK_DAYS)) return hold("away");
       if (gap < GAP_DAYS) return hold("not yet");
       return { kind: "winback", ...step };
     case "lapsed":
-      if (away < LAST_EMAIL_DAYS || thisAbsence(["last"])) return hold("away");
+      if (away < LAST_EMAIL_DAYS) return hold("away");
+      if (!first) return { kind: next.step, ...step };
+      if (thisAbsence(["last"]) || stoodIn(LAST_EMAIL_DAYS)) return hold("away");
       if (gap < GAP_DAYS) return hold("not yet");
       return { kind: "last", ...step };
   }

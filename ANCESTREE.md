@@ -1881,10 +1881,19 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
     their own; the win-back's "since" is the day after their last active
     day. **Launch:** every member's drip started 2026-10-14 (the first
     dry run), so the first emails go on the first run after deploy that
-    isn't a Sunday. On 2026-10-14's numbers, that run sends 14 win-backs,
-    5 claim emails and 1 invite email; 2 members away 21–29 days wait for
-    their 30th day. Previewed with Aalim's own account (every email) and
-    checked signed out (off page, one-click, a bogus token).
+    isn't a Sunday (Thu 15 Oct). Previewed with Aalim's own account (every
+    email) and checked signed out (off page, one-click, a bogus token).
+  - **Follow-up (Aalim, after launch, before the first send): "let
+    existing members start with their step email, not win-back".** A
+    member whose first email would be a win-back or the last one (only
+    those already away when the drip began: a new member's first email
+    goes the day after they join) gets their step instead, and it stands
+    in for that absence's win-back, or for its last email when it went at
+    30 days away; once they've been back, the usual rules. On 2026-10-14's
+    numbers the first run now sends 9 claim and 11 invite emails and no
+    win-backs (it would have sent 14); the 2 members away 21–29 days get
+    their step at 30 days. Engine only (`pickOnboardingEmail`), no
+    migration.
 
 - **Step 150: the phone shows every leaf whole** (no migration). **Aalim
   asked:** the maple leaf on the iPhone leaf view had its top and bottom

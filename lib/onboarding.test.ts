@@ -217,8 +217,12 @@ describe("today's email", () => {
   });
 
   it("keeps the gap before a win-back", () => {
-    const s = member({ last_active: "2026-10-10", sends: [sent("claim", "2026-10-19")] });
-    expect(pick(s)).toMatchObject({ kind: null, hold: "not yet" });
+    // A step two days ago, while they were cooling.
+    const s = member({
+      last_active: "2026-10-13",
+      sends: [sent("claim", "2026-10-01"), sent("invite", "2026-10-18")],
+    });
+    expect(pick(s)).toMatchObject({ kind: null, hold: "not yet", band: "at_risk" });
   });
 
   it("sends a lapsed member one last email at 30 days away, then nothing", () => {
@@ -231,9 +235,63 @@ describe("today's email", () => {
     ).toMatchObject({ kind: null, hold: "away" });
   });
 
-  it("sends a member away a month when the drip starts the last email", () => {
-    const s = member({ started_at: "2026-10-14T15:00:00Z", last_active: "2026-09-10" });
-    expect(pick(s)).toMatchObject({ kind: "last", step: "claim", band: "lapsed" });
+  describe("a member already away when the drip starts (Aalim, 2026-10-14)", () => {
+    const existing = (over: Partial<OnboardingSignals>) =>
+      member({ started_at: "2026-10-14T02:05:00Z", ...over });
+
+    it("starts at risk with their step, not a win-back", () => {
+      expect(pick(existing({ last_active: "2026-10-10" }))).toEqual({
+        kind: "claim",
+        step: "claim",
+        reminder: false,
+        band: "at_risk",
+      });
+    });
+
+    it("lets that step stand in for the absence's win-back, then sends the last at 30 days", () => {
+      const s = existing({ last_active: "2026-10-05", sends: [sent("claim", "2026-10-15")] });
+      expect(pick(s)).toMatchObject({ kind: null, hold: "away", band: "at_risk" });
+      expect(
+        pickOnboardingEmail(s, { now: at("2026-11-04"), newsletterDay: false }),
+      ).toMatchObject({ kind: "last", step: "claim", reminder: true, band: "lapsed" });
+    });
+
+    it("starts lapsed at 30 days with their step, then nothing", () => {
+      expect(pick(existing({ last_active: "2026-09-25" }))).toMatchObject({
+        kind: null,
+        hold: "away",
+      });
+      const s = existing({ last_active: "2026-09-10" });
+      expect(pick(s)).toMatchObject({ kind: "claim", band: "lapsed" });
+      expect(
+        pickOnboardingEmail(
+          { ...s, sends: [sent("claim", "2026-10-20")] },
+          { now: at("2026-10-24"), newsletterDay: false },
+        ),
+      ).toMatchObject({ kind: null, hold: "away" });
+    });
+
+    it("gets the usual win-back once they've been back and gone again", () => {
+      // The step went on the 15th; back on the 16th, away since.
+      const s = existing({ last_active: "2026-10-12", sends: [sent("claim", "2026-10-15")] });
+      expect(
+        pickOnboardingEmail(
+          { ...s, last_active: "2026-10-16" },
+          { now: at("2026-10-24"), newsletterDay: false },
+        ),
+      ).toMatchObject({ kind: "winback", band: "at_risk" });
+    });
+  });
+
+  it("still wins back a new member who went quiet after their first email", () => {
+    const s = member({
+      started_at: "2026-10-01T15:00:00Z",
+      last_active: "2026-10-01",
+      sends: [sent("claim", "2026-10-02")],
+    });
+    expect(
+      pickOnboardingEmail(s, { now: at("2026-10-09"), newsletterDay: false }),
+    ).toMatchObject({ kind: "winback", band: "at_risk" });
   });
 
   it("has no win-back once every step is taken", () => {
@@ -251,8 +309,17 @@ describe("today's email", () => {
     });
 
     it("picks the email their band calls for", () => {
-      expect(pick(member({ last_active: "2026-10-10" }), { test: true }).kind).toBe("winback");
-      expect(pick(member({ last_active: "2026-09-10" }), { test: true }).kind).toBe("last");
+      const before = { sends: [sent("claim", "2026-09-05")] };
+      expect(pick(member({ last_active: "2026-10-10", ...before }), { test: true }).kind).toBe(
+        "winback",
+      );
+      expect(pick(member({ last_active: "2026-09-10", ...before }), { test: true }).kind).toBe(
+        "last",
+      );
+    });
+
+    it("picks their step when nothing has gone to them yet", () => {
+      expect(pick(member({ last_active: "2026-10-10" }), { test: true }).kind).toBe("claim");
     });
   });
 });
