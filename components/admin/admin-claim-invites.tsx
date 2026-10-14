@@ -27,20 +27,16 @@ export function claimLinkMessage(url: string, treeName: string): string {
  * The Root console's list of everyone living on the tree that nobody is
  * behind yet (Step 143): beside each name, an invite by email, or a link
  * to send any other way. Each says when one went out already. Settings
- * shows the same list of the people a member added (Step 151), where only
- * a Root of the tree gets the link (`canLink`).
+ * shows the same list of the people a member added (Step 151).
  */
 export function AdminClaimInvites({
   treeId,
   treeName,
   people,
-  canLink = true,
 }: {
   treeId: string;
   treeName: string;
   people: Invitable[];
-  /** Offer a bare link beside the email: only a Root may make one. */
-  canLink?: boolean;
 }) {
   const [query, setQuery] = React.useState("");
   const [all, setAll] = React.useState(false);
@@ -74,13 +70,7 @@ export function AdminClaimInvites({
       ) : null}
       <ul className="flex flex-col divide-y divide-border rounded-lg border border-border">
         {shown.map((p) => (
-          <ClaimRow
-            key={p.id}
-            person={p}
-            treeId={treeId}
-            treeName={treeName}
-            canLink={canLink}
-          />
+          <ClaimRow key={p.id} person={p} treeId={treeId} treeName={treeName} />
         ))}
       </ul>
       {matching.length === 0 ? (
@@ -105,12 +95,10 @@ function ClaimRow({
   person,
   treeId,
   treeName,
-  canLink,
 }: {
   person: Invitable;
   treeId: string;
   treeName: string;
-  canLink: boolean;
 }) {
   const id = React.useId();
   const [open, setOpen] = React.useState<"email" | null>(null);
@@ -174,19 +162,17 @@ function ClaimRow({
           >
             email
           </Button>
-          {canLink ? (
-            <PendingButton
-              type="button"
-              variant="outline"
-              size="sm"
-              pending={action.pendingKey === "link"}
-              pendingLabel="making…"
-              disabled={action.pending}
-              onClick={link}
-            >
-              copy link
-            </PendingButton>
-          ) : null}
+          <PendingButton
+            type="button"
+            variant="outline"
+            size="sm"
+            pending={action.pendingKey === "link"}
+            pendingLabel="making…"
+            disabled={action.pending}
+            onClick={link}
+          >
+            copy link
+          </PendingButton>
         </div>
       </div>
 

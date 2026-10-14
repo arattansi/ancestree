@@ -241,11 +241,15 @@ async function placedWith(db: DbClient, treeId: string, personId: string): Promi
 }
 
 /**
- * A link to claim one entry, for a Root to send however they like (Step
- * 143): bound to no address, so whoever opens it may join `treeId` and
- * claim the entry, once (`redeem_invite`). The Root console's list makes
- * one beside each name. A link still live for the entry, bare like this
- * one, is handed back rather than a second made.
+ * A link to claim one entry, to send however they like (Step 143): bound
+ * to no address, so whoever opens it may join `treeId` and claim the
+ * entry, once (`redeem_invite`). The Root console's list makes one beside
+ * each name, and settings' list of the people a member added (Step 151).
+ * Anyone the database lets invite someone to claim it may make one
+ * (`can_invite_to_claim_on`): a Root, for any entry nobody is behind; a
+ * Leaf, for what they added (Aalim, 2026-10-14: "let leaves copy a claim
+ * link too"). A link still live for the entry, bare like this one, is
+ * handed back rather than a second made.
  */
 export async function mintClaimLink(
   inviter: Profile,
@@ -260,9 +264,7 @@ export async function mintClaimLink(
       p_person_id: personId,
     }),
   ]);
-  if (!role || !accountTypeOf(role).runsTree) {
-    return { error: "Only a Root of this tree can make that link." };
-  }
+  if (!role) return { error: "Only a member of this tree can make that link." };
   if (mayInvite !== true) return { error: "That entry can’t be claimed." };
 
   // Bound to nobody: the service role reads and makes it, the right to

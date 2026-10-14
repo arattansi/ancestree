@@ -154,9 +154,11 @@ export async function sendClaimInvite(
 }
 
 /**
- * Root: a link to claim one living, unclaimed entry on `treeId`, bound to
- * no address, for them to send however they like (Step 143, the Root
- * console's list). A live one already made for it comes back instead.
+ * A link to claim one living, unclaimed entry on `treeId`, bound to no
+ * address, to send however they like (Step 143, the Root console's list;
+ * Step 151, the people a member added). Anyone who may invite someone to
+ * claim it may make one. A live one already made for it comes back
+ * instead.
  */
 export async function makeClaimLink(
   personId: string,

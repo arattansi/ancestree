@@ -565,8 +565,7 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   (`lib/onboarding-settings.server.ts`); `components/getting-started-emails.tsx`
   — the box on settings, beside the newsletter's; settings' **Invite the
   People You Added** (`listPeopleYouAdded` in `lib/invitable.server.ts`,
-  `AdminClaimInvites` with `canLink` for a Root only), the claim email's
-  button; `components/dashboard/getting-started-card.tsx` +
+  `AdminClaimInvites`, email or a bare link), the claim email's button; `components/dashboard/getting-started-card.tsx` +
   `getting-started-preview.tsx` — the admin newsletter tab's counts,
   preview and test email (`app/actions/getting-started.ts`)
 - `components/site-header.tsx` (the mark, the tree switcher, a beta
@@ -1858,8 +1857,7 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
     drip starts, none after 60 days or once every step is taken.
   - **Where they land.** The claim email's **invite them** opens a new
     settings card, **Invite the People You Added**: the Root console's
-    claim list (Step 143), cut to what they added, tree by tree; only a
-    Root of the tree gets **copy link**, as before. "Email me tips for
+    claim list (Step 143), cut to what they added, tree by tree. "Email me tips for
     getting started" sits under the newsletter's box; each email's
     Unsubscribe opens `/getting-started/<token>`, with RFC 8058 one-click
     at `/api/getting-started/<token>`.
@@ -1894,6 +1892,15 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
     win-backs (it would have sent 14); the 2 members away 21–29 days get
     their step at 30 days. Engine only (`pickOnboardingEmail`), no
     migration.
+  - **Follow-up (Aalim): "let leaves copy a claim link too".** **copy
+    link** shows beside every name on settings' **Invite the People You
+    Added**, not only a Root's. `mintClaimLink` no longer asks for a Root:
+    any member of the tree whom `can_invite_to_claim_on` lets invite
+    someone to claim the entry may make a bare link, the same rule as the
+    email invite (a Leaf: living entries they added, nobody behind them,
+    and their own placeholder child; a Branch: their side). Checked as a
+    live Leaf, rolled back: yes for their own addition, no for another's
+    on the same tree. No migration.
 
 - **Step 150: the phone shows every leaf whole** (no migration). **Aalim
   asked:** the maple leaf on the iPhone leaf view had its top and bottom

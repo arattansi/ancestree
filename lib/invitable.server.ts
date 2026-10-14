@@ -81,8 +81,6 @@ export async function listInvitable(
 export type AddedToInvite = {
   treeId: string;
   treeName: string;
-  /** They run that tree: a Root may also make a bare link. */
-  runsTree: boolean;
   people: Invitable[];
 };
 
@@ -144,7 +142,6 @@ export async function listPeopleYouAdded(
       return {
         treeId: t.id,
         treeName: t.name,
-        runsTree: t.type.runsTree,
         people: people.map((c) => ({
           id: c.id,
           name: personDisplayName(c),

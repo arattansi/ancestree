@@ -382,7 +382,6 @@ async function SettingsView({
                   treeId={t.treeId}
                   treeName={t.treeName}
                   people={t.people}
-                  canLink={t.runsTree}
                 />
               </section>
             ))}
