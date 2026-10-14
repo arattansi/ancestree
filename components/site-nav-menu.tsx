@@ -72,7 +72,8 @@ function Word({ word }: { word: NavTreeWord }) {
 
 /**
  * The site's navigation in Aalim's handwriting (Step 110). In the app it's
- * a **menu** button drawn like **tree** and **account**, solid while open;
+ * a **menu** button drawn like **tree** and **account**, its word in the
+ * mark's apple red (Step 152), solid while open;
  * pressed, each of his five words flies out of it and grows into its
  * place in a tree (Step 133, `lib/nav-tree.ts`: why over what + how,
  * capitalism upright as the trunk, who and shh either side; the canopy
@@ -220,7 +221,13 @@ export function SiteNavMenu({ className }: { className?: string }) {
           setByHand(true);
           setOpen(true);
         }}
-        className={cn("relative tap-target", pinned && "invisible", className)}
+        className={cn(
+          "relative tap-target",
+          // **menu** in the mark's apple red, like the apples that spell it.
+          !(open && !closing) && "text-brand-red hover:text-brand-red",
+          pinned && "invisible",
+          className,
+        )}
       >
         {/* The words, piled out of sight, so they fly from the button. */}
         {NAV_WORDS.map((word, i) => (

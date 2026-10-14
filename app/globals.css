@@ -69,8 +69,9 @@
      brown. The same in both themes, so .dark doesn't redefine them. */
   --brand-green: #77b255;
   --brand-brown: #a57939;
-  /* The apples' red, and **menu** under the held-open menu tree: the
-     body of the apple in the mark (`#at-apple` in ancestree-mark.svg). */
+  /* The apples' red, the **menu** button, and **menu** under the held-open
+     menu tree: the body of the apple in the mark (`#at-apple` in
+     ancestree-mark.svg). */
   --brand-red: #e8452c;
   /* The paper the mark sits on where it needs a ground of its own: the
      link preview and the home-screen icon, which can't read this token

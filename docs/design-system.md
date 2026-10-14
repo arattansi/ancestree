@@ -447,7 +447,8 @@ privacy page's column (`PageColumn`) and type: `text-2xl` heading,
   **capitalism**, **shh**, traced to vectors (`lib/nav-words.ts`, and as
   SVG files in `public/brand/nav/` for anything else). Closed, it's a
   **menu** button in the header, drawn like **tree** and **account**
-  (Step 121; ☰ on a narrow bar), solid while open. Pressed, each word
+  (Step 121; ☰ on a narrow bar) but with its word in the mark's apple
+  red (`brand-red`, Step 152), solid while open. Pressed, each word
   flies out of an unseen pile inside it, a beat after the one before,
   and grows into its place in a tree (Step 133, `lib/nav-tree.ts`),
   centred on the screen or down the left of the page from `xl`: **why**

@@ -1827,6 +1827,18 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 152: the menu button in the mark's apple red** (no migration).
+  **Aalim asked:** the **menu** text the same colour as the apple in the
+  logo. Closed, the header's **menu** button (and the ☰ that stands for
+  it on a narrow bar) is now `brand-red`, `#e8452c`, the body of
+  `#at-apple` in the mark, as the apples that spell **menu** under the
+  held-open tree already were; it stays red on hover, where the outline
+  button would turn it to the foreground. Open, it's still solid like
+  **tree** and **account** (my call: red on the solid button falls to
+  about 3:1 in dark mode). On white the red is about 3.9:1, under 4.5:1
+  for text this small. Checked in the browser: light, dark, hover, open
+  and the phone header.
+
 - **Step 151: getting started emails** (migrations
   `20261013200000_onboarding_drip`, `20261013210000_onboarding_invited`,
   both live). **Aalim asked:** "an onboarding email drip for encouraging
