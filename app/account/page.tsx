@@ -11,6 +11,7 @@ import {
   AccountViewToggle,
   type AccountView,
 } from "@/components/account-view-toggle";
+import { AdminClaimInvites } from "@/components/admin/admin-claim-invites";
 import { AdminConsole } from "@/components/admin/admin-console";
 import { AdminNicknames } from "@/components/admin/admin-nicknames";
 import { AdminSideNav } from "@/components/admin/admin-side-nav";
@@ -34,6 +35,7 @@ import { RelayInvites } from "@/components/relay-invites";
 import { SubmitButton } from "@/components/submit-button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { WeeklyNewsletter } from "@/components/weekly-newsletter";
+import { GettingStartedEmails } from "@/components/getting-started-emails";
 import { TreeTarget } from "@/components/tree-target";
 import { Button } from "@/components/ui/button";
 import {
@@ -293,6 +295,8 @@ async function SettingsView({
     asks,
     newsletterOn,
     nicknameGroups,
+    gettingStartedOn,
+    peopleYouAdded,
   } = await loadAccountSettings(profile, trees, openedRelayId);
 
   // Inviting from here: every tree they don't run (Roots invite from the
@@ -307,6 +311,9 @@ async function SettingsView({
     ...(asks.length > 0 ? [{ id: "asked-of-you", label: "Asked of You" }] : []),
     ...(relays.length > 0 || openedRelayGone
       ? [{ id: "relatives-asking", label: "Relatives Asking for an Invite" }]
+      : []),
+    ...(peopleYouAdded.length > 0
+      ? [{ id: "people-you-added", label: "Invite the People You Added" }]
       : []),
     { id: "your-trees", label: "Your Trees" },
     ...(profile.self_person_id && home
@@ -355,6 +362,30 @@ async function SettingsView({
                 defaultTreeId={currentTreeId}
               />
             ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {/* The getting started claim email's button (Step 151). */}
+      {peopleYouAdded.length > 0 ? (
+        <Card id="people-you-added" className="scroll-mt-24 md:col-span-2">
+          <CardHeader>
+            <CardTitle>Invite the People You Added</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-6">
+            {peopleYouAdded.map((t) => (
+              <section key={t.treeId} className="flex flex-col gap-2">
+                {peopleYouAdded.length > 1 ? (
+                  <h3 className="text-sm font-semibold">{t.treeName}</h3>
+                ) : null}
+                <AdminClaimInvites
+                  treeId={t.treeId}
+                  treeName={t.treeName}
+                  people={t.people}
+                  canLink={t.runsTree}
+                />
+              </section>
+            ))}
           </CardContent>
         </Card>
       ) : null}
@@ -546,16 +577,20 @@ async function SettingsView({
       ) : null}
 
       {/* Folded until opened (Step 108); the newsletter email's
-          `#newsletter` opens it. */}
+          `#newsletter` opens it, and the getting started emails'
+          `#getting-started` (Step 151). */}
       <CollapsibleCard
         id="notifications"
         title="Notifications"
-        opensFor={["newsletter"]}
+        opensFor={["newsletter", "getting-started"]}
         action={<ClearNotificationsButton items={notifications} />}
         className="md:col-span-2"
         contentClassName="flex flex-col gap-6"
       >
-        <WeeklyNewsletter on={newsletterOn} />
+        <div className="flex flex-col gap-3">
+          <WeeklyNewsletter on={newsletterOn} />
+          <GettingStartedEmails on={gettingStartedOn} />
+        </div>
         {trees.length > 1 ? (
           trees.map((t) => {
             const items = notifications.filter((n) => n.treeId === t.id);

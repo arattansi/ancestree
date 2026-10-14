@@ -44,6 +44,10 @@ const PUBLIC_PREFIXES = [
   "/newsletter",
   "/api/newsletter",
   "/api/cron",
+  // The getting started emails' page and one-click link, likewise (Step
+  // 151).
+  "/getting-started/",
+  "/api/getting-started/",
   // The phone app's routes, which hold no cookie: each checks the bearer
   // token it's sent (`lib/supabase/bearer.ts`, Step 148).
   "/api/mobile/",

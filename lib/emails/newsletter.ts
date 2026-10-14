@@ -16,9 +16,9 @@ export const NAMES_SHOWN = 6;
 /** Plain text, so a real apostrophe. */
 export const NEWSLETTER_SUBJECT = "Your family this week";
 
-const TEXT = "font-size:15px;line-height:1.6;color:#0a0a0a;";
-const LINK = "color:#0a0a0a;text-decoration:underline;";
-const HEADING =
+export const TEXT = "font-size:15px;line-height:1.6;color:#0a0a0a;";
+export const LINK = "color:#0a0a0a;text-decoration:underline;";
+export const HEADING =
   "margin:28px 0 0;font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#737373;";
 
 /**
@@ -48,47 +48,14 @@ export function newsletterEmail(input: {
   /** The beta reviewers' note for this send, as they wrote it (Step 144). */
   note?: string | null;
 }): { subject: string; html: string } {
-  const { issue, personUrl } = input;
-  const link = (n: IssueName) =>
-    `<a href="${escapeHtml(personUrl(n.id))}" style="${LINK}">${escapeHtml(oneLine(n.name))}</a>`;
-  // "Yusuf Khan (your first cousin)", where there's a word for it.
-  const linkKin = (n: IssueName) =>
-    n.relation ? `${link(n)} (${escapeHtml(n.relation)})` : link(n);
-
-  const sections: string[] = [];
+  const { issue } = input;
   // Their note above everything, as written: lines kept, nothing else
   // (Step 144; above the greeting at Aalim's ask).
   const note = input.note?.trim();
   const lead = note
     ? `<p style="margin:0 0 28px;${TEXT}">${escapeHtml(note).replace(/\r?\n/g, "<br />")}</p>`
     : undefined;
-  // What's coming up first (Aalim, 2026-10-01), then each tree's news.
-  if (issue.week.length) {
-    sections.push(`<p style="${HEADING}">This Week</p>${occasionRows(issue.week, link)}`);
-  }
-  if (issue.later.length) {
-    sections.push(
-      `<p style="${HEADING}">Later This Month</p>${occasionRows(issue.later, link)}`,
-    );
-  }
-  for (const tree of issue.trees) {
-    const lines = [
-      ...(tree.joined.length ? [`${list(tree.joined, linkKin)} joined.`] : []),
-      ...tree.added.map((g) => addedLine(g, linkKin)),
-      ...tree.stories.map((st) => storyLine(st, input.storyUrl(st.id), link)),
-      ...(tree.photos.length
-        ? [
-            `${tree.photos.length === 1 ? "A new photo" : "New photos"} of ${list(tree.photos, link)}.`,
-          ]
-        : []),
-    ];
-    sections.push(
-      `<p style="${HEADING}">${escapeHtml(oneLine(tree.name))}</p>` +
-        lines
-          .map((l) => `<p style="margin:8px 0 0;${TEXT}">${l}</p>`)
-          .join(""),
-    );
-  }
+  const sections = issueSections(issue, input);
 
   // A week with no stories asks for one (Step 144): written on whoever's
   // card they pick on My Family Tree.
@@ -113,6 +80,61 @@ export function newsletterEmail(input: {
                   <a href="${unsubscribe}" style="color:#737373;">Unsubscribe</a>.`,
     }),
   };
+}
+
+/**
+ * What an issue tells, a block each: This Week, Later This Month, then a
+ * section per tree that had news. Every name links to its card
+ * (`personUrl`); whoever was added says what they are to the reader, and
+ * each story links to itself with who told it and who asked. The weekly
+ * newsletter's body, and the getting started win-back's "since you were
+ * last here" (Step 151).
+ */
+export function issueSections(
+  issue: Issue,
+  {
+    personUrl,
+    storyUrl,
+  }: {
+    personUrl: (personId: string) => string;
+    storyUrl: (storyId: string) => string;
+  },
+): string[] {
+  const link = (n: IssueName) =>
+    `<a href="${escapeHtml(personUrl(n.id))}" style="${LINK}">${escapeHtml(oneLine(n.name))}</a>`;
+  // "Yusuf Khan (your first cousin)", where there's a word for it.
+  const linkKin = (n: IssueName) =>
+    n.relation ? `${link(n)} (${escapeHtml(n.relation)})` : link(n);
+
+  const sections: string[] = [];
+  // What's coming up first (Aalim, 2026-10-01), then each tree's news.
+  if (issue.week.length) {
+    sections.push(`<p style="${HEADING}">This Week</p>${occasionRows(issue.week, link)}`);
+  }
+  if (issue.later.length) {
+    sections.push(
+      `<p style="${HEADING}">Later This Month</p>${occasionRows(issue.later, link)}`,
+    );
+  }
+  for (const tree of issue.trees) {
+    const lines = [
+      ...(tree.joined.length ? [`${list(tree.joined, linkKin)} joined.`] : []),
+      ...tree.added.map((g) => addedLine(g, linkKin)),
+      ...tree.stories.map((st) => storyLine(st, storyUrl(st.id), link)),
+      ...(tree.photos.length
+        ? [
+            `${tree.photos.length === 1 ? "A new photo" : "New photos"} of ${list(tree.photos, link)}.`,
+          ]
+        : []),
+    ];
+    sections.push(
+      `<p style="${HEADING}">${escapeHtml(oneLine(tree.name))}</p>` +
+        lines
+          .map((l) => `<p style="margin:8px 0 0;${TEXT}">${l}</p>`)
+          .join(""),
+    );
+  }
+  return sections;
 }
 
 /**

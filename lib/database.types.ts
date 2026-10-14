@@ -1273,6 +1273,84 @@ export type Database = {
           },
         ]
       }
+      onboarding_sends: {
+        Row: {
+          id: number
+          sent_at: string
+          sent_day: string
+          step: string
+          user_id: string
+        }
+        Insert: {
+          id?: never
+          sent_at?: string
+          sent_day?: string
+          step: string
+          user_id: string
+        }
+        Update: {
+          id?: never
+          sent_at?: string
+          sent_day?: string
+          step?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "onboarding_sends_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "onboarding_sends_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+        ]
+      }
+      onboarding_settings: {
+        Row: {
+          started_at: string
+          subscribed: boolean
+          token: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          started_at?: string
+          subscribed?: boolean
+          token?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          started_at?: string
+          subscribed?: boolean
+          token?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "onboarding_settings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "onboarding_settings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+        ]
+      }
       people: {
         Row: {
           birth_day: number | null
@@ -3280,6 +3358,24 @@ export type Database = {
         }[]
       }
       note_active_day: { Args: never; Returns: boolean }
+      onboarding_due: {
+        Args: { p_users?: string[] }
+        Returns: {
+          claimable: string[]
+          email: string
+          invited: boolean
+          last_active: string
+          people_added: number
+          root_of: string[]
+          self_person_id: string
+          sends: Json
+          shared: boolean
+          started_at: string
+          token: string
+          tree_ids: string[]
+          user_id: string
+        }[]
+      }
       own_card_trees: {
         Args: never
         Returns: {
@@ -3389,6 +3485,7 @@ export type Database = {
           updated_at: string
         }[]
       }
+      record_onboarding_sends: { Args: { p_sends: Json }; Returns: string[] }
       record_share_link_view: {
         Args: { p_link_id: string }
         Returns: undefined
@@ -3580,6 +3677,7 @@ export type Database = {
         Args: { p_paused: boolean; p_weekday: number }
         Returns: undefined
       }
+      set_onboarding_emails: { Args: { p_on: boolean }; Returns: undefined }
       share_story: { Args: { p_story: string }; Returns: string }
       shared_story: {
         Args: { p_token: string }

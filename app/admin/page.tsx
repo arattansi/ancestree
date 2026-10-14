@@ -9,6 +9,7 @@ import { AdminPageTabs } from "@/components/admin/admin-page-tabs";
 import { AdminTreeRequests } from "@/components/admin/admin-tree-requests";
 import { BackToTop } from "@/components/back-to-top";
 import { EngagementDashboard } from "@/components/dashboard/engagement-dashboard";
+import { GettingStartedCard } from "@/components/dashboard/getting-started-card";
 import {
   NewsletterCard,
   NewsletterCardSkeleton,
@@ -63,7 +64,13 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
         }
       >
         {tab === "newsletter" ? (
-          <NewsletterCard />
+          <div className="flex flex-col gap-6">
+            <NewsletterCard />
+            {/* Its own wait: today's dry run reads every member (Step 151). */}
+            <Suspense fallback={null}>
+              <GettingStartedCard />
+            </Suspense>
+          </div>
         ) : tab === "analytics" ? (
           <EngagementDashboard />
         ) : tab === "blog" ? (

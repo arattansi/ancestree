@@ -8,6 +8,7 @@ import { branchSidesOn } from "@/lib/branch.server";
 import { listNotifications } from "@/lib/claims";
 import type { NicknameGroup } from "@/lib/nicknames";
 import { listNicknameGroups } from "@/lib/nicknames.server";
+import { listPeopleYouAdded } from "@/lib/invitable.server";
 import { relayLapseCutoff } from "@/lib/invite-relays";
 import { openedRelayNote } from "@/lib/opened-relay";
 import { loadOpenedRelay } from "@/lib/opened-relay.server";
@@ -35,8 +36,9 @@ export type OwnCardElsewhere = {
  * `app/account/page.tsx`): relatives' asks and the entries they match, the
  * member's own entry across their trees, what each Branch membership
  * tends, the trees they'd leave without a Root, what other trees have asked
- * of them, their inbox and whether they get the weekly newsletter; and,
- * for a Root, the nickname groups (Step 103.2, from the Root console). A
+ * of them, their inbox, whether they get the weekly newsletter and the
+ * getting started emails, and the people they added still to invite (Step
+ * 151); and, for a Root, the nickname groups (Step 103.2, from the Root console). A
  * tree's own settings went back to its Root console in Step 109.
  * Everything that needs only them, their trees or the address is asked for
  * at once; what needs an answer first starts as soon as it has it (Step
@@ -72,6 +74,8 @@ export async function loadAccountSettings(
     asks,
     { data: newsletter },
     nicknameGroups,
+    { data: gettingStarted },
+    peopleYouAdded,
   ] = await Promise.all([
     listNotifications(profile.auth_user_id),
     supabase
@@ -142,6 +146,16 @@ export async function loadAccountSettings(
       .maybeSingle(),
     // Shared by every tree, so one list for whoever runs any.
     runIds.length > 0 ? listNicknameGroups() : ([] as NicknameGroup[]),
+    // Whether they get the getting started emails (Step 151), as the
+    // newsletter's box.
+    supabase
+      .from("onboarding_settings")
+      .select("subscribed")
+      .eq("user_id", profile.auth_user_id)
+      .maybeSingle(),
+    // The living people they added whom nobody is behind yet, to invite
+    // to claim their entries (Step 151).
+    listPeopleYouAdded(profile.auth_user_id, selfId, trees),
   ]);
   const invitedByTree = new Map(
     (directory ?? []).map((d) => [d.tree_id, d.invited_by_name]),
@@ -236,5 +250,7 @@ export async function loadAccountSettings(
     asks,
     newsletterOn: newsletter?.subscribed ?? true,
     nicknameGroups,
+    gettingStartedOn: gettingStarted?.subscribed ?? true,
+    peopleYouAdded,
   };
 }

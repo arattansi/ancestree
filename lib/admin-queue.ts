@@ -23,7 +23,12 @@ export function isQueueSection(raw: unknown): raw is QueueSection {
  * Every card an email's button may open: the queues, and the list of
  * whom to invite, from the weekly newsletter (Step 143).
  */
-export const LINKED_SECTIONS = [...QUEUE_SECTIONS, "invite-to-claim"] as const;
+export const LINKED_SECTIONS = [
+  ...QUEUE_SECTIONS,
+  "invite-to-claim",
+  // The getting started invite email, for a Root (Step 151).
+  "family-link",
+] as const;
 
 export type LinkedSection = (typeof LINKED_SECTIONS)[number];
 

@@ -10,6 +10,7 @@ import {
   isSendDay,
   nextSendAt,
   weeklyIssue,
+  type Issue,
   type IssuePlacement,
   type NewsletterSchedule,
 } from "@/lib/newsletter";
@@ -216,12 +217,78 @@ export async function buildWeeklyNewsletters(
   quiet: number;
   failed: Set<string>;
 }> {
-  const supabase = createAdminClient();
-  const treeIds = [...new Set(due.flatMap((r) => r.tree_ids ?? []))];
-  const earliest = new Date(
-    Math.min(...due.map((r) => Date.parse(r.since))),
-  ).toISOString();
+  const { issues, failed } = await buildFamilyIssues(due, now, { allStories });
+  const site = getSiteUrl();
+  const emails = new Map<string, SendEmailInput>();
+  let quiet = 0;
+  for (const r of due) {
+    if (failed.has(r.user_id)) continue;
+    const made = issues.get(r.user_id);
+    if (!made?.issue) {
+      quiet++;
+      continue;
+    }
+    try {
+      const page = `${site}${newsletterPageHref(r.token)}`;
+      emails.set(r.user_id, {
+        to: r.email,
+        ...newsletterEmail({
+          issue: made.issue,
+          personUrl: (id) => `${site}${myFamilyFocusHref(id)}`,
+          familyUrl: `${site}${myFamilyHref()}`,
+          unsubscribeUrl: page,
+          inviteUrl: `${site}${made.invite}`,
+          storyUrl: (id) => `${site}${storyHref(id)}`,
+          note,
+        }),
+        headers: {
+          "List-Unsubscribe": `<${site}${newsletterOneClickHref(r.token)}>`,
+          "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+        },
+      });
+    } catch (err) {
+      failed.add(r.user_id);
+      console.error("[newsletter] couldn't make one issue", err);
+    }
+  }
+  return { emails, quiet, failed };
+}
 
+/** A member to tell what changed in their family since `since`. */
+export type IssueReader = Pick<
+  NewsletterRecipient,
+  "user_id" | "self_person_id" | "since" | "tree_ids"
+>;
+
+/** One reader's issue, and where they invite family from. */
+export type FamilyIssue = {
+  /** Null for a quiet stretch, or with no entry of their own. */
+  issue: Issue | null;
+  /** A Root invites from the console of the first tree they run; anyone
+   *  else, from settings, into the first tree they joined (Step 143). */
+  invite: string;
+};
+
+/**
+ * What changed in each reader's family since their own `since`
+ * (`weeklyIssue`): the weekly newsletter's issue, and the getting started
+ * win-back's "since you were last here" (Step 151). Every tree anyone
+ * reads is read once, with the service role: the `tree_people` and
+ * `tree_edges` views answer it as they answer any member of the tree (a
+ * basic card is still only a name). One that can't be made is logged and
+ * named in `failed`, never told half-made.
+ */
+export async function buildFamilyIssues(
+  readers: readonly IssueReader[],
+  now: Date,
+  /** Every story so far rather than the stretch's (Step 144). */
+  { allStories = false }: { allStories?: boolean } = {},
+): Promise<{ issues: Map<string, FamilyIssue>; failed: Set<string> }> {
+  const supabase = createAdminClient();
+  const treeIds = [...new Set(readers.flatMap((r) => r.tree_ids ?? []))];
+  const earliest = new Date(
+    Math.min(...readers.map((r) => Date.parse(r.since))),
+  ).toISOString();
   const [trees, people, edges, placements, stories, tags, roles] = await Promise.all([
     supabase.from("trees").select("id, name").in("id", treeIds),
     readTreesPeople(supabase, treeIds),
@@ -269,7 +336,7 @@ export async function buildWeeklyNewsletters(
       .select("tree_id, user_id")
       .eq("role", ROOT.key)
       .in("tree_id", treeIds)
-      .in("user_id", due.map((r) => r.user_id)),
+      .in("user_id", readers.map((r) => r.user_id)),
   ]);
   if (
     roles.error ||
@@ -339,76 +406,50 @@ export async function buildWeeklyNewsletters(
   const runs = new Set((roles.data ?? []).map((m) => `${m.user_id}:${m.tree_id}`));
   const placementRows: IssuePlacement[] = placements.rows;
   const today = utcDay(now);
-  const site = getSiteUrl();
 
-  // Each member's own issue; one that can't be made is logged and left
-  // out, never sent half-made.
-  const emails = new Map<string, SendEmailInput>();
+  // Each reader's own issue; one that can't be made is logged and left
+  // out, never told half-made.
+  const issues = new Map<string, FamilyIssue>();
   const failed = new Set<string>();
-  let quiet = 0;
-  for (const r of due) {
-    if (!r.self_person_id) {
-      quiet++;
-      continue;
-    }
+  for (const r of readers) {
     try {
       const theirTrees = (r.tree_ids ?? []).flatMap((id) => {
         const name = treeName.get(id);
         return name ? [{ id, name }] : [];
       });
-      const issue = weeklyIssue({
-        userId: r.user_id,
-        selfId: r.self_person_id,
-        trees: theirTrees,
-        showings: theirTrees.flatMap((t) => showingsByTree.get(t.id) ?? []),
-        lines: theirTrees.flatMap((t) => linesByTree.get(t.id) ?? []),
-        placements: placementRows,
-        stories: stories.rows
-          .filter((s) => allStories || withinWeek(s, r.since))
-          .map((s) => ({
-            id: s.id,
-            person_id: s.person_id,
-            credits: s.story_credits ?? [],
-          })),
-        photos: tags.rows.filter((t) => withinWeek(t, r.since)),
-        memberNames,
-        memberEntries,
-        since: r.since,
-        today,
-      });
-      if (!issue) {
-        quiet++;
-        continue;
-      }
-      const page = `${site}${newsletterPageHref(r.token)}`;
-      // A Root invites from the console of the first tree they run; anyone
-      // else, from settings, into the first tree they joined (Step 143).
       const ran = theirTrees.find((t) => runs.has(`${r.user_id}:${t.id}`));
       const invite = ran
         ? openConsoleHref("invite-to-claim", ran.id)
         : inviteRelativeHref(theirTrees[0]?.id ?? "");
-      emails.set(r.user_id, {
-        to: r.email,
-        ...newsletterEmail({
-          issue,
-          personUrl: (id) => `${site}${myFamilyFocusHref(id)}`,
-          familyUrl: `${site}${myFamilyHref()}`,
-          unsubscribeUrl: page,
-          inviteUrl: `${site}${invite}`,
-          storyUrl: (id) => `${site}${storyHref(id)}`,
-          note,
-        }),
-        headers: {
-          "List-Unsubscribe": `<${site}${newsletterOneClickHref(r.token)}>`,
-          "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-        },
-      });
+      const issue = r.self_person_id
+        ? weeklyIssue({
+            userId: r.user_id,
+            selfId: r.self_person_id,
+            trees: theirTrees,
+            showings: theirTrees.flatMap((t) => showingsByTree.get(t.id) ?? []),
+            lines: theirTrees.flatMap((t) => linesByTree.get(t.id) ?? []),
+            placements: placementRows,
+            stories: stories.rows
+              .filter((s) => allStories || withinWeek(s, r.since))
+              .map((s) => ({
+                id: s.id,
+                person_id: s.person_id,
+                credits: s.story_credits ?? [],
+              })),
+            photos: tags.rows.filter((t) => withinWeek(t, r.since)),
+            memberNames,
+            memberEntries,
+            since: r.since,
+            today,
+          })
+        : null;
+      issues.set(r.user_id, { issue, invite });
     } catch (err) {
       failed.add(r.user_id);
       console.error("[newsletter] couldn't make one issue", err);
     }
   }
-  return { emails, quiet, failed };
+  return { issues, failed };
 }
 
 /** Approved within the member's own week: when its yes came, or it was made. */

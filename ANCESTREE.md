@@ -43,7 +43,8 @@ Copy `.env.example` to `.env.local` and fill in:
   card or form shows any (Step 40). See
   [Reference data — Native Land Digital](#reference-data--native-land-digital)
 - `CRON_SECRET` — server-only; the secret Vercel Cron sends to
-  `/api/cron/newsletter`, the weekly newsletter (Step 95). Set in Vercel's
+  `/api/cron/newsletter`, the weekly newsletter (Step 95) and the getting
+  started emails (Step 151). Set in Vercel's
   Production env (2026-10-01); without it the route refuses every call, so
   nothing is sent
 - `ANTHROPIC_API_KEY` — server-only; the Claude API key the phone app's
@@ -547,6 +548,27 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `components/dashboard/newsletter-card.tsx` + `newsletter-controls.tsx` —
   the beta reviewers' day, pause, test email and preview
   (`app/actions/newsletter.ts`)
+- The getting started emails (Step 151), sent from the same daily cron
+  call after the newsletter, never on its day: `lib/onboarding.ts` —
+  `pickOnboardingEmail`, the churn band (days since last active) and the
+  next step (claim → invite → family → story), or the win-back / last
+  email (`.test.ts`); `lib/onboarding.server.ts` — `sendOnboardingEmails`
+  (who's in the drip and what each has done, `onboarding_due`; noted with
+  `record_onboarding_sends` just before sending; `?drip=dry` /
+  `?drip=send&user=<id>&kind=<email>` on the cron route) and
+  `previewOnboardingEmail`; the win-back's recap is the newsletter's
+  issue since they were last here (`buildFamilyIssues` in
+  `lib/newsletter.server.ts`, `issueSections` in
+  `lib/emails/newsletter.ts`); `lib/emails/onboarding.ts` (`.test.ts`);
+  the signed-out off page `app/getting-started/[token]/` and one-click
+  `app/api/getting-started/[token]/route.ts`
+  (`lib/onboarding-settings.server.ts`); `components/getting-started-emails.tsx`
+  — the box on settings, beside the newsletter's; settings' **Invite the
+  People You Added** (`listPeopleYouAdded` in `lib/invitable.server.ts`,
+  `AdminClaimInvites` with `canLink` for a Root only), the claim email's
+  button; `components/dashboard/getting-started-card.tsx` +
+  `getting-started-preview.tsx` — the admin newsletter tab's counts,
+  preview and test email (`app/actions/getting-started.ts`)
 - `components/site-header.tsx` (the mark, the tree switcher, a beta
   reviewer's red **admin** (Step 103, `AdminNavLink`), **tree**,
   **connections**, **account**, the bell; `lib/nav-active.ts` says which is
@@ -660,6 +682,8 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `tree_requests`          | Asks to start a tree during the beta (Step 28): a member's (`user_id`) or a waitlist sign-up's (name + email only), `pending` \| `approved` \| `declined`, answered by a beta reviewer (`private.beta_reviewers`). A member's approval is their permission to `found_tree`; a sign-up's approval mints a founder invite (`invite_id`). Reviewers see and answer every row, a member only their own; members ask through `request_tree`, the waitlist is written with the service role. One pending ask per member and per waitlist address                                                                                                                                                                                                                                                                   |
 | `invite_relays`          | Asks a newcomer with no match passed on to a relative (Step 30.5): their typed first/last name + email and the member it went to (`recipient_user_id`), `pending` \| `invited` \| `dismissed`, the tree they were invited to, `email_sent`. Only that member reads and answers it (RLS; update granted on the answer's columns only); filed by the server with the service role, and the rows are what the member's caps count. One open or dismissed ask per address and member. A pending ask lapses after 30 days, and is deleted as new asks come in (Step 41.5) |
 | `newsletter_settings`    | The weekly newsletter, per member (Step 95): `subscribed` (on unless they turn it off; no row = on), `token` (the email's unsubscribe link, which works signed out), `last_issue_at` (one issue a week, however often the job runs). A member reads their own `subscribed` only (RLS + a column grant) and changes it through `set_newsletter`; the token and the rest are the service role's (`newsletter_due`, `claim_newsletter_issues`). Its own table, not a `profiles` column, since relatives can read each other's profiles |
+| `onboarding_settings`    | The getting started emails, per member (Step 151): `subscribed` (on unless they turn it off; no row = on), `token` (the emails' unsubscribe link, which works signed out), `started_at` (when the drip first saw them; it runs 60 days). A member reads their own `subscribed` only and changes it through `set_onboarding_emails`; the rest is the service role's (`onboarding_due`) |
+| `onboarding_sends`       | Each getting started email sent (Step 151): `step` (claim, invite, family, story, winback, last), `sent_at`, one a member a UTC day (`unique (user_id, sent_day)`). The service role's only (`record_onboarding_sends`) |
 | `newsletter_schedule`    | When the weekly newsletter goes out (Step 95), one row: `weekday` (0 = Sunday), `paused`, `updated_by`. Beta reviewers read it (RLS) and change it through `set_newsletter_schedule`; the daily cron job reads it with the service role and sends only on that day, unless paused |
 | `invite_relay_asks`      | A note of every ask to a relative, whoever the address belongs to (Step 41.5): the address asking and `created_at`, never the relative's. What the caps per address and across the site count, before anyone is looked up. Service role only (RLS on, no policies, no grants to `anon`/`authenticated`); an ask past a cap leaves no note, and notes older than a day are deleted as new asks come in |
 | `claims`                 | Auto-approve / reject a person entry (`resolved_by`); a dispute of one is an `entry_reports` row and leaves it `approved` (Step 88.2) |
@@ -1803,6 +1827,64 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 151: getting started emails** (migrations
+  `20261013200000_onboarding_drip`, `20261013210000_onboarding_invited`,
+  both live). **Aalim asked:** "an onboarding email drip for encouraging
+  people to continue using ancestree and inviting family members to join,
+  starting with claiming the nodes that the user has already added", and
+  for it to answer to how each member uses ancestree ("based on churn
+  risk"). **His answers:** the design below as shown; new and existing
+  members (existing ones start the day the job first sees them); the
+  newsletter's daily cron call, no new job; its own off switch. Then
+  "just build it all in this session" (scoped as 151.1–151.3).
+  - **How it picks.** Each day the cron call (after the newsletter, never
+    on the newsletter's day) reads every member in the drip
+    (`onboarding_due`): days since last active (`private.active_days`),
+    the living entries they made that nobody is behind and nobody has
+    invited, how many they've added, whether they've invited anyone,
+    written a story or put up a photo, and what they've been sent.
+    `pickOnboardingEmail` (`lib/onboarding.ts`) bands them: **engaged**
+    (0–2 days away) at most one email a week, **cooling** (3–6) every
+    three days, **at risk** (7–20) one **win-back** an absence, **lapsed**
+    (21+) one **last** email at 30 days away, then nothing until they
+    come back. What they get is the first step not taken: **claim**
+    ("Invite the 10 people you added", names listed; one reminder a week
+    on), **invite** (a Root's family link, or invite a relative), **close
+    family** (under three added), **story or photo**. The win-back and
+    last email tell what changed in their family since the day after
+    they were last here (the newsletter's issue, My Family Tree's rule),
+    then that step. One email a member a day at most, none the day the
+    drip starts, none after 60 days or once every step is taken.
+  - **Where they land.** The claim email's **invite them** opens a new
+    settings card, **Invite the People You Added**: the Root console's
+    claim list (Step 143), cut to what they added, tree by tree; only a
+    Root of the tree gets **copy link**, as before. "Email me tips for
+    getting started" sits under the newsletter's box; each email's
+    Unsubscribe opens `/getting-started/<token>`, with RFC 8058 one-click
+    at `/api/getting-started/<token>`.
+  - **For the beta reviewers.** A **Getting Started Emails** card under
+    the newsletter on the admin page: how many are in the drip and what
+    today's run sends (a dry run, counts only), each email as it would go
+    to them, and **email me a test**. The cron route takes `?drip=dry`
+    and `?drip=send&user=<id>&kind=<email>` (noted nowhere).
+  - **Follow-up migration:** an accepted invite is deleted as it's
+    redeemed, so "has invited" missed four of the five members whose
+    relatives had joined through them; it now also counts
+    `tree_members.invited_by_user_id` and approved `invite_requests`.
+  - **Refactor:** `buildWeeklyNewsletters` now builds on
+    `buildFamilyIssues` and `issueSections`, shared with the win-back; the
+    newsletter's output is unchanged (its tests pass as before).
+  - **My calls (told Aalim):** first email the day after the drip starts;
+    any invite counts as inviting family; claim skips anyone with a live
+    invite (an expired one counts again); no recap without an entry of
+    their own; the win-back's "since" is the day after their last active
+    day. **Launch:** every member's drip started 2026-10-14 (the first
+    dry run), so the first emails go on the first run after deploy that
+    isn't a Sunday. On 2026-10-14's numbers, that run sends 14 win-backs,
+    5 claim emails and 1 invite email; 2 members away 21–29 days wait for
+    their 30th day. Previewed with Aalim's own account (every email) and
+    checked signed out (off page, one-click, a bogus token).
 
 - **Step 150: the phone shows every leaf whole** (no migration). **Aalim
   asked:** the maple leaf on the iPhone leaf view had its top and bottom

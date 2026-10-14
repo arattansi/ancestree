@@ -289,6 +289,35 @@ export function newsletterSettingsHref(): string {
 }
 
 /**
+ * The getting started emails' page (Step 151): opened from an email's
+ * link with the member's own token, signed out, to turn them off or back
+ * on. Callers add the site's origin.
+ */
+export function gettingStartedPageHref(token: string): string {
+  return `/getting-started/${enc(token)}`;
+}
+
+/** What a mail app's one-click unsubscribe posts to (RFC 8058), for the
+ *  getting started emails' `List-Unsubscribe` header (Step 151). */
+export function gettingStartedOneClickHref(token: string): string {
+  return `/api/getting-started/${enc(token)}`;
+}
+
+/** Settings, at the getting started emails' box (Step 151). */
+export function gettingStartedSettingsHref(): string {
+  return "/account?view=settings#getting-started";
+}
+
+/**
+ * Settings, at the living people the member added whom nobody is behind
+ * yet, each to invite to claim their entry (Step 151): the claim email's
+ * button. Callers add the site's origin.
+ */
+export function peopleYouAddedHref(): string {
+  return "/account?view=settings#people-you-added";
+}
+
+/**
  * `relatedTo` as the add flow should use it: one id that is on the tree, or
  * nothing. Anything else — missing, repeated, or someone not on the tree — is
  * ignored rather than refused, so a stale link still opens the plain flow.
