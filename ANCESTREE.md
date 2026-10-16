@@ -1830,6 +1830,66 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 157: the library's way back, likes and shares, and stories sent
+  in** (migration `20261015160000_library_likes_and_submissions`, live).
+  **Aalim asked:** make the post page's "(stories-of-our-wise)" link
+  clearer with a slash or an arrow; a form for sending in a story about a
+  family member who has passed, to be published in the library: the draft
+  form without the preview, agreeing it may be edited to fit, an email
+  required, a copy of what was sent emailed back, from which a change can
+  be asked for, triaged on the admin page; and like and share beside
+  subscribe under each post. **Now** 157.1: the link reads "← (stories-of-
+  our-wise)" (`components/library/library-back-link.tsx`, also on the new
+  pages). 157.2: under a published post, a divider, then **like** (a heart,
+  red once liked, with the count) and **share** (Copy link, WhatsApp,
+  Messages where there's an app for it, Email, Facebook, X, and More… for
+  the device's own sheet), then subscribe. A like is a reader's: the
+  server sets an httpOnly `ancestree-reader` cookie (a random id, path
+  `/library`, two years) on the first like, signed in or not, and
+  `blog_post_likes` holds one row per post and reader; drafts can't be
+  liked. 157.3: `/library/submit` ("Send Us Their Story", linked as "Send
+  us the story of someone you've lost →" under the proverb on /library and
+  under each post): title, who it's about (the editor's kind and people,
+  now shared as `components/library/about-fields.tsx`), photo, their
+  story, your email, and a tick for "It may be edited to fit
+  stories-of-our-wise."; no preview, no meta fields, no Markdown helper.
+  The photo is shrunk in the browser as a cover is and kept in a new
+  private `library-submissions` bucket. A copy is emailed back
+  (`librarySubmissionEmail`: the words escaped, paragraphs kept, Markdown
+  and HTML shown as typed) with **ask for a change**, which opens
+  `/library/submissions/<token>`: what was sent, the changes asked for so
+  far (Done once seen to) and a box to ask for another. 157.4: the admin
+  page's blog tab opens on **Stories Sent In** above the posts, what's
+  waiting first: each story with who it's from (a mailto), **Read it** (the
+  words and photo), its changes asked for (**done** / **not done**), **make
+  a draft** (a draft post with its title, words, kind and people, the photo
+  copied in as the cover, opened below to edit), **set aside** / **put
+  back**, and **delete**; the **blog** tab counts new stories plus changes
+  not yet done. DB: `blog_post_likes`, `library_submissions`,
+  `library_change_requests`, all service role only; `submit_library_story`
+  and `ask_library_change` (service role) hold the caps,
+  `list_library_submissions`, `library_triage_count`,
+  `draft_library_submission`, `set_library_submission_status`,
+  `resolve_library_change`, `delete_library_submission` check for a
+  reviewer. **My calls:** a sender may send three stories a day from one
+  address and everyone fifty a day between them, since each emails a copy
+  to whatever address is typed (the copy's small print says how to have
+  one taken down); a hidden field a bot fills in is answered as sent and
+  goes nowhere; ten changes may wait on one story; a story is at most
+  20,000 characters (a post may be 200,000) and its photo 3 MB; someone
+  must be named; no reviewer email when a story or change comes in, only
+  the tab's count; nobody is emailed when a change is marked done; likes
+  are counted on the post page only, not on /library's cards; the privacy
+  page now lists stories sent in and the like cookie; `/library/submit`
+  is in the sitemap. **Checked** in a rolled-back rehearsal on live (caps,
+  refusals for visitors and members, every reviewer function), then in the
+  browser signed out and as the test reviewer: like and unlike persist
+  across a reload, the share links carry the post's address, a story sent
+  with a photo to Resend's test inbox arrived escaped with its paragraphs,
+  the copy page took a change, and on the blog tab done, make a draft
+  (cover copied, editor opened and scrolled to), set aside and delete all
+  worked; every test row and file was removed after.
+
 - **Step 156: an unshown email stays its owner's** (migrations
   `20261015140000_owned_entry_email`, live, and
   `20261015141000_people_email_owner_only`, applied once this build is

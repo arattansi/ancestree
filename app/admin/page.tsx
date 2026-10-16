@@ -22,6 +22,10 @@ import { findAccounts, findTrees } from "@/lib/admin-manage.server";
 import { readAdminTab } from "@/lib/admin-page";
 import { listBlogPosts } from "@/lib/blog.server";
 import { listCampaigns } from "@/lib/campaigns.server";
+import {
+  countSubmissionsWaiting,
+  listSubmissions,
+} from "@/lib/library-submissions.server";
 import { getSiteUrl } from "@/lib/site-url";
 import { currentAccess, listMyTrees } from "@/lib/tree-context";
 import { adminHref } from "@/lib/tree-links";
@@ -39,9 +43,10 @@ export const metadata: Metadata = { title: "admin" };
  * address used to lead.
  */
 export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
-  const [{ tab: requested, account, tree }, reviewer] = await Promise.all([
+  const [{ tab: requested, account, tree }, reviewer, waiting] = await Promise.all([
     searchParams,
     isBetaReviewer(),
+    countSubmissionsWaiting(),
   ]);
   if (!reviewer) redirect(adminHref());
   const tab = readAdminTab(requested);
@@ -50,7 +55,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
     <PageColumn width="3xl">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <h1 className="text-2xl font-semibold tracking-tight">Admin</h1>
-        <AdminPageTabs tab={tab} />
+        <AdminPageTabs tab={tab} waiting={{ blog: waiting }} />
       </div>
 
       <Suspense
@@ -155,18 +160,10 @@ async function ManageTab({
 
 /**
  * The blog's drafts and posts (Step 134): a draft written here, and every
- * post to edit, preview, publish and delete.
+ * post to edit, preview, publish and delete; above them, the stories sent
+ * in to triage (Step 157).
  */
 async function BlogTab() {
-  const posts = await listBlogPosts();
-  return (
-    <Card id="blog" className="scroll-mt-20">
-      <CardHeader>
-        <CardTitle>Stories of Our Wise</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <AdminBlog posts={posts} />
-      </CardContent>
-    </Card>
-  );
+  const [posts, submissions] = await Promise.all([listBlogPosts(), listSubmissions()]);
+  return <AdminBlog posts={posts} submissions={submissions} />;
 }

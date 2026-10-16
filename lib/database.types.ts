@@ -132,6 +132,32 @@ export type Database = {
           },
         ]
       }
+      blog_post_likes: {
+        Row: {
+          created_at: string
+          post_id: string
+          reader: string
+        }
+        Insert: {
+          created_at?: string
+          post_id: string
+          reader: string
+        }
+        Update: {
+          created_at?: string
+          post_id?: string
+          reader?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blog_post_likes_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "blog_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       blog_posts: {
         Row: {
           announced_at: string | null
@@ -1036,6 +1062,94 @@ export type Database = {
             columns: ["tree_id"]
             isOneToOne: false
             referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      library_change_requests: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          resolved_at: string | null
+          submission_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          resolved_at?: string | null
+          submission_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          resolved_at?: string | null
+          submission_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "library_change_requests_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "library_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      library_submissions: {
+        Row: {
+          agreed_to_edits_at: string
+          body: string
+          created_at: string
+          email: string
+          id: string
+          kind: string
+          people: Json
+          photo_path: string | null
+          post_id: string | null
+          status: string
+          title: string
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          agreed_to_edits_at?: string
+          body: string
+          created_at?: string
+          email: string
+          id?: string
+          kind?: string
+          people?: Json
+          photo_path?: string | null
+          post_id?: string | null
+          status?: string
+          title: string
+          token?: string
+          updated_at?: string
+        }
+        Update: {
+          agreed_to_edits_at?: string
+          body?: string
+          created_at?: string
+          email?: string
+          id?: string
+          kind?: string
+          people?: Json
+          photo_path?: string | null
+          post_id?: string | null
+          status?: string
+          title?: string
+          token?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "library_submissions_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "blog_posts"
             referencedColumns: ["id"]
           },
         ]
@@ -2922,6 +3036,22 @@ export type Database = {
           placement_id: string
         }[]
       }
+      ask_library_change: {
+        Args: { p_message: string; p_token: string }
+        Returns: {
+          created_at: string
+          id: string
+          message: string
+          resolved_at: string | null
+          submission_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "library_change_requests"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       ask_placements_again: {
         Args: { p_person_ids: string[]; p_tree: string }
         Returns: {
@@ -2943,6 +3073,13 @@ export type Database = {
           slug: string
           title: string
           updated_at: string
+        }[]
+      }
+      blog_post_like_count: {
+        Args: { p_post_id: string; p_reader: string }
+        Returns: {
+          liked: boolean
+          likes: number
         }[]
       }
       campaign_open: { Args: { p_code: string }; Returns: string }
@@ -3066,7 +3203,33 @@ export type Database = {
         Returns: undefined
       }
       delete_blog_post: { Args: { p_id: string }; Returns: undefined }
+      delete_library_submission: { Args: { p_id: string }; Returns: string }
       delete_tree: { Args: { p_tree: string }; Returns: Json }
+      draft_library_submission: {
+        Args: { p_id: string }
+        Returns: {
+          announced_at: string | null
+          body: string
+          cover_path: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          kind: string
+          meta_description: string
+          meta_title: string
+          people: Json
+          published_at: string | null
+          slug: string
+          title: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "blog_posts"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       edit_album_photo:
         | {
             Args: {
@@ -3298,6 +3461,7 @@ export type Database = {
       }
       is_beta_reviewer: { Args: never; Returns: boolean }
       is_own_child: { Args: { p_person: string }; Returns: boolean }
+      library_triage_count: { Args: never; Returns: number }
       list_blog_posts: {
         Args: never
         Returns: {
@@ -3343,6 +3507,24 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      list_library_submissions: {
+        Args: never
+        Returns: {
+          body: string
+          change_requests: Json
+          created_at: string
+          email: string
+          id: string
+          kind: string
+          people: Json
+          photo_path: string
+          post_id: string
+          post_published_at: string
+          post_slug: string
+          status: string
+          title: string
+        }[]
       }
       list_story_comments: {
         Args: { p_story: string }
@@ -3582,6 +3764,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      resolve_library_change: {
+        Args: { p_id: string; p_resolved: boolean }
+        Returns: undefined
+      }
       respond_to_placement: {
         Args: { p_accept: boolean; p_placement_id: string }
         Returns: undefined
@@ -3627,6 +3813,13 @@ export type Database = {
       set_blog_post_cover: {
         Args: { p_id: string; p_path: string }
         Returns: string
+      }
+      set_blog_post_like: {
+        Args: { p_liked: boolean; p_post_id: string; p_reader: string }
+        Returns: {
+          liked: boolean
+          likes: number
+        }[]
       }
       set_blog_post_published: {
         Args: { p_id: string; p_published: boolean }
@@ -3682,6 +3875,10 @@ export type Database = {
         Args: { p_person: string; p_tree: string }
         Returns: undefined
       }
+      set_library_submission_status: {
+        Args: { p_id: string; p_status: string }
+        Returns: undefined
+      }
       set_member_role: {
         Args: { p_role: string; p_tree: string; p_user: string }
         Returns: string
@@ -3723,6 +3920,37 @@ export type Database = {
           person_id: string
           tree_id: string
         }[]
+      }
+      submit_library_story: {
+        Args: {
+          p_body: string
+          p_email: string
+          p_kind: string
+          p_people: Json
+          p_photo_path: string
+          p_title: string
+        }
+        Returns: {
+          agreed_to_edits_at: string
+          body: string
+          created_at: string
+          email: string
+          id: string
+          kind: string
+          people: Json
+          photo_path: string | null
+          post_id: string | null
+          status: string
+          title: string
+          token: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "library_submissions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       suggest_entry_change: {
         Args: {

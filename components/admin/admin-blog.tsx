@@ -7,33 +7,31 @@ import {
   saveBlogPost,
   setBlogPostPublished,
 } from "@/app/actions/blog";
+import { AdminSubmissions } from "@/components/admin/admin-submissions";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { FormError } from "@/components/form-error";
+import { AboutFields, useAbout } from "@/components/library/about-fields";
 import { LibraryCard } from "@/components/library/library-card";
 import { PostArticle } from "@/components/library/post-article";
 import { PendingButton } from "@/components/pending-button";
 import { RowCard, RowList } from "@/components/row-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { useAction } from "@/components/use-action";
 import {
-  BLOG_KINDS,
-  BLOG_PEOPLE_MAX,
-  BLOG_PERSON_NAME_MAX,
-  BLOG_PERSON_PLACE_MAX,
+  BLOG_KIND_LABEL,
   blogMetaSuggestions,
   blogPostHref,
   BLOG_MARK,
   coverPhotoUrl,
-  type BlogKind,
-  type BlogPerson,
   type BlogPost,
 } from "@/lib/blog";
 import { compressImage } from "@/lib/image";
+import type { LibrarySubmission } from "@/lib/library-submissions";
 import {
   BLOG_BODY_MAX,
   BLOG_COVER_EDGE,
@@ -53,17 +51,34 @@ import { cn } from "@/lib/utils";
  * first in the list. Since Step 154 the tab opens on the list, under a
  * "new draft" button, with no form until one's asked for: a draft is
  * picked to edit, or a new one started; a new draft, once saved, stays
- * open as itself.
+ * open as itself. Since Step 157 the stories sent in from /library/submit
+ * sit above the posts, to triage; one made a draft opens below to edit.
  */
-export function AdminBlog({ posts }: { posts: BlogPost[] }) {
+export function AdminBlog({
+  posts,
+  submissions,
+}: {
+  posts: BlogPost[];
+  submissions: LibrarySubmission[];
+}) {
   const [active, setActive] = React.useState<string | null>(null);
   const [writing, setWriting] = React.useState(false);
   const [open, setOpen] = React.useState<ReadonlySet<string>>(() => new Set());
+  const scrollTo = React.useRef<string | null>(null);
 
   function openPost(id: string) {
     setOpen((o) => new Set(o).add(id));
     setActive(editorId(id));
   }
+
+  // A draft opened from a story sent in, brought into view once its row is drawn.
+  React.useEffect(() => {
+    const id = scrollTo.current;
+    const row = id ? document.getElementById(rowId(id)) : null;
+    if (!row) return;
+    row.scrollIntoView({ behavior: "smooth", block: "start" });
+    scrollTo.current = null;
+  }, [open, posts]);
 
   function closePost(id: string) {
     setOpen((o) => {
@@ -87,28 +102,47 @@ export function AdminBlog({ posts }: { posts: BlogPost[] }) {
 
   return (
     <ActiveEditor.Provider value={{ active, setActive }}>
-      <div className="flex flex-col gap-4">
-        {writing ? (
-          <div className="flex flex-col gap-2 rounded-md border p-3 text-sm">
-            <PostEditor idPrefix={NEW_EDITOR} onDone={stopDraft} />
-          </div>
-        ) : (
-          <Button type="button" className="self-start" onClick={startDraft}>
-            new draft
-          </Button>
-        )}
-        <RowList items={posts} empty="No posts yet.">
-          {(p) => (
-            <PostRow
-              key={p.id}
-              post={p}
-              editing={open.has(p.id)}
-              onEdit={() => openPost(p.id)}
-              onDone={() => closePost(p.id)}
-            />
+      <Card id="submissions" className="scroll-mt-20">
+        <CardHeader>
+          <CardTitle>Stories Sent In</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <AdminSubmissions
+            submissions={submissions}
+            onOpenPost={(id) => {
+              scrollTo.current = id;
+              openPost(id);
+            }}
+          />
+        </CardContent>
+      </Card>
+      <Card id="blog" className="scroll-mt-20">
+        <CardHeader>
+          <CardTitle>Stories of Our Wise</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          {writing ? (
+            <div className="flex flex-col gap-2 rounded-md border p-3 text-sm">
+              <PostEditor idPrefix={NEW_EDITOR} onDone={stopDraft} />
+            </div>
+          ) : (
+            <Button type="button" className="self-start" onClick={startDraft}>
+              new draft
+            </Button>
           )}
-        </RowList>
-      </div>
+          <RowList items={posts} empty="No posts yet.">
+            {(p) => (
+              <PostRow
+                key={p.id}
+                post={p}
+                editing={open.has(p.id)}
+                onEdit={() => openPost(p.id)}
+                onDone={() => closePost(p.id)}
+              />
+            )}
+          </RowList>
+        </CardContent>
+      </Card>
     </ActiveEditor.Provider>
   );
 }
@@ -117,6 +151,9 @@ const NEW_EDITOR = "blog-new";
 
 /** A post's editor, as the active one is named. */
 const editorId = (postId: string) => `blog-${postId}`;
+
+/** A post's row in the list. */
+const rowId = (postId: string) => `post-${postId}`;
 
 /**
  * Which open editor's preview floats beside the page from `xl` (the one
@@ -171,23 +208,6 @@ function MarkdownHelp({ onClose }: { onClose: () => void }) {
   );
 }
 
-const KIND_LABEL: Record<BlogKind, string> = {
-  person: "Individual",
-  couple: "Couple",
-  family: "Family",
-};
-
-const EMPTY_PERSON: BlogPerson = { first: "", last: "", maiden: "", place: "" };
-
-/** The rows a kind needs: one for a person, two for a couple, at least one for a family. */
-function peopleFor(kind: BlogKind, people: BlogPerson[]): BlogPerson[] {
-  const want =
-    kind === "person" ? 1 : kind === "couple" ? 2 : Math.max(1, people.length);
-  const next = people.slice(0, kind === "family" ? BLOG_PEOPLE_MAX : want);
-  while (next.length < want) next.push({ ...EMPTY_PERSON });
-  return next;
-}
-
 /**
  * The form for a post, new or being edited, with its preview: the card as
  * it sits on /library and the post as it reads. From `xl` the preview
@@ -213,17 +233,14 @@ function PostEditor({
   const [metaDescription, setMetaDescription] = React.useState(
     post?.metaDescription ?? "",
   );
-  const [kind, setKind] = React.useState<BlogKind>(post?.kind ?? "person");
-  const [people, setPeople] = React.useState<BlogPerson[]>(() =>
-    peopleFor(post?.kind ?? "person", post?.people ?? []),
-  );
+  const about = useAbout(post?.kind, post?.people);
+  const { kind, people } = about;
   const [cover, setCover] = React.useState<File | null>(null);
   const [coverUrl, setCoverUrl] = React.useState<string | null>(
     coverPhotoUrl(post?.coverPath ?? null),
   );
   const [removeCover, setRemoveCover] = React.useState(false);
   const [coverBusy, setCoverBusy] = React.useState(false);
-  const [shown, setShown] = React.useState(0);
   const [helpOpen, setHelpOpen] = React.useState(false);
   const coverInput = React.useRef<HTMLInputElement>(null);
   const over = body.trim().length - BLOG_BODY_MAX;
@@ -236,30 +253,6 @@ function PostEditor({
       if (was?.startsWith("blob:")) URL.revokeObjectURL(was);
       return url;
     });
-  }
-
-  function changeKind(next: BlogKind) {
-    setKind(next);
-    setPeople((p) => peopleFor(next, p));
-    setShown(0);
-  }
-
-  function addPerson() {
-    setPeople((p) => [...p, { ...EMPTY_PERSON }]);
-    setShown(people.length);
-  }
-
-  function removePerson(index: number) {
-    setPeople((p) => p.filter((_, j) => j !== index));
-    setShown((i) => Math.max(0, Math.min(i, people.length - 2)));
-  }
-
-  function setPerson(index: number, field: keyof BlogPerson, value: string) {
-    setPeople((p) =>
-      p.map((person, i) =>
-        i === index ? { ...person, [field]: value } : person,
-      ),
-    );
   }
 
   async function pickCover(event: React.ChangeEvent<HTMLInputElement>) {
@@ -338,43 +331,7 @@ function PostEditor({
           />
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center sm:gap-4">
-          <fieldset className="flex flex-col gap-2">
-            <legend className="text-sm font-medium">About</legend>
-            <RadioGroup
-              value={kind}
-              onValueChange={(v) => changeKind(v as BlogKind)}
-              className="flex flex-row flex-wrap gap-x-4 gap-y-2 sm:flex-col"
-              disabled={action.pending}
-            >
-              {BLOG_KINDS.map((k) => (
-                <label key={k} className="flex items-center gap-2 text-sm">
-                  <RadioGroupItem value={k} />
-                  {KIND_LABEL[k]}
-                </label>
-              ))}
-            </RadioGroup>
-          </fieldset>
-          <PersonFields
-            idPrefix={`${idPrefix}-person-${shown}`}
-            person={people[shown] ?? people[0]}
-            onChange={(field, value) => setPerson(shown, field, value)}
-            tabs={{
-              count: people.length,
-              shown,
-              onShow: setShown,
-              onAdd:
-                kind === "family" && people.length < BLOG_PEOPLE_MAX
-                  ? addPerson
-                  : undefined,
-              onRemove:
-                kind === "family" && people.length > 1
-                  ? () => removePerson(shown)
-                  : undefined,
-            }}
-            disabled={action.pending}
-          />
-        </div>
+        <AboutFields idPrefix={idPrefix} about={about} disabled={action.pending} />
 
         <div className="flex flex-col gap-2">
           <Label htmlFor={`${idPrefix}-cover`}>Cover photo</Label>
@@ -600,105 +557,6 @@ function MetaField({
   );
 }
 
-/**
- * One person's fields, in a small container beside the kinds, the toggles
- * along its top ("person 1", "person 2" …) always there, so the form
- * doesn't move when a couple or a family is picked; a couple or a family
- * switch between their people with them, and a family adds and removes
- * them there too.
- */
-function PersonFields({
-  idPrefix,
-  person,
-  onChange,
-  tabs,
-  disabled,
-}: {
-  idPrefix: string;
-  person: BlogPerson;
-  onChange: (field: keyof BlogPerson, value: string) => void;
-  tabs: {
-    count: number;
-    shown: number;
-    onShow: (index: number) => void;
-    onAdd?: () => void;
-    onRemove?: () => void;
-  };
-  disabled: boolean;
-}) {
-  const field = (key: keyof BlogPerson, label: string, max: number) => (
-    <div className="flex flex-col gap-1">
-      <Label htmlFor={`${idPrefix}-${key}`} className="text-xs">
-        {label}
-      </Label>
-      <Input
-        id={`${idPrefix}-${key}`}
-        value={person[key]}
-        onChange={(e) => onChange(key, e.target.value)}
-        maxLength={max}
-        disabled={disabled}
-        autoComplete="off"
-        className="h-8"
-      />
-    </div>
-  );
-  return (
-    <div className="flex min-w-0 flex-col gap-2 rounded-md border p-3">
-      <div className="flex flex-wrap items-center gap-1">
-        <div
-          role="group"
-          aria-label="Person"
-          className="inline-flex flex-wrap items-center gap-0.5 rounded-lg border border-border bg-muted/40 p-0.5"
-        >
-          {Array.from({ length: tabs.count }, (_, i) => (
-            <Button
-              key={i}
-              type="button"
-              size="sm"
-              variant={i === tabs.shown ? "default" : "ghost"}
-              aria-pressed={i === tabs.shown}
-              disabled={disabled}
-              onClick={() => tabs.onShow(i)}
-              className="h-7 px-2"
-            >
-              person {i + 1}
-            </Button>
-          ))}
-          {tabs.onAdd ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              aria-label="Add a person"
-              disabled={disabled}
-              onClick={tabs.onAdd}
-              className="h-7 px-2"
-            >
-              +
-            </Button>
-          ) : null}
-        </div>
-        {tabs.onRemove ? (
-          <button
-            type="button"
-            onClick={tabs.onRemove}
-            disabled={disabled}
-            className="ml-auto text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
-          >
-            Remove
-          </button>
-        ) : null}
-      </div>
-      <div className="grid gap-2 sm:grid-cols-2">
-        {field("first", "First name", BLOG_PERSON_NAME_MAX)}
-        {field("last", "Last name", BLOG_PERSON_NAME_MAX)}
-        {field("maiden", "Maiden name", BLOG_PERSON_NAME_MAX)}
-        {field("place", "Place of birth", BLOG_PERSON_PLACE_MAX)}
-      </div>
-    </div>
-  );
-}
-
 function PostRow({
   post: p,
   editing,
@@ -714,7 +572,7 @@ function PostRow({
   const published = p.publishedAt !== null;
 
   return (
-    <RowCard>
+    <RowCard id={rowId(p.id)} className="scroll-mt-20">
       {editing ? (
         <PostEditor idPrefix={editorId(p.id)} post={p} onDone={onDone} />
       ) : (
@@ -728,7 +586,7 @@ function PostRow({
                 </Badge>
               </p>
               <p className="text-muted-foreground">
-                {KIND_LABEL[p.kind]}
+                {BLOG_KIND_LABEL[p.kind]}
                 {p.people.length
                   ? `: ${p.people.map((x) => [x.first, x.last].filter(Boolean).join(" ")).join(", ")}`
                   : ""}

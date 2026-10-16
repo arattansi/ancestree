@@ -25,3 +25,21 @@ export function messagesHref(text: string): string {
 export function hasMessagesApp(userAgent: string): boolean {
   return /iPhone|iPad|iPod|Macintosh|Android/.test(userAgent);
 }
+
+/**
+ * A library post shared (Step 157): Facebook's sharer, which reads the
+ * post's own picture and words from its page.
+ */
+export function facebookShareHref(url: string): string {
+  return `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
+}
+
+/** X's compose box with `text` and the link typed out. */
+export function xShareHref(url: string, text: string): string {
+  return `https://x.com/intent/post?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+}
+
+/** A new email with `subject` and `body` filled in, to no one yet. */
+export function emailShareHref(subject: string, body: string): string {
+  return `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}

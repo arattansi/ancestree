@@ -90,6 +90,17 @@ export default function PrivacyPage() {
             asks come in.
           </li>
           <li>
+            If you send a story to the library, the story, its photo and your
+            email: used to send you a copy, to answer you, and to publish it
+            once edited. It&rsquo;s kept until the library&rsquo;s editors
+            delete it, which they do on request.
+          </li>
+          <li>
+            If you like a post in the library, a cookie holding a random
+            number, so your like counts once. It says nothing about who you
+            are.
+          </li>
+          <li>
             Google Analytics, on every page: which pages are visited, from
             where, on what kind of device, and for how long. It sets a cookie
             to tell one visit from the next. Nothing you enter about your

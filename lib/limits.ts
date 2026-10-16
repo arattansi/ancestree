@@ -77,3 +77,14 @@ export const BLOG_COVER_MAX_MB = 10;
  */
 export const BLOG_META_TITLE_MAX = 70;
 export const BLOG_META_DESCRIPTION_MAX = 160;
+
+/**
+ * A story sent in to the library from its form (Step 157,
+ * `library_submissions_body_check`): about 3,500 words, a spotlight's
+ * length and then some, short enough for the copy emailed back. Its photo
+ * once the browser has shrunk it (the `library-submissions` bucket's
+ * limit), and a change asked for from the copy.
+ */
+export const LIBRARY_SUBMISSION_BODY_MAX = 20000;
+export const LIBRARY_SUBMISSION_PHOTO_MAX_MB = 3;
+export const LIBRARY_CHANGE_MAX = 2000;

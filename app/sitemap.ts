@@ -1,12 +1,13 @@
 import type { MetadataRoute } from "next";
 
-import { blogHref, blogPostHref } from "@/lib/blog";
+import { blogHref, blogPostHref, blogSubmitHref } from "@/lib/blog";
 import { listPublishedPosts } from "@/lib/blog.server";
 import { getSiteUrl } from "@/lib/site-url";
 
 /**
  * The sitemap, for Search Console (Step 135): the marketing pages, the
- * library and every published post. Nothing signed in is listed.
+ * library, its form for sending a story in (Step 157) and every published
+ * post. Nothing signed in is listed.
  */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = getSiteUrl();
@@ -24,6 +25,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "weekly",
       priority: 0.9,
     },
+    { url: `${base}${blogSubmitHref()}`, changeFrequency: "yearly", priority: 0.5 },
   ];
   return pages.concat(
     posts.map((p) => ({

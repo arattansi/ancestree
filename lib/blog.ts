@@ -22,6 +22,13 @@ export const BLOG_NAME = "stories-of-our-wise";
 export const BLOG_KINDS = ["person", "couple", "family"] as const;
 export type BlogKind = (typeof BLOG_KINDS)[number];
 
+/** Each kind as the forms and lists name it. */
+export const BLOG_KIND_LABEL: Record<BlogKind, string> = {
+  person: "Individual",
+  couple: "Couple",
+  family: "Family",
+};
+
 /** How many people one post may profile (`blog_posts_people_check`). */
 export const BLOG_PEOPLE_MAX = 12;
 /** A profiled person's name parts, and their place of birth. */
@@ -81,6 +88,16 @@ export function blogSubscriptionHref(token: string, confirm = false): string {
 /** The one-click unsubscribe (RFC 8058) address a mail app posts to. */
 export function blogOneClickUnsubscribeHref(token: string): string {
   return `/api/library/subscription/${encodeURIComponent(token)}`;
+}
+
+/** The form for sending in a story about someone who has passed (Step 157). */
+export function blogSubmitHref(): string {
+  return `${blogHref()}/submit`;
+}
+
+/** A story sent in, as the copy's link opens it: what was sent, and a change to ask for. */
+export function blogSubmissionHref(token: string): string {
+  return `${blogHref()}/submissions/${encodeURIComponent(token)}`;
 }
 
 /** A post's slug, as the database makes them: words of letters and digits, dashed. */

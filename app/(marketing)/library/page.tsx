@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { LibraryCard } from "@/components/library/library-card";
+import { SendStoryLink } from "@/components/library/send-story-link";
 import { SubscribeForm } from "@/components/library/subscribe-form";
 import {
   MarketingColumn,
@@ -21,7 +22,8 @@ export const metadata: Metadata = {
  * /library, "stories-of-our-wise" (Step 134 as /blog; Step 135): the
  * published posts, newest first, each drawn as the leaves of the people
  * it profiles (`LibraryCard`), and a way to subscribe, by email or RSS.
- * A reviewer writes the posts on the admin page.
+ * A reviewer writes the posts on the admin page; since Step 157 anyone may
+ * send a story in for them (`/library/submit`).
  */
 export default async function LibraryPage() {
   const posts = await listPublishedPosts();
@@ -33,6 +35,7 @@ export default async function LibraryPage() {
         <p>when an elder dies, a library burns to the ground.</p>
         <p>– African proverb</p>
       </MarketingCopy>
+      <SendStoryLink />
       {posts.length === 0 ? (
         <MarketingCopy>
           <p>nothing here yet.</p>
