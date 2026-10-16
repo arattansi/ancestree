@@ -57,7 +57,7 @@ function Word({ word }: { word: NavTreeWord }) {
   return (
     <svg
       viewBox={`0 0 ${word.width} ${word.height}`}
-      className="block size-full transition-[scale,rotate] duration-200 ease-out group-hover:-rotate-4 group-hover:scale-110 group-focus-visible:-rotate-4 group-focus-visible:scale-110 group-active:scale-95 motion-reduce:transition-none"
+      className="relative block size-full transition-[scale,rotate] duration-200 ease-out group-hover:-rotate-4 group-hover:scale-110 group-focus-visible:-rotate-4 group-focus-visible:scale-110 group-active:scale-95 motion-reduce:transition-none"
       fill="currentColor"
       aria-hidden
     >
@@ -77,7 +77,7 @@ function Word({ word }: { word: NavTreeWord }) {
  * pressed, each of his five words flies out of it and grows into its
  * place in a tree (Step 133, `lib/nav-tree.ts`: why over what + how,
  * capitalism upright as the trunk, who and shh either side; the canopy
- * green, the trunk brown, the page you're on encircled),
+ * green, the trunk brown, the page you're on a filled pill),
  * centred on the screen, or down the left of the page from `xl`, and flies
  * back when it closes: Esc, a press
  * outside, the button again, or going to a page. On the home page and
@@ -286,15 +286,20 @@ export function SiteNavMenu({ className }: { className?: string }) {
                         aria-label={word.label}
                         aria-current={pathname === word.href ? "page" : undefined}
                         // The tree's canopy is green, its trunk brown; the
-                        // page you're on is encircled, in the word's ink.
+                        // page you're on is a pill filled with the word's
+                        // ink, the word and a ring inside it in the page's.
+                        // The pill reaches 8px past its word, and no
+                        // further: library and what + how sit 11px apart, so
+                        // either one's pill stays 3px clear of the other.
+                        // Its focus ring stands clear of the pill.
                         // Hovered, a word swells and tips about its middle
                         // (its ink, so the flight's top-left origin holds)
-                        // and a faint ring shows where it'd be encircled.
+                        // and a faint ring shows where its pill would be.
                         className={cn(
-                          "group absolute block origin-top-left rounded-full outline-2 outline-offset-6 outline-transparent outline-solid transition-[outline-color] duration-200 hover:outline-current/35 focus-visible:outline-current/35 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background aria-[current=page]:outline-current",
+                          "group absolute block origin-top-left rounded-full outline-2 outline-offset-6 outline-transparent outline-solid transition-[outline-color] duration-200 before:pointer-events-none before:absolute before:-inset-2 before:rounded-full before:outline-2 before:-outline-offset-4 before:outline-transparent before:outline-solid hover:outline-current/35 focus-visible:outline-current/35 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background aria-[current=page]:text-background aria-[current=page]:before:outline-background aria-[current=page]:focus-visible:ring-offset-10",
                           word.part === "canopy"
-                            ? "text-brand-green"
-                            : "text-brand-brown",
+                            ? "text-brand-green aria-[current=page]:before:bg-brand-green"
+                            : "text-brand-brown aria-[current=page]:before:bg-brand-brown",
                         )}
                         style={{
                           left: word.x * LIST_SCALE,

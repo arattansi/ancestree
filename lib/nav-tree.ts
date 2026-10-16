@@ -3,11 +3,12 @@ import { NAV_WORDS, type NavWord } from "@/lib/nav-words";
 /**
  * The open menu laid out as a tree (Step 133; redrawn by Aalim with
  * **library** in Step 136, and traced from his drawing, so every word
- * sits where he put it). The canopy, in the brand's green: **why** at the
- * very top, **library** beneath it, **what + how** across beneath that,
- * and **who** and **shh** below, either side of the trunk. The trunk, in
- * the brand's brown: **capitalism** turned on its side to stand upright,
- * read from the ground up. The page you're on is encircled.
+ * sits where he put it but **who**). The canopy, in the brand's green:
+ * **why** at the very top, **library** beneath it, **what + how** across
+ * beneath that, and **who** and **shh** below, either side of the trunk.
+ * The trunk, in the brand's brown: **capitalism** turned on its side to
+ * stand upright, read from the ground up. The page you're on is a filled
+ * pill.
  *
  * Places are in the drawing's pixels, as `NAV_WORDS` are, inside
  * `NAV_TREE_SIZE`. A `turned` word's box is its drawn box on its side.
@@ -34,13 +35,15 @@ function place(
 }
 
 export const NAV_TREE: NavTreeWord[] = [
-  place("why", "canopy", 79, 0),
-  place("library", "canopy", 57, 64),
-  place("what-how", "canopy", 9, 117),
+  place("why", "canopy", 89, 0),
+  place("library", "canopy", 67, 64),
+  place("what-how", "canopy", 19, 117),
+  // 10px further from the trunk than drawn, so its nearest ink sits as far
+  // from the trunk's as **shh**'s does.
   place("who", "canopy", 0, 184),
-  place("capitalism", "trunk", 94, 178, true),
-  place("shh", "canopy", 163, 190),
+  place("capitalism", "trunk", 104, 178, true),
+  place("shh", "canopy", 173, 190),
 ];
 
-export const NAV_TREE_SIZE = { width: 243, height: 365 };
+export const NAV_TREE_SIZE = { width: 253, height: 365 };
 

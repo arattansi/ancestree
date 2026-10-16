@@ -1855,6 +1855,31 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 166: the page you're on is a filled pill in the menu tree, and
+  who stands clear of the trunk** (no migration). **Aalim asked:** fill
+  the menu tree's page title pill in green, its text and border in the
+  page's colour, the same in brown for **capitalism**; narrow the pills so
+  they touch no other word; move **who** further from the trunk, so
+  **capitalism** sits as far from **who** as from **shh**. **Now** the
+  page you're on (`aria-current`) is a pill of its word's ink (green, the
+  trunk brown) drawn by the link's `::before`, so the words' flight out of
+  **menu** still measures the word's own box; the word and a 2px ring
+  inside the pill (`-outline-offset-4`) are `background`, white in light,
+  near-black in dark. The pill reaches 8px past its word: **library** and
+  **what + how** have the least room, and either's pill stays 3px clear of
+  the other (measured against the other words' ink on all six pages);
+  its focus ring moves out to `ring-offset-10`, clear of the pill. **who**
+  is 10 drawing px further from the trunk, so the nearest ink either side
+  is 27.95 and 27.70 CSS px apart (was 21.86 and 27.70); the rest of the
+  tree, the apples spelling **menu** and their arrow (`lib/nav-apples.ts`)
+  moved 10px right with `NAV_TREE_SIZE` 243 → 253 wide, keeping **who**
+  under the header's mark. **My calls:** one pill size for every word,
+  not each as wide as its room; a hovered or focused current word still
+  swells and tips over its ring; `public/brand/nav/menu-tree.svg` keeps
+  the drawn places. **Seen:** from 1240px to 1279px the held-open tree is
+  centred over the page (live too), since it's held open from 1240px but
+  moves left only at `xl`; left to its own session.
+
 - **Step 162: invite the people you just added** (no migration). **From**
   the 2026-10-16 onboarding audit (W3, W5 / R3): the founder's invite step
   was a blank name-and-email form that ignored the relatives they had just
