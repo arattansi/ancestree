@@ -14,19 +14,19 @@ import { getTreeRequestStatus } from "@/lib/tree-requests.server";
 
 /**
  * The landing page (Step 28). Signed in: view your tree (My Family Tree,
- * Step 92.5), or start a new one. Signed out: sign in, join a tree (which
- * looks for your family's tree first; "request access" until Step 107), or
- * start a tree: sign up through the home page's own campaign link, which
- * starts it at once (Step 119; a waitlist and a reviewer's yes until then).
+ * Step 92.5), or start a new one. Signed out: start a tree, filled — sign
+ * up through the home page's own campaign link, which starts it at once
+ * (Step 119; a waitlist and a reviewer's yes until then) — or join a tree,
+ * which looks for your family's tree first ("request access" until Step
+ * 107). Members coming back sign in from the header: "sign in" was the
+ * filled button here until Step 160, and new addresses took it, landing
+ * with no tree. Signed in but not a member yet (a new address), join a
+ * tree is /join, which looks with the address they've verified.
  * "free to use" (Step 120) sits under "a space to grow your tree." (Step
  * 123).
- * Signed in but not a member yet (a new address, Step 160): start a tree,
- * filled, or join a tree on /join, which looks with the address they've
- * verified — not sign in, which would only lead back there.
- * Its buttons are lower-case, as every button is
- * (docs/design-system.md). Sign in stays the filled button, for members
- * coming back. Since Step 107 it's the first of the marketing pages, and the
- * only one over the Elevators tree: the other marketing pages are plain. Its
+ * Its buttons are lower-case, as every button is (docs/design-system.md).
+ * Since Step 107 it's the first of the marketing pages, and the only one
+ * over the Elevators tree: the other marketing pages are plain. Its
  * `main` lets the pointer through wherever it draws nothing, so the leaves
  * answer a hover there and its own words and buttons still work.
  */
@@ -74,40 +74,29 @@ export default async function Home() {
                     start a tree
                   </StartTreeButton>
                 </>
-              ) : signedInNotMember ? (
-                <>
-                  <Button
-                    nativeButton={false}
-                    render={<Link href={campaignHref(HOME_CAMPAIGN_CODE)} />}
-                    size="lg"
-                  >
-                    start a tree
-                  </Button>
-                  <Button
-                    nativeButton={false}
-                    render={<Link href="/join" />}
-                    size="lg"
-                    variant="outline"
-                  >
-                    join a tree
-                  </Button>
-                </>
               ) : (
                 <>
-                  <Button nativeButton={false} render={<Link href="/join" />} size="lg">
-                    sign in
-                  </Button>
-                  <RequestAccessDialog size="lg" variant="outline">
-                    join a tree
-                  </RequestAccessDialog>
                   <Button
                     nativeButton={false}
                     render={<Link href={campaignHref(HOME_CAMPAIGN_CODE)} />}
                     size="lg"
-                    variant="outline"
                   >
                     start a tree
                   </Button>
+                  {signedInNotMember ? (
+                    <Button
+                      nativeButton={false}
+                      render={<Link href="/join" />}
+                      size="lg"
+                      variant="outline"
+                    >
+                      join a tree
+                    </Button>
+                  ) : (
+                    <RequestAccessDialog size="lg" variant="outline">
+                      join a tree
+                    </RequestAccessDialog>
+                  )}
                 </>
               )}
             </div>

@@ -1849,9 +1849,11 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   no code, onto `/onboarding?step=you` with the name filled in. That
   card on `/join` is **Join or Start a Tree** ("No family invite is
   waiting for this email."), with **start a tree** under "or" beside the
-  search. Home, signed in with no profile: **start a tree** (filled) and
-  **join a tree** (to `/join`), no "sign in"; the header already said
-  "sign out". `NameFields` and `JoinConsent` come out of
+  search. Home, signed out, puts **start a tree** first and filled,
+  beside **join a tree**; **sign in** is the header's alone (Aalim's
+  pick, reversing Step 30.4's "sign in stays the filled button"). Signed
+  in with no profile, the same two, join a tree going to `/join`; the
+  header already said "sign out" for them. `NameFields` and `JoinConsent` come out of
   `NameEmailFields` and `MagicLinkForm`, so the sign-up form and this one
   share their wording; `nameProblem` checks a name alone. **My calls:**
   the new form keeps the privacy tick, since a plain sign-in never asked
