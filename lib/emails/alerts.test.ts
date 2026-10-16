@@ -124,7 +124,12 @@ describe("treeRequestedEmail", () => {
 describe("the other emails' links", () => {
   it("are unchanged by escaping, having nothing to escape", () => {
     const url = `${SITE}/join/0123abcd`;
-    const { html } = inviteApprovedEmail({ firstName: "Zahra", inviterName: "Aalim", url });
+    const { html } = inviteApprovedEmail({
+      firstName: "Zahra",
+      inviterName: "Aalim",
+      treeName: "Rattansi Family",
+      url,
+    });
     expect(html).toContain(`href="${url}"`);
     expect(html).toContain(`>${url}</a>`);
   });

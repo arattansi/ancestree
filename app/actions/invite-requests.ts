@@ -3,11 +3,10 @@
 import { after } from "next/server";
 
 import { sendEmail, whyNotSent } from "@/lib/email";
-import { claimInviteEmail } from "@/lib/emails/claim-invite";
 import { founderApprovedEmail } from "@/lib/emails/founder-approved";
 import { founderInviteEmail } from "@/lib/emails/founder-invite";
 import { inviteApprovedEmail } from "@/lib/emails/invite-approved";
-import { inviteSentEmail } from "@/lib/emails/invite-sent";
+import { treeInviteEmail } from "@/lib/emails/tree-invite";
 import { personDisplayName } from "@/lib/person-name";
 import { chosenCandidate } from "@/lib/request-candidates";
 import { getRequestCandidates } from "@/lib/request-candidates.server";
@@ -136,8 +135,8 @@ export async function approveInviteRequest(
   if (request.status !== "pending") {
     return { error: "That request has already been reviewed." };
   }
-  const { error: notRoot } = await rootOf(request.tree_id);
-  if (notRoot) return { error: notRoot };
+  const { membership, error: notRoot } = await rootOf(request.tree_id);
+  if (!membership) return { error: notRoot };
 
   let entry: SelfCandidate | null = null;
   if (personId) {
@@ -200,6 +199,7 @@ export async function approveInviteRequest(
   const { subject, html } = inviteApprovedEmail({
     firstName: request.first_name,
     inviterName: inviterName(admin),
+    treeName: membership.tree.name,
     url,
     entryName: entry?.name,
   });
@@ -227,9 +227,10 @@ export async function approveInviteRequest(
  * configured at the time) or the recipient simply lost it.
  *
  * Deliberately reuses the invite minted at approval instead of creating a
- * fresh one: any link already in the wild keeps working, and the 14-day
+ * fresh one: any link already in the wild keeps working, and its 30-day
  * clock is not quietly reset. That also means an expired invite can't be
- * revived here — delete the record and invite them again.
+ * revived here — delete the record and invite them again, or whoever holds
+ * the expired link can have a fresh one sent (Step 163).
  */
 export async function resendInviteEmail(
   id: string,
@@ -242,7 +243,7 @@ export async function resendInviteEmail(
   const { data: request } = await supabase
     .from("invite_requests")
     .select(
-      "id, status, source, first_name, email, invites(token, status, expires_at, founds_tree, people(first_name, preferred_name, last_name))",
+      "id, status, source, first_name, email, trees(name), invites(token, status, expires_at, founds_tree, people(first_name, preferred_name, last_name, placeholder_number))",
     )
     .eq("id", id)
     .maybeSingle();
@@ -271,24 +272,24 @@ export async function resendInviteEmail(
   }
 
   const url = inviteUrl(invite.token);
-  // Keep the original wording: nobody asked for a direct invite, so it must
-  // not come back claiming their request was approved; a founder invite
-  // starts a tree of their own, so it must not read as joining this one; and
-  // an invite naming an entry names it again — a request approved as one
-  // (Step 30.3), or one sent from the entry's card (Step 38).
+  // Keep the original wording (`treeInviteEmail`); a founder invite starts a
+  // tree of their own, so it must not read as joining this one.
   const input = { firstName: request.first_name, inviterName: inviterName(admin), url };
   const direct = request.source === "direct";
   const entry = invite.people;
-  const entryName = entry ? personDisplayName(entry) : null;
+  // One-to-one FK that PostgREST still hands back as an array.
+  const tree = Array.isArray(request.trees) ? request.trees[0] : request.trees;
   const { subject, html } = invite.founds_tree
     ? direct
       ? founderInviteEmail(input)
       : founderApprovedEmail(input)
-    : direct
-      ? entryName
-        ? claimInviteEmail({ ...input, entryName })
-        : inviteSentEmail(input)
-      : inviteApprovedEmail({ ...input, entryName });
+    : treeInviteEmail({
+        ...input,
+        source: request.source,
+        treeName: tree?.name ?? "your family’s tree",
+        entryName: entry ? personDisplayName(entry) : null,
+        placeholder: entry?.placeholder_number != null,
+      });
 
   const sent = await sendEmail({ to: request.email, subject, html });
 

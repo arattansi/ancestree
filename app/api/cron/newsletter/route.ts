@@ -3,6 +3,10 @@ import { timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 
 import {
+  sendInviteReminders,
+  type InviteReminderRun,
+} from "@/lib/invite-reminders.server";
+import {
   sendScheduledNewsletters,
   sendWeeklyNewsletters,
   type NewsletterRun,
@@ -27,19 +31,23 @@ function fromTheJob(request: NextRequest): boolean {
 const NO_STORE = { "Cache-Control": "no-store" };
 
 /**
- * `GET /api/cron/newsletter`: the weekly newsletter (Step 95) and the
- * getting started emails (Step 151), called by Vercel Cron every day at
- * 15:00 UTC (`vercel.json`) and by nobody else — without the job's secret
- * it answers 401 and does nothing. The newsletter goes only on the day the
- * beta reviewers chose, unless they paused it (`newsletter_schedule`); the
- * getting started emails on every other day. Each runs whether or not the
- * other failed.
+ * `GET /api/cron/newsletter`: the weekly newsletter (Step 95), the getting
+ * started emails (Step 151) and the reminders to people invited who
+ * haven't joined (Step 163), called by Vercel Cron every day at 15:00 UTC
+ * (`vercel.json`) and by nobody else — without the job's secret it answers
+ * 401 and does nothing. The newsletter goes only on the day the beta
+ * reviewers chose, unless they paused it (`newsletter_schedule`); the
+ * getting started emails on every other day; the reminders every day. Each
+ * runs whether or not the others failed.
  *
  * `?user=<id>` (repeatable) sends the newsletter to those members now,
  * whatever the day, for a test send with the same secret. `?drip=send`
  * with `user` sends them a getting started email instead (`kind` names
  * which), noted nowhere; `?drip=dry` sends nothing and answers what the
- * day's run would send (to `user`, or everyone). Answers with counts only.
+ * day's run would send (to `user`, or everyone). `?reminders=send` runs
+ * only the day's invite reminders (again, after a failure: a second run
+ * sends nothing twice); `?reminders=dry` answers what they would be, and
+ * sends none. Answers with counts only.
  */
 export async function GET(request: NextRequest) {
   if (!fromTheJob(request)) {
@@ -52,6 +60,20 @@ export async function GET(request: NextRequest) {
   if (users.some((u) => !UUID.test(u))) {
     return NextResponse.json({ error: "Not a member id." }, { status: 400 });
   }
+  const reminders = params.get("reminders");
+  if (reminders !== null) {
+    if ((reminders !== "dry" && reminders !== "send") || users.length) {
+      return NextResponse.json({ error: "Not a reminders run." }, { status: 400 });
+    }
+    try {
+      const run = await sendInviteReminders({ dry: reminders === "dry" });
+      return NextResponse.json({ reminders: run }, { headers: NO_STORE });
+    } catch (err) {
+      console.error("[invite reminders] the run failed", err);
+      return NextResponse.json({ error: "The run failed." }, { status: 500 });
+    }
+  }
+
   const drip = params.get("drip");
   const kind = params.get("kind");
   if (
@@ -99,9 +121,17 @@ export async function GET(request: NextRequest) {
     console.error("[onboarding] the run failed", err);
     gettingStarted = { error: "The run failed." };
   }
-  const failed = "error" in newsletter || "error" in gettingStarted;
+  let inviteReminders: InviteReminderRun | { error: string };
+  try {
+    inviteReminders = await sendInviteReminders();
+  } catch (err) {
+    console.error("[invite reminders] the run failed", err);
+    inviteReminders = { error: "The run failed." };
+  }
+  const failed =
+    "error" in newsletter || "error" in gettingStarted || "error" in inviteReminders;
   return NextResponse.json(
-    { ...newsletter, drip: gettingStarted },
+    { ...newsletter, drip: gettingStarted, reminders: inviteReminders },
     { status: failed ? 500 : 200, headers: NO_STORE },
   );
 }

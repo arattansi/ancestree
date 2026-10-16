@@ -7,21 +7,27 @@ import { inviteApprovedEmail } from "@/lib/emails/invite-approved";
 const base = {
   firstName: "Amina",
   inviterName: "Karim",
+  treeName: "Rattansi Family",
   url: "https://www.ancestree.space/join/abc",
 };
 
 describe("inviteApprovedEmail", () => {
   it("says the request was approved, and nothing about an entry by default", () => {
     const { subject, html } = inviteApprovedEmail(base);
-    expect(subject).toBe("You’re invited to ancestree");
-    expect(html).toContain("Karim approved your request to join the family tree");
+    expect(subject).toBe("Karim invited you to Rattansi Family");
+    expect(html.replace(/\s+/g, " ")).toContain(
+      "Karim approved your request to join Rattansi Family on ancestree",
+    );
     expect(html).toContain("https://www.ancestree.space/join/abc");
     expect(html).not.toContain("already an entry");
   });
 
   it("names the entry a Root approved them as (Step 30.3)", () => {
-    const { html } = inviteApprovedEmail({ ...base, entryName: "Amina Rattansi" });
-    expect(html).toContain("Karim approved your request to join the family tree");
+    const { subject, html } = inviteApprovedEmail({ ...base, entryName: "Amina Rattansi" });
+    expect(subject).toBe("Karim added you to Rattansi Family");
+    expect(html.replace(/\s+/g, " ")).toContain(
+      "Karim approved your request to join Rattansi Family on ancestree",
+    );
     expect(html).toContain("already an entry for");
     expect(html).toContain(">Amina Rattansi</strong>");
     expect(html).toContain("makes that entry yours");

@@ -64,6 +64,15 @@ export function isDefaultTreeName(name: string): boolean {
 }
 
 /**
+ * A tree's name in a sentence to someone not on it yet (Step 163): "the
+ * family tree" while it still has a default name — "Ruth invited you to
+ * Family" reads as a slip — else its own.
+ */
+export function treeInSentence(name: string): string {
+  return isDefaultTreeName(name) ? "the family tree" : name.trim();
+}
+
+/**
  * What to offer a founder in place of a default name: their family's name,
  * "The Garcia Family". A maiden name comes first — someone who married in
  * and starts a tree is starting their own side — and a name one of their

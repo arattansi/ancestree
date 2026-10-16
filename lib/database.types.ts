@@ -875,6 +875,32 @@ export type Database = {
           },
         ]
       }
+      invite_reminders: {
+        Row: {
+          invite_id: string
+          sent_at: string
+          stage: number
+        }
+        Insert: {
+          invite_id: string
+          sent_at?: string
+          stage: number
+        }
+        Update: {
+          invite_id?: string
+          sent_at?: string
+          stage?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invite_reminders_invite_id_fkey"
+            columns: ["invite_id"]
+            isOneToOne: false
+            referencedRelation: "invites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invite_requests: {
         Row: {
           created_at: string
@@ -972,6 +998,7 @@ export type Database = {
           joins_as: string
           max_uses: number | null
           person_id: string | null
+          renewed_at: string | null
           status: string
           token: string
           tree_id: string
@@ -990,6 +1017,7 @@ export type Database = {
           joins_as?: string
           max_uses?: number | null
           person_id?: string | null
+          renewed_at?: string | null
           status?: string
           token?: string
           tree_id: string
@@ -1008,6 +1036,7 @@ export type Database = {
           joins_as?: string
           max_uses?: number | null
           person_id?: string | null
+          renewed_at?: string | null
           status?: string
           token?: string
           tree_id?: string
@@ -3414,6 +3443,7 @@ export type Database = {
           founds_tree: boolean
           inviter_name: string
           joins_as: string
+          members: number
           tree_name: string
           valid: boolean
         }[]
@@ -3442,6 +3472,22 @@ export type Database = {
           user_id: string
         }[]
       }
+      invite_reminders_due: {
+        Args: never
+        Returns: {
+          claim_person_name: string
+          created_at: string
+          email: string
+          expires_at: string
+          first_name: string
+          invite_id: string
+          inviter_name: string
+          placeholder: boolean
+          stages: number[]
+          token: string
+          tree_name: string
+        }[]
+      }
       invite_request_candidates: {
         Args: { p_request: string }
         Returns: {
@@ -3461,6 +3507,17 @@ export type Database = {
       }
       is_beta_reviewer: { Args: never; Returns: boolean }
       is_own_child: { Args: { p_person: string }; Returns: boolean }
+      lapsed_invite_preview: {
+        Args: { p_token: string }
+        Returns: {
+          claim_person_name: string
+          inviter_name: string
+          masked_email: string
+          members: number
+          state: string
+          tree_name: string
+        }[]
+      }
       library_triage_count: { Args: never; Returns: number }
       list_blog_posts: {
         Args: never
@@ -3685,6 +3742,7 @@ export type Database = {
           updated_at: string
         }[]
       }
+      record_invite_reminders: { Args: { p_sends: Json }; Returns: string[] }
       record_onboarding_sends: { Args: { p_sends: Json }; Returns: string[] }
       record_share_link_view: {
         Args: { p_link_id: string }
@@ -3737,6 +3795,16 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      renew_invite: {
+        Args: { p_days: number; p_token: string }
+        Returns: {
+          invite_id: string
+          invite_token: string
+          minted: boolean
+          outcome: string
+          sent_to: string
+        }[]
       }
       report_entry: {
         Args: {

@@ -446,7 +446,7 @@ export type InviteSignInResult =
  * The invite link reached that inbox, which is all a sign-in email would
  * prove — so we mint the one-time token ourselves and spend it on the spot
  * instead of mailing a second link. Refuses an address that is already a
- * member: their invite must not double as a 14-day key to a live account —
+ * member: their invite must not double as a 30-day key to a live account —
  * a member joins another tree from the invite page while signed in, and
  * `emailInviteSignInCode` sends one who isn't a sign-in code instead.
  */

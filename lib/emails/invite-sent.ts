@@ -1,5 +1,5 @@
 import { escapeHtml } from "@/lib/email";
-import { INVITE_EMAIL_SUBJECT, renderInviteEmail } from "@/lib/emails/shared";
+import { inviteEmailSubject, renderInviteEmail, treeNameHtml } from "@/lib/emails/shared";
 import { INVITE_LIFETIME_DAYS } from "@/lib/limits";
 
 /**
@@ -7,23 +7,29 @@ import { INVITE_LIFETIME_DAYS } from "@/lib/limits";
  * they already know (the "Invite a relative" bulk form), as opposed to
  * lib/emails/invite-approved.ts which fires when an admin approves someone
  * else's public request — the wording differs slightly since nobody asked.
+ * It names the tree (Step 163).
  */
 export function inviteSentEmail(input: {
   firstName: string;
   inviterName: string;
+  treeName: string;
   url: string;
 }): { subject: string; html: string } {
   const firstName = escapeHtml(input.firstName);
   const inviterName = escapeHtml(input.inviterName);
+  const treeName = treeNameHtml(input.treeName);
 
   const html = renderInviteEmail({
     firstName,
-    bodyHtml: `${inviterName} invited you to help build the family tree on
+    bodyHtml: `${inviterName} invited you to help build ${treeName} on
                   ancestree. The link below signs you straight in &mdash;
                   it&rsquo;s yours alone, so please don&rsquo;t forward it. It
                   works once and expires in ${INVITE_LIFETIME_DAYS} days.`,
     url: input.url,
   });
 
-  return { subject: INVITE_EMAIL_SUBJECT, html };
+  return {
+    subject: inviteEmailSubject({ ...input, claim: false }),
+    html,
+  };
 }

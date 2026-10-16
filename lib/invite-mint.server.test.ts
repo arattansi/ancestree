@@ -59,8 +59,8 @@ const INVITER = {
 const ZAHRA = { firstName: "Zahra", lastName: "Suleman", email: "zahra@example.com" };
 const OMAR = { firstName: "Omar", lastName: "Suleman", email: "omar@example.com" };
 
-const email: InviteEmail = (recipient, { url, inviterName }) => ({
-  subject: `${inviterName} invited ${recipient.firstName}`,
+const email: InviteEmail = (recipient, { url, inviterName, treeName }) => ({
+  subject: `${inviterName} invited ${recipient.firstName} to ${treeName}`,
   html: url,
 });
 const rowsOf = (chain: Chain) => chain.steps[0][1] as Record<string, unknown>[];
@@ -79,7 +79,9 @@ beforeEach(() => {
             { id: "inv-zahra", token: "tok-zahra", invited_email: ZAHRA.email },
           ],
         }
-      : {};
+      : chain.table === "trees"
+        ? { data: { name: "Suleman Family" } }
+        : {};
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
@@ -94,7 +96,8 @@ describe("mintInvites", () => {
       email,
     });
 
-    expect(chains.map((c) => c.table)).toEqual(["invites", "invite_requests"]);
+    // The tree's name is read beside the insert, for the emails (Step 163).
+    expect(chains.map((c) => c.table)).toEqual(["invites", "trees", "invite_requests"]);
     expect(rowsOf(inserted("invites")!)).toEqual([
       expect.objectContaining({
         tree_id: TREE,
@@ -112,12 +115,12 @@ describe("mintInvites", () => {
       [
         {
           to: ZAHRA.email,
-          subject: "Amina invited Zahra",
+          subject: "Amina invited Zahra to Suleman Family",
           html: "https://www.ancestree.space/join/tok-zahra",
         },
         {
           to: OMAR.email,
-          subject: "Amina invited Omar",
+          subject: "Amina invited Omar to Suleman Family",
           html: "https://www.ancestree.space/join/tok-omar",
         },
       ],
@@ -170,7 +173,7 @@ describe("mintInvites", () => {
       [null, false, "Could not create a link."],
     ]);
     expect(batches).toEqual([]);
-    expect(chains.map((c) => c.table)).toEqual(["invites"]);
+    expect(chains.map((c) => c.table)).toEqual(["invites", "trees"]);
   });
 
   it("keeps the invites when their record can't be filed", async () => {
@@ -198,7 +201,7 @@ describe("mintInvites", () => {
       email,
     });
     expect(rowsOf(chains[0])[0]).toMatchObject({ founds_tree: true, person_id: null });
-    expect(rowsOf(chains[1])[0]).toMatchObject({ source: "request" });
+    expect(rowsOf(inserted("invite_requests")!)[0]).toMatchObject({ source: "request" });
 
     chains = [];
     await mintInvites({
@@ -223,6 +226,6 @@ describe("mintInvites", () => {
       source: "direct",
       email,
     });
-    expect(batches[0][0].subject).toBe("A family member invited Zahra");
+    expect(batches[0][0].subject).toBe("A family member invited Zahra to Suleman Family");
   });
 });

@@ -1,6 +1,7 @@
 import { escapeHtml } from "@/lib/email";
 import type { AlertCap } from "@/lib/request-alerts";
 import { getSiteUrl } from "@/lib/site-url";
+import { treeInSentence } from "@/lib/tree-names";
 
 /**
  * Shared HTML shell for ancestree's own transactional emails (as opposed to
@@ -185,13 +186,35 @@ export function renderInviteEmail(input: {
       : "You&rsquo;re invited",
     bodyHtml: input.bodyHtml,
     cta: { label: "join ancestree", url: input.url },
-    footnoteHtml: `Didn&rsquo;t expect this? You can ignore this email &mdash;
-                  the link only works once and nobody can join without it.`,
+    footnoteHtml: INVITE_FOOTNOTE_HTML,
   });
 }
 
-/** Plain text — subject lines aren't HTML, so a real apostrophe, not &rsquo;. */
-export const INVITE_EMAIL_SUBJECT = "You’re invited to ancestree";
+/** An invite's small print, and its reminders' (Step 163). */
+export const INVITE_FOOTNOTE_HTML = `Didn&rsquo;t expect this? You can ignore this email &mdash;
+                  the link only works once and nobody can join without it.`;
+
+/**
+ * An invite's subject names who sent it and the tree (Step 163, audit W8):
+ * "Ruth added you to Harlow Family" when an entry waits for them to claim,
+ * "Ruth invited you to Harlow Family" otherwise, and "the family tree" for
+ * one with a default name (`treeInSentence`). Plain text, so the names
+ * aren't escaped (`oneLine`).
+ */
+export function inviteEmailSubject(input: {
+  inviterName: string;
+  treeName: string;
+  /** An entry on the tree is theirs to claim. */
+  claim: boolean;
+}): string {
+  const verb = input.claim ? "added" : "invited";
+  return `${oneLine(input.inviterName)} ${verb} you to ${oneLine(treeInSentence(input.treeName))}`;
+}
+
+/** A tree's name in an invite's body: escaped, and "the family tree" for a default one. */
+export function treeNameHtml(name: string): string {
+  return escapeHtml(oneLine(treeInSentence(name)));
+}
 
 /**
  * Text someone typed — a name, a tree's name — on one line, for a subject

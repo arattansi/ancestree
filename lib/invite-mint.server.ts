@@ -27,10 +27,10 @@ export type MintedInvite = {
   error?: string;
 };
 
-/** What an invite's email says, given its link and who sent it. */
+/** What an invite's email says, given its link, who sent it and the tree. */
 export type InviteEmail = (
   recipient: InviteRecipient,
-  sent: { url: string; inviterName: string },
+  sent: { url: string; inviterName: string; treeName: string },
 ) => { subject: string; html: string };
 
 /** An invite's link, as its email carries it. */
@@ -81,21 +81,25 @@ export async function mintInvites({
   const admin = createAdminClient();
   const expiresAt = expiresAfter(INVITE_LIFETIME_DAYS);
 
-  const { data: invites, error } = await admin
-    .from("invites")
-    .insert(
-      recipients.map((r) => ({
-        tree_id: treeId,
-        created_by: inviter.auth_user_id,
-        status: "active",
-        expires_at: expiresAt,
-        joins_as: INVITED_AS.key,
-        founds_tree: foundsTree,
-        person_id: personId ?? null,
-        invited_email: r.email,
-      })),
-    )
-    .select("id, token, invited_email");
+  // The tree's name goes in each email (Step 163), read beside the insert.
+  const [{ data: invites, error }, { data: tree }] = await Promise.all([
+    admin
+      .from("invites")
+      .insert(
+        recipients.map((r) => ({
+          tree_id: treeId,
+          created_by: inviter.auth_user_id,
+          status: "active",
+          expires_at: expiresAt,
+          joins_as: INVITED_AS.key,
+          founds_tree: foundsTree,
+          person_id: personId ?? null,
+          invited_email: r.email,
+        })),
+      )
+      .select("id, token, invited_email"),
+    admin.from("trees").select("name").eq("id", treeId).maybeSingle(),
+  ]);
   if (error || !invites) {
     console.error(`[invites] ${recipients.length} invites not made — ${error?.message}`);
     return recipients.map((r) => ({
@@ -115,10 +119,11 @@ export async function mintInvites({
   });
 
   const from = inviterName(inviter);
+  const treeName = tree?.name ?? "your family’s tree";
   const sent = await sendEmails(
     made.map(({ recipient, url }) => ({
       to: recipient.email,
-      ...email(recipient, { url, inviterName: from }),
+      ...email(recipient, { url, inviterName: from, treeName }),
     })),
   );
   const unsent = unsentSummary(sent);

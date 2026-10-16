@@ -5,10 +5,12 @@
  */
 
 /**
- * How long an emailed invite's link works. The database counts one as live
- * only while `expires_at > now()` (`lib/expiry.ts`).
+ * How long an emailed invite's link works: 30 days since Step 163 (14
+ * before), its invitee reminded on the way (`lib/invite-reminders.ts`). The
+ * database counts one as live only while `expires_at > now()`
+ * (`lib/expiry.ts`).
  */
-export const INVITE_LIFETIME_DAYS = 14;
+export const INVITE_LIFETIME_DAYS = 30;
 
 /** How long a share link works when it's set to expire. */
 export const SHARE_LINK_DAYS = 30;

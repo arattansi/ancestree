@@ -197,12 +197,11 @@ export async function mintClaimInvite(
     ],
     personId,
     source: "direct",
-    email: (_, { url, inviterName }) =>
+    email: (_, sent) =>
       claimInviteEmail({
         firstName: person.preferred_name || person.first_name || entryName,
         entryName,
-        inviterName,
-        url,
+        ...sent,
         placeholder: person.placeholder_number != null,
       }),
   });

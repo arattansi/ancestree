@@ -4,6 +4,7 @@ import {
   defaultTreeName,
   isDefaultTreeName,
   suggestedTreeName,
+  treeInSentence,
 } from "@/lib/tree-names";
 
 describe("defaultTreeName", () => {
@@ -85,5 +86,17 @@ describe("suggestedTreeName", () => {
   it("offers nothing without a name to build it from", () => {
     expect(suggestedTreeName({ lastName: "" })).toBeNull();
     expect(suggestedTreeName({ maidenName: null, lastName: null })).toBeNull();
+  });
+});
+
+describe("treeInSentence", () => {
+  it("says the family tree for a default name (Step 163)", () => {
+    expect(treeInSentence("Family")).toBe("the family tree");
+    expect(treeInSentence("Second Family")).toBe("the family tree");
+  });
+
+  it("keeps a name someone gave it", () => {
+    expect(treeInSentence(" The Haddad Family ")).toBe("The Haddad Family");
+    expect(treeInSentence("Family Tree")).toBe("Family Tree");
   });
 });

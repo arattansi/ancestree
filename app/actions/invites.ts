@@ -11,6 +11,7 @@ import { inviteSentEmail } from "@/lib/emails/invite-sent";
 import type { MatchAnswer } from "@/lib/invite-matches";
 import { inviteQuestions, type InviteQuestion } from "@/lib/invite-matches.server";
 import { mintInvites, type MintedInvite } from "@/lib/invite-mint.server";
+import { renewLapsedInvite, type RenewInviteState } from "@/lib/invite-renewal.server";
 import { createClient } from "@/lib/supabase/server";
 import { revalidateTreePages } from "@/lib/revalidate";
 import { MAX_NAME_LENGTH } from "@/lib/request-forms";
@@ -134,8 +135,7 @@ export async function sendDirectInvites(
         email,
       })),
       source: "direct",
-      email: (row, { url, inviterName }) =>
-        inviteSentEmail({ firstName: row.firstName, inviterName, url }),
+      email: (row, sent) => inviteSentEmail({ firstName: row.firstName, ...sent }),
     }),
     Promise.all(
       claims.map(async (r): Promise<DirectInviteResult> => {
@@ -224,6 +224,21 @@ export async function makeClaimLink(
   const { url, minted, error } = await mintClaimLink(inviter, personId, treeId);
   if (minted) revalidateTreePages();
   return { url, error };
+}
+
+export type { RenewInviteState } from "@/lib/invite-renewal.server";
+
+/**
+ * Whoever holds an expired invite's link asks for a fresh one, emailed to
+ * the address it was for (Step 163): signed in or not, as the link is the
+ * secret and the new one goes only to that inbox. At most once a day an
+ * invite (`renewLapsedInvite`).
+ */
+export async function renewInvite(token: string): Promise<RenewInviteState> {
+  if (typeof token !== "string" || !token || token.length > 200) {
+    return { error: "That link no longer works." };
+  }
+  return renewLapsedInvite(token);
 }
 
 /**

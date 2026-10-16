@@ -1,5 +1,5 @@
 import { escapeHtml } from "@/lib/email";
-import { INVITE_EMAIL_SUBJECT, renderInviteEmail } from "@/lib/emails/shared";
+import { inviteEmailSubject, renderInviteEmail, treeNameHtml } from "@/lib/emails/shared";
 import { INVITE_LIFETIME_DAYS } from "@/lib/limits";
 
 /**
@@ -10,13 +10,15 @@ import { INVITE_LIFETIME_DAYS } from "@/lib/limits";
  * lib/emails/invite-approved.ts (someone's public request being approved), this
  * one is about a specific person already drawn on the tree, so it says whose
  * entry it is and what claiming does. The recipient may well not know they are
- * on a family tree at all, which is exactly why the entry gets named up front.
+ * on a family tree at all, which is exactly why the entry gets named up front,
+ * and the subject says who added them to which tree (Step 163).
  */
 export function claimInviteEmail(input: {
   firstName: string;
   /** The entry's display name — usually the same person, hence the framing. */
   entryName: string;
   inviterName: string;
+  treeName: string;
   url: string;
   /**
    * The entry is a child's placeholder (Step 98.3): it has no name of its
@@ -28,17 +30,19 @@ export function claimInviteEmail(input: {
   const firstName = escapeHtml(input.firstName);
   const entryName = escapeHtml(input.entryName);
   const inviterName = escapeHtml(input.inviterName);
+  const treeName = treeNameHtml(input.treeName);
+  const subject = inviteEmailSubject({ ...input, claim: true });
 
   if (input.placeholder) {
     return {
-      subject: INVITE_EMAIL_SUBJECT,
+      subject,
       html: renderInviteEmail({
-        bodyHtml: `${inviterName} has kept a place for you on your
-                  family&rsquo;s tree on ancestree. The link below signs you
-                  straight in and makes it yours. Your details are hidden
-                  from the family until your parent approves. It&rsquo;s
-                  yours alone, so please don&rsquo;t forward it. It works once
-                  and expires in ${INVITE_LIFETIME_DAYS} days.`,
+        bodyHtml: `${inviterName} has kept a place for you on ${treeName}
+                  on ancestree. The link below signs you straight in and
+                  makes it yours. Your details are hidden from the family
+                  until your parent approves. It&rsquo;s yours alone, so
+                  please don&rsquo;t forward it. It works once and expires in
+                  ${INVITE_LIFETIME_DAYS} days.`,
         url: input.url,
       }),
     };
@@ -46,8 +50,8 @@ export function claimInviteEmail(input: {
 
   const html = renderInviteEmail({
     firstName,
-    bodyHtml: `${inviterName} has been building your family&rsquo;s tree on
-                  ancestree, and there&rsquo;s already an entry there for
+    bodyHtml: `${inviterName} has been building ${treeName} on ancestree,
+                  and there&rsquo;s already an entry there for
                   <strong style="color:#0a0a0a;">${entryName}</strong>. The link
                   below signs you straight in and lets you claim it as your
                   own, so you can fill in your own details from then on.
@@ -56,5 +60,5 @@ export function claimInviteEmail(input: {
     url: input.url,
   });
 
-  return { subject: INVITE_EMAIL_SUBJECT, html };
+  return { subject, html };
 }

@@ -7,6 +7,7 @@ import { AccountTypeGlyph } from "@/components/account-type-badge";
 import { JoinTreeButton } from "@/components/join-tree-button";
 import { MagicLinkSignIn } from "@/components/magic-link-sign-in";
 import { CenteredPage } from "@/components/page-column";
+import { RenewInvite } from "@/components/renew-invite";
 import { SubmitButton } from "@/components/submit-button";
 import { TreeTarget } from "@/components/tree-target";
 import {
@@ -20,6 +21,7 @@ import { LEAF, ROOT } from "@/lib/account-types";
 import { getProfile, getSessionUser, getUser } from "@/lib/auth";
 import { verifiedEmail } from "@/lib/first-timer";
 import { sentToAnotherAddress } from "@/lib/invite-address";
+import { lapsedState, relativesOnTree } from "@/lib/lapsed-invites";
 import { readSentCodeFor } from "@/lib/sent-code.server";
 import { inviteHref } from "@/lib/sign-in-links";
 import { opensOnSignInLink, readInvite } from "@/lib/sign-in.server";
@@ -30,6 +32,7 @@ import {
   listMyTrees,
 } from "@/lib/tree-context";
 import { treeHref, treesHref } from "@/lib/tree-links";
+import { treeInSentence } from "@/lib/tree-names";
 
 export const metadata: Metadata = {
   title: "accept invite",
@@ -47,12 +50,14 @@ export default async function InvitePage({
   // Everything that needs only the token or the session, at once (Step
   // 77.1). A member already: the invite adds a tree, not an account (Step
   // 25). The invite itself is read by its token, which is its secret, so
-  // reading it before the preview has said it's live reveals nothing.
-  const [profile, sessionUser, { data }, invite, myTrees, access, chosen] =
+  // reading it before the preview has said it's live reveals nothing. An
+  // expired one emailed to someone has its own preview (Step 163).
+  const [profile, sessionUser, { data }, { data: lapsedData }, invite, myTrees, access, chosen] =
     await Promise.all([
       getProfile(),
       getSessionUser(),
       supabase.rpc("invite_preview", { p_token: token }),
+      supabase.rpc("lapsed_invite_preview", { p_token: token }),
       readInvite(token),
       listMyTrees(),
       currentAccess(),
@@ -63,6 +68,10 @@ export default async function InvitePage({
   const currentTreeId =
     access?.kind === "member" && chosen ? access.membership.tree.id : null;
   const preview = data?.[0];
+  const lapsed = preview ? null : lapsedData?.[0];
+  // How many are on it already, never who (Step 163): the page is open to
+  // whoever has the link.
+  const relatives = relativesOnTree(preview?.members ?? lapsed?.members);
 
   // An invite emailed to someone is their sign-in link: one button, no second
   // email. A bare link has no address on it, so it still asks for one. Only
@@ -141,7 +150,7 @@ export default async function InvitePage({
                   <>
                     join{" "}
                     <span className="font-medium text-foreground">
-                      {preview.tree_name}
+                      {treeInSentence(preview.tree_name)}
                     </span>{" "}
                     and claim the entry for{" "}
                     <span className="font-medium text-foreground">
@@ -152,11 +161,12 @@ export default async function InvitePage({
                   <>
                     help build{" "}
                     <span className="font-medium text-foreground">
-                      {preview.tree_name}
+                      {treeInSentence(preview.tree_name)}
                     </span>
                   </>
                 )}
                 .{" "}
+                {!founds && relatives ? `${relatives} ` : null}
                 {profile
                   ? "You’re signed in, so accepting adds it to your trees."
                   : signedInAsRecipient
@@ -234,6 +244,8 @@ export default async function InvitePage({
               ) : null}
             </CardContent>
           </>
+        ) : lapsed ? (
+          <LapsedInvite token={token} lapsed={lapsed} relatives={relatives} />
         ) : (
           <>
             <CardHeader>
@@ -254,6 +266,60 @@ export default async function InvitePage({
         )}
       </Card>
     </CenteredPage>
+  );
+}
+
+/**
+ * An expired invite that was emailed to someone (Step 163): who sent it and
+ * where to, and a fresh link to the same address, masked here — anyone may
+ * hold the link, but only that inbox gets the new one.
+ */
+function LapsedInvite({
+  token,
+  lapsed,
+  relatives,
+}: {
+  token: string;
+  lapsed: {
+    inviter_name: string;
+    tree_name: string;
+    claim_person_name: string | null;
+    masked_email: string;
+    state: string;
+  };
+  relatives: string | null;
+}) {
+  const strong = (text: string) => (
+    <span className="font-medium text-foreground">{text}</span>
+  );
+  const tree = treeInSentence(lapsed.tree_name);
+  return (
+    <>
+      <CardHeader>
+        <CardTitle>This link expired</CardTitle>
+        <CardDescription>
+          {strong(lapsed.inviter_name)}{" "}
+          {lapsed.claim_person_name ? (
+            <>
+              added you to {strong(tree)}, with an entry for{" "}
+              {strong(lapsed.claim_person_name)}
+            </>
+          ) : (
+            <>invited you to {strong(tree)}</>
+          )}
+          .{relatives ? ` ${relatives}` : null}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <RenewInvite
+          token={token}
+          state={lapsedState(lapsed.state)}
+          maskedEmail={lapsed.masked_email}
+          inviterName={lapsed.inviter_name}
+          treeName={tree}
+        />
+      </CardContent>
+    </>
   );
 }
 

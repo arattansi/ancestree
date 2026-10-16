@@ -1183,7 +1183,7 @@ mirror it for the UI.
   auth user, mints a one-time token (`auth.admin.generateLink`), spends it on
   the spot with the cookie-bound client, and redeems the invite with the
   recipient's name — no second email. It refuses an address that already has
-  a profile, so an invite is never a 14-day key to a live account: it asks
+  a profile, so an invite is never a 30-day key to a live account: it asks
   `public.address_has_profile` (service role only, Step 30.8,
   `20260923077000`) before minting anything, since minting stamps the
   account and Supabase then won't email it a sign-in code for a minute.
@@ -1276,13 +1276,15 @@ mirror it for the UI.
   nobody is on yet it opens on adding themselves, since there's nobody to
   find. Nobody who has died is listed there or can be claimed as "you"
   (Step 37), as on the canvas (Step 36).
-- **Invite tokens** (`public.invites`): an invite is a single-use, 14-day
-  link `"/join/<token>"`. Emailed ones are written with the service role
+- **Invite tokens** (`public.invites`): an invite is a single-use, 30-day
+  link `"/join/<token>"` (14 days until Step 163; `INVITE_LIFETIME_DAYS`). Emailed ones are written with the service role
   once the server has checked the sender; a Root may also insert one under
   RLS (`can_invite_as`), but since Step 52 nobody else may make one open to
   anyone (`invites_guard`): that is the family link's job, and a Root's. `redeem_invite` (SECURITY DEFINER) creates the member
   `profiles` row with `invited_by_user_id = invite.created_by` and flips the
-  invite to `accepted`. `invite_preview(token)` is the only pre-auth RPC.
+  invite to `accepted`. `invite_preview(token)` and, for an expired one
+  emailed to someone, `lapsed_invite_preview(token)` (Step 163) are the
+  only pre-auth RPCs.
 - **Invites join as Leaves (Step 18.2; one type since Step 34)**: every
   invite carries `invites.joins_as`, always `member` — the Leaf — and
   `redeem_invite` joins the tree with it. Anyone on the tree may invite
@@ -1500,7 +1502,7 @@ mirror it for the UI.
   request queue and send invites straight to people they already know — a
   `useFieldArray` row-per-person form (first name, last name, email;
   `components/direct-invite-form.tsx`) posting to `sendDirectInvites`
-  (`app/actions/invites.ts`). Each row mints a single-use, 14-day invite
+  (`app/actions/invites.ts`). Each row mints a single-use, 30-day invite
   bound to its address, emails it with `lib/emails/invite-sent.ts` (same visual
   shell as `invite-approved.ts`, via `lib/emails/shared.ts`, but worded for
   "you were invited" rather than "your request was approved"), and — purely so
@@ -1854,6 +1856,61 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 163: keep invites alive** (migration
+  `20261016100000_keep_invites_alive`). **From** the 2026-10-16 onboarding
+  audit (W4, W8 / R4): 18 people had joined through an invite and 18
+  invites had run out unused (14 of them claim invites); nothing reminded
+  the invitee, an expired link said only "Invite not available", and every
+  invite's subject was "You're invited to ancestree", naming neither the
+  inviter nor the family. **Aalim decided:** invites last 30 days; the
+  invitee is reminded on day 5 and day 25 with the same link; an expired
+  link lets whoever holds it send a fresh one to the invited address, at
+  most once a day, with the inviter told; the live invites are stretched
+  to 30 days, the expired ones left to their inviters. **Now**
+  `INVITE_LIFETIME_DAYS` is 30, and the four live claim invites run 30
+  days from when they were made (the family link has no expiry). Invite
+  subjects say who and where: "Ruth added you to The Harlow Family" when
+  an entry waits for them to claim (a claim invite, a request approved as
+  an entry), "Ruth invited you to The Harlow Family" otherwise
+  (`inviteEmailSubject`), and each body names the tree; a tree still
+  called by its default name ("Family", "Second Family") is "the family
+  tree" (`treeInSentence`). The daily cron (`/api/cron/newsletter`, after
+  the newsletter and the getting started emails, newsletter day included)
+  sends the reminders (`sendInviteReminders`): "You're still invited,
+  Leila", the same link, on day 5 under the invite's own subject and on
+  day 25 as "Your invite to … expires in 5 days". The database picks who
+  (`invite_reminders_due`: an emailed invite into a tree, live, five days
+  old or more, its address not on the tree yet, its sender still on it, a
+  claim invite's entry still claimable, living and placed there; not a
+  bare link, the family link or a founder invite), the app picks the day
+  (`reminderStageDue`: a missed day 5 is passed over once day 25 is due),
+  and `record_invite_reminders` notes each just before it goes
+  (`invite_reminders`), so a second run sends nothing twice.
+  `?reminders=dry` counts them; `?reminders=send` runs only them.
+  `/join/<token>` for an expired emailed invite (`lapsed_invite_preview`)
+  is **This link expired**: who invited them to which tree (and the entry,
+  for a claim), "2 relatives are on it already.", then "We can email a
+  fresh link to l•••@gmail.com." and **send a fresh link**
+  (`renewInvite` → `renew_invite`, service role only): a new 30-day invite
+  for the same address and entry with the first one's "Sent invites"
+  record, or the live one already out to them, emailed as the first one
+  was (`treeInviteEmail`, which Sent Invites' resend now uses too); the
+  expired one is archived and marked `renewed_at`, and its page then says
+  "A fresh link went to l•••@gmail.com." for a day. An address on the tree
+  already gets **sign in**; a link whose sender has left or whose entry is
+  spoken for, gone or has died says "Ask Ruth for a new invite." Whoever
+  sent it gets an `invite_renewed` notice ("Sami Quillon's invite to … had
+  expired, so we emailed them a fresh link."), once the email has gone; an
+  email that fails frees the day's turn. A live invite's page counts the
+  tree's members too (`invite_preview.members`), never names, and says
+  nothing for the inviter alone. **My calls:** a count of members, not
+  entries; the notice is in-app only, like the family link's; reminders
+  and renewals leave founder invites alone (none exist since Step 119);
+  "the family tree" for a default-named tree in the emails and the join
+  page's sentences (three of the five live trees are still "Family"), its
+  buttons unchanged; the masked address keeps the first letter and the
+  domain.
 
 - **Step 167: the held-open menu tree sits left of the page from 1240px,
   not centred over it** (no migration). **Seen** in Step 166: the
