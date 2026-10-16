@@ -1,4 +1,5 @@
 import { escapeHtml } from "@/lib/email";
+import { markdownEmailHtml } from "@/lib/emails/markdown";
 import { emailButton, oneLine, renderEmail } from "@/lib/emails/shared";
 import {
   addedCount,
@@ -30,7 +31,8 @@ export const HEADING =
  * reader, and each story links to itself with who told it and who asked
  * (Step 144), or, in a week with none, a button to write one; a photo
  * gives away only whom it's of. A note from the beta
- * reviewers, when there is one, goes above the greeting, and "invite family" sits
+ * reviewers, when there is one, goes above the greeting, in Markdown
+ * (Step 159), and "invite family" sits
  * beside the main button (Step 143).
  */
 export function newsletterEmail(input: {
@@ -45,15 +47,15 @@ export function newsletterEmail(input: {
   inviteUrl: string;
   /** A story, on the site's origin (Step 144). */
   storyUrl: (storyId: string) => string;
-  /** The beta reviewers' note for this send, as they wrote it (Step 144). */
+  /** The beta reviewers' note for this send, in Markdown (Steps 144, 159). */
   note?: string | null;
 }): { subject: string; html: string } {
   const { issue } = input;
-  // Their note above everything, as written: lines kept, nothing else
-  // (Step 144; above the greeting at Aalim's ask).
+  // Their note above everything (Step 144; above the greeting at Aalim's
+  // ask), in Markdown: bold, italics, links and the rest (Step 159).
   const note = input.note?.trim();
   const lead = note
-    ? `<p style="margin:0 0 28px;${TEXT}">${escapeHtml(note).replace(/\r?\n/g, "<br />")}</p>`
+    ? `<div style="margin:0 0 28px;">${markdownEmailHtml(note)}</div>`
     : undefined;
   const sections = issueSections(issue, input);
 

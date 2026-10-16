@@ -542,7 +542,9 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   a member's own, for the admin page's newsletter tab; `lib/newsletter.ts` — `weeklyIssue`,
   cut to the reader's own family by My Family Tree's rule (`familyTies`),
   `isMilestone`, `isSendDay`, `nextSendAt` (`.test.ts`);
-  `lib/emails/newsletter.ts` (`.test.ts`); the signed-out unsubscribe page
+  `lib/emails/newsletter.ts` (`.test.ts`), its note drawn by
+  `lib/emails/markdown.ts` (`markdownEmailHtml`, Step 159; `.test.ts`);
+  the signed-out unsubscribe page
   `app/newsletter/[token]/` and the mail apps' one-click
   `app/api/newsletter/[token]/route.ts` (`lib/newsletter-settings.server.ts`);
   `components/weekly-newsletter.tsx` — the box on settings;
@@ -1829,6 +1831,28 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 159: the newsletter's note in Markdown** (no migration).
+  **Aalim asked:** Markdown for the newsletter note, to bold, italicize,
+  hyperlink and so on. **Now** the note on the admin page's newsletter tab
+  is Markdown, drawn in the email with inline styles
+  (`markdownEmailHtml`, `lib/emails/markdown.ts`): bold, italics,
+  strikethrough, links (an address or email address on its own links
+  too), bullet and numbered lists, headings, quotations, a line across,
+  code and tables. **Markdown helper** beside the note's label is the
+  blog tab's own (Aalim asked for the same one; now shared,
+  `components/markdown-help.tsx`): the same list, popping out to the
+  card's left from `xl`, under the box narrower; only the blog's adds the
+  ancestree mark. "Yours, as it stands" shows the note once saved.
+  **My calls:** it's parsed with remark (`unified` + `remark-parse` +
+  the `remark-gfm` already there, now direct deps) and
+  drawn by hand, not through `react-dom/server`, so every style is inline
+  and only what's listed gets through: raw HTML stays the text it was, a
+  picture is only its description, and a link goes only to http(s) or
+  mailto (`ancestree.space/…` without https:// is taken; `/library` means
+  our own site). A single line break stays one, as the plain notes were
+  written. No live preview while typing (Aalim called the stories' Write /
+  Preview pointless, Step 113).
 
 - **Step 158: the library's proverb on the right, a smaller preview,
   birthplaces on the leaves** (no migration). **Aalim asked:** move the

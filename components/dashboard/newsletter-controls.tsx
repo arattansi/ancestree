@@ -8,6 +8,7 @@ import {
   setNewsletterSchedule,
 } from "@/app/actions/newsletter";
 import { FormError } from "@/components/form-error";
+import { MarkdownHelp, MarkdownHelpButton } from "@/components/markdown-help";
 import { PendingButton } from "@/components/pending-button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -135,8 +136,8 @@ export function NewsletterControls({
 
 /**
  * What the next newsletter carries besides its news (Step 144): a note at
- * its top, and whether it tells every story so far. Both go with the next
- * send only.
+ * its top, in Markdown (Step 159), and whether it tells every story so
+ * far. Both go with the next send only.
  */
 function NextSendExtras({
   note: saved,
@@ -148,6 +149,7 @@ function NextSendExtras({
   const action = useAction({ inline: true });
   const [note, setNote] = React.useState(saved ?? "");
   const [allStories, setAllStories] = React.useState(savedAll);
+  const [helpOpen, setHelpOpen] = React.useState(false);
   const changed = note.trim() !== (saved ?? "") || allStories !== savedAll;
 
   return (
@@ -161,7 +163,10 @@ function NextSendExtras({
       }}
     >
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="newsletter-note">Note for the next newsletter</Label>
+        <Label htmlFor="newsletter-note">
+          Note for the next newsletter (
+          <MarkdownHelpButton open={helpOpen} onOpenChange={setHelpOpen} />)
+        </Label>
         <Textarea
           id="newsletter-note"
           value={note}
@@ -170,6 +175,7 @@ function NextSendExtras({
           rows={4}
           className="max-w-xl"
         />
+        {helpOpen ? <MarkdownHelp onClose={() => setHelpOpen(false)} /> : null}
       </div>
       <div className="flex items-center gap-2">
         <Checkbox

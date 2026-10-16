@@ -141,6 +141,18 @@ describe("newsletterEmail", () => {
     );
   });
 
+  it("writes the note in Markdown: bold, italics, links (Step 159)", () => {
+    const { html } = render(
+      issue(),
+      "**Eid Mubarak**, _everyone_.\n\nRead [the library](https://www.ancestree.space/library).",
+    );
+    expect(html).toContain('<strong style="font-weight:600;">Eid Mubarak</strong>, <em>everyone</em>.');
+    expect(html).toMatch(/<a href="https:\/\/www\.ancestree\.space\/library" [^>]*>the library<\/a>/);
+    expect(html.indexOf("Eid Mubarak")).toBeLessThan(
+      html.indexOf(">Your family this week</p>"),
+    );
+  });
+
   it("has no note when there's none", () => {
     expect(render(issue(), "  ").html).not.toContain("<br />See");
   });

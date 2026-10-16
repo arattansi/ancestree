@@ -13,6 +13,11 @@ import { FormError } from "@/components/form-error";
 import { AboutFields, useAbout } from "@/components/library/about-fields";
 import { LibraryCard } from "@/components/library/library-card";
 import { PostArticle } from "@/components/library/post-article";
+import {
+  MARKDOWN_HELP,
+  MarkdownHelp,
+  MarkdownHelpButton,
+} from "@/components/markdown-help";
 import { PendingButton } from "@/components/pending-button";
 import { RowCard, RowList } from "@/components/row-card";
 import { Badge } from "@/components/ui/badge";
@@ -165,48 +170,11 @@ const ActiveEditor = React.createContext<{
   setActive: (id: string) => void;
 }>({ active: null, setActive: () => {} });
 
-/** How to write it, beside the text: the Markdown a post can use. */
-const MARKDOWN_HELP: [syntax: string, means: string][] = [
-  ["**bold**", "bold"],
-  ["_italics_", "italics"],
-  ["# Heading", "a heading (## for a smaller one)"],
-  ["- point", "a bullet point, one per line"],
-  ["1. first", "a numbered list"],
-  ["> words", "a quotation"],
-  ["[words](https://…)", "a link"],
-  ["---", "a line across"],
-  ["blank line", "a new paragraph"],
+/** The post's Markdown: the shared list, then the ancestree mark. */
+const POST_MARKDOWN_HELP: [syntax: string, means: string][] = [
+  ...MARKDOWN_HELP,
   [BLOG_MARK, "the ancestree mark (or + between blocks in the preview)"],
 ];
-
-/**
- * The helper, while it's open: a pop-up to the card's left from `xl`
- * (the preview's mirror), under the text box narrower.
- */
-function MarkdownHelp({ onClose }: { onClose: () => void }) {
-  return (
-    <div
-      role="dialog"
-      aria-label="Markdown"
-      className="rounded-lg border bg-background p-3 text-xs text-muted-foreground shadow-sm xl:fixed xl:top-20 xl:left-6 xl:z-20 xl:w-[min(20rem,calc(50vw-26rem))] xl:shadow-xl"
-    >
-      <div className="mb-2 flex items-center justify-between">
-        <p className="font-medium text-foreground">Markdown</p>
-        <Button type="button" size="sm" variant="ghost" onClick={onClose}>
-          close
-        </Button>
-      </div>
-      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
-        {MARKDOWN_HELP.map(([syntax, means]) => (
-          <React.Fragment key={syntax}>
-            <dt className="font-mono text-foreground">{syntax}</dt>
-            <dd>{means}</dd>
-          </React.Fragment>
-        ))}
-      </dl>
-    </div>
-  );
-}
 
 /**
  * The form for a post, new or being edited, with its preview: the card as
@@ -375,15 +343,7 @@ function PostEditor({
         <div className="flex flex-col gap-2">
           <Label htmlFor={`${idPrefix}-body`}>
             Post (
-            <button
-              type="button"
-              onClick={() => setHelpOpen((o) => !o)}
-              aria-expanded={helpOpen}
-              className="underline underline-offset-4 hover:text-muted-foreground"
-            >
-              Markdown helper
-            </button>
-            )
+            <MarkdownHelpButton open={helpOpen} onOpenChange={setHelpOpen} />)
           </Label>
           <Textarea
             id={`${idPrefix}-body`}
@@ -400,7 +360,10 @@ function PostEditor({
               : null}
           </FormError>
           {helpOpen ? (
-            <MarkdownHelp onClose={() => setHelpOpen(false)} />
+            <MarkdownHelp
+              rows={POST_MARKDOWN_HELP}
+              onClose={() => setHelpOpen(false)}
+            />
           ) : null}
         </div>
 
