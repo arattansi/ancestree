@@ -203,6 +203,30 @@ export function blogPostMeta(
 }
 
 /**
+ * What the editor suggests for a post's meta title and description, to
+ * fill in with a press (Step 154): what its page says when they're left
+ * empty, the title as the tab shows it and the first words, each within
+ * its limit so a filled-in one saves. Empty when there's nothing to go on.
+ */
+export function blogMetaSuggestions(
+  title: string,
+  body: string,
+): { title: string; description: string } {
+  const t = title.trim().replace(/\s+/g, " ");
+  const named = `${t} · ancestree`;
+  let metaTitle = "";
+  if (t && named.length <= BLOG_META_TITLE_MAX) metaTitle = named;
+  else if (t.length <= BLOG_META_TITLE_MAX) metaTitle = t;
+  else {
+    const cut = t.slice(0, BLOG_META_TITLE_MAX - 1);
+    const atWord = cut.lastIndexOf(" ");
+    metaTitle = `${(atWord > 0 ? cut.slice(0, atWord) : cut).replace(/[,;:.!?]+$/, "")}…`;
+  }
+  // An excerpt's ellipsis can run one past what it's given.
+  return { title: metaTitle, description: blogExcerpt(body, BLOG_META_DESCRIPTION_MAX - 1) };
+}
+
+/**
  * The ancestree mark in a post's Markdown: a line of its own, put there
  * from the editor's preview, drawn as the logo between two blocks. An
  * HTML comment, so anything else that reads the Markdown shows nothing.

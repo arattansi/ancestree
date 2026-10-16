@@ -53,8 +53,12 @@ function removeCoverLater(path: string | null | undefined) {
  * put on, replaced or taken off. The browser has already shrunk the photo;
  * it's stored with the service role under the post's own folder in the
  * public `library` bucket. Each function checks the reviewer again.
+ * Answers with the post's id, so a new draft stays open once saved
+ * (Step 154).
  */
-export async function saveBlogPost(formData: FormData): Promise<BlogActionResult> {
+export async function saveBlogPost(
+  formData: FormData,
+): Promise<BlogActionResult & { id?: string }> {
   if (!(await isBetaReviewer())) return { error: NOT_REVIEWER };
 
   let people: unknown = [];
@@ -132,7 +136,7 @@ export async function saveBlogPost(formData: FormData): Promise<BlogActionResult
   }
 
   revalidateBlog(post.slug);
-  return {};
+  return { id: post.id };
 }
 
 /**

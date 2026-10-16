@@ -25,7 +25,7 @@ import {
   BLOG_PEOPLE_MAX,
   BLOG_PERSON_NAME_MAX,
   BLOG_PERSON_PLACE_MAX,
-  blogExcerpt,
+  blogMetaSuggestions,
   blogPostHref,
   BLOG_MARK,
   coverPhotoUrl,
@@ -50,16 +50,63 @@ import { cn } from "@/lib/utils";
  * its Markdown and its meta title and description, a live preview beside
  * the form that puts the ancestree mark between blocks; then edit it, open
  * it, publish it (or take it back to a draft), and delete it. Drafts sit
- * first in the list.
+ * first in the list. Since Step 154 the tab opens on the list, under a
+ * "new draft" button, with no form until one's asked for: a draft is
+ * picked to edit, or a new one started; a new draft, once saved, stays
+ * open as itself.
  */
 export function AdminBlog({ posts }: { posts: BlogPost[] }) {
-  const [active, setActive] = React.useState(NEW_EDITOR);
+  const [active, setActive] = React.useState<string | null>(null);
+  const [writing, setWriting] = React.useState(false);
+  const [open, setOpen] = React.useState<ReadonlySet<string>>(() => new Set());
+
+  function openPost(id: string) {
+    setOpen((o) => new Set(o).add(id));
+    setActive(editorId(id));
+  }
+
+  function closePost(id: string) {
+    setOpen((o) => {
+      const next = new Set(o);
+      next.delete(id);
+      return next;
+    });
+    setActive((a) => (a === editorId(id) ? null : a));
+  }
+
+  function startDraft() {
+    setWriting(true);
+    setActive(NEW_EDITOR);
+  }
+
+  function stopDraft(savedId?: string) {
+    setWriting(false);
+    setActive((a) => (a === NEW_EDITOR ? null : a));
+    if (savedId) openPost(savedId);
+  }
+
   return (
     <ActiveEditor.Provider value={{ active, setActive }}>
-      <div className="flex flex-col gap-6">
-        <PostEditor idPrefix={NEW_EDITOR} />
+      <div className="flex flex-col gap-4">
+        {writing ? (
+          <div className="flex flex-col gap-2 rounded-md border p-3 text-sm">
+            <PostEditor idPrefix={NEW_EDITOR} onDone={stopDraft} />
+          </div>
+        ) : (
+          <Button type="button" className="self-start" onClick={startDraft}>
+            new draft
+          </Button>
+        )}
         <RowList items={posts} empty="No posts yet.">
-          {(p) => <PostRow key={p.id} post={p} />}
+          {(p) => (
+            <PostRow
+              key={p.id}
+              post={p}
+              editing={open.has(p.id)}
+              onEdit={() => openPost(p.id)}
+              onDone={() => closePost(p.id)}
+            />
+          )}
         </RowList>
       </div>
     </ActiveEditor.Provider>
@@ -68,15 +115,18 @@ export function AdminBlog({ posts }: { posts: BlogPost[] }) {
 
 const NEW_EDITOR = "blog-new";
 
+/** A post's editor, as the active one is named. */
+const editorId = (postId: string) => `blog-${postId}`;
+
 /**
- * Which editor's preview floats beside the page from `xl` (the new post's
- * until a post is opened for editing, or either once it's pressed or
- * typed in): one at a time, since they share the same spot.
+ * Which open editor's preview floats beside the page from `xl` (the one
+ * last opened, pressed or typed in; none once it's closed): one at a time,
+ * since they share the same spot.
  */
 const ActiveEditor = React.createContext<{
-  active: string;
+  active: string | null;
   setActive: (id: string) => void;
-}>({ active: NEW_EDITOR, setActive: () => {} });
+}>({ active: null, setActive: () => {} });
 
 /** How to write it, beside the text: the Markdown a post can use. */
 const MARKDOWN_HELP: [syntax: string, means: string][] = [
@@ -151,8 +201,8 @@ function PostEditor({
 }: {
   idPrefix: string;
   post?: BlogPost;
-  /** Editing: called once saved, or on cancel. */
-  onDone?: () => void;
+  /** Called on cancel, and once saved, with the post's id. */
+  onDone: (savedId?: string) => void;
 }) {
   const action = useAction({ inline: true });
   const focus = React.useContext(ActiveEditor);
@@ -178,6 +228,7 @@ function PostEditor({
   const coverInput = React.useRef<HTMLInputElement>(null);
   const over = body.trim().length - BLOG_BODY_MAX;
   const editing = !!post;
+  const suggested = blogMetaSuggestions(title, body);
 
   // A picked cover's preview address, let go once it's replaced or dropped.
   function showCover(url: string | null) {
@@ -251,21 +302,7 @@ function PostEditor({
     if (cover) data.set("cover", cover, cover.name);
     if (removeCover) data.set("removeCover", "1");
     action.run("save", () => saveBlogPost(data), {
-      onSuccess: () => {
-        if (post) {
-          onDone?.();
-          return;
-        }
-        setTitle("");
-        setBody("");
-        setMetaTitle("");
-        setMetaDescription("");
-        setKind("person");
-        setPeople(peopleFor("person", []));
-        setCover(null);
-        showCover(null);
-        setRemoveCover(false);
-      },
+      onSuccess: (result) => onDone(result.id),
     });
   }
 
@@ -296,7 +333,7 @@ function PostEditor({
             maxLength={BLOG_TITLE_MAX}
             disabled={action.pending}
             autoComplete="off"
-            autoFocus={editing}
+            autoFocus
             required
           />
         </div>
@@ -416,7 +453,7 @@ function PostEditor({
           value={metaTitle}
           onChange={setMetaTitle}
           max={BLOG_META_TITLE_MAX}
-          placeholder={title.trim() ? `${title.trim()} · ancestree` : undefined}
+          suggestion={suggested.title}
           disabled={action.pending}
         />
         <MetaField
@@ -425,7 +462,7 @@ function PostEditor({
           value={metaDescription}
           onChange={setMetaDescription}
           max={BLOG_META_DESCRIPTION_MAX}
-          placeholder={blogExcerpt(body, BLOG_META_DESCRIPTION_MAX) || undefined}
+          suggestion={suggested.description}
           disabled={action.pending}
           multiline
         />
@@ -434,24 +471,22 @@ function PostEditor({
         <div className="flex gap-2">
           <PendingButton
             type="submit"
-            size={editing ? "sm" : undefined}
+            size="sm"
             pending={action.pending}
             pendingLabel="saving…"
             disabled={!title.trim() || coverBusy}
           >
             {editing ? "save" : "save draft"}
           </PendingButton>
-          {editing ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={action.pending}
-              onClick={onDone}
-            >
-              cancel
-            </Button>
-          ) : null}
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={action.pending}
+            onClick={() => onDone()}
+          >
+            cancel
+          </Button>
         </div>
       </form>
 
@@ -495,8 +530,10 @@ function PostEditor({
 
 /**
  * A post's meta title or description: what search engines and link
- * previews show, the post's own title and first words (its placeholder)
- * when left empty; its count against the limit beside the label.
+ * previews show, the post's own title and first words (its suggestion,
+ * greyed in) when left empty; its count against the limit beside the
+ * label. "Autofill" puts the suggestion in to edit, as Tab does in the
+ * empty field (Step 154).
  */
 function MetaField({
   id,
@@ -504,7 +541,7 @@ function MetaField({
   value,
   onChange,
   max,
-  placeholder,
+  suggestion,
   disabled,
   multiline = false,
 }: {
@@ -513,39 +550,51 @@ function MetaField({
   value: string;
   onChange: (value: string) => void;
   max: number;
-  placeholder?: string;
+  /** Empty when there's nothing to suggest yet. */
+  suggestion: string;
   disabled: boolean;
   multiline?: boolean;
 }) {
+  const field = {
+    id,
+    value,
+    onChange: (
+      e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+    ) => onChange(e.target.value),
+    onKeyDown: (e: React.KeyboardEvent) => {
+      if (e.key !== "Tab" || e.shiftKey || value || !suggestion) return;
+      e.preventDefault();
+      onChange(suggestion);
+    },
+    maxLength: max,
+    placeholder: suggestion || undefined,
+    disabled,
+  };
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-baseline justify-between gap-2">
         <Label htmlFor={id}>{label}</Label>
-        <span className="text-xs text-muted-foreground tabular-nums">
-          {value.trim().length}/{max}
+        <span className="flex items-baseline gap-3 text-xs text-muted-foreground">
+          {suggestion && value.trim() !== suggestion ? (
+            <button
+              type="button"
+              onClick={() => onChange(suggestion)}
+              disabled={disabled}
+              aria-label={`Autofill ${label.toLowerCase()}`}
+              className="underline underline-offset-4 hover:text-foreground"
+            >
+              Autofill
+            </button>
+          ) : null}
+          <span className="tabular-nums">
+            {value.trim().length}/{max}
+          </span>
         </span>
       </div>
       {multiline ? (
-        <Textarea
-          id={id}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          maxLength={max}
-          rows={2}
-          placeholder={placeholder}
-          disabled={disabled}
-          className="text-sm"
-        />
+        <Textarea {...field} rows={2} className="text-sm" />
       ) : (
-        <Input
-          id={id}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          maxLength={max}
-          placeholder={placeholder}
-          disabled={disabled}
-          autoComplete="off"
-        />
+        <Input {...field} autoComplete="off" />
       )}
     </div>
   );
@@ -650,27 +699,24 @@ function PersonFields({
   );
 }
 
-function PostRow({ post: p }: { post: BlogPost }) {
+function PostRow({
+  post: p,
+  editing,
+  onEdit,
+  onDone,
+}: {
+  post: BlogPost;
+  editing: boolean;
+  onEdit: () => void;
+  onDone: () => void;
+}) {
   const action = useAction();
-  const focus = React.useContext(ActiveEditor);
-  const [editing, setEditing] = React.useState(false);
   const published = p.publishedAt !== null;
-  const editorId = `blog-${p.id}`;
-
-  function startEditing() {
-    focus.setActive(editorId);
-    setEditing(true);
-  }
-
-  function stopEditing() {
-    focus.setActive(NEW_EDITOR);
-    setEditing(false);
-  }
 
   return (
     <RowCard>
       {editing ? (
-        <PostEditor idPrefix={editorId} post={p} onDone={stopEditing} />
+        <PostEditor idPrefix={editorId(p.id)} post={p} onDone={onDone} />
       ) : (
         <>
           <div className="flex flex-wrap items-start justify-between gap-2">
@@ -705,7 +751,7 @@ function PostRow({ post: p }: { post: BlogPost }) {
             </div>
             <button
               type="button"
-              onClick={startEditing}
+              onClick={onEdit}
               className="text-muted-foreground underline underline-offset-4 hover:text-foreground"
             >
               Edit

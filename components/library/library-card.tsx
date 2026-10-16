@@ -36,7 +36,10 @@ function entryOf(person: BlogPerson, id: string) {
  * for a person, two for a couple, a cluster for a family. Hovering (or
  * focusing) lays the cover photo, the title and the first words over all
  * of the leaves; the whole card opens the post. Where there's no hover (a
- * phone), the title sits under the leaves instead.
+ * phone), the title sits under the leaves instead. Since Step 154 the
+ * cover runs across the top of that overlay, a 16:9 picture with the title
+ * and the first words under it; as tall as that needs, the overlay grows
+ * past the leaves above and below alike.
  */
 export function LibraryCard({
   post,
@@ -89,18 +92,18 @@ export function LibraryCard({
       </div>
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 flex items-center gap-4 rounded-xl border bg-popover/95 p-4 opacity-0 shadow-xl transition-opacity duration-200 group-hover/post:opacity-100 group-focus-visible/post:opacity-100"
+        className="pointer-events-none absolute inset-x-0 top-1/2 z-10 flex min-h-full -translate-y-1/2 flex-col justify-center gap-3 rounded-xl border bg-popover/95 p-3 opacity-0 shadow-xl transition-opacity duration-200 group-hover/post:opacity-100 group-focus-visible/post:opacity-100"
       >
         {cover ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={cover}
             alt=""
-            className="size-24 shrink-0 rounded-lg object-cover sm:size-28"
+            className="aspect-video w-full shrink-0 rounded-lg object-cover"
           />
         ) : null}
-        <div className="min-w-0 text-left">
-          <p className="font-semibold">{post.title}</p>
+        <div className="min-w-0 px-1 text-left">
+          <p className="line-clamp-2 font-semibold leading-snug">{post.title}</p>
           {excerpt ? (
             <p className="mt-1 line-clamp-3 text-xs text-muted-foreground">{excerpt}</p>
           ) : null}

@@ -1827,6 +1827,40 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 154: the blog tab's meta fields autofill; a draft is picked or
+  started; the card's cover on top** (no migration). **Aalim asked:**
+  auto-fill from the suggested text in a post's meta fields, and to choose
+  between editing a draft and starting a new one, without scrolling past an
+  empty form to reach the drafts; then the cover as the hover card's cover
+  image, with the title and first words under it. **Now** **Meta title** and
+  **Meta description** each have an **Autofill** beside the count while the
+  field differs from its suggestion; it puts the suggestion in to edit, and
+  Tab in the empty field does the same (Tab again moves on). The suggestions
+  are what the page says when the fields are empty: "title · ancestree" (the
+  title alone, or cut at a word, when that's over 70) and the first words,
+  each within its limit so a filled-in one saves (`blogMetaSuggestions`;
+  `blogExcerpt`'s ellipsis can run one past what it's given, so the
+  description asks for 159). The blog tab opens on a **new draft** button
+  over the list of posts, drafts first, with no form until one's asked for:
+  **Edit** opens a post in its row, **new draft** opens an empty one at the
+  top with **cancel**. A new draft, once saved, closes and opens in its row
+  as itself (`saveBlogPost` answers with the post's id), so writing carries
+  on. On /library (and the editor's preview) the hover overlay is a column:
+  the cover across its top at 16:9, the title (two lines at most) and the
+  first words under it (`components/library/library-card.tsx`); where the
+  leaves sit side by side the card is only about 168px tall, so the overlay
+  grows past them, centred on them, above the cards around it. **My calls:**
+  Tab fills the empty field (a filled suggestion reads the same as an empty
+  field, except that it no longer follows a later title change);
+  **Autofill** also replaces a written meta field that differs from the
+  suggestion; **cancel** on a new draft drops it, as it does a post's edits;
+  saving a post already saved still closes its editor; the overlay grows
+  past the leaves rather than squeezing the cover into a strip; 16:9 (the
+  one cover is 3:2, faces kept). Checked in the browser as the test
+  reviewer: Tab and Autofill, a new draft saved and reopened as itself, the
+  floating preview at desktop width; the test post deleted; the hover card
+  on the one draft's preview, side by side (452px) and stacked (270px).
+
 - **Step 153: where someone lives now** (migration
   `20261015100000_current_home`, live). **Aalim asked:** "add another
   location field that is optional for 'current location'. i.e., what is

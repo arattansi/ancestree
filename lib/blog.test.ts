@@ -6,6 +6,7 @@ import {
   blogExcerpt,
   blogFeedHref,
   blogHref,
+  blogMetaSuggestions,
   blogOneClickUnsubscribeHref,
   blogPostHref,
   blogPostMeta,
@@ -178,6 +179,33 @@ describe("blogPostMeta", () => {
     expect(
       blogPostMeta({ title: "T", body: "**Once** upon a time.", metaTitle: "", metaDescription: "" }),
     ).toEqual({ title: "T", description: "Once upon a time." });
+  });
+});
+
+describe("blogMetaSuggestions", () => {
+  it("suggests the title as the tab shows it, and the first words", () => {
+    expect(blogMetaSuggestions("  Amarshi   Sayani ", "**Once** upon a time.")).toEqual({
+      title: "Amarshi Sayani · ancestree",
+      description: "Once upon a time.",
+    });
+  });
+
+  it("suggests nothing with nothing to go on", () => {
+    expect(blogMetaSuggestions(" ", "")).toEqual({ title: "", description: "" });
+  });
+
+  it("keeps each within its limit, so a filled-in one saves", () => {
+    const sixty = "word ".repeat(12).trim();
+    expect(blogMetaSuggestions(sixty, "").title).toBe(sixty);
+    const long = "word ".repeat(30).trim();
+    const title = blogMetaSuggestions(long, "").title;
+    expect(title.length).toBeLessThanOrEqual(BLOG_META_TITLE_MAX);
+    expect(title.endsWith("word…")).toBe(true);
+    for (const body of ["a".repeat(400), `${"a".repeat(159)} ${"b".repeat(40)}`]) {
+      const { description } = blogMetaSuggestions("T", body);
+      expect(description.length).toBeLessThanOrEqual(BLOG_META_DESCRIPTION_MAX);
+      expect(readBlogPostFields("T", body, "person", [], "", description).ok).toBe(true);
+    }
   });
 });
 
