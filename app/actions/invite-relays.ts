@@ -95,9 +95,10 @@ async function markRelayInvited(
 /**
  * Member: send the invite an ask filled in (Step 30.5). It goes as any
  * invite they send (`sendDirectInvites`, which checks they're on `treeId`
- * and joins them as a Leaf), with the name and address from the form, so a
- * spelling can be put right first. Then the ask is answered, so it leaves
- * their list.
+ * and joins them as a Leaf, but asks nothing of the name: the card lists
+ * the entries it matches already), with the name and address from the
+ * form, so a spelling can be put right first. Then the ask is answered, so
+ * it leaves their list.
  */
 export async function sendRelayedInvite(
   relayId: string,
@@ -109,7 +110,7 @@ export async function sendRelayedInvite(
 
   if (!(await relayIsPending(supabase, relayId))) return { error: RELAY_ANSWERED };
 
-  const res = await sendDirectInvites(treeId, [row]);
+  const res = await sendDirectInvites(treeId, [row], { askFirst: false });
   if (res.error || !res.results?.some((r) => r.minted)) return res;
 
   await markRelayInvited(supabase, relayId, treeId);

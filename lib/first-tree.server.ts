@@ -16,6 +16,13 @@ import {
   personLifespan,
 } from "@/lib/person-name";
 import { BASIC_DETAILS, type CarryLine, type CarryPerson } from "@/lib/carry";
+import {
+  getFamilyLink,
+  listFamilyLinkJoins,
+  type FamilyLink,
+  type FamilyLinkJoin,
+} from "@/lib/family-link.server";
+import { listPeopleYouAdded, type Invitable } from "@/lib/invitable.server";
 import { listCarryChoices } from "@/lib/placements.server";
 import { createClient } from "@/lib/supabase/server";
 import { getTreeGraph, type TreeGraphEdge, type TreeGraphPerson } from "@/lib/tree";
@@ -112,10 +119,12 @@ function stateOf(
 }
 
 /**
- * Who's been invited onto this tree and hasn't joined yet — by name and
- * address from the invite step, or to claim an entry from the family step —
- * and whether anyone has been invited or has joined at all. Redeemed invites
- * are deleted (Step 24), so a joined member counts through the member count.
+ * Who's been invited onto this tree by email and hasn't joined yet — by
+ * name and address from the invite step, or to claim an entry — and
+ * whether anyone has been invited or has joined at all: a link to claim
+ * an entry or the family link counts too (Step 162), though neither names
+ * anyone to list. Redeemed invites are deleted (Step 24), so a joined
+ * member counts through the member count.
  */
 async function treeInvites(treeId: string): Promise<{
   invited: boolean;
@@ -127,13 +136,12 @@ async function treeInvites(treeId: string): Promise<{
     supabase
       .from("invites")
       .select(
-        "id, invited_email, invite_requests(first_name, last_name, email_sent), people(first_name, preferred_name, last_name)",
+        "id, invited_email, person_id, invite_requests(first_name, last_name, email_sent), people(first_name, preferred_name, last_name)",
       )
       .eq("tree_id", treeId)
       .eq("founds_tree", false)
       .eq("status", "active")
       .is("archived_at", null)
-      .not("invited_email", "is", null)
       .order("created_at", { ascending: true }),
   ]);
 
@@ -153,12 +161,13 @@ async function treeInvites(treeId: string): Promise<{
         name: name || row.invited_email,
         email: row.invited_email,
         claims,
+        personId: row.person_id,
         emailSent: request ? request.email_sent : null,
       },
     ];
   });
   const members = trees.find((t) => t.id === treeId)?.memberCount ?? 1;
-  return { invited: members > 1 || invites.length > 0, invites };
+  return { invited: members > 1 || (data ?? []).length > 0, invites };
 }
 
 /**
@@ -248,6 +257,35 @@ export async function loadFirstTree(
     invites: invited.invites,
     otherTreeNames: myTrees.filter((t) => t.id !== m.tree.id).map((t) => t.name),
   };
+}
+
+/** What the invite step shows beyond the invites already out (Step 162). */
+export type InviteStepData = {
+  /** The living people the founder added here that nobody is behind yet. */
+  added: Invitable[];
+  /** The tree's family link, for a Root: `link` is null before one is made. */
+  familyLink: { link: FamilyLink | null; joins: FamilyLinkJoin[] } | null;
+};
+
+/**
+ * The invite step's lists (Step 162): the people the founder added on the
+ * family step, each to invite by email or a link (`listPeopleYouAdded`, as
+ * settings lists them), and for a Root the family link (Step 52).
+ */
+export async function loadInviteStep(m: TreeMembership): Promise<InviteStepData> {
+  const link = m.isRoot ? getFamilyLink(m.tree.id) : null;
+  const [added, familyLink] = await Promise.all([
+    listPeopleYouAdded(m.profile.auth_user_id, m.profile.self_person_id, [
+      { id: m.tree.id, name: m.tree.name, type: m.type },
+    ]),
+    link
+      ? link.then(async (l) => ({
+          link: l,
+          joins: await listFamilyLinkJoins(m.tree.id, l?.id ?? null),
+        }))
+      : null,
+  ]);
+  return { added: added[0]?.people ?? [], familyLink };
 }
 
 /**

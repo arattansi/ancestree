@@ -1508,6 +1508,17 @@ mirror it for the UI.
   `source = 'direct'` row into `invite_requests`. Both writes use the
   service-role client after the action has checked the inviter's permission:
   a Branch may not bind an email through RLS, and never sees the token.
+  Since Step 162 a row whose first and last name are exactly one living
+  entry's on the tree, that the inviter could invite to claim and that has
+  no live claim invite, is asked about first ("Is this Leila Haddad, b.
+  1961?" under the row; `inviteQuestions` in
+  `lib/invite-matches.server.ts`, pure `lib/invite-matches.ts`): nothing
+  goes until every one is answered, a yes as an invite to claim that entry
+  (`mintClaimInvite`), a no as the plain invite. A relayed ask
+  (`sendRelayedInvite`) lists its own matches and sends with `askFirst:
+  false`. An invite to claim one entry, by email or a bare link, is
+  `components/claim-invite-controls.tsx` wherever it's offered: the Root
+  console's list, settings, the founder's invite step and the person sheet.
 - **Invite history**: `/admin`'s "Sent invites" card (`listInviteHistory` in
   `lib/invites.ts`, `components/admin/admin-invite-history.tsx`) is every non-
   pending `invite_requests` row — request-driven or direct — joined to its
@@ -1843,6 +1854,47 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 162: invite the people you just added** (no migration). **From**
+  the 2026-10-16 onboarding audit (W3, W5 / R3): the founder's invite step
+  was a blank name-and-email form that ignored the relatives they had just
+  added on the family step, had no family link, and sent a plain invite
+  even when the name was exactly someone's on the tree (who then joined
+  beside their own entry); the claim invite sat at the foot of a person's
+  sheet under Manage, beside delete entry. **Aalim decided:** a name that
+  matches asks the inviter first. **Now** the invite step lists the living
+  people the founder added on this tree that nobody is behind yet
+  (**Your Family**, `listPeopleYouAdded`, `loadInviteStep`), each with
+  **email** or **copy link** (then **copy** / **WhatsApp**) and
+  "Invited 16 Oct 2026" once one is out, as settings and the Root console list
+  them; a Root gets the **Family Link** card above it ("One link for the
+  family group chat.", who joined only once someone has); the plain form
+  is **Someone Else** below (**Invite Relatives** when they added
+  nobody), and "Invited so far" leaves out who the list already shows.
+  Who Can Do What stays. A link to claim an entry or the family link
+  counts as having invited someone (the step's tick, **continue**, the
+  checklist), not only an emailed invite. Every plain-invite form (the
+  invite step, the Root console's **Invite a Relative**, settings'
+  **Invite a Relative to …**) asks "Is this Leila Haddad, b. 1961?" (no
+  year when the card has none) under a row whose first name (or the name
+  they go by) and last name (or maiden name) are exactly one living,
+  unclaimed entry's on the tree that the inviter could invite to claim
+  (`can_invite_to_claim_on`) and that has no live claim invite; nothing
+  goes until each is answered, **yes** sends an invite to claim that
+  entry to the address typed, **no** the plain invite, and changing the
+  name asks again. The person sheet's invite moved up under its header:
+  who invited them so far, then **invite Leila** (opens the email box)
+  and **copy link**; Manage keeps the rest (delete entry). The canvas's
+  Getting Started item is **Invite your family**, opening the invite
+  step at the list (`#your-family`). **My calls:** two entries by the same
+  name ask nothing (the plain invite goes); a bare claim link counts as a
+  live claim invite; only entries the inviter may hand over are asked
+  about, so a Leaf isn't offered a claim the server would refuse; the
+  question is checked on the server (`sendDirectInvites` returns `ask`)
+  rather than trusted to the browser; the sheet's "They'll join as a
+  Leaf" and "good for 14 days" lines went with the old box (terse copy,
+  and Step 163 changes the lifetime); the email box's placeholder is
+  "them@example.com" everywhere.
 
 - **Step 165: a founder invite's privacy tick, and the invite page's code
   box survives a reload** (no migration). **From** Step 164's leftovers

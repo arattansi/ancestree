@@ -18,7 +18,8 @@ import {
   type FirstTreeState,
   type FirstTreeStep,
 } from "@/lib/first-tree";
-import { loadFirstTree } from "@/lib/first-tree.server";
+import { loadFirstTree, loadInviteStep } from "@/lib/first-tree.server";
+import { getSiteUrl } from "@/lib/site-url";
 import type { TreeMembership } from "@/lib/tree-context";
 import { onboardingStepHref, treeHref } from "@/lib/tree-links";
 import { suggestedTreeName } from "@/lib/tree-names";
@@ -45,9 +46,12 @@ export async function FirstTreeOnboarding({
   asked?: string;
 }) {
   const { tree, profile } = membership;
-  const data = await loadFirstTree(membership, {
-    withBring: isFirstTreeStep(asked),
-  });
+  // The invite step's lists are read beside the rest when it's the step
+  // asked for, which is always the step shown (Step 162).
+  const [data, inviting] = await Promise.all([
+    loadFirstTree(membership, { withBring: isFirstTreeStep(asked) }),
+    asked === "invite" ? loadInviteStep(membership) : null,
+  ]);
   const { state, founder } = data;
   // Always on a step's own address, so a refresh after sending an invite
   // or adding someone stays on that step rather than re-picking where to
@@ -120,7 +124,16 @@ export async function FirstTreeOnboarding({
             title="Build It Together"
             lead="Invite the relatives who know your family best."
           />
-          <InviteStep treeId={tree.id} invites={data.invites} nextHref={next} />
+          <InviteStep
+            treeId={tree.id}
+            treeName={tree.name}
+            invites={data.invites}
+            invited={state.invited}
+            added={inviting?.added ?? []}
+            familyLink={inviting?.familyLink ?? null}
+            baseUrl={getSiteUrl()}
+            nextHref={next}
+          />
         </>
       ) : null}
 

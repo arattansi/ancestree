@@ -1,19 +1,16 @@
 "use client";
 
-import * as React from "react";
 import Link from "next/link";
-import { Plus, Trash2 } from "lucide-react";
-import { toast } from "sonner";
 
-import { sendDirectInvites } from "@/app/actions/invites";
 import {
   ACCOUNT_TYPE_TONE,
   AccountTypeGlyph,
 } from "@/components/account-type-badge";
 import { AccountTypeGuide } from "@/components/account-type-guide";
-import { FormError } from "@/components/form-error";
+import { AdminClaimInvites } from "@/components/admin/admin-claim-invites";
+import { AdminFamilyLink } from "@/components/admin/admin-family-link";
+import { DirectInviteForm } from "@/components/direct-invite-form";
 import { LinkPendingLabel } from "@/components/link-pending";
-import { PendingButton } from "@/components/pending-button";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -22,9 +19,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { useAction } from "@/components/use-action";
 import {
   ACCOUNT_TYPES,
   BRANCHES_PER_ROOT,
@@ -33,7 +27,9 @@ import {
   inWords,
   type AccountTypeKey,
 } from "@/lib/account-types";
-import type { TreeInvite } from "@/lib/first-tree";
+import { INVITE_FAMILY_ID, type TreeInvite } from "@/lib/first-tree";
+import type { InviteStepData } from "@/lib/first-tree.server";
+import type { Invitable } from "@/lib/invitable.server";
 import { plural } from "@/lib/plural";
 import { cn } from "@/lib/utils";
 
@@ -48,125 +44,86 @@ const HOW_THEY_GET_IT: Record<AccountTypeKey, string> = {
   member: "Everyone invited joins as a Leaf.",
 };
 
-type Row = {
-  key: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-};
-
-function blankRow(key: string): Row {
-  return { key, firstName: "", lastName: "", email: "" };
-}
-
 /**
- * The founder's invite step (Step 29): an invite for anyone they'd like to
- * help, each joining as a Leaf (Step 34), with who can do what on a tree
- * beside it. Skippable — the canvas's "Getting started" list keeps it.
+ * The founder's invite step (Step 29): first the people they added on the
+ * family step, each to invite by email or a link to send any other way
+ * (Step 162, as settings lists them), with the family link above them for
+ * a Root; then anyone else, by name and address, each joining as a Leaf
+ * (Step 34), with who can do what on a tree beside it. Skippable — the
+ * canvas's "Getting started" list keeps it.
  */
 export function InviteStep({
   treeId,
+  treeName,
   invites,
+  invited,
+  added,
+  familyLink,
+  baseUrl,
   nextHref,
 }: {
   treeId: string;
-  /** Out from this tree and not yet taken up. */
+  treeName: string;
+  /** Out from this tree by email and not yet taken up. */
   invites: TreeInvite[];
+  /** Anyone invited, by email or a link, or joined. */
+  invited: boolean;
+  /** The living people they added here that nobody is behind yet. */
+  added: Invitable[];
+  /** A Root's family link, made or not. */
+  familyLink: InviteStepData["familyLink"];
+  baseUrl: string;
   nextHref: string;
 }) {
-  // Row ids from `useId`, so the server's first render and the browser's
-  // agree; rows added later count on from there.
-  const idBase = React.useId();
-  const nextRow = React.useRef(1);
-  const [rows, setRows] = React.useState<Row[]>(() => [blankRow(`${idBase}-0`)]);
-  const newRow = () => blankRow(`${idBase}-${nextRow.current++}`);
-  // Why each row kept after a send is still there, by row key.
-  const [reasons, setReasons] = React.useState<Record<string, string>>({});
-  const action = useAction({ inline: true });
-
-  function update(key: string, patch: Partial<Omit<Row, "key">>) {
-    setRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)));
-  }
-
-  function onSubmit(event: React.FormEvent) {
-    event.preventDefault();
-    // They were about the last try.
-    setReasons({});
-    const filled = rows.filter(
-      (r) => r.firstName.trim() || r.lastName.trim() || r.email.trim(),
-    );
-    if (filled.length === 0) {
-      action.setError("Add someone to invite, or skip this step for now.");
-      return;
-    }
-
-    action.run(
-      "send",
-      () =>
-        sendDirectInvites(
-          treeId,
-          filled.map(({ firstName, lastName, email }) => ({
-            firstName,
-            lastName,
-            email,
-          })),
-        ),
-      {
-        // The emails are out of sight: say they went.
-        success: (res) => {
-          const sent = (res.results ?? []).filter((r) => r.minted && r.emailed);
-          if (sent.length === 0) return null;
-          return sent.length === 1
-            ? `Invite emailed to ${sent[0].email}.`
-            : `${sent.length} invites emailed.`;
-        },
-        onSuccess: (res) => {
-          const results = res.results ?? [];
-          results
-            .filter((r) => r.minted && !r.emailed)
-            .forEach((r) =>
-              toast.warning(
-                `The invite for ${r.email} is ready, but the email didn't send. Resend it from the Root console.`,
-              ),
-            );
-
-          // Keep only the rows that failed outright, to fix and try again,
-          // each with why under it.
-          const why = new Map<string, string>();
-          for (const r of results) {
-            if (!r.minted) {
-              why.set(r.email, `Couldn't invite them: ${r.error ?? "unknown error"}`);
-            }
-          }
-          const reasonFor = (r: Row) => why.get(r.email.trim().toLowerCase());
-          const left = filled.filter((r) => reasonFor(r) !== undefined);
-          setRows(left.length > 0 ? left : [newRow()]);
-          setReasons(
-            Object.fromEntries(left.map((r) => [r.key, reasonFor(r) ?? ""])),
-          );
-        },
-      },
-    );
-  }
+  // Someone they added who's been invited shows it in the list above.
+  const listed = new Set(added.map((p) => p.id));
+  const others = invites.filter((i) => !i.personId || !listed.has(i.personId));
 
   return (
     // The forms first, and what each account type can do beside them on a
     // wide screen, below them on a narrow one (Step 124).
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
       <div className="flex flex-col gap-6">
+        {familyLink ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Family Link</CardTitle>
+              <CardDescription>One link for the family group chat.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AdminFamilyLink
+                treeId={treeId}
+                treeName={treeName}
+                link={familyLink.link}
+                joins={familyLink.joins}
+                baseUrl={baseUrl}
+                hideNoJoins
+              />
+            </CardContent>
+          </Card>
+        ) : null}
+
+        {added.length > 0 ? (
+          <Card id={INVITE_FAMILY_ID} className="scroll-mt-24">
+            <CardHeader>
+              <CardTitle>Your Family</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <AdminClaimInvites treeId={treeId} treeName={treeName} people={added} />
+            </CardContent>
+          </Card>
+        ) : null}
+
         <Card>
           <CardHeader>
-            <CardTitle>Invite Relatives</CardTitle>
-            <CardDescription>
-              Each gets an email that links them to the tree.
-            </CardDescription>
+            <CardTitle>{added.length > 0 ? "Someone Else" : "Invite Relatives"}</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-5">
-            {invites.length > 0 ? (
+            {others.length > 0 ? (
               <div className="flex flex-col gap-2">
                 <p className="text-sm font-medium">Invited so far</p>
                 <ul className="flex flex-col gap-1.5">
-                  {invites.map((invite) => (
+                  {others.map((invite) => (
                     <li
                       key={invite.id}
                       className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2 text-sm"
@@ -188,95 +145,7 @@ export function InviteStep({
                 </ul>
               </div>
             ) : null}
-
-            <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
-              <div className="flex flex-col gap-3">
-                {rows.map((row, i) => (
-                  <fieldset
-                    key={row.key}
-                    className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_1.4fr_auto] sm:items-end"
-                  >
-                    <legend className="sr-only">Person {i + 1}</legend>
-                    <div className="flex flex-col gap-1.5">
-                      <Label htmlFor={`${row.key}-first`} className={cn(i > 0 && "sm:sr-only")}>
-                        First name
-                      </Label>
-                      <Input
-                        id={`${row.key}-first`}
-                        value={row.firstName}
-                        onChange={(e) => update(row.key, { firstName: e.target.value })}
-                        autoComplete="off"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                      <Label htmlFor={`${row.key}-last`} className={cn(i > 0 && "sm:sr-only")}>
-                        Last name
-                      </Label>
-                      <Input
-                        id={`${row.key}-last`}
-                        value={row.lastName}
-                        onChange={(e) => update(row.key, { lastName: e.target.value })}
-                        autoComplete="off"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                      <Label htmlFor={`${row.key}-email`} className={cn(i > 0 && "sm:sr-only")}>
-                        Email
-                      </Label>
-                      <Input
-                        id={`${row.key}-email`}
-                        type="email"
-                        value={row.email}
-                        onChange={(e) => update(row.key, { email: e.target.value })}
-                        placeholder="name@example.com"
-                        autoComplete="off"
-                        aria-describedby={reasons[row.key] ? `${row.key}-why` : undefined}
-                      />
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      disabled={rows.length === 1}
-                      onClick={() =>
-                        setRows((prev) => prev.filter((r) => r.key !== row.key))
-                      }
-                      aria-label={`Remove person ${i + 1}`}
-                    >
-                      <Trash2 aria-hidden />
-                    </Button>
-                    {reasons[row.key] ? (
-                      <p
-                        id={`${row.key}-why`}
-                        className="text-sm text-destructive sm:col-span-4"
-                      >
-                        {reasons[row.key]}
-                      </p>
-                    ) : null}
-                  </fieldset>
-                ))}
-              </div>
-              <FormError>{action.error}</FormError>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setRows((prev) => [...prev, newRow()])}
-                >
-                  <Plus aria-hidden />
-                  add another
-                </Button>
-                <PendingButton
-                  type="submit"
-                  size="sm"
-                  pending={action.pending}
-                  pendingLabel="sending…"
-                >
-                  send invites
-                </PendingButton>
-              </div>
-            </form>
+            <DirectInviteForm treeId={treeId} />
           </CardContent>
         </Card>
 
@@ -284,11 +153,9 @@ export function InviteStep({
           <Button
             nativeButton={false}
             render={<Link href={nextHref} />}
-            variant={invites.length > 0 ? "default" : "outline"}
+            variant={invited ? "default" : "outline"}
           >
-            <LinkPendingLabel>
-              {invites.length > 0 ? "continue" : "skip for now"}
-            </LinkPendingLabel>
+            <LinkPendingLabel>{invited ? "continue" : "skip for now"}</LinkPendingLabel>
           </Button>
           <p className="text-xs text-muted-foreground">
             You can invite people later too.

@@ -250,6 +250,9 @@ type Props = {
   treeId: string;
   /** The tree's URL slug, for a read-only canvas's "Ask to join" (Step 41.4). */
   treeSlug: string;
+  /** The tree's name, for a claim link's message (Step 162). On My Family
+   *  Tree each card's tree is named in `family`. */
+  treeName?: string;
   selfPersonId: string | null;
   /** The founding admins' entries — the tree is centred on them. */
   anchorIds: string[];
@@ -336,6 +339,7 @@ function Canvas({
   relationships,
   treeId,
   treeSlug,
+  treeName = "",
   selfPersonId,
   anchorIds,
   rootIds,
@@ -2965,6 +2969,11 @@ function Canvas({
           // A hidden person's card is a blur to a visitor: nothing to open.
           person={selectedPerson?.blurred ? null : selectedPerson}
           treeId={cardTreeId ?? treeId}
+          treeName={
+            family
+              ? (family.trees.find((t) => t.id === cardTreeId)?.name ?? "")
+              : treeName
+          }
           pets={selectedPets}
           people={sheetPeople}
           onSelectPet={onSelectPet}

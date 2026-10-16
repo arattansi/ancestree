@@ -185,6 +185,7 @@ export default async function TreePage({ searchParams }: PageProps<"/tree">) {
         relationships={relationships}
         treeId={tree.id}
         treeSlug={tree.slug}
+        treeName={tree.name}
         selfPersonId={selfPersonId}
         anchorIds={anchorIds}
         rootIds={rootIds}

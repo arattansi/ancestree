@@ -14,7 +14,6 @@ import {
 
 import { claimPerson } from "@/app/actions/claims";
 import { switchTreeForm } from "@/app/actions/current-tree";
-import { sendClaimInvite } from "@/app/actions/invites";
 import { setPersonPhotoCrop } from "@/app/actions/people";
 import { deletePerson } from "@/app/actions/privacy";
 import { describeClaimInvite, type EntryInvite } from "@/lib/claim-invites";
@@ -22,9 +21,9 @@ import type { Relation } from "@/lib/connection-path";
 import type { PanelSuggestion } from "@/lib/connection-suggestions";
 import { AccountTypeBadge } from "@/components/account-type-badge";
 import { AncestralLands } from "@/components/ancestral-lands";
+import { ClaimInviteControls } from "@/components/claim-invite-controls";
 import { ConfirmButton } from "@/components/confirm-dialog";
 import { FormError } from "@/components/form-error";
-import { JoinsAsNote } from "@/components/joins-as-note";
 import { lazyComponent, whenIdle } from "@/components/lazy-component";
 import { PhotoCropEditor } from "@/components/lazy-photo-crop-editor";
 import { PendingButton } from "@/components/pending-button";
@@ -45,8 +44,6 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Sheet,
   SheetContent,
@@ -56,8 +53,6 @@ import {
 } from "@/components/ui/sheet";
 import { toastError, useAction } from "@/components/use-action";
 import { useDockedSheet } from "@/components/use-docked-sheet";
-import { useFocusReturn } from "@/components/use-focus-return";
-import { INVITE_LIFETIME_DAYS } from "@/lib/limits";
 import {
   maidenLine,
   personDisplayName,
@@ -258,6 +253,7 @@ function ClaimInviteRecords({ invites }: { invites: EntryInvite[] }) {
 function PersonPanelImpl({
   person,
   treeId,
+  treeName,
   pets,
   people,
   onSelectPet,
@@ -294,6 +290,8 @@ function PersonPanelImpl({
 }: {
   person: TreeGraphPerson | null;
   treeId: string;
+  /** The name of the tree `treeId` is, for a claim link's message. */
+  treeName: string;
   /** This person's companion animals. Not relatives — see `pet-node.tsx`. */
   pets: TreePet[];
   /** Everyone on the canvas, so a new companion can be shared with them. */
@@ -397,20 +395,14 @@ function PersonPanelImpl({
 }) {
   const open = person !== null && !minimized;
   useDockedSheet(open);
-  // A handle each, so one running leaves the others alone: pressing Delete
-  // entry no longer shows the invite as sending (Step 70). Claim and Delete
-  // ask first, and their dialogs carry their own.
+  // Its own handle, so it leaves the rest alone (Step 70). Claim and Delete
+  // ask first, and their dialogs carry their own; an invite to claim, its
+  // controls (Step 162).
   const cropSave = useAction({ inline: true });
-  const invite = useAction({ inline: true });
-  // The sheet is non-modal, so nothing else keeps focus as its inline forms
-  // open and close.
-  const returnFocus = useFocusReturn();
-  const claimEmailRef = React.useRef<HTMLInputElement>(null);
   const [reporting, setReporting] = React.useState(false);
   const [photoOpen, setPhotoOpen] = React.useState(false);
   const [addingCompanion, setAddingCompanion] = React.useState(false);
   const [cropOpen, setCropOpen] = React.useState(false);
-  const [claimEmail, setClaimEmail] = React.useState("");
   // Family and Companions start folded (Step 88.1). Opened, they stay open
   // as the reader moves from one relative to the next, until the details
   // close.
@@ -490,8 +482,6 @@ function PersonPanelImpl({
     (canReposition ||
       canClaim ||
       canDelete ||
-      canInviteToClaim ||
-      claimInvites.length > 0 ||
       lockedNote);
 
   // Claiming merges the viewer's own entry into this one and deletes it, so
@@ -518,42 +508,24 @@ function PersonPanelImpl({
   // Nobody is behind this entry yet, and it is the viewer's to hand over
   // (`canInviteToClaim`): theirs to edit, or a card their tree shows and
   // they're its Root (Step 84). The server asks the database the same thing
-  // before minting the link.
-  const inviteToClaim = !person ? null : canInviteToClaim ? (
-    <div className="flex flex-col gap-2 rounded-md border border-border p-3">
-      <Label htmlFor="claim-invite-email" className="text-xs font-medium">
-        Invite {personDisplayName(person)} to claim this entry
-      </Label>
+  // before minting the link. Under the header since Step 162, by email or
+  // as a link, a basic card's too.
+  const inviteToClaim = !person || readOnly ? null : canInviteToClaim ? (
+    <div className="flex flex-col gap-2">
       <ClaimInviteRecords invites={claimInvites} />
-      <div className="flex flex-wrap gap-2">
-        <Input
-          ref={claimEmailRef}
-          id="claim-invite-email"
-          type="email"
-          inputMode="email"
-          autoComplete="off"
-          className="min-w-[12rem] flex-1"
-          value={claimEmail}
-          onChange={(e) => setClaimEmail(e.target.value)}
-          placeholder="them@example.com"
-          disabled={invite.pending}
-        />
-        <PendingButton
-          size="sm"
-          onClick={onSendClaimInvite}
-          pending={invite.pending}
-          disabled={claimEmail.trim().length === 0}
-          pendingLabel="sending…"
-        >
-          {claimInvites.some((i) => i.live) ? "send another" : "send invite"}
-        </PendingButton>
-      </div>
-      <FormError>{invite.error}</FormError>
-      <JoinsAsNote />
-      <p className="text-xs text-muted-foreground">
-        They&rsquo;ll get a link, good for {INVITE_LIFETIME_DAYS} days, to take
-        over this entry.
-      </p>
+      <ClaimInviteControls
+        // A new person, a fresh box: what was typed for the last one goes.
+        key={person.id}
+        personId={person.id}
+        personName={personDisplayName(person)}
+        treeId={treeId}
+        treeName={treeName}
+        emailLabel={
+          placeholder
+            ? "invite them"
+            : `invite ${(person.preferred_name || person.first_name || "them").trim()}`
+        }
+      />
     </div>
   ) : claimInvites.length > 0 ? (
     // Everyone else on the tree still sees that it's in hand.
@@ -568,14 +540,12 @@ function PersonPanelImpl({
     setAddingCompanion(false);
     setCropOpen(false);
     setCrop(savedCrop);
-    setClaimEmail("");
     if (!person) {
       setFamilyOpen(false);
       setCompanionsOpen(false);
     }
     // What went wrong for the last one goes with them.
     cropSave.setError(null);
-    invite.setError(null);
   }
 
   function onSaveCrop() {
@@ -583,25 +553,6 @@ function PersonPanelImpl({
     const personId = person.id;
     cropSave.run("save", () => setPersonPhotoCrop(personId, crop), {
       onSuccess: () => setCropOpen(false),
-    });
-  }
-
-  function onSendClaimInvite() {
-    if (!person) return;
-    const personId = person.id;
-    // An invite whose email failed is still made, and listed: the action
-    // draws the page again whether or not the email went.
-    // They join the tree it's sent from, which shows the entry (Step 84).
-    invite.run("send", () => sendClaimInvite(personId, claimEmail, treeId), {
-      success: (res) => `Invite sent to ${res.email ?? "them"}.`,
-      onSuccess: () => {
-        setClaimEmail("");
-        // Emptied, the box disables its button, and focus goes back to the
-        // box for another address, once it's no longer disabled itself.
-        returnFocus(() =>
-          claimEmailRef.current?.disabled ? null : claimEmailRef.current,
-        );
-      },
     });
   }
 
@@ -846,6 +797,7 @@ function PersonPanelImpl({
 
             <div className="flex flex-col gap-6 px-4 pb-6">
               {connectionPrompt}
+              {inviteToClaim}
               {waiting ? (
                 <p className="rounded-md border border-dashed border-border bg-muted/40 px-3 py-2.5 text-sm text-muted-foreground">
                   {waiting}
@@ -865,7 +817,6 @@ function PersonPanelImpl({
                 )
               ) : null}
               {basic && claimButton ? <div>{claimButton}</div> : null}
-              {basic && !readOnly ? inviteToClaim : null}
               {!locked ? (
                 <EntrySuggestions
                   suggestions={changeSuggestions}
@@ -1090,8 +1041,6 @@ function PersonPanelImpl({
                       </ConfirmButton>
                     ) : null}
                   </div>
-
-                  {inviteToClaim}
 
                   {lockedNote ? (
                     <p className="text-xs text-muted-foreground">

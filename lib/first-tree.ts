@@ -54,7 +54,7 @@ export type FirstTreeState = {
   selfBirthplace: boolean;
   /** The tree still has the name it was planted with (`isDefaultTreeName`). */
   defaultName: boolean;
-  /** Someone has been invited to help, or has joined. */
+  /** Someone has been invited to help, by email or a link, or has joined. */
   invited: boolean;
   parents: number;
   partners: number;
@@ -115,6 +115,9 @@ export function stepDone(step: FirstTreeStep, state: FirstTreeState): boolean {
   }
 }
 
+/** The invite step's list of the people the founder added (Step 162). */
+export const INVITE_FAMILY_ID = "your-family";
+
 export type GettingStartedItem = {
   key: "details" | "parents" | "more-family" | "invite" | "name";
   label: string;
@@ -150,10 +153,11 @@ export function gettingStartedItems(state: FirstTreeState): GettingStartedItem[]
       href: onboardingStepHref("family"),
     },
     {
+      // The invite step's list of who they added (Step 162).
       key: "invite",
-      label: "Invite someone to help",
+      label: "Invite your family",
       done: state.invited,
-      href: onboardingStepHref("invite"),
+      href: `${onboardingStepHref("invite")}#${INVITE_FAMILY_ID}`,
     },
     {
       key: "name",
@@ -198,6 +202,8 @@ export type TreeInvite = {
   email: string;
   /** The entry they're invited to take over, for an invite to claim one. */
   claims: string | null;
+  /** That entry's id. */
+  personId: string | null;
   /** `false` when the invite email is known not to have gone. */
   emailSent: boolean | null;
 };

@@ -8,6 +8,8 @@ import {
 } from "@/lib/claim-invite-send.server";
 import { isEmailAddress } from "@/lib/email-address";
 import { inviteSentEmail } from "@/lib/emails/invite-sent";
+import type { MatchAnswer } from "@/lib/invite-matches";
+import { inviteQuestions, type InviteQuestion } from "@/lib/invite-matches.server";
 import { mintInvites, type MintedInvite } from "@/lib/invite-mint.server";
 import { createClient } from "@/lib/supabase/server";
 import { revalidateTreePages } from "@/lib/revalidate";
@@ -20,6 +22,11 @@ export type DirectInviteRow = {
   firstName: string;
   lastName: string;
   email: string;
+  /**
+   * The inviter's answer when the name matched an entry on the tree (Step
+   * 162): yes sends an invite to claim it instead.
+   */
+  match?: MatchAnswer | null;
 };
 
 export type DirectInviteResult = {
@@ -34,8 +41,15 @@ export type DirectInviteResult = {
 
 export type SendDirectInvitesState = {
   results?: DirectInviteResult[];
+  /**
+   * Rows whose name is someone on the tree, to ask about before anything
+   * goes (Step 162). Nothing was sent.
+   */
+  ask?: InviteQuestion[];
   error?: string;
 };
+
+export type { InviteQuestion } from "@/lib/invite-matches.server";
 
 function checkRows(rows: DirectInviteRow[]): { rows?: DirectInviteRow[]; error?: string } {
   const trimmed = rows
@@ -43,6 +57,11 @@ function checkRows(rows: DirectInviteRow[]): { rows?: DirectInviteRow[]; error?:
       firstName: r.firstName.trim(),
       lastName: r.lastName.trim(),
       email: r.email.trim().toLowerCase(),
+      // Only its shape is trusted: a yes is checked again as it's sent.
+      match:
+        r.match && typeof r.match.entryId === "string"
+          ? { entryId: r.match.entryId, isThem: r.match.isThem === true }
+          : null,
     }))
     .filter((r) => r.firstName || r.lastName || r.email);
 
@@ -79,10 +98,18 @@ function checkRows(rows: DirectInviteRow[]): { rows?: DirectInviteRow[]; error?:
  * pre-approved) purely so it shows up in the Roots' "Sent invites" history
  * alongside request-driven approvals. All of them go together
  * (`mintInvites`, Step 77.5), and no link comes back to the inviter.
+ *
+ * A name that is exactly someone's on the tree, who the inviter could
+ * invite to claim their entry, is asked about first (Step 162): nothing
+ * goes until each is answered (`ask`). A yes sends that row as an invite
+ * to claim the entry (`mintClaimInvite`, which checks it again); a no, the
+ * plain invite. A relayed ask lists its own matches (Step 41.1), so it
+ * sends with `askFirst: false`.
  */
 export async function sendDirectInvites(
   treeId: string,
   rows: DirectInviteRow[],
+  { askFirst = true }: { askFirst?: boolean } = {},
 ): Promise<SendDirectInvitesState> {
   const { membership, error: notMember } = await membershipOf(treeId);
   if (!membership) return { error: notMember };
@@ -90,17 +117,46 @@ export async function sendDirectInvites(
   const checked = checkRows(rows);
   if (checked.error || !checked.rows) return { error: checked.error };
 
-  const minted = await mintInvites({
-    treeId,
-    inviter: membership.profile,
-    recipients: checked.rows,
-    source: "direct",
-    email: (row, { url, inviterName }) =>
-      inviteSentEmail({ firstName: row.firstName, inviterName, url }),
-  });
+  if (askFirst) {
+    const ask = await inviteQuestions(treeId, checked.rows);
+    if (ask.length > 0) return { ask };
+  }
+
+  const claims = checked.rows.filter((r) => r.match?.isThem);
+  const plain = checked.rows.filter((r) => !r.match?.isThem);
+  const [minted, claimed] = await Promise.all([
+    mintInvites({
+      treeId,
+      inviter: membership.profile,
+      recipients: plain.map(({ firstName, lastName, email }) => ({
+        firstName,
+        lastName,
+        email,
+      })),
+      source: "direct",
+      email: (row, { url, inviterName }) =>
+        inviteSentEmail({ firstName: row.firstName, inviterName, url }),
+    }),
+    Promise.all(
+      claims.map(async (r): Promise<DirectInviteResult> => {
+        const res = await mintClaimInvite(
+          membership.profile,
+          r.match!.entryId,
+          r.email,
+          treeId,
+        );
+        return {
+          email: r.email,
+          minted: !!res.minted,
+          emailed: !!res.minted && !res.error,
+          error: res.minted ? undefined : res.error,
+        };
+      }),
+    ),
+  ]);
 
   revalidateTreePages();
-  return { results: minted.map(directInviteResult) };
+  return { results: [...minted.map(directInviteResult), ...claimed] };
 }
 
 /** How a sent invite is reported back: never its link. */

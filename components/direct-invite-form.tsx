@@ -12,14 +12,33 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAction } from "@/components/use-action";
 import { INVITED_AS } from "@/lib/account-types";
+import {
+  matchQuestion,
+  type InviteMatch,
+  type MatchAnswer,
+} from "@/lib/invite-matches";
 
-type Row = { key: string; firstName: string; lastName: string; email: string };
+type Row = {
+  key: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  /** The answer to "Is this …?" about the entry its name matched. */
+  match: MatchAnswer | null;
+};
 
 function emptyRow(n: number): Row {
-  return { key: `row-${n}`, firstName: "", lastName: "", email: "" };
+  return { key: `row-${n}`, firstName: "", lastName: "", email: "", match: null };
 }
 
-/** Email invites by name and address. Each joins as a Leaf. */
+const filledIn = (r: Row) => r.firstName.trim() || r.lastName.trim() || r.email.trim();
+
+/**
+ * Email invites by name and address. Each joins as a Leaf. A name that is
+ * exactly someone's on the tree is asked about first (Step 162): "Is this
+ * Leila Haddad, b. 1961?" under its row, and once every one is answered
+ * the invites go, a yes as an invite to claim that entry.
+ */
 export function DirectInviteForm({
   treeId,
 }: {
@@ -36,10 +55,29 @@ export function DirectInviteForm({
   const [rows, setRows] = React.useState<Row[]>(() => [emptyRow(0)]);
   // Why each row kept after a send is still there, by row key.
   const [reasons, setReasons] = React.useState<Record<string, string>>({});
+  // The entry each row's name matched, to ask about, by row key.
+  const [asks, setAsks] = React.useState<Record<string, InviteMatch>>({});
   const action = useAction({ inline: true });
 
-  function updateRow(key: string, field: keyof Omit<Row, "key">, value: string) {
-    setRows((prev) => prev.map((r) => (r.key === key ? { ...r, [field]: value } : r)));
+  function updateRow(
+    key: string,
+    field: "firstName" | "lastName" | "email",
+    value: string,
+  ) {
+    // A new name is a new question; a new address keeps the answer.
+    const renamed = field !== "email";
+    setRows((prev) =>
+      prev.map((r) =>
+        r.key === key ? { ...r, [field]: value, match: renamed ? null : r.match } : r,
+      ),
+    );
+    if (renamed && asks[key]) {
+      setAsks((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+    }
   }
 
   function addRow() {
@@ -53,18 +91,38 @@ export function DirectInviteForm({
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    // They were about the last try.
-    setReasons({});
-    const filled = rows.filter((r) => r.firstName.trim() || r.lastName.trim() || r.email.trim());
+    const filled = rows.filter(filledIn);
     if (filled.length === 0) {
       action.setError("Add at least one person to invite.");
       return;
     }
+    send(filled);
+  }
 
+  /**
+   * "Is this …?" answered for one row. Once none is left waiting, what's
+   * filled in goes, each with its answer.
+   */
+  function answer(row: Row, entry: InviteMatch, isThem: boolean) {
+    const answered = rows.map((r) =>
+      r.key === row.key ? { ...r, match: { entryId: entry.id, isThem } } : r,
+    );
+    setRows(answered);
+    const filled = answered.filter(filledIn);
+    const waiting = filled.some(
+      (r) => asks[r.key] && r.match?.entryId !== asks[r.key].id,
+    );
+    if (!waiting) send(filled);
+  }
+
+  function send(filled: Row[]) {
+    // They were about the last try.
+    setReasons({});
     const rowsToSend = filled.map((r) => ({
       firstName: r.firstName,
       lastName: r.lastName,
       email: r.email,
+      match: r.match,
     }));
     action.run(
       "send",
@@ -80,6 +138,20 @@ export function DirectInviteForm({
             : `${succeeded.length} invites emailed — they'll ${outcome}.`;
         },
         onSuccess: (res) => {
+          // Nothing went: some names are someone on the tree. Ask, by row.
+          if (res.ask) {
+            const byEmail = new Map(res.ask.map((q) => [q.email, q.entry]));
+            setAsks(
+              Object.fromEntries(
+                filled.flatMap((r) => {
+                  const entry = byEmail.get(r.email.trim().toLowerCase());
+                  return entry ? [[r.key, entry]] : [];
+                }),
+              ),
+            );
+            return;
+          }
+          setAsks({});
           const results = res.results ?? [];
           const failed = results.filter((r) => !r.minted);
           const notEmailed = results.filter((r) => r.minted && !r.emailed);
@@ -157,6 +229,16 @@ export function DirectInviteForm({
                 {reasons[row.key]}
               </p>
             ) : null}
+            {asks[row.key] ? (
+              <MatchQuestion
+                entry={asks[row.key]}
+                answer={row.match}
+                // The first question takes focus as they appear.
+                autoFocus={row.key === rows.find((r) => asks[r.key])?.key}
+                disabled={action.pending}
+                onAnswer={(isThem) => answer(row, asks[row.key], isThem)}
+              />
+            ) : null}
           </div>
         ))}
       </div>
@@ -172,5 +254,57 @@ export function DirectInviteForm({
         </PendingButton>
       </div>
     </form>
+  );
+}
+
+/** "Is this Leila Haddad, b. 1961?" under a row, with yes and no. */
+function MatchQuestion({
+  entry,
+  answer,
+  autoFocus,
+  disabled,
+  onAnswer,
+}: {
+  entry: InviteMatch;
+  answer: MatchAnswer | null;
+  autoFocus: boolean;
+  disabled: boolean;
+  onAnswer: (isThem: boolean) => void;
+}) {
+  const id = React.useId();
+  const chosen = answer?.entryId === entry.id ? answer.isThem : null;
+  return (
+    <div
+      role="group"
+      aria-labelledby={id}
+      className="flex flex-wrap items-center gap-2 rounded-md bg-muted/50 px-3 py-2"
+    >
+      <p id={id} className="text-sm font-medium text-foreground">
+        {matchQuestion(entry)}
+      </p>
+      <div className="ml-auto flex gap-2">
+        <Button
+          type="button"
+          size="sm"
+          variant={chosen === true ? "default" : "outline"}
+          aria-pressed={chosen === true}
+          autoFocus={autoFocus}
+          disabled={disabled}
+          onClick={() => onAnswer(true)}
+        >
+          yes
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant={chosen === false ? "default" : "outline"}
+          aria-pressed={chosen === false}
+          disabled={disabled}
+          onClick={() => onAnswer(false)}
+        >
+          no
+        </Button>
+      </div>
+    </div>
   );
 }

@@ -37,7 +37,9 @@ import { inviteHref } from "@/lib/sign-in-links";
 
 /**
  * The tree's family link on /admin (Step 52): one open link for a family
- * group chat, capped, rotatable, and who joined through it.
+ * group chat, capped, rotatable, and who joined through it. The founder's
+ * invite step shows it too (Step 162), with `hideNoJoins`: who joined only
+ * once someone has.
  */
 export function AdminFamilyLink({
   treeId,
@@ -45,12 +47,14 @@ export function AdminFamilyLink({
   link,
   joins,
   baseUrl,
+  hideNoJoins = false,
 }: {
   treeId: string;
   treeName: string;
   link: FamilyLink | null;
   joins: FamilyLinkJoin[];
   baseUrl: string;
+  hideNoJoins?: boolean;
 }) {
   // Before there's a link, the cap is only picked here, for Make to use.
   const [draftCap, setDraftCap] = React.useState(FAMILY_LINK_MAX_USES);
@@ -215,36 +219,38 @@ export function AdminFamilyLink({
         </div>
       )}
 
-      <div className="flex flex-col gap-2">
-        <h3 className="text-sm font-medium">
-          Joined with it{joins.length > 0 ? ` (${joins.length})` : ""}
-        </h3>
-        {joins.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Nobody yet.</p>
-        ) : (
-          <ul className="flex flex-col divide-y divide-border rounded-lg border border-border">
-            {joins.map((j) => (
-              <li
-                key={`${j.userId}-${j.joinedAt}`}
-                className="flex flex-wrap items-center justify-between gap-2 p-3 text-sm"
-              >
-                <span className="flex min-w-0 items-center gap-2">
-                  <span className="truncate font-medium">{j.name ?? "A member"}</span>
-                  {j.accountType ? (
-                    <AccountTypeBadge role={j.accountType.key} />
-                  ) : (
-                    <Badge variant="secondary">Left</Badge>
-                  )}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {shortDate(j.joinedAt)}
-                  {j.viaCurrentLink ? "" : " · earlier link"}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      {hideNoJoins && joins.length === 0 ? null : (
+        <div className="flex flex-col gap-2">
+          <h3 className="text-sm font-medium">
+            Joined with it{joins.length > 0 ? ` (${joins.length})` : ""}
+          </h3>
+          {joins.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nobody yet.</p>
+          ) : (
+            <ul className="flex flex-col divide-y divide-border rounded-lg border border-border">
+              {joins.map((j) => (
+                <li
+                  key={`${j.userId}-${j.joinedAt}`}
+                  className="flex flex-wrap items-center justify-between gap-2 p-3 text-sm"
+                >
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="truncate font-medium">{j.name ?? "A member"}</span>
+                    {j.accountType ? (
+                      <AccountTypeBadge role={j.accountType.key} />
+                    ) : (
+                      <Badge variant="secondary">Left</Badge>
+                    )}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {shortDate(j.joinedAt)}
+                    {j.viaCurrentLink ? "" : " · earlier link"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -128,9 +128,15 @@ describe("gettingStartedItems", () => {
       "/welcome?details=1",
       "/onboarding?step=family",
       "/onboarding?step=family",
-      "/onboarding?step=invite",
+      "/onboarding?step=invite#your-family",
       "/onboarding?step=name",
     ]);
+  });
+
+  it("asks them to invite their family, at the list of who they added", () => {
+    const invite = gettingStartedItems(fresh).find((i) => i.key === "invite");
+    expect(invite?.label).toBe("Invite your family");
+    expect(invite?.href.endsWith("#your-family")).toBe(true);
   });
 });
 
