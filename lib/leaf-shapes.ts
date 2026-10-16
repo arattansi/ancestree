@@ -1585,3 +1585,53 @@ export function leafGeometry(shape: LeafShape): LeafGeometry {
   geometries.set(shape, geometry);
   return geometry;
 }
+
+/**
+ * Where a leaf's lines put ink, in blade-box units (the card is the box less
+ * 19 top and bottom): the name, then a second line (a maiden name stops 110
+ * px along), then a third, a lifespan or "You · b. 1952" on a tree, a
+ * birthplace on /library (Step 158).
+ */
+export const LEAF_LINES = [
+  { right: 176, top: 63, bottom: 76 },
+  { right: 162, top: 78, bottom: 87.5 },
+  { right: 130, top: 90, bottom: 99.5 },
+] as const;
+
+/** Space kept between a line's ink and the outline it runs towards. */
+const LINE_CLEAR = 2;
+/** The middle of the blade box, across. */
+const LEAF_MIDDLE = 104;
+
+const rooms = new Map<string, number>();
+
+/**
+ * How long the second or third line of a leaf may run, from where its text
+ * starts, before the blade narrows past it: never longer than `LEAF_LINES`
+ * gives the line, and shorter where a leaf ends in a thin tip, as the
+ * baobab's middle leaflet and the flag maple's end lobe do. A /library
+ * leaf's birthplace (Step 158) shrinks to fit it.
+ */
+export function lineRoom(shape: LeafShape, line: 1 | 2): number {
+  const key = `${shape}:${line}`;
+  const known = rooms.get(key);
+  if (known !== undefined) return known;
+  const { blade, textLeft } = leafGeometry(shape);
+  const polys = polygons(blade);
+  const { top, bottom, right } = LEAF_LINES[line];
+  // Column by column from the middle of the leaf, to the first the line
+  // and the space around it no longer fit in. Left of the middle, where a
+  // stalk end can be narrow, the line keeps the room a lifespan always
+  // has there (lib/leaf-shapes.test.ts).
+  let column = Math.max(textLeft, LEAF_MIDDLE);
+  for (; column < right + LINE_CLEAR; column += 1) {
+    let fits = true;
+    for (let y = top - LINE_CLEAR; y <= bottom + LINE_CLEAR && fits; y += 0.5) {
+      fits = inside(polys, { x: column, y });
+    }
+    if (!fits) break;
+  }
+  const room = Math.max(0, column - LINE_CLEAR - textLeft);
+  rooms.set(key, room);
+  return room;
+}

@@ -23,7 +23,10 @@ export const metadata: Metadata = {
  * published posts, newest first, each drawn as the leaves of the people
  * it profiles (`LibraryCard`), and a way to subscribe, by email or RSS.
  * A reviewer writes the posts on the admin page; since Step 157 anyone may
- * send a story in for them (`/library/submit`).
+ * send a story in for them (`/library/submit`). The proverb and the way to
+ * send one in sit under the heading on a phone; from `lg` they float on
+ * the right of the screen, level with the menu held open on the left
+ * (Step 158).
  */
 export default async function LibraryPage() {
   const posts = await listPublishedPosts();
@@ -31,11 +34,13 @@ export default async function LibraryPage() {
   return (
     <MarketingColumn>
       <h1 className="text-2xl font-semibold tracking-tight">({BLOG_NAME})</h1>
-      <MarketingCopy>
-        <p>when an elder dies, a library burns to the ground.</p>
-        <p>– African proverb</p>
-      </MarketingCopy>
-      <SendStoryLink />
+      <div className="flex flex-col gap-6 lg:fixed lg:top-1/2 lg:right-14 lg:w-60 lg:-translate-y-1/2">
+        <MarketingCopy>
+          <p>when an elder dies, a library burns to the ground.</p>
+          <p>– African proverb</p>
+        </MarketingCopy>
+        <SendStoryLink>Share a story from that library</SendStoryLink>
+      </div>
       {posts.length === 0 ? (
         <MarketingCopy>
           <p>nothing here yet.</p>

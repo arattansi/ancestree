@@ -8,7 +8,7 @@ import { SamePersonMark } from "@/components/tree/same-person";
 import { TreeMarkDot, type CardMark } from "@/components/tree/tree-mark";
 import { FitText } from "@/components/ui/fit-text";
 import { cropStyle, parseCrop } from "@/lib/image-crop";
-import { leafGeometry } from "@/lib/leaf-shapes";
+import { leafGeometry, lineRoom } from "@/lib/leaf-shapes";
 import { leafLabel, type LeafShape, type NativeLeaf } from "@/lib/native-leaf";
 import { asDayMonth, formatPartialDate } from "@/lib/partial-date";
 import {
@@ -148,10 +148,10 @@ function LeafDetail({
  * 208 × 112 box every other card occupies, repainted as a leaf from a tree
  * that grows where they were born.
  *
- * The leaf carries a name, a maiden name and a lifespan and nothing else — a
- * photo pressed into a blade fights the silhouette, and the shape is already
- * saying where this person came from. Everything else waits for the hover
- * card.
+ * The leaf carries a name, a maiden name and a lifespan (a birthplace on
+ * /library, Step 158) and nothing else — a photo pressed into a blade
+ * fights the silhouette, and the shape is already saying where this person
+ * came from. Everything else waits for the hover card.
  */
 export function LeafCard({
   person,
@@ -164,6 +164,7 @@ export function LeafCard({
   member,
   quiet = false,
   label,
+  place,
 }: {
   person: TreeGraphPerson;
   leaf: NativeLeaf;
@@ -186,6 +187,9 @@ export function LeafCard({
   /** Said on the blade instead of the name, maiden name and years, which
    *  wait for the hover card: the marketing pages' "your momma" (Step 107). */
   label?: string;
+  /** Said where the years would be, on a leaf with none: a /library
+   *  post's birthplace (Step 158), the post's people having no dates. */
+  place?: string;
 }) {
   // Each species' own leaf (Step 96), drawn and measured on first use.
   const geometry = leafGeometry(leaf.shape);
@@ -198,8 +202,10 @@ export function LeafCard({
   const who = isSelf ? "You" : yourSpouse ? "Your spouse" : null;
   const youAlone = !!who && !maiden;
   const youWithYears = !!who && !!maiden;
+  const where = label || lifespan || who ? null : place?.trim() || null;
   const threeLines =
-    [youAlone, maiden, youWithYears || lifespan].filter(Boolean).length === 2;
+    [youAlone, maiden, youWithYears || lifespan || where].filter(Boolean)
+      .length === 2;
   const deceased = person.is_deceased;
   // What hangs centred under the leaf: on My Family Tree the member mark,
   // elsewhere the account type.
@@ -375,6 +381,19 @@ export function LeafCard({
             ) : null}
             {youWithYears && lifespan ? " · " : null}
             {lifespan}
+          </p>
+        ) : null}
+        {/* Under the name, or under a maiden name, and only as long as the
+            blade leaves room for there; a long one shrinks to fit. */}
+        {where ? (
+          <p style={{ maxWidth: lineRoom(leaf.shape, maiden ? 2 : 1) }}>
+            <FitText
+              max={11}
+              min={8.5}
+              className="leading-3 text-muted-foreground"
+            >
+              {where}
+            </FitText>
           </p>
         ) : null}
       </div>

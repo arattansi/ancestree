@@ -1830,6 +1830,26 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 158: the library's proverb on the right, a smaller preview,
+  birthplaces on the leaves** (no migration). **Aalim asked:** move the
+  African proverb and the call to send a story to the right of /library,
+  floating and aligned with the menu on the left; the call reads "share a
+  story from that library"; the hover preview smaller so the leaves still
+  show; the place of birth on the leaves. **Now** from `lg` the proverb
+  and "Share a story from that library →" are fixed at the right of the
+  screen, 56px in from its edge and centred on its height, as the menu
+  held open on the left is; on a phone they stay under the heading. The
+  preview is a 224px card (16:9 cover, title, first words) beside the
+  leaves from `lg` and just under them below that, so no leaf is covered.
+  Each /library leaf names its birthplace where the years would be (under
+  the name, or under a maiden name), shrinking to fit the room its blade
+  leaves (`lineRoom` in `lib/leaf-shapes.ts`: from the blade's middle to
+  where it narrows, 2px clear of the outline, so the baobab's and the
+  flag maple's tips cut it shorter). **My calls:** a post's own page keeps
+  "Share a story of someone who has passed →", as "that library" means
+  the proverb's; the birthplace shows only on /library's leaves (and the
+  admin preview's), not on a tree's canvas, whose leaves have years there.
+
 - **Step 157.5: the library's call to send a story, and its length**
   (no migration). **Aalim asked:** the link to the form reads "share a
   story of someone who has passed", and a story sent in is at most 2,000

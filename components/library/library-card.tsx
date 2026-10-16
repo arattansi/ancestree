@@ -16,7 +16,8 @@ export type LibraryCardPost = Pick<
 /**
  * A profiled person as the canvas would draw them: only their name, maiden
  * name and birthplace (no dates, so no years; not marked deceased, so the
- * blade says nothing but the name).
+ * blade says nothing more of them). The blade names the birthplace where
+ * the years would be (Step 158).
  */
 function entryOf(person: BlogPerson, id: string) {
   return marketingEntry({
@@ -38,8 +39,9 @@ function entryOf(person: BlogPerson, id: string) {
  * of the leaves; the whole card opens the post. Where there's no hover (a
  * phone), the title sits under the leaves instead. Since Step 154 the
  * cover runs across the top of that overlay, a 16:9 picture with the title
- * and the first words under it; as tall as that needs, the overlay grows
- * past the leaves above and below alike.
+ * and the first words under it. Since Step 158 it's a small card that
+ * leaves the leaves showing: beside them from `lg`, where the column has
+ * room on the right, and just under them below that.
  */
 export function LibraryCard({
   post,
@@ -76,6 +78,7 @@ export function LibraryCard({
                 selected={false}
                 isSelf={false}
                 quiet
+                place={p.place}
               />
             );
           })
@@ -92,18 +95,18 @@ export function LibraryCard({
       </div>
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-1/2 z-10 flex min-h-full -translate-y-1/2 flex-col justify-center gap-3 rounded-xl border bg-popover/95 p-3 opacity-0 shadow-xl transition-opacity duration-200 group-hover/post:opacity-100 group-focus-visible/post:opacity-100"
+        className="pointer-events-none absolute top-[calc(100%-0.5rem)] left-1/2 z-10 flex w-56 -translate-x-1/2 flex-col gap-2 rounded-xl border bg-popover/95 p-2 opacity-0 shadow-xl transition-opacity duration-200 group-hover/post:opacity-100 group-focus-visible/post:opacity-100 lg:top-1/2 lg:left-full lg:ml-2 lg:translate-x-0 lg:-translate-y-1/2"
       >
         {cover ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={cover}
             alt=""
-            className="aspect-video w-full shrink-0 rounded-lg object-cover"
+            className="aspect-video w-full shrink-0 rounded-md object-cover"
           />
         ) : null}
         <div className="min-w-0 px-1 text-left">
-          <p className="line-clamp-2 font-semibold leading-snug">{post.title}</p>
+          <p className="line-clamp-2 text-sm font-semibold leading-snug">{post.title}</p>
           {excerpt ? (
             <p className="mt-1 line-clamp-3 text-xs text-muted-foreground">{excerpt}</p>
           ) : null}

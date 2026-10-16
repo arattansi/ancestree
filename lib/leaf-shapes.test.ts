@@ -3,24 +3,15 @@ import { describe, expect, it } from "vitest";
 import {
   BLADE_OVERHANG,
   inside,
+  LEAF_LINES,
   LEAF_SHAPES,
   leafGeometry,
+  lineRoom,
   MIDRIB,
   polygons,
   type LeafShape,
 } from "@/lib/leaf-shapes";
 import { nativeLeaf } from "@/lib/native-leaf";
-
-/**
- * Where a leaf's lines put ink, in blade-box units (the card is the box less
- * 19 top and bottom): the name, then a second line (a maiden name stops 110
- * px along), then a third, which is only ever a lifespan or "You · b. 1952".
- */
-const LINES = [
-  { right: 176, top: 63, bottom: 76 },
-  { right: 162, top: 78, bottom: 87.5 },
-  { right: 130, top: 90, bottom: 99.5 },
-];
 
 /**
  * The leaves Step 19 drew narrower than the longest lines: past x≈124 the
@@ -38,7 +29,7 @@ function clearance(shape: LeafShape): number {
   const geometry = leafGeometry(shape);
   const polys = polygons(geometry.blade);
   let worst = Infinity;
-  for (const line of LINES) {
+  for (const line of LEAF_LINES) {
     const right = Math.min(line.right, NARROW_TIPS[shape] ?? Infinity);
     let fits = -1;
     for (let r = 0; r <= 3; r += 0.5) {
@@ -78,6 +69,30 @@ describe("leaf shapes", () => {
     // The card draws the stem out to x 46: its end is inside the blade.
     const polys = polygons(leafGeometry(shape).blade);
     expect(inside(polys, { x: 47, y: MIDRIB })).toBe(true);
+  });
+
+  it.each(LEAF_SHAPES)("%s keeps a birthplace's room inside the blade", (shape) => {
+    const { blade, textLeft } = leafGeometry(shape);
+    const polys = polygons(blade);
+    for (const line of [1, 2] as const) {
+      const room = lineRoom(shape, line);
+      const { top, bottom } = LEAF_LINES[line];
+      // Room for "Moshi, Tanzania" at its smallest, at least; past the
+      // middle, where tips narrow, 2 clear of the outline.
+      expect(room).toBeGreaterThanOrEqual(64);
+      let clear = true;
+      for (let x = 104; x < textLeft + room + 2 && clear; x += 1) {
+        for (let y = top - 2; y <= bottom + 2 && clear; y += 0.5) {
+          clear = inside(polys, { x, y });
+        }
+      }
+      expect(clear).toBe(true);
+    }
+  });
+
+  it("stops a birthplace short of the baobab's thin middle leaflet", () => {
+    expect(lineRoom("ovate", 1)).toBe(LEAF_LINES[1].right - 52);
+    expect(lineRoom("baobab", 1)).toBeLessThan(lineRoom("ovate", 1));
   });
 
   it.each(LEAF_SHAPES)("%s stays light enough to draw on every card", (shape) => {
