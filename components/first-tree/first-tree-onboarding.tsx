@@ -7,16 +7,14 @@ import { FamilyStep } from "@/components/first-tree/family-step";
 import { FirstTreeProgress } from "@/components/first-tree/first-tree-progress";
 import { InviteStep } from "@/components/first-tree/invite-step";
 import { NameStep } from "@/components/first-tree/name-step";
-import { LinkPendingLabel } from "@/components/link-pending";
 import { PageColumn } from "@/components/page-column";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   isFirstTreeStep,
   namePrefill,
   openingStep,
   reachableStep,
   stepAfter,
+  stepFromAddress,
   type FirstTreeState,
   type FirstTreeStep,
 } from "@/lib/first-tree";
@@ -33,10 +31,10 @@ function hrefAfter(step: FirstTreeStep, state: FirstTreeState): string {
 
 /**
  * A founder's first run on the tree they've just started (Step 29), one
- * step at a time: their own entry, their close family, who'll help (which
- * is where the account types are introduced), then the tree's name (Step
- * 124). Everything but their own entry can be skipped; the canvas's
- * "Getting started" list keeps what's left.
+ * step at a time: themselves and their close family on one screen (Step
+ * 161), who'll help (which is where the account types are introduced),
+ * then the tree's name (Step 124). Everything but their own entry can be
+ * skipped; the canvas's "Getting started" list keeps what's left.
  */
 export async function FirstTreeOnboarding({
   membership,
@@ -53,15 +51,68 @@ export async function FirstTreeOnboarding({
   const { state, founder } = data;
   // Always on a step's own address, so a refresh after sending an invite
   // or adding someone stays on that step rather than re-picking where to
-  // open — sending an invite would otherwise jump straight on to `you`.
-  if (!isFirstTreeStep(asked)) redirect(onboardingStepHref(openingStep(state)));
-  const step = reachableStep(asked, state);
+  // open — sending an invite would otherwise jump straight back to family.
+  // `?step=you`, from before Step 161, is the family step now.
+  const wanted = stepFromAddress(asked);
+  if (!wanted || wanted !== asked) {
+    redirect(onboardingStepHref(wanted ?? openingStep(state)));
+  }
+  const step = reachableStep(wanted, state);
   const next = hrefAfter(step, state);
+  // Adding themselves, or bringing their entry across, stays on the family
+  // step: its other places open once they're in.
+  const familyHref = onboardingStepHref("family");
 
   return (
-    // The invite step is wider, for "Who Can Do What" beside its form.
-    <PageColumn width={step === "invite" ? "5xl" : undefined}>
+    // The invite step is wider, for "Who Can Do What" beside its form; the
+    // family step, for its little tree with the founder's form in the middle.
+    <PageColumn
+      width={step === "invite" ? "5xl" : step === "family" ? "3xl" : undefined}
+    >
       <FirstTreeProgress current={step} state={state} />
+
+      {step === "family" ? (
+        <>
+          <StepHeading
+            // True once there's a tree on the screen to say it of.
+            eyebrow={state.selfPlaced ? undefined : "Your tree is planted"}
+            title="Your Closest Family"
+            lead={
+              state.selfPlaced
+                ? "Start with the people closest to you."
+                : founder
+                  ? `You already have an entry${founder.homeTreeName ? ` on ${founder.homeTreeName}` : ""}. Bring it across — it stays one entry on both trees.`
+                  : "Start with you."
+            }
+          />
+          <FamilyStep
+            treeId={tree.id}
+            founder={founder}
+            addYourself={
+              founder ? (
+                <BringYourself
+                  treeId={tree.id}
+                  treeName={tree.name}
+                  entry={founder}
+                  nextHref={familyHref}
+                />
+              ) : (
+                <AddPersonFlow
+                  mode="self"
+                  treeId={tree.id}
+                  isAdmin
+                  members={[]}
+                  initialName={namePrefill(profile.display_name)}
+                  doneHref={familyHref}
+                />
+              )
+            }
+            family={data.family}
+            bring={data.bring}
+            doneHref={next}
+          />
+        </>
+      ) : null}
 
       {step === "invite" ? (
         <>
@@ -70,55 +121,6 @@ export async function FirstTreeOnboarding({
             lead="Invite the relatives who know your family best."
           />
           <InviteStep treeId={tree.id} invites={data.invites} nextHref={next} />
-        </>
-      ) : null}
-
-      {step === "you" ? (
-        <>
-          <StepHeading
-            eyebrow="Your tree is planted"
-            title="Start With You"
-            lead={
-              founder && !founder.placedHere
-                ? `You already have an entry${founder.homeTreeName ? ` on ${founder.homeTreeName}` : ""}. Bring it across — it stays one entry on both trees.`
-                : "Everyone you add connects back to you."
-            }
-          />
-          {founder?.placedHere ? (
-            <Card>
-              <CardContent className="flex flex-wrap items-center justify-between gap-3">
-                <p className="text-sm text-muted-foreground">
-                  <span className="font-medium text-foreground">
-                    {founder.name}
-                  </span>{" "}
-                  is on {tree.name}.
-                </p>
-                <Button nativeButton={false} render={<Link href={next} />}>
-                  <LinkPendingLabel>continue</LinkPendingLabel>
-                </Button>
-              </CardContent>
-            </Card>
-          ) : founder ? (
-            <BringYourself
-              treeId={tree.id}
-              treeName={tree.name}
-              entry={founder}
-              nextHref={hrefAfter("you", { ...state, selfPlaced: true })}
-            />
-          ) : (
-            <Card>
-              <CardContent>
-                <AddPersonFlow
-                  mode="self"
-                  treeId={tree.id}
-                  isAdmin
-                  members={[]}
-                  initialName={namePrefill(profile.display_name)}
-                  doneHref={hrefAfter("you", { ...state, selfPlaced: true })}
-                />
-              </CardContent>
-            </Card>
-          )}
         </>
       ) : null}
 
@@ -140,22 +142,6 @@ export async function FirstTreeOnboarding({
             }
             currentName={tree.name}
             nextHref={next}
-          />
-        </>
-      ) : null}
-
-      {step === "family" && founder ? (
-        <>
-          <StepHeading
-            title="Your Closest Family"
-            lead="Start with the people closest to you."
-          />
-          <FamilyStep
-            treeId={tree.id}
-            founder={founder}
-            family={data.family}
-            bring={data.bring}
-            doneHref={next}
           />
         </>
       ) : null}

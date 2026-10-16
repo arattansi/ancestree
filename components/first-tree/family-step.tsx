@@ -28,16 +28,25 @@ import { cn } from "@/lib/utils";
  * parent (Step 125). A member who founded the tree first gets to bring family already
  * on their other trees, a whole line of it if they like (Step 80), rather
  * than add them twice.
+ *
+ * The founder is in the middle, and goes in first (Step 161): until their
+ * own entry is on the tree, the middle place is `addYourself` and every
+ * other place waits, locked.
  */
 export function FamilyStep({
   treeId,
   founder,
+  addYourself,
   family,
   bring,
   doneHref,
 }: {
   treeId: string;
-  founder: FamilyCard & { lastName: string };
+  /** Their own entry, wherever it is; `null` until they've made one. */
+  founder: (FamilyCard & { lastName: string; placedHere: boolean }) | null;
+  /** The middle place until they're on this tree: the short form for their
+   *  own entry, or bringing it across from another tree. */
+  addYourself: React.ReactNode;
   family: {
     parents: FamilyCard[];
     partners: (FamilyCard & { isDivorced: boolean })[];
@@ -54,6 +63,7 @@ export function FamilyStep({
     setKind(k);
     setAdding(k);
   };
+  const placed = !!founder?.placedHere;
   const anyone =
     family.parents.length +
       family.partners.length +
@@ -94,7 +104,9 @@ export function FamilyStep({
           ))}
           {family.parents.length < 2 ? (
             <li>
-              <Slot onClick={() => add("parent")}>Add a parent</Slot>
+              <Slot locked={!placed} onClick={() => add("parent")}>
+                Add a parent
+              </Slot>
             </li>
           ) : null}
         </Group>
@@ -102,11 +114,15 @@ export function FamilyStep({
         <Stem />
 
         <div className="grid w-full items-start gap-4 sm:grid-cols-[1fr_auto_1fr]">
-          <Group label="You" className="sm:order-2">
-            <li>
-              <FamilyPersonChip person={founder} highlight />
-            </li>
-          </Group>
+          {placed && founder ? (
+            <Group label="You" className="sm:order-2">
+              <li>
+                <FamilyPersonChip person={founder} highlight />
+              </li>
+            </Group>
+          ) : (
+            <YouFirst>{addYourself}</YouFirst>
+          )}
           <Group label="Partners" align="start" className="sm:order-3">
             {family.partners.map((p) => (
               <li key={p.id}>
@@ -117,7 +133,7 @@ export function FamilyStep({
               </li>
             ))}
             <li>
-              <Slot onClick={() => add("partner")}>
+              <Slot locked={!placed} onClick={() => add("partner")}>
                 {family.partners.length > 0 ? "Add another partner" : "Add a partner"}
               </Slot>
             </li>
@@ -129,7 +145,9 @@ export function FamilyStep({
               </li>
             ))}
             <li>
-              <Slot onClick={() => add("sibling")}>Add a sibling</Slot>
+              <Slot locked={!placed} onClick={() => add("sibling")}>
+                Add a sibling
+              </Slot>
             </li>
           </Group>
         </div>
@@ -143,43 +161,68 @@ export function FamilyStep({
             </li>
           ))}
           <li>
-            <Slot onClick={() => add("child")}>Add a child</Slot>
+            <Slot locked={!placed} onClick={() => add("child")}>
+              Add a child
+            </Slot>
           </li>
         </Group>
       </section>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <Button
-          nativeButton={false}
-          render={<Link href={doneHref} />}
-          variant={anyone ? "default" : "outline"}
-        >
-          <LinkPendingLabel>{anyone ? "continue" : "skip for now"}</LinkPendingLabel>
-        </Button>
-        <p className="text-xs text-muted-foreground">
-          Add everyone else from the tree.
-        </p>
-      </div>
+      {/* Your own entry is the one thing the tree can't do without. */}
+      {placed ? (
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            nativeButton={false}
+            render={<Link href={doneHref} />}
+            variant={anyone ? "default" : "outline"}
+          >
+            <LinkPendingLabel>{anyone ? "continue" : "skip for now"}</LinkPendingLabel>
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            Add everyone else from the tree.
+          </p>
+        </div>
+      ) : null}
 
-      <QuickRelativeDialog
-        open={adding !== null}
-        onOpenChange={(open) => {
-          if (!open) setAdding(null);
-        }}
-        kind={adding ?? kind}
-        treeId={treeId}
-        founder={{ id: founder.id, lastName: founder.lastName }}
+      {placed && founder ? (
+        <QuickRelativeDialog
+          open={adding !== null}
+          onOpenChange={(open) => {
+            if (!open) setAdding(null);
+          }}
+          kind={adding ?? kind}
+          treeId={treeId}
+          founder={{ id: founder.id, lastName: founder.lastName }}
         parents={family.parents.map((p) => ({ id: p.id, name: p.name }))}
         parentlessSiblings={family.siblings
           .filter((p) => p.parentless)
           .map((p) => ({ id: p.id, name: p.name }))}
-        partners={family.partners.map((p) => ({
-          id: p.id,
-          name: p.name,
-          isDivorced: p.isDivorced,
-        }))}
-      />
+          partners={family.partners.map((p) => ({
+            id: p.id,
+            name: p.name,
+            isDivorced: p.isDivorced,
+          }))}
+        />
+      ) : null}
     </div>
+  );
+}
+
+/** The middle place before the founder is on the tree: where they start. */
+function YouFirst({ children }: { children: React.ReactNode }) {
+  const id = React.useId();
+  return (
+    <section
+      aria-labelledby={id}
+      className="flex w-full flex-col items-center gap-2 sm:order-2 sm:w-[22rem]"
+    >
+      <h2 id={id} className="text-xs font-medium text-muted-foreground">
+        You
+      </h2>
+      <div className="w-full rounded-xl border border-account-root/50 bg-card p-4 text-left shadow-xs ring-2 ring-account-root/20">
+        {children}
+      </div>
+    </section>
   );
 }
 
@@ -224,19 +267,32 @@ function Group({
 
 function Slot({
   onClick,
+  locked = false,
   children,
 }: {
   onClick: () => void;
+  /** Waiting on the founder's own entry (Step 161): narrower, so their
+   *  form has the middle, and not yet a button that does anything. */
+  locked?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex h-[3.25rem] w-44 items-center justify-center gap-1.5 rounded-lg border border-dashed border-border bg-background/60 text-sm text-muted-foreground transition-colors outline-none hover:border-ring hover:text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+      disabled={locked}
+      className={cn(
+        "flex h-[3.25rem] items-center justify-center gap-1.5 rounded-lg border border-dashed border-border bg-background/60 text-sm text-muted-foreground transition-colors outline-none hover:border-ring hover:text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
+        locked
+          ? "w-36 opacity-50 hover:border-border hover:text-muted-foreground"
+          : "w-44",
+      )}
     >
-      <Plus aria-hidden className="size-4" />
+      {locked ? null : <Plus aria-hidden className="size-4" />}
       {children}
+      {locked ? (
+        <span className="sr-only">, once you&rsquo;ve added yourself</span>
+      ) : null}
     </button>
   );
 }

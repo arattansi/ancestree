@@ -5,7 +5,6 @@ import Link from "next/link";
 import { Check, ChevronDown, Circle } from "lucide-react";
 
 import type { GettingStartedItem } from "@/lib/first-tree";
-import { onboardingStepHref } from "@/lib/tree-links";
 import { cn } from "@/lib/utils";
 
 const keyFor = (treeId: string) => `ancestree:getting-started-dismissed:${treeId}`;
@@ -28,7 +27,8 @@ function subscribeToWidth(onChange: () => void) {
 
 /**
  * "Getting started" on the canvas, for the Root who founded the tree (Step
- * 29): what's left of their first run, each item a link back to its step.
+ * 29): what's left of their first run, each item a link back to its step,
+ * or to their own entry's blanks (Step 161).
  * It goes once everything's done, or when they close it — remembered in this
  * browser, for this tree, like the canvas tip. The server snapshot says
  * "dismissed", so it only appears after hydration, for those who haven't.
@@ -134,7 +134,7 @@ export function GettingStarted({
                 <>
                   <Circle aria-hidden className="size-4 shrink-0 text-muted-foreground/50" />
                   <Link
-                    href={onboardingStepHref(item.step)}
+                    href={item.href}
                     className="text-foreground underline-offset-4 hover:underline"
                   >
                     {item.label}

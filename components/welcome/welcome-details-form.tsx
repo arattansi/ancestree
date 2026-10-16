@@ -40,6 +40,7 @@ import {
 export function WelcomeDetailsForm({
   homeTreeId,
   doneHref,
+  toTree = false,
   entry,
   photoUrl,
   placeLabels,
@@ -49,6 +50,9 @@ export function WelcomeDetailsForm({
   homeTreeId: string;
   /** Where saving, or skipping, goes. */
   doneHref: string;
+  /** `doneHref` is the canvas: a founder's own blanks, from its "Getting
+   *  started" list (Step 161), not a welcome. */
+  toTree?: boolean;
   entry: WelcomeEntry & { id: string; photo_crop: unknown };
   photoUrl: string | null;
   /** The places as they're recorded: the place of birth for the line at
@@ -205,14 +209,18 @@ export function WelcomeDetailsForm({
             pendingLabel="saving…"
             disabled={photo.busy || !somethingToSave || !isValid}
           >
-            save and see my family tree
+            {toTree ? "save" : "save and see my family tree"}
           </PendingButton>
           <Button
             nativeButton={false}
             render={<Link href={doneHref} />}
             variant="ghost"
           >
-            {missesAnything(asks) ? "skip for now" : "see my family tree"}
+            {toTree
+              ? "back to tree"
+              : missesAnything(asks)
+                ? "skip for now"
+                : "see my family tree"}
           </Button>
         </div>
       </form>

@@ -73,11 +73,14 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `/people/new`, `/people/[id]/edit`, `/people/[id]/suggest` (suggest a
   change to an entry you can't edit, Step 67), `/onboarding` (first-run on that
   tree: a member finds or adds themselves, opening on the search for the
-  name they joined by when we know it, Step 30.7; the tree's founder gets four
-  steps instead, `?step=invite|you|name|family` — `components/first-tree/`,
-  Step 29), `/welcome` (where a claim invite, or claiming an entry on
-  onboarding, lands: their entry, with a photo and what's missing asked up
-  front; `?returning=1` only greets a member who brought their own —
+  name they joined by when we know it, Step 30.7; the tree's founder gets three
+  steps instead, `?step=family|invite|name`, themselves first in the
+  family step's middle (Step 161; `?step=you` goes to `family`) —
+  `components/first-tree/`, Step 29), `/welcome` (where a claim invite, or
+  claiming an entry on onboarding, lands: their entry, with a photo and
+  what's missing asked up front; `?returning=1` only greets a member who
+  brought their own; `?details=1` is a founder's own blanks, from the
+  canvas's "Getting started", back to the canvas, Step 161 —
   `components/welcome/`, `lib/welcome.ts`, Step 50); `/admin` is the
   **admin page** for beta reviewers (Step 103, `app/admin/page.tsx`,
   `lib/admin-page.ts`; the header's red **admin**, before **tree**, with
@@ -1838,6 +1841,56 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 161: you and your closest family on one screen, a short form**
+  (no migration). **From** the 2026-10-16 onboarding audit (W2, W12 /
+  R2, with R7/R8's form items): a founder's first screen after signing
+  up was "Start With You", the whole person form (about 12 fields, 2.8
+  phone screens) under "Your tree is planted" with no tree on the page;
+  every relative in the family step opened the same form in a dialog. 5
+  of 25 real sign-ups stalled on their first screen after signing in.
+  **Aalim decided:** merge You into Family; up front for you, name
+  (prefilled), birth year and photo. **Now** the first run is **Family ·
+  Invite · The tree** (`FIRST_TREE_STEPS`, changing Step 124's order):
+  it opens on the family step's little tree with the founder in the
+  middle, filled first. Until their own entry is on the tree the middle
+  place is their form (a founder with an entry on another tree gets
+  **put me on {tree}** there, `BringYourself`) and the parents,
+  partners, siblings and children places show, dashed and locked; no
+  continue or skip until they're in. Their form is the short one:
+  first and last name, **Year of birth** (`BirthYearField`, the date's
+  year) and a photo, then **add more details** for the middle, preferred
+  and maiden names, sex, the whole date of birth, place of birth and
+  where they live. Your own entry never asks "This person is deceased"
+  (`PersonFields` with `self`, too). `?step=you` goes to the family step
+  (`stepFromAddress`), and a founder not on the tree opens there. The
+  family step's add-a-relative dialog is as short (Step 44's compact
+  form): names, deceased, the questions that place them (partnered,
+  co-parent, also their parent, parents you share), "18 or older?" and
+  the invite email up front; the rest of their details, a partner's
+  wedding dates and a photo behind **add more details**; its button is
+  lower-case (**add a parent**). The canvas's **Getting Started** opens
+  with **Add your photo and birthplace**, done once their entry has
+  both, which opens `/welcome?details=1` (**Your Details**: the
+  welcome's form of what's empty, **save** / **back to tree**, both to
+  the canvas); "Add yourself", always ticked there, is gone, and items
+  carry their own `href`. **Also, R7/R8:** the photo picker hides the
+  browser's "Choose File · No file chosen": the round thumbnail and
+  **choose a photo** (**choose another** once there is one) open the
+  file dialog, everywhere a `PhotoPicker` is; the date field's month
+  keeps room for "September" (no more "Mont"), the date of birth is
+  as wide as it needs, and a date of death sits above its place;
+  adding yourself reads **You are child of** (`SELF_KIND_STATEMENT`),
+  not "You is child of"; `/onboarding` greets "Welcome, Leila" like the
+  welcome, not "Welcome, Leila Haddad". Copy that named the old order
+  is fixed: `/onboarding`'s description, `/trees/new`, docs. **My
+  calls:** every "add yourself" form is the short one, a member's on
+  `/onboarding` too, so there's one form for your own entry; the
+  founder's form sits in the middle of the tree rather than above or
+  below it, with the side places narrower while locked so it fits
+  (the family step is `3xl` wide now); "Your tree is planted" stays as
+  the eyebrow until they're in, when it's true on screen; the founder's
+  family from their other trees is offered once they're on this one.
 
 - **Step 164: sign-in emails, the founder's privacy tick, and a code box
   that survives a reload** (no migration). **From** the 2026-10-16

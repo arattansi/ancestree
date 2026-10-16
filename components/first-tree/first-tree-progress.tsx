@@ -14,10 +14,10 @@ import { onboardingStepHref } from "@/lib/tree-links";
 import { cn } from "@/lib/utils";
 
 /**
- * Where a founder is in their first run (Step 29): the four steps, each a
- * link back to it, ticked once its work is on the tree. Naming the tree and
- * adding family build on the founder's own entry, so until it's there they
- * aren't links yet. On a phone only the current step keeps its name.
+ * Where a founder is in their first run (Step 29): the three steps (Step
+ * 161), each a link back to it, ticked once its work is on the tree. Naming
+ * the tree builds on the founder's own entry, so until it's there it isn't
+ * a link yet. On a phone only the current step keeps its name.
  */
 export function FirstTreeProgress({
   current,

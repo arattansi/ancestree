@@ -61,8 +61,8 @@ export default async function NewTreePage() {
             <CardTitle>Your Tree</CardTitle>
             <CardDescription>
               It starts empty. Once it&rsquo;s planted, a few short steps get
-              it growing: invite who&rsquo;ll help, bring yourself across, and
-              add your closest family. Anyone already on your other trees comes
+              it growing: bring yourself across with your closest family, then
+              invite who&rsquo;ll help. Anyone already on your other trees comes
               over rather than being added twice — a member&rsquo;s own entry
               waits for them to say yes.
             </CardDescription>

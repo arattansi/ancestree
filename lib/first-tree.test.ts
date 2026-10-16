@@ -11,11 +11,14 @@ import {
   reachableStep,
   stepAfter,
   stepDone,
+  stepFromAddress,
   type FirstTreeState,
 } from "@/lib/first-tree";
 
 const fresh: FirstTreeState = {
   selfPlaced: false,
+  selfPhoto: false,
+  selfBirthplace: false,
   defaultName: true,
   invited: false,
   parents: 0,
@@ -30,12 +33,22 @@ describe("the steps", () => {
     expect(isFirstTreeStep("family")).toBe(true);
     expect(isFirstTreeStep("canvas")).toBe(false);
     expect(isFirstTreeStep(undefined)).toBe(false);
+    // Folded into the family step by Step 161.
+    expect(isFirstTreeStep("you")).toBe(false);
   });
 
-  it("opens on their own entry for a founder who hasn't started", () => {
-    expect(openingStep(fresh)).toBe("you");
+  it("reads an old `?step=you` as the family step", () => {
+    expect(stepFromAddress("you")).toBe("family");
+    expect(stepFromAddress("family")).toBe("family");
+    expect(stepFromAddress("name")).toBe("name");
+    expect(stepFromAddress("canvas")).toBeNull();
+    expect(stepFromAddress(undefined)).toBeNull();
+  });
+
+  it("opens on the family step, where a new founder adds themselves first", () => {
+    expect(openingStep(fresh)).toBe("family");
     // Even once they've invited someone.
-    expect(openingStep({ ...fresh, invited: true })).toBe("you");
+    expect(openingStep({ ...fresh, invited: true })).toBe("family");
   });
 
   it("opens on the first step not yet done once they're on the tree", () => {
@@ -49,15 +62,14 @@ describe("the steps", () => {
     ).toBe("family");
   });
 
-  it("holds naming and family until the founder is on the tree", () => {
-    expect(reachableStep("name", fresh)).toBe("you");
-    expect(reachableStep("family", fresh)).toBe("you");
+  it("holds naming until the founder is on the tree", () => {
+    expect(reachableStep("name", fresh)).toBe("family");
+    expect(reachableStep("family", fresh)).toBe("family");
     expect(reachableStep("invite", fresh)).toBe("invite");
-    expect(reachableStep("family", { ...fresh, selfPlaced: true })).toBe("family");
+    expect(reachableStep("name", { ...fresh, selfPlaced: true })).toBe("name");
   });
 
-  it("walks you → family → invite → name → the canvas", () => {
-    expect(stepAfter("you", fresh)).toBe("family");
+  it("walks family → invite → name → the canvas", () => {
     expect(stepAfter("family", fresh)).toBe("invite");
     expect(stepAfter("invite", fresh)).toBe("name");
     expect(stepAfter("name", fresh)).toBeNull();
@@ -72,27 +84,36 @@ describe("the steps", () => {
 
   it("ticks a step off by what's on the tree", () => {
     expect(stepDone("invite", { ...fresh, invited: true })).toBe(true);
-    expect(stepDone("you", fresh)).toBe(false);
     // A default name isn't a chosen one, and nothing is named before the
     // founder is on the tree to name it after.
     expect(stepDone("name", { ...fresh, defaultName: false })).toBe(false);
     expect(stepDone("name", { ...fresh, selfPlaced: true, defaultName: false })).toBe(
       true,
     );
-    expect(stepDone("family", { ...fresh, siblings: 1 })).toBe(true);
+    // The founder alone isn't their family yet.
+    expect(stepDone("family", { ...fresh, selfPlaced: true })).toBe(false);
+    expect(stepDone("family", { ...fresh, selfPlaced: true, siblings: 1 })).toBe(true);
   });
 });
 
 describe("gettingStartedItems", () => {
-  it("lists the steps with the family split in two", () => {
+  it("lists their own details, then the steps with the family split in two", () => {
     const items = gettingStartedItems({ ...fresh, selfPlaced: true, parents: 2 });
     expect(items.map((i) => [i.key, i.done])).toEqual([
-      ["you", true],
+      ["details", false],
       ["parents", true],
       ["more-family", false],
       ["invite", false],
       ["name", false],
     ]);
+  });
+
+  it("wants both a photo and a birthplace for their details", () => {
+    const details = (state: Partial<FirstTreeState>) =>
+      gettingStartedItems({ ...fresh, selfPlaced: true, ...state })[0];
+    expect(details({ selfPhoto: true }).done).toBe(false);
+    expect(details({ selfBirthplace: true }).done).toBe(false);
+    expect(details({ selfPhoto: true, selfBirthplace: true }).done).toBe(true);
   });
 
   it("counts a partner, a child or a sibling as more family", () => {
@@ -102,13 +123,13 @@ describe("gettingStartedItems", () => {
     }
   });
 
-  it("points each item at the step that does it", () => {
-    expect(gettingStartedItems(fresh).map((i) => i.step)).toEqual([
-      "you",
-      "family",
-      "family",
-      "invite",
-      "name",
+  it("points each item at where it's done", () => {
+    expect(gettingStartedItems(fresh).map((i) => i.href)).toEqual([
+      "/welcome?details=1",
+      "/onboarding?step=family",
+      "/onboarding?step=family",
+      "/onboarding?step=invite",
+      "/onboarding?step=name",
     ]);
   });
 });

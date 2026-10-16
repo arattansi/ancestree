@@ -17,6 +17,7 @@ import {
   PlaceAutocomplete,
   type SelectedPlace,
 } from "@/components/place-autocomplete";
+import { joinDateParts, splitDateParts } from "@/lib/partial-date";
 import { placeText } from "@/lib/place-choice";
 import { preferredCopiesFirst } from "@/lib/person-name";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { SEX_LABELS, SEX_VALUES } from "@/lib/person-labels";
+import { cn } from "@/lib/utils";
 
 /** The mark on a label whose field has to be filled in. */
 function RequiredMark() {
@@ -90,6 +92,13 @@ const EXTRA_NAMES = [
 ] as const;
 type ExtraName = (typeof EXTRA_NAMES)[number]["key"];
 
+/** First and last name alone: the short form of your own entry (Step 161). */
+export const MAIN_NAMES: ReadonlySet<string> = new Set(["first_name", "last_name"]);
+/** The names only some people have, offered once that form opens up. */
+export const EXTRA_NAME_FIELDS: ReadonlySet<string> = new Set(
+  EXTRA_NAMES.map(({ key }) => key),
+);
+
 /**
  * A person's names: first and last, with a middle, a preferred and a maiden
  * name to reach for. All the add-a-relative form asks up front (Step 44).
@@ -100,10 +109,14 @@ export function PersonNameFields<T extends FieldValues>({
   show,
   required = true,
   self = false,
+  sideBySide = false,
 }: {
   control: Control<T>;
   prefix?: string;
   show?: FieldFilter;
+  /** First and last name side by side even on a phone: the short form of
+   *  your own entry fits one screen (Step 161). */
+  sideBySide?: boolean;
   /** Mark what has to be filled in. Filling in what's missing marks nothing:
    *  the entry already has its name. */
   required?: boolean;
@@ -154,7 +167,12 @@ export function PersonNameFields<T extends FieldValues>({
           Required
         </p>
       ) : null}
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div
+        className={cn(
+          "grid gap-4",
+          sideBySide ? "grid-cols-2" : "sm:grid-cols-2",
+        )}
+      >
         {shows(show, "first_name") ? (
           <FormField
             control={control}
@@ -297,6 +315,52 @@ function CircaField<T extends FieldValues>({
           </Label>
         </div>
       )}
+    />
+  );
+}
+
+/**
+ * The year someone was born, alone: the short form of your own entry asks
+ * only that (Step 161). It's the date of birth's year, so "add more details"
+ * shows the whole date with it already in.
+ */
+export function BirthYearField<T extends FieldValues>({
+  control,
+  prefix,
+}: {
+  control: Control<T>;
+  prefix?: string;
+}) {
+  const name = useFieldName<T>(prefix);
+  return (
+    <FormField
+      control={control}
+      name={name("date_of_birth")}
+      render={({ field }) => {
+        const parts = splitDateParts(field.value);
+        return (
+          <FormItem>
+            <FormLabel>Year of birth</FormLabel>
+            <FormControl>
+              <Input
+                inputMode="numeric"
+                // Only ever your own entry's.
+                autoComplete="bday-year"
+                maxLength={4}
+                className="w-24"
+                value={parts.year}
+                onChange={(e) => {
+                  const year = e.target.value.replace(/\D/g, "");
+                  if (year !== e.target.value) e.target.value = year;
+                  field.onChange(joinDateParts({ ...parts, year }));
+                }}
+                onBlur={field.onBlur}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        );
+      }}
     />
   );
 }
@@ -448,7 +512,8 @@ export function PersonDetailFields<T extends FieldValues>({
       ) : null}
 
       {shows(show, "date_of_birth") ? (
-        <div className="grid gap-4 sm:grid-cols-2">
+        // As wide as the date needs, so the month is never cut short.
+        <div className="grid max-w-sm gap-4">
           <FormField
             control={control}
             name={name("date_of_birth")}
@@ -551,13 +616,13 @@ export function PersonDetailFields<T extends FieldValues>({
       ) : null}
 
       {showsDeath ? (
-        <div className="grid gap-4 rounded-lg border border-border p-4 sm:grid-cols-2">
+        <div className="grid gap-4 rounded-lg border border-border p-4">
           {shows(show, "date_of_death") ? (
             <FormField
               control={control}
               name={name("date_of_death")}
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="max-w-sm">
                   <div className="flex items-center justify-between gap-3">
                     <FormLabel>Date of death</FormLabel>
                     <CircaField
@@ -606,10 +671,7 @@ export function PersonDetailFields<T extends FieldValues>({
                 )}
               />
               {typeof placeIdDeath === "number" ? (
-                <AncestralLandsField
-                  placeId={placeIdDeath}
-                  className="sm:col-span-2"
-                />
+                <AncestralLandsField placeId={placeIdDeath} />
               ) : null}
             </>
           ) : null}
@@ -706,7 +768,8 @@ export function PersonFields<T extends FieldValues>({
         control={control}
         isAdmin={isAdmin}
         withContact={withContact}
-        withDiedField
+        // Not on your own entry (Step 161).
+        withDiedField={!self}
         prefix={prefix}
         idPrefix={idPrefix}
         placeLabels={placeLabels}

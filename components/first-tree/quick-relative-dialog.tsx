@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useForm, useWatch } from "react-hook-form";
+import { Plus } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 
@@ -12,7 +13,11 @@ import { CoParentOffer } from "@/components/co-parent-offer";
 import { FormError } from "@/components/form-error";
 import { JoinsAsNote } from "@/components/joins-as-note";
 import { PendingButton } from "@/components/pending-button";
-import { PersonFields } from "@/components/person-fields";
+import {
+  PersonDetailFields,
+  PersonDiedField,
+  PersonNameFields,
+} from "@/components/person-fields";
 import { PhotoPicker } from "@/components/photo-picker";
 import { SpouseDatesFields } from "@/components/spouse-dates-fields";
 import { Button } from "@/components/ui/button";
@@ -64,12 +69,14 @@ type QuickRelativeProps = {
 };
 
 /**
- * Add one close relative in the founder's first run (Step 29): the person's
- * details, plus the one or two questions that place them — whether a second
+ * Add one close relative in the founder's first run (Step 29): their name,
+ * plus the one or two questions that place them — whether a second
  * parent partnered the first, who a child's other parent is, which parents
  * a sibling shares, and whether a parent is also theirs for siblings who
  * had none (Step 125). The lines are drawn from those answers
- * (`closeRelativeEdges`), so there's no connection to build by hand.
+ * (`closeRelativeEdges`), so there's no connection to build by hand. Like
+ * adding a relative anywhere (Step 44), the rest of their details, a
+ * partner's wedding and a photo wait behind "add more details" (Step 161).
  */
 export function QuickRelativeDialog({
   open,
@@ -134,6 +141,12 @@ function QuickRelativeForm({
   };
   const photo = usePhotoDraft();
   const [inviteEmail, setInviteEmail] = React.useState("");
+  const [moreDetails, setMoreDetails] = React.useState(false);
+  const detailsHeading = React.useRef<HTMLHeadingElement>(null);
+  // Opened from the bottom of the form: take the reader to what opened.
+  React.useEffect(() => {
+    if (moreDetails) detailsHeading.current?.focus();
+  }, [moreDetails]);
   // Busy until the family step has drawn them in; what goes wrong shows by
   // the button.
   const action = useAction({ inline: true });
@@ -279,11 +292,9 @@ function QuickRelativeForm({
         className="flex flex-col gap-5 pt-2"
         noValidate
       >
-        <PersonFields
-          control={form.control}
-          isAdmin
-          idPrefix={`quick-${kind}`}
-        />
+        <PersonNameFields control={form.control} />
+        {/* Up front, since it decides whether to ask for an invite. */}
+        <PersonDiedField control={form.control} idPrefix={`quick-${kind}`} />
 
         {otherParent ? (
           <label className="flex items-start gap-2 text-sm">
@@ -295,18 +306,6 @@ function QuickRelativeForm({
             />
             <span>They and {otherParent.name} were partners.</span>
           </label>
-        ) : null}
-
-        {kind === "partner" ? (
-          <SpouseDatesFields
-            idBase="quick-partner"
-            value={marriage}
-            errors={marriageErrors}
-            onPatch={(patch) => {
-              setMarriage((m) => ({ ...m, ...patch }));
-              setMarriageErrors({});
-            }}
-          />
         ) : null}
 
         {kind === "child" ? (
@@ -413,12 +412,46 @@ function QuickRelativeForm({
           </div>
         )}
 
-        <PhotoPicker
-          id={`quick-${kind}-photo`}
-          {...photo.picker}
-          label="Photo (optional)"
-          disabled={submitting}
-        />
+        {moreDetails ? (
+          <section className="flex flex-col gap-5 border-t border-border pt-5">
+            {/* Heard, not seen: where focus lands once it opens. */}
+            <h2 ref={detailsHeading} tabIndex={-1} className="sr-only">
+              More details
+            </h2>
+            <PersonDetailFields
+              control={form.control}
+              isAdmin
+              idPrefix={`quick-${kind}`}
+            />
+            {kind === "partner" ? (
+              <SpouseDatesFields
+                idBase="quick-partner"
+                value={marriage}
+                errors={marriageErrors}
+                onPatch={(patch) => {
+                  setMarriage((m) => ({ ...m, ...patch }));
+                  setMarriageErrors({});
+                }}
+              />
+            ) : null}
+            <PhotoPicker
+              id={`quick-${kind}-photo`}
+              {...photo.picker}
+              disabled={submitting}
+            />
+          </section>
+        ) : (
+          <div className="border-t border-border pt-5">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setMoreDetails(true)}
+            >
+              <Plus />
+              add more details
+            </Button>
+          </div>
+        )}
 
         <FormError>{action.error}</FormError>
 
@@ -431,7 +464,8 @@ function QuickRelativeForm({
             }
             pendingLabel="adding…"
           >
-            {TITLES[kind]}
+            {/* A button, so lower-case (Step 102): "add a parent". */}
+            {TITLES[kind].toLowerCase()}
           </PendingButton>
           <Button
             type="button"

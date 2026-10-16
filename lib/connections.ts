@@ -30,6 +30,14 @@ export const KIND_STATEMENT: Record<RelationshipKind, string> = {
   sibling: "is sibling of",
 };
 
+/** The same, said of "You" when adding yourself (Step 161). */
+export const SELF_KIND_STATEMENT: Record<RelationshipKind, string> = {
+  parent: "are parent of",
+  child: "are child of",
+  spouse: "are spouse / partner of",
+  sibling: "are sibling of",
+};
+
 export type PersonRef =
   | { kind: "new"; index: number }
   | { kind: "existing"; id: string };

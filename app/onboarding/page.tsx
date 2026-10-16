@@ -8,6 +8,7 @@ import { PageColumn } from "@/components/page-column";
 import { FormPageSkeleton } from "@/components/page-skeletons";
 import { Card, CardContent } from "@/components/ui/card";
 import { getUser } from "@/lib/auth";
+import { namePrefill } from "@/lib/first-tree";
 import { isFounder } from "@/lib/first-tree.server";
 import { getBloodline } from "@/lib/growth-rights.server";
 import { isPlacedOn } from "@/lib/placements.server";
@@ -15,13 +16,14 @@ import { onboardingStart } from "@/lib/self-match.server";
 import { listTreeMembers } from "@/lib/tree";
 import { currentAccess, requireTreeMember } from "@/lib/tree-context";
 import { treeHref } from "@/lib/tree-links";
+import { welcomeTitle } from "@/lib/welcome";
 
 export async function generateMetadata(): Promise<Metadata> {
   const access = await currentAccess();
   if (access?.kind === "member" && isFounder(access.membership)) {
     return {
       title: "start your tree",
-      description: "Invite who'll help, add yourself and your closest family.",
+      description: "Add yourself and your closest family, then invite who'll help.",
     };
   }
   return {
@@ -38,8 +40,8 @@ export default async function OnboardingPage({
   const { tree, profile, isRoot } = membership;
 
   // The tree's founder has nobody to find: their first run walks them
-  // through inviting, adding themselves, naming it and their close family
-  // (Step 29), and they can come back to any step from the canvas.
+  // through adding themselves and their close family, inviting and naming
+  // it (Steps 29, 161), and they can come back to any step from the canvas.
   if (isFounder(membership)) {
     const { step } = await searchParams;
     const asked = typeof step === "string" ? step : undefined;
@@ -51,7 +53,11 @@ export default async function OnboardingPage({
         fallback={
           <FormPageSkeleton
             label="Loading the step…"
-            width={asked === "invite" ? "5xl" : undefined}
+            // As wide as the step that shows: the family step, unless asked
+            // for another (`FirstTreeOnboarding`).
+            width={
+              asked === "invite" ? "5xl" : asked === "name" ? undefined : "3xl"
+            }
           />
         }
       >
@@ -92,7 +98,10 @@ export default async function OnboardingPage({
     <PageColumn>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
-          Welcome{profile.display_name ? `, ${profile.display_name}` : ""}
+          {/* "Welcome, Leila", as the welcome greets them next (Step 161). */}
+          {welcomeTitle({
+            first_name: namePrefill(profile.display_name).first_name,
+          })}
         </h1>
         <p className="text-sm text-muted-foreground">
           {/* Onboarding opens on adding themselves here (Step 30.7), and only a

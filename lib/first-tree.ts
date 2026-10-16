@@ -2,27 +2,27 @@
  * A founder's first run on the tree they've just started (Step 29): the
  * steps, in order, and what each one looks at, read off the tree as it
  * stands. Pure, so the onboarding page, the canvas checklist and the tests
- * all agree on what "done" means. Since Step 124 it starts with the founder
- * and their family, then invites, then the tree's name:
+ * all agree on what "done" means. Since Step 161 the founder's own entry is
+ * the centre of the family step, filled first, rather than a step of its own:
  *
- *   you     the founder's own entry, added or brought over from another tree
- *   family  parents, partners, children and siblings, around the founder
+ *   family  the founder, then parents, partners, children and siblings
+ *           around them
  *   invite  who'll help build it, and the account types they can have
  *   name    the tree's name, if it still has the one it was planted with
  *
- * Only `you` is required: the canvas waits for the founder's own entry. The
- * rest can be skipped, and the canvas's "Getting started" list comes back to
- * whatever was left.
+ * Only the founder's own entry is required: the canvas waits for it, and the
+ * family step's other places wait on it too. The rest can be skipped, and
+ * the canvas's "Getting started" list comes back to whatever was left.
  */
 
 import type { ConnectionEdge, PersonRef } from "@/lib/connections";
+import { onboardingStepHref, ownDetailsHref } from "@/lib/tree-links";
 
-export const FIRST_TREE_STEPS = ["you", "family", "invite", "name"] as const;
+export const FIRST_TREE_STEPS = ["family", "invite", "name"] as const;
 export type FirstTreeStep = (typeof FIRST_TREE_STEPS)[number];
 
 /** The steps as the progress list names them. */
 export const FIRST_TREE_STEP_NAMES: Record<FirstTreeStep, string> = {
-  you: "You",
   family: "Family",
   invite: "Invite",
   name: "The tree",
@@ -35,10 +35,23 @@ export function isFirstTreeStep(value: unknown): value is FirstTreeStep {
   );
 }
 
+/**
+ * The step an address's `?step=` names: `you`, a step until Step 161, is
+ * the family step now, where the founder's own entry is added. `null` for
+ * anything else, which opens where they left off.
+ */
+export function stepFromAddress(value: unknown): FirstTreeStep | null {
+  if (value === "you") return "family";
+  return isFirstTreeStep(value) ? value : null;
+}
+
 /** What the steps are judged by. */
 export type FirstTreeState = {
   /** The founder's own entry is shown on this tree. */
   selfPlaced: boolean;
+  /** Their own entry has a photo, and a place of birth (Step 161). */
+  selfPhoto: boolean;
+  selfBirthplace: boolean;
   /** The tree still has the name it was planted with (`isDefaultTreeName`). */
   defaultName: boolean;
   /** Someone has been invited to help, or has joined. */
@@ -51,30 +64,29 @@ export type FirstTreeState = {
 
 /**
  * Where `/onboarding` opens with no step asked for: the first step not yet
- * done, or their close family once everything is.
+ * done, or their close family once everything is. A founder not yet on
+ * their tree opens on the family step, where they add themselves first.
  */
 export function openingStep(state: FirstTreeState): FirstTreeStep {
+  if (!state.selfPlaced) return "family";
   return FIRST_TREE_STEPS.find((step) => !stepDone(step, state)) ?? "family";
 }
 
 /**
- * The step to show when `asked` is: naming the tree and adding family both
- * build on the founder's own entry, so without it they wait on `you`.
+ * The step to show when `asked` is: naming the tree builds on the founder's
+ * own entry, so without it the family step, where they add it, comes first.
  */
 export function reachableStep(
   asked: FirstTreeStep,
   state: FirstTreeState,
 ): FirstTreeStep {
-  if ((asked === "name" || asked === "family") && !state.selfPlaced) {
-    return "you";
-  }
+  if (asked === "name" && !state.selfPlaced) return "family";
   return asked;
 }
 
 /**
- * The step after `step`, passing over what's already done — the founder's
- * entry once it's on the tree, a name someone already chose. `null` when
- * the canvas is next.
+ * The step after `step`, passing over a name someone already chose. `null`
+ * when the canvas is next.
  */
 export function stepAfter(
   step: FirstTreeStep,
@@ -82,7 +94,6 @@ export function stepAfter(
 ): FirstTreeStep | null {
   for (let i = FIRST_TREE_STEPS.indexOf(step) + 1; i < FIRST_TREE_STEPS.length; i += 1) {
     const next = FIRST_TREE_STEPS[i];
-    if (next === "you" && state.selfPlaced) continue;
     if (next === "name" && !state.defaultName) continue;
     return next;
   }
@@ -94,39 +105,62 @@ export function stepDone(step: FirstTreeStep, state: FirstTreeState): boolean {
   switch (step) {
     case "invite":
       return state.invited;
-    case "you":
-      return state.selfPlaced;
     case "name":
       return state.selfPlaced && !state.defaultName;
     case "family":
-      return state.parents + state.partners + state.children + state.siblings > 0;
+      return (
+        state.selfPlaced &&
+        state.parents + state.partners + state.children + state.siblings > 0
+      );
   }
 }
 
 export type GettingStartedItem = {
-  key: "you" | "parents" | "more-family" | "invite" | "name";
+  key: "details" | "parents" | "more-family" | "invite" | "name";
   label: string;
   done: boolean;
-  /** The onboarding step that does it. */
-  step: FirstTreeStep;
+  /** Where it's done: the onboarding step, or their own entry's blanks. */
+  href: string;
 };
 
 /**
- * The canvas's "Getting started" list for a founder: the same steps, with
- * the family split in two so a lone parent doesn't tick the lot.
+ * The canvas's "Getting started" list for a founder, in the steps' order:
+ * their own photo and birthplace first (Step 161), which the short form on
+ * the family step leaves for later, then the family split in two so a lone
+ * parent doesn't tick the lot.
  */
 export function gettingStartedItems(state: FirstTreeState): GettingStartedItem[] {
   return [
-    { key: "you", label: "Add yourself", done: state.selfPlaced, step: "you" },
-    { key: "parents", label: "Add your parents", done: state.parents > 0, step: "family" },
+    {
+      key: "details",
+      label: "Add your photo and birthplace",
+      done: state.selfPhoto && state.selfBirthplace,
+      href: ownDetailsHref(),
+    },
+    {
+      key: "parents",
+      label: "Add your parents",
+      done: state.parents > 0,
+      href: onboardingStepHref("family"),
+    },
     {
       key: "more-family",
       label: "Add a partner, child or sibling",
       done: state.partners + state.children + state.siblings > 0,
-      step: "family",
+      href: onboardingStepHref("family"),
     },
-    { key: "invite", label: "Invite someone to help", done: state.invited, step: "invite" },
-    { key: "name", label: "Name your tree", done: !state.defaultName, step: "name" },
+    {
+      key: "invite",
+      label: "Invite someone to help",
+      done: state.invited,
+      href: onboardingStepHref("invite"),
+    },
+    {
+      key: "name",
+      label: "Name your tree",
+      done: !state.defaultName,
+      href: onboardingStepHref("name"),
+    },
   ];
 }
 

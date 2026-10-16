@@ -89,12 +89,19 @@ const NO_FAMILY: CloseFamily = { parents: [], partners: [], children: [], siblin
 
 function stateOf(
   m: TreeMembership,
-  selfPlaced: boolean,
+  self: TreeGraphPerson | undefined,
   close: CloseFamily,
   invited: boolean,
 ): FirstTreeState {
   return {
-    selfPlaced,
+    selfPlaced: !!self,
+    selfPhoto: !!self?.photo_path,
+    // A place picked, or an older free-text one, as `blankFields` judges it.
+    selfBirthplace:
+      !!self &&
+      (self.place_id_birth != null ||
+        !!self.city_of_birth?.trim() ||
+        !!self.country_of_birth?.trim()),
     defaultName: isDefaultTreeName(m.tree.name),
     invited,
     parents: close.parents.length,
@@ -184,7 +191,8 @@ export async function loadFirstTree(
   ]);
 
   const byId = new Map(people.map((p) => [p.id, p]));
-  const placedHere = !!selfId && byId.has(selfId);
+  const self = selfId ? byId.get(selfId) : undefined;
+  const placedHere = !!self;
   const close = placedHere && selfId ? closeFamilyOf(selfId, relationships) : NO_FAMILY;
   const cards = (ids: string[]) =>
     ids.flatMap((id) => {
@@ -212,14 +220,15 @@ export async function loadFirstTree(
   }
 
   // A member who founded this tree has family on the trees they came from:
-  // offer to bring them rather than add them twice.
+  // offer to bring them rather than add them twice, once they're here
+  // themselves to bring them to.
   let bring: BringChoices | null = null;
-  if (withBring && selfId && founder && row?.tree_id !== m.tree.id) {
+  if (withBring && selfId && founder && placedHere && row?.tree_id !== m.tree.id) {
     bring = await bringChoices(m.tree.id, selfId);
   }
 
   return {
-    state: stateOf(m, placedHere, close, invited.invited),
+    state: stateOf(m, self, close, invited.invited),
     founder,
     family: {
       parents: cards(close.parents),
@@ -284,14 +293,21 @@ async function bringChoices(
  */
 export async function getGettingStarted(
   m: TreeMembership,
-  relationships: PromiseLike<readonly TreeGraphEdge[]>,
+  graph: PromiseLike<{
+    people: readonly TreeGraphPerson[];
+    relationships: readonly TreeGraphEdge[];
+  }>,
 ): Promise<GettingStartedItem[] | null> {
-  if (!isFounder(m) || !m.profile.self_person_id) return null;
-  const [lines, { invited }] = await Promise.all([
-    relationships,
+  const selfId = m.profile.self_person_id;
+  if (!isFounder(m) || !selfId) return null;
+  const [{ people, relationships }, { invited }] = await Promise.all([
+    graph,
     treeInvites(m.tree.id),
   ]);
-  const close = closeFamilyOf(m.profile.self_person_id, lines);
-  const items = gettingStartedItems(stateOf(m, true, close, invited));
+  const self = people.find((p) => p.id === selfId);
+  // The canvas sends anyone not on it to onboarding first.
+  if (!self) return null;
+  const close = closeFamilyOf(selfId, relationships);
+  const items = gettingStartedItems(stateOf(m, self, close, invited));
   return items.every((i) => i.done) ? null : items;
 }

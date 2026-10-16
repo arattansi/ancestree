@@ -483,6 +483,11 @@ privacy page's column (`PageColumn`) and type: `text-2xl` heading,
   are lower-case like every button. Everything but the one step the flow
   can't do without can be skipped, and whatever's left is offered again
   where the flow ends (the canvas's **Getting Started** list).
+- What the flow can't do without comes first, on the screen it belongs
+  to, as few fields as it needs (Step 161): the founder's own entry is the
+  middle of the family step, their name, birth year and photo, with
+  **add more details** for the rest. The places that wait on it show,
+  locked, until it's in.
 - A list like that, laid over the canvas, starts collapsed to its header
   on a phone (below `sm`), so it never covers the top of the tree, and open
   anywhere wider.

@@ -141,10 +141,7 @@ export default async function TreePage({ searchParams }: PageProps<"/tree">) {
     listOwnDeclinedSuggestions(profile.auth_user_id),
     // The founder's "Getting started" list (Step 29), off the same graph.
     isFounder(access.membership)
-      ? getGettingStarted(
-          access.membership,
-          graph.then((g) => g.relationships),
-        )
+      ? getGettingStarted(access.membership, graph)
       : null,
     // Who they are on the other trees of theirs that are home to people
     // here, whose rules those entries' details follow (Step 93): read once

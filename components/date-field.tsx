@@ -120,7 +120,8 @@ export function DateField({
         <SelectTrigger
           aria-label="Month"
           aria-invalid={ariaInvalid}
-          className="min-w-0 flex-1"
+          // Room for "September", so a narrow form never cuts it (Step 161).
+          className="min-w-[6.75rem] flex-1"
           onBlur={onBlur}
         >
           <SelectValue placeholder="Month" />

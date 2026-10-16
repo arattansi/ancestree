@@ -189,8 +189,8 @@ export function onboardingHref(): string {
 }
 
 /**
- * One step of a founder's first run (Step 29): `invite`, `you`, `name` or
- * `family` (`lib/first-tree.ts`).
+ * One step of a founder's first run (Step 29): `family`, `invite` or `name`
+ * (`lib/first-tree.ts`).
  */
 export function onboardingStepHref(step: string): string {
   return `${onboardingHref()}?step=${enc(step)}`;
@@ -205,6 +205,15 @@ export function welcomeHref({
   returning = false,
 }: { returning?: boolean } = {}): string {
   return returning ? "/welcome?returning=1" : "/welcome";
+}
+
+/**
+ * The founder's own entry, its blanks to fill (Step 161): the welcome's
+ * form, opened from the canvas's "Getting started" list, which goes back to
+ * the canvas once saved.
+ */
+export function ownDetailsHref(): string {
+  return "/welcome?details=1";
 }
 
 /**

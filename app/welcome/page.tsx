@@ -21,22 +21,29 @@ import {
 } from "@/lib/welcome";
 import { inviterName } from "@/lib/welcome.server";
 
-export const metadata: Metadata = {
-  title: "welcome",
-  description: "Your entry on the tree, and what it's missing.",
-};
+export async function generateMetadata({
+  searchParams,
+}: PageProps<"/welcome">): Promise<Metadata> {
+  const { details } = await searchParams;
+  return {
+    title: details ? "your details" : "welcome",
+    description: "Your entry on the tree, and what it's missing.",
+  };
+}
 
 /**
  * The welcome on a tree (Step 50), where accepting a claim invite lands, and
  * claiming an entry on onboarding. Their entry is theirs now, but a relative
  * made it: they're asked for a photo and what's missing, then land on My
  * Family Tree, which offers the tree they joined (Step 131). A member who brought their own entry (`?returning=1`) is
- * greeted to the tree instead, with nothing to fill in.
+ * greeted to the tree instead, with nothing to fill in. A founder comes
+ * here from the canvas's "Getting started" list (`?details=1`, Step 161)
+ * for what the short form on their first run left empty.
  */
 export default async function WelcomePage({
   searchParams,
 }: PageProps<"/welcome">) {
-  const { returning } = await searchParams;
+  const { returning, details } = await searchParams;
   // Their entry and who invited them, beside the check that their entry is
   // on this tree (Step 77.1).
   const {
@@ -82,6 +89,34 @@ export default async function WelcomePage({
   }
   if (!entry) redirect(treeHref());
   const { person } = entry;
+
+  // Their own blanks, not a welcome: the same form, back to the canvas.
+  if (details) {
+    const asks = welcomeAsks(person);
+    return (
+      <PageColumn>
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Your Details
+          </h1>
+          <p className="text-sm text-muted-foreground">{welcomeAsk(asks)}</p>
+        </div>
+        <Card>
+          <CardContent>
+            <WelcomeDetailsForm
+              homeTreeId={entry.homeTreeId}
+              doneHref={treeHref()}
+              toTree
+              entry={person}
+              photoUrl={entry.photoUrl}
+              placeLabels={entry.placeLabels}
+              asks={asks}
+            />
+          </CardContent>
+        </Card>
+      </PageColumn>
+    );
+  }
 
   if (returning) {
     return (

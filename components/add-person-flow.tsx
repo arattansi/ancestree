@@ -22,9 +22,11 @@ import { FormError } from "@/components/form-error";
 import { JoinsAsNote } from "@/components/joins-as-note";
 import { PendingButton } from "@/components/pending-button";
 import {
+  BirthYearField,
+  EXTRA_NAME_FIELDS,
+  MAIN_NAMES,
   PersonDetailFields,
   PersonDiedField,
-  PersonFields,
   PersonNameFields,
 } from "@/components/person-fields";
 import { PhotoPicker } from "@/components/photo-picker";
@@ -72,6 +74,7 @@ import {
   flowEdges,
   KIND_STATEMENT,
   RELATIONSHIP_KINDS,
+  SELF_KIND_STATEMENT,
   type PersonRef,
   type RelationshipKind,
 } from "@/lib/connections";
@@ -89,6 +92,7 @@ import { toStoredSpouseDates } from "@/lib/spouse-dates";
 import { attachPhoto } from "@/lib/photo-upload";
 import { plural } from "@/lib/plural";
 import { treeFocusHref } from "@/lib/tree-links";
+import { cn } from "@/lib/utils";
 
 /** The entry saved but its invite didn't go, whether refused or unreachable. */
 const INVITE_UNSENT =
@@ -206,11 +210,10 @@ export function AddPersonFlow({
   const [adultIds, setAdultIds] = React.useState<string[]>([]);
   // Adding a relative asks their name, how they connect (anyone in between
   // included, Step 78) and an invite up front, and keeps everything else
-  // behind "Add more details" at the bottom (Step 44). Adding yourself
-  // still shows it all.
-  const compact = mode === "relative";
+  // behind "Add more details" at the bottom (Step 44). Adding yourself asks
+  // as little: your name, the year you were born and a photo (Step 161).
   const [moreDetails, setMoreDetails] = React.useState(false);
-  const details = !compact || moreDetails;
+  const details = moreDetails;
   const detailsHeading = React.useRef<HTMLHeadingElement>(null);
   // Opened from the bottom of the form: take the reader to what opened.
   React.useEffect(() => {
@@ -271,6 +274,7 @@ export function AddPersonFlow({
       .length > 0;
 
   const showChain = mustConnect || connecting;
+  const connectShown = mustConnect || members.length > 0;
   const needAnchor = showChain;
   const intermediateCount = people.fields.length - 1;
 
@@ -412,6 +416,12 @@ export function AddPersonFlow({
     i + 1 <= intermediateCount
       ? nameOf(i + 1, `Person ${i + 1}`)
       : primaryLabel;
+  // "You are child of", not "You is child of" (Step 161).
+  const linkStatements = (i: number) =>
+    mode === "self" && i + 1 > intermediateCount
+      ? SELF_KIND_STATEMENT
+      : KIND_STATEMENT;
+  const extraStatements = mode === "self" ? SELF_KIND_STATEMENT : KIND_STATEMENT;
 
   function addIntermediate() {
     people.append(emptyPersonValues);
@@ -682,7 +692,12 @@ export function AddPersonFlow({
 
   return (
     <Form {...form}>
-      <form onSubmit={onSubmit} className="flex flex-col gap-8" noValidate>
+      <form
+        onSubmit={onSubmit}
+        // Your own short form fits a phone's screen (Step 161).
+        className={cn("flex flex-col", mode === "self" ? "gap-6" : "gap-8")}
+        noValidate
+      >
         {primaryAsked ? (
           <div className="flex flex-col gap-3">
             {adultQuestion(0)}
@@ -694,7 +709,23 @@ export function AddPersonFlow({
             labels say it (Step 58). */}
         {primaryRefused ? null : (
           <section className="flex flex-col gap-6">
-            {compact ? (
+            {mode === "self" ? (
+              <>
+                {/* No "This person is deceased" on your own entry. */}
+                <PersonNameFields
+                  control={form.control}
+                  prefix="people.0"
+                  show={MAIN_NAMES}
+                  self
+                  sideBySide
+                />
+                {/* The whole date shows with the details, this year in it. */}
+                {moreDetails ? null : (
+                  <BirthYearField control={form.control} prefix="people.0" />
+                )}
+                {photoField}
+              </>
+            ) : (
               <>
                 <PersonNameFields control={form.control} prefix="people.0" />
                 {/* Up front, since it decides whether to ask for an invite. */}
@@ -703,17 +734,6 @@ export function AddPersonFlow({
                   prefix="people.0"
                   idPrefix="primary"
                 />
-              </>
-            ) : (
-              <>
-                <PersonFields
-                  control={form.control}
-                  isAdmin={isAdmin}
-                  self={mode === "self"}
-                  prefix="people.0"
-                  idPrefix="primary"
-                />
-                {photoField}
               </>
             )}
 
@@ -754,7 +774,7 @@ export function AddPersonFlow({
 
         {/* Nobody on the tree yet — a founder starting it — means nobody to
             connect to, so there's nothing to ask (Step 29). */}
-        {mustConnect || members.length > 0 ? (
+        {connectShown ? (
           <section className="flex flex-col gap-4 border-t border-border pt-6">
             <h2 id="connect-heading" className="text-base font-semibold">
               Connect to the family tree
@@ -796,7 +816,7 @@ export function AddPersonFlow({
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="font-medium">{linkSubject(i)}</span>
                           <Select
-                            items={KIND_STATEMENT}
+                            items={linkStatements(i)}
                             value={watchedLinks[i]?.kind ?? "child"}
                             onValueChange={(v) =>
                               form.setValue(
@@ -812,7 +832,7 @@ export function AddPersonFlow({
                             <SelectContent>
                               {RELATIONSHIP_KINDS.map((k) => (
                                 <SelectItem key={k} value={k}>
-                                  {KIND_STATEMENT[k]}
+                                  {linkStatements(i)[k]}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -917,7 +937,7 @@ export function AddPersonFlow({
                             control={form.control}
                             isAdmin={isAdmin}
                             index={j}
-                            compact={compact}
+                            compact
                           />
                         </div>
                       );
@@ -994,7 +1014,7 @@ export function AddPersonFlow({
                                     {primaryLabel}
                                   </span>
                                   <Select
-                                    items={KIND_STATEMENT}
+                                    items={extraStatements}
                                     value={watchedExtra[i]?.kind ?? "child"}
                                     onValueChange={(v) =>
                                       form.setValue(
@@ -1013,7 +1033,7 @@ export function AddPersonFlow({
                                     <SelectContent>
                                       {RELATIONSHIP_KINDS.map((k) => (
                                         <SelectItem key={k} value={k}>
-                                          {KIND_STATEMENT[k]}
+                                          {extraStatements[k]}
                                         </SelectItem>
                                       ))}
                                     </SelectContent>
@@ -1140,22 +1160,37 @@ export function AddPersonFlow({
         ) : null}
 
         {/* Nothing more to give of someone under 18 (Step 98.3). */}
-        {primaryRefused ? null : compact && moreDetails ? (
+        {primaryRefused ? null : moreDetails ? (
           <section className="flex flex-col gap-6 border-t border-border pt-6">
             {/* Heard, not seen: where focus lands once it opens. */}
             <h2 ref={detailsHeading} tabIndex={-1} className="sr-only">
               More details
             </h2>
+            {mode === "self" ? (
+              <PersonNameFields
+                control={form.control}
+                prefix="people.0"
+                show={EXTRA_NAME_FIELDS}
+                required={false}
+                self
+              />
+            ) : null}
             <PersonDetailFields
               control={form.control}
               isAdmin={isAdmin}
               prefix="people.0"
               idPrefix="primary"
             />
-            {photoField}
+            {mode === "self" ? null : photoField}
           </section>
-        ) : compact ? (
-          <div className="border-t border-border pt-6">
+        ) : (
+          // Set apart from the connection above it; a founder's own form
+          // has none, only their photo (Step 161).
+          <div
+            className={
+              connectShown ? "border-t border-border pt-6" : undefined
+            }
+          >
             <Button
               type="button"
               variant="outline"
@@ -1165,7 +1200,7 @@ export function AddPersonFlow({
               add more details
             </Button>
           </div>
-        ) : null}
+        )}
 
         {lineAsk ? (
           <div className="flex flex-col gap-2">
