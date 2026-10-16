@@ -91,6 +91,35 @@ describe("getTreeGraph report counts (Step 88.2)", () => {
   });
 });
 
+describe("getTreeGraph where someone lives (Step 153)", () => {
+  const rows = {
+    ...ROWS,
+    tree_people: ROWS.tree_people.map((p) => ({
+      ...(p as object),
+      place_id_residence: 6167865,
+      place_of_residence: "Toronto, Ontario, Canada",
+    })),
+  };
+
+  it("hands it to the tree's members as the view gives it", async () => {
+    const { people } = await getTreeGraph("t1", fakeClient(rows).client);
+    expect(people.map((p) => p.place_of_residence)).toEqual([
+      "Toronto, Ontario, Canada",
+      "Toronto, Ontario, Canada",
+    ]);
+  });
+
+  it("drops it on a share link", async () => {
+    const { people } = await getTreeGraph("t1", fakeClient(rows).client, {
+      forPublic: true,
+    });
+    expect(people.map((p) => [p.place_id_residence, p.place_of_residence])).toEqual([
+      [null, null],
+      [null, null],
+    ]);
+  });
+});
+
 describe("getTreeGraph period place names", () => {
   const TANZANIA = 9_000_008_490;
   const NAIROBI = 184745;

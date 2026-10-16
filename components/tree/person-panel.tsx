@@ -212,7 +212,8 @@ function TagButton({
 }
 
 /**
- * A place of birth or death, with whose land it is beneath it (Step 27). It
+ * A place of birth or death, or where someone lives now (Step 153), with
+ * whose land it is beneath it (Step 27). It
  * takes the panel's full width, so the lands have room to read and don't
  * reflow the grid when Native Land Digital's names arrive.
  */
@@ -957,6 +958,16 @@ function PersonPanelImpl({
                   placeId={person.place_id_birth}
                   shareToken={shareToken}
                 />
+                {/* Members only: the view gives no one else where they
+                    live (Step 153). */}
+                {!person.is_deceased ? (
+                  <PlaceField
+                    label="Lives in"
+                    place={person.place_of_residence}
+                    placeId={person.place_id_residence}
+                    shareToken={shareToken}
+                  />
+                ) : null}
                 {person.is_deceased ? (
                   <>
                     <Field

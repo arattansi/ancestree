@@ -22,6 +22,8 @@ const entry = (over: Partial<FillableEntry> = {}): FillableEntry => ({
   date_of_death: null,
   place_id_death: null,
   place_of_death: null,
+  place_id_residence: null,
+  place_of_residence: null,
   photo_path: null,
   ...over,
 });
@@ -35,6 +37,7 @@ describe("blankFields", () => {
       "sex",
       "date_of_birth",
       "place_of_birth",
+      "place_of_residence",
       "photo",
     ]);
   });
@@ -61,6 +64,21 @@ describe("blankFields", () => {
     );
     expect(known).not.toContain("date_of_death");
     expect(known).not.toContain("place_of_death");
+  });
+
+  it("asks where they live only of someone living (Step 153)", () => {
+    expect(blankFields(entry())).toContain("place_of_residence");
+    expect(blankFields(entry({ is_deceased: true }))).not.toContain(
+      "place_of_residence",
+    );
+    expect(
+      blankFields(
+        entry({
+          place_id_residence: 6167865,
+          place_of_residence: "Toronto, Ontario, Canada",
+        }),
+      ),
+    ).not.toContain("place_of_residence");
   });
 
   it("treats an older free-text birthplace as filled in", () => {
@@ -152,6 +170,17 @@ describe("fillFields", () => {
     expect(fields).not.toHaveProperty("place_id_death");
   });
 
+  it("sends where they live with its label, and none for someone who died (Step 153)", () => {
+    const home = {
+      place_id_residence: 6167865,
+      place_of_residence: "Toronto, Ontario, Canada",
+    };
+    expect(fillFields(payload(home))).toMatchObject(home);
+    const died = fillFields(payload({ ...home, is_deceased: true }));
+    expect(died).not.toHaveProperty("place_id_residence");
+    expect(died).not.toHaveProperty("place_of_residence");
+  });
+
   it("names an uploaded photo and its framing", () => {
     const crop = { zoom: 1.5, focus_x: 0.5, focus_y: 0.4 };
     expect(
@@ -168,6 +197,9 @@ describe("filledPhrase", () => {
     );
     expect(filledPhrase(["sex", "photo", "maiden_name"])).toBe(
       "maiden name, sex and photo",
+    );
+    expect(filledPhrase(["photo", "place_of_residence"])).toBe(
+      "current home and photo",
     );
   });
 

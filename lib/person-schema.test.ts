@@ -188,6 +188,19 @@ describe("toPersonPayload dates", () => {
     expect(payload.date_of_death_precision).toBe("day");
   });
 
+  it("keeps where someone living lives, and drops it once they've died (Step 153)", () => {
+    const home = {
+      place_id_residence: 6167865,
+      place_of_residence: " Toronto, Ontario, Canada ",
+    };
+    const living = toPersonPayload(person({ is_deceased: false, ...home }));
+    expect(living.place_id_residence).toBe(6167865);
+    expect(living.place_of_residence).toBe("Toronto, Ontario, Canada");
+    const died = toPersonPayload(person({ is_deceased: true, ...home }));
+    expect(died.place_id_residence).toBeNull();
+    expect(died.place_of_residence).toBeNull();
+  });
+
   it("keeps a whole date whole", () => {
     const payload = toPersonPayload(person({ date_of_birth: "1925-09-04" }));
     expect(payload.date_of_birth).toBe("1925-09-04");
@@ -224,10 +237,27 @@ describe("personFormValues", () => {
     date_of_death_precision: "year",
     place_id_death: null,
     place_of_death: null,
+    place_id_residence: null,
+    place_of_residence: null,
     sex: "male",
     email: null,
     email_visible: null,
     ...over,
+  });
+
+  it("opens with where they live as it was saved (Step 153)", () => {
+    expect(personFormValues(row())).toMatchObject({
+      place_id_residence: null,
+      place_of_residence: "",
+    });
+    expect(
+      personFormValues(
+        row({ place_id_residence: 6167865, place_of_residence: "Toronto, Canada" }),
+      ),
+    ).toMatchObject({
+      place_id_residence: 6167865,
+      place_of_residence: "Toronto, Canada",
+    });
   });
 
   it("opens with circa as it was saved (Step 81)", () => {

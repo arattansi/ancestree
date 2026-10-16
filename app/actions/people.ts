@@ -87,6 +87,8 @@ export async function updatePerson(
     date_of_death_circa: payload.date_of_death_circa,
     place_id_death: payload.place_id_death,
     place_of_death: payload.place_of_death,
+    place_id_residence: payload.place_id_residence,
+    place_of_residence: payload.place_of_residence,
     sex: payload.sex,
     ...(photo && "path" in photo ? { photo_path: photo.path } : {}),
     ...(photo ? { photo_crop: toStoredCrop(photo.crop) } : {}),

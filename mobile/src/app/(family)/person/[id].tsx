@@ -11,7 +11,7 @@ import { Button } from "@/ui/button";
 
 /**
  * A leaf's details: who they are, when and where they were born and died,
- * and the tree their leaf comes from; and a story to tell about them, out
+ * where they live now (Step 153), and the tree their leaf comes from; and a story to tell about them, out
  * loud, to the scribe (Step 148). Reading their stories and the album come
  * next (Phase 1 of the mobile plan).
  */
@@ -52,6 +52,7 @@ export default function PersonSheet() {
     ["Born", born],
     ["Died", died ?? (person.is_deceased ? "Deceased" : null)],
     ["Birthplace", birthplace],
+    ["Lives in", person.is_deceased ? null : person.place_of_residence],
     ["Leaf", leaf],
   ];
 

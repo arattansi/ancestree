@@ -76,6 +76,10 @@ describe("SUGGESTION_DETAILS", () => {
       "place_id_death",
       "place_of_death",
     ]);
+    expect(columnsOf("place_of_residence")).toEqual([
+      "place_id_residence",
+      "place_of_residence",
+    ]);
   });
 });
 
@@ -162,6 +166,16 @@ describe("describeDetail", () => {
     expect(describeDetail("date_of_birth", e)).toBe("12 March");
     expect(describeDetail("place_of_birth", e)).toBe("India");
     expect(describeDetail("is_deceased", e)).toBe("No");
+  });
+
+  it("reads where someone lives by its label (Step 153)", () => {
+    expect(
+      describeDetail("place_of_residence", {
+        place_id_residence: 6167865,
+        place_of_residence: "Toronto, Ontario, Canada",
+      }),
+    ).toBe("Toronto, Ontario, Canada");
+    expect(describeDetail("place_of_residence", {})).toBeNull();
   });
 
   it("says nothing for what isn't there or isn't one", () => {

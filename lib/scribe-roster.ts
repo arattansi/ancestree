@@ -439,7 +439,16 @@ function columnsOf(row: RosterRow): SuggestionColumns {
 /** Whether filling in the blanks (Step 44) makes every one of these changes. */
 function fills(changes: SuggestionColumns, row: RosterRow): boolean {
   if ("is_deceased" in changes) return false;
-  const blank = new Set<string>(blankFields({ ...row, is_deceased: !!row.is_deceased, photo_path: "kept" }));
+  // Where someone lives now (Step 153) isn't among what a story fills in.
+  const blank = new Set<string>(
+    blankFields({
+      ...row,
+      is_deceased: !!row.is_deceased,
+      photo_path: "kept",
+      place_id_residence: null,
+      place_of_residence: null,
+    }),
+  );
   const touches = (columns: string[]) => columns.some((c) => c in changes);
   return (
     (!touches(["date_of_birth", "birth_month"]) || blank.has("date_of_birth")) &&

@@ -53,6 +53,13 @@ function shows(filter: FieldFilter, field: string): boolean {
   return !filter || filter.has(field);
 }
 
+/** Each place's id field and the words saved with it when one is picked. */
+const PLACE_FIELDS = {
+  birth: { id: "place_id_birth", text: "city_of_birth" },
+  death: { id: "place_id_death", text: "place_of_death" },
+  residence: { id: "place_id_residence", text: "place_of_residence" },
+} as const;
+
 /** A field's path, standalone or as one row of a `people[]` field array. */
 function useFieldName<T extends FieldValues>(prefix?: string) {
   return React.useCallback(
@@ -329,9 +336,17 @@ export function PersonDiedField<T extends FieldValues>({
   );
 }
 
+/** Labels for already-selected places, so a form shows them on load. */
+type PlaceLabels = {
+  birth?: string | null;
+  death?: string | null;
+  residence?: string | null;
+};
+
 /**
- * Everything about a person past their names: sex, birth, and death once
- * they're marked as having died; the contact block when asked for. Labels only, with no line under a field explaining it (Step 58).
+ * Everything about a person past their names: sex, birth, where they live
+ * while they're living (Step 153), and death once they're marked as having
+ * died; the contact block when asked for. Labels only, with no line under a field explaining it (Step 58).
  */
 export function PersonDetailFields<T extends FieldValues>({
   control,
@@ -356,7 +371,7 @@ export function PersonDetailFields<T extends FieldValues>({
   prefix?: string;
   idPrefix: string;
   /** Labels for already-selected places, so the edit form shows them on load. */
-  placeLabels?: { birth?: string | null; death?: string | null };
+  placeLabels?: PlaceLabels;
   show?: FieldFilter;
 }) {
   const { setValue } = useFormContext<T>();
@@ -365,13 +380,17 @@ export function PersonDetailFields<T extends FieldValues>({
   const isDeceased = useWatch({ control, name: name("is_deceased") });
   const placeIdBirth = useWatch({ control, name: name("place_id_birth") });
   const placeIdDeath = useWatch({ control, name: name("place_id_death") });
+  const placeIdResidence = useWatch({
+    control,
+    name: name("place_id_residence"),
+  });
 
   const setPlace = React.useCallback(
-    (kind: "birth" | "death", place: SelectedPlace | null) => {
+    (kind: "birth" | "death" | "residence", place: SelectedPlace | null) => {
       // A whole country leaves the town empty (Step 79).
       const text = place ? placeText(place) : null;
-      const idField = kind === "birth" ? "place_id_birth" : "place_id_death";
-      const textField = kind === "birth" ? "city_of_birth" : "place_of_death";
+      const idField = PLACE_FIELDS[kind].id;
+      const textField = PLACE_FIELDS[kind].text;
       setValue(name(idField), (place?.id ?? null) as never, {
         shouldValidate: true,
         shouldDirty: true,
@@ -394,6 +413,8 @@ export function PersonDetailFields<T extends FieldValues>({
   const showsDeath =
     Boolean(isDeceased) &&
     (shows(show, "date_of_death") || shows(show, "place_of_death"));
+  // Where they live now, for the living only (Step 153).
+  const showsResidence = !isDeceased && shows(show, "place_of_residence");
 
   return (
     <>
@@ -492,6 +513,41 @@ export function PersonDetailFields<T extends FieldValues>({
 
       {withDiedField ? (
         <PersonDiedField control={control} prefix={prefix} idPrefix={idPrefix} />
+      ) : null}
+
+      {showsResidence ? (
+        <>
+          <FormField
+            control={control}
+            name={name("place_id_residence")}
+            render={() => (
+              <FormItem>
+                <FormLabel htmlFor={`${idPrefix}-place-residence`}>
+                  Lives in
+                </FormLabel>
+                <FormControl>
+                  <PlaceAutocomplete
+                    id={`${idPrefix}-place-residence`}
+                    value={
+                      typeof placeIdResidence === "number"
+                        ? placeIdResidence
+                        : null
+                    }
+                    initialLabel={placeLabels?.residence}
+                    isAdmin={isAdmin}
+                    placeholder="Search for a town, village, or country…"
+                    onChange={(place) => setPlace("residence", place)}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {typeof placeIdResidence === "number" ? (
+            <AncestralLandsField placeId={placeIdResidence} />
+          ) : null}
+        </>
       ) : null}
 
       {showsDeath ? (
@@ -641,7 +697,7 @@ export function PersonFields<T extends FieldValues>({
   prefix?: string;
   idPrefix: string;
   /** Labels for already-selected places, so the edit form shows them on load. */
-  placeLabels?: { birth?: string | null; death?: string | null };
+  placeLabels?: PlaceLabels;
 }) {
   return (
     <div className="flex flex-col gap-6">

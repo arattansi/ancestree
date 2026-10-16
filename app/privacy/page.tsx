@@ -45,7 +45,10 @@ export default function PrivacyPage() {
           </li>
           <li>
             The demographic details you enter about yourself and relatives: names,
-            dates and places of birth and death, and relationships.
+            dates and places of birth and death, where someone living lives
+            now, and relationships. Where someone lives is shown only to
+            members of their trees, not on a share link or to visitors from
+            another tree.
           </li>
           <li>
             Photos and recordings you choose to upload, and when a photo was

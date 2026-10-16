@@ -1380,7 +1380,9 @@ export type Database = {
           photo_path: string | null
           place_id_birth: number | null
           place_id_death: number | null
+          place_id_residence: number | null
           place_of_death: string | null
+          place_of_residence: string | null
           placeholder_number: number | null
           preferred_name: string | null
           sex: string | null
@@ -1415,7 +1417,9 @@ export type Database = {
           photo_path?: string | null
           place_id_birth?: number | null
           place_id_death?: number | null
+          place_id_residence?: number | null
           place_of_death?: string | null
+          place_of_residence?: string | null
           placeholder_number?: number | null
           preferred_name?: string | null
           sex?: string | null
@@ -1450,7 +1454,9 @@ export type Database = {
           photo_path?: string | null
           place_id_birth?: number | null
           place_id_death?: number | null
+          place_id_residence?: number | null
           place_of_death?: string | null
+          place_of_residence?: string | null
           placeholder_number?: number | null
           preferred_name?: string | null
           sex?: string | null
@@ -1496,6 +1502,13 @@ export type Database = {
           {
             foreignKeyName: "people_place_id_death_fkey"
             columns: ["place_id_death"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "people_place_id_residence_fkey"
+            columns: ["place_id_residence"]
             isOneToOne: false
             referencedRelation: "places"
             referencedColumns: ["id"]
@@ -2836,7 +2849,9 @@ export type Database = {
           photo_path: string | null
           place_id_birth: number | null
           place_id_death: number | null
+          place_id_residence: number | null
           place_of_death: string | null
+          place_of_residence: string | null
           placeholder_number: number | null
           placement_id: string | null
           placement_status: string | null
@@ -3414,7 +3429,9 @@ export type Database = {
           photo_path: string | null
           place_id_birth: number | null
           place_id_death: number | null
+          place_id_residence: number | null
           place_of_death: string | null
+          place_of_residence: string | null
           placeholder_number: number | null
           preferred_name: string | null
           sex: string | null

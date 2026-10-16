@@ -44,8 +44,9 @@ const CIRCA_NEEDS_A_YEAR = "Add the year, or untick circa.";
  * Shared person schema. Required: (first OR preferred) AND last name AND an
  * explicit living/deceased answer. A place of birth is optional since Step 44
  * (the database's `people_required_identity` agrees). Death fields only apply
- * when `is_deceased` is true. Either date can be marked circa, a rough
- * estimate (Step 81), once it has a year.
+ * when `is_deceased` is true, and where someone lives now (Step 153) only
+ * while it's false. Either date can be marked circa, a rough estimate (Step
+ * 81), once it has a year.
  */
 export const personSchema = z
   .object({
@@ -71,6 +72,10 @@ export const personSchema = z
     date_of_death_circa: z.boolean().optional(),
     place_id_death: z.number().int().positive().nullable(),
     place_of_death: optionalText(160),
+    // Where they live now (Step 153): a place and the label it was picked
+    // with, as the place of death is.
+    place_id_residence: z.number().int().positive().nullable(),
+    place_of_residence: optionalText(160),
     sex: z.enum(SEX_VALUES).optional(),
     // Contact details live on the entry, shown to other members only when
     // the person chooses (`email_visible`); their own address is seeded from
@@ -131,6 +136,8 @@ export const emptyPersonValues: PersonFormValues = {
   date_of_death_circa: false,
   place_id_death: null,
   place_of_death: "",
+  place_id_residence: null,
+  place_of_residence: "",
   sex: undefined,
   email: "",
   email_visible: false,
@@ -158,6 +165,9 @@ export type PersonRow = {
   date_of_death_circa?: boolean | null;
   place_id_death: number | null;
   place_of_death: string | null;
+  /** Read wherever a form opens, so saving it never empties it (Step 153). */
+  place_id_residence: number | null;
+  place_of_residence: string | null;
   sex: string | null;
   email: string | null;
   email_visible: boolean | null;
@@ -191,6 +201,8 @@ export function personFormValues(row: PersonRow): PersonFormValues {
     date_of_death_circa: row.date_of_death_circa ?? false,
     place_id_death: row.place_id_death ?? null,
     place_of_death: row.place_of_death ?? "",
+    place_id_residence: row.place_id_residence ?? null,
+    place_of_residence: row.place_of_residence ?? "",
     sex: (row.sex as PersonFormValues["sex"]) ?? undefined,
     email: row.email ?? "",
     email_visible: row.email_visible ?? false,
@@ -233,6 +245,13 @@ export function toPersonPayload(values: PersonFormValues) {
     place_of_death: values.is_deceased
       ? trimOrNull(values.place_of_death)
       : null,
+    // The living only (Step 153), as the database keeps it.
+    place_id_residence: values.is_deceased
+      ? null
+      : (values.place_id_residence ?? null),
+    place_of_residence: values.is_deceased
+      ? null
+      : trimOrNull(values.place_of_residence),
     sex: values.sex ?? null,
     email: trimOrNull(values.email)?.toLowerCase() ?? null,
     email_visible: values.email_visible ?? false,

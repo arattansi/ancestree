@@ -23,6 +23,7 @@ export const FILLABLE = [
   "sex",
   "date_of_birth",
   "place_of_birth",
+  "place_of_residence",
   "date_of_death",
   "place_of_death",
   "photo",
@@ -47,6 +48,8 @@ export type FillableEntry = {
   date_of_death: string | null;
   place_id_death: number | null;
   place_of_death: string | null;
+  place_id_residence: number | null;
+  place_of_residence: string | null;
   photo_path: string | null;
 };
 
@@ -55,7 +58,8 @@ const blank = (value: string | null | undefined) => !(value ?? "").trim();
 /**
  * The details that are empty on an entry, as `fill_person_blanks` judges
  * them: a birthplace only with no place and no older free-text one either,
- * and a death's date and place only for someone marked as having died.
+ * a death's date and place only for someone marked as having died, and
+ * where someone lives now only for someone who hasn't (Step 153).
  */
 export function blankFields(entry: FillableEntry): Fillable[] {
   const empty: Record<Fillable, boolean> = {
@@ -74,6 +78,10 @@ export function blankFields(entry: FillableEntry): Fillable[] {
       entry.is_deceased &&
       entry.place_id_death == null &&
       blank(entry.place_of_death),
+    place_of_residence:
+      !entry.is_deceased &&
+      entry.place_id_residence == null &&
+      blank(entry.place_of_residence),
     photo: !entry.photo_path,
   };
   return FILLABLE.filter((field) => empty[field]);
@@ -115,6 +123,9 @@ export function fillFields(
     date_of_death_circa: person.date_of_death_circa ? "true" : null,
     place_id_death: person.place_id_death,
     place_of_death: person.place_id_death != null ? person.place_of_death : null,
+    place_id_residence: person.place_id_residence,
+    place_of_residence:
+      person.place_id_residence != null ? person.place_of_residence : null,
     photo_path: photo?.path ?? null,
     photo_crop: photo?.crop ?? null,
   };
@@ -134,6 +145,7 @@ const FILLED_WORDS: Record<Fillable, string> = {
   sex: "sex",
   date_of_birth: "date of birth",
   place_of_birth: "place of birth",
+  place_of_residence: "current home",
   date_of_death: "date of death",
   place_of_death: "place of death",
   photo: "photo",

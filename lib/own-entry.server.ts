@@ -24,7 +24,11 @@ export type OwnEntry = {
     photo_crop: unknown;
   };
   photoUrl: string | null;
-  placeLabels: { birth: string | null; death: string | null };
+  placeLabels: {
+    birth: string | null;
+    death: string | null;
+    residence: string | null;
+  };
 };
 
 /**
@@ -38,7 +42,7 @@ export async function loadOwnEntry(profile: Profile): Promise<OwnEntry | null> {
   const { data: person } = await supabase
     .from("people")
     .select(
-      "id, tree_id, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_birth_precision, birth_month, birth_day, date_of_birth_circa, place_id_birth, city_of_birth, country_of_birth, is_deceased, date_of_death, date_of_death_precision, date_of_death_circa, place_id_death, place_of_death, sex, photo_path, photo_crop, email, email_visible",
+      "id, tree_id, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_birth_precision, birth_month, birth_day, date_of_birth_circa, place_id_birth, city_of_birth, country_of_birth, is_deceased, date_of_death, date_of_death_precision, date_of_death_circa, place_id_death, place_of_death, place_id_residence, place_of_residence, sex, photo_path, photo_crop, email, email_visible",
     )
     .eq("id", profile.self_person_id)
     .maybeSingle();

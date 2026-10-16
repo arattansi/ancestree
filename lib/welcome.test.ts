@@ -32,6 +32,7 @@ describe("welcomeAsks", () => {
       "preferred_name",
       "maiden_name",
       "sex",
+      "place_of_residence",
       "photo",
     ]);
   });
@@ -62,6 +63,8 @@ describe("welcomeAsks", () => {
           preferred_name: "Nasim",
           maiden_name: "Jaffer",
           sex: "female",
+          place_id_residence: 6167865,
+          place_of_residence: "Toronto, Ontario, Canada",
           photo_path: "t/p/photo.jpg",
         }),
       ),

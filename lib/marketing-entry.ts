@@ -38,6 +38,8 @@ export function marketingEntry(p: {
     place_id_death: null,
     is_deceased: false,
     place_of_death: null,
+    place_id_residence: null,
+    place_of_residence: null,
     sex: null,
     email: null,
     email_visible: false,

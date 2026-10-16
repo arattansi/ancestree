@@ -31,6 +31,8 @@ export function welcomeAsks(entry: WelcomeEntry): Fillable[] {
     date_of_death: entry.date_of_death || null,
     place_id_death: entry.place_id_death,
     place_of_death: entry.place_of_death ?? null,
+    place_id_residence: entry.place_id_residence,
+    place_of_residence: entry.place_of_residence ?? null,
     photo_path: entry.photo_path,
   });
 }

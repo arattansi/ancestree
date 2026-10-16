@@ -101,17 +101,24 @@ export async function signedPhotoUrl(
 }
 
 /**
- * How a form names an entry's places of birth and death: the GeoNames
- * place's own label, or the words stored when there's no place.
+ * How a form names an entry's places of birth and death, and where they
+ * live now (Step 153): the GeoNames place's own label, or the words stored
+ * when there's no place.
  */
 export async function placeLabels(row: {
   place_id_birth: number | null;
   place_id_death: number | null;
+  place_id_residence: number | null;
   city_of_birth: string | null;
   place_of_death: string | null;
-}): Promise<{ birth: string | null; death: string | null }> {
+  place_of_residence: string | null;
+}): Promise<{
+  birth: string | null;
+  death: string | null;
+  residence: string | null;
+}> {
   const places = await getPlacesByIds(
-    [row.place_id_birth, row.place_id_death].filter(
+    [row.place_id_birth, row.place_id_death, row.place_id_residence].filter(
       (n): n is number => typeof n === "number",
     ),
   );
@@ -119,8 +126,15 @@ export async function placeLabels(row: {
     row.place_id_birth != null ? places.get(row.place_id_birth) : undefined;
   const death =
     row.place_id_death != null ? places.get(row.place_id_death) : undefined;
+  const residence =
+    row.place_id_residence != null
+      ? places.get(row.place_id_residence)
+      : undefined;
   return {
     birth: birth ? formatPlaceLabel(birth) : row.city_of_birth,
     death: death ? formatPlaceLabel(death) : row.place_of_death,
+    residence: residence
+      ? formatPlaceLabel(residence)
+      : row.place_of_residence,
   };
 }

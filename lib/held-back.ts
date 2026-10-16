@@ -24,6 +24,9 @@ export type HeldBackDetails = {
   city_of_birth?: string;
   country_of_birth?: string;
   place_id_birth?: number;
+  /** Where they live now (Step 153). */
+  place_id_residence?: number;
+  place_of_residence?: string;
   sex?: string;
   email?: string;
   email_visible?: boolean;
@@ -35,6 +38,7 @@ export const HELD_BACK_GROUPS = [
   "name",
   "birth",
   "birthplace",
+  "home",
   "sex",
   "email",
   "photo",
@@ -75,6 +79,9 @@ export function heldBackRows(d: HeldBackDetails | null | undefined): HeldBackRow
   if (born) rows.push({ group: "birth", label: "Date of birth", value: born });
   const place = [d.city_of_birth, d.country_of_birth].filter(Boolean).join(", ");
   if (place) rows.push({ group: "birthplace", label: "Place of birth", value: place });
+  if (d.place_of_residence) {
+    rows.push({ group: "home", label: "Lives in", value: d.place_of_residence });
+  }
   if (d.sex) {
     rows.push({ group: "sex", label: "Sex", value: SEX_LABELS[d.sex as Sex] ?? d.sex });
   }

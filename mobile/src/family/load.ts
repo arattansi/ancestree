@@ -22,6 +22,8 @@ export type FamilyPerson = {
   is_deceased: boolean | null;
   city_of_birth: string | null;
   country_of_birth: string | null;
+  /** Where they live now (Step 153), as its label. */
+  place_of_residence: string | null;
   sex: string | null;
   /** Only a name and a place of birth, waiting on a yes (Step 80). */
   basic: boolean;
@@ -53,7 +55,7 @@ export type Family = {
 export type NoFamily = "no-profile" | "no-entry" | "no-tree";
 
 const PERSON_COLUMNS =
-  "tree_id, id, home_tree_id, is_home, detail, blurred, first_name, middle_name, preferred_name, maiden_name, last_name, placeholder_number, date_of_birth, date_of_death, date_of_birth_precision, date_of_death_precision, birth_month, birth_day, date_of_birth_circa, date_of_death_circa, is_deceased, city_of_birth, country_of_birth, sex";
+  "tree_id, id, home_tree_id, is_home, detail, blurred, first_name, middle_name, preferred_name, maiden_name, last_name, placeholder_number, date_of_birth, date_of_death, date_of_birth_precision, date_of_death_precision, birth_month, birth_day, date_of_birth_circa, date_of_death_circa, is_deceased, city_of_birth, country_of_birth, place_of_residence, sex";
 const LINE_COLUMNS = "tree_id, id, from_person, to_person, type, is_divorced";
 
 /** How many rows PostgREST answers with at most (the project's `max_rows`). */
@@ -166,6 +168,7 @@ export async function loadFamily(
       is_deceased: row.is_deceased,
       city_of_birth: row.city_of_birth,
       country_of_birth: row.country_of_birth,
+      place_of_residence: row.place_of_residence,
       sex: row.sex,
       basic: row.detail === "basic",
       fullOn: (fullOn.get(id) ?? []).sort((a, b) =>

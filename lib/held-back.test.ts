@@ -13,12 +13,15 @@ describe("heldBackRows", () => {
         city_of_birth: "Toronto",
         country_of_birth: "Canada",
         place_id_birth: 6167865,
+        place_id_residence: 6094817,
+        place_of_residence: "Ottawa, Ontario, Canada",
         sex: "female",
       }),
     ).toEqual([
       { group: "name", label: "Name", value: "Sam Doe" },
       { group: "birth", label: "Date of birth", value: "5 March 2014" },
       { group: "birthplace", label: "Place of birth", value: "Toronto, Canada" },
+      { group: "home", label: "Lives in", value: "Ottawa, Ontario, Canada" },
       { group: "sex", label: "Sex", value: "Female" },
     ]);
   });
@@ -60,6 +63,7 @@ describe("heldBackRows", () => {
 describe("groupsToShow", () => {
   it("always shows the name, in a fixed order", () => {
     expect(groupsToShow(["sex", "birth"])).toEqual(["name", "birth", "sex"]);
+    expect(groupsToShow(["sex", "home"])).toEqual(["name", "home", "sex"]);
     expect(groupsToShow([])).toEqual(["name"]);
   });
 });

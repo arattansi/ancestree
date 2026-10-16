@@ -34,7 +34,7 @@ import {
 export const metadata: Metadata = { title: "edit entry" };
 
 const ENTRY_COLUMNS =
-  "id, home_tree_id, is_home, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_birth_precision, birth_month, birth_day, date_of_birth_circa, place_id_birth, city_of_birth, country_of_birth, is_deceased, date_of_death, date_of_death_precision, date_of_death_circa, place_id_death, place_of_death, sex, photo_path, photo_crop, owner_user_id, created_by, email, email_visible, placeholder_number";
+  "id, home_tree_id, is_home, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_birth_precision, birth_month, birth_day, date_of_birth_circa, place_id_birth, city_of_birth, country_of_birth, is_deceased, date_of_death, date_of_death_precision, date_of_death_circa, place_id_death, place_of_death, place_id_residence, place_of_residence, sex, photo_path, photo_crop, owner_user_id, created_by, email, email_visible, placeholder_number";
 
 /**
  * Their own child's entry when it isn't on the tree being looked at (Step
@@ -50,7 +50,7 @@ async function ownChildOffTree(
     supabase
       .from("people")
       .select(
-        "id, tree_id, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_birth_precision, birth_month, birth_day, date_of_birth_circa, place_id_birth, city_of_birth, country_of_birth, is_deceased, date_of_death, date_of_death_precision, date_of_death_circa, place_id_death, place_of_death, sex, photo_path, photo_crop, owner_user_id, created_by, email, email_visible, placeholder_number",
+        "id, tree_id, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_birth_precision, birth_month, birth_day, date_of_birth_circa, place_id_birth, city_of_birth, country_of_birth, is_deceased, date_of_death, date_of_death_precision, date_of_death_circa, place_id_death, place_of_death, place_id_residence, place_of_residence, sex, photo_path, photo_crop, owner_user_id, created_by, email, email_visible, placeholder_number",
       )
       .eq("id", id)
       .maybeSingle(),
@@ -175,6 +175,8 @@ export default async function EditPersonPage({
       date_of_death: person.date_of_death,
       place_id_death: person.place_id_death,
       place_of_death: person.place_of_death,
+      place_id_residence: person.place_id_residence,
+      place_of_residence: person.place_of_residence,
       photo_path: person.photo_path,
     });
     return (

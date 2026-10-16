@@ -57,6 +57,11 @@ export const SUGGESTION_DETAILS = [
     label: "Place of death",
     columns: ["place_id_death", "place_of_death"],
   },
+  {
+    key: "place_of_residence",
+    label: "Lives in",
+    columns: ["place_id_residence", "place_of_residence"],
+  },
 ] as const;
 
 export type SuggestionDetail = (typeof SUGGESTION_DETAILS)[number]["key"];
@@ -118,6 +123,8 @@ export function suggestionValues(
     date_of_death_circa: person.date_of_death_circa,
     place_id_death: person.place_id_death,
     place_of_death: person.place_of_death,
+    place_id_residence: person.place_id_residence,
+    place_of_residence: person.place_of_residence,
   };
 }
 
@@ -170,6 +177,8 @@ export function describeDetail(
       );
     case "place_of_death":
       return text(values.place_of_death);
+    case "place_of_residence":
+      return text(values.place_of_residence);
     default:
       return text(values[detail]);
   }

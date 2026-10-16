@@ -219,8 +219,9 @@ async function addPeople(
   const result = data as { ids: string[]; self_id: string | null };
 
   // The RPC still takes only the legacy text place columns; set the canonical
-  // `places` FKs (Step 4.5c) on the freshly-created rows, and a date that's
-  // a rough estimate (Step 81). ids align with people.
+  // `places` FKs (Step 4.5c) on the freshly-created rows, a date that's a
+  // rough estimate (Step 81), and where they live now (Step 153). ids align
+  // with people.
   const placeUpdates = result.ids
     .map((personId, i) => {
       const values = people[i];
@@ -229,6 +230,8 @@ async function addPeople(
       const update = {
         place_id_birth: p.place_id_birth,
         place_id_death: p.place_id_death,
+        place_id_residence: p.place_id_residence,
+        place_of_residence: p.place_of_residence,
         sex: p.sex,
         ...(p.date_of_birth_circa ? { date_of_birth_circa: true } : {}),
         ...(p.date_of_death_circa ? { date_of_death_circa: true } : {}),

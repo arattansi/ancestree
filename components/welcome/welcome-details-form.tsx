@@ -42,7 +42,7 @@ export function WelcomeDetailsForm({
   doneHref,
   entry,
   photoUrl,
-  birthPlace,
+  placeLabels,
   asks,
 }: {
   /** Where the entry's photos live. */
@@ -51,8 +51,9 @@ export function WelcomeDetailsForm({
   doneHref: string;
   entry: WelcomeEntry & { id: string; photo_crop: unknown };
   photoUrl: string | null;
-  /** The place of birth as it's recorded, for the line at the top. */
-  birthPlace: string | null;
+  /** The places as they're recorded: the place of birth for the line at
+   *  the top, and where they live (Step 153) for its field. */
+  placeLabels: { birth: string | null; residence: string | null };
   /** What's empty on it (`welcomeAsks`), asked for up front. */
   asks: readonly Fillable[];
 }) {
@@ -82,7 +83,7 @@ export function WelcomeDetailsForm({
   const live = useWatch({ control: form.control });
   const placeNow =
     live.place_id_birth === values.place_id_birth
-      ? birthPlace
+      ? placeLabels.birth
       : [live.city_of_birth, live.country_of_birth].filter(Boolean).join(", ");
   const pickedUrl = usePickedUrl(photo.file);
 
@@ -191,7 +192,7 @@ export function WelcomeDetailsForm({
           control={form.control}
           isAdmin={false}
           idPrefix={`welcome-${personId}`}
-          placeLabels={{ birth: birthPlace }}
+          placeLabels={placeLabels}
           show={show}
         />
 

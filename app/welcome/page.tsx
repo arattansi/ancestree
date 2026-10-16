@@ -134,7 +134,7 @@ export default async function WelcomePage({
             doneHref={joinedFamilyHref(tree.id)}
             entry={person}
             photoUrl={entry.photoUrl}
-            birthPlace={entry.placeLabels.birth}
+            placeLabels={entry.placeLabels}
             asks={asks}
           />
         </CardContent>

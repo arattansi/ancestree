@@ -54,6 +54,13 @@ export type TreeGraphPerson = {
   place_id_death: number | null;
   is_deceased: boolean;
   place_of_death: string | null;
+  /**
+   * Where they live now (Step 153), the label it was picked with. The
+   * `tree_people` view gives it only to the tree's members and the entry's
+   * owner, and a public read drops it.
+   */
+  place_id_residence: number | null;
+  place_of_residence: string | null;
   sex: string | null;
   /**
    * The person's email, when they show it to other members or the viewer
@@ -160,7 +167,7 @@ export type TreeGraphEdge = {
  * says whether this tree is the one whose rules govern the entry.
  */
 const PERSON_COLUMNS =
-  "id, home_tree_id, is_home, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_death, date_of_birth_precision, date_of_death_precision, birth_month, birth_day, date_of_birth_circa, date_of_death_circa, city_of_birth, country_of_birth, place_id_birth, place_id_death, is_deceased, place_of_death, sex, photo_path, photo_crop, pos_x, pos_y, owner_user_id, created_by, pos_dx, pos_dy, hidden_from_visitors, blurred, email, email_visible, detail, approval, asked_of, nudge_due, placeholder_number";
+  "id, home_tree_id, is_home, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_death, date_of_birth_precision, date_of_death_precision, birth_month, birth_day, date_of_birth_circa, date_of_death_circa, city_of_birth, country_of_birth, place_id_birth, place_id_death, is_deceased, place_of_death, place_id_residence, place_of_residence, sex, photo_path, photo_crop, pos_x, pos_y, owner_user_id, created_by, pos_dx, pos_dy, hidden_from_visitors, blurred, email, email_visible, detail, approval, asked_of, nudge_due, placeholder_number";
 
 /**
  * Stands in for the user ids on a public read (`forPublic`): the nil UUID,
@@ -323,6 +330,8 @@ export function cardOf(p: TreePersonRow, treeId: string) {
       place_id_birth: null,
       place_id_death: null,
       place_of_death: null,
+      place_id_residence: null,
+      place_of_residence: null,
       sex: null,
       photo_path: null,
       photo_crop: null,
@@ -739,6 +748,9 @@ export async function finishCards(
             created_by: NOBODY,
             email: null,
             photo_path: null,
+            // Where a living relative lives stays in the family (Step 153).
+            place_id_residence: null,
+            place_of_residence: null,
           }
         : {}),
       // Null on a blurred row (the view's left join); no email, not shown.
