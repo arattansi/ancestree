@@ -513,7 +513,9 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `lib/first-tree.ts` — a founder's first run (Step 29): the steps and
   where each opens, the "Getting started" items, the founder's close family
   from a tree's lines, and the lines a quick-added relative gets
-  (`closeRelativeEdges`; `.server.ts` loads it, `.test.ts`);
+  (`closeRelativeEdges`; `.server.ts` loads it and names the tree after
+  the founder's family once they're on it, `nameFoundersTree`, Step 168;
+  `.test.ts`);
   `lib/welcome.ts` — the welcome (Step 50): what it asks for
   (`welcomeAsks`, `welcomeAsk`) and the line under their name
   (`enteredLine`; `.test.ts`); `lib/welcome.server.ts` — who invited them
@@ -1856,6 +1858,40 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 168: the tree takes the founder's family name as they add
+  themselves** (no migration). **From** the onboarding re-walk after Steps
+  160–165 (finding A1): since Step 161 the first run is Family · Invite ·
+  The tree, so a tree was still called "Family" when the founder sent
+  invites from the Invite step, and Step 163's subjects said "Maya Haddad
+  added you to the family tree". Skipping ahead with "Go to your tree" left
+  "Family" in the header and in every email after. **Aalim decided:** name
+  it as the founder adds themselves; the last step stays, as a rename.
+  **Now** when a founder's own entry lands on the tree they founded — the
+  family step's short form (`addRelative` with `selfIndex`), or "put me on
+  {tree}" for a member founding another (`bringOwnEntry`) — and the tree
+  still has a default name ("Family", "Second Family"), it's renamed "The
+  {maiden or last name} Family", passing over names their other trees have
+  (`foundingTreeName` in `lib/tree-names.ts`, `nameFoundersTree` in
+  `lib/first-tree.server.ts`, through `rename_tree`). Best effort: a tree it
+  can't name keeps its default and the last step still suggests one. The
+  toast says where they are ("You're on The Haddad Family."). The
+  Getting Started "Name your tree" item is ticked from then on. The name
+  step is never passed over now (`stepAfter` reads no state): it opens on
+  the tree's current name, saves only a change, and offers "skip for now"
+  only while the name is still a default. A name someone chose, at
+  `/trees/new` or later, is never replaced. **Verified** headless on a
+  worktree dev server against live: a phone founder (Maya Haddad) adding
+  herself made "Family" "The Haddad Family" at once (header, toast); the
+  invite she then emailed Leila from the Invite step was sent as "Maya
+  Haddad added you to The Haddad Family", its body naming the tree (read
+  from Resend); the name step opened on "The Haddad Family" with no skip;
+  the checklist ticked "Name your tree". A desktop founder who went
+  straight to the tree kept "The Farouk Family". Leila, once she had
+  joined, founded "Second Family" from `/trees/new` and brought herself
+  across; it became "The Khoury Family" (her maiden name; "The Haddad
+  Family" was taken by her first tree). Throwaway users and trees deleted;
+  the home campaign is back to opens 18 / signups 3 / trees founded 3.
 
 - **Step 163: keep invites alive** (migration
   `20261016100000_keep_invites_alive`). **From** the 2026-10-16 onboarding

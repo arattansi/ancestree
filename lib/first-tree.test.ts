@@ -70,16 +70,9 @@ describe("the steps", () => {
   });
 
   it("walks family → invite → name → the canvas", () => {
-    expect(stepAfter("family", fresh)).toBe("invite");
-    expect(stepAfter("invite", fresh)).toBe("name");
-    expect(stepAfter("name", fresh)).toBeNull();
-  });
-
-  it("passes over a name someone already chose", () => {
-    // A member named their tree when they founded it.
-    const named = { ...fresh, selfPlaced: true, defaultName: false };
-    expect(stepAfter("family", named)).toBe("invite");
-    expect(stepAfter("invite", named)).toBeNull();
+    expect(stepAfter("family")).toBe("invite");
+    expect(stepAfter("invite")).toBe("name");
+    expect(stepAfter("name")).toBeNull();
   });
 
   it("ticks a step off by what's on the tree", () => {

@@ -38,8 +38,10 @@ import type {
   SuggestedType,
   SuggestionSource,
 } from "@/lib/connection-suggestions";
+import { nameFoundersTree } from "@/lib/first-tree.server";
 import { revalidateTreePages } from "@/lib/revalidate";
 import { createClient } from "@/lib/supabase/server";
+import { membershipOf } from "@/lib/tree-context";
 
 /** A marriage's dates in the wrong order, however the write was made. */
 const DIVORCE_AFTER_MARRIAGE: ErrorRule = [
@@ -252,6 +254,8 @@ export type AddRelativeResult = AddPeopleResult & {
   invited?: string;
   /** Saved, but the invite didn't go: why. */
   inviteWarning?: string;
+  /** A founder adding themselves named their tree this (Step 168). */
+  treeName?: string;
 };
 
 /**
@@ -293,6 +297,16 @@ export async function addRelative(
   const added = await addPeople(profile, input);
   if (added.error || !added.personIds) return added;
 
+  // A founder adding themselves names their tree after their family, so
+  // the invites they send next name it (Step 168).
+  let treeName: string | undefined;
+  if (input.selfIndex !== null && added.selfId) {
+    const { membership } = await membershipOf(input.treeId);
+    if (membership) {
+      treeName = (await nameFoundersTree(membership, added.selfId)) ?? undefined;
+    }
+  }
+
   const primaryId = added.personIds[0];
   let invited: string | undefined;
   let inviteWarning: string | undefined;
@@ -307,7 +321,7 @@ export async function addRelative(
   }
 
   if (!input.photoFollows) revalidateTreePages();
-  return { ...added, invited, inviteWarning };
+  return { ...added, invited, inviteWarning, treeName };
 }
 
 /**

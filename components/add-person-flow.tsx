@@ -521,9 +521,13 @@ export function AddPersonFlow({
       toast.warning(INVITE_UNSENT, { description: result.inviteWarning });
     }
 
+    // A founder's tree takes their family's name as they arrive (Step 168).
+    const arrived = result.treeName
+      ? `You're on ${result.treeName}.`
+      : "You're in the family tree.";
     toast.success(
       mode === "self"
-        ? "You're in the family tree."
+        ? arrived
         : result.invited
           ? `Relative added. Invite sent to ${result.invited}.`
           : "Relative added.",

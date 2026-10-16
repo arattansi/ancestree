@@ -15,7 +15,6 @@ import {
   reachableStep,
   stepAfter,
   stepFromAddress,
-  type FirstTreeState,
   type FirstTreeStep,
 } from "@/lib/first-tree";
 import { loadFirstTree, loadInviteStep } from "@/lib/first-tree.server";
@@ -25,8 +24,8 @@ import { onboardingStepHref, treeHref } from "@/lib/tree-links";
 import { suggestedTreeName } from "@/lib/tree-names";
 
 /** Where a step's Continue goes: the next step, or the canvas after the last. */
-function hrefAfter(step: FirstTreeStep, state: FirstTreeState): string {
-  const next = stepAfter(step, state);
+function hrefAfter(step: FirstTreeStep): string {
+  const next = stepAfter(step);
   return next ? onboardingStepHref(next) : treeHref();
 }
 
@@ -62,7 +61,7 @@ export async function FirstTreeOnboarding({
     redirect(onboardingStepHref(wanted ?? openingStep(state)));
   }
   const step = reachableStep(wanted, state);
-  const next = hrefAfter(step, state);
+  const next = hrefAfter(step);
   // Adding themselves, or bringing their entry across, stays on the family
   // step: its other places open once they're in.
   const familyHref = onboardingStepHref("family");
@@ -145,6 +144,9 @@ export async function FirstTreeOnboarding({
           />
           <NameStep
             treeId={tree.id}
+            // Named as the founder added themselves (Step 168); a tree still
+            // on its default name, which nothing gave a family name, is
+            // offered one here.
             initialName={
               state.defaultName
                 ? (suggestedTreeName(
@@ -160,7 +162,7 @@ export async function FirstTreeOnboarding({
       ) : null}
 
       {/* Not on the last step, whose own button opens the tree. */}
-      {state.selfPlaced && stepAfter(step, state) ? (
+      {state.selfPlaced && stepAfter(step) ? (
         <p className="text-sm text-muted-foreground">
           <Link href={treeHref()} className="underline underline-offset-4">
             Go to your tree

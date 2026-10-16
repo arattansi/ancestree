@@ -8,7 +8,8 @@
  *   family  the founder, then parents, partners, children and siblings
  *           around them
  *   invite  who'll help build it, and the account types they can have
- *   name    the tree's name, if it still has the one it was planted with
+ *   name    the tree's name: their family's, given it as they added
+ *           themselves (Step 168), to keep or change
  *
  * Only the founder's own entry is required: the canvas waits for it, and the
  * family step's other places wait on it too. The rest can be skipped, and
@@ -85,19 +86,12 @@ export function reachableStep(
 }
 
 /**
- * The step after `step`, passing over a name someone already chose. `null`
- * when the canvas is next.
+ * The step after `step`, `null` when the canvas is next. The name step is
+ * never passed over (Step 168): the tree has a name by then, given as the
+ * founder added themselves, and it's where they see it before the canvas.
  */
-export function stepAfter(
-  step: FirstTreeStep,
-  state: FirstTreeState,
-): FirstTreeStep | null {
-  for (let i = FIRST_TREE_STEPS.indexOf(step) + 1; i < FIRST_TREE_STEPS.length; i += 1) {
-    const next = FIRST_TREE_STEPS[i];
-    if (next === "name" && !state.defaultName) continue;
-    return next;
-  }
-  return null;
+export function stepAfter(step: FirstTreeStep): FirstTreeStep | null {
+  return FIRST_TREE_STEPS[FIRST_TREE_STEPS.indexOf(step) + 1] ?? null;
 }
 
 /** Whether a step's work is done, for the progress list's ticks. */

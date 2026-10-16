@@ -92,3 +92,17 @@ export function suggestedTreeName(
   }
   return null;
 }
+
+/**
+ * The name a founder's tree takes once their own entry is on it (Step 168):
+ * their family's (`suggestedTreeName`), while it still has a default name,
+ * so the invites they send from the next step say "The Haddad Family", not
+ * "the family tree". `null` leaves it as it is: a name someone chose stays.
+ */
+export function foundingTreeName(
+  current: string,
+  names: { maidenName?: string | null; lastName?: string | null },
+  taken: readonly string[] = [],
+): string | null {
+  return isDefaultTreeName(current) ? suggestedTreeName(names, taken) : null;
+}

@@ -31,7 +31,8 @@ export function BringYourself({
 
   function onBring() {
     action.run("bring", () => bringOwnEntry(treeId), {
-      success: `You're on ${treeName}.`,
+      // By the name it took as they arrived (Step 168).
+      success: (res) => `You're on ${res.treeName ?? treeName}.`,
       // Busy until the next step is on screen.
       onSuccess: () => router.push(nextHref),
     });

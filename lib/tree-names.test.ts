@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   defaultTreeName,
+  foundingTreeName,
   isDefaultTreeName,
   suggestedTreeName,
   treeInSentence,
@@ -86,6 +87,41 @@ describe("suggestedTreeName", () => {
   it("offers nothing without a name to build it from", () => {
     expect(suggestedTreeName({ lastName: "" })).toBeNull();
     expect(suggestedTreeName({ maidenName: null, lastName: null })).toBeNull();
+  });
+});
+
+describe("foundingTreeName", () => {
+  it("gives a default-named tree the founder's family name (Step 168)", () => {
+    expect(foundingTreeName("Family", { lastName: "Haddad" })).toBe(
+      "The Haddad Family",
+    );
+    // A member founding a second tree, named on their maiden name.
+    expect(
+      foundingTreeName("Second Family", { maidenName: "Lakhani", lastName: "Suleman" }),
+    ).toBe("The Lakhani Family");
+    expect(foundingTreeName("11th Family", { lastName: "Haddad" })).toBe(
+      "The Haddad Family",
+    );
+  });
+
+  it("keeps a name someone chose", () => {
+    expect(foundingTreeName("Haddad Line", { lastName: "Haddad" })).toBeNull();
+    expect(foundingTreeName("The Rivera Family", { lastName: "Haddad" })).toBeNull();
+  });
+
+  it("passes over a name their other trees have", () => {
+    expect(
+      foundingTreeName("Second Family", { maidenName: "Haddad", lastName: "Rivera" }, [
+        "The Haddad Family",
+      ]),
+    ).toBe("The Rivera Family");
+    expect(
+      foundingTreeName("Second Family", { lastName: "Haddad" }, ["The Haddad Family"]),
+    ).toBeNull();
+  });
+
+  it("leaves the default without a family name to give", () => {
+    expect(foundingTreeName("Family", { lastName: " " })).toBeNull();
   });
 });
 

@@ -7,6 +7,7 @@ import { requireProfile } from "@/lib/auth";
 import { bloodTiePlacementRefusal, readBloodTieRefusal } from "@/lib/bloodline";
 import { friendlyDbError, ownedWrite, type ErrorRule } from "@/lib/db-errors";
 import { removeTreeFilesLater, treeFiles } from "@/lib/file-cleanup.server";
+import { nameFoundersTree } from "@/lib/first-tree.server";
 import { TREE_NAME_MAX } from "@/lib/limits";
 import {
   clearCurrentTreeCookie,
@@ -218,9 +219,13 @@ export async function askPlacementsAgain(
 /**
  * A founder who already has an entry on another tree brings it onto the one
  * they've just founded (Step 29): still one entry, now shown here too.
- * `place_people` makes it this tree's anchor, as adding themselves would.
+ * `place_people` makes it this tree's anchor, as adding themselves would,
+ * and the tree takes their family's name as it would then too (Step 168):
+ * `treeName` is what it's called now.
  */
-export async function bringOwnEntry(treeId: string): Promise<{ error?: string }> {
+export async function bringOwnEntry(
+  treeId: string,
+): Promise<{ error?: string; treeName?: string }> {
   const { membership, error: notRoot } = await rootOf(treeId);
   if (!membership) return { error: notRoot };
   const selfId = membership.profile.self_person_id;
@@ -238,8 +243,9 @@ export async function bringOwnEntry(treeId: string): Promise<{ error?: string }>
         : friendlyTreeError(error.message),
     };
   }
+  const named = await nameFoundersTree(membership, selfId);
   revalidateTreePages();
-  return {};
+  return { treeName: named ?? membership.tree.name };
 }
 
 /** What a refused answer says (Step 80). */

@@ -27,7 +27,7 @@ import { listCarryChoices } from "@/lib/placements.server";
 import { createClient } from "@/lib/supabase/server";
 import { getTreeGraph, type TreeGraphEdge, type TreeGraphPerson } from "@/lib/tree";
 import { listMyTrees, type TreeMembership } from "@/lib/tree-context";
-import { isDefaultTreeName } from "@/lib/tree-names";
+import { foundingTreeName, isDefaultTreeName } from "@/lib/tree-names";
 
 /**
  * Whether the member founded the tree they're on: its first Root, who gets
@@ -35,6 +35,41 @@ import { isDefaultTreeName } from "@/lib/tree-names";
  */
 export function isFounder(m: TreeMembership): boolean {
   return m.tree.created_by === m.profile.auth_user_id;
+}
+
+/**
+ * Names a founder's tree after their family once their own entry is on it
+ * (Step 168) — added on the family step, or brought across — while it still
+ * has the default name it was planted with (`foundingTreeName`). The invite
+ * step comes next, and its emails name the tree. Anyone else's add, or a
+ * name someone chose, leaves it alone. Best effort: a tree left unnamed is
+ * offered the name again on the last step. The new name, if it took.
+ */
+export async function nameFoundersTree(
+  m: TreeMembership,
+  selfId: string,
+): Promise<string | null> {
+  if (!isFounder(m) || !isDefaultTreeName(m.tree.name)) return null;
+  const supabase = await createClient();
+  const [{ data: self }, myTrees] = await Promise.all([
+    supabase
+      .from("people")
+      .select("last_name, maiden_name")
+      .eq("id", selfId)
+      .maybeSingle(),
+    listMyTrees(),
+  ]);
+  const name = foundingTreeName(
+    m.tree.name,
+    { maidenName: self?.maiden_name, lastName: self?.last_name },
+    myTrees.filter((t) => t.id !== m.tree.id).map((t) => t.name),
+  );
+  if (!name) return null;
+  const { error } = await supabase.rpc("rename_tree", {
+    p_tree: m.tree.id,
+    p_name: name,
+  });
+  return error ? null : name;
 }
 
 /** The founder's own entry, wherever its home is. */

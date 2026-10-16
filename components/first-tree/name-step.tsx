@@ -14,12 +14,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAction } from "@/components/use-action";
 import { TREE_NAME_MAX } from "@/lib/limits";
+import { isDefaultTreeName } from "@/lib/tree-names";
 
 
 /**
- * Naming the tree, in the founder's first run (Step 29). It opens on their
- * family's name when the tree still has the one it was planted with, and
- * saves only a change.
+ * Naming the tree, in the founder's first run (Step 29). Since Step 168 the
+ * tree is usually named already, after their family as they added
+ * themselves, so this is where they keep or change it: it opens on the name
+ * it has, or a suggestion while it still has the one it was planted with,
+ * and saves only a change. There's nothing to skip once it has a name.
  */
 export function NameStep({
   treeId,
@@ -82,13 +85,15 @@ export function NameStep({
             >
               save and open my tree
             </PendingButton>
-            <Button
-              nativeButton={false}
-              render={<Link href={nextHref} />}
-              variant="ghost"
-            >
-              <LinkPendingLabel>skip for now</LinkPendingLabel>
-            </Button>
+            {isDefaultTreeName(currentName) ? (
+              <Button
+                nativeButton={false}
+                render={<Link href={nextHref} />}
+                variant="ghost"
+              >
+                <LinkPendingLabel>skip for now</LinkPendingLabel>
+              </Button>
+            ) : null}
           </div>
         </form>
       </CardContent>
