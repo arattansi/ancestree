@@ -31,7 +31,8 @@ const CLOSE_EASING = "cubic-bezier(0.5, 0, 0.75, 0)";
 /**
  * On the marketing site (`navHeldOpenOn`) the list stays open from this
  * width, the one the pile moves to the corner at: room for it beside the
- * page.
+ * page. The list moves to the left of the page from here too (its
+ * `min-[1240px]:` classes, Step 167).
  */
 const ROOM_FOR_IT = "(min-width: 1240px)";
 
@@ -78,7 +79,7 @@ function Word({ word }: { word: NavTreeWord }) {
  * place in a tree (Step 133, `lib/nav-tree.ts`: why over what + how,
  * capitalism upright as the trunk, who and shh either side; the canopy
  * green, the trunk brown, the page you're on a filled pill),
- * centred on the screen, or down the left of the page from `xl`, and flies
+ * centred on the screen, or down the left of the page from 1240px, and flies
  * back when it closes: Esc, a press
  * outside, the button again, or going to a page. On the home page and
  * the marketing pages the list stays open (from 1240px; narrower, they
@@ -254,14 +255,14 @@ export function SiteNavMenu({ className }: { className?: string }) {
         ? createPortal(
             <>
               {/* Opened by hand, a press anywhere else closes it. Clear
-                  where the page leaves the left side empty; below `xl` it
+                  where the page leaves the left side empty; below 1240px it
                   washes the page back so the words read over it. */}
               {byHand ? (
                 <div
                   aria-hidden
                   onClick={() => close(false)}
                   className={cn(
-                    "fixed inset-0 z-30 transition-opacity duration-300 animate-in fade-in-0 max-xl:bg-background/85 max-xl:backdrop-blur-sm",
+                    "fixed inset-0 z-30 transition-opacity duration-300 animate-in fade-in-0 max-[1240px]:bg-background/85 max-[1240px]:backdrop-blur-sm",
                     closing && "opacity-0",
                   )}
                 />
@@ -269,7 +270,7 @@ export function SiteNavMenu({ className }: { className?: string }) {
               <nav
                 id={listId}
                 aria-label="Site"
-                className="fixed top-1/2 left-1/2 z-50 -translate-x-1/2 -translate-y-1/2 text-foreground xl:left-14 xl:translate-x-0"
+                className="fixed top-1/2 left-1/2 z-50 -translate-x-1/2 -translate-y-1/2 text-foreground min-[1240px]:left-14 min-[1240px]:translate-x-0"
                 style={{
                   width: NAV_TREE_SIZE.width * LIST_SCALE,
                   height: NAV_TREE_SIZE.height * LIST_SCALE,

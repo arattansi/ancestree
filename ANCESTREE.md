@@ -1855,6 +1855,23 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 167: the held-open menu tree sits left of the page from 1240px,
+  not centred over it** (no migration). **Seen** in Step 166: the
+  marketing pages hold the tree open from 1240px (`ROOM_FOR_IT`), where
+  the header's pile and the page column already move aside, but the
+  `<nav>` moved to the left column only at `xl` (1280px), so from 1240px
+  to 1279px it was drawn centred over the page (live too: /features at
+  1250px, over the add-a-relative form). **Now** the nav moves left
+  (`min-[1240px]:left-14`) and the wash behind a hand-opened tree stops
+  (`max-[1240px]:`) at 1240px too. With Step 166's wider tree it spans x
+  56–253 and the page's words start at x 304 on all seven marketing pages
+  at 1240, 1260 and 1280px. Below 1240px it still opens by hand, centred,
+  the page washed back. **My calls:** 1240px rather than raising
+  `ROOM_FOR_IT` to 1280px, which would have left the column moved aside
+  for a tree that wasn't there; a tree opened by hand on a page that isn't
+  held open (/library/submit, the app) is on the left and unwashed from
+  1240px, as it was from 1280px.
+
 - **Step 166: the page you're on is a filled pill in the menu tree, and
   who stands clear of the trunk** (no migration). **Aalim asked:** fill
   the menu tree's page title pill in green, its text and border in the
@@ -1878,7 +1895,7 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   swells and tips over its ring; `public/brand/nav/menu-tree.svg` keeps
   the drawn places. **Seen:** from 1240px to 1279px the held-open tree is
   centred over the page (live too), since it's held open from 1240px but
-  moves left only at `xl`; left to its own session.
+  moves left only at `xl`; fixed in Step 167.
 
 - **Step 162: invite the people you just added** (no migration). **From**
   the 2026-10-16 onboarding audit (W3, W5 / R3): the founder's invite step
