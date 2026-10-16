@@ -5,7 +5,7 @@ import {
   CampaignNewcomerForm,
   CampaignStartButton,
 } from "@/components/campaign-start-button";
-import { MagicLinkForm } from "@/components/magic-link-form";
+import { MagicLinkSignIn } from "@/components/magic-link-sign-in";
 import { CenteredPage } from "@/components/page-column";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -73,7 +73,7 @@ export default async function StartPage({
                   }
                 />
               ) : (
-                <MagicLinkForm campaign={code} />
+                <MagicLinkSignIn campaign={code} />
               )}
             </CardContent>
           </>

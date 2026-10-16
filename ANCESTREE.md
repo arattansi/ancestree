@@ -1152,7 +1152,12 @@ mirror it for the UI.
   **Join** before), else `next`. **Send a new code** re-posts the first
   send's fields (a minute apart, Supabase's `smtp_max_frequency`: "Wait a
   minute before asking for another code."), **Use another email** returns
-  to the filled-in form. Email apps run no scripts, so the email can't
+  to the filled-in form. A reload keeps the box (Step 164): the send
+  leaves an httpOnly `ancestree.code-sent` cookie for the code's hour
+  (`lib/sent-code.ts`: address, a sign-up's name, the invite token or
+  campaign code, when), and `MagicLinkSignIn` opens `MagicLinkForm` on
+  the box when the cookie is for that page's link; signing in, **Use
+  another email** and signing out drop it. Email apps run no scripts, so the email can't
   have a copy button. A code can't be safer than the link's `token_hash`
   against guessing: every link email always carried a code too, checkable
   at `/auth/v1/verify` with the public key, so GoTrue's per-IP limit
@@ -1833,6 +1838,29 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 164: sign-in emails, the founder's privacy tick, and a code box
+  that survives a reload** (no migration). **From** the 2026-10-16
+  onboarding audit (R7/R8, the copy items Step 161 didn't take). **Now**
+  the **Confirm signup** email, which every new address gets, founders
+  too, says "Enter it on ancestree to confirm your email." (it said "and
+  join your family's tree"), and both sign-in emails' footer is "a
+  private family tree", as the app's own emails have said since Step 129
+  ("invite-only" is gone). **Push them after the deploy:** `npm run
+  email:push`. The privacy tick on `/start` (the sign-up form and Step
+  160's signed-in newcomer form) shares details "with the family who join
+  my tree", not "other members of this private tree" (`JoinConsent`'s
+  `starting`); a bare invite link's keeps the old line. Reloading `/join`,
+  `/start/<code>` or a bare `/join/<token>` on "Check your email" opens on
+  the code box again, for the same address, name and link: an httpOnly
+  `ancestree.code-sent` cookie lasts the code's hour (`lib/sent-code.ts`,
+  tested), read by `MagicLinkSignIn`; signing in, **Use another email**
+  and signing out drop it. `/privacy` lists the cookie. **My calls:** the
+  cookie works on `/join/<token>`'s bare-link form too (same form, same
+  bug); it holds the name a sign-up typed so **Send a new code** still
+  passes the name check; the invite page's `SignInToAccept` box and a
+  founder invite's own tick ("other members of this private tree") are
+  left as they were.
 
 - **Step 160: a new address that signs in can start a tree in one step**
   (no migration). **From** the 2026-10-16 onboarding audit (W1 / R1): a

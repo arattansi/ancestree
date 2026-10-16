@@ -5,7 +5,7 @@ import { signOut } from "@/app/actions/auth";
 import { AcceptInviteForm, SignInToAccept } from "@/components/accept-invite-form";
 import { AccountTypeGlyph } from "@/components/account-type-badge";
 import { JoinTreeButton } from "@/components/join-tree-button";
-import { MagicLinkForm } from "@/components/magic-link-form";
+import { MagicLinkSignIn } from "@/components/magic-link-sign-in";
 import { CenteredPage } from "@/components/page-column";
 import { SubmitButton } from "@/components/submit-button";
 import { TreeTarget } from "@/components/tree-target";
@@ -201,7 +201,7 @@ export default async function InvitePage({
                   consentGiven={recipient.requested}
                 />
               ) : (
-                <MagicLinkForm inviteToken={token} submitLabel="accept &amp; sign in" />
+                <MagicLinkSignIn inviteToken={token} submitLabel="accept &amp; sign in" />
               )}
               {!profile && recipient?.requested ? (
                 // They ticked the privacy notice when they asked to join, or

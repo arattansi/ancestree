@@ -12,6 +12,7 @@ import {
   type RequestFormState,
 } from "@/lib/request-forms";
 import { sameOriginPath } from "@/lib/safe-next";
+import { forgetSentCode, rememberSentCode } from "@/lib/sent-code.server";
 import {
   isWholeSignInCode,
   readSignInCode,
@@ -52,7 +53,9 @@ export type MagicLinkState = RequestFormState & {
  * (`options.data`), to name the profile the invite makes and search the tree
  * for as onboarding opens (Step 30.7). `next` is where the sign-in lands:
  * the page proxy.ts sent them here from (Step 30.1). `resend` is the code
- * box asking again, with everything the first send had.
+ * box asking again, with everything the first send had. A code sent is
+ * remembered for its hour (`rememberSentCode`), so a reload opens on the
+ * code box again (Step 164).
  */
 export async function requestMagicLink(
   _prev: MagicLinkState,
@@ -111,7 +114,24 @@ export async function requestMagicLink(
     return { error: sendCodeRefusal(error.code), ...typed };
   }
 
-  return { ok: true, ...typed, sentAt: Date.now(), resent: resend };
+  const sentAt = Date.now();
+  await rememberSentCode({
+    email,
+    firstName: asksName ? entered.firstName : undefined,
+    lastName: asksName ? entered.lastName : undefined,
+    inviteToken: inviteToken || undefined,
+    campaign: campaign || undefined,
+    sentAt,
+  });
+  return { ok: true, ...typed, sentAt, resent: resend };
+}
+
+/**
+ * "Use another email" from the code box: the page opens on the form again,
+ * not on the code sent to the old address (Step 164).
+ */
+export async function forgetSentSignInCode(): Promise<void> {
+  await forgetSentCode();
 }
 
 export type SignInCodeState = { error?: string };
@@ -138,6 +158,7 @@ export async function verifySignInCode(
 
   const result = await completeCodeSignIn({ email, code, invite, campaign, next });
   if (!result.ok) return { error: signInCodeRefusal(result.errorCode) };
+  await forgetSentCode();
   redirect(result.next);
 }
 
@@ -260,5 +281,6 @@ export async function signOut(formData?: FormData) {
   const next = sameOriginPath(String(formData?.get("next") ?? ""));
   const supabase = await createClient();
   await supabase.auth.signOut();
+  await forgetSentCode();
   redirect(next ?? "/");
 }

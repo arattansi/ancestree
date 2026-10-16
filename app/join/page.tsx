@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { signOut } from "@/app/actions/auth";
-import { MagicLinkForm } from "@/components/magic-link-form";
+import { MagicLinkSignIn } from "@/components/magic-link-sign-in";
 import { CenteredPage } from "@/components/page-column";
 import { RequestAccessFlow } from "@/components/request-access";
 import { SubmitButton } from "@/components/submit-button";
@@ -74,7 +74,7 @@ export default async function JoinPage({
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
               {alert}
-              <MagicLinkForm next={next ?? undefined} />
+              <MagicLinkSignIn next={next ?? undefined} />
               {/* Signing in with no tree to go to goes round the whole email
                   loop only to land on "Almost There", so the ways in are
                   said before they send one (Step 30.4), as the home page

@@ -52,7 +52,12 @@ export function CampaignNewcomerForm({
           {state.error}
         </p>
       ) : null}
-      <JoinConsent id="start-consent" checked={consented} onCheckedChange={setConsented} />
+      <JoinConsent
+        id="start-consent"
+        checked={consented}
+        onCheckedChange={setConsented}
+        starting
+      />
       <Button type="submit" disabled={pending || !consented}>
         {pending ? "starting…" : "start my tree"}
       </Button>

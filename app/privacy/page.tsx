@@ -96,6 +96,12 @@ export default function PrivacyPage() {
             delete it, which they do on request.
           </li>
           <li>
+            While a sign-in code is on its way, a cookie holding your email
+            (and your name, if you&rsquo;re signing up), so the page still
+            asks for the code if you reload it. It&rsquo;s gone within the
+            hour, or once you sign in.
+          </li>
+          <li>
             If you like a post in the library, a cookie holding a random
             number, so your like counts once. It says nothing about who you
             are.

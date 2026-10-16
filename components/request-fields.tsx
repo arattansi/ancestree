@@ -178,15 +178,22 @@ export function InviteConsent({
  * a bare invite link's sign-up form, and a campaign link's (Step 103.3),
  * whether that's signing up or, signed in already, starting the tree
  * (Step 160). `consent` follows the box, as in `InviteConsent`.
+ *
+ * `starting` words it for a founder (Step 164): a campaign link's tree is
+ * their own and empty, so there are no other members yet to share with,
+ * only the family who join it later.
  */
 export function JoinConsent({
   id,
   checked,
   onCheckedChange,
+  starting = false,
 }: {
   id: string;
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
+  /** They're starting a tree, not joining one. */
+  starting?: boolean;
 }) {
   return (
     <Label
@@ -201,7 +208,8 @@ export function JoinConsent({
       />
       <span>
         I agree that my family details and photos will be shared
-        with other members of this private tree, and I have read the{" "}
+        with {starting ? "the family who join my tree" : "other members of this private tree"},
+        and I have read the{" "}
         <Link href="/privacy" target="_blank" className="underline underline-offset-4">
           privacy notice
         </Link>

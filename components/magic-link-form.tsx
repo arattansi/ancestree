@@ -4,7 +4,11 @@ import { useActionState, useState } from "react";
 
 import Link from "next/link";
 
-import { requestMagicLink, type MagicLinkState } from "@/app/actions/auth";
+import {
+  forgetSentSignInCode,
+  requestMagicLink,
+  type MagicLinkState,
+} from "@/app/actions/auth";
 import { JoinConsent, NameEmailFields } from "@/components/request-fields";
 import { SignInCodeForm } from "@/components/sign-in-code-form";
 import { Button } from "@/components/ui/button";
@@ -12,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { signInAsksName } from "@/lib/joining-name";
 import { signInNeedsConsent } from "@/lib/privacy-consent";
+import type { SentCode } from "@/lib/sent-code";
 
 const INITIAL: MagicLinkState = {};
 
@@ -24,12 +29,17 @@ const INITIAL: MagicLinkState = {};
  * (Step 30.7). So is a campaign link's (`campaign`, Step 103.3), whose
  * sign-up starts a tree of their own. A plain sign-in asks for the email
  * alone and only links to the notice.
+ *
+ * Given `sent`, a code this page's form emailed within the hour (Step 164,
+ * `MagicLinkSignIn` reads it), it opens on the code box, as it was before
+ * the page was reloaded.
  */
 export function MagicLinkForm({
   inviteToken,
   campaign,
   next,
   submitLabel = "email me a code",
+  sent,
 }: {
   inviteToken?: string;
   /** A campaign link's code: signing in starts their tree (Step 103.3). */
@@ -37,8 +47,21 @@ export function MagicLinkForm({
   /** A same-origin path to land on once signed in (Step 30.1). */
   next?: string;
   submitLabel?: string;
+  /** A code already on its way from this form: see above. */
+  sent?: SentCode;
 }) {
-  const [state, formAction, pending] = useActionState(requestMagicLink, INITIAL);
+  const [state, formAction, pending] = useActionState(
+    requestMagicLink,
+    sent
+      ? {
+          ok: true,
+          email: sent.email,
+          firstName: sent.firstName,
+          lastName: sent.lastName,
+          sentAt: sent.sentAt,
+        }
+      : INITIAL,
+  );
   const [consented, setConsented] = useState(false);
   // "Use another email" goes back to the form, filled in as it was, until
   // it sends again and a new state comes back.
@@ -68,7 +91,10 @@ export function MagicLinkForm({
         }}
         resent={state.resent}
         resendError={state.resendError}
-        onChangeEmail={() => setChangingFrom(state)}
+        onChangeEmail={() => {
+          setChangingFrom(state);
+          void forgetSentSignInCode();
+        }}
       />
     );
   }
@@ -116,7 +142,12 @@ export function MagicLinkForm({
         </div>
       )}
       {needsConsent ? (
-        <JoinConsent id="consent" checked={consented} onCheckedChange={setConsented} />
+        <JoinConsent
+          id="consent"
+          checked={consented}
+          onCheckedChange={setConsented}
+          starting={Boolean(campaign)}
+        />
       ) : (
         <p className="text-xs text-muted-foreground">
           Read how your family&rsquo;s data is stored and protected in the{" "}
