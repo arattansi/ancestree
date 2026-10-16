@@ -108,8 +108,10 @@ export default async function JoinPage({
 /**
  * Signed in, not a member, and no invite waiting for their address (Step
  * 30.8): where their request to join stands, or join a tree right here
- * with that address filled in, so they type only their name. Always a way
- * to sign out, for someone who verified the wrong address.
+ * with that address filled in, so they type only their name, or start one
+ * (Step 160; "Almost There" until then, which read as an approval
+ * pending). Always a way to sign out, for someone who verified the wrong
+ * address.
  */
 function NotYetMember({
   email,
@@ -126,11 +128,11 @@ function NotYetMember({
   return (
     <>
       <CardHeader>
-        <CardTitle>{requested ? "Waiting for an Invite" : "Almost There"}</CardTitle>
+        <CardTitle>{requested ? "Waiting for an Invite" : "Join or Start a Tree"}</CardTitle>
         <CardDescription>
           {requested
             ? "Your email is verified. Here’s where your request to join stands."
-            : "Your email is verified, but no family invite is waiting for it. Tell us your name and we’ll look for your family’s tree, or open the invite link a relative sent you."}
+            : "No family invite is waiting for this email."}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">

@@ -35,38 +35,10 @@ export function NameEmailFields({
   /** Their verified address, fixed: see above. */
   email?: string;
 }) {
-  const badName = state.errorField === "name";
   const badEmail = state.errorField === "email";
   return (
     <>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="flex flex-col gap-2">
-          <Label htmlFor={`${idPrefix}-first-name`}>First name</Label>
-          <Input
-            key={state.firstName ?? ""}
-            id={`${idPrefix}-first-name`}
-            name="firstName"
-            autoComplete="given-name"
-            required
-            defaultValue={state.firstName ?? ""}
-            aria-invalid={badName || undefined}
-            aria-describedby={badName ? errorId : undefined}
-          />
-        </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor={`${idPrefix}-last-name`}>Last name</Label>
-          <Input
-            key={state.lastName ?? ""}
-            id={`${idPrefix}-last-name`}
-            name="lastName"
-            autoComplete="family-name"
-            required
-            defaultValue={state.lastName ?? ""}
-            aria-invalid={badName || undefined}
-            aria-describedby={badName ? errorId : undefined}
-          />
-        </div>
-      </div>
+      <NameFields idPrefix={idPrefix} state={state} errorId={errorId} />
       <div className="flex flex-col gap-2">
         <Label htmlFor={`${idPrefix}-email`}>Email address</Label>
         {email !== undefined ? (
@@ -105,6 +77,58 @@ export function NameEmailFields({
 }
 
 /**
+ * First and last name, side by side: `NameEmailFields` without the address,
+ * for someone whose address is verified already and asked for nowhere
+ * (Step 160).
+ */
+export function NameFields({
+  idPrefix,
+  state,
+  errorId,
+  defaultName,
+}: {
+  idPrefix: string;
+  state: RequestFormState;
+  errorId?: string;
+  /** What to show before anything is typed: the name the account keeps. */
+  defaultName?: { firstName: string; lastName: string };
+}) {
+  const badName = state.errorField === "name";
+  const firstName = state.firstName ?? defaultName?.firstName ?? "";
+  const lastName = state.lastName ?? defaultName?.lastName ?? "";
+  return (
+    <div className="grid gap-4 sm:grid-cols-2">
+      <div className="flex flex-col gap-2">
+        <Label htmlFor={`${idPrefix}-first-name`}>First name</Label>
+        <Input
+          key={firstName}
+          id={`${idPrefix}-first-name`}
+          name="firstName"
+          autoComplete="given-name"
+          required
+          defaultValue={firstName}
+          aria-invalid={badName || undefined}
+          aria-describedby={badName ? errorId : undefined}
+        />
+      </div>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor={`${idPrefix}-last-name`}>Last name</Label>
+        <Input
+          key={lastName}
+          id={`${idPrefix}-last-name`}
+          name="lastName"
+          autoComplete="family-name"
+          required
+          defaultValue={lastName}
+          aria-invalid={badName || undefined}
+          aria-describedby={badName ? errorId : undefined}
+        />
+      </div>
+    </div>
+  );
+}
+
+/**
  * The agreement an invite request needs: approval leads straight into the
  * tree, so this is where they agree to what that shares. The waitlist asks
  * for it too (Step 30.6): a reviewer's yes sends a founder invite, and the
@@ -139,6 +163,45 @@ export function InviteConsent({
       <span>
         If approved, I agree to share my family details and photos
         with this tree&rsquo;s members. I&rsquo;ve read the{" "}
+        <Link href="/privacy" target="_blank" className="underline underline-offset-4">
+          privacy notice
+        </Link>
+        .
+      </span>
+      {checked ? <input type="hidden" name="consent" value="on" /> : null}
+    </Label>
+  );
+}
+
+/**
+ * The agreement joining a tree asks for at once, with no approval between:
+ * a bare invite link's sign-up form, and a campaign link's (Step 103.3),
+ * whether that's signing up or, signed in already, starting the tree
+ * (Step 160). `consent` follows the box, as in `InviteConsent`.
+ */
+export function JoinConsent({
+  id,
+  checked,
+  onCheckedChange,
+}: {
+  id: string;
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+}) {
+  return (
+    <Label
+      htmlFor={id}
+      className="group/field-label flex items-start gap-2.5 text-sm font-normal text-muted-foreground"
+    >
+      <Checkbox
+        id={id}
+        checked={checked}
+        onCheckedChange={(value) => onCheckedChange(value === true)}
+        className="mt-0.5"
+      />
+      <span>
+        I agree that my family details and photos will be shared
+        with other members of this private tree, and I have read the{" "}
         <Link href="/privacy" target="_blank" className="underline underline-offset-4">
           privacy notice
         </Link>

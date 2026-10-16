@@ -3,10 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { requireProfile } from "@/lib/auth";
+import { getSessionUser, requireProfile } from "@/lib/auth";
 import { campaignHref, readCampaignFields } from "@/lib/campaigns";
+import { CONSENT_NEEDED, consentGiven } from "@/lib/privacy-consent";
+import { nameProblem, type RequestFormState } from "@/lib/request-forms";
 import { revalidateTreePages } from "@/lib/revalidate";
-import { redeemCampaign } from "@/lib/sign-in.server";
+import { redeemCampaign, type CampaignRefusal } from "@/lib/sign-in.server";
 import { createClient } from "@/lib/supabase/server";
 import { joinedTreeHref } from "@/lib/tree-links";
 import { isBetaReviewer } from "@/lib/tree-requests.server";
@@ -88,15 +90,52 @@ export async function startTreeFromCampaign(code: string): Promise<CampaignActio
   if (!started.ok) {
     // Its page says why: paused, or a tree of theirs already.
     revalidatePath(campaignHref(code));
-    return {
-      error:
-        started.reason === "has_tree"
-          ? "You've started a tree already."
-          : started.reason === "closed"
-            ? "This link is paused."
-            : "Could not start your tree. Try again.",
-    };
+    return { error: campaignRefusal(started.reason) };
   }
   revalidateTreePages();
   redirect(joinedTreeHref({ ...started.joined, founded: true }));
+}
+
+/**
+ * Someone signed in who isn't a member yet opening a campaign link (Step
+ * 160): their address is verified already, by a plain sign-in, so the
+ * link asks only their name, which names the profile `redeem_campaign`
+ * makes, and the privacy agreement its sign-up form asks for. No second
+ * code. The link's code comes with the form.
+ */
+export async function startTreeAsNewcomer(
+  _prev: RequestFormState,
+  formData: FormData,
+): Promise<RequestFormState> {
+  const code = String(formData.get("code") ?? "");
+  if (!(await getSessionUser())) redirect(campaignHref(code));
+
+  const entered = {
+    firstName: String(formData.get("firstName") ?? "").trim(),
+    lastName: String(formData.get("lastName") ?? "").trim(),
+  };
+  const problem = nameProblem(entered);
+  if (problem) return { error: problem.message, errorField: problem.field, ...entered };
+  if (!consentGiven(formData)) return { error: CONSENT_NEEDED, ...entered };
+
+  const supabase = await createClient();
+  const started = await redeemCampaign(
+    supabase,
+    code,
+    `${entered.firstName} ${entered.lastName}`,
+  );
+  if (!started.ok) {
+    revalidatePath(campaignHref(code));
+    return { error: campaignRefusal(started.reason), ...entered };
+  }
+  revalidateTreePages();
+  redirect(joinedTreeHref({ ...started.joined, founded: true }));
+}
+
+function campaignRefusal(reason: CampaignRefusal): string {
+  return reason === "has_tree"
+    ? "You've started a tree already."
+    : reason === "closed"
+      ? "This link is paused."
+      : "Could not start your tree. Try again.";
 }

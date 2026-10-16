@@ -4,6 +4,7 @@ import { MAX_EMAIL_LENGTH } from "@/lib/email-address";
 import {
   MAX_NAME_LENGTH,
   nameAndEmailProblem,
+  nameProblem,
   problemState,
   readNameAndEmail,
 } from "@/lib/request-forms";
@@ -82,6 +83,30 @@ describe("nameAndEmailProblem", () => {
     expect(nameAndEmailProblem({ ...ok, email: `${local}@example.com` })?.field).toBe(
       "email",
     );
+  });
+});
+
+describe("nameProblem", () => {
+  it("passes a whole name, with no address to check", () => {
+    expect(nameProblem({ firstName: "Zahra", lastName: "Suleman" })).toBeNull();
+  });
+
+  it("asks for both halves", () => {
+    for (const name of [
+      { firstName: "", lastName: "Suleman" },
+      { firstName: "Zahra", lastName: "" },
+    ]) {
+      expect(nameProblem(name)).toEqual({
+        field: "name",
+        message: "Enter your first and last name.",
+      });
+    }
+  });
+
+  it("refuses a name past the limit", () => {
+    expect(
+      nameProblem({ firstName: "Z".repeat(MAX_NAME_LENGTH + 1), lastName: "Suleman" }),
+    ).toEqual({ field: "name", message: "That name is too long." });
   });
 });
 

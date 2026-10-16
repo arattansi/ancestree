@@ -7,7 +7,7 @@ import { RequestAccessDialog } from "@/components/request-access";
 import { StartTreeButton } from "@/components/start-tree-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getProfile } from "@/lib/auth";
+import { getProfile, getSessionUser } from "@/lib/auth";
 import { campaignHref, HOME_CAMPAIGN_CODE } from "@/lib/campaigns";
 import { homeHref } from "@/lib/tree-links";
 import { getTreeRequestStatus } from "@/lib/tree-requests.server";
@@ -20,6 +20,9 @@ import { getTreeRequestStatus } from "@/lib/tree-requests.server";
  * starts it at once (Step 119; a waitlist and a reviewer's yes until then).
  * "free to use" (Step 120) sits under "a space to grow your tree." (Step
  * 123).
+ * Signed in but not a member yet (a new address, Step 160): start a tree,
+ * filled, or join a tree on /join, which looks with the address they've
+ * verified — not sign in, which would only lead back there.
  * Its buttons are lower-case, as every button is
  * (docs/design-system.md). Sign in stays the filled button, for members
  * coming back. Since Step 107 it's the first of the marketing pages, and the
@@ -30,6 +33,7 @@ import { getTreeRequestStatus } from "@/lib/tree-requests.server";
 export default async function Home() {
   const profile = await getProfile();
   const treeRequest = profile ? await getTreeRequestStatus() : null;
+  const signedInNotMember = profile ? false : Boolean(await getSessionUser());
 
   return (
     <div className="relative isolate flex flex-1 flex-col">
@@ -69,6 +73,24 @@ export default async function Home() {
                   <StartTreeButton status={treeRequest ?? "none"} size="lg" variant="outline">
                     start a tree
                   </StartTreeButton>
+                </>
+              ) : signedInNotMember ? (
+                <>
+                  <Button
+                    nativeButton={false}
+                    render={<Link href={campaignHref(HOME_CAMPAIGN_CODE)} />}
+                    size="lg"
+                  >
+                    start a tree
+                  </Button>
+                  <Button
+                    nativeButton={false}
+                    render={<Link href="/join" />}
+                    size="lg"
+                    variant="outline"
+                  >
+                    join a tree
+                  </Button>
                 </>
               ) : (
                 <>

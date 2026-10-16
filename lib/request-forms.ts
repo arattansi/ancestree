@@ -37,18 +37,31 @@ export type RequestFormState = Partial<NameAndEmail> & {
   errorField?: RequestField;
 };
 
-/** What's wrong with an entry, in the words the form shows; `null` when nothing is. */
-export function nameAndEmailProblem({
+/**
+ * What's wrong with a name alone, for a form whose address is already
+ * verified (Step 160); `null` when nothing is.
+ */
+export function nameProblem({
   firstName,
   lastName,
-  email,
-}: NameAndEmail): NameAndEmailProblem | null {
+}: Pick<NameAndEmail, "firstName" | "lastName">): NameAndEmailProblem | null {
   if (!firstName || !lastName) {
     return { field: "name", message: "Enter your first and last name." };
   }
   if (firstName.length > MAX_NAME_LENGTH || lastName.length > MAX_NAME_LENGTH) {
     return { field: "name", message: "That name is too long." };
   }
+  return null;
+}
+
+/** What's wrong with an entry, in the words the form shows; `null` when nothing is. */
+export function nameAndEmailProblem({
+  firstName,
+  lastName,
+  email,
+}: NameAndEmail): NameAndEmailProblem | null {
+  const name = nameProblem({ firstName, lastName });
+  if (name) return name;
   if (!isEmailAddress(email)) {
     return { field: "email", message: "Enter a valid email address." };
   }

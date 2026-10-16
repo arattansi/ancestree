@@ -5,10 +5,9 @@ import { useActionState, useState } from "react";
 import Link from "next/link";
 
 import { requestMagicLink, type MagicLinkState } from "@/app/actions/auth";
-import { NameEmailFields } from "@/components/request-fields";
+import { JoinConsent, NameEmailFields } from "@/components/request-fields";
 import { SignInCodeForm } from "@/components/sign-in-code-form";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { signInAsksName } from "@/lib/joining-name";
@@ -117,34 +116,7 @@ export function MagicLinkForm({
         </div>
       )}
       {needsConsent ? (
-        <Label
-          htmlFor="consent"
-          className="group/field-label flex items-start gap-2.5 text-sm font-normal text-muted-foreground"
-        >
-          <Checkbox
-            id="consent"
-            checked={consented}
-            onCheckedChange={(value) => setConsented(value === true)}
-            className="mt-0.5"
-          />
-          <span>
-            I agree that my family details and photos will be shared
-            with other members of this private tree, and I have read the{" "}
-            <Link
-              href="/privacy"
-              target="_blank"
-              className="underline underline-offset-4"
-            >
-              privacy notice
-            </Link>
-            .
-          </span>
-          {/* React resets the form once its action has run, which unticks the
-              checkbox's own input while the box still shows ticked, so a
-              second try (after a missing name, say) was refused. This one
-              follows what the box shows (Step 30.7). */}
-          {consented ? <input type="hidden" name="consent" value="on" /> : null}
-        </Label>
+        <JoinConsent id="consent" checked={consented} onCheckedChange={setConsented} />
       ) : (
         <p className="text-xs text-muted-foreground">
           Read how your family&rsquo;s data is stored and protected in the{" "}

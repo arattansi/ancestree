@@ -62,7 +62,8 @@ export function RequestAccessDialog({
  *
  * On /join, for someone signed in who isn't a member yet, `email` is the
  * address they've just verified (Step 30.8): it's filled in and fixed, so
- * they type only their name, and everything after asks with it.
+ * they type only their name, and everything after asks with it. Starting
+ * a tree is offered there beside the search (Step 160).
  *
  * `heading` is the dialog's title, told whether this step shows it.
  */
@@ -130,6 +131,26 @@ export function RequestAccessFlow({
           </p>
         ) : null}
       </form>
+      {/* On /join, starting a tree sits beside looking for one, not only
+          after a search finds nothing (Step 160): its link starts it with
+          the address they've signed in with. */}
+      {email !== undefined ? (
+        <>
+          <p
+            aria-hidden
+            className="flex items-center gap-3 text-xs text-muted-foreground before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border"
+          >
+            or
+          </p>
+          <Button
+            nativeButton={false}
+            render={<Link href={campaignHref(HOME_CAMPAIGN_CODE)} />}
+            variant="outline"
+          >
+            start a tree
+          </Button>
+        </>
+      ) : null}
     </>
   );
 }

@@ -1,13 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { CampaignStartButton } from "@/components/campaign-start-button";
+import {
+  CampaignNewcomerForm,
+  CampaignStartButton,
+} from "@/components/campaign-start-button";
 import { MagicLinkForm } from "@/components/magic-link-form";
 import { CenteredPage } from "@/components/page-column";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getProfile } from "@/lib/auth";
+import { getProfile, getUser } from "@/lib/auth";
 import { openCampaign } from "@/lib/campaigns.server";
+import { readJoiningName } from "@/lib/joining-name";
 import { treesHref } from "@/lib/tree-links";
 import { getTreeRequestStatus } from "@/lib/tree-requests.server";
 
@@ -19,8 +23,11 @@ export const metadata: Metadata = {
 /**
  * A campaign link (Step 103.3): open to anyone, no approval. Signed out,
  * they sign up with their name and email and the code starts their tree;
- * a member starts theirs with one button. Opening it counts against the
- * campaign (`openCampaign`). Paused, or no such link, it says so.
+ * a member starts theirs with one button. Signed in but not a member yet —
+ * a new address that signed in from the home page, say — they give their
+ * name and start it, with no second code (Step 160). Opening it counts
+ * against the campaign (`openCampaign`). Paused, or no such link, it says
+ * so.
  */
 export default async function StartPage({
   params,
@@ -31,6 +38,10 @@ export default async function StartPage({
   const [state, profile] = await Promise.all([openCampaign(code), getProfile()]);
   const founded =
     state === "open" && profile ? (await getTreeRequestStatus()) === "founded" : false;
+  // Signed in with no profile: the name their account keeps, if any, fills
+  // the form (a bare invite link's sign-up keeps one).
+  const newcomer = state === "open" && !profile ? await getUser() : null;
+  const kept = newcomer ? readJoiningName(newcomer.user_metadata) : null;
 
   return (
     <CenteredPage>
@@ -54,6 +65,13 @@ export default async function StartPage({
             <CardContent>
               {profile ? (
                 <CampaignStartButton code={code} />
+              ) : newcomer ? (
+                <CampaignNewcomerForm
+                  code={code}
+                  name={
+                    kept ? { firstName: kept.first_name, lastName: kept.last_name } : undefined
+                  }
+                />
               ) : (
                 <MagicLinkForm campaign={code} />
               )}

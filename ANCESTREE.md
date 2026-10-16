@@ -1590,7 +1590,9 @@ mirror it for the UI.
   **Campaign links** (Step 103.3) skip the queue: a reviewer makes one on
   **manage** ("Campaign Links": name, where it's posted, **make link**),
   copies `/start/<code>`, and anyone who opens it signs up and founds a
-  tree at once (`app/start/[code]/page.tsx`, `redeem_campaign`); each
+  tree at once (`app/start/[code]/page.tsx`, `redeem_campaign`; signed
+  in already with no profile, by name and the privacy tick alone, Step
+  160); each
   shows its opens, sign-ups and trees, and can be paused, resumed or
   renamed.
 - **Admin bootstrap**: `private.admin_allowlist(email)` — seeded with both
@@ -1831,6 +1833,30 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 160: a new address that signs in can start a tree in one step**
+  (no migration). **From** the 2026-10-16 onboarding audit (W1 / R1): a
+  never-seen email that tapped "sign in" landed on "Almost There"
+  (`/join?status=pending`) with only "am i on a tree?"; start a tree
+  showed only after a search found nothing, and `/start/<code>` then
+  asked for name, email and a second code, because it checked for a
+  profile, not a session. Home still offered them "sign in". 2 of 25 real
+  sign-ups were stuck there with an account and no profile. **Now**
+  `/start/<code>`, signed in with no profile, asks first and last name
+  (filled from the account's name when it keeps one) and the privacy
+  tick, and **start my tree** starts it (`startTreeAsNewcomer` →
+  `redeem_campaign`, which names the new profile after them): no email,
+  no code, onto `/onboarding?step=you` with the name filled in. That
+  card on `/join` is **Join or Start a Tree** ("No family invite is
+  waiting for this email."), with **start a tree** under "or" beside the
+  search. Home, signed in with no profile: **start a tree** (filled) and
+  **join a tree** (to `/join`), no "sign in"; the header already said
+  "sign out". `NameFields` and `JoinConsent` come out of
+  `NameEmailFields` and `MagicLinkForm`, so the sign-up form and this one
+  share their wording; `nameProblem` checks a name alone. **My calls:**
+  the new form keeps the privacy tick, since a plain sign-in never asked
+  for it (every path keeps an explicit tick, Step 30.6); a name with
+  digits isn't filled into "Start With You", as before (`namePrefill`).
 
 - **Step 159: the newsletter's note in Markdown** (no migration).
   **Aalim asked:** Markdown for the newsletter note, to bold, italicize,
