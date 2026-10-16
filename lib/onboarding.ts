@@ -72,12 +72,12 @@ export const CLOSE_FAMILY = 3;
 /** An email of the drip already sent. */
 export type OnboardingSend = { step: OnboardingKind; sent_at: string };
 
-/** What a member has done, as `onboarding_due` reads it. */
-export type OnboardingSignals = {
-  /** When the drip first saw them: an ISO timestamp. */
-  started_at: string;
-  /** The last UTC day they used ancestree, `YYYY-MM-DD`. */
-  last_active: string | null;
+/**
+ * What the steps are judged by: what a member has done, as
+ * `onboarding_due` reads it for the drip, and `readStepSignals` for one
+ * member's "Getting started" list (Step 170).
+ */
+export type StepSignals = {
   /** Living entries they made that nobody is behind, with no live invite. */
   claimable: number;
   /** Entries they made, their own not counted. */
@@ -86,9 +86,35 @@ export type OnboardingSignals = {
   invited: boolean;
   /** They've written a story or put up an album photo. */
   shared: boolean;
+};
+
+/** What a member has done, as `onboarding_due` reads it. */
+export type OnboardingSignals = StepSignals & {
+  /** When the drip first saw them: an ISO timestamp. */
+  started_at: string;
+  /** The last UTC day they used ancestree, `YYYY-MM-DD`. */
+  last_active: string | null;
   /** Oldest first. */
   sends: readonly OnboardingSend[];
 };
+
+/**
+ * Whether a member has taken a step, whatever's been sent: the emails ask
+ * for the first one they haven't, and a joiner's "Getting started" list
+ * (Step 170) ticks by the same rules, so the two agree.
+ */
+export function stepTaken(step: OnboardingStep, s: StepSignals): boolean {
+  switch (step) {
+    case "claim":
+      return s.claimable === 0;
+    case "invite":
+      return s.invited;
+    case "family":
+      return s.people_added >= CLOSE_FAMILY;
+    case "story":
+      return s.shared;
+  }
+}
 
 /** Why nothing goes today. */
 export type OnboardingHold =
@@ -152,7 +178,7 @@ export function nextStep(
 ): { step: OnboardingStep; reminder: boolean; waiting: boolean } | null {
   const sent = (k: OnboardingKind) => s.sends.filter((x) => x.step === k);
   const claims = sent("claim");
-  if (s.claimable > 0 && claims.length < CLAIM_SENDS) {
+  if (!stepTaken("claim", s) && claims.length < CLAIM_SENDS) {
     const last = claims.at(-1);
     return {
       step: "claim",
@@ -160,14 +186,10 @@ export function nextStep(
       waiting: !!last && daysBetween(utcDay(last.sent_at), today) < CLAIM_REMINDER_DAYS,
     };
   }
-  if (!s.invited && !sent("invite").length) {
-    return { step: "invite", reminder: false, waiting: false };
-  }
-  if (s.people_added < CLOSE_FAMILY && !sent("family").length) {
-    return { step: "family", reminder: false, waiting: false };
-  }
-  if (!s.shared && !sent("story").length) {
-    return { step: "story", reminder: false, waiting: false };
+  for (const step of ["invite", "family", "story"] as const) {
+    if (!stepTaken(step, s) && !sent(step).length) {
+      return { step, reminder: false, waiting: false };
+    }
   }
   return null;
 }

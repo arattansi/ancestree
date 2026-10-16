@@ -79,8 +79,8 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `components/first-tree/`, Step 29), `/welcome` (where a claim invite, or
   claiming an entry on onboarding, lands: their entry, with a photo and
   what's missing asked up front; `?returning=1` only greets a member who
-  brought their own; `?details=1` is a founder's own blanks, from the
-  canvas's "Getting started", back to the canvas, Step 161 —
+  brought their own; `?details=1` is a member's own blanks, from a
+  "Getting started" list, back to My Family Tree, Steps 161, 170 —
   `components/welcome/`, `lib/welcome.ts`, Step 50); `/admin` is the
   **admin page** for beta reviewers (Step 103, `app/admin/page.tsx`,
   `lib/admin-page.ts`; the header's red **admin**, before **tree**, with
@@ -517,7 +517,11 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   the founder's family once they're on it, `nameFoundersTree`, Step 168;
   the card at the run's end, `plantedCardText`, and My Family Tree's
   "Getting started" off the tree's rows, `getFamilyGettingStarted`, Step
-  169; `.test.ts`);
+  169; a joiner's list, `joinerItems`, and `getCanvasGettingStarted`,
+  which picks the founder's or theirs, Step 170; `.test.ts`);
+  `lib/onboarding-signals.server.ts` — what one member has done, read as
+  the getting started emails read it (`readStepSignals`, Step 170), for a
+  joiner's "Getting started" ticks;
   `lib/first-canvas.ts` — what a canvas shows first (Step 169): how close
   a phone opens (`openingView`, `READABLE_ZOOM`) and the tip's words,
   "Click" or "Tap", lines from three generations (`canvasTip`; `.test.ts`;
@@ -1864,6 +1868,62 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 170: next steps for people who join** (no migration). **From**
+  the 2026-10-16 onboarding audit (W6 / R6) and its re-walk: a relative
+  who joined landed on My Family Tree with nothing saying what to do next;
+  only founders had a Getting Started list. **Aalim decided:** a short
+  checklist like the founder's, four items, ticking itself, ✕ hides it:
+  add your photo and birthplace (`/welcome?details=1`, back to
+  `/family`), add your partner or children (the add flow with the
+  relation already picked), invite a relative (the people they added, as
+  claim invites, else the invite form), share a story or photo (the +),
+  in step with the getting started emails so the two agree. **Now**
+  `joinerItems` (`lib/first-tree.ts`) lists them for any member who
+  didn't found the tree they're looking at, in the emails' order after
+  their own details: **Add your photo and birthplace**, **Invite a
+  relative**, **Add your partner or children**, **Share a story or
+  photo**. They tick by the emails' own rules: `stepTaken` in
+  `lib/onboarding.ts` (which `nextStep` now uses too) judges invite,
+  family and story off one member's signals, read as `onboarding_due`
+  reads them without starting their drip (`readStepSignals`, service
+  role, rows about them only). The invite item goes to settings' **Invite
+  the People You Added** while any living entry they made waits for a
+  claim invite (the emails' claim step), else **Invite a Relative to
+  {tree}**, or a Root's family link, as the emails' button does. The
+  family item ticks with a partner or a child on the tree, whoever added
+  them, or once the emails stop asking (three people added); its link is
+  `/people/new?relatedTo=<them>&as=spouse` while they have no partner,
+  `&as=child` after (`addRelativeHref`'s `as`, `validRelation`;
+  `AddPersonFlow`'s `initialKind`). The story item is a button that opens
+  the canvas's own + (`openAddMenu`; the + in the top-right panel
+  `answersRequests`), for Photos or Story. One `GettingStarted`
+  component shows either list (`GettingStartedItem.href` is `null` for
+  the +); `/tree` picks with `getCanvasGettingStarted`, and `/family`'s
+  `getFamilyGettingStarted` now takes the view's graph and picks too: the
+  founder's off the tree's rows as before, a joiner's off the view's own
+  people and lines (nothing more read, no photo signed). A child on their
+  own placeholder gets none. `/welcome?details=1` comes back to `/family`
+  for everyone, its buttons **save** and **back**. Dismissal stays per
+  browser per tree. **My calls:** the order follows the emails (invite
+  before family) rather than the audit's listing; the invite item ticks
+  on any invite, as the founder's and the emails' invite step do;
+  long-standing members see it too until it's done or closed.
+  **Verified** headless on a worktree dev server against live, 390×844
+  touch and 1280×800: a founder (Maya, mum Leila, siblings Nadia and
+  Omar, both invited) kept her five items on `/family` and `/tree`. Nadia
+  on a phone and Omar on desktop each accepted their claim invite, skipped
+  the welcome and saw "Getting Started 0 of 4" (collapsed on the phone,
+  one bottom card); details opened **Your Details**, a photo and Beirut
+  saved back to `/family` (1 of 4); invite opened settings at the invite
+  form; family opened the add flow on them with "is spouse / partner of"
+  picked, and adding Sami landed on `/tree` with the list there (2 of 4)
+  and the invite item now at **Invite the People You Added**, where a
+  claim invite to Sami ticked it (3 of 4); share opened the + menu
+  (Relative / Photos / Story), and a tagged album photo took the list
+  away. ✕ hid it, still hidden after a reload and on `/tree`. No console
+  errors. Throwaway users, tree and the four uploaded files deleted; home
+  campaign back to 18 / 3 / 3.
 
 - **Step 169: a first canvas that welcomes you** (no migration). **From**
   the 2026-10-16 onboarding audit (W6, W7 / R5) and its re-walk: the

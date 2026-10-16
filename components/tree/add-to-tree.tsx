@@ -37,6 +37,7 @@ export function FamilyAddButton({
   subject,
   media,
   labelFrom,
+  answersRequests,
   className,
 }: {
   add: FamilyAdd;
@@ -44,6 +45,8 @@ export function FamilyAddButton({
   subject: { id: string; name: string } | null;
   media: AddMedia | null;
   labelFrom?: "always" | "sm" | "lg";
+  /** The view's own +, which `openAddMenu` opens (Step 170). */
+  answersRequests?: boolean;
   className?: string;
 }) {
   const go = useAction();
@@ -58,6 +61,7 @@ export function FamilyAddButton({
     subject,
     media,
     labelFrom,
+    answersRequests,
     className,
   };
   // No tree to add a relative on: photos and stories only.

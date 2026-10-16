@@ -2740,6 +2740,7 @@ function Canvas({
               relative={{ href: addRelativeHref(addTarget?.id) }}
               media={addMedia}
               labelFrom={sheetOut ? "lg" : "sm"}
+              answersRequests
             />
           ) : familyAdd ? (
             // Which of their trees it goes on, asked when there's a choice
@@ -2749,6 +2750,7 @@ function Canvas({
               subject={selectedTarget}
               media={addMedia}
               labelFrom={sheetOut ? "lg" : "sm"}
+              answersRequests
             />
           ) : null}
           {/* Under the + (Add a relative until Step 145) since Step 60, its

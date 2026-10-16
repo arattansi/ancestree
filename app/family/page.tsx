@@ -36,7 +36,8 @@ export const metadata: Metadata = {
  * the home page come here. So does joining a tree (Step 131), with
  * `?joined=` naming it for the view to offer, and the end of a founder's
  * first run (Step 169), with `?planted=` naming the tree they've started;
- * a founder's "Getting started" list shows here as on that tree's canvas.
+ * the "Getting started" list of the tree they're looking at shows here as
+ * on its canvas, a founder's (Step 169) or a joiner's (Step 170).
  */
 export default async function MyFamilyPage({
   searchParams,
@@ -62,9 +63,10 @@ export default async function MyFamilyPage({
   // Their companions are read beside the people, from the same trees, and
   // the suggested changes they can see (Step 67) as a tree's canvas reads
   // them: waiting ones to answer or their own, and their own declined. And
-  // for a founder looking at the tree they founded, what's left of its
-  // first run (Step 169).
-  const founding = foundedCurrentTree(trees);
+  // the "Getting started" list of the tree they're looking at: what's left
+  // of its first run, for its founder (Step 169), or their next steps, for
+  // a member who joined it (Step 170).
+  const familyGraph = loadMyFamily();
   const [
     family,
     pets,
@@ -73,12 +75,12 @@ export default async function MyFamilyPage({
     own,
     gettingStarted,
   ] = await Promise.all([
-    loadMyFamily(),
+    familyGraph,
     getTreePets(trees.map((t) => t.id)),
     listPendingSuggestions(profile.auth_user_id),
     listOwnDeclinedSuggestions(profile.auth_user_id),
-    founding,
-    founding.then((m) => (m ? getFamilyGettingStarted(m) : null)),
+    foundedCurrentTree(trees),
+    getFamilyGettingStarted(familyGraph),
   ]);
   // Nothing to arrange it around yet (no entry of their own, or on none of
   // their trees): the canvas sends them where they'd add it. The canvas
@@ -127,11 +129,7 @@ export default async function MyFamilyPage({
         declinedSuggestions={declinedSuggestions.filter((s) =>
           shown.has(s.personId),
         )}
-        gettingStarted={
-          own && gettingStarted
-            ? { treeId: own.tree.id, items: gettingStarted }
-            : null
-        }
+        gettingStarted={gettingStarted}
         family={{
           trees: family.trees.map(({ id, name, mark, role, reach }) => ({
             id,

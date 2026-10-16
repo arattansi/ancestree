@@ -8,7 +8,7 @@ import { getOwnLine } from "@/lib/branch.server";
 import { getBloodline, getGrowthRights } from "@/lib/growth-rights.server";
 import { listTreeMembers } from "@/lib/tree";
 import { requireTreeSelfPersonWith } from "@/lib/tree-context";
-import { newTreeHref, validRelatedTo } from "@/lib/tree-links";
+import { newTreeHref, validRelatedTo, validRelation } from "@/lib/tree-links";
 
 export const metadata: Metadata = {
   title: "add a relative",
@@ -38,11 +38,14 @@ export default async function NewPersonPage({
   // the flow connected to them. Only an id on this tree they may add from is
   // honoured; the growth rights and the bloodline gate still judge the result
   // at submit.
-  const { relatedTo } = await searchParams;
+  const { relatedTo, as } = await searchParams;
   const initialAnchorId = validRelatedTo(
     relatedTo,
     members.flatMap((m) => (!line || line.has(m.id) ? [m.id] : [])),
   );
+  // How they're related, asked for by a link (Step 170: Getting Started's
+  // "Add your partner or children"), with someone to relate them to.
+  const initialKind = initialAnchorId ? validRelation(as) : null;
 
   return (
     <PageColumn>
@@ -79,6 +82,7 @@ export default async function NewPersonPage({
             isAdmin={isRoot}
             members={members}
             initialAnchorId={initialAnchorId}
+            initialKind={initialKind}
             anchorable={line}
             bloodline={bloodline}
             // Nobody is asked "18 or older?" about their own child (Step 98).

@@ -7,6 +7,7 @@ import {
   gettingStartedItems,
   inviteFamilyHref,
   isFirstTreeStep,
+  joinerItems,
   namePrefill,
   openingStep,
   plantedCardText,
@@ -15,7 +16,9 @@ import {
   stepDone,
   stepFromAddress,
   type FirstTreeState,
+  type JoinerState,
 } from "@/lib/first-tree";
+import { nextStep, type OnboardingSignals } from "@/lib/onboarding";
 
 const fresh: FirstTreeState = {
   selfPlaced: false,
@@ -131,7 +134,98 @@ describe("gettingStartedItems", () => {
   it("asks them to invite their family, at the list of who they added", () => {
     const invite = gettingStartedItems(fresh).find((i) => i.key === "invite");
     expect(invite?.label).toBe("Invite your family");
-    expect(invite?.href.endsWith("#your-family")).toBe(true);
+    expect(invite?.href?.endsWith("#your-family")).toBe(true);
+  });
+});
+
+describe("joinerItems (Step 170)", () => {
+  /** Just joined: nothing added, nobody invited, nothing shared. */
+  const joiner: JoinerState = {
+    treeId: "t1",
+    runsTree: false,
+    selfId: "me",
+    selfPhoto: false,
+    selfBirthplace: false,
+    partners: 0,
+    children: 0,
+    signals: { claimable: 0, people_added: 0, invited: false, shared: false },
+  };
+  const item = (state: Partial<JoinerState>, key: string) =>
+    joinerItems({ ...joiner, ...state }).find((i) => i.key === key);
+  const signals = (s: Partial<JoinerState["signals"]>) => ({
+    signals: { ...joiner.signals, ...s },
+  });
+
+  it("lists four, their own details first, then the emails' order", () => {
+    expect(joinerItems(joiner).map((i) => [i.key, i.label, i.done])).toEqual([
+      ["details", "Add your photo and birthplace", false],
+      ["invite", "Invite a relative", false],
+      ["family", "Add your partner or children", false],
+      ["story", "Share a story or photo", false],
+    ]);
+  });
+
+  it("asks for the same thing next as the getting started emails", () => {
+    // The emails' steps, as each item stands for them: claim and invite
+    // are the one invite item.
+    const asks = { claim: "invite", invite: "invite", family: "family", story: "story" };
+    const member = (s: Partial<OnboardingSignals>): OnboardingSignals => ({
+      started_at: "2026-10-16T15:00:00Z",
+      last_active: "2026-10-16",
+      sends: [],
+      ...joiner.signals,
+      ...s,
+    });
+    for (const s of [
+      {},
+      { claimable: 2, people_added: 2 },
+      { invited: true },
+      { invited: true, people_added: 3 },
+    ]) {
+      const next = nextStep(member(s), "2026-10-17");
+      const firstOpen = joinerItems({ ...joiner, selfPhoto: true, selfBirthplace: true, signals: member(s) })
+        .find((i) => !i.done);
+      expect(firstOpen?.key).toBe(next ? asks[next.step] : undefined);
+    }
+  });
+
+  it("opens their own details, back to My Family Tree", () => {
+    expect(item({}, "details")?.href).toBe("/welcome?details=1");
+    expect(item({ selfPhoto: true }, "details")?.done).toBe(false);
+    expect(item({ selfPhoto: true, selfBirthplace: true }, "details")?.done).toBe(true);
+  });
+
+  it("invites the people they added while any wait, else a relative", () => {
+    expect(item(signals({ claimable: 1, people_added: 1 }), "invite")?.href).toBe(
+      "/account?view=settings#people-you-added",
+    );
+    expect(item({}, "invite")?.href).toBe("/account?view=settings#invite-t1");
+    // A Root shares the family link, as the emails' button does.
+    expect(item({ runsTree: true }, "invite")?.href).toBe(
+      "/account/admin?tree=t1&section=family-link",
+    );
+  });
+
+  it("ticks the invite once they've invited anyone, as the emails do", () => {
+    expect(item(signals({ invited: true }), "invite")?.done).toBe(true);
+    expect(item(signals({ invited: true, claimable: 1 }), "invite")?.done).toBe(true);
+  });
+
+  it("adds a partner while they have none, else a child", () => {
+    expect(item({}, "family")?.href).toBe("/people/new?relatedTo=me&as=spouse");
+    expect(item({ partners: 1 }, "family")?.href).toBe("/people/new?relatedTo=me&as=child");
+  });
+
+  it("ticks the family with a partner or a child, or once the emails stop asking", () => {
+    expect(item({ partners: 1 }, "family")?.done).toBe(true);
+    expect(item({ children: 2 }, "family")?.done).toBe(true);
+    expect(item(signals({ people_added: 2 }), "family")?.done).toBe(false);
+    expect(item(signals({ people_added: 3 }), "family")?.done).toBe(true);
+  });
+
+  it("shares a story or photo from the canvas's +", () => {
+    expect(item({}, "story")?.href).toBeNull();
+    expect(item(signals({ shared: true }), "story")?.done).toBe(true);
   });
 });
 

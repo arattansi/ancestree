@@ -505,6 +505,11 @@ privacy page's column (`PageColumn`) and type: `text-2xl` heading,
 - A list like that, laid over the canvas, starts collapsed to its header
   on a phone (below `sm`), so it never covers the top of the tree, and open
   anywhere wider.
+- Someone who joins a tree gets the same list, shorter (Step 170): their
+  photo and birthplace, then what the getting started emails ask, in their
+  order, ticked by the same rules, so the app and the emails never ask for
+  different things. An item that opens something on the canvas (the +)
+  rather than a page is still drawn as a link, in sentence case.
 - A first run that asks someone to fill in an entry a relative made (the
   welcome, Step 50) is one page, not steps. It shows the entry as it stands
   at the top, as a line under their name with **Change** to open every

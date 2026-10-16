@@ -14,11 +14,21 @@
  * Only the founder's own entry is required: the canvas waits for it, and the
  * family step's other places wait on it too. The rest can be skipped, and
  * the canvas's "Getting started" list comes back to whatever was left.
+ * A member who joined someone else's tree gets a list of their own
+ * (`joinerItems`, Step 170).
  */
 
+import { openConsoleHref } from "@/lib/admin-queue";
 import type { ConnectionEdge, PersonRef } from "@/lib/connections";
+import { stepTaken, type StepSignals } from "@/lib/onboarding";
 import { countOf } from "@/lib/plural";
-import { onboardingStepHref, ownDetailsHref } from "@/lib/tree-links";
+import {
+  addRelativeHref,
+  inviteRelativeHref,
+  onboardingStepHref,
+  ownDetailsHref,
+  peopleYouAddedHref,
+} from "@/lib/tree-links";
 import { treeInSentence } from "@/lib/tree-names";
 
 export const FIRST_TREE_STEPS = ["family", "invite", "name"] as const;
@@ -121,11 +131,23 @@ export function inviteFamilyHref(): string {
 }
 
 export type GettingStartedItem = {
-  key: "details" | "parents" | "more-family" | "invite" | "name";
+  /** A founder's (`gettingStartedItems`) or a joiner's (`joinerItems`). */
+  key:
+    | "details"
+    | "parents"
+    | "more-family"
+    | "family"
+    | "invite"
+    | "name"
+    | "story";
   label: string;
   done: boolean;
-  /** Where it's done: the onboarding step, or their own entry's blanks. */
-  href: string;
+  /**
+   * Where it's done: the onboarding step, their own entry's blanks, the add
+   * flow or an invite form; `null` for the canvas's + (Step 170), which the
+   * item opens.
+   */
+  href: string | null;
 };
 
 /**
@@ -166,6 +188,78 @@ export function gettingStartedItems(state: FirstTreeState): GettingStartedItem[]
       label: "Name your tree",
       done: !state.defaultName,
       href: onboardingStepHref("name"),
+    },
+  ];
+}
+
+/**
+ * What a joiner's list (Step 170) is judged by: their own entry, their
+ * partners and children, and what they've done as the getting started
+ * emails read it (`StepSignals`), on the tree they're looking at.
+ */
+export type JoinerState = {
+  treeId: string;
+  /** They run the tree: they invite with its family link (Step 52). */
+  runsTree: boolean;
+  selfId: string;
+  selfPhoto: boolean;
+  selfBirthplace: boolean;
+  partners: number;
+  children: number;
+  signals: StepSignals;
+};
+
+/**
+ * The canvas's "Getting started" list for a member who joined someone
+ * else's tree (Step 170), as short as the founder's. In the getting
+ * started emails' order (`nextStep`: claim, invite, family, story), after
+ * their own photo and birthplace, which the welcome asked for as they
+ * joined, so the list and the emails ask for the same thing next:
+ *
+ *   details  their own blanks (`/welcome?details=1`)
+ *   invite   the living people they added, as claim invites, while any
+ *            wait for one (the emails' claim step); else a relative by
+ *            email, or a Root's family link — the emails' invite button
+ *   family   the add flow from their own entry: a partner while they have
+ *            none, else a child
+ *   story    the canvas's +, for a story or photos
+ *
+ * Ticked by the emails' own rules (`stepTaken`), and "family" also by a
+ * partner or a child already on the tree, whoever added them.
+ */
+export function joinerItems(state: JoinerState): GettingStartedItem[] {
+  const { signals } = state;
+  return [
+    {
+      key: "details",
+      label: "Add your photo and birthplace",
+      done: state.selfPhoto && state.selfBirthplace,
+      href: ownDetailsHref(),
+    },
+    {
+      key: "invite",
+      label: "Invite a relative",
+      done: stepTaken("invite", signals),
+      href: !stepTaken("claim", signals)
+        ? peopleYouAddedHref()
+        : state.runsTree
+          ? openConsoleHref("family-link", state.treeId)
+          : inviteRelativeHref(state.treeId),
+    },
+    {
+      key: "family",
+      label: "Add your partner or children",
+      done:
+        state.partners + state.children > 0 || stepTaken("family", signals),
+      href: addRelativeHref(state.selfId, {
+        as: state.partners > 0 ? "child" : "spouse",
+      }),
+    },
+    {
+      key: "story",
+      label: "Share a story or photo",
+      done: stepTaken("story", signals),
+      href: null,
     },
   ];
 }

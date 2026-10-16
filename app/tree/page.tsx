@@ -14,7 +14,7 @@ import {
 import { listClaimInvites } from "@/lib/claim-invites.server";
 import { listClaimCandidates } from "@/lib/claims";
 import { auditTreeConnections } from "@/lib/connection-suggestions.server";
-import { getGettingStarted, isFounder } from "@/lib/first-tree.server";
+import { getCanvasGettingStarted } from "@/lib/first-tree.server";
 import { getTreePets } from "@/lib/pets";
 import { sendPlacementNudges } from "@/lib/placement-alerts.server";
 import {
@@ -139,10 +139,9 @@ export default async function TreePage({ searchParams }: PageProps<"/tree">) {
     // own that were declined (Step 72).
     listPendingSuggestions(profile.auth_user_id),
     listOwnDeclinedSuggestions(profile.auth_user_id),
-    // The founder's "Getting started" list (Step 29), off the same graph.
-    isFounder(access.membership)
-      ? getGettingStarted(access.membership, graph)
-      : null,
+    // The "Getting started" list, off the same graph: the founder's (Step
+    // 29), or a joiner's (Step 170).
+    getCanvasGettingStarted(access.membership, graph),
     // Who they are on the other trees of theirs that are home to people
     // here, whose rules those entries' details follow (Step 93): read once
     // the people are in, and only for such trees.

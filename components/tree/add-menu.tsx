@@ -44,6 +44,16 @@ export type AddRelative =
 
 type Kind = "photos" | "story";
 
+// Getting Started's "Share a story or photo" (Step 170) opens the canvas's
+// own + rather than going anywhere: the + that `answersRequests` listens.
+const openRequests = new Set<() => void>();
+
+/** Opens the canvas's + (Step 170); `false` when there's none to open. */
+export function openAddMenu(): boolean {
+  for (const open of openRequests) open();
+  return openRequests.size > 0;
+}
+
 /**
  * The canvas's + (Step 145), where **Add a relative** was: a relative,
  * photos or a story. A relative goes to the add flow, connected to
@@ -58,6 +68,7 @@ export function AddMenu({
   relative,
   media,
   labelFrom = "always",
+  answersRequests = false,
   className,
 }: {
   /** Whose relative it adds, or nobody's. */
@@ -73,8 +84,19 @@ export function AddMenu({
    * named by `aria-label` and `title`). `lg` for beside the details sheet.
    */
   labelFrom?: "always" | "sm" | "lg";
+  /** The canvas's own +, which `openAddMenu` opens (Step 170). */
+  answersRequests?: boolean;
   className?: string;
 }) {
+  const [menuOpen, setMenuOpen] = React.useState(false);
+  React.useEffect(() => {
+    if (!answersRequests) return;
+    const open = () => setMenuOpen(true);
+    openRequests.add(open);
+    return () => {
+      openRequests.delete(open);
+    };
+  }, [answersRequests]);
   const [kind, setKind] = React.useState<Kind | null>(null);
   // Mounted from the first press on, so they close with their animation.
   const [mounted, setMounted] = React.useState<Record<Kind, boolean>>({
@@ -127,7 +149,7 @@ export function AddMenu({
 
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenuTrigger
           disabled={pending}
           aria-busy={pending || undefined}

@@ -3,6 +3,7 @@ import "server-only";
 import {
   closeFamilyOf,
   gettingStartedItems,
+  joinerItems,
   type CloseFamily,
   type CloseKind,
   type FamilyCard,
@@ -24,6 +25,8 @@ import {
   type FamilyLinkJoin,
 } from "@/lib/family-link.server";
 import { listPeopleYouAdded, type Invitable } from "@/lib/invitable.server";
+import type { MyFamilyGraph } from "@/lib/my-family.server";
+import { readStepSignals } from "@/lib/onboarding-signals.server";
 import { listCarryChoices } from "@/lib/placements.server";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -148,6 +151,8 @@ type OwnEntryFacts = {
   place_id_birth: number | null;
   city_of_birth: string | null;
   country_of_birth: string | null;
+  /** A child's placeholder (Step 98.3): their details wait on a parent. */
+  placeholder_number?: number | null;
 };
 
 function stateOf(
@@ -407,10 +412,70 @@ export async function getGettingStarted(
 }
 
 /**
+ * The canvas's "Getting started" list for a member who joined someone
+ * else's tree (Step 170), on the tree they're looking at, from the people
+ * and lines the canvas reads; `null` for its founder (`getGettingStarted`),
+ * for anyone not on it, or once it's all done. What they've done is read
+ * as the getting started emails read it (`readStepSignals`), beside the
+ * graph.
+ */
+export async function getJoinerGettingStarted(
+  m: TreeMembership,
+  graph: PromiseLike<{
+    people: readonly OwnEntryFacts[];
+    relationships: readonly FamilyLine[];
+  }>,
+): Promise<GettingStartedItem[] | null> {
+  const selfId = m.profile.self_person_id;
+  if (isFounder(m) || !selfId) return null;
+  const [{ people, relationships }, signals] = await Promise.all([
+    graph,
+    listMyTrees().then((trees) =>
+      readStepSignals(
+        m.profile.auth_user_id,
+        selfId,
+        trees.map((t) => t.id),
+      ),
+    ),
+  ]);
+  const self = people.find((p) => p.id === selfId);
+  // A child on their own placeholder has nothing to fill in yet.
+  if (!self || self.placeholder_number != null || !signals) return null;
+  const close = closeFamilyOf(selfId, relationships);
+  const { selfPhoto, selfBirthplace } = stateOf(m, self, close, false);
+  const items = joinerItems({
+    treeId: m.tree.id,
+    runsTree: m.type.runsTree,
+    selfId,
+    selfPhoto,
+    selfBirthplace,
+    partners: close.partners.length,
+    children: close.children.length,
+    signals,
+  });
+  return items.every((i) => i.done) ? null : items;
+}
+
+/**
+ * The canvas's "Getting started" list on a tree, whoever's looking: the
+ * founder's first run (Step 29), or a joiner's next steps (Step 170).
+ */
+export function getCanvasGettingStarted(
+  m: TreeMembership,
+  graph: PromiseLike<{
+    people: readonly OwnEntryFacts[];
+    relationships: readonly FamilyLine[];
+  }>,
+): Promise<GettingStartedItem[] | null> {
+  return isFounder(m)
+    ? getGettingStarted(m, graph)
+    : getJoinerGettingStarted(m, graph);
+}
+
+/**
  * The tree the pages fall back to, when the member founded it (Step 169):
- * My Family Tree shows its "Getting started" list, whose links go to that
- * tree's first run, and the card at the end of the run. `null` for anyone
- * who founded no tree, or is looking at another.
+ * My Family Tree shows the card at the end of its first run. `null` for
+ * anyone who founded no tree, or is looking at another.
  */
 export async function foundedCurrentTree(
   trees: readonly MyTree[],
@@ -423,30 +488,48 @@ export async function foundedCurrentTree(
 }
 
 /**
- * The founder's "Getting started" list on My Family Tree (Step 169), off the
- * tree's own rows: the view draws other people, and the canvas's whole
- * graph, photos signed, would be read for a handful of ticks.
+ * The "Getting started" list on My Family Tree, for the tree the pages fall
+ * back to: its founder's (Step 169), off the tree's own rows, or a
+ * joiner's (Step 170), off the view's own graph (`loadMyFamily`), with
+ * their entry counted only if that tree shows it. Either way no photo is
+ * signed for it: the view draws other people, and the canvas's whole graph
+ * would be read for a handful of ticks.
  */
 export async function getFamilyGettingStarted(
-  m: TreeMembership,
-): Promise<GettingStartedItem[] | null> {
-  const rows = Promise.all([
-    loadTreePeople(m.tree.id),
-    loadTreeEdges(m.tree.id),
-  ]).then(([people, { edges }]) => ({
-    people,
-    relationships: edges.flatMap((e): FamilyLine[] =>
-      e.from_person && e.to_person && e.type
-        ? [
-            {
-              from_person: e.from_person,
-              to_person: e.to_person,
-              type: e.type,
-              is_divorced: e.is_divorced,
-            },
-          ]
-        : [],
-    ),
-  }));
-  return getGettingStarted(m, rows);
+  family: PromiseLike<MyFamilyGraph | null>,
+): Promise<{ treeId: string; items: GettingStartedItem[] } | null> {
+  const access = await currentAccess();
+  if (access?.kind !== "member") return null;
+  const m = access.membership;
+  const items = isFounder(m)
+    ? await getGettingStarted(m, treeRows(m.tree.id))
+    : await getJoinerGettingStarted(
+        m,
+        Promise.resolve(family).then((f) => ({
+          people: (f?.people ?? []).filter((p) => p.tree_ids.includes(m.tree.id)),
+          relationships: f?.relationships ?? [],
+        })),
+      );
+  return items ? { treeId: m.tree.id, items } : null;
+}
+
+/** A tree's own people and lines, as the steps read them. */
+function treeRows(treeId: string) {
+  return Promise.all([loadTreePeople(treeId), loadTreeEdges(treeId)]).then(
+    ([people, { edges }]) => ({
+      people,
+      relationships: edges.flatMap((e): FamilyLine[] =>
+        e.from_person && e.to_person && e.type
+          ? [
+              {
+                from_person: e.from_person,
+                to_person: e.to_person,
+                type: e.type,
+                is_divorced: e.is_divorced,
+              },
+            ]
+          : [],
+      ),
+    }),
+  );
 }

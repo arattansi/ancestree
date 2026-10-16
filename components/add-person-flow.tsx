@@ -121,6 +121,7 @@ export function AddPersonFlow({
   members,
   initialName,
   initialAnchorId = null,
+  initialKind = null,
   anchorable = null,
   canInvite = false,
   doneHref,
@@ -143,6 +144,9 @@ export function AddPersonFlow({
   /** Who they're connecting to, already picked — the canvas's Add button
    *  passes whoever was selected (Step 19.2). Must be one of `members`. */
   initialAnchorId?: string | null;
+  /** How they're related to that person, already picked (Step 170): "is
+   *  spouse / partner of" for Getting Started's "Add your partner". */
+  initialKind?: RelationshipKind | null;
   /**
    * Whom a new entry may be connected from, when not everyone: a Leaf's own
    * line (Step 34). The database has the last word, since how they connect
@@ -236,7 +240,7 @@ export function AddPersonFlow({
         },
       ],
       anchorId: initialAnchorId ?? "",
-      links: [{ kind: "child" }],
+      links: [{ kind: initialKind ?? "child" }],
       extraLinks: [],
       inviteEmail: "",
     },

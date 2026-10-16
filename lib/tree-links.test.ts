@@ -23,6 +23,7 @@ import {
   treeOpensMyFamily,
   treeStoryHref,
   validRelatedTo,
+  validRelation,
   welcomeHref,
 } from "@/lib/tree-links";
 
@@ -272,6 +273,23 @@ describe("addRelativeHref", () => {
   it("is the plain flow with nobody selected", () => {
     expect(addRelativeHref(null)).toBe("/people/new");
     expect(addRelativeHref()).toBe("/people/new");
+  });
+
+  it("carries how they're related, with someone to relate them to (Step 170)", () => {
+    expect(addRelativeHref("p1", { as: "spouse" })).toBe(
+      "/people/new?relatedTo=p1&as=spouse",
+    );
+    expect(addRelativeHref(null, { as: "spouse" })).toBe("/people/new");
+  });
+});
+
+describe("validRelation", () => {
+  it("keeps one of the kinds, and nothing else", () => {
+    expect(validRelation("spouse")).toBe("spouse");
+    expect(validRelation("child")).toBe("child");
+    expect(validRelation("cousin")).toBeNull();
+    expect(validRelation(undefined)).toBeNull();
+    expect(validRelation(["spouse", "child"])).toBeNull();
   });
 });
 

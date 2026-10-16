@@ -5,6 +5,8 @@
  * parameters each end reads are named here too.
  */
 
+import { RELATIONSHIP_KINDS, type RelationshipKind } from "@/lib/connections";
+
 const enc = encodeURIComponent;
 
 /** The canvas. */
@@ -165,10 +167,30 @@ export function adminHref(section?: string): string {
   return section ? `${base}#${enc(section)}` : base;
 }
 
-/** The add flow, with `relatedTo` preselected as the person to connect to. */
-export function addRelativeHref(relatedTo?: string | null): string {
+/**
+ * The add flow, with `relatedTo` preselected as the person to connect to,
+ * and with `as`, how the new person is related to them (Step 170: "Add
+ * your partner or children"). The page reads both with `validRelatedTo`
+ * and `validRelation`.
+ */
+export function addRelativeHref(
+  relatedTo?: string | null,
+  { as }: { as?: RelationshipKind } = {},
+): string {
   const base = "/people/new";
-  return relatedTo ? `${base}?relatedTo=${enc(relatedTo)}` : base;
+  if (!relatedTo) return base;
+  const href = `${base}?relatedTo=${enc(relatedTo)}`;
+  return as ? `${href}&as=${enc(as)}` : href;
+}
+
+/** `as` as the add flow should use it: one of the kinds, or nothing. */
+export function validRelation(
+  raw: string | string[] | undefined,
+): RelationshipKind | null {
+  return typeof raw === "string" &&
+    (RELATIONSHIP_KINDS as readonly string[]).includes(raw)
+    ? (raw as RelationshipKind)
+    : null;
 }
 
 /** Edit one entry, from the tree being viewed (or from My Family Tree). */
@@ -218,9 +240,9 @@ export function welcomeHref({
 }
 
 /**
- * The founder's own entry, its blanks to fill (Step 161): the welcome's
- * form, opened from the canvas's "Getting started" list, which goes back to
- * the canvas once saved.
+ * The member's own entry, its blanks to fill: the welcome's form, opened
+ * from a "Getting started" list, a founder's (Step 161) or a joiner's
+ * (Step 170), which goes back to My Family Tree once saved.
  */
 export function ownDetailsHref(): string {
   return "/welcome?details=1";

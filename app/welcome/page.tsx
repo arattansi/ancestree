@@ -11,7 +11,7 @@ import { parseCrop } from "@/lib/image-crop";
 import { loadOwnEntry, ownPlaceholderId } from "@/lib/own-entry.server";
 import { personInitials } from "@/lib/person-name";
 import { requireTreeSelfPersonWith } from "@/lib/tree-context";
-import { joinedFamilyHref, treeHref } from "@/lib/tree-links";
+import { joinedFamilyHref, myFamilyHref, treeHref } from "@/lib/tree-links";
 import {
   addedYou,
   enteredLine,
@@ -36,9 +36,10 @@ export async function generateMetadata({
  * claiming an entry on onboarding. Their entry is theirs now, but a relative
  * made it: they're asked for a photo and what's missing, then land on My
  * Family Tree, which offers the tree they joined (Step 131). A member who brought their own entry (`?returning=1`) is
- * greeted to the tree instead, with nothing to fill in. A founder comes
- * here from the canvas's "Getting started" list (`?details=1`, Step 161)
- * for what the short form on their first run left empty.
+ * greeted to the tree instead, with nothing to fill in. Any member comes
+ * here from the "Getting started" list (`?details=1`): a founder for what
+ * the short form on their first run left empty (Step 161), a joiner for
+ * what the welcome did (Step 170). Either way back to My Family Tree.
  */
 export default async function WelcomePage({
   searchParams,
@@ -90,7 +91,8 @@ export default async function WelcomePage({
   if (!entry) redirect(treeHref());
   const { person } = entry;
 
-  // Their own blanks, not a welcome: the same form, back to the canvas.
+  // Their own blanks, not a welcome: the same form, back to My Family Tree,
+  // where the list shows as on the canvas (Steps 169, 170).
   if (details) {
     const asks = welcomeAsks(person);
     return (
@@ -105,8 +107,8 @@ export default async function WelcomePage({
           <CardContent>
             <WelcomeDetailsForm
               homeTreeId={entry.homeTreeId}
-              doneHref={treeHref()}
-              toTree
+              doneHref={myFamilyHref()}
+              ownDetails
               entry={person}
               photoUrl={entry.photoUrl}
               placeLabels={entry.placeLabels}

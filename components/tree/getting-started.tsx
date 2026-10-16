@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { Check, ChevronDown, Circle } from "lucide-react";
 
+import { openAddMenu } from "@/components/tree/add-menu";
 import type { GettingStartedItem } from "@/lib/first-tree";
 import { cn } from "@/lib/utils";
 
@@ -14,6 +15,9 @@ function subscribe(onChange: () => void) {
   window.addEventListener("storage", onChange);
   return () => window.removeEventListener("storage", onChange);
 }
+
+// An item still to do: a link to where it's done, or a button.
+const ITEM = "text-foreground underline-offset-4 hover:underline";
 
 // Tailwind's `sm`: below it, a phone, where the open list would cover the
 // top of the tree.
@@ -26,9 +30,11 @@ function subscribeToWidth(onChange: () => void) {
 }
 
 /**
- * "Getting started" on the canvas, for the Root who founded the tree (Step
- * 29): what's left of their first run, each item a link back to its step,
- * or to their own entry's blanks (Step 161).
+ * "Getting started" on the canvas: for the Root who founded the tree (Step
+ * 29), what's left of their first run, each item a link back to its step,
+ * or to their own entry's blanks (Step 161); for a member who joined it
+ * (Step 170), their next steps, as short (`joinerItems`), one of them
+ * opening the canvas's + rather than a page.
  * It goes once everything's done, or when they close it — remembered in this
  * browser, for this tree, like the canvas tip. The server snapshot says
  * "dismissed", so it only appears after hydration, for those who haven't.
@@ -133,12 +139,20 @@ export function GettingStarted({
               ) : (
                 <>
                   <Circle aria-hidden className="size-4 shrink-0 text-muted-foreground/50" />
-                  <Link
-                    href={item.href}
-                    className="text-foreground underline-offset-4 hover:underline"
-                  >
-                    {item.label}
-                  </Link>
+                  {item.href ? (
+                    <Link href={item.href} className={ITEM}>
+                      {item.label}
+                    </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => openAddMenu()}
+                      aria-haspopup="menu"
+                      className={cn(ITEM, "text-left")}
+                    >
+                      {item.label}
+                    </button>
+                  )}
                 </>
               )}
             </li>

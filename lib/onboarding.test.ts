@@ -6,6 +6,7 @@ import {
   daysBetween,
   nextStep,
   pickOnboardingEmail,
+  stepTaken,
   type OnboardingKind,
   type OnboardingSignals,
 } from "@/lib/onboarding";
@@ -58,6 +59,20 @@ describe("days and bands", () => {
       "lapsed",
       "lapsed",
     ]);
+  });
+});
+
+describe("stepTaken", () => {
+  it("judges each step by what they've done, whatever's been sent", () => {
+    const s = member({ sends: [sent("claim", "2026-10-02"), sent("invite", "2026-10-09")] });
+    expect(stepTaken("claim", s)).toBe(false);
+    expect(stepTaken("claim", { ...s, claimable: 0 })).toBe(true);
+    expect(stepTaken("invite", s)).toBe(false);
+    expect(stepTaken("invite", { ...s, invited: true })).toBe(true);
+    expect(stepTaken("family", { ...s, people_added: 2 })).toBe(false);
+    expect(stepTaken("family", { ...s, people_added: 3 })).toBe(true);
+    expect(stepTaken("story", s)).toBe(false);
+    expect(stepTaken("story", { ...s, shared: true })).toBe(true);
   });
 });
 
