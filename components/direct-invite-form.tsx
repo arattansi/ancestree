@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAction } from "@/components/use-action";
-import { INVITED_AS } from "@/lib/account-types";
 import {
   matchQuestion,
   type InviteMatch,
@@ -34,10 +33,11 @@ function emptyRow(n: number): Row {
 const filledIn = (r: Row) => r.firstName.trim() || r.lastName.trim() || r.email.trim();
 
 /**
- * Email invites by name and address. Each joins as a Leaf. A name that is
- * exactly someone's on the tree is asked about first (Step 162): "Is this
- * Leila Haddad, b. 1961?" under its row, and once every one is answered
- * the invites go, a yes as an invite to claim that entry.
+ * Email invites by name and address. Each joins as a Leaf, which the toast
+ * no longer names (Step 171). A name that is exactly someone's on the tree
+ * is asked about first (Step 162): "Is this Leila Haddad, b. 1961?" under
+ * its row, and once every one is answered the invites go, a yes as an
+ * invite to claim that entry.
  */
 export function DirectInviteForm({
   treeId,
@@ -132,10 +132,9 @@ export function DirectInviteForm({
         success: (res) => {
           const succeeded = (res.results ?? []).filter((r) => r.minted && r.emailed);
           if (succeeded.length === 0) return null;
-          const outcome = `join as a ${INVITED_AS.name}`;
           return succeeded.length === 1
-            ? `Invite emailed to ${succeeded[0].email} — they'll ${outcome}.`
-            : `${succeeded.length} invites emailed — they'll ${outcome}.`;
+            ? `Invite emailed to ${succeeded[0].email}.`
+            : `${succeeded.length} invites emailed.`;
         },
         onSuccess: (res) => {
           // Nothing went: some names are someone on the tree. Ask, by row.

@@ -22,10 +22,10 @@ describe("inviteRelayedEmail (Step 30.5)", () => {
     expect(html).toContain("Zahra Suleman is looking for their family</p>");
   });
 
-  it("names the address the invite is filled in for, and what they'd join as", () => {
+  it("names the address the invite is filled in for, and what they could do", () => {
     const { html } = inviteRelayedEmail(base);
     expect(html).toContain("invite to zahra@example.com for you");
-    expect(html).toContain("join as a Leaf");
+    expect(html).toContain("can add their own side of the family");
   });
 
   it("links to the ask on their account page, its & escaped for HTML", () => {

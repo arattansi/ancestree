@@ -72,11 +72,10 @@ export async function FirstTreeOnboarding({
   const familyHref = onboardingStepHref("family");
 
   return (
-    // The invite step is wider, for "Who Can Do What" beside its form; the
-    // family step, for its little tree with the founder's form in the middle.
-    <PageColumn
-      width={step === "invite" ? "5xl" : step === "family" ? "3xl" : undefined}
-    >
+    // The invite step is wider, for its three-column invite form (who can
+    // do what opens on demand since Step 171); the family step, for its
+    // little tree with the founder's form in the middle.
+    <PageColumn width={step === "invite" || step === "family" ? "3xl" : undefined}>
       <FirstTreeProgress current={step} state={state} />
 
       {step === "family" ? (

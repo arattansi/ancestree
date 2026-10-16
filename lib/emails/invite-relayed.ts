@@ -1,4 +1,3 @@
-import { INVITED_AS } from "@/lib/account-types";
 import { escapeHtml } from "@/lib/email";
 import { oneLine, renderEmail } from "@/lib/emails/shared";
 import { RELATIVES_CAN_ASK_LABEL, RELAY_LAPSE_DAYS } from "@/lib/invite-relays";
@@ -32,7 +31,7 @@ export function inviteRelayedEmail(input: {
                   ancestree, so they gave us your address as a relative
                   who&rsquo;s here. If you know them, we&rsquo;ve filled in an
                   invite to ${emailHtml} for you: one tap sends it, and they
-                  join as a ${INVITED_AS.name}. If you don&rsquo;t, ignore this
+                  can add their own side of the family. If you don&rsquo;t, ignore this
                   email: their request lapses after ${RELAY_LAPSE_DAYS} days.`,
     cta: { label: "invite them", url: input.url },
     footnoteHtml: `They typed your address on ancestree&rsquo;s request access

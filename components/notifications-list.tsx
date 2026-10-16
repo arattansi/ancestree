@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 
 import { markNotificationsRead } from "@/app/actions/claims";
+import { setAccountType } from "@/app/actions/members";
 import { revertEntryEdit } from "@/app/actions/people";
 import { respondToPlacement } from "@/app/actions/trees";
 import { PendingButton } from "@/components/pending-button";
@@ -16,7 +17,9 @@ import { Button } from "@/components/ui/button";
 import { useAction } from "@/components/use-action";
 import { firstFocusable, useFocusReturn } from "@/components/use-focus-return";
 import type { NotificationItem } from "@/lib/claims";
+import { BRANCH } from "@/lib/account-types";
 import { NOTIFICATIONS_READ_EVENT } from "@/lib/header-counts";
+import { BRANCH_IN_A_LINE } from "@/lib/join-notices";
 import { answeredLine } from "@/lib/suggestions";
 import { timeAgo } from "@/lib/time-ago";
 import {
@@ -107,6 +110,9 @@ function NotificationRow({
   const suggestion = n.suggestion;
   const placementId = n.placementId;
   const revisionId = n.revertibleRevisionId;
+  const offer = n.branchOffer;
+  // Made a Branch from here: said in place of the offer (Step 171).
+  const [madeBranch, setMadeBranch] = React.useState(false);
 
   // An answered item loses the buttons that answered it: focus moves on to
   // what's left of it rather than drop to the page.
@@ -116,6 +122,15 @@ function NotificationRow({
     action.run("undo", () => revertEntryEdit(id), {
       success: "Change undone. The Branch who made it has been told.",
       onSuccess: answered,
+    });
+  }
+
+  function onMakeBranch(treeId: string, userId: string) {
+    action.run("branch", () => setAccountType(treeId, userId, BRANCH.key), {
+      onSuccess: () => {
+        setMadeBranch(true);
+        answered();
+      },
     });
   }
 
@@ -146,6 +161,14 @@ function NotificationRow({
           {timeAgo(n.createdAt)}
         </span>
       </div>
+
+      {offer ? (
+        // Someone joined (Step 171): what a Branch is, in a line, or why
+        // this Root can't make one now — or, once made, that they are.
+        <p className="text-sm text-muted-foreground">
+          {madeBranch ? offer.done : (offer.unavailable ?? BRANCH_IN_A_LINE)}
+        </p>
+      ) : null}
 
       {suggestion ? (
         // What a relative suggests changing, to answer here (Step 67);
@@ -179,6 +202,18 @@ function NotificationRow({
       ) : null}
 
       <div className="flex flex-wrap items-center gap-2">
+        {offer && n.treeId && !madeBranch ? (
+          <PendingButton
+            size="sm"
+            pending={action.pendingKey === "branch"}
+            disabled={busy || offer.unavailable !== null}
+            pendingLabel="saving…"
+            onClick={() => onMakeBranch(n.treeId as string, offer.userId)}
+          >
+            {offer.label}
+          </PendingButton>
+        ) : null}
+
         {placementId ? (
           <>
             <PendingButton

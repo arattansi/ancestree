@@ -106,7 +106,7 @@ export default async function InvitePage({
   const founds = preview?.founds_tree === true;
   // A member already on the tree it joins (Step 52): a family link goes
   // round a group chat, most of whom may be. There's nothing for them to
-  // accept, so the page says so instead of "You'll join as a Leaf". A claim
+  // accept, so the page says so instead of what joining lets them do. A claim
   // invite still has an entry to hand over, and a founder invite a tree.
   const onTreeId =
     profile && preview?.valid && !founds && !preview.claim_person_name && !forAnotherAddress
@@ -190,18 +190,27 @@ export default async function InvitePage({
                   </p>
                 </div>
               ) : (
-                // Say what a Leaf is before they sign up, not after. Every
-                // invite into a tree makes one (Step 34).
+                // What joining lets them do, in one sentence, and the rest
+                // on demand (Step 171): every invite into a tree makes a
+                // Leaf (Step 34), but the name can wait until it matters.
                 <div className="mb-5 flex items-start gap-3 rounded-lg border border-account-leaf/30 bg-account-leaf/10 p-3 text-sm">
                   <AccountTypeGlyph type={LEAF} tinted className="mt-0.5" />
-                  <p className="text-foreground">
-                    You&rsquo;ll join as a{" "}
-                    <span className="font-medium">Leaf</span>: you can see the
-                    whole tree, add relatives on your own line — your parents
-                    and grandparents, everyone descended from them, and the
-                    people they married — keep your own entry up to date, add
-                    stories, and report anything that looks wrong.
-                  </p>
+                  <div className="flex min-w-0 flex-col gap-1.5 text-foreground">
+                    <p>You can add your own side of the family.</p>
+                    <details>
+                      <summary className="w-fit cursor-pointer text-muted-foreground hover:text-foreground">
+                        What can I do?
+                      </summary>
+                      <p className="mt-1.5 text-muted-foreground">
+                        See the whole tree, add relatives on your own line —
+                        your parents and grandparents, everyone descended from
+                        them, and the people they married — keep your own entry
+                        up to date, add stories and photos, and report anything
+                        that looks wrong. You join as a Leaf; a Root can make
+                        you a Branch, to look after your side.
+                      </p>
+                    </details>
+                  </div>
                 </div>
               )}
               {profile ? (

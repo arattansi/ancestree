@@ -18,7 +18,6 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toastError, useAction } from "@/components/use-action";
 import { refocusAfterRemoval } from "@/components/use-focus-return";
-import { INVITED_AS } from "@/lib/account-types";
 import { RELAY_ANSWERED, relayLapsesAt } from "@/lib/invite-relays";
 import type { SelfCandidate } from "@/lib/self-match";
 import { shortDate } from "@/lib/short-date";
@@ -149,9 +148,7 @@ function RelayInviteForm({
           if (!sent) return;
           answered();
           if (sent.emailed) {
-            toast.success(
-              `Invite emailed to ${sent.email} — they'll join as a ${INVITED_AS.name}.`,
-            );
+            toast.success(`Invite emailed to ${sent.email}.`);
           } else {
             toast.warning(
               `Link created for ${sent.email}, but the email didn't send${sent.error ? ` (${sent.error})` : ""}.`,

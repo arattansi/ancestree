@@ -361,13 +361,14 @@ function AskRelative({
  * Start a tree of their own (Step 119; the waitlist until then): the home
  * page's campaign link, where they sign up, or start it at once if signed
  * in. A new tree starts from scratch, so it says so before the button (Step
- * 30.5); the link's form takes the privacy agreement.
+ * 30.5), and whose it is in plain words (Step 171); the link's form takes
+ * the privacy agreement.
  */
 function StartATree() {
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-border p-3">
       <p className="font-medium text-foreground">Start a new tree</p>
-      <p className="text-muted-foreground">From scratch, with you as its Root.</p>
+      <p className="text-muted-foreground">From scratch. You decide who joins.</p>
       <Button
         nativeButton={false}
         render={<Link href={campaignHref(HOME_CAMPAIGN_CODE)} />}

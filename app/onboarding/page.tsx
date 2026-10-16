@@ -109,7 +109,7 @@ export default async function OnboardingPage({
           {members.length === 0
             ? isRoot
               ? `${tree.name} is empty so far. Start it with your own entry.`
-              : `${tree.name} is empty so far. Once a Root has added the first person, you can add yourself.`
+              : `${tree.name} is empty so far. You can add yourself once whoever runs it has added the first person.`
             : `Let’s find you on ${tree.name} — or add you to it.`}
         </p>
       </div>
@@ -117,9 +117,9 @@ export default async function OnboardingPage({
       {hasOwnEntryElsewhere ? (
         <Card>
           <CardContent className="text-sm text-muted-foreground">
-            You already have your own entry on another tree. A Root of{" "}
-            {tree.name} can bring it onto this one from their Root console, so
-            there is only ever one of you.
+            You already have your own entry on another tree. Whoever runs{" "}
+            {tree.name} can bring it onto this one, so there is only ever one
+            of you.
           </CardContent>
         </Card>
       ) : (

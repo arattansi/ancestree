@@ -2,6 +2,13 @@ import "server-only";
 
 import { cache } from "react";
 
+import {
+  branchOffer,
+  joinerFirstName,
+  JOIN_NOTICE_TYPES,
+  treeStanding,
+  type BranchOffer,
+} from "@/lib/join-notices";
 import { memberNames } from "@/lib/member-names.server";
 import { createClient } from "@/lib/supabase/server";
 import { personDisplayName, personLifespan } from "@/lib/person-name";
@@ -70,6 +77,11 @@ export type NotificationItem = {
    * 69). `null` once withdrawn, or when the recipient may no longer see it.
    */
   suggestion: NotificationSuggestion | null;
+  /**
+   * On a Root's notice that someone joined (Step 171): making them a Branch,
+   * while they're still a Leaf there. `null` on anything else.
+   */
+  branchOffer: BranchOffer | null;
 };
 
 export type NotificationSuggestion = {
@@ -168,6 +180,74 @@ export async function countUnreadNotifications(
 }
 
 /**
+ * The Branch each join notice offers the Root reading it (Step 171), by
+ * notice: the joiner's account type on that tree now, and the Root's own
+ * standing there (`member_directory`), then the joiner's entry for how the
+ * button names them. RLS shows a tree's members to its members.
+ */
+async function loadBranchOffers(
+  rows: readonly {
+    id: string;
+    type: string;
+    tree_id: string | null;
+    actor_user_id: string | null;
+  }[],
+  userId: string,
+): Promise<Map<string, BranchOffer>> {
+  const offers = new Map<string, BranchOffer>();
+  const joins = rows.filter(
+    (n) => JOIN_NOTICE_TYPES.has(n.type) && n.tree_id && n.actor_user_id,
+  );
+  if (joins.length === 0) return offers;
+  const supabase = await createClient();
+  const { data: members } = await supabase
+    .from("member_directory")
+    .select("tree_id, auth_user_id, display_name, role, self_person_id, branch_granted_by")
+    .in("tree_id", [...new Set(joins.map((n) => n.tree_id as string))]);
+  const directory = members ?? [];
+  const standing = treeStanding(directory, userId);
+  const memberOf = new Map(
+    directory.map((m) => [`${m.tree_id}:${m.auth_user_id}`, m]),
+  );
+  const selfIds = [
+    ...new Set(
+      joins.flatMap((n) => {
+        const id = memberOf.get(`${n.tree_id}:${n.actor_user_id}`)?.self_person_id;
+        return id ? [id] : [];
+      }),
+    ),
+  ];
+  const { data: entries } =
+    selfIds.length > 0
+      ? await supabase
+          .from("people")
+          .select("id, first_name, preferred_name, sex")
+          .in("id", selfIds)
+      : { data: [] };
+  const entryById = new Map((entries ?? []).map((e) => [e.id, e]));
+
+  for (const n of joins) {
+    const joiner = memberOf.get(`${n.tree_id}:${n.actor_user_id}`);
+    const tree = standing.get(n.tree_id as string);
+    const entry = joiner?.self_person_id
+      ? (entryById.get(joiner.self_person_id) ?? null)
+      : null;
+    const offer = branchOffer({
+      type: n.type,
+      joinerId: n.actor_user_id,
+      joinerRole: joiner?.role ?? null,
+      viewerIsRoot: tree?.viewerIsRoot ?? false,
+      roots: tree?.roots ?? 0,
+      branchesMade: tree?.branchesMade ?? 0,
+      firstName: joinerFirstName(entry, joiner?.display_name ?? null),
+      sex: entry?.sex ?? null,
+    });
+    if (offer) offers.set(n.id, offer);
+  }
+  return offers;
+}
+
+/**
  * Recent in-app notifications for the signed-in member, newest first. With
  * `treeId`, only that tree's inbox; without, every tree, each item naming
  * its tree. Once per request; what the items point at is read side by side
@@ -181,7 +261,7 @@ export const listNotifications = cache(async function listNotifications(
   let query = supabase
     .from("notifications")
     .select(
-      "id, type, body, created_at, read_at, person_id, claim_id, revision_id, suggestion_id, tree_id, trees(name, slug)",
+      "id, type, body, created_at, read_at, person_id, claim_id, revision_id, suggestion_id, tree_id, actor_user_id, trees(name, slug)",
     )
     .order("created_at", { ascending: false })
     .limit(50);
@@ -208,7 +288,7 @@ export const listNotifications = cache(async function listNotifications(
     .map((n) => n.revision_id)
     .filter((id): id is string => Boolean(id));
 
-  const [placements, claims, revisions, suggestions] = await Promise.all([
+  const [placements, claims, revisions, suggestions, offers] = await Promise.all([
     pendingPersonIds.length > 0
       ? supabase
           .from("tree_placements")
@@ -235,6 +315,7 @@ export const listNotifications = cache(async function listNotifications(
           .then(({ data }) => data ?? [])
       : [],
     suggestionsLoaded,
+    loadBranchOffers(rows, userId),
   ]);
 
   const placementByPerson = new Map<string, string>();
@@ -280,6 +361,7 @@ export const listNotifications = cache(async function listNotifications(
       suggestion: n.suggestion_id
         ? (suggestions.get(n.suggestion_id) ?? null)
         : null,
+      branchOffer: offers.get(n.id) ?? null,
     };
   });
 });

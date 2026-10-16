@@ -333,7 +333,10 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
 - `components/notifications-list.tsx` (account; its claim notice's dispute
   opens the report dialog) + `admin/admin-reports.tsx` (the Root console's
   open reports: resolve, or uphold / reverse a disputed claim, Step 88.2);
-  `lib/claims.ts` — claim candidates, notifications; `lib/album.ts` —
+  `lib/claims.ts` — claim candidates, notifications (a join notice's Branch
+  offer, Step 171); `lib/join-notices.ts` — what a join tells each Root and
+  the Branch it offers (`JOIN_NOTICE_TYPES`, `branchOffer`, `objectWord`,
+  `BRANCH_IN_A_LINE`; `.test.ts`); `lib/album.ts` —
   album reads (`entry_album` + a signed 800px transform and the whole
   photo, Step 88.5); `lib/album-path.ts` — the `album` bucket's layout
   (`{tree}/{uuid}.{ext}`); `lib/photo-metadata.ts` — what a picked photo
@@ -952,11 +955,14 @@ child is on the line, a new parent isn't).
 The brand lives in `components/account-type-badge.tsx` (a mark per type on
 lucide's 24px grid — a trunk splitting into roots, a limb in leaf, a leaf —
 and `AccountTypeBadge`) and `components/account-type-guide.tsx` (a card per
-type listing what it can do, read off `describeAccess`), coloured by the
+type listing what it can do, read off `describeAccess`; opened on demand
+by `components/who-can-do-what.tsx`, Step 171), coloured by the
 `--account-{root,branch,leaf}` tokens in `globals.css` (bark, heartwood, new
 growth; each ≥ 5:1 on its own tint in both themes). Canopy's crown green
 stays as `--canopy`, the colour of things done. `/account` shows the
-member's own card; `/admin` → Members shows all three.
+member's own card; `/admin` → Members shows all three; the founder's invite
+step links to all three ("Who can do what"). Each Root is told when someone
+joins and offered making them a Branch there (Step 171).
 
 **Storage:** private buckets `photos`, `album` and `stories`, served only
 through signed URLs. A portrait's path is `{tree_id}/{person_id}/{filename}`:
@@ -1869,6 +1875,68 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 171: Root, Branch and Leaf when they matter** (migration
+  `20261016120000_member_joined_notice`). **From** the 2026-10-16
+  onboarding audit (W10 / R10) and its re-walk: account types were
+  explained before anyone had joined (the founder's invite step's side
+  panel, a 45-word Leaf paragraph on the join page, "They'll join as a
+  Leaf." on invite forms, "with you as its Root" and "Root console" on
+  first-run screens), and nothing told a Root when someone did join — a
+  plain invite, or a claim invite taken by someone with no entry of their
+  own, raised no notice at all. **Aalim decided:** the invite step keeps
+  one line, "Everyone you invite can add their own side of the family.",
+  and a **Who can do what** link that opens `AccountTypeGuide` (reverses
+  Step 29's choice; the side panel and its "how they get it" lines are
+  gone, and the step is `3xl` wide now); and each Root is told when
+  someone joins, "Nadia joined The Haddad Family.", with **make her a
+  branch** and one line on what a Branch does. **Now** `redeem_invite`
+  sends each Root one notice a join: `placed_on_join` (bringing their own
+  entry) and `joined_by_link` (the family link) as before, and the new
+  `member_joined` for everyone else, with their entry when a claim gave
+  them one here (`notifications_type_check` extended; a founder invite
+  tells nobody). All three offer the Branch in the bell and on the
+  account page (`branchOffer` in `lib/join-notices.ts`, loaded beside the
+  list off `member_directory` and the joiner's entry): only to a Root of
+  that tree, only while the joiner is still a Leaf there, through
+  `setAccountType` as `/admin` does; "A Branch can edit their side of the
+  family, not just what they add." beside it, "Nadia is a Branch now."
+  once done, and "You've made your four Branches." with the button
+  disabled once that Root has made their four (Step 39's cap, which the
+  database still enforces). The join page says "You can add your own
+  side of the family." with **What can I do?** opening the rest (Leaf
+  named there, and that a Root can make you a Branch). `JoinsAsNote`
+  says "They can add their own side of the family."; the invite toasts
+  (direct invites, relays) drop "— they'll join as a Leaf"; the relayed
+  invite email says the same plain words. `/join`'s start card says
+  "From scratch. You decide who joins."; onboarding's "already have an
+  entry elsewhere" note and empty-tree line say "whoever runs {tree}"
+  instead of a Root and the Root console. **My calls:** one notice a
+  join, the old two kept for their own buttons and the Branch offered on
+  all three; the button says "her"/"him" only from the joiner's own
+  entry's sex, otherwise their first name ("make Omar a branch"), never a
+  guess; a Root who has made four sees the offer disabled with why rather
+  than nothing; joining by approving your own entry's placement on
+  another tree (`answer_placements`) isn't an invite and tells nobody, as
+  before. **Verified** headless on a worktree dev server against live,
+  1280×800 and 390×844 touch: a founder (Maya) added Leila, Nadia and
+  Omar (Omar invited from the dialog, its note in the new words), saw the
+  invite step with the one line and no panel, opened the guide (Root,
+  Branch, Leaf), invited Nadia from the list and Sara by name; Nadia on
+  a phone, Omar and Sara on desktop each saw the one-sentence join card,
+  opened **What can I do?** and accepted. The database held one
+  `member_joined` per join for Maya (Nadia's and Omar's with their
+  entries); her bell showed **make her a branch** (Nadia's entry
+  female), **make Omar a branch**, **make Sara a branch**, each under the
+  one line; making Nadia a Branch said "Nadia is a Branch now.", set
+  `branch_admin` granted by Maya, and her offer was gone after a reload.
+  With three more Branches of Maya's the other two offers turned
+  disabled with "You've made your four Branches." No console or server
+  errors. Rehearsed first in a rolled-back transaction (plain invite →
+  `member_joined`; family link → `joined_by_link` only; the same link
+  again and a founder invite → nothing). Migration applied from the file
+  with a guard on the copied `redeem_invite` body; row, body and
+  constraint md5-checked. Throwaway users, tree and rows deleted; home
+  campaign back to 18 / 3 / 3.
 - **Step 170: next steps for people who join** (no migration). **From**
   the 2026-10-16 onboarding audit (W6 / R6) and its re-walk: a relative
   who joined landed on My Family Tree with nothing saying what to do next;
