@@ -44,7 +44,8 @@ Copy `.env.example` to `.env.local` and fill in:
   [Reference data — Native Land Digital](#reference-data--native-land-digital)
 - `CRON_SECRET` — server-only; the secret Vercel Cron sends to
   `/api/cron/newsletter`, the weekly newsletter (Step 95) and the getting
-  started emails (Step 151). Set in Vercel's
+  started emails (Step 151), and to `/api/cron/getting-started`, a
+  weekday's getting started emails (Step 172). Set in Vercel's
   Production env (2026-10-01); without it the route refuses every call, so
   nothing is sent
 - `ANTHROPIC_API_KEY` — server-only; the Claude API key the phone app's
@@ -569,8 +570,13 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `components/dashboard/newsletter-card.tsx` + `newsletter-controls.tsx` —
   the beta reviewers' day, pause, test email and preview
   (`app/actions/newsletter.ts`)
-- The getting started emails (Step 151), sent from the same daily cron
-  call after the newsletter, never on its day: `lib/onboarding.ts` —
+- The getting started emails (Step 151), never on the newsletter's day:
+  on a weekday at 3pm Pacific (Step 172) from
+  `app/api/cron/getting-started/route.ts`, which Vercel Cron calls Monday
+  to Friday at 22:00 and 23:00 UTC (only the call in the 3pm hour Pacific
+  sends, `isDripHour`; the other answers `held`), and on a weekend from
+  the newsletter's daily call, after the newsletter; the cron secret check
+  is `fromTheJob` in `lib/cron.server.ts`: `lib/onboarding.ts` —
   `pickOnboardingEmail`, the churn band (days since last active) and the
   next step (claim → invite → family → story), or the win-back / last
   email (`.test.ts`); `lib/onboarding.server.ts` — `sendOnboardingEmails`
@@ -1875,6 +1881,26 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 172: a weekday's getting started emails go at 3pm Pacific** (no
+  migration). **Aalim asked** (2026-10-16): "any emails that go out
+  during weekdays for the drip, send them at 3pm PT". They went with the
+  newsletter's daily call, 15:00 UTC (8am Pacific in summer, 7am in
+  winter). **Now** Vercel Cron also calls `/api/cron/getting-started`
+  Monday to Friday at 22:00 and 23:00 UTC (`vercel.json`): its clock is
+  UTC and Hobby allows each job one run a day, so one call of the two is
+  3pm Pacific either side of daylight saving, and only that one sends
+  (`isDripHour` reads the Pacific clock, `pacificClock`; the other answers
+  `held: "not 3pm Pacific"` without reading anyone). The newsletter's
+  morning call still sends Saturday's and Sunday's (none on the
+  newsletter's day, as before) and holds the drip on a weekday. Hobby
+  fires a job anywhere in its hour, so a weekday's emails go between 3:00
+  and 3:59pm Pacific. Test sends and dry runs (`?drip=` on the
+  newsletter route) are untimed, as before; the cron secret check moved
+  to `lib/cron.server.ts` for both routes. **My calls:** weekdays and the
+  3pm are Pacific (Monday to Friday there); the drip clock now starts for
+  a new member at their first 3pm call rather than the next morning's,
+  so a weekday sign-up's first email can come up to a day sooner than
+  before (still never on the day the drip started).
 - **Step 171: Root, Branch and Leaf when they matter** (migration
   `20261016120000_member_joined_notice`). **From** the 2026-10-16
   onboarding audit (W10 / R10) and its re-walk: account types were

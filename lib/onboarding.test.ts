@@ -4,7 +4,9 @@ import {
   churnBand,
   daysAway,
   daysBetween,
+  isDripHour,
   nextStep,
+  pacificClock,
   pickOnboardingEmail,
   stepTaken,
   type OnboardingKind,
@@ -59,6 +61,31 @@ describe("days and bands", () => {
       "lapsed",
       "lapsed",
     ]);
+  });
+});
+
+describe("when it goes", () => {
+  it("reads the Pacific clock, daylight saving or not", () => {
+    // Mon 19 Oct, PDT (UTC−7); Mon 2 Nov, PST (UTC−8).
+    expect(pacificClock(new Date("2026-10-19T22:30:00Z"))).toEqual({ weekday: 1, hour: 15 });
+    expect(pacificClock(new Date("2026-11-02T23:30:00Z"))).toEqual({ weekday: 1, hour: 15 });
+    expect(pacificClock(new Date("2026-10-20T06:30:00Z"))).toEqual({ weekday: 1, hour: 23 });
+  });
+
+  it("sends a weekday's at 3pm Pacific, from whichever call lands then", () => {
+    // Summer time: the 22:00 UTC call; the morning's and 23:00's hold.
+    expect(isDripHour(new Date("2026-10-19T15:20:00Z"))).toBe(false);
+    expect(isDripHour(new Date("2026-10-19T22:00:00Z"))).toBe(true);
+    expect(isDripHour(new Date("2026-10-23T22:59:00Z"))).toBe(true);
+    expect(isDripHour(new Date("2026-10-19T23:05:00Z"))).toBe(false);
+    // Winter: the 23:00 UTC call.
+    expect(isDripHour(new Date("2026-11-02T22:40:00Z"))).toBe(false);
+    expect(isDripHour(new Date("2026-11-06T23:40:00Z"))).toBe(true);
+  });
+
+  it("sends a weekend's with the morning call", () => {
+    expect(isDripHour(new Date("2026-10-17T15:20:00Z"))).toBe(true);
+    expect(isDripHour(new Date("2026-10-18T15:00:00Z"))).toBe(true);
   });
 });
 

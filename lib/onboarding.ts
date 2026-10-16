@@ -20,7 +20,7 @@
  *   4. story: a story or album photos.
  * Never on the newsletter's day, never twice in a day, never before the
  * day after it starts, and it ends 60 days in or once every step is
- * taken.
+ * taken. On a weekday it goes at 3pm Pacific (Step 172).
  *
  * Whoever's first email would be a win-back or the last one (members
  * already away when the drip began) gets their step instead (Aalim,
@@ -145,6 +145,42 @@ export type OnboardingPick =
       band: ChurnBand;
     }
   | { kind: null; band: ChurnBand | null; hold: OnboardingHold };
+
+/**
+ * When a weekday's emails go (Aalim, 2026-10-16: "any emails that go out
+ * during weekdays for the drip, send them at 3pm PT"): Monday to Friday,
+ * in the 3pm hour Pacific. A weekend's go with the newsletter's morning
+ * call.
+ */
+export const DRIP_TIME_ZONE = "America/Los_Angeles";
+export const WEEKDAY_SEND_HOUR = 15;
+
+const PACIFIC = new Intl.DateTimeFormat("en-US", {
+  timeZone: DRIP_TIME_ZONE,
+  weekday: "short",
+  hour: "numeric",
+  hourCycle: "h23",
+});
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+/** The day of the week (0 is Sunday) and the hour on the Pacific clock. */
+export function pacificClock(now: Date): { weekday: number; hour: number } {
+  const parts = PACIFIC.formatToParts(now);
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((p) => p.type === type)?.value ?? "";
+  return { weekday: WEEKDAYS.indexOf(part("weekday")), hour: Number(part("hour")) };
+}
+
+/**
+ * Whether a scheduled call at `now` is the one that sends: on a weekday,
+ * only the call in the 3pm hour Pacific (two come, one each side of
+ * daylight saving, and the newsletter's morning one); on Saturday or
+ * Sunday, the morning call, the only one that comes.
+ */
+export function isDripHour(now: Date): boolean {
+  const { weekday, hour } = pacificClock(now);
+  return weekday === 0 || weekday === 6 || hour === WEEKDAY_SEND_HOUR;
+}
 
 /** `YYYY-MM-DD` in UTC: the job runs on the server's clock. */
 export function utcDay(at: Date | string): string {

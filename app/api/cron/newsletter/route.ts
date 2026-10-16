@@ -1,7 +1,6 @@
-import { timingSafeEqual } from "node:crypto";
-
 import { NextResponse, type NextRequest } from "next/server";
 
+import { fromTheJob } from "@/lib/cron.server";
 import {
   sendInviteReminders,
   type InviteReminderRun,
@@ -19,15 +18,6 @@ export const maxDuration = 300;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** The request carries `Authorization: Bearer <CRON_SECRET>`, as Vercel Cron sends it. */
-function fromTheJob(request: NextRequest): boolean {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
-  const given = Buffer.from(request.headers.get("authorization") ?? "");
-  const expected = Buffer.from(`Bearer ${secret}`);
-  return given.length === expected.length && timingSafeEqual(given, expected);
-}
-
 const NO_STORE = { "Cache-Control": "no-store" };
 
 /**
@@ -37,7 +27,9 @@ const NO_STORE = { "Cache-Control": "no-store" };
  * (`vercel.json`) and by nobody else — without the job's secret it answers
  * 401 and does nothing. The newsletter goes only on the day the beta
  * reviewers chose, unless they paused it (`newsletter_schedule`); the
- * getting started emails on every other day; the reminders every day. Each
+ * getting started emails on Saturday and Sunday when it isn't the
+ * newsletter's day (a weekday's wait for 3pm Pacific,
+ * `/api/cron/getting-started`, Step 172); the reminders every day. Each
  * runs whether or not the others failed.
  *
  * `?user=<id>` (repeatable) sends the newsletter to those members now,

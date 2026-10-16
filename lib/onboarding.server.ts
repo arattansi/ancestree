@@ -11,6 +11,7 @@ import {
 } from "@/lib/newsletter.server";
 import {
   daysBetween,
+  isDripHour,
   pickOnboardingEmail,
   utcDay,
   type ChurnBand,
@@ -53,8 +54,11 @@ export type OnboardingRun = {
   bands: Partial<Record<ChurnBand, number>>;
   /** Why the rest got nothing today. */
   holds: Partial<Record<OnboardingHold, number>>;
-  /** Nothing went today: it's the newsletter's day. */
-  held?: "newsletter day";
+  /**
+   * Nothing went: it's the newsletter's day, or a weekday call that isn't
+   * at 3pm Pacific.
+   */
+  held?: "newsletter day" | "not 3pm Pacific";
 };
 
 /** A member in the drip, as `onboarding_due` reads them. */
@@ -96,12 +100,14 @@ function sendsOf(raw: unknown): OnboardingSend[] {
 }
 
 /**
- * The getting started emails (Step 151), called by the newsletter's daily
- * cron job after the newsletter: each member in the drip gets today's
- * email as `pickOnboardingEmail` picks it from what they've done and how
- * long they've been away, or nothing. Nothing goes on the newsletter's
- * day. Each member is noted (`record_onboarding_sends`) just before their
- * email goes, so a second call that day sends nothing twice.
+ * The getting started emails (Step 151), called by the cron jobs: on a
+ * weekday by `/api/cron/getting-started` at 3pm Pacific (Step 172), on a
+ * weekend by the newsletter's morning call, after the newsletter. Each
+ * member in the drip gets today's email as `pickOnboardingEmail` picks it
+ * from what they've done and how long they've been away, or nothing.
+ * Nothing goes on the newsletter's day, or from a call at any other hour
+ * (`isDripHour`). Each member is noted (`record_onboarding_sends`) just
+ * before their email goes, so a second call that day sends nothing twice.
  *
  * `users` makes it a test send to those members: whatever their band and
  * next step call for now, whatever the day (`kind` picks the email
@@ -121,6 +127,7 @@ export async function sendOnboardingEmails(
   const now = opts.now ?? new Date();
   const test = !!opts.users?.length;
   const run = emptyRun();
+  if (!test && !opts.dry && !isDripHour(now)) return { ...run, held: "not 3pm Pacific" };
   const newsletterDay = isSendDay(await readNewsletterSchedule(), now);
   if (newsletterDay && !test && !opts.dry) return { ...run, held: "newsletter day" };
 
