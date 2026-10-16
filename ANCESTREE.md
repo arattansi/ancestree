@@ -747,8 +747,10 @@ bare placement the canvas blurs (`tree_people.blurred`). The full model and
 the per-tree matrix: [`docs/trees-and-permissions.md`](docs/trees-and-permissions.md).
 
 **RLS:** every public table. Members read rows in trees they belong to
-(`tree_members`; a person when some tree they're on shows them,
-`private.can_see_person`). Writes use
+(`tree_members`; a person when some tree they're on shows them in full,
+`private.can_read_person`, or when it's their own entry or own child; a
+visitor sees an entry only as a `tree_people` card, which reads through
+`private.visible_people` under `private.can_see_person`, Step 155). Writes use
 `profiles.auth_user_id = auth.uid()`. Person edits (`private.can_edit_person`):
 current `owner_user_id`, an admin, the original `created_by` while the entry is
 still unclaimed (owner unchanged, no approved claim), **or** a branch admin
@@ -1827,6 +1829,45 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 155: visitors read entries only as cards** (migration
+  `20261015120000_visitors_read_through_the_view`, live). Step 153's open
+  gap: a visitor (a member of another tree a Root opened theirs to) could
+  ask the API for `people` itself and get a shown entry's whole row, its
+  email and where they live included, though the cards hid both; row
+  security is per row, not per column. **Now** `people_select` lets in a
+  member of a tree showing the entry in full, the entry's owner and a
+  parent of their own child (`private.can_read_person`), and no visitor.
+  `tree_people` reads `private.visible_people` instead of `people`, a
+  definer view keeping the old row rule (`can_see_person` or
+  `can_see_own_child`), so a visitor's canvas is the same cards and blurs
+  as before. It's in `private`, which the API doesn't serve (PostgREST
+  answers "Invalid schema: private"; no pg_graphql), as
+  `private.basic_tree_people` is. `can_see_person` itself is unchanged
+  (photos, stories and the rest still ask it). **My calls:** an email
+  shown to members ("Show this email to other members of the tree") now
+  reaches members of that tree only, as where someone lives does, so a
+  visitor and the service role (share links, the newsletter, neither of
+  which used it) no longer get it; the owner still gets their own. The two
+  columns are masked in `tree_people` only, not again in the private view:
+  masking there too slowed a visitor's canvas read from 64 ms to 120–213
+  ms on the 136-card tree, and the view can't be reached. The privacy page
+  now says where someone lives is "never" shown to visitors or on a share
+  link. **Checked** first in a rolled-back transaction on live with a
+  visitor grant seeded (no tree is opened to visitors yet), then on live
+  after applying, as a Root, a Leaf, a visitor, an outsider, the service
+  role and postgres: a visitor's direct `people` read went from 134 rows
+  of the tree (20 emails, 2 homes) to none; their `tree_people` rows
+  matched before and after byte for byte but for email, the hidden entry
+  still blurred; Root, Leaf and outsider unchanged on every check
+  (`people`, `tree_people`, an edit with `returning`, claims and reports
+  joined to `people`, `withheld_details`, `person_claim_candidates`); a
+  Root's canvas read 24.5 ms before and after. Every direct `people` read
+  in `app/`, `lib/` and `mobile/` is of the reader's own entry, an entry
+  on a tree they're a member of, a parent's own child, or made with the
+  service role; none is a visitor's. **Still open:** a member can read an
+  entry's email from `people` even when it isn't shown to members; the
+  cards hide it, the table doesn't.
+
 - **Step 154: the blog tab's meta fields autofill; a draft is picked or
   started; the card's cover on top** (no migration). **Aalim asked:**
   auto-fill from the suggested text in a post's meta fields, and to choose
@@ -1884,7 +1925,7 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
     still gets the columns (RLS is by row, and `people_select` lets a
     visitor see the row), as with `email`, which the view also masks.
     The app never asks for them that way; shutting it at the table is a
-    follow-up.
+    follow-up (done in Step 155).
   - **Everything that lists a person's details carries it:** filling in
     the blanks (`fill_person_blanks`, "Added their current home"), the
     welcome after claiming (asked up front when empty), suggestions

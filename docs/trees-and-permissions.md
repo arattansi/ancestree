@@ -332,6 +332,13 @@ stays.
   (`people.hidden_from_visitors`). A hidden entry is drawn blurred, with no
   name or details, on a tree the viewer is not a member of. A Root of the home
   tree may set it for an unclaimed entry.
+- A visitor reads entries only as the tree's cards (`tree_people`), never
+  the `people` rows themselves (Step 155): `people_select`
+  (`private.can_read_person`) lets in a member of a tree showing the entry
+  in full, its owner and a parent of their own child, and `tree_people`
+  reads through `private.visible_people`, which keeps the visitor's rows.
+  So an email and where someone lives reach members of that tree and the
+  entry's owner only, whatever the visitor asks the API for.
 
 ## 7. Invites
 
