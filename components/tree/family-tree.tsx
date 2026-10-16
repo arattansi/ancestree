@@ -52,9 +52,14 @@ import {
   SPOTLIGHT_BROWN,
   SPOTLIGHT_GREEN,
 } from "@/components/tree/spotlight-colours";
-import { useIsPhone, useIsSm } from "@/components/tree/use-is-phone";
+import {
+  isPhone,
+  useIsPhone,
+  useIsSm,
+} from "@/components/tree/use-is-phone";
 import { CanvasTip } from "@/components/tree/canvas-tip";
 import { JoinedTreePrompt } from "@/components/tree/joined-tree-prompt";
+import { PlantedCard } from "@/components/tree/planted-card";
 import { ClaimSuggestions } from "@/components/tree/claim-suggestions";
 import { GettingStarted } from "@/components/tree/getting-started";
 import { bladeTop } from "@/components/tree/leaf-card";
@@ -120,6 +125,7 @@ import { mergeConfirmation, relativesThatMove } from "@/lib/claim-merge";
 import type { ClaimCandidate } from "@/lib/claims";
 import { connectionLabel, connectionPath, relationOf } from "@/lib/connection-path";
 import type { PanelSuggestion } from "@/lib/connection-suggestions";
+import { openingView } from "@/lib/first-canvas";
 import type { GettingStartedItem } from "@/lib/first-tree";
 import { generationLabelFromYou } from "@/lib/generation-lanes";
 import {
@@ -239,6 +245,9 @@ export type FamilyView = {
   spouseIds: readonly string[];
   /** The tree they've just joined (Step 131), offered from here. */
   joined?: { id: string; name: string } | null;
+  /** The tree a founder has just planted, at the end of their first run
+   *  (Step 169): how many it has, and a way to invite family onto it. */
+  planted?: { id: string; name: string; people: number } | null;
 };
 
 type Props = {
@@ -289,8 +298,9 @@ type Props = {
    * Tree then, so the address it writes for itself keeps `view=tree`.
    */
   unpicked?: boolean;
-  /** What's left of the founder's first run (Step 29), for the tree's founder. */
-  gettingStarted?: GettingStartedItem[] | null;
+  /** What's left of the founder's first run (Step 29), for the tree's
+   *  founder: on its canvas, and on My Family Tree (Step 169). */
+  gettingStarted?: { treeId: string; items: GettingStartedItem[] } | null;
   /**
    * Invites out to claim entries here, for their cards to say who sent one
    * (Step 38). A member's canvas only: never a share link's or a visitor's.
@@ -1802,16 +1812,24 @@ function Canvas({
     // case the effect below is framing their tree instead.
     if (selectedId) return;
     // Instant, not animated: the opening view has nothing to animate from, and
-    // an animated camera move this early is dropped before it starts.
+    // an animated camera move this early is dropped before it starts. On a
+    // phone, never so far out that the names can't be read (Step 169): as
+    // close as they read, on the viewer, when the view would be further.
     const me = centreOf(selfPersonId);
-    if (me && selfPersonId) {
-      void setCenter(me.x, me.y, {
-        zoom: spotlightZoomOf(selfPersonId),
-        duration: 0,
-      });
-      return;
-    }
-    frame([...graph.layout.positions.values()], 0, 1, true);
+    const fitted =
+      me && selfPersonId
+        ? { ...me, zoom: spotlightZoomOf(selfPersonId) }
+        : fit([...graph.layout.positions.values()], 0, 1);
+    if (!fitted) return;
+    const spot = selfPersonId
+      ? graph.layout.positions.get(selfPersonId)
+      : undefined;
+    const view = openingView({
+      fitted,
+      narrow: paneWidth < 640 || isPhone(),
+      self: spot ? { x: spot.x + NODE_W / 2, y: spot.y + NODE_H / 2 } : null,
+    });
+    void setCenter(view.x, view.y, { zoom: view.zoom, duration: 0 });
   }, [
     canvasReady,
     paneWidth,
@@ -1819,7 +1837,7 @@ function Canvas({
     selectedId,
     selfPersonId,
     graph.layout.positions,
-    frame,
+    fit,
     centreOf,
     spotlightZoomOf,
     setCenter,
@@ -2883,10 +2901,15 @@ function Canvas({
           // half of the canvas right of its anchor to shrink-wrap into, which
           // on a phone stacked the tip into a tall column. 7rem keeps it
           // clear of the zoom controls in the corner.
+          // On a phone, one card at a time (Step 169): whichever comes first
+          // of those still open, the next once it's closed. A card closed
+          // for good renders nothing, so the first child is the one to show.
           <Panel
             position="bottom-center"
-            className="flex w-[min(28rem,calc(100%-7rem))] flex-col gap-2"
+            className="flex w-[min(28rem,calc(100%-7rem))] flex-col gap-2 max-sm:[&>*+*]:hidden"
           >
+            {/* The tree a founder has just planted (Step 169). */}
+            {family?.planted ? <PlantedCard tree={family.planted} /> : null}
             {/* The tree they've just joined, offered from their own view
                 (Step 131). */}
             {family?.joined ? (
@@ -2895,7 +2918,7 @@ function Canvas({
                 currentTreeId={family.currentTreeId}
               />
             ) : null}
-            <CanvasTip family={!!family} />
+            <CanvasTip family={!!family} generations={bands.length} />
           </Panel>
         ) : null}
         {connection ? (
@@ -2958,8 +2981,11 @@ function Canvas({
               notes={claimNotes}
             />
           ) : null}
-          {editable && gettingStarted ? (
-            <GettingStarted treeId={treeId} items={gettingStarted} />
+          {!readOnly && gettingStarted ? (
+            <GettingStarted
+              treeId={gettingStarted.treeId}
+              items={gettingStarted.items}
+            />
           ) : null}
         </Panel>
       </ReactFlow>

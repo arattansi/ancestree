@@ -9,7 +9,8 @@ import * as React from "react";
 const TOUCH = "(pointer: coarse)";
 const PHONE_SHORT_SIDE = 600;
 
-function isPhone() {
+/** Whether this is a phone right now, for code that runs after hydration. */
+export function isPhone() {
   return (
     window.matchMedia(TOUCH).matches &&
     Math.min(window.screen.width, window.screen.height) < PHONE_SHORT_SIDE

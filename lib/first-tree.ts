@@ -17,7 +17,9 @@
  */
 
 import type { ConnectionEdge, PersonRef } from "@/lib/connections";
+import { countOf } from "@/lib/plural";
 import { onboardingStepHref, ownDetailsHref } from "@/lib/tree-links";
+import { treeInSentence } from "@/lib/tree-names";
 
 export const FIRST_TREE_STEPS = ["family", "invite", "name"] as const;
 export type FirstTreeStep = (typeof FIRST_TREE_STEPS)[number];
@@ -112,6 +114,12 @@ export function stepDone(step: FirstTreeStep, state: FirstTreeState): boolean {
 /** The invite step's list of the people the founder added (Step 162). */
 export const INVITE_FAMILY_ID = "your-family";
 
+/** That list's address: Getting Started's invite item, and the card at the
+ *  end of the run (Step 169). */
+export function inviteFamilyHref(): string {
+  return `${onboardingStepHref("invite")}#${INVITE_FAMILY_ID}`;
+}
+
 export type GettingStartedItem = {
   key: "details" | "parents" | "more-family" | "invite" | "name";
   label: string;
@@ -151,7 +159,7 @@ export function gettingStartedItems(state: FirstTreeState): GettingStartedItem[]
       key: "invite",
       label: "Invite your family",
       done: state.invited,
-      href: `${onboardingStepHref("invite")}#${INVITE_FAMILY_ID}`,
+      href: inviteFamilyHref(),
     },
     {
       key: "name",
@@ -160,6 +168,20 @@ export function gettingStartedItems(state: FirstTreeState): GettingStartedItem[]
       href: onboardingStepHref("name"),
     },
   ];
+}
+
+/**
+ * What the card at the end of the first run says (Step 169), on My Family
+ * Tree: how big the tree is now, and who'd grow it. A tree still on its
+ * default name is "the family tree", as in its emails (`treeInSentence`).
+ */
+export function plantedCardText(treeName: string, people: number): string {
+  const tree = treeInSentence(treeName);
+  return `${tree.charAt(0).toUpperCase()}${tree.slice(1)} has ${countOf(
+    people,
+    "person",
+    "people",
+  )}. Invite your family to grow it.`;
 }
 
 /**

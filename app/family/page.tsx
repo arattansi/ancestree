@@ -5,6 +5,10 @@ import { FamilyTree } from "@/components/tree/family-tree";
 import { LEAF } from "@/lib/account-types";
 import { getProfile } from "@/lib/auth";
 import { readCurrentTreeId } from "@/lib/current-tree.server";
+import {
+  foundedCurrentTree,
+  getFamilyGettingStarted,
+} from "@/lib/first-tree.server";
 import { companionsShowing, MY_FAMILY_VIEW } from "@/lib/my-family";
 import { loadMyFamily } from "@/lib/my-family.server";
 import { getTreePets } from "@/lib/pets";
@@ -30,14 +34,16 @@ export const metadata: Metadata = {
  *
  * Where a member lands, every visit (Step 92.5): signing in, the mark and
  * the home page come here. So does joining a tree (Step 131), with
- * `?joined=` naming it for the view to offer.
+ * `?joined=` naming it for the view to offer, and the end of a founder's
+ * first run (Step 169), with `?planted=` naming the tree they've started;
+ * a founder's "Getting started" list shows here as on that tree's canvas.
  */
 export default async function MyFamilyPage({
   searchParams,
 }: PageProps<"/family">) {
   // Read together (Step 77.1); which tree is shown by default isn't asked,
   // since the view needs only the one switched to this visit, if any.
-  const [profile, trees, chosenId, { joined }] = await Promise.all([
+  const [profile, trees, chosenId, { joined, planted }] = await Promise.all([
     getProfile(),
     listMyTrees(),
     readCurrentTreeId(),
@@ -55,14 +61,25 @@ export default async function MyFamilyPage({
   const currentTreeId = trees.some((t) => t.id === chosenId) ? chosenId : null;
   // Their companions are read beside the people, from the same trees, and
   // the suggested changes they can see (Step 67) as a tree's canvas reads
-  // them: waiting ones to answer or their own, and their own declined.
-  const [family, pets, changeSuggestions, declinedSuggestions] =
-    await Promise.all([
-      loadMyFamily(),
-      getTreePets(trees.map((t) => t.id)),
-      listPendingSuggestions(profile.auth_user_id),
-      listOwnDeclinedSuggestions(profile.auth_user_id),
-    ]);
+  // them: waiting ones to answer or their own, and their own declined. And
+  // for a founder looking at the tree they founded, what's left of its
+  // first run (Step 169).
+  const founding = foundedCurrentTree(trees);
+  const [
+    family,
+    pets,
+    changeSuggestions,
+    declinedSuggestions,
+    own,
+    gettingStarted,
+  ] = await Promise.all([
+    loadMyFamily(),
+    getTreePets(trees.map((t) => t.id)),
+    listPendingSuggestions(profile.auth_user_id),
+    listOwnDeclinedSuggestions(profile.auth_user_id),
+    founding,
+    founding.then((m) => (m ? getFamilyGettingStarted(m) : null)),
+  ]);
   // Nothing to arrange it around yet (no entry of their own, or on none of
   // their trees): the canvas sends them where they'd add it. The canvas
   // itself, since a bare /tree with nothing picked comes back here.
@@ -73,6 +90,13 @@ export default async function MyFamilyPage({
   const joinedTree =
     typeof joined === "string"
       ? (family.trees.find((t) => t.id === joined) ?? null)
+      : null;
+
+  // The tree a founder's first run has just ended on (Step 169): theirs,
+  // and the one the run's links go to.
+  const plantedTree =
+    own && planted === own.tree.id
+      ? (trees.find((t) => t.id === own.tree.id) ?? null)
       : null;
 
   const shown = new Set(family.people.map((p) => p.id));
@@ -103,6 +127,11 @@ export default async function MyFamilyPage({
         declinedSuggestions={declinedSuggestions.filter((s) =>
           shown.has(s.personId),
         )}
+        gettingStarted={
+          own && gettingStarted
+            ? { treeId: own.tree.id, items: gettingStarted }
+            : null
+        }
         family={{
           trees: family.trees.map(({ id, name, mark, role, reach }) => ({
             id,
@@ -120,6 +149,14 @@ export default async function MyFamilyPage({
           // Just joined (Step 131): the view offers that tree.
           joined: joinedTree
             ? { id: joinedTree.id, name: joinedTree.name }
+            : null,
+          // Just planted (Step 169): how big it is, and invite family.
+          planted: plantedTree
+            ? {
+                id: plantedTree.id,
+                name: plantedTree.name,
+                people: plantedTree.personCount,
+              }
             : null,
         }}
       />

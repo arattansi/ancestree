@@ -90,6 +90,16 @@ export function joinedFamilyHref(treeId: string): string {
   return `${myFamilyHref()}?joined=${enc(treeId)}`;
 }
 
+/**
+ * My Family Tree at the end of a founder's first run (Step 169): the run
+ * ends on their own leaves rather than the tree's cards, and `planted`
+ * names the tree they've just started, for the view's one card asking them
+ * to invite their family onto it (read by `/family`).
+ */
+export function plantedFamilyHref(treeId: string): string {
+  return `${myFamilyHref()}?planted=${enc(treeId)}`;
+}
+
 /** The canvas opened on one person's spotlight (`FamilyTree` reads `person`). */
 export function treeFocusHref(personId: string | null | undefined): string {
   return personId ? `${treeHref()}?person=${enc(personId)}` : treeHref();

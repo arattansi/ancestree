@@ -515,7 +515,13 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   from a tree's lines, and the lines a quick-added relative gets
   (`closeRelativeEdges`; `.server.ts` loads it and names the tree after
   the founder's family once they're on it, `nameFoundersTree`, Step 168;
-  `.test.ts`);
+  the card at the run's end, `plantedCardText`, and My Family Tree's
+  "Getting started" off the tree's rows, `getFamilyGettingStarted`, Step
+  169; `.test.ts`);
+  `lib/first-canvas.ts` — what a canvas shows first (Step 169): how close
+  a phone opens (`openingView`, `READABLE_ZOOM`) and the tip's words,
+  "Click" or "Tap", lines from three generations (`canvasTip`; `.test.ts`;
+  drawn by `components/tree/canvas-tip.tsx`, beside `planted-card.tsx`);
   `lib/welcome.ts` — the welcome (Step 50): what it asks for
   (`welcomeAsks`, `welcomeAsk`) and the line under their name
   (`enteredLine`; `.test.ts`); `lib/welcome.server.ts` — who invited them
@@ -1858,6 +1864,63 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 169: a first canvas that welcomes you** (no migration). **From**
+  the 2026-10-16 onboarding audit (W6, W7 / R5) and its re-walk: the
+  founder's first run ended on the tree's cards, not their own leaves;
+  Getting Started showed only there; on a phone the key stood open, "You're
+  on The Haddad Family now." wrapped a word a line over the tip, and
+  everything was drawn too small to read; the tip said "Tap" to a mouse
+  and explained a line's two ends on a two-generation tree. **Aalim
+  decided:** end the run on My Family Tree, centred on you, with Getting
+  Started there; a one-time card at the end, "{tree} has {n} people.
+  Invite your family to grow it." with one invite button, ✕ for good.
+  **My calls (not objected to):** the key folds behind a **key** button on
+  phones; the bottom cards show one at a time on phones; a phone opens
+  close enough to read the names; "Click" with a mouse, "Tap" on touch.
+  **Now** the last step's button and "Go to your tree" go to
+  `/family?planted=<tree>` (`plantedFamilyHref`). `/family` shows the
+  founder's Getting Started when the tree the pages fall back to is one
+  they founded (`foundedCurrentTree`), read off that tree's own rows
+  (`getFamilyGettingStarted`; the canvas's graph would sign every photo for
+  a few ticks); `FamilyTree`'s `gettingStarted` now carries its tree, and
+  shows on any canvas that isn't read-only. With `planted` naming that
+  tree, `PlantedCard` sits at the foot: "The Haddad Family has 4 people.
+  Invite your family to grow it." (`plantedCardText`, "The family tree"
+  for a default name) and **invite family**, to the invite step's list
+  (`inviteFamilyHref`); ✕ is remembered per browser per tree and takes
+  `planted` off the address. The canvas's bottom panel hides every card
+  after the first below `sm` (`max-sm:[&>*+*]:hidden`; a card closed for
+  good renders nothing, so the next one shows), so the planted card or
+  `JoinedTreePrompt` replaces the tip rather than stacking on it; both
+  cards put their button under the words when they'd squeeze them.
+  `TreeKey` is a **key** button below `sm` (CSS alone until pressed, so
+  nothing jumps at hydration) and always open wider. The opening view
+  (`openingView` in `lib/first-canvas.ts`) keeps what it framed before,
+  unless the pane is narrow (below 640px, or a phone) and that's under
+  `READABLE_ZOOM` (0.8: a leaf's 13px name at 10.4px): then 0.8 on the
+  viewer's own card, on My Family Tree and a tree's canvas alike.
+  `CanvasTip` says "Click" or "Tap" by `(pointer: coarse)` and adds the
+  line lesson from three generation lanes (`canvasTip`). Getting Started's
+  "Add your photo and birthplace" still comes back to `/tree` (Step 170
+  takes `/welcome?details=1` back to `/family`). **Verified** headless on a
+  worktree dev server against live, 390×844 touch and 1280×800: a phone
+  founder from `/start` (Maya, mum Leila, an invite emailed) landed on
+  `/family?planted=…` with "The Haddad Family has 2 people…", Getting
+  Started (3 of 5, collapsed), the key folded (opens and folds on a tap),
+  the tip hidden behind the card; ✕ brought the tip, dropped `planted`,
+  and the card stayed closed when the same address was opened again. A
+  desktop founder skipping invites, and "Go to your tree" on both, landed
+  the same way, desktop with card and "Click anyone…" tip stacked, key and
+  checklist open. Leila, accepting her claim invite on the phone, saw one
+  bottom card ("You're on The Haddad Family now." with its button under
+  it), the key folded, opened at 0.8 on her own leaf; closing the card
+  brought the "Tap" tip. With a partner, a child and a second parent added
+  (three generations, 5 people), the phone opened at 0.8 on Maya on both
+  `/family` (leaf names drawn at 10.4px) and `/tree` (card names at
+  11.2px), and the tip explained lines; desktop `/tree` kept its 1.15 and
+  a 2-person `/family` its 1. No console errors. Throwaway users and trees deleted; the
+  home campaign is back to opens 18 / signups 3 / trees founded 3.
 
 - **Step 168: the tree takes the founder's family name as they add
   themselves** (no migration). **From** the onboarding re-walk after Steps

@@ -6,6 +6,7 @@ import {
   type CloseFamily,
   type CloseKind,
   type FamilyCard,
+  type FamilyLine,
   type FirstTreeState,
   type GettingStartedItem,
   type TreeInvite,
@@ -25,8 +26,18 @@ import {
 import { listPeopleYouAdded, type Invitable } from "@/lib/invitable.server";
 import { listCarryChoices } from "@/lib/placements.server";
 import { createClient } from "@/lib/supabase/server";
-import { getTreeGraph, type TreeGraphEdge, type TreeGraphPerson } from "@/lib/tree";
-import { listMyTrees, type TreeMembership } from "@/lib/tree-context";
+import {
+  getTreeGraph,
+  loadTreeEdges,
+  loadTreePeople,
+  type TreeGraphPerson,
+} from "@/lib/tree";
+import {
+  currentAccess,
+  listMyTrees,
+  type MyTree,
+  type TreeMembership,
+} from "@/lib/tree-context";
 import { foundingTreeName, isDefaultTreeName } from "@/lib/tree-names";
 
 /**
@@ -129,9 +140,19 @@ function card(p: TreeGraphPerson): FamilyCard {
 
 const NO_FAMILY: CloseFamily = { parents: [], partners: [], children: [], siblings: [] };
 
+/** What the steps read of the founder's own entry: a card on the canvas's
+ *  graph, or a row of the tree's people. */
+type OwnEntryFacts = {
+  id: string | null;
+  photo_path: string | null;
+  place_id_birth: number | null;
+  city_of_birth: string | null;
+  country_of_birth: string | null;
+};
+
 function stateOf(
   m: TreeMembership,
-  self: TreeGraphPerson | undefined,
+  self: OwnEntryFacts | undefined,
   close: CloseFamily,
   invited: boolean,
 ): FirstTreeState {
@@ -367,8 +388,8 @@ async function bringChoices(
 export async function getGettingStarted(
   m: TreeMembership,
   graph: PromiseLike<{
-    people: readonly TreeGraphPerson[];
-    relationships: readonly TreeGraphEdge[];
+    people: readonly OwnEntryFacts[];
+    relationships: readonly FamilyLine[];
   }>,
 ): Promise<GettingStartedItem[] | null> {
   const selfId = m.profile.self_person_id;
@@ -383,4 +404,49 @@ export async function getGettingStarted(
   const close = closeFamilyOf(selfId, relationships);
   const items = gettingStartedItems(stateOf(m, self, close, invited));
   return items.every((i) => i.done) ? null : items;
+}
+
+/**
+ * The tree the pages fall back to, when the member founded it (Step 169):
+ * My Family Tree shows its "Getting started" list, whose links go to that
+ * tree's first run, and the card at the end of the run. `null` for anyone
+ * who founded no tree, or is looking at another.
+ */
+export async function foundedCurrentTree(
+  trees: readonly MyTree[],
+): Promise<TreeMembership | null> {
+  if (!trees.some((t) => t.founded)) return null;
+  const access = await currentAccess();
+  return access?.kind === "member" && isFounder(access.membership)
+    ? access.membership
+    : null;
+}
+
+/**
+ * The founder's "Getting started" list on My Family Tree (Step 169), off the
+ * tree's own rows: the view draws other people, and the canvas's whole
+ * graph, photos signed, would be read for a handful of ticks.
+ */
+export async function getFamilyGettingStarted(
+  m: TreeMembership,
+): Promise<GettingStartedItem[] | null> {
+  const rows = Promise.all([
+    loadTreePeople(m.tree.id),
+    loadTreeEdges(m.tree.id),
+  ]).then(([people, { edges }]) => ({
+    people,
+    relationships: edges.flatMap((e): FamilyLine[] =>
+      e.from_person && e.to_person && e.type
+        ? [
+            {
+              from_person: e.from_person,
+              to_person: e.to_person,
+              type: e.type,
+              is_divorced: e.is_divorced,
+            },
+          ]
+        : [],
+    ),
+  }));
+  return getGettingStarted(m, rows);
 }

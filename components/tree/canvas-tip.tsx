@@ -1,6 +1,9 @@
 "use client";
 
 import * as React from "react";
+
+import { canvasTip } from "@/lib/first-canvas";
+
 const DISMISSED_KEY = "ancestree:canvas-tip-dismissed";
 // My Family Tree's says something else (Step 97.1), so it's closed apart.
 const FAMILY_DISMISSED_KEY = "ancestree:family-tip-dismissed";
@@ -21,6 +24,15 @@ function readDismissed(key: string): boolean {
   }
 }
 
+// A finger rather than a mouse (Step 169): "Tap", not "Click".
+const TOUCH = "(pointer: coarse)";
+
+function subscribeToPointer(onChange: () => void) {
+  const query = window.matchMedia(TOUCH);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+}
+
 /**
  * The two things the canvas does on a click that nothing on screen mentions:
  * a person pulls their own tree out of the family, and a line lights up one
@@ -34,13 +46,27 @@ function readDismissed(key: string): boolean {
  *
  * On My Family Tree a person lights their connection to the reader instead
  * (Step 97.1), and their own tree on a second tap (97.2): the tip says so.
+ * It says "Click" with a mouse and "Tap" on a touch screen, and leaves the
+ * lines out until the tree has the generations to show them on (Step 169).
  */
-export function CanvasTip({ family = false }: { family?: boolean }) {
+export function CanvasTip({
+  family = false,
+  generations,
+}: {
+  family?: boolean;
+  /** How many generations the canvas draws. */
+  generations: number;
+}) {
   const key = family ? FAMILY_DISMISSED_KEY : DISMISSED_KEY;
   const dismissed = React.useSyncExternalStore(
     subscribe,
     () => readDismissed(key),
     () => true,
+  );
+  const touch = React.useSyncExternalStore(
+    subscribeToPointer,
+    () => window.matchMedia(TOUCH).matches,
+    () => false,
   );
   const [closed, setClosed] = React.useState(false);
   if (dismissed || closed) return null;
@@ -54,16 +80,12 @@ export function CanvasTip({ family = false }: { family?: boolean }) {
     setClosed(true);
   }
 
+  const tip = canvasTip({ family, touch, generations });
   return (
     <div className="flex items-start gap-3 rounded-lg border border-border bg-card/95 px-3 py-2 text-xs shadow-md">
-      <p className="text-muted-foreground">
-        <span className="font-medium text-foreground">
-          {family
-            ? "Tap anyone to see how you're connected, and again for their own tree."
-            : "Tap anyone to see their own tree."}
-        </span>{" "}
-        On a line, tap near the parents for descendants, or near a child for
-        ancestors.
+      <p className="min-w-0 flex-1 text-muted-foreground">
+        <span className="font-medium text-foreground">{tip.lead}</span>
+        {tip.lines ? ` ${tip.lines}` : null}
       </p>
       <button
         type="button"

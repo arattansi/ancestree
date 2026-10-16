@@ -1,6 +1,9 @@
-import type * as React from "react";
+"use client";
+
+import * as React from "react";
 
 import { MEMBER_LABEL, MemberMark } from "@/components/logo-mark";
+import { Button } from "@/components/ui/button";
 import type { FamilyViewTree, TreeMark } from "@/lib/my-family";
 import { cn } from "@/lib/utils";
 
@@ -48,48 +51,73 @@ export function TreeMarkDot({
  * were handed out in; then the two shapes a person takes there, named
  * outright — a card for a direct relative, a pill for whoever married in —
  * and the mark that says someone has an account (Step 97.3).
+ *
+ * On a phone (below `sm`) it folds behind a "key" button (Step 169), so it
+ * doesn't sit over the tree; anywhere wider it's always open. Folded by the
+ * breakpoint alone until the button is pressed, so nothing jumps once the
+ * page hydrates.
  */
 export function TreeKey({ trees }: { trees: FamilyViewTree[] }) {
+  const [open, setOpen] = React.useState(false);
+  const keyId = React.useId();
   return (
-    <div className="flex max-w-[45vw] flex-col gap-1.5 rounded-lg border border-border bg-card/95 px-3 py-2 text-xs shadow-md sm:max-w-60">
-      <ul aria-label="Your trees" className="flex flex-col gap-1">
-        {trees.map((t) => (
-          <li key={t.id} className="flex min-w-0 items-center gap-2">
-            <TreeMarkDot mark={t.mark} />
-            <span className="truncate text-foreground" title={t.name}>
-              {t.name}
-            </span>
-          </li>
-        ))}
-      </ul>
-      <ul
-        aria-label="Who's who"
-        className="flex flex-col gap-1 border-t border-border pt-1.5"
+    <>
+      <Button
+        size="sm"
+        variant="outline"
+        className="bg-card shadow-md sm:hidden"
+        aria-expanded={open}
+        aria-controls={keyId}
+        onClick={() => setOpen(!open)}
       >
-        <li className="flex min-w-0 items-center gap-2">
-          {/* A card in small: the corners a card has. */}
-          <span
-            aria-hidden
-            className="inline-block h-2.5 w-3.5 shrink-0 rounded-[3px] border border-foreground/50 bg-card"
-          />
-          <span className="truncate text-foreground">Direct relative</span>
-        </li>
-        <li className="flex min-w-0 items-center gap-2">
-          {/* A pill in small: round ends, the muted fill. */}
-          <span
-            aria-hidden
-            className="inline-block h-2 w-3.5 shrink-0 rounded-full border border-muted-foreground/60 bg-muted"
-          />
-          <span className="truncate text-foreground">Married in</span>
-        </li>
-        <li className="flex min-w-0 items-center gap-2">
-          {/* Its width matches the shapes' above, so the names line up. */}
-          <span aria-hidden className="flex w-3.5 shrink-0 justify-center">
-            <MemberMark className="size-3.5" />
-          </span>
-          <span className="truncate text-foreground">{MEMBER_LABEL}</span>
-        </li>
-      </ul>
-    </div>
+        key
+      </Button>
+      <div
+        id={keyId}
+        className={cn(
+          "max-w-[45vw] flex-col gap-1.5 rounded-lg border border-border bg-card/95 px-3 py-2 text-xs shadow-md sm:flex sm:max-w-60",
+          open ? "flex" : "hidden",
+        )}
+      >
+        <ul aria-label="Your trees" className="flex flex-col gap-1">
+          {trees.map((t) => (
+            <li key={t.id} className="flex min-w-0 items-center gap-2">
+              <TreeMarkDot mark={t.mark} />
+              <span className="truncate text-foreground" title={t.name}>
+                {t.name}
+              </span>
+            </li>
+          ))}
+        </ul>
+        <ul
+          aria-label="Who's who"
+          className="flex flex-col gap-1 border-t border-border pt-1.5"
+        >
+          <li className="flex min-w-0 items-center gap-2">
+            {/* A card in small: the corners a card has. */}
+            <span
+              aria-hidden
+              className="inline-block h-2.5 w-3.5 shrink-0 rounded-[3px] border border-foreground/50 bg-card"
+            />
+            <span className="truncate text-foreground">Direct relative</span>
+          </li>
+          <li className="flex min-w-0 items-center gap-2">
+            {/* A pill in small: round ends, the muted fill. */}
+            <span
+              aria-hidden
+              className="inline-block h-2 w-3.5 shrink-0 rounded-full border border-muted-foreground/60 bg-muted"
+            />
+            <span className="truncate text-foreground">Married in</span>
+          </li>
+          <li className="flex min-w-0 items-center gap-2">
+            {/* Its width matches the shapes' above, so the names line up. */}
+            <span aria-hidden className="flex w-3.5 shrink-0 justify-center">
+              <MemberMark className="size-3.5" />
+            </span>
+            <span className="truncate text-foreground">{MEMBER_LABEL}</span>
+          </li>
+        </ul>
+      </div>
+    </>
   );
 }

@@ -179,6 +179,12 @@ turn autocomplete off, or every relative is offered the member's own name
   sheet starts under the header (Step 85.2). Mark any new sheet
   that sits beside the canvas `data-docked-sheet` to get the same
   (`app/globals.css`).
+- A phone's canvas (below `sm`, Step 169) opens close enough to read the
+  names, on the reader's own card, when framing everything would be
+  further out (`lib/first-canvas.ts`, `READABLE_ZOOM`); the cards along its
+  foot (a tree just planted, a tree just joined, the tip) show one at a
+  time, the next once the first is closed; My Family Tree's key folds
+  behind a **key** button.
 - A person's details sheet can be minimized (Step 49), on a phone or a
   wide screen: it folds into a card at the foot of the canvas that shows
   whose details are open (photo or initials, name, the sheet's own
@@ -225,8 +231,10 @@ turn autocomplete off, or every relative is offered the member's own name
   does on a tree's canvas (**Nadia Patel's tree** · ancestors ·
   descendants), and once more their connection again (Step 97.2); the
   reader's own leaf shows their own tree at once. The canvas tip there
-  says **Tap anyone to see how you're connected, and again for their own
-  tree.** A search fades leaves as it fades cards. Where the paragraphs
+  says **Click anyone to see how you're connected, and again for their own
+  tree.** (**Tap** on a touch screen, Step 169), and explains a line's two
+  ends only once there are three generations. A search fades leaves as it
+  fades cards. Where the paragraphs
   below say "card", on My Family Tree it is drawn as a leaf.
 - Off a spotlight's line, on any canvas (Step 97.3), nothing answers a
   hover: no card grows, no leaf's card opens, no border lights, no
@@ -411,7 +419,8 @@ card wears a mark for the tree it came from, and a key names them.
 - Where they sit (Step 92.2): a dot in a card's top corner, across from
   the report count; inside a pill, before the name (Step 94); under a leaf
   beside the member mark (Step 97.3), ringed in card colour like it; the key under
-  **Search & filters**, where the lanes' names on the left stay clear; the
+  **Search & filters**, where the lanes' names on the left stay clear,
+  behind a **key** button on a phone (Step 169); the
   sheet's **On** row, in place of **Also on**, each tree a link to it.
 
 ## Marketing pages
@@ -482,7 +491,12 @@ privacy page's column (`PageColumn`) and type: `text-2xl` heading,
 - Its buttons — **continue**, **skip for now**, **save and continue** —
   are lower-case like every button. Everything but the one step the flow
   can't do without can be skipped, and whatever's left is offered again
-  where the flow ends (the canvas's **Getting Started** list).
+  where the flow ends (the **Getting Started** list on My Family Tree and
+  the tree's canvas).
+- The founder's run ends on My Family Tree, their own leaves (Step 169),
+  with one card at the foot: **The Haddad Family has 4 people. Invite your
+  family to grow it.** and **invite family**, to the invite step's list.
+  Its ✕ closes it for good, in that browser, for that tree.
 - What the flow can't do without comes first, on the screen it belongs
   to, as few fields as it needs (Step 161): the founder's own entry is the
   middle of the family step, their name, birth year and photo, with

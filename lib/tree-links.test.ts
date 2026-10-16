@@ -12,6 +12,7 @@ import {
   onboardingHref,
   onboardingStepHref,
   openedFromFamily,
+  plantedFamilyHref,
   reviewHref,
   storyHref,
   suggestChangeHref,
@@ -35,6 +36,11 @@ describe("tree paths", () => {
     expect(editPersonHref("p1")).toBe("/people/p1/edit");
     expect(editPersonHref("a b")).toBe("/people/a%20b/edit");
     expect(suggestChangeHref("p1")).toBe("/people/p1/suggest");
+  });
+
+  it("ends a founder's first run on My Family Tree, naming the tree (Step 169)", () => {
+    expect(plantedFamilyHref("t1")).toBe("/family?planted=t1");
+    expect(plantedFamilyHref("a b")).toBe("/family?planted=a%20b");
   });
 
   it("lands on My Family Tree once there's an entry to arrange it around (Step 92.5)", () => {

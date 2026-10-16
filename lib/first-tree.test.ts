@@ -5,9 +5,11 @@ import {
   closeRelativeEdges,
   closeRelativeProblem,
   gettingStartedItems,
+  inviteFamilyHref,
   isFirstTreeStep,
   namePrefill,
   openingStep,
+  plantedCardText,
   reachableStep,
   stepAfter,
   stepDone,
@@ -130,6 +132,28 @@ describe("gettingStartedItems", () => {
     const invite = gettingStartedItems(fresh).find((i) => i.key === "invite");
     expect(invite?.label).toBe("Invite your family");
     expect(invite?.href.endsWith("#your-family")).toBe(true);
+  });
+});
+
+describe("the card at the end of the run (Step 169)", () => {
+  it("says how big the tree is, and who'd grow it", () => {
+    expect(plantedCardText("The Haddad Family", 4)).toBe(
+      "The Haddad Family has 4 people. Invite your family to grow it.",
+    );
+    expect(plantedCardText("The Haddad Family", 1)).toBe(
+      "The Haddad Family has 1 person. Invite your family to grow it.",
+    );
+  });
+
+  it("calls a tree nobody has named the family tree, as its emails do", () => {
+    expect(plantedCardText("Family", 2)).toBe(
+      "The family tree has 2 people. Invite your family to grow it.",
+    );
+    expect(plantedCardText("Second Family", 3)).toMatch(/^The family tree has/);
+  });
+
+  it("invites at the invite step's list, as Getting Started does", () => {
+    expect(inviteFamilyHref()).toBe("/onboarding?step=invite#your-family");
   });
 });
 

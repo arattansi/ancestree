@@ -196,7 +196,9 @@ export default async function TreePage({ searchParams }: PageProps<"/tree">) {
         claimCandidates={claimCandidates}
         panelSuggestions={panelSuggestions}
         pets={pets}
-        gettingStarted={gettingStarted}
+        gettingStarted={
+          gettingStarted ? { treeId: tree.id, items: gettingStarted } : null
+        }
         claimInvites={claimInvites}
         changeSuggestions={changeSuggestions.filter((s) =>
           shown.has(s.personId),

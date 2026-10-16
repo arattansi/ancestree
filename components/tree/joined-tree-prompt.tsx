@@ -34,18 +34,23 @@ export function JoinedTreePrompt({
   }
 
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2 text-sm shadow-md">
-      <p className="min-w-0 flex-1 text-foreground">
-        You’re on {tree.name} now.
-      </p>
-      <TreeTarget
-        treeId={tree.id}
-        currentTreeId={currentTreeId}
-        href={treeHref()}
-        size="sm"
-      >
-        view {tree.name}
-      </TreeTarget>
+    <div className="flex items-start gap-3 rounded-lg border border-border bg-card px-3 py-2 text-sm shadow-md">
+      {/* The button goes under the words when they'd squeeze it: beside a
+          long tree name on a phone, they wrapped a word a line (Step 169). */}
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2">
+        <p className="min-w-0 flex-[1_1_10rem] text-foreground">
+          You’re on {tree.name} now.
+        </p>
+        <TreeTarget
+          treeId={tree.id}
+          currentTreeId={currentTreeId}
+          href={treeHref()}
+          size="sm"
+          className="max-w-full"
+        >
+          <span className="truncate">view {tree.name}</span>
+        </TreeTarget>
+      </div>
       <button
         type="button"
         className="relative tap-target text-muted-foreground hover:text-foreground"

@@ -20,21 +20,26 @@ import {
 import { loadFirstTree, loadInviteStep } from "@/lib/first-tree.server";
 import { getSiteUrl } from "@/lib/site-url";
 import type { TreeMembership } from "@/lib/tree-context";
-import { onboardingStepHref, treeHref } from "@/lib/tree-links";
+import { onboardingStepHref, plantedFamilyHref } from "@/lib/tree-links";
 import { suggestedTreeName } from "@/lib/tree-names";
 
-/** Where a step's Continue goes: the next step, or the canvas after the last. */
-function hrefAfter(step: FirstTreeStep): string {
+/**
+ * Where a step's Continue goes: the next step, or after the last My Family
+ * Tree (Step 169), their own leaves, which offers to invite family onto the
+ * tree they've just planted.
+ */
+function hrefAfter(step: FirstTreeStep, treeId: string): string {
   const next = stepAfter(step);
-  return next ? onboardingStepHref(next) : treeHref();
+  return next ? onboardingStepHref(next) : plantedFamilyHref(treeId);
 }
 
 /**
  * A founder's first run on the tree they've just started (Step 29), one
  * step at a time: themselves and their close family on one screen (Step
  * 161), who'll help (which is where the account types are introduced),
- * then the tree's name (Step 124). Everything but their own entry can be
- * skipped; the canvas's "Getting started" list keeps what's left.
+ * then the tree's name (Step 124). It ends on My Family Tree, their own
+ * leaves (Step 169). Everything but their own entry can be skipped; the
+ * "Getting started" list there and on the canvas keeps what's left.
  */
 export async function FirstTreeOnboarding({
   membership,
@@ -61,7 +66,7 @@ export async function FirstTreeOnboarding({
     redirect(onboardingStepHref(wanted ?? openingStep(state)));
   }
   const step = reachableStep(wanted, state);
-  const next = hrefAfter(step);
+  const next = hrefAfter(step, tree.id);
   // Adding themselves, or bringing their entry across, stays on the family
   // step: its other places open once they're in.
   const familyHref = onboardingStepHref("family");
@@ -161,10 +166,14 @@ export async function FirstTreeOnboarding({
         </>
       ) : null}
 
-      {/* Not on the last step, whose own button opens the tree. */}
+      {/* Not on the last step, whose own button opens the tree. Where the
+          run ends, as the last step's button does (Step 169). */}
       {state.selfPlaced && stepAfter(step) ? (
         <p className="text-sm text-muted-foreground">
-          <Link href={treeHref()} className="underline underline-offset-4">
+          <Link
+            href={plantedFamilyHref(tree.id)}
+            className="underline underline-offset-4"
+          >
             Go to your tree
           </Link>{" "}
           — the rest can wait.
