@@ -10,7 +10,7 @@ export function SendStoryLink() {
       href={blogSubmitHref()}
       className="group inline-flex items-center gap-1.5 self-start text-sm underline underline-offset-4 hover:text-muted-foreground"
     >
-      Send us the story of someone you’ve lost
+      Share a story of someone who has passed
       <ArrowRight
         aria-hidden
         className="size-3.5 transition-transform group-hover:translate-x-0.5"

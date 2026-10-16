@@ -1830,6 +1830,19 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 157.5: the library's call to send a story, and its length**
+  (no migration). **Aalim asked:** the link to the form reads "share a
+  story of someone who has passed", and a story sent in is at most 2,000
+  words. **Now** /library and each post link "Share a story of someone who
+  has passed →" (sentence case, as link-drawn text is), and the form's
+  **Their story** counts "n/2,000 words" beside its label, red once over,
+  with "Too long by n words." under the box and **send** off until it's
+  cut; the server refuses one over too (`countWords`,
+  `LIBRARY_SUBMISSION_WORDS_MAX`). **My calls:** a word is a run without
+  spaces that has a letter or a digit in it, so a dash or an "&" on its
+  own isn't one; the 20,000-character limit stays behind it, for writing
+  that doesn't space its words.
+
 - **Step 157: the library's way back, likes and shares, and stories sent
   in** (migration `20261015160000_library_likes_and_submissions`, live).
   **Aalim asked:** make the post page's "(stories-of-our-wise)" link

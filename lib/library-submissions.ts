@@ -4,6 +4,7 @@ import {
   BLOG_TITLE_MAX,
   LIBRARY_CHANGE_MAX,
   LIBRARY_SUBMISSION_BODY_MAX,
+  LIBRARY_SUBMISSION_WORDS_MAX,
 } from "@/lib/limits";
 
 /**
@@ -103,6 +104,14 @@ export function peopleNames(people: BlogPerson[]): string {
   return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 }
 
+/**
+ * How many words `text` has: runs of anything but spaces with a letter or
+ * a digit in them, so a dash or an ampersand on its own isn't one.
+ */
+export function countWords(text: string): number {
+  return (text.match(/\S+/g) ?? []).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
+}
+
 export type SubmissionFields =
   | {
       ok: true;
@@ -139,6 +148,13 @@ export function readSubmissionFields(input: {
     return { ok: false, error: `Keep the title under ${BLOG_TITLE_MAX} characters.` };
   }
   if (!body) return { ok: false, error: "Write their story." };
+  const words = countWords(body);
+  if (words > LIBRARY_SUBMISSION_WORDS_MAX) {
+    return {
+      ok: false,
+      error: `Too long by ${(words - LIBRARY_SUBMISSION_WORDS_MAX).toLocaleString("en")} ${words - LIBRARY_SUBMISSION_WORDS_MAX === 1 ? "word" : "words"}.`,
+    };
+  }
   if (body.length > LIBRARY_SUBMISSION_BODY_MAX) {
     return {
       ok: false,

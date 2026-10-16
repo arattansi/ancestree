@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   LIBRARY_CHANGE_MAX,
   LIBRARY_SUBMISSION_BODY_MAX,
+  LIBRARY_SUBMISSION_WORDS_MAX,
 } from "@/lib/limits";
 import {
+  countWords,
   hasChangeWaiting,
   peopleNames,
   readChangeMessage,
@@ -68,7 +70,21 @@ describe("readSubmissionFields (Step 157)", () => {
     expect(readSubmissionFields({ ...ok, agreed: "0" }).ok).toBe(false);
   });
 
-  it("says how far over a long story is", () => {
+  it("takes 2,000 words and says how many over a longer story is (157.5)", () => {
+    const words = (n: number) => Array.from({ length: n }, () => "fig").join(" ");
+    expect(readSubmissionFields({ ...ok, body: words(LIBRARY_SUBMISSION_WORDS_MAX) }).ok).toBe(
+      true,
+    );
+    expect(readSubmissionFields({ ...ok, body: words(LIBRARY_SUBMISSION_WORDS_MAX + 1) })).toEqual({
+      ok: false,
+      error: "Too long by 1 word.",
+    });
+    expect(
+      readSubmissionFields({ ...ok, body: words(LIBRARY_SUBMISSION_WORDS_MAX + 1250) }),
+    ).toEqual({ ok: false, error: "Too long by 1,250 words." });
+  });
+
+  it("still holds the characters' limit for writing without spaces", () => {
     const fields = readSubmissionFields({
       ...ok,
       body: "a".repeat(LIBRARY_SUBMISSION_BODY_MAX + 1200),
@@ -145,5 +161,15 @@ describe("submissionRefusal", () => {
     expect(submissionRefusal("NO_SUBMISSION")).toBe("This link doesn’t work.");
     expect(submissionRefusal("boom")).toBeNull();
     expect(submissionRefusal(undefined)).toBeNull();
+  });
+});
+
+describe("countWords", () => {
+  it("counts words across lines, not a dash or an ampersand on its own", () => {
+    expect(countWords("")).toBe(0);
+    expect(countWords("   \n ")).toBe(0);
+    expect(countWords("She grew figs.")).toBe(3);
+    expect(countWords("  She grew\n\nfigs &   roses — every summer. ")).toBe(6);
+    expect(countWords("Aminah's 1950s well-kept garden, in Dar es Salaam")).toBe(8);
   });
 });

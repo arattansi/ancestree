@@ -16,13 +16,21 @@ import { useAction } from "@/components/use-action";
 import { BLOG_NAME, blogSubmissionHref } from "@/lib/blog";
 import { MAX_EMAIL_LENGTH } from "@/lib/email-address";
 import { compressImage } from "@/lib/image";
-import { BLOG_COVER_EDGE, BLOG_TITLE_MAX, LIBRARY_SUBMISSION_BODY_MAX } from "@/lib/limits";
+import { countWords } from "@/lib/library-submissions";
+import {
+  BLOG_COVER_EDGE,
+  BLOG_TITLE_MAX,
+  LIBRARY_SUBMISSION_BODY_MAX,
+  LIBRARY_SUBMISSION_WORDS_MAX,
+} from "@/lib/limits";
+import { cn } from "@/lib/utils";
 
 /**
  * Send in the story of someone who has passed (Step 157): the admin
  * page's draft form, without its preview or meta fields — a title, who
  * it's about, a photo, the story — and the sender's email and their
- * agreement that it may be edited to fit the library. Once sent it says
+ * agreement that it may be edited to fit the library. The story counts
+ * its words against the 2,000 it may have (157.5). Once sent it says
  * where the copy went, with the copy's own page a link away.
  */
 export function SubmitStoryForm() {
@@ -40,7 +48,10 @@ export function SubmitStoryForm() {
   );
   const photoInput = React.useRef<HTMLInputElement>(null);
   const website = React.useRef<HTMLInputElement>(null);
-  const over = body.trim().length - LIBRARY_SUBMISSION_BODY_MAX;
+  const words = countWords(body);
+  const wordsOver = words - LIBRARY_SUBMISSION_WORDS_MAX;
+  const charsOver = body.trim().length - LIBRARY_SUBMISSION_BODY_MAX;
+  const over = wordsOver > 0 || charsOver > 0;
 
   // A picked photo's preview address, let go once it's replaced or dropped.
   function showPhoto(url: string | null) {
@@ -172,19 +183,35 @@ export function SubmitStoryForm() {
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="story-body">Their story</Label>
+        <div className="flex items-baseline justify-between gap-2">
+          <Label htmlFor="story-body">Their story</Label>
+          <span
+            id="story-body-count"
+            className={cn(
+              "text-xs tabular-nums text-muted-foreground",
+              wordsOver > 0 && "font-medium text-destructive",
+            )}
+          >
+            {words.toLocaleString("en")}/{LIBRARY_SUBMISSION_WORDS_MAX.toLocaleString("en")} words
+          </span>
+        </div>
         <Textarea
           id="story-body"
           value={body}
           onChange={(e) => setBody(e.target.value)}
           rows={14}
           disabled={action.pending}
-          aria-invalid={over > 0}
+          aria-invalid={over}
+          aria-describedby="story-body-count"
           className="max-h-[60dvh]"
           required
         />
         <FormError>
-          {over > 0 ? `Too long by ${over.toLocaleString("en")} characters.` : null}
+          {wordsOver > 0
+            ? `Too long by ${wordsOver.toLocaleString("en")} ${wordsOver === 1 ? "word" : "words"}.`
+            : charsOver > 0
+              ? `Too long by ${charsOver.toLocaleString("en")} characters.`
+              : null}
         </FormError>
       </div>
 
@@ -235,7 +262,7 @@ export function SubmitStoryForm() {
         className="self-start"
         pending={action.pending}
         pendingLabel="sending…"
-        disabled={photoBusy || over > 0}
+        disabled={photoBusy || over}
       >
         send
       </PendingButton>
