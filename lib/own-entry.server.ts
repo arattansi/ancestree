@@ -39,14 +39,21 @@ export type OwnEntry = {
 export async function loadOwnEntry(profile: Profile): Promise<OwnEntry | null> {
   if (!profile.self_person_id) return null;
   const supabase = await createClient();
-  const { data: person } = await supabase
-    .from("people")
-    .select(
-      "id, tree_id, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_birth_precision, birth_month, birth_day, date_of_birth_circa, place_id_birth, city_of_birth, country_of_birth, is_deceased, date_of_death, date_of_death_precision, date_of_death_circa, place_id_death, place_of_death, place_id_residence, place_of_residence, sex, photo_path, photo_crop, email, email_visible",
-    )
-    .eq("id", profile.self_person_id)
-    .maybeSingle();
-  if (!person?.id || !person.last_name) return null;
+  // Members can't read an entry's email from `people` (Step 156): the
+  // owner's own comes from `owned_entry_email`, beside the row. Without it
+  // the form would show a blank that saving writes back.
+  const [{ data: person }, { data: email, error: emailError }] =
+    await Promise.all([
+      supabase
+        .from("people")
+        .select(
+          "id, tree_id, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_birth_precision, birth_month, birth_day, date_of_birth_circa, place_id_birth, city_of_birth, country_of_birth, is_deceased, date_of_death, date_of_death_precision, date_of_death_circa, place_id_death, place_of_death, place_id_residence, place_of_residence, sex, photo_path, photo_crop, email_visible",
+        )
+        .eq("id", profile.self_person_id)
+        .maybeSingle(),
+      supabase.rpc("owned_entry_email", { p_person: profile.self_person_id }),
+    ]);
+  if (!person?.id || !person.last_name || emailError) return null;
 
   // The photo, the places and their role at home, side by side (Step 77.1).
   const [photoUrl, labels, homeRole] = await Promise.all([
@@ -54,7 +61,7 @@ export async function loadOwnEntry(profile: Profile): Promise<OwnEntry | null> {
     placeLabels(person),
     getRoleIn(person.tree_id),
   ]);
-  const entry = { ...person, last_name: person.last_name };
+  const entry = { ...person, email, last_name: person.last_name };
 
   return {
     homeTreeId: person.tree_id,
@@ -76,7 +83,9 @@ export async function loadOwnEntry(profile: Profile): Promise<OwnEntry | null> {
  * who claimed it by an invite, whose details stay hidden from the family
  * until their parent shows them. `null` for anyone else.
  */
-export async function ownPlaceholderId(profile: Profile): Promise<string | null> {
+export async function ownPlaceholderId(
+  profile: Profile,
+): Promise<string | null> {
   if (!profile.self_person_id) return null;
   const supabase = await createClient();
   const { data } = await supabase
@@ -93,6 +102,8 @@ export async function ownPlaceholderId(profile: Profile): Promise<string | null>
  */
 export async function ownHeldBack(personId: string): Promise<HeldBackRow[]> {
   const supabase = await createClient();
-  const { data } = await supabase.rpc("withheld_details", { p_person: personId });
+  const { data } = await supabase.rpc("withheld_details", {
+    p_person: personId,
+  });
   return heldBackRows(data as HeldBackDetails | null);
 }

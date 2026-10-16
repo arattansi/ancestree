@@ -40,25 +40,29 @@ const ENTRY_COLUMNS =
  * Their own child's entry when it isn't on the tree being looked at (Step
  * 98.2): a placeholder its parent fills in from wherever they are, a tree
  * they aren't on included, or the child it became once they did. Read from
- * `people`, as the database lets its parent see it.
+ * `people`, as the database lets its parent see it, and its email only if
+ * the entry is theirs (Step 156).
  */
 async function ownChildOffTree(
   supabase: Awaited<ReturnType<typeof createClient>>,
   id: string,
 ) {
-  const [{ data: row }, { data: mine }] = await Promise.all([
-    supabase
-      .from("people")
-      .select(
-        "id, tree_id, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_birth_precision, birth_month, birth_day, date_of_birth_circa, place_id_birth, city_of_birth, country_of_birth, is_deceased, date_of_death, date_of_death_precision, date_of_death_circa, place_id_death, place_of_death, place_id_residence, place_of_residence, sex, photo_path, photo_crop, owner_user_id, created_by, email, email_visible, placeholder_number",
-      )
-      .eq("id", id)
-      .maybeSingle(),
-    supabase.rpc("is_own_child", { p_person: id }),
-  ]);
-  if (!row || mine !== true) return null;
+  const [{ data: row }, { data: mine }, { data: email, error: emailError }] =
+    await Promise.all([
+      supabase
+        .from("people")
+        .select(
+          "id, tree_id, first_name, middle_name, preferred_name, maiden_name, last_name, date_of_birth, date_of_birth_precision, birth_month, birth_day, date_of_birth_circa, place_id_birth, city_of_birth, country_of_birth, is_deceased, date_of_death, date_of_death_precision, date_of_death_circa, place_id_death, place_of_death, place_id_residence, place_of_residence, sex, photo_path, photo_crop, owner_user_id, created_by, email_visible, placeholder_number",
+        )
+        .eq("id", id)
+        .maybeSingle(),
+      supabase.rpc("is_own_child", { p_person: id }),
+      supabase.rpc("owned_entry_email", { p_person: id }),
+    ]);
+  // A blank email the form would write back: better not shown at all.
+  if (!row || mine !== true || emailError) return null;
   const { tree_id, ...rest } = row;
-  return { ...rest, home_tree_id: tree_id, is_home: false };
+  return { ...rest, email, home_tree_id: tree_id, is_home: false };
 }
 
 export default async function EditPersonPage({

@@ -129,7 +129,8 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   hiding, your own details as an editable form — including your email,
   which lives on your entry (`people.email`, seeded from the sign-in address
   and private unless `people.email_visible`; the `tree_people` view withholds
-  a hidden address from everyone but the entry's owner), one inbox per
+  a hidden address from everyone but the entry's owner, and no member reads
+  it from `people` at all, Step 156), one inbox per
   tree, delete-account; settings opens on **Relatives Asking for an
   Invite** when a newcomer's ask was passed on to them (Step 30.5,
   `&relay=<id>` from the email), each listing the entries on the picked tree
@@ -1828,6 +1829,40 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 156: an unshown email stays its owner's** (migrations
+  `20261015140000_owned_entry_email`, live, and
+  `20261015141000_people_email_owner_only`, applied once this build is
+  deployed). Step 155's open gap: any member of a tree showing an entry in
+  full could read its `email` from `/rest/v1/people`, and from
+  `person_claim_candidates` (its full-card rows are the whole row), even
+  with "Show this email to other members of the tree" off. Row security
+  can't hold back a column, so **now** `authenticated` loses SELECT on
+  `people` and gets it back on every column but `email`: a direct read
+  naming `email` or `*`, or a filter on it, is refused (42501).
+  `person_claim_candidates` masks a full card's email as `tree_people`
+  does (the owner's own, or one shown to members). The app's two direct
+  reads of an owner's email (the account page's own entry,
+  `lib/own-entry.server.ts`; a parent's own child off the tree,
+  `app/people/[id]/edit/page.tsx`) ask the new `owned_entry_email(p_person)`
+  instead, which answers only the entry's owner. Every other `people` read
+  in `app/`, `lib/` and `mobile/` already named its columns, none of them
+  `email`; `select("*")` in `app/actions/privacy.ts` is the service role's,
+  which keeps the table grant. **Order matters:** the build before this
+  one read `email` from `people` on those two pages, so the column revoke
+  goes live only after the deploy. **A new `people` column isn't readable
+  by members until it's granted** (`grant select (<column>) on
+  public.people to authenticated` in the migration that adds it).
+  **Checked** in a rolled-back transaction on live, before, after the
+  first migration and after both, as the entry's owner, a Root, a Leaf, a
+  seeded claimant and the service role: the hidden email went from read
+  by all three members directly (and by the claimant through the
+  candidates) to refused for every member and null in the candidates,
+  while the owner still gets it from `tree_people` and `owned_entry_email`,
+  an email shown to members still reaches a Leaf through `tree_people`,
+  the service role reads the column as before, and the app's new reads,
+  a PostgREST-shaped edit with `select=id` (email and name) and a count
+  all work in every phase.
 
 - **Step 155: visitors read entries only as cards** (migration
   `20261015120000_visitors_read_through_the_view`, live). Step 153's open

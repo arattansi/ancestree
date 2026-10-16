@@ -339,6 +339,12 @@ stays.
   reads through `private.visible_people`, which keeps the visitor's rows.
   So an email and where someone lives reach members of that tree and the
   entry's owner only, whatever the visitor asks the API for.
+- No member reads an entry's email from `people` (Step 156): `authenticated`
+  may select every column of it but `email`. An email reaches the entry's
+  owner (`tree_people`, `owned_entry_email`) and, when its owner shows it
+  ("Show this email to other members of the tree"), the members of the
+  trees showing the entry in full (`tree_people`). A new `people` column
+  needs its own `grant select (…) on public.people to authenticated`.
 
 ## 7. Invites
 

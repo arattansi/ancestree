@@ -3399,6 +3399,7 @@ export type Database = {
           tree_name: string
         }[]
       }
+      owned_entry_email: { Args: { p_person: string }; Returns: string }
       person_claim_candidates: {
         Args: never
         Returns: {
