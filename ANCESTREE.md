@@ -1159,8 +1159,10 @@ mirror it for the UI.
   leaves an httpOnly `ancestree.code-sent` cookie for the code's hour
   (`lib/sent-code.ts`: address, a sign-up's name, the invite token or
   campaign code, when), and `MagicLinkSignIn` opens `MagicLinkForm` on
-  the box when the cookie is for that page's link; signing in, **Use
-  another email** and signing out drop it. Email apps run no scripts, so the email can't
+  the box when the cookie is for that page's link; the invite page opens
+  `SignInToAccept` on it when it's for that invite and the address it
+  names (Step 165); signing in, **Use another email** and signing out
+  drop it. Email apps run no scripts, so the email can't
   have a copy button. A code can't be safer than the link's `token_hash`
   against guessing: every link email always carried a code too, checkable
   at `/auth/v1/verify` with the public key, so GoTrue's per-IP limit
@@ -1841,6 +1843,24 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 165: a founder invite's privacy tick, and the invite page's code
+  box survives a reload** (no migration). **From** Step 164's leftovers
+  on the emailed-invite page `/join/<token>`. **Now** a founder invite's
+  privacy tick (`AcceptInviteForm`, now `JoinConsent` with `starting`)
+  shares details "with the family who join my tree", not "other members
+  of this private tree", and a requested founder invite's line reads "By
+  starting your tree you agree to share your family details with the
+  family who join it." An address with an account (`SignInToAccept`)
+  that taps **email me a code** and reloads on "Check your email" opens
+  on the code box again: `sendInviteSignInCode` leaves Step 164's
+  `ancestree.code-sent` cookie (the invite's address, its token, when),
+  and the page reads it for that invite and that address only
+  (`readSentCode`'s `email`, tested); signing in drops it, as before.
+  **My calls:** a code sent counts as the address having an account, so
+  the page opens on the box (and "Signing in adds it to your trees")
+  even where the lookup alone wouldn't, as for an account with no
+  profile yet; only a signed-out visitor gets the box back.
 
 - **Step 161: you and your closest family on one screen, a short form**
   (no migration). **From** the 2026-10-16 onboarding audit (W2, W12 /

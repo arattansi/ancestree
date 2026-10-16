@@ -45,6 +45,16 @@ describe("the sent code's cookie", () => {
     expect(readSentCode(plain, { campaign: "df9590fa4260" }, NOW)).toBeNull();
   });
 
+  it("opens an emailed invite's box only for the address it names", () => {
+    const sent: SentCode = { email: "leila@example.com", inviteToken: "tok", sentAt: NOW };
+    const raw = sentCodeCookieValue(sent);
+    expect(readSentCode(raw, { inviteToken: "tok", email: "Leila@Example.com " }, NOW)).toEqual(
+      sent,
+    );
+    expect(readSentCode(raw, { inviteToken: "tok", email: "sami@example.com" }, NOW)).toBeNull();
+    expect(readSentCode(raw, { inviteToken: "other", email: "leila@example.com" }, NOW)).toBeNull();
+  });
+
   it("is spent after an hour", () => {
     const raw = sentCodeCookieValue({ ...signUp, sentAt: NOW - 3600 * 1000 });
     expect(readSentCode(raw, { campaign: "df9590fa4260" }, NOW)).toBeNull();

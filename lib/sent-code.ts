@@ -26,8 +26,11 @@ export type SentCode = {
   sentAt: number;
 };
 
-/** The link a page's form is for: a bare invite, a campaign, or neither. */
-export type SentCodeLink = { inviteToken?: string; campaign?: string };
+/**
+ * The link a page's form is for: a bare invite, a campaign, or neither; and
+ * for an emailed invite (`SignInToAccept`, Step 165), the address it names.
+ */
+export type SentCodeLink = { inviteToken?: string; campaign?: string; email?: string };
 
 export function sentCodeCookieOptions() {
   return {
@@ -78,6 +81,9 @@ export function readSentCode(
   const campaign = text(value.campaign);
   if ((inviteToken ?? "") !== (link.inviteToken?.trim() ?? "")) return null;
   if ((campaign ?? "") !== (link.campaign?.trim() ?? "")) return null;
+  if (link.email && email.trim().toLowerCase() !== link.email.trim().toLowerCase()) {
+    return null;
+  }
 
   return {
     email,

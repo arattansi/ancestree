@@ -181,7 +181,8 @@ export function InviteConsent({
  *
  * `starting` words it for a founder (Step 164): a campaign link's tree is
  * their own and empty, so there are no other members yet to share with,
- * only the family who join it later.
+ * only the family who join it later. An emailed invite's accept form asks
+ * the same (`AcceptInviteForm`), founding a tree too (Step 165).
  */
 export function JoinConsent({
   id,

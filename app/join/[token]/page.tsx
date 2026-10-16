@@ -20,6 +20,7 @@ import { LEAF, ROOT } from "@/lib/account-types";
 import { getProfile, getSessionUser, getUser } from "@/lib/auth";
 import { verifiedEmail } from "@/lib/first-timer";
 import { sentToAnotherAddress } from "@/lib/invite-address";
+import { readSentCodeFor } from "@/lib/sent-code.server";
 import { inviteHref } from "@/lib/sign-in-links";
 import { opensOnSignInLink, readInvite } from "@/lib/sign-in.server";
 import { createClient } from "@/lib/supabase/server";
@@ -68,11 +69,15 @@ export default async function InvitePage({
   // that address may accept it (Step 51), so a member's page looks it up too.
   // Signed out, to an address that has an account already: open on its
   // sign-in link, with no tick to spend first (Step 41.2); with no session
-  // at all, that's asked beside the rest.
+  // at all, that's asked beside the rest, as is a code this invite emailed
+  // that address within the hour, which opens on its box again (Step 165).
   const recipient = preview?.valid ? invite.recipient : null;
-  const [user, signedOutOpensOnLink] = await Promise.all([
+  const [user, signedOutOpensOnLink, sentCode] = await Promise.all([
     recipient && sessionUser ? getUser() : null,
     sessionUser ? null : opensOnSignInLink(recipient, { signedIn: false }),
+    recipient && !sessionUser
+      ? readSentCodeFor({ inviteToken: token, email: recipient.email })
+      : null,
   ]);
   const signedInAs = user ? verifiedEmail(user) : null;
   // Signed in as that address already, but no member yet: signing in sent
@@ -84,9 +89,11 @@ export default async function InvitePage({
   // device, a Root checking one they sent. The database would refuse them,
   // so the page says whose it is instead of offering to join.
   const forAnotherAddress = Boolean(profile && recipient && !signedInAsRecipient);
+  // A code went out, so the address has an account (Step 165).
   const signInFirst =
-    signedOutOpensOnLink ??
-    (await opensOnSignInLink(recipient, { signedIn: Boolean(user) }));
+    Boolean(sentCode) ||
+    (signedOutOpensOnLink ??
+      (await opensOnSignInLink(recipient, { signedIn: Boolean(user) })));
   const founds = preview?.founds_tree === true;
   // A member already on the tree it joins (Step 52): a family link goes
   // round a group chat, most of whom may be. There's nothing for them to
@@ -193,22 +200,29 @@ export default async function InvitePage({
                   label={founds ? "start my tree" : `join ${preview.tree_name}`}
                 />
               ) : recipient && signInFirst ? (
-                <SignInToAccept inviteToken={token} email={recipient.email} />
+                <SignInToAccept
+                  inviteToken={token}
+                  email={recipient.email}
+                  sent={sentCode ?? undefined}
+                />
               ) : recipient ? (
                 <AcceptInviteForm
                   inviteToken={token}
                   email={recipient.email}
                   consentGiven={recipient.requested}
+                  founds={founds}
                 />
               ) : (
                 <MagicLinkSignIn inviteToken={token} submitLabel="accept &amp; sign in" />
               )}
               {!profile && recipient?.requested ? (
                 // They ticked the privacy notice when they asked to join, or
-                // to start a tree from the waitlist (Step 30.6).
+                // to start a tree from the waitlist (Step 30.6). A founder's
+                // tree starts empty (Step 165).
                 <p className="mt-4 text-xs text-muted-foreground">
-                  By joining you agree to share your family details with other
-                  members of this private tree.
+                  {founds
+                    ? "By starting your tree you agree to share your family details with the family who join it."
+                    : "By joining you agree to share your family details with other members of this private tree."}
                 </p>
               ) : null}
               {profile ? (

@@ -247,7 +247,8 @@ export type InviteSignInCodeState = {
  * at once for someone signed out (Step 41.2), or once `acceptInvite` finds
  * it (Step 30.8): email it a sign-in code, which accepts the invite once
  * entered on the page (Step 53). It goes to the address the invite names,
- * never one typed here (`emailInviteSignInCode`).
+ * never one typed here (`emailInviteSignInCode`). Remembered for its hour
+ * like `requestMagicLink`'s, so a reload opens on the code box (Step 165).
  */
 export async function sendInviteSignInCode(
   _prev: InviteSignInCodeState,
@@ -256,7 +257,11 @@ export async function sendInviteSignInCode(
   const token = String(formData.get("inviteToken") ?? "").trim();
   const resend = formData.get("resend") === "1";
   const result = await emailInviteSignInCode(token);
-  if (result.ok) return { sentTo: result.email, sentAt: Date.now(), resent: resend };
+  if (result.ok) {
+    const sentAt = Date.now();
+    await rememberSentCode({ email: result.email, inviteToken: token, sentAt });
+    return { sentTo: result.email, sentAt, resent: resend };
+  }
   if (result.reason === "invalid") {
     return {
       error:
