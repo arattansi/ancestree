@@ -1,16 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  DOT_SIZES,
   EDGE,
   leafWidth,
-  NAME_H,
-  NAME_W,
   orbitLayout,
   orbitLines,
-  type OrbitDot,
+  PILL_SIZES,
   type OrbitGroups,
   type OrbitLayout,
+  type OrbitPill,
 } from "@/lib/leaf-orbit";
 import { BLADE_OVERHANG } from "@/lib/leaf-shapes";
 
@@ -18,6 +16,8 @@ import { BLADE_OVERHANG } from "@/lib/leaf-shapes";
 const PHONE = { width: 393, height: 600 };
 /** An iPhone SE's. */
 const SMALL = { width: 375, height: 470 };
+/** An iPhone Pro Max's. */
+const LARGE = { width: 440, height: 700 };
 
 const ids = (prefix: string, n: number) =>
   Array.from({ length: n }, (_, i) => `${prefix}${i + 1}`);
@@ -29,35 +29,38 @@ const family = (counts: Partial<Record<keyof OrbitGroups, number>>): OrbitGroups
   siblings: ids("b", counts.siblings ?? 0),
 });
 
-const of = (layout: OrbitLayout, side: OrbitDot["side"]) =>
-  layout.dots.filter((d) => d.side === side);
+const of = (layout: OrbitLayout, side: OrbitPill["side"]) =>
+  layout.pills.filter((d) => d.side === side);
 
 /** Where the blade may reach: its box, and a maple's lobes above and below. */
 function bladeOf({ leaf }: OrbitLayout) {
   const overhang = (BLADE_OVERHANG * leaf.width) / 208;
   return {
-    left: leaf.x + leaf.width * 0.22,
+    left: leaf.x,
     right: leaf.x + leaf.width,
     top: leaf.y - overhang,
     bottom: leaf.y + leaf.height + overhang,
   };
 }
 
-/** A circle's box, with its name. */
-function box(layout: OrbitLayout, d: OrbitDot) {
-  const w = layout.named ? Math.max(layout.dot, NAME_W) : layout.dot;
-  const name = layout.named ? NAME_H : 0;
-  const top = d.side === "parents" ? d.y - layout.dot / 2 - name : d.y - layout.dot / 2;
-  return { left: d.x - w / 2, right: d.x + w / 2, top, bottom: top + layout.dot + name };
+/** A pill's box. */
+function box(layout: OrbitLayout, d: OrbitPill) {
+  const { width, height } = layout.pill;
+  return {
+    left: d.x - width / 2,
+    right: d.x + width / 2,
+    top: d.y - height / 2,
+    bottom: d.y + height / 2,
+  };
 }
 
-const overlap = (
-  a: ReturnType<typeof box>,
-  b: ReturnType<typeof box>,
-) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+type Box = ReturnType<typeof box>;
+
+const overlap = (a: Box, b: Box) =>
+  a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
 
 function expectTidy(layout: OrbitLayout, frame: { width: number; height: number }) {
-  const boxes = layout.dots.map((d) => box(layout, d));
+  const boxes = layout.pills.map((d) => box(layout, d));
   for (const b of boxes) {
     expect(b.left).toBeGreaterThanOrEqual(EDGE - 0.01);
     expect(b.right).toBeLessThanOrEqual(frame.width - EDGE + 0.01);
@@ -67,8 +70,8 @@ function expectTidy(layout: OrbitLayout, frame: { width: number; height: number 
   for (let i = 0; i < boxes.length; i++)
     for (let j = i + 1; j < boxes.length; j++)
       expect(overlap(boxes[i], boxes[j])).toBe(false);
-  // Nobody sits on the leaf's blade (its stem's start is the spouses' column),
-  // lobes and all, and the lobes stay on the screen.
+  // Nobody sits on the leaf, stem, lobes and all, and the lobes stay on the
+  // screen.
   const blade = bladeOf(layout);
   for (const b of boxes) expect(overlap(b, blade)).toBe(false);
   expect(blade.top).toBeGreaterThanOrEqual(EDGE - 0.01);
@@ -82,30 +85,32 @@ describe("orbitLayout", () => {
     const midY = leaf.y + leaf.height / 2;
     for (const d of of(layout, "parents")) expect(d.y).toBeLessThan(leaf.y);
     for (const d of of(layout, "children")) expect(d.y).toBeGreaterThan(leaf.y + leaf.height);
-    for (const d of of(layout, "spouses")) expect(d.x).toBeLessThan(leaf.x + 1);
+    for (const d of of(layout, "spouses")) expect(d.x).toBeLessThan(leaf.x);
     for (const d of of(layout, "siblings")) expect(d.x).toBeGreaterThan(leaf.x + leaf.width);
     // One spouse sits level with the leaf's middle, where its stem points.
-    expect(of(layout, "spouses")[0].y).toBeCloseTo(midY - NAME_H / 2);
-    expect(layout.dot).toBe(DOT_SIZES[0].dot);
+    expect(of(layout, "spouses")[0].y).toBeCloseTo(midY);
+    expect(layout.pill).toEqual(PILL_SIZES[0]);
     expectTidy(layout, PHONE);
   });
 
-  it("keeps the leaf one size whoever is on it", () => {
+  it("keeps the leaf under half the screen, one size whoever is on it", () => {
     const alone = orbitLayout(PHONE, family({}));
     const crowded = orbitLayout(PHONE, family({ parents: 2, children: 9, siblings: 12 }));
     expect(crowded.leaf.width).toBe(alone.leaf.width);
     expect(alone.leaf.width).toBe(leafWidth(PHONE.width, PHONE.height));
+    for (const frame of [PHONE, SMALL, LARGE])
+      expect(leafWidth(frame.width, frame.height)).toBeLessThan(frame.width / 2);
   });
 
   it("uses one smaller size for everyone when a group needs it", () => {
-    const layout = orbitLayout(PHONE, family({ parents: 2, siblings: 6 }));
-    expect(layout.dot).toBeLessThan(DOT_SIZES[0].dot);
-    expect(of(layout, "siblings")).toHaveLength(6);
-    expect(layout.dots.every((d) => d.more === 0)).toBe(true);
+    const layout = orbitLayout(PHONE, family({ parents: 2, children: 4 }));
+    expect(layout.pill.width).toBeLessThan(PILL_SIZES[0].width);
+    expect(of(layout, "children")).toHaveLength(4);
+    expect(layout.pills.every((d) => d.more === 0)).toBe(true);
     expectTidy(layout, PHONE);
   });
 
-  it("stands one circle in for the rest of a group too big for any size", () => {
+  it("stands one pill in for the rest of a group too big for any size", () => {
     const layout = orbitLayout(PHONE, family({ parents: 2, children: 20, siblings: 30 }));
     const kids = of(layout, "children");
     const more = kids.filter((d) => d.id === null);
@@ -113,17 +118,19 @@ describe("orbitLayout", () => {
     expect(kids.filter((d) => d.id).length + more[0].more).toBe(20);
     const sibs = of(layout, "siblings");
     expect(sibs.filter((d) => d.id).length + sibs.find((d) => !d.id)!.more).toBe(30);
-    expect(layout.named).toBe(false);
+    expect(layout.pill).toEqual(PILL_SIZES[PILL_SIZES.length - 1]);
     expectTidy(layout, PHONE);
   });
 
-  it("fits a small phone", () => {
-    for (const counts of [
-      { parents: 2, children: 3, spouses: 2, siblings: 4 },
-      { parents: 4, children: 8, spouses: 3, siblings: 9 },
-      { siblings: 1 },
-    ]) {
-      expectTidy(orbitLayout(SMALL, family(counts)), SMALL);
+  it("fits a small phone and a large one", () => {
+    for (const frame of [SMALL, LARGE]) {
+      for (const counts of [
+        { parents: 2, children: 3, spouses: 2, siblings: 4 },
+        { parents: 4, children: 8, spouses: 3, siblings: 9 },
+        { siblings: 1 },
+      ]) {
+        expectTidy(orbitLayout(frame, family(counts)), frame);
+      }
     }
   });
 
@@ -131,8 +138,8 @@ describe("orbitLayout", () => {
     for (let n = 0; n <= 25; n++) {
       const layout = orbitLayout(PHONE, family({ parents: 2, children: n, spouses: 1, siblings: n }));
       for (const side of ["children", "siblings"] as const) {
-        const dots = of(layout, side);
-        const counted = dots.reduce((sum, d) => sum + (d.id ? 1 : d.more), 0);
+        const pills = of(layout, side);
+        const counted = pills.reduce((sum, d) => sum + (d.id ? 1 : d.more), 0);
         expect(counted).toBe(n);
       }
       expectTidy(layout, PHONE);
@@ -150,42 +157,53 @@ describe("orbitLines", () => {
       siblings: { x: x + width * 0.95, y: y + height / 2 },
     };
   };
-  const touches = (segments: readonly (readonly number[])[], p: { x: number; y: number }) =>
-    segments.some(
-      ([x1, y1, x2, y2]) =>
-        (Math.abs(x1 - p.x) < 0.01 && Math.abs(y1 - p.y) < 0.01) ||
-        (Math.abs(x2 - p.x) < 0.01 && Math.abs(y2 - p.y) < 0.01),
-    );
+  type XY = { x: number; y: number };
+  const same = (a: XY, b: XY) => Math.abs(a.x - b.x) < 0.01 && Math.abs(a.y - b.y) < 0.01;
 
-  it("runs a line to every circle, and every side's from its anchor", () => {
+  it("runs a line from the group's anchor to the near edge of every pill", () => {
     const layout = orbitLayout(PHONE, family({ parents: 2, children: 3, spouses: 2, siblings: 4 }));
     const anchors = anchorsOf(layout);
-    const segments = orbitLines(layout, anchors);
-    for (const d of layout.dots) expect(touches(segments, d)).toBe(true);
-    for (const side of ["parents", "children", "siblings"] as const)
-      expect(touches(segments, anchors[side])).toBe(true);
+    const lines = orbitLines(layout, anchors);
+    expect(lines).toHaveLength(layout.pills.length);
+    const { width: w, height: h } = layout.pill;
+    for (const p of layout.pills) {
+      const line = lines.find((l) => l.side === p.side && l.id === p.id)!;
+      expect(same(line.points[0], anchors[p.side])).toBe(true);
+      const end = line.points[line.points.length - 1];
+      const edge =
+        p.side === "parents"
+          ? { x: p.x, y: p.y + h / 2 }
+          : p.side === "children"
+            ? { x: p.x, y: p.y - h / 2 }
+            : p.side === "siblings"
+              ? { x: p.x - w / 2, y: p.y }
+              : { x: p.x + w / 2, y: p.y };
+      expect(same(end, edge)).toBe(true);
+    }
   });
 
-  it("draws only straight runs, across or down", () => {
-    const layout = orbitLayout(PHONE, family({ parents: 2, children: 9, spouses: 1, siblings: 12 }));
-    for (const [x1, y1, x2, y2] of orbitLines(layout, anchorsOf(layout)))
-      expect(x1 === x2 || y1 === y2).toBe(true);
+  it("goes only across or down, with no corner in the middle of a run", () => {
+    const layout = orbitLayout(PHONE, family({ parents: 2, children: 9, spouses: 2, siblings: 12 }));
+    for (const { points } of orbitLines(layout, anchorsOf(layout))) {
+      for (let i = 1; i < points.length; i++) {
+        const [a, b] = [points[i - 1], points[i]];
+        expect(a.x === b.x || a.y === b.y).toBe(true);
+        expect(same(a, b)).toBe(false);
+        if (i >= 2) {
+          const z = points[i - 2];
+          expect((z.x === a.x && a.x === b.x) || (z.y === a.y && a.y === b.y)).toBe(false);
+        }
+      }
+    }
   });
 
-  it("keeps every bar off the names", () => {
+  it("leaves room to round every corner", () => {
     const layout = orbitLayout(PHONE, family({ parents: 2, children: 3, spouses: 2, siblings: 3 }));
-    const names = layout.dots.map((d) => {
-      const top = d.side === "parents" ? d.y - layout.dot / 2 - NAME_H : d.y + layout.dot / 2;
-      return { left: d.x - NAME_W / 2, right: d.x + NAME_W / 2, top, bottom: top + NAME_H };
-    });
-    for (const [x1, y1, x2, y2] of orbitLines(layout, anchorsOf(layout))) {
-      for (const n of names) {
-        const crosses =
-          Math.max(x1, x2) > n.left + 18 &&
-          Math.min(x1, x2) < n.right - 18 &&
-          Math.max(y1, y2) > n.top &&
-          Math.min(y1, y2) < n.bottom;
-        expect(crosses).toBe(false);
+    for (const { points } of orbitLines(layout, anchorsOf(layout))) {
+      for (let i = 1; i < points.length; i++) {
+        const run = Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y);
+        // Half a run is the most a corner may take at either end.
+        expect(run).toBeGreaterThanOrEqual(8);
       }
     }
   });
@@ -194,39 +212,43 @@ describe("orbitLines", () => {
     for (const frame of [PHONE, SMALL]) {
       const layout = orbitLayout(frame, family({ parents: 2, children: 3 }));
       const blade = bladeOf(layout);
-      const bars = orbitLines(layout, anchorsOf(layout)).filter(
-        ([x1, y1, x2, y2]) => y1 === y2 && x1 !== x2,
-      );
-      expect(bars).toHaveLength(2);
-      for (const [, y] of bars)
-        expect(y < blade.top || y > blade.bottom).toBe(true);
+      for (const { points } of orbitLines(layout, anchorsOf(layout))) {
+        for (let i = 1; i < points.length; i++) {
+          const [a, b] = [points[i - 1], points[i]];
+          if (a.y !== b.y) continue;
+          expect(a.y < blade.top || a.y > blade.bottom).toBe(true);
+        }
+      }
     }
   });
 
-  it("never crosses one group's lines with another's", () => {
+  it("never runs a line through a pill", () => {
     for (const counts of [
       { parents: 2, children: 3, spouses: 2, siblings: 4 },
-      { parents: 2, children: 12, spouses: 1, siblings: 14 },
       { parents: 4, children: 8, spouses: 3, siblings: 9 },
     ]) {
-      for (const frame of [PHONE, SMALL]) {
-        const layout = orbitLayout(frame, family(counts));
-        const anchors = anchorsOf(layout);
-        const bySide = (["parents", "children", "spouses", "siblings"] as const).map((side) =>
-          orbitLines({ ...layout, dots: layout.dots.filter((d) => d.side === side) }, anchors),
-        );
-        const cross = (
-          [ax1, ay1, ax2, ay2]: readonly number[],
-          [bx1, by1, bx2, by2]: readonly number[],
-        ) =>
-          Math.max(ax1, ax2) >= Math.min(bx1, bx2) &&
-          Math.max(bx1, bx2) >= Math.min(ax1, ax2) &&
-          Math.max(ay1, ay2) >= Math.min(by1, by2) &&
-          Math.max(by1, by2) >= Math.min(ay1, ay2);
-        for (let i = 0; i < bySide.length; i++)
-          for (let j = i + 1; j < bySide.length; j++)
-            for (const a of bySide[i])
-              for (const b of bySide[j]) expect(cross(a, b)).toBe(false);
+      const layout = orbitLayout(PHONE, family(counts));
+      for (const line of orbitLines(layout, anchorsOf(layout))) {
+        for (const p of layout.pills) {
+          const b = box(layout, p);
+          // Inset, so a line ending on a pill's edge doesn't count.
+          const inner = { left: b.left + 1, right: b.right - 1, top: b.top + 1, bottom: b.bottom - 1 };
+          for (let i = 1; i < line.points.length; i++) {
+            const [a, c] = [line.points[i - 1], line.points[i]];
+            const seg = {
+              left: Math.min(a.x, c.x),
+              right: Math.max(a.x, c.x),
+              top: Math.min(a.y, c.y),
+              bottom: Math.max(a.y, c.y),
+            };
+            const crosses =
+              seg.left <= inner.right &&
+              inner.left <= seg.right &&
+              seg.top <= inner.bottom &&
+              inner.top <= seg.bottom;
+            expect(crosses).toBe(false);
+          }
+        }
       }
     }
   });

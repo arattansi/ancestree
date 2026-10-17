@@ -25,6 +25,15 @@ const light = {
   destructiveSolid: "#e7000b",
   /** The web's `bg-attention/20`: a notice to act on, such as a changed code. */
   attentionWash: "#fcf6d8",
+  /**
+   * A relative's gray pill on the leaf view (Step 179.2), its edge, and the
+   * dark disc its initials are cut out of.
+   */
+  pill: "#e8e8e8",
+  pillBorder: "#d6d6d6",
+  pillInk: "#525252",
+  /** The canvas's dots, as React Flow draws the web's. */
+  grid: "#91919a",
 };
 
 export type Palette = typeof light;
@@ -43,6 +52,10 @@ const dark: Palette = {
   // The web's `dark:bg-destructive/60`, over the background.
   destructiveSolid: "#9d4042",
   attentionWash: "#38301a",
+  pill: "#262626",
+  pillBorder: "#ffffff1a",
+  pillInk: "#a3a3a3",
+  grid: "#555555",
 };
 
 export function usePalette(): Palette {

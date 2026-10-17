@@ -164,7 +164,7 @@ export function Leaf({
           style={[
             styles.name,
             {
-              fontSize: 15 * scale,
+              fontSize: 17 * scale,
               color: deceased ? palette.mutedForeground : palette.foreground,
             },
           ]}
@@ -179,7 +179,7 @@ export function Leaf({
             minimumFontScale={0.7}
             style={[
               styles.line,
-              { fontSize: 11.5 * scale, color: palette.mutedForeground },
+              { fontSize: 13 * scale, color: palette.mutedForeground },
             ]}
           >
             {line}

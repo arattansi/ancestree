@@ -9,8 +9,9 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import Svg, { Path } from "react-native-svg";
+import Svg, { Circle, Defs, Path, Pattern, Rect } from "react-native-svg";
 
+import { roundedPolyline } from "@/lib/edge-geometry";
 import { orbitLayout, orbitLines, type OrbitSide } from "@/lib/leaf-orbit";
 import { nativeLeaf } from "@/lib/native-leaf";
 import {
@@ -22,15 +23,16 @@ import { relativesOf } from "@/family/family";
 import type { Family } from "@/family/load";
 import { relationWord } from "@/family/words";
 import { BOX_W, Leaf, leafAnchors } from "@/leaf/leaf";
-import { RelativeDot } from "@/leaf/relative-dot";
+import { PersonPill } from "@/leaf/person-pill";
 import { usePalette } from "@/theme";
 
 /**
- * One person as a leaf, filling the screen, and a circle for everyone one
- * line away: parents above, children below, spouses left, siblings right
- * (`lib/leaf-orbit.ts`). Lines run from the leaf's heart to each circle,
- * under the blade, so only the stretch between them shows; the one to a
- * spouse runs along the stem. Tap a circle to walk to that leaf.
+ * One person as a leaf, and a gray pill for everyone one line away: parents
+ * above, children below, spouses left, siblings right (`lib/leaf-orbit.ts`).
+ * It is drawn as the web's canvas is (Step 179.2): a dotted ground, and
+ * lines that branch off a bar and turn their corners round, in the brown of
+ * the web's lit spotlight lines. A former spouse's line is dashed, as on the
+ * web. Tap a pill to walk to that leaf.
  */
 export function Spotlight({
   family,
@@ -126,6 +128,7 @@ export function Spotlight({
         );
       }}
     >
+      {frame ? <Grid width={frame.width} height={frame.height} /> : null}
       {layout ? (
         <Animated.View
           style={[
@@ -149,18 +152,23 @@ export function Spotlight({
             style={StyleSheet.absoluteFill}
             pointerEvents="none"
           >
-            {/* One path, so where the lines meet they don't darken. */}
-            <Path
-              d={lines
-                .map(([x1, y1, x2, y2]) => `M${x1},${y1}L${x2},${y2}`)
-                .join("")}
-              stroke={palette.brown}
-              strokeOpacity={0.6}
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              fill="none"
-            />
+            {lines.map((line) => {
+              const former =
+                line.side === "spouses" && !!line.id && formerSpouses.has(line.id);
+              return (
+                <Path
+                  key={`${line.side}:${line.id ?? "more"}`}
+                  d={roundedPolyline(line.points, CORNER)}
+                  stroke={palette.brown}
+                  strokeOpacity={former ? 0.6 : 1}
+                  strokeWidth={LINE}
+                  strokeDasharray={former ? "2 5" : undefined}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  fill="none"
+                />
+              );
+            })}
           </Svg>
 
           <Pressable
@@ -184,26 +192,48 @@ export function Spotlight({
             />
           </Pressable>
 
-          {layout.dots.map((d) => {
-            const relative = d.id ? (family.people.get(d.id) ?? null) : null;
+          {layout.pills.map((p) => {
+            const relative = p.id ? (family.people.get(p.id) ?? null) : null;
             const label = relative
-              ? `${relationWord(d.side, relative.sex, formerSpouses.has(relative.id))}, ${personDisplayName(relative)}`
-              : `${d.more} more`;
+              ? `${relationWord(p.side, relative.sex, formerSpouses.has(relative.id))}, ${personDisplayName(relative)}`
+              : `${p.more} more`;
             return (
-              <RelativeDot
-                key={`${d.side}:${d.id ?? "more"}`}
-                dot={d}
-                size={layout.dot}
-                named={layout.named}
+              <PersonPill
+                key={`${p.side}:${p.id ?? "more"}`}
+                pill={p}
+                size={layout.pill}
                 person={relative}
+                self={p.id === family.selfId}
                 label={label}
-                onPress={() => (d.id ? walk(d.id) : onMore(d.side))}
+                onPress={() => (p.id ? walk(p.id) : onMore(p.side))}
               />
             );
           })}
         </Animated.View>
       ) : null}
     </View>
+  );
+}
+
+/** The lines' width and their corners' radius: the web's lit lines are 3. */
+const LINE = 2.5;
+const CORNER = 8;
+
+/**
+ * The canvas's dotted ground, as the web's React Flow background draws it
+ * (dots 20 apart). It stays put while leaves come and go over it.
+ */
+function Grid({ width, height }: { width: number; height: number }) {
+  const palette = usePalette();
+  return (
+    <Svg width={width} height={height} style={StyleSheet.absoluteFill} pointerEvents="none">
+      <Defs>
+        <Pattern id="grid" width={20} height={20} patternUnits="userSpaceOnUse">
+          <Circle cx={10} cy={10} r={0.7} fill={palette.grid} />
+        </Pattern>
+      </Defs>
+      <Rect width={width} height={height} fill="url(#grid)" />
+    </Svg>
   );
 }
 
