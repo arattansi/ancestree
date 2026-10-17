@@ -2,13 +2,17 @@
 
 import {
   ArrowLeft,
+  BellOff,
   Check,
   Copy,
+  Download,
+  Ellipsis,
   LoaderCircle,
   LockKeyhole,
   SendHorizontal,
   ShieldCheck,
   SquarePen,
+  Trash2,
   X,
 } from "lucide-react";
 import { encode as encodeQr } from "uqr";
@@ -36,7 +40,10 @@ import {
   dayLabel,
   filterContacts,
   initialsOf,
+  isMuted,
   MESSAGE_MAX,
+  MUTE_CHOICES,
+  mutedText,
   newDay,
   shortWhen,
   unreadText,
@@ -85,6 +92,8 @@ export function MessengerPanel({ onClose }: { onClose: () => void }) {
         <SecurityView onClose={onClose} />
       ) : view.kind === "verify" ? (
         <VerifyView key={view.id} id={view.id} onClose={onClose} />
+      ) : view.kind === "details" ? (
+        <DetailsView key={view.id} id={view.id} onClose={onClose} />
       ) : view.kind === "list" ? (
         <ListView onClose={onClose} />
       ) : view.kind === "new" ? (
@@ -273,6 +282,7 @@ function ConversationRow({
   me: string | null;
 }) {
   const unread = c.unread > 0;
+  const muted = isMuted(c);
   return (
     <button
       type="button"
@@ -286,6 +296,9 @@ function ConversationRow({
           <span className={cn("truncate text-sm", unread ? "font-semibold" : "font-medium")}>
             {c.name}
           </span>
+          {muted ? (
+            <BellOff className="size-3.5 shrink-0 text-muted-foreground" aria-label="Muted" />
+          ) : null}
           {c.lastAt ? (
             <span className="ml-auto shrink-0 text-xs text-muted-foreground">
               {shortWhen(c.lastAt)}
@@ -307,7 +320,13 @@ function ConversationRow({
             )}
           </span>
           {unread ? (
-            <span className="ml-auto flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-destructive px-1 text-[0.6875rem] font-semibold text-white tabular-nums">
+            <span
+              className={cn(
+                "ml-auto flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1 text-[0.6875rem] font-semibold text-white tabular-nums",
+                // Muted: counted here, but not on the launcher (Step 177.4).
+                muted ? "bg-muted-foreground" : "bg-destructive",
+              )}
+            >
               {badgeCount(c.unread)}
             </span>
           ) : null}
@@ -415,6 +434,8 @@ function usePeer(id: string): {
   canSend: boolean;
   /** Null until they next open the messenger: nothing can be sealed to them. */
   keyVersion: number | null;
+  /** Muted until then (Step 177.4); null when it isn't. */
+  mutedUntil: string | null;
 } | null {
   const summary = useMessenger((s) => s.data?.conversations.find((c) => c.id === id));
   const peerId = useMessenger((s) => s.peers[id]);
@@ -423,7 +444,7 @@ function usePeer(id: string): {
   );
   if (summary)
     return { ...summary, userId: summary.otherUserId, keyVersion: summary.otherKeyVersion };
-  if (contact) return { ...contact, canSend: true };
+  if (contact) return { ...contact, canSend: true, mutedUntil: null };
   return null;
 }
 
@@ -438,6 +459,8 @@ function ThreadView({ id, onClose }: { id: string; onClose: () => void }) {
   const messages = thread?.messages ?? [];
   const scroller = React.useRef<HTMLDivElement>(null);
   const atBottom = React.useRef(true);
+  // The message whose actions show (Step 177): pressed, or its button.
+  const [selected, setSelected] = React.useState<string | null>(null);
 
   // Open at the newest; then follow new messages while the reader is at
   // the bottom (an older page read above keeps their place).
@@ -472,13 +495,21 @@ function ThreadView({ id, onClose }: { id: string; onClose: () => void }) {
       <PanelHeader
         title={
           peer ? (
-            <>
+            <button
+              type="button"
+              onClick={() => messenger.show({ kind: "details", id })}
+              title="Details"
+              className="flex min-w-0 items-center gap-2 rounded-md text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
               <Face name={name} photoUrl={peer.photoUrl} photoCrop={peer.photoCrop} className="size-8" />
               <h2 className="truncate text-base font-semibold">{name}</h2>
               {verifiedKey && !codeChanged ? (
                 <ShieldCheck className="size-4 shrink-0 text-muted-foreground" aria-label="Verified" />
               ) : null}
-            </>
+              {peer.mutedUntil && isMuted(peer) ? (
+                <BellOff className="size-3.5 shrink-0 text-muted-foreground" aria-label="Muted" />
+              ) : null}
+            </button>
           ) : (
             <Skeleton className="h-6 w-32" />
           )
@@ -497,6 +528,19 @@ function ThreadView({ id, onClose }: { id: string; onClose: () => void }) {
             className="relative tap-target"
           >
             <LockKeyhole aria-hidden />
+          </Button>
+        ) : null}
+        {peer ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => messenger.show({ kind: "details", id })}
+            aria-label={`About ${name}`}
+            title="Details"
+            className="relative tap-target"
+          >
+            <Ellipsis aria-hidden />
           </Button>
         ) : null}
       </PanelHeader>
@@ -553,6 +597,8 @@ function ThreadView({ id, onClose }: { id: string; onClose: () => void }) {
                 lastFromThem={lastFrom(messages, i, m.senderId)}
                 mine={m.senderId === me}
                 name={first}
+                selected={selected === m.id}
+                onSelect={() => setSelected((now) => (now === m.id ? null : m.id))}
               />
             ))}
           </ol>
@@ -595,6 +641,8 @@ function MessageItem({
   lastFromThem,
   mine,
   name,
+  selected,
+  onSelect,
 }: {
   message: ChatMessage;
   previous: ChatMessage | undefined;
@@ -602,6 +650,9 @@ function MessageItem({
   lastFromThem: ChatMessage | undefined;
   mine: boolean;
   name: string;
+  /** Its actions show: delete your own (Step 177.5). */
+  selected: boolean;
+  onSelect: () => void;
 }) {
   const dayBreak = newDay(previous?.createdAt, m.createdAt);
   const keyChanged =
@@ -612,6 +663,8 @@ function MessageItem({
     !dayBreak &&
     previous?.senderId === m.senderId &&
     Date.parse(m.createdAt) - Date.parse(previous.createdAt) < RUN_MS;
+  // Your own messages can be deleted once they've gone (Step 177.5).
+  const canAct = mine && !m.pending;
   return (
     <li className={cn("flex flex-col", run ? "mt-0.5" : "mt-2.5")}>
       {dayBreak ? (
@@ -624,20 +677,122 @@ function MessageItem({
           {name}&rsquo;s security code changed.
         </span>
       ) : null}
-      <span
-        title={m.pending ? "Sending…" : clockTime(m.createdAt)}
+      <div
         className={cn(
-          "max-w-[80%] rounded-2xl px-3 py-1.5 text-sm break-words whitespace-pre-wrap",
-          mine
-            ? "self-end bg-primary text-primary-foreground"
-            : "self-start bg-muted text-foreground",
-          m.pending && "opacity-60",
-          m.status && "italic opacity-70",
+          "group flex max-w-[85%] items-center gap-1",
+          mine ? "flex-row-reverse self-end" : "self-start",
         )}
       >
-        {m.status ? unreadText(m.status) : m.body}
-      </span>
+        <span
+          title={m.pending ? "Sending…" : clockTime(m.createdAt)}
+          onClick={() => {
+            // Selecting its words to copy them isn't a press.
+            if (!canAct || window.getSelection()?.toString()) return;
+            onSelect();
+          }}
+          className={cn(
+            "min-w-0 rounded-2xl px-3 py-1.5 text-sm break-words whitespace-pre-wrap",
+            mine ? "bg-primary text-primary-foreground" : "bg-muted text-foreground",
+            m.pending && "opacity-60",
+            m.status && "italic opacity-70",
+            selected && "ring-2 ring-ring/50",
+          )}
+        >
+          {m.status ? unreadText(m.status) : m.body}
+        </span>
+        {canAct ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            onClick={onSelect}
+            aria-label="Message options"
+            aria-expanded={selected}
+            title="More"
+            className={cn(
+              "shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
+              selected && "opacity-100",
+            )}
+          >
+            <Ellipsis aria-hidden />
+          </Button>
+        ) : null}
+      </div>
+      {selected ? <MessageActions message={m} mine={mine} onDone={onSelect} /> : null}
     </li>
+  );
+}
+
+/**
+ * A message's actions once it's pressed: its time, and **delete** for your
+ * own (Step 177.5), which deletes it for everyone once confirmed.
+ */
+function MessageActions({
+  message: m,
+  mine,
+  onDone,
+}: {
+  message: ChatMessage;
+  mine: boolean;
+  onDone: () => void;
+}) {
+  const [confirming, setConfirming] = React.useState(false);
+  const [busy, setBusy] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  async function remove() {
+    setBusy(true);
+    setError(null);
+    const problem = await messenger.deleteMessage(m.conversationId, m.id);
+    setBusy(false);
+    if (problem) setError(problem);
+    else onDone();
+  }
+
+  return (
+    <div
+      className={cn(
+        "mt-1 flex flex-wrap items-center gap-1.5 px-1 text-xs text-muted-foreground",
+        mine ? "self-end" : "self-start",
+      )}
+    >
+      {confirming ? null : (
+        <span>
+          {dayLabel(m.createdAt)}, {clockTime(m.createdAt)}
+        </span>
+      )}
+      {mine ? (
+        confirming ? (
+          <>
+            <span className="text-foreground">Delete for everyone?</span>
+            <PendingButton
+              type="button"
+              size="xs"
+              variant="destructive"
+              pending={busy}
+              pendingLabel="deleting…"
+              disabled={busy}
+              onClick={() => void remove()}
+            >
+              delete
+            </PendingButton>
+            <Button type="button" size="xs" variant="ghost" onClick={() => setConfirming(false)}>
+              cancel
+            </Button>
+          </>
+        ) : (
+          <Button type="button" size="xs" variant="ghost" onClick={() => setConfirming(true)}>
+            <Trash2 aria-hidden />
+            delete
+          </Button>
+        )
+      ) : null}
+      {error ? (
+        <span role="alert" className="text-destructive">
+          {error}
+        </span>
+      ) : null}
+    </div>
   );
 }
 
@@ -989,8 +1144,26 @@ function SecurityView({ onClose }: { onClose: () => void }) {
   const backup = useMessenger((s) => s.backupVersion != null && s.backupVersion === s.keyVersion);
   const [link, setLink] = React.useState<string | null>(null);
   const [phrase, setPhrase] = React.useState<string | null>(null);
-  const [busy, setBusy] = React.useState<"link" | "phrase" | null>(null);
+  const [busy, setBusy] = React.useState<"link" | "phrase" | "export" | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+
+  // Read here and saved as a file: the server can't (Step 177.6).
+  async function exportAll() {
+    setBusy("export");
+    setError(null);
+    const file = await messenger.exportConversations();
+    setBusy(null);
+    if (!file) {
+      setError("Couldn't export your messages. Try again.");
+      return;
+    }
+    const url = URL.createObjectURL(new Blob([file.text], { type: "text/plain;charset=utf-8" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = file.filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   async function makeLink() {
     setBusy("link");
@@ -1111,6 +1284,128 @@ function SecurityView({ onClose }: { onClose: () => void }) {
             </>
           )}
         </section>
+
+        <section className="flex flex-col gap-2">
+          <h3 className="font-medium">Export Messages</h3>
+          <p className="text-muted-foreground">
+            Your conversations as a text file, read on this device.
+          </p>
+          <PendingButton
+            type="button"
+            variant="outline"
+            className="self-start"
+            pending={busy === "export"}
+            pendingLabel="reading…"
+            disabled={!!busy}
+            onClick={() => void exportAll()}
+          >
+            <Download aria-hidden />
+            download
+          </PendingButton>
+        </section>
+
+        {error ? (
+          <p role="alert" className="text-destructive">
+            {error}
+          </p>
+        ) : null}
+      </div>
+    </>
+  );
+}
+
+/**
+ * A conversation's details (Step 177), from its header: mute it, and check
+ * their security code.
+ */
+function DetailsView({ id, onClose }: { id: string; onClose: () => void }) {
+  const peer = usePeer(id);
+  const [busy, setBusy] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const name = peer?.name ?? "";
+  const first = name.split(" ")[0] || "them";
+  const muted = peer?.mutedUntil && isMuted(peer) ? peer.mutedUntil : null;
+
+  async function mute(hours: number | null | "unmute") {
+    setBusy(true);
+    setError(null);
+    const done = await messenger.mute(id, hours);
+    setBusy(false);
+    if (!done) setError("Couldn't change that. Try again.");
+  }
+
+  return (
+    <>
+      <PanelHeader
+        title={<h2 className="truncate text-base font-semibold">{name}</h2>}
+        back={{ kind: "thread", id }}
+        onClose={onClose}
+      />
+      <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto p-4 text-sm">
+        {peer ? (
+          <div className="flex flex-col items-center gap-2 text-center">
+            <Face name={name} photoUrl={peer.photoUrl} photoCrop={peer.photoCrop} className="size-16" />
+            <p className="text-base font-semibold">{name}</p>
+          </div>
+        ) : (
+          <Skeleton className="h-24 w-full" />
+        )}
+
+        <section className="flex flex-col gap-2">
+          <h3 className="font-medium">Mute</h3>
+          {muted ? (
+            <>
+              <p className="text-muted-foreground">{mutedText(muted)}</p>
+              <PendingButton
+                type="button"
+                variant="outline"
+                size="sm"
+                className="self-start"
+                pending={busy}
+                pendingLabel="unmuting…"
+                disabled={busy}
+                onClick={() => void mute("unmute")}
+              >
+                unmute
+              </PendingButton>
+            </>
+          ) : (
+            <>
+              <p className="text-muted-foreground">No badge for new messages.</p>
+              <div className="flex flex-wrap gap-2">
+                {MUTE_CHOICES.map((choice) => (
+                  <Button
+                    key={choice.label}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={busy || !peer}
+                    onClick={() => void mute(choice.hours)}
+                  >
+                    {choice.label}
+                  </Button>
+                ))}
+              </div>
+            </>
+          )}
+        </section>
+
+        {peer?.keyVersion != null ? (
+          <section className="flex flex-col gap-2">
+            <h3 className="font-medium">Security Code</h3>
+            <p className="text-muted-foreground">Check that your messages reach only {first}.</p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="self-start"
+              onClick={() => messenger.show({ kind: "verify", id })}
+            >
+              <LockKeyhole aria-hidden />
+              verify
+            </Button>
+          </section>
+        ) : null}
 
         {error ? (
           <p role="alert" className="text-destructive">

@@ -40,6 +40,11 @@ export type ConversationSummary = {
   unread: number;
   /** Whether they still share a tree, so a message can go. */
   canSend: boolean;
+  /**
+   * Muted until then (Step 177.4), `"infinity"` until unmuted: left out of
+   * the launcher's badge and the email. Null when it isn't.
+   */
+  mutedUntil: string | null;
 };
 
 /** Why a message shows no text: see `decryptMessage`. */
@@ -173,8 +178,9 @@ export function parseReadEvent(
   return { conversationId: p.conversation_id, lastReadAt: p.last_read_at };
 }
 
+/** A timestamp in milliseconds; Postgres's `infinity` is forever. */
 const time = (iso: string | null | undefined) =>
-  iso ? new Date(iso).getTime() : -Infinity;
+  !iso ? -Infinity : iso === "infinity" ? Infinity : new Date(iso).getTime();
 
 /**
  * Two runs of a thread as one, oldest first, each message once. A message
@@ -240,9 +246,98 @@ export function withRead(
   );
 }
 
-/** What the launcher's badge says. */
-export function totalUnread(list: readonly ConversationSummary[]): number {
-  return list.reduce((sum, c) => sum + c.unread, 0);
+/** What the launcher's badge says: muted conversations aren't counted. */
+export function totalUnread(
+  list: readonly ConversationSummary[],
+  now: number = Date.now(),
+): number {
+  return list.reduce((sum, c) => sum + (isMuted(c, now) ? 0 : c.unread), 0);
+}
+
+/** Whether a conversation is muted at `now` (Step 177.4). */
+export function isMuted(
+  c: Pick<ConversationSummary, "mutedUntil">,
+  now: number = Date.now(),
+): boolean {
+  return time(c.mutedUntil) > now;
+}
+
+/** How long a conversation can be muted for: hours, or until unmuted.
+ *  Each is a button's words, so lower-case (Step 102). */
+export const MUTE_CHOICES = [
+  { label: "for 8 hours", hours: 8 },
+  { label: "for a week", hours: 24 * 7 },
+  { label: "always", hours: null },
+] as const;
+
+/** When a mute of `hours` ends, as the database takes it. */
+export function muteUntil(hours: number | null, now: Date = new Date()): string {
+  return hours == null
+    ? "infinity"
+    : new Date(now.getTime() + hours * 60 * 60 * 1000).toISOString();
+}
+
+/** What a muted conversation says of it: "Muted until 6:40 PM", "Muted". */
+export function mutedText(mutedUntil: string, now: Date = new Date()): string {
+  if (mutedUntil === "infinity") return "Muted";
+  const days = -daysAgo(mutedUntil, now);
+  const at = new Date(mutedUntil);
+  if (days <= 0) return `Muted until ${CLOCK.format(at)}`;
+  if (days === 1) return `Muted until tomorrow, ${CLOCK.format(at)}`;
+  return `Muted until ${DAY_MONTH.format(at)}`;
+}
+
+/** A `muted` broadcast: the reader muted a conversation in another tab. */
+export function parseMutedEvent(
+  payload: unknown,
+): { conversationId: string; mutedUntil: string | null } | null {
+  if (!payload || typeof payload !== "object") return null;
+  const p = payload as Record<string, unknown>;
+  if (!isString(p.conversation_id)) return null;
+  if (p.muted_until !== null && !isString(p.muted_until)) return null;
+  return { conversationId: p.conversation_id, mutedUntil: p.muted_until };
+}
+
+/** The list once a conversation is muted until `mutedUntil`, or unmuted. */
+export function withMuted(
+  list: readonly ConversationSummary[],
+  conversationId: string,
+  mutedUntil: string | null,
+): ConversationSummary[] {
+  return list.map((c) => (c.id === conversationId ? { ...c, mutedUntil } : c));
+}
+
+/** A `deleted` broadcast: its sender deleted a message (Step 177.5). */
+export function parseDeletedEvent(
+  payload: unknown,
+): { id: string; conversationId: string } | null {
+  if (!payload || typeof payload !== "object") return null;
+  const p = payload as Record<string, unknown>;
+  if (!isString(p.id) || !isString(p.conversation_id)) return null;
+  return { id: p.id, conversationId: p.conversation_id };
+}
+
+/**
+ * A thread once its newest page has been read again: the page, and of what
+ * it had, only what the page doesn't cover (older messages, ones that came
+ * since, and sends not yet confirmed). A message deleted on another device
+ * drops out. `full` when the page was a whole one, so older ones are left
+ * where they were.
+ */
+export function withNewestPage(
+  had: readonly ChatMessage[],
+  page: readonly ChatMessage[],
+  full: boolean,
+): ChatMessage[] {
+  const times = page.map((m) => time(m.createdAt));
+  const newest = times.length ? Math.max(...times) : Infinity;
+  const oldest = full && times.length ? Math.min(...times) : -Infinity;
+  const kept = had.filter((m) => {
+    if (m.pending) return true;
+    const t = time(m.createdAt);
+    return full ? t <= oldest || t > newest : t > newest;
+  });
+  return mergeMessages(kept, page);
 }
 
 /** Up to two letters for a face without a photo. */
@@ -341,4 +436,56 @@ export function sendErrorText(message: string | undefined): string {
   if (message?.includes("MESSAGE_TOO_LONG"))
     return `Keep it under ${MESSAGE_MAX.toLocaleString("en")} characters.`;
   return "Couldn't send. Try again.";
+}
+
+/** A conversation as the export writes it out (Step 177.6). */
+export type ExportedConversation = {
+  name: string;
+  messages: readonly ChatMessage[];
+};
+
+const FULL_DATE = new Intl.DateTimeFormat("en-US", {
+  weekday: "long",
+  month: "long",
+  day: "numeric",
+  year: "numeric",
+});
+
+/**
+ * The reader's conversations as a plain text file (Step 177.6), read on
+ * their own device: the server holds only ciphertext, so its exports can't
+ * have them. Each conversation under its name, days marked, each message
+ * with its time and who wrote it; a message that couldn't be read here
+ * says why.
+ */
+export function exportText(
+  conversations: readonly ExportedConversation[],
+  me: string,
+  now: Date = new Date(),
+): string {
+  const lines = [
+    "Your ancestree messages",
+    `Read on this device on ${DAY_MONTH_YEAR.format(now)}. Only the people in each conversation can read them: keep this file somewhere safe.`,
+  ];
+  for (const c of conversations) {
+    lines.push("", "", `== ${c.name} ==`);
+    if (c.messages.length === 0) lines.push("", "No messages.");
+    let prev: string | undefined;
+    for (const m of c.messages) {
+      if (newDay(prev, m.createdAt)) lines.push("", FULL_DATE.format(new Date(m.createdAt)));
+      prev = m.createdAt;
+      const who = m.senderId === me ? "You" : c.name;
+      const lead = `${CLOCK.format(new Date(m.createdAt))}  ${who}: `;
+      const text = m.status ? `[${unreadText(m.status)}]` : m.body;
+      const [first = "", ...rest] = text.split("\n");
+      lines.push(lead + first, ...rest.map((line) => " ".repeat(lead.length) + line));
+    }
+  }
+  return `${lines.join("\n")}\n`;
+}
+
+/** The export's file name: "ancestree-messages-2026-10-16.txt". */
+export function exportFilename(now: Date = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `ancestree-messages-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}.txt`;
 }

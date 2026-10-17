@@ -40,16 +40,24 @@ import {
 } from "@/lib/e2e/crypto";
 import { checkPin, type Pins } from "@/lib/e2e/pins";
 import {
+  exportFilename,
+  exportText,
   inboxTopic,
   mergeMessages,
+  muteUntil,
+  parseDeletedEvent,
+  parseMutedEvent,
   parseReadEvent,
   parseWireMessage,
   sendErrorText,
   THREAD_PAGE,
   trimMessage,
   withIncoming,
+  withMuted,
+  withNewestPage,
   withRead,
   type ChatMessage,
+  type ExportedConversation,
   type MessengerData,
   type WireMessage,
 } from "@/lib/messenger";
@@ -73,6 +81,8 @@ export type MessengerView =
   | { kind: "list" }
   | { kind: "new" }
   | { kind: "thread"; id: string }
+  /** A conversation's details: who they are to you, mute, block (Step 177). */
+  | { kind: "details"; id: string }
   | { kind: "invite"; target: InviteTarget }
   /** Linking a device and the recovery phrase. */
   | { kind: "security" }
@@ -187,6 +197,7 @@ function setThread(id: string, next: Partial<Thread>) {
 let supabase: Promise<Supabase> | null = null;
 let channel: RealtimeChannel | null = null;
 let listRead: Promise<void> | null = null;
+let listAgain = false;
 
 /** This device's keyring for the member, once found or made. */
 let keyring: Keyring | null = null;
@@ -478,9 +489,16 @@ async function readPreviews(data: MessengerData): Promise<MessengerData> {
   return { ...data, conversations };
 }
 
-/** Read the list again; one read at a time. */
+/**
+ * Read the list again; one read at a time. Asked while one is on its way
+ * (a message landing during the first read), it reads once more after, so
+ * what came meanwhile isn't missed.
+ */
 function loadList(): Promise<void> {
-  if (listRead) return listRead;
+  if (listRead) {
+    listAgain = true;
+    return listRead;
+  }
   set({ loading: true });
   listRead = fetch("/api/messages", { cache: "no-store" })
     .then(async (res) => {
@@ -491,6 +509,10 @@ function loadList(): Promise<void> {
     .catch(() => set({ loading: false, failed: !state.data }))
     .finally(() => {
       listRead = null;
+      if (listAgain) {
+        listAgain = false;
+        void loadList();
+      }
     });
   return listRead;
 }
@@ -537,6 +559,32 @@ function onRead(payload: unknown) {
   });
 }
 
+/** Its sender deleted a message (Step 177.5): it goes from here too. */
+function onDeleted(payload: unknown) {
+  const gone = parseDeletedEvent(payload);
+  if (!gone) return;
+  const thread = state.threads[gone.conversationId];
+  if (thread) {
+    setThread(gone.conversationId, {
+      messages: thread.messages.filter((m) => m.id !== gone.id),
+    });
+  }
+  // Its last line and unread count may have been that message.
+  void loadList();
+}
+
+/** The reader muted or unmuted a conversation in another tab (Step 177.4). */
+function onMuted(payload: unknown) {
+  const muted = parseMutedEvent(payload);
+  if (!muted || !state.data) return;
+  set({
+    data: {
+      ...state.data,
+      conversations: withMuted(state.data.conversations, muted.conversationId, muted.mutedUntil),
+    },
+  });
+}
+
 /** Join the member's inbox; a rejoin after a dropped connection reads the list again. */
 async function joinInbox(me: string) {
   const db = await client();
@@ -548,6 +596,8 @@ async function joinInbox(me: string) {
     .channel(inboxTopic(me), { config: { private: true } })
     .on("broadcast", { event: "message" }, ({ payload }) => void onMessage(payload))
     .on("broadcast", { event: "read" }, ({ payload }) => onRead(payload))
+    .on("broadcast", { event: "deleted" }, ({ payload }) => onDeleted(payload))
+    .on("broadcast", { event: "muted" }, ({ payload }) => onMuted(payload))
     .subscribe((status) => {
       if (status !== "SUBSCRIBED") return;
       if (joinedBefore) void loadList();
@@ -585,7 +635,10 @@ function show(view: MessengerView) {
   if (view.kind === "thread") void showThread(view.id);
 }
 
-/** Read a thread's newest page the first time it's shown, then mark it read. */
+/**
+ * Read a thread's newest page each time it's shown (one deleted elsewhere
+ * drops out, Step 177.5), then mark it read.
+ */
 async function showThread(id: string) {
   // The other member's keys afresh: a changed code shows as the thread opens.
   const peer = peerOf(id);
@@ -593,8 +646,7 @@ async function showThread(id: string) {
     forgetPublicKeys([peer]);
     await ensurePublicKeys([peer]);
   }
-  const had = state.threads[id];
-  if (!had || had.failed) await loadThread(id);
+  await loadThread(id);
   void markRead(id);
 }
 
@@ -619,9 +671,13 @@ async function loadThread(id: string, before?: string) {
   });
   const page = await Promise.all(rows.map((wire) => read(wire)));
   const current = state.threads[id]?.messages ?? [];
+  const full = (data ?? []).length === THREAD_PAGE;
   setThread(id, {
-    messages: mergeMessages(current, page),
-    more: (data ?? []).length === THREAD_PAGE,
+    // The newest page again replaces what it covers, so a deleted message
+    // goes; an older page only adds.
+    messages: before ? mergeMessages(current, page) : withNewestPage(current, page, full),
+    // An older page read before says whether more wait beyond it.
+    more: before || !had?.messages.length ? full : (state.threads[id]?.more ?? full),
     loading: false,
   });
 }
@@ -812,6 +868,92 @@ async function send(id: string, text: string): Promise<boolean> {
   return true;
 }
 
+/**
+ * Delete one of your own messages (Step 177.5): its ciphertext and every
+ * sealed key go, and each member's inbox is told, so their other devices
+ * drop it. What to say if it couldn't be.
+ */
+async function deleteMessage(conversationId: string, messageId: string): Promise<string | null> {
+  const had = state.threads[conversationId]?.messages ?? [];
+  setThread(conversationId, { messages: had.filter((m) => m.id !== messageId) });
+  const { error } = await (await client()).rpc("delete_message", { p_message: messageId });
+  if (error) {
+    setThread(conversationId, {
+      messages: mergeMessages(state.threads[conversationId]?.messages ?? [], had),
+    });
+    return "Couldn't delete it. Try again.";
+  }
+  void loadList();
+  return null;
+}
+
+/**
+ * Mute a conversation for `hours`, or until unmuted (`null`); `unmute`
+ * ends it (Step 177.4). Muted, it's left out of the badge and the email.
+ */
+async function mute(conversationId: string, hours: number | null | "unmute"): Promise<boolean> {
+  const until = hours === "unmute" ? null : muteUntil(hours);
+  const before = state.data?.conversations.find((c) => c.id === conversationId)?.mutedUntil ?? null;
+  const apply = (mutedUntil: string | null) => {
+    if (!state.data) return;
+    set({
+      data: {
+        ...state.data,
+        conversations: withMuted(state.data.conversations, conversationId, mutedUntil),
+      },
+    });
+  };
+  apply(until);
+  const { data, error } = await (await client()).rpc("mute_conversation", {
+    p_conversation: conversationId,
+    p_until: until ?? undefined,
+  });
+  if (error) {
+    apply(before);
+    return false;
+  }
+  apply(data ?? null);
+  return true;
+}
+
+/**
+ * Every conversation read on this device and written out as a file
+ * (Step 177.6): the server holds only ciphertext, so it can't export them.
+ * Read a page at a time, the most a page holds.
+ */
+async function exportConversations(): Promise<{ text: string; filename: string } | null> {
+  const me = state.me;
+  if (!me || state.keys !== "ready") return null;
+  if (!state.data) await loadList();
+  const list = state.data?.conversations;
+  if (!list) return null;
+  const db = await client();
+  const out: ExportedConversation[] = [];
+  for (const c of list) {
+    const wires: WireMessage[] = [];
+    let before: string | undefined;
+    for (;;) {
+      const { data, error } = await db.rpc("thread_messages", {
+        p_conversation: c.id,
+        p_before: before,
+        p_limit: 100,
+      });
+      if (error) return null;
+      const rows = (data ?? []).flatMap((row) => {
+        const wire = parseWireMessage({ ...row, conversation_id: c.id });
+        return wire ? [wire] : [];
+      });
+      wires.push(...rows);
+      if ((data ?? []).length < 100 || rows.length === 0) break;
+      before = rows.at(-1)!.created_at;
+    }
+    const messages = await Promise.all(wires.map((wire) => read(wire, c.otherUserId)));
+    out.push({ name: c.name, messages: mergeMessages([], messages) });
+  }
+  const now = new Date();
+  return { text: exportText(out, me, now), filename: exportFilename(now) };
+}
+
 /** Open the conversation with someone, making it the first time. */
 async function openWith(userId: string) {
   set({ open: true, opening: userId });
@@ -983,6 +1125,9 @@ export const messenger = {
   },
   retryThread: (id: string) => void loadThread(id),
   markRead: (id: string) => void markRead(id),
+  deleteMessage,
+  mute,
+  exportConversations,
   makeDeviceLink,
   takeDeviceLink,
   makeRecoveryPhrase,

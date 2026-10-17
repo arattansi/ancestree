@@ -3,11 +3,18 @@ import { describe, expect, it } from "vitest";
 import {
   badgeCount,
   dayLabel,
+  exportFilename,
+  exportText,
   filterContacts,
   initialsOf,
+  isMuted,
   mergeMessages,
   messengerShownOn,
+  mutedText,
+  muteUntil,
   newDay,
+  parseDeletedEvent,
+  parseMutedEvent,
   parseReadEvent,
   parseWireMessage,
   sendErrorText,
@@ -15,6 +22,8 @@ import {
   totalUnread,
   trimMessage,
   withIncoming,
+  withMuted,
+  withNewestPage,
   withRead,
   type ChatMessage,
   type ConversationSummary,
@@ -40,6 +49,7 @@ function convo(over: Partial<ConversationSummary> = {}): ConversationSummary {
     lastReadAt: null,
     unread: 1,
     canSend: true,
+    mutedUntil: null,
     ...over,
   };
 }
@@ -223,5 +233,133 @@ describe("initialsOf", () => {
     expect(initialsOf("Nadia Al Haddad")).toBe("NH");
     expect(initialsOf("omar")).toBe("O");
     expect(initialsOf("  ")).toBe("?");
+  });
+});
+
+describe("muting (Step 177.4)", () => {
+  const now = Date.parse("2026-10-16T12:00:00.000Z");
+
+  it("is muted until the time it ends, or forever", () => {
+    expect(isMuted(convo(), now)).toBe(false);
+    expect(isMuted(convo({ mutedUntil: "infinity" }), now)).toBe(true);
+    expect(isMuted(convo({ mutedUntil: "2026-10-16T13:00:00.000Z" }), now)).toBe(true);
+    expect(isMuted(convo({ mutedUntil: "2026-10-16T11:00:00.000Z" }), now)).toBe(false);
+  });
+
+  it("leaves muted conversations out of the badge", () => {
+    const list = [
+      convo({ id: "a", unread: 2 }),
+      convo({ id: "b", unread: 3, mutedUntil: "infinity" }),
+      convo({ id: "c", unread: 1, mutedUntil: "2026-10-16T11:00:00.000Z" }),
+    ];
+    expect(totalUnread(list, now)).toBe(3);
+  });
+
+  it("ends a mute after so many hours, or never", () => {
+    expect(muteUntil(8, new Date(now))).toBe("2026-10-16T20:00:00.000Z");
+    expect(muteUntil(null, new Date(now))).toBe("infinity");
+  });
+
+  it("says until when", () => {
+    const at = new Date(2026, 9, 16, 9, 0);
+    expect(mutedText("infinity", at)).toBe("Muted");
+    expect(mutedText(new Date(2026, 9, 16, 17, 0).toISOString(), at)).toBe("Muted until 5:00 PM");
+    expect(mutedText(new Date(2026, 9, 17, 1, 0).toISOString(), at)).toBe(
+      "Muted until tomorrow, 1:00 AM",
+    );
+    expect(mutedText(new Date(2026, 9, 23, 9, 0).toISOString(), at)).toBe("Muted until Oct 23");
+  });
+
+  it("reads a mute from another tab and applies it", () => {
+    expect(parseMutedEvent({ conversation_id: "c1", muted_until: "infinity" })).toEqual({
+      conversationId: "c1",
+      mutedUntil: "infinity",
+    });
+    expect(parseMutedEvent({ conversation_id: "c1", muted_until: null })).toEqual({
+      conversationId: "c1",
+      mutedUntil: null,
+    });
+    expect(parseMutedEvent({ conversation_id: "c1", muted_until: 3 })).toBeNull();
+    expect(parseMutedEvent(null)).toBeNull();
+    const list = withMuted([convo(), convo({ id: "c2" })], "c2", "infinity");
+    expect(list.map((c) => c.mutedUntil)).toEqual([null, "infinity"]);
+  });
+});
+
+describe("deleting a message (Step 177.5)", () => {
+  it("reads a deleted message's broadcast", () => {
+    expect(parseDeletedEvent({ id: "m1", conversation_id: "c1" })).toEqual({
+      id: "m1",
+      conversationId: "c1",
+    });
+    expect(parseDeletedEvent({ id: "m1" })).toBeNull();
+  });
+
+  const at = (minute: number) => `2026-10-16T10:${String(minute).padStart(2, "0")}:00.000Z`;
+  const m = (id: string, minute: number, over: Partial<ChatMessage> = {}) =>
+    msg({ id, createdAt: at(minute), ...over });
+
+  it("drops what a re-read newest page no longer has", () => {
+    const had = [m("a", 1), m("b", 2), m("c", 3)];
+    const page = [m("a", 1), m("c", 3)];
+    expect(withNewestPage(had, page, false).map((x) => x.id)).toEqual(["a", "c"]);
+  });
+
+  it("keeps older messages beyond a whole page, newer ones and pending sends", () => {
+    const had = [m("old", 1), m("b", 2), m("gone", 3), m("c", 4), m("new", 6), m("p", 7, { pending: true })];
+    const page = [m("b", 2), m("c", 4)];
+    expect(withNewestPage(had, page, true).map((x) => x.id)).toEqual(["old", "b", "c", "new", "p"]);
+  });
+
+  it("empties a thread whose every message went", () => {
+    const had = [m("a", 1), m("p", 2, { pending: true })];
+    expect(withNewestPage(had, [], false).map((x) => x.id)).toEqual(["p"]);
+  });
+});
+
+describe("exporting (Step 177.6)", () => {
+  it("writes each conversation out, days marked, unread ones saying why", () => {
+    const text = exportText(
+      [
+        {
+          name: "Nadia Haddad",
+          messages: [
+            msg({ id: "1", senderId: ME, body: "Hello", createdAt: new Date(2026, 9, 12, 14, 41).toISOString() }),
+            msg({ id: "2", body: "Hi!\nHow are you?", createdAt: new Date(2026, 9, 12, 14, 43).toISOString() }),
+            msg({ id: "3", body: "", status: "locked", createdAt: new Date(2026, 9, 13, 9, 5).toISOString() }),
+          ],
+        },
+        { name: "Bilal", messages: [] },
+      ],
+      ME,
+      new Date(2026, 9, 16, 12, 0),
+    );
+    expect(text).toBe(
+      [
+        "Your ancestree messages",
+        "Read on this device on Oct 16, 2026. Only the people in each conversation can read them: keep this file somewhere safe.",
+        "",
+        "",
+        "== Nadia Haddad ==",
+        "",
+        "Monday, October 12, 2026",
+        "2:41 PM  You: Hello",
+        "2:43 PM  Nadia Haddad: Hi!",
+        "                       How are you?",
+        "",
+        "Tuesday, October 13, 2026",
+        "9:05 AM  Nadia Haddad: [Locked on this device]",
+        "",
+        "",
+        "== Bilal ==",
+        "",
+        "No messages.",
+        "",
+      ].join("\n"),
+    );
+  });
+
+  it("names the file by the day", () => {
+    expect(exportFilename(new Date(2026, 0, 5))).toBe("ancestree-messages-2026-01-05.txt");
   });
 });

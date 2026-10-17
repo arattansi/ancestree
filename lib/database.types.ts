@@ -481,18 +481,21 @@ export type Database = {
           conversation_id: string
           joined_at: string
           last_read_at: string | null
+          muted_until: string | null
           user_id: string
         }
         Insert: {
           conversation_id: string
           joined_at?: string
           last_read_at?: string | null
+          muted_until?: string | null
           user_id: string
         }
         Update: {
           conversation_id?: string
           joined_at?: string
           last_read_at?: string | null
+          muted_until?: string | null
           user_id?: string
         }
         Relationships: [
@@ -3539,6 +3542,7 @@ export type Database = {
       }
       delete_blog_post: { Args: { p_id: string }; Returns: undefined }
       delete_library_submission: { Args: { p_id: string }; Returns: string }
+      delete_message: { Args: { p_message: string }; Returns: undefined }
       delete_tree: { Args: { p_tree: string }; Returns: Json }
       draft_library_submission: {
         Args: { p_id: string }
@@ -3937,6 +3941,10 @@ export type Database = {
           version: number
         }[]
       }
+      mute_conversation: {
+        Args: { p_conversation: string; p_until?: string }
+        Returns: string
+      }
       my_conversations: {
         Args: never
         Returns: {
@@ -3953,6 +3961,7 @@ export type Database = {
           last_sender_id: string
           last_sender_key_version: number
           last_signature: string
+          muted_until: string
           other_key_version: number
           other_name: string
           other_person_id: string

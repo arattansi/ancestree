@@ -65,6 +65,7 @@ export async function loadMessenger(): Promise<MessengerData> {
       lastReadAt: c.last_read_at,
       unread: c.unread,
       canSend: c.can_send,
+      mutedUntil: c.muted_until,
     })),
     contacts: (contacts.data ?? []).map((c) => ({
       userId: c.user_id,
