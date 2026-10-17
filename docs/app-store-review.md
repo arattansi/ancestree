@@ -116,6 +116,10 @@ for every sensitive API the app's libraries touch, even unused (Step 175).
 | `NSSpeechRecognitionUsageDescription` | `expo-speech-recognition` plugin | Telling a story |
 | `NSPhotoLibraryUsageDescription` | `app.json` `ios.infoPlist` | Never yet (`expo-file-system` can read photos) |
 | `NSLocalNetworkUsageDescription` | `expo-dev-client` | Only in a development build, finding Metro on the Mac |
+| `NSCameraUsageDescription` | `expo-camera` plugin | Scanning the code that links the phone to your messages (Step 179.1) |
+
+`expo-camera` also touches the microphone (for video, which the app never
+records); its plugin keeps the scribe's microphone message.
 
 There's no `NSFaceIDUsageDescription`. `expo-secure-store` adds Expo's stock
 Face ID message unless told not to (`"faceIDPermission": false`). The app
@@ -126,7 +130,19 @@ app starts using Face ID, give it a real message there.
 
 - **Shared content (guideline 1.2).** Once the phone shows other people's
   stories and photos (Phase 4, the story feed), it needs a way to report one
-  and to block someone, as the web has.
+  and to block someone, as the web has. Messages already have both (Step
+  179.1).
+- **Encryption export compliance.** `app.json` says
+  `"usesNonExemptEncryption": false`, which was true while the app used
+  encryption only through iOS (HTTPS, the Keychain). Since Step 179.1 the
+  app encrypts messages itself, with standard published algorithms
+  (X25519, Ed25519, XChaCha20-Poly1305, `@noble/*`). Apple's questions may
+  now need a different answer, and App Store Connect may ask for export
+  documentation. Decide before the next TestFlight build.
+- **Messages in App Privacy.** The server keeps who wrote to whom and when,
+  but never a message's words, which only the members' devices can read.
+  Check Apple's wording on end-to-end encrypted data before adding
+  messages to the labels above.
 - **Support URL.** App Store Connect needs one. There's no support page
   yet; `https://www.ancestree.space/about-us` can stand in.
 - **Age rating.** Answer "No" to everything except user-generated content,

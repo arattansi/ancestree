@@ -28,6 +28,15 @@ What it does so far:
   births and deaths to tick, each made as an edit, a fill or a suggestion
   as you could on the web; people it mentions, to tag; and relatives not
   on the tree yet. Nothing changes until you tick it and save.
+- **Messages** (Step 179.1), as on the web (Steps 174, 177): the
+  speech-bubble in the leaf's header, with the unread count on it, opens
+  your conversations; **message** on a leaf's details opens one with the
+  member behind it. New Message lists everyone on your trees, closest
+  first, each with who they are to you ("Your granddaughter"); a
+  conversation's name opens how you're connected, mute, the security code
+  and block. Tap a message for its time, to delete your own for everyone
+  or to report theirs. New messages arrive as they're sent. Only the two
+  of you can read them: see the next section.
 
 ## The scribe needs the app's own build
 
@@ -51,6 +60,33 @@ npx expo run:android --device
 
 The write-up needs `ANTHROPIC_API_KEY` set on the web's server (Vercel),
 and `EXPO_PUBLIC_SITE_URL` pointing at it.
+
+## Messages and this phone's key (Step 179.1)
+
+Each member has one messaging key, kept on their devices and never on the
+server. The first device to open messages makes it. Any other device,
+this phone included, starts **locked** and is given the key by one that
+has it:
+
+- **Scan the code.** On a device you've used before (the web, say), open
+  messages, choose the lock, then **link a device**. On the phone, open
+  messages and **scan the code** it shows. The link works once, for ten
+  minutes.
+- **Paste the link** instead, copied from that device.
+- **Use recovery phrase**, if you've set one: your 12 words.
+- **Lost every device? Start over** makes a new key. Earlier messages
+  stay unreadable, and your family sees your security code change.
+
+The phone keeps the key in the Keychain (`src/messages/keystore.ts`), as
+the web keeps it in the browser. Message Security (the lock on the
+Messages screen) links another device from the phone, sets the recovery
+phrase, lists whom you've blocked and exports your conversations as a
+text file read on the phone. The encryption is the web's own
+(`lib/e2e/crypto.ts`, `@noble/*`); Hermes has no Web Crypto, so
+`expo-crypto` supplies the randomness (`src/messages/random.ts`, imported
+first). Scanning needs the camera (`expo-camera`). Both are native code,
+so they need a development build made since Step 179.1; Expo Go and an
+older build can't open messages.
 
 ## Your own build, signed by the developer account (Step 173)
 
@@ -198,7 +234,8 @@ the phone uses the Keychain.
 
 - `src/app/`: the screens, as Expo Router routes. `sign-in.tsx` is for the
   signed-out; `(family)/` is for everyone signed in: `index.tsx` (the leaf),
-  `person/[id].tsx`, `relatives/[side].tsx`, `search.tsx`, `account.tsx`.
+  `person/[id].tsx`, `relatives/[side].tsx`, `search.tsx`, `account.tsx`,
+  `messages/`.
 - `src/auth/`: the Supabase client. The session lives in the Keychain
   (`expo-secure-store`), in chunks, because a session is larger than one
   SecureStore value, and without Face ID (`faceIDPermission: false`).
@@ -214,6 +251,14 @@ the phone uses the Keychain.
   doesn't adopt it yet. On every prebuild this hands the window to Expo's
   own scene delegate (Step 149). It leaves a template that already adopts
   scenes alone, so drop it once Expo's does.
+- `src/messages/`: messages (Step 179.1). `store.ts` is the web's
+  `components/messenger/messenger-store.ts` step for step (keys, reading,
+  sending, the inbox, linking, block, mute, delete, export), `load.ts`
+  reads the list with the web's RPCs, `relations.ts` works out who they
+  are to you over the family read, `keystore.ts` keeps the keys in the
+  Keychain. The screens are `(family)/messages/`. Everything about a
+  message's words comes from the web's `lib/messenger.ts`,
+  `lib/messenger-relation.ts` and `lib/e2e/`: a change there reaches both.
 - `src/scribe/`: the scribe. `speech.ts` loads the recognizer only where
   it exists, `use-listening.ts` listens (pauses, the 12-minute stop,
   listening that stops on its own and carries on), `story.ts` makes the

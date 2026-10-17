@@ -717,7 +717,11 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   project `@aalimr/ancestree`) builds and signs it with the Apple
   developer account: development (dev client), preview, production
   (Step 173); production goes to TestFlight with `--auto-submit`
-  (Step 175).
+  (Step 175). `mobile/src/messages/` — messages on the phone (Step
+  179.1): the web messenger's store step for step over the same RPCs and
+  `inbox:<uid>` channel, the messaging key in the Keychain, linked from
+  another device by its QR code or link; it shares `lib/messenger.ts`,
+  `lib/messenger-relation.ts` and `lib/e2e/` with the web.
   `docs/mobile-server-paths.md` — every server action and service-role
   path, and what the app does instead. `docs/app-store-review.md` — the
   App Store privacy labels, App Review notes and purpose strings (Step
@@ -1945,6 +1949,63 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 179.1: messages on the iPhone, in step with the web** (no
+  migration; `mobile/src/messages/`, `mobile/src/app/(family)/messages/`).
+  The first of Step 179's phone subtasks (Notion epic Step 179). The
+  phone's messenger is the web's (Steps 174, 174.6, 177) step for step:
+  the same RPCs (`my_conversations`, `message_contacts`,
+  `open_direct_conversation`, `thread_messages`, `send_message`,
+  `mark_conversation_read`, the key, link and backup RPCs, block, report,
+  mute, delete), the same `inbox:<uid>` Realtime channel, and the web's
+  own `lib/messenger.ts`, `lib/messenger-relation.ts` and `lib/e2e/`
+  (none of them changed). `store.ts` follows
+  `components/messenger/messenger-store.ts` function by function, so a fix
+  to one wants the other. **Where:** a speech-bubble in the leaf's header
+  with the unread count (muted conversations left out), until 179.4 moves
+  it into the menu bar; **message** on a leaf's details when a member you
+  share a tree with is behind the entry. **Screens:** the list, New Message
+  (closest first, each with who they are to you), a conversation (days
+  marked, a changed security code said where it happened, tap a message
+  for its time and **delete** for your own or **report** for theirs), its
+  details (how you're connected, chain and all, with **see on the tree**
+  walking the leaf view to them; mute; the security code; block), the
+  safety code, a report, and Message Security (link a device as a QR code
+  or a shared link, the recovery phrase, Blocked, export as a text file
+  through the share sheet). **Who they are to you** is worked out on the
+  phone with `memberRelation` over the family it already reads
+  (`tree_people` / `tree_edges` of your trees, as the web's server does),
+  so `/api/messages` stays cookie-only. **Keys:** one messaging key per
+  member, as on the web, kept in the Keychain (`keystore.ts`, chunked as
+  the session is) by member, with the pins and verified codes. A phone
+  whose member already has a key elsewhere starts locked: **scan the code**
+  (`expo-camera`, the web's own `/messages/link#…` QR), **paste the link**,
+  **use recovery phrase**, or start over. Hermes has no Web Crypto, so
+  `expo-crypto` supplies `crypto.getRandomValues` (`src/messages/random.ts`,
+  imported first). Both are native: a development build made since this
+  step is needed. Faces are initials (the phone has no photos yet); the
+  web's invite-to-message for an entry nobody is behind (174.5) waits for
+  the full person view (179.5), which reads claim state. The copy never
+  says "end-to-end encrypted" (outside review first). New purpose string `NSCameraUsageDescription`; Expo's patch releases taken
+  with it (`npx expo install --fix`). Checked in the browser build against
+  the web with two throwaway members: phone to web and back, live; the
+  relation line; the same 60-digit safety code on both; a second "phone"
+  linked from the web's link reading the history; the badge; delete
+  reaching the other side live; mute; block refusing the other's send.
+  Then on Hermes in a simulator build: the randomness, the Keychain, a
+  forged signature refused, linking from the web, sending and receiving
+  live over the inbox, keyboard, the camera's ask. Reading a message
+  takes Hermes about 35 ms, so a message once read is kept in memory
+  (`readCache`); a safety code takes about 6 s in a debug build (the
+  shared code's 10,400 SHA-512 rounds), behind a spinner on its own
+  screen. Two things found and fixed there: opening straight into a
+  conversation before the messenger had started left it loading, and a
+  full-screen modal's safe area came back empty, so the scanner pads by
+  the root's insets. **Not tested:** sending a report (it would notify the
+  real reviewers), and scanning a real code (a simulator has no camera).
+  `docs/app-store-review.md` now asks for a decision on encryption export
+  compliance (`usesNonExemptEncryption: false` in `app.json`) before the
+  next TestFlight build.
+
 - **Step 181: the minimap back at the bottom right, still small;
   messages in the header** (no migration). **Aalim asked** (2026-10-16):
   "move the map back to the bottom right but keep it the smaller size.
@@ -1983,6 +2044,7 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   375 and 320 the header stayed one row (at 320 the tree's name gives way
   to its arrow) and the pop-up took the screen; on an 820 touch tablet
   zoom and map were both 160 tall. No console errors. Throwaways deleted.
+
 - **Step 180: the weekly newsletter names who you have unread messages
   from; a squared messages button** (migration
   `20261017120000_newsletter_unread_messages`). **Aalim asked**
@@ -2026,6 +2088,7 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   once read, the function returned nothing for her. Rehearsed first in a
   rolled-back transaction (read, own, muted and blocked messages left out;
   signed-in members can't call it). Throwaways deleted.
+
 - **Step 177: messaging Phase 0 — who they are to you, block, report,
   mute, delete, export** (migrations `20261017100000_messages_mute_and_delete`,
   `20261017110000_messages_block_and_report`). Phase 0 of the Notion

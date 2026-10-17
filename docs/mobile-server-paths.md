@@ -96,6 +96,18 @@ All carry a top-level `"use server"`; none is inline.
   `fill_person_blanks` where they may only fill blanks, else
   `suggest_entry_change`. Which it is comes from the RPC `entry_rights`,
   the phone's stand-in for the web's `entryAccess` (cookie-bound).
+- **Messages (Steps 174, 177):** `/api/messages` is cookie-only, but what
+  it reads is the member's own: RPCs `my_conversations` and
+  `message_contacts`, card photos signed from `photos`, and, for who they
+  are to you, the same `tree_people` / `tree_edges` the family read takes.
+  Everything else is already an RPC the pop-up calls from the browser
+  (`thread_messages`, `send_message`, `open_direct_conversation`,
+  `mark_conversation_read`, the key and link RPCs, block, report, mute,
+  delete), and the inbox is the Realtime channel `inbox:<uid>`. **Done in
+  Step 179.1** (`mobile/src/messages/`): the same RPCs and channel, who
+  they are to you worked out on the phone over its family read
+  (`lib/messenger-relation.ts`), the keys in the Keychain. Faces are
+  initials for now.
 - **Everything else in A:** suggestions, reports, placements, home tree,
   name-only cards, share links, family link, nicknames, pets: the same RPC
   or write.
