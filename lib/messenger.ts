@@ -42,7 +42,7 @@ export type ConversationSummary = {
   canSend: boolean;
   /**
    * Muted until then (Step 177.4), `"infinity"` until unmuted: left out of
-   * the launcher's badge and the email. Null when it isn't.
+   * the launcher's count. Null when it isn't.
    */
   mutedUntil: string | null;
   /**

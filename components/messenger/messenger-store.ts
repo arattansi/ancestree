@@ -912,7 +912,7 @@ async function deleteMessage(conversationId: string, messageId: string): Promise
 
 /**
  * Mute a conversation for `hours`, or until unmuted (`null`); `unmute`
- * ends it (Step 177.4). Muted, it's left out of the badge and the email.
+ * ends it (Step 177.4). Muted, it's left out of the launcher's count.
  */
 async function mute(conversationId: string, hours: number | null | "unmute"): Promise<boolean> {
   const until = hours === "unmute" ? null : muteUntil(hours);
