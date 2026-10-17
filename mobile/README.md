@@ -8,16 +8,40 @@ What it does so far:
 
 - **Sign in** with an email and the 8-digit code, as on the web. App
   Review's one address asks for a password instead (Step 176).
-- **Your account:** sign out, read the privacy notice, or delete the
-  account for good (Step 176), choosing who takes over a tree you're the
-  only Root of. A tree nobody else is on goes with it.
-- **One leaf at a time.** It opens on your own leaf. Your parents sit above
-  it, your children below, your spouse to the left and your siblings to the
-  right, each as a small circle. Tap a circle to walk to that leaf, and tap
-  the leaf for its details. **you** brings you home, the magnifier finds
-  anyone on your trees by name, and a "+n" circle lists the rest of a group
-  too big to show.
-- **Tell a story** to the scribe (Step 148), from a leaf's details. The
+- **The menu bar** (Step 179.4), left to right: record (the feather), the
+  feed (the calendar, with an apple on it when there's something new),
+  home (the ancestree mark), messages (the dialogue box) and you (your
+  photo, or your initials). Only home and you are in colour. The ancestree
+  wordmark stays at the top of every main screen; tap it to go back to your
+  own leaf.
+- **One leaf at a time**, drawn as the web's canvas is (Step 179.2). It
+  opens on your own leaf. Your parents sit above it, your children below,
+  your spouse to the left and your siblings to the right, each as a gray
+  pill with their first name and their initials cut out of a disc at its
+  right end. The lines branch off a bar and turn round corners, in the
+  brown of the web's lit lines, over the web's dotted ground. Tap a pill to
+  walk to that leaf, back retraces your steps, the magnifier finds anyone
+  on your trees by name, and a "+n" pill lists the rest of a group too big
+  to show.
+- **add** (Step 179.3), beside the magnifier: a relative of whoever is on
+  the leaf view (with the web's checks: 18 or older, the connections the
+  tree implies, the database's say before anything is kept, an invite to
+  claim), photos from your library for their album, or a written story.
+- **Someone's details** (Step 179.5), from their leaf: how they're
+  connected to you ("Your grandfather", and the chain of people between),
+  their dates and places, their family, the trees they're on, their album,
+  their stories and any open reports, read through
+  `/api/mobile/person-sheet` as the web's sheet reads them.
+- **The feed** (Step 179.4): birthdays and anniversaries in the next two
+  months, and your notifications; opening it marks them read.
+- **Settings** (you, in the menu bar): sign out, message security, the
+  privacy notice, or delete the account for good (Step 176), choosing who
+  takes over a tree you're the only Root of. A tree nobody else is on goes
+  with it.
+- **Tell a story** to the scribe (Step 148), from record in the menu bar or
+  a leaf's details. Above the microphone, a title and whom it's about, both
+  optional (Step 179.6); they fold away while you talk and come back when
+  you're done, with who told it and who asked. The
   phone listens and shows the words as they come; pause, carry on, then
   **done**. Claude writes it up on the web's server (`/api/mobile/scribe`):
   a title, the story in the teller's own words and language, and English
@@ -29,7 +53,7 @@ What it does so far:
   as you could on the web; people it mentions, to tag; and relatives not
   on the tree yet. Nothing changes until you tick it and save.
 - **Messages** (Step 179.1), as on the web (Steps 174, 177): the
-  dialogue box in the leaf's header, with the unread count on it, opens
+  dialogue box in the menu bar, with the unread count on it, opens
   your conversations; **message** on a leaf's details opens one with the
   member behind it. New Message lists everyone on your trees, closest
   first, each with who they are to you ("Your granddaughter"); a
@@ -234,9 +258,17 @@ the phone uses the Keychain.
 ## How it's put together
 
 - `src/app/`: the screens, as Expo Router routes. `sign-in.tsx` is for the
-  signed-out; `(family)/` is for everyone signed in: `index.tsx` (the leaf),
-  `person/[id].tsx`, `relatives/[side].tsx`, `search.tsx`, `account.tsx`,
-  `messages/`.
+  signed-out; `(family)/` is for everyone signed in. `(family)/(tabs)/`
+  holds the screens behind the menu bar (Step 179.4, `expo-router/ui`'s
+  headless tabs): `index.tsx` (the leaf), `feed.tsx`, `messages.tsx`,
+  `settings.tsx`; record is a button, not a tab. Over them, from the
+  family's stack: `person/[id].tsx`, `add/` (the + menu), `relatives/[side].tsx`,
+  `search.tsx`, `messages/` (a conversation and the rest), `scribe/[id].tsx`.
+- `src/ui/`: `app-header.tsx` (the wordmark), `menu-bar.tsx`, `icons.tsx`
+  (Lucide's, plus the apple), buttons, chips, fields.
+- `src/feed/notices.ts`: your notifications, as the web's bell reads them,
+  shared by the feed and the calendar's apple.
+- `src/person/`: someone's details, read through `/api/mobile/person-sheet`.
 - `src/auth/`: the Supabase client. The session lives in the Keychain
   (`expo-secure-store`), in chunks, because a session is larger than one
   SecureStore value, and without Face ID (`faceIDPermission: false`).
@@ -244,9 +276,10 @@ the phone uses the Keychain.
   `/api/mobile/account/delete` (Step 176); the screen is
   `(family)/delete-account.tsx`.
 - `src/family/`: one read of everyone on every tree you belong to, and
-  where you are in it.
+  where you are in it; `photo.ts` signs a photo's address as the web does.
 - `src/leaf/`: the leaf, drawn from the web's own leaf shapes, and the
-  circles around it.
+  pills around it (`person-pill.tsx`). Where they all go, and the lines'
+  corners, are `@/lib/leaf-orbit` (tested with the web's `npm test`).
 - `plugins/with-scene-life-cycle.js`: an app built with the iOS 27 SDK
   won't open without UIKit's scene life cycle, and Expo 57's template
   doesn't adopt it yet. On every prebuild this hands the window to Expo's

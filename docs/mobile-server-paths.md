@@ -73,7 +73,8 @@ All carry a top-level `"use server"`; none is inline.
   bundles is user-scoped: `tree_placements` + `trees`, `my_trees`,
   `entry_reports`, RPC `entry_album` + signed URLs from `album`, RPC
   `entry_stories` + signed URLs from `stories`, RPC `withheld_details`.
-  The app reads them directly.
+  The app reads them through `GET /api/mobile/person-sheet` (Step 179.5):
+  `loadPersonSheet` with the member's bearer client, so both read the same.
 - **Adding a relative** (`addRelative`): RPC
   `add_people_with_connections`, then a `people` update for
   `place_id_birth`, `place_id_death`, `sex` and the `*_circa` flags (the
@@ -126,7 +127,9 @@ All carry a top-level `"use server"`; none is inline.
   as `sendClaimInvite`), and `POST /api/mobile/account/delete`, deleting
   your own account (Step 176: `deleteAccountOf`, successors promoted and
   lone trees deleted through the bearer client, the rest with the
-  service role). `/api/mobile/` is in
+  service role). `GET /api/mobile/person-sheet` (Step 179.5) reads someone's
+  trees, reports, album and stories with `loadPersonSheet`, whose readers
+  take the bearer client. `/api/mobile/` is in
   `proxy.ts`'s `PUBLIC_PREFIXES`, and `lib/supabase/bearer.ts` checks the
   token (`bearerToken`, `bearerClient`) and gives a client acting as the
   member, under RLS. Every new phone endpoint goes under `/api/mobile/`

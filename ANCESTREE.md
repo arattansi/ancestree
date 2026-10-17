@@ -1951,6 +1951,52 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 179.2–179.6: the iPhone app looks like the web and gets a menu
+  bar, a +, full details and a record form** (no migration; 179.1,
+  messages, landed with Step 182). **Aalim asked** (2026-10-17): the web's
+  design system on the phone ("the leaf proportions are too big, the
+  lucidchart-like graph aesthetic is absent … the nodes should be a gray
+  pill with the first name and their initials in negative space,
+  right-aligned on the pill"); a + for photos, a written story or a
+  relative; the wordmark always there, returning you to your node; the
+  full details on tapping someone, with shared trees and how they're
+  connected to you; a menu bar of record (feather), feed and notifications
+  (a calendar with an apple when there's news), home (the mark), messages
+  (a dialogue box) and you (your photo), only home and you in colour; and
+  record opening on an optional title and about-who that fold away while
+  recording and come back with storyteller and interviewer. Then "finish
+  the rest of 179 as subtasks here". **Now:** 179.2 `lib/leaf-orbit.ts`
+  lays out pills (96, 86 or 76 wide) and one rounded orthogonal line per
+  relative (`roundedPolyline`, 8-point corners, the web's lit brown), the
+  leaf sized to what the two pill columns leave (141 points on an iPhone
+  15), over the web's dotted ground (`person-pill.tsx`, tests rewritten);
+  179.4 `(family)/(tabs)/` on `expo-router/ui`'s headless tabs with
+  `ui/menu-bar.tsx` and `ui/app-header.tsx`, the feed (`feed.tsx`:
+  `upcomingOccasions` over the family read for two months, then the
+  `notifications` rows, marked read on opening), settings in place of the
+  account sheet, your photo signed from `photos` (`family/photo.ts`);
+  179.3 **add** in the leaf view's header opens Relative (the scribe's
+  relative card with `allTicked`/`fixed`, so the 148.3 checks), Photos
+  (`expo-image-picker`, a new native module, uploaded to `album` then
+  `add_album_photo`, the upload taken back if refused) and Story
+  (`tellStory` without a recording); 179.5 `/api/mobile/person-sheet`
+  (bearer) runs `loadPersonSheet`, whose readers now take an optional
+  client, and the phone's `person/[id].tsx` shows connection (`relationOf`
+  + the `connectionPath` chain), badges, details, family, trees, album
+  (tap for the whole photo), stories (Markdown read as plain words) and
+  reports; 179.6 the scribe's form (`PersonChooser`), storyteller and
+  interviewer chosen from anyone on the story's tree. Checked in the
+  phone's web preview as the App Review account, a local Next server
+  answering the new route (401 without a token, 400 for a bad person, the
+  sheet as the web's). **My calls:** the + sits in the header beside
+  search, not floating over the pills; everything the + adds goes on the
+  first of the member's trees that shows the person in full (no "Which
+  tree?" yet); photos take one description for up to ten; the feed's
+  notices are read-only (a Root answers placements and suggestions on the
+  web); "Claimed" isn't shown (`owner_user_id` is the entry's owner, not a
+  claim); recordings in someone's stories aren't played yet; the apple on
+  the calendar is monochrome, as only home and you are in colour.
+  **Needs a new EAS development build** for the photo picker.
 - **Step 182: messages wait for a relative who has no key yet, and they're
   told** (migrations `20261017140000_messages_wait_for_a_key`,
   `20261017150000_messages_wait_for_a_key_hardening` and
