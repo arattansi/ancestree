@@ -22,23 +22,6 @@ export default function ManifestoPage() {
         (product-manifesto)
       </h1>
       <MarketingCopy>
-        <p>this isn’t a genealogy tool.</p>
-        <p>
-          or rather, this isn’t <em>just</em> a genealogy tool.
-        </p>
-        <p>
-          there are many great platforms that allow you to study and chart your
-          lines of descent.
-        </p>
-        <p>
-          ancestree is as much about connecting with your family today as it is
-          about connecting with your family that has passed.
-        </p>
-        <p>
-          it is about stories and it is about the milestones, celebrations, and
-          memories with people that make those stories mean something.
-        </p>
-        <Separator />
         <p>
           before we got married, we spent a lot of time in our wedding planning
           thinking about our distinct families and the independent histories
@@ -75,9 +58,21 @@ export default function ManifestoPage() {
         <p>
           these connections mean something to us and we want to nurture them.
         </p>
+        <p>we didn’t want to make a genealogy tool.</p>
+        <p>
+          or rather, we didn’t want to make <em>just</em> a genealogy tool.
+        </p>
         <p>
           we built ancestree to be the soil where families can come together to
           grow their tree and nurture those connections.
+        </p>
+        <p>
+          ancestree is as much about connecting with family today as it is about
+          connecting with family that has passed.
+        </p>
+        <p>
+          it is about stories and it is about the milestones, celebrations, and
+          memories with people that make those stories mean something.
         </p>
       </MarketingCopy>
     </MarketingColumn>

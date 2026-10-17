@@ -18,17 +18,19 @@ export default function PricingPage() {
     <MarketingColumn>
       <h1 className="text-2xl font-semibold tracking-tight">(pricing)</h1>
       <MarketingCopy>
-        <p>ancestree is in beta, so it’s free to use.</p>
+        <p>ancestree is free to use.</p>
         <p>
-          well, it costs us right now. but hey, you need to crack a few eggs
-          if you don’t understand metaphors.
+          well, it costs us for you to use it. but hey, you need to crack a few
+          eggs if you don’t understand metaphors.
+        </p>
+        <p>eventually, we’ll probably need to charge something.</p>
+        <p>
+          mostly because we are more likely to shut down ancestree than
+          commodify you to generate ad revenue.
         </p>
         <p>
-          if it comes out of beta, we’ll probably need to charge something.
-        </p>
-        <p>
-          most of it will be put towards improving ancestree and resisting ad
-          revenue.
+          the majority of what we charge will be put towards sustaining and
+          improving ancestree.
         </p>
         <p>
           some of it will be put towards us visiting where our ancestors lived.
@@ -38,12 +40,12 @@ export default function PricingPage() {
           care about.
         </p>
         <p>
-          either way, whatever you grow on ancestree will stay accessible
-          for free.
+          either way, whatever you grow on ancestree will stay accessible for
+          free and it will remain easy to take back your data.
         </p>
         <p>
           if we do start charging for the ability to continue growing, we’ll
-          make it discounted for our beta users.
+          make it discounted for our early users.
         </p>
       </MarketingCopy>
     </MarketingColumn>
