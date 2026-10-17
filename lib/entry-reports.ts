@@ -1,5 +1,8 @@
 import "server-only";
 
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+import type { Database } from "@/lib/database.types";
 import { memberNames } from "@/lib/member-names.server";
 import { personDisplayName } from "@/lib/person-name";
 import { createClient } from "@/lib/supabase/server";
@@ -67,8 +70,10 @@ function namedIn(rows: ReportRow[]): (string | null)[] {
 export async function listEntryReports(
   personId: string,
   viewerId: string,
+  /** The phone's member, as a bearer client (Step 179.5); the cookie's otherwise. */
+  db?: SupabaseClient<Database>,
 ): Promise<EntryReport[]> {
-  const supabase = await createClient();
+  const supabase = db ?? (await createClient());
   const { data } = await supabase
     .from("entry_reports")
     .select(COLUMNS)

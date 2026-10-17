@@ -27,7 +27,8 @@ export default function FamilyLayout() {
         {/* The leaf view, feed, messages and settings, behind the menu bar
             (Step 179.4). */}
         <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="person/[id]" options={sheet} />
+        {/* All of someone's details, the whole height (Step 179.5). */}
+        <Stack.Screen name="person/[id]" options={{ ...sheet, sheetAllowedDetents: [1] }} />
         <Stack.Screen name="relatives/[side]" options={sheet} />
         {/* The + menu and what it opens (Step 179.3). */}
         <Stack.Screen name="add/[id]" options={{ ...sheet, sheetAllowedDetents: [0.34] }} />

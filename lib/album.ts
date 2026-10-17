@@ -1,5 +1,8 @@
 import "server-only";
 
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+import type { Database } from "@/lib/database.types";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -72,8 +75,10 @@ function asOthers(value: unknown): AlbumPhoto["others"] {
 export async function listAlbum(
   personId: string,
   viewerId: string,
+  /** The phone's member, as a bearer client (Step 179.5); the cookie's otherwise. */
+  db?: SupabaseClient<Database>,
 ): Promise<AlbumPhoto[]> {
-  const supabase = await createClient();
+  const supabase = db ?? (await createClient());
   const { data, error } = await supabase.rpc("entry_album", {
     p_person: personId,
   });

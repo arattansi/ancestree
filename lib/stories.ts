@@ -1,5 +1,8 @@
 import "server-only";
 
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+import type { Database } from "@/lib/database.types";
 import { getSiteUrl } from "@/lib/site-url";
 import { asCredits, type StoryCredit } from "@/lib/story-credits";
 import { storyLinkPath } from "@/lib/story-links";
@@ -122,8 +125,10 @@ function asMentions(value: unknown): StoryMention[] {
 export async function listStories(
   personId: string,
   viewerId: string,
+  /** The phone's member, as a bearer client (Step 179.5); the cookie's otherwise. */
+  db?: SupabaseClient<Database>,
 ): Promise<EntryStory[]> {
-  const supabase = await createClient();
+  const supabase = db ?? (await createClient());
   const { data, error } = await supabase.rpc("entry_stories", {
     p_person: personId,
   });

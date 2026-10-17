@@ -1,6 +1,9 @@
 import "server-only";
 
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 import { listAlbum } from "@/lib/album";
+import type { Database } from "@/lib/database.types";
 import { listEntryReports } from "@/lib/entry-reports";
 import type { HeldBackDetails } from "@/lib/held-back";
 import type {
@@ -12,13 +15,15 @@ import type {
 import { listStories } from "@/lib/stories";
 import { createClient } from "@/lib/supabase/server";
 
+type DbClient = SupabaseClient<Database>;
+
 /**
  * The trees a person is shown on that the viewer may open (Step 25): as a
  * member, or as a visitor where the tree has been opened to one of theirs.
  * RLS on `trees` is what decides; a tree the viewer can't see isn't listed.
  */
-async function personTrees(personId: string): Promise<PersonTreeLink[]> {
-  const supabase = await createClient();
+async function personTrees(personId: string, db?: DbClient): Promise<PersonTreeLink[]> {
+  const supabase = db ?? (await createClient());
   const [{ data: placements }, { data: mine }] = await Promise.all([
     supabase
       .from("tree_placements")
@@ -39,8 +44,8 @@ async function personTrees(personId: string): Promise<PersonTreeLink[]> {
  * A placeholder's held-back details (Step 98.3), as `withheld_details`
  * answers the viewer: only its parent, or the child themself, gets any.
  */
-async function heldBack(personId: string): Promise<HeldBackDetails> {
-  const supabase = await createClient();
+async function heldBack(personId: string, db?: DbClient): Promise<HeldBackDetails> {
+  const supabase = db ?? (await createClient());
   const { data, error } = await supabase.rpc("withheld_details", {
     p_person: personId,
   });
@@ -57,15 +62,20 @@ export async function loadPersonSheet(
   personId: string,
   sections: readonly SheetSection[],
   viewerId: string,
+  /**
+   * The phone's member, as a bearer client (`/api/mobile/person-sheet`,
+   * Step 179.5); the web's cookie client otherwise.
+   */
+  db?: DbClient,
 ): Promise<PersonSheetAnswer> {
   const readers: {
     [S in SheetSection]: () => Promise<NonNullable<PersonSheet[S]>>;
   } = {
-    trees: () => personTrees(personId),
-    reports: () => listEntryReports(personId, viewerId),
-    album: () => listAlbum(personId, viewerId),
-    stories: () => listStories(personId, viewerId),
-    heldBack: () => heldBack(personId),
+    trees: () => personTrees(personId, db),
+    reports: () => listEntryReports(personId, viewerId, db),
+    album: () => listAlbum(personId, viewerId, db),
+    stories: () => listStories(personId, viewerId, db),
+    heldBack: () => heldBack(personId, db),
   };
   const read = await Promise.allSettled(sections.map((s) => readers[s]()));
   const sheet: PersonSheet = {};
