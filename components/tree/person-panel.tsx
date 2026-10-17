@@ -28,6 +28,7 @@ import { FormError } from "@/components/form-error";
 import {
   messenger,
   useMessageTarget,
+  useMessengerReady,
 } from "@/components/messenger/messenger-store";
 import { lazyComponent, whenIdle } from "@/components/lazy-component";
 import { PhotoCropEditor } from "@/components/lazy-photo-crop-editor";
@@ -272,6 +273,7 @@ function PersonPanelImpl({
   canDelete = false,
   canInviteToClaim = false,
   claimInvites = [],
+  chatInvite = null,
   changeSuggestions = [],
   declinedSuggestions = [],
   claimable,
@@ -352,6 +354,12 @@ function PersonPanelImpl({
    */
   claimInvites?: EntryInvite[];
   /**
+   * Living, unclaimed and nobody's own (Step 174.5): **message** opens the
+   * messenger on them, offering to invite them by email when the viewer
+   * may (`canInvite`, the claim invite's rules on the card's tree).
+   */
+  chatInvite?: { canInvite: boolean } | null;
+  /**
    * Suggested changes to this entry still waiting (Step 67): all of them for
    * someone who may edit it, to answer; the viewer's own otherwise.
    */
@@ -403,6 +411,10 @@ function PersonPanelImpl({
   // A member you share a tree with: **message** opens the messenger with
   // them (Step 174).
   const messageTo = useMessageTarget(isSelf ? null : (person?.id ?? null));
+  // Nobody behind the entry yet: the messenger offers to invite them
+  // (Step 174.5).
+  const messengerReady = useMessengerReady();
+  const inviteToChat = !messageTo && !!chatInvite && messengerReady;
   // Its own handle, so it leaves the rest alone (Step 70). Claim and Delete
   // ask first, and their dialogs carry their own; an invite to claim, its
   // controls (Step 162).
@@ -726,10 +738,28 @@ function PersonPanelImpl({
                 ) : null}
                 {!locked ? (
                   <span className="ml-auto flex gap-1.5">
-                    {messageTo ? (
+                    {messageTo || inviteToChat ? (
                       <TagButton
                         title="Message"
-                        onClick={() => void messenger.openWith(messageTo)}
+                        onClick={() =>
+                          messageTo
+                            ? void messenger.openWith(messageTo)
+                            : messenger.openInvite({
+                                personId: person.id,
+                                name: personDisplayName(person),
+                                firstName: (
+                                  person.preferred_name ||
+                                  person.first_name ||
+                                  ""
+                                ).trim(),
+                                photoUrl: person.photo_card_url,
+                                photoCrop: person.photo_crop,
+                                treeId,
+                                treeName,
+                                canInvite: !!chatInvite?.canInvite,
+                                invites: claimInvites,
+                              })
+                        }
                       >
                         <MessageCircle aria-hidden />
                         message

@@ -2466,6 +2466,31 @@ function Canvas({
           viewer,
           selectedHome,
         ));
+  // Someone with nobody behind their entry yet (Step 174.5): **message**
+  // opens the messenger on them, offering to invite them by email, by the
+  // claim invite's own rules. On My Family Tree too, by the card's tree,
+  // where the sheet itself offers no invite.
+  const chatInvite =
+    !readOnly &&
+    !!selectedPerson &&
+    !selectedPerson.basic &&
+    selectedPerson.placeholder_number == null &&
+    selectedPerson.claim_status == null &&
+    !selectedPerson.account_type &&
+    !spokenFor.has(selectedPerson.id) &&
+    selectedPerson.id !== selfPersonId &&
+    !personHasDied(selectedPerson)
+      ? {
+          canInvite: family
+            ? !!cardViewer &&
+              canInviteToClaimHere(
+                entrySubject(selectedPerson),
+                cardViewer,
+                selectedHome,
+              )
+            : canInvite,
+        }
+      : null;
   const canDelete =
     editable &&
     !!selectedPerson &&
@@ -3029,6 +3054,7 @@ function Canvas({
           canDelete={canDelete}
           canInviteToClaim={canInvite}
           claimInvites={selectedInvites}
+          chatInvite={chatInvite}
           changeSuggestions={selectedSuggestions}
           declinedSuggestions={selectedDeclined}
           readOnly={readOnly}

@@ -16,6 +16,7 @@ import {
   type ChatMessage,
   type MessengerData,
 } from "@/lib/messenger";
+import type { EntryInvite } from "@/lib/claim-invites";
 import type { createClient } from "@/lib/supabase/client";
 
 /*
@@ -30,7 +31,28 @@ import type { createClient } from "@/lib/supabase/client";
 export type MessengerView =
   | { kind: "list" }
   | { kind: "new" }
-  | { kind: "thread"; id: string };
+  | { kind: "thread"; id: string }
+  | { kind: "invite"; target: InviteTarget };
+
+/**
+ * Someone on the tree with nobody behind their entry yet (Step 174.5):
+ * there's no one to message, so the pop-up offers to invite them by email,
+ * as the sheet's claim invite does and by the same rules.
+ */
+export type InviteTarget = {
+  personId: string;
+  name: string;
+  firstName: string;
+  photoUrl: string | null;
+  photoCrop: unknown;
+  /** The tree they'd join, which shows the entry (Step 84). */
+  treeId: string;
+  treeName: string;
+  /** Whether the reader may send the invite (`canInviteToClaim`). */
+  canInvite: boolean;
+  /** Invites already sent for the entry, as the sheet lists them. */
+  invites: EntryInvite[];
+};
 
 export type Thread = {
   messages: ChatMessage[];
@@ -359,6 +381,9 @@ async function openWith(userId: string) {
 export const messenger = {
   start,
   open,
+  /** The pop-up on someone not on ancestree yet, inviting them (Step 174.5). */
+  openInvite: (target: InviteTarget) =>
+    set({ open: true, view: { kind: "invite", target } }),
   close,
   show,
   send,
@@ -386,6 +411,11 @@ export function useMessenger<T>(select: (s: MessengerState) => T): T {
     () => select(state),
     () => select(serverState),
   );
+}
+
+/** Whether the messenger has woken on this page, so the sheet may offer it. */
+export function useMessengerReady(): boolean {
+  return useMessenger((s) => s.me !== null);
 }
 
 /**

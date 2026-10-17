@@ -244,7 +244,9 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `.messenger-launcher` in `globals.css`); `messenger-panel.tsx` the
   pop-up, fetched when the launcher is pointed at (list, **new message**,
   a thread; full screen on a phone); `messenger-store.ts` its state outside
-  React, shared with the person sheet's **message** (`useMessageTarget`):
+  React, shared with the person sheet's **message** (`useMessageTarget`;
+  on a living entry nobody is behind, `messenger.openInvite` opens an
+  invite-by-email prompt instead, Step 174.5):
   it wakes once the page is idle, reads `GET /api/messages`
   (`lib/messenger.server.ts`: conversations and contacts, faces signed for
   the reader) and joins the member's private Realtime inbox
@@ -1941,8 +1943,23 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   where it shows; the toaster's region is "Alerts" now ("Messages" is the
   messenger). **174.4** Groups and channels are scoped in Notion,
   "Ancestree × Messaging — Product Scope" under Product: groups first,
-  then tree channels, then photos, mentions and the phone app, with 11
-  decisions open. **My calls:** the messenger sits on `/tree`,
+  then tree channels, then photos, mentions and the phone app; the same
+  day Aalim added who the person is to you in each conversation and
+  end-to-end encryption to it (recommended before the messenger
+  launches), 17 decisions open. **174.5** Aalim asked: "if a user tries
+  to DM a node that isn't claimed, they are prompted in the chat window
+  to invite them by email". A living entry nobody is behind (unclaimed,
+  no member's own, not a placeholder or a basic card) has **message** on
+  its sheet too; it opens the pop-up on them: "Cyrus isn't on ancestree
+  yet.", the invites already sent for it (on a tree's page, where they're
+  loaded), and "Invite Cyrus by email to message them." with **send
+  invite** (**send another invite** once one is out), which sends the
+  sheet's claim invite (`sendClaimInvite`, by its rules), then "Invite
+  sent to … You can message Cyrus once they join." Someone who may not
+  invite them is told "Ask whoever runs {tree} to invite them." On My
+  Family Tree, which offers no claim invites itself, who may invite is
+  worked out on the card's own tree (`chatInvite` in `family-tree.tsx`).
+  **My calls:** the messenger sits on `/tree`,
   `/family`, `/account`, `/admin` and `/trees` only, not the marketing
   pages, the library, sign-in or forms; a conversation shows the other
   member's `display_name`, and their face only where the reader may see
@@ -1959,7 +1976,10 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   1280×800: the zoom buttons at x 15 and the minimap at x 51, level; A
   wrote from **new message**, B's launcher went from "Messages" to
   "Messages, 1 unread" without a reload, B replied and it appeared in A's
-  open thread; **message** on B's sheet opened the thread 16px left of the
+  open thread; 174.5 with a Root, a Leaf, an unclaimed living relative and
+  a deceased one: no **message** on the deceased, a thread for the
+  member, the invite sent from the window on My Family Tree, listed with
+  **send another invite** on the tree's page, and the Leaf told to ask; **message** on B's sheet opened the thread 16px left of the
   sheet; a phone (390×844) showed the pop-up full screen and the canvas
   tip 8px clear of the launcher; 768 and 1024 wide, the tip clear of both
   the minimap and the launcher; dark mode; no launcher on `/`; no console

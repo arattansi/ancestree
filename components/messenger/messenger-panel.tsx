@@ -9,15 +9,20 @@ import {
 } from "lucide-react";
 import * as React from "react";
 
+import { sendClaimInvite } from "@/app/actions/invites";
 import {
   messenger,
   useMessenger,
+  type InviteTarget,
   type MessengerView,
 } from "@/components/messenger/messenger-store";
+import { PendingButton } from "@/components/pending-button";
+import { useAction } from "@/components/use-action";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { describeClaimInvite } from "@/lib/claim-invites";
 import { cropStyle, parseCrop } from "@/lib/image-crop";
 import {
   badgeCount,
@@ -65,6 +70,8 @@ export function MessengerPanel({ onClose }: { onClose: () => void }) {
         <ListView onClose={onClose} />
       ) : view.kind === "new" ? (
         <NewView onClose={onClose} />
+      ) : view.kind === "invite" ? (
+        <InviteView key={view.target.personId} target={view.target} onClose={onClose} />
       ) : (
         <ThreadView key={view.id} id={view.id} onClose={onClose} />
       )}
@@ -594,5 +601,113 @@ function Composer({
         </Button>
       </div>
     </form>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Someone not on ancestree yet: invite them (Step 174.5)
+// ---------------------------------------------------------------------------
+
+/**
+ * A message to an entry nobody is behind yet can't go anywhere, so the
+ * window asks for their email instead and sends the same invite to claim
+ * the entry as the sheet does (`sendClaimInvite`, by its rules). Once
+ * they've joined and claimed it, **message** opens a conversation.
+ */
+function InviteView({
+  target,
+  onClose,
+}: {
+  target: InviteTarget;
+  onClose: () => void;
+}) {
+  const [email, setEmail] = React.useState("");
+  const [sentTo, setSentTo] = React.useState<string | null>(null);
+  const action = useAction({ inline: true });
+  const who = target.firstName || target.name;
+  const live = target.invites.filter((i) => i.live);
+
+  function send(e: React.FormEvent) {
+    e.preventDefault();
+    action.run("send", () => sendClaimInvite(target.personId, email, target.treeId), {
+      onSuccess: (res) => {
+        setSentTo(res.email ?? email.trim());
+        setEmail("");
+      },
+    });
+  }
+
+  return (
+    <>
+      <PanelHeader
+        title={
+          <>
+            <Face
+              name={target.name}
+              photoUrl={target.photoUrl}
+              photoCrop={target.photoCrop}
+              className="size-8"
+            />
+            <h2 className="truncate text-base font-semibold">{target.name}</h2>
+          </>
+        }
+        back={{ kind: "list" }}
+        onClose={onClose}
+      />
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-y-auto px-6 py-8 text-center">
+        <p className="text-sm font-medium">{who} isn&rsquo;t on ancestree yet.</p>
+        {sentTo ? (
+          <p role="status" className="text-sm text-muted-foreground">
+            Invite sent to {sentTo}. You can message {who} once they join.
+          </p>
+        ) : (
+          <>
+            {live.length > 0 ? (
+              <ul className="flex flex-col gap-1 text-xs text-muted-foreground">
+                {live.map((invite) => (
+                  <li key={invite.id}>{describeClaimInvite(invite)}</li>
+                ))}
+              </ul>
+            ) : null}
+            {target.canInvite ? (
+              <form onSubmit={send} className="flex w-full flex-col gap-2 text-left">
+                <label htmlFor="messenger-invite-email" className="text-sm text-muted-foreground">
+                  Invite {who} by email to message them.
+                </label>
+                <Input
+                  id="messenger-invite-email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="them@example.com"
+                  autoComplete="off"
+                  autoFocus
+                />
+                <PendingButton
+                  type="submit"
+                  pending={action.pendingKey === "send"}
+                  pendingLabel="sending…"
+                  disabled={action.pending}
+                >
+                  {live.length > 0 ? "send another invite" : "send invite"}
+                </PendingButton>
+                {action.error ? (
+                  <p role="alert" className="text-sm text-destructive">
+                    {action.error}
+                  </p>
+                ) : null}
+              </form>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                {target.treeName
+                  ? `Ask whoever runs ${target.treeName} to invite them.`
+                  : "Ask a Root to invite them."}
+              </p>
+            )}
+          </>
+        )}
+      </div>
+    </>
   );
 }
