@@ -2,6 +2,7 @@ import * as React from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
+  LayoutAnimation,
   Platform,
   Pressable,
   ScrollView,
@@ -18,6 +19,7 @@ import { relativesDone } from "@/lib/scribe-relatives";
 import { relativesOf } from "@/family/family";
 import type { Family, FamilyPerson } from "@/family/load";
 import { FactsReview, type FactsState } from "@/scribe/facts-review";
+import { PersonChooser } from "@/scribe/person-chooser";
 import { tonguesHeard, type Tongue } from "@/scribe/speech";
 import {
   discardRecording,
@@ -57,6 +59,24 @@ type Step =
     };
 
 const NO_RELATIVES: RelativeProposal[] = [];
+
+/** Everyone `keep` lets through, `first` (where they are) ahead, then by name. */
+function likeliestFirst(
+  family: Family,
+  first: string[],
+  keep: (p: FamilyPerson) => boolean,
+): FamilyPerson[] {
+  const rank = (p: FamilyPerson) => {
+    const i = first.indexOf(p.id);
+    return i === -1 ? first.length : i;
+  };
+  return [...family.people.values()]
+    .filter(keep)
+    .sort(
+      (a, b) =>
+        rank(a) - rank(b) || personDisplayName(a).localeCompare(personDisplayName(b)),
+    );
+}
 
 const clock = (s: number) =>
   `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
@@ -106,7 +126,18 @@ export function Scribe({
   onClose: (changed?: boolean) => void;
 }) {
   const palette = usePalette();
-  const person = family.people.get(personId) ?? null;
+  /**
+   * Who it's about (Step 179.6): the leaf it was opened on, until the
+   * member says otherwise above the microphone or once it's written up.
+   */
+  const [aboutId, setAboutId] = React.useState(personId);
+  const person = family.people.get(aboutId) ?? null;
+  /** A title of the member's own, given before telling it; Claude's otherwise. */
+  const [ownTitle, setOwnTitle] = React.useState("");
+  /** Who's credited as asking; until picked, as `askersAtFirst`. */
+  const [askers, setAskers] = React.useState<string[] | null>(null);
+  /** It was told out loud, so whoever recorded someone else asked them. */
+  const [spoken, setSpoken] = React.useState(false);
   const listening = useListening({
     onDone: (heard, recordings) => heardAll(heard, recordings),
   });
@@ -157,16 +188,23 @@ export function Scribe({
   const treeId = person?.fullOn[0] ?? null;
   const recorded = listening.available;
 
-  /** Who can be credited on the tree it's told on: the leaf, and the member. */
+  /**
+   * Who can be credited on the tree it's told on (Step 179.6, anyone on
+   * it): the leaf and the member first, then everyone else by name.
+   */
   const creditable = React.useMemo(() => {
     if (!person || !treeId) return [] as FamilyPerson[];
-    return [person, self].filter(
-      (p, i, all): p is FamilyPerson =>
-        !!p &&
-        p.fullOn.includes(treeId) &&
-        all.findIndex((q) => q?.id === p.id) === i,
+    return likeliestFirst(
+      family,
+      [person.id, family.selfId],
+      (p) => p.fullOn.includes(treeId) && p.placeholder_number == null,
     );
-  }, [person, self, treeId]);
+  }, [family, person, treeId]);
+  /** Whom a story may be about: anyone a tree of the member's shows in full. */
+  const aboutable = React.useMemo(
+    () => likeliestFirst(family, [personId, family.selfId], (p) => p.fullOn.length > 0),
+    [family, personId],
+  );
 
   // Told by the leaf when they're alive to tell it, else by whoever's telling.
   const tellersAtFirst = React.useMemo(() => {
@@ -176,6 +214,23 @@ export function Scribe({
     return creditable.some((p) => p.id === teller.id) ? [teller.id] : [];
   }, [person, self, creditable]);
   const tellers = picked ?? tellersAtFirst;
+  // Whoever recorded someone else telling it asked them (Step 99); a typed
+  // story has no one asking, unless the member says who.
+  const askersAtFirst =
+    spoken &&
+    self &&
+    !tellers.includes(self.id) &&
+    creditable.some((p) => p.id === self.id)
+      ? [self.id]
+      : [];
+  const interviewers = askers ?? askersAtFirst;
+
+  /** About someone else: who told it and asked is chosen again, on their tree. */
+  function aboutWhom(id: string) {
+    setAboutId(id);
+    setTellers(null);
+    setAskers(null);
+  }
 
   /** What the story tells the tree, looked for while it's written up. */
   async function lookForFacts(heard: string, heardIn: string | null) {
@@ -209,7 +264,7 @@ export function Scribe({
         locale: heardIn,
       });
       setDraft({
-        title: written.title,
+        title: ownTitle.trim() || written.title,
         story: written.story,
         english: written.english,
         language: written.language,
@@ -235,6 +290,9 @@ export function Scribe({
       listening.reset();
       return;
     }
+    // The form comes back, with who told it and asked (Step 179.6).
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setSpoken(true);
     uploading.current = keepRecording(person.id, recordings)
       .then((recording) => {
         setKept(recording);
@@ -290,14 +348,6 @@ export function Scribe({
     setSaveError(null);
     try {
       const recording = uploading.current ? await uploading.current : kept;
-      // Whoever recorded someone else telling it asked them (Step 99); a
-      // typed story has no interviewer (Step 145).
-      const interviewers =
-        recording &&
-        !tellers.includes(self.id) &&
-        creditable.some((p) => p.id === self.id)
-          ? [self.id]
-          : [];
       const mentioned = mentions
         .filter((m) => tagged.has(m.personId))
         .map((m) => m.personId);
@@ -371,6 +421,26 @@ export function Scribe({
     listening.phase,
   );
 
+  /**
+   * Before telling it (Aalim, Step 179.6): a title of their own and whom
+   * it's about, both optional, which fold away while they talk and come
+   * back, with who told it and asked, once they're done.
+   */
+  const before = (
+    <View style={styles.before}>
+      <TextField label="Title" value={ownTitle} onChangeText={setOwnTitle} maxLength={200} />
+      <PersonChooser
+        label="About"
+        one
+        people={aboutable}
+        chosen={[aboutId]}
+        onChange={([id]) => id && aboutWhom(id)}
+        selfId={family.selfId}
+      />
+    </View>
+  );
+  const summary = [ownTitle.trim(), `About ${name}`].filter(Boolean).join(" · ");
+
   return (
     <SafeAreaView
       style={[styles.safe, { backgroundColor: palette.background }]}
@@ -401,6 +471,13 @@ export function Scribe({
         </View>
       ) : step.at === "tell" && recorded ? (
         <View style={styles.tell}>
+          {listening.phase === "idle" ? (
+            before
+          ) : (
+            <Text numberOfLines={1} style={[styles.summary, { color: palette.mutedForeground }]}>
+              {summary}
+            </Text>
+          )}
           {listening.phase === "idle" && tongues.length > 1 ? (
             <View style={styles.chips}>
               {tongues.map((t) => (
@@ -468,7 +545,9 @@ export function Scribe({
                   : listening.phase === "paused"
                     ? listening.resume()
                     : locale &&
-                      void listening.start(locale, namesNear(family, person.id))
+                      // The form folds away while they talk (Step 179.6).
+                      (LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut),
+                      void listening.start(locale, namesNear(family, person.id)))
               }
               style={({ pressed }) => [
                 styles.mic,
@@ -506,6 +585,7 @@ export function Scribe({
             contentContainerStyle={styles.form}
             keyboardShouldPersistTaps="handled"
           >
+            {before}
             <TextField
               label="The story"
               value={typed}
@@ -556,6 +636,14 @@ export function Scribe({
               value={draft.title}
               onChangeText={(title) => setDraft({ ...draft, title })}
             />
+            <PersonChooser
+              label="About"
+              one
+              people={aboutable}
+              chosen={[aboutId]}
+              onChange={([id]) => id && aboutWhom(id)}
+              selfId={family.selfId}
+            />
             <TextField
               label={draft.english ? draft.language : "Story"}
               value={draft.story}
@@ -575,27 +663,22 @@ export function Scribe({
               />
             ) : null}
             {creditable.length ? (
-              <View style={styles.credits}>
-                <Text style={[styles.label, { color: palette.foreground }]}>
-                  Storyteller
-                </Text>
-                <View style={styles.chips}>
-                  {creditable.map((p) => (
-                    <Chip
-                      key={p.id}
-                      label={p.id === self?.id ? "You" : personDisplayName(p)}
-                      on={tellers.includes(p.id)}
-                      onPress={() =>
-                        setTellers(
-                          tellers.includes(p.id)
-                            ? tellers.filter((x) => x !== p.id)
-                            : [...tellers, p.id],
-                        )
-                      }
-                    />
-                  ))}
-                </View>
-              </View>
+              <>
+                <PersonChooser
+                  label="Storyteller"
+                  people={creditable}
+                  chosen={tellers}
+                  onChange={setTellers}
+                  selfId={family.selfId}
+                />
+                <PersonChooser
+                  label="Interviewer"
+                  people={creditable}
+                  chosen={interviewers}
+                  onChange={setAskers}
+                  selfId={family.selfId}
+                />
+              </>
             ) : null}
             {facts ? (
               <FactsReview
@@ -689,6 +772,8 @@ const styles = StyleSheet.create({
   form: { padding: GUTTER + 8, gap: 18 },
   long: { minHeight: 200, paddingTop: 12, paddingBottom: 12, lineHeight: 24 },
   credits: { gap: 8 },
+  before: { gap: 14, paddingTop: 4 },
+  summary: { fontFamily: font.medium, fontSize: 15, textAlign: "center" },
   label: { fontFamily: font.medium, fontSize: 14 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   centre: {
