@@ -33,8 +33,9 @@ function lay(
   groups: OrbitGroups,
   family: GhostFamily,
   focus = "me",
+  adds?: { parents: boolean; children: boolean },
 ) {
-  const orbit = orbitLayout(frame, groups);
+  const orbit = orbitLayout(frame, groups, adds);
   const ghosts = ghostLayout(orbit, frame, family, shownOf(focus, groups));
   return { orbit, layout: shiftOrbit(orbit, ghosts.shift), ghosts };
 }
@@ -269,6 +270,38 @@ describe("ghostLayout", () => {
     const { layout: l, ghosts: g } = lay(SMALL, GROUPS, FAMILY);
     expect(g.ghosts.length).toBeGreaterThan(0);
     expectTidy(l, g, SMALL);
+  });
+
+  it("counts a pill asking for a first child when it centres", () => {
+    const groups = { parents: ["dad", "mom"], children: [], spouses: [], siblings: ["sis"] };
+    const adds = { parents: false, children: true };
+    const { layout: l, ghosts: g } = lay(PHONE, groups, FAMILY, "me", adds);
+    const ask = l.pills.find((p) => p.add)!;
+    expect(ask.side).toBe("children");
+    const { pills: p, ghosts: gs } = boxes(l, g);
+    const all = [...p, ...gs];
+    const top = Math.min(...all.map((b) => b.top));
+    const bottom = Math.max(...all.map((b) => b.bottom));
+    expect(top).toBeCloseTo(PHONE.height - bottom, 5);
+    expect(bottom).toBeCloseTo(ask.y + l.pill.height / 2, 5);
+    // The leaf sits higher than with nothing below it at all.
+    const bare = lay(PHONE, groups, FAMILY, "me");
+    expect(l.leaf.y).toBeLessThan(bare.layout.leaf.y);
+    expectTidy(l, g, PHONE);
+  });
+
+  it("reaches out from relatives, never from a pill asking for one", () => {
+    const groups = { parents: [], children: ["k1", "k2"], spouses: ["wife"], siblings: [] };
+    const adds = { parents: true, children: false };
+    const { layout: l, ghosts: g } = lay(PHONE, groups, FAMILY, "me", adds);
+    const ask = l.pills.find((p) => p.add)!;
+    expect(ask.side).toBe("parents");
+    expect(g.ghosts.every((x) => x.direction === "down")).toBe(true);
+    expect(g.stubs.every((s) => s.from.y > ask.y)).toBe(true);
+    for (const frame of [PHONE, SMALL]) {
+      const t = lay(frame, groups, FAMILY, "me", adds);
+      expectTidy(t.layout, t.ghosts, frame);
+    }
   });
 
   it("draws nothing for a leaf with no parents or children", () => {

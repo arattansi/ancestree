@@ -92,6 +92,9 @@ export default function LeafScreen() {
           onOpenLeaf={() =>
             router.push({ pathname: "/person/[id]", params: { id: focusId } })
           }
+          onAdd={(relation) =>
+            router.push({ pathname: "/add/relative/[id]", params: { id: focusId, relation } })
+          }
         />
       ) : null}
     </SafeAreaView>

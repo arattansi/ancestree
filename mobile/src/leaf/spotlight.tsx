@@ -12,6 +12,7 @@ import {
 import Svg, { Circle, Defs, Path, Pattern, Rect } from "react-native-svg";
 
 import { roundedPolyline } from "@/lib/edge-geometry";
+import { NO_ADDS } from "@/lib/leaf-adds";
 import { ghostLayout, shiftOrbit } from "@/lib/leaf-ghosts";
 import { orbitLayout, orbitLines, type OrbitSide } from "@/lib/leaf-orbit";
 import { nativeLeaf } from "@/lib/native-leaf";
@@ -20,9 +21,10 @@ import {
   personDisplayName,
   personLifespan,
 } from "@/lib/person-name";
-import { lineageOf, relativesOf } from "@/family/family";
+import { addsOf, lineageOf, relativesOf } from "@/family/family";
 import type { Family } from "@/family/load";
 import { relationWord } from "@/family/words";
+import { AddPill } from "@/leaf/add-pill";
 import { Ghosts, GhostTargets } from "@/leaf/ghosts";
 import { BOX_W, Leaf, leafAnchors } from "@/leaf/leaf";
 import { PersonPill } from "@/leaf/person-pill";
@@ -36,6 +38,8 @@ import { usePalette } from "@/theme";
  * the web's lit spotlight lines. A former spouse's line is dashed, as on the
  * web. Tap a pill to walk to that leaf. Past the parents and the children,
  * the generations beyond show out of focus (Step 184, `lib/leaf-ghosts.ts`).
+ * Where a leaf has no parents or no children and the member may add them, a
+ * dashed pill asks for the first (Step 187, `lib/leaf-adds.ts`).
  */
 export function Spotlight({
   family,
@@ -43,12 +47,15 @@ export function Spotlight({
   onWalk,
   onMore,
   onOpenLeaf,
+  onAdd,
 }: {
   family: Family;
   focusId: string;
   onWalk: (id: string) => void;
   onMore: (side: OrbitSide) => void;
   onOpenLeaf: () => void;
+  /** Opens the add form for a first parent or child; none asked without it. */
+  onAdd?: (relation: "parent" | "child") => void;
 }) {
   const palette = usePalette();
   const [frame, setFrame] = React.useState<{ width: number; height: number } | null>(
@@ -62,9 +69,14 @@ export function Spotlight({
   // The family past the pills, out of focus (Step 184), and everything moved
   // to sit in the middle together.
   const lineage = React.useMemo(() => lineageOf(family), [family]);
+  const asks = !!onAdd;
+  const adds = React.useMemo(
+    () => (asks ? addsOf(family, focusId, relatives) : NO_ADDS),
+    [asks, family, focusId, relatives],
+  );
   const { layout, ghosts } = React.useMemo(() => {
     if (!frame) return { layout: null, ghosts: null };
-    const orbit = orbitLayout(frame, relatives);
+    const orbit = orbitLayout(frame, relatives, adds);
     const onScreen = new Set([
       focusId,
       ...relatives.parents,
@@ -74,7 +86,7 @@ export function Spotlight({
     ]);
     const ghosts = ghostLayout(orbit, frame, lineage, onScreen);
     return { layout: shiftOrbit(orbit, ghosts.shift), ghosts };
-  }, [frame, relatives, lineage, focusId]);
+  }, [frame, relatives, adds, lineage, focusId]);
 
   // Each new leaf grows in from a little smaller, unless motion is reduced.
   // The first is simply there.
@@ -178,12 +190,12 @@ export function Spotlight({
                 line.side === "spouses" && !!line.id && formerSpouses.has(line.id);
               return (
                 <Path
-                  key={`${line.side}:${line.id ?? "more"}`}
+                  key={`${line.side}:${line.id ?? (line.add ? "add" : "more")}`}
                   d={roundedPolyline(line.points, CORNER)}
                   stroke={palette.brown}
-                  strokeOpacity={former ? 0.6 : 1}
+                  strokeOpacity={line.add ? 0.45 : former ? 0.6 : 1}
                   strokeWidth={LINE}
-                  strokeDasharray={former ? "2 5" : undefined}
+                  strokeDasharray={line.add ? "4 5" : former ? "2 5" : undefined}
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   fill="none"
@@ -214,6 +226,20 @@ export function Spotlight({
           </Pressable>
 
           {layout.pills.map((p) => {
+            if (p.add) {
+              const word = p.side === "parents" ? "parent" : "child";
+              const first = person.preferred_name || person.first_name || name;
+              return (
+                <AddPill
+                  key={`${p.side}:add`}
+                  pill={p}
+                  size={layout.pill}
+                  word={word}
+                  label={`Add ${first}'s ${word}`}
+                  onPress={() => onAdd?.(word)}
+                />
+              );
+            }
             const relative = p.id ? (family.people.get(p.id) ?? null) : null;
             const label = relative
               ? `${relationWord(p.side, relative.sex, formerSpouses.has(relative.id))}, ${personDisplayName(relative)}`

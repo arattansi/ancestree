@@ -22,6 +22,10 @@
  * its box (`BLADE_OVERHANG`), whatever the leaf, so the rows keep their
  * places from leaf to leaf and never sit on a lobe (Step 150).
  * Everything is centred in the frame. Pure, so it is tested without a phone.
+ *
+ * A row with nobody in it can hold a dashed pill asking for the leaf's first
+ * parent or child (Step 187, `lib/leaf-adds.ts` says where): it takes a
+ * relative's place, in the middle of its row, and the row its room.
  */
 
 import { BLADE_OVERHANG } from "@/lib/leaf-shapes";
@@ -43,6 +47,11 @@ export type OrbitPill = {
   id: string | null;
   /** How many the "+n" pill stands for; 0 on a relative's pill. */
   more: number;
+  /**
+   * The dashed pill asking for the row's first relative (Step 187): no id,
+   * nothing more.
+   */
+  add?: true;
   /** The pill's centre. */
   x: number;
   y: number;
@@ -120,13 +129,17 @@ function along(count: number, pitch: number, mid: number): number[] {
 export function orbitLayout(
   frame: { width: number; height: number },
   groups: OrbitGroups,
+  /** Which rows, when empty, ask for a first relative (Step 187). */
+  adds?: { parents: boolean; children: boolean },
 ): OrbitLayout {
   const { width, height } = frame;
   const leafW = leafWidth(width, height);
   const leafH = leafW * LEAF_ASPECT;
   const reachH = leafW * LEAF_REACH;
   const leafX = LEAF_LEFT;
-  const has = (side: OrbitSide) => groups[side].length > 0;
+  const asks = (side: "parents" | "children") =>
+    groups[side].length === 0 && !!adds?.[side];
+  const has = (side: "parents" | "children") => groups[side].length > 0 || asks(side);
 
   // The band the columns may take: the frame, less any row and its gap.
   const rowsH = (s: PillSize) =>
@@ -149,12 +162,12 @@ export function orbitLayout(
   const pitchX = size.width + GAP;
   const pitchY = size.height + GAP;
 
-  const parents = fit(groups.parents, rowMax, pitchX);
-  const children = fit(groups.children, rowMax, pitchX);
+  const parents = { ...fit(groups.parents, rowMax, pitchX), add: asks("parents") };
+  const children = { ...fit(groups.children, rowMax, pitchX), add: asks("children") };
   const spouses = fit(groups.spouses, bandMax(size), pitchY);
   const siblings = fit(groups.siblings, bandMax(size), pitchY);
-  const count = (g: { shown: string[]; more: number }) =>
-    g.shown.length + (g.more ? 1 : 0);
+  const count = (g: { shown: string[]; more: number; add?: boolean }) =>
+    g.shown.length + (g.more ? 1 : 0) + (g.add ? 1 : 0);
 
   const colLen = (n: number) => (n ? n * pitchY - GAP : 0);
   const band = Math.max(reachH, colLen(count(spouses)), colLen(count(siblings)));
@@ -177,12 +190,13 @@ export function orbitLayout(
   const pills: OrbitPill[] = [];
   const place = (
     side: OrbitSide,
-    group: { shown: string[]; more: number },
+    group: { shown: string[]; more: number; add?: boolean },
     at: (i: number, n: number) => { x: number; y: number },
   ) => {
     const n = count(group);
     group.shown.forEach((id, i) => pills.push({ side, id, more: 0, ...at(i, n) }));
     if (group.more) pills.push({ side, id: null, more: group.more, ...at(n - 1, n) });
+    if (group.add) pills.push({ side, id: null, more: 0, add: true, ...at(0, 1) });
   };
   const parentY = bandTop - ROW_RING - size.height / 2;
   const childY = bandTop + band + ROW_RING + size.height / 2;
@@ -215,6 +229,8 @@ export type OrbitLine = {
   side: OrbitSide;
   /** Whose pill it reaches; null for the "+n" pill. */
   id: string | null;
+  /** It reaches the dashed pill asking for a first relative (Step 187). */
+  add?: true;
   /** Corners, in order: across and down only, never on a slant. */
   points: XY[];
 };
@@ -261,7 +277,12 @@ export function orbitLines(
         const barX = (a.x + edge) / 2;
         points = [a, { x: barX, y: a.y }, { x: barX, y: p.y }, { x: edge, y: p.y }];
       }
-      lines.push({ side, id: p.id, points: tidyPolyline(points) });
+      lines.push({
+        side,
+        id: p.id,
+        ...(p.add ? { add: true as const } : {}),
+        points: tidyPolyline(points),
+      });
     }
   }
   return lines;

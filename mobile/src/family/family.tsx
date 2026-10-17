@@ -1,6 +1,7 @@
 import * as React from "react";
 
 import { firstDegree, type FirstDegree } from "@/lib/first-degree";
+import { addRows, NO_ADDS, type AddRows } from "@/lib/leaf-adds";
 import type { GhostFamily } from "@/lib/leaf-ghosts";
 import { useSession } from "@/auth/session";
 import { supabase } from "@/auth/supabase";
@@ -160,4 +161,22 @@ export function lineageOf(family: Family): GhostFamily {
     parentsOf: (id) => parents.get(id) ?? [],
     childrenOf: (id) => children.get(id) ?? [],
   };
+}
+
+/**
+ * Which of a leaf's empty rows ask for a first parent or child (Step 187):
+ * judged on the tree the add form would add them on, the first of the
+ * member's that shows them in full (`lib/leaf-adds.ts`).
+ */
+export function addsOf(family: Family, id: string, relatives: FirstDegree): AddRows {
+  const person = family.people.get(id);
+  const treeId = person?.fullOn[0];
+  if (!person || !treeId) return NO_ADDS;
+  return addRows({
+    leaf: person,
+    selfId: family.selfId,
+    has: { parents: relatives.parents.length > 0, children: relatives.children.length > 0 },
+    tree: family.trees.get(treeId) ?? null,
+    lines: family.lines,
+  });
 }

@@ -30,11 +30,12 @@ const RELATIONS: { value: Relation; label: string }[] = [
  * names (Step 148.3), with the web's rules: their names, "18 or older?",
  * the connections the tree implies, the database's say before anything is
  * kept, and an invite to claim the entry. They're added on the first of the
- * member's trees that shows the person in full.
+ * member's trees that shows the person in full. The leaf view's dashed
+ * "+ parent" and "+ child" open it with `relation` chosen (Step 187).
  */
 export default function AddRelative() {
   const palette = usePalette();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, relation } = useLocalSearchParams<{ id: string; relation?: string }>();
   const { state, reload } = useFamily();
   const family = state.status === "ready" ? state.family : null;
   const person = family?.people.get(id) ?? null;
@@ -62,21 +63,25 @@ export default function AddRelative() {
       </View>
     );
   }
-  return <Form family={family} person={person} onMade={setMade} />;
+  const chosen = RELATIONS.find((r) => r.value === relation)?.value ?? null;
+  return <Form family={family} person={person} chosen={chosen} onMade={setMade} />;
 }
 
 function Form({
   family,
   person,
+  chosen,
   onMade,
 }: {
   family: Family;
   person: FamilyPerson;
+  /** What they are to them, already chosen. */
+  chosen: Relation | null;
   onMade: (made: RelativeMade) => void;
 }) {
   const palette = usePalette();
   const name = personDisplayName(person);
-  const [relation, setRelation] = React.useState<Relation | null>(null);
+  const [relation, setRelation] = React.useState<Relation | null>(chosen);
   const [sex, setSex] = React.useState<"male" | "female" | null>(null);
   const [died, setDied] = React.useState(false);
   const [year, setYear] = React.useState("");

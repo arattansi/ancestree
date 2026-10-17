@@ -52,12 +52,23 @@ export type FamilyLine = {
   marriage_day: number | null;
 };
 
+/**
+ * One of the member's trees, as far as adding to it goes (Step 187): their
+ * account type there, its bloodline's anchors, and everyone placed on it.
+ */
+export type FamilyTree = {
+  role: string | null;
+  anchors: string[];
+  people: Set<string>;
+};
+
 export type Family = {
   /** The member's own entry: where the app opens. */
   selfId: string;
   displayName: string | null;
   people: Map<string, FamilyPerson>;
   lines: FamilyLine[];
+  trees: Map<string, FamilyTree>;
 };
 
 /** Why there's no family to draw. */
@@ -104,26 +115,21 @@ export async function loadFamily(
       .select("display_name, self_person_id")
       .eq("auth_user_id", userId)
       .maybeSingle();
-  let [{ data: profile }, { data: trees }] = await Promise.all([
-    readProfile(),
-    supabase.from("my_trees").select("id").order("joined_at"),
-  ]);
+  const readTrees = () => supabase.from("my_trees").select("id, role").order("joined_at");
+  let [{ data: profile }, { data: trees }] = await Promise.all([readProfile(), readTrees()]);
   if (!profile) {
     // What the web does after a code sign-in (`establishMembership`): make
     // the profile an accepted invite or a tree of their own entitles them to.
     const { error } = await supabase.rpc("ensure_profile", {});
     if (error) return "no-profile";
-    [{ data: profile }, { data: trees }] = await Promise.all([
-      readProfile(),
-      supabase.from("my_trees").select("id").order("joined_at"),
-    ]);
+    [{ data: profile }, { data: trees }] = await Promise.all([readProfile(), readTrees()]);
     if (!profile) return "no-profile";
   }
   if (!profile.self_person_id) return "no-entry";
   const treeIds = (trees ?? []).flatMap((t) => (t.id ? [t.id] : []));
   if (treeIds.length === 0) return "no-tree";
 
-  const [personRows, lineRows] = await Promise.all([
+  const [personRows, lineRows, anchorRows] = await Promise.all([
     readPaged((from, to) =>
       supabase
         .from("tree_people")
@@ -142,15 +148,26 @@ export async function loadFamily(
         .order("id")
         .range(from, to),
     ),
+    // Who each tree's bloodline is measured from (Step 187's "+ parent").
+    readPaged((from, to) =>
+      supabase
+        .from("bloodline_anchors")
+        .select("tree_id, person_id")
+        .in("tree_id", treeIds)
+        .order("id")
+        .range(from, to),
+    ),
   ]);
 
   const rank = (row: (typeof personRows)[number]) =>
     row.detail === "basic" ? 2 : row.is_home ? 0 : 1;
   const chosen = new Map<string, (typeof personRows)[number]>();
   const fullOn = new Map<string, string[]>();
+  const placed = new Map<string, Set<string>>(treeIds.map((id) => [id, new Set()]));
   for (const row of personRows) {
     if (!row.id || row.blurred) continue;
     if (!row.last_name && row.placeholder_number == null) continue;
+    if (row.tree_id) placed.get(row.tree_id)?.add(row.id);
     const seen = chosen.get(row.id);
     if (!seen || rank(row) < rank(seen)) chosen.set(row.id, row);
     if (row.detail === "full" && row.tree_id) {
@@ -211,10 +228,18 @@ export async function loadFamily(
       });
   }
 
+  const familyTrees = new Map<string, FamilyTree>();
+  for (const t of trees ?? []) {
+    if (!t.id) continue;
+    familyTrees.set(t.id, { role: t.role, anchors: [], people: placed.get(t.id) ?? new Set() });
+  }
+  for (const a of anchorRows) familyTrees.get(a.tree_id)?.anchors.push(a.person_id);
+
   return {
     selfId: profile.self_person_id,
     displayName: profile.display_name,
     people,
     lines: [...lines.values()],
+    trees: familyTrees,
   };
 }

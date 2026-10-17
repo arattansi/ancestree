@@ -147,6 +147,64 @@ describe("orbitLayout", () => {
   });
 });
 
+describe("orbitLayout asking for a first parent or child (Step 187)", () => {
+  const BOTH = { parents: true, children: true };
+  const asked = (layout: OrbitLayout) => layout.pills.filter((p) => p.add);
+
+  it("puts a pill in each empty row asked for, in the middle, with no one on it", () => {
+    const layout = orbitLayout(PHONE, family({ spouses: 1, siblings: 2 }), BOTH);
+    const [up, down] = [of(layout, "parents"), of(layout, "children")];
+    expect(up).toEqual([expect.objectContaining({ id: null, more: 0, add: true })]);
+    expect(down).toEqual([expect.objectContaining({ id: null, more: 0, add: true })]);
+    const { leaf } = layout;
+    expect(up[0].y).toBeLessThan(leaf.y);
+    expect(down[0].y).toBeGreaterThan(leaf.y + leaf.height);
+    expect(up[0].x).toBeCloseTo(leaf.x + leaf.width / 2);
+    expect(down[0].x).toBeCloseTo(leaf.x + leaf.width / 2);
+    expectTidy(layout, PHONE);
+  });
+
+  it("takes the place a lone relative would", () => {
+    const asking = orbitLayout(PHONE, family({ siblings: 1 }), BOTH);
+    const one = orbitLayout(PHONE, family({ parents: 1, children: 1, siblings: 1 }));
+    expect(asking.leaf).toEqual(one.leaf);
+    expect(asking.pill).toEqual(one.pill);
+    for (const side of ["parents", "children"] as const) {
+      const [a, b] = [of(asking, side)[0], of(one, side)[0]];
+      expect([a.x, a.y]).toEqual([b.x, b.y]);
+    }
+  });
+
+  it("asks nothing of a row that has someone in it", () => {
+    const layout = orbitLayout(PHONE, family({ parents: 2, children: 3 }), BOTH);
+    expect(asked(layout)).toEqual([]);
+    expect(layout).toEqual(orbitLayout(PHONE, family({ parents: 2, children: 3 })));
+  });
+
+  it("asks only for the rows it's told to", () => {
+    const up = orbitLayout(PHONE, family({}), { parents: true, children: false });
+    expect(asked(up).map((p) => p.side)).toEqual(["parents"]);
+    const down = orbitLayout(PHONE, family({ parents: 2 }), { parents: true, children: true });
+    expect(asked(down).map((p) => p.side)).toEqual(["children"]);
+    expect(orbitLayout(PHONE, family({}), { parents: false, children: false })).toEqual(
+      orbitLayout(PHONE, family({})),
+    );
+  });
+
+  it("fits a small phone and a large one, crowded columns and all", () => {
+    for (const frame of [SMALL, PHONE, LARGE]) {
+      for (const counts of [
+        {},
+        { spouses: 3, siblings: 9 },
+        { parents: 2, spouses: 1, siblings: 12 },
+        { children: 8, siblings: 30 },
+      ]) {
+        expectTidy(orbitLayout(frame, family(counts), BOTH), frame);
+      }
+    }
+  });
+});
+
 describe("orbitLines", () => {
   const anchorsOf = (layout: OrbitLayout) => {
     const { x, y, width, height } = layout.leaf;
@@ -220,6 +278,22 @@ describe("orbitLines", () => {
         }
       }
     }
+  });
+
+  it("runs a line to a pill asking for a first relative, marked as such", () => {
+    const layout = orbitLayout(PHONE, family({ siblings: 2 }), { parents: true, children: true });
+    const anchors = anchorsOf(layout);
+    const lines = orbitLines(layout, anchors);
+    const { height: h } = layout.pill;
+    for (const side of ["parents", "children"] as const) {
+      const p = layout.pills.find((d) => d.side === side)!;
+      const line = lines.find((l) => l.side === side)!;
+      expect(line.add).toBe(true);
+      expect(same(line.points[0], anchors[side])).toBe(true);
+      const end = line.points[line.points.length - 1];
+      expect(same(end, { x: p.x, y: p.y + (side === "parents" ? h / 2 : -h / 2) })).toBe(true);
+    }
+    expect(lines.filter((l) => l.side === "siblings").every((l) => !l.add)).toBe(true);
   });
 
   it("never runs a line through a pill", () => {

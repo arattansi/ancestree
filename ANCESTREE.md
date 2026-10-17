@@ -710,8 +710,10 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   its own `package.json`; see `mobile/README.md`. It shares
   the web's `lib/` as `@/lib/*` (pure TypeScript only), and is left out of
   the web's `tsconfig.json` and ESLint. `lib/first-degree.ts` (who is one
-  line from a person) and `lib/leaf-orbit.ts` (where the leaf and its
-  circles go, and the lines between them) are its, tested here.
+  line from a person), `lib/leaf-orbit.ts` (where the leaf and its
+  circles go, and the lines between them) and `lib/leaf-adds.ts` (where
+  an empty row asks for a first parent or child, Step 187) are its,
+  tested here.
   `mobile/plugins/with-scene-life-cycle.js` makes builds with the iOS 27
   SDK launch (Step 149). `mobile/eas.json` — Expo's build service (EAS,
   project `@aalimr/ancestree`) builds and signs it with the Apple
@@ -1951,6 +1953,32 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 187: a leaf with no parents or no children asks for the first**
+  (phone only, no migration). **Asked from the Step 184 session**
+  (2026-10-17), one of the ideas offered to Aalim there: a leaf at the top
+  or bottom of its tree still left half the screen bare. **Now** where the
+  leaf view's leaf has no parents, a dashed, empty pill sits in the
+  parents' row, **+ parent**, and where it has no children, **+ child**
+  under it, joined to the leaf by a faint dashed line; a tap opens the add
+  form (Step 179.3) with that relation chosen. Aalim kept the words and
+  the line on a simulator screenshot. It takes a relative's place, so the
+  layout keeps its guarantees and Step 184's centring counts it. **Only
+  where the add would be kept**, judged on the tree the form adds on (the
+  first of the member's that shows the leaf in full, as the + button):
+  never a placeholder child's (Step 98.2); a Leaf only on their own line,
+  a parent of themselves or an ancestor, a child of anyone descended from
+  those (Step 34); only from someone with a blood tie, so nobody who
+  married in is asked for parents (Step 53, Roots included); and a leaf
+  under 18 gets no **+ child** unless it's the member's own (Step 98).
+  The add form still asks everything and the database has the last word.
+  The phone now reads each tree's role and bloodline anchors
+  (`my_trees.role`, `bloodline_anchors`) and who is placed on it.
+  `lib/leaf-adds.ts` (`addRows`, tested), `orbitLayout`'s `adds` and
+  `OrbitPill.add` in `lib/leaf-orbit.ts`, `addsOf` in
+  `mobile/src/family/family.tsx`, `mobile/src/leaf/add-pill.tsx`, the add
+  form's `relation` param; checked on the iOS 27 simulator, light and
+  dark, as the review account (Root): + child under Asha, Dev and Rohan,
+  + parent over Kiran, Ramnik and Savita, nothing over Priya (married in).
 - **Step 184: the iPhone leaf view shows the family past its pills,
   blurred** (phone only, no migration). **Aalim asked** (2026-10-17):
   "for the home page on the mobile app, show blurred out nodes extending
