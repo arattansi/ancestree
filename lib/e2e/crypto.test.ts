@@ -143,62 +143,86 @@ describe("a message", () => {
 describe("a message that waited (Step 182)", () => {
   const amira = newKeyPair();
   const bilal = newKeyPair();
-  const amiraOnly = [{ userId: AMIRA, version: 1, keys: amira }];
+  const CHANDA = "00000000-0000-4000-8000-00000000000d";
   const toBilal = { userId: BILAL, version: 2, boxPublic: bilal.boxPublic };
   const amiraDevice = { userId: AMIRA, keyring: { 1: amira } };
 
+  /** As `send_message` stores it for Amira: sealed to her alone, waiting for `waitingFor`. */
+  function waiting(text: string, h: MessageHeader = header(), waitingFor: string | null = BILAL, signer = amira) {
+    const sealed = encryptMessage(text, h, signer.signSecret, [
+      { userId: AMIRA, version: 1, boxPublic: amira.boxPublic, waitingFor },
+    ]);
+    return {
+      ...h,
+      nonce: sealed.nonce,
+      ciphertext: sealed.ciphertext,
+      signature: sealed.signature,
+      keyVersion: 1,
+      sealedKey: sealed.keys[0].sealedKey,
+    } satisfies EncryptedMessage;
+  }
+
   it("reads for the member it waited for once sealed to them, as Amira wrote it", () => {
-    const waiting = delivered("Salaam, Bilal", header(), amira, amiraOnly, AMIRA);
-    const sealedKey = resealMessageKey(waiting, amiraDevice, toBilal);
+    const m = waiting("Salaam, Bilal");
+    const sealedKey = resealMessageKey(m, amiraDevice, toBilal);
     expect(sealedKey).not.toBeNull();
     expect(
-      decryptMessage(
-        { ...waiting, keyVersion: 2, sealedKey },
-        { userId: BILAL, keyring: { 2: bilal } },
-        amira.signPublic,
-      ),
+      decryptMessage({ ...m, keyVersion: 2, sealedKey }, { userId: BILAL, keyring: { 2: bilal } }, amira.signPublic),
     ).toEqual({ ok: true, text: "Salaam, Bilal" });
   });
 
+  it("reads on Amira's devices, knowing whom it waited for", () => {
+    const m = waiting("Salaam, Bilal");
+    expect(decryptMessage(m, amiraDevice, amira.signPublic, BILAL)).toEqual({ ok: true, text: "Salaam, Bilal" });
+    expect(decryptMessage(m, amiraDevice, amira.signPublic)).toEqual({ ok: false, reason: "unreadable" });
+    // Bilal's name only opens the sender's own copy, never anyone else's.
+    const sent = delivered("hi", header(), amira, [{ userId: AMIRA, version: 1, keys: amira }, { userId: BILAL, version: 2, keys: bilal }], BILAL);
+    expect(decryptMessage(sent, { userId: BILAL, keyring: { 2: bilal } }, amira.signPublic, AMIRA)).toEqual({ ok: true, text: "hi" });
+  });
+
   it("is sealed to that member and that message only", () => {
-    const waiting = delivered("one", header(), amira, amiraOnly, AMIRA);
-    const sealedKey = resealMessageKey(waiting, amiraDevice, toBilal)!;
+    const m = waiting("one");
+    const sealedKey = resealMessageKey(m, amiraDevice, toBilal)!;
     expect(
-      decryptMessage(
-        { ...waiting, keyVersion: 2, sealedKey },
-        { userId: BILAL, keyring: { 2: newKeyPair() } },
-        amira.signPublic,
-      ),
+      decryptMessage({ ...m, keyVersion: 2, sealedKey }, { userId: BILAL, keyring: { 2: newKeyPair() } }, amira.signPublic),
     ).toEqual({ ok: false, reason: "unreadable" });
-    const other = delivered("two", header({ id: "00000000-0000-4000-8000-000000000002" }), amira, amiraOnly, AMIRA);
+    const other = waiting("two", header({ id: "00000000-0000-4000-8000-000000000002" }));
     expect(
-      decryptMessage(
-        { ...other, keyVersion: 2, sealedKey },
-        { userId: BILAL, keyring: { 2: bilal } },
-        amira.signPublic,
-      ),
+      decryptMessage({ ...other, keyVersion: 2, sealedKey }, { userId: BILAL, keyring: { 2: bilal } }, amira.signPublic),
     ).toEqual({ ok: false, reason: "unreadable" });
+  });
+
+  it("won't pass on a message that didn't wait, or waited for someone else", () => {
+    // Sent as any other message: the server can't make it look waiting.
+    expect(resealMessageKey(waiting("hello", header(), null), amiraDevice, toBilal)).toBeNull();
+    // Waited for Bilal: the server can't have it go to Chanda instead.
+    expect(
+      resealMessageKey(waiting("hello"), amiraDevice, { userId: CHANDA, version: 1, boxPublic: newKeyPair().boxPublic }),
+    ).toBeNull();
   });
 
   it("won't pass on what the server made up in Amira's name", () => {
     // Sealed to Amira's published key, but signed by a key of the server's.
-    const forged = delivered("send money", header(), newKeyPair(), amiraOnly, AMIRA);
-    expect(resealMessageKey(forged, amiraDevice, toBilal)).toBeNull();
-    const changed = delivered("hello", header(), amira, amiraOnly, AMIRA);
-    const flipped = changed.ciphertext.slice();
+    expect(resealMessageKey(waiting("send money", header(), BILAL, newKeyPair()), amiraDevice, toBilal)).toBeNull();
+    const m = waiting("hello");
+    const flipped = m.ciphertext.slice();
     flipped[0] ^= 1;
-    expect(resealMessageKey({ ...changed, ciphertext: flipped }, amiraDevice, toBilal)).toBeNull();
+    expect(resealMessageKey({ ...m, ciphertext: flipped }, amiraDevice, toBilal)).toBeNull();
   });
 
   it("only seals the device's own messages, to someone else", () => {
-    const fromBilal = delivered("hi", header({ senderId: BILAL }), bilal, amiraOnly, AMIRA);
+    const fromBilal = delivered("hi", header({ senderId: BILAL }), bilal, [{ userId: AMIRA, version: 1, keys: amira }], AMIRA);
     expect(resealMessageKey(fromBilal, amiraDevice, toBilal)).toBeNull();
-    const waiting = delivered("hi", header(), amira, amiraOnly, AMIRA);
-    expect(
-      resealMessageKey(waiting, amiraDevice, { userId: AMIRA, version: 1, boxPublic: amira.boxPublic }),
-    ).toBeNull();
+    const m = waiting("hi");
+    expect(resealMessageKey(m, amiraDevice, { userId: AMIRA, version: 1, boxPublic: amira.boxPublic })).toBeNull();
     // Signed by a version this device doesn't hold.
-    expect(resealMessageKey({ ...waiting, senderKeyVersion: 2 }, amiraDevice, toBilal)).toBeNull();
+    expect(resealMessageKey({ ...m, senderKeyVersion: 2 }, amiraDevice, toBilal)).toBeNull();
+  });
+
+  it("lets only the sender's own copy wait", () => {
+    expect(() =>
+      encryptMessage("hi", header(), amira.signSecret, [{ userId: BILAL, version: 1, boxPublic: bilal.boxPublic, waitingFor: AMIRA }]),
+    ).toThrow();
   });
 });
 

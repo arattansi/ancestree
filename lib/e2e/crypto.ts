@@ -176,9 +176,22 @@ function sharedSecret(secret: Uint8Array, publicKey: Uint8Array): Uint8Array {
 // Sealing a message's key to a member
 // ---------------------------------------------------------------------------
 
-/** What a sealed key is bound to: the message and who it's for. */
-function sealContext(messageId: string, userId: string, version: number): Uint8Array {
-  return frame(LABEL, "seal", messageId, userId, String(version));
+/**
+ * What a sealed key is bound to: the message and who it's for. The
+ * sender's own copy of a message that waits for someone with no key yet
+ * (Step 182) is bound to whom it waits for as well, so a message can be
+ * sealed again later only if it truly waited, and only to them: the server
+ * can't make such a copy of any other message without its key.
+ */
+function sealContext(
+  messageId: string,
+  userId: string,
+  version: number,
+  waitingFor?: string | null,
+): Uint8Array {
+  return waitingFor
+    ? frame(LABEL, "seal-waiting", messageId, userId, String(version), waitingFor)
+    : frame(LABEL, "seal", messageId, userId, String(version));
 }
 
 function sealingKey(shared: Uint8Array, ephemeral: Uint8Array, recipient: Uint8Array, context: Uint8Array) {
@@ -188,10 +201,10 @@ function sealingKey(shared: Uint8Array, ephemeral: Uint8Array, recipient: Uint8A
 /** A message's key, readable only with the recipient's secret. */
 export function sealKey(
   messageKey: Uint8Array,
-  recipient: { userId: string; version: number; boxPublic: Uint8Array },
+  recipient: { userId: string; version: number; boxPublic: Uint8Array; waitingFor?: string | null },
   messageId: string,
 ): Uint8Array {
-  const context = sealContext(messageId, recipient.userId, recipient.version);
+  const context = sealContext(messageId, recipient.userId, recipient.version, recipient.waitingFor);
   const ephemeralSecret = x25519.utils.randomSecretKey();
   const ephemeral = x25519.getPublicKey(ephemeralSecret);
   const key = sealingKey(
@@ -205,15 +218,19 @@ export function sealKey(
   return concatBytes(ephemeral, nonce, sealed);
 }
 
-/** The message's key from a sealed one, or `null` if it isn't theirs. */
+/**
+ * The message's key from a sealed one, or `null` if it isn't theirs (or,
+ * with `waitingFor`, isn't the sender's own copy of one that waited for them).
+ */
 export function openKey(
   sealed: Uint8Array,
   me: { userId: string; version: number; keys: KeyPair },
   messageId: string,
+  waitingFor?: string | null,
 ): Uint8Array | null {
   if (sealed.length !== SEALED_LENGTH) return null;
   try {
-    const context = sealContext(messageId, me.userId, me.version);
+    const context = sealContext(messageId, me.userId, me.version, waitingFor);
     const ephemeral = sealed.subarray(0, 32);
     const nonce = sealed.subarray(32, 56);
     const key = sealingKey(
@@ -285,8 +302,17 @@ function unpad(bytes: Uint8Array): Uint8Array | null {
   return end >= 0 && bytes[end] === 0x80 ? bytes.subarray(0, end) : null;
 }
 
-/** A member a message is sealed to: their current published key. */
-export type Recipient = { userId: string; version: number; boxPublic: Uint8Array };
+/**
+ * A member a message is sealed to: their current published key. On the
+ * sender's own copy of a message sealed to no one else, `waitingFor` is the
+ * member it waits for (Step 182).
+ */
+export type Recipient = {
+  userId: string;
+  version: number;
+  boxPublic: Uint8Array;
+  waitingFor?: string | null;
+};
 
 /** A message ready for `send_message`. */
 export type SealedMessage = {
@@ -303,6 +329,9 @@ export function encryptMessage(
   signSecret: Uint8Array,
   recipients: readonly Recipient[],
 ): SealedMessage {
+  if (recipients.some((r) => r.waitingFor && r.userId !== header.senderId)) {
+    throw new Error("only the sender's own copy waits");
+  }
   const messageKey = randomBytes(32);
   const nonce = randomBytes(24);
   const ciphertext = xchacha20poly1305(messageKey, nonce, messageAad(header)).encrypt(
@@ -345,32 +374,42 @@ export type Decrypted =
 
 /**
  * Open the reader's copy of its key, check who wrote it (under RFC 8032's
- * strict rules) and that everyone got the same key, then read it.
+ * strict rules) and that everyone got the same key, then read it. `peer`,
+ * the other member of a direct conversation, opens the reader's own copy of
+ * a message of theirs that waited for that member (Step 182).
  */
 export function decryptMessage(
   message: EncryptedMessage,
   me: { userId: string; keyring: Keyring },
   senderSignPublic: Uint8Array | null,
+  peer?: string | null,
 ): Decrypted {
-  const opened = openMessage(message, me, senderSignPublic);
+  const copies = message.senderId === me.userId && peer ? [null, peer] : [null];
+  const opened = openMessage(message, me, senderSignPublic, copies);
   return opened.ok ? { ok: true, text: opened.text } : opened;
 }
 
-/** `decryptMessage`, keeping the message's key it opened with. */
+/**
+ * `decryptMessage`, keeping the message's key it opened with; the reader's
+ * copy opened as any of `copies` (`null` for a plain copy, else the member
+ * the sender's own copy waited for).
+ */
 function openMessage(
   message: EncryptedMessage,
   me: { userId: string; keyring: Keyring },
   senderSignPublic: Uint8Array | null,
+  copies: readonly (string | null)[],
 ): { ok: true; text: string; messageKey: Uint8Array } | Extract<Decrypted, { ok: false }> {
   if (message.keyVersion == null || !message.sealedKey) {
     return { ok: false, reason: "unreadable" };
   }
   const keys = me.keyring[message.keyVersion];
   if (!keys) return { ok: false, reason: "locked" };
-  const messageKey = openKey(
-    message.sealedKey,
-    { userId: me.userId, version: message.keyVersion, keys },
-    message.id,
+  const sealedKey = message.sealedKey;
+  const mine = { userId: me.userId, version: message.keyVersion, keys };
+  const messageKey = copies.reduce<Uint8Array | null>(
+    (found, waitingFor) => found ?? openKey(sealedKey, mine, message.id, waitingFor),
+    null,
   );
   if (!messageKey) return { ok: false, reason: "unreadable" };
   if (!senderSignPublic) return { ok: false, reason: "unverified" };
@@ -399,13 +438,14 @@ function openMessage(
 }
 
 /**
- * A message that waited (Step 182), its key sealed now to a member who had
- * no key when it was sent: the sender's own copy opened, the message
+ * A message that waited (Step 182), its key sealed now to the member it
+ * waited for: the sender's own copy opened, and only as a copy that waited
+ * for that member (so a message sent as any other, or one that waited for
+ * someone else, is never passed on, whatever the server says), the message
  * checked as the sender's own (signed by their own key at the version that
  * signed it, never the server's copy, and readable), then the same key
  * sealed to the member. Nothing is signed again: the signature commits to
- * that key, so the member can check it as any other. `null` for a message
- * that isn't the sender's own or doesn't check out.
+ * that key, so the member checks it as any other. `null` otherwise.
  */
 export function resealMessageKey(
   message: EncryptedMessage,
@@ -415,9 +455,13 @@ export function resealMessageKey(
   if (message.senderId !== me.userId || recipient.userId === me.userId) return null;
   const signer = me.keyring[message.senderKeyVersion];
   if (!signer) return null;
-  const opened = openMessage(message, me, signer.signPublic);
+  const opened = openMessage(message, me, signer.signPublic, [recipient.userId]);
   if (!opened.ok) return null;
-  return sealKey(opened.messageKey, recipient, message.id);
+  return sealKey(
+    opened.messageKey,
+    { userId: recipient.userId, version: recipient.version, boxPublic: recipient.boxPublic },
+    message.id,
+  );
 }
 
 // ---------------------------------------------------------------------------

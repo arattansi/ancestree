@@ -775,8 +775,8 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `notifications`          | In-app notices, **one inbox per tree** (`tree_id`, Step 25; `placement_requested` \| `placement_accepted` \| `placement_declined` added; `placements_requested`, one for a batch of entries someone may edit, Step 80; `placements_lapsed`, to the Root whose ask nobody answered in 30 days, Step 83; `tree_request_approved`, Step 28; `placed_on_join`, Step 30.9, and what a claim invite did, Step 41.3; `joined_by_link`, Step 52; `story_to_approve`, `story_approved`, `story_declined`, Step 88.3; `story_commented`, Step 88.4; `message_reported` to the Roots of the trees a reported message's two members share, `message_report_resolved` to its reporter, Step 177.3); recipient-scoped RLS                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `conversations`          | The messenger's conversations (Step 174): `kind` (`direct` only; groups and channels are scoped, not built), `direct_key` (the two members' ids, lower first: one conversation a pair), `created_by`, `last_message_at`. Read by its members (`private.in_conversation`); written only by `open_direct_conversation` (while the two share a tree) and `send_message`. A direct conversation goes, every message in it, with either member's account (`private.direct_conversation_member_gone`) |
 | `conversation_members`   | Who is in a conversation and how far they've read (`last_read_at`, set by `mark_conversation_read` up to the newest message the reader saw, never past now, and by `send_message` for the sender), and `muted_until` (Step 177.4: `infinity` until unmuted; `mute_conversation`; a muted conversation is left out of the launcher's count and, Step 180, the newsletter's Unread Messages). Read by the conversation's members; no direct writes. `newsletter_unread_messages` (service role, Step 180) counts what each reader hasn't read, by who sent it |
-| `messages`               | What was said (Step 174), **end to end** since 174.6: `sender_id`, `ciphertext` (XChaCha20-Poly1305; 1–4,000 characters before, checked on the device), `nonce`, `signature` (Ed25519, the sender's key at `sender_key_version`), `format`, `created_at`; no text column. Written only by `send_message`, which refuses once the two share no tree, past 30 a minute, and unless every member got a sealed key at their current version; read only through `thread_messages` and `my_conversations` (base64, with the reader's own sealed key). Each `message_keys` row goes to its member's private Realtime inbox, `inbox:<user id>` (`private.message_key_to_inbox`, `realtime.send`); a policy on `realtime.messages` lets each member hear only their own. Listed by `my_conversations` (the other side's name, their face where the reader may see their entry, their key version, the last message encrypted, unread, `can_send`) and `message_contacts` (everyone the reader can write to, the trees they share, their key version) |
-| `message_keys`           | A message's key sealed to one member (Step 174.6): `(message_id, user_id)`, `key_version`, `sealed_key` (104 bytes: an ephemeral X25519 key, a nonce, the key and its tag). Written by `send_message`; read only by its member, through `thread_messages` / `my_conversations` |
+| `messages`               | What was said (Step 174), **end to end** since 174.6: `sender_id`, `ciphertext` (XChaCha20-Poly1305; 1–4,000 characters before, checked on the device), `nonce`, `signature` (Ed25519, the sender's key at `sender_key_version`), `format`, `created_at`; no text column. Written only by `send_message`, which refuses once the two share no tree, past 30 a minute, and unless every member who has a key got a sealed key at their current version (Step 182: a member with no key yet is left out, and the message waits for them: `waiting_messages` lists a sender's, `deliver_messages` adds the member's sealed key once they have one, never once either has blocked the other or they share no tree; publishing a key tells each waiting sender's inbox, `key`); read only through `thread_messages` and `my_conversations` (base64, with the reader's own sealed key). Each `message_keys` row goes to its member's private Realtime inbox, `inbox:<user id>` (`private.message_key_to_inbox`, `realtime.send`); a policy on `realtime.messages` lets each member hear only their own. Listed by `my_conversations` (the other side's name, their face where the reader may see their entry, their key version, the last message encrypted, unread, `can_send`) and `message_contacts` (everyone the reader can write to, the trees they share, their key version) |
+| `message_keys`           | A message's key sealed to one member (Step 174.6): `(message_id, user_id)`, `key_version`, `sealed_key` (104 bytes: an ephemeral X25519 key, a nonce, the key and its tag), `sealed_at` (Step 182: when it reached them, the message's own time unless it waited for their key). Written by `send_message`, and for a member who had no key when it was sent, later by the sender's device through `deliver_messages`; read only by its member, through `thread_messages` / `my_conversations`. A member sees, and has unread, only the messages sealed to them, by `sealed_at` |
 | `messaging_keys`         | Members' published messaging keys (Step 174.6): `(user_id, version)`, `box_public` (X25519), `sign_public` (Ed25519). One key a member on all their devices; a new version only by `publish_messaging_key(…, p_reset)` (start over: at most five a day; drops the backup). Read through `messaging_keys_of` by whoever is on a tree or in a conversation with them, and `conversation_keys` |
 | `messaging_key_transfers` | A member's keyring on its way to their new device (Step 174.6): encrypted under a one-time key that travels only in the link's fragment; `put_key_transfer` (three waiting at most), `take_key_transfer` (owner only, once, within ten minutes) |
 | `messaging_key_backups`  | A member's keyring under their recovery phrase (Step 174.6): one row, `key_version`, the encrypted `blob`; `put_key_backup` (only at the current version), `get_key_backup` (owner only) |
@@ -1948,6 +1948,40 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 182: messages wait for a relative who has no key yet** (migration
+  `20261017140000_messages_wait_for_a_key`, live). **Aalim asked**
+  (2026-10-17): "is it possible for the device to hold the message,
+  encrypted, and send once the user sets up their messaging". A member's
+  messaging key is made the first time they visit since messages began, so
+  until then nothing could be sealed to them and the thread said "You can
+  write to Raiya once they next visit ancestree." Now the box is there:
+  "What you write waits until Raiya next visits ancestree." A message to
+  someone with no key is encrypted as any other but sealed only to the
+  sender, stored like any message (all the sender's devices show it, a lost
+  one loses nothing), and marked under it "Waiting for Raiya to visit
+  ancestree". When Raiya's key is published, each sender with something
+  waiting hears it on their inbox (`key`), and their next device online,
+  web or phone, opens its own copy, checks the message is its own (signed
+  by its own key, and readable: `resealMessageKey` in `lib/e2e/crypto.ts`),
+  seals the same message key to Raiya's current key as pinned, and adds it
+  (`deliver_messages`). Nothing is signed again: the signature already
+  commits to the key. The server refuses it once either has blocked the
+  other or they share no tree, so such a message never goes. A message
+  arrives when it's sealed to you (`message_keys.sealed_at`): unread counts,
+  the list's last line and order, Realtime and the newsletter's Unread
+  Messages go by it, and a message not yet sealed to you isn't shown or
+  counted. Until then Raiya's list says "On its way" and the thread
+  "Aalim's message is on its way. It comes once they're next on ancestree."
+  (only the sender's devices hold its key). A device that has seen a key
+  of someone's refuses the server's word that they have none. /privacy
+  says it. Rehearsed against live in a rolled-back transaction (waiting
+  send, the recipient seeing nothing until sealed, every delivery refusal,
+  unread by arrival, block and no-shared-tree, the `key` event), then
+  applied with md5 checks; tested with throwaways in two browsers (sender
+  online, and offline until later) and between the phone's web build and
+  the web both ways. The nudge (telling the relative that something waits)
+  is to come, on Aalim's answer.
 
 - **Step 179.1: messages on the iPhone, in step with the web** (no
   migration; `mobile/src/messages/`, `mobile/src/app/(family)/messages/`).

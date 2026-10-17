@@ -103,7 +103,8 @@ All carry a top-level `"use server"`; none is inline.
   Everything else is already an RPC the pop-up calls from the browser
   (`thread_messages`, `send_message`, `open_direct_conversation`,
   `mark_conversation_read`, the key and link RPCs, block, report, mute,
-  delete), and the inbox is the Realtime channel `inbox:<uid>`. **Done in
+  delete, and since Step 182 `waiting_messages` / `deliver_messages`), and
+  the inbox is the Realtime channel `inbox:<uid>`. **Done in
   Step 179.1** (`mobile/src/messages/`): the same RPCs and channel, who
   they are to you worked out on the phone over its family read
   (`lib/messenger-relation.ts`), the keys in the Keychain. Faces are

@@ -685,7 +685,7 @@ function ThreadView({ id, onClose }: { id: string; onClose: () => void }) {
           </ol>
         )}
         {/* Theirs, written before you had a key, come once they're next on (Step 182). */}
-        {peer?.incomingWaiting ? (
+        {peer?.incomingWaiting && thread && !(thread.loading && messages.length === 0) ? (
           <p className="py-3 text-center text-xs text-muted-foreground">
             {incomingWaitingText(first, peer.incomingWaiting)}
           </p>

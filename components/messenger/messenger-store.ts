@@ -489,7 +489,7 @@ async function read(wire: WireMessage, knownPeer?: string | null): Promise<ChatM
       signer = publicKey(wire.sender_id, wire.sender_key_version);
     }
   }
-  const result = decryptMessage(encrypted, { userId: state.me, keyring }, signer?.signPublic ?? null);
+  const result = decryptMessage(encrypted, { userId: state.me, keyring }, signer?.signPublic ?? null, peer);
   return result.ok
     ? { ...base, body: result.text }
     : { ...base, body: "", status: result.reason };
@@ -851,6 +851,8 @@ async function recipientsOf(
     return "untrusted";
   }
   const recipients: Recipient[] = [];
+  // The member with no key yet, whom a message sealed to the sender alone waits for.
+  let waitingFor: string | null = null;
   for (const row of data) {
     if (row.user_id === me) {
       if (row.version !== version) return "locked";
@@ -858,7 +860,11 @@ async function recipientsOf(
       continue;
     }
     if (row.version == null && !row.box_public && !row.sign_public) {
-      if (Object.keys(pins[row.user_id] ?? {}).length > 0) return "untrusted";
+      // Keys don't go away: one this device pinned or verified is still there.
+      if (Object.keys(pins[row.user_id] ?? {}).length > 0 || state.verified[row.user_id]) {
+        return "untrusted";
+      }
+      waitingFor = row.user_id;
       continue;
     }
     const box = row.box_public ? fromBase64(row.box_public) : null;
@@ -875,8 +881,13 @@ async function recipientsOf(
     if (verified && verified !== keyId(key)) return "changed";
     recipients.push({ userId: row.user_id, version: row.version, boxPublic: box });
   }
-  sealTo.set(id, recipients);
-  return recipients;
+  // The sender's own copy says whom it waits for (Step 182): only such a
+  // copy can be sealed to them later, and only to them.
+  const sealed = waitingFor
+    ? recipients.map((r) => (r.userId === me ? { ...r, waitingFor } : r))
+    : recipients;
+  sealTo.set(id, sealed);
+  return sealed;
 }
 
 function sendFailed(id: string, message: string) {
@@ -1037,6 +1048,11 @@ async function deliverWaiting(id: string) {
   try {
     const db = await client();
     for (let round = 0; round < 20; round++) {
+      // What waited goes to the first key this device sees for them: once it
+      // has pinned one, a later version offered for what still "waits" is
+      // refused (the server would have hidden that it went).
+      const peer = peerOf(id);
+      const seen = peer ? Object.keys(pins[peer] ?? {}).map(Number) : [];
       let recipients: Awaited<ReturnType<typeof recipientsOf>>;
       try {
         recipients = await recipientsOf(id, true);
@@ -1047,6 +1063,10 @@ async function deliverWaiting(id: string) {
       if (!other) {
         // No key yet, or none to trust: nothing goes.
         stuck = typeof recipients === "string";
+        return;
+      }
+      if (seen.some((version) => version < other.version)) {
+        stuck = true;
         return;
       }
       const { data, error } = await db.rpc("waiting_messages", { p_conversation: id });

@@ -163,7 +163,7 @@ export default function PrivacyPage() {
         </ul>
       </Section>
 
-      {/* Step 174.6, Step 177, Step 180. Says what the design does;
+      {/* Step 174.6, Step 177, Step 180, Step 182. Says what the design does;
           "end-to-end encrypted" waits for an outside review (the messaging
           scope, §3.5). */}
       <Section title="Messages">
@@ -177,6 +177,12 @@ export default function PrivacyPage() {
             with keys only the people in the conversation hold. ancestree
             stores and passes on the encrypted message and can&rsquo;t read
             it, and neither can the site&rsquo;s owners.
+          </li>
+          <li>
+            Write to someone who hasn&rsquo;t visited since messages began and
+            it waits, still encrypted, until they do; a device of yours then
+            passes it on to them. It never goes to someone either of you has
+            blocked since, or you no longer share a tree with.
           </li>
           <li>
             What ancestree does see: who wrote to whom, when, how long each
