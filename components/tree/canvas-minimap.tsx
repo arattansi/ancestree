@@ -16,6 +16,11 @@ import { NODE_H, NODE_W } from "@/lib/tree-dimensions";
  * the zoom buttons' height since Step 178.
  */
 const ASPECT = 4 / 3;
+
+/** How wide the minimap is at a height (the canvas keeps room for it). */
+export function miniMapWidth(height: number): number {
+  return Math.round(height * ASPECT);
+}
 const DEFAULT_HEIGHT = 150;
 /** Room round the drawing, in minimap pixels (React Flow's `offsetScale`). */
 const INSET = 5;
@@ -138,9 +143,8 @@ const Cards = React.memo(function Cards({
  * in a viewBox that moves only in steps (`framedBox`), and each frame
  * changes nothing but the shade round the window, in an svg of its own.
  * Dragging it pans and the wheel zooms, by React Flow's own handler.
- * It sits beside the zoom buttons at the bottom left, as tall as they are
- * (Steps 174, 178), so the canvas places and sizes it, not a panel of its
- * own.
+ * The canvas places it, at the bottom right (Step 181; beside the zoom
+ * buttons in Steps 174–178), and sizes it as tall as the zoom buttons.
  */
 export function CanvasMiniMap({
   height = DEFAULT_HEIGHT,
@@ -148,7 +152,7 @@ export function CanvasMiniMap({
   height?: number;
 }) {
   const size = React.useMemo(
-    () => ({ width: Math.round(height * ASPECT), height }),
+    () => ({ width: miniMapWidth(height), height }),
     [height],
   );
   const store = useStoreApi();
@@ -216,7 +220,7 @@ export function CanvasMiniMap({
   const [vx, vy, vw, vh] = view.split(" ").map(Number);
   const { outer } = box;
   return (
-    // In the canvas's bottom-left panel, beside the zoom buttons (Step 174).
+    // In the canvas's bottom-right panel (Step 181).
     <div className="react-flow__minimap relative !bg-card" style={size}>
       <Cards
         viewBox={box.viewBox}

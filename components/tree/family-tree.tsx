@@ -39,7 +39,7 @@ import { FamilyAddButton, type FamilyAdd } from "@/components/tree/add-to-tree";
 import { buildPeopleGraph, withPets } from "@/components/tree/build-graph";
 import { ColumnsIcon, ExpandingLabel } from "@/components/tree/canvas-controls";
 import { edgeTypes } from "@/components/tree/canvas-edges";
-import { CanvasMiniMap } from "@/components/tree/canvas-minimap";
+import { CanvasMiniMap, miniMapWidth } from "@/components/tree/canvas-minimap";
 import { FoldedDetails } from "@/components/tree/folded-details";
 import { GenerationLane } from "@/components/tree/generation-lane";
 import {
@@ -1950,8 +1950,13 @@ function Canvas({
   // it's open already, since they may have panned away.
   const selfOnCanvas =
     !!selfPersonId && graph.layout.positions.has(selfPersonId);
-  // The zoom buttons' height, which the minimap under them takes (Step 178).
-  const [zoomRef, zoomHeight] = useHeight<HTMLDivElement>();
+  // The zoom buttons' size: the minimap in the other corner takes their
+  // height (Steps 178, 181), and the pills at the foot sit between the two.
+  const [zoomRef, zoomSize] = useSize<HTMLDivElement>();
+  const footRoom = {
+    "--zoom-width": `${zoomSize?.width ?? 0}px`,
+    "--map-width": `${zoomSize ? miniMapWidth(zoomSize.height) : 0}px`,
+  } as React.CSSProperties;
   const goToMe = React.useCallback(() => {
     if (!selfPersonId) return;
     setSelectedEdgeId(null);
@@ -2661,6 +2666,7 @@ function Canvas({
     <>
       <ReactFlow
         className={cn(pulled && "tree-pulled")}
+        style={footRoom}
         // A phone's cards fade without blur or shadow (the `phone:` variant).
         data-phone={phone ? "" : undefined}
         nodes={displayNodes}
@@ -2716,15 +2722,10 @@ function Canvas({
           />
         ) : null}
         <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
-        {/* The zoom buttons and the minimap side by side at the bottom left
-            (Step 174), leaving the bottom right to the messenger. The map
-            is as tall as the buttons beside it, however many there are and
-            however big a touch screen makes them (Step 178). The controls
-            give up their own corner to sit in this row. */}
-        <Panel
-          position="bottom-left"
-          className="flex items-end gap-2.5"
-        >
+        {/* The zoom buttons at the bottom left, measured so the minimap at
+            the bottom right is as tall as they are, however many there are
+            and however big a touch screen makes them (Steps 178, 181). */}
+        <Panel position="bottom-left">
           <div ref={zoomRef}>
             <Controls showInteractive={false} className="!static !m-0">
               {selfOnCanvas ? (
@@ -2739,8 +2740,8 @@ function Canvas({
               ) : null}
             </Controls>
           </div>
-          <WideMiniMap height={zoomHeight} />
         </Panel>
+        <WideMiniMap height={zoomSize?.height ?? null} />
         <Panel
           position="top-right"
           className={cn(
@@ -2844,7 +2845,7 @@ function Canvas({
         {path && pathSummary && !(linkedToYou && folded) ? (
           <Panel
             position="bottom-center"
-            className={cn("w-[min(34rem,calc(100%-8.5rem))]", FOOT_MIDDLE)}
+            className={cn("w-[min(34rem,calc(100%-7rem))]", FOOT_MIDDLE)}
           >
             <div
               className="mx-auto flex w-fit max-w-full items-center gap-3 rounded-2xl border bg-card px-4 py-2 text-sm shadow-md"
@@ -2887,8 +2888,8 @@ function Canvas({
             position="bottom-center"
             className={cn(
               "flex flex-col items-center gap-1.5",
-              // Clear of the zoom controls and the messenger, as the tip is.
-              folded && "w-[min(24rem,calc(100%-8.5rem))]",
+              // Clear of the zoom controls, as the tip is.
+              folded && "w-[min(24rem,calc(100%-7rem))]",
               FOOT_MIDDLE,
             )}
           >
@@ -2941,16 +2942,15 @@ function Canvas({
         {!spotlight && !connection && !folded ? (
           // Sized off the canvas, not the text: a centred panel only gets the
           // half of the canvas right of its anchor to shrink-wrap into, which
-          // on a phone stacked the tip into a tall column. 8.5rem keeps it
-          // clear of the zoom controls in one corner and the messenger's
-          // launcher in the other (Step 174).
+          // on a phone stacked the tip into a tall column. 7rem keeps it
+          // clear of the zoom controls in the corner.
           // On a phone, one card at a time (Step 169): whichever comes first
           // of those still open, the next once it's closed. A card closed
           // for good renders nothing, so the first child is the one to show.
           <Panel
             position="bottom-center"
             className={cn(
-              "flex w-[min(28rem,calc(100%-8.5rem))] flex-col gap-2 max-sm:[&>*+*]:hidden",
+              "flex w-[min(28rem,calc(100%-7rem))] flex-col gap-2 max-sm:[&>*+*]:hidden",
               FOOT_MIDDLE,
             )}
           >
@@ -2995,11 +2995,11 @@ function Canvas({
           store={hover}
           describe={describeOffLine}
           className={
-            // Clear of the messenger's launcher in the corner (Step 174),
-            // which moves left of an open sheet.
+            // Beside the minimap (Step 181: as wide as the zoom buttons
+            // make it), or the open sheet that covers it.
             sheetOut || selectedPet
-              ? "sm:!mr-[calc(24rem+4.75rem)]"
-              : "sm:!mr-[4.75rem]"
+              ? "sm:!mr-[calc(24rem+15px)]"
+              : "sm:!mr-[calc(var(--map-width,0px)_+_27px)]"
           }
         />
         <Panel position="top-left" className="flex flex-col items-start gap-2">
@@ -3137,41 +3137,59 @@ function keepProps(prev: Props, next: Props): Props {
 
 /**
  * The canvas's foot between `sm` and `lg` (Step 174): the pills in the
- * middle sit in the room between the zoom buttons and minimap on the left
- * (at most 290px with the margin and a gap, on a touch screen's bigger
- * buttons; Step 178) and the messenger's launcher on the right (80px),
- * where in the middle they'd cover the minimap. From `lg` the middle is
+ * middle sit in the room between the zoom buttons on the left and the
+ * minimap on the right (Step 181), whose widths the canvas keeps in
+ * `--zoom-width` and `--map-width`, each with React Flow's 15px margin and
+ * a 12px gap; where in the middle they'd cover the minimap. A centred
+ * panel is placed from its left margin (15px in React Flow's own rule), so
+ * that margin moves it by half the difference. From `lg` the middle is
  * clear of both.
  */
 const FOOT_MIDDLE =
-  "sm:max-lg:!ml-[7.5rem] sm:max-lg:max-w-[calc(100%-23rem)]";
+  "sm:max-lg:!ml-[calc(15px_+_(var(--zoom-width,0px)_-_var(--map-width,0px))/2)] sm:max-lg:max-w-[calc(100%_-_var(--zoom-width,0px)_-_var(--map-width,0px)_-_54px)]";
 
 /**
  * The minimap, from `sm` up only (Step 87.7, audit C6): hidden below it, it
  * still worked out its bounds on every frame of a pan. Its own component, so
- * learning the width after hydration redraws it and not the canvas.
+ * learning the width after hydration redraws it and not the canvas. At the
+ * bottom right, as tall as the zoom buttons in the other corner (Steps 178,
+ * 181); an open sheet covers it.
  */
 function WideMiniMap({ height }: { height: number | null }) {
   const wide = useIsSm();
   if (!wide || !height) return null;
-  return <CanvasMiniMap height={height} />;
+  return (
+    <Panel position="bottom-right">
+      <CanvasMiniMap height={height} />
+    </Panel>
+  );
 }
 
-/** An element's height, kept as it changes (Step 178: the zoom buttons'). */
-function useHeight<T extends HTMLElement>(): [React.RefObject<T | null>, number | null] {
+/** An element's size, kept as it changes (Steps 178, 181: the zoom buttons'). */
+function useSize<T extends HTMLElement>(): [
+  React.RefObject<T | null>,
+  { width: number; height: number } | null,
+] {
   const ref = React.useRef<T>(null);
-  const [height, setHeight] = React.useState<number | null>(null);
+  const [size, setSize] = React.useState<{ width: number; height: number } | null>(null);
   React.useEffect(() => {
     const el = ref.current;
     if (!el) return;
     const observer = new ResizeObserver(([entry]) => {
-      const next = Math.round(entry.contentRect.height);
-      setHeight((had) => (had === next ? had : next || null));
+      const width = Math.round(entry.contentRect.width);
+      const height = Math.round(entry.contentRect.height);
+      setSize((had) =>
+        had && had.width === width && had.height === height
+          ? had
+          : width && height
+            ? { width, height }
+            : null,
+      );
     });
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
-  return [ref, height];
+  return [ref, size];
 }
 
 export function FamilyTree(given: Props) {

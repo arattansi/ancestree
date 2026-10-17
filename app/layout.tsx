@@ -6,7 +6,6 @@ import Script from "next/script";
 import { Suspense } from "react";
 
 import { ConsentBanner } from "@/components/consent-banner";
-import { MessengerMount } from "@/components/messenger/messenger-mount";
 
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader, SiteHeaderShell } from "@/components/site-header";
@@ -90,11 +89,6 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           </div>
           <SiteFooter />
           <Toaster />
-          {/* The messenger's launcher, bottom right on a member's own pages
-              (Step 174), streamed in on its own as the header is. */}
-          <Suspense fallback={null}>
-            <MessengerMount />
-          </Suspense>
         </ThemeProvider>
         {/* Google Analytics, the ancestree property in the Medfair account
             (Step 137): its tag on every page, loaded after the page is

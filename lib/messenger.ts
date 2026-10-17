@@ -135,20 +135,6 @@ export const MESSAGE_MAX = 4000;
 export const THREAD_PAGE = 50;
 
 /**
- * The pages the pop-up sits on: a member's own (the canvas, My Family Tree,
- * the account and admin pages, their trees), not the marketing pages, the
- * library, sign-in or a form, which keep the corner to themselves.
- */
-const MESSENGER_PAGES = ["/tree", "/family", "/account", "/admin", "/trees"];
-
-export function messengerShownOn(pathname: string | null): boolean {
-  if (!pathname) return false;
-  return MESSENGER_PAGES.some(
-    (page) => pathname === page || pathname.startsWith(`${page}/`),
-  );
-}
-
-/**
  * Where a device link's key waits in the tab's session storage (Step
  * 174.6): put there by `/messages/link`'s first script, read by the page.
  */

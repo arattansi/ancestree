@@ -236,13 +236,14 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   with `setPersonSheet`; `invalidatePersonSheet` reads again; every new
   page from the server marks them all stale (`FamilyTree`), Step 87.6
 - `components/messenger/` — the **messenger** (Step 174): direct
-  messages between members who share a tree, in a pop-up at the bottom
-  right of a member's own pages (`/tree`, `/family`, `/account`, `/admin`,
-  `/trees`; `messengerShownOn`). `messenger-mount.tsx` streams the launcher
-  in from the root layout for a member on at least one tree;
-  `messenger.tsx` is the launcher (unread count, left of a docked sheet,
-  `.messenger-launcher` in `globals.css`); `messenger-panel.tsx` the
-  pop-up, fetched when the launcher is pointed at (list, **new message**,
+  messages between members who share a tree, in a pop-up. `messenger.tsx`
+  is its button in the header between **account** and the bell (Step 181;
+  `SiteHeader` renders it for a member on at least one tree), drawn as the
+  bell is, with the bell's unread count; the pop-up is portalled to the
+  page's body (the header's blur would hold a fixed pop-up inside it) and
+  drops from under the header's right end, left of a docked sheet
+  (`.messenger-panel` in `globals.css`); `messenger-panel.tsx` the
+  pop-up, fetched when the button is pointed at (list, **new message**,
   a thread; full screen on a phone); `messenger-store.ts` its state outside
   React, shared with the person sheet's **message** (`useMessageTarget`;
   on a living entry nobody is behind, `messenger.openInvite` opens an
@@ -1944,6 +1945,44 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 181: the minimap back at the bottom right, still small;
+  messages in the header** (no migration). **Aalim asked** (2026-10-16):
+  "move the map back to the bottom right but keep it the smaller size.
+  move the messages UI button in the navigation header in between account
+  and notifications. update the icon to be consistent with the design
+  system that the notifications icon is (thickness, sizing, etc.)".
+  **Canvas:** the zoom buttons keep the bottom left and the minimap has
+  the bottom right again (its own panel, as before Step 174; an open sheet
+  covers it), still as tall as the zoom buttons (104 × 139 with **Go to
+  me**, 160 × 213 on a touch screen; Step 178). The canvas keeps the two
+  widths in `--zoom-width` and `--map-width`, so between `sm` and `lg` the
+  pills at its foot centre in the room between them (`FOOT_MIDDLE`), the
+  off-line pill sits beside the map, and below `sm` the pills are
+  `100% - 7rem` again, as before Step 174. **Header:** messages is a
+  header button between **account** and the bell, drawn exactly as the
+  bell is (a ghost `sm` button, lucide `MessageSquare` at 16px with the
+  default 2px stroke, the bell's red count), for a member on at least one
+  tree and on every page the bell is, not just their own pages
+  (`messengerShownOn` and `MessengerMount` are gone). The pop-up drops
+  from under the header's right end (`.messenger-panel`: under
+  `--site-header-height`, right edge on the header's, left of a docked
+  sheet as the header's buttons are), 10px corners like the bell's list,
+  under the header's own drop-downs so the bell's list shows over it; on a
+  phone it still takes the screen. It's portalled to the body: the
+  header's frosted glass (`backdrop-filter`) would hold a fixed pop-up
+  inside it. The bottom-right launcher is gone, so toasts and back-to-top
+  sit where they did before Step 174. **Verified** headless with two
+  throwaway siblings: at 1280 the header reads tree, account, messages,
+  notifications, the two icons 16 × 16 with stroke 2 and identical button
+  classes; Bilal's message counted "1" on Amira's button; the pop-up
+  hung 8px under the header, right edge on the bell's, and the bell's
+  list opened over it; zoom 26 × 104 at the bottom left, map 139 × 104 at
+  the bottom right; at 768 and 640 the tip sat centred between them,
+  12px or more clear of each; with a sheet docked the pop-up ended 16px
+  left of it; `/family?messages=<id>` still opened the conversation; at
+  375 and 320 the header stayed one row (at 320 the tree's name gives way
+  to its arrow) and the pop-up took the screen; on an 820 touch tablet
+  zoom and map were both 160 tall. No console errors. Throwaways deleted.
 - **Step 180: the weekly newsletter names who you have unread messages
   from; a squared messages button** (migration
   `20261017120000_newsletter_unread_messages`). **Aalim asked**

@@ -10,7 +10,6 @@ import {
   isMuted,
   mergeMessages,
   messagesLinkTarget,
-  messengerShownOn,
   mutedText,
   muteUntil,
   newDay,
@@ -218,20 +217,6 @@ describe("sendErrorText", () => {
     expect(sendErrorText("SLOW_DOWN")).toBe("Slow down, then try again.");
     expect(sendErrorText("MESSAGE_TOO_LONG")).toBe("Keep it under 4,000 characters.");
     expect(sendErrorText(undefined)).toBe("Couldn't send. Try again.");
-  });
-});
-
-describe("messengerShownOn", () => {
-  it("sits on a member's own pages only", () => {
-    expect(messengerShownOn("/tree")).toBe(true);
-    expect(messengerShownOn("/tree/review")).toBe(true);
-    expect(messengerShownOn("/family")).toBe(true);
-    expect(messengerShownOn("/account")).toBe(true);
-    expect(messengerShownOn("/")).toBe(false);
-    expect(messengerShownOn("/library")).toBe(false);
-    expect(messengerShownOn("/people/new")).toBe(false);
-    expect(messengerShownOn("/treehouse")).toBe(false);
-    expect(messengerShownOn(null)).toBe(false);
   });
 });
 

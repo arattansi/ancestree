@@ -229,25 +229,22 @@
   }
 }
 
-/* The messenger (Step 174): its launcher and pop-up sit at the bottom
-   right, left of a docked sheet as the toasts are; while the launcher
-   shows, toasts and the back-to-top button keep above it. */
-.messenger-launcher {
-  right: calc(1rem + var(--docked-sheet-width, 0px));
-  transition: right 200ms ease-in-out;
-}
-/* Below `sm` the pop-up takes the screen. */
+/* The messenger's pop-up (Step 174) drops from its button in the header
+   (Step 181): under the header, its right edge on the header's (the bar
+   is at most 64rem, centred, 1rem in), and left of a docked sheet as the
+   header's buttons are (the header's padding below). Below `sm` it takes
+   the screen. */
 @media (width >= 40rem) {
   .messenger-panel {
-    right: calc(1rem + var(--docked-sheet-width, 0px));
+    top: calc(var(--site-header-height, 3.5rem) + 0.5rem);
+    right: calc(max(0px, 50vw - 32rem) + 1rem);
     transition: right 200ms ease-in-out;
   }
-}
-:root[data-messenger] {
-  --messenger-height: 4rem;
+  :root[data-docked-sheet-open] .messenger-panel {
+    right: max(calc(max(0px, 50vw - 32rem) + 1rem), 25rem);
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .messenger-launcher,
   .messenger-panel {
     transition: none;
   }

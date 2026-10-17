@@ -63,13 +63,11 @@ const Toaster = ({ ...props }: ToasterProps) => {
       }
       // Sonner's own 24px / 16px, plus: under the header at the top; above
       // a form's floating buttons where they make a bar along the bottom of
-      // the screen (Step 59), and above the messenger's launcher (Step
-      // 174); left of a details sheet docked on the right
+      // the screen (Step 59); left of a details sheet docked on the right
       // (`--docked-sheet-width`, globals.css).
       offset={{
         top: "calc(var(--site-header-height, 3.5rem) + 12px)",
-        bottom:
-          "calc(24px + var(--floating-actions-height, 0px) + var(--messenger-height, 0px))",
+        bottom: "calc(24px + var(--floating-actions-height, 0px))",
         right: "calc(24px + var(--docked-sheet-width, 0px))",
       }}
       mobileOffset={{

@@ -32,8 +32,7 @@ export function BackToTop() {
       tabIndex={shown ? 0 : -1}
       onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
       className={cn(
-        // Above the messenger's launcher where it shows (Step 174).
-        "fixed right-4 bottom-[calc(1rem+var(--messenger-height,0px))] z-40 rounded-full shadow-md transition-opacity",
+        "fixed right-4 bottom-4 z-40 rounded-full shadow-md transition-opacity",
         shown ? "opacity-100" : "pointer-events-none opacity-0",
       )}
     >

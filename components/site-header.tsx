@@ -11,6 +11,7 @@ import {
   HeaderCountsProvider,
 } from "@/components/header-counts";
 import { LogoMark } from "@/components/logo-mark";
+import { Messenger } from "@/components/messenger/messenger";
 import { SiteHeaderHeight } from "@/components/site-header-height";
 import { SiteNavMenu } from "@/components/site-nav-menu";
 import { SiteNavLink, TreeNavLink } from "@/components/site-nav-link";
@@ -191,6 +192,9 @@ async function LoadedHeader() {
               </SiteNavLink>
               <AdminQueueButton />
             </span>
+            {/* Messages, between account and the bell (Step 181), for a
+                member of a tree: nobody else has anyone to write to. */}
+            {showSwitcher ? <Messenger userId={profile.auth_user_id} /> : null}
             <SiteNotifications />
           </HeaderCountsProvider>
         ) : signedInNotMember ? (

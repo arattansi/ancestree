@@ -82,8 +82,9 @@ export function MessengerPanel({ onClose }: { onClose: () => void }) {
       role="dialog"
       aria-label="Messages"
       className={cn(
-        "messenger-panel fixed z-40 flex flex-col overflow-hidden bg-popover text-popover-foreground",
-        "sm:bottom-[5.25rem] sm:h-[min(34rem,calc(100dvh-var(--site-header-height,3.5rem)-7rem))] sm:w-[22rem] sm:rounded-xl sm:border sm:shadow-xl",
+        // Under the header's own drop-downs (the bell's), over the page.
+        "messenger-panel fixed z-30 flex flex-col overflow-hidden bg-popover text-popover-foreground",
+        "sm:h-[min(34rem,calc(100dvh-var(--site-header-height,3.5rem)-1.5rem))] sm:w-[22rem] sm:rounded-lg sm:border sm:shadow-xl",
         "max-sm:inset-0 max-sm:z-[60]",
       )}
     >
