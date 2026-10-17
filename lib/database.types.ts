@@ -1298,27 +1298,82 @@ export type Database = {
         }
         Relationships: []
       }
-      messages: {
+      message_keys: {
         Row: {
-          body: string
-          conversation_id: string
-          created_at: string
-          id: string
-          sender_id: string
+          key_version: number
+          message_id: string
+          sealed_key: string
+          user_id: string
         }
         Insert: {
-          body: string
-          conversation_id: string
-          created_at?: string
-          id?: string
-          sender_id: string
+          key_version: number
+          message_id: string
+          sealed_key: string
+          user_id: string
         }
         Update: {
-          body?: string
+          key_version?: number
+          message_id?: string
+          sealed_key?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_keys_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_keys_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "message_keys_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          ciphertext: string
+          conversation_id: string
+          created_at: string
+          format: number
+          id: string
+          nonce: string
+          sender_id: string
+          sender_key_version: number
+          signature: string
+        }
+        Insert: {
+          ciphertext: string
+          conversation_id: string
+          created_at?: string
+          format?: number
+          id?: string
+          nonce: string
+          sender_id: string
+          sender_key_version: number
+          signature: string
+        }
+        Update: {
+          ciphertext?: string
           conversation_id?: string
           created_at?: string
+          format?: number
           id?: string
+          nonce?: string
           sender_id?: string
+          sender_key_version?: number
+          signature?: string
         }
         Relationships: [
           {
@@ -1338,6 +1393,117 @@ export type Database = {
           {
             foreignKeyName: "messages_sender_id_fkey"
             columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+        ]
+      }
+      messaging_key_backups: {
+        Row: {
+          blob: string
+          key_version: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          blob: string
+          key_version: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          blob?: string
+          key_version?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messaging_key_backups_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "messaging_key_backups_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+        ]
+      }
+      messaging_key_transfers: {
+        Row: {
+          blob: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          blob: string
+          created_at?: string
+          id: string
+          user_id: string
+        }
+        Update: {
+          blob?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messaging_key_transfers_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "messaging_key_transfers_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+        ]
+      }
+      messaging_keys: {
+        Row: {
+          box_public: string
+          created_at: string
+          sign_public: string
+          user_id: string
+          version: number
+        }
+        Insert: {
+          box_public: string
+          created_at?: string
+          sign_public: string
+          user_id: string
+          version: number
+        }
+        Update: {
+          box_public?: string
+          created_at?: string
+          sign_public?: string
+          user_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messaging_keys_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "messaging_keys_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["auth_user_id"]
@@ -3289,6 +3455,15 @@ export type Database = {
         }
         Returns: string
       }
+      conversation_keys: {
+        Args: { p_conversation: string }
+        Returns: {
+          box_public: string
+          sign_public: string
+          user_id: string
+          version: number
+        }[]
+      }
       create_blog_post: {
         Args: {
           p_body?: string
@@ -3567,6 +3742,13 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      get_key_backup: {
+        Args: never
+        Returns: {
+          blob: string
+          key_version: number
+        }[]
+      }
       invite_preview: {
         Args: { p_token: string }
         Returns: {
@@ -3736,12 +3918,23 @@ export type Database = {
       message_contacts: {
         Args: never
         Returns: {
+          key_version: number
           name: string
           person_id: string
           photo_crop: Json
           photo_path: string
           tree_names: string[]
           user_id: string
+        }[]
+      }
+      messaging_keys_of: {
+        Args: { p_users: string[] }
+        Returns: {
+          box_public: string
+          created_at: string
+          sign_public: string
+          user_id: string
+          version: number
         }[]
       }
       my_conversations: {
@@ -3751,9 +3944,16 @@ export type Database = {
           conversation_id: string
           kind: string
           last_at: string
-          last_body: string
+          last_ciphertext: string
+          last_id: string
+          last_key_version: number
+          last_nonce: string
           last_read_at: string
+          last_sealed_key: string
           last_sender_id: string
+          last_sender_key_version: number
+          last_signature: string
+          other_key_version: number
           other_name: string
           other_person_id: string
           other_photo_crop: Json
@@ -3763,6 +3963,14 @@ export type Database = {
         }[]
       }
       my_growth_rights: { Args: { p_tree?: string }; Returns: Json }
+      my_messaging_key: {
+        Args: never
+        Returns: {
+          backup_updated_at: string
+          backup_version: number
+          version: number
+        }[]
+      }
       my_tree_request: { Args: never; Returns: string }
       newsletter_due: {
         Args: { p_users?: string[] }
@@ -3893,6 +4101,10 @@ export type Database = {
           person_id: string
         }[]
       }
+      publish_messaging_key: {
+        Args: { p_box_public: string; p_reset?: boolean; p_sign_public: string }
+        Returns: number
+      }
       published_blog_posts: {
         Args: never
         Returns: {
@@ -3906,6 +4118,14 @@ export type Database = {
           title: string
           updated_at: string
         }[]
+      }
+      put_key_backup: {
+        Args: { p_blob: string; p_key_version: number }
+        Returns: undefined
+      }
+      put_key_transfer: {
+        Args: { p_blob: string; p_id: string }
+        Returns: undefined
       }
       record_invite_reminders: { Args: { p_sends: Json }; Returns: string[] }
       record_onboarding_sends: { Args: { p_sends: Json }; Returns: string[] }
@@ -4044,20 +4264,19 @@ export type Database = {
         }[]
       }
       send_message: {
-        Args: { p_body: string; p_conversation: string }
+        Args: {
+          p_ciphertext: string
+          p_conversation: string
+          p_id: string
+          p_keys: Json
+          p_nonce: string
+          p_sender_key_version: number
+          p_signature: string
+        }
         Returns: {
-          body: string
-          conversation_id: string
           created_at: string
           id: string
-          sender_id: string
-        }
-        SetofOptions: {
-          from: "*"
-          to: "messages"
-          isOneToOne: true
-          isSetofReturn: false
-        }
+        }[]
       }
       set_blog_post_cover: {
         Args: { p_id: string; p_path: string }
@@ -4209,6 +4428,21 @@ export type Database = {
           p_values: Json
         }
         Returns: string[]
+      }
+      take_key_transfer: { Args: { p_id: string }; Returns: string }
+      thread_messages: {
+        Args: { p_before?: string; p_conversation: string; p_limit?: number }
+        Returns: {
+          ciphertext: string
+          created_at: string
+          id: string
+          key_version: number
+          nonce: string
+          sealed_key: string
+          sender_id: string
+          sender_key_version: number
+          signature: string
+        }[]
       }
       tree_carried: {
         Args: { p_tree: string }

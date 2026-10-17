@@ -15,6 +15,8 @@ export type MessengerContact = {
   photoCrop: unknown;
   /** The trees the two share, by name. */
   trees: string[];
+  /** Their key version; null until they next open the messenger. */
+  keyVersion: number | null;
 };
 
 /** One of the reader's conversations, as the list shows it. */
@@ -25,7 +27,13 @@ export type ConversationSummary = {
   personId: string | null;
   photoUrl: string | null;
   photoCrop: unknown;
+  /** The other member's key version; null until they open the messenger. */
+  otherKeyVersion: number | null;
+  /** The last message as it's stored, for the device to read (Step 174.6). */
+  last: WireMessage | null;
+  /** The last message once read here, and why not if it couldn't be. */
   lastBody: string | null;
+  lastStatus?: Unread;
   lastSenderId: string | null;
   lastAt: string | null;
   lastReadAt: string | null;
@@ -34,14 +42,39 @@ export type ConversationSummary = {
   canSend: boolean;
 };
 
+/** Why a message shows no text: see `decryptMessage`. */
+export type Unread = "locked" | "unverified" | "unreadable";
+
 export type ChatMessage = {
   id: string;
   conversationId: string;
   senderId: string;
+  /** Empty when it couldn't be read here (`status` says why). */
   body: string;
   createdAt: string;
+  /** The version of the sender's key that signed it. */
+  senderKeyVersion: number;
+  status?: Unread;
   /** Sent from here and not yet confirmed by the database. */
   pending?: boolean;
+};
+
+/**
+ * A message as the database and Realtime hand it over (Step 174.6):
+ * ciphertext, its nonce and signature, and the reader's own sealed key,
+ * all base64.
+ */
+export type WireMessage = {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  created_at: string;
+  ciphertext: string;
+  nonce: string;
+  signature: string;
+  sender_key_version: number;
+  key_version: number | null;
+  sealed_key: string | null;
 };
 
 /** What `/api/messages` answers. */
@@ -70,6 +103,12 @@ export function messengerShownOn(pathname: string | null): boolean {
   );
 }
 
+/**
+ * Where a device link's key waits in the tab's session storage (Step
+ * 174.6): put there by `/messages/link`'s first script, read by the page.
+ */
+export const MESSAGES_LINK_KEPT = "ancestree:messages-link";
+
 /** Each member's own Realtime channel (the migration's policy). */
 export function inboxTopic(userId: string): string {
   return `inbox:${userId}`;
@@ -82,25 +121,46 @@ export function trimMessage(body: string): string {
 
 const isString = (x: unknown): x is string => typeof x === "string";
 
-/** A `message` broadcast from the inbox, or `null` for anything else. */
-export function parseInboxMessage(payload: unknown): ChatMessage | null {
+const isVersion = (x: unknown): x is number =>
+  typeof x === "number" && Number.isInteger(x) && x >= 1;
+
+/**
+ * A message as stored, from a `message` broadcast or a list or thread
+ * row, or `null` for anything else.
+ */
+export function parseWireMessage(payload: unknown): WireMessage | null {
   if (!payload || typeof payload !== "object") return null;
   const p = payload as Record<string, unknown>;
   if (
     !isString(p.id) ||
     !isString(p.conversation_id) ||
     !isString(p.sender_id) ||
-    !isString(p.body) ||
-    !isString(p.created_at)
+    !isString(p.created_at) ||
+    !isString(p.ciphertext) ||
+    !isString(p.nonce) ||
+    !isString(p.signature) ||
+    !isVersion(p.sender_key_version)
   )
     return null;
   return {
     id: p.id,
-    conversationId: p.conversation_id,
-    senderId: p.sender_id,
-    body: p.body,
-    createdAt: p.created_at,
+    conversation_id: p.conversation_id,
+    sender_id: p.sender_id,
+    created_at: p.created_at,
+    ciphertext: p.ciphertext,
+    nonce: p.nonce,
+    signature: p.signature,
+    sender_key_version: p.sender_key_version,
+    key_version: isVersion(p.key_version) ? p.key_version : null,
+    sealed_key: isString(p.sealed_key) ? p.sealed_key : null,
   };
+}
+
+/** What a message that couldn't be read here says in its place. */
+export function unreadText(status: Unread): string {
+  if (status === "locked") return "Locked on this device";
+  if (status === "unverified") return "This message couldn't be verified";
+  return "This message can't be read";
 }
 
 /** A `read` broadcast: the reader read a conversation in another tab. */
@@ -154,6 +214,7 @@ export function withIncoming(
   const next: ConversationSummary = {
     ...had,
     lastBody: message.body,
+    lastStatus: message.status,
     lastSenderId: message.senderId,
     lastAt: message.createdAt,
     unread: seen ? had.unread : had.unread + 1,
@@ -272,6 +333,10 @@ export function newDay(prev: string | undefined, next: string): boolean {
 /** What a refusal from the database says to the reader. */
 export function sendErrorText(message: string | undefined): string {
   if (message?.includes("NO_SHARED_TREE")) return "You no longer share a tree.";
+  if (message?.includes("NO_KEY")) return "They can get messages once they next visit ancestree.";
+  if (message?.includes("LOCKED")) return "Messages are locked on this device.";
+  if (message?.includes("CODE_CHANGED")) return "Their security code changed. Verify it to keep writing.";
+  if (message?.includes("UNTRUSTED")) return "Couldn't check their security code, so it wasn't sent.";
   if (message?.includes("SLOW_DOWN")) return "Slow down, then try again.";
   if (message?.includes("MESSAGE_TOO_LONG"))
     return `Keep it under ${MESSAGE_MAX.toLocaleString("en")} characters.`;

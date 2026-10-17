@@ -36,6 +36,9 @@ const PUBLIC_PREFIXES = [
   "/robots.txt",
   "/request-invite",
   "/shared",
+  // A messages link from a member's other device (Step 174.6): it keeps the
+  // link's key, in the fragment, while a signed-out device signs in.
+  "/messages/link",
   // Campaign links, where anyone can sign up and start a tree (Step 103.3).
   "/start/",
   // The weekly newsletter's unsubscribe page and one-click link, which

@@ -2,11 +2,16 @@
 
 import {
   ArrowLeft,
+  Check,
+  Copy,
   LoaderCircle,
+  LockKeyhole,
   SendHorizontal,
+  ShieldCheck,
   SquarePen,
   X,
 } from "lucide-react";
+import { encode as encodeQr } from "uqr";
 import * as React from "react";
 
 import { sendClaimInvite } from "@/app/actions/invites";
@@ -16,6 +21,7 @@ import {
   type InviteTarget,
   type MessengerView,
 } from "@/components/messenger/messenger-store";
+import { copyText } from "@/components/copy-text";
 import { PendingButton } from "@/components/pending-button";
 import { useAction } from "@/components/use-action";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -33,6 +39,7 @@ import {
   MESSAGE_MAX,
   newDay,
   shortWhen,
+  unreadText,
   type ChatMessage,
   type ConversationSummary,
   type MessengerContact,
@@ -47,6 +54,7 @@ import { cn } from "@/lib/utils";
  */
 export function MessengerPanel({ onClose }: { onClose: () => void }) {
   const view = useMessenger((s) => s.view);
+  const keys = useMessenger((s) => s.keys);
 
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -66,12 +74,21 @@ export function MessengerPanel({ onClose }: { onClose: () => void }) {
         "max-sm:inset-0 max-sm:z-[60]",
       )}
     >
-      {view.kind === "list" ? (
+      {view.kind === "invite" ? (
+        <InviteView key={view.target.personId} target={view.target} onClose={onClose} />
+      ) : keys === "locked" ? (
+        // Their key lives on another device (Step 174.6).
+        <LockedView onClose={onClose} />
+      ) : keys === "unavailable" ? (
+        <UnavailableView onClose={onClose} />
+      ) : view.kind === "security" ? (
+        <SecurityView onClose={onClose} />
+      ) : view.kind === "verify" ? (
+        <VerifyView key={view.id} id={view.id} onClose={onClose} />
+      ) : view.kind === "list" ? (
         <ListView onClose={onClose} />
       ) : view.kind === "new" ? (
         <NewView onClose={onClose} />
-      ) : view.kind === "invite" ? (
-        <InviteView key={view.target.personId} target={view.target} onClose={onClose} />
       ) : (
         <ThreadView key={view.id} id={view.id} onClose={onClose} />
       )}
@@ -185,6 +202,17 @@ function ListView({ onClose }: { onClose: () => void }) {
         title={<h2 className="text-base font-semibold">Messages</h2>}
         onClose={onClose}
       >
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          onClick={() => messenger.show({ kind: "security" })}
+          aria-label="Message security"
+          title="Message security"
+          className="relative tap-target"
+        >
+          <LockKeyhole aria-hidden />
+        </Button>
         {data && data.contacts.length > 0 ? (
           <Button
             type="button"
@@ -272,7 +300,11 @@ function ConversationRow({
             )}
           >
             {c.lastSenderId === me ? "You: " : ""}
-            {c.lastBody}
+            {c.lastStatus ? (
+              <span className="italic">{unreadText(c.lastStatus)}</span>
+            ) : (
+              c.lastBody
+            )}
           </span>
           {unread ? (
             <span className="ml-auto flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-destructive px-1 text-[0.6875rem] font-semibold text-white tabular-nums">
@@ -376,17 +408,21 @@ function ContactRow({
 
 /** Who's on the other side: from the list, or the contact it was opened with. */
 function usePeer(id: string): {
+  userId: string | null;
   name: string;
   photoUrl: string | null;
   photoCrop: unknown;
   canSend: boolean;
+  /** Null until they next open the messenger: nothing can be sealed to them. */
+  keyVersion: number | null;
 } | null {
   const summary = useMessenger((s) => s.data?.conversations.find((c) => c.id === id));
   const peerId = useMessenger((s) => s.peers[id]);
   const contact = useMessenger((s) =>
     peerId ? s.data?.contacts.find((c) => c.userId === peerId) : undefined,
   );
-  if (summary) return summary;
+  if (summary)
+    return { ...summary, userId: summary.otherUserId, keyVersion: summary.otherKeyVersion };
   if (contact) return { ...contact, canSend: true };
   return null;
 }
@@ -421,6 +457,16 @@ function ThreadView({ id, onClose }: { id: string; onClose: () => void }) {
   }, [id]);
 
   const name = peer?.name ?? "";
+  const first = name.split(" ")[0] || "They";
+  const verifiedKey = useMessenger((s) =>
+    peer?.userId ? s.verified[peer.userId] : undefined,
+  );
+  const currentKey = useMessenger((s) =>
+    peer?.userId ? s.keyIds[peer.userId] : undefined,
+  );
+  // Checked before, and their key has changed since (Step 174.6): nothing
+  // more goes to them until it's checked again.
+  const codeChanged = !!verifiedKey && !!currentKey && verifiedKey !== currentKey;
   return (
     <>
       <PanelHeader
@@ -429,6 +475,9 @@ function ThreadView({ id, onClose }: { id: string; onClose: () => void }) {
             <>
               <Face name={name} photoUrl={peer.photoUrl} photoCrop={peer.photoCrop} className="size-8" />
               <h2 className="truncate text-base font-semibold">{name}</h2>
+              {verifiedKey && !codeChanged ? (
+                <ShieldCheck className="size-4 shrink-0 text-muted-foreground" aria-label="Verified" />
+              ) : null}
             </>
           ) : (
             <Skeleton className="h-6 w-32" />
@@ -436,7 +485,33 @@ function ThreadView({ id, onClose }: { id: string; onClose: () => void }) {
         }
         back={{ kind: "list" }}
         onClose={onClose}
-      />
+      >
+        {peer?.keyVersion != null ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => messenger.show({ kind: "verify", id })}
+            aria-label={`Verify ${name}`}
+            title={`Verify ${name}`}
+            className="relative tap-target"
+          >
+            <LockKeyhole aria-hidden />
+          </Button>
+        ) : null}
+      </PanelHeader>
+      {codeChanged ? (
+        <p className="shrink-0 border-b bg-attention/20 px-4 py-2 text-xs">
+          {first}&rsquo;s security code changed.{" "}
+          <button
+            type="button"
+            onClick={() => messenger.show({ kind: "verify", id })}
+            className="font-medium underline underline-offset-4"
+          >
+            Verify again
+          </button>
+        </p>
+      ) : null}
       <div
         ref={scroller}
         onScroll={(e) => {
@@ -471,7 +546,14 @@ function ThreadView({ id, onClose }: { id: string; onClose: () => void }) {
         ) : (
           <ol role="log" aria-live="polite" aria-label={`Messages with ${name}`} className="flex flex-col">
             {messages.map((m, i) => (
-              <MessageItem key={m.id} message={m} previous={messages[i - 1]} mine={m.senderId === me} />
+              <MessageItem
+                key={m.id}
+                message={m}
+                previous={messages[i - 1]}
+                lastFromThem={lastFrom(messages, i, m.senderId)}
+                mine={m.senderId === me}
+                name={first}
+              />
             ))}
           </ol>
         )}
@@ -480,6 +562,14 @@ function ThreadView({ id, onClose }: { id: string; onClose: () => void }) {
         <p className="shrink-0 border-t px-4 py-3 text-center text-sm text-muted-foreground">
           You no longer share a tree.
         </p>
+      ) : peer && peer.keyVersion == null ? (
+        <p className="shrink-0 border-t px-4 py-3 text-center text-sm text-muted-foreground">
+          {first} can get messages once they next visit ancestree.
+        </p>
+      ) : codeChanged ? (
+        <p className="shrink-0 border-t px-4 py-3 text-center text-sm text-muted-foreground">
+          Verify {first}&rsquo;s new security code to keep writing.
+        </p>
       ) : (
         <Composer id={id} error={sendError} disabled={!peer} />
       )}
@@ -487,16 +577,37 @@ function ThreadView({ id, onClose }: { id: string; onClose: () => void }) {
   );
 }
 
+/** The message before `index` from the same sender, if any. */
+function lastFrom(
+  messages: readonly ChatMessage[],
+  index: number,
+  senderId: string,
+): ChatMessage | undefined {
+  for (let i = index - 1; i >= 0; i--) {
+    if (messages[i].senderId === senderId) return messages[i];
+  }
+  return undefined;
+}
+
 function MessageItem({
   message: m,
   previous,
+  lastFromThem,
   mine,
+  name,
 }: {
   message: ChatMessage;
   previous: ChatMessage | undefined;
+  /** Their message before this one, to tell when their key changed. */
+  lastFromThem: ChatMessage | undefined;
   mine: boolean;
+  name: string;
 }) {
   const dayBreak = newDay(previous?.createdAt, m.createdAt);
+  const keyChanged =
+    !mine &&
+    !!lastFromThem &&
+    lastFromThem.senderKeyVersion !== m.senderKeyVersion;
   const run =
     !dayBreak &&
     previous?.senderId === m.senderId &&
@@ -508,6 +619,11 @@ function MessageItem({
           {dayLabel(m.createdAt)}
         </span>
       ) : null}
+      {keyChanged ? (
+        <span className="my-2 self-center text-xs text-muted-foreground">
+          {name}&rsquo;s security code changed.
+        </span>
+      ) : null}
       <span
         title={m.pending ? "Sending…" : clockTime(m.createdAt)}
         className={cn(
@@ -516,9 +632,10 @@ function MessageItem({
             ? "self-end bg-primary text-primary-foreground"
             : "self-start bg-muted text-foreground",
           m.pending && "opacity-60",
+          m.status && "italic opacity-70",
         )}
       >
-        {m.body}
+        {m.status ? unreadText(m.status) : m.body}
       </span>
     </li>
   );
@@ -708,6 +825,379 @@ function InviteView({
           </>
         )}
       </div>
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Keys on this device (Step 174.6)
+// ---------------------------------------------------------------------------
+
+function Notice({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-y-auto px-6 py-8 text-center">
+      {children}
+    </div>
+  );
+}
+
+/**
+ * This member's key lives on another device, or changed there: link this
+ * one from it, open it with the recovery phrase, or start over.
+ */
+function LockedView({ onClose }: { onClose: () => void }) {
+  const backup = useMessenger((s) => s.backupVersion != null && s.backupVersion === s.keyVersion);
+  const [mode, setMode] = React.useState<"choose" | "phrase" | "start-over">("choose");
+  const [phrase, setPhrase] = React.useState("");
+  const [error, setError] = React.useState<string | null>(null);
+  const [busy, setBusy] = React.useState(false);
+
+  async function run(task: () => Promise<string | null>) {
+    setBusy(true);
+    setError(null);
+    const problem = await task();
+    setBusy(false);
+    if (problem) setError(problem);
+  }
+
+  return (
+    <>
+      <PanelHeader
+        title={<h2 className="text-base font-semibold">Messages</h2>}
+        onClose={onClose}
+      />
+      <Notice>
+        <LockKeyhole className="size-6 text-muted-foreground" aria-hidden />
+        <p className="text-sm font-medium">Your messages are locked on this device.</p>
+        {mode === "choose" ? (
+          <>
+            <p className="text-sm text-muted-foreground">
+              On a device you&rsquo;ve used before, open messages, choose the lock, then
+              link a device.
+            </p>
+            {backup ? (
+              <Button type="button" variant="outline" onClick={() => setMode("phrase")}>
+                use recovery phrase
+              </Button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => setMode("start-over")}
+              className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
+            >
+              Lost every device? Start over
+            </button>
+          </>
+        ) : mode === "phrase" ? (
+          <form
+            className="flex w-full flex-col gap-2 text-left"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void run(() => messenger.useRecoveryPhrase(phrase));
+            }}
+          >
+            <label htmlFor="messenger-phrase" className="text-sm text-muted-foreground">
+              Your 12 words
+            </label>
+            <textarea
+              id="messenger-phrase"
+              value={phrase}
+              onChange={(e) => setPhrase(e.target.value)}
+              rows={3}
+              autoComplete="off"
+              autoCapitalize="none"
+              spellCheck={false}
+              autoFocus
+              className="resize-none rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm"
+            />
+            <PendingButton type="submit" pending={busy} pendingLabel="unlocking…" disabled={busy}>
+              unlock
+            </PendingButton>
+            <Button type="button" variant="ghost" onClick={() => setMode("choose")}>
+              back
+            </Button>
+          </form>
+        ) : (
+          <div className="flex flex-col gap-2">
+            <p className="text-sm text-muted-foreground">
+              Start over? Earlier messages can&rsquo;t be read here, and your family will
+              see your security code changed.
+            </p>
+            <PendingButton
+              type="button"
+              variant="destructive"
+              pending={busy}
+              pendingLabel="starting over…"
+              disabled={busy}
+              onClick={() => void run(messenger.startOver)}
+            >
+              start over
+            </PendingButton>
+            <Button type="button" variant="ghost" onClick={() => setMode("choose")}>
+              cancel
+            </Button>
+          </div>
+        )}
+        {error ? (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        ) : null}
+      </Notice>
+    </>
+  );
+}
+
+function UnavailableView({ onClose }: { onClose: () => void }) {
+  return (
+    <>
+      <PanelHeader
+        title={<h2 className="text-base font-semibold">Messages</h2>}
+        onClose={onClose}
+      />
+      <Notice>
+        <p className="text-sm text-muted-foreground">
+          This browser can&rsquo;t keep your messages private. Try another browser, or a
+          window that isn&rsquo;t private.
+        </p>
+      </Notice>
+    </>
+  );
+}
+
+/** A QR code, drawn as one path. */
+function QrCode({ text, label }: { text: string; label: string }) {
+  const { size, data } = React.useMemo(() => encodeQr(text, { ecc: "M", border: 2 }), [text]);
+  const d = data
+    .flatMap((row, y) => row.map((on, x) => (on ? `M${x} ${y}h1v1h-1z` : "")))
+    .join("");
+  return (
+    <svg
+      viewBox={`0 0 ${size} ${size}`}
+      role="img"
+      aria-label={label}
+      className="size-48 rounded-md bg-white"
+      shapeRendering="crispEdges"
+    >
+      <path d={d} fill="#000" />
+    </svg>
+  );
+}
+
+/** Linking another device, and the recovery phrase. */
+function SecurityView({ onClose }: { onClose: () => void }) {
+  const backup = useMessenger((s) => s.backupVersion != null && s.backupVersion === s.keyVersion);
+  const [link, setLink] = React.useState<string | null>(null);
+  const [phrase, setPhrase] = React.useState<string | null>(null);
+  const [busy, setBusy] = React.useState<"link" | "phrase" | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
+
+  async function makeLink() {
+    setBusy("link");
+    setError(null);
+    const made = await messenger.makeDeviceLink();
+    setBusy(null);
+    if (made) setLink(made);
+    else setError("Couldn't make a link. Try again.");
+  }
+
+  async function makePhrase() {
+    setBusy("phrase");
+    setError(null);
+    const made = await messenger.makeRecoveryPhrase();
+    setBusy(null);
+    if (made) setPhrase(made);
+    else setError("Couldn't set a recovery phrase. Try again.");
+  }
+
+  return (
+    <>
+      <PanelHeader
+        title={<h2 className="text-base font-semibold">Message Security</h2>}
+        back={{ kind: "list" }}
+        onClose={onClose}
+      />
+      <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto p-4 text-sm">
+        <p className="text-muted-foreground">
+          Your messages are locked to your devices. Ancestree can&rsquo;t read them.
+        </p>
+
+        <section className="flex flex-col gap-2">
+          <h3 className="font-medium">Link a Device</h3>
+          {link ? (
+            <div className="flex flex-col items-center gap-3 text-center">
+              <QrCode text={link} label="Code to link a device" />
+              <p className="text-muted-foreground">
+                Scan with your other device&rsquo;s camera, or open the link there. It
+                works once, for 10 minutes.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => void copyText(link, { copied: "Link copied" })}
+              >
+                <Copy aria-hidden />
+                copy link
+              </Button>
+            </div>
+          ) : (
+            <>
+              <p className="text-muted-foreground">Read your messages on another device too.</p>
+              <PendingButton
+                type="button"
+                variant="outline"
+                className="self-start"
+                pending={busy === "link"}
+                pendingLabel="making…"
+                disabled={!!busy}
+                onClick={() => void makeLink()}
+              >
+                link a device
+              </PendingButton>
+            </>
+          )}
+        </section>
+
+        <section className="flex flex-col gap-2">
+          <h3 className="font-medium">Recovery Phrase</h3>
+          {phrase ? (
+            <div className="flex flex-col gap-3">
+              <ol className="grid grid-cols-3 gap-x-3 gap-y-1.5 rounded-lg border p-3 font-mono text-xs">
+                {phrase.split(" ").map((word, i) => (
+                  <li key={i}>
+                    <span className="text-muted-foreground">{i + 1}.</span> {word}
+                  </li>
+                ))}
+              </ol>
+              <p className="text-muted-foreground">
+                Write these down and keep them safe. Anyone with them can read your
+                messages.
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void copyText(phrase, { copied: "Copied" })}
+                >
+                  <Copy aria-hidden />
+                  copy
+                </Button>
+                <Button type="button" size="sm" onClick={() => setPhrase(null)}>
+                  <Check aria-hidden />
+                  done
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <p className="text-muted-foreground">
+                {backup
+                  ? "Set. A new phrase replaces it."
+                  : "Lose every device and 12 words still unlock your messages."}
+              </p>
+              <PendingButton
+                type="button"
+                variant="outline"
+                className="self-start"
+                pending={busy === "phrase"}
+                pendingLabel="making…"
+                disabled={!!busy}
+                onClick={() => void makePhrase()}
+              >
+                {backup ? "make a new phrase" : "set a recovery phrase"}
+              </PendingButton>
+            </>
+          )}
+        </section>
+
+        {error ? (
+          <p role="alert" className="text-destructive">
+            {error}
+          </p>
+        ) : null}
+      </div>
+    </>
+  );
+}
+
+/** A conversation's safety code, to compare with the other member. */
+function VerifyView({ id, onClose }: { id: string; onClose: () => void }) {
+  const peer = usePeer(id);
+  const otherId = peer?.userId ?? null;
+  const verified = useMessenger((s) => (otherId ? s.verified[otherId] : undefined));
+  const [code, setCode] = React.useState<{ code: string[]; key: string } | null | "none">(null);
+
+  React.useEffect(() => {
+    if (!otherId) return;
+    let live = true;
+    void messenger.codeFor(otherId).then((c) => {
+      if (live) setCode(c ?? "none");
+    });
+    return () => {
+      live = false;
+    };
+  }, [otherId]);
+
+  const name = peer?.name ?? "";
+  const first = name.split(" ")[0] || "them";
+  const isVerified = code && code !== "none" && verified === code.key;
+  return (
+    <>
+      <PanelHeader
+        title={<h2 className="truncate text-base font-semibold">Verify {name}</h2>}
+        back={{ kind: "thread", id }}
+        onClose={onClose}
+      />
+      <Notice>
+        {code === null ? (
+          <Skeleton className="h-24 w-56" />
+        ) : code === "none" ? (
+          <p className="text-sm text-muted-foreground">
+            {first} can get messages once they next visit ancestree.
+          </p>
+        ) : (
+          <>
+            <p className="text-sm text-muted-foreground">
+              Compare these numbers with {first}, in person or on a call. If they match,
+              your messages reach only {first}.
+            </p>
+            <ol
+              aria-label="Safety code"
+              className="grid grid-cols-4 gap-x-4 gap-y-2 font-mono text-base tabular-nums"
+            >
+              {code.code.map((group, i) => (
+                <li key={i}>{group}</li>
+              ))}
+            </ol>
+            {isVerified ? (
+              <div className="flex flex-col items-center gap-1">
+                <p className="flex items-center gap-1.5 text-sm font-medium">
+                  <ShieldCheck className="size-4" aria-hidden />
+                  Verified
+                </p>
+                <button
+                  type="button"
+                  onClick={() => otherId && void messenger.setVerified(otherId, null)}
+                  className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
+                >
+                  Clear
+                </button>
+              </div>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => otherId && void messenger.setVerified(otherId, code.key)}
+              >
+                <ShieldCheck aria-hidden />
+                they match
+              </Button>
+            )}
+          </>
+        )}
+      </Notice>
     </>
   );
 }

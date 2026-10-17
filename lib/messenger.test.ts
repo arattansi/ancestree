@@ -8,8 +8,8 @@ import {
   mergeMessages,
   messengerShownOn,
   newDay,
-  parseInboxMessage,
   parseReadEvent,
+  parseWireMessage,
   sendErrorText,
   shortWhen,
   totalUnread,
@@ -32,6 +32,8 @@ function convo(over: Partial<ConversationSummary> = {}): ConversationSummary {
     personId: null,
     photoUrl: null,
     photoCrop: null,
+    otherKeyVersion: 1,
+    last: null,
     lastBody: "hi",
     lastSenderId: NADIA,
     lastAt: "2026-10-16T10:00:00.000Z",
@@ -49,6 +51,7 @@ function msg(over: Partial<ChatMessage> = {}): ChatMessage {
     senderId: NADIA,
     body: "are you coming?",
     createdAt: "2026-10-16T11:00:00.000Z",
+    senderKeyVersion: 1,
     ...over,
   };
 }
@@ -61,27 +64,34 @@ describe("trimMessage", () => {
 });
 
 describe("parsing the inbox", () => {
-  it("reads a message broadcast", () => {
-    expect(
-      parseInboxMessage({
-        id: "m1",
-        conversation_id: "c1",
-        sender_id: NADIA,
-        body: "hi",
-        created_at: "2026-10-16T10:00:00Z",
-      }),
-    ).toEqual({
-      id: "m1",
-      conversationId: "c1",
-      senderId: NADIA,
-      body: "hi",
-      createdAt: "2026-10-16T10:00:00Z",
+  const wire = {
+    id: "m1",
+    conversation_id: "c1",
+    sender_id: NADIA,
+    created_at: "2026-10-16T10:00:00Z",
+    ciphertext: "AAAA",
+    nonce: "BBBB",
+    signature: "CCCC",
+    sender_key_version: 2,
+    key_version: 1,
+    sealed_key: "DDDD",
+  };
+
+  it("reads a message broadcast, ciphertext and all", () => {
+    expect(parseWireMessage(wire)).toEqual(wire);
+    expect(parseWireMessage({ ...wire, key_version: null, sealed_key: null })).toMatchObject({
+      key_version: null,
+      sealed_key: null,
     });
   });
 
-  it("refuses anything else", () => {
-    expect(parseInboxMessage(null)).toBeNull();
-    expect(parseInboxMessage({ id: "m1" })).toBeNull();
+  it("refuses anything else, plain text included", () => {
+    expect(parseWireMessage(null)).toBeNull();
+    expect(parseWireMessage({ id: "m1" })).toBeNull();
+    expect(
+      parseWireMessage({ id: "m1", conversation_id: "c1", sender_id: NADIA, body: "hi", created_at: "x" }),
+    ).toBeNull();
+    expect(parseWireMessage({ ...wire, sender_key_version: 0 })).toBeNull();
     expect(parseReadEvent({ conversation_id: "c1" })).toBeNull();
     expect(
       parseReadEvent({ conversation_id: "c1", last_read_at: "2026-10-16T10:00:00Z" }),
@@ -150,8 +160,8 @@ describe("withRead", () => {
 
 describe("filterContacts", () => {
   const contacts: MessengerContact[] = [
-    { userId: "a", name: "Nadia Haddad", personId: null, photoUrl: null, photoCrop: null, trees: ["The Haddad Family"] },
-    { userId: "b", name: "Omar Khan", personId: null, photoUrl: null, photoCrop: null, trees: ["Khan"] },
+    { userId: "a", name: "Nadia Haddad", personId: null, photoUrl: null, photoCrop: null, trees: ["The Haddad Family"], keyVersion: 1 },
+    { userId: "b", name: "Omar Khan", personId: null, photoUrl: null, photoCrop: null, trees: ["Khan"], keyVersion: null },
   ];
 
   it("matches every word, in a name or a shared tree", () => {

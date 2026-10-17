@@ -163,6 +163,39 @@ export default function PrivacyPage() {
         </ul>
       </Section>
 
+      {/* Step 174.6. Says what the design does; "end-to-end encrypted"
+          waits for an outside review (the messaging scope, §3.5). */}
+      <Section title="Messages">
+        <ul className="list-disc space-y-1 pl-5">
+          <li>
+            You can message anyone on a tree you&rsquo;re on, while you share
+            one.
+          </li>
+          <li>
+            Each message is encrypted on your device before it&rsquo;s sent,
+            with keys only the people in the conversation hold. ancestree
+            stores and passes on the encrypted message and can&rsquo;t read
+            it, and neither can the site&rsquo;s owners.
+          </li>
+          <li>
+            What ancestree does see: who wrote to whom, when, how long each
+            message is, and when it was read, to deliver messages and show
+            what&rsquo;s unread.
+          </li>
+          <li>
+            Your key stays on your devices. Another device of yours gets it
+            when you link it from one you&rsquo;ve used, or with a 12-word
+            recovery phrase if you set one; that backup is kept encrypted and
+            only the phrase opens it. Lose every device without the phrase and
+            earlier messages can&rsquo;t be recovered, by you or by us.
+          </li>
+          <li>
+            Deleting your account deletes your conversations, every message
+            in them, and your keys.
+          </li>
+        </ul>
+      </Section>
+
       <Section title="Children under 18">
         <ul className="list-disc space-y-1 pl-5">
           <li>

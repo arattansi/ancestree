@@ -251,7 +251,13 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   (`lib/messenger.server.ts`: conversations and contacts, faces signed for
   the reader) and joins the member's private Realtime inbox
   (`inbox:<user id>`); threads, sends and reads go to the database
-  directly. `lib/messenger.ts` holds the pure parts (`.test.ts`). Groups
+  directly. `lib/messenger.ts` holds the pure parts (`.test.ts`).
+  End to end since 174.6: `lib/e2e/crypto.ts` encrypts, seals, signs,
+  makes safety codes and wraps keyrings (`.test.ts`, with known answers);
+  `keystore.ts` keeps the member's keyring in IndexedDB; the store reads
+  every message on the device and offers Message Security (link a
+  device, recovery phrase), the locked state and each thread's safety
+  code; `app/messages/link` takes a link made on another device. Groups
   and channels are scoped in Notion ("Ancestree × Messaging — Product
   Scope", under Product), not built
 - `components/tree/` — `family-tree.tsx` React Flow canvas (generation lanes
@@ -739,7 +745,11 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `notifications`          | In-app notices, **one inbox per tree** (`tree_id`, Step 25; `placement_requested` \| `placement_accepted` \| `placement_declined` added; `placements_requested`, one for a batch of entries someone may edit, Step 80; `placements_lapsed`, to the Root whose ask nobody answered in 30 days, Step 83; `tree_request_approved`, Step 28; `placed_on_join`, Step 30.9, and what a claim invite did, Step 41.3; `joined_by_link`, Step 52; `story_to_approve`, `story_approved`, `story_declined`, Step 88.3; `story_commented`, Step 88.4); recipient-scoped RLS                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `conversations`          | The messenger's conversations (Step 174): `kind` (`direct` only; groups and channels are scoped, not built), `direct_key` (the two members' ids, lower first: one conversation a pair), `created_by`, `last_message_at`. Read by its members (`private.in_conversation`); written only by `open_direct_conversation` (while the two share a tree) and `send_message`. A direct conversation goes, every message in it, with either member's account (`private.direct_conversation_member_gone`) |
 | `conversation_members`   | Who is in a conversation and how far they've read (`last_read_at`, set by `mark_conversation_read` up to the newest message the reader saw, never past now, and by `send_message` for the sender). Read by the conversation's members; no direct writes |
-| `messages`               | What was said (Step 174): `sender_id`, `body` (1–4,000 characters, trimmed), `created_at`. Read by the conversation's members; written only by `send_message`, which refuses once the two share no tree and past 30 a minute. Each new one goes to every member's private Realtime inbox, `inbox:<user id>` (`private.message_to_inboxes`, `realtime.send`); a policy on `realtime.messages` lets each member hear only their own. Listed by `my_conversations` (the other side's name, their face where the reader may see their entry, the last message, unread, `can_send`) and `message_contacts` (everyone the reader can write to, with the trees they share) |
+| `messages`               | What was said (Step 174), **end to end** since 174.6: `sender_id`, `ciphertext` (XChaCha20-Poly1305; 1–4,000 characters before, checked on the device), `nonce`, `signature` (Ed25519, the sender's key at `sender_key_version`), `format`, `created_at`; no text column. Written only by `send_message`, which refuses once the two share no tree, past 30 a minute, and unless every member got a sealed key at their current version; read only through `thread_messages` and `my_conversations` (base64, with the reader's own sealed key). Each `message_keys` row goes to its member's private Realtime inbox, `inbox:<user id>` (`private.message_key_to_inbox`, `realtime.send`); a policy on `realtime.messages` lets each member hear only their own. Listed by `my_conversations` (the other side's name, their face where the reader may see their entry, their key version, the last message encrypted, unread, `can_send`) and `message_contacts` (everyone the reader can write to, the trees they share, their key version) |
+| `message_keys`           | A message's key sealed to one member (Step 174.6): `(message_id, user_id)`, `key_version`, `sealed_key` (104 bytes: an ephemeral X25519 key, a nonce, the key and its tag). Written by `send_message`; read only by its member, through `thread_messages` / `my_conversations` |
+| `messaging_keys`         | Members' published messaging keys (Step 174.6): `(user_id, version)`, `box_public` (X25519), `sign_public` (Ed25519). One key a member on all their devices; a new version only by `publish_messaging_key(…, p_reset)` (start over: at most five a day; drops the backup). Read through `messaging_keys_of` by whoever is on a tree or in a conversation with them, and `conversation_keys` |
+| `messaging_key_transfers` | A member's keyring on its way to their new device (Step 174.6): encrypted under a one-time key that travels only in the link's fragment; `put_key_transfer` (three waiting at most), `take_key_transfer` (owner only, once, within ten minutes) |
+| `messaging_key_backups`  | A member's keyring under their recovery phrase (Step 174.6): one row, `key_version`, the encrypted `blob`; `put_key_backup` (only at the current version), `get_key_backup` (owner only) |
 | `stories`                | Stories about a person (Step 88.3, in place of the per-tree comments board): `title`, `body` and/or a recording (`audio_path` in the private `stories` bucket, `<person id>/<uuid>.<ext>`; `audio_seconds`), `pending` \| `approved` \| `declined`, `decided_by`, the tree it was told on (`tree_id`, where its teller hears back). Approved: read by members of every tree showing the person in full. Pending: its teller, and whoever approves it: the person themself once the entry is claimed or is their own and they're living (`private.story_owner`), else whoever `can_edit_person`. Declined: its teller alone. Told only through `add_story` (approved at once when the teller may approve it), answered through `decide_story`; deleted by its teller or whoever may edit the entry; read by the sheet through `entry_stories` (runs as the viewer, names each teller; since Step 88.4 also its comment count, whether a link to it works, whether the viewer may share it or turn its links off, and their own link). `links_off` (Step 88.4): its links were turned off. `body` is Markdown (Step 99; the text as written, drawn as Markdown wherever it shows; Step 113 took out the Write / Preview and file upload, so new stories are plain text in practice), up to 200,000 characters (Step 113; 20,000 before). `told_on` / `told_on_precision` (Step 99): when it was told, as much as is known, kept as a person's dates are. `created_by` is set null when their account goes |
 | `story_links`            | Public links to approved stories (Step 88.4): one working link per sharer per story (`token`, 24 URL-safe characters; `created_by`, whom the page names; `revoked_at` / `revoked_by`). A link works while the story is approved and its links aren't off (`stories.links_off`), the person isn't `hidden_from_visitors`, and its sharer is still on a tree that shows them in full (`private.story_link_live`). Made only by `share_story` (anyone who can see the story; once its links were turned off, only its person, an editor of the entry or its teller, which turns them on again), turned off by `stop_sharing_story` (every link at once; those three). A member reads only their own; the public page reads with the service role (`shared_story`) |
 | `story_credits`          | Who a story is credited to (Step 99): `(story_id, person_id, role)` with `role` `storyteller` \| `interviewer`, up to ten people each, one person may hold both. People placed in full on the tree the story is told on; set once, by `add_story` (`p_storytellers`, `p_interviewers`), with no yes of their own (the approver sees them with the story). Read by whoever reads the story (RLS follows `stories`); the sheet's `entry_stories` and the public page's `shared_story` return them as `credits`. Changed afterwards, with the date told, by `edit_story` (Steps 99.5–99.7: teller, entry editors, or the person it's about; the words by the teller alone, back to waiting unless they may approve). Cascade with the story or the person; a claim or an invited-entry merge moves a placeholder's credits across (`claim_person`, `private.merge_invited_entry`) |
@@ -1908,7 +1918,9 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 ## Changelog
 
 - **Step 174: the minimap beside the zoom buttons, and a messenger for
-  direct messages** (migration `20261016150000_direct_messages`).
+  direct messages, end to end** (migrations
+  `20261016150000_direct_messages`, `20261016160000_messages_end_to_end`,
+  `20261016170000_messages_end_to_end_hardening`).
   **Aalim asked** (2026-10-16): "move the navigation map to the left side
   of the window with the zoom options. build a messenger that works just
   for DM-ing but include a product scope for adding channel-based or
@@ -1959,6 +1971,61 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   invite them is told "Ask whoever runs {tree} to invite them." On My
   Family Tree, which offers no claim invites itself, who may invite is
   worked out on the card's own tree (`chatInvite` in `family-tree.tsx`).
+  **174.6** Aalim: "Hold the push. Build end-to-end encryption for direct
+  messages now, as scoped in §3.5, before Step 174 goes to production."
+  Only the people in a conversation can read it: the database, its
+  backups and Realtime hold ciphertext (`lib/e2e/crypto.ts`: X25519 sealed
+  boxes with HKDF-SHA256, XChaCha20-Poly1305 bound to the conversation,
+  message and sender, Ed25519 signatures, `@noble/*` and `@scure/bip39`
+  at exact versions; known-answer tests pin the format). Each member has
+  **one messaging key on all their devices** (versioned, published in
+  `messaging_keys`), not one a device as first scoped, so a linked device
+  or a restored phrase reads the whole history and a safety code changes
+  only on a start-over. The first device to open the messenger makes it
+  (`setUpKeys`, one tab at a time by Web Lock); any other device is
+  **locked** ("Your messages are locked on this device.") until it's
+  **linked** (Message Security, the lock in the list: **link a device**
+  shows a QR code and a link to `/messages/link#<id>.<key>`, the keyring
+  encrypted under a one-time key that only the fragment carries, kept ten
+  minutes and read once; a signed-out phone keeps it through sign-in), or
+  opened with the **recovery phrase** (12 words, shown once; the keyring
+  backed up under a key made from them), or **starts over** (a new
+  version; earlier messages stay locked; the backup goes). `send_message`
+  takes the ciphertext, the signature and a sealed key for every member at
+  their current version (`KEYS_CHANGED` makes the device read the keys
+  again); `thread_messages` and `my_conversations` hand back ciphertext
+  with the reader's own sealed key; the inbox trigger moved to
+  `message_keys`, so each inbox gets its own. Someone without a key yet
+  can't be written to: "Bilal can get messages once they next visit
+  ancestree." A message that can't be read says why ("Locked on this
+  device", "This message couldn't be verified"). Each thread's lock opens
+  its **safety code** (60 digits, Signal's iterated hashing), **they
+  match** marks it verified on that device, and a verified member's
+  change shows "Nadia's security code changed. Verify again" and a line in
+  the thread. `/privacy` gains a **Messages** section, in plain words; the
+  words "end-to-end encrypted" wait for an outside review of
+  `lib/e2e/` (the scope's rule). **An independent review** (a fresh agent,
+  not the outside one) found the primitives sound but the client trusting
+  whatever keys the server served; fixed before landing: each device
+  **pins** every member's key the first time it sees it (`lib/e2e/pins.ts`)
+  and refuses another key under a known version ("Couldn't check their
+  security code, so it wasn't sent.", their messages "couldn't be
+  verified"); it seals to, signs with and builds safety codes from its
+  own key, never the server's copy; "they match" records the key itself,
+  and a verified relative whose key changes can't be written to until
+  verified again; in a direct thread only its two members' messages
+  read; the signature commits to the message's key, so a sender can't
+  show two members different words; signatures are checked strictly (no
+  small-order keys); text is padded to 256-byte steps (`..._hardening`
+  checks the size); a new key is kept before it's published, so a lost
+  reply can't orphan it, and a link or backup never overwrites a key the
+  device holds; `/messages/link`'s first script moves the key out of the
+  address bar before Google Analytics or anything else loads; expired
+  links go, anyone's, whenever one is made or taken; a backup can't race
+  a reset. My calls there: one key a member (above);
+  no forward secrecy yet (sealed boxes, as scoped; a stolen key opens what
+  was sealed to it); keys in IndexedDB, so script on the page could reach
+  them, as in any web messenger; at most five key resets a day.
   **My calls:** the messenger sits on `/tree`,
   `/family`, `/account`, `/admin` and `/trees` only, not the marketing
   pages, the library, sign-in or forms; a conversation shows the other
@@ -1979,7 +2046,21 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   open thread; 174.5 with a Root, a Leaf, an unclaimed living relative and
   a deceased one: no **message** on the deceased, a thread for the
   member, the invite sent from the window on My Family Tree, listed with
-  **send another invite** on the tree's page, and the Leaf told to ask; **message** on B's sheet opened the thread 16px left of the
+  **send another invite** on the tree's page, and the Leaf told to ask;
+  174.6 rehearsed (keys, every `send_message` refusal, transfers read
+  once and expiring, backups, account deletion) and applied with its md5
+  checked, then Amira on four browsers and Bilal on one: no sending
+  before Bilal had a key; sent, read live, replied; the stored message and
+  all six inbox broadcasts held no plain text; both safety codes matched;
+  a second device locked, linked by the link, read the history, and the
+  link refused a second use; a wrong phrase refused and the right one (in
+  capitals) unlocked a third; a fourth started over, Bilal saw the code
+  change, couldn't write until he verified again, then could, and the
+  first device locked; with Bilal's key swapped in the database, Amira's
+  device marked his message "couldn't be verified" and refused to send,
+  and read it again once restored; a signed-out phone kept the link
+  through sign-in, and none of the six analytics requests carried its
+  key; **message** on B's sheet opened the thread 16px left of the
   sheet; a phone (390×844) showed the pop-up full screen and the canvas
   tip 8px clear of the launcher; 768 and 1024 wide, the tip clear of both
   the minimap and the launcher; dark mode; no launcher on `/`; no console
