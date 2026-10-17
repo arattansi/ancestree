@@ -92,7 +92,16 @@ The first build on a new iPhone:
    npx expo start --dev-client
    ```
 
-Another phone is `npx eas-cli device:create`, and then a new development
+If the profile won't download on the phone (it stalled on Aalim's iPhone),
+register it by its device ID instead: plug the phone into the Mac, tap
+**Trust**, read its ID (the "(UDID)" one) from
+
+```bash
+xcrun devicectl list devices
+```
+
+then run `npx eas-cli device:create`, choose **Input** and paste it.
+That's also how another phone gets added, followed by a new development
 build, because each build lists the phones it may run on.
 
 ## Run it on your iPhone (no developer account needed)

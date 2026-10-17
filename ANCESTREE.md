@@ -1899,8 +1899,13 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   can't reach the Mac's `localhost`; `eas env:pull` writes a worktree's
   `.env.local`. Checked by a simulator build with the dev client, which
   opens under the scene life cycle (Step 149) and loads the app from
-  Metro. Signing in to Apple and registering the phone are Aalim's, in
-  the first `eas build`; `mobile/README.md` walks through it. **My
+  Metro, then by Aalim on his iPhone: the EAS development build installs,
+  loads from the Mac, and the scribe listens and shows his words. He
+  signed in to Apple in the first `eas build` (distribution certificate
+  and ad hoc profile kept on EAS). Expo's register-a-device profile
+  stalled downloading on his iPhone, so the phone was registered by its
+  device ID over USB (`xcrun devicectl list devices`, then `eas
+  device:create` → Input); `mobile/README.md` walks through both. **My
   calls:** `eas init` copied the speech plugin's Info.plist text and
   Android permission into `app.json`; they're left to the plugin, as
   before.
