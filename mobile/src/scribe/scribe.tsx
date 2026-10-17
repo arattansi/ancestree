@@ -10,7 +10,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { personDisplayName, personHasDied } from "@/lib/person-name";
 import { scribeBody, scribeBodyFits } from "@/lib/scribe";
@@ -18,6 +18,7 @@ import { factsDone, factWrites, type RelativeProposal } from "@/lib/scribe-facts
 import { relativesDone } from "@/lib/scribe-relatives";
 import { relativesOf } from "@/family/family";
 import type { Family, FamilyPerson } from "@/family/load";
+import { detailsChanged } from "@/person/sheet";
 import { FactsReview, type FactsState } from "@/scribe/facts-review";
 import { PersonChooser } from "@/scribe/person-chooser";
 import { tonguesHeard, type Tongue } from "@/scribe/speech";
@@ -126,6 +127,7 @@ export function Scribe({
   onClose: (changed?: boolean) => void;
 }) {
   const palette = usePalette();
+  const insets = useSafeAreaInsets();
   /**
    * Who it's about (Step 179.6): the leaf it was opened on, until the
    * member says otherwise above the microphone or once it's written up.
@@ -394,6 +396,7 @@ export function Scribe({
       changed.current =
         made.some((m) => !m.error && m.way !== "suggest") ||
         added.some((a) => !a.error);
+      detailsChanged();
       setStep({
         at: "saved",
         status: saved.status,
@@ -442,8 +445,17 @@ export function Scribe({
   const summary = [ownTitle.trim(), `About ${name}`].filter(Boolean).join(" · ");
 
   return (
-    <SafeAreaView
-      style={[styles.safe, { backgroundColor: palette.background }]}
+    // The window's own insets: a full-screen modal on iOS 27 measures its
+    // safe area as none, and the header ran under the status bar (179.6).
+    <View
+      style={[
+        styles.safe,
+        {
+          backgroundColor: palette.background,
+          paddingTop: insets.top,
+          paddingBottom: insets.bottom,
+        },
+      ]}
     >
       <View style={styles.header}>
         <Pressable
@@ -730,7 +742,7 @@ export function Scribe({
           <Button label="done" onPress={() => onClose(changed.current)} />
         </View>
       ) : null}
-    </SafeAreaView>
+    </View>
   );
 }
 

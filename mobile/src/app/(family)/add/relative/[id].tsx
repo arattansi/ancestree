@@ -7,6 +7,7 @@ import type { RelativeProposal } from "@/lib/scribe-facts";
 import type { RelativeMade } from "@/lib/scribe-relatives";
 import { useFamily } from "@/family/family";
 import type { Family, FamilyPerson } from "@/family/load";
+import { detailsChanged } from "@/person/sheet";
 import { RelativeCard } from "@/scribe/relative-card";
 import { useRelatives } from "@/scribe/use-relatives";
 import { font, GUTTER, usePalette } from "@/theme";
@@ -122,7 +123,10 @@ function Form({
       const [one] = await addTicked();
       if (!one) setError("Answer the questions above first.");
       else if (one.error) setError(one.error);
-      else onMade(one);
+      else {
+        detailsChanged();
+        onMade(one);
+      }
     } finally {
       setAdding(false);
     }

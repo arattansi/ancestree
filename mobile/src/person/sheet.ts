@@ -53,10 +53,31 @@ type SheetState =
  * sheet reads them (`loadPersonSheet`), from `/api/mobile/person-sheet` as
  * the member (Step 179.5). Read when the person opens, again on `reload`.
  */
+/**
+ * Bumped whenever the member adds something someone's details show (a
+ * photo, a story, a relative): open details read themselves again.
+ */
+let changes = 0;
+const listeners = new Set<() => void>();
+
+/** Something was added that details show: read them again where they're open. */
+export function detailsChanged() {
+  changes += 1;
+  for (const l of listeners) l();
+}
+
+function subscribe(onChange: () => void) {
+  listeners.add(onChange);
+  return () => {
+    listeners.delete(onChange);
+  };
+}
+
 export function usePersonSheet(personId: string | null) {
   const [answer, setAnswer] = React.useState<{ key: string; state: SheetState } | null>(null);
   const [attempt, setAttempt] = React.useState(0);
-  const key = personId ? `${personId}:${attempt}` : null;
+  const changed = React.useSyncExternalStore(subscribe, () => changes);
+  const key = personId ? `${personId}:${attempt}:${changed}` : null;
 
   React.useEffect(() => {
     if (!personId || !key) return;
@@ -69,8 +90,14 @@ export function usePersonSheet(personId: string | null) {
     };
   }, [personId, key]);
 
-  const state: SheetState = answer && answer.key === key ? answer.state : { status: "loading" };
-  return { state, reload: () => setAttempt((n) => n + 1) };
+  // While it's read again, what was read stays on screen.
+  const state: SheetState = answer
+    ? answer.key === key || answer.key.startsWith(`${personId}:`)
+      ? answer.state
+      : { status: "loading" }
+    : { status: "loading" };
+  const reload = React.useCallback(() => setAttempt((n) => n + 1), []);
+  return { state, reload };
 }
 
 async function readSheet(personId: string): Promise<SheetState> {

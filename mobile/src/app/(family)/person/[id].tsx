@@ -136,7 +136,11 @@ export default function PersonDetails() {
             </View>
           </View>
         ) : null}
-        <Button variant="link" label="Go to their leaf" onPress={() => walk(person.id)} />
+        <Button
+          variant="link"
+          label={self ? "Go to your leaf" : "Go to their leaf"}
+          onPress={() => walk(person.id)}
+        />
       </View>
 
       <Details person={person} />

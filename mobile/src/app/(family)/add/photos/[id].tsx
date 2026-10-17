@@ -9,6 +9,7 @@ import { PHOTO_EXTENSIONS } from "@/lib/photo-path";
 import { personDisplayName } from "@/lib/person-name";
 import { supabase } from "@/auth/supabase";
 import { useFamily } from "@/family/family";
+import { detailsChanged } from "@/person/sheet";
 import { font, GUTTER, usePalette } from "@/theme";
 import { Button } from "@/ui/button";
 import { TextField } from "@/ui/text-field";
@@ -79,6 +80,7 @@ export default function AddPhotos() {
       pending += said.pending;
     }
     setSending(null);
+    detailsChanged();
     setDone({ added, pending });
   }
 
@@ -89,9 +91,13 @@ export default function AddPhotos() {
           {done.pending ? "Sent for approval" : "Added"}
         </Text>
         <Text style={[styles.note, { color: palette.mutedForeground }]}>
-          {done.pending
-            ? `They show in ${name}'s album once they're approved.`
-            : `They're in ${name}'s album.`}
+          {done.added === 1
+            ? done.pending
+              ? `It shows in ${name}'s album once it's approved.`
+              : `It's in ${name}'s album.`
+            : done.pending
+              ? `They show in ${name}'s album once they're approved.`
+              : `They're in ${name}'s album.`}
         </Text>
         <Button label="done" onPress={() => router.back()} />
       </View>

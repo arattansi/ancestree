@@ -1996,7 +1996,18 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   web); "Claimed" isn't shown (`owner_user_id` is the entry's owner, not a
   claim); recordings in someone's stories aren't played yet; the apple on
   the calendar is monochrome, as only home and you are in colour.
-  **Needs a new EAS development build** for the photo picker.
+  **Needs a new EAS development build** for the photo picker. **Then
+  checked on the iOS 27 simulator** (a local dev-client build, signed in
+  as the App Review account): the picker opens (PHPicker, no permission
+  asked), a photo uploads to `album` and shows in the album through the
+  live route, and three fixes followed: someone's details read again
+  after anything is added (`detailsChanged`, a shared counter: a sheet
+  over a sheet sends no focus event), the scribe pads itself with the
+  window's insets (a full-screen modal measured none and its header ran
+  under the status bar), and "It's in …'s album" / "Go to your leaf". The
+  simulator aborts in `AVAudioEngine.inputNode` when the scribe starts
+  listening (no audio input on this Mac's simulator); phones are
+  unaffected.
 - **Step 182: messages wait for a relative who has no key yet, and they're
   told** (migrations `20261017140000_messages_wait_for_a_key`,
   `20261017150000_messages_wait_for_a_key_hardening` and

@@ -4,6 +4,7 @@ import { KeyboardAvoidingView, ScrollView, StyleSheet, Text, View } from "react-
 
 import { personDisplayName } from "@/lib/person-name";
 import { useFamily } from "@/family/family";
+import { detailsChanged } from "@/person/sheet";
 import { ScribeError, tellStory } from "@/scribe/story";
 import { font, GUTTER, usePalette } from "@/theme";
 import { Button } from "@/ui/button";
@@ -65,6 +66,7 @@ export default function WriteStory() {
         interviewers: [],
         mentions: [],
       });
+      detailsChanged();
       setDone(told.status);
     } catch (e) {
       setError(e instanceof ScribeError ? e.message : "Couldn’t save it. Try again.");
