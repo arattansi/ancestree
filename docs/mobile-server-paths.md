@@ -31,7 +31,7 @@ All carry a top-level `"use server"`; none is inline.
 
 | Action | Why |
 | --- | --- |
-| `deleteAccount` (`app/actions/privacy.ts`) | Service-role hand-off of ownership across about ten tables, then `auth.admin.deleteUser`. **Required in-app by the App Store.** |
+| `deleteAccount` (`app/actions/privacy.ts`) | Service-role hand-off of ownership across about ten tables, then `auth.admin.deleteUser`. **Required in-app by the App Store.** The phone's route since Step 176: `/api/mobile/account/delete`. |
 | `claimPerson` (`app/actions/claims.ts`) | `moveClaimedPhoto` moves the photo with the service role; without it a claimed entry's photo breaks. (`claimSelfCandidate` is A.) |
 | `sendClaimInvite`, `sendDirectInvites`, `makeClaimLink` (`app/actions/invites.ts`) | Service-role inserts into `invites` / `invite_requests`, and Resend. Also the "invite them to claim" tail of `addRelative`. A claim invite has a phone route since Step 148.4 (`/api/mobile/claim-invite`). |
 | `deletePerson` (`app/actions/privacy.ts`) | Reads the files to remove with the service role before the delete, then removes them. |
@@ -100,14 +100,17 @@ All carry a top-level `"use server"`; none is inline.
   name-only cards, share links, family link, nicknames, pets: the same RPC
   or write.
 
-## Route Handlers: 17 (14 before Step 148)
+## Route Handlers: 21 at Step 176 (14 before Step 148)
 
-- **Three take a Supabase bearer token:** `POST /api/mobile/scribe`, the
+- **Four take a Supabase bearer token:** `POST /api/mobile/scribe`, the
   scribe's write-up (Step 148), `POST /api/mobile/scribe/facts`, the
-  facts it finds for the tree (148.2), and `POST /api/mobile/claim-invite`,
+  facts it finds for the tree (148.2), `POST /api/mobile/claim-invite`,
   an invite to claim one entry (148.4: `mintClaimInvite` with the bearer
   client for its checks, the service role for the invite and its email,
-  as `sendClaimInvite`). `/api/mobile/` is in
+  as `sendClaimInvite`), and `POST /api/mobile/account/delete`, deleting
+  your own account (Step 176: `deleteAccountOf`, successors promoted and
+  lone trees deleted through the bearer client, the rest with the
+  service role). `/api/mobile/` is in
   `proxy.ts`'s `PUBLIC_PREFIXES`, and `lib/supabase/bearer.ts` checks the
   token (`bearerToken`, `bearerClient`) and gives a client acting as the
   member, under RLS. Every new phone endpoint goes under `/api/mobile/`

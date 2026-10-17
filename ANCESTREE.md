@@ -707,7 +707,21 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   (Step 173); production goes to TestFlight with `--auto-submit`
   (Step 175).
   `docs/mobile-server-paths.md` — every server action and service-role
-  path, and what the app does instead
+  path, and what the app does instead. `docs/app-store-review.md` — the
+  App Store privacy labels, App Review notes and purpose strings (Step
+  176).
+- Deleting an account (Steps 22, 25, 103.4, 176): `lib/account-deletion.ts`
+  — the trees that need a successor or go with the account
+  (`soleRootTrees`, `loneTrees`, `everyTreeHandedOver`), and the phone's
+  request (`readDeleteAccountRequest`; `.test.ts`), shared by the web's
+  `components/delete-account.tsx` and the phone;
+  `lib/account-deletion.server.ts#deleteAccountOf` — the deletion, every
+  tree checked first; `app/api/mobile/account/delete/route.ts` — the
+  phone's, by bearer token
+- App Review's sign-in (Step 176): `lib/app-review.ts` — the one address
+  the phone asks a password of; `scripts/app-review-account.ts` (`npm run
+  review:account`) — makes the account, its password and its invented
+  family, `--off` to stop it signing in
 
 ## Conventions
 
@@ -1916,6 +1930,54 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 176: the iPhone app ready for Apple's review** (no migration).
+  **Asked** (2026-10-16): what store review and external testers need,
+  scoped first. **Aalim's calls:** a Root alone on a tree deletes it with
+  their account, on the web too; the reviewer signs in with a password on
+  one account; that account opens on an invented family made by a script.
+  **Account deletion in the app** (guideline 5.1.1(v)): the account
+  screen's **delete my account** opens the choices the web's dialog asks
+  (who takes over each tree you're the only Root of, a tree nobody else is
+  on named as going too), then `POST /api/mobile/account/delete`, a
+  bearer route running the web's `deleteAccountOf`: successors made Roots
+  and lone trees deleted as the member, the rest with the service role,
+  then signed out on the phone. It needs no profile, so someone who signed
+  up on the phone but isn't on a tree can delete their sign-in.
+  `deleteAccountOf` now checks every tree before changing anything, deletes
+  a lone tree it's told to (`delete_tree`, files after the response), and
+  hands entries a deleted tree moved elsewhere to that tree's Root, not
+  the first Root found anywhere. The web's dialog, stuck before ("Invite
+  someone to hand it to first"), now says the tree goes too and deletes.
+  **Reviewer sign-in:** the phone asks `APP_REVIEW_EMAIL`
+  (`lib/app-review.ts`, Resend's test inbox) for a password instead of
+  emailing a code; every other address gets its code as before. Every
+  account already held a random password Supabase gave it at sign-up,
+  so password sign-in opens nothing new. `npm run review:account` makes
+  the account and a second Root who never signs in, emails off, deletes
+  every tree they run (refused if anyone else is on it) and founds the
+  Kapadia family again through the founder's RPCs: nine invented people
+  (Porbandar, Mombasa, Toronto, Leicester), one story. It prints the
+  password once, for App Store Connect; `--off` changes it to one nobody
+  knows. **Face ID:** `expo-secure-store` added Expo's stock
+  `NSFaceIDUsageDescription`; the app never uses Face ID, so it's off
+  (`faceIDPermission: false`), checked in `expo config --type
+  introspect`. **Privacy:** a **Privacy** link on the sign-in and account
+  screens; `/privacy` says the app deletes accounts too, and lone trees
+  go with them; `docs/app-store-review.md` lists the App Privacy answers
+  (name, email, audio, other user content, user ID; app functionality,
+  linked, no tracking), the App Review notes, and what's left before the
+  App Store (report and block once the phone shows others' stories, a
+  support URL). **Checked:** 8 new unit tests; the route end to end on a
+  local Node 22 server with throwaway accounts (no token, bad body, no
+  profile, a lone tree refused then deleted, a hand-over refused then
+  made, 18 checks, nothing left); the web dialog deleting a lone founder
+  in the browser pane (account, profile, tree and entry gone, landed on
+  `/?deleted=1`); the phone's screens in the Expo web preview (the
+  password step for the review address, case-blind, with no code sent;
+  the successor chip enabling the red button; the error kept on screen);
+  `npm run review:account` twice on live (the second run deleted and
+  remade the tree).
 
 - **Step 174: the minimap beside the zoom buttons, and a messenger for
   direct messages, end to end** (migrations

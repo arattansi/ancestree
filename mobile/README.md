@@ -6,7 +6,11 @@ Supabase project as the web. The plan it follows is the Notion page
 
 What it does so far:
 
-- **Sign in** with an email and the 8-digit code, as on the web.
+- **Sign in** with an email and the 8-digit code, as on the web. App
+  Review's one address asks for a password instead (Step 176).
+- **Your account:** sign out, read the privacy notice, or delete the
+  account for good (Step 176), choosing who takes over a tree you're the
+  only Root of. A tree nobody else is on goes with it.
 - **One leaf at a time.** It opens on your own leaf. Your parents sit above
   it, your children below, your spouse to the left and your siblings to the
   right, each as a small circle. Tap a circle to walk to that leaf, and tap
@@ -135,6 +139,29 @@ Access): only the Admin, App Manager, Developer and Marketing roles can
 be internal testers. Then add them to the internal group under
 TestFlight.
 
+## Apple's review (Step 176)
+
+External TestFlight testers and the App Store both go through Apple's
+review, and a reviewer can't read the emailed code. So the sign-in screen
+asks one address, `APP_REVIEW_EMAIL` in `lib/app-review.ts`, for a
+password instead. Before each submission, from the repo root:
+
+```bash
+npm run review:account
+```
+
+It makes the account and its tree again (an invented family, the
+Kapadia family, with a second Root who never signs in, so deleting the
+account works) and prints a new password once. That password, with the
+address, goes into App Store Connect's App Review Information.
+`docs/app-store-review.md` has the notes to paste there, the App Privacy
+answers and the purpose strings. Between reviews, stop the account
+signing in:
+
+```bash
+npm run review:account -- --off
+```
+
 ## Run it on your iPhone (no developer account needed)
 
 Expo Go runs the app straight from your Mac.
@@ -174,7 +201,10 @@ the phone uses the Keychain.
   `person/[id].tsx`, `relatives/[side].tsx`, `search.tsx`, `account.tsx`.
 - `src/auth/`: the Supabase client. The session lives in the Keychain
   (`expo-secure-store`), in chunks, because a session is larger than one
-  SecureStore value.
+  SecureStore value, and without Face ID (`faceIDPermission: false`).
+  `delete-account.ts` reads what deleting asks of you and deletes through
+  `/api/mobile/account/delete` (Step 176); the screen is
+  `(family)/delete-account.tsx`.
 - `src/family/`: one read of everyone on every tree you belong to, and
   where you are in it.
 - `src/leaf/`: the leaf, drawn from the web's own leaf shapes, and the
