@@ -132,18 +132,20 @@ app starts using Face ID, give it a real message there.
   stories and photos (Phase 4, the story feed), it needs a way to report one
   and to block someone, as the web has. Messages already have both (Step
   179.1).
-- **Encryption export compliance.** `app.json` says
-  `"usesNonExemptEncryption": false`, which was true while the app used
+- **Encryption export compliance.** Until Step 179 `app.json` said
+  `"usesNonExemptEncryption": false`, which held while the app used
   encryption only through iOS (HTTPS, the Keychain). Since Step 179.1 the
   app encrypts messages itself, with standard published algorithms
-  (X25519, Ed25519, XChaCha20-Poly1305, `@noble/*`). Apple's questions may
-  now need a different answer, and App Store Connect may ask for export
-  documentation. **Decided 2026-10-17 (Aalim): declare it.** `app.json`
-  now says `"usesNonExemptEncryption": true`, so each new build waits in
-  App Store Connect as "Missing Compliance" until the encryption questions
-  are answered there (standard algorithms, used in addition to iOS's own);
-  settle the answers, and any documents Apple asks for, once, then they can
-  be set in `app.json` (`ios.config` / `infoPlist`) so builds stop waiting.
+  (X25519, Ed25519, XChaCha20-Poly1305, `@noble/*`). Declaring it
+  (`"usesNonExemptEncryption": true`) needs the code App Store Connect gives
+  under General → App Information → App Encryption Documentation, in
+  `ios.infoPlist.ITSEncryptionExportComplianceCode`; without it Apple
+  rejects the upload (ITMS-90592, build 5). **Decided 2026-10-17 (Aalim):
+  leave it out.** `app.json` says nothing about encryption, so each build
+  waits in TestFlight as "Missing Compliance" and the questions are
+  answered under its Manage link (standard algorithms, used in addition to
+  iOS's own). Setting `false` instead would say the app has no encryption
+  of its own, which stopped being true with 179.1.
 - **Messages in App Privacy.** The server keeps who wrote to whom and when,
   but never a message's words, which only the members' devices can read.
   Check Apple's wording on end-to-end encrypted data before adding

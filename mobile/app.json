@@ -11,9 +11,6 @@
     "ios": {
       "bundleIdentifier": "space.ancestree.app",
       "supportsTablet": false,
-      "config": {
-        "usesNonExemptEncryption": true
-      },
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "ancestree opens your photos only when you pick one for your family tree."
       }
