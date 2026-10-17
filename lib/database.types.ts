@@ -476,6 +476,91 @@ export type Database = {
           },
         ]
       }
+      conversation_members: {
+        Row: {
+          conversation_id: string
+          joined_at: string
+          last_read_at: string | null
+          user_id: string
+        }
+        Insert: {
+          conversation_id: string
+          joined_at?: string
+          last_read_at?: string | null
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string
+          joined_at?: string
+          last_read_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_members_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "conversation_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+        ]
+      }
+      conversations: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          direct_key: string | null
+          id: string
+          kind: string
+          last_message_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          direct_key?: string | null
+          id?: string
+          kind?: string
+          last_message_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          direct_key?: string | null
+          id?: string
+          kind?: string
+          last_message_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "conversations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+        ]
+      }
       entry_reports: {
         Row: {
           body: string
@@ -1212,6 +1297,52 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      messages: {
+        Row: {
+          body: string
+          conversation_id: string
+          created_at: string
+          id: string
+          sender_id: string
+        }
+        Insert: {
+          body: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          sender_id: string
+        }
+        Update: {
+          body?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+        ]
       }
       name_nicknames: {
         Row: {
@@ -3598,6 +3729,39 @@ export type Database = {
         Args: { p_person: string; p_tree: string }
         Returns: string
       }
+      mark_conversation_read: {
+        Args: { p_conversation: string; p_up_to: string }
+        Returns: string
+      }
+      message_contacts: {
+        Args: never
+        Returns: {
+          name: string
+          person_id: string
+          photo_crop: Json
+          photo_path: string
+          tree_names: string[]
+          user_id: string
+        }[]
+      }
+      my_conversations: {
+        Args: never
+        Returns: {
+          can_send: boolean
+          conversation_id: string
+          kind: string
+          last_at: string
+          last_body: string
+          last_read_at: string
+          last_sender_id: string
+          other_name: string
+          other_person_id: string
+          other_photo_crop: Json
+          other_photo_path: string
+          other_user_id: string
+          unread: number
+        }[]
+      }
       my_growth_rights: { Args: { p_tree?: string }; Returns: Json }
       my_tree_request: { Args: never; Returns: string }
       newsletter_due: {
@@ -3630,6 +3794,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      open_direct_conversation: { Args: { p_with: string }; Returns: string }
       own_card_trees: {
         Args: never
         Returns: {
@@ -3877,6 +4042,22 @@ export type Database = {
           preferred_name: string
           score: number
         }[]
+      }
+      send_message: {
+        Args: { p_body: string; p_conversation: string }
+        Returns: {
+          body: string
+          conversation_id: string
+          created_at: string
+          id: string
+          sender_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "messages"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       set_blog_post_cover: {
         Args: { p_id: string; p_path: string }

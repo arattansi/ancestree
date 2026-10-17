@@ -2689,19 +2689,27 @@ function Canvas({
           />
         ) : null}
         <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
-        <Controls showInteractive={false}>
-          {selfOnCanvas ? (
-            <ControlButton
-              onClick={goToMe}
-              title="Go to me"
-              aria-label="Go to me"
-            >
-              {/* React Flow fills its control icons; this one is drawn. */}
-              <LocateFixed strokeWidth={2.75} style={{ fill: "none" }} />
-            </ControlButton>
-          ) : null}
-        </Controls>
-        <WideMiniMap />
+        {/* The zoom buttons and the minimap side by side at the bottom left
+            (Step 174), leaving the bottom right to the messenger. The
+            controls give up their own corner to sit in this row. */}
+        <Panel
+          position="bottom-left"
+          className="flex items-end gap-2.5"
+        >
+          <Controls showInteractive={false} className="!static !m-0">
+            {selfOnCanvas ? (
+              <ControlButton
+                onClick={goToMe}
+                title="Go to me"
+                aria-label="Go to me"
+              >
+                {/* React Flow fills its control icons; this one is drawn. */}
+                <LocateFixed strokeWidth={2.75} style={{ fill: "none" }} />
+              </ControlButton>
+            ) : null}
+          </Controls>
+          <WideMiniMap />
+        </Panel>
         <Panel
           position="top-right"
           className={cn(
@@ -2805,7 +2813,7 @@ function Canvas({
         {path && pathSummary && !(linkedToYou && folded) ? (
           <Panel
             position="bottom-center"
-            className="w-[min(34rem,calc(100%-7rem))]"
+            className={cn("w-[min(34rem,calc(100%-8.5rem))]", FOOT_MIDDLE)}
           >
             <div
               className="mx-auto flex w-fit max-w-full items-center gap-3 rounded-2xl border bg-card px-4 py-2 text-sm shadow-md"
@@ -2848,8 +2856,9 @@ function Canvas({
             position="bottom-center"
             className={cn(
               "flex flex-col items-center gap-1.5",
-              // Clear of the zoom controls, as the tip is.
-              folded && "w-[min(24rem,calc(100%-7rem))]",
+              // Clear of the zoom controls and the messenger, as the tip is.
+              folded && "w-[min(24rem,calc(100%-8.5rem))]",
+              FOOT_MIDDLE,
             )}
           >
             {folded ? (
@@ -2901,14 +2910,18 @@ function Canvas({
         {!spotlight && !connection && !folded ? (
           // Sized off the canvas, not the text: a centred panel only gets the
           // half of the canvas right of its anchor to shrink-wrap into, which
-          // on a phone stacked the tip into a tall column. 7rem keeps it
-          // clear of the zoom controls in the corner.
+          // on a phone stacked the tip into a tall column. 8.5rem keeps it
+          // clear of the zoom controls in one corner and the messenger's
+          // launcher in the other (Step 174).
           // On a phone, one card at a time (Step 169): whichever comes first
           // of those still open, the next once it's closed. A card closed
           // for good renders nothing, so the first child is the one to show.
           <Panel
             position="bottom-center"
-            className="flex w-[min(28rem,calc(100%-7rem))] flex-col gap-2 max-sm:[&>*+*]:hidden"
+            className={cn(
+              "flex w-[min(28rem,calc(100%-8.5rem))] flex-col gap-2 max-sm:[&>*+*]:hidden",
+              FOOT_MIDDLE,
+            )}
           >
             {/* The tree a founder has just planted (Step 169). */}
             {family?.planted ? <PlantedCard tree={family.planted} /> : null}
@@ -2924,7 +2937,7 @@ function Canvas({
           </Panel>
         ) : null}
         {connection ? (
-          <Panel position="bottom-center">
+          <Panel position="bottom-center" className={FOOT_MIDDLE}>
             <div className="flex items-center gap-3 rounded-full border border-border bg-card px-4 py-2 text-sm shadow-md">
               <span className="font-medium text-foreground">
                 {connection.label}
@@ -2951,10 +2964,11 @@ function Canvas({
           store={hover}
           describe={describeOffLine}
           className={
-            // Beside the minimap, or the open sheet that covers it.
+            // Clear of the messenger's launcher in the corner (Step 174),
+            // which moves left of an open sheet.
             sheetOut || selectedPet
-              ? "sm:!mr-[calc(24rem+15px)]"
-              : "sm:!mr-[227px]"
+              ? "sm:!mr-[calc(24rem+4.75rem)]"
+              : "sm:!mr-[4.75rem]"
           }
         />
         <Panel position="top-left" className="flex flex-col items-start gap-2">
@@ -3088,6 +3102,15 @@ function keepProps(prev: Props, next: Props): Props {
     pets: withKeptPhotos(next.pets),
   });
 }
+
+/**
+ * The canvas's foot between `sm` and `lg` (Step 174): the pills in the
+ * middle sit in the room between the zoom buttons and minimap on the left
+ * and the messenger's launcher on the right, where in the middle they'd
+ * cover the minimap. From `lg` the middle is clear of both.
+ */
+const FOOT_MIDDLE =
+  "sm:max-lg:!ml-[6.25rem] sm:max-lg:max-w-[calc(100%-22.5rem)]";
 
 /**
  * The minimap, from `sm` up only (Step 87.7, audit C6): hidden below it, it

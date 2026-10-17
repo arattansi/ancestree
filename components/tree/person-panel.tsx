@@ -7,6 +7,7 @@ import {
   Lightbulb,
   Loader2Icon,
   Mail,
+  MessageCircle,
   Minimize2,
   Pencil,
   UserPlus,
@@ -24,6 +25,10 @@ import { AncestralLands } from "@/components/ancestral-lands";
 import { ClaimInviteControls } from "@/components/claim-invite-controls";
 import { ConfirmButton } from "@/components/confirm-dialog";
 import { FormError } from "@/components/form-error";
+import {
+  messenger,
+  useMessageTarget,
+} from "@/components/messenger/messenger-store";
 import { lazyComponent, whenIdle } from "@/components/lazy-component";
 import { PhotoCropEditor } from "@/components/lazy-photo-crop-editor";
 import { PendingButton } from "@/components/pending-button";
@@ -395,6 +400,9 @@ function PersonPanelImpl({
 }) {
   const open = person !== null && !minimized;
   useDockedSheet(open);
+  // A member you share a tree with: **message** opens the messenger with
+  // them (Step 174).
+  const messageTo = useMessageTarget(isSelf ? null : (person?.id ?? null));
   // Its own handle, so it leaves the rest alone (Step 70). Claim and Delete
   // ask first, and their dialogs carry their own; an invite to claim, its
   // controls (Step 162).
@@ -718,6 +726,15 @@ function PersonPanelImpl({
                 ) : null}
                 {!locked ? (
                   <span className="ml-auto flex gap-1.5">
+                    {messageTo ? (
+                      <TagButton
+                        title="Message"
+                        onClick={() => void messenger.openWith(messageTo)}
+                      >
+                        <MessageCircle aria-hidden />
+                        message
+                      </TagButton>
+                    ) : null}
                     {canEdit || fillable ? (
                       inView ? (
                         <TagTreeLink

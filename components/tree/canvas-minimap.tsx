@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import {
-  Panel,
   useStore,
   useStoreApi,
   type Node,
@@ -129,6 +128,8 @@ const Cards = React.memo(function Cards({
  * in a viewBox that moves only in steps (`framedBox`), and each frame
  * changes nothing but the shade round the window, in an svg of its own.
  * Dragging it pans and the wheel zooms, by React Flow's own handler.
+ * It sits beside the zoom buttons at the bottom left (Step 174), so the
+ * canvas places it, not a panel of its own.
  */
 export function CanvasMiniMap() {
   const store = useStoreApi();
@@ -196,9 +197,9 @@ export function CanvasMiniMap() {
   const [vx, vy, vw, vh] = view.split(" ").map(Number);
   const { outer } = box;
   return (
-    <Panel
-      position="bottom-right"
-      className="react-flow__minimap !bg-card"
+    // In the canvas's bottom-left panel, beside the zoom buttons (Step 174).
+    <div
+      className="react-flow__minimap relative !bg-card"
       style={{ width: WIDTH, height: HEIGHT }}
     >
       <Cards viewBox={box.viewBox} d={cards.d} />
@@ -219,6 +220,6 @@ export function CanvasMiniMap() {
           pointerEvents="none"
         />
       </svg>
-    </Panel>
+    </div>
   );
 }

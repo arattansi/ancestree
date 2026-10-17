@@ -29,6 +29,7 @@ const NAMES = [
   "Someone on the tree", // stands in for a person's name
   "Visiting", // a badge in the tree switcher
   "Add “", // a place search's last option, drawn as one
+  "You: ", // who wrote a conversation's last message, in the messenger's list
 ];
 
 /** Files whose buttons hold titles or entries, not a button's own words. */

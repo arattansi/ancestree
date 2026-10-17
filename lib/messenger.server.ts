@@ -1,0 +1,60 @@
+import "server-only";
+
+import { signedCardPhotoUrls } from "@/lib/entry-view.server";
+import type { MessengerData } from "@/lib/messenger";
+import { createClient } from "@/lib/supabase/server";
+
+/**
+ * The reader's conversations and everyone they can write to (Step 174),
+ * as the messenger pop-up shows them: faces as card-sized photos, signed
+ * for this reader, so a face they may not see never gets an address.
+ */
+export async function loadMessenger(): Promise<MessengerData> {
+  const supabase = await createClient();
+  const [conversations, contacts] = await Promise.all([
+    supabase.rpc("my_conversations"),
+    supabase.rpc("message_contacts"),
+  ]);
+  if (conversations.error) throw conversations.error;
+  if (contacts.error) throw contacts.error;
+
+  const faces = [
+    ...(conversations.data ?? []).map((c) => ({
+      photo_path: c.other_photo_path,
+      photo_crop: c.other_photo_crop,
+    })),
+    ...(contacts.data ?? []).map((c) => ({
+      photo_path: c.photo_path,
+      photo_crop: c.photo_crop,
+    })),
+  ];
+  const cardUrlOf = await signedCardPhotoUrls(supabase, faces);
+
+  return {
+    conversations: (conversations.data ?? []).map((c) => ({
+      id: c.conversation_id,
+      otherUserId: c.other_user_id,
+      name: c.other_name,
+      personId: c.other_person_id,
+      photoUrl: cardUrlOf({
+        photo_path: c.other_photo_path,
+        photo_crop: c.other_photo_crop,
+      }),
+      photoCrop: c.other_photo_crop,
+      lastBody: c.last_body,
+      lastSenderId: c.last_sender_id,
+      lastAt: c.last_at,
+      lastReadAt: c.last_read_at,
+      unread: c.unread,
+      canSend: c.can_send,
+    })),
+    contacts: (contacts.data ?? []).map((c) => ({
+      userId: c.user_id,
+      name: c.name,
+      personId: c.person_id,
+      photoUrl: cardUrlOf({ photo_path: c.photo_path, photo_crop: c.photo_crop }),
+      photoCrop: c.photo_crop,
+      trees: c.tree_names ?? [],
+    })),
+  };
+}

@@ -229,6 +229,30 @@
   }
 }
 
+/* The messenger (Step 174): its launcher and pop-up sit at the bottom
+   right, left of a docked sheet as the toasts are; while the launcher
+   shows, toasts and the back-to-top button keep above it. */
+.messenger-launcher {
+  right: calc(1rem + var(--docked-sheet-width, 0px));
+  transition: right 200ms ease-in-out;
+}
+/* Below `sm` the pop-up takes the screen. */
+@media (width >= 40rem) {
+  .messenger-panel {
+    right: calc(1rem + var(--docked-sheet-width, 0px));
+    transition: right 200ms ease-in-out;
+  }
+}
+:root[data-messenger] {
+  --messenger-height: 4rem;
+}
+@media (prefers-reduced-motion: reduce) {
+  .messenger-launcher,
+  .messenger-panel {
+    transition: none;
+  }
+}
+
 /* Lift a node above its siblings while hovered so the expanded photo
    preview in PersonNode isn't clipped by neighbouring cards. */
 .react-flow__node:hover {

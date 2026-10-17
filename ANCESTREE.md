@@ -235,6 +235,23 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   changes; the sections read `usePersonSheet` and write their own changes
   with `setPersonSheet`; `invalidatePersonSheet` reads again; every new
   page from the server marks them all stale (`FamilyTree`), Step 87.6
+- `components/messenger/` — the **messenger** (Step 174): direct
+  messages between members who share a tree, in a pop-up at the bottom
+  right of a member's own pages (`/tree`, `/family`, `/account`, `/admin`,
+  `/trees`; `messengerShownOn`). `messenger-mount.tsx` streams the launcher
+  in from the root layout for a member on at least one tree;
+  `messenger.tsx` is the launcher (unread count, left of a docked sheet,
+  `.messenger-launcher` in `globals.css`); `messenger-panel.tsx` the
+  pop-up, fetched when the launcher is pointed at (list, **new message**,
+  a thread; full screen on a phone); `messenger-store.ts` its state outside
+  React, shared with the person sheet's **message** (`useMessageTarget`):
+  it wakes once the page is idle, reads `GET /api/messages`
+  (`lib/messenger.server.ts`: conversations and contacts, faces signed for
+  the reader) and joins the member's private Realtime inbox
+  (`inbox:<user id>`); threads, sends and reads go to the database
+  directly. `lib/messenger.ts` holds the pure parts (`.test.ts`). Groups
+  and channels are scoped in Notion ("Ancestree × Messaging — Product
+  Scope", under Product), not built
 - `components/tree/` — `family-tree.tsx` React Flow canvas (generation lanes
   behind the cards, whose titles stay life-size when zoomed out —
   `laneTitleFit` — and pinned inside the canvas's left edge — `laneTitleLeft`;
@@ -718,6 +735,9 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `invite_relay_asks`      | A note of every ask to a relative, whoever the address belongs to (Step 41.5): the address asking and `created_at`, never the relative's. What the caps per address and across the site count, before anyone is looked up. Service role only (RLS on, no policies, no grants to `anon`/`authenticated`); an ask past a cap leaves no note, and notes older than a day are deleted as new asks come in |
 | `claims`                 | Auto-approve / reject a person entry (`resolved_by`); a dispute of one is an `entry_reports` row and leaves it `approved` (Step 88.2) |
 | `notifications`          | In-app notices, **one inbox per tree** (`tree_id`, Step 25; `placement_requested` \| `placement_accepted` \| `placement_declined` added; `placements_requested`, one for a batch of entries someone may edit, Step 80; `placements_lapsed`, to the Root whose ask nobody answered in 30 days, Step 83; `tree_request_approved`, Step 28; `placed_on_join`, Step 30.9, and what a claim invite did, Step 41.3; `joined_by_link`, Step 52; `story_to_approve`, `story_approved`, `story_declined`, Step 88.3; `story_commented`, Step 88.4); recipient-scoped RLS                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `conversations`          | The messenger's conversations (Step 174): `kind` (`direct` only; groups and channels are scoped, not built), `direct_key` (the two members' ids, lower first: one conversation a pair), `created_by`, `last_message_at`. Read by its members (`private.in_conversation`); written only by `open_direct_conversation` (while the two share a tree) and `send_message`. A direct conversation goes, every message in it, with either member's account (`private.direct_conversation_member_gone`) |
+| `conversation_members`   | Who is in a conversation and how far they've read (`last_read_at`, set by `mark_conversation_read` up to the newest message the reader saw, never past now, and by `send_message` for the sender). Read by the conversation's members; no direct writes |
+| `messages`               | What was said (Step 174): `sender_id`, `body` (1–4,000 characters, trimmed), `created_at`. Read by the conversation's members; written only by `send_message`, which refuses once the two share no tree and past 30 a minute. Each new one goes to every member's private Realtime inbox, `inbox:<user id>` (`private.message_to_inboxes`, `realtime.send`); a policy on `realtime.messages` lets each member hear only their own. Listed by `my_conversations` (the other side's name, their face where the reader may see their entry, the last message, unread, `can_send`) and `message_contacts` (everyone the reader can write to, with the trees they share) |
 | `stories`                | Stories about a person (Step 88.3, in place of the per-tree comments board): `title`, `body` and/or a recording (`audio_path` in the private `stories` bucket, `<person id>/<uuid>.<ext>`; `audio_seconds`), `pending` \| `approved` \| `declined`, `decided_by`, the tree it was told on (`tree_id`, where its teller hears back). Approved: read by members of every tree showing the person in full. Pending: its teller, and whoever approves it: the person themself once the entry is claimed or is their own and they're living (`private.story_owner`), else whoever `can_edit_person`. Declined: its teller alone. Told only through `add_story` (approved at once when the teller may approve it), answered through `decide_story`; deleted by its teller or whoever may edit the entry; read by the sheet through `entry_stories` (runs as the viewer, names each teller; since Step 88.4 also its comment count, whether a link to it works, whether the viewer may share it or turn its links off, and their own link). `links_off` (Step 88.4): its links were turned off. `body` is Markdown (Step 99; the text as written, drawn as Markdown wherever it shows; Step 113 took out the Write / Preview and file upload, so new stories are plain text in practice), up to 200,000 characters (Step 113; 20,000 before). `told_on` / `told_on_precision` (Step 99): when it was told, as much as is known, kept as a person's dates are. `created_by` is set null when their account goes |
 | `story_links`            | Public links to approved stories (Step 88.4): one working link per sharer per story (`token`, 24 URL-safe characters; `created_by`, whom the page names; `revoked_at` / `revoked_by`). A link works while the story is approved and its links aren't off (`stories.links_off`), the person isn't `hidden_from_visitors`, and its sharer is still on a tree that shows them in full (`private.story_link_live`). Made only by `share_story` (anyone who can see the story; once its links were turned off, only its person, an editor of the entry or its teller, which turns them on again), turned off by `stop_sharing_story` (every link at once; those three). A member reads only their own; the public page reads with the service role (`shared_story`) |
 | `story_credits`          | Who a story is credited to (Step 99): `(story_id, person_id, role)` with `role` `storyteller` \| `interviewer`, up to ten people each, one person may hold both. People placed in full on the tree the story is told on; set once, by `add_story` (`p_storytellers`, `p_interviewers`), with no yes of their own (the approver sees them with the story). Read by whoever reads the story (RLS follows `stories`); the sheet's `entry_stories` and the public page's `shared_story` return them as `credits`. Changed afterwards, with the date told, by `edit_story` (Steps 99.5–99.7: teller, entry editors, or the person it's about; the words by the teller alone, back to waiting unless they may approve). Cascade with the story or the person; a claim or an invited-entry merge moves a placeholder's credits across (`claim_person`, `private.merge_invited_entry`) |
@@ -1885,6 +1905,65 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 174: the minimap beside the zoom buttons, and a messenger for
+  direct messages** (migration `20261016150000_direct_messages`).
+  **Aalim asked** (2026-10-16): "move the navigation map to the left side
+  of the window with the zoom options. build a messenger that works just
+  for DM-ing but include a product scope for adding channel-based or
+  group messaging for future iterations", then "have the messenger as a
+  in-window pop-up on the bottom right of the window". **174.1** The
+  canvas's minimap (Step 102's `CanvasMiniMap`) moves from the bottom
+  right to the bottom left, beside the zoom buttons, bottoms level: one
+  bottom-left panel holds both, the controls giving up their own corner
+  (`!static`). The hover pill keeps clear of the messenger's launcher now
+  rather than the minimap; the pills in the middle of the canvas's foot
+  keep 8.5rem clear (7rem before) and, between `sm` and `lg`, sit between
+  the minimap and the launcher (`FOOT_MIDDLE`) rather than over the
+  minimap. **174.2** Direct messages: `conversations`,
+  `conversation_members`, `messages`, read by members only and written
+  only by `open_direct_conversation`, `send_message` and
+  `mark_conversation_read`; listed by `my_conversations` and
+  `message_contacts`. Two members can write while they share a tree; once
+  they don't, the conversation stays readable and nothing more goes. 30
+  messages a minute, 4,000 characters. Each new message goes to every
+  member's private Realtime inbox (`inbox:<user id>`, a trigger calling
+  `realtime.send`), a read to the reader's own, and a policy on
+  `realtime.messages` lets each member hear only their own. **174.3** The
+  messenger: a round launcher at the bottom right of a member's own pages
+  with the unread count (red, as the bell's), opening a pop-up above it:
+  **Messages** (each conversation, newest first, with its last line and
+  unread count), **New Message** (anyone on a tree you're on, by name or
+  tree), and a thread (days marked, your messages dark on the right, Enter
+  sends, Shift+Enter a new line). A member's person sheet has
+  **message** beside **edit**. Beside an open sheet the launcher and
+  pop-up move left of it, as the toasts do; on a phone the pop-up takes
+  the screen. Toasts and the back-to-top button sit above the launcher
+  where it shows; the toaster's region is "Alerts" now ("Messages" is the
+  messenger). **174.4** Groups and channels are scoped in Notion,
+  "Ancestree × Messaging — Product Scope" under Product: groups first,
+  then tree channels, then photos, mentions and the phone app, with 11
+  decisions open. **My calls:** the messenger sits on `/tree`,
+  `/family`, `/account`, `/admin` and `/trees` only, not the marketing
+  pages, the library, sign-in or forms; a conversation shows the other
+  member's `display_name`, and their face only where the reader may see
+  their entry; a conversation nobody has written in shows in no list;
+  deleting an account deletes its direct conversations whole; no email,
+  read receipts, editing, photos, blocking or muting yet (Phase 0 of the
+  scope); a suspended account isn't offered as someone to write to.
+  **Verified** against live: the migration rehearsed first in a
+  rolled-back transaction (strangers, ex-tree-mates, self, empty and long
+  messages, direct writes refused; read markers; each member hears only
+  their own inbox; the rate limit; account deletion) and applied with the
+  history row and its statement md5 checked. Then two throwaway members
+  on a throwaway tree, signed in side by side in headless Chrome at
+  1280×800: the zoom buttons at x 15 and the minimap at x 51, level; A
+  wrote from **new message**, B's launcher went from "Messages" to
+  "Messages, 1 unread" without a reload, B replied and it appeared in A's
+  open thread; **message** on B's sheet opened the thread 16px left of the
+  sheet; a phone (390×844) showed the pop-up full screen and the canvas
+  tip 8px clear of the launcher; 768 and 1024 wide, the tip clear of both
+  the minimap and the launcher; dark mode; no launcher on `/`; no console
+  errors. Throwaways deleted after.
 - **Step 175: the iPhone app on TestFlight** (no migration). **Asked**
   (2026-10-16): put the app on TestFlight's internal testing for the beta
   reviewers, no Beta App Review; Aalim then left Raiya out ("she's not
