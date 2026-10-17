@@ -45,7 +45,12 @@
         }
       ],
       "expo-status-bar",
-      "expo-secure-store",
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": false
+        }
+      ],
       "expo-font",
       "./plugins/with-scene-life-cycle",
       [

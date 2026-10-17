@@ -25,15 +25,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAction } from "@/components/use-action";
+import {
+  everyTreeHandedOver,
+  loneTrees,
+  type SoleRootTree,
+} from "@/lib/account-deletion";
 
-export type SuccessorOption = { userId: string; name: string };
-
-/** A tree the member is the only Root of, and who could take it over. */
-export type SoleRootTree = {
-  treeId: string;
-  treeName: string;
-  successors: SuccessorOption[];
-};
+export type { SoleRootTree, SuccessorOption } from "@/lib/account-deletion";
 
 /**
  * Deletes the signed-in member's account. For every tree they are the only
@@ -50,9 +48,8 @@ export function DeleteAccount({
   // redirects, and the button stays busy until the home page arrives.
   const action = useAction({ inline: true });
   const [successors, setSuccessors] = React.useState<Record<string, string>>({});
-  const handingOver = soleRootTrees.length > 0;
-  const everyTreeCovered = soleRootTrees.every((t) => !!successors[t.treeId]);
-  const stuck = soleRootTrees.some((t) => t.successors.length === 0);
+  const lone = loneTrees(soleRootTrees);
+  const handingOver = soleRootTrees.length > lone.length;
 
   return (
     <Dialog
@@ -74,7 +71,9 @@ export function DeleteAccount({
             <p>
               {handingOver
                 ? "You’re the only Root of a tree, so choose who takes over. They become a Root and own everything you added there."
-                : "This removes your sign-in and profile from every tree. Everything you added stays, managed by a Root."}
+                : lone.length > 0
+                  ? "This removes your sign-in and profile."
+                  : "This removes your sign-in and profile from every tree. Everything you added stays, managed by a Root."}
             </p>
             <p>This cannot be undone.</p>
           </DialogDescription>
@@ -85,7 +84,9 @@ export function DeleteAccount({
           successors={successors}
           onChange={setSuccessors}
           disabled={action.pending}
-          nobody={(tree) => `Nobody else is on ${tree} yet. Invite someone to hand it to first.`}
+          nobody={(tree) =>
+            `Nobody else is on ${tree}, so it’s deleted too, with everything on it that no other tree shows.`
+          }
         />
 
         <FormError>{action.error}</FormError>
@@ -97,10 +98,15 @@ export function DeleteAccount({
           <PendingButton
             variant="destructive-solid"
             onClick={() =>
-              action.run("delete", () => deleteAccount({ successors }))
+              action.run("delete", () =>
+                deleteAccount({
+                  successors,
+                  deleteTrees: lone.map((t) => t.treeId),
+                }),
+              )
             }
             pending={action.pending}
-            disabled={stuck || (handingOver && !everyTreeCovered)}
+            disabled={!everyTreeHandedOver(soleRootTrees, successors)}
             pendingLabel="deleting…"
           >
             {handingOver ? "hand over and delete" : "delete permanently"}

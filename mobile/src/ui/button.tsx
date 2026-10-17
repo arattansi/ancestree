@@ -12,7 +12,8 @@ import { font, usePalette } from "@/theme";
 /**
  * A button, near-black as on the web. Its words are lower-case, as every
  * button's are (Step 102); a link-drawn one (`variant="link"`) keeps
- * sentence case.
+ * sentence case. `destructive` is red, for deleting for good, and
+ * `destructive-outline` an outline with red words, the way to it.
  */
 export function Button({
   label,
@@ -22,13 +23,22 @@ export function Button({
   ...rest
 }: Omit<PressableProps, "children"> & {
   label: string;
-  variant?: "primary" | "outline" | "link";
+  variant?: "primary" | "outline" | "link" | "destructive" | "destructive-outline";
   busy?: boolean;
 }) {
   const palette = usePalette();
   const off = disabled || busy;
   const primary = variant === "primary";
+  const solidRed = variant === "destructive";
   const link = variant === "link";
+  const outline = variant === "outline" || variant === "destructive-outline";
+  const words = primary
+    ? palette.primaryForeground
+    : solidRed
+      ? "#ffffff"
+      : variant === "destructive-outline"
+        ? palette.destructive
+        : palette.foreground;
   return (
     <Pressable
       accessibilityRole="button"
@@ -38,7 +48,8 @@ export function Button({
         styles.base,
         link && styles.link,
         primary && { backgroundColor: palette.primary },
-        variant === "outline" && {
+        solidRed && { backgroundColor: palette.destructiveSolid },
+        outline && {
           borderColor: palette.border,
           borderWidth: StyleSheet.hairlineWidth * 2,
         },
@@ -47,16 +58,12 @@ export function Button({
       {...rest}
     >
       {busy ? (
-        <ActivityIndicator
-          color={primary ? palette.primaryForeground : palette.foreground}
-        />
+        <ActivityIndicator color={words} />
       ) : (
         <Text
           style={[
             styles.label,
-            {
-              color: primary ? palette.primaryForeground : palette.foreground,
-            },
+            { color: words },
             link && { textDecorationLine: "underline", fontFamily: font.regular },
           ]}
         >

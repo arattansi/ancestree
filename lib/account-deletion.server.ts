@@ -1,5 +1,6 @@
 import "server-only";
 
+import { removeTreeFilesLater, treeFiles } from "@/lib/file-cleanup.server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
@@ -12,6 +13,11 @@ export type AccountDeleter =
       kind: "self";
       /** Makes `successorId` a Root of `treeId` as the departing Root. */
       promote: (treeId: string, successorId: string) => Promise<boolean>;
+      /**
+       * Deletes `treeId`, a tree nobody else is on, as its Root
+       * (`delete_tree`, Step 176).
+       */
+      deleteTree: (treeId: string) => Promise<boolean>;
     }
   | { kind: "reviewer" };
 
@@ -19,6 +25,9 @@ const SAY = {
   self: {
     needsSuccessor:
       "You're the only Root of one of your trees. Choose who takes over as Root there before deleting your account.",
+    loneTree:
+      "Nobody else is on one of your trees, so it goes with your account. Agree to that to delete it.",
+    deleteTree: "Couldn't delete your tree. Try again.",
     noSteward:
       "One of your trees has no other Root to hand your entries to. Ask a Root for help.",
     handOff: "Couldn't hand off your entries. Try again.",
@@ -27,6 +36,8 @@ const SAY = {
   },
   reviewer: {
     needsSuccessor: "They're the only Root of a tree. Choose who takes over there.",
+    loneTree: "Nobody else is on one of their trees. Delete the tree first.",
+    deleteTree: "Couldn't delete their tree. Try again.",
     noSteward: "One of their trees has no other Root to hand their entries to.",
     handOff: "Couldn't hand off their entries. Try again.",
     profile: "Couldn't delete their profile. Try again.",
@@ -46,11 +57,17 @@ const SAY = {
  * if the deletion then fails. With only one Root to replace, the tree never
  * passes its two. Keyed by tree id; `"*"` stands for any tree (the
  * pre-Step-25 form's one successor).
+ *
+ * A tree they run that nobody else is on has nobody to hand it to: it goes
+ * with the account when `deleteTrees` names it (Step 176), deleted as a
+ * Root deletes a tree, its files after the response. Every tree is checked
+ * before anything changes, so a refusal leaves everything as it was.
  */
 export async function deleteAccountOf(
   userId: string,
   successors: Record<string, string>,
   by: AccountDeleter,
+  deleteTrees: readonly string[] = [],
 ): Promise<{ error?: string }> {
   const say = SAY[by.kind];
   const db = createAdminClient();
@@ -60,36 +77,58 @@ export async function deleteAccountOf(
     .select("tree_id, role")
     .eq("user_id", userId);
 
-  // 1. Every tree they run alone gets its successor first.
+  // 1. Every tree they run alone gets its successor, or goes with them.
+  const toPromote: { treeId: string; successorId: string }[] = [];
+  const toDelete: string[] = [];
   for (const m of memberships ?? []) {
     if (m.role !== "admin") continue;
-    const { count } = await db
+    const { data: others } = await db
       .from("tree_members")
-      .select("user_id", { count: "exact", head: true })
+      .select("role")
       .eq("tree_id", m.tree_id)
-      .eq("role", "admin")
       .neq("user_id", userId);
-    if (count) continue;
+    if (others?.some((o) => o.role === "admin")) continue;
 
+    if (!others?.length) {
+      // Someone who joined since they agreed makes it a hand-over again.
+      if (by.kind !== "self" || !deleteTrees.includes(m.tree_id)) {
+        return { error: say.loneTree };
+      }
+      toDelete.push(m.tree_id);
+      continue;
+    }
     const successorId = successors[m.tree_id] ?? successors["*"];
     if (!successorId || successorId === userId) {
       return { error: say.needsSuccessor };
     }
+    toPromote.push({ treeId: m.tree_id, successorId });
+  }
+
+  for (const { treeId, successorId } of toPromote) {
     const promoted =
       by.kind === "self"
         ? // As the signed-in Root, which the guard allows.
-          await by.promote(m.tree_id, successorId)
+          await by.promote(treeId, successorId)
         : // With the service role, which tree_members_guard lets through
           // and tree_members_limits still holds to two Roots.
-          await promoteWithServiceRole(m.tree_id, successorId);
+          await promoteWithServiceRole(treeId, successorId);
     if (!promoted) {
       return { error: "Couldn't make them a Root. Try again." };
     }
   }
 
+  if (by.kind === "self") {
+    for (const treeId of toDelete) {
+      const files = await treeFiles(treeId);
+      if (!(await by.deleteTree(treeId))) return { error: say.deleteTree };
+      removeTreeFilesLater(files);
+    }
+  }
+  const remaining = (memberships ?? []).filter((m) => !toDelete.includes(m.tree_id));
+
   // 2. In each tree, hand what they added to a Root there: the successor
   //    named, else the longest-standing.
-  for (const m of memberships ?? []) {
+  for (const m of remaining) {
     const { data: roots } = await db
       .from("tree_members")
       .select("user_id, created_at")
@@ -120,7 +159,32 @@ export async function deleteAccountOf(
     if (results.some((r) => r.error)) return { error: say.handOff };
   }
 
-  // 3. Anything not tied to a tree row (companion links and comments, or
+  // 3. Entries they added that live on a tree they aren't on now, such as
+  //    those a deleted tree moved to another tree showing them (Step 176),
+  //    go to that tree's longest-standing Root.
+  const { data: strays } = await db
+    .from("people")
+    .select("tree_id")
+    .or(`created_by.eq.${userId},owner_user_id.eq.${userId}`);
+  for (const treeId of new Set((strays ?? []).map((p) => p.tree_id))) {
+    const { data: root } = await db
+      .from("tree_members")
+      .select("user_id")
+      .eq("tree_id", treeId)
+      .eq("role", "admin")
+      .neq("user_id", userId)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (!root) continue;
+    await Promise.all([
+      db.from("people").update({ created_by: root.user_id }).eq("created_by", userId).eq("tree_id", treeId),
+      db.from("people").update({ owner_user_id: root.user_id }).eq("owner_user_id", userId).eq("tree_id", treeId),
+      db.from("relationships").update({ created_by: root.user_id }).eq("created_by", userId).eq("tree_id", treeId),
+    ]);
+  }
+
+  // 4. Anything not tied to a tree row (companion links and comments, or
   //    stray rows) goes to the first steward found.
   const { data: anyRoot } = await db
     .from("tree_members")

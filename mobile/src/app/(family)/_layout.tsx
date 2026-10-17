@@ -25,6 +25,12 @@ export default function FamilyLayout() {
         <Stack.Screen name="person/[id]" options={sheet} />
         <Stack.Screen name="relatives/[side]" options={sheet} />
         <Stack.Screen name="account" options={sheet} />
+        {/* Over the account sheet, all of it: the choices before deleting
+            (Step 176). */}
+        <Stack.Screen
+          name="delete-account"
+          options={{ ...sheet, sheetAllowedDetents: [1] }}
+        />
         <Stack.Screen
           name="search"
           options={{ presentation: "modal", contentStyle: sheet.contentStyle }}

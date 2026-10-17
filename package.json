@@ -10,7 +10,8 @@
     "test": "vitest run",
     "import:geonames": "tsx --env-file=.env.local scripts/import-geonames.ts",
     "email:push": "tsx --env-file=.env.local scripts/push-email-templates.ts",
-    "brand:build": "tsx scripts/brand-mark.ts"
+    "brand:build": "tsx scripts/brand-mark.ts",
+    "review:account": "node --experimental-websocket --env-file=.env.local --import tsx scripts/app-review-account.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.133.0",

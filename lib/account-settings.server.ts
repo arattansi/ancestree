@@ -1,8 +1,8 @@
 import "server-only";
 
-import type { SoleRootTree } from "@/components/delete-account";
 import type { PendingRelay } from "@/components/relay-invites";
-import { accountTypeOf, branchSideLabel } from "@/lib/account-types";
+import { soleRootTrees as soleRootTreesOf } from "@/lib/account-deletion";
+import { branchSideLabel } from "@/lib/account-types";
 import type { Profile } from "@/lib/auth";
 import { branchSidesOn } from "@/lib/branch.server";
 import { listNotifications } from "@/lib/claims";
@@ -213,26 +213,12 @@ export async function loadAccountSettings(
       });
   }
 
-  // Every tree they are the only Root of needs a successor before they go.
-  const soleRootTrees: SoleRootTree[] = [];
-  for (const t of trees) {
-    if (!t.type.runsTree) continue;
-    const others = (otherMembers ?? []).filter(
-      (m): m is typeof m & { auth_user_id: string } =>
-        m.tree_id === t.id && !!m.auth_user_id,
-    );
-    if (others.some((m) => m.role === "admin")) continue;
-    soleRootTrees.push({
-      treeId: t.id,
-      treeName: t.name,
-      successors: others
-        .map((m) => ({
-          userId: m.auth_user_id,
-          name: `${m.display_name ?? "Unnamed member"} (${accountTypeOf(m.role).name})`,
-        }))
-        .sort((a, b) => a.name.localeCompare(b.name)),
-    });
-  }
+  // Every tree they are the only Root of needs a successor before they go,
+  // or goes with them when nobody else is on it (Step 176).
+  const soleRootTrees = soleRootTreesOf(
+    trees.map((t) => ({ id: t.id, name: t.name, role: t.role })),
+    otherMembers ?? [],
+  );
 
   return {
     notifications,

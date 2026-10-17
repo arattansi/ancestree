@@ -21,6 +21,8 @@ const light = {
   primary: "#171717",
   primaryForeground: "#fafafa",
   destructive: "#e7000b",
+  /** The button that deletes, under white words (the web's destructive-solid). */
+  destructiveSolid: "#e7000b",
 };
 
 export type Palette = typeof light;
@@ -36,6 +38,8 @@ const dark: Palette = {
   primary: "#e5e5e5",
   primaryForeground: "#171717",
   destructive: "#ff6467",
+  // The web's `dark:bg-destructive/60`, over the background.
+  destructiveSolid: "#9d4042",
 };
 
 export function usePalette(): Palette {

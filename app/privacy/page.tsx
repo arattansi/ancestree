@@ -352,11 +352,13 @@ export default function PrivacyPage() {
             <strong>Delete your account.</strong> From{" "}
             <Link href="/account" className="underline underline-offset-4">
               your account
-            </Link>{" "}
-            you can permanently delete your login. Entries you added remain part
-            of the shared family record under a Root&rsquo;s stewardship, and
-            stories you told stay without your name, unless you also ask for
-            them to be removed.
+            </Link>
+            , or the phone app&rsquo;s account screen, you can permanently
+            delete your login. Entries you added remain part of the shared
+            family record under a Root&rsquo;s stewardship, and stories you
+            told stay without your name, unless you also ask for them to be
+            removed. A tree nobody else is on is deleted with it, with
+            everything on it that no other tree shows.
           </li>
         </ul>
       </Section>

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { deleteAccountOf } from "@/lib/account-deletion.server";
 import { getSessionUser, requireProfile } from "@/lib/auth";
+import { clearCurrentTreeCookie } from "@/lib/current-tree.server";
 import { albumPhotosOf, removeUnusedAlbumPhotos } from "@/lib/file-cleanup.server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -276,12 +277,18 @@ export type DeleteAccountInput = {
    * (Step 25). Keyed by tree id.
    */
   successors?: Record<string, string>;
+  /**
+   * The trees nobody else is on, which they agreed go with the account
+   * (Step 176).
+   */
+  deleteTrees?: string[];
 };
 
 /**
  * Permanently delete the signed-in member's own account (`deleteAccountOf`):
  * what they added stays, handed to a Root of each tree, and where they are
- * the only Root they name a successor, whom they make a Root themselves.
+ * the only Root they name a successor, whom they make a Root themselves. A
+ * tree nobody else is on goes with it (Step 176).
  */
 export async function deleteAccount(
   input?: DeleteAccountInput | string,
@@ -294,20 +301,32 @@ export async function deleteAccount(
   const successors: Record<string, string> =
     typeof input === "string" ? { "*": input } : input?.successors ?? {};
 
+  const deleteTrees = typeof input === "string" ? [] : input?.deleteTrees ?? [];
+
   const supabase = await createClient();
-  const { error } = await deleteAccountOf(user.id, successors, {
-    kind: "self",
-    promote: async (treeId, successorId) => {
-      const { data, error } = await supabase.rpc("set_member_role", {
-        p_tree: treeId,
-        p_user: successorId,
-        p_role: "admin",
-      });
-      return !error && data === "admin";
+  const { error } = await deleteAccountOf(
+    user.id,
+    successors,
+    {
+      kind: "self",
+      promote: async (treeId, successorId) => {
+        const { data, error } = await supabase.rpc("set_member_role", {
+          p_tree: treeId,
+          p_user: successorId,
+          p_role: "admin",
+        });
+        return !error && data === "admin";
+      },
+      deleteTree: async (treeId) => {
+        const { error } = await supabase.rpc("delete_tree", { p_tree: treeId });
+        return !error;
+      },
     },
-  });
+    deleteTrees,
+  );
   if (error) return { error };
 
+  if (deleteTrees.length) await clearCurrentTreeCookie();
   await supabase.auth.signOut();
   revalidateTreePages();
   redirect("/?deleted=1");

@@ -2,6 +2,7 @@ import * as React from "react";
 import {
   Image,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   ScrollView,
   StyleSheet,
@@ -10,6 +11,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { isAppReviewEmail } from "@/lib/app-review";
 import { isEmailAddress } from "@/lib/email-address";
 import {
   isWholeSignInCode,
@@ -23,10 +25,14 @@ import { font, GUTTER, usePalette } from "@/theme";
 import { Button } from "@/ui/button";
 import { TextField } from "@/ui/text-field";
 
+const SITE = process.env.EXPO_PUBLIC_SITE_URL ?? "https://www.ancestree.space";
+
 /**
  * Sign in as on the web (Step 53): an email, then the 8-digit code Supabase
  * sends to it, typed or filled in from Mail. Joining a tree stays on the
  * web for now; an address with no tree lands on the "not on a tree" screen.
+ * App Review's one address asks for its password instead, since a reviewer
+ * can't read the email (Step 176, `@/lib/app-review`).
  */
 export default function SignIn() {
   const palette = usePalette();
@@ -34,6 +40,8 @@ export default function SignIn() {
   const [sentTo, setSentTo] = React.useState<string | null>(null);
   const [resent, setResent] = React.useState(false);
   const [code, setCode] = React.useState("");
+  const [reviewing, setReviewing] = React.useState(false);
+  const [password, setPassword] = React.useState("");
   const [busy, setBusy] = React.useState<"send" | "verify" | "resend" | null>(
     null,
   );
@@ -72,10 +80,33 @@ export default function SignIn() {
     }
   }
 
+  async function signInForReview() {
+    if (busy || !password) return;
+    setBusy("verify");
+    setError(null);
+    const { error: refused } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password,
+    });
+    if (refused) {
+      setBusy(null);
+      setError(
+        refused.code === "invalid_credentials"
+          ? "That password isn’t right."
+          : "Couldn’t sign in. Try again.",
+      );
+    }
+  }
+
   function onEmail() {
     const address = email.trim().toLowerCase();
     if (!isEmailAddress(address)) {
       setError("Enter a valid email address.");
+      return;
+    }
+    if (isAppReviewEmail(address)) {
+      setReviewing(true);
+      setError(null);
       return;
     }
     void send(address);
@@ -110,7 +141,48 @@ export default function SignIn() {
             </Text>
           </View>
 
-          {sentTo ? (
+          {reviewing ? (
+            <View style={styles.form}>
+              <Text style={[styles.title, { color: palette.foreground }]}>
+                Sign in
+              </Text>
+              <TextField
+                label="Password"
+                value={password}
+                onChangeText={(text) => {
+                  setPassword(text);
+                  setError(null);
+                }}
+                onSubmitEditing={() => void signInForReview()}
+                secureTextEntry
+                textContentType="password"
+                autoComplete="password"
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoFocus
+                returnKeyType="go"
+                editable={busy !== "verify"}
+                error={error}
+              />
+              <Button
+                label="sign in"
+                busy={busy === "verify"}
+                disabled={!password}
+                onPress={() => void signInForReview()}
+              />
+              <View style={styles.links}>
+                <Button
+                  variant="link"
+                  label="Use another email"
+                  onPress={() => {
+                    setReviewing(false);
+                    setPassword("");
+                    setError(null);
+                  }}
+                />
+              </View>
+            </View>
+          ) : sentTo ? (
             <View style={styles.form}>
               <View accessibilityLiveRegion="polite">
                 <Text style={[styles.title, { color: palette.foreground }]}>
@@ -191,6 +263,14 @@ export default function SignIn() {
               />
             </View>
           )}
+          <View style={styles.footer}>
+            <Button
+              variant="link"
+              label="Privacy"
+              accessibilityRole="link"
+              onPress={() => void Linking.openURL(`${SITE}/privacy`)}
+            />
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -219,4 +299,5 @@ const styles = StyleSheet.create({
     fontVariant: ["tabular-nums"],
   },
   links: { flexDirection: "row", flexWrap: "wrap", columnGap: 16 },
+  footer: { alignItems: "center" },
 });
