@@ -48,6 +48,53 @@ npx expo run:android --device
 The write-up needs `ANTHROPIC_API_KEY` set on the web's server (Vercel),
 and `EXPO_PUBLIC_SITE_URL` pointing at it.
 
+## Your own build, signed by the developer account (Step 173)
+
+Expo's build service, EAS, builds the app in the cloud and signs it with
+the Apple developer account. The project is `@aalimr/ancestree` on
+expo.dev, and `eas.json` holds three profiles:
+
+- **development**: the app with Expo's dev client, for phones registered
+  to the account. It takes its JavaScript from `npx expo start` on the
+  Mac, so a code change shows up at once and only native changes need a
+  new build.
+- **preview**: the finished app for registered phones, no Mac needed.
+- **production**: for TestFlight and the App Store.
+
+The three public values live on EAS too, in its development, preview
+and production environments, so builds made there have them.
+`npx eas-cli env:pull --environment development` writes them into a
+fresh `.env.local`, with `EXPO_PUBLIC_SITE_URL` set to the live site,
+because a phone can't reach the Mac's `localhost`.
+
+The first build on a new iPhone:
+
+1. Build the development profile. EAS asks you to sign in to Apple (Apple
+   ID, password, then the code on your phone) and to pick the team. It
+   then offers to register a phone: choose **Website** and open the link
+   on the iPhone, in Safari. The phone downloads a profile; install it in
+   **Settings → General → VPN & Device Management**. EAS then makes the
+   bundle ID, certificate and provisioning profile itself.
+
+   ```bash
+   npx eas-cli build --profile development --platform ios
+   ```
+
+2. When the build is done, which takes 10 to 30 minutes on the free plan,
+   open the link it prints on the iPhone and install **ancestree**.
+3. The first time it opens, iOS asks for **Developer Mode**: turn it on
+   in **Settings → Privacy & Security → Developer Mode**. The phone
+   restarts.
+4. Start the bundler on the Mac, with the phone on the same Wi-Fi. The app
+   lists the Mac's server; tap it.
+
+   ```bash
+   npx expo start --dev-client
+   ```
+
+Another phone is `npx eas-cli device:create`, and then a new development
+build, because each build lists the phones it may run on.
+
 ## Run it on your iPhone (no developer account needed)
 
 Expo Go runs the app straight from your Mac.

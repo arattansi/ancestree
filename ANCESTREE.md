@@ -676,7 +676,10 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   line from a person) and `lib/leaf-orbit.ts` (where the leaf and its
   circles go, and the lines between them) are its, tested here.
   `mobile/plugins/with-scene-life-cycle.js` makes builds with the iOS 27
-  SDK launch (Step 149).
+  SDK launch (Step 149). `mobile/eas.json` — Expo's build service (EAS,
+  project `@aalimr/ancestree`) builds and signs it with the Apple
+  developer account: development (dev client), preview, production
+  (Step 173).
   `docs/mobile-server-paths.md` — every server action and service-role
   path, and what the app does instead
 
@@ -1881,6 +1884,26 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 173: the iPhone app's own build, signed by the developer
+  account** (no migration). **Aalim asked** (2026-10-16), once the Apple
+  developer account came through: "Go with the EAS free plan: set up the
+  build config and the dev client, and walk me through the Apple sign-in
+  and registering my iPhone." **Now** `expo-dev-client` is in the app and
+  `mobile/eas.json` has three profiles: development (dev client, for
+  registered phones, JavaScript from `npx expo start`), preview
+  (registered phones, no Mac) and production (TestFlight and the store,
+  build numbers kept on EAS). The project is `@aalimr/ancestree` on
+  expo.dev (Aalim chose his own account over `ar-prod`), and the three
+  public values are EAS environment variables in all three environments,
+  with the site set to `https://www.ancestree.space`, because a phone
+  can't reach the Mac's `localhost`; `eas env:pull` writes a worktree's
+  `.env.local`. Checked by a simulator build with the dev client, which
+  opens under the scene life cycle (Step 149) and loads the app from
+  Metro. Signing in to Apple and registering the phone are Aalim's, in
+  the first `eas build`; `mobile/README.md` walks through it. **My
+  calls:** `eas init` copied the speech plugin's Info.plist text and
+  Android permission into `app.json`; they're left to the plugin, as
+  before.
 - **Step 172: a weekday's getting started emails go at 3pm Pacific** (no
   migration). **Aalim asked** (2026-10-16): "any emails that go out
   during weekdays for the drip, send them at 3pm PT". They went with the
