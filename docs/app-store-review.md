@@ -138,7 +138,12 @@ app starts using Face ID, give it a real message there.
   app encrypts messages itself, with standard published algorithms
   (X25519, Ed25519, XChaCha20-Poly1305, `@noble/*`). Apple's questions may
   now need a different answer, and App Store Connect may ask for export
-  documentation. Decide before the next TestFlight build.
+  documentation. **Decided 2026-10-17 (Aalim): declare it.** `app.json`
+  now says `"usesNonExemptEncryption": true`, so each new build waits in
+  App Store Connect as "Missing Compliance" until the encryption questions
+  are answered there (standard algorithms, used in addition to iOS's own);
+  settle the answers, and any documents Apple asks for, once, then they can
+  be set in `app.json` (`ios.config` / `infoPlist`) so builds stop waiting.
 - **Messages in App Privacy.** The server keeps who wrote to whom and when,
   but never a message's words, which only the members' devices can read.
   Check Apple's wording on end-to-end encrypted data before adding
