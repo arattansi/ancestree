@@ -2012,7 +2012,11 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   read stayed loading, keys went into backups, and the export left its
   text file in the cache. The whole flow ran again after. **Not tested:** sending a report (it would notify the
   real reviewers), and scanning a real code (a simulator has no camera).
-  `docs/app-store-review.md` now asks for a decision on encryption export
+  From Aalim's phone test: a thread with someone who has no messaging key
+  yet read as broken ("i can't type anything"), so on the phone and the
+  web alike the foot now says "You can write to Raiya once they next
+  visit ancestree." and "Say hello" shows only when there's a box to say
+  it in. `docs/app-store-review.md` now asks for a decision on encryption export
   compliance (`usesNonExemptEncryption: false` in `app.json`) before the
   next TestFlight build.
 

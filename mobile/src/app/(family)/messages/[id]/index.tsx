@@ -83,6 +83,9 @@ export default function ThreadScreen() {
   // Checked before, and their key has changed since (Step 174.6): nothing
   // more goes to them until it's checked again.
   const codeChanged = !!verifiedKey && !!currentKey && verifiedKey !== currentKey;
+  // Whether there's a box to write in: the foot says why when there isn't.
+  const canWrite =
+    !!peer && !peer.blocked && peer.canSend && peer.keyVersion != null && !codeChanged;
   const details = () => router.push({ pathname: "/messages/[id]/details", params: { id } });
   const verify = () => router.push({ pathname: "/messages/[id]/verify", params: { id } });
 
@@ -159,7 +162,7 @@ export default function ThreadScreen() {
           </View>
         ) : messages.length === 0 ? (
           <Pressable style={styles.centre} onPress={Keyboard.dismiss}>
-            <Words muted>Say hello to {firstOf(name, "them")}.</Words>
+            {canWrite ? <Words muted>Say hello to {firstOf(name, "them")}.</Words> : null}
           </Pressable>
         ) : (
           <FlatList
@@ -216,7 +219,7 @@ export default function ThreadScreen() {
             </Words>
           ) : peer && peer.keyVersion == null ? (
             <Words muted center>
-              {first} can get messages once they next visit ancestree.
+              You can write to {first} once they next visit ancestree.
             </Words>
           ) : codeChanged ? (
             <Words muted center>

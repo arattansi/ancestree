@@ -537,6 +537,9 @@ function ThreadView({ id, onClose }: { id: string; onClose: () => void }) {
   // Checked before, and their key has changed since (Step 174.6): nothing
   // more goes to them until it's checked again.
   const codeChanged = !!verifiedKey && !!currentKey && verifiedKey !== currentKey;
+  // Whether there's a box to write in: the foot says why when there isn't.
+  const canWrite =
+    !!peer && !peer.blocked && peer.canSend && peer.keyVersion != null && !codeChanged;
   return (
     <>
       <PanelHeader
@@ -639,9 +642,11 @@ function ThreadView({ id, onClose }: { id: string; onClose: () => void }) {
         ) : thread.failed && messages.length === 0 ? (
           <LoadFailed onRetry={() => messenger.retryThread(id)} />
         ) : messages.length === 0 ? (
-          <p className="py-10 text-center text-sm text-muted-foreground">
-            Say hello to {name.split(" ")[0] || "them"}.
-          </p>
+          canWrite ? (
+            <p className="py-10 text-center text-sm text-muted-foreground">
+              Say hello to {name.split(" ")[0] || "them"}.
+            </p>
+          ) : null
         ) : (
           <ol role="log" aria-live="polite" aria-label={`Messages with ${name}`} className="flex flex-col">
             {messages.map((m, i) => (
@@ -671,7 +676,7 @@ function ThreadView({ id, onClose }: { id: string; onClose: () => void }) {
         </p>
       ) : peer && peer.keyVersion == null ? (
         <p className="shrink-0 border-t px-4 py-3 text-center text-sm text-muted-foreground">
-          {first} can get messages once they next visit ancestree.
+          You can write to {first} once they next visit ancestree.
         </p>
       ) : codeChanged ? (
         <p className="shrink-0 border-t px-4 py-3 text-center text-sm text-muted-foreground">
