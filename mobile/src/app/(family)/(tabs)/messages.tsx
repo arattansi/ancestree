@@ -15,7 +15,8 @@ import { linkFragment, messenger, useMessenger } from "@/messages/store";
 import { ErrorText, Face, Notice, Words } from "@/messages/ui";
 import { font, GUTTER, usePalette } from "@/theme";
 import { Button } from "@/ui/button";
-import { ScreenHeader, HeaderButton } from "@/ui/header";
+import { AppHeader, ScreenTitle } from "@/ui/app-header";
+import { HeaderButton } from "@/ui/header";
 import { BellOffIcon, LockKeyholeIcon, SquarePenIcon } from "@/ui/icons";
 import { TextField } from "@/ui/text-field";
 
@@ -36,8 +37,8 @@ export default function Messages() {
   }, [keys]);
 
   return (
-    <SafeAreaView edges={["top", "bottom"]} style={[styles.safe, { backgroundColor: palette.background }]}>
-      <ScreenHeader title="Messages">
+    <SafeAreaView edges={["top"]} style={[styles.safe, { backgroundColor: palette.background }]}>
+      <AppHeader>
         {keys === "ready" ? (
           <HeaderButton label="Message security" onPress={() => router.push("/messages/security")}>
             <LockKeyholeIcon color={palette.foreground} />
@@ -48,7 +49,8 @@ export default function Messages() {
             <SquarePenIcon color={palette.foreground} />
           </HeaderButton>
         ) : null}
-      </ScreenHeader>
+      </AppHeader>
+      <ScreenTitle>Messages</ScreenTitle>
       {keys === "locked" ? (
         <Locked />
       ) : keys === "unavailable" ? (

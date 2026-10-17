@@ -1,17 +1,17 @@
 import { router } from "expo-router";
 import * as React from "react";
-import { ActivityIndicator, Image, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useSession } from "@/auth/session";
 import { useFamily } from "@/family/family";
 import type { NoFamily } from "@/family/load";
 import { Spotlight } from "@/leaf/spotlight";
-import { useUnread } from "@/messages/store";
 import { font, GUTTER, usePalette } from "@/theme";
 import { Button } from "@/ui/button";
+import { AppHeader } from "@/ui/app-header";
 import { HeaderButton } from "@/ui/header";
-import { ChevronLeftIcon, MessageSquareIcon, SearchIcon, UserIcon } from "@/ui/icons";
+import { ChevronLeftIcon, SearchIcon } from "@/ui/icons";
 
 const SITE = process.env.EXPO_PUBLIC_SITE_URL ?? "https://www.ancestree.space";
 const SITE_NAME = SITE.replace(/^https?:\/\/(www\.)?/, "");
@@ -32,58 +32,37 @@ const NOTHING: Record<NoFamily, { title: string; body: string }> = {
   },
 };
 
-/** The member's family, one leaf at a time, opening on their own. */
+/**
+ * The member's family, one leaf at a time, opening on their own: home, the
+ * middle of the menu bar (Step 179.4). The wordmark brings them back to
+ * their own leaf; back retraces the leaves they walked.
+ */
 export default function LeafScreen() {
   const palette = usePalette();
   const { signOut } = useSession();
-  const { state, reload, focusId, trail, walkTo, back, home } = useFamily();
+  const { state, reload, focusId, trail, walkTo, back } = useFamily();
   const family = state.status === "ready" ? state.family : null;
-  const awayFromHome = !!family && focusId !== family.selfId;
-  const unread = useUnread();
 
   return (
     <SafeAreaView
-      edges={["top", "bottom", "left", "right"]}
+      edges={["top", "left", "right"]}
       style={[styles.safe, { backgroundColor: palette.background }]}
     >
-      <View style={styles.header}>
-        {trail.length > 0 ? (
-          <HeaderButton label="Back" onPress={back}>
-            <ChevronLeftIcon color={palette.foreground} />
-          </HeaderButton>
-        ) : (
-          <View style={styles.brand}>
-            <Image
-              source={require("../../../assets/splash-icon.png")}
-              style={styles.mark}
-              accessible={false}
-            />
-            <Text style={[styles.wordmark, { color: palette.foreground }]}>
-              ancestree
-            </Text>
-          </View>
-        )}
-        <View style={styles.actions}>
-          {awayFromHome ? (
-            <Button variant="outline" label="you" onPress={home} />
-          ) : null}
-          {/* Messages and their unread count (Step 179.1), until the menu
-              bar takes them (179.4). */}
-          {family ? (
-            <HeaderButton label="Messages" count={unread} onPress={() => router.push("/messages")}>
-              <MessageSquareIcon color={palette.foreground} />
+      <AppHeader
+        before={
+          trail.length > 0 ? (
+            <HeaderButton label="Back" onPress={back}>
+              <ChevronLeftIcon color={palette.foreground} />
             </HeaderButton>
-          ) : null}
-          {family ? (
-            <HeaderButton label="Find someone" onPress={() => router.push("/search")}>
-              <SearchIcon color={palette.foreground} />
-            </HeaderButton>
-          ) : null}
-          <HeaderButton label="Account" onPress={() => router.push("/account")}>
-            <UserIcon color={palette.foreground} />
+          ) : null
+        }
+      >
+        {family ? (
+          <HeaderButton label="Find someone" onPress={() => router.push("/search")}>
+            <SearchIcon color={palette.foreground} />
           </HeaderButton>
-        </View>
-      </View>
+        ) : null}
+      </AppHeader>
 
       {state.status === "loading" ? (
         <View style={styles.centre}>
@@ -137,17 +116,6 @@ function Message({
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  header: {
-    height: 52,
-    paddingHorizontal: GUTTER - 4,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  brand: { flexDirection: "row", alignItems: "center", gap: 8, paddingLeft: 4 },
-  mark: { width: 28, height: 28 },
-  wordmark: { fontFamily: font.semibold, fontSize: 19, letterSpacing: -0.3 },
-  actions: { flexDirection: "row", alignItems: "center", gap: 4 },
   centre: { flex: 1, alignItems: "center", justifyContent: "center" },
   message: { paddingHorizontal: GUTTER + 8, gap: 12 },
   title: { fontFamily: font.semibold, fontSize: 20, textAlign: "center" },

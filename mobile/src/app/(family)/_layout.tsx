@@ -24,12 +24,12 @@ export default function FamilyLayout() {
           contentStyle: { backgroundColor: palette.background },
         }}
       >
-        <Stack.Screen name="index" />
+        {/* The leaf view, feed, messages and settings, behind the menu bar
+            (Step 179.4). */}
+        <Stack.Screen name="(tabs)" />
         <Stack.Screen name="person/[id]" options={sheet} />
         <Stack.Screen name="relatives/[side]" options={sheet} />
-        <Stack.Screen name="account" options={sheet} />
-        {/* Over the account sheet, all of it: the choices before deleting
-            (Step 176). */}
+        {/* All of the sheet: the choices before deleting (Step 176). */}
         <Stack.Screen
           name="delete-account"
           options={{ ...sheet, sheetAllowedDetents: [1] }}
