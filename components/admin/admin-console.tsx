@@ -5,6 +5,7 @@ import { AdminArchivedInvites } from "@/components/admin/admin-archived-invites"
 import { AdminClaimInvites } from "@/components/admin/admin-claim-invites";
 import { AdminDeleteTree } from "@/components/admin/admin-delete-tree";
 import { AdminExport } from "@/components/admin/admin-export";
+import { AdminMessageReports } from "@/components/admin/admin-message-reports";
 import { AdminReports } from "@/components/admin/admin-reports";
 import { AdminInviteHistory } from "@/components/admin/admin-invite-history";
 import {
@@ -44,6 +45,7 @@ import { branchSidesOn } from "@/lib/branch.server";
 import { buildAdminActionItems } from "@/lib/admin-notifications";
 import { adminNav, groupSectionIds } from "@/lib/admin-sections";
 import { listTreeReports } from "@/lib/entry-reports";
+import { listTreeMessageReports } from "@/lib/message-reports.server";
 import { getFamilyLink, listFamilyLinkJoins } from "@/lib/family-link.server";
 import {
   archiveExpiredInvites,
@@ -108,6 +110,7 @@ export async function AdminConsole({
     shareLinksRes,
     sideOf,
     reports,
+    messageReports,
     [inviteHistory, archivedInvites],
     familyLink,
     familyLinkJoins,
@@ -146,6 +149,8 @@ export async function AdminConsole({
     // 22.2).
     branchSidesOn(tree.id),
     listTreeReports(tree.id, currentAdmin.auth_user_id),
+    // Messages reported between members of the tree (Step 177.3).
+    listTreeMessageReports(tree.id),
     // Archived before listing, so a link that lapsed since the last visit
     // lands in "Archived invites" rather than lingering among the live ones.
     archiveExpiredInvites(tree.id).then(() =>
@@ -257,11 +262,12 @@ export async function AdminConsole({
   const pendingPlacements = carried.filter(
     (c) => c.approval === "asked",
   ).length;
+  const openReports = reports.length + messageReports.length;
   const actionItems = buildAdminActionItems({
     inviteRequests: inviteRequests.length,
-    reports: reports.length,
+    reports: openReports,
   });
-  const requestsBadge = inviteRequests.length + reports.length;
+  const requestsBadge = inviteRequests.length + openReports;
 
   const stats: { label: string; value: number }[] = [
     { label: "Members", value: members.length },
@@ -272,7 +278,7 @@ export async function AdminConsole({
     // Step 109: where they were born, and how far back the births go.
     { label: "Countries", value: countriesRepresented(people) },
     { label: "Years Documented", value: yearsDocumented(people, new Date()) },
-    { label: "Reports", value: reports.length },
+    { label: "Reports", value: openReports },
     { label: "Invite requests", value: inviteRequests.length },
   ];
 
@@ -490,10 +496,16 @@ export async function AdminConsole({
         <AdminSubsection
           id="reports"
           collapsible
-          defaultOpen={reports.length > 0}
+          defaultOpen={openReports > 0}
           title="Reports"
         >
           <AdminReports reports={reports} />
+          {messageReports.length > 0 ? (
+            <section className="mt-4 flex flex-col gap-3">
+              <h3 className="text-sm font-medium">Reported Messages</h3>
+              <AdminMessageReports reports={messageReports} />
+            </section>
+          ) : null}
         </AdminSubsection>
 
       </AdminGroup>

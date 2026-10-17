@@ -6,6 +6,7 @@ import {
   type TreeQueue,
 } from "@/lib/admin-queue";
 import { countTreeReports } from "@/lib/entry-reports";
+import { countTreeMessageReports } from "@/lib/message-reports.server";
 import { createClient } from "@/lib/supabase/server";
 
 export type AdminActionItem = {
@@ -48,7 +49,7 @@ export function buildAdminActionItems(counts: {
  */
 export async function countAdminQueue(treeId: string): Promise<TreeQueue> {
   const supabase = await createClient();
-  const [reqs, reports] = await Promise.all([
+  const [reqs, reports, messageReports] = await Promise.all([
     supabase
       .from("invite_requests")
       .select("id", { count: "exact", head: true })
@@ -56,10 +57,12 @@ export async function countAdminQueue(treeId: string): Promise<TreeQueue> {
       .eq("status", "pending"),
     // Reports are per entry; the ones for this tree are on its own people.
     countTreeReports(treeId),
+    // And messages reported between its members (Step 177.3).
+    countTreeMessageReports(treeId),
   ]);
   return {
     treeId,
     inviteRequests: reqs.count ?? 0,
-    reports,
+    reports: reports + messageReports,
   };
 }

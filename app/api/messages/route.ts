@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 
 import { getProfile } from "@/lib/auth";
 import { loadMessenger } from "@/lib/messenger.server";
@@ -8,14 +8,17 @@ import { loadMessenger } from "@/lib/messenger.server";
  * the reader can write to (Step 174), read when the pop-up wakes and again
  * when a message comes from someone it hasn't listed. The messages
  * themselves the pop-up reads and sends through the database directly.
+ * `?relations=1`, while the pop-up is open, adds who each of them is to the
+ * reader (Step 177.1), which takes reading their trees' people and lines.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const relations = request.nextUrl.searchParams.get("relations") === "1";
   const profile = await getProfile();
   if (!profile) {
     return NextResponse.json({ error: "Sign in to see this." }, { status: 401 });
   }
   try {
-    return NextResponse.json(await loadMessenger(), {
+    return NextResponse.json(await loadMessenger({ relations }), {
       headers: { "Cache-Control": "private, no-store" },
     });
   } catch (error) {

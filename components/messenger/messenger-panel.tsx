@@ -5,8 +5,10 @@ import {
   BellOff,
   Check,
   Copy,
+  Ban,
   Download,
   Ellipsis,
+  Flag,
   LoaderCircle,
   LockKeyhole,
   SendHorizontal,
@@ -15,6 +17,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import Link from "next/link";
 import { encode as encodeQr } from "uqr";
 import * as React from "react";
 
@@ -43,6 +46,7 @@ import {
   isMuted,
   MESSAGE_MAX,
   MUTE_CHOICES,
+  REPORT_REASON_MAX,
   mutedText,
   newDay,
   shortWhen,
@@ -50,7 +54,9 @@ import {
   type ChatMessage,
   type ConversationSummary,
   type MessengerContact,
+  type MessengerRelation,
 } from "@/lib/messenger";
+import { closestFirst } from "@/lib/messenger-relation";
 import { cn } from "@/lib/utils";
 
 /**
@@ -94,6 +100,8 @@ export function MessengerPanel({ onClose }: { onClose: () => void }) {
         <VerifyView key={view.id} id={view.id} onClose={onClose} />
       ) : view.kind === "details" ? (
         <DetailsView key={view.id} id={view.id} onClose={onClose} />
+      ) : view.kind === "report" ? (
+        <ReportView key={view.messageId} id={view.id} messageId={view.messageId} onClose={onClose} />
       ) : view.kind === "list" ? (
         <ListView onClose={onClose} />
       ) : view.kind === "new" ? (
@@ -169,6 +177,27 @@ function Face({
       <AvatarFallback className="text-xs font-medium">{initialsOf(name)}</AvatarFallback>
     </Avatar>
   );
+}
+
+/** Who someone is to the reader (Step 177.1), once the open pop-up has read it. */
+function useRelation(userId: string | null | undefined): MessengerRelation | undefined {
+  return useMessenger((s) => (userId ? s.data?.relations?.[userId] : undefined));
+}
+
+/** The trees the reader shares with someone, by name, while they share any. */
+function useSharedTrees(userId: string | null | undefined): readonly string[] | undefined {
+  return useMessenger((s) =>
+    userId ? s.data?.contacts.find((c) => c.userId === userId)?.trees : undefined,
+  );
+}
+
+/** What a line under someone's name says: who they are to you, else the tree you share. */
+function aboutLine(
+  relation: MessengerRelation | undefined,
+  trees: readonly string[] | undefined,
+): string | null {
+  if (relation) return relation.label;
+  return trees?.length ? `On ${trees.join(" · ")}` : null;
 }
 
 function ListSkeleton() {
@@ -264,7 +293,11 @@ function ListView({ onClose }: { onClose: () => void }) {
           <ul className="flex flex-col py-1">
             {data.conversations.map((c) => (
               <li key={c.id}>
-                <ConversationRow conversation={c} me={me} />
+                <ConversationRow
+                  conversation={c}
+                  me={me}
+                  relation={c.otherUserId ? data.relations?.[c.otherUserId] : undefined}
+                />
               </li>
             ))}
           </ul>
@@ -277,9 +310,12 @@ function ListView({ onClose }: { onClose: () => void }) {
 function ConversationRow({
   conversation: c,
   me,
+  relation,
 }: {
   conversation: ConversationSummary;
   me: string | null;
+  /** Shown on hover (Step 177.1). */
+  relation: MessengerRelation | undefined;
 }) {
   const unread = c.unread > 0;
   const muted = isMuted(c);
@@ -287,6 +323,7 @@ function ConversationRow({
     <button
       type="button"
       onClick={() => messenger.show({ kind: "thread", id: c.id })}
+      title={relation?.label}
       className="flex w-full items-center gap-3 px-3 py-2.5 text-left outline-none hover:bg-muted focus-visible:bg-muted"
       aria-label={unread ? `${c.name}, ${c.unread} unread` : c.name}
     >
@@ -344,7 +381,10 @@ function NewView({ onClose }: { onClose: () => void }) {
   const data = useMessenger((s) => s.data);
   const opening = useMessenger((s) => s.opening);
   const [query, setQuery] = React.useState("");
-  const shown = data ? filterContacts(data.contacts, query) : [];
+  // Closest first, so Mum is at the top (Step 177.1).
+  const shown = data
+    ? closestFirst(filterContacts(data.contacts, query), (c) => data.relations?.[c.userId]?.distance ?? null)
+    : [];
 
   return (
     <>
@@ -378,6 +418,7 @@ function NewView({ onClose }: { onClose: () => void }) {
               <li key={c.userId}>
                 <ContactRow
                   contact={c}
+                  relation={data.relations?.[c.userId]}
                   busy={opening === c.userId}
                   disabled={!!opening}
                 />
@@ -392,10 +433,12 @@ function NewView({ onClose }: { onClose: () => void }) {
 
 function ContactRow({
   contact: c,
+  relation,
   busy,
   disabled,
 }: {
   contact: MessengerContact;
+  relation: MessengerRelation | undefined;
   busy: boolean;
   disabled: boolean;
 }) {
@@ -411,7 +454,7 @@ function ContactRow({
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="truncate text-sm font-medium">{c.name}</span>
         <span className="truncate text-xs text-muted-foreground">
-          {c.trees.join(" · ")}
+          {aboutLine(relation, c.trees)}
         </span>
       </span>
       {busy ? (
@@ -436,6 +479,8 @@ function usePeer(id: string): {
   keyVersion: number | null;
   /** Muted until then (Step 177.4); null when it isn't. */
   mutedUntil: string | null;
+  /** Who blocked whom (Step 177.3). */
+  blocked: "by_you" | "by_them" | null;
 } | null {
   const summary = useMessenger((s) => s.data?.conversations.find((c) => c.id === id));
   const peerId = useMessenger((s) => s.peers[id]);
@@ -444,7 +489,7 @@ function usePeer(id: string): {
   );
   if (summary)
     return { ...summary, userId: summary.otherUserId, keyVersion: summary.otherKeyVersion };
-  if (contact) return { ...contact, canSend: true, mutedUntil: null };
+  if (contact) return { ...contact, canSend: true, mutedUntil: null, blocked: null };
   return null;
 }
 
@@ -481,6 +526,7 @@ function ThreadView({ id, onClose }: { id: string; onClose: () => void }) {
 
   const name = peer?.name ?? "";
   const first = name.split(" ")[0] || "They";
+  const about = aboutLine(useRelation(peer?.userId), useSharedTrees(peer?.userId));
   const verifiedKey = useMessenger((s) =>
     peer?.userId ? s.verified[peer.userId] : undefined,
   );
@@ -502,13 +548,21 @@ function ThreadView({ id, onClose }: { id: string; onClose: () => void }) {
               className="flex min-w-0 items-center gap-2 rounded-md text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
             >
               <Face name={name} photoUrl={peer.photoUrl} photoCrop={peer.photoCrop} className="size-8" />
-              <h2 className="truncate text-base font-semibold">{name}</h2>
-              {verifiedKey && !codeChanged ? (
-                <ShieldCheck className="size-4 shrink-0 text-muted-foreground" aria-label="Verified" />
-              ) : null}
-              {peer.mutedUntil && isMuted(peer) ? (
-                <BellOff className="size-3.5 shrink-0 text-muted-foreground" aria-label="Muted" />
-              ) : null}
+              <span className="flex min-w-0 flex-col">
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <h2 className="truncate text-base leading-tight font-semibold">{name}</h2>
+                  {verifiedKey && !codeChanged ? (
+                    <ShieldCheck className="size-4 shrink-0 text-muted-foreground" aria-label="Verified" />
+                  ) : null}
+                  {peer.mutedUntil && isMuted(peer) ? (
+                    <BellOff className="size-3.5 shrink-0 text-muted-foreground" aria-label="Muted" />
+                  ) : null}
+                </span>
+                {/* Who they are to you (Step 177.1); the chain is in the details. */}
+                {about ? (
+                  <span className="truncate text-xs text-muted-foreground">{about}</span>
+                ) : null}
+              </span>
             </button>
           ) : (
             <Skeleton className="h-6 w-32" />
@@ -604,7 +658,13 @@ function ThreadView({ id, onClose }: { id: string; onClose: () => void }) {
           </ol>
         )}
       </div>
-      {peer && !peer.canSend ? (
+      {peer?.blocked === "by_you" && peer.userId ? (
+        <Unblock userId={peer.userId} first={first} />
+      ) : peer?.blocked === "by_them" ? (
+        <p className="shrink-0 border-t px-4 py-3 text-center text-sm text-muted-foreground">
+          You can&rsquo;t message {first}.
+        </p>
+      ) : peer && !peer.canSend ? (
         <p className="shrink-0 border-t px-4 py-3 text-center text-sm text-muted-foreground">
           You no longer share a tree.
         </p>
@@ -663,8 +723,9 @@ function MessageItem({
     !dayBreak &&
     previous?.senderId === m.senderId &&
     Date.parse(m.createdAt) - Date.parse(previous.createdAt) < RUN_MS;
-  // Your own messages can be deleted once they've gone (Step 177.5).
-  const canAct = mine && !m.pending;
+  // Your own messages can be deleted once they've gone (Step 177.5); theirs
+  // reported, once read here (Step 177.3).
+  const canAct = mine ? !m.pending : !m.status;
   return (
     <li className={cn("flex flex-col", run ? "mt-0.5" : "mt-2.5")}>
       {dayBreak ? (
@@ -724,8 +785,9 @@ function MessageItem({
 }
 
 /**
- * A message's actions once it's pressed: its time, and **delete** for your
- * own (Step 177.5), which deletes it for everyone once confirmed.
+ * A message's actions once it's pressed: its time, **delete** for your own
+ * (Step 177.5), which deletes it for everyone once confirmed, and
+ * **report** for theirs (Step 177.3).
  */
 function MessageActions({
   message: m,
@@ -786,7 +848,19 @@ function MessageActions({
             delete
           </Button>
         )
-      ) : null}
+      ) : (
+        <Button
+          type="button"
+          size="xs"
+          variant="ghost"
+          onClick={() =>
+            messenger.show({ kind: "report", id: m.conversationId, messageId: m.id })
+          }
+        >
+          <Flag aria-hidden />
+          report
+        </Button>
+      )}
       {error ? (
         <span role="alert" className="text-destructive">
           {error}
@@ -1146,6 +1220,11 @@ function SecurityView({ onClose }: { onClose: () => void }) {
   const [phrase, setPhrase] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState<"link" | "phrase" | "export" | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+  const blocks = useMessenger((s) => s.blocks);
+
+  React.useEffect(() => {
+    messenger.loadBlocks();
+  }, []);
 
   // Read here and saved as a file: the server can't (Step 177.6).
   async function exportAll() {
@@ -1285,6 +1364,20 @@ function SecurityView({ onClose }: { onClose: () => void }) {
           )}
         </section>
 
+        {blocks?.length ? (
+          <section className="flex flex-col gap-2">
+            <h3 className="font-medium">Blocked</h3>
+            <ul className="flex flex-col gap-1">
+              {blocks.map((b) => (
+                <li key={b.userId} className="flex items-center justify-between gap-2">
+                  <span className="truncate">{b.name}</span>
+                  <UnblockButton userId={b.userId} />
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
         <section className="flex flex-col gap-2">
           <h3 className="font-medium">Export Messages</h3>
           <p className="text-muted-foreground">
@@ -1314,9 +1407,193 @@ function SecurityView({ onClose }: { onClose: () => void }) {
   );
 }
 
+/** A thread's foot once the reader has blocked them: unblock to write again. */
+function Unblock({ userId, first }: { userId: string; first: string }) {
+  const [busy, setBusy] = React.useState(false);
+  return (
+    <p className="shrink-0 border-t px-4 py-3 text-center text-sm text-muted-foreground">
+      You blocked {first}.{" "}
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => {
+          setBusy(true);
+          void messenger.block(userId, false).finally(() => setBusy(false));
+        }}
+        className="font-medium text-foreground underline underline-offset-4"
+      >
+        Unblock
+      </button>
+    </p>
+  );
+}
+
 /**
- * A conversation's details (Step 177), from its header: mute it, and check
- * their security code.
+ * Report one of their messages (Step 177.3): its words, as this device read
+ * them, go to the Roots of the trees you share and the reviewers, who see
+ * nothing else of the conversation. Then the offer to block them.
+ */
+function ReportView({
+  id,
+  messageId,
+  onClose,
+}: {
+  id: string;
+  messageId: string;
+  onClose: () => void;
+}) {
+  const peer = usePeer(id);
+  const message = useMessenger((s) => s.threads[id]?.messages.find((m) => m.id === messageId));
+  const [reason, setReason] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const [sent, setSent] = React.useState(false);
+  const first = peer?.name.split(" ")[0] || "them";
+
+  async function send(e: React.FormEvent) {
+    e.preventDefault();
+    if (!message) return;
+    setBusy(true);
+    setError(null);
+    const problem = await messenger.report(message.id, message.body, reason);
+    setBusy(false);
+    if (problem) setError(problem);
+    else setSent(true);
+  }
+
+  return (
+    <>
+      <PanelHeader
+        title={<h2 className="truncate text-base font-semibold">Report a Message</h2>}
+        back={{ kind: "thread", id }}
+        onClose={onClose}
+      />
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 text-sm">
+        {!message ? (
+          <p className="text-muted-foreground">That message is gone.</p>
+        ) : sent ? (
+          <>
+            <p role="status" className="font-medium">
+              Reported. A Root will look at it.
+            </p>
+            {peer?.blocked === "by_you" ? (
+              <p className="text-muted-foreground">You blocked {first}.</p>
+            ) : peer?.userId ? (
+              <BlockControl userId={peer.userId} first={first} />
+            ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              className="self-start"
+              onClick={() => messenger.show({ kind: "thread", id })}
+            >
+              done
+            </Button>
+          </>
+        ) : (
+          <form onSubmit={(e) => void send(e)} className="flex flex-col gap-3">
+            <blockquote className="rounded-lg bg-muted px-3 py-2 break-words whitespace-pre-wrap">
+              {message.body}
+            </blockquote>
+            <p className="text-muted-foreground">
+              The Roots of trees you share with {first}, and ancestree&rsquo;s reviewers, see
+              this message and who sent it, nothing else.
+            </p>
+            <label htmlFor="messenger-report-reason" className="font-medium">
+              What&rsquo;s wrong (optional)
+            </label>
+            <textarea
+              id="messenger-report-reason"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              rows={3}
+              maxLength={REPORT_REASON_MAX}
+              className="resize-none rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm"
+            />
+            <div className="flex gap-2">
+              <PendingButton type="submit" pending={busy} pendingLabel="sending…" disabled={busy}>
+                <Flag aria-hidden />
+                report
+              </PendingButton>
+              <Button type="button" variant="ghost" onClick={() => messenger.show({ kind: "thread", id })}>
+                cancel
+              </Button>
+            </div>
+            {error ? (
+              <p role="alert" className="text-destructive">
+                {error}
+              </p>
+            ) : null}
+          </form>
+        )}
+      </div>
+    </>
+  );
+}
+
+/**
+ * **block {first}**, asked once more before it's done (Step 177.3): neither
+ * can write to the other until it's undone.
+ */
+function BlockControl({ userId, first }: { userId: string; first: string }) {
+  const [confirming, setConfirming] = React.useState(false);
+  const [busy, setBusy] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  async function blockThem() {
+    setBusy(true);
+    setError(null);
+    const done = await messenger.block(userId, true);
+    setBusy(false);
+    if (!done) setError("Couldn't block them. Try again.");
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      {confirming ? (
+        <>
+          <p>Block {first}? Neither of you can write to the other until you unblock.</p>
+          <div className="flex gap-2">
+            <PendingButton
+              type="button"
+              variant="destructive"
+              size="sm"
+              pending={busy}
+              pendingLabel="blocking…"
+              disabled={busy}
+              onClick={() => void blockThem()}
+            >
+              block
+            </PendingButton>
+            <Button type="button" variant="ghost" size="sm" onClick={() => setConfirming(false)}>
+              cancel
+            </Button>
+          </div>
+        </>
+      ) : (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="self-start"
+          onClick={() => setConfirming(true)}
+        >
+          <Ban aria-hidden />
+          block {first}
+        </Button>
+      )}
+      {error ? (
+        <p role="alert" className="text-destructive">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * A conversation's details (Step 177), from its header: mute it, block
+ * them, and check their security code.
  */
 function DetailsView({ id, onClose }: { id: string; onClose: () => void }) {
   const peer = usePeer(id);
@@ -1325,6 +1602,8 @@ function DetailsView({ id, onClose }: { id: string; onClose: () => void }) {
   const name = peer?.name ?? "";
   const first = name.split(" ")[0] || "them";
   const muted = peer?.mutedUntil && isMuted(peer) ? peer.mutedUntil : null;
+  const relation = useRelation(peer?.userId);
+  const trees = useSharedTrees(peer?.userId);
 
   async function mute(hours: number | null | "unmute") {
     setBusy(true);
@@ -1346,10 +1625,47 @@ function DetailsView({ id, onClose }: { id: string; onClose: () => void }) {
           <div className="flex flex-col items-center gap-2 text-center">
             <Face name={name} photoUrl={peer.photoUrl} photoCrop={peer.photoCrop} className="size-16" />
             <p className="text-base font-semibold">{name}</p>
+            {relation ? <p>{relation.label}</p> : null}
+            {trees?.length ? (
+              <p className="text-muted-foreground">On {trees.join(" · ")}</p>
+            ) : null}
           </div>
         ) : (
           <Skeleton className="h-24 w-full" />
         )}
+
+        {relation ? (
+          <section className="flex flex-col gap-2">
+            <h3 className="font-medium">How You&rsquo;re Connected</h3>
+            <ol className="flex flex-col">
+              {relation.chain.map((link, i) => (
+                <li key={link.personId} className="flex items-center gap-2">
+                  <span className="flex w-8 shrink-0 flex-col items-center">
+                    {i > 0 ? <span aria-hidden className="h-2 w-px bg-border" /> : null}
+                    <Face
+                      name={link.name || "?"}
+                      photoUrl={link.photoUrl}
+                      photoCrop={link.photoCrop}
+                      className="size-8"
+                    />
+                  </span>
+                  <span className={cn("min-w-0", i > 0 && "pt-2", i === 0 && "text-muted-foreground")}>
+                    {link.says.charAt(0).toUpperCase() + link.says.slice(1)}
+                  </span>
+                </li>
+              ))}
+            </ol>
+            <Button
+              variant="outline"
+              size="sm"
+              className="self-start"
+              nativeButton={false}
+              render={<Link href={relation.href} onClick={() => messenger.close()} />}
+            >
+              see on the tree
+            </Button>
+          </section>
+        ) : null}
 
         <section className="flex flex-col gap-2">
           <h3 className="font-medium">Mute</h3>
@@ -1407,12 +1723,68 @@ function DetailsView({ id, onClose }: { id: string; onClose: () => void }) {
           </section>
         ) : null}
 
+        {peer?.userId ? (
+          <section className="flex flex-col gap-2">
+            <h3 className="font-medium">Block</h3>
+            {peer.blocked === "by_you" ? (
+              <BlockedNote userId={peer.userId} first={first} />
+            ) : (
+              <BlockControl userId={peer.userId} first={first} />
+            )}
+          </section>
+        ) : null}
+
         {error ? (
           <p role="alert" className="text-destructive">
             {error}
           </p>
         ) : null}
       </div>
+    </>
+  );
+}
+
+function UnblockButton({ userId }: { userId: string }) {
+  const [busy, setBusy] = React.useState(false);
+  return (
+    <PendingButton
+      type="button"
+      variant="outline"
+      size="xs"
+      pending={busy}
+      pendingLabel="unblocking…"
+      disabled={busy}
+      onClick={() => {
+        setBusy(true);
+        void messenger.block(userId, false).finally(() => setBusy(false));
+      }}
+    >
+      unblock
+    </PendingButton>
+  );
+}
+
+/** Blocked: say so, with **unblock**. */
+function BlockedNote({ userId, first }: { userId: string; first: string }) {
+  const [busy, setBusy] = React.useState(false);
+  return (
+    <>
+      <p className="text-muted-foreground">You blocked {first}.</p>
+      <PendingButton
+        type="button"
+        variant="outline"
+        size="sm"
+        className="self-start"
+        pending={busy}
+        pendingLabel="unblocking…"
+        disabled={busy}
+        onClick={() => {
+          setBusy(true);
+          void messenger.block(userId, false).finally(() => setBusy(false));
+        }}
+      >
+        unblock
+      </PendingButton>
     </>
   );
 }

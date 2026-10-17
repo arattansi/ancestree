@@ -45,7 +45,18 @@ export type ConversationSummary = {
    * the launcher's badge and the email. Null when it isn't.
    */
   mutedUntil: string | null;
+  /**
+   * Who blocked whom (Step 177.3): `by_you` (the reader blocked them) or
+   * `by_them`; null when neither has. Either way, nothing more can go.
+   */
+  blocked: "by_you" | "by_them" | null;
 };
+
+/** Someone the reader has blocked (Step 177.3), as Message Security lists them. */
+export type BlockedMember = { userId: string; name: string };
+
+/** The longest reason a report takes (`message_reports.reason`). */
+export const REPORT_REASON_MAX = 1000;
 
 /** Why a message shows no text: see `decryptMessage`. */
 export type Unread = "locked" | "unverified" | "unreadable";
@@ -82,10 +93,38 @@ export type WireMessage = {
   sealed_key: string | null;
 };
 
+/**
+ * Who someone is to the reader (Step 177.1), worked out on the server over
+ * what the reader can see: `lib/messenger-relation.ts`.
+ */
+export type MessengerRelation = {
+  /** "Your first cousin", "Connected through 3 people". */
+  label: string;
+  /** Steps between you: New Message lists the closest first. */
+  distance: number;
+  /** The reader first, the other member last, each named by what they are
+   *  to the one before ("your mother Leila"), with their face. */
+  chain: {
+    personId: string;
+    says: string;
+    name: string;
+    photoUrl: string | null;
+    photoCrop: unknown;
+  }[];
+  /** The connection lit: My Family Tree where it shows them, else the canvas. */
+  href: string;
+};
+
 /** What `/api/messages` answers. */
 export type MessengerData = {
   conversations: ConversationSummary[];
   contacts: MessengerContact[];
+  /**
+   * Who each member is to the reader, by account (Step 177.1): asked for
+   * with `?relations=1` while the pop-up is open, `null` when not asked.
+   * Someone missing is joined to the reader by nothing they can see.
+   */
+  relations: Readonly<Record<string, MessengerRelation>> | null;
 };
 
 /** The longest message the database takes. */
@@ -427,6 +466,7 @@ export function newDay(prev: string | undefined, next: string): boolean {
 
 /** What a refusal from the database says to the reader. */
 export function sendErrorText(message: string | undefined): string {
+  if (message?.includes("BLOCKED")) return "You can't message them.";
   if (message?.includes("NO_SHARED_TREE")) return "You no longer share a tree.";
   if (message?.includes("NO_KEY")) return "They can get messages once they next visit ancestree.";
   if (message?.includes("LOCKED")) return "Messages are locked on this device.";
@@ -488,4 +528,21 @@ export function exportText(
 export function exportFilename(now: Date = new Date()): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `ancestree-messages-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}.txt`;
+}
+
+/** What a refused report says (Step 177.3). */
+export function reportErrorText(message: string | undefined): string {
+  if (message?.includes("ALREADY_REPORTED")) return "You've already reported this message.";
+  if (message?.includes("NO_MESSAGE")) return "That message is gone.";
+  if (message?.includes("SLOW_DOWN")) return "You've reported a lot today. Try again tomorrow.";
+  if (message?.includes("TOO_LONG")) return `Keep the reason under ${REPORT_REASON_MAX.toLocaleString("en")} characters.`;
+  return "Couldn't send the report. Try again.";
+}
+
+/** Whether a broadcast's `blocks` event names a change (Step 177.3). */
+export function parseBlocksEvent(payload: unknown): { userId: string; blocked: boolean } | null {
+  if (!payload || typeof payload !== "object") return null;
+  const p = payload as Record<string, unknown>;
+  if (!isString(p.user_id) || typeof p.blocked !== "boolean") return null;
+  return { userId: p.user_id, blocked: p.blocked };
 }

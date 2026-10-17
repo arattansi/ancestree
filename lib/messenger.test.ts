@@ -14,9 +14,11 @@ import {
   muteUntil,
   newDay,
   parseDeletedEvent,
+  parseBlocksEvent,
   parseMutedEvent,
   parseReadEvent,
   parseWireMessage,
+  reportErrorText,
   sendErrorText,
   shortWhen,
   totalUnread,
@@ -50,6 +52,7 @@ function convo(over: Partial<ConversationSummary> = {}): ConversationSummary {
     unread: 1,
     canSend: true,
     mutedUntil: null,
+    blocked: null,
     ...over,
   };
 }
@@ -208,6 +211,7 @@ describe("when", () => {
 describe("sendErrorText", () => {
   it("says why a message didn't go", () => {
     expect(sendErrorText("NO_SHARED_TREE")).toBe("You no longer share a tree.");
+    expect(sendErrorText("BLOCKED")).toBe("You can't message them.");
     expect(sendErrorText("SLOW_DOWN")).toBe("Slow down, then try again.");
     expect(sendErrorText("MESSAGE_TOO_LONG")).toBe("Keep it under 4,000 characters.");
     expect(sendErrorText(undefined)).toBe("Couldn't send. Try again.");
@@ -361,5 +365,18 @@ describe("exporting (Step 177.6)", () => {
 
   it("names the file by the day", () => {
     expect(exportFilename(new Date(2026, 0, 5))).toBe("ancestree-messages-2026-01-05.txt");
+  });
+});
+
+describe("blocking and reporting (Step 177.3)", () => {
+  it("reads a block from another tab", () => {
+    expect(parseBlocksEvent({ user_id: "u", blocked: true })).toEqual({ userId: "u", blocked: true });
+    expect(parseBlocksEvent({ user_id: "u" })).toBeNull();
+  });
+
+  it("says why a report didn't go", () => {
+    expect(reportErrorText("ALREADY_REPORTED")).toBe("You've already reported this message.");
+    expect(reportErrorText("TOO_LONG")).toBe("Keep the reason under 1,000 characters.");
+    expect(reportErrorText(undefined)).toBe("Couldn't send the report. Try again.");
   });
 });

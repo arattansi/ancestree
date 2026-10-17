@@ -257,7 +257,16 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `keystore.ts` keeps the member's keyring in IndexedDB; the store reads
   every message on the device and offers Message Security (link a
   device, recovery phrase), the locked state and each thread's safety
-  code; `app/messages/link` takes a link made on another device. Groups
+  code; `app/messages/link` takes a link made on another device. Phase 0
+  (Step 177): each thread's **details** (its header, or the ⋯) say who
+  they are to you (`lib/messenger-relation.ts`, read with
+  `GET /api/messages?relations=1` while the pop-up is open) with the chain
+  and **see on the tree**, and hold mute, block and the security code; a
+  message pressed shows **delete** (your own) or **report** (theirs);
+  Message Security lists whom you've blocked and **download**s your
+  conversations as text read on the device. Reported messages reach the
+  Root console's Reports (`components/admin/admin-message-reports.tsx`,
+  `lib/message-reports.server.ts`) and the admin page's manage tab. Groups
   and channels are scoped in Notion ("Ancestree × Messaging — Product
   Scope", under Product), not built
 - `components/tree/` — `family-tree.tsx` React Flow canvas (generation lanes
@@ -756,14 +765,16 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `newsletter_schedule`    | When the weekly newsletter goes out (Step 95), one row: `weekday` (0 = Sunday), `paused`, `updated_by`. Beta reviewers read it (RLS) and change it through `set_newsletter_schedule`; the daily cron job reads it with the service role and sends only on that day, unless paused |
 | `invite_relay_asks`      | A note of every ask to a relative, whoever the address belongs to (Step 41.5): the address asking and `created_at`, never the relative's. What the caps per address and across the site count, before anyone is looked up. Service role only (RLS on, no policies, no grants to `anon`/`authenticated`); an ask past a cap leaves no note, and notes older than a day are deleted as new asks come in |
 | `claims`                 | Auto-approve / reject a person entry (`resolved_by`); a dispute of one is an `entry_reports` row and leaves it `approved` (Step 88.2) |
-| `notifications`          | In-app notices, **one inbox per tree** (`tree_id`, Step 25; `placement_requested` \| `placement_accepted` \| `placement_declined` added; `placements_requested`, one for a batch of entries someone may edit, Step 80; `placements_lapsed`, to the Root whose ask nobody answered in 30 days, Step 83; `tree_request_approved`, Step 28; `placed_on_join`, Step 30.9, and what a claim invite did, Step 41.3; `joined_by_link`, Step 52; `story_to_approve`, `story_approved`, `story_declined`, Step 88.3; `story_commented`, Step 88.4); recipient-scoped RLS                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `notifications`          | In-app notices, **one inbox per tree** (`tree_id`, Step 25; `placement_requested` \| `placement_accepted` \| `placement_declined` added; `placements_requested`, one for a batch of entries someone may edit, Step 80; `placements_lapsed`, to the Root whose ask nobody answered in 30 days, Step 83; `tree_request_approved`, Step 28; `placed_on_join`, Step 30.9, and what a claim invite did, Step 41.3; `joined_by_link`, Step 52; `story_to_approve`, `story_approved`, `story_declined`, Step 88.3; `story_commented`, Step 88.4; `message_reported` to the Roots of the trees a reported message's two members share, `message_report_resolved` to its reporter, Step 177.3); recipient-scoped RLS                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `conversations`          | The messenger's conversations (Step 174): `kind` (`direct` only; groups and channels are scoped, not built), `direct_key` (the two members' ids, lower first: one conversation a pair), `created_by`, `last_message_at`. Read by its members (`private.in_conversation`); written only by `open_direct_conversation` (while the two share a tree) and `send_message`. A direct conversation goes, every message in it, with either member's account (`private.direct_conversation_member_gone`) |
-| `conversation_members`   | Who is in a conversation and how far they've read (`last_read_at`, set by `mark_conversation_read` up to the newest message the reader saw, never past now, and by `send_message` for the sender). Read by the conversation's members; no direct writes |
+| `conversation_members`   | Who is in a conversation and how far they've read (`last_read_at`, set by `mark_conversation_read` up to the newest message the reader saw, never past now, and by `send_message` for the sender), and `muted_until` (Step 177.4: `infinity` until unmuted; `mute_conversation`; a muted conversation is left out of the launcher's count). Read by the conversation's members; no direct writes |
 | `messages`               | What was said (Step 174), **end to end** since 174.6: `sender_id`, `ciphertext` (XChaCha20-Poly1305; 1–4,000 characters before, checked on the device), `nonce`, `signature` (Ed25519, the sender's key at `sender_key_version`), `format`, `created_at`; no text column. Written only by `send_message`, which refuses once the two share no tree, past 30 a minute, and unless every member got a sealed key at their current version; read only through `thread_messages` and `my_conversations` (base64, with the reader's own sealed key). Each `message_keys` row goes to its member's private Realtime inbox, `inbox:<user id>` (`private.message_key_to_inbox`, `realtime.send`); a policy on `realtime.messages` lets each member hear only their own. Listed by `my_conversations` (the other side's name, their face where the reader may see their entry, their key version, the last message encrypted, unread, `can_send`) and `message_contacts` (everyone the reader can write to, the trees they share, their key version) |
 | `message_keys`           | A message's key sealed to one member (Step 174.6): `(message_id, user_id)`, `key_version`, `sealed_key` (104 bytes: an ephemeral X25519 key, a nonce, the key and its tag). Written by `send_message`; read only by its member, through `thread_messages` / `my_conversations` |
 | `messaging_keys`         | Members' published messaging keys (Step 174.6): `(user_id, version)`, `box_public` (X25519), `sign_public` (Ed25519). One key a member on all their devices; a new version only by `publish_messaging_key(…, p_reset)` (start over: at most five a day; drops the backup). Read through `messaging_keys_of` by whoever is on a tree or in a conversation with them, and `conversation_keys` |
 | `messaging_key_transfers` | A member's keyring on its way to their new device (Step 174.6): encrypted under a one-time key that travels only in the link's fragment; `put_key_transfer` (three waiting at most), `take_key_transfer` (owner only, once, within ten minutes) |
 | `messaging_key_backups`  | A member's keyring under their recovery phrase (Step 174.6): one row, `key_version`, the encrypted `blob`; `put_key_backup` (only at the current version), `get_key_backup` (owner only) |
+| `message_blocks`         | Who blocked whom in the messenger (Step 177.3): `(blocker_id, blocked_id)`. Written by `block_member` (someone you share a tree or a conversation with) and `unblock_member`, listed by `my_blocks`; no direct reads. Either way round, the pair can't open a conversation or send (`BLOCKED`), New Message offers neither to the other, and `my_conversations` says `blocked` (`by_you` / `by_them`) |
+| `message_reports`        | A message reported (Step 177.3): `body` (its words as the reporter's device read them; the server can't check them), `reason`, `sent_at`, `tree_ids` (the trees the two shared), `open` \| `resolved`. Written by `report_message` (a member of the conversation, of the other's message, once, 20 a day), which tells those trees' Roots (`message_reported`); closed by `resolve_message_report`, which tells the reporter. Read by the reporter, the beta reviewers and those Roots, never the member reported (`private.can_moderate_message_report`). Kept when the message is deleted; goes with the conversation (either account) |
 | `stories`                | Stories about a person (Step 88.3, in place of the per-tree comments board): `title`, `body` and/or a recording (`audio_path` in the private `stories` bucket, `<person id>/<uuid>.<ext>`; `audio_seconds`), `pending` \| `approved` \| `declined`, `decided_by`, the tree it was told on (`tree_id`, where its teller hears back). Approved: read by members of every tree showing the person in full. Pending: its teller, and whoever approves it: the person themself once the entry is claimed or is their own and they're living (`private.story_owner`), else whoever `can_edit_person`. Declined: its teller alone. Told only through `add_story` (approved at once when the teller may approve it), answered through `decide_story`; deleted by its teller or whoever may edit the entry; read by the sheet through `entry_stories` (runs as the viewer, names each teller; since Step 88.4 also its comment count, whether a link to it works, whether the viewer may share it or turn its links off, and their own link). `links_off` (Step 88.4): its links were turned off. `body` is Markdown (Step 99; the text as written, drawn as Markdown wherever it shows; Step 113 took out the Write / Preview and file upload, so new stories are plain text in practice), up to 200,000 characters (Step 113; 20,000 before). `told_on` / `told_on_precision` (Step 99): when it was told, as much as is known, kept as a person's dates are. `created_by` is set null when their account goes |
 | `story_links`            | Public links to approved stories (Step 88.4): one working link per sharer per story (`token`, 24 URL-safe characters; `created_by`, whom the page names; `revoked_at` / `revoked_by`). A link works while the story is approved and its links aren't off (`stories.links_off`), the person isn't `hidden_from_visitors`, and its sharer is still on a tree that shows them in full (`private.story_link_live`). Made only by `share_story` (anyone who can see the story; once its links were turned off, only its person, an editor of the entry or its teller, which turns them on again), turned off by `stop_sharing_story` (every link at once; those three). A member reads only their own; the public page reads with the service role (`shared_story`) |
 | `story_credits`          | Who a story is credited to (Step 99): `(story_id, person_id, role)` with `role` `storyteller` \| `interviewer`, up to ten people each, one person may hold both. People placed in full on the tree the story is told on; set once, by `add_story` (`p_storytellers`, `p_interviewers`), with no yes of their own (the approver sees them with the story). Read by whoever reads the story (RLS follows `stories`); the sheet's `entry_stories` and the public page's `shared_story` return them as `credits`. Changed afterwards, with the date told, by `edit_story` (Steps 99.5–99.7: teller, entry editors, or the person it's about; the words by the teller alone, back to waiting unless they may approve). Cascade with the story or the person; a claim or an invited-entry merge moves a placeholder's credits across (`claim_person`, `private.merge_invited_entry`) |
@@ -1931,6 +1942,90 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 177: messaging Phase 0 — who they are to you, block, report,
+  mute, delete, export** (migrations `20261017100000_messages_mute_and_delete`,
+  `20261017110000_messages_block_and_report`). Phase 0 of the Notion
+  "Ancestree × Messaging — Product Scope", on Step 174.6's end-to-end
+  direct messages; nothing here reads a message. **Aalim's answers**
+  (2026-10-16, the scope's §8, recorded there): no email when a message
+  waits (the launcher's badge stays the only signal, so 177.2 was
+  dropped); block and report now, before groups; who they are to you in
+  the thread's header, New Message and on hover in the list. **177.1** Who
+  they are to you: `GET /api/messages?relations=1`, asked only while the
+  pop-up is open, adds each member's `relation` (`lib/messenger-relation.ts`
+  over `relationOf` / `connectionPath`, on the people and lines the
+  reader's own trees show them, RLS choosing which, so a chain never runs
+  through an entry they can't see): the thread's header says "Your first
+  cousin" or "Connected through 3 people" (else "On {tree}"), New Message
+  lists the closest first (Dina, your sister, above Bilal, your first
+  cousin) with it under each name, and the list shows it on hover. A
+  thread's **details** (its name, or the ⋯) show the chain, faces and all
+  ("Your mother Leila → Her sister Nadia → Her son Bilal") and **see on
+  the tree**, which opens My Family Tree on them with the connection lit
+  (the canvas on them when My Family Tree doesn't show them). **177.3**
+  Block: `message_blocks`, `block_member` / `unblock_member` /
+  `my_blocks`; either way round the pair can't open a conversation or
+  send (`BLOCKED`, re-created `open_direct_conversation`, `send_message`),
+  New Message offers neither to the other (`message_contacts`), and the
+  thread says "You blocked Bilal. Unblock" or "You can't message Cyrus."
+  (`my_conversations.blocked`). Blocked from a thread's details, or after
+  a report; unblocked there or from Message Security's **Blocked** list.
+  Report: press one of their messages, **report**, an optional "What's
+  wrong"; the words go as the reporter's device read them (the server
+  can't check them) to `message_reports` with the trees the two share;
+  those trees' Roots are told (`message_reported`, **view report**) and
+  see it under the Root console's Reports ("Reported Messages", counted in
+  the queue and the header's badge), the beta reviewers on the admin
+  page's manage tab; never the member reported. **mark resolved** tells
+  the reporter (`message_report_resolved`). A tree's export carries its
+  reported messages and says messages themselves can't be in it. **177.4**
+  Mute: a thread's details mute it for 8 hours, a week or always
+  (`conversation_members.muted_until`, `mute_conversation`, other tabs
+  told on the inbox): out of the launcher's count, a grey count and a
+  muted bell in the list. **177.5** Delete your own: press it, **delete**,
+  "Delete for everyone?"; `delete_message` deletes its ciphertext and, by
+  cascade, every sealed key, moves the conversation's last message back
+  (none left: out of the lists), and tells each member's inbox
+  (`deleted`), so their open threads drop it; a thread's newest page is
+  read again each time it's shown, so another device drops it then too.
+  A report keeps its words after the message goes. **177.6** Export:
+  Message Security's **download** reads every conversation on the device,
+  a page of 100 at a time, and saves `ancestree-messages-<date>.txt`
+  (each conversation under its name, days marked, unreadable ones saying
+  why). `/privacy`'s Messages section says what deleting, muting, blocking,
+  reporting and the export do. **Found in passing:** a message landing
+  while the list's first read was on its way was dropped until a reload
+  (`loadList` handed back the stale read); it reads once more after now.
+  **My calls:** block hides each from the other's New Message and the
+  person sheet's **message** both ways, but a blocked member is told only
+  when they try to write ("You can't message them.") or reopen the
+  pop-up, not live; a report's notice goes to the shared trees' Roots
+  but not the member reported nor the reporter; reports go with the
+  conversation when either account is deleted; a deleted message leaves
+  no "Message deleted" line; relations are read only while the pop-up is
+  open, not for the badge. **Verified** against live: both migrations
+  rehearsed in rolled-back transactions as each role (mute and unmute,
+  strangers refused, direct writes refused; delete by the sender only,
+  keys gone, the last message moved back; blocks both ways on send and
+  open, contacts, lists, `my_blocks`, unblock; reports' every refusal,
+  who sees one, notices, resolve, kept after a delete, gone with an
+  account) and applied with their history rows and statement md5s
+  checked. Then four throwaway members on a throwaway family (Amira,
+  her sister Dina, their cousin Bilal, Bilal's mother's husband's brother
+  Cyrus) in headless Chrome: Amira's New Message read Dina "Your
+  sister", Bilal "Your first cousin", Cyrus "Connected through 3
+  people", in that order; Bilal's header said "Your first cousin" both
+  ways; the chain and **see on the tree** lit "You ↔ Bilal, First
+  cousins" on My Family Tree; Amira deleted a message and Bilal's open
+  thread dropped it live and on reopening; Bilal muted (launcher
+  "Messages" with one waiting), unmuted ("Messages, 1 unread"); Amira's
+  export held her messages and not the deleted one; Cyrus reported
+  Bilal's message, Amira (Root) was told and saw it in her console, the
+  test reviewer on /admin, Bilal never; resolved, Cyrus told; Cyrus
+  blocked Bilal, whose send was refused and whose New Message lost
+  Cyrus; unblocked from Message Security, Bilal wrote again; a phone
+  (390×844, dark) showed the thread, a message's actions and the details
+  without sideways scroll. Throwaways deleted after.
 - **Step 178: the minimap as tall as the zoom buttons beside it** (no
   migration). **Aalim asked** (2026-10-16): "move the map to the edge of
   the window and the zoom functions above it. also, decrease the size of

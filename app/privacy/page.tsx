@@ -163,8 +163,8 @@ export default function PrivacyPage() {
         </ul>
       </Section>
 
-      {/* Step 174.6. Says what the design does; "end-to-end encrypted"
-          waits for an outside review (the messaging scope, §3.5). */}
+      {/* Step 174.6, Step 177. Says what the design does; "end-to-end
+          encrypted" waits for an outside review (the messaging scope, §3.5). */}
       <Section title="Messages">
         <ul className="list-disc space-y-1 pl-5">
           <li>
@@ -190,8 +190,27 @@ export default function PrivacyPage() {
             earlier messages can&rsquo;t be recovered, by you or by us.
           </li>
           <li>
+            Deleting a message deletes it for everyone. Muting a conversation
+            only takes it off your messages count.
+          </li>
+          <li>
+            Blocking someone stops either of you writing to the other until
+            you unblock them; what you wrote stays.
+          </li>
+          <li>
+            Reporting a message sends its words, as your device read them,
+            and who sent it to the Roots of the trees you share and to
+            ancestree&rsquo;s reviewers. Nothing else of the conversation
+            goes with it, and the person you reported never sees it.
+          </li>
+          <li>
+            You can download your conversations from the messenger. They&rsquo;re
+            read on your device, so a tree&rsquo;s export can&rsquo;t include
+            them.
+          </li>
+          <li>
             Deleting your account deletes your conversations, every message
-            in them, and your keys.
+            in them, the reports made from them, and your keys.
           </li>
         </ul>
       </Section>

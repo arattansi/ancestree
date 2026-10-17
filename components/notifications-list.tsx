@@ -338,6 +338,20 @@ function NotificationRow({
           </TreeTarget>
         ) : null}
 
+        {n.type === "message_reported" && n.treeId ? (
+          // Step 177.3: a member reported a message from another member of
+          // the tree. What it said is in the Root console's reports.
+          <TreeTarget
+            treeId={n.treeId}
+            currentTreeId={currentTreeId}
+            href={adminHref("reports")}
+            size="sm"
+            variant="outline"
+          >
+            view report
+          </TreeTarget>
+        ) : null}
+
         {n.type === "joined_by_link" && n.treeId ? (
           // Step 52: someone joined with the family link. Who else has,
           // and how full it is, are on its card.

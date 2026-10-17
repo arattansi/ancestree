@@ -78,7 +78,8 @@ export function readOpenConsole(params: URLSearchParams): {
 export type TreeQueue = {
   treeId: string;
   inviteRequests: number;
-  /** Open reports on its own entries, disputed claims among them (Step 88.2). */
+  /** Open reports on its own entries, disputed claims among them (Step 88.2),
+   *  and messages reported between its members (Step 177.3). */
   reports: number;
 };
 

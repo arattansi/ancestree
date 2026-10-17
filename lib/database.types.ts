@@ -1301,6 +1301,53 @@ export type Database = {
         }
         Relationships: []
       }
+      message_blocks: {
+        Row: {
+          blocked_id: string
+          blocker_id: string
+          created_at: string
+        }
+        Insert: {
+          blocked_id: string
+          blocker_id: string
+          created_at?: string
+        }
+        Update: {
+          blocked_id?: string
+          blocker_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_blocks_blocked_id_fkey"
+            columns: ["blocked_id"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "message_blocks_blocked_id_fkey"
+            columns: ["blocked_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "message_blocks_blocker_id_fkey"
+            columns: ["blocker_id"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "message_blocks_blocker_id_fkey"
+            columns: ["blocker_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+        ]
+      }
       message_keys: {
         Row: {
           key_version: number
@@ -1338,6 +1385,111 @@ export type Database = {
           {
             foreignKeyName: "message_keys_user_id_fkey"
             columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+        ]
+      }
+      message_reports: {
+        Row: {
+          body: string
+          conversation_id: string
+          created_at: string
+          id: string
+          message_id: string | null
+          reason: string | null
+          reporter_id: string
+          resolved_at: string | null
+          resolved_by: string | null
+          sender_id: string
+          sent_at: string
+          status: string
+          tree_ids: string[]
+        }
+        Insert: {
+          body: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          message_id?: string | null
+          reason?: string | null
+          reporter_id: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          sender_id: string
+          sent_at: string
+          status?: string
+          tree_ids?: string[]
+        }
+        Update: {
+          body?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          message_id?: string | null
+          reason?: string | null
+          reporter_id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          sender_id?: string
+          sent_at?: string
+          status?: string
+          tree_ids?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_reports_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_reports_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_reports_reporter_id_fkey"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "message_reports_reporter_id_fkey"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "message_reports_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "message_reports_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "message_reports_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "message_reports_sender_id_fkey"
+            columns: ["sender_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["auth_user_id"]
@@ -3388,6 +3540,7 @@ export type Database = {
         }[]
       }
       beta_reviewer_emails: { Args: never; Returns: string[] }
+      block_member: { Args: { p_user: string }; Returns: undefined }
       blog_post: {
         Args: { p_slug: string }
         Returns: {
@@ -3945,9 +4098,18 @@ export type Database = {
         Args: { p_conversation: string; p_until?: string }
         Returns: string
       }
+      my_blocks: {
+        Args: never
+        Returns: {
+          blocked_at: string
+          name: string
+          user_id: string
+        }[]
+      }
       my_conversations: {
         Args: never
         Returns: {
+          blocked: string
           can_send: boolean
           conversation_id: string
           kind: string
@@ -4209,6 +4371,10 @@ export type Database = {
         }
         Returns: string
       }
+      report_message: {
+        Args: { p_body: string; p_message: string; p_reason?: string }
+        Returns: string
+      }
       request_tree: { Args: never; Returns: string }
       resolve_connection_suggestion: {
         Args: { p_id: string; p_resolution: string }
@@ -4230,6 +4396,7 @@ export type Database = {
         Args: { p_id: string; p_resolved: boolean }
         Returns: undefined
       }
+      resolve_message_report: { Args: { p_report: string }; Returns: undefined }
       respond_to_placement: {
         Args: { p_accept: boolean; p_placement_id: string }
         Returns: undefined
@@ -4477,6 +4644,7 @@ export type Database = {
           tree_slug: string
         }[]
       }
+      unblock_member: { Args: { p_user: string }; Returns: undefined }
       update_blog_post: {
         Args: {
           p_body: string

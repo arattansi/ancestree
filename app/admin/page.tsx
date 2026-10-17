@@ -4,6 +4,7 @@ import { Suspense } from "react";
 
 import { AdminBlog } from "@/components/admin/admin-blog";
 import { AdminCampaigns } from "@/components/admin/admin-campaigns";
+import { AdminMessageReports } from "@/components/admin/admin-message-reports";
 import { AdminAccounts, AdminTrees } from "@/components/admin/admin-manage";
 import { AdminPageTabs } from "@/components/admin/admin-page-tabs";
 import { AdminTreeRequests } from "@/components/admin/admin-tree-requests";
@@ -22,6 +23,7 @@ import { findAccounts, findTrees } from "@/lib/admin-manage.server";
 import { readAdminTab } from "@/lib/admin-page";
 import { listBlogPosts } from "@/lib/blog.server";
 import { listCampaigns } from "@/lib/campaigns.server";
+import { listOpenMessageReports } from "@/lib/message-reports.server";
 import {
   countSubmissionsWaiting,
   listSubmissions,
@@ -94,8 +96,9 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
 
 /**
  * What a reviewer manages: requests to start a tree, from every tree and
- * the waitlist, campaign links, and the accounts and trees their searches
- * (`?account=`, `?tree=`) find. A founder invite for someone on the
+ * the waitlist, campaign links, messages reported in the messenger (Step
+ * 177.3), and the accounts and trees their searches (`?account=`,
+ * `?tree=`) find. A founder invite for someone on the
  * waitlist comes from the tree they're looking at if they run it, else the
  * first tree they run.
  */
@@ -106,12 +109,13 @@ async function ManageTab({
   accountQuery: string | null;
   treeQuery: string | null;
 }) {
-  const [requests, trees, access, campaigns, foundAccounts, foundTrees] =
+  const [requests, trees, access, campaigns, messageReports, foundAccounts, foundTrees] =
     await Promise.all([
       listTreeRequests(),
       listMyTrees(),
       currentAccess(),
       listCampaigns(),
+      listOpenMessageReports(),
       findAccounts(accountQuery),
       findTrees(treeQuery),
     ]);
@@ -136,6 +140,14 @@ async function ManageTab({
         </CardHeader>
         <CardContent>
           <AdminCampaigns campaigns={campaigns} baseUrl={getSiteUrl()} />
+        </CardContent>
+      </Card>
+      <Card id="message-reports" className="scroll-mt-20">
+        <CardHeader>
+          <CardTitle>Reported Messages</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <AdminMessageReports reports={messageReports} />
         </CardContent>
       </Card>
       <Card id="accounts" className="scroll-mt-20">

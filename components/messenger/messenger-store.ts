@@ -45,6 +45,7 @@ import {
   inboxTopic,
   mergeMessages,
   muteUntil,
+  parseBlocksEvent,
   parseDeletedEvent,
   parseMutedEvent,
   parseReadEvent,
@@ -56,6 +57,8 @@ import {
   withMuted,
   withNewestPage,
   withRead,
+  reportErrorText,
+  type BlockedMember,
   type ChatMessage,
   type ExportedConversation,
   type MessengerData,
@@ -83,6 +86,8 @@ export type MessengerView =
   | { kind: "thread"; id: string }
   /** A conversation's details: who they are to you, mute, block (Step 177). */
   | { kind: "details"; id: string }
+  /** Reporting one of their messages (Step 177.3). */
+  | { kind: "report"; id: string; messageId: string }
   | { kind: "invite"; target: InviteTarget }
   /** Linking a device and the recovery phrase. */
   | { kind: "security" }
@@ -150,6 +155,8 @@ export type MessengerState = {
   verified: Readonly<Record<string, string>>;
   /** Each member's current key as this device has pinned it (`keyId`). */
   keyIds: Readonly<Record<string, string>>;
+  /** Whom the reader has blocked (Step 177.3), once Message Security asks. */
+  blocks: readonly BlockedMember[] | null;
 };
 
 type Supabase = ReturnType<typeof createClient>;
@@ -177,6 +184,7 @@ let state: MessengerState = {
   backupVersion: null,
   verified: {},
   keyIds: {},
+  blocks: null,
 };
 const listeners = new Set<() => void>();
 
@@ -500,10 +508,14 @@ function loadList(): Promise<void> {
     return listRead;
   }
   set({ loading: true });
-  listRead = fetch("/api/messages", { cache: "no-store" })
+  // Who they are to you only while the pop-up shows it (Step 177.1): the
+  // badge needs none of it.
+  const url = state.open ? "/api/messages?relations=1" : "/api/messages";
+  listRead = fetch(url, { cache: "no-store" })
     .then(async (res) => {
       if (!res.ok) throw new Error(String(res.status));
-      const data = await readPreviews((await res.json()) as MessengerData);
+      const read = await readPreviews((await res.json()) as MessengerData);
+      const data = { ...read, relations: read.relations ?? state.data?.relations ?? null };
       set({ data, loading: false, failed: false });
     })
     .catch(() => set({ loading: false, failed: !state.data }))
@@ -585,6 +597,13 @@ function onMuted(payload: unknown) {
   });
 }
 
+/** The reader blocked or unblocked someone in another tab (Step 177.3). */
+function onBlocks(payload: unknown) {
+  if (!parseBlocksEvent(payload)) return;
+  void loadList();
+  if (state.blocks) void loadBlocks();
+}
+
 /** Join the member's inbox; a rejoin after a dropped connection reads the list again. */
 async function joinInbox(me: string) {
   const db = await client();
@@ -598,6 +617,7 @@ async function joinInbox(me: string) {
     .on("broadcast", { event: "read" }, ({ payload }) => onRead(payload))
     .on("broadcast", { event: "deleted" }, ({ payload }) => onDeleted(payload))
     .on("broadcast", { event: "muted" }, ({ payload }) => onMuted(payload))
+    .on("broadcast", { event: "blocks" }, ({ payload }) => onBlocks(payload))
     .subscribe((status) => {
       if (status !== "SUBSCRIBED") return;
       if (joinedBefore) void loadList();
@@ -622,7 +642,9 @@ function start(me: string) {
 
 function open(view: MessengerView = state.view) {
   set({ open: true, view });
-  if (!state.loading && state.keys !== "waiting") void loadList();
+  // Read again, and once more after a read on its way without who they
+  // are to you (Step 177.1).
+  if (state.keys !== "waiting" && (!state.loading || !state.data?.relations)) void loadList();
   if (view.kind === "thread") void showThread(view.id);
 }
 
@@ -850,7 +872,8 @@ async function send(id: string, text: string): Promise<boolean> {
   if (error || !sentAt) {
     drop();
     sendFailed(id, sendErrorText(error?.message));
-    if (error?.message?.includes("NO_SHARED_TREE")) void loadList();
+    // Refused for good: the list says why, and New Message drops them.
+    if (/NO_SHARED_TREE|BLOCKED/.test(error?.message ?? "")) void loadList();
     return false;
   }
   const sent: ChatMessage = { ...temp, createdAt: sentAt, pending: false };
@@ -954,9 +977,46 @@ async function exportConversations(): Promise<{ text: string; filename: string }
   return { text: exportText(out, me, now), filename: exportFilename(now) };
 }
 
+/** Whom the reader has blocked, for Message Security (Step 177.3). */
+async function loadBlocks() {
+  const { data, error } = await (await client()).rpc("my_blocks");
+  if (error) return;
+  set({ blocks: (data ?? []).map((b) => ({ userId: b.user_id, name: b.name })) });
+}
+
+/**
+ * Block someone (Step 177.3), or unblock them: while either has blocked
+ * the other, neither can write, and New Message offers neither to the
+ * other. What they wrote stays. Whether it worked.
+ */
+async function block(userId: string, blocked: boolean): Promise<boolean> {
+  const db = await client();
+  const { error } = blocked
+    ? await db.rpc("block_member", { p_user: userId })
+    : await db.rpc("unblock_member", { p_user: userId });
+  if (error) return false;
+  await Promise.all([loadList(), state.blocks ? loadBlocks() : null]);
+  return true;
+}
+
+/**
+ * Report one of their messages (Step 177.3) to the Roots of the trees you
+ * share and the reviewers, with the words this device read: the server
+ * can't read it. What to say if it couldn't be sent.
+ */
+async function report(messageId: string, body: string, reason: string): Promise<string | null> {
+  const { error } = await (await client()).rpc("report_message", {
+    p_message: messageId,
+    p_body: body,
+    p_reason: reason.trim() || undefined,
+  });
+  return error ? reportErrorText(error.message) : null;
+}
+
 /** Open the conversation with someone, making it the first time. */
 async function openWith(userId: string) {
   set({ open: true, opening: userId });
+  if (!state.data?.relations && state.keys !== "waiting") void loadList();
   const known = state.data?.conversations.find((c) => c.otherUserId === userId);
   if (known) {
     set({ opening: null });
@@ -1128,6 +1188,9 @@ export const messenger = {
   deleteMessage,
   mute,
   exportConversations,
+  block,
+  report,
+  loadBlocks: () => void loadBlocks(),
   makeDeviceLink,
   takeDeviceLink,
   makeRecoveryPhrase,

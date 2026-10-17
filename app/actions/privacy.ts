@@ -52,6 +52,7 @@ export async function exportTreeData(treeId: string): Promise<{
     pets,
     petCompanions,
     petComments,
+    messageReports,
   ] = await Promise.all([
     db.from("trees").select("*").eq("id", treeId),
     db.from("member_directory").select("*").eq("tree_id", treeId),
@@ -79,6 +80,9 @@ export async function exportTreeData(treeId: string): Promise<{
     db.from("pets").select("*").eq("tree_id", treeId),
     db.from("pet_companions").select("*, pets!inner(tree_id)").eq("pets.tree_id", treeId),
     db.from("pet_comments").select("*, pets!inner(tree_id)").eq("pets.tree_id", treeId),
+    // Messages reported between its members (Step 177.3), which its Roots
+    // read in the console: the words the reporter's device sent with it.
+    db.from("message_reports").select("*").contains("tree_ids", [treeId]),
   ]);
 
   const firstError = [
@@ -98,6 +102,7 @@ export async function exportTreeData(treeId: string): Promise<{
     pets,
     petCompanions,
     petComments,
+    messageReports,
   ].find((r) => r.error)?.error;
   if (firstError) return { error: "Could not read every table. Try again." };
 
@@ -169,7 +174,12 @@ export async function exportTreeData(treeId: string): Promise<{
       pets: pets.data ?? [],
       pet_companions: petCompanions.data ?? [],
       pet_comments: petComments.data ?? [],
+      message_reports: messageReports.data ?? [],
     },
+    // Step 177.6: messages are encrypted on members' devices, so they
+    // can't be in a file the server makes.
+    messages:
+      "Not included: messages are encrypted on members' devices and ancestree can't read them. Each member downloads their own from the messenger (Message Security, Export Messages).",
   };
 
   const stamp = new Date().toISOString().slice(0, 10);
