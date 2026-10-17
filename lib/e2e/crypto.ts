@@ -352,6 +352,16 @@ export function decryptMessage(
   me: { userId: string; keyring: Keyring },
   senderSignPublic: Uint8Array | null,
 ): Decrypted {
+  const opened = openMessage(message, me, senderSignPublic);
+  return opened.ok ? { ok: true, text: opened.text } : opened;
+}
+
+/** `decryptMessage`, keeping the message's key it opened with. */
+function openMessage(
+  message: EncryptedMessage,
+  me: { userId: string; keyring: Keyring },
+  senderSignPublic: Uint8Array | null,
+): { ok: true; text: string; messageKey: Uint8Array } | Extract<Decrypted, { ok: false }> {
   if (message.keyVersion == null || !message.sealedKey) {
     return { ok: false, reason: "unreadable" };
   }
@@ -382,10 +392,32 @@ export function decryptMessage(
       ),
     );
     if (!plain) return { ok: false, reason: "unreadable" };
-    return { ok: true, text: new TextDecoder("utf-8", { fatal: true }).decode(plain) };
+    return { ok: true, text: new TextDecoder("utf-8", { fatal: true }).decode(plain), messageKey };
   } catch {
     return { ok: false, reason: "unreadable" };
   }
+}
+
+/**
+ * A message that waited (Step 182), its key sealed now to a member who had
+ * no key when it was sent: the sender's own copy opened, the message
+ * checked as the sender's own (signed by their own key at the version that
+ * signed it, never the server's copy, and readable), then the same key
+ * sealed to the member. Nothing is signed again: the signature commits to
+ * that key, so the member can check it as any other. `null` for a message
+ * that isn't the sender's own or doesn't check out.
+ */
+export function resealMessageKey(
+  message: EncryptedMessage,
+  me: { userId: string; keyring: Keyring },
+  recipient: Recipient,
+): Uint8Array | null {
+  if (message.senderId !== me.userId || recipient.userId === me.userId) return null;
+  const signer = me.keyring[message.senderKeyVersion];
+  if (!signer) return null;
+  const opened = openMessage(message, me, signer.signPublic);
+  if (!opened.ok) return null;
+  return sealKey(opened.messageKey, recipient, message.id);
 }
 
 // ---------------------------------------------------------------------------

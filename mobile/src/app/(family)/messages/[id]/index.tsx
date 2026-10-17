@@ -19,8 +19,10 @@ import {
   dayLabel,
   isMuted,
   MESSAGE_MAX,
+  incomingWaitingText,
   newDay,
   unreadText,
+  waitingText,
   type ChatMessage,
 } from "@/lib/messenger";
 import { aboutLine, useRelations } from "@/messages/relations";
@@ -84,8 +86,16 @@ export default function ThreadScreen() {
   // more goes to them until it's checked again.
   const codeChanged = !!verifiedKey && !!currentKey && verifiedKey !== currentKey;
   // Whether there's a box to write in: the foot says why when there isn't.
-  const canWrite =
-    !!peer && !peer.blocked && peer.canSend && peer.keyVersion != null && !codeChanged;
+  // Someone with no key yet can be written to: it waits for them (Step 182).
+  const canWrite = !!peer && !peer.blocked && peer.canSend && !codeChanged;
+  // The newest of the member's still waiting says so (Step 182).
+  const lastWaiting = newestFirst.find((m) => m.waiting)?.id;
+  // Theirs, written before the member had a key, come once they're next on.
+  const onItsWay = peer?.incomingWaiting ? (
+    <Text style={[styles.note, { color: palette.mutedForeground }]}>
+      {incomingWaitingText(first, peer.incomingWaiting)}
+    </Text>
+  ) : null;
   const details = () => router.push({ pathname: "/messages/[id]/details", params: { id } });
   const verify = () => router.push({ pathname: "/messages/[id]/verify", params: { id } });
 
@@ -162,7 +172,13 @@ export default function ThreadScreen() {
           </View>
         ) : messages.length === 0 ? (
           <Pressable style={styles.centre} onPress={Keyboard.dismiss}>
-            {canWrite ? <Words muted>Say hello to {firstOf(name, "them")}.</Words> : null}
+            {onItsWay ?? (canWrite ? (
+              <Words muted center>
+                {peer?.keyVersion == null
+                  ? `What you write waits until ${first} next visits ancestree.`
+                  : `Say hello to ${firstOf(name, "them")}.`}
+              </Words>
+            ) : null)}
           </Pressable>
         ) : (
           <FlatList
@@ -173,6 +189,8 @@ export default function ThreadScreen() {
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={styles.list}
             accessibilityLabel={`Messages with ${name}`}
+            // Inverted: the header sits below the newest message.
+            ListHeaderComponent={onItsWay}
             ListFooterComponent={
               thread.more ? (
                 <View style={styles.older}>
@@ -194,6 +212,7 @@ export default function ThreadScreen() {
                   lastFromThem={lastFrom(messages, at, item.senderId)}
                   mine={item.senderId === me}
                   name={first}
+                  note={item.id === lastWaiting && peer ? waitingText(first, peer) : undefined}
                   selected={selected === item.id}
                   onSelect={() => setSelected((now) => (now === item.id ? null : item.id))}
                 />
@@ -216,10 +235,6 @@ export default function ThreadScreen() {
           ) : peer && !peer.canSend ? (
             <Words muted center>
               You no longer share a tree.
-            </Words>
-          ) : peer && peer.keyVersion == null ? (
-            <Words muted center>
-              You can write to {first} once they next visit ancestree.
             </Words>
           ) : codeChanged ? (
             <Words muted center>
@@ -248,6 +263,7 @@ function MessageItem({
   lastFromThem,
   mine,
   name,
+  note,
   selected,
   onSelect,
 }: {
@@ -257,6 +273,8 @@ function MessageItem({
   lastFromThem: ChatMessage | undefined;
   mine: boolean;
   name: string;
+  /** Under it: one of the member's still waiting for them (Step 182). */
+  note?: string;
   /** Its actions show: delete your own (Step 177.5), report theirs (177.3). */
   selected: boolean;
   onSelect: () => void;
@@ -308,6 +326,9 @@ function MessageItem({
           {m.status ? unreadText(m.status) : m.body}
         </Text>
       </Pressable>
+      {note ? (
+        <Text style={[styles.waiting, { color: palette.mutedForeground }]}>{note}</Text>
+      ) : null}
       {selected ? <MessageActions message={m} mine={mine} onDone={onSelect} /> : null}
     </View>
   );
@@ -502,7 +523,8 @@ const styles = StyleSheet.create({
   older: { alignItems: "center", paddingVertical: 4 },
   item: {},
   day: { alignSelf: "center", marginVertical: 8, fontFamily: font.medium, fontSize: 12 },
-  note: { alignSelf: "center", marginVertical: 8, fontFamily: font.regular, fontSize: 12 },
+  note: { alignSelf: "center", marginVertical: 8, fontFamily: font.regular, fontSize: 12, textAlign: "center" },
+  waiting: { alignSelf: "flex-end", marginTop: 2, paddingHorizontal: 4, fontFamily: font.regular, fontSize: 12 },
   bubble: { maxWidth: "85%", borderRadius: 18, paddingHorizontal: 12, paddingVertical: 7 },
   bubbleText: { fontFamily: font.regular, fontSize: 16, lineHeight: 21 },
   actions: {

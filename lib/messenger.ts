@@ -29,12 +29,24 @@ export type ConversationSummary = {
   photoCrop: unknown;
   /** The other member's key version; null until they open the messenger. */
   otherKeyVersion: number | null;
+  /**
+   * How many of the reader's messages wait for the other member (Step
+   * 182): written before they had a key, sealed to them once they have one.
+   */
+  waiting: number;
+  /**
+   * How many of the other member's messages are on their way to the reader
+   * (Step 182): written before the reader had a key, they come once a
+   * device of the sender's is next online. Only ones that can still come.
+   */
+  incomingWaiting: number;
   /** The last message as it's stored, for the device to read (Step 174.6). */
   last: WireMessage | null;
   /** The last message once read here, and why not if it couldn't be. */
   lastBody: string | null;
   lastStatus?: Unread;
   lastSenderId: string | null;
+  /** When the last message reached the reader (Step 182: not always when it was written). */
   lastAt: string | null;
   lastReadAt: string | null;
   unread: number;
@@ -74,6 +86,13 @@ export type ChatMessage = {
   status?: Unread;
   /** Sent from here and not yet confirmed by the database. */
   pending?: boolean;
+  /**
+   * When it reached the reader, when that's later than it was written: a
+   * message that waited for their key (Step 182). Unread counts go by it.
+   */
+  arrivedAt?: string;
+  /** The reader's own, still waiting for the other member's key (Step 182). */
+  waiting?: boolean;
 };
 
 /**
@@ -92,6 +111,10 @@ export type WireMessage = {
   sender_key_version: number;
   key_version: number | null;
   sealed_key: string | null;
+  /** When the reader's sealed key was added: when it reached them (Step 182). */
+  sealed_at: string | null;
+  /** The reader's own, still waiting for the other member (Step 182). */
+  waiting: boolean;
 };
 
 /**
@@ -214,7 +237,67 @@ export function parseWireMessage(payload: unknown): WireMessage | null {
     sender_key_version: p.sender_key_version,
     key_version: isVersion(p.key_version) ? p.key_version : null,
     sealed_key: isString(p.sealed_key) ? p.sealed_key : null,
+    sealed_at: isString(p.sealed_at) ? p.sealed_at : null,
+    waiting: p.waiting === true,
   };
+}
+
+/**
+ * When a message reached the reader (Step 182): when it was sealed to
+ * them, which for all but a message that waited is when it was written.
+ */
+export function arrivalOf(m: Pick<ChatMessage, "createdAt" | "arrivedAt">): string {
+  return m.arrivedAt ?? m.createdAt;
+}
+
+/** `arrivedAt` for a stored message: only when it differs from when it was written. */
+export function arrivedAtOf(wire: Pick<WireMessage, "created_at" | "sealed_at">): string | undefined {
+  return wire.sealed_at && time(wire.sealed_at) > time(wire.created_at) ? wire.sealed_at : undefined;
+}
+
+/**
+ * A `delivered` broadcast: one of the reader's devices sealed what waited
+ * in a conversation to the other member (Step 182).
+ */
+export function parseDeliveredEvent(payload: unknown): { conversationId: string } | null {
+  if (!payload || typeof payload !== "object") return null;
+  const p = payload as Record<string, unknown>;
+  return isString(p.conversation_id) ? { conversationId: p.conversation_id } : null;
+}
+
+/**
+ * A `key` broadcast: someone the reader wrote to while they had no key has
+ * one now (Step 182), so what waited for them can go.
+ */
+export function parseKeyEvent(payload: unknown): { userId: string } | null {
+  if (!payload || typeof payload !== "object") return null;
+  const p = payload as Record<string, unknown>;
+  return isString(p.user_id) ? { userId: p.user_id } : null;
+}
+
+/**
+ * What a message of the reader's that waits says under it (Step 182):
+ * for whom, or that it won't go now they can't be written to.
+ */
+export function waitingText(
+  first: string,
+  peer: { keyVersion: number | null; canSend: boolean; blocked: string | null },
+): string {
+  if (peer.blocked || !peer.canSend) return "Not delivered";
+  if (peer.keyVersion == null) return `Waiting for ${first} to visit ancestree`;
+  return "Sending…";
+}
+
+/** What the list says of a conversation whose messages are all still on their way (Step 182). */
+export function onItsWayText(count: number): string {
+  return count === 1 ? "On its way" : `${count} on their way`;
+}
+
+/** The line in a thread whose sender's messages are still on their way (Step 182). */
+export function incomingWaitingText(first: string, count: number): string {
+  return count === 1
+    ? `${first}’s message is on its way. It comes once they’re next on ancestree.`
+    : `${count} messages from ${first} are on their way. They come once ${first} is next on ancestree.`;
 }
 
 /** What a message that couldn't be read here says in its place. */
@@ -270,7 +353,8 @@ export function withIncoming(
 ): ConversationSummary[] | null {
   const had = list.find((c) => c.id === message.conversationId);
   if (!had) return null;
-  if (time(had.lastAt) > time(message.createdAt)) return [...list];
+  const at = arrivalOf(message);
+  if (time(had.lastAt) > time(at)) return [...list];
   const mine = message.senderId === me;
   const seen = mine || openId === message.conversationId;
   const next: ConversationSummary = {
@@ -278,9 +362,11 @@ export function withIncoming(
     lastBody: message.body,
     lastStatus: message.status,
     lastSenderId: message.senderId,
-    lastAt: message.createdAt,
+    lastAt: at,
     unread: seen ? had.unread : had.unread + 1,
-    lastReadAt: mine ? message.createdAt : had.lastReadAt,
+    lastReadAt: mine ? at : had.lastReadAt,
+    // One of theirs that was on its way has come (Step 182).
+    incomingWaiting: !mine && message.arrivedAt ? Math.max(0, had.incomingWaiting - 1) : had.incomingWaiting,
   };
   return [next, ...list.filter((c) => c.id !== message.conversationId)];
 }
@@ -485,7 +571,6 @@ export function newDay(prev: string | undefined, next: string): boolean {
 export function sendErrorText(message: string | undefined): string {
   if (message?.includes("BLOCKED")) return "You can't message them.";
   if (message?.includes("NO_SHARED_TREE")) return "You no longer share a tree.";
-  if (message?.includes("NO_KEY")) return "They can get messages once they next visit ancestree.";
   if (message?.includes("LOCKED")) return "Messages are locked on this device.";
   if (message?.includes("CODE_CHANGED")) return "Their security code changed. Verify it to keep writing.";
   if (message?.includes("UNTRUSTED")) return "Couldn't check their security code, so it wasn't sent.";

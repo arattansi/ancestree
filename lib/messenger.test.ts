@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  arrivalOf,
+  arrivedAtOf,
+  incomingWaitingText,
+  onItsWayText,
+  parseDeliveredEvent,
+  parseKeyEvent,
+  waitingText,
   badgeCount,
   dayLabel,
   exportFilename,
@@ -46,6 +53,8 @@ function convo(over: Partial<ConversationSummary> = {}): ConversationSummary {
     photoUrl: null,
     photoCrop: null,
     otherKeyVersion: 1,
+    waiting: 0,
+    incomingWaiting: 0,
     last: null,
     lastBody: "hi",
     lastSenderId: NADIA,
@@ -90,10 +99,16 @@ describe("parsing the inbox", () => {
     sender_key_version: 2,
     key_version: 1,
     sealed_key: "DDDD",
+    sealed_at: "2026-10-16T12:00:00Z",
+    waiting: false,
   };
 
   it("reads a message broadcast, ciphertext and all", () => {
     expect(parseWireMessage(wire)).toEqual(wire);
+    // From before Step 182: when it reached them isn't said.
+    const { sealed_at: _at, waiting: _w, ...older } = wire;
+    expect(parseWireMessage(older)).toMatchObject({ sealed_at: null, waiting: false });
+    expect(parseWireMessage({ ...wire, waiting: true })?.waiting).toBe(true);
     expect(parseWireMessage({ ...wire, key_version: null, sealed_key: null })).toMatchObject({
       key_version: null,
       sealed_key: null,
@@ -387,5 +402,46 @@ describe("a link that opens the messenger (Step 180)", () => {
     expect(withoutMessagesLink(`?messages=${id}`)).toBe("");
     expect(withoutMessagesLink(`?person=p1&messages=${id}`)).toBe("?person=p1");
     expect(withoutMessagesLink("?person=p1")).toBe("?person=p1");
+  });
+});
+
+describe("a message that waited (Step 182)", () => {
+  it("arrives when it was sealed to the reader, not when it was written", () => {
+    expect(arrivedAtOf({ created_at: "2026-10-16T10:00:00Z", sealed_at: "2026-10-18T09:00:00Z" })).toBe(
+      "2026-10-18T09:00:00Z",
+    );
+    expect(arrivedAtOf({ created_at: "2026-10-16T10:00:00Z", sealed_at: "2026-10-16T10:00:00Z" })).toBeUndefined();
+    expect(arrivedAtOf({ created_at: "2026-10-16T10:00:00Z", sealed_at: null })).toBeUndefined();
+    expect(arrivalOf(msg())).toBe("2026-10-16T11:00:00.000Z");
+    expect(arrivalOf(msg({ arrivedAt: "2026-10-18T09:00:00.000Z" }))).toBe("2026-10-18T09:00:00.000Z");
+  });
+
+  it("counts unread as it arrives, though the reader has read past when it was written", () => {
+    // Nadia wrote at 9, before the reader had a key; the reader wrote at 10;
+    // Nadia's device delivered it at 12.
+    const list = [convo({ lastAt: "2026-10-16T10:00:00.000Z", lastReadAt: "2026-10-16T10:00:00.000Z", unread: 0, incomingWaiting: 1 })];
+    const late = msg({ createdAt: "2026-10-16T09:00:00.000Z", arrivedAt: "2026-10-16T12:00:00.000Z" });
+    const next = withIncoming(list, late, ME, null)!;
+    expect(next[0]).toMatchObject({ unread: 1, lastAt: "2026-10-16T12:00:00.000Z", incomingWaiting: 0 });
+  });
+
+  it("says what waits, and for whom", () => {
+    expect(waitingText("Raiya", { keyVersion: null, canSend: true, blocked: null })).toBe(
+      "Waiting for Raiya to visit ancestree",
+    );
+    expect(waitingText("Raiya", { keyVersion: 1, canSend: true, blocked: null })).toBe("Sending…");
+    expect(waitingText("Raiya", { keyVersion: null, canSend: false, blocked: null })).toBe("Not delivered");
+    expect(waitingText("Raiya", { keyVersion: 1, canSend: true, blocked: "by_them" })).toBe("Not delivered");
+    expect(incomingWaitingText("Aalim", 1)).toBe("Aalim\u2019s message is on its way. It comes once they\u2019re next on ancestree.");
+    expect(incomingWaitingText("Aalim", 3)).toMatch(/^3 messages from Aalim are on their way/);
+    expect(onItsWayText(1)).toBe("On its way");
+    expect(onItsWayText(2)).toBe("2 on their way");
+  });
+
+  it("reads the inbox's delivered and key events", () => {
+    expect(parseDeliveredEvent({ conversation_id: "c1", user_id: NADIA })).toEqual({ conversationId: "c1" });
+    expect(parseDeliveredEvent({})).toBeNull();
+    expect(parseKeyEvent({ user_id: NADIA, version: 1 })).toEqual({ userId: NADIA });
+    expect(parseKeyEvent({ version: 1 })).toBeNull();
   });
 });

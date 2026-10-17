@@ -3,7 +3,14 @@ import * as React from "react";
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { badgeCount, isMuted, shortWhen, unreadText, type ConversationSummary } from "@/lib/messenger";
+import {
+  badgeCount,
+  isMuted,
+  onItsWayText,
+  shortWhen,
+  unreadText,
+  type ConversationSummary,
+} from "@/lib/messenger";
 import { linkFragment, messenger, useMessenger } from "@/messages/store";
 import { ErrorText, Face, Notice, Words } from "@/messages/ui";
 import { font, GUTTER, usePalette } from "@/theme";
@@ -118,11 +125,18 @@ function ConversationRow({ conversation: c, me }: { conversation: ConversationSu
             numberOfLines={1}
             style={[styles.last, { color: unread ? palette.foreground : palette.mutedForeground }]}
           >
-            {c.lastSenderId === me ? "You: " : ""}
-            {c.lastStatus ? (
-              <Text style={{ fontStyle: "italic" }}>{unreadText(c.lastStatus)}</Text>
+            {!c.lastAt && c.incomingWaiting > 0 ? (
+              // Nothing reached the member yet (Step 182).
+              <Text style={{ fontStyle: "italic" }}>{onItsWayText(c.incomingWaiting)}</Text>
             ) : (
-              c.lastBody
+              <>
+                {c.lastSenderId === me ? "You: " : ""}
+                {c.lastStatus ? (
+                  <Text style={{ fontStyle: "italic" }}>{unreadText(c.lastStatus)}</Text>
+                ) : (
+                  c.lastBody
+                )}
+              </>
             )}
           </Text>
           {unread ? (

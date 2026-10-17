@@ -28,11 +28,13 @@ import {
   newKeyPair,
   newLinkKey,
   newRecoveryPhrase,
+  resealMessageKey,
   safetyCode,
   toBase64,
   toBase64Url,
   unwrapKeyring,
   wrapKeyring,
+  type EncryptedMessage,
   type KeyPair,
   type Keyring,
   type PublicKey,
@@ -40,6 +42,8 @@ import {
 } from "@/lib/e2e/crypto";
 import { checkPin, type Pins } from "@/lib/e2e/pins";
 import {
+  arrivalOf,
+  arrivedAtOf,
   exportFilename,
   exportText,
   inboxTopic,
@@ -47,6 +51,8 @@ import {
   muteUntil,
   parseBlocksEvent,
   parseDeletedEvent,
+  parseDeliveredEvent,
+  parseKeyEvent,
   parseMutedEvent,
   parseReadEvent,
   parseWireMessage,
@@ -215,6 +221,14 @@ const publicKeys = new Map<string, Map<number, PublicKey>>();
 let pins: Pins = {};
 /** Each conversation's members' current keys, to seal to. */
 const sealTo = new Map<string, Recipient[]>();
+/** Conversations whose waiting messages are being delivered from here (Step 182). */
+const delivering = new Set<string>();
+/**
+ * Conversations whose waiting messages this device tried and couldn't
+ * deliver (a key it doesn't trust, or one it can't open), so each read of
+ * the list doesn't try again; a key event, an unlock or a new message clears it.
+ */
+const undeliverable = new Set<string>();
 
 /** The browser's Supabase client, fetched with its code the first time. */
 function client(): Promise<Supabase> {
@@ -399,6 +413,7 @@ async function unlocked(next: Keyring): Promise<string | null> {
     set({ keys: "locked", keyVersion: version });
     return "These keys aren't your current ones. Link this device from one you've used lately.";
   }
+  undeliverable.clear();
   // The list's last messages, read with the new keys before it shows.
   const data = state.data ? await readPreviews(state.data) : null;
   set({
@@ -417,6 +432,25 @@ async function unlocked(next: Keyring): Promise<string | null> {
 // Reading messages
 // ---------------------------------------------------------------------------
 
+/** A stored message's bytes, or `null` where its base64 isn't. */
+function encryptedOf(wire: WireMessage): EncryptedMessage | null {
+  const ciphertext = fromBase64(wire.ciphertext);
+  const nonce = fromBase64(wire.nonce);
+  const signature = fromBase64(wire.signature);
+  if (!ciphertext || !nonce || !signature) return null;
+  return {
+    id: wire.id,
+    conversationId: wire.conversation_id,
+    senderId: wire.sender_id,
+    senderKeyVersion: wire.sender_key_version,
+    ciphertext,
+    nonce,
+    signature,
+    keyVersion: wire.key_version,
+    sealedKey: wire.sealed_key ? fromBase64(wire.sealed_key) : null,
+  };
+}
+
 /** A stored message read here, or marked with why it couldn't be. */
 async function read(wire: WireMessage, knownPeer?: string | null): Promise<ChatMessage> {
   const base = {
@@ -425,11 +459,13 @@ async function read(wire: WireMessage, knownPeer?: string | null): Promise<ChatM
     senderId: wire.sender_id,
     createdAt: wire.created_at,
     senderKeyVersion: wire.sender_key_version,
+    // A message that waited for the reader's key arrives when it's sealed
+    // to them; one of theirs still waits for the other member (Step 182).
+    ...(arrivedAtOf(wire) ? { arrivedAt: arrivedAtOf(wire) } : {}),
+    ...(wire.waiting ? { waiting: true } : {}),
   };
-  const ciphertext = fromBase64(wire.ciphertext);
-  const nonce = fromBase64(wire.nonce);
-  const signature = fromBase64(wire.signature);
-  if (!ciphertext || !nonce || !signature || !state.me) {
+  const encrypted = encryptedOf(wire);
+  if (!encrypted || !state.me) {
     return { ...base, body: "", status: "unreadable" };
   }
   if (!keyring) return { ...base, body: "", status: "locked" };
@@ -453,21 +489,7 @@ async function read(wire: WireMessage, knownPeer?: string | null): Promise<ChatM
       signer = publicKey(wire.sender_id, wire.sender_key_version);
     }
   }
-  const result = decryptMessage(
-    {
-      id: wire.id,
-      conversationId: wire.conversation_id,
-      senderId: wire.sender_id,
-      senderKeyVersion: wire.sender_key_version,
-      ciphertext,
-      nonce,
-      signature,
-      keyVersion: wire.key_version,
-      sealedKey: wire.sealed_key ? fromBase64(wire.sealed_key) : null,
-    },
-    { userId: state.me, keyring },
-    signer?.signPublic ?? null,
-  );
+  const result = decryptMessage(encrypted, { userId: state.me, keyring }, signer?.signPublic ?? null);
   return result.ok
     ? { ...base, body: result.text }
     : { ...base, body: "", status: result.reason };
@@ -517,6 +539,8 @@ function loadList(): Promise<void> {
       const read = await readPreviews((await res.json()) as MessengerData);
       const data = { ...read, relations: read.relations ?? state.data?.relations ?? null };
       set({ data, loading: false, failed: false });
+      // What waited for someone who has a key now goes (Step 182).
+      deliverAll();
     })
     .catch(() => set({ loading: false, failed: !state.data }))
     .finally(() => {
@@ -604,6 +628,31 @@ function onBlocks(payload: unknown) {
   if (state.blocks) void loadBlocks();
 }
 
+/**
+ * Someone the reader wrote to before they had a key has one now (Step
+ * 182): the list reads again, and what waited for them goes from here.
+ */
+function onKey(payload: unknown) {
+  const key = parseKeyEvent(payload);
+  if (!key) return;
+  forgetPublicKeys([key.userId]);
+  for (const c of state.data?.conversations ?? []) {
+    if (c.otherUserId === key.userId) {
+      undeliverable.delete(c.id);
+      sealTo.delete(c.id);
+    }
+  }
+  void loadList();
+}
+
+/** Another device of the reader's delivered what waited (Step 182). */
+function onDelivered(payload: unknown) {
+  const delivered = parseDeliveredEvent(payload);
+  if (!delivered) return;
+  if (state.threads[delivered.conversationId]) void loadThread(delivered.conversationId);
+  void loadList();
+}
+
 /** Join the member's inbox; a rejoin after a dropped connection reads the list again. */
 async function joinInbox(me: string) {
   const db = await client();
@@ -618,6 +667,8 @@ async function joinInbox(me: string) {
     .on("broadcast", { event: "deleted" }, ({ payload }) => onDeleted(payload))
     .on("broadcast", { event: "muted" }, ({ payload }) => onMuted(payload))
     .on("broadcast", { event: "blocks" }, ({ payload }) => onBlocks(payload))
+    .on("broadcast", { event: "key" }, ({ payload }) => onKey(payload))
+    .on("broadcast", { event: "delivered" }, ({ payload }) => onDelivered(payload))
     .subscribe((status) => {
       if (status !== "SUBSCRIBED") return;
       if (joinedBefore) void loadList();
@@ -735,30 +786,36 @@ async function loadThread(id: string, before?: string) {
   });
 }
 
-/** Read up to the newest message shown, if it's newer than what's read. */
+/**
+ * Read up to the newest message shown, if it's newer than what's read: by
+ * when each reached the reader, so one that waited for their key and came
+ * late is read too (Step 182).
+ */
 async function markRead(id: string) {
-  const messages = state.threads[id]?.messages;
-  const newest = messages?.filter((m) => !m.pending).at(-1);
+  const newest = (state.threads[id]?.messages ?? [])
+    .filter((m) => !m.pending)
+    .map(arrivalOf)
+    .reduce<string | null>((at, next) => (!at || Date.parse(next) > Date.parse(at) ? next : at), null);
   const summary = state.data?.conversations.find((c) => c.id === id);
   if (!newest || !summary) return;
   if (
     !summary.unread &&
     summary.lastReadAt &&
-    Date.parse(summary.lastReadAt) >= Date.parse(newest.createdAt)
+    Date.parse(summary.lastReadAt) >= Date.parse(newest)
   )
     return;
   if (state.data) {
     set({
       data: {
         ...state.data,
-        conversations: withRead(state.data.conversations, id, newest.createdAt),
+        conversations: withRead(state.data.conversations, id, newest),
       },
     });
   }
   const db = await client();
   await db.rpc("mark_conversation_read", {
     p_conversation: id,
-    p_up_to: newest.createdAt,
+    p_up_to: newest,
   });
 }
 
@@ -771,12 +828,15 @@ async function markRead(id: string) {
  * sender (never the server's copy of it), and the other member's current
  * key, as pinned. Refused when the server lists anyone but the two of
  * them, serves a key this device pinned differently, or the other member's
- * key changed since this member verified it.
+ * key changed since this member verified it. A member with no key yet is
+ * left out, and the message waits for them (Step 182), unless this device
+ * has seen a key of theirs: keys don't go away, so that's the server
+ * hiding one.
  */
 async function recipientsOf(
   id: string,
   fresh = false,
-): Promise<Recipient[] | "no-key" | "untrusted" | "changed" | "locked"> {
+): Promise<Recipient[] | "untrusted" | "changed" | "locked"> {
   if (!fresh && sealTo.has(id)) return sealTo.get(id)!;
   const me = state.me;
   const version = state.keyVersion;
@@ -797,9 +857,13 @@ async function recipientsOf(
       recipients.push({ userId: me, version, boxPublic: own.boxPublic });
       continue;
     }
+    if (row.version == null && !row.box_public && !row.sign_public) {
+      if (Object.keys(pins[row.user_id] ?? {}).length > 0) return "untrusted";
+      continue;
+    }
     const box = row.box_public ? fromBase64(row.box_public) : null;
     const sign = row.sign_public ? fromBase64(row.sign_public) : null;
-    if (row.version == null || !box || !sign) return "no-key";
+    if (row.version == null || !box || !sign) return "untrusted";
     const key = { version: row.version, boxPublic: box, signPublic: sign };
     const check = checkPin(pins, row.user_id, key);
     if (!check.ok) return "untrusted";
@@ -856,6 +920,8 @@ async function send(id: string, text: string): Promise<boolean> {
   const db = await client();
   let error: { message?: string } | null = null;
   let sentAt: string | null = null;
+  // Sealed to the sender alone: it waits for the other member (Step 182).
+  let waits = false;
   // Once more with fresh keys if someone's changed since they were read.
   for (const fresh of [false, true]) {
     let recipients: Awaited<ReturnType<typeof recipientsOf>>;
@@ -868,7 +934,6 @@ async function send(id: string, text: string): Promise<boolean> {
     if (typeof recipients === "string") {
       error = {
         message: {
-          "no-key": "NO_KEY",
           untrusted: "UNTRUSTED",
           changed: "CODE_CHANGED",
           locked: "LOCKED",
@@ -876,6 +941,7 @@ async function send(id: string, text: string): Promise<boolean> {
       };
       break;
     }
+    waits = !recipients.some((r) => r.userId !== me);
     const sealed = encryptMessage(
       body,
       { id: messageId, conversationId: id, senderId: me, senderKeyVersion: version },
@@ -907,7 +973,12 @@ async function send(id: string, text: string): Promise<boolean> {
     if (/NO_SHARED_TREE|BLOCKED/.test(error?.message ?? "")) void loadList();
     return false;
   }
-  const sent: ChatMessage = { ...temp, createdAt: sentAt, pending: false };
+  const sent: ChatMessage = {
+    ...temp,
+    createdAt: sentAt,
+    pending: false,
+    ...(waits ? { waiting: true } : {}),
+  };
   setThread(id, {
     messages: mergeMessages(
       (state.threads[id]?.messages ?? []).filter((m) => m.id !== messageId),
@@ -915,11 +986,107 @@ async function send(id: string, text: string): Promise<boolean> {
     ),
   });
   const list = state.data
-    ? withIncoming(state.data.conversations, sent, me, id)
+    ? withIncoming(state.data.conversations, sent, me, id)?.map((c) =>
+        c.id === id && waits ? { ...c, waiting: c.waiting + 1 } : c,
+      )
     : null;
   if (list && state.data) set({ data: { ...state.data, conversations: list } });
   else void loadList();
+  // A key they make from now on is heard on the inbox (`key`); one made
+  // while this was on its way was refused as `KEYS_CHANGED` and sealed to.
+  if (waits) undeliverable.delete(id);
   return true;
+}
+
+// ---------------------------------------------------------------------------
+// Delivering what waited (Step 182)
+// ---------------------------------------------------------------------------
+
+/** Each conversation with messages waiting for someone who has a key now. */
+function deliverAll() {
+  if (state.keys !== "ready") return;
+  for (const c of state.data?.conversations ?? []) {
+    if (
+      c.waiting > 0 &&
+      c.otherKeyVersion != null &&
+      c.canSend &&
+      !c.blocked &&
+      !delivering.has(c.id) &&
+      !undeliverable.has(c.id)
+    )
+      void deliverWaiting(c.id);
+  }
+}
+
+/**
+ * The reader's messages in a conversation that waited for the other
+ * member's key, sealed to it now: each opened with this device's own key
+ * and checked as the reader's own before its key goes on, to the other
+ * member's current key as pinned (`recipientsOf`, so a key the server
+ * swapped, or one changed since it was verified, gets nothing). The server
+ * refuses once either has blocked the other or they share no tree. A
+ * hundred at a time.
+ */
+async function deliverWaiting(id: string) {
+  const me = state.me;
+  const ring = keyring;
+  if (!me || !ring || state.keys !== "ready" || delivering.has(id)) return;
+  delivering.add(id);
+  let delivered = 0;
+  let stuck = false;
+  try {
+    const db = await client();
+    for (let round = 0; round < 20; round++) {
+      let recipients: Awaited<ReturnType<typeof recipientsOf>>;
+      try {
+        recipients = await recipientsOf(id, true);
+      } catch {
+        return;
+      }
+      const other = typeof recipients === "string" ? null : recipients.find((r) => r.userId !== me);
+      if (!other) {
+        // No key yet, or none to trust: nothing goes.
+        stuck = typeof recipients === "string";
+        return;
+      }
+      const { data, error } = await db.rpc("waiting_messages", { p_conversation: id });
+      if (error) return;
+      if (!data?.length) break;
+      const keys = data.flatMap((row) => {
+        const wire = parseWireMessage({ ...row, conversation_id: id, sender_id: me });
+        const encrypted = wire ? encryptedOf(wire) : null;
+        const sealed = encrypted ? resealMessageKey(encrypted, { userId: me, keyring: ring }, other) : null;
+        return sealed && wire
+          ? [{ message_id: wire.id, user_id: other.userId, key_version: other.version, sealed_key: toBase64(sealed) }]
+          : [];
+      });
+      if (keys.length === 0) {
+        stuck = true;
+        return;
+      }
+      const result = await db.rpc("deliver_messages", { p_conversation: id, p_keys: keys });
+      if (result.error) {
+        // Their key changed since it was read: read it again.
+        if (result.error.message?.includes("KEYS_CHANGED")) continue;
+        stuck = true;
+        return;
+      }
+      delivered += result.data ?? 0;
+      // Some couldn't be opened here: the rest went, but these stay.
+      if (keys.length < data.length) {
+        stuck = true;
+        break;
+      }
+      if (data.length < 100) break;
+    }
+  } finally {
+    delivering.delete(id);
+    if (stuck) undeliverable.add(id);
+    if (delivered > 0) {
+      if (state.threads[id]) void loadThread(id);
+      void loadList();
+    }
+  }
 }
 
 /**

@@ -181,6 +181,8 @@ export async function loadMessenger({
       }),
       photoCrop: c.other_photo_crop,
       otherKeyVersion: c.other_key_version,
+      waiting: c.waiting ?? 0,
+      incomingWaiting: c.incoming_waiting ?? 0,
       // Read on the device (Step 174.6): the server has only ciphertext.
       last:
         c.last_id && c.last_ciphertext && c.last_nonce && c.last_signature
@@ -188,13 +190,16 @@ export async function loadMessenger({
               id: c.last_id,
               conversation_id: c.conversation_id,
               sender_id: c.last_sender_id,
-              created_at: c.last_at,
+              // Written then; it reached the reader at `last_at` (Step 182).
+              created_at: c.last_created_at ?? c.last_at,
               ciphertext: c.last_ciphertext,
               nonce: c.last_nonce,
               signature: c.last_signature,
               sender_key_version: c.last_sender_key_version,
               key_version: c.last_key_version,
               sealed_key: c.last_sealed_key,
+              sealed_at: c.last_at,
+              waiting: false,
             }
           : null,
       lastBody: null,

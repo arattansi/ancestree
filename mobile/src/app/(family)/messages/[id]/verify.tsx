@@ -45,7 +45,7 @@ export default function Verify() {
           <ActivityIndicator color={palette.mutedForeground} />
         ) : code === "none" ? (
           <Words muted center>
-            {first} can get messages once they next visit ancestree.
+            {first} gets a security code once they next visit ancestree.
           </Words>
         ) : (
           <>

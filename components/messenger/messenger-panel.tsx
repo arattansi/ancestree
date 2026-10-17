@@ -51,6 +51,9 @@ import {
   newDay,
   shortWhen,
   unreadText,
+  incomingWaitingText,
+  onItsWayText,
+  waitingText,
   type ChatMessage,
   type ConversationSummary,
   type MessengerContact,
@@ -350,11 +353,18 @@ function ConversationRow({
               unread ? "text-foreground" : "text-muted-foreground",
             )}
           >
-            {c.lastSenderId === me ? "You: " : ""}
-            {c.lastStatus ? (
-              <span className="italic">{unreadText(c.lastStatus)}</span>
+            {!c.lastAt && c.incomingWaiting > 0 ? (
+              // Nothing reached the reader yet (Step 182).
+              <span className="italic">{onItsWayText(c.incomingWaiting)}</span>
             ) : (
-              c.lastBody
+              <>
+                {c.lastSenderId === me ? "You: " : ""}
+                {c.lastStatus ? (
+                  <span className="italic">{unreadText(c.lastStatus)}</span>
+                ) : (
+                  c.lastBody
+                )}
+              </>
             )}
           </span>
           {unread ? (
@@ -476,8 +486,13 @@ function usePeer(id: string): {
   photoUrl: string | null;
   photoCrop: unknown;
   canSend: boolean;
-  /** Null until they next open the messenger: nothing can be sealed to them. */
+  /**
+   * Null until they next open the messenger: what's written to them waits
+   * until then (Step 182).
+   */
   keyVersion: number | null;
+  /** How many of theirs are on their way to the reader (Step 182). */
+  incomingWaiting: number;
   /** Muted until then (Step 177.4); null when it isn't. */
   mutedUntil: string | null;
   /** Who blocked whom (Step 177.3). */
@@ -490,7 +505,8 @@ function usePeer(id: string): {
   );
   if (summary)
     return { ...summary, userId: summary.otherUserId, keyVersion: summary.otherKeyVersion };
-  if (contact) return { ...contact, canSend: true, mutedUntil: null, blocked: null };
+  if (contact)
+    return { ...contact, canSend: true, mutedUntil: null, blocked: null, incomingWaiting: 0 };
   return null;
 }
 
@@ -538,8 +554,10 @@ function ThreadView({ id, onClose }: { id: string; onClose: () => void }) {
   // more goes to them until it's checked again.
   const codeChanged = !!verifiedKey && !!currentKey && verifiedKey !== currentKey;
   // Whether there's a box to write in: the foot says why when there isn't.
-  const canWrite =
-    !!peer && !peer.blocked && peer.canSend && peer.keyVersion != null && !codeChanged;
+  // Someone with no key yet can be written to: it waits for them (Step 182).
+  const canWrite = !!peer && !peer.blocked && peer.canSend && !codeChanged;
+  // The newest of yours still waiting says so (Step 182).
+  const lastWaiting = messages.findLast((m) => m.waiting)?.id;
   return (
     <>
       <PanelHeader
@@ -642,9 +660,11 @@ function ThreadView({ id, onClose }: { id: string; onClose: () => void }) {
         ) : thread.failed && messages.length === 0 ? (
           <LoadFailed onRetry={() => messenger.retryThread(id)} />
         ) : messages.length === 0 ? (
-          canWrite ? (
+          peer?.incomingWaiting ? null : canWrite ? (
             <p className="py-10 text-center text-sm text-muted-foreground">
-              Say hello to {name.split(" ")[0] || "them"}.
+              {peer?.keyVersion == null
+                ? `What you write waits until ${first} next visits ancestree.`
+                : `Say hello to ${first}.`}
             </p>
           ) : null
         ) : (
@@ -657,12 +677,19 @@ function ThreadView({ id, onClose }: { id: string; onClose: () => void }) {
                 lastFromThem={lastFrom(messages, i, m.senderId)}
                 mine={m.senderId === me}
                 name={first}
+                note={m.id === lastWaiting && peer ? waitingText(first, peer) : undefined}
                 selected={selected === m.id}
                 onSelect={() => setSelected((now) => (now === m.id ? null : m.id))}
               />
             ))}
           </ol>
         )}
+        {/* Theirs, written before you had a key, come once they're next on (Step 182). */}
+        {peer?.incomingWaiting ? (
+          <p className="py-3 text-center text-xs text-muted-foreground">
+            {incomingWaitingText(first, peer.incomingWaiting)}
+          </p>
+        ) : null}
       </div>
       {peer?.blocked === "by_you" && peer.userId ? (
         <Unblock userId={peer.userId} first={first} />
@@ -673,10 +700,6 @@ function ThreadView({ id, onClose }: { id: string; onClose: () => void }) {
       ) : peer && !peer.canSend ? (
         <p className="shrink-0 border-t px-4 py-3 text-center text-sm text-muted-foreground">
           You no longer share a tree.
-        </p>
-      ) : peer && peer.keyVersion == null ? (
-        <p className="shrink-0 border-t px-4 py-3 text-center text-sm text-muted-foreground">
-          You can write to {first} once they next visit ancestree.
         </p>
       ) : codeChanged ? (
         <p className="shrink-0 border-t px-4 py-3 text-center text-sm text-muted-foreground">
@@ -707,6 +730,7 @@ function MessageItem({
   lastFromThem,
   mine,
   name,
+  note,
   selected,
   onSelect,
 }: {
@@ -716,6 +740,8 @@ function MessageItem({
   lastFromThem: ChatMessage | undefined;
   mine: boolean;
   name: string;
+  /** Under it: one of yours still waiting for them (Step 182). */
+  note?: string;
   /** Its actions show: delete your own (Step 177.5). */
   selected: boolean;
   onSelect: () => void;
@@ -785,6 +811,9 @@ function MessageItem({
           </Button>
         ) : null}
       </div>
+      {note ? (
+        <span className="mt-0.5 self-end px-1 text-xs text-muted-foreground">{note}</span>
+      ) : null}
       {selected ? <MessageActions message={m} mine={mine} onDone={onSelect} /> : null}
     </li>
   );
@@ -1828,7 +1857,7 @@ function VerifyView({ id, onClose }: { id: string; onClose: () => void }) {
           <Skeleton className="h-24 w-56" />
         ) : code === "none" ? (
           <p className="text-sm text-muted-foreground">
-            {first} can get messages once they next visit ancestree.
+            {first} gets a security code once they next visit ancestree.
           </p>
         ) : (
           <>

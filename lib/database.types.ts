@@ -1352,18 +1352,21 @@ export type Database = {
         Row: {
           key_version: number
           message_id: string
+          sealed_at: string
           sealed_key: string
           user_id: string
         }
         Insert: {
           key_version: number
           message_id: string
+          sealed_at?: string
           sealed_key: string
           user_id: string
         }
         Update: {
           key_version?: number
           message_id?: string
+          sealed_at?: string
           sealed_key?: string
           user_id?: string
         }
@@ -3697,6 +3700,10 @@ export type Database = {
       delete_library_submission: { Args: { p_id: string }; Returns: string }
       delete_message: { Args: { p_message: string }; Returns: undefined }
       delete_tree: { Args: { p_tree: string }; Returns: Json }
+      deliver_messages: {
+        Args: { p_conversation: string; p_keys: Json }
+        Returns: number
+      }
       draft_library_submission: {
         Args: { p_id: string }
         Returns: {
@@ -4112,9 +4119,11 @@ export type Database = {
           blocked: string
           can_send: boolean
           conversation_id: string
+          incoming_waiting: number
           kind: string
           last_at: string
           last_ciphertext: string
+          last_created_at: string
           last_id: string
           last_key_version: number
           last_nonce: string
@@ -4131,6 +4140,7 @@ export type Database = {
           other_photo_path: string
           other_user_id: string
           unread: number
+          waiting: number
         }[]
       }
       my_growth_rights: { Args: { p_tree?: string }; Returns: Json }
@@ -4623,10 +4633,12 @@ export type Database = {
           id: string
           key_version: number
           nonce: string
+          sealed_at: string
           sealed_key: string
           sender_id: string
           sender_key_version: number
           signature: string
+          waiting: boolean
         }[]
       }
       tree_carried: {
@@ -4707,6 +4719,19 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      waiting_messages: {
+        Args: { p_conversation: string }
+        Returns: {
+          ciphertext: string
+          created_at: string
+          id: string
+          key_version: number
+          nonce: string
+          sealed_key: string
+          sender_key_version: number
+          signature: string
+        }[]
       }
       withheld_details: { Args: { p_person: string }; Returns: Json }
     }

@@ -108,8 +108,13 @@ export type Peer = {
   name: string;
   personId: string | null;
   canSend: boolean;
-  /** Null until they next open messages: nothing can be sealed to them. */
+  /**
+   * Null until they next open messages: what's written to them waits until
+   * then (Step 182).
+   */
   keyVersion: number | null;
+  /** How many of theirs are on their way to the member (Step 182). */
+  incomingWaiting: number;
   /** Muted until then (Step 177.4); null when it isn't. */
   mutedUntil: string | null;
   /** Who blocked whom (Step 177.3). */
@@ -129,6 +134,7 @@ export function usePeer(id: string): Peer | null {
       personId: summary.personId,
       canSend: summary.canSend,
       keyVersion: summary.otherKeyVersion,
+      incomingWaiting: summary.incomingWaiting,
       mutedUntil: summary.mutedUntil,
       blocked: summary.blocked,
     };
@@ -139,6 +145,7 @@ export function usePeer(id: string): Peer | null {
       personId: contact.personId,
       canSend: true,
       keyVersion: contact.keyVersion,
+      incomingWaiting: 0,
       mutedUntil: null,
       blocked: null,
     };
