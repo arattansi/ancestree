@@ -1931,6 +1931,23 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 178: the minimap as tall as the zoom buttons beside it** (no
+  migration). **Aalim asked** (2026-10-16): "move the map to the edge of
+  the window and the zoom functions above it. also, decrease the size of
+  the map so that it's height is the same as the zoom functions", then,
+  once he'd seen it, "move the arrangement back to how it was but keep
+  the size of the map". **Now** the zoom buttons and the minimap sit side
+  by side at the bottom left as in Step 174.1, and the minimap is as tall
+  as the buttons, measured as they change (`useHeight` in
+  `family-tree.tsx`; `CanvasMiniMap` takes a `height`, React Flow's 4:3
+  kept): 104 × 139 with **Go to me**, 78 without, 160 × 213 on a touch
+  screen's bigger buttons (200 × 150 before), so their tops and bottoms
+  line up. The pills at the canvas's foot keep to the narrower corner
+  between `sm` and `lg` (`FOOT_MIDDLE`). **Verified** headless as a
+  throwaway member on My Family Tree: at 1280 × 800 the buttons and the
+  map both span 681–785; at 640 and 768 the hint pill clears the map and
+  the messenger; on an 820 × 1180 touch tablet both are 160 tall;
+  dragging the map still pans; no console errors. Throwaway deleted.
 - **Step 176: the iPhone app ready for Apple's review** (no migration).
   **Asked** (2026-10-16): what store review and external testers need,
   scoped first. **Aalim's calls:** a Root alone on a tree deletes it with

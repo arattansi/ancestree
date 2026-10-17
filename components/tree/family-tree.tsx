@@ -1950,6 +1950,8 @@ function Canvas({
   // it's open already, since they may have panned away.
   const selfOnCanvas =
     !!selfPersonId && graph.layout.positions.has(selfPersonId);
+  // The zoom buttons' height, which the minimap under them takes (Step 178).
+  const [zoomRef, zoomHeight] = useHeight<HTMLDivElement>();
   const goToMe = React.useCallback(() => {
     if (!selfPersonId) return;
     setSelectedEdgeId(null);
@@ -2715,25 +2717,29 @@ function Canvas({
         ) : null}
         <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
         {/* The zoom buttons and the minimap side by side at the bottom left
-            (Step 174), leaving the bottom right to the messenger. The
-            controls give up their own corner to sit in this row. */}
+            (Step 174), leaving the bottom right to the messenger. The map
+            is as tall as the buttons beside it, however many there are and
+            however big a touch screen makes them (Step 178). The controls
+            give up their own corner to sit in this row. */}
         <Panel
           position="bottom-left"
           className="flex items-end gap-2.5"
         >
-          <Controls showInteractive={false} className="!static !m-0">
-            {selfOnCanvas ? (
-              <ControlButton
-                onClick={goToMe}
-                title="Go to me"
-                aria-label="Go to me"
-              >
-                {/* React Flow fills its control icons; this one is drawn. */}
-                <LocateFixed strokeWidth={2.75} style={{ fill: "none" }} />
-              </ControlButton>
-            ) : null}
-          </Controls>
-          <WideMiniMap />
+          <div ref={zoomRef}>
+            <Controls showInteractive={false} className="!static !m-0">
+              {selfOnCanvas ? (
+                <ControlButton
+                  onClick={goToMe}
+                  title="Go to me"
+                  aria-label="Go to me"
+                >
+                  {/* React Flow fills its control icons; this one is drawn. */}
+                  <LocateFixed strokeWidth={2.75} style={{ fill: "none" }} />
+                </ControlButton>
+              ) : null}
+            </Controls>
+          </div>
+          <WideMiniMap height={zoomHeight} />
         </Panel>
         <Panel
           position="top-right"
@@ -3132,21 +3138,40 @@ function keepProps(prev: Props, next: Props): Props {
 /**
  * The canvas's foot between `sm` and `lg` (Step 174): the pills in the
  * middle sit in the room between the zoom buttons and minimap on the left
- * and the messenger's launcher on the right, where in the middle they'd
- * cover the minimap. From `lg` the middle is clear of both.
+ * (at most 290px with the margin and a gap, on a touch screen's bigger
+ * buttons; Step 178) and the messenger's launcher on the right (80px),
+ * where in the middle they'd cover the minimap. From `lg` the middle is
+ * clear of both.
  */
 const FOOT_MIDDLE =
-  "sm:max-lg:!ml-[6.25rem] sm:max-lg:max-w-[calc(100%-22.5rem)]";
+  "sm:max-lg:!ml-[7.5rem] sm:max-lg:max-w-[calc(100%-23rem)]";
 
 /**
  * The minimap, from `sm` up only (Step 87.7, audit C6): hidden below it, it
  * still worked out its bounds on every frame of a pan. Its own component, so
  * learning the width after hydration redraws it and not the canvas.
  */
-function WideMiniMap() {
+function WideMiniMap({ height }: { height: number | null }) {
   const wide = useIsSm();
-  if (!wide) return null;
-  return <CanvasMiniMap />;
+  if (!wide || !height) return null;
+  return <CanvasMiniMap height={height} />;
+}
+
+/** An element's height, kept as it changes (Step 178: the zoom buttons'). */
+function useHeight<T extends HTMLElement>(): [React.RefObject<T | null>, number | null] {
+  const ref = React.useRef<T>(null);
+  const [height, setHeight] = React.useState<number | null>(null);
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new ResizeObserver(([entry]) => {
+      const next = Math.round(entry.contentRect.height);
+      setHeight((had) => (had === next ? had : next || null));
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  return [ref, height];
 }
 
 export function FamilyTree(given: Props) {

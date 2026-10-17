@@ -11,9 +11,12 @@ import { XYMinimap, type XYMinimapInstance } from "@xyflow/system";
 
 import { NODE_H, NODE_W } from "@/lib/tree-dimensions";
 
-/** The minimap's size on screen, React Flow's own. */
-const WIDTH = 200;
-const HEIGHT = 150;
+/**
+ * The minimap's shape, React Flow's own 200 × 150; its size on screen is
+ * the zoom buttons' height since Step 178.
+ */
+const ASPECT = 4 / 3;
+const DEFAULT_HEIGHT = 150;
 /** Room round the drawing, in minimap pixels (React Flow's `offsetScale`). */
 const INSET = 5;
 
@@ -70,14 +73,17 @@ function framedBox(cards: Box, view: Box): Box {
 }
 
 /** The drawing's viewBox, centred in the minimap, and canvas units a pixel. */
-function fit(box: Box): { viewBox: string; scale: number; outer: Box } {
-  const scale = Math.max(box.width / WIDTH, box.height / HEIGHT);
+function fit(
+  box: Box,
+  size: { width: number; height: number },
+): { viewBox: string; scale: number; outer: Box } {
+  const scale = Math.max(box.width / size.width, box.height / size.height);
   const inset = INSET * scale;
   const outer = {
-    x: box.x - (WIDTH * scale - box.width) / 2 - inset,
-    y: box.y - (HEIGHT * scale - box.height) / 2 - inset,
-    width: WIDTH * scale + inset * 2,
-    height: HEIGHT * scale + inset * 2,
+    x: box.x - (size.width * scale - box.width) / 2 - inset,
+    y: box.y - (size.height * scale - box.height) / 2 - inset,
+    width: size.width * scale + inset * 2,
+    height: size.height * scale + inset * 2,
   };
   return {
     viewBox: `${outer.x} ${outer.y} ${outer.width} ${outer.height}`,
@@ -97,15 +103,19 @@ const viewOf = (s: ReactFlowState): Box => ({
 const Cards = React.memo(function Cards({
   viewBox,
   d,
+  width,
+  height,
 }: {
   viewBox: string;
   d: string;
+  width: number;
+  height: number;
 }) {
   return (
     <svg
       viewBox={viewBox}
-      width={WIDTH}
-      height={HEIGHT}
+      width={width}
+      height={height}
       className="react-flow__minimap-svg absolute inset-0"
       aria-hidden
     >
@@ -128,10 +138,19 @@ const Cards = React.memo(function Cards({
  * in a viewBox that moves only in steps (`framedBox`), and each frame
  * changes nothing but the shade round the window, in an svg of its own.
  * Dragging it pans and the wheel zooms, by React Flow's own handler.
- * It sits beside the zoom buttons at the bottom left (Step 174), so the
- * canvas places it, not a panel of its own.
+ * It sits beside the zoom buttons at the bottom left, as tall as they are
+ * (Steps 174, 178), so the canvas places and sizes it, not a panel of its
+ * own.
  */
-export function CanvasMiniMap() {
+export function CanvasMiniMap({
+  height = DEFAULT_HEIGHT,
+}: {
+  height?: number;
+}) {
+  const size = React.useMemo(
+    () => ({ width: Math.round(height * ASPECT), height }),
+    [height],
+  );
   const store = useStoreApi();
   const nodes = useStore((s: ReactFlowState) => s.nodes);
   const cards = React.useMemo(() => drawCards(nodes), [nodes]);
@@ -155,9 +174,9 @@ export function CanvasMiniMap() {
     }, []),
   );
   const box = React.useMemo(() => {
-    const [x, y, width, height] = (framed || "0 0 0 0").split(" ").map(Number);
-    return fit({ x, y, width, height });
-  }, [framed]);
+    const [x, y, w, h] = (framed || "0 0 0 0").split(" ").map(Number);
+    return fit({ x, y, width: w, height: h }, size);
+  }, [framed, size]);
 
   // Drag to pan and wheel to zoom, wired as React Flow wires its own.
   const svgRef = React.useRef<SVGSVGElement>(null);
@@ -198,16 +217,18 @@ export function CanvasMiniMap() {
   const { outer } = box;
   return (
     // In the canvas's bottom-left panel, beside the zoom buttons (Step 174).
-    <div
-      className="react-flow__minimap relative !bg-card"
-      style={{ width: WIDTH, height: HEIGHT }}
-    >
-      <Cards viewBox={box.viewBox} d={cards.d} />
+    <div className="react-flow__minimap relative !bg-card" style={size}>
+      <Cards
+        viewBox={box.viewBox}
+        d={cards.d}
+        width={size.width}
+        height={size.height}
+      />
       <svg
         ref={svgRef}
         viewBox={box.viewBox}
-        width={WIDTH}
-        height={HEIGHT}
+        width={size.width}
+        height={size.height}
         role="img"
         aria-label="Mini map"
         className="react-flow__minimap-svg relative"
