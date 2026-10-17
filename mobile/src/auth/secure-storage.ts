@@ -2,11 +2,10 @@ import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 
 /**
- * Where the Supabase session lives, and the messaging keys (Step 179.1):
- * the iOS Keychain (Android Keystore), through expo-secure-store. A session
- * is bigger than SecureStore likes one value to be (2 KB), so it is kept in
- * chunks, with the count under the key itself. In a browser (the dev
- * preview only) it is localStorage.
+ * Where the Supabase session lives: the iOS Keychain (Android Keystore),
+ * through expo-secure-store. A session is bigger than SecureStore likes
+ * one value to be (2 KB), so it is kept in chunks, with the count under the
+ * key itself. In a browser (the dev preview only) it is localStorage.
  */
 const CHUNK = 1800;
 
@@ -61,7 +60,5 @@ const webStorage = {
   },
 };
 
-export const secureStorage =
+export const sessionStorage =
   Platform.OS === "web" ? webStorage : nativeStorage;
-
-export const sessionStorage = secureStorage;

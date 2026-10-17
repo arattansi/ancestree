@@ -1,6 +1,9 @@
+import { randomUUID } from "expo-crypto";
+import * as SecureStore from "expo-secure-store";
+import { Platform } from "react-native";
+
 import { fromBase64, toBase64, type KeyPair, type Keyring } from "@/lib/e2e/crypto";
 import type { Pins } from "@/lib/e2e/pins";
-import { secureStorage } from "@/auth/secure-storage";
 
 /*
  * Where the phone keeps its messaging keys (Step 179.1), as the web keeps
@@ -8,8 +11,7 @@ import { secureStorage } from "@/auth/secure-storage";
  * member, never sent anywhere but encrypted (a link to the member's other
  * device, or a backup under their recovery phrase). Also the keys this
  * phone has pinned, and which of their family's safety codes the member
- * checked here. The Keychain keeps them when the app is deleted, as it
- * keeps the session.
+ * checked here. The Keychain keeps them when the app is deleted.
  */
 
 type StoredPair = { box: string; boxPublic: string; sign: string; signPublic: string };
@@ -41,7 +43,66 @@ function decodePair(stored: StoredPair | undefined): KeyPair | null {
   return { boxSecret, boxPublic, signSecret, signPublic };
 }
 
-/** One write at a time for each value: a chunked one isn't atomic. */
+/*
+ * How a value is kept: written whole under a new slot (in chunks, as one
+ * Keychain item takes about 2 KB), and only then does the value's name
+ * point at it, in one write. A write cut short leaves the old value in
+ * place, never half of each. On this phone only: never in a backup, so a
+ * restored phone is linked again like any new device (as the web's
+ * IndexedDB never leaves its browser).
+ */
+const CHUNK = 1800;
+const ON_THIS_PHONE: SecureStore.SecureStoreOptions = {
+  keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+};
+
+type Items = {
+  get(key: string): Promise<string | null>;
+  set(key: string, value: string): Promise<void>;
+  remove(key: string): Promise<void>;
+};
+
+const items: Items =
+  Platform.OS === "web"
+    ? {
+        // The browser preview only.
+        get: async (key) => (typeof localStorage === "undefined" ? null : localStorage.getItem(key)),
+        set: async (key, value) => localStorage?.setItem(key, value),
+        remove: async (key) => localStorage?.removeItem(key),
+      }
+    : {
+        get: (key) => SecureStore.getItemAsync(key, ON_THIS_PHONE),
+        set: (key, value) => SecureStore.setItemAsync(key, value, ON_THIS_PHONE),
+        remove: (key) => SecureStore.deleteItemAsync(key, ON_THIS_PHONE),
+      };
+
+async function writeSlot(slot: string, text: string) {
+  const count = Math.max(1, Math.ceil(text.length / CHUNK));
+  for (let i = 0; i < count; i++) {
+    await items.set(`${slot}.${i}`, text.slice(i * CHUNK, (i + 1) * CHUNK));
+  }
+  await items.set(slot, String(count));
+}
+
+async function readSlot(slot: string): Promise<string | null> {
+  const count = Number(await items.get(slot));
+  if (!count) return null;
+  const parts: string[] = [];
+  for (let i = 0; i < count; i++) {
+    const part = await items.get(`${slot}.${i}`);
+    if (part == null) return null;
+    parts.push(part);
+  }
+  return parts.join("");
+}
+
+async function removeSlot(slot: string) {
+  const count = Number(await items.get(slot)) || 0;
+  await items.remove(slot);
+  for (let i = 0; i < count; i++) await items.remove(`${slot}.${i}`);
+}
+
+/** One write at a time for each value. */
 const queues = new Map<string, Promise<unknown>>();
 
 function queued<T>(key: string, task: () => Promise<T>): Promise<T> {
@@ -50,20 +111,33 @@ function queued<T>(key: string, task: () => Promise<T>): Promise<T> {
   return run;
 }
 
+/**
+ * A value, `undefined` when none was ever kept. One that's there but can't
+ * be read throws: the keys and pins are never quietly taken as empty,
+ * which would trust whatever key the server served next.
+ */
 async function get<T>(key: string): Promise<T | undefined> {
-  const text = await queued(key, () => secureStorage.getItem(key));
-  if (!text) return undefined;
-  try {
+  return queued(key, async () => {
+    const slot = await items.get(key);
+    if (!slot) return undefined;
+    const text = await readSlot(slot);
+    if (text == null) throw new Error(`unreadable ${key}`);
     return JSON.parse(text) as T;
-  } catch {
-    return undefined;
-  }
+  });
 }
 
 function put(key: string, value: unknown): Promise<void> {
-  return queued(key, () =>
-    value == null ? secureStorage.removeItem(key) : secureStorage.setItem(key, JSON.stringify(value)),
-  );
+  return queued(key, async () => {
+    const had = await items.get(key);
+    if (value == null) {
+      await items.remove(key);
+    } else {
+      const slot = `${key}.${randomUUID()}`;
+      await writeSlot(slot, JSON.stringify(value));
+      await items.set(key, slot);
+    }
+    if (had) await removeSlot(had);
+  });
 }
 
 /** This member's keyring on this phone, or `null`. */

@@ -78,7 +78,8 @@ has it:
   stay unreadable, and your family sees your security code change.
 
 The phone keeps the key in the Keychain (`src/messages/keystore.ts`), as
-the web keeps it in the browser. Message Security (the lock on the
+the web keeps it in the browser, on this phone only: it's never in a
+backup, so a phone restored from one is linked again. Message Security (the lock on the
 Messages screen) links another device from the phone, sets the recovery
 phrase, lists whom you've blocked and exports your conversations as a
 text file read on the phone. The encryption is the web's own

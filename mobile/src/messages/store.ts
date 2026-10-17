@@ -163,6 +163,18 @@ function setThread(id: string, next: Partial<Thread>) {
   });
 }
 
+/**
+ * Which sign-in the module's state belongs to. `stop` moves it on, so work
+ * begun for the member before (a key looked up, a thread read) can't write
+ * into the next one's state when it finishes: one JavaScript runtime lasts
+ * across sign-outs on the phone, where the web reloads the page.
+ */
+let generation = 0;
+const session = () => {
+  const at = generation;
+  return () => at === generation;
+};
+
 let channel: RealtimeChannel | null = null;
 let listRead: Promise<void> | null = null;
 let listAgain = false;
@@ -208,7 +220,9 @@ async function fetchKeys(userIds: readonly string[]): Promise<{ userId: string; 
 async function ensurePublicKeys(userIds: readonly string[]): Promise<void> {
   const missing = [...new Set(userIds)].filter((id) => !publicKeys.has(id));
   if (missing.length === 0) return;
+  const alive = session();
   const fetched = await fetchKeys(missing);
+  if (!alive()) return;
   for (const id of missing) publicKeys.set(id, new Map());
   let next = pins;
   for (const { userId, key } of fetched) {
@@ -270,6 +284,7 @@ function latestPublicKey(userId: string): PublicKey | null {
  * published, so a lost reply can't orphan it.
  */
 async function setUpKeys(me: string) {
+  const alive = session();
   try {
     await withKeyLock(me, async () => {
       const [{ data: mine }, local, pending, verified, pinned] = await Promise.all([
@@ -279,7 +294,7 @@ async function setUpKeys(me: string) {
         loadVerified(me),
         loadPins(me),
       ]);
-      if (state.me !== me) return;
+      if (!alive()) return;
       pins = pinned;
       const row = mine?.[0];
       let version = row?.version ?? null;
@@ -295,12 +310,14 @@ async function setUpKeys(me: string) {
           p_box_public: toBase64(keys.boxPublic),
           p_sign_public: toBase64(keys.signPublic),
         });
+        if (!alive()) return;
         if (!error && made != null) {
-          await adopt(me, { [made]: keys }, made);
+          await adopt(me, { [made]: keys }, made, alive);
           return;
         }
         // Another device made one first, or the reply was lost: read again.
         const { data: again } = await supabase.rpc("my_messaging_key");
+        if (!alive()) return;
         version = again?.[0]?.version ?? null;
       }
       if (version == null) {
@@ -309,13 +326,14 @@ async function setUpKeys(me: string) {
       }
 
       const published = await publishedOwn(me, version);
+      if (!alive()) return;
       const current = local?.[version];
       if (published && current && matchesPublished(current, published)) {
         keyring = local;
         set({ keys: "ready", keyVersion: version });
       } else if (published && pending && matchesPublished(pending, published)) {
         // Published by this phone, the reply lost on the way back.
-        await adopt(me, { [version]: pending }, version);
+        await adopt(me, { [version]: pending }, version, alive);
       } else {
         // Older versions this phone holds still read what was sealed to them.
         keyring = local;
@@ -323,16 +341,18 @@ async function setUpKeys(me: string) {
       }
     });
   } catch {
-    if (state.me === me) set({ keys: "unavailable" });
+    if (alive()) set({ keys: "unavailable" });
   }
 }
 
 /** This phone holds `ring`, whose `version` is the published current key. */
-async function adopt(me: string, ring: Keyring, version: number) {
-  keyring = await saveKeyring(me, ring);
+async function adopt(me: string, ring: Keyring, version: number, alive: () => boolean) {
+  const saved = await saveKeyring(me, ring);
   await savePendingKey(me, null);
-  await pinOwn(me, keyring);
-  set({ keys: "ready", keyVersion: version });
+  if (!alive()) return;
+  keyring = saved;
+  await pinOwn(me, saved);
+  if (alive()) set({ keys: "ready", keyVersion: version });
 }
 
 /**
@@ -340,16 +360,21 @@ async function adopt(me: string, ring: Keyring, version: number) {
  * over), it's ready only if they include the published current one;
  * everything is then read again with them. What to say if not.
  */
-async function unlocked(next: Keyring): Promise<string | null> {
-  const me = state.me;
-  if (!me) return "Couldn't unlock. Try again.";
+async function unlocked(
+  me: string,
+  next: Keyring,
+  alive: () => boolean,
+): Promise<string | null> {
+  const gone = "Couldn't unlock. Try again.";
   const merged = await saveKeyring(me, next);
+  if (!alive()) return gone;
   await pinOwn(me, merged);
   forgetPublicKeys([me]);
   const { data: mine } = await supabase.rpc("my_messaging_key");
   const row = mine?.[0];
   const version = row?.version ?? null;
   const published = version != null ? await publishedOwn(me, version) : null;
+  if (!alive()) return gone;
   const current = version != null ? merged[version] : undefined;
   keyring = merged;
   if (!published || !current || !matchesPublished(current, published)) {
@@ -358,6 +383,7 @@ async function unlocked(next: Keyring): Promise<string | null> {
   }
   // The list's last messages, read with the new keys before it shows.
   const data = state.data ? await readPreviews(state.data) : null;
+  if (!alive()) return gone;
   set({
     keys: "ready",
     keyVersion: version,
@@ -472,22 +498,27 @@ function loadList(): Promise<void> {
     listAgain = true;
     return listRead;
   }
-  const me = state.me;
+  const alive = session();
   set({ loading: true });
-  listRead = loadMessenger()
+  const reading: Promise<void> = loadMessenger()
     .then(async (fresh) => {
       const data = await readPreviews(fresh);
-      if (state.me === me) set({ data, loading: false, failed: false });
+      if (alive()) set({ data, loading: false, failed: false });
     })
-    .catch(() => set({ loading: false, failed: !state.data }))
+    .catch(() => {
+      if (alive()) set({ loading: false, failed: !state.data });
+    })
     .finally(() => {
+      // A sign-out since has started over.
+      if (listRead !== reading) return;
       listRead = null;
       if (listAgain) {
         listAgain = false;
         void loadList();
       }
     });
-  return listRead;
+  listRead = reading;
+  return reading;
 }
 
 /** The conversation in front of the member, if the app shows one. */
@@ -498,7 +529,9 @@ function openThreadId(): string | null {
 async function onMessage(payload: unknown) {
   const wire = parseWireMessage(payload);
   if (!wire) return;
+  const alive = session();
   const message = await read(wire);
+  if (!alive()) return;
   const thread = state.threads[message.conversationId];
   if (thread) {
     setThread(message.conversationId, { messages: mergeMessages(thread.messages, [message]) });
@@ -601,8 +634,8 @@ function start(me: string) {
   // Back in front: read what came while the phone was away, as the web
   // does when its tab is seen again.
   appState = AppState.addEventListener("change", (next) => {
-    if (next !== "active" || started !== me) return;
-    if (state.keys !== "waiting") void loadList();
+    if (next !== "active" || started !== me || state.keys === "waiting") return;
+    void loadList();
     if (focused) void showThread(focused);
   });
 }
@@ -621,6 +654,7 @@ function retryKeys() {
 
 /** Forget everything of the member who was signed in. */
 function stop() {
+  generation++;
   started = null;
   appState?.remove();
   appState = null;
@@ -632,6 +666,7 @@ function stop() {
   sealTo.clear();
   readCache.clear();
   focused = null;
+  listRead = null;
   listAgain = false;
   state = INITIAL;
   for (const listener of listeners) listener();
@@ -662,25 +697,37 @@ async function showThread(id: string) {
   void markRead(id);
 }
 
-/** A page of a thread: the newest, or the one before `before`. */
-async function loadThread(id: string, before?: string) {
-  const had = state.threads[id];
-  if (had?.loading) return;
-  setThread(id, { loading: true, failed: false });
+/** A page of a thread from the database, read here. */
+async function readPage(id: string, before: string | undefined) {
   const { data, error } = await supabase.rpc("thread_messages", {
     p_conversation: id,
     p_before: before,
     p_limit: THREAD_PAGE,
   });
-  if (error) {
-    setThread(id, { loading: false, failed: true });
-    return;
-  }
+  if (error) throw error;
   const rows = (data ?? []).flatMap((row) => {
     const wire = parseWireMessage({ ...row, conversation_id: id });
     return wire ? [wire] : [];
   });
-  const page = await Promise.all(rows.map((wire) => read(wire)));
+  return { data, page: await Promise.all(rows.map((wire) => read(wire))) };
+}
+
+/** A page of a thread: the newest, or the one before `before`. */
+async function loadThread(id: string, before?: string) {
+  const had = state.threads[id];
+  if (had?.loading) return;
+  const alive = session();
+  setThread(id, { loading: true, failed: false });
+  let data: Awaited<ReturnType<typeof readPage>>["data"];
+  let page: ChatMessage[];
+  try {
+    ({ data, page } = await readPage(id, before));
+  } catch {
+    // Never left loading: a later look reads it again.
+    if (alive()) setThread(id, { loading: false, failed: true });
+    return;
+  }
+  if (!alive()) return;
   const current = state.threads[id]?.messages ?? [];
   const full = (data ?? []).length === THREAD_PAGE;
   setThread(id, {
@@ -805,6 +852,7 @@ async function send(id: string, text: string): Promise<boolean> {
       messages: (state.threads[id]?.messages ?? []).filter((m) => m.id !== messageId),
     });
 
+  const alive = session();
   let error: { message?: string } | null = null;
   let sentAt: string | null = null;
   // Once more with fresh keys if someone's changed since they were read.
@@ -851,6 +899,7 @@ async function send(id: string, text: string): Promise<boolean> {
     if (!error?.message?.includes("KEYS_CHANGED")) break;
   }
 
+  if (!alive()) return false;
   if (error || !sentAt) {
     drop();
     sendFailed(id, sendErrorText(error?.message));
@@ -878,8 +927,11 @@ async function send(id: string, text: string): Promise<boolean> {
  */
 async function deleteMessage(conversationId: string, messageId: string): Promise<string | null> {
   const had = state.threads[conversationId]?.messages ?? [];
+  const alive = session();
   setThread(conversationId, { messages: had.filter((m) => m.id !== messageId) });
   const { error } = await supabase.rpc("delete_message", { p_message: messageId });
+  if (!alive()) return null;
+  readCache.delete(messageId);
   if (error) {
     setThread(conversationId, {
       messages: mergeMessages(state.threads[conversationId]?.messages ?? [], had),
@@ -907,10 +959,12 @@ async function mute(conversationId: string, hours: number | null | "unmute"): Pr
     });
   };
   apply(until);
+  const alive = session();
   const { data, error } = await supabase.rpc("mute_conversation", {
     p_conversation: conversationId,
     p_until: until ?? undefined,
   });
+  if (!alive()) return false;
   if (error) {
     apply(before);
     return false;
@@ -999,7 +1053,9 @@ async function openWith(userId: string): Promise<string | null> {
   const known = state.data?.conversations.find((c) => c.otherUserId === userId);
   if (known) return known.id;
   set({ opening: userId });
+  const alive = session();
   const { data, error } = await supabase.rpc("open_direct_conversation", { p_with: userId });
+  if (!alive()) return null;
   set({ opening: null });
   if (error || !data) return null;
   set({ peers: { ...state.peers, [data]: userId } });
@@ -1045,17 +1101,20 @@ async function takeDeviceLink(fragment: string): Promise<string | null> {
   const [id, encoded] = fragment.replace(/^#/, "").split(".");
   const key = encoded ? fromBase64Url(encoded) : null;
   if (!id || !key || key.length !== 32) return "This link didn't work. Make a new one on your other device.";
+  const alive = session();
   const { data, error } = await supabase.rpc("take_key_transfer", { p_id: id });
+  if (!alive()) return "Couldn't unlock. Try again.";
   if (error || !data) return "This link has expired. Make a new one on your other device.";
   const blob = fromBase64(data);
   const taken = blob ? unwrapKeyring(blob, key, "link", me) : null;
   if (!taken) return "This link didn't work. Make a new one on your other device.";
-  return unlocked(taken);
+  return unlocked(me, taken, alive);
 }
 
 /** A new recovery phrase, its backup kept; the words to show once. */
 async function makeRecoveryPhrase(): Promise<string | null> {
   if (!keyring || !state.me || state.keyVersion == null) return null;
+  const alive = session();
   const phrase = newRecoveryPhrase();
   const key = backupKeyFromPhrase(phrase);
   if (!key) return null;
@@ -1063,7 +1122,7 @@ async function makeRecoveryPhrase(): Promise<string | null> {
     p_blob: toBase64(wrapKeyring(keyring, key, "backup", state.me)),
     p_key_version: state.keyVersion,
   });
-  if (error) return null;
+  if (error || !alive()) return null;
   set({ backupVersion: state.keyVersion });
   return phrase;
 }
@@ -1074,13 +1133,15 @@ async function useRecoveryPhrase(phrase: string): Promise<string | null> {
   const key = backupKeyFromPhrase(phrase);
   if (!me) return "Couldn't unlock. Try again.";
   if (!key) return "Those words aren't a recovery phrase. Check each one.";
+  const alive = session();
   const { data } = await supabase.rpc("get_key_backup");
+  if (!alive()) return "Couldn't unlock. Try again.";
   const backup = data?.[0];
   const blob = backup ? fromBase64(backup.blob) : null;
   if (!blob) return "There's no backup to unlock.";
   const restored = unwrapKeyring(blob, key, "backup", me);
   if (!restored) return "That isn't your recovery phrase.";
-  return unlocked(restored);
+  return unlocked(me, restored, alive);
 }
 
 /**
@@ -1091,6 +1152,7 @@ async function useRecoveryPhrase(phrase: string): Promise<string | null> {
 async function startOver(): Promise<string | null> {
   const me = state.me;
   if (!me) return "Couldn't start over. Try again.";
+  const alive = session();
   const keys: KeyPair = newKeyPair();
   await savePendingKey(me, keys);
   const { data: version, error } = await supabase.rpc("publish_messaging_key", {
@@ -1098,8 +1160,9 @@ async function startOver(): Promise<string | null> {
     p_sign_public: toBase64(keys.signPublic),
     p_reset: true,
   });
+  if (!alive()) return "Couldn't start over. Try again.";
   sealTo.clear();
-  if (!error && version != null) return unlocked({ [version]: keys });
+  if (!error && version != null) return unlocked(me, { [version]: keys }, alive);
   if (error?.message?.includes("SLOW_DOWN")) {
     return "You've started over too often today. Try again tomorrow.";
   }
@@ -1107,8 +1170,8 @@ async function startOver(): Promise<string | null> {
   const { data: mine } = await supabase.rpc("my_messaging_key");
   const current = mine?.[0]?.version ?? null;
   const published = current != null ? await publishedOwn(me, current) : null;
-  if (current != null && published && matchesPublished(keys, published)) {
-    return unlocked({ [current]: keys });
+  if (current != null && published && matchesPublished(keys, published) && alive()) {
+    return unlocked(me, { [current]: keys }, alive);
   }
   return "Couldn't start over. Try again.";
 }
@@ -1139,8 +1202,10 @@ async function codeFor(otherId: string): Promise<{ code: string[]; key: string }
 
 async function setVerified(otherId: string, key: string | null) {
   if (!state.me) return;
+  const alive = session();
   sealTo.clear();
-  set({ verified: await saveVerified(state.me, otherId, key) });
+  const verified = await saveVerified(state.me, otherId, key);
+  if (alive()) set({ verified });
 }
 
 export const messenger = {

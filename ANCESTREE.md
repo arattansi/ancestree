@@ -1975,8 +1975,11 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   phone with `memberRelation` over the family it already reads
   (`tree_people` / `tree_edges` of your trees, as the web's server does),
   so `/api/messages` stays cookie-only. **Keys:** one messaging key per
-  member, as on the web, kept in the Keychain (`keystore.ts`, chunked as
-  the session is) by member, with the pins and verified codes. A phone
+  member, as on the web, kept in the Keychain (`keystore.ts`) by member,
+  with the pins and verified codes: on this phone only (never in a
+  backup, so a restored phone links again), each value written whole
+  under a new slot before its name points at it, and a value that can't
+  be read refuses rather than reading as empty. A phone
   whose member already has a key elsewhere starts locked: **scan the code**
   (`expo-camera`, the web's own `/messages/link#…` QR), **paste the link**,
   **use recovery phrase**, or start over. Hermes has no Web Crypto, so
@@ -2000,7 +2003,14 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   screen. Two things found and fixed there: opening straight into a
   conversation before the messenger had started left it loading, and a
   full-screen modal's safe area came back empty, so the scanner pads by
-  the root's insets. **Not tested:** sending a report (it would notify the
+  the root's insets. An outside read of the port (a fresh agent, store
+  against store) found the security checks intact and six smaller things,
+  all fixed: work begun before a sign-out could land in the next member's
+  state (a sign-in `generation` now guards every await), Keychain writes
+  weren't atomic and failed open, coming back to the app while the keys
+  were looked for could leave a thread "locked", a thread that failed to
+  read stayed loading, keys went into backups, and the export left its
+  text file in the cache. The whole flow ran again after. **Not tested:** sending a report (it would notify the
   real reviewers), and scanning a real code (a simulator has no camera).
   `docs/app-store-review.md` now asks for a decision on encryption export
   compliance (`usesNonExemptEncryption: false` in `app.json`) before the

@@ -64,7 +64,12 @@ export default function Security() {
         const file = new File(Paths.cache, made.filename);
         file.create({ overwrite: true });
         file.write(made.text);
-        await Share.share({ url: file.uri });
+        try {
+          await Share.share({ url: file.uri });
+        } finally {
+          // The words, readable, leave no copy behind once handed over.
+          file.delete();
+        }
       }
     } catch {
       setError("Couldn't export your messages. Try again.");
