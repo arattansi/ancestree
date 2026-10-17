@@ -3780,10 +3780,6 @@ export type Database = {
         Args: { p_approve: boolean; p_person?: string; p_story: string }
         Returns: undefined
       }
-      decide_story_mention: {
-        Args: { p_approve: boolean; p_person: string; p_story: string }
-        Returns: undefined
-      }
       delete_blog_post: { Args: { p_id: string }; Returns: undefined }
       delete_library_submission: { Args: { p_id: string }; Returns: string }
       delete_message: { Args: { p_message: string }; Returns: undefined }

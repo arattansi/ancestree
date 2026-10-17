@@ -1997,8 +1997,9 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   too, as a story's own person was re-asked before; the card's share waits
   for this person's yes; deleting is its teller's, or someone's who could
   edit everyone in it. The phone's scribe says "Added." even when some
-  are still asked. `decide_story_mention` stays as a wrapper for the web
-  deployed before this; drop it after the deploy.
+  are still asked. `decide_story_mention` stayed as a wrapper for the web
+  deployed before this until the deploy was out; then
+  `20261017200000_drop_decide_story_mention` dropped it (live).
 
 - **Step 179.2–179.6: the iPhone app looks like the web and gets a menu
   bar, a +, full details and a record form** (no migration; 179.1,
