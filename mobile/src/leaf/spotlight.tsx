@@ -12,6 +12,7 @@ import {
 import Svg, { Circle, Defs, Path, Pattern, Rect } from "react-native-svg";
 
 import { roundedPolyline } from "@/lib/edge-geometry";
+import { ghostLayout, shiftOrbit } from "@/lib/leaf-ghosts";
 import { orbitLayout, orbitLines, type OrbitSide } from "@/lib/leaf-orbit";
 import { nativeLeaf } from "@/lib/native-leaf";
 import {
@@ -19,9 +20,10 @@ import {
   personDisplayName,
   personLifespan,
 } from "@/lib/person-name";
-import { relativesOf } from "@/family/family";
+import { lineageOf, relativesOf } from "@/family/family";
 import type { Family } from "@/family/load";
 import { relationWord } from "@/family/words";
+import { Ghosts, GhostTargets } from "@/leaf/ghosts";
 import { BOX_W, Leaf, leafAnchors } from "@/leaf/leaf";
 import { PersonPill } from "@/leaf/person-pill";
 import { usePalette } from "@/theme";
@@ -32,7 +34,8 @@ import { usePalette } from "@/theme";
  * It is drawn as the web's canvas is (Step 179.2): a dotted ground, and
  * lines that branch off a bar and turn their corners round, in the brown of
  * the web's lit spotlight lines. A former spouse's line is dashed, as on the
- * web. Tap a pill to walk to that leaf.
+ * web. Tap a pill to walk to that leaf. Past the parents and the children,
+ * the generations beyond show out of focus (Step 184, `lib/leaf-ghosts.ts`).
  */
 export function Spotlight({
   family,
@@ -56,10 +59,22 @@ export function Spotlight({
     () => relativesOf(family, focusId),
     [family, focusId],
   );
-  const layout = React.useMemo(
-    () => (frame ? orbitLayout(frame, relatives) : null),
-    [frame, relatives],
-  );
+  // The family past the pills, out of focus (Step 184), and everything moved
+  // to sit in the middle together.
+  const lineage = React.useMemo(() => lineageOf(family), [family]);
+  const { layout, ghosts } = React.useMemo(() => {
+    if (!frame) return { layout: null, ghosts: null };
+    const orbit = orbitLayout(frame, relatives);
+    const onScreen = new Set([
+      focusId,
+      ...relatives.parents,
+      ...relatives.children,
+      ...relatives.spouses,
+      ...relatives.siblings,
+    ]);
+    const ghosts = ghostLayout(orbit, frame, lineage, onScreen);
+    return { layout: shiftOrbit(orbit, ghosts.shift), ghosts };
+  }, [frame, relatives, lineage, focusId]);
 
   // Each new leaf grows in from a little smaller, unless motion is reduced.
   // The first is simply there.
@@ -146,6 +161,12 @@ export function Spotlight({
             },
           ]}
         >
+          {ghosts ? (
+            <>
+              <Ghosts ghosts={ghosts} width={frame!.width} height={frame!.height} />
+              <GhostTargets ghosts={ghosts} onWalk={walk} />
+            </>
+          ) : null}
           <Svg
             width={frame!.width}
             height={frame!.height}

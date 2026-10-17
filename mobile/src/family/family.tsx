@@ -1,6 +1,7 @@
 import * as React from "react";
 
 import { firstDegree, type FirstDegree } from "@/lib/first-degree";
+import type { GhostFamily } from "@/lib/leaf-ghosts";
 import { useSession } from "@/auth/session";
 import { supabase } from "@/auth/supabase";
 import {
@@ -133,5 +134,30 @@ export function relativesOf(family: Family, id: string): FirstDegree {
     children: degree.children.sort(order),
     spouses: degree.spouses.sort(order),
     siblings: degree.siblings.sort(order),
+  };
+}
+
+/**
+ * Everyone's parents and children on the member's trees, each eldest first:
+ * how the leaf view finds the family past its pills (Step 184).
+ */
+export function lineageOf(family: Family): GhostFamily {
+  const parents = new Map<string, string[]>();
+  const children = new Map<string, string[]>();
+  const add = (map: Map<string, string[]>, key: string, id: string) => {
+    const list = map.get(key);
+    if (!list) map.set(key, [id]);
+    else if (!list.includes(id)) list.push(id);
+  };
+  for (const l of family.lines) {
+    if (l.type !== "parent") continue;
+    add(parents, l.to_person, l.from_person);
+    add(children, l.from_person, l.to_person);
+  }
+  const order = byBirth(family.people);
+  for (const list of [...parents.values(), ...children.values()]) list.sort(order);
+  return {
+    parentsOf: (id) => parents.get(id) ?? [],
+    childrenOf: (id) => children.get(id) ?? [],
   };
 }

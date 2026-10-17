@@ -1951,6 +1951,29 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 184: the iPhone leaf view shows the family past its pills,
+  blurred** (phone only, no migration). **Aalim asked** (2026-10-17):
+  "for the home page on the mobile app, show blurred out nodes extending
+  from the ones visible to show that there are connections in that
+  direction. the issue i'm having is that the UI above and below the person
+  spotlighted feels too bare". **Now** the parents' pills have their own
+  parents over them and the children's pills their children under them, as
+  smaller gray pills with no name to read, blurred and faded
+  (`FeGaussianBlur`, as the web blurs a visitor's cards), and the
+  generation past those smaller and fainter still; a short line fades out
+  past the last one drawn wherever the tree goes on. Each pill's ghosts
+  gather over it (at most 4; the largest families give way on a crowded
+  row), nobody on screen is drawn again, nobody twice. A tap on a ghost
+  walks to the pill it hangs from; VoiceOver skips them. When the screen is
+  too short the outermost generation goes first, and the leaf, its pills
+  and the ghosts are then centred together, so a leaf with family only
+  above no longer leaves an empty half below. **My calls:** only the rows
+  reach out (up and down are generations); spouses and siblings sit at the
+  screen's edges with no room outward, so their families show when you
+  walk to them; ghosts carry no initials. `lib/leaf-ghosts.ts`
+  (`ghostLayout`, `placeRow`, `shiftOrbit`, tested), `lineageOf` in
+  `mobile/src/family/family.tsx`, `mobile/src/leaf/ghosts.tsx`; checked on
+  the iOS 27 simulator, light and dark.
 - **Step 183: a story about several people, on each of their details**
   (migrations `20261017180000_story_about_several` and
   `20261017190000_story_hand_on_to_the_living`, both live). **Aalim

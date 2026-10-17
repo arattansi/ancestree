@@ -261,14 +261,14 @@ export function orbitLines(
         const barX = (a.x + edge) / 2;
         points = [a, { x: barX, y: a.y }, { x: barX, y: p.y }, { x: edge, y: p.y }];
       }
-      lines.push({ side, id: p.id, points: tidy(points) });
+      lines.push({ side, id: p.id, points: tidyPolyline(points) });
     }
   }
   return lines;
 }
 
 /** No repeated corners, and none in the middle of a straight run. */
-function tidy(points: XY[]): XY[] {
+export function tidyPolyline(points: XY[]): XY[] {
   const out: XY[] = [];
   for (const p of points) {
     const last = out[out.length - 1];
