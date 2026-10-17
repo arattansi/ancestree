@@ -1960,9 +1960,9 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   own `lib/messenger.ts`, `lib/messenger-relation.ts` and `lib/e2e/`
   (none of them changed). `store.ts` follows
   `components/messenger/messenger-store.ts` function by function, so a fix
-  to one wants the other. **Where:** a speech-bubble in the leaf's header
-  with the unread count (muted conversations left out), until 179.4 moves
-  it into the menu bar; **message** on a leaf's details when a member you
+  to one wants the other. **Where:** a monochrome dialogue-box icon in
+  the leaf's header with a monochrome unread count (muted conversations
+  left out), drawn for 179.4's menu bar, which moves it there; **message** on a leaf's details when a member you
   share a tree with is behind the entry. **Screens:** the list, New Message
   (closest first, each with who they are to you), a conversation (days
   marked, a changed security code said where it happened, tap a message

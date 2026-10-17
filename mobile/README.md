@@ -29,7 +29,7 @@ What it does so far:
   as you could on the web; people it mentions, to tag; and relatives not
   on the tree yet. Nothing changes until you tick it and save.
 - **Messages** (Step 179.1), as on the web (Steps 174, 177): the
-  speech-bubble in the leaf's header, with the unread count on it, opens
+  dialogue box in the leaf's header, with the unread count on it, opens
   your conversations; **message** on a leaf's details opens one with the
   member behind it. New Message lists everyone on your trees, closest
   first, each with who they are to you ("Your granddaughter"); a

@@ -15,7 +15,7 @@ export function HeaderButton({
 }: {
   label: string;
   onPress: () => void;
-  /** Unread, as the web's launcher badge shows it: 1 to 9, then "9+". */
+  /** Unread, counted as the web's launcher counts: 1 to 9, then "9+". */
   count?: number;
   children: React.ReactNode;
 }) {
@@ -30,8 +30,14 @@ export function HeaderButton({
     >
       {children}
       {count > 0 ? (
-        <View style={[styles.badge, { backgroundColor: palette.destructiveSolid }]}>
-          <Text style={styles.badgeText}>{badgeCount(count)}</Text>
+        // Monochrome, as the menu bar's line icons are (179.4).
+        <View
+          style={[
+            styles.badge,
+            { backgroundColor: palette.foreground, borderColor: palette.background },
+          ]}
+        >
+          <Text style={[styles.badgeText, { color: palette.background }]}>{badgeCount(count)}</Text>
         </View>
       ) : null}
     </Pressable>
@@ -82,17 +88,17 @@ const styles = StyleSheet.create({
   },
   badge: {
     position: "absolute",
-    top: 4,
-    right: 2,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
+    top: 3,
+    right: 1,
+    minWidth: 19,
+    height: 19,
+    borderRadius: 10,
+    borderWidth: 1.5,
     paddingHorizontal: 4,
     alignItems: "center",
     justifyContent: "center",
   },
   badgeText: {
-    color: "#ffffff",
     fontFamily: font.semibold,
     fontSize: 11,
     fontVariant: ["tabular-nums"],

@@ -11,7 +11,7 @@ import { useUnread } from "@/messages/store";
 import { font, GUTTER, usePalette } from "@/theme";
 import { Button } from "@/ui/button";
 import { HeaderButton } from "@/ui/header";
-import { ChevronLeftIcon, MessageCircleIcon, SearchIcon, UserIcon } from "@/ui/icons";
+import { ChevronLeftIcon, MessageSquareIcon, SearchIcon, UserIcon } from "@/ui/icons";
 
 const SITE = process.env.EXPO_PUBLIC_SITE_URL ?? "https://www.ancestree.space";
 const SITE_NAME = SITE.replace(/^https?:\/\/(www\.)?/, "");
@@ -71,7 +71,7 @@ export default function LeafScreen() {
               bar takes them (179.4). */}
           {family ? (
             <HeaderButton label="Messages" count={unread} onPress={() => router.push("/messages")}>
-              <MessageCircleIcon color={palette.foreground} />
+              <MessageSquareIcon color={palette.foreground} />
             </HeaderButton>
           ) : null}
           {family ? (
