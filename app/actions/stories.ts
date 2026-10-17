@@ -4,7 +4,7 @@ import { after } from "next/server";
 
 import { requireProfile } from "@/lib/auth";
 import { friendlyDbError, ownedWrite } from "@/lib/db-errors";
-import { COMMENT_MAX, STORY_MAX, STORY_MENTION_MAX, STORY_TITLE_MAX } from "@/lib/limits";
+import { COMMENT_MAX, STORY_ABOUT_MAX, STORY_MAX, STORY_TITLE_MAX } from "@/lib/limits";
 import { isStoryAudioPath } from "@/lib/story-audio";
 import { STORY_CREDIT_MAX, toldProblem } from "@/lib/story-credits";
 import {
@@ -24,16 +24,17 @@ import { createClient } from "@/lib/supabase/server";
  */
 
 /**
- * Tell a story about someone on the viewer's tree: text, a recording they
- * have just uploaded to that person's folder, or both. It waits for the
- * person, or whoever can edit the entry, unless the teller is that person.
- * It may say when it was told (`told`, as much of a date as is known: "1962"
- * will do) and credit people on the tree as its storytellers and its
- * interviewers (Step 99); a written one tags the people on the tree it
- * mentions instead (Step 116), each asked once it shows. The list back
- * includes it.
+ * Tell a story about someone on the viewer's tree, and anyone else on it
+ * it's about too (`about`, Step 183): text, a recording they have just
+ * uploaded to the first one's folder, or both. Each person's details show
+ * it once they say yes, or whoever can edit their entry does, unless the
+ * teller could: each is asked. It may say when it was told (`told`, as
+ * much of a date as is known: "1962" will do) and credit people on the
+ * tree as its storytellers and its interviewers (Step 99). The first one's
+ * list back includes it; `waiting` says whether anyone's still asked.
  */
 export async function addStory(input: {
+  /** Whom it's first about, whose folder its recording is in. */
   personId: string;
   /** The tree it's told on, whose inbox its teller hears back in. */
   treeId: string;
@@ -44,9 +45,14 @@ export async function addStory(input: {
   told?: string;
   storytellers?: string[];
   interviewers?: string[];
-  /** Who a written story mentions (Step 116). */
-  mentions?: string[];
-}): Promise<{ error?: string; status?: "pending" | "approved"; stories?: EntryStory[] }> {
+  /** Everyone else it's about (Step 183). */
+  about?: string[];
+}): Promise<{
+  error?: string;
+  status?: "pending" | "approved";
+  waiting?: boolean;
+  stories?: EntryStory[];
+}> {
   const profile = await requireProfile();
   const title = input.title.trim();
   const body = input.body.trim();
@@ -66,9 +72,9 @@ export async function addStory(input: {
   if (storytellers.length > STORY_CREDIT_MAX || interviewers.length > STORY_CREDIT_MAX) {
     return { error: `Credit ${STORY_CREDIT_MAX} people at most in each role.` };
   }
-  const mentions = [...new Set(input.mentions ?? [])].filter((id) => id !== input.personId);
-  if (mentions.length > STORY_MENTION_MAX) {
-    return { error: `Tag ${STORY_MENTION_MAX} people at most.` };
+  const about = [...new Set(input.about ?? [])].filter((id) => id !== input.personId);
+  if (about.length + 1 > STORY_ABOUT_MAX) {
+    return { error: `A story may be about ${STORY_ABOUT_MAX} people at most.` };
   }
   const toldError = toldProblem(input.told ?? "");
   if (toldError) return { error: toldError };
@@ -91,15 +97,15 @@ export async function addStory(input: {
     p_told_precision: toldOn.date ? toldOn.precision : undefined,
     p_storytellers: storytellers,
     p_interviewers: interviewers,
-    p_mentions: mentions,
+    p_about: about,
   });
   if (error) {
     return {
       error: friendlyDbError(
         error.message,
         [
-          ["not on your tree", "That entry, or someone tagged, isn’t on your tree."],
-          ["too many people", "That’s too many people tagged."],
+          ["not on your tree", "Someone it’s about, or credited, isn’t on your tree."],
+          ["too many people", "That’s too many people."],
           // Step 98.3: a placeholder child is told about, or credited, by
           // their parent alone.
           ["only their parent fills in", "Only their parent can add to a placeholder."],
@@ -113,28 +119,32 @@ export async function addStory(input: {
       ),
     };
   }
-  const told = data as { status?: string } | null;
+  const told = data as { id?: string; status?: string } | null;
+  // It's told either way; a list that can't be read now is read again.
+  const stories = await listStories(input.personId, profile.auth_user_id).catch(
+    () => undefined,
+  );
   return {
     status: told?.status === "approved" ? "approved" : "pending",
-    // It's told either way; a list that can't be read now is read again.
-    stories: await listStories(input.personId, profile.auth_user_id).catch(
-      () => undefined,
-    ),
+    waiting: !!stories
+      ?.find((s) => s.id === told?.id)
+      ?.about.some((p) => p.status === "pending"),
+    stories,
   };
 }
 
 /**
  * Edit a story after it's told (Steps 99.5–99.8): who it's credited to and
- * when it was told (its teller, whoever can edit the entry, or the person
- * it's about may), and, from its teller alone, its title and text (`text`)
- * and its recording (`audio`: one they've just uploaded, or none). New
- * words or a new recording from someone who couldn't approve them wait for
- * approval again (`status` back says so). A recording it no longer has is
- * removed from storage after the response. Someone newly credited must be on the tree it's
- * edited from; someone already credited may stay. An empty date clears it.
- * Its teller may change who a written story mentions (`mentions`, Step 116);
- * new words go back to whoever else said yes to being mentioned.
- * The list back has it.
+ * when it was told (its teller, whoever can edit someone it's about, or
+ * someone it's about may), and, from its teller alone, its title and text
+ * (`text`), its recording (`audio`: one they've just uploaded, or none),
+ * and whom it's about (`about`, Step 183: everyone, each newcomer asked).
+ * New words or a new recording go back to everyone else who answered the
+ * old ones (`status` back says whether it still shows anywhere). A
+ * recording it no longer has is removed from storage after the response.
+ * Someone newly credited, or newly about, must be on the tree it's edited
+ * from; someone already there may stay. An empty date clears it. The list
+ * back is the sheet's.
  */
 export async function editStory(input: {
   storyId: string;
@@ -151,8 +161,8 @@ export async function editStory(input: {
   /** Its teller's recording: a path they've uploaded, or null for none;
    *  left as it is when absent. */
   audio?: { path: string | null; seconds: number | null };
-  /** Its teller's tags for who it mentions; left as they are when absent. */
-  mentions?: string[];
+  /** Everyone it's about, from its teller; left as they are when absent. */
+  about?: string[];
 }): Promise<{ error?: string; status?: EntryStory["status"]; stories?: EntryStory[] }> {
   const profile = await requireProfile();
   const storytellers = [...new Set(input.storytellers)];
@@ -160,11 +170,10 @@ export async function editStory(input: {
   if (storytellers.length > STORY_CREDIT_MAX || interviewers.length > STORY_CREDIT_MAX) {
     return { error: `Credit ${STORY_CREDIT_MAX} people at most in each role.` };
   }
-  const mentions = input.mentions
-    ? [...new Set(input.mentions)].filter((id) => id !== input.personId)
-    : undefined;
-  if (mentions && mentions.length > STORY_MENTION_MAX) {
-    return { error: `Tag ${STORY_MENTION_MAX} people at most.` };
+  const about = input.about ? [...new Set(input.about)] : undefined;
+  if (about && about.length === 0) return { error: "Say who it’s about." };
+  if (about && about.length > STORY_ABOUT_MAX) {
+    return { error: `A story may be about ${STORY_ABOUT_MAX} people at most.` };
   }
   const toldError = toldProblem(input.told);
   if (toldError) return { error: toldError };
@@ -204,7 +213,7 @@ export async function editStory(input: {
     // Left out, it has none.
     p_audio_path: audioPath ?? undefined,
     p_audio_seconds: audioPath ? seconds : undefined,
-    p_mentions: mentions,
+    p_about: about,
   });
   if (error) {
     return {
@@ -218,8 +227,9 @@ export async function editStory(input: {
           ["didn't arrive", "The recording didn’t upload."],
           ["stories_audio_path_key", "The recording didn’t upload."],
           ["not a story you can see", "That story is gone."],
-          ["not on your tree", "Someone credited or tagged isn’t on this tree."],
-          ["too many people", "That’s too many people credited or tagged."],
+          ["not on your tree", "Someone credited, or it’s about, isn’t on this tree."],
+          ["too many people", "That’s too many people."],
+          ["about nobody", "Say who it’s about."],
           ["told after today", "That’s after today."],
           // Step 98.3: a placeholder child is credited by their parent alone.
           ["only their parent fills in", "Only their parent can add to a placeholder."],
@@ -251,46 +261,18 @@ export async function editStory(input: {
 }
 
 /**
- * Approve or decline a story waiting on the viewer. Its teller is told; a
- * declined one stays for them alone.
+ * Approve or decline a story for someone it's about, waiting on the viewer
+ * to answer for them: yes, and it's on their details; no, and it isn't. Its
+ * teller is told.
  */
 export async function decideStory(
-  storyId: string,
-  approve: boolean,
-): Promise<{ error?: string }> {
-  await requireProfile();
-  const supabase = await createClient();
-  const { error } = await supabase.rpc("decide_story", {
-    p_story: storyId,
-    p_approve: approve,
-  });
-  if (error) {
-    return {
-      error: friendlyDbError(
-        error.message,
-        [
-          ["already decided", "It’s already been answered."],
-          ["not yours to approve", "It isn’t yours to approve."],
-        ],
-        "Couldn’t answer it. Try again.",
-      ),
-    };
-  }
-  return {};
-}
-
-/**
- * Answer being mentioned in a story (Step 116), for the person mentioned:
- * yes, and it shows on their sheet; no, and it doesn't.
- */
-export async function decideStoryMention(
   storyId: string,
   personId: string,
   approve: boolean,
 ): Promise<{ error?: string }> {
   await requireProfile();
   const supabase = await createClient();
-  const { error } = await supabase.rpc("decide_story_mention", {
+  const { error } = await supabase.rpc("decide_story", {
     p_story: storyId,
     p_person: personId,
     p_approve: approve,
@@ -311,32 +293,39 @@ export async function decideStoryMention(
 }
 
 /**
- * Take a story off the sheet of someone it mentions (Step 116): whoever
- * answers for them or edits their entry. It stays on its own person's.
+ * Take a story off someone's details (Step 183): its teller, or whoever
+ * answers for them or edits their entry, while it's about someone else
+ * too. It stays on the others'.
  */
-export async function removeStoryMention(
+export async function removeStoryPerson(
   storyId: string,
   personId: string,
 ): Promise<{ error?: string }> {
   await requireProfile();
   const supabase = await createClient();
-  const res = await ownedWrite(
-    supabase
-      .from("story_mentions")
-      .delete()
-      .eq("story_id", storyId)
-      .eq("person_id", personId)
-      .select("story_id"),
-    {
-      refused: "It’s gone already, or isn’t yours to remove.",
-      failed: "Couldn’t remove it. Try again.",
-    },
-  );
-  return res.error !== undefined ? { error: res.error } : {};
+  const { error } = await supabase.rpc("remove_story_subject", {
+    p_story: storyId,
+    p_person: personId,
+  });
+  if (error) {
+    return {
+      error: friendlyDbError(
+        error.message,
+        [
+          ["not about them", "It’s gone already."],
+          ["only about them", "It’s only about them. Delete it instead."],
+          ["not yours to remove", "It isn’t yours to remove."],
+        ],
+        "Couldn’t remove it. Try again.",
+      ),
+    };
+  }
+  return {};
 }
 
 /**
- * Delete a story: its teller, or whoever can edit the entry. Its recording
+ * Delete a story, from everyone's details: its teller, or whoever can edit
+ * everyone it's about. Its recording
  * goes after the response, with the service role, since the story it
  * belonged to (storage's way of knowing who may touch it) is gone.
  */
@@ -385,8 +374,8 @@ export async function shareStory(
 }
 
 /**
- * Turn off every link to a story, for its person, an editor of the entry or
- * its teller. They stay off until one of them shares it again.
+ * Turn off every link to a story, for someone it's about, an editor of one
+ * of them, or its teller. They stay off until one of them shares it again.
  */
 export async function stopSharingStory(storyId: string): Promise<{ error?: string }> {
   await requireProfile();
@@ -411,8 +400,8 @@ export async function getStoryComments(storyId: string): Promise<StoryComment[]>
 }
 
 /**
- * Comment on an approved story the viewer can see. Its teller and its
- * person are told. The list back includes it.
+ * Comment on an approved story the viewer can see. Its teller, and everyone
+ * it's about who said yes, are told. The list back includes it.
  */
 export async function addStoryComment(input: {
   storyId: string;
@@ -494,7 +483,7 @@ export async function editStoryComment(input: {
   };
 }
 
-/** Delete a comment: its author, the story's teller, or an editor of the entry. */
+/** Delete a comment: its author, the story's teller, or an editor of someone it's about. */
 export async function deleteStoryComment(commentId: string): Promise<{ error?: string }> {
   await requireProfile();
   const supabase = await createClient();

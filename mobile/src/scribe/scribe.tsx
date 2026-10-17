@@ -16,6 +16,7 @@ import { personDisplayName, personHasDied } from "@/lib/person-name";
 import { scribeBody, scribeBodyFits } from "@/lib/scribe";
 import { factsDone, factWrites, type RelativeProposal } from "@/lib/scribe-facts";
 import { relativesDone } from "@/lib/scribe-relatives";
+import { nameList } from "@/lib/story-about";
 import { relativesOf } from "@/family/family";
 import type { Family, FamilyPerson } from "@/family/load";
 import { detailsChanged } from "@/person/sheet";
@@ -114,6 +115,10 @@ function namesNear(family: Family, id: string): string[] {
  * it tells the tree comes under the write-up, each to tick or not, and
  * saving the story makes what was ticked, the relatives it names who
  * aren't on the tree added last (148.3).
+ *
+ * It may be about several people (Step 183), each of whom has it on their
+ * leaf: the first leads, telling it on their tree, and whoever else it's
+ * about is on that tree too.
  */
 export function Scribe({
   family,
@@ -129,11 +134,12 @@ export function Scribe({
   const palette = usePalette();
   const insets = useSafeAreaInsets();
   /**
-   * Who it's about (Step 179.6): the leaf it was opened on, until the
-   * member says otherwise above the microphone or once it's written up.
+   * Whom it's about (Steps 179.6, 183): the leaf it was opened on, until
+   * the member says otherwise above the microphone or once it's written
+   * up. The first leads.
    */
-  const [aboutId, setAboutId] = React.useState(personId);
-  const person = family.people.get(aboutId) ?? null;
+  const [about, setAbout] = React.useState<string[]>([personId]);
+  const person = family.people.get(about[0]) ?? null;
   /** A title of the member's own, given before telling it; Claude's otherwise. */
   const [ownTitle, setOwnTitle] = React.useState("");
   /** Who's credited as asking; until picked, as `askersAtFirst`. */
@@ -159,7 +165,6 @@ export function Scribe({
   const [saveError, setSaveError] = React.useState<string | null>(null);
   const [facts, setFacts] = React.useState<FactsState | null>(null);
   const [accepted, setAccepted] = React.useState<ReadonlySet<string>>(new Set());
-  const [tagged, setTagged] = React.useState<ReadonlySet<string>>(new Set());
   const relatives = useRelatives(
     family,
     facts?.at === "found" ? facts.facts.relatives : NO_RELATIVES,
@@ -172,6 +177,8 @@ export function Scribe({
   const scroll = React.useRef<ScrollView>(null);
   /** The recording on its way up, which saving waits for. */
   const uploading = React.useRef<Promise<Kept> | null>(null);
+  /** What it was recorded as, on the phone, to put up again if need be. */
+  const heardFiles = React.useRef<string[]>([]);
 
   React.useEffect(() => {
     if (!listening.available) return;
@@ -227,11 +234,22 @@ export function Scribe({
       : [];
   const interviewers = askers ?? askersAtFirst;
 
-  /** About someone else: who told it and asked is chosen again, on their tree. */
-  function aboutWhom(id: string) {
-    setAboutId(id);
-    setTellers(null);
-    setAskers(null);
+  /**
+   * Whom it's about now, never nobody. Someone off the first one's tree
+   * starts it afresh about them, as a story is told on one tree; a new first
+   * has who told it and asked chosen again, on their tree.
+   */
+  function chooseAbout(ids: string[]) {
+    if (ids.length === 0) return;
+    const added = ids.find((id) => !about.includes(id));
+    const onTree = (id: string) =>
+      !!treeId && !!family.people.get(id)?.fullOn.includes(treeId);
+    const next = added && !onTree(added) ? [added] : ids;
+    if (next[0] !== about[0]) {
+      setTellers(null);
+      setAskers(null);
+    }
+    setAbout(next);
   }
 
   /** What the story tells the tree, looked for while it's written up. */
@@ -295,6 +313,7 @@ export function Scribe({
     // The form comes back, with who told it and asked (Step 179.6).
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setSpoken(true);
+    heardFiles.current = recordings;
     uploading.current = keepRecording(person.id, recordings)
       .then((recording) => {
         setKept(recording);
@@ -324,11 +343,20 @@ export function Scribe({
 
   if (!person) return null;
   const name = personDisplayName(person);
-  // Someone mentioned is tagged on the tree the story is told on (Step 116).
+  const names = nameList(
+    about.flatMap((id) => {
+      const p = family.people.get(id);
+      return p ? [personDisplayName(p)] : [];
+    }),
+  );
+  // Someone it names may be in it too, on the tree it's told on (Steps
+  // 116, 183).
   const mentions =
     facts?.at === "found" && treeId
-      ? facts.facts.mentions.filter((m) =>
-          family.people.get(m.personId)?.fullOn.includes(treeId),
+      ? facts.facts.mentions.filter(
+          (m) =>
+            m.personId !== person.id &&
+            family.people.get(m.personId)?.fullOn.includes(treeId),
         )
       : [];
   const toggle = (set: ReadonlySet<string>, key: string) => {
@@ -349,10 +377,17 @@ export function Scribe({
     setSaving(true);
     setSaveError(null);
     try {
-      const recording = uploading.current ? await uploading.current : kept;
-      const mentioned = mentions
-        .filter((m) => tagged.has(m.personId))
-        .map((m) => m.personId);
+      let recording = uploading.current ? await uploading.current : kept;
+      // Kept in the folder of whom it was first about when they were done;
+      // if they're not in it now, it goes up again for the first (Step 183).
+      if (recording && !about.includes(recording.path.split("/")[0])) {
+        const again = await keepRecording(person.id, heardFiles.current);
+        void discardRecording(recording.path);
+        recording = again;
+        uploading.current = Promise.resolve(again);
+        setKept(again);
+      }
+      const others = about.filter((id) => id !== person.id);
       const saved = await tellStory({
         personId: person.id,
         treeId,
@@ -362,7 +397,7 @@ export function Scribe({
         recording,
         storytellers: tellers,
         interviewers,
-        mentions: mentioned,
+        about: others,
       });
       // The story's told; then what was ticked, each on its own.
       const ticked =
@@ -373,7 +408,7 @@ export function Scribe({
         ? await makeFacts(factWrites(ticked), draft.title)
         : [];
       // Then the relatives ticked, one after another, and those a Root
-      // tagged put in the story with the rest it mentions (148.5).
+      // tagged put in the story with the rest it's about (148.5).
       const added = await relatives.addTicked();
       const toTag = added.filter((a) => a.id && a.tag);
       if (toTag.length) {
@@ -384,7 +419,7 @@ export function Scribe({
               toldOn: saved.toldOn,
               storytellers: tellers,
               interviewers,
-              mentions: mentioned,
+              about,
               add: toTag.map((a) => a.id!),
             }).catch(() => "Couldn’t tag them.")
           : "Couldn’t tag them.";
@@ -434,15 +469,14 @@ export function Scribe({
       <TextField label="Title" value={ownTitle} onChangeText={setOwnTitle} maxLength={200} />
       <PersonChooser
         label="About"
-        one
         people={aboutable}
-        chosen={[aboutId]}
-        onChange={([id]) => id && aboutWhom(id)}
+        chosen={about}
+        onChange={chooseAbout}
         selfId={family.selfId}
       />
     </View>
   );
-  const summary = [ownTitle.trim(), `About ${name}`].filter(Boolean).join(" · ");
+  const summary = [ownTitle.trim(), `About ${names}`].filter(Boolean).join(" · ");
 
   return (
     // The window's own insets: a full-screen modal on iOS 27 measures its
@@ -522,7 +556,7 @@ export function Scribe({
             >
               {listening.text ||
                 (listening.phase === "idle"
-                  ? `Tell a story about ${name}.`
+                  ? `Tell a story about ${names}.`
                   : "Listening…")}
             </Text>
           </ScrollView>
@@ -650,10 +684,9 @@ export function Scribe({
             />
             <PersonChooser
               label="About"
-              one
               people={aboutable}
-              chosen={[aboutId]}
-              onChange={([id]) => id && aboutWhom(id)}
+              chosen={about}
+              onChange={chooseAbout}
               selfId={family.selfId}
             />
             <TextField
@@ -703,8 +736,10 @@ export function Scribe({
                 accepted={accepted}
                 onToggleFact={(key) => setAccepted((a) => toggle(a, key))}
                 mentions={mentions}
-                tagged={tagged}
-                onToggleMention={(id) => setTagged((t) => toggle(t, id))}
+                about={about}
+                onToggleMention={(id) =>
+                  chooseAbout(about.includes(id) ? about.filter((x) => x !== id) : [...about, id])
+                }
                 relatives={relatives}
               />
             ) : null}

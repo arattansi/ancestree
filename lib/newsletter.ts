@@ -92,17 +92,20 @@ export type IssueName = {
 /** A story shared that week, linked to itself (Step 144); never titled. */
 export type IssueStory = {
   id: string;
-  /** Whom it's about. */
-  about: IssueName;
+  /** Whom it's about (Step 183): those who said yes whom the reader's
+   *  trees show in full. */
+  about: IssueName[];
   /** Who told it and who asked, as the story credits them (Step 99). */
   storytellers: IssueName[];
   interviewers: IssueName[];
 };
 
-/** A story as the newsletter reads it: whose, and who's credited. */
+/** A story as the newsletter reads it: whom it's about, and who's credited. */
 export type IssueStoryRow = {
   id: string;
-  person_id: string;
+  /** Everyone it's about who said yes (Step 183), whom it was first told
+   *  about first. */
+  about: readonly string[];
   credits: readonly { person_id: string; role: string }[];
 };
 
@@ -314,11 +317,13 @@ export function weeklyIssue<R extends IssuePerson & { id: string }>(
         : [],
     );
   for (const row of input.stories) {
-    const tree = treeShowing(row.person_id);
+    // Under a tree showing the first of them the reader sees in full, once.
+    const seen = row.about.filter((id) => treeShowing(id));
+    const tree = seen.length > 0 ? treeShowing(seen[0]) : undefined;
     if (!tree || tree.stories.some((s) => s.id === row.id)) continue;
     tree.stories.push({
       id: row.id,
-      about: { id: row.person_id, name: nameOf(row.person_id) },
+      about: seen.map((id) => ({ id, name: nameOf(id) })),
       storytellers: credited(row, "storyteller"),
       interviewers: credited(row, "interviewer"),
     });

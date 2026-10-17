@@ -5,9 +5,9 @@ import type { TagOption } from "@/lib/tag-person";
 const RUN_MAX = 6;
 
 /**
- * The people a written story mentions (Step 116), as it's written: whoever
- * on the tree its words name, to offer as tags. Only an offer: the teller
- * picks.
+ * The people a story's words name (Step 116), as it's written: whoever on
+ * the tree its words name, to offer as whom it's about (Step 183). Only an
+ * offer: the teller picks.
  *
  * A full name ("Jane Doe", "Jane Q. Doe", a preferred or maiden name in
  * either place) suggests whoever has it. A given name alone ("Jane")

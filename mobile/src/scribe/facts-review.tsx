@@ -23,10 +23,10 @@ export type FactsState =
 
 /**
  * What the story tells the tree (Step 148.2), under the write-up: each
- * detail about someone on it to tick, the people it mentions to tag, and
- * the relatives it names who aren't on it yet, to tick and add (148.3).
- * Nothing is ticked or tagged until the member says so; saving the story
- * makes what they ticked.
+ * detail about someone on it to tick, the people it names to say it's
+ * about them too (Step 183), and the relatives it names who aren't on it
+ * yet, to tick and add (148.3). Nothing is ticked until the member says
+ * so; saving the story makes what they ticked.
  */
 export function FactsReview({
   state,
@@ -34,7 +34,7 @@ export function FactsReview({
   accepted,
   onToggleFact,
   mentions,
-  tagged,
+  about,
   onToggleMention,
   relatives,
 }: {
@@ -42,9 +42,10 @@ export function FactsReview({
   onRetry: () => void;
   accepted: ReadonlySet<string>;
   onToggleFact: (key: string) => void;
-  /** Those mentioned who can be tagged on the tree it's told on. */
+  /** Those it names, on the tree it's told on, besides whom it's first about. */
   mentions: MentionOffer[];
-  tagged: ReadonlySet<string>;
+  /** Whom it's about now. */
+  about: readonly string[];
   onToggleMention: (personId: string) => void;
   /** Those it names who aren't on the tree (`useRelatives`). */
   relatives: {
@@ -95,13 +96,13 @@ export function FactsReview({
       ) : null}
       {mentions.length ? (
         <View style={styles.section}>
-          <Text style={[styles.label, { color: palette.foreground }]}>People mentioned</Text>
+          <Text style={[styles.label, { color: palette.foreground }]}>Also about</Text>
           <View style={styles.chips}>
             {mentions.map((m) => (
               <Chip
                 key={m.personId}
                 label={m.name}
-                on={tagged.has(m.personId)}
+                on={about.includes(m.personId)}
                 onPress={() => onToggleMention(m.personId)}
               />
             ))}

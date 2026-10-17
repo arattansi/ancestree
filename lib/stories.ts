@@ -4,18 +4,20 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/lib/database.types";
 import { getSiteUrl } from "@/lib/site-url";
+import type { StoryPerson } from "@/lib/story-about";
 import { asCredits, type StoryCredit } from "@/lib/story-credits";
 import { storyLinkPath } from "@/lib/story-links";
 import { createClient } from "@/lib/supabase/server";
 
 /**
- * A story about a person (Step 88.3): long-form text (Markdown, Step 99), a
- * recording, or both, with who added it and when, and, if they were named,
- * when it was told and who it's credited to (Step 99), or, written, who it
- * mentions (Step 116), where it shows too. It needs approval, from the person themself
- * once they have claimed the entry, or else from whoever can edit it; until
- * then only they and its teller see it (`stories` RLS). It shows wherever
- * the entry does in full, to that tree's members.
+ * A story on a person's details (Step 88.3): long-form text (Markdown, Step
+ * 99), a recording, or both, with who added it and when, and, if they were
+ * named, when it was told and who it's credited to (Step 99). It may be
+ * about several people (Step 183), and is on each one's details as their
+ * own. Each needs approval, from the person themself once they have claimed
+ * the entry, or else from whoever can edit it; until then only they and its
+ * teller see it there (`story_subjects`). It shows wherever someone it's
+ * about who said yes shows in full, to that tree's members.
  */
 export type EntryStory = {
   id: string;
@@ -26,7 +28,8 @@ export type EntryStory = {
   /** It has a recording, even if its link couldn't be made (Step 99.8). */
   hasRecording: boolean;
   audioSeconds: number | null;
-  status: "pending" | "approved" | "declined";
+  /** This person's answer to it. */
+  status: StoryPerson["status"];
   createdAt: string;
   /** Who added it, as the trees name them. */
   toldBy: string;
@@ -40,9 +43,9 @@ export type EntryStory = {
    *  (Steps 99.5, 99.6): its teller, whoever can edit the entry, or the
    *  person it's about. Its words are its teller's alone (`mine`, 99.7). */
   canEditCredits: boolean;
-  /** The viewer told it, so may delete it. */
+  /** The viewer told it. */
   mine: boolean;
-  /** Waiting, and the viewer may approve it. */
+  /** Waiting on this person, and the viewer may answer for them. */
   canDecide: boolean;
   /** Its comments the viewer may read (Step 88.4): an approved story's. */
   commentCount: number;
@@ -57,23 +60,16 @@ export type EntryStory = {
   canStopSharing: boolean;
   /** The viewer's own working link to it, once they've shared it. */
   shareUrl: string | null;
-  /** Who a written story mentions (Step 116), as far as the viewer may
-   *  see, each with their answer. */
-  mentions: StoryMention[];
-  /** Who it's about, when it's on this sheet because it mentions this
-   *  person (Step 116); null on its own person's sheet. */
-  about: { id: string; name: string } | null;
-  /** This person's answer to being mentioned in it, when it's here for
-   *  that; null otherwise. */
-  mentionStatus: EntryStory["status"] | null;
-  /** Waiting on the viewer to answer for this person being mentioned. */
-  canDecideMention: boolean;
-  /** The viewer may take it off this person's sheet. */
-  canRemoveMention: boolean;
+  /** Everyone it's about (Step 183) the viewer may see, this person
+   *  first, each with their answer. */
+  about: StoryPerson[];
+  /** The viewer may take it off this person's details, leaving it on the
+   *  others'. */
+  canRemove: boolean;
+  /** The viewer may delete it, from everyone's: its teller, or someone who
+   *  could edit everyone it's about. */
+  canDelete: boolean;
 };
-
-/** Someone a written story mentions (Step 116), and their answer. */
-export type StoryMention = { id: string; name: string; status: EntryStory["status"] };
 
 /** A comment on a story (Step 88.4). */
 export type StoryComment = {
@@ -100,10 +96,10 @@ function asStatus(status: string): EntryStory["status"] {
   return status === "approved" || status === "declined" ? status : "pending";
 }
 
-/** The mentions a database row holds, whatever its shape (`jsonb`). */
-function asMentions(value: unknown): StoryMention[] {
+/** Whom a database row says it's about, whatever its shape (`jsonb`). */
+export function asStoryPeople(value: unknown): StoryPerson[] {
   if (!Array.isArray(value)) return [];
-  return value.flatMap((m): StoryMention[] => {
+  return value.flatMap((m): StoryPerson[] => {
     if (!m || typeof m !== "object") return [];
     const { id, name, status } = m as Record<string, unknown>;
     if (typeof id !== "string") return [];
@@ -168,14 +164,9 @@ export async function listStories(
     canShare: r.can_share ?? false,
     canStopSharing: r.can_stop_sharing ?? false,
     shareUrl: r.my_link ? storyLinkUrl(r.my_link) : null,
-    mentions: asMentions(r.mentions),
-    about:
-      r.about_id && r.about_id !== personId
-        ? { id: r.about_id, name: r.about_name || "A relative" }
-        : null,
-    mentionStatus: r.mention_status ? asStatus(r.mention_status) : null,
-    canDecideMention: r.can_decide_mention ?? false,
-    canRemoveMention: r.can_remove_mention ?? false,
+    about: asStoryPeople(r.about),
+    canRemove: r.can_remove ?? false,
+    canDelete: r.can_delete ?? false,
   }));
 }
 

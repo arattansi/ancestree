@@ -5,7 +5,11 @@ import { redirect } from "next/navigation";
 import { deleteAccountOf } from "@/lib/account-deletion.server";
 import { getSessionUser, requireProfile } from "@/lib/auth";
 import { clearCurrentTreeCookie } from "@/lib/current-tree.server";
-import { albumPhotosOf, removeUnusedAlbumPhotos } from "@/lib/file-cleanup.server";
+import {
+  albumPhotosOf,
+  removeUnusedAlbumPhotos,
+  removeUnusedRecordings,
+} from "@/lib/file-cleanup.server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { revalidateTreePages } from "@/lib/revalidate";
@@ -43,7 +47,7 @@ export async function exportTreeData(treeId: string): Promise<{
     invites,
     claims,
     storiesHere,
-    storiesOnPeople,
+    aboutPeople,
     reportsHere,
     reportsOnOwn,
     albumTags,
@@ -60,11 +64,16 @@ export async function exportTreeData(treeId: string): Promise<{
     db.from("tree_edges").select("*").eq("tree_id", treeId),
     db.from("invites").select("*").eq("tree_id", treeId),
     personIds.length ? db.from("claims").select("*").in("person_id", personIds) : Promise.resolve({ data: [], error: null }),
-    // Stories (Step 88.3): those told here, and the approved ones about
-    // anyone the tree shows, which its members read wherever they were told.
+    // Stories (Step 88.3): those told here, and those anyone the tree shows
+    // said yes to being in (Step 183), which its members read wherever they
+    // were told.
     db.from("stories").select("*").eq("tree_id", treeId),
     personIds.length
-      ? db.from("stories").select("*").eq("status", "approved").in("person_id", personIds)
+      ? db
+          .from("story_subjects")
+          .select("story_id")
+          .eq("status", "approved")
+          .in("person_id", personIds)
       : Promise.resolve({ data: [], error: null }),
     // Reports (Step 88.2): those raised here, and those on the tree's own
     // entries, which its Roots see wherever they were raised.
@@ -93,7 +102,7 @@ export async function exportTreeData(treeId: string): Promise<{
     invites,
     claims,
     storiesHere,
-    storiesOnPeople,
+    aboutPeople,
     reportsHere,
     reportsOnOwn,
     albumTags,
@@ -106,13 +115,28 @@ export async function exportTreeData(treeId: string): Promise<{
   ].find((r) => r.error)?.error;
   if (firstError) return { error: "Could not read every table. Try again." };
 
-  const stories = [
-    ...new Map(
-      [...(storiesHere.data ?? []), ...(storiesOnPeople.data ?? [])].map(
-        (s) => [s.id, s],
-      ),
-    ).values(),
+  const toldHere = new Set((storiesHere.data ?? []).map((s) => s.id));
+  const toldElsewhere = [
+    ...new Set(
+      (aboutPeople.data ?? []).map((a) => a.story_id).filter((id) => !toldHere.has(id)),
+    ),
   ];
+  const storiesOnPeople = toldElsewhere.length
+    ? await db.from("stories").select("*").in("id", toldElsewhere)
+    : { data: [], error: null };
+  if (storiesOnPeople.error) return { error: "Could not read every table. Try again." };
+  const stories = [...(storiesHere.data ?? []), ...(storiesOnPeople.data ?? [])];
+  // Whom each is about, and their answers (Step 183).
+  const storySubjects = stories.length
+    ? await db
+        .from("story_subjects")
+        .select("*")
+        .in(
+          "story_id",
+          stories.map((s) => s.id),
+        )
+    : { data: [], error: null };
+  if (storySubjects.error) return { error: "Could not read every table. Try again." };
   // Their comments (Step 88.4); not their public links, which are keys.
   const storyComments = stories.length
     ? await db
@@ -160,6 +184,7 @@ export async function exportTreeData(treeId: string): Promise<{
       stories,
       story_comments: storyComments.data ?? [],
       story_credits: storyCredits.data ?? [],
+      story_subjects: storySubjects.data ?? [],
       entry_reports: [
         ...new Map(
           [
@@ -269,10 +294,11 @@ export async function deletePerson(
 
   await removeUnusedAlbumPhotos(album ?? []);
 
+  // A story about someone else too stays, with its recording (Step 183).
   const audioPaths = (recordings ?? []).flatMap((r) =>
     r.audio_path ? [r.audio_path] : [],
   );
-  if (audioPaths.length) await db.storage.from("stories").remove(audioPaths);
+  await removeUnusedRecordings(db, audioPaths);
 
   revalidateTreePages();
   return {};

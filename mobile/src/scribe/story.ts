@@ -189,8 +189,8 @@ export async function tellStory(story: {
   recording: { path: string; seconds: number | null } | null;
   storytellers: string[];
   interviewers: string[];
-  /** Who it mentions (Step 116), each on the tree it's told on. */
-  mentions: string[];
+  /** Everyone else it's about (Step 183), each on the tree it's told on. */
+  about: string[];
 }): Promise<{
   id: string | null;
   status: "approved" | "pending";
@@ -209,13 +209,13 @@ export async function tellStory(story: {
     p_told_precision: "day",
     p_storytellers: story.storytellers,
     p_interviewers: story.interviewers,
-    p_mentions: story.mentions,
+    p_about: story.about,
   });
   if (error) {
     const said = error.message;
     throw new ScribeError(
       said.includes("not on your tree")
-        ? "That entry, or someone credited, isn’t on your tree."
+        ? "Someone it’s about, or credited, isn’t on your tree."
         : said.includes("only their parent")
           ? "Only their parent can add to a placeholder."
           : said.includes("longer than a story")
@@ -234,10 +234,10 @@ export async function tellStory(story: {
 }
 
 /**
- * Tag people in a story just told (148.5): its mentions set again, these
- * added to those it was told with, through `edit_story` as its teller,
- * its credits and the day it was told sent again as they were. Null when
- * they're tagged, else why not.
+ * Put relatives just added in a story just told (148.5): whom it's about
+ * set again (Step 183), these added to those it was told about, through
+ * `edit_story` as its teller, its credits and the day it was told sent
+ * again as they were. Null when they're in it, else why not.
  */
 export async function tagInStory(story: {
   id: string;
@@ -245,9 +245,9 @@ export async function tagInStory(story: {
   toldOn: string;
   storytellers: string[];
   interviewers: string[];
-  /** Who it was told with mentioning. */
-  mentions: string[];
-  /** Who it's to mention too. */
+  /** Everyone it was told about. */
+  about: string[];
+  /** Who it's to be about too. */
   add: string[];
 }): Promise<string | null> {
   const { error } = await supabase.rpc("edit_story", {
@@ -257,13 +257,13 @@ export async function tagInStory(story: {
     p_interviewers: story.interviewers,
     p_told_on: story.toldOn,
     p_told_precision: "day",
-    p_mentions: [...new Set([...story.mentions, ...story.add])],
+    p_about: [...new Set([...story.about, ...story.add])],
   });
   if (!error) return null;
   return error.message.includes("not on your tree")
     ? "They aren’t on the tree it’s told on."
     : error.message.includes("too many people")
-      ? "That’s more people than a story may mention."
+      ? "That’s more people than a story may be about."
       : "Couldn’t tag them.";
 }
 

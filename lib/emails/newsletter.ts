@@ -166,16 +166,17 @@ function addedLine(g: IssueAdded, link: (n: IssueName) => string): string {
 }
 
 /**
- * "<A story> about Amina Khan. Told by Hassan Rattansi; interviewed by
- * Aalim Rattansi." No title, ever (Aalim, 2026-10-12): "A story" links to
- * it, and each credit says itself only when there's someone in it.
+ * "<A story> about Amina Khan and Yusuf Khan. Told by Hassan Rattansi;
+ * interviewed by Aalim Rattansi." No title, ever (Aalim, 2026-10-12): "A
+ * story" links to it, and each credit says itself only when there's
+ * someone in it. Everyone it's about the reader sees is named (Step 183).
  */
 function storyLine(
   story: IssueStory,
   url: string,
   link: (n: IssueName) => string,
 ): string {
-  const head = `<a href="${escapeHtml(url)}" style="${LINK}">A story</a> about ${link(story.about)}.`;
+  const head = `<a href="${escapeHtml(url)}" style="${LINK}">A story</a> about ${list(story.about, link)}.`;
   const credits = [
     story.storytellers.length ? `told by ${list(story.storytellers, link)}` : "",
     story.interviewers.length ? `interviewed by ${list(story.interviewers, link)}` : "",

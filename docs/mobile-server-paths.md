@@ -89,7 +89,7 @@ All carry a top-level `"use server"`; none is inline.
   or `album`, then `people.update` or RPC `add_album_photo`.
 - **Stories:** uploaded from the client to `stories`
   (`lib/story-upload.ts`), then RPC `add_story`; `edit_story`,
-  `decide_story`, comments are RPCs too.
+  `decide_story`, `remove_story_subject` (Step 183), comments are RPCs too.
 - **Notifications:** `notifications` reads and writes; `/api/notifications`
   and `/api/header-counts` are cookie-only but user-scoped.
 - **The scribe's facts (Step 148.2)** are made from the phone directly,

@@ -2,6 +2,7 @@ import * as React from "react";
 import { Image, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { formatPartialDate } from "@/lib/partial-date";
+import { nameList } from "@/lib/story-about";
 import type { SheetPhoto, SheetReport, SheetStory, SheetTree } from "@/person/sheet";
 import { font, GUTTER, usePalette } from "@/theme";
 import { XIcon } from "@/ui/icons";
@@ -149,9 +150,16 @@ function StoryCard({ story }: { story: SheetStory }) {
     .filter(Boolean)
     .join(" · ");
   const words = story.body ? plain(story.body) : "";
+  // Everyone it's about who said yes, this person first (Step 183).
+  const about = (story.about ?? []).filter((p, i) => i === 0 || p.status === "approved");
   return (
     <View style={[styles.story, { borderColor: palette.border, backgroundColor: palette.card }]}>
       <Text style={[styles.storyTitle, { color: palette.foreground }]}>{story.title || "A story"}</Text>
+      {about.length > 1 ? (
+        <Text style={[styles.storyMeta, { color: palette.mutedForeground }]}>
+          About {nameList(about.map((p) => p.name))}
+        </Text>
+      ) : null}
       <Text style={[styles.storyMeta, { color: palette.mutedForeground }]}>
         {meta}
         {story.status === "pending" ? " · waiting for approval" : ""}

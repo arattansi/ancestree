@@ -98,8 +98,12 @@ export async function albumPhotosOf(personIds: readonly string[]): Promise<strin
   }
 }
 
-/** Remove the story recordings among `paths` that no story points at. */
-async function removeUnusedRecordings(db: Db, paths: string[]): Promise<string[]> {
+/**
+ * Remove the story recordings among `paths` that no story points at: a
+ * story about someone else too stays when one entry it's about goes (Step
+ * 183), and so does its recording.
+ */
+export async function removeUnusedRecordings(db: Db, paths: string[]): Promise<string[]> {
   if (paths.length === 0) return [];
   const { data: used, error } = await db
     .from("stories")

@@ -41,7 +41,9 @@ What it does so far:
 - **Tell a story** to the scribe (Step 148), from record in the menu bar or
   a leaf's details. Above the microphone, a title and whom it's about, both
   optional (Step 179.6); they fold away while you talk and come back when
-  you're done, with who told it and who asked. The
+  you're done, with who told it and who asked. A story may be about several
+  people on one tree (Step 183): the first leads, and each has it on their
+  leaf once they've said yes. The
   phone listens and shows the words as they come; pause, carry on, then
   **done**. Claude writes it up on the web's server (`/api/mobile/scribe`):
   a title, the story in the teller's own words and language, and English
@@ -50,8 +52,9 @@ What it does so far:
   any story does. Recordings stop at 12 minutes. Under the write-up comes
   what the story tells the tree (Step 148.2, `/api/mobile/scribe/facts`):
   births and deaths to tick, each made as an edit, a fill or a suggestion
-  as you could on the web; people it mentions, to tag; and relatives not
-  on the tree yet. Nothing changes until you tick it and save.
+  as you could on the web; people it names, to say it's about them too
+  ("Also about", Step 183); and relatives not on the tree yet. Nothing
+  changes until you tick it and save.
 - **Messages** (Step 179.1), as on the web (Steps 174, 177): the
   dialogue box in the menu bar, with the unread count on it, opens
   your conversations; **message** on a leaf's details opens one with the

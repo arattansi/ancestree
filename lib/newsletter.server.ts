@@ -323,7 +323,7 @@ export async function buildFamilyIssues(
   const earliest = new Date(
     Math.min(...readers.map((r) => Date.parse(r.since))),
   ).toISOString();
-  const [trees, people, edges, placements, stories, tags, roles] = await Promise.all([
+  const [trees, people, edges, placements, yeses, tags, roles] = await Promise.all([
     supabase.from("trees").select("id, name").in("id", treeIds),
     readTreesPeople(supabase, treeIds),
     readTreesEdges(supabase, treeIds),
@@ -336,21 +336,22 @@ export async function buildFamilyIssues(
         .order("id")
         .range(from, to),
     ),
-    // Approved since the earliest week told: a story when its yes was
-    // given, or when it was told if it needed none. Every one, oldest
-    // first, for a catch-up (Step 144).
+    // Each yes to being in a story since the earliest week told, given
+    // then, or when it was told if it needed none (Step 183: a story is on
+    // the details of everyone it's about who said yes). Every one, for a
+    // catch-up (Step 144).
     readPaged((from, to) => {
       const q = supabase
-        .from("stories")
-        .select("id, person_id, decided_at, created_at, story_credits(person_id, role)")
+        .from("story_subjects")
+        .select("story_id, person_id, decided_at, created_at")
         .eq("status", "approved");
       return (
         allStories
           ? q
           : q.or(`decided_at.gte."${earliest}",and(decided_at.is.null,created_at.gte."${earliest}")`)
       )
-        .order("created_at")
-        .order("id")
+        .order("story_id")
+        .order("person_id")
         .range(from, to);
     }),
     readPaged((from, to) =>
@@ -378,11 +379,37 @@ export async function buildFamilyIssues(
     people.failed ||
     edges.failed ||
     placements.failed ||
-    stories.failed ||
+    yeses.failed ||
     tags.failed
   ) {
     throw new Error("Couldn't read the trees for the newsletter.");
   }
+
+  // Those stories, oldest first, with everyone they're about who said yes,
+  // whom each was first told about first, and who's credited.
+  const yesesOf = new Map<string, typeof yeses.rows>();
+  for (const y of yeses.rows) yesesOf.set(y.story_id, [...(yesesOf.get(y.story_id) ?? []), y]);
+  const storyIds = [...yesesOf.keys()];
+  const told = storyIds.length
+    ? await readPaged((from, to) =>
+        supabase
+          .from("stories")
+          .select("id, person_id, story_credits(person_id, role), story_subjects(person_id, status)")
+          .in("id", storyIds)
+          .order("created_at")
+          .order("id")
+          .range(from, to),
+      )
+    : { rows: [], failed: false };
+  if (told.failed) throw new Error("Couldn't read the stories for the newsletter.");
+  const stories = told.rows.map((s) => ({
+    id: s.id,
+    about: (s.story_subjects ?? [])
+      .filter((a) => a.status === "approved")
+      .map((a) => a.person_id)
+      .sort((a, b) => Number(b === s.person_id) - Number(a === s.person_id)),
+    credits: s.story_credits ?? [],
+  }));
 
   // Whoever placed a card, by the name the family knows them by: their own
   // entry's, else the one they set (often still their address's first
@@ -469,13 +496,10 @@ export async function buildFamilyIssues(
             showings: theirTrees.flatMap((t) => showingsByTree.get(t.id) ?? []),
             lines: theirTrees.flatMap((t) => linesByTree.get(t.id) ?? []),
             placements: placementRows,
-            stories: stories.rows
-              .filter((s) => allStories || withinWeek(s, r.since))
-              .map((s) => ({
-                id: s.id,
-                person_id: s.person_id,
-                credits: s.story_credits ?? [],
-              })),
+            stories: stories.filter(
+              (s) =>
+                allStories || (yesesOf.get(s.id) ?? []).some((y) => withinWeek(y, r.since)),
+            ),
             photos: tags.rows.filter((t) => withinWeek(t, r.since)),
             memberNames,
             memberEntries,

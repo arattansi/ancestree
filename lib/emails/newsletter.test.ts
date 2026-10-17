@@ -35,7 +35,7 @@ const issue = (over: Partial<Issue> = {}): Issue => ({
       stories: [
         {
           id: "s1",
-          about: { id: "p1", name: "Amina Khan" },
+          about: [{ id: "p1", name: "Amina Khan" }],
           storytellers: [{ id: "p1", name: "Amina Khan" }],
           interviewers: [{ id: "p5", name: "Sara Khan" }, { id: "p6", name: "Ali Khan" }],
         },
@@ -106,7 +106,7 @@ describe("newsletterEmail", () => {
             stories: [
               {
                 id: "s2",
-                about: { id: "p1", name: "Amina Khan" },
+                about: [{ id: "p1", name: "Amina Khan" }],
                 storytellers: [],
                 interviewers: [],
               },
@@ -117,6 +117,30 @@ describe("newsletterEmail", () => {
       }),
     );
     expect(html).toMatch(/>A story<\/a> about <a[^>]*>Amina Khan<\/a>\.<\/p>/);
+  });
+
+  it("names everyone a story is about (Step 183)", () => {
+    const base = issue();
+    const { html } = render({
+      ...base,
+      trees: [
+        {
+          ...base.trees[0],
+          stories: [
+            {
+              id: "s3",
+              about: [
+                { id: "p1", name: "Amina Khan" },
+                { id: "p2", name: "Yusuf Khan" },
+              ],
+              storytellers: [],
+              interviewers: [],
+            },
+          ],
+        },
+      ],
+    });
+    expect(html).toMatch(/>A story<\/a> about <a[^>]*>Amina Khan<\/a> and <a[^>]*>Yusuf Khan<\/a>\.<\/p>/);
   });
 
   it("never shows a story's title (Aalim, 2026-10-12)", () => {

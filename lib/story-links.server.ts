@@ -5,13 +5,14 @@ import { cache } from "react";
 import { relationOf, relationText } from "@/lib/connection-path";
 import { isStoryToken } from "@/lib/story-links";
 import { asCredits, type StoryCredit } from "@/lib/story-credits";
-import { AUDIO_LINK_SECONDS } from "@/lib/stories";
+import { AUDIO_LINK_SECONDS, asStoryPeople } from "@/lib/stories";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /** What a story's public page shows (Step 88.4). No comments. */
 export type SharedStory = {
   storyId: string;
-  /** Who it's about, as the tree names them. */
+  /** Everyone it's about who said yes, as the tree names them: "Amina
+   *  Khan and Hassan Khan" (Step 183). */
   personName: string;
   /** Who made the link. */
   sharedBy: string;
@@ -24,29 +25,30 @@ export type SharedStory = {
   toldOn: string | null;
   toldPrecision: string | null;
   credits: StoryCredit[];
-  /** What each credited person is to whoever it's about, by their id, for
-   *  their tag's card (Step 99): "Great-grandson of Amarshi Sayani". None
-   *  where nothing joins them, and for the story's own person. */
+  /** What each credited person is to whom it's first about, by their id,
+   *  for their tag's card (Step 99): "Great-grandson of Amarshi Sayani".
+   *  None where nothing joins them, and for that person themself. */
   connections: Record<string, string>;
 };
 
 type Admin = ReturnType<typeof createAdminClient>;
 
 /**
- * What each credited person is to the story's person (`personName`),
- * worked out on the tree it was told on (where `add_story` found them all), from the same
- * people and lines that tree's canvas draws. Nothing when that tree is gone.
+ * What each credited person is to `about`, whom the story is first about
+ * of those who said yes, worked out on the tree it was told on (where
+ * `add_story` found them all), from the same people and lines that tree's
+ * canvas draws. Nothing when that tree is gone.
  */
 async function creditConnections(
   admin: Admin,
   storyId: string,
   credits: StoryCredit[],
-  personName: string,
+  about: { id: string; name: string } | undefined,
 ): Promise<Record<string, string>> {
-  if (credits.length === 0) return {};
+  if (credits.length === 0 || !about) return {};
   const { data: story } = await admin
     .from("stories")
-    .select("person_id, tree_id")
+    .select("tree_id")
     .eq("id", storyId)
     .maybeSingle();
   if (!story?.tree_id) return {};
@@ -68,8 +70,8 @@ async function creditConnections(
   );
   const out: Record<string, string> = {};
   for (const c of credits) {
-    const relation = relationOf(c.id, story.person_id, byId, lines);
-    if (relation) out[c.id] = relationText(relation, personName);
+    const relation = relationOf(c.id, about.id, byId, lines);
+    if (relation) out[c.id] = relationText(relation, about.name);
   }
   return out;
 }
@@ -111,7 +113,12 @@ export const resolveStoryLink = cache(
       toldOn: story.told_on ?? null,
       toldPrecision: story.told_on_precision ?? null,
       credits,
-      connections: await creditConnections(admin, story.story_id, credits, personName),
+      connections: await creditConnections(
+        admin,
+        story.story_id,
+        credits,
+        asStoryPeople(story.about)[0],
+      ),
     };
   },
 );

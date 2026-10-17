@@ -7,9 +7,8 @@ import { Globe, MessageCircle, Mic, Pencil, Plus, Share } from "lucide-react";
 
 import {
   decideStory,
-  decideStoryMention,
   deleteStory,
-  removeStoryMention,
+  removeStoryPerson,
   shareStory,
   stopSharingStory,
 } from "@/app/actions/stories";
@@ -32,6 +31,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAction } from "@/components/use-action";
 import type { EntryStory } from "@/lib/stories";
+import { nameList } from "@/lib/story-about";
 import { formatDuration } from "@/lib/story-audio";
 import { relationText, type Relation } from "@/lib/connection-path";
 import { toldLabel } from "@/lib/story-credits";
@@ -96,16 +96,16 @@ function ShareButton({
 }
 
 /**
- * One story (Step 88.3): whom it's about, when it's here because it mentions
- * this person (Step 116), its title, who added it and when, when it was told
- * and who it's credited to as storyteller and interviewer, or, written, who
- * it mentions (Step 116), each a tag that
- * opens a card saying what they are to its person ("Great-grandson of
- * Amarshi Sayani"), if anything joins them (Step 99), the
- * text (Markdown, folded when it's long) and the recording. Whoever may approve a waiting story
- * answers it here; its teller, or whoever can edit the entry, may delete it.
- * An approved one has its own comments, and may be shared by a public link
- * (Step 88.4).
+ * One story (Step 88.3), as this person's own: its title, who added it and
+ * when, when it was told, who it's credited to as storyteller and
+ * interviewer, and, when it's about others too, everyone it's about (Step
+ * 183), each a tag that opens a card saying what they are to this person
+ * ("Great-grandson of Amarshi Sayani"), if anything joins them (Step 99);
+ * then the text (Markdown, folded when it's long) and the recording.
+ * Whoever answers for this person approves it here, or takes it off their
+ * details while it's on others'; its teller, or whoever can edit everyone
+ * it's about, may delete it. An approved one has its own comments, and may
+ * be shared by a public link (Step 88.4).
  */
 function StoryCard({
   story,
@@ -113,10 +113,9 @@ function StoryCard({
   personName,
   describeConnection,
   onEditCredits,
-  canDelete,
+  canTend,
   focused,
   onDecided,
-  onMentionDecided,
   onDeleted,
   onChanged,
 }: {
@@ -129,13 +128,13 @@ function StoryCard({
   /** Opens it to edit (Steps 99.5–99.7): its words for its teller, its
    *  credits and date for them and whoever else may. */
   onEditCredits: () => void;
-  /** Theirs to delete, and so is any comment on it. */
-  canDelete: boolean;
+  /** Any comment on it is theirs to delete. */
+  canTend: boolean;
   /** A link to its comments opened the sheet. */
   focused: boolean;
+  /** This person's answer given. */
   onDecided: (approved: boolean) => void;
-  /** This person's mention answered (Step 116). */
-  onMentionDecided: (approved: boolean) => void;
+  /** Off this person's details: deleted, or taken off. */
   onDeleted: () => void;
   onChanged: (change: Partial<EntryStory>) => void;
 }) {
@@ -170,19 +169,10 @@ function StoryCard({
   const folds = long && overflows;
   const approved = story.status === "approved";
   const told = toldLabel(story.toldOn, story.toldPrecision);
-  // Whom it's about: this person, or another it mentions this one in.
-  const aboutId = story.about?.id ?? personId;
-  const aboutName = story.about?.name ?? personName;
-  const waiting =
-    story.status === "pending" || (!!story.about && story.mentionStatus === "pending");
+  // Everyone else it's about, whose details it stays on if it leaves these.
+  const others = story.about.filter((p) => p.id !== personId);
   return (
     <RowCard ref={cardRef} className="gap-2">
-      {story.about ? (
-        <p className="text-xs text-muted-foreground">
-          A story about{" "}
-          <span className="font-medium text-foreground">{story.about.name}</span>
-        </p>
-      ) : null}
       {story.title ? <p className="font-medium">{story.title}</p> : null}
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
         <span>
@@ -199,7 +189,7 @@ function StoryCard({
             {formatDuration(story.audioSeconds)}
           </span>
         ) : null}
-        {waiting ? (
+        {story.status === "pending" ? (
           <Badge variant="secondary">Waiting for approval</Badge>
         ) : story.status === "declined" ? (
           <Badge variant="destructive">Not approved</Badge>
@@ -215,32 +205,39 @@ function StoryCard({
         credits={story.credits}
         className="text-xs text-muted-foreground"
         tag={(p) => {
-          const relation = describeConnection?.(p.id, aboutId);
+          const relation = describeConnection?.(p.id, personId);
           return (
             <StoryCreditTag
               name={p.name}
-              relation={relation ? relationText(relation, aboutName) : null}
+              relation={relation ? relationText(relation, personName) : null}
             />
           );
         }}
       />
-      {story.mentions.length > 0 ? (
+      {others.length > 0 ? (
         <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-          <span>Mentions</span>
-          {story.mentions.map((m) => {
-            if (m.status !== "approved") {
+          <span>About</span>
+          {story.about.map((p) => {
+            if (p.id === personId) {
               return (
-                <span key={m.id} className={creditTagClass}>
-                  {m.name} ({m.status === "pending" ? "waiting" : "not approved"})
+                <span key={p.id} className={creditTagClass}>
+                  {p.name}
                 </span>
               );
             }
-            const relation = describeConnection?.(m.id, aboutId);
+            if (p.status !== "approved") {
+              return (
+                <span key={p.id} className={creditTagClass}>
+                  {p.name} ({p.status === "pending" ? "waiting" : "not approved"})
+                </span>
+              );
+            }
+            const relation = describeConnection?.(p.id, personId);
             return (
-              <span key={m.id} className="contents">
+              <span key={p.id} className="contents">
                 <StoryCreditTag
-                  name={m.name}
-                  relation={relation ? relationText(relation, aboutName) : null}
+                  name={p.name}
+                  relation={relation ? relationText(relation, personName) : null}
                 />
               </span>
             );
@@ -294,7 +291,8 @@ function StoryCard({
             {commentsLabel(story.commentCount)}
           </Button>
         ) : null}
-        {story.canShare ? (
+        {/* Not shared from details it's still waiting to be on. */}
+        {approved && story.canShare ? (
           <ShareButton
             story={story}
             onShared={(url) => onChanged({ shared: true, shareUrl: url })}
@@ -321,7 +319,7 @@ function StoryCard({
           <>
             <ActionButton
               size="sm"
-              action={() => decideStory(story.id, true)}
+              action={() => decideStory(story.id, personId, true)}
               pendingLabel="approving…"
               onSuccess={() => onDecided(true)}
             >
@@ -330,32 +328,10 @@ function StoryCard({
             <ActionButton
               size="sm"
               variant="outline"
-              action={() => decideStory(story.id, false)}
+              action={() => decideStory(story.id, personId, false)}
               pendingLabel="declining…"
               removesRow={!story.mine}
               onSuccess={() => onDecided(false)}
-            >
-              decline
-            </ActionButton>
-          </>
-        ) : null}
-        {story.canDecideMention ? (
-          <>
-            <ActionButton
-              size="sm"
-              action={() => decideStoryMention(story.id, personId, true)}
-              pendingLabel="approving…"
-              onSuccess={() => onMentionDecided(true)}
-            >
-              approve
-            </ActionButton>
-            <ActionButton
-              size="sm"
-              variant="outline"
-              action={() => decideStoryMention(story.id, personId, false)}
-              pendingLabel="declining…"
-              removesRow={!story.mine}
-              onSuccess={() => onMentionDecided(false)}
             >
               decline
             </ActionButton>
@@ -367,24 +343,27 @@ function StoryCard({
             {story.mine ? "edit" : "credits and date"}
           </Button>
         ) : null}
-        {story.about && story.canRemoveMention && !story.canDecideMention ? (
+        {story.canRemove && !story.canDecide ? (
           <ConfirmButton
             size="sm"
             variant="ghost"
             confirm={{
               title: `Take this story off ${personName}’s details?`,
-              description: `It stays on ${story.about.name}’s.`,
+              description:
+                others.length === 1
+                  ? `It stays on ${others[0].name}’s.`
+                  : `It stays on the details of ${nameList(others.map((p) => p.name))}.`,
               confirmLabel: "remove",
               pendingLabel: "removing…",
               destructive: false,
-              onConfirm: () => removeStoryMention(story.id, personId),
+              onConfirm: () => removeStoryPerson(story.id, personId),
               onSuccess: onDeleted,
             }}
           >
             remove
           </ConfirmButton>
         ) : null}
-        {canDelete ? (
+        {story.canDelete ? (
           <ConfirmButton
             size="sm"
             variant="ghost"
@@ -405,7 +384,7 @@ function StoryCard({
       {approved && commentsOpen ? (
         <StoryComments
           storyId={story.id}
-          canTend={canDelete}
+          canTend={canTend}
           onCount={(count) => {
             if (count !== story.commentCount) onChanged({ commentCount: count });
           }}
@@ -433,7 +412,7 @@ export function EntryStories({
   personId: string;
   /** The tree they're read on, which a new one is told on. */
   treeId: string;
-  /** The viewer may edit the entry, so may delete any story on it. */
+  /** The viewer may edit the entry, so may delete any comment on its stories. */
   canEdit: boolean;
   /** Everyone on the canvas, who a story may credit (Step 99). */
   people: CompanionOption[];
@@ -524,41 +503,38 @@ export function EntryStories({
                 setCreditsMounted(true);
                 setCrediting(story);
               }}
-              canDelete={story.mine || (canEdit && !story.about)}
+              canTend={story.canDelete || canEdit}
               focused={focusFound && story.id === focusStory}
-              onDecided={(approved) =>
+              onDecided={(approved) => {
+                const status = approved ? "approved" : "declined";
                 update((all) =>
                   approved || story.mine
                     ? all.map((s) =>
                         s.id === story.id
                           ? {
                               ...s,
-                              status: approved ? "approved" : "declined",
+                              status,
                               canDecide: false,
+                              about: s.about.map((p) =>
+                                p.id === personId ? { ...p, status } : p,
+                              ),
                             }
                           : s,
                       )
-                    : // Declined, it's its teller's alone to see.
+                    : // Declined, it's off this person's details, but for its teller.
                       all.filter((s) => s.id !== story.id),
-                )
-              }
-              onMentionDecided={(approved) =>
-                update((all) =>
-                  approved || story.mine
-                    ? all.map((s) =>
-                        s.id === story.id
-                          ? {
-                              ...s,
-                              mentionStatus: approved ? "approved" : "declined",
-                              canDecideMention: false,
-                            }
-                          : s,
-                      )
-                    : // Declined, it's off this sheet.
-                      all.filter((s) => s.id !== story.id),
-                )
-              }
-              onDeleted={() => update((all) => all.filter((s) => s.id !== story.id))}
+                );
+                // It shows, or doesn't, on everyone else's as well.
+                for (const p of story.about) {
+                  if (p.id !== personId) invalidatePersonSheet(p.id, ["stories"]);
+                }
+              }}
+              onDeleted={() => {
+                update((all) => all.filter((s) => s.id !== story.id));
+                for (const p of story.about) {
+                  if (p.id !== personId) invalidatePersonSheet(p.id, ["stories"]);
+                }
+              }}
               onChanged={(change) =>
                 update((all) =>
                   all.map((s) => (s.id === story.id ? { ...s, ...change } : s)),
@@ -576,11 +552,14 @@ export function EntryStories({
           personId={personId}
           treeId={treeId}
           people={people}
-          onSaved={(stories) => {
+          onSaved={(stories, about) => {
             if (stories) {
               setPersonSheet(personId, "stories", () => stories);
             } else {
               invalidatePersonSheet(personId, ["stories"]);
+            }
+            for (const id of about) {
+              if (id !== personId) invalidatePersonSheet(id, ["stories"]);
             }
           }}
         />
@@ -593,11 +572,15 @@ export function EntryStories({
           personId={personId}
           treeId={treeId}
           people={people}
-          onTold={(stories) => {
-            if (stories) {
+          onTold={(stories, first, about) => {
+            if (stories && first === personId) {
               setPersonSheet(personId, "stories", () => stories);
-            } else {
+            } else if (about.includes(personId)) {
               invalidatePersonSheet(personId, ["stories"]);
+            }
+            // Everyone else it's about has it too, once read again.
+            for (const id of about) {
+              if (id !== personId) invalidatePersonSheet(id, ["stories"]);
             }
           }}
         />

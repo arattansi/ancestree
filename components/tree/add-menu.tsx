@@ -260,7 +260,9 @@ export function AddMenu({
           treeId={treeId}
           people={people}
           // Theirs are read again, when next open if not now.
-          onTold={(_, about) => invalidatePersonSheet(about, ["stories"])}
+          onTold={(_, __, about) => {
+            for (const id of about) invalidatePersonSheet(id, ["stories"]);
+          }}
         />
       ) : null}
     </>

@@ -2929,7 +2929,7 @@ export type Database = {
           },
         ]
       }
-      story_mentions: {
+      story_subjects: {
         Row: {
           created_at: string
           decided_at: string | null
@@ -2956,28 +2956,28 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "story_mentions_decided_by_fkey"
+            foreignKeyName: "story_subjects_decided_by_fkey"
             columns: ["decided_by"]
             isOneToOne: false
             referencedRelation: "member_directory"
             referencedColumns: ["auth_user_id"]
           },
           {
-            foreignKeyName: "story_mentions_decided_by_fkey"
+            foreignKeyName: "story_subjects_decided_by_fkey"
             columns: ["decided_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["auth_user_id"]
           },
           {
-            foreignKeyName: "story_mentions_person_id_fkey"
+            foreignKeyName: "story_subjects_person_id_fkey"
             columns: ["person_id"]
             isOneToOne: false
             referencedRelation: "people"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "story_mentions_story_id_fkey"
+            foreignKeyName: "story_subjects_story_id_fkey"
             columns: ["story_id"]
             isOneToOne: false
             referencedRelation: "stories"
@@ -3577,6 +3577,7 @@ export type Database = {
       }
       add_story: {
         Args: {
+          p_about?: string[]
           p_audio_path?: string
           p_audio_seconds?: number
           p_body: string
@@ -3776,7 +3777,7 @@ export type Database = {
         Returns: string[]
       }
       decide_story: {
-        Args: { p_approve: boolean; p_story: string }
+        Args: { p_approve: boolean; p_person?: string; p_story: string }
         Returns: undefined
       }
       decide_story_mention: {
@@ -3839,6 +3840,7 @@ export type Database = {
           }
       edit_story: {
         Args: {
+          p_about?: string[]
           p_audio_path?: string
           p_audio_seconds?: number
           p_body?: string
@@ -3907,15 +3909,14 @@ export type Database = {
       entry_stories: {
         Args: { p_person: string }
         Returns: {
-          about_id: string
-          about_name: string
+          about: Json
           audio_path: string
           audio_seconds: number
           body: string
           can_decide: boolean
-          can_decide_mention: boolean
+          can_delete: boolean
           can_edit_credits: boolean
-          can_remove_mention: boolean
+          can_remove: boolean
           can_share: boolean
           can_stop_sharing: boolean
           comment_count: number
@@ -3923,8 +3924,6 @@ export type Database = {
           created_by: string
           credits: Json
           id: string
-          mention_status: string
-          mentions: Json
           my_link: string
           shared: boolean
           status: string
@@ -4446,6 +4445,10 @@ export type Database = {
         Returns: Json
       }
       refuse_suspended: { Args: never; Returns: undefined }
+      remove_story_subject: {
+        Args: { p_person: string; p_story: string }
+        Returns: undefined
+      }
       remove_tree_member: {
         Args: { p_tree: string; p_user_id: string }
         Returns: boolean
@@ -4656,6 +4659,7 @@ export type Database = {
       shared_story: {
         Args: { p_token: string }
         Returns: {
+          about: Json
           audio_path: string
           audio_seconds: number
           body: string

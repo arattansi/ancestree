@@ -26,6 +26,9 @@ export type SheetStory = {
   toldOn: string | null;
   toldPrecision: string | null;
   credits: { id: string; name: string; role: string }[];
+  /** Everyone it's about the member may see, this person first (Step 183;
+   *  missing from a server before it). */
+  about?: { id: string; name: string; status: string }[];
 };
 export type SheetReport = {
   id: string;

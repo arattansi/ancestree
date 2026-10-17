@@ -152,9 +152,9 @@ function input(
 
 const story = (
   id: string,
-  personId: string,
+  about: string | string[],
   credits: { person_id: string; role: string }[] = [],
-) => ({ id, person_id: personId, credits });
+) => ({ id, about: typeof about === "string" ? [about] : about, credits });
 
 const addedIds = (issue: ReturnType<typeof weeklyIssue>) =>
   issue?.trees.flatMap((t) => t.added.flatMap((g) => g.people.map((n) => n.id))) ?? [];
@@ -287,12 +287,32 @@ describe("weeklyIssue: stories and photos", () => {
     expect(issue?.trees[0].stories).toEqual([
       {
         id: "s1",
-        about: { id: "gma", name: "Fatma Rattansi" },
+        about: [{ id: "gma", name: "Fatma Rattansi" }],
         storytellers: [{ id: "gma", name: "Fatma Rattansi" }],
         interviewers: [{ id: "karim", name: "Karim Kanji" }],
       },
     ]);
     expect(issue?.trees[0].photos).toEqual([{ id: "dad", name: "Amir Rattansi" }]);
+  });
+
+  it("names everyone a story is about whom the reader sees, under the first one's tree (Step 183)", () => {
+    const issue = weeklyIssue(
+      input("u-karim", "karim", {
+        placements: [],
+        stories: [story("s3", ["sMom", "gma", "dad"])],
+      }),
+    );
+    expect(issue?.trees[0].stories).toEqual([
+      {
+        id: "s3",
+        about: [
+          { id: "gma", name: "Fatma Rattansi" },
+          { id: "dad", name: "Amir Rattansi" },
+        ],
+        storytellers: [],
+        interviewers: [],
+      },
+    ]);
   });
 
   it("says nothing of a story about someone the reader sees only as a basic card", () => {

@@ -8,7 +8,7 @@ import { DateField } from "@/components/date-field";
 import { FormError } from "@/components/form-error";
 import { PendingButton } from "@/components/pending-button";
 import { CompanionPicker, type CompanionOption } from "@/components/tree/companion-picker";
-import { StoryMentionsField } from "@/components/tree/story-mentions-field";
+import { StoryAboutField } from "@/components/tree/story-about-field";
 import { StoryRecordingField, type RecordingChoice } from "@/components/tree/story-recording-field";
 import { StoryTextFields } from "@/components/tree/story-text-fields";
 import { Button } from "@/components/ui/button";
@@ -101,15 +101,16 @@ const NONE_SHOWN: Record<StoryCreditRole, boolean> = {
  * Tell a story about someone (Step 88.3). It first asks which (Step 113):
  * **write a story**, in a big window with room for a whole one, or **upload
  * a recording**; either may have a title, and a recording a description
- * (Step 115). It may say when it was told. It may credit people on the
- * tree as its storytellers (Step 99; a written one too since Step 145), and
- * a recording its interviewers; a written story tags the people it
- * mentions as well, those its words name offered first (Step 116).
+ * (Step 115). Either says whom it's about (Step 183): whoever's details it
+ * was opened on to start with, and anyone else, those its words name
+ * offered first; each has it on their details. It may say when it was
+ * told. It may credit people on the tree as its storytellers (Step 99; a
+ * written one too since Step 145), and a recording its interviewers.
  * A picked recording is shrunk as soon as it's picked, and played back here
  * before it goes. A form is its labels. Loaded only once someone opens it.
  *
- * From the canvas's + (Step 145) it asks who the story is about as well,
- * whoever is selected picked to start with.
+ * From the canvas's + (Step 145), whoever is selected is picked to start
+ * with.
  */
 export function StoryDialog({
   open,
@@ -122,16 +123,17 @@ export function StoryDialog({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Whom it's about; with `chooseAbout`, who's picked to start with. */
+  /** Who's picked to start with: whose details it's told from. */
   personId: string | null;
-  /** Asks whom it's about (Step 145), from `people`. */
+  /** Opened away from anyone's details (Step 145). */
   chooseAbout?: boolean;
   /** The tree it's told on, whose inbox its teller hears back in. */
   treeId: string;
   /** Everyone on the canvas, who may be credited. */
   people: CompanionOption[];
-  /** Told: the stories of whom it's about now, when they could be read. */
-  onTold: (stories: EntryStory[] | undefined, personId: string) => void;
+  /** Told: the stories of whom it's first about (`personId`) now, when
+   *  they could be read, and everyone it's about. */
+  onTold: (stories: EntryStory[] | undefined, personId: string, about: string[]) => void;
 }) {
   const send = useAction({ inline: true });
   const [title, setTitle] = React.useState("");
@@ -147,13 +149,13 @@ export function StoryDialog({
   const focusTold = React.useRef(false);
   const [credits, setCredits] = React.useState(EMPTY_CREDITS);
   const [creditsShown, setCreditsShown] = React.useState(NONE_SHOWN);
-  // Who a written story mentions (Step 116).
-  const [mentions, setMentions] = React.useState<string[]>([]);
   const [recording, setRecording] = React.useState<RecordingChoice>(NO_RECORDING);
   const [preparing, setPreparing] = React.useState(false);
-  // Whom it's about, when it asks (Step 145).
-  const [about, setAbout] = React.useState<string | null>(personId);
-  const subject = chooseAbout ? about : personId;
+  // Whom it's about (Step 183).
+  const [about, setAbout] = React.useState<string[]>(personId ? [personId] : []);
+  // Whom it's first about, whose folder its recording goes in: whose
+  // details it's told from, while they're still in it.
+  const subject = personId && about.includes(personId) ? personId : (about[0] ?? null);
 
   // Opened afresh, empty.
   const [wasOpen, setWasOpen] = React.useState(open);
@@ -168,11 +170,10 @@ export function StoryDialog({
       setToldOpened(false);
       setToldTouched(false);
       setCredits(EMPTY_CREDITS);
-      setMentions([]);
       setCreditsShown(NONE_SHOWN);
       setRecording(NO_RECORDING);
       setPreparing(false);
-      setAbout(personId);
+      setAbout(personId ? [personId] : []);
       send.setError(null);
     }
   }
@@ -200,6 +201,7 @@ export function StoryDialog({
     if (!canSend || toldError || !subject) return;
     const audio = ready;
     const personId = subject;
+    const everyone = about;
     send.run(
       "send",
       async () => {
@@ -223,8 +225,7 @@ export function StoryDialog({
             told,
             storytellers: credits.storyteller,
             interviewers: writing ? [] : credits.interviewer,
-            // Not whom it's about, picked before they were (Step 145).
-            mentions: writing ? mentions.filter((id) => id !== personId) : [],
+            about: everyone.filter((id) => id !== personId),
           });
           // Refused: the recording nothing took goes again.
           if (res.error && audioPath) {
@@ -242,12 +243,14 @@ export function StoryDialog({
         success: (res) =>
           res.status === "pending"
             ? "Sent for approval."
-            : // Away from the sheet, nothing else shows it went.
-              chooseAbout
-              ? "Added."
-              : null,
+            : res.waiting
+              ? "Added, and sent for approval."
+              : // Away from the sheet, nothing else shows it went.
+                chooseAbout
+                ? "Added."
+                : null,
         onSuccess: (res) => {
-          onTold(res.stories, personId);
+          onTold(res.stories, personId, everyone);
           onOpenChange(false);
         },
       },
@@ -297,39 +300,17 @@ export function StoryDialog({
           </div>
         ) : (
           <form onSubmit={onSubmit} className="flex flex-col gap-4 pt-2">
-            {chooseAbout ? (
-              <CompanionPicker
-                label="About"
-                options={people}
-                value={about ? [about] : []}
-                // One person: a second picked takes the first's place.
-                onChange={(ids) => setAbout(ids.at(-1) ?? null)}
-                disabled={send.pending}
-                emptyHint={null}
-              />
-            ) : null}
             {writing ? (
-              <>
-                <StoryTextFields
-                  key={formKey}
-                  idPrefix="story"
-                  title={title}
-                  onTitle={setTitle}
-                  body={body}
-                  onBody={setBody}
-                  disabled={send.pending}
-                  roomy
-                />
-                <StoryMentionsField
-                  key={`mentions-${formKey}`}
-                  people={people}
-                  personId={subject ?? ""}
-                  body={body}
-                  value={mentions}
-                  onChange={setMentions}
-                  disabled={send.pending}
-                />
-              </>
+              <StoryTextFields
+                key={formKey}
+                idPrefix="story"
+                title={title}
+                onTitle={setTitle}
+                body={body}
+                onBody={setBody}
+                disabled={send.pending}
+                roomy
+              />
             ) : (
               <>
                 <StoryTextFields
@@ -351,6 +332,16 @@ export function StoryDialog({
                 />
               </>
             )}
+            {/* Below the words, so names offered as they're typed don't
+                move them (Step 116). */}
+            <StoryAboutField
+              key={`about-${formKey}`}
+              people={people}
+              body={body}
+              value={about}
+              onChange={setAbout}
+              disabled={send.pending}
+            />
             {toldShown ? (
               <div className="flex flex-col gap-2">
                 <Label htmlFor="story-told">Date told</Label>

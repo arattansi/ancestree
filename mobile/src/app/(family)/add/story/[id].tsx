@@ -5,6 +5,7 @@ import { KeyboardAvoidingView, ScrollView, StyleSheet, Text, View } from "react-
 import { personDisplayName } from "@/lib/person-name";
 import { useFamily } from "@/family/family";
 import { detailsChanged } from "@/person/sheet";
+import { PersonChooser } from "@/scribe/person-chooser";
 import { ScribeError, tellStory } from "@/scribe/story";
 import { font, GUTTER, usePalette } from "@/theme";
 import { Button } from "@/ui/button";
@@ -14,23 +15,37 @@ import { TextField } from "@/ui/text-field";
 const STORY_MAX = 200_000;
 
 /**
- * A story written about someone (Step 179.3), from the + menu: a title and
- * the story, told through `add_story` as the web's written stories are, and
- * waiting for approval where theirs would. Told out loud, it's the scribe.
+ * A story written about someone (Step 179.3), from the + menu: a title, the
+ * story, and whom it's about (Step 183: the leaf, and anyone else on its
+ * tree), told through `add_story` as the web's written stories are, and
+ * waiting for approval on each one's leaf where theirs would. Told out
+ * loud, it's the scribe.
  */
 export default function WriteStory() {
   const palette = usePalette();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { state } = useFamily();
-  const person = state.status === "ready" ? state.family.people.get(id) : null;
+  const family = state.status === "ready" ? state.family : null;
+  const person = family?.people.get(id) ?? null;
+  const [about, setAbout] = React.useState<string[]>([id]);
   const [title, setTitle] = React.useState("");
   const [story, setStory] = React.useState("");
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [done, setDone] = React.useState<"approved" | "pending" | null>(null);
-  if (!person) return null;
+  if (!person || !family) return null;
   const name = personDisplayName(person);
   const treeId = person.fullOn[0] ?? null;
+  // Whoever else it may be about: anyone on the leaf's tree, the leaf and
+  // the member first, then by name.
+  const rank = (pid: string) => (pid === person.id ? 0 : pid === family.selfId ? 1 : 2);
+  const aboutable = [...family.people.values()]
+    .filter((p) => !!treeId && p.fullOn.includes(treeId))
+    .sort(
+      (a, b) =>
+        rank(a.id) - rank(b.id) || personDisplayName(a).localeCompare(personDisplayName(b)),
+    );
+  const several = about.length > 1;
 
   if (done) {
     return (
@@ -40,8 +55,12 @@ export default function WriteStory() {
         </Text>
         <Text style={[styles.note, { color: palette.mutedForeground }]}>
           {done === "pending"
-            ? `It shows on ${name}'s leaf once it's approved.`
-            : `It's on ${name}'s leaf.`}
+            ? several
+              ? "It shows on their leaves once it's approved."
+              : `It shows on ${name}'s leaf once it's approved.`
+            : several
+              ? "It's on their leaves."
+              : `It's on ${name}'s leaf.`}
         </Text>
         <Button label="done" onPress={() => router.back()} />
       </View>
@@ -64,7 +83,7 @@ export default function WriteStory() {
         recording: null,
         storytellers: [],
         interviewers: [],
-        mentions: [],
+        about: about.filter((pid) => pid !== person!.id),
       });
       detailsChanged();
       setDone(told.status);
@@ -90,6 +109,14 @@ export default function WriteStory() {
               maxLength={STORY_MAX}
               textAlignVertical="top"
               style={styles.story}
+            />
+            <PersonChooser
+              label="About"
+              people={aboutable}
+              chosen={about}
+              // Always the leaf's, and never nobody's.
+              onChange={(ids) => setAbout([person.id, ...ids.filter((pid) => pid !== person.id)])}
+              selfId={family.selfId}
             />
             {error ? <Text style={[styles.error, { color: palette.destructive }]}>{error}</Text> : null}
             <Button label={saving ? "saving…" : "save"} disabled={saving} onPress={() => void save()} />
