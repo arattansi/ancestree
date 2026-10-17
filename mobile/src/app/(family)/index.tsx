@@ -1,22 +1,17 @@
 import { router } from "expo-router";
 import * as React from "react";
-import {
-  ActivityIndicator,
-  Image,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { ActivityIndicator, Image, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useSession } from "@/auth/session";
 import { useFamily } from "@/family/family";
 import type { NoFamily } from "@/family/load";
 import { Spotlight } from "@/leaf/spotlight";
+import { useUnread } from "@/messages/store";
 import { font, GUTTER, usePalette } from "@/theme";
 import { Button } from "@/ui/button";
-import { ChevronLeftIcon, SearchIcon, UserIcon } from "@/ui/icons";
+import { HeaderButton } from "@/ui/header";
+import { ChevronLeftIcon, MessageCircleIcon, SearchIcon, UserIcon } from "@/ui/icons";
 
 const SITE = process.env.EXPO_PUBLIC_SITE_URL ?? "https://www.ancestree.space";
 const SITE_NAME = SITE.replace(/^https?:\/\/(www\.)?/, "");
@@ -44,6 +39,7 @@ export default function LeafScreen() {
   const { state, reload, focusId, trail, walkTo, back, home } = useFamily();
   const family = state.status === "ready" ? state.family : null;
   const awayFromHome = !!family && focusId !== family.selfId;
+  const unread = useUnread();
 
   return (
     <SafeAreaView
@@ -70,6 +66,13 @@ export default function LeafScreen() {
         <View style={styles.actions}>
           {awayFromHome ? (
             <Button variant="outline" label="you" onPress={home} />
+          ) : null}
+          {/* Messages and their unread count (Step 179.1), until the menu
+              bar takes them (179.4). */}
+          {family ? (
+            <HeaderButton label="Messages" count={unread} onPress={() => router.push("/messages")}>
+              <MessageCircleIcon color={palette.foreground} />
+            </HeaderButton>
           ) : null}
           {family ? (
             <HeaderButton label="Find someone" onPress={() => router.push("/search")}>
@@ -111,28 +114,6 @@ export default function LeafScreen() {
   );
 }
 
-function HeaderButton({
-  label,
-  onPress,
-  children,
-}: {
-  label: string;
-  onPress: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      onPress={onPress}
-      hitSlop={8}
-      style={({ pressed }) => [styles.iconButton, pressed && { opacity: 0.6 }]}
-    >
-      {children}
-    </Pressable>
-  );
-}
-
 function Message({
   title,
   body,
@@ -167,12 +148,6 @@ const styles = StyleSheet.create({
   mark: { width: 28, height: 28 },
   wordmark: { fontFamily: font.semibold, fontSize: 19, letterSpacing: -0.3 },
   actions: { flexDirection: "row", alignItems: "center", gap: 4 },
-  iconButton: {
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   centre: { flex: 1, alignItems: "center", justifyContent: "center" },
   message: { paddingHorizontal: GUTTER + 8, gap: 12 },
   title: { fontFamily: font.semibold, fontSize: 20, textAlign: "center" },

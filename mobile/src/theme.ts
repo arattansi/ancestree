@@ -23,6 +23,8 @@ const light = {
   destructive: "#e7000b",
   /** The button that deletes, under white words (the web's destructive-solid). */
   destructiveSolid: "#e7000b",
+  /** The web's `bg-attention/20`: a notice to act on, such as a changed code. */
+  attentionWash: "#fcf6d8",
 };
 
 export type Palette = typeof light;
@@ -40,6 +42,7 @@ const dark: Palette = {
   destructive: "#ff6467",
   // The web's `dark:bg-destructive/60`, over the background.
   destructiveSolid: "#9d4042",
+  attentionWash: "#38301a",
 };
 
 export function usePalette(): Palette {

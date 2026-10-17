@@ -59,6 +59,13 @@
           "microphonePermission": "ancestree listens while you tell a family story, and keeps the recording with it.",
           "speechRecognitionPermission": "ancestree turns the story you tell into words for you to read over before it's saved."
         }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "ancestree opens the camera only to scan the code that links this phone to your messages.",
+          "recordAudioAndroid": false
+        }
       ]
     ],
     "experiments": {

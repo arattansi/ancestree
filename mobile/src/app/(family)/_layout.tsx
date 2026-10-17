@@ -1,7 +1,9 @@
 import { Stack } from "expo-router";
 import * as React from "react";
 
-import { FamilyProvider } from "@/family/family";
+import { useSession } from "@/auth/session";
+import { FamilyProvider, useFamily } from "@/family/family";
+import { messenger } from "@/messages/store";
 import { usePalette } from "@/theme";
 
 /** A signed-in member's screens, all over the one family read. */
@@ -15,6 +17,7 @@ export default function FamilyLayout() {
   };
   return (
     <FamilyProvider>
+      <MessengerWake />
       <Stack
         screenOptions={{
           headerShown: false,
@@ -35,6 +38,12 @@ export default function FamilyLayout() {
           name="search"
           options={{ presentation: "modal", contentStyle: sheet.contentStyle }}
         />
+        {/* Messages (Step 179.1): pushed screens, each with its own header;
+            the code scanner over everything. */}
+        <Stack.Screen
+          name="messages/scan"
+          options={{ presentation: "fullScreenModal", contentStyle: sheet.contentStyle }}
+        />
         {/* Full screen, and no swipe away: a story half told isn't lost to a
             stray gesture (Step 148). */}
         <Stack.Screen
@@ -48,4 +57,20 @@ export default function FamilyLayout() {
       </Stack>
     </FamilyProvider>
   );
+}
+
+/**
+ * Wake the messenger once the member's family has been read (so their
+ * profile is there), and forget it when they sign out (Step 179.1).
+ */
+function MessengerWake() {
+  const { session } = useSession();
+  const { state } = useFamily();
+  const userId = session?.user.id ?? null;
+  const ready = state.status === "ready";
+  React.useEffect(() => {
+    if (userId && ready) messenger.start(userId);
+  }, [userId, ready]);
+  React.useEffect(() => () => messenger.stop(), []);
+  return null;
 }

@@ -1,3 +1,6 @@
+// Before anything that makes a key (Step 179.1): Hermes has no Web Crypto.
+import "@/messages/random";
+
 import { PublicSans_400Regular } from "@expo-google-fonts/public-sans/400Regular";
 import { PublicSans_500Medium } from "@expo-google-fonts/public-sans/500Medium";
 import { PublicSans_600SemiBold } from "@expo-google-fonts/public-sans/600SemiBold";

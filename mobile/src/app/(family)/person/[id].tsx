@@ -6,21 +6,40 @@ import { leafLabel, nativeLeaf } from "@/lib/native-leaf";
 import { asDayMonth, formatPartialDate } from "@/lib/partial-date";
 import { maidenLine, personDisplayName } from "@/lib/person-name";
 import { useFamily } from "@/family/family";
+import { messenger, useMessageTarget, useMessenger } from "@/messages/store";
+import { ErrorText } from "@/messages/ui";
 import { font, GUTTER, usePalette } from "@/theme";
 import { Button } from "@/ui/button";
 
 /**
  * A leaf's details: who they are, when and where they were born and died,
  * where they live now (Step 153), and the tree their leaf comes from; and a story to tell about them, out
- * loud, to the scribe (Step 148). Reading their stories and the album come
- * next (Phase 1 of the mobile plan).
+ * loud, to the scribe (Step 148); and **message**, when a member you share a
+ * tree with is behind the entry (Step 179.1). Reading their stories and the
+ * album come next (Phase 1 of the mobile plan).
  */
 export default function PersonSheet() {
   const palette = usePalette();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { state } = useFamily();
   const person = state.status === "ready" ? state.family.people.get(id) : null;
+  const self = state.status === "ready" && state.family.selfId === id;
+  const messageTo = useMessageTarget(self ? null : id);
+  const opening = useMessenger((s) => s.opening);
+  const [messageError, setMessageError] = React.useState<string | null>(null);
   if (!person) return null;
+
+  async function message(userId: string) {
+    setMessageError(null);
+    const conversation = await messenger.openWith(userId);
+    if (!conversation) {
+      setMessageError("Couldn't open the conversation. Try again.");
+      return;
+    }
+    // The sheet goes, and the conversation opens over the leaf.
+    if (router.canGoBack()) router.back();
+    router.push({ pathname: "/messages/[id]", params: { id: conversation } });
+  }
 
   const born = formatPartialDate(
     person.date_of_birth,
@@ -80,17 +99,29 @@ export default function PersonSheet() {
             </View>
           ))}
       </View>
-      {person.fullOn.length ? (
+      {person.fullOn.length || messageTo ? (
         <View style={styles.actions}>
-          <Button
-            label="tell a story"
-            onPress={() =>
-              router.push({
-                pathname: "/scribe/[id]",
-                params: { id: person.id },
-              })
-            }
-          />
+          {person.fullOn.length ? (
+            <Button
+              label="tell a story"
+              onPress={() =>
+                router.push({
+                  pathname: "/scribe/[id]",
+                  params: { id: person.id },
+                })
+              }
+            />
+          ) : null}
+          {messageTo ? (
+            <Button
+              variant="outline"
+              label="message"
+              busy={opening === messageTo}
+              disabled={!!opening}
+              onPress={() => void message(messageTo)}
+            />
+          ) : null}
+          {messageError ? <ErrorText>{messageError}</ErrorText> : null}
         </View>
       ) : null}
     </ScrollView>
@@ -105,5 +136,5 @@ const styles = StyleSheet.create({
   row: { gap: 2 },
   label: { fontFamily: font.medium, fontSize: 13 },
   value: { fontFamily: font.regular, fontSize: 17 },
-  actions: { marginTop: 28 },
+  actions: { marginTop: 28, gap: 10 },
 });

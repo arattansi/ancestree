@@ -12,19 +12,23 @@ import { font, usePalette } from "@/theme";
 /**
  * A button, near-black as on the web. Its words are lower-case, as every
  * button's are (Step 102); a link-drawn one (`variant="link"`) keeps
- * sentence case. `destructive` is red, for deleting for good, and
- * `destructive-outline` an outline with red words, the way to it.
+ * sentence case, and `asWritten` keeps a name's capitals ("block Bea").
+ * `destructive` is red, for deleting for good, and `destructive-outline` an
+ * outline with red words, the way to it.
  */
 export function Button({
   label,
   variant = "primary",
   busy = false,
+  asWritten = false,
   disabled,
   ...rest
 }: Omit<PressableProps, "children"> & {
   label: string;
   variant?: "primary" | "outline" | "link" | "destructive" | "destructive-outline";
   busy?: boolean;
+  /** The label as given, for one that holds a name; write its other words lower-case. */
+  asWritten?: boolean;
 }) {
   const palette = usePalette();
   const off = disabled || busy;
@@ -67,7 +71,7 @@ export function Button({
             link && { textDecorationLine: "underline", fontFamily: font.regular },
           ]}
         >
-          {link ? label : label.toLowerCase()}
+          {link || asWritten ? label : label.toLowerCase()}
         </Text>
       )}
     </Pressable>
