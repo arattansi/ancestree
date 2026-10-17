@@ -539,4 +539,16 @@ describe("weeklyIssue: unread messages (Step 180)", () => {
   it("has none when there are none", () => {
     expect(weeklyIssue(input("u-karim", "karim"))?.messages).toEqual([]);
   });
+
+  it("carries messages waiting for the reader to visit, and sends for one this week (Step 182)", () => {
+    const issue = weeklyIssue(
+      input("u-karim", "karim", {
+        ...quietWeek,
+        unread: [{ ...unread("u-aalim", 2, "2026-10-01T09:00:00Z", "aalim"), waiting: true }],
+      }),
+    );
+    expect(issue?.messages).toEqual([
+      expect.objectContaining({ userId: "u-aalim", unread: 2, waiting: true }),
+    ]);
+  });
 });

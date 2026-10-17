@@ -51,6 +51,10 @@ const PUBLIC_PREFIXES = [
   // 151).
   "/getting-started/",
   "/api/getting-started/",
+  // The emails telling a member a message waits for them: their
+  // unsubscribe page and one-click link, likewise (Step 182).
+  "/message-emails/",
+  "/api/message-emails/",
   // The phone app's routes, which hold no cookie: each checks the bearer
   // token it's sent (`lib/supabase/bearer.ts`, Step 148).
   "/api/mobile/",

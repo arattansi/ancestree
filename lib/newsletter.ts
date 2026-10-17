@@ -150,6 +150,11 @@ export type IssueUnreadRow = {
   display_name: string | null;
   unread: number;
   newest_at: string;
+  /**
+   * Waiting for the reader to visit (Step 182): written before they had a
+   * key, `newsletter_waiting_messages`. Read once they visit.
+   */
+  waiting?: boolean;
 };
 
 /** Someone with messages the reader hasn't read (Step 180). */
@@ -160,6 +165,8 @@ export type IssueSender = {
   /** What they are to the reader, as `IssueName` says it. */
   relation?: string;
   unread: number;
+  /** Waiting for the reader to visit (Step 182). */
+  waiting?: boolean;
 };
 
 export type Issue = {
@@ -362,9 +369,13 @@ export function weeklyIssue<R extends IssuePerson & { id: string }>(
       ? nameOf(shown)
       : u.display_name?.trim() || "Someone";
     const relation = shown ? relationTo(shown) : undefined;
-    return relation
-      ? { userId: u.sender_id, name, relation, unread: u.unread }
-      : { userId: u.sender_id, name, unread: u.unread };
+    return {
+      userId: u.sender_id,
+      name,
+      ...(relation ? { relation } : {}),
+      unread: u.unread,
+      ...(u.waiting ? { waiting: true } : {}),
+    };
   });
   const newMessage = unread.some((u) => Date.parse(u.newest_at) >= since);
 

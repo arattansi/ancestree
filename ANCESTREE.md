@@ -776,6 +776,8 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `conversations`          | The messenger's conversations (Step 174): `kind` (`direct` only; groups and channels are scoped, not built), `direct_key` (the two members' ids, lower first: one conversation a pair), `created_by`, `last_message_at`. Read by its members (`private.in_conversation`); written only by `open_direct_conversation` (while the two share a tree) and `send_message`. A direct conversation goes, every message in it, with either member's account (`private.direct_conversation_member_gone`) |
 | `conversation_members`   | Who is in a conversation and how far they've read (`last_read_at`, set by `mark_conversation_read` up to the newest message the reader saw, never past now, and by `send_message` for the sender), and `muted_until` (Step 177.4: `infinity` until unmuted; `mute_conversation`; a muted conversation is left out of the launcher's count and, Step 180, the newsletter's Unread Messages). Read by the conversation's members; no direct writes. `newsletter_unread_messages` (service role, Step 180) counts what each reader hasn't read, by who sent it |
 | `messages`               | What was said (Step 174), **end to end** since 174.6: `sender_id`, `ciphertext` (XChaCha20-Poly1305; 1–4,000 characters before, checked on the device), `nonce`, `signature` (Ed25519, the sender's key at `sender_key_version`), `format`, `created_at`; no text column. Written only by `send_message`, which refuses once the two share no tree, past 30 a minute, and unless every member who has a key got a sealed key at their current version (Step 182: a member with no key yet is left out, and the message waits for them: `waiting_messages` lists a sender's, `deliver_messages` adds the member's sealed key once they have one, never once either has blocked the other or they share no tree; publishing a key tells each waiting sender's inbox, `key`); read only through `thread_messages` and `my_conversations` (base64, with the reader's own sealed key). Each `message_keys` row goes to its member's private Realtime inbox, `inbox:<user id>` (`private.message_key_to_inbox`, `realtime.send`); a policy on `realtime.messages` lets each member hear only their own. Listed by `my_conversations` (the other side's name, their face where the reader may see their entry, their key version, the last message encrypted, unread, `can_send`) and `message_contacts` (everyone the reader can write to, the trees they share, their key version) |
+| `message_waiting_notices` | Whom a member was emailed about (Step 182): `(user_id, sender_id)`, `told_at`; one row a sender until the member publishes a key, then cleared. Written by `claim_waiting_notice` (asked as the sender); the service role's only |
+| `message_waiting_emails` | Each member's switch for those emails (Step 182): `subscribed` (on unless off), `token` (the email's unsubscribe link, signed out). Made by `waiting_notice_email` the first time one goes; the service role's only |
 | `message_keys`           | A message's key sealed to one member (Step 174.6): `(message_id, user_id)`, `key_version`, `sealed_key` (104 bytes: an ephemeral X25519 key, a nonce, the key and its tag), `sealed_at` (Step 182: when it reached them, the message's own time unless it waited for their key). Written by `send_message`, and for a member who had no key when it was sent, later by the sender's device through `deliver_messages`; read only by its member, through `thread_messages` / `my_conversations`. A member sees, and has unread, only the messages sealed to them, by `sealed_at` |
 | `messaging_keys`         | Members' published messaging keys (Step 174.6): `(user_id, version)`, `box_public` (X25519), `sign_public` (Ed25519). One key a member on all their devices; a new version only by `publish_messaging_key(…, p_reset)` (start over: at most five a day; drops the backup). Read through `messaging_keys_of` by whoever is on a tree or in a conversation with them, and `conversation_keys` |
 | `messaging_key_transfers` | A member's keyring on its way to their new device (Step 174.6): encrypted under a one-time key that travels only in the link's fragment; `put_key_transfer` (three waiting at most), `take_key_transfer` (owner only, once, within ten minutes) |
@@ -1949,8 +1951,10 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
-- **Step 182: messages wait for a relative who has no key yet** (migration
-  `20261017140000_messages_wait_for_a_key`, live). **Aalim asked**
+- **Step 182: messages wait for a relative who has no key yet, and they're
+  told** (migrations `20261017140000_messages_wait_for_a_key`,
+  `20261017150000_messages_wait_for_a_key_hardening` and
+  `20261017160000_waiting_message_emails`, all live). **Aalim asked**
   (2026-10-17): "is it possible for the device to hold the message,
   encrypted, and send once the user sets up their messaging". A member's
   messaging key is made the first time they visit since messages began, so
@@ -1973,15 +1977,49 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   Messages go by it, and a message not yet sealed to you isn't shown or
   counted. Until then Raiya's list says "On its way" and the thread
   "Aalim's message is on its way. It comes once they're next on ancestree."
-  (only the sender's devices hold its key). A device that has seen a key
-  of someone's refuses the server's word that they have none. /privacy
-  says it. Rehearsed against live in a rolled-back transaction (waiting
+  (only the sender's devices hold its key). **After an outside review**
+  (a fresh agent): nothing the sender's device could check showed a
+  message had waited, so a server could have had it seal a conversation's
+  whole history to a key or member of its choosing. Now the sender's own
+  copy of a waiting message is sealed under a context naming whom it waits
+  for, and only such a copy is ever sealed on, only to them (a live attack
+  test, the server dropping a delivered message's copy so it looked
+  waiting, was refused); a device that has pinned or verified someone's
+  key won't take the server's word that they have none, nor seal what
+  waited to a later version than one it pinned. The second migration has
+  `send_message` and `deliver_messages` hold the members' rows against a
+  key published or reset meanwhile, `delete_message` tell only the members
+  who held the message, and `report_message` take only one sealed to the
+  reporter. A message to someone either has blocked, or who shares no
+  tree, waits while that lasts. /privacy says it. Rehearsed against live in a rolled-back transaction (waiting
   send, the recipient seeing nothing until sealed, every delivery refusal,
   unread by arrival, block and no-shared-tree, the `key` event), then
   applied with md5 checks; tested with throwaways in two browsers (sender
   online, and offline until later) and between the phone's web build and
-  the web both ways. The nudge (telling the relative that something waits)
-  is to come, on Aalim's answer.
+  the web both ways. **Telling them** (Aalim: "Both: an email right away
+  (never the words, once per sender until they set up, with its own off
+  switch) and a line in the weekly newsletter's Unread Messages"; Phase
+  0's no-email rule stands for everyone else): after a waiting message the
+  sender's device asks `/api/messages/waiting` (the phone,
+  `/api/mobile/messages/waiting`), and `claim_waiting_notice`, asked as the
+  sender, decides (no key yet, a message of theirs waiting, not blocked,
+  a shared tree, their emails on, not told of this sender already, at most
+  three a day to anyone and twenty from anyone); the email, "Aalim
+  Rattansi wrote to you on ancestree … Visit ancestree to read it." with
+  **read it** opening the conversation, says who, never what
+  (`lib/emails/message-waiting.ts`). `message_waiting_notices` is cleared
+  when they publish a key. The off switch is the email's unsubscribe link,
+  signed out (`/message-emails/<token>`, one-click at
+  `/api/message-emails/<token>`); no box in settings (my call: anyone who
+  can open settings has visited, and so has a key, so it would never
+  matter there). The newsletter's Unread Messages gains "1 from Amira
+  Zz182, waiting for you to visit." (`newsletter_waiting_messages`). Tested
+  live: one email per sender (a second waiting message sent none), none to
+  someone unsubscribed, the record gone once they set up, both off
+  switches, and a live newsletter preview carrying the line. The review's
+  last point is in the third migration too: `delete_message` holds the
+  message before reading who held it, so a delivery landing in between
+  can't go untold.
 
 - **Step 179.1: messages on the iPhone, in step with the web** (no
   migration; `mobile/src/messages/`, `mobile/src/app/(family)/messages/`).

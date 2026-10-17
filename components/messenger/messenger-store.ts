@@ -1005,7 +1005,15 @@ async function send(id: string, text: string): Promise<boolean> {
   else void loadList();
   // A key they make from now on is heard on the inbox (`key`); one made
   // while this was on its way was refused as `KEYS_CHANGED` and sealed to.
-  if (waits) undeliverable.delete(id);
+  // They're told by email that it waits, once for each sender (Step 182).
+  if (waits) {
+    undeliverable.delete(id);
+    void fetch("/api/messages/waiting", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ conversationId: id }),
+    }).catch(() => {});
+  }
   return true;
 }
 

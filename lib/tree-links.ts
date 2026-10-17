@@ -360,6 +360,21 @@ export function gettingStartedSettingsHref(): string {
 }
 
 /**
+ * The page for the emails telling a member that a message waits for them
+ * (Step 182): opened from an email's link with their own token, signed
+ * out, to turn them off or back on. Callers add the site's origin.
+ */
+export function messageEmailsPageHref(token: string): string {
+  return `/message-emails/${enc(token)}`;
+}
+
+/** What a mail app's one-click unsubscribe posts to (RFC 8058), for those
+ *  emails' `List-Unsubscribe` header (Step 182). */
+export function messageEmailsOneClickHref(token: string): string {
+  return `/api/message-emails/${enc(token)}`;
+}
+
+/**
  * Settings, at the living people the member added whom nobody is behind
  * yet, each to invite to claim their entry (Step 151): the claim email's
  * button. Callers add the site's origin.

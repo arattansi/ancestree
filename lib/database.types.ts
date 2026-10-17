@@ -1499,6 +1499,89 @@ export type Database = {
           },
         ]
       }
+      message_waiting_emails: {
+        Row: {
+          subscribed: boolean
+          token: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          subscribed?: boolean
+          token?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          subscribed?: boolean
+          token?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_waiting_emails_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "message_waiting_emails_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+        ]
+      }
+      message_waiting_notices: {
+        Row: {
+          sender_id: string
+          told_at: string
+          user_id: string
+        }
+        Insert: {
+          sender_id: string
+          told_at?: string
+          user_id: string
+        }
+        Update: {
+          sender_id?: string
+          told_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_waiting_notices_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "message_waiting_notices_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "message_waiting_notices_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "message_waiting_notices_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           ciphertext: string
@@ -3599,6 +3682,10 @@ export type Database = {
         }
         Returns: Json
       }
+      claim_waiting_notice: {
+        Args: { p_conversation: string }
+        Returns: string
+      }
       connect_people: {
         Args: {
           p_adults?: string[]
@@ -4173,6 +4260,15 @@ export type Database = {
           user_id: string
         }[]
       }
+      newsletter_waiting_messages: {
+        Args: { p_users: string[] }
+        Returns: {
+          newest_at: string
+          sender_id: string
+          unread: number
+          user_id: string
+        }[]
+      }
       note_active_day: { Args: never; Returns: boolean }
       onboarding_due: {
         Args: { p_users?: string[] }
@@ -4731,6 +4827,14 @@ export type Database = {
           sealed_key: string
           sender_key_version: number
           signature: string
+        }[]
+      }
+      waiting_notice_email: {
+        Args: { p_sender: string; p_user: string }
+        Returns: {
+          email: string
+          sender_name: string
+          token: string
         }[]
       }
       withheld_details: { Args: { p_person: string }; Returns: Json }

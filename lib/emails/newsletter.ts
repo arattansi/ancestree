@@ -198,7 +198,8 @@ function unreadLines(
   const lines = senders.slice(0, NAMES_SHOWN).map((s) => {
     const name = `<a href="${escapeHtml(messagesUrl(s.userId))}" style="${LINK}">${escapeHtml(oneLine(s.name))}</a>`;
     const who = s.relation ? `${name} (${escapeHtml(s.relation)})` : name;
-    return line(`${s.unread} from ${who}.`);
+    // Written before they'd visited since messages began (Step 182).
+    return line(s.waiting ? `${s.unread} from ${who}, waiting for you to visit.` : `${s.unread} from ${who}.`);
   });
   const rest = senders.length - NAMES_SHOWN;
   if (rest > 0) {

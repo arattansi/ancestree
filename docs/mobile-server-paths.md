@@ -104,7 +104,10 @@ All carry a top-level `"use server"`; none is inline.
   (`thread_messages`, `send_message`, `open_direct_conversation`,
   `mark_conversation_read`, the key and link RPCs, block, report, mute,
   delete, and since Step 182 `waiting_messages` / `deliver_messages`), and
-  the inbox is the Realtime channel `inbox:<uid>`. **Done in
+  the inbox is the Realtime channel `inbox:<uid>`. Telling a member a
+  message waits for them takes the service role (their address), so the
+  phone asks `/api/mobile/messages/waiting` (bearer) as the web asks
+  `/api/messages/waiting` (Step 182). **Done in
   Step 179.1** (`mobile/src/messages/`): the same RPCs and channel, who
   they are to you worked out on the phone over its family read
   (`lib/messenger-relation.ts`), the keys in the Keychain. Faces are

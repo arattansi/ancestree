@@ -308,6 +308,13 @@ describe("newsletterEmail", () => {
     expect(html.indexOf("Unread Messages")).toBeLessThan(html.indexOf("This Week"));
   });
 
+  it("says when messages wait for the reader to visit (Step 182)", () => {
+    const { html } = render(
+      issue({ messages: [{ userId: "u2", name: "Yusuf Khan", unread: 2, waiting: true }] }),
+    );
+    expect(html).toContain(">Yusuf Khan</a>, waiting for you to visit.");
+  });
+
   it(`lists ${NAMES_SHOWN} who wrote and opens the list for the rest`, () => {
     const messages = Array.from({ length: NAMES_SHOWN + 2 }, (_, i) => ({
       userId: `u${i}`,

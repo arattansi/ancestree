@@ -106,7 +106,9 @@ describe("parsing the inbox", () => {
   it("reads a message broadcast, ciphertext and all", () => {
     expect(parseWireMessage(wire)).toEqual(wire);
     // From before Step 182: when it reached them isn't said.
-    const { sealed_at: _at, waiting: _w, ...older } = wire;
+    const older: Partial<typeof wire> = { ...wire };
+    delete older.sealed_at;
+    delete older.waiting;
     expect(parseWireMessage(older)).toMatchObject({ sealed_at: null, waiting: false });
     expect(parseWireMessage({ ...wire, waiting: true })?.waiting).toBe(true);
     expect(parseWireMessage({ ...wire, key_version: null, sealed_key: null })).toMatchObject({

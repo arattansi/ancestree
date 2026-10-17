@@ -226,8 +226,15 @@ export async function buildWeeklyNewsletters(
     { p_users: due.map((r) => r.user_id) },
   );
   if (error) throw new Error(`newsletter_unread_messages: ${error.message}`);
+  // And whose messages wait for a member who hasn't visited since messages
+  // began (Step 182): the same section says so.
+  const { data: waiting, error: waitingError } = await createAdminClient().rpc(
+    "newsletter_waiting_messages",
+    { p_users: due.map((r) => r.user_id) },
+  );
+  if (waitingError) throw new Error(`newsletter_waiting_messages: ${waitingError.message}`);
   const unreadBy = new Map<string, UnreadSender[]>();
-  for (const u of unread ?? []) {
+  for (const u of [...(unread ?? []), ...(waiting ?? []).map((w) => ({ ...w, waiting: true }))]) {
     const list = unreadBy.get(u.user_id) ?? [];
     list.push(u);
     unreadBy.set(u.user_id, list);

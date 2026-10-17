@@ -181,8 +181,10 @@ export default function PrivacyPage() {
           <li>
             Write to someone who hasn&rsquo;t visited since messages began and
             it waits, still encrypted, until they do; a device of yours then
-            passes it on to them. It never goes to someone either of you has
-            blocked since, or you no longer share a tree with.
+            passes it on to them. They get one email saying you wrote, never
+            what, and their weekly newsletter says so too. It doesn&rsquo;t go
+            while either of you has blocked the other, or while you share no
+            tree.
           </li>
           <li>
             What ancestree does see: who wrote to whom, when, how long each
