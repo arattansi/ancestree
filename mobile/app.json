@@ -13,6 +13,9 @@
       "supportsTablet": false,
       "config": {
         "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "ancestree opens your photos only when you pick one for your family tree."
       }
     },
     "android": {
