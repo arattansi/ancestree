@@ -115,6 +115,7 @@ for every sensitive API the app's libraries touch, even unused (Step 175).
 | `NSMicrophoneUsageDescription` | `expo-speech-recognition` plugin | Telling a story |
 | `NSSpeechRecognitionUsageDescription` | `expo-speech-recognition` plugin | Telling a story |
 | `NSPhotoLibraryUsageDescription` | `app.json` `ios.infoPlist` | Never yet (`expo-file-system` can read photos) |
+| `NSLocalNetworkUsageDescription` | `expo-dev-client` | Only in a development build, finding Metro on the Mac |
 
 There's no `NSFaceIDUsageDescription`. `expo-secure-store` adds Expo's stock
 Face ID message unless told not to (`"faceIDPermission": false`). The app
