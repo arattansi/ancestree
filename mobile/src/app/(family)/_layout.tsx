@@ -29,6 +29,11 @@ export default function FamilyLayout() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="person/[id]" options={sheet} />
         <Stack.Screen name="relatives/[side]" options={sheet} />
+        {/* The + menu and what it opens (Step 179.3). */}
+        <Stack.Screen name="add/[id]" options={{ ...sheet, sheetAllowedDetents: [0.34] }} />
+        <Stack.Screen name="add/relative/[id]" options={{ ...sheet, sheetAllowedDetents: [1] }} />
+        <Stack.Screen name="add/photos/[id]" options={{ ...sheet, sheetAllowedDetents: [1] }} />
+        <Stack.Screen name="add/story/[id]" options={{ ...sheet, sheetAllowedDetents: [1] }} />
         {/* All of the sheet: the choices before deleting (Step 176). */}
         <Stack.Screen
           name="delete-account"

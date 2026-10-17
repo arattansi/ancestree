@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import * as React from "react";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useSession } from "@/auth/session";
@@ -11,7 +11,7 @@ import { font, GUTTER, usePalette } from "@/theme";
 import { Button } from "@/ui/button";
 import { AppHeader } from "@/ui/app-header";
 import { HeaderButton } from "@/ui/header";
-import { ChevronLeftIcon, SearchIcon } from "@/ui/icons";
+import { ChevronLeftIcon, PlusIcon, SearchIcon } from "@/ui/icons";
 
 const SITE = process.env.EXPO_PUBLIC_SITE_URL ?? "https://www.ancestree.space";
 const SITE_NAME = SITE.replace(/^https?:\/\/(www\.)?/, "");
@@ -57,6 +57,11 @@ export default function LeafScreen() {
           ) : null
         }
       >
+        {family && focusId && family.people.get(focusId)?.fullOn.length ? (
+          <AddButton
+            onPress={() => router.push({ pathname: "/add/[id]", params: { id: focusId } })}
+          />
+        ) : null}
         {family ? (
           <HeaderButton label="Find someone" onPress={() => router.push("/search")}>
             <SearchIcon color={palette.foreground} />
@@ -93,6 +98,30 @@ export default function LeafScreen() {
   );
 }
 
+/**
+ * The + (Step 179.3): near-black, as the web's add button is (Step 145),
+ * for a relative, photos or a story of whoever is on the leaf view.
+ */
+function AddButton({ onPress }: { onPress: () => void }) {
+  const palette = usePalette();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Add"
+      onPress={onPress}
+      hitSlop={6}
+      style={({ pressed }) => [
+        styles.add,
+        { backgroundColor: palette.primary },
+        pressed && { opacity: 0.7 },
+      ]}
+    >
+      <PlusIcon size={18} color={palette.primaryForeground} />
+      <Text style={[styles.addText, { color: palette.primaryForeground }]}>add</Text>
+    </Pressable>
+  );
+}
+
 function Message({
   title,
   body,
@@ -115,6 +144,17 @@ function Message({
 }
 
 const styles = StyleSheet.create({
+  add: {
+    height: 34,
+    paddingLeft: 10,
+    paddingRight: 14,
+    marginRight: 4,
+    borderRadius: 17,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  addText: { fontFamily: font.medium, fontSize: 15 },
   safe: { flex: 1 },
   centre: { flex: 1, alignItems: "center", justifyContent: "center" },
   message: { paddingHorizontal: GUTTER + 8, gap: 12 },

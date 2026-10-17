@@ -65,6 +65,8 @@ export function useRelatives(
   family: Family,
   proposals: RelativeProposal[],
   storyTree: string | null,
+  /** Every proposal ticked from the start, as the + menu's one relative is (Step 179.3). */
+  allTicked = false,
 ) {
   const [ticked, setTicked] = React.useState<ReadonlySet<string>>(new Set());
   const [drafts, setDrafts] = React.useState<Record<string, RelativeDraft>>({});
@@ -138,7 +140,7 @@ export function useRelatives(
         return {
           r,
           draft,
-          ticked: ticked.has(r.key),
+          ticked: allTicked || ticked.has(r.key),
           asksAdult: asksAdult(r, family.selfId, today),
           questions,
           asks,
@@ -156,6 +158,7 @@ export function useRelatives(
       checks,
       family.selfId,
       ticked,
+      allTicked,
       today,
       mayTag,
       storyTree,

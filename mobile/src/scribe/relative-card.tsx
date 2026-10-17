@@ -33,11 +33,17 @@ export function RelativeCard({
   onToggle,
   onEdit,
   onRetry,
+  fixed = false,
 }: {
   view: RelativeView;
   onToggle: () => void;
   onEdit: (patch: Partial<RelativeDraft>) => void;
   onRetry: () => void;
+  /**
+   * Always being added, nothing to tick: the + menu's relative (Step
+   * 179.3). The card is then the form alone.
+   */
+  fixed?: boolean;
 }) {
   const palette = usePalette();
   const muted = { color: palette.mutedForeground };
@@ -57,57 +63,63 @@ export function RelativeCard({
 
   return (
     <View
-      style={[
-        styles.card,
-        {
-          borderColor: on ? palette.primary : palette.border,
-          backgroundColor: palette.card,
-        },
-      ]}
+      style={
+        fixed
+          ? null
+          : [
+              styles.card,
+              {
+                borderColor: on ? palette.primary : palette.border,
+                backgroundColor: palette.card,
+              },
+            ]
+      }
     >
-      <Pressable
-        accessibilityRole="checkbox"
-        accessibilityState={{ checked: on }}
-        aria-checked={on}
-        accessibilityLabel={[line, life, "Adds them to the tree"]
-          .filter(Boolean)
-          .join(". ")}
-        onPress={onToggle}
-        style={({ pressed }) => [styles.head, pressed && { opacity: 0.8 }]}
-      >
-        <View
-          style={[
-            styles.box,
-            on
-              ? {
-                  backgroundColor: palette.primary,
-                  borderColor: palette.primary,
-                }
-              : { borderColor: palette.mutedForeground },
-          ]}
+      {fixed ? null : (
+        <Pressable
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: on }}
+          aria-checked={on}
+          accessibilityLabel={[line, life, "Adds them to the tree"]
+            .filter(Boolean)
+            .join(". ")}
+          onPress={onToggle}
+          style={({ pressed }) => [styles.head, pressed && { opacity: 0.8 }]}
         >
-          {on ? (
-            <CheckIcon size={16} color={palette.primaryForeground} />
-          ) : null}
-        </View>
-        <View style={styles.headBody}>
-          <Text style={[styles.name, { color: palette.foreground }]}>
-            {line}
-          </Text>
-          {life ? (
-            <Text style={[styles.body, { color: palette.foreground }]}>
-              {life}
+          <View
+            style={[
+              styles.box,
+              on
+                ? {
+                    backgroundColor: palette.primary,
+                    borderColor: palette.primary,
+                  }
+                : { borderColor: palette.mutedForeground },
+            ]}
+          >
+            {on ? (
+              <CheckIcon size={16} color={palette.primaryForeground} />
+            ) : null}
+          </View>
+          <View style={styles.headBody}>
+            <Text style={[styles.name, { color: palette.foreground }]}>
+              {line}
             </Text>
-          ) : null}
-          {r.evidence ? (
-            <Text style={[styles.said, muted]}>“{r.evidence}”</Text>
-          ) : null}
-          <Text style={[styles.way, muted]}>Adds them to the tree</Text>
-        </View>
-      </Pressable>
+            {life ? (
+              <Text style={[styles.body, { color: palette.foreground }]}>
+                {life}
+              </Text>
+            ) : null}
+            {r.evidence ? (
+              <Text style={[styles.said, muted]}>“{r.evidence}”</Text>
+            ) : null}
+            <Text style={[styles.way, muted]}>Adds them to the tree</Text>
+          </View>
+        </Pressable>
+      )}
 
       {on ? (
-        <View style={styles.more}>
+        <View style={[styles.more, fixed && styles.moreBare]}>
           <View style={styles.names}>
             <View style={styles.flex}>
               <TextField
@@ -290,6 +302,7 @@ const styles = StyleSheet.create({
   },
   way: { fontFamily: font.medium, fontSize: 13 },
   more: { gap: 14, paddingHorizontal: 14, paddingBottom: 14 },
+  moreBare: { paddingHorizontal: 0, paddingBottom: 0 },
   names: { flexDirection: "row", gap: 10 },
   flex: { flex: 1 },
   question: { gap: 8 },
