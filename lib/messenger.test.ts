@@ -9,6 +9,7 @@ import {
   initialsOf,
   isMuted,
   mergeMessages,
+  messagesLinkTarget,
   messengerShownOn,
   mutedText,
   muteUntil,
@@ -27,10 +28,12 @@ import {
   withMuted,
   withNewestPage,
   withRead,
+  withoutMessagesLink,
   type ChatMessage,
   type ConversationSummary,
   type MessengerContact,
 } from "@/lib/messenger";
+import { messagesHref } from "@/lib/tree-links";
 
 const ME = "me";
 const NADIA = "nadia";
@@ -378,5 +381,26 @@ describe("blocking and reporting (Step 177.3)", () => {
     expect(reportErrorText("ALREADY_REPORTED")).toBe("You've already reported this message.");
     expect(reportErrorText("TOO_LONG")).toBe("Keep the reason under 1,000 characters.");
     expect(reportErrorText(undefined)).toBe("Couldn't send the report. Try again.");
+  });
+});
+
+describe("a link that opens the messenger (Step 180)", () => {
+  const id = "0b9e6a51-3c2d-4e8f-9a1b-2c3d4e5f6a7b";
+
+  it("opens your conversation with a member, or the list", () => {
+    expect(messagesHref(id)).toBe(`/family?messages=${id}`);
+    expect(messagesLinkTarget(`?messages=${id}`)).toEqual({ with: id });
+    expect(messagesLinkTarget(`?person=p1&messages=${id.toUpperCase()}`)).toEqual({ with: id });
+    expect(messagesHref()).toBe("/family?messages=");
+    expect(messagesLinkTarget("?messages=")).toEqual({ with: null });
+    expect(messagesLinkTarget("?messages=not-an-id")).toEqual({ with: null });
+    expect(messagesLinkTarget("?person=p1")).toBeNull();
+    expect(messagesLinkTarget("")).toBeNull();
+  });
+
+  it("takes only its own part out of the query", () => {
+    expect(withoutMessagesLink(`?messages=${id}`)).toBe("");
+    expect(withoutMessagesLink(`?person=p1&messages=${id}`)).toBe("?person=p1");
+    expect(withoutMessagesLink("?person=p1")).toBe("?person=p1");
   });
 });

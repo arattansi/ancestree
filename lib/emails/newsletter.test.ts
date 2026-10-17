@@ -18,6 +18,7 @@ const occasion = (o: Partial<IssueOccasion>): IssueOccasion => ({
 });
 
 const issue = (over: Partial<Issue> = {}): Issue => ({
+  messages: [],
   trees: [
     {
       id: "t1",
@@ -56,6 +57,7 @@ const render = (i: Issue, note?: string | null) =>
     familyUrl: "https://www.ancestree.space/family",
     unsubscribeUrl: "https://www.ancestree.space/newsletter/tok-1",
     inviteUrl: "https://www.ancestree.space/account/admin?tree=t1&section=invite-to-claim",
+    messagesUrl: (id) => `https://www.ancestree.space/family?messages=${id ?? ""}`,
   });
 
 describe("newsletterEmail", () => {
@@ -289,6 +291,41 @@ describe("newsletterEmail", () => {
     expect(html).toContain("This Week");
   });
 
+  it("names who has unread messages first, each opening that conversation (Step 180)", () => {
+    const { html } = render(
+      issue({
+        messages: [
+          { userId: "u2", name: "Yusuf Khan", relation: "your first cousin", unread: 3 },
+          { userId: "u3", name: "Sara <Khan>", unread: 1 },
+        ],
+      }),
+    );
+    expect(html).toContain("Unread Messages");
+    expect(html).toContain(
+      '3 from <a href="https://www.ancestree.space/family?messages=u2" style="color:#0a0a0a;text-decoration:underline;">Yusuf Khan</a> (your first cousin).',
+    );
+    expect(html).toContain(">Sara &lt;Khan&gt;</a>.");
+    expect(html.indexOf("Unread Messages")).toBeLessThan(html.indexOf("This Week"));
+  });
+
+  it(`lists ${NAMES_SHOWN} who wrote and opens the list for the rest`, () => {
+    const messages = Array.from({ length: NAMES_SHOWN + 2 }, (_, i) => ({
+      userId: `u${i}`,
+      name: `Person ${i}`,
+      unread: 1,
+    }));
+    const { html } = render(issue({ messages }));
+    expect(html).toContain(`>Person ${NAMES_SHOWN - 1}</a>`);
+    expect(html).not.toContain(`>Person ${NAMES_SHOWN}</a>`);
+    expect(html).toContain(
+      '<a href="https://www.ancestree.space/family?messages=" style="color:#0a0a0a;text-decoration:underline;">And 2 more people</a>.',
+    );
+  });
+
+  it("has no Unread Messages with nothing unread", () => {
+    expect(render(issue()).html).not.toContain("Unread Messages");
+  });
+
   it("carries the unsubscribe link in the small print", () => {
     const { html } = render(issue());
     expect(html).toContain('href="https://www.ancestree.space/newsletter/tok-1"');
@@ -297,6 +334,19 @@ describe("newsletterEmail", () => {
 });
 
 describe("preheaderOf", () => {
+  it("says how many messages are waiting before anything else (Step 180)", () => {
+    expect(
+      preheaderOf(
+        issue({
+          messages: [
+            { userId: "u2", name: "Yusuf Khan", unread: 3 },
+            { userId: "u3", name: "Sara Khan", unread: 1 },
+          ],
+        }),
+      ),
+    ).toMatch(/^4 unread messages · 1 birthday this week/);
+  });
+
   it("counts what's in it", () => {
     expect(
       preheaderOf(

@@ -42,7 +42,8 @@ export type ConversationSummary = {
   canSend: boolean;
   /**
    * Muted until then (Step 177.4), `"infinity"` until unmuted: left out of
-   * the launcher's count. Null when it isn't.
+   * the launcher's count and the newsletter's Unread Messages (Step 180).
+   * Null when it isn't.
    */
   mutedUntil: string | null;
   /**
@@ -152,6 +153,36 @@ export function messengerShownOn(pathname: string | null): boolean {
  * 174.6): put there by `/messages/link`'s first script, read by the page.
  */
 export const MESSAGES_LINK_KEPT = "ancestree:messages-link";
+
+/**
+ * The query a link opens the messenger with (Step 180, the newsletter's
+ * Unread Messages): `?messages=<their user id>` for your conversation with
+ * them, a bare `?messages=` for the list.
+ */
+export const MESSAGES_PARAM = "messages";
+
+const USER_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * What a page's query asks the messenger to open: nothing (null), the list
+ * (`with: null`), or the conversation with a member. Anything after
+ * `messages=` that isn't a user id opens the list.
+ */
+export function messagesLinkTarget(search: string): { with: string | null } | null {
+  const params = new URLSearchParams(search);
+  if (!params.has(MESSAGES_PARAM)) return null;
+  const id = params.get(MESSAGES_PARAM)?.trim() ?? "";
+  return { with: USER_ID.test(id) ? id.toLowerCase() : null };
+}
+
+/** The same query with the messenger's part taken out, `?` and all when
+ *  nothing's left. */
+export function withoutMessagesLink(search: string): string {
+  const params = new URLSearchParams(search);
+  params.delete(MESSAGES_PARAM);
+  const rest = params.toString();
+  return rest ? `?${rest}` : "";
+}
 
 /** Each member's own Realtime channel (the migration's policy). */
 export function inboxTopic(userId: string): string {

@@ -36,6 +36,7 @@ function input(over: Partial<OnboardingEmailInput> = {}): OnboardingEmailInput {
 }
 
 const recap: Issue = {
+  messages: [],
   trees: [
     {
       id: "t1",

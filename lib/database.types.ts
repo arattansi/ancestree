@@ -4154,6 +4154,15 @@ export type Database = {
           user_id: string
         }[]
       }
+      newsletter_unread_messages: {
+        Args: { p_users: string[] }
+        Returns: {
+          newest_at: string
+          sender_id: string
+          unread: number
+          user_id: string
+        }[]
+      }
       note_active_day: { Args: never; Returns: boolean }
       onboarding_due: {
         Args: { p_users?: string[] }

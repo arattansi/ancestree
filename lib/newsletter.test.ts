@@ -483,3 +483,60 @@ describe("the schedule", () => {
     expect(nextSendAt({ weekday: 0, paused: true }, thu)).toBeNull();
   });
 });
+
+describe("weeklyIssue: unread messages (Step 180)", () => {
+  const unread = (
+    sender: string,
+    count: number,
+    at: string,
+    person: string | null = null,
+    name: string | null = null,
+  ) => ({ sender_id: sender, person_id: person, display_name: name, unread: count, newest_at: at });
+  const quietWeek = {
+    placements: [],
+    showings: Object.values(people).map((p) => showing(TREE.id, { ...p, date_of_birth: null })),
+    lines: lines.map((l) => ({ ...l, marriage_date: null })),
+  };
+
+  it("names each one as the reader's trees name them, newest first, with how many", () => {
+    const issue = weeklyIssue(
+      input("u-karim", "karim", {
+        unread: [
+          unread("u-left", 1, "2026-09-20T09:00:00Z", "gone", "  Zed  "),
+          unread("u-aalim", 3, "2026-10-02T09:00:00Z", "aalim", "aalim.r"),
+          unread("u-nameless", 2, "2026-09-29T09:00:00Z"),
+          unread("u-karim", 1, "2026-10-03T09:00:00Z", "karim"),
+          unread("u-none", 0, "2026-10-03T09:00:00Z"),
+        ],
+      }),
+    );
+    expect(issue?.messages).toEqual([
+      { userId: "u-aalim", name: "Aalim Rattansi", relation: "your first cousin", unread: 3 },
+      { userId: "u-nameless", name: "Someone", unread: 2 },
+      // Not on Karim's trees: the name they set, nothing about how they're related.
+      { userId: "u-left", name: "Zed", unread: 1 },
+    ]);
+  });
+
+  it("sends in a quiet week when a message came that week", () => {
+    const issue = weeklyIssue(
+      input("u-karim", "karim", {
+        ...quietWeek,
+        unread: [unread("u-aalim", 1, "2026-10-01T09:00:00Z", "aalim")],
+      }),
+    );
+    expect(issue?.trees).toEqual([]);
+    expect(issue?.messages.map((m) => m.userId)).toEqual(["u-aalim"]);
+  });
+
+  it("doesn't send a quiet week for messages left from before, but names them in one that goes", () => {
+    const old = [unread("u-aalim", 2, "2026-09-01T09:00:00Z", "aalim")];
+    expect(weeklyIssue(input("u-karim", "karim", { ...quietWeek, unread: old }))).toBeNull();
+    const busy = weeklyIssue(input("u-karim", "karim", { unread: old }));
+    expect(busy?.messages.map((m) => [m.userId, m.unread])).toEqual([["u-aalim", 2]]);
+  });
+
+  it("has none when there are none", () => {
+    expect(weeklyIssue(input("u-karim", "karim"))?.messages).toEqual([]);
+  });
+});

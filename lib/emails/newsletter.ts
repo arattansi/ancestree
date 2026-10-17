@@ -3,10 +3,12 @@ import { markdownEmailHtml } from "@/lib/emails/markdown";
 import { emailButton, oneLine, renderEmail } from "@/lib/emails/shared";
 import {
   addedCount,
+  unreadCount,
   type Issue,
   type IssueAdded,
   type IssueName,
   type IssueOccasion,
+  type IssueSender,
   type IssueStory,
 } from "@/lib/newsletter";
 import { occasionDay, ordinal } from "@/lib/occasions";
@@ -33,7 +35,8 @@ export const HEADING =
  * gives away only whom it's of. A note from the beta
  * reviewers, when there is one, goes above the greeting, in Markdown
  * (Step 159), and "invite family" sits
- * beside the main button (Step 143).
+ * beside the main button (Step 143). First of all, who has written to them
+ * that they haven't read, each opening that conversation (Step 180).
  */
 export function newsletterEmail(input: {
   issue: Issue;
@@ -47,6 +50,9 @@ export function newsletterEmail(input: {
   inviteUrl: string;
   /** A story, on the site's origin (Step 144). */
   storyUrl: (storyId: string) => string;
+  /** The messenger, on your conversation with a member or on the list, on
+   *  the site's origin (Step 180). */
+  messagesUrl: (userId?: string) => string;
   /** The beta reviewers' note for this send, in Markdown (Steps 144, 159). */
   note?: string | null;
 }): { subject: string; html: string } {
@@ -85,21 +91,23 @@ export function newsletterEmail(input: {
 }
 
 /**
- * What an issue tells, a block each: This Week, Later This Month, then a
- * section per tree that had news. Every name links to its card
- * (`personUrl`); whoever was added says what they are to the reader, and
- * each story links to itself with who told it and who asked. The weekly
- * newsletter's body, and the getting started win-back's "since you were
- * last here" (Step 151).
+ * What an issue tells, a block each: Unread Messages, This Week, Later
+ * This Month, then a section per tree that had news. Every name links to
+ * its card (`personUrl`); whoever was added says what they are to the
+ * reader, and each story links to itself with who told it and who asked.
+ * The weekly newsletter's body, and the getting started win-back's "since
+ * you were last here" (Step 151), which has no messages to tell.
  */
 export function issueSections(
   issue: Issue,
   {
     personUrl,
     storyUrl,
+    messagesUrl,
   }: {
     personUrl: (personId: string) => string;
     storyUrl: (storyId: string) => string;
+    messagesUrl?: (userId?: string) => string;
   },
 ): string[] {
   const link = (n: IssueName) =>
@@ -109,6 +117,12 @@ export function issueSections(
     n.relation ? `${link(n)} (${escapeHtml(n.relation)})` : link(n);
 
   const sections: string[] = [];
+  // Who's waiting on a reply before anything else (Step 180).
+  if (messagesUrl && issue.messages.length) {
+    sections.push(
+      `<p style="${HEADING}">Unread Messages</p>${unreadLines(issue.messages, messagesUrl)}`,
+    );
+  }
   // What's coming up first (Aalim, 2026-10-01), then each tree's news.
   if (issue.week.length) {
     sections.push(`<p style="${HEADING}">This Week</p>${occasionRows(issue.week, link)}`);
@@ -171,6 +185,32 @@ function storyLine(
   return `${head} ${said.charAt(0).toUpperCase()}${said.slice(1)}.`;
 }
 
+/**
+ * "3 from Amina Khan (your first cousin).", a line each, newest first, the
+ * name opening that conversation: who and how many, never what they said
+ * (Step 180). Past `NAMES_SHOWN`, "And 4 more people." opens the list.
+ */
+function unreadLines(
+  senders: readonly IssueSender[],
+  messagesUrl: (userId?: string) => string,
+): string {
+  const line = (html: string) => `<p style="margin:8px 0 0;${TEXT}">${html}</p>`;
+  const lines = senders.slice(0, NAMES_SHOWN).map((s) => {
+    const name = `<a href="${escapeHtml(messagesUrl(s.userId))}" style="${LINK}">${escapeHtml(oneLine(s.name))}</a>`;
+    const who = s.relation ? `${name} (${escapeHtml(s.relation)})` : name;
+    return line(`${s.unread} from ${who}.`);
+  });
+  const rest = senders.length - NAMES_SHOWN;
+  if (rest > 0) {
+    lines.push(
+      line(
+        `<a href="${escapeHtml(messagesUrl())}" style="${LINK}">And ${rest} more ${rest === 1 ? "person" : "people"}</a>.`,
+      ),
+    );
+  }
+  return lines.join("");
+}
+
 /** "A", "A and B", "A, B and C", "A, B, … and 4 more", each linked. */
 function list(names: readonly IssueName[], link: (n: IssueName) => string): string {
   const shown = names.slice(0, NAMES_SHOWN).map(link);
@@ -210,19 +250,21 @@ function occasionRows(
 }
 
 /**
- * The inbox's preview line, what's coming up first: "2 birthdays this week
- * · 1 milestone later this month · 4 added", each part only when there is
- * one.
+ * The inbox's preview line, what's waiting and coming up first: "3 unread
+ * messages · 2 birthdays this week · 1 milestone later this month · 4
+ * added", each part only when there is one.
  */
 export function preheaderOf(issue: Issue): string {
   const plural = (n: number, one: string, many: string) =>
     `${n} ${n === 1 ? one : many}`;
   const added = addedCount(issue);
+  const unread = unreadCount(issue);
   const stories = issue.trees.reduce((n, t) => n + t.stories.length, 0);
   const photos = issue.trees.reduce((n, t) => n + t.photos.length, 0);
   const birthdays = issue.week.filter((o) => o.kind === "birthday").length;
   const anniversaries = issue.week.length - birthdays;
   const parts = [
+    unread ? plural(unread, "unread message", "unread messages") : "",
     birthdays ? `${plural(birthdays, "birthday", "birthdays")} this week` : "",
     anniversaries
       ? `${plural(anniversaries, "anniversary", "anniversaries")} this week`

@@ -640,6 +640,37 @@ function start(me: string) {
   });
 }
 
+/**
+ * Open from a link (the newsletter's Unread Messages, Step 180): woken at
+ * once rather than when the page is idle, and shown once this device's
+ * keys have been looked for, so what's there reads (or the pop-up says
+ * why it can't). On the conversation with `withUser`, or the list.
+ */
+async function openFromLink(me: string, withUser: string | null) {
+  start(me);
+  set({ open: true, view: { kind: "list" } });
+  await keysLookedFor();
+  if (!withUser || withUser === me) {
+    open({ kind: "list" });
+    return;
+  }
+  // The list first, so a conversation already there opens as it is.
+  await loadList();
+  await openWith(withUser);
+}
+
+/** Once this device's keys have been looked for: ready, locked or none. */
+function keysLookedFor(): Promise<void> {
+  return new Promise((resolve) => {
+    if (state.keys !== "waiting") return resolve();
+    const stop = subscribe(() => {
+      if (state.keys === "waiting") return;
+      stop();
+      resolve();
+    });
+  });
+}
+
 function open(view: MessengerView = state.view) {
   set({ open: true, view });
   // Read again, and once more after a read on its way without who they
@@ -912,7 +943,8 @@ async function deleteMessage(conversationId: string, messageId: string): Promise
 
 /**
  * Mute a conversation for `hours`, or until unmuted (`null`); `unmute`
- * ends it (Step 177.4). Muted, it's left out of the launcher's count.
+ * ends it (Step 177.4). Muted, it's left out of the launcher's count and
+ * the newsletter's Unread Messages (Step 180).
  */
 async function mute(conversationId: string, hours: number | null | "unmute"): Promise<boolean> {
   const until = hours === "unmute" ? null : muteUntil(hours);
@@ -1175,6 +1207,7 @@ export const messenger = {
   show,
   send,
   openWith,
+  openFromLink,
   loadList,
   /** The pop-up on someone not on ancestree yet, inviting them (Step 174.5). */
   openInvite: (target: InviteTarget) =>

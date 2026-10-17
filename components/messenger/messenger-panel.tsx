@@ -1687,7 +1687,7 @@ function DetailsView({ id, onClose }: { id: string; onClose: () => void }) {
             </>
           ) : (
             <>
-              <p className="text-muted-foreground">No badge for new messages.</p>
+              <p className="text-muted-foreground">No badge, and left out of the newsletter.</p>
               <div className="flex flex-wrap gap-2">
                 {MUTE_CHOICES.map((choice) => (
                   <Button

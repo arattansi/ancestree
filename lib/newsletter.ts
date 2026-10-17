@@ -22,6 +22,9 @@
  * it and who asked. Once, at the beta reviewers' say, every story so far
  * rather than the week's (`all_stories`).
  *
+ * First of all, who has written to them that they haven't read (Step 180):
+ * by name and how many, never what they said (the server can't read it).
+ *
  * Pure: `lib/newsletter.server.ts` reads the trees with the service role,
  * as their members see them, and sends what this returns.
  */
@@ -134,7 +137,34 @@ export type IssueOccasion = Occasion & {
   milestone: boolean;
 };
 
+/**
+ * Someone who has written to the reader since they last read it (Step 180),
+ * as `newsletter_unread_messages` counts it: muted conversations and
+ * blocked members already left out.
+ */
+export type IssueUnreadRow = {
+  sender_id: string;
+  /** Their own entry, if they have one. */
+  person_id: string | null;
+  /** The name they set, for when the reader's trees don't show them. */
+  display_name: string | null;
+  unread: number;
+  newest_at: string;
+};
+
+/** Someone with messages the reader hasn't read (Step 180). */
+export type IssueSender = {
+  /** Their account: the link opens your conversation with them. */
+  userId: string;
+  name: string;
+  /** What they are to the reader, as `IssueName` says it. */
+  relation?: string;
+  unread: number;
+};
+
 export type Issue = {
+  /** Who has written that they haven't read, newest first (Step 180). */
+  messages: IssueSender[];
   /** Only the trees with something to say, in the order the reader joined. */
   trees: IssueTree[];
   /** The next seven days, today included. */
@@ -164,6 +194,8 @@ export type IssueInput<R extends IssuePerson & { id: string }> = {
   memberNames: ReadonlyMap<string, string>;
   /** Members' own entries, by user id: placing one is joining. */
   memberEntries: ReadonlyMap<string, string>;
+  /** Who has written that they haven't read (Step 180); none when left out. */
+  unread?: readonly IssueUnreadRow[];
 
   /** The start of the week being told: an ISO timestamp. */
   since: string;
@@ -174,7 +206,9 @@ export type IssueInput<R extends IssuePerson & { id: string }> = {
 /**
  * The reader's newsletter, or null when there's nothing to tell: no entry
  * of their own on their trees to arrange it around, or a quiet week with
- * nothing coming up.
+ * nothing coming up and no message that came this week. Messages left
+ * unread from before name their senders in an issue that goes anyway, but
+ * don't send one each week on their own.
  */
 export function weeklyIssue<R extends IssuePerson & { id: string }>(
   input: IssueInput<R>,
@@ -316,11 +350,34 @@ export function weeklyIssue<R extends IssuePerson & { id: string }>(
   const week = occasions.filter((o) => o.daysAway < WEEK_DAYS);
   const later = occasions.filter((o) => o.daysAway >= WEEK_DAYS && o.milestone);
 
+  // Who has written that they haven't read (Step 180), newest first: named
+  // as their trees name their entry, with what they are to the reader, or
+  // by the name they set where the reader's trees don't show them.
+  const unread = [...(input.unread ?? [])]
+    .filter((u) => u.unread > 0 && u.sender_id !== input.userId)
+    .sort((a, b) => Date.parse(b.newest_at) - Date.parse(a.newest_at));
+  const messages = unread.map((u): IssueSender => {
+    const shown = u.person_id && cards.has(u.person_id) ? u.person_id : null;
+    const name = shown
+      ? nameOf(shown)
+      : u.display_name?.trim() || "Someone";
+    const relation = shown ? relationTo(shown) : undefined;
+    return relation
+      ? { userId: u.sender_id, name, relation, unread: u.unread }
+      : { userId: u.sender_id, name, unread: u.unread };
+  });
+  const newMessage = unread.some((u) => Date.parse(u.newest_at) >= since);
+
   const trees = [...byTree.values()].filter(
     (t) => t.joined.length || t.added.length || t.stories.length || t.photos.length,
   );
-  if (!trees.length && !week.length && !later.length) return null;
-  return { trees, week, later };
+  if (!trees.length && !week.length && !later.length && !newMessage) return null;
+  return { messages, trees, week, later };
+}
+
+/** How many messages are waiting, everyone's together (Step 180). */
+export function unreadCount(issue: Issue): number {
+  return issue.messages.reduce((n, m) => n + m.unread, 0);
 }
 
 /** How many were added across the issue's trees, each placement once,

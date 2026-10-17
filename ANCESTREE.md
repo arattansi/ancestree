@@ -590,7 +590,9 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   members now, any day); `lib/newsletter.server.ts` —
   `sendScheduledNewsletters` → `sendWeeklyNewsletters`: who's due
   (`newsletter_due`), `buildWeeklyNewsletters` (every tree they're on read
-  once with the service role, each member's issue; sends nothing), marked
+  once with the service role, and who has written to each that they
+  haven't read, `newsletter_unread_messages`, Step 180; each member's
+  issue; sends nothing), marked
   done (`claim_newsletter_issues`) just before it's sent; `ownNewsletter` —
   a member's own, for the admin page's newsletter tab; `lib/newsletter.ts` — `weeklyIssue`,
   cut to the reader's own family by My Family Tree's rule (`familyTies`),
@@ -767,7 +769,7 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `claims`                 | Auto-approve / reject a person entry (`resolved_by`); a dispute of one is an `entry_reports` row and leaves it `approved` (Step 88.2) |
 | `notifications`          | In-app notices, **one inbox per tree** (`tree_id`, Step 25; `placement_requested` \| `placement_accepted` \| `placement_declined` added; `placements_requested`, one for a batch of entries someone may edit, Step 80; `placements_lapsed`, to the Root whose ask nobody answered in 30 days, Step 83; `tree_request_approved`, Step 28; `placed_on_join`, Step 30.9, and what a claim invite did, Step 41.3; `joined_by_link`, Step 52; `story_to_approve`, `story_approved`, `story_declined`, Step 88.3; `story_commented`, Step 88.4; `message_reported` to the Roots of the trees a reported message's two members share, `message_report_resolved` to its reporter, Step 177.3); recipient-scoped RLS                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `conversations`          | The messenger's conversations (Step 174): `kind` (`direct` only; groups and channels are scoped, not built), `direct_key` (the two members' ids, lower first: one conversation a pair), `created_by`, `last_message_at`. Read by its members (`private.in_conversation`); written only by `open_direct_conversation` (while the two share a tree) and `send_message`. A direct conversation goes, every message in it, with either member's account (`private.direct_conversation_member_gone`) |
-| `conversation_members`   | Who is in a conversation and how far they've read (`last_read_at`, set by `mark_conversation_read` up to the newest message the reader saw, never past now, and by `send_message` for the sender), and `muted_until` (Step 177.4: `infinity` until unmuted; `mute_conversation`; a muted conversation is left out of the launcher's count). Read by the conversation's members; no direct writes |
+| `conversation_members`   | Who is in a conversation and how far they've read (`last_read_at`, set by `mark_conversation_read` up to the newest message the reader saw, never past now, and by `send_message` for the sender), and `muted_until` (Step 177.4: `infinity` until unmuted; `mute_conversation`; a muted conversation is left out of the launcher's count and, Step 180, the newsletter's Unread Messages). Read by the conversation's members; no direct writes. `newsletter_unread_messages` (service role, Step 180) counts what each reader hasn't read, by who sent it |
 | `messages`               | What was said (Step 174), **end to end** since 174.6: `sender_id`, `ciphertext` (XChaCha20-Poly1305; 1–4,000 characters before, checked on the device), `nonce`, `signature` (Ed25519, the sender's key at `sender_key_version`), `format`, `created_at`; no text column. Written only by `send_message`, which refuses once the two share no tree, past 30 a minute, and unless every member got a sealed key at their current version; read only through `thread_messages` and `my_conversations` (base64, with the reader's own sealed key). Each `message_keys` row goes to its member's private Realtime inbox, `inbox:<user id>` (`private.message_key_to_inbox`, `realtime.send`); a policy on `realtime.messages` lets each member hear only their own. Listed by `my_conversations` (the other side's name, their face where the reader may see their entry, their key version, the last message encrypted, unread, `can_send`) and `message_contacts` (everyone the reader can write to, the trees they share, their key version) |
 | `message_keys`           | A message's key sealed to one member (Step 174.6): `(message_id, user_id)`, `key_version`, `sealed_key` (104 bytes: an ephemeral X25519 key, a nonce, the key and its tag). Written by `send_message`; read only by its member, through `thread_messages` / `my_conversations` |
 | `messaging_keys`         | Members' published messaging keys (Step 174.6): `(user_id, version)`, `box_public` (X25519), `sign_public` (Ed25519). One key a member on all their devices; a new version only by `publish_messaging_key(…, p_reset)` (start over: at most five a day; drops the backup). Read through `messaging_keys_of` by whoever is on a tree or in a conversation with them, and `conversation_keys` |
@@ -1942,6 +1944,49 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 180: the weekly newsletter names who you have unread messages
+  from; a squared messages button** (migration
+  `20261017120000_newsletter_unread_messages`). **Aalim asked**
+  (2026-10-16): "for notifications, add a section to the weekly
+  newsletter to show who the person has unread messages from", then,
+  mid-step, "make the messages icon more consistent with the brand
+  identity. it should be a little more squared off". Phase 0's "no email
+  when a message waits" (177.2) still holds for single messages; this is
+  a section of the weekly newsletter only. **Database:**
+  `newsletter_unread_messages(p_users)` (service role only, as
+  `newsletter_due`): for each reader, everyone who has written since they
+  last read that conversation, how many, and when the newest came; muted
+  conversations and blocked members (either way round) left out, deleted
+  messages gone. It reads who and when, never a word: messages are end to
+  end (174.6). **Newsletter:** **Unread Messages** comes first, a line
+  each, newest first: "2 from Bilal Khan (your brother).", named as the
+  reader's trees name their entry (else the name they set, else
+  "Someone"), past six "And 2 more people."; the preheader starts "3
+  unread messages". A message that came that week makes a quiet week
+  send; ones left from before are named only in an issue that goes
+  anyway, so nobody gets a weekly nag for a message they've chosen to
+  leave (my call). The getting started win-back shares `buildFamilyIssues`
+  but tells no messages. **Links:** each name opens your conversation
+  with them, `/family?messages=<their user id>` (`messagesHref`), a bare
+  `?messages=` the list (`messagesLinkTarget`, `withoutMessagesLink` in
+  `lib/messenger.ts`): the launcher wakes at once rather than when the
+  page is idle, waits for this device's keys, opens it
+  (`messenger.openFromLink`), and takes the query off the address so a
+  reload doesn't open it again; signed out, sign-in keeps the query.
+  **Mute** now says "No badge, and left out of the newsletter."; /privacy's
+  Messages says the newsletter names who wrote and how many, never what.
+  **Button:** the launcher is a rounded square at the brand's 10px
+  (`rounded-lg`, was a circle) with lucide's `MessageSquare`, as is the
+  person sheet's **message**. **Verified** live with two throwaway
+  siblings: Bilal wrote twice from the web; Amira's launcher read
+  "Messages, 2 unread" (10px corners, the square icon); her newsletter,
+  built from live data, opened with "Unread Messages · 2 from Bilal Zz180
+  (your brother)." linking to his conversation; that link opened the
+  pop-up on the thread, both messages read, the address back to
+  `/family`, nothing reopened on reload, and `?messages=` opened the list;
+  once read, the function returned nothing for her. Rehearsed first in a
+  rolled-back transaction (read, own, muted and blocked messages left out;
+  signed-in members can't call it). Throwaways deleted.
 - **Step 177: messaging Phase 0 — who they are to you, block, report,
   mute, delete, export** (migrations `20261017100000_messages_mute_and_delete`,
   `20261017110000_messages_block_and_report`). Phase 0 of the Notion

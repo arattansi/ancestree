@@ -163,8 +163,9 @@ export default function PrivacyPage() {
         </ul>
       </Section>
 
-      {/* Step 174.6, Step 177. Says what the design does; "end-to-end
-          encrypted" waits for an outside review (the messaging scope, §3.5). */}
+      {/* Step 174.6, Step 177, Step 180. Says what the design does;
+          "end-to-end encrypted" waits for an outside review (the messaging
+          scope, §3.5). */}
       <Section title="Messages">
         <ul className="list-disc space-y-1 pl-5">
           <li>
@@ -183,6 +184,10 @@ export default function PrivacyPage() {
             what&rsquo;s unread.
           </li>
           <li>
+            The weekly newsletter names who has written to you that you
+            haven&rsquo;t read, and how many messages, never what they say.
+          </li>
+          <li>
             Your key stays on your devices. Another device of yours gets it
             when you link it from one you&rsquo;ve used, or with a 12-word
             recovery phrase if you set one; that backup is kept encrypted and
@@ -191,7 +196,7 @@ export default function PrivacyPage() {
           </li>
           <li>
             Deleting a message deletes it for everyone. Muting a conversation
-            only takes it off your messages count.
+            takes it off your messages count and out of the newsletter.
           </li>
           <li>
             Blocking someone stops either of you writing to the other until

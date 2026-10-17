@@ -12,6 +12,7 @@ import {
   weeklyIssue,
   type Issue,
   type IssuePlacement,
+  type IssueUnreadRow,
   type NewsletterSchedule,
 } from "@/lib/newsletter";
 import { ensureNewsletterToken } from "@/lib/newsletter-settings.server";
@@ -28,6 +29,7 @@ import {
 } from "@/lib/tree";
 import {
   inviteRelativeHref,
+  messagesHref,
   myFamilyFocusHref,
   myFamilyHref,
   newsletterOneClickHref,
@@ -217,7 +219,24 @@ export async function buildWeeklyNewsletters(
   quiet: number;
   failed: Set<string>;
 }> {
-  const { issues, failed } = await buildFamilyIssues(due, now, { allStories });
+  // Who has written to each that they haven't read (Step 180): only the
+  // newsletter tells it, not the getting started win-back.
+  const { data: unread, error } = await createAdminClient().rpc(
+    "newsletter_unread_messages",
+    { p_users: due.map((r) => r.user_id) },
+  );
+  if (error) throw new Error(`newsletter_unread_messages: ${error.message}`);
+  const unreadBy = new Map<string, UnreadSender[]>();
+  for (const u of unread ?? []) {
+    const list = unreadBy.get(u.user_id) ?? [];
+    list.push(u);
+    unreadBy.set(u.user_id, list);
+  }
+  const { issues, failed } = await buildFamilyIssues(
+    due.map((r) => ({ ...r, unread: unreadBy.get(r.user_id) ?? [] })),
+    now,
+    { allStories },
+  );
   const site = getSiteUrl();
   const emails = new Map<string, SendEmailInput>();
   let quiet = 0;
@@ -239,6 +258,7 @@ export async function buildWeeklyNewsletters(
           unsubscribeUrl: page,
           inviteUrl: `${site}${made.invite}`,
           storyUrl: (id) => `${site}${storyHref(id)}`,
+          messagesUrl: (userId) => `${site}${messagesHref(userId)}`,
           note,
         }),
         headers: {
@@ -254,11 +274,18 @@ export async function buildWeeklyNewsletters(
   return { emails, quiet, failed };
 }
 
+/** Someone who has written to a reader that they haven't read (Step 180),
+ *  as `newsletter_unread_messages` counts it. */
+export type UnreadSender = Omit<IssueUnreadRow, "person_id" | "display_name">;
+
 /** A member to tell what changed in their family since `since`. */
 export type IssueReader = Pick<
   NewsletterRecipient,
   "user_id" | "self_person_id" | "since" | "tree_ids"
->;
+> & {
+  /** Who has written that they haven't read (Step 180): the newsletter's. */
+  unread?: readonly UnreadSender[];
+};
 
 /** One reader's issue, and where they invite family from. */
 export type FamilyIssue = {
@@ -352,17 +379,21 @@ export async function buildFamilyIssues(
 
   // Whoever placed a card, by the name the family knows them by: their own
   // entry's, else the one they set (often still their address's first
-  // half, as it starts).
-  const placers = [
-    ...new Set(placements.rows.flatMap((p) => (p.placed_by ? [p.placed_by] : []))),
-  ];
-  const { data: placerRows, error: placerError } = placers.length
+  // half, as it starts). And whoever wrote to a reader (Step 180).
+  const placers = new Set(
+    placements.rows.flatMap((p) => (p.placed_by ? [p.placed_by] : [])),
+  );
+  const senders = new Set(
+    readers.flatMap((r) => (r.unread ?? []).map((u) => u.sender_id)),
+  );
+  const members = [...new Set([...placers, ...senders])];
+  const { data: memberRows, error: memberError } = members.length
     ? await supabase
         .from("profiles")
         .select("auth_user_id, display_name, self_person_id")
-        .in("auth_user_id", placers)
+        .in("auth_user_id", members)
     : { data: [], error: null };
-  if (placerError) throw new Error(`profiles: ${placerError.message}`);
+  if (memberError) throw new Error(`profiles: ${memberError.message}`);
 
   const showingsByTree = new Map<string, Showing<TreeCard>[]>();
   const placedAt = new Map(
@@ -395,7 +426,9 @@ export async function buildFamilyIssues(
   }
   const memberNames = new Map<string, string>();
   const memberEntries = new Map<string, string>();
-  for (const m of placerRows ?? []) {
+  const profileOf = new Map((memberRows ?? []).map((m) => [m.auth_user_id, m]));
+  for (const m of memberRows ?? []) {
+    if (!placers.has(m.auth_user_id)) continue;
     const name =
       (m.self_person_id ? nameOfPerson.get(m.self_person_id) : undefined) ||
       m.display_name?.trim();
@@ -439,6 +472,13 @@ export async function buildFamilyIssues(
             photos: tags.rows.filter((t) => withinWeek(t, r.since)),
             memberNames,
             memberEntries,
+            // Named on their trees by their entry where they show it, else by
+            // the name they set (`weeklyIssue`).
+            unread: (r.unread ?? []).map((u) => ({
+              ...u,
+              person_id: profileOf.get(u.sender_id)?.self_person_id ?? null,
+              display_name: profileOf.get(u.sender_id)?.display_name ?? null,
+            })),
             since: r.since,
             today,
           })

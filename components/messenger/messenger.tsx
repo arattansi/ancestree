@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageCircle, X } from "lucide-react";
+import { MessageSquare, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import * as React from "react";
 
@@ -10,7 +10,13 @@ import {
   useMessenger,
 } from "@/components/messenger/messenger-store";
 import { Button } from "@/components/ui/button";
-import { badgeCount, messengerShownOn, totalUnread } from "@/lib/messenger";
+import {
+  badgeCount,
+  messagesLinkTarget,
+  messengerShownOn,
+  totalUnread,
+  withoutMessagesLink,
+} from "@/lib/messenger";
 
 /** On the root element while the launcher shows, so toasts and the
  *  back-to-top button keep above it (globals.css). */
@@ -55,6 +61,18 @@ export function Messenger({ userId }: { userId: string }) {
     return () => document.documentElement.removeAttribute(MESSENGER_ATTR);
   }, [shown]);
 
+  // A link that asks for it (the newsletter's Unread Messages, Step 180)
+  // opens the pop-up, on that conversation when it names someone; the
+  // query then goes, so a reload doesn't open it again.
+  React.useEffect(() => {
+    if (!shown) return;
+    const target = messagesLinkTarget(window.location.search);
+    if (!target) return;
+    const { pathname: path, search, hash } = window.location;
+    window.history.replaceState(null, "", `${path}${withoutMessagesLink(search)}${hash}`);
+    void messenger.openFromLink(userId, target.with);
+  }, [shown, userId]);
+
   // Leaving for a page it doesn't sit on puts it away.
   React.useEffect(() => {
     if (!shown) messenger.close();
@@ -80,12 +98,12 @@ export function Messenger({ userId }: { userId: string }) {
         aria-label={open ? "Close messages" : label}
         title={open ? "Close messages" : label}
         aria-expanded={open}
-        className="messenger-launcher fixed bottom-4 z-40 size-11 rounded-full shadow-lg sm:size-12"
+        className="messenger-launcher fixed bottom-4 z-40 size-11 rounded-lg shadow-lg sm:size-12"
       >
         {open ? (
           <X className="size-5" aria-hidden />
         ) : (
-          <MessageCircle className="size-5" aria-hidden />
+          <MessageSquare className="size-5" aria-hidden />
         )}
         {unread > 0 && !open ? (
           <span

@@ -7,7 +7,7 @@ import {
   Lightbulb,
   Loader2Icon,
   Mail,
-  MessageCircle,
+  MessageSquare,
   Minimize2,
   Pencil,
   UserPlus,
@@ -761,7 +761,7 @@ function PersonPanelImpl({
                               })
                         }
                       >
-                        <MessageCircle aria-hidden />
+                        <MessageSquare aria-hidden />
                         message
                       </TagButton>
                     ) : null}

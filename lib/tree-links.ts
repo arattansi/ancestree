@@ -6,6 +6,7 @@
  */
 
 import { RELATIONSHIP_KINDS, type RelationshipKind } from "@/lib/connections";
+import { MESSAGES_PARAM } from "@/lib/messenger";
 
 const enc = encodeURIComponent;
 
@@ -110,6 +111,15 @@ export function treeFocusHref(personId: string | null | undefined): string {
 /** My Family Tree opened on one person's details (Step 92.3). */
 export function myFamilyFocusHref(personId: string): string {
   return `${myFamilyHref()}?person=${enc(personId)}`;
+}
+
+/**
+ * My Family Tree with the messenger open (Step 180): on your conversation
+ * with the member `withUserId`, or on the list. The newsletter's Unread
+ * Messages link here.
+ */
+export function messagesHref(withUserId?: string): string {
+  return `${myFamilyHref()}?${MESSAGES_PARAM}=${withUserId ? enc(withUserId) : ""}`;
 }
 
 /**
