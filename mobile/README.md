@@ -104,6 +104,37 @@ then run `npx eas-cli device:create`, choose **Input** and paste it.
 That's also how another phone gets added, followed by a new development
 build, because each build lists the phones it may run on.
 
+## TestFlight (Step 175)
+
+The production profile makes the build TestFlight hands out. It needs no
+Mac and no registered phone: anyone in the TestFlight group installs it
+from Apple's TestFlight app. Internal testers, who are users on the App
+Store Connect team, get each build once Apple has processed it, with no
+Beta App Review.
+
+```bash
+npx eas-cli build --profile production --platform ios --auto-submit
+```
+
+EAS counts the build number up itself and signs with the App Store
+profile kept on EAS. `--auto-submit` sends the finished build to the App
+Store Connect app (`ascAppId` in `eas.json`) with the App Store Connect
+API key kept on EAS, so it needs no Apple sign-in or code. Apple
+processes it in 5 to 30 minutes, then it shows in App Store Connect →
+**ancestree** → **TestFlight**, where the internal group gets it.
+
+The first submit (`npx eas-cli submit --profile production --platform
+ios`) made the App Store Connect app and, asked to, generated that API
+key. Apple's upload check wants a purpose string for every sensitive
+API the app's libraries touch, even unused: `expo-file-system` can read
+the photo library, so `app.json` carries `NSPhotoLibraryUsageDescription`
+though the app never asks for photos.
+
+To add a tester, give them an App Store Connect user first (Users and
+Access): only the Admin, App Manager, Developer and Marketing roles can
+be internal testers. Then add them to the internal group under
+TestFlight.
+
 ## Run it on your iPhone (no developer account needed)
 
 Expo Go runs the app straight from your Mac.

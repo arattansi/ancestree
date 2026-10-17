@@ -679,7 +679,8 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   SDK launch (Step 149). `mobile/eas.json` — Expo's build service (EAS,
   project `@aalimr/ancestree`) builds and signs it with the Apple
   developer account: development (dev client), preview, production
-  (Step 173).
+  (Step 173); production goes to TestFlight with `--auto-submit`
+  (Step 175).
   `docs/mobile-server-paths.md` — every server action and service-role
   path, and what the app does instead
 
@@ -1884,6 +1885,29 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 175: the iPhone app on TestFlight** (no migration). **Asked**
+  (2026-10-16): put the app on TestFlight's internal testing for the beta
+  reviewers, no Beta App Review; Aalim then left Raiya out ("she's not
+  involved in the project right now"), so the internal group is Aalim
+  alone. **First** the production bundle was proven the way EAS sees the
+  repo: a `git archive` copy, `npm ci` in `mobile/` only, `npx expo
+  export --platform ios` (1,373 modules, nothing in `lib/` needs the
+  web's `node_modules`) and a prebuild (the scene plugin, export
+  compliance). **Then** Aalim built the production profile (App Store
+  profile made in his Apple sign-in) and ran `eas submit`, which made
+  the App Store Connect app (Apple ID 6823840744, now `ascAppId` in
+  `mobile/eas.json`) and generated an App Store Connect API key kept on
+  EAS, so later submits need no Apple sign-in. Apple refused build 2
+  (ITMS-90683): `expo-file-system`'s legacy module can read the photo
+  library, so `mobile/app.json` now carries
+  `NSPhotoLibraryUsageDescription`, though the app never asks for
+  photos. Build 0.1.0 (3) went up with `--auto-submit` and no prompts;
+  Aalim made the internal group and installed it from the TestFlight
+  app, where it opens on its own against the live site. `mobile/README.md`
+  has the TestFlight recipe. **Still before store review or external
+  testers:** in-app account deletion, a reviewer sign-in that skips the
+  emailed code, privacy labels, and real wording for the Face ID string
+  `expo-secure-store` adds.
 - **Step 173: the iPhone app's own build, signed by the developer
   account** (no migration). **Aalim asked** (2026-10-16), once the Apple
   developer account came through: "Go with the EAS free plan: set up the
