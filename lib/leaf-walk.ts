@@ -13,12 +13,16 @@
  * carries the leaf walked from to where the new view draws them. When
  * neither was drawn (a search, or home), there's no way to go: null.
  *
- * Whoever is drawn in both views travels between the two places
- * (`walkMorphs`): the parent's pill grows into their leaf, the ghosts
- * sharpen into pills, the leaf walked from shrinks to a pill. A spouse is
- * always on the left and a sibling on the right, from either side, so the
- * way back isn't the mirror of the way there; the leaf view keeps the move
- * it made and reverses it. Pure, so it is tested without a phone.
+ * Whoever is drawn in both views travels between the two places, growing
+ * or shrinking from the one size to the other (`walkMorphs`), as cards
+ * glide on the web (Step 189): both views' copies of them take the same
+ * path, so the parent's pill grows into their leaf, the leaf walked from
+ * shrinks into its pill, the ghosts sharpen into pills and pills shrink into
+ * ghosts, and the leaf view only has to choose when one copy hands over to
+ * the other. A spouse is always on the left and a sibling on the right, from
+ * either side, so the way back isn't the mirror of the way there; the leaf
+ * view keeps the move it made and reverses it. Pure, so it is tested
+ * without a phone.
  */
 
 import type { GhostLayout } from "@/lib/leaf-ghosts";
@@ -26,11 +30,25 @@ import type { OrbitLayout } from "@/lib/leaf-orbit";
 
 type XY = { x: number; y: number };
 
+/** How someone is drawn in a leaf view. */
+export type Drawn = "leaf" | "pill" | "ghost";
+
 /**
- * Where someone drawn in the new view starts, against where they end: how
- * far off (with the scene moved `by`) and at what scale.
+ * Someone's copy in one of the two views, against the place it rests in
+ * that view: how far off (with the scene moved by the walk) and at what
+ * scale it is at the other end of the walk, and how it is drawn in each.
  */
-export type WalkMorph = { dx: number; dy: number; scale: number };
+export type WalkMorph = { dx: number; dy: number; scale: number; from: Drawn; to: Drawn };
+
+/**
+ * The copies of whoever is drawn in both views: the new view's (`arrive`),
+ * which start where and as large as the old view drew them, and the old
+ * view's (`leave`), which end where and as large as the new view draws them.
+ */
+export type WalkMorphs = {
+  arrive: Record<string, WalkMorph>;
+  leave: Record<string, WalkMorph>;
+};
 
 /** A leaf view as drawn: who's in the middle, their pills and ghosts. */
 export type WalkScene = {
@@ -48,30 +66,29 @@ export function walkOffset(from: WalkScene, to: WalkScene): XY | null {
 }
 
 /**
- * Everyone the new view draws (its leaf and pills) who was drawn in the
- * old one too, by id: they start where they were, once the scene has
- * moved `by`, at the size they were, and ease into place. The leaf walked
- * from keeps its size as it goes to its pill (a pill as large as a leaf
- * would only look odd); the others take their old pill's or ghost's.
+ * Everyone drawn in both views, by id, with the move `by` the scene makes:
+ * each view's copy takes the same path from the old place and size to the
+ * new, so the two can hand over anywhere along it.
  */
-export function walkMorphs(
-  from: WalkScene,
-  to: WalkScene,
-  by: XY,
-): Record<string, WalkMorph> {
-  const morphs: Record<string, WalkMorph> = {};
-  const ids = [to.focusId, ...to.layout.pills.flatMap((p) => (p.id ? [p.id] : []))];
-  for (const id of ids) {
+export function walkMorphs(from: WalkScene, to: WalkScene, by: XY): WalkMorphs {
+  const arrive: Record<string, WalkMorph> = {};
+  const leave: Record<string, WalkMorph> = {};
+  for (const id of new Set([...ownCopies(from), ...ownCopies(to)])) {
     const was = drawnAs(from, id);
     const is = drawnAs(to, id);
     if (!was || !is) continue;
-    morphs[id] = {
-      dx: was.x + by.x - is.x,
-      dy: was.y + by.y - is.y,
-      scale: was.leaf ? 1 : was.width / is.width,
-    };
+    const [dx, dy] = [was.x + by.x - is.x, was.y + by.y - is.y];
+    const kinds = { from: was.kind, to: is.kind };
+    // Ghosts are drawn together, not one by one; only leaves and pills move.
+    if (is.kind !== "ghost") arrive[id] = { dx, dy, scale: was.width / is.width, ...kinds };
+    if (was.kind !== "ghost") leave[id] = { dx: -dx, dy: -dy, scale: is.width / was.width, ...kinds };
   }
-  return morphs;
+  return { arrive, leave };
+}
+
+/** Who a view draws one by one: its leaf and its people's pills. */
+function ownCopies(scene: WalkScene): string[] {
+  return [scene.focusId, ...scene.layout.pills.flatMap((p) => (p.id ? [p.id] : []))];
 }
 
 /** Where someone is drawn in a scene: their leaf's middle, pill or ghost. */
@@ -83,14 +100,14 @@ export function placeOf(scene: WalkScene, id: string): XY | null {
 function drawnAs(
   scene: WalkScene,
   id: string,
-): { x: number; y: number; width: number; leaf: boolean } | null {
+): { x: number; y: number; width: number; kind: Drawn } | null {
   const { layout, ghosts } = scene;
-  if (id === scene.focusId) return { ...leafMiddle(layout), width: layout.leaf.width, leaf: true };
+  if (id === scene.focusId) return { ...leafMiddle(layout), width: layout.leaf.width, kind: "leaf" };
   const pill = layout.pills.find((p) => p.id === id);
-  if (pill) return { x: pill.x, y: pill.y, width: layout.pill.width, leaf: false };
+  if (pill) return { x: pill.x, y: pill.y, width: layout.pill.width, kind: "pill" };
   const ghost = ghosts?.ghosts.find((g) => g.id === id);
   if (ghost)
-    return { x: ghost.x, y: ghost.y, width: ghosts!.sizes[ghost.depth - 1].width, leaf: false };
+    return { x: ghost.x, y: ghost.y, width: ghosts!.sizes[ghost.depth - 1].width, kind: "ghost" };
   return null;
 }
 

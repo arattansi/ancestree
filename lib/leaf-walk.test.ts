@@ -73,26 +73,63 @@ describe("walkOffset", () => {
   it("starts everyone drawn in both views where they were", () => {
     const [from, to] = [scene("me"), scene("mum")];
     const by = walkOffset(from, to)!;
-    const morphs = walkMorphs(from, to, by);
+    const { arrive } = walkMorphs(from, to, by);
     // Nana was a ghost over mum's pill and is now one of mum's parent pills:
     // she starts at the ghost's place and size.
     expect(from.ghosts!.ghosts.some((g) => g.id === "nana")).toBe(true);
-    const nana = morphs.nana;
+    const nana = arrive.nana;
     const start = moved(from, "nana", by);
     const end = placeOf(to, "nana")!;
     expect(end.x + nana.dx).toBeCloseTo(start.x);
     expect(end.y + nana.dy).toBeCloseTo(start.y);
     expect(nana.scale).toBeCloseTo(from.ghosts!.sizes[0].width / to.layout.pill.width);
+    expect([nana.from, nana.to]).toEqual(["ghost", "pill"]);
     // Mum's leaf starts on her pill, as small as it was.
-    expect(morphs.mum.dx).toBeCloseTo(0);
-    expect(morphs.mum.dy).toBeCloseTo(0);
-    expect(morphs.mum.scale).toBeCloseTo(from.layout.pill.width / to.layout.leaf.width);
-    // My leaf becomes one of mum's children's pills at its own size.
-    expect(morphs.me.scale).toBe(1);
+    expect(arrive.mum.dx).toBeCloseTo(0);
+    expect(arrive.mum.dy).toBeCloseTo(0);
+    expect(arrive.mum.scale).toBeCloseTo(from.layout.pill.width / to.layout.leaf.width);
+    // My pill in mum's view starts on my leaf, as large as it was.
+    expect(arrive.me.scale).toBeCloseTo(from.layout.leaf.width / to.layout.pill.width);
+    expect([arrive.me.from, arrive.me.to]).toEqual(["leaf", "pill"]);
     // Dad goes from a parent's pill to mum's spouse's; great-grandparents
     // nobody drew come in without one.
-    expect(morphs.dad).toBeDefined();
-    expect(Object.keys(morphs).every((id) => placeOf(from, id))).toBe(true);
+    expect(arrive.dad).toBeDefined();
+    expect(Object.keys(arrive).every((id) => placeOf(from, id))).toBe(true);
+  });
+
+  it("ends the old view's copies where and as large as the new view draws them", () => {
+    const [from, to] = [scene("me"), scene("mum")];
+    const by = walkOffset(from, to)!;
+    const { arrive, leave } = walkMorphs(from, to, by);
+    // My leaf shrinks into my pill in mum's view, on the same path as the
+    // pill that grows out of it.
+    const end = placeOf(to, "me")!;
+    const landed = moved(from, "me", by);
+    expect(landed.x + leave.me.dx).toBeCloseTo(end.x);
+    expect(landed.y + leave.me.dy).toBeCloseTo(end.y);
+    expect(leave.me.scale).toBeCloseTo(to.layout.pill.width / from.layout.leaf.width);
+    expect(leave.me.scale * arrive.me.scale).toBeCloseTo(1);
+    // Mum's pill grows into her leaf.
+    expect(leave.mum.scale).toBeCloseTo(to.layout.leaf.width / from.layout.pill.width);
+    expect([leave.mum.from, leave.mum.to]).toEqual(["pill", "leaf"]);
+    // Ghosts are drawn together: none leaves on its own.
+    expect(leave.nana).toBeUndefined();
+  });
+
+  it("shrinks a parent's pill into a ghost on the way down to a child", () => {
+    const [me, k1] = [scene("me"), scene("k1")];
+    const by = walkOffset(me, k1)!;
+    const { arrive, leave } = walkMorphs(me, k1, by);
+    const mum = k1.ghosts!.ghosts.find((g) => g.id === "mum")!;
+    expect([leave.mum.from, leave.mum.to]).toEqual(["pill", "ghost"]);
+    const ghostWidth = k1.ghosts!.sizes[mum.depth - 1].width;
+    expect(leave.mum.scale).toBeCloseTo(ghostWidth / me.layout.pill.width);
+    const ghost = placeOf(k1, "mum")!;
+    const landed = moved(me, "mum", by);
+    expect(landed.x + leave.mum.dx).toBeCloseTo(ghost.x);
+    expect(landed.y + leave.mum.dy).toBeCloseTo(ghost.y);
+    // The new view draws her among its ghosts, not on her own.
+    expect(arrive.mum).toBeUndefined();
   });
 
   it("slides up to a child, right to a spouse and left to a sibling", () => {

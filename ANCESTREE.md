@@ -1953,6 +1953,29 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 189: on the iPhone leaf view the leaf shrinks into a pill and the
+  pill grows into the leaf** (phone only, no migration). **Asked for**
+  (2026-10-17, after Step 186): walks that move like the web's tree, with
+  the leaf minimizing pleasantly into a pill and the pill expanding into a
+  leaf. **Now** a walk glides as the web's cards and camera do (560 ms,
+  the camera's ease-out quint), and whoever both views draw is drawn by
+  each along one shared path, from the old place and size to the new: the
+  tapped pill and its leaf grow to the middle together, the leaf walked from
+  and its pill shrink into the pill's place, pills shrink away into the new
+  view's ghosts and ghosts sharpen into pills. Where the two copies differ
+  they hand over by size (`handover`): a leaf looks right at any size and
+  a pill doesn't, so the growing pill gives way to its leaf within the
+  first ~60 ms, before its ends stand out, and the shrinking leaf gives way
+  to its pill only once nearly a pill's size, the names overlapping ~40 ms.
+  Anyone only one view draws fades over ~300 ms, as on the web; the old
+  lines go within ~60 ms, being tied to where people were, and the new
+  ones come as people land. Reduce Motion is as it was (a 200 ms cross-fade
+  in place). `lib/leaf-walk.ts` (`walkMorphs` now gives both views' copies,
+  `arrive` and `leave`, with how each is drawn; tested),
+  `mobile/src/leaf/spotlight.tsx` (`Morph` composes the two, `handover`);
+  checked on the iOS 27 simulator (iPhone 17), Reduce Motion on and off,
+  ~35 frames a walk; frames sent to Aalim before the handovers were
+  tightened. Rides in TestFlight build 8.
 - **Step 188: the marketing site's Notion copy and meta info**
   (web only, no migration). **Asked for** (2026-10-18): review the copy and
   meta info Aalim updated on the Marketing Site database in Notion and

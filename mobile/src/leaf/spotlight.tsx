@@ -2,7 +2,6 @@ import * as Haptics from "expo-haptics";
 import * as React from "react";
 import { AccessibilityInfo, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import Animated, {
-  Easing,
   Extrapolation,
   interpolate,
   useAnimatedStyle,
@@ -18,7 +17,13 @@ import { roundedPolyline } from "@/lib/edge-geometry";
 import { NO_ADDS } from "@/lib/leaf-adds";
 import { ghostLayout, shiftOrbit, type GhostFamily } from "@/lib/leaf-ghosts";
 import { orbitLayout, orbitLines, type OrbitSide } from "@/lib/leaf-orbit";
-import { walkMorphs, walkOffset, type WalkMorph, type WalkScene } from "@/lib/leaf-walk";
+import {
+  walkMorphs,
+  walkOffset,
+  type WalkMorph,
+  type WalkMorphs,
+  type WalkScene,
+} from "@/lib/leaf-walk";
 import { nativeLeaf } from "@/lib/native-leaf";
 import {
   maidenLine,
@@ -44,19 +49,23 @@ type Frame = { width: number; height: number };
  * search, home), the fade-and-grow from before.
  */
 type Move =
-  | { kind: "slide"; by: XY; morphs: Record<string, WalkMorph> }
+  | { kind: "slide"; by: XY; morphs: WalkMorphs }
   | { kind: "fade" }
   | { kind: "jump" };
 
 /** A leaf view on screen: the one walked to, or the one walked from. */
 type Stage = { key: number; focusId: string; enter: Move | null; leave: Move | null };
 
-const DURATION: Record<Move["kind"], number> = { slide: 300, fade: 200, jump: 260 };
+/** A slide takes as long as the web's cards and camera take to glide. */
+const DURATION: Record<Move["kind"], number> = { slide: 560, fade: 200, jump: 260 };
 /**
- * Easing in as well as out, as a camera moves: an ease-out covered half the
- * way in three frames and read as a jump, not a move.
+ * The web's camera's ease-out quint (`components/tree/family-tree.tsx`):
+ * quick away, a long settle (Step 189).
  */
-const EASE = Easing.bezierFn(0.4, 0, 0.2, 1);
+const EASE = (t: number) => {
+  "worklet";
+  return 1 - (1 - t) ** 5;
+};
 const CLAMP = Extrapolation.CLAMP;
 /** The most of a move one frame takes, two 60 Hz frames' worth (`useClock`). */
 const MAX_STEP = 1000 / 30;
@@ -76,10 +85,12 @@ const MAX_STEP = 1000 / 30;
  *
  * A walk moves through the tree (Step 186, `lib/leaf-walk.ts`): the scene
  * and its ground slide until the one walked to is in the middle, and
- * whoever is in both views travels from where they were to where they
- * land, so a parent's pill grows into their leaf and the blurred
- * grandparents above it sharpen into its parent pills. Back slides the way
- * it came. The leaf view walked to takes taps at once, mid-slide.
+ * whoever is in both views glides from where they were to where they land,
+ * as cards do on the web (Step 189): a parent's pill grows into their leaf,
+ * the leaf walked from shrinks into its pill, the blurred grandparents above
+ * sharpen into the parent's pills and pills shrink away into ghosts. Back
+ * slides the way it came. The leaf view walked to takes taps at once,
+ * mid-slide.
  */
 export function Spotlight({
   family,
@@ -285,6 +296,7 @@ function Scene({
   const inBy = enter?.kind === "slide" ? enter.by : { x: 0, y: 0 };
   const outBy = leave?.kind === "slide" ? leave.by : { x: 0, y: 0 };
   // The whole scene: in from where the walk started, out the way it goes.
+  // A slide fades its people one by one (`Morph`), not the scene.
   const whole = useAnimatedStyle(() => {
     const e = EASE(entering.value);
     const l = EASE(leaving.value);
@@ -295,7 +307,7 @@ function Scene({
           ? entering.value
           : 1;
     const fadeOut =
-      outKind === "none"
+      outKind === "none" || outKind === "slide"
         ? 1
         : 1 - interpolate(leaving.value, [0, outKind === "fade" ? 1 : 0.5], [0, 1], CLAMP);
     return {
@@ -307,14 +319,17 @@ function Scene({
       ],
     };
   }, [inKind, outKind, inBy.x, inBy.y, outBy.x, outBy.y]);
-  // Its lines and ghosts come once the people have nearly landed. Never
-  // quite unseen, so they're drawn as the scene comes in, not halfway
-  // through the slide, where drawing them held it up.
+  // Its lines and ghosts come once the people have nearly landed, and go
+  // as soon as they set off, the lines being tied to where they were. Never
+  // quite unseen coming in, so they're drawn as the scene comes in, not
+  // halfway through the slide, where drawing them held it up.
   const lately = useAnimatedStyle(
     () => ({
-      opacity: inKind === "slide" ? interpolate(entering.value, [0.45, 1], [0.01, 1], CLAMP) : 1,
+      opacity:
+        (inKind === "slide" ? interpolate(entering.value, [0.15, 0.5], [0.01, 1], CLAMP) : 1) *
+        (outKind === "slide" ? interpolate(leaving.value, [0, 0.1], [1, 0], CLAMP) : 1),
     }),
-    [inKind],
+    [inKind, outKind],
   );
 
   const formerSpouses = React.useMemo(() => {
@@ -337,7 +352,14 @@ function Scene({
     .join(" · ");
   const name = personDisplayName(person);
   const deceased = !!person.is_deceased || !!person.date_of_death;
-  const morphs = enter?.kind === "slide" ? enter.morphs : null;
+  // Who glides in from the view walked from, and who glides out to the one
+  // walked to.
+  const walk: Walk = {
+    entering,
+    leaving,
+    arrive: enter?.kind === "slide" ? enter.morphs.arrive : null,
+    leave: leave?.kind === "slide" ? leave.morphs.leave : null,
+  };
 
   return (
     <Animated.View
@@ -394,9 +416,8 @@ function Scene({
       </Animated.View>
 
       <Morph
-        entering={entering}
-        sliding={!!morphs}
-        morph={morphs?.[focusId]}
+        walk={walk}
+        id={focusId}
         at={{
           x: layout.leaf.x + layout.leaf.width / 2,
           y: layout.leaf.y + layout.leaf.height / 2,
@@ -429,13 +450,7 @@ function Scene({
           const word = p.side === "parents" ? "parent" : "child";
           const first = person.preferred_name || person.first_name || name;
           return (
-            <Morph
-              key={`${p.side}:add`}
-              entering={entering}
-              sliding={!!morphs}
-              morph={undefined}
-              at={p}
-            >
+            <Morph key={`${p.side}:add`} walk={walk} id={null} at={p}>
               <AddPill
                 pill={p}
                 size={layout.pill}
@@ -451,13 +466,7 @@ function Scene({
           ? `${relationWord(p.side, relative.sex, formerSpouses.has(relative.id))}, ${personDisplayName(relative)}`
           : `${p.more} more`;
         return (
-          <Morph
-            key={`${p.side}:${p.id ?? "more"}`}
-            entering={entering}
-            sliding={!!morphs}
-            morph={p.id ? morphs?.[p.id] : undefined}
-            at={p}
-          >
+          <Morph key={`${p.side}:${p.id ?? "more"}`} walk={walk} id={p.id} at={p}>
             <PersonPill
               pill={p}
               size={layout.pill}
@@ -474,40 +483,64 @@ function Scene({
 }
 
 /**
- * Someone in a leaf view coming in by a slide: from where they were in the
- * view walked from, at the size they were, to their place (`walkMorphs`).
- * Whoever wasn't drawn there fades in where they are.
+ * A leaf view's slides: how far along it is coming in and going out, and
+ * the people who glide in from the view walked from (`arrive`) and out to
+ * the one walked to (`leave`); null when it doesn't come in or go out by a
+ * slide.
+ */
+type Walk = {
+  entering: SharedValue<number>;
+  leaving: SharedValue<number>;
+  arrive: WalkMorphs["arrive"] | null;
+  leave: WalkMorphs["leave"] | null;
+};
+
+/**
+ * Someone in a leaf view as it slides (Step 189, `walkMorphs`). Whoever
+ * both views draw is drawn twice on the way, once by each, the two copies
+ * taking the same path from the old place and size to the new and handing
+ * over by a cross-fade (`handover`). Whoever only one view draws fades in
+ * or out where they are.
  */
 function Morph({
-  entering,
-  sliding,
-  morph,
+  walk,
+  id,
   at,
   children,
 }: {
-  entering: SharedValue<number>;
-  sliding: boolean;
-  morph: WalkMorph | undefined;
+  walk: Walk;
+  id: string | null;
   /** Their middle, which they grow from. */
   at: XY;
   children: React.ReactNode;
 }) {
-  const known = !!morph;
-  const { dx, dy, scale } = morph ?? { dx: 0, dy: 0, scale: 1 };
+  const { entering, leaving } = walk;
+  const inSlide = !!walk.arrive;
+  const outSlide = !!walk.leave;
+  const arrive = (id && walk.arrive?.[id]) || NO_MORPH;
+  const depart = (id && walk.leave?.[id]) || NO_MORPH;
+  const [in0, in1, faint] = handover(id ? walk.arrive?.[id] : undefined, true);
+  const [out0, out1] = handover(id ? walk.leave?.[id] : undefined, false);
   const style = useAnimatedStyle(() => {
-    if (!sliding) return { opacity: 1, transform: [{ translateX: 0 }, { translateY: 0 }, { scale: 1 }] };
-    const e = EASE(entering.value);
+    // Coming in, from where they were (scaled as they were) to their place;
+    // going out, from their place to where they go.
+    const e = inSlide ? EASE(entering.value) : 1;
+    const l = outSlide ? EASE(leaving.value) : 0;
+    const opacity =
+      (inSlide ? interpolate(entering.value, [in0, in1], [faint, 1], CLAMP) : 1) *
+      (outSlide ? interpolate(leaving.value, [out0, out1], [1, 0], CLAMP) : 1);
     return {
-      opacity: known
-        ? interpolate(entering.value, [0, 0.3], [0.4, 1], CLAMP)
-        : interpolate(entering.value, [0.25, 0.75], [0, 1], CLAMP),
+      opacity,
       transform: [
-        { translateX: (1 - e) * dx },
-        { translateY: (1 - e) * dy },
-        { scale: scale + (1 - scale) * e },
+        { translateX: (1 - e) * arrive.dx + l * depart.dx },
+        { translateY: (1 - e) * arrive.dy + l * depart.dy },
+        {
+          scale:
+            (arrive.scale + (1 - arrive.scale) * e) * (1 + (depart.scale - 1) * l),
+        },
       ],
     };
-  }, [sliding, known, dx, dy, scale]);
+  }, [inSlide, outSlide, arrive, depart, in0, in1, faint, out0, out1]);
   return (
     <Animated.View
       pointerEvents="box-none"
@@ -516,6 +549,36 @@ function Morph({
       {children}
     </Animated.View>
   );
+}
+
+const NO_MORPH: WalkMorph = { dx: 0, dy: 0, scale: 1, from: "pill", to: "pill" };
+
+/**
+ * When, in a slide's time (0 to 1, evenly), someone's copy fades in as it
+ * arrives or out as it leaves, and how faint an arriving one starts. A
+ * leaf looks right at any size and a pill doesn't, so a pill growing into a
+ * leaf hands over to the leaf at once, before the pill's ends stand out
+ * past it, and a leaf shrinking into a pill only once it's nearly a pill's
+ * size, quickly, so the two names barely overlap. The same pill in both
+ * views hands over at once. A pill sharpens out of its ghost, and shrinks away into one
+ * as the new view's ghosts come. Anyone only one view draws fades in about
+ * 300 ms, as cards do on the web. The arriving copy is drawn over the
+ * leaving one, which stays until it has come. Never quite unseen: a copy
+ * held unseen is drawn only when it shows, mid-slide (Step 186).
+ */
+function handover(m: WalkMorph | undefined, arriving: boolean): [number, number, number] {
+  if (arriving) {
+    if (!m) return [0.1, 0.65, 0.01];
+    if (m.from === "ghost") return [0, 0.3, 0.3];
+    if (m.to === "leaf") return [0, 0.1, 0.01];
+    if (m.from === "leaf") return [0.22, 0.34, 0.01];
+    return [0, 0.1, 0.01];
+  }
+  if (!m) return [0, 0.5, 0];
+  if (m.to === "ghost") return [0.1, 0.45, 0];
+  if (m.to === "leaf") return [0.04, 0.12, 0];
+  if (m.from === "leaf") return [0.27, 0.37, 0];
+  return [0.1, 0.15, 0];
 }
 
 /**
