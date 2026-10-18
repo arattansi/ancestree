@@ -341,7 +341,21 @@ export function relationOf(
 ): Relation | null {
   if (fromId === toId || !people.has(fromId) || !people.has(toId)) return null;
   const path = connectionPath(fromId, toId, relationships);
-  if (!path) return null;
+  return path ? relationAlong(path, people, relationships) : null;
+}
+
+/**
+ * What the first person on a chain already found is to the last, as
+ * `relationOf` says it: the leaf view's caption (Step 185) names the pieces
+ * of one chain without looking for it again.
+ */
+export function relationAlong(
+  path: ConnectionPath,
+  people: ReadonlyMap<string, { sex?: string | null }>,
+  relationships: ConnectionRelationship[],
+): Relation {
+  const fromId = path.people[0];
+  const toId = path.people[path.people.length - 1];
   const sex = people.get(fromId)?.sex;
   const named = (term: string): Relation => ({ term: capitalise(term) });
   const through: Relation = { through: path.people.length - 2 };

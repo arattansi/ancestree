@@ -1953,6 +1953,32 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 185: the iPhone leaf view says how the leaf is related to you**
+  (phone only, no migration). One of the ideas Step 184 offered when
+  Aalim found the space around the spotlighted leaf bare; until now the
+  only way to tell where you were was the back button. He chose where it
+  goes from a simulator screenshot (2026-10-17): "Keep the caption just
+  above the top row". **Now** on anyone's leaf but your own, a quiet line
+  over the highest row (ghosts included) says how they're connected to
+  you: "Your mother's father", "Your wife's sister", "Your
+  great-grandfather". VoiceOver reads it with the leaf's name. Two links
+  or fewer name each link, which keeps the side a grandparent is on. A
+  longer chain is named whole where one word does it ("Your first cousin",
+  "Your 3rd great-grandfather", counting greats from three on as
+  genealogists do). Otherwise it takes two words, joined where the fewest
+  in-laws come of it ("Your wife's first cousin", "Your sister-in-law's
+  husband"). Past that it names the nearest person on the chain who can
+  be put that way, "Karim's mother", or "Related through Karim" if even
+  that last piece has no word. Nothing shows when no chain joins you. The
+  family is laid out in the room left under the line. **My calls:** the
+  words differ from the person view's "Your grandfather" on purpose (the
+  side is what orients a walk); "… by marriage" and "co-parent" are never
+  used, since two words say it better ("your son's mother"). The line
+  sits on the screen's background colour so the dotted ground doesn't
+  run through it. `lib/connection-caption.ts` (`connectionCaption`,
+  tested); `relationAlong` split out of `relationOf` in
+  `lib/connection-path.ts` to name a chain already found; `GhostLayout.top`
+  in `lib/leaf-ghosts.ts`; checked on the iOS 27 simulator, light and dark.
 - **Step 187: a leaf with no parents or no children asks for the first**
   (phone only, no migration). **Asked from the Step 184 session**
   (2026-10-17), one of the ideas offered to Aalim there: a leaf at the top

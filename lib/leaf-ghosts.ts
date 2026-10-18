@@ -61,6 +61,12 @@ export type GhostLayout = {
    * (`shiftOrbit`). The ghosts are placed with it already.
    */
   shift: number;
+  /**
+   * The highest point drawn once moved, the leaf, its pills, the ghosts and
+   * the lines fading out over them: what the leaf view's caption sits over
+   * (Step 185).
+   */
+  top: number;
 };
 
 export type GhostFamily = {
@@ -215,12 +221,14 @@ export function ghostLayout(
   const centred = (frame.height - top - bottom) / 2;
   const shift = Math.abs(centred) < 0.01 ? 0 : centred;
   const move = (p: XY) => ({ x: p.x, y: p.y + shift });
+  const highest = Math.min(top, ...stubs.map((s) => s.to.y)) + shift;
   return {
     sizes,
     ghosts: ghosts.map((g) => ({ ...g, y: g.y + shift })),
     lines: lines.map((l) => ({ ...l, points: l.points.map(move) })),
     stubs: stubs.map((s) => ({ ...s, from: move(s.from), to: move(s.to) })),
     shift,
+    top: highest,
   };
 }
 

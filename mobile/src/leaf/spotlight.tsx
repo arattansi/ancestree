@@ -7,10 +7,12 @@ import {
   Platform,
   Pressable,
   StyleSheet,
+  Text,
   View,
 } from "react-native";
 import Svg, { Circle, Defs, Path, Pattern, Rect } from "react-native-svg";
 
+import { connectionCaption } from "@/lib/connection-caption";
 import { roundedPolyline } from "@/lib/edge-geometry";
 import { NO_ADDS } from "@/lib/leaf-adds";
 import { ghostLayout, shiftOrbit } from "@/lib/leaf-ghosts";
@@ -28,7 +30,7 @@ import { AddPill } from "@/leaf/add-pill";
 import { Ghosts, GhostTargets } from "@/leaf/ghosts";
 import { BOX_W, Leaf, leafAnchors } from "@/leaf/leaf";
 import { PersonPill } from "@/leaf/person-pill";
-import { usePalette } from "@/theme";
+import { font, usePalette } from "@/theme";
 
 /**
  * One person as a leaf, and a gray pill for everyone one line away: parents
@@ -40,6 +42,8 @@ import { usePalette } from "@/theme";
  * the generations beyond show out of focus (Step 184, `lib/leaf-ghosts.ts`).
  * Where a leaf has no parents or no children and the member may add them, a
  * dashed pill asks for the first (Step 187, `lib/leaf-adds.ts`).
+ * Over them all, on anyone's leaf but the member's own, a line says how the
+ * leaf is connected to them (Step 185, `lib/connection-caption.ts`).
  */
 export function Spotlight({
   family,
@@ -58,10 +62,21 @@ export function Spotlight({
   onAdd?: (relation: "parent" | "child") => void;
 }) {
   const palette = usePalette();
-  const [frame, setFrame] = React.useState<{ width: number; height: number } | null>(
+  const [screen, setScreen] = React.useState<{ width: number; height: number } | null>(
     null,
   );
   const person = family.people.get(focusId);
+  // How they're connected to the member (Step 185): the family is laid out
+  // in what's left under its line.
+  const caption = React.useMemo(
+    () => connectionCaption(family.selfId, focusId, family.people, family.lines),
+    [family, focusId],
+  );
+  const room = caption ? CAPTION_ROOM : 0;
+  const frame = React.useMemo(
+    () => (screen && room ? { width: screen.width, height: screen.height - room } : screen),
+    [screen, room],
+  );
   const relatives = React.useMemo(
     () => relativesOf(family, focusId),
     [family, focusId],
@@ -150,17 +165,18 @@ export function Spotlight({
       style={styles.stage}
       onLayout={(e) => {
         const { width, height } = e.nativeEvent.layout;
-        setFrame((f) =>
+        setScreen((f) =>
           f && f.width === width && f.height === height ? f : { width, height },
         );
       }}
     >
-      {frame ? <Grid width={frame.width} height={frame.height} /> : null}
+      {screen ? <Grid width={screen.width} height={screen.height} /> : null}
       {layout ? (
         <Animated.View
           style={[
             StyleSheet.absoluteFill,
             {
+              top: room,
               opacity: shown,
               transform: [
                 {
@@ -173,6 +189,28 @@ export function Spotlight({
             },
           ]}
         >
+          {caption && ghosts ? (
+            // The leaf's label reads it out; this is for the eye. It clears
+            // the dotted ground so the words read cleanly.
+            <View
+              pointerEvents="none"
+              importantForAccessibility="no-hide-descendants"
+              accessibilityElementsHidden
+              style={[styles.captionRow, { top: ghosts.top - CAPTION_ROOM }]}
+            >
+              <Text
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.8}
+                style={[
+                  styles.caption,
+                  { color: palette.mutedForeground, backgroundColor: palette.background },
+                ]}
+              >
+                {caption}
+              </Text>
+            </View>
+          ) : null}
           {ghosts ? (
             <>
               <Ghosts ghosts={ghosts} width={frame!.width} height={frame!.height} />
@@ -206,7 +244,7 @@ export function Spotlight({
 
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={[name, maiden, years].filter(Boolean).join(", ")}
+            accessibilityLabel={[name, caption, maiden, years].filter(Boolean).join(", ")}
             accessibilityHint="Opens their details"
             onPress={onOpenLeaf}
             style={{
@@ -262,6 +300,10 @@ export function Spotlight({
   );
 }
 
+/** The caption's line, and the gap under it to whatever is highest. */
+const CAPTION_LINE = 20;
+const CAPTION_ROOM = CAPTION_LINE + 14;
+
 /** The lines' width and their corners' radius: the web's lit lines are 3. */
 const LINE = 2.5;
 const CORNER = 8;
@@ -304,4 +346,13 @@ function anchorsOn(
 
 const styles = StyleSheet.create({
   stage: { flex: 1 },
+  captionRow: { position: "absolute", left: 24, right: 24, alignItems: "center" },
+  caption: {
+    fontFamily: font.regular,
+    fontSize: 15,
+    lineHeight: CAPTION_LINE,
+    paddingHorizontal: 6,
+    borderRadius: 6,
+    overflow: "hidden",
+  },
 });

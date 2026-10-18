@@ -258,6 +258,14 @@ describe("ghostLayout", () => {
     expect(top).toBeCloseTo(PHONE.height - bottom, 5);
   });
 
+  it("says where the highest thing drawn is, the lines fading out included", () => {
+    const { layout: l, ghosts: g } = lay(PHONE, GROUPS, FAMILY);
+    const { pills: p, ghosts: gs } = boxes(l, g);
+    const tops = [...p, ...gs].map((b) => b.top);
+    const stubs = g.stubs.map((s) => Math.min(s.from.y, s.to.y));
+    expect(g.top).toBeCloseTo(Math.min(...tops, ...stubs), 5);
+  });
+
   it("moves a leaf with family only above down, so the half below isn't empty", () => {
     const groups = { parents: ["dad", "mom"], children: [], spouses: [], siblings: ["sis"] };
     const { orbit, layout: l, ghosts: g } = lay(PHONE, groups, FAMILY, "me");
