@@ -1953,6 +1953,39 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 186: walking on the iPhone leaf view moves through the tree**
+  (phone only, no migration). **Asked for** (2026-10-17, one of Step 184's
+  follow-ups): instead of the new leaf fading and growing in, tapping a
+  parent slides the scene down so the parent takes the middle and the
+  blurred grandparents come into focus as their parent pills; a child
+  slides it up, a spouse right, a sibling left, and back reverses it, so
+  walking feels like moving through one tree rather than swapping screens.
+  **Now** the old and new views cross-fade while sliding together (300 ms,
+  easing in and out), the dotted ground slides with them, and whoever is in
+  both views travels from where they were to where they land at the size
+  they were: the tapped pill grows into the leaf, the grandparents' ghosts
+  sharpen into pills, the leaf walked from shrinks into its pill. The move
+  is the one that lands the person walked to on the middle of their leaf
+  (`lib/leaf-walk.ts`, `walkOffset` and `walkMorphs`, tested); someone
+  behind a "+n" pill is reached by the leaf walked from going to its pill
+  instead. Back undoes the move it came by (a spouse is on the left from
+  either side, so the way back isn't the way there mirrored). A walk with
+  no path between the two (search, home) keeps the old fade-and-grow;
+  Reduce Motion makes every walk a 200 ms cross-fade in place. The view
+  walked to takes taps at once, mid-slide. **Found on the way:** the
+  ghosts' `FeGaussianBlur` held up the first draw of every new view long
+  enough that the old fade was mostly over before it was seen; the blur is
+  now drawn (each ghost shape in 8 widening layers whose opacities follow a
+  Gaussian edge; side by side it matches), the spotlight's lines share the
+  ghosts' canvas (a second frame-sized canvas cost as much again), the
+  lines and ghosts never fade fully out (drawing them mid-slide stalled
+  it), and a frame clock that advances at most two frames' worth per frame
+  slows a slide rather than skipping its start. **My calls:** a cross-fade
+  with each person's own move rather than one shape morphing into another;
+  the ground moves too. `mobile/src/leaf/spotlight.tsx` (a `Scene` per
+  view, `Morph`, `useClock`, `Ground`), `mobile/src/leaf/ghosts.tsx`;
+  checked on the iOS 27 simulator (iPhone 17), light and dark, Reduce
+  Motion on and off, recorded at ~60 fps; not yet on a phone.
 - **Step 185: the iPhone leaf view says how the leaf is related to you**
   (phone only, no migration). One of the ideas Step 184 offered when
   Aalim found the space around the spotlighted leaf bare; until now the
