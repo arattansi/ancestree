@@ -541,6 +541,10 @@ function loadList(): Promise<void> {
       set({ data, loading: false, failed: false });
       // What waited for someone who has a key now goes (Step 182).
       deliverAll();
+      // A thread shown before the list came (a `?messages=` link), or read
+      // while it was on its way, is read now: the list says it isn't.
+      const shown = openThreadId();
+      if (shown) void markRead(shown);
     })
     .catch(() => set({ loading: false, failed: !state.data }))
     .finally(() => {

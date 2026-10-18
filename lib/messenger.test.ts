@@ -154,9 +154,15 @@ describe("withIncoming", () => {
     expect(next?.[0]).toMatchObject({ lastBody: "are you coming?", unread: 2 });
   });
 
-  it("counts nothing for one's own message or the open conversation", () => {
-    expect(withIncoming([convo()], msg({ senderId: ME }), ME, null)?.[0].unread).toBe(1);
+  it("counts nothing for the open conversation", () => {
     expect(withIncoming([convo()], msg(), ME, "c1")?.[0].unread).toBe(1);
+  });
+
+  it("reads all before one's own message, as the server does", () => {
+    expect(withIncoming([convo()], msg({ senderId: ME }), ME, null)?.[0]).toMatchObject({
+      unread: 0,
+      lastReadAt: "2026-10-16T11:00:00.000Z",
+    });
   });
 
   it("asks for the list again for a conversation it hasn't got", () => {

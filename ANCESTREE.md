@@ -1953,6 +1953,14 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 190: the unread badge clears once you've read and replied** (web
+  and phone, no migration). **Asked for** (2026-10-18): after reading and
+  answering a message, the unread badge still showed. The server was right
+  (`send_message` reads all before your reply); the client wasn't. **Now**
+  your own message zeroes its conversation's unread (`withIncoming`), and
+  a thread shown before the list came (a `?messages=` link, where
+  `markRead` found no summary and gave up) or read while the list was on
+  its way is marked read once the list lands, in both stores.
 - **Step 189: on the iPhone leaf view the leaf shrinks into a pill and the
   pill grows into the leaf** (phone only, no migration). **Asked for**
   (2026-10-17, after Step 186): walks that move like the web's tree, with

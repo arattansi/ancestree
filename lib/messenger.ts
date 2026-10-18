@@ -342,7 +342,8 @@ export function mergeMessages(
 /**
  * The list once a message has arrived: its conversation first, with the
  * message as its last; one more unread unless it's the reader's own or the
- * conversation is open in front of them. `null` when the list doesn't have
+ * conversation is open in front of them. Their own reads all before it, as
+ * `send_message` does. `null` when the list doesn't have
  * the conversation yet (someone's first message): read the list again.
  */
 export function withIncoming(
@@ -363,7 +364,7 @@ export function withIncoming(
     lastStatus: message.status,
     lastSenderId: message.senderId,
     lastAt: at,
-    unread: seen ? had.unread : had.unread + 1,
+    unread: mine ? 0 : seen ? had.unread : had.unread + 1,
     lastReadAt: mine ? at : had.lastReadAt,
     // One of theirs that was on its way has come (Step 182).
     incomingWaiting: !mine && message.arrivedAt ? Math.max(0, had.incomingWaiting - 1) : had.incomingWaiting,
