@@ -5,8 +5,12 @@ import {
   MarketingCopy,
 } from "@/components/marketing/marketing-column";
 import { OurNodes } from "@/components/marketing/our-nodes";
+import { marketingMetadata } from "@/lib/marketing-meta";
 
-export const metadata: Metadata = { title: "who" };
+export const metadata: Metadata = marketingMetadata(
+  "ancestree • about-us",
+  "spoiler: our families matter to us.",
+);
 
 /**
  * /about-us, "who" in the menu (Step 107): its heading is the page's real

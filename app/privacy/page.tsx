@@ -3,14 +3,14 @@ import Link from "next/link";
 
 import { RELATIVES_CAN_ASK_LABEL, RELAY_LAPSE_DAYS } from "@/lib/invite-relays";
 import { MarketingColumn } from "@/components/marketing/marketing-column";
+import { marketingMetadata } from "@/lib/marketing-meta";
 
-export const metadata: Metadata = {
-  // The marketing site's name for it (Step 107); the heading, in brackets,
-  // says what it is.
-  title: "shh",
-  description:
-    "How ancestree collects, uses, and protects your family's personal information.",
-};
+// Its meta title and description from the Marketing Site page in Notion
+// (Step 188); "shh" is only its name in the menu.
+export const metadata: Metadata = marketingMetadata(
+  "ancestree • privacy",
+  "we don’t mess around with this.",
+);
 
 export default function PrivacyPage() {
   return (

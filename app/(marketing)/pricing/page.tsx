@@ -4,8 +4,12 @@ import {
   MarketingColumn,
   MarketingCopy,
 } from "@/components/marketing/marketing-column";
+import { marketingMetadata } from "@/lib/marketing-meta";
 
-export const metadata: Metadata = { title: "capitalism" };
+export const metadata: Metadata = marketingMetadata(
+  "ancestree • pricing",
+  "good jokes on this page.",
+);
 
 /**
  * /pricing, "capitalism" in the menu (Step 107): its heading is the page's

@@ -28,9 +28,10 @@ const geistMono = Geist_Mono({
   display: "swap",
 });
 
-// The promise under the home page's tagline (the brand page in Notion).
+// The promise under the home page's tagline (its Marketing Site page in
+// Notion since Step 188).
 const description =
-  "connect with your family, share stories, meet your ancestors.";
+  "a private, invite-only tree for your whole family, with audio stories, tagged photos and chat.";
 
 /** The ancestree GA4 property's web stream (Step 137). */
 const GA_MEASUREMENT_ID = "G-WRNLXD8WBF";

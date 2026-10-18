@@ -3,14 +3,14 @@ import { join } from "node:path";
 
 import { ImageResponse } from "next/og";
 
-export const alt = "ancestree — a space to grow your tree.";
+export const alt = "ancestree — the family tree you grow together.";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
 const NAME = "ancestree";
 // The tagline is small caps everywhere; ImageResponse has none, so here
 // it's capitals at their size.
-const TAGLINE = "A SPACE TO GROW YOUR TREE.";
+const TAGLINE = "THE FAMILY TREE YOU GROW TOGETHER.";
 /** `--brand-cream` in app/globals.css, which an image can't read. */
 const CREAM = "#fbf8f1";
 

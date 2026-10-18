@@ -1953,6 +1953,28 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 188: the marketing site's Notion copy and meta info**
+  (web only, no migration). **Asked for** (2026-10-18): review the copy and
+  meta info Aalim updated on the Marketing Site database in Notion and
+  update the site to match. **Now** every marketing page has the meta title
+  and description written on its Notion page, used as written (not the
+  app's "… · ancestree") and on the link preview too (`marketingMetadata`
+  in `lib/marketing-meta.ts`, which names the site's picture since setting
+  openGraph drops it): "ancestree • product-manifesto", "• features",
+  "• about-us", "• pricing", "• privacy", "• library". The home page (Notion
+  status In Review) has the new tagline "the family tree you grow
+  together.", "a private, invite-only tree for your whole family, with
+  audio stories, tagged photos and chat." under it (also the site's default
+  description), "whatever you grow stays yours: easy to take back your
+  data, always." under the buttons, and "an r+s production." in its
+  footer's corner, linking to /about-us. /features gains its intro line
+  under the heading, a new "4. privacy + security" section, and the
+  newsletter line loses "milestones" (newsletter and native lands are now 5
+  and 6). /library's proverb reads "when an elder dies, it is as if a
+  library burned to the ground." **My calls:** the "free to use" badge
+  stays (Notion never had it); the link preview image's tagline follows the
+  home page's; the emails' header keeps "a space to grow your tree.".
+  Manifesto, pricing and about-us copy already matched.
 - **Step 186: walking on the iPhone leaf view moves through the tree**
   (phone only, no migration). **Asked for** (2026-10-17, one of Step 184's
   follow-ups): instead of the new leaf fading and growing in, tapping a

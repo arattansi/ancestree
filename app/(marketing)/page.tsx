@@ -22,8 +22,10 @@ import { getTreeRequestStatus } from "@/lib/tree-requests.server";
  * filled button here until Step 160, and new addresses took it, landing
  * with no tree. Signed in but not a member yet (a new address), join a
  * tree is /join, which looks with the address they've verified.
- * "free to use" (Step 120) sits under "a space to grow your tree." (Step
- * 123).
+ * "free to use" (Step 120) sits under the tagline (Step 123). The tagline,
+ * the line under it and the one under the buttons are the Marketing Site
+ * page's in Notion since Step 188; its footer's "an r+s production." is in
+ * `site-footer.tsx`.
  * Its buttons are lower-case, as every button is (docs/design-system.md).
  * Since Step 107 it's the first of the marketing pages, and the only one
  * over the Elevators tree: the other marketing pages are plain. Its
@@ -45,7 +47,7 @@ export default async function Home() {
             <div className="flex flex-col items-center gap-1">
               <h1 className="text-4xl font-semibold tracking-tight">ancestree</h1>
               <p className="text-sm font-medium tracking-wide text-foreground [font-variant:small-caps]">
-                a space to grow your tree.
+                the family tree you grow together.
               </p>
               {/* The logo's green, with near-black words: white on it fails
                   contrast, and it's the same green in both themes. */}
@@ -55,7 +57,8 @@ export default async function Home() {
             </div>
             <div className="flex max-w-xl flex-col gap-2 text-lg text-muted-foreground">
               <p className="text-balance">
-                connect with your family, share stories, meet your ancestors.
+                a private, invite-only tree for your whole family, with audio
+                stories, tagged photos and chat.
               </p>
             </div>
           </div>
@@ -101,6 +104,9 @@ export default async function Home() {
               )}
             </div>
           </div>
+          <p className="max-w-xl text-sm text-balance text-muted-foreground">
+            whatever you grow stays yours: easy to take back your data, always.
+          </p>
         </CenteredPage>
       </div>
     </div>

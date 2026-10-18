@@ -16,8 +16,12 @@ import {
 } from "@/components/marketing/marketing-column";
 import { StoryDemo } from "@/components/marketing/story-demo";
 import type { AccountTypeKey } from "@/lib/account-types";
+import { marketingMetadata } from "@/lib/marketing-meta";
 
-export const metadata: Metadata = { title: "what + how" };
+export const metadata: Metadata = marketingMetadata(
+  "ancestree • features",
+  "tools to enable connection & combat surveillance capitalism.",
+);
 
 /**
  * /features, "what + how" in the menu (Step 107): its heading is the page's
@@ -27,8 +31,8 @@ export const metadata: Metadata = { title: "what + how" };
  * for word (Step 115), in parts, two with a moving sample beside them no
  * taller than their words: a leaf invited to be claimed, and a recorded
  * story. The three demos take turns: each starts once the one before has
- * ended, or once it's scrolled to. Newsletter and native lands run the
- * full width. The copy's footnote is on the footer's line (`site-footer.tsx`).
+ * ended, or once it's scrolled to. Privacy + security (Step 188),
+ * newsletter and native lands run the full width. The copy's footnote is on the footer's line (`site-footer.tsx`).
  */
 export default function FeaturesPage() {
   return (
@@ -39,6 +43,12 @@ export default function FeaturesPage() {
             <h1 className="text-2xl font-semibold tracking-tight">
               (how-to + features)
             </h1>
+            <MarketingCopy>
+              <p>
+                ancestree allows you to grow your family tree with the help of
+                the people in it
+              </p>
+            </MarketingCopy>
             <LeafDemoForm />
           </MarketingRow>
         </LeafDemo>
@@ -76,16 +86,26 @@ export default function FeaturesPage() {
           </MarketingCopy>
         </MarketingRow>
         <MarketingRow wide>
-          <Heading>4. newsletter</Heading>
+          <Heading>4. privacy + security</Heading>
           <MarketingCopy>
             <p>
-              a weekly update on upcoming birthdays, milestones, and additions
-              to the trees you are a node in.
+              end-to-end encrypted chat. nothing in your family tree is public
+              or indexed by search engines. your data is never sold or shared
+              without your say-so.
             </p>
           </MarketingCopy>
         </MarketingRow>
         <MarketingRow wide>
-          <Heading>5. native lands</Heading>
+          <Heading>5. newsletter</Heading>
+          <MarketingCopy>
+            <p>
+              a weekly update on upcoming birthdays and additions to the trees
+              you are a node in.
+            </p>
+          </MarketingCopy>
+        </MarketingRow>
+        <MarketingRow wide>
+          <Heading>6. native lands</Heading>
           <MarketingCopy>
             <p>
               those of us privileged enough to spend time and resources to

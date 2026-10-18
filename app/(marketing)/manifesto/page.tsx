@@ -5,8 +5,12 @@ import {
   MarketingColumn,
   MarketingCopy,
 } from "@/components/marketing/marketing-column";
+import { marketingMetadata } from "@/lib/marketing-meta";
 
-export const metadata: Metadata = { title: "why" };
+export const metadata: Metadata = marketingMetadata(
+  "ancestree • product-manifesto",
+  "not quite Marx or Loy. but our ‘why’.",
+);
 
 /**
  * /manifesto, "why" in the menu (Step 107): its heading is the page's real

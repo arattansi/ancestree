@@ -9,10 +9,13 @@ import {
 } from "@/components/marketing/marketing-column";
 import { BLOG_NAME, blogFeedHref } from "@/lib/blog";
 import { listPublishedPosts } from "@/lib/blog.server";
+import { marketingMetadata } from "@/lib/marketing-meta";
 
 export const metadata: Metadata = {
-  title: BLOG_NAME,
-  description: "Stories of our wise: the people our families came from, on ancestree.",
+  ...marketingMetadata(
+    "ancestree • library",
+    "collection of stories to remember.",
+  ),
   alternates: {
     types: { "application/rss+xml": blogFeedHref() },
   },
@@ -36,7 +39,9 @@ export default async function LibraryPage() {
       <h1 className="text-2xl font-semibold tracking-tight">({BLOG_NAME})</h1>
       <div className="flex flex-col gap-6 lg:fixed lg:top-1/2 lg:right-14 lg:w-60 lg:-translate-y-1/2">
         <MarketingCopy>
-          <p>when an elder dies, a library burns to the ground.</p>
+          <p>
+            when an elder dies, it is as if a library burned to the ground.
+          </p>
           <p>– African proverb</p>
         </MarketingCopy>
         <SendStoryLink>Share a story from that library</SendStoryLink>

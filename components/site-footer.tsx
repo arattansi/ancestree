@@ -1,11 +1,21 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 /** A page's own footnote, in the footer's bottom-right corner: the
- *  asterisk at the end of /about-us's story (Step 111 follow-up), and
- *  the one after /features's "lucidchart" (Step 115). */
+ *  asterisk at the end of /about-us's story (Step 111 follow-up), the
+ *  one after /features's "lucidchart" (Step 115), and the home page's
+ *  credit, to who made it (Step 188). */
 const FOOTNOTES: Record<string, React.ReactNode> = {
+  "/": (
+    <Link
+      href="/about-us"
+      className="underline-offset-2 hover:text-foreground hover:underline"
+    >
+      an r+s production.
+    </Link>
+  ),
   "/about-us": (
     <>
       *RIP{" "}
