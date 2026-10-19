@@ -19,6 +19,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "2026-10-19",
+    title: "the new line in our emails",
+    items: [
+      "every email from ancestree now says \"the family tree you grow together.\" under the name, as the home page does.",
+    ],
+    steps: [192],
+  },
+  {
     date: "2026-10-18",
     title: "a changelog",
     items: ["this page: every update to ancestree, dated, newest first."],

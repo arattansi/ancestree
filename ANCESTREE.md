@@ -1957,6 +1957,23 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 192: the emails and the design doc carry the new tagline**
+  (web + auth email templates, no migration). **Asked for** (2026-10-19,
+  the Notion brand page's audit rows 11 and 12): Step 188 gave the home
+  page "the family tree you grow together." and the promise "a private,
+  invite-only tree for your whole family, with audio stories, tagged
+  photos and chat.", but the emails and `docs/design-system.md` still had
+  the old pair. **Now** the emails' header (`renderEmail` in
+  `lib/emails/shared.ts`) and both auth templates
+  (`supabase/templates/confirm-signup.html`, `magic-link.html`) say "the
+  family tree you grow together." in small caps under the wordmark,
+  tested in `lib/emails/shared.test.ts` (the layout and both templates).
+  The design doc's Brand section has the new tagline and promise, the
+  pledge under the home page's buttons ("whatever you grow stays yours:
+  easy to take back your data, always.") and `--brand-red`, the apple's
+  red, kept to the apples spelling **menu** and the header's **menu**
+  button. A /changelog entry says the emails changed. **After deploy**
+  the auth templates need `npm run email:push`.
 - **Step 191: a dated changelog at /changelog** (web only, no migration).
   **Asked for** (2026-10-18, audit D3.5, D5.3): the site has no third-party
   signal and no dated product updates, so neither a buyer nor a crawler can
@@ -2026,7 +2043,7 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   and 6). /library's proverb reads "when an elder dies, it is as if a
   library burned to the ground." **My calls:** the "free to use" badge
   stays (Notion never had it); the link preview image's tagline follows the
-  home page's; the emails' header keeps "a space to grow your tree.".
+  home page's; the emails' header kept the old tagline (it followed in Step 192).
   Manifesto, pricing and about-us copy already matched.
 - **Step 186: walking on the iPhone leaf view moves through the tree**
   (phone only, no migration). **Asked for** (2026-10-17, one of Step 184's
@@ -4374,7 +4391,7 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   siblings only under a parent they share.
 
 - **Step 123: home page tagline and "free to use"** (no migration).
-  **Aalim asked:** move "free to use" under "a space to grow your tree.",
+  **Aalim asked:** move "free to use" under the small-caps line (the tagline then),
   make it the brand green, and make the tagline "collaborative with the
   people who know best: your family.", in a wider box, less spread out.
   **Now** "free to use" is a `--brand-green` badge (near-black words: white

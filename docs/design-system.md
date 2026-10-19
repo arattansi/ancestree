@@ -13,11 +13,15 @@ about the brand, the Notion page is right and this file is behind.
 
 - **ancestree** is lower-case everywhere, a sentence's first word
   included, and in what a screen reader is told (**ancestree member**).
-- The tagline is **a space to grow your tree.**, written lower-case and
-  drawn in small caps with wide tracking (the home page, the emails).
-  The link preview draws capitals at that size, since an image has no
-  small caps. Under it the promise: **connect with your family, share
-  stories, meet your ancestors.**, also the site's description.
+- The tagline is **the family tree you grow together.** (Step 188),
+  written lower-case and drawn in small caps with wide tracking (the home
+  page, the emails). The link preview draws capitals at that size, since
+  an image has no small caps. Under it the promise: **a private,
+  invite-only tree for your whole family, with audio stories, tagged
+  photos and chat.**, also the site's description. "invite-only" is about
+  who sees a tree, not who may start one: anyone can start a tree.
+- Under the home page's buttons, the pledge: **whatever you grow stays
+  yours: easy to take back your data, always.**
 - The mark is `public/brand/ancestree-mark.svg`, in colour, wherever it
   can be. `ancestree-mark-mono.svg` (one colour, `currentColor`) is for
   where colour can't be had or would fight its ground: one-ink print, a
@@ -31,6 +35,11 @@ about the brand, the Notion page is right and this file is behind.
 - Buttons stay near-black (white in dark), on purpose: `--brand-green`
   and `--brand-brown` belong to the tree, its leaves and branches, and
   the home page's **free to use**.
+- `--brand-red` (`#e8452c`, Steps 140, 152) is the body of the apple in
+  the mark. It's used only for the apples that fall from the menu tree to
+  spell **menu**, and the word **menu** on the header's button (and the ☰
+  standing in for it): the one button with a colour. About 3.9:1 on
+  white, so it's kept to that one word, never body text.
 - The marketing pages say **node** for a person on a tree, Aalim's word;
   the product says **entry**, and **leaf** or **card** for how it's
   drawn. Each keeps its own.
