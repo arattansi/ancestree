@@ -31,6 +31,8 @@ const PUBLIC_PREFIXES = [
   // The blog, /library (Step 134): its published posts are anyone's to read.
   "/library",
   "/api/library/",
+  // The changelog and its feed (Step 191).
+  "/changelog",
   // For search engines (Step 135).
   "/sitemap.xml",
   "/robots.txt",

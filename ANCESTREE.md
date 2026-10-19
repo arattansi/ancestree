@@ -748,6 +748,10 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
 - Every table RLS-scoped via `profiles.auth_user_id = auth.uid()`.
 - Private storage buckets (`photos`, `album`, `stories`) served via signed URLs.
 - Commit prefix: `Ancestree v1 (step/total): <subject>`.
+- A step that changes what members or visitors see adds an entry at the top
+  of `lib/changelog.ts` (the public `/changelog`, Step 191), dated the day it
+  goes live on main, in plain words: no admin tools, no step numbers, no
+  iPhone app until it's in the App Store.
 
 ## Data model
 
@@ -1953,6 +1957,24 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 191: a dated changelog at /changelog** (web only, no migration).
+  **Asked for** (2026-10-18, audit D3.5, D5.3): the site has no third-party
+  signal and no dated product updates, so neither a buyer nor a crawler can
+  see the product is alive; publish a changelog of shipped features with
+  dates, linked from the home page's footer, kept up with each release.
+  Target: organic entrances to /changelog and repeat sign-ins over 90 days.
+  **Now** `/changelog` (`app/(marketing)/changelog/`, in `MarketingColumn`,
+  heading "(changelog)") lists 33 dated updates from 2026-08-30 to today,
+  newest first, written from this changelog and the git log in the
+  marketing pages' lower-case voice; each has a `#date-title` anchor
+  (`changelogId`). The entries live in `lib/changelog.ts` (`CHANGELOG`,
+  each with the `steps` it covers, not shown; tested: real dates, newest
+  first, unique anchors). It's public in `proxy.ts`, in the sitemap with
+  `lastModified` = its newest entry, and has an RSS feed at
+  `/changelog/feed.xml` (linked from the page and its `<head>`). The home
+  page's footer links it bottom left, beside "an r+s production.". Left
+  out on purpose: admin and reviewer tools, internal fixes, and the iPhone
+  app (TestFlight only). Keeping it going is now a Convention.
 - **Step 190: the unread badge clears once you've read and replied** (web
   and phone, no migration). **Asked for** (2026-10-18): after reading and
   answering a message, the unread badge still showed. The server was right

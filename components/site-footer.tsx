@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { changelogHref } from "@/lib/changelog";
+import { cn } from "@/lib/utils";
+
 /** A page's own footnote, in the footer's bottom-right corner: the
  *  asterisk at the end of /about-us's story (Step 111 follow-up), the
  *  one after /features's "lucidchart" (Step 115), and the home page's
@@ -51,12 +54,27 @@ export function SiteFooter() {
   }
 
   const footnote = FOOTNOTES[pathname];
-  if (!footnote) return null;
+  // The home page's footer also links the changelog, bottom left (Step 191).
+  const changelog = pathname === "/";
+  if (!footnote && !changelog) return null;
 
   // A page's footnote in its bottom-right corner; on a phone, centred.
   return (
-    <footer className="w-full px-4 py-6 text-xs text-muted-foreground">
-      <p className="text-center sm:text-right">{footnote}</p>
+    <footer
+      className={cn(
+        "flex w-full flex-col items-center gap-2 px-4 py-6 text-xs text-muted-foreground sm:flex-row",
+        changelog ? "sm:justify-between" : "sm:justify-end",
+      )}
+    >
+      {changelog ? (
+        <Link
+          href={changelogHref()}
+          className="underline-offset-2 hover:text-foreground hover:underline"
+        >
+          changelog
+        </Link>
+      ) : null}
+      {footnote ? <p className="text-center sm:text-right">{footnote}</p> : null}
     </footer>
   );
 }
