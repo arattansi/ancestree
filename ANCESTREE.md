@@ -1957,6 +1957,14 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 194: the privacy page leads its children section with why**
+  (web only, no migration). **Asked for** (2026-10-19): say on the privacy
+  page how ancestree protects and cares about children's privacy: under 18,
+  only a parent adds them and decides what's shown. **Now** /privacy's
+  "Children under 18" (Step 105's section, Step 98's rules) opens with
+  "Children get the most care on ancestree…", a child's details being their
+  parent's to share, and sits right after "How it is protected" instead of
+  after Messages. The rules listed under it are unchanged.
 - **Step 193: the sign-in code is 6 digits, not 8** (web + iPhone app +
   auth config, no migration). **Asked for** (2026-10-19): a 4-digit code.
   Supabase Auth only sends email codes of 6 to 10 digits (anything outside

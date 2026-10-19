@@ -20,6 +20,14 @@ export type ChangelogEntry = {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-10-19",
+    title: "children's privacy, up front",
+    items: [
+      "the privacy page now says early on how we look after children: nobody but a parent adds a child under 18, and the family sees only what their parent chooses.",
+    ],
+    steps: [194],
+  },
+  {
+    date: "2026-10-19",
     title: "a shorter sign-in code",
     items: ["the code we email you to sign in is 6 digits now, not 8."],
     steps: [193],
