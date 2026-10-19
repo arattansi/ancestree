@@ -20,6 +20,12 @@ export type ChangelogEntry = {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-10-19",
+    title: "a shorter sign-in code",
+    items: ["the code we email you to sign in is 6 digits now, not 8."],
+    steps: [193],
+  },
+  {
+    date: "2026-10-19",
     title: "the new line in our emails",
     items: [
       "every email from ancestree now says \"the family tree you grow together.\" under the name, as the home page does.",

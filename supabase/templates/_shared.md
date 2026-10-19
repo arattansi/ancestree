@@ -53,8 +53,9 @@ Design notes:
   The code is entered where it was asked for (`SignInCodeForm`), which
   also takes a paste however it's spaced and Safari's one-time-code offer
   from Apple Mail.
-- Its length is the hosted project's `mailer_otp_length` (8 digits), which
-  `SIGN_IN_CODE_LENGTH` in `lib/sign-in-code.ts` must match.
+- Its length is the hosted project's `mailer_otp_length` (6 digits since Step 193; 8 before), which
+  `SIGN_IN_CODE_LENGTH` in `lib/sign-in-code.ts` must match; `npm run
+  email:push` sets it from that constant.
 - **Push only once the deploy with the code box is live.** Before it, the
   pages still say to open a link.
 - Links in emails sent before Step 53 still work: `/auth/callback`

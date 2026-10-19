@@ -6,7 +6,7 @@ Supabase project as the web. The plan it follows is the Notion page
 
 What it does so far:
 
-- **Sign in** with an email and the 8-digit code, as on the web. App
+- **Sign in** with an email and the 6-digit code, as on the web. App
   Review's one address asks for a password instead (Step 176).
 - **The menu bar** (Step 179.4), left to right: record (the feather), the
   feed (the calendar, with an apple on it when there's something new),

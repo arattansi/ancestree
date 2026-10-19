@@ -14,11 +14,16 @@
  * The subjects carry the code too, so it can be read off a notification.
  * Push only once the deploy with the code box (Step 53) is live: before it,
  * a code has nowhere to go.
+ * It also sets the code's length (`mailer_otp_length`) to the code box's,
+ * `SIGN_IN_CODE_LENGTH` (Step 193), so the two can't drift: push only once
+ * the deploy with that length is live.
  * The project ref is derived from NEXT_PUBLIC_SUPABASE_URL.
  */
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { SIGN_IN_CODE_LENGTH } from "../lib/sign-in-code";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -57,7 +62,10 @@ async function main() {
     );
   }
 
-  const body: Record<string, string> = {};
+  const body: Record<string, string | number> = {
+    mailer_otp_length: SIGN_IN_CODE_LENGTH,
+  };
+  console.log(`Code length     ${SIGN_IN_CODE_LENGTH} digits`);
   for (const t of TEMPLATES) {
     const html = readFileSync(join(ROOT, t.file), "utf8");
     // The code is the sign-in (Step 53): without it the email is no use.

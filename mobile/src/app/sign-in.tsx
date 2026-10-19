@@ -28,7 +28,7 @@ import { TextField } from "@/ui/text-field";
 const SITE = process.env.EXPO_PUBLIC_SITE_URL ?? "https://www.ancestree.space";
 
 /**
- * Sign in as on the web (Step 53): an email, then the 8-digit code Supabase
+ * Sign in as on the web (Step 53): an email, then the 6-digit code Supabase
  * sends to it, typed or filled in from Mail. Joining a tree stays on the
  * web for now; an address with no tree lands on the "not on a tree" screen.
  * App Review's one address asks for its password instead, since a reviewer

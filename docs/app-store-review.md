@@ -62,7 +62,7 @@ Information for external testing) → **App Review Information**.
   kept nowhere else, so if it's lost, run the script again for a new one.
 - **Notes:** paste this:
 
-> ancestree signs people in with an 8-digit code it emails them. For review,
+> ancestree signs people in with a 6-digit code it emails them. For review,
 > the address above asks for a password instead of sending a code: type the
 > address, tap "email me a code", then enter the password.
 >

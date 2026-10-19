@@ -231,9 +231,9 @@ enable_confirmations = false
 secure_password_change = false
 # Controls the minimum amount of time that must pass before sending another signup confirmation or password reset email.
 max_frequency = "1s"
-# Number of characters used in the email OTP. The hosted project's is 8, and
-# the code box's length (lib/sign-in-code.ts) must match it (Step 53).
-otp_length = 8
+# Number of characters used in the email OTP. The hosted project's is 6 (8 until
+# Step 193), and the code box's length (lib/sign-in-code.ts) must match it.
+otp_length = 6
 # Number of seconds before the email OTP expires (defaults to 1 hour).
 otp_expiry = 3600
 

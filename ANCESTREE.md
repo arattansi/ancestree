@@ -1239,7 +1239,7 @@ mirror it for the UI.
   says "{code} is your ancestree code" (readable off a notification) and
   the body shows it once, unbroken and `user-select: all`; there's no link
   and no button, so a mail scanner opening it spends nothing. Its length is
-  the hosted project's `mailer_otp_length` (8), mirrored in
+  the hosted project's `mailer_otp_length` (6 since Step 193), mirrored in
   `SIGN_IN_CODE_LENGTH` (`lib/sign-in-code.ts`) and `supabase/config.toml`:
   keep all three equal. The form that sent it turns into the code box
   (`SignInCodeForm`, from `MagicLinkForm` and the invite page's
@@ -1957,6 +1957,18 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 193: the sign-in code is 6 digits, not 8** (web + iPhone app +
+  auth config, no migration). **Asked for** (2026-10-19): a 4-digit code.
+  Supabase Auth only sends email codes of 6 to 10 digits (anything outside
+  falls back to 6, `internal/conf/configuration.go`), so Aalim chose 6, the
+  shortest it allows; a 4-digit code would have meant minting and checking
+  codes ourselves. **Now** `SIGN_IN_CODE_LENGTH` (`lib/sign-in-code.ts`) and
+  `supabase/config.toml`'s `otp_length` are 6, and `npm run email:push`
+  also sets the hosted `mailer_otp_length` from `SIGN_IN_CODE_LENGTH`, so
+  the box and the email can't drift. **After deploy** run
+  `npm run email:push` straight away: until then the hosted project still
+  sends 8 digits and the box stops at 6. Installed iPhone builds keep an
+  8-digit box until the next build.
 - **Step 192: the emails and the design doc carry the new tagline**
   (web + auth email templates, no migration). **Asked for** (2026-10-19,
   the Notion brand page's audit rows 11 and 12): Step 188 gave the home
@@ -3885,7 +3897,7 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   spouse, right is siblings." `mobile/` is an Expo SDK 57 app (Expo Router,
   supabase-js, the session in the Keychain) that runs on a phone through
   Expo Go, with no developer account. **Sign in** is the web's: an email,
-  then the 8-digit code, then `ensure_profile`. Signed in, it reads
+  then the emailed code, then `ensure_profile`. Signed in, it reads
   everyone on every tree the member belongs to (`tree_people` /
   `tree_edges`, as My Family Tree does) and opens on their own leaf: the
   species of their birthplace, drawn from `lib/leaf-shapes.ts`. Parents

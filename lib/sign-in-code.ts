@@ -6,11 +6,12 @@
 
 /**
  * How many digits the code has: the hosted project's OTP length
- * (`mailer_otp_length`, Authentication → Sign In / Providers → Email). Keep
- * the two equal, or the box stops short of the code or waits for digits that
- * never come.
+ * (`mailer_otp_length`, Authentication → Sign In / Providers → Email), which
+ * `npm run email:push` sets from this (Step 193). Keep the two equal, or the
+ * box stops short of the code or waits for digits that never come. Supabase
+ * takes 6 to 10, so 6 is as short as it goes.
  */
-export const SIGN_IN_CODE_LENGTH = 8;
+export const SIGN_IN_CODE_LENGTH = 6;
 
 /**
  * What was typed or pasted, as the code: its digits, however they were
