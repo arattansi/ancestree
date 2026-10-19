@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import {
   MarketingColumn,
@@ -19,7 +20,8 @@ export const metadata: Metadata = marketingMetadata(
  * type: the story right under the heading, and Raiya's and Aalim's leaves
  * joined to their wedding photo beside it (under it on a phone). Its
  * column is the other marketing pages' too (`MarketingColumn`). The
- * story's footnote is on the footer's line (`site-footer.tsx`).
+ * story's footnote is on the footer's line (`site-footer.tsx`). It ends
+ * on privacy and security, pointing to /privacy (Step 195).
  */
 export default function AboutUsPage() {
   return (
@@ -48,6 +50,14 @@ export default function AboutUsPage() {
         </p>
         <p>they still like each other.</p>
         <p>but they used to like each other, too*.</p>
+        <p>they also care a lot about privacy and security.</p>
+        <p>
+          they won’t share anything with anyone and are proactively thinking
+          about how to protect the people on ancestree. see more at{" "}
+          <Link href="/privacy" className="underline underline-offset-4">
+            /privacy
+          </Link>
+        </p>
       </MarketingCopy>
     </MarketingColumn>
   );

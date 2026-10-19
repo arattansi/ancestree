@@ -1957,6 +1957,14 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 195: Aalim's Notion copy edits on home and about-us** (web only,
+  no migration). **Asked for** (2026-10-19): Aalim updated the home and
+  "who" pages in the Marketing Site database. **Now** only what moved: the
+  home page's line under the buttons reads "whatever you grow stays yours:
+  we make it easy to take back your data, always."; /about-us ends with
+  "they also care a lot about privacy and security." and "they won't share
+  anything with anyone and are proactively thinking about how to protect
+  the people on ancestree. see more at /privacy", /privacy a link.
 - **Step 194: the privacy page leads its children section with why**
   (web only, no migration). **Asked for** (2026-10-19): say on the privacy
   page how ancestree protects and cares about children's privacy: under 18,

@@ -25,7 +25,8 @@ import { getTreeRequestStatus } from "@/lib/tree-requests.server";
  * "free to use" (Step 120) sits under the tagline (Step 123). The tagline,
  * the line under it and the one under the buttons are the Marketing Site
  * page's in Notion since Step 188; its footer's "an r+s production." is in
- * `site-footer.tsx`.
+ * `site-footer.tsx`. Step 195 added "we make it" to the line under the
+ * buttons.
  * Its buttons are lower-case, as every button is (docs/design-system.md).
  * Since Step 107 it's the first of the marketing pages, and the only one
  * over the Elevators tree: the other marketing pages are plain. Its
@@ -105,7 +106,8 @@ export default async function Home() {
             </div>
           </div>
           <p className="max-w-xl text-sm text-balance text-muted-foreground">
-            whatever you grow stays yours: easy to take back your data, always.
+            whatever you grow stays yours: we make it easy to take back your
+            data, always.
           </p>
         </CenteredPage>
       </div>
