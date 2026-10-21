@@ -1,4 +1,3 @@
-import { GoogleAnalytics } from "@next/third-parties/google";
 import type { Metadata } from "next";
 import { Public_Sans, Geist_Mono } from "next/font/google";
 import { headers } from "next/headers";
@@ -6,6 +5,7 @@ import Script from "next/script";
 import { Suspense } from "react";
 
 import { ConsentBanner } from "@/components/consent-banner";
+import { GoogleAnalytics } from "@/components/google-analytics";
 
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader, SiteHeaderShell } from "@/components/site-header";
@@ -93,8 +93,11 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         </ThemeProvider>
         {/* Google Analytics, the ancestree property in the Medfair account
             (Step 137): its tag on every page, loaded after the page is
-            interactive. */}
-        <GoogleAnalytics gaId={GA_MEASUREMENT_ID} />
+            interactive, told each page's address with its tokens taken out
+            (Step 197). */}
+        <Suspense fallback={null}>
+          <GoogleAnalytics gaId={GA_MEASUREMENT_ID} />
+        </Suspense>
         {askConsent ? <ConsentBanner /> : null}
       </body>
     </html>
