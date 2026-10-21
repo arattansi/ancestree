@@ -1960,6 +1960,32 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 199: the phone's leaf view says what the leaf is, in a pill
+  above the menu bar** (iPhone + Android app only, no migration, no
+  native change: Metro serves it to the dev build). **Asked for**
+  (2026-10-21): "in the mobile apps, give a small descriptors of the
+  leaf as a pill above the footer navigation". **Now**
+  `mobile/src/leaf/descriptor.tsx` (`LeafDescriptor`) draws a small gray
+  pill, centred 10 points above the menu bar, with the leaf in miniature
+  (its own blade in green, a brown stub of stem) and `leafLabel`'s words,
+  the species in the foreground and the region muted: "Sugar maple ·
+  Canada", "Baobab · Tanzania". As the web's leaf card does, it always
+  says something: "No native tree on record for this place" or
+  "Birthplace not recorded", with the plain leaf faded. Each walk fades
+  one pill into the next (reanimated `FadeIn`/`FadeOut`, keyed by the
+  person). `sceneLayout` takes `DESCRIPTOR_ROOM` (38) off the frame's
+  foot, so the children and the blurred grandchildren centre above the
+  pill rather than under it, walks included; the leaf's VoiceOver label
+  ends with the label, and the pill itself is hidden from it, as the
+  caption is (Step 185). **Checked** on the iPhone 17e simulator (own
+  Metro on 8087, a signed-out fixture route, deleted): the member's
+  sugar maple, a walk to the father's baobab, both fallbacks, the
+  longest fitting a 390-point screen, and dark mode. Not checked on
+  Android (Step 198 is building that app in its own session). My calls:
+  "descriptor" read as the leaf's own label, the one the person view's
+  Leaf row and the web's hover card show, not the person's dates or
+  places (the leaf already carries the years, the caption the
+  relation); not tappable.
 - **Step 197: Google Analytics sees addresses with their tokens taken
   out** (web only, no migration). **Asked for** (2026-10-21, found while
   checking Step 196): the GA page view of `/auth/confirm` carried the

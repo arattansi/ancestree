@@ -24,7 +24,7 @@ import {
   type WalkMorphs,
   type WalkScene,
 } from "@/lib/leaf-walk";
-import { nativeLeaf } from "@/lib/native-leaf";
+import { leafLabel, nativeLeaf } from "@/lib/native-leaf";
 import {
   maidenLine,
   personDisplayName,
@@ -34,6 +34,7 @@ import { addsOf, lineageOf, relativesOf } from "@/family/family";
 import type { Family } from "@/family/load";
 import { relationWord } from "@/family/words";
 import { AddPill } from "@/leaf/add-pill";
+import { DESCRIPTOR_ROOM, LeafDescriptor } from "@/leaf/descriptor";
 import { Ghosts, GhostTargets } from "@/leaf/ghosts";
 import { BOX_W, Leaf, leafAnchors } from "@/leaf/leaf";
 import { PersonPill } from "@/leaf/person-pill";
@@ -81,7 +82,8 @@ const MAX_STEP = 1000 / 30;
  * Where a leaf has no parents or no children and the member may add them, a
  * dashed pill asks for the first (Step 187, `lib/leaf-adds.ts`).
  * Over them all, on anyone's leaf but the member's own, a line says how the
- * leaf is connected to them (Step 185, `lib/connection-caption.ts`).
+ * leaf is connected to them (Step 185, `lib/connection-caption.ts`); under
+ * them, above the menu bar, a pill says what the leaf is (Step 199).
  *
  * A walk moves through the tree (Step 186, `lib/leaf-walk.ts`): the scene
  * and its ground slide until the one walked to is in the middle, and
@@ -204,14 +206,16 @@ export function Spotlight({
             />
           ))
         : null}
+      <LeafDescriptor person={family.people.get(focusId)} />
     </View>
   );
 }
 
 /**
  * The leaf, its pills and its ghosts, laid out and centred together under
- * the caption's line when there is one (Step 185), with a dashed pill for
- * a first parent or child where the member may add one (Step 187).
+ * the caption's line when there is one (Step 185) and over the leaf's
+ * descriptor (Step 199), with a dashed pill for a first parent or child
+ * where the member may add one (Step 187).
  */
 function sceneLayout(
   family: Family,
@@ -222,7 +226,7 @@ function sceneLayout(
 ) {
   const caption = connectionCaption(family.selfId, focusId, family.people, family.lines);
   const room = caption ? CAPTION_ROOM : 0;
-  const frame = room ? { width: screen.width, height: screen.height - room } : screen;
+  const frame = { width: screen.width, height: screen.height - room - DESCRIPTOR_ROOM };
   const relatives = relativesOf(family, focusId);
   const adds = asks ? addsOf(family, focusId, relatives) : NO_ADDS;
   const orbit = orbitLayout(frame, relatives, adds);
@@ -425,7 +429,9 @@ function Scene({
       >
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={[name, caption, maiden, years].filter(Boolean).join(", ")}
+          accessibilityLabel={[name, caption, maiden, years, leafLabel(leaf)]
+            .filter(Boolean)
+            .join(", ")}
           accessibilityHint="Opens their details"
           onPress={onOpenLeaf}
           style={{
