@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_NEXT, safeNext, sameOriginPath, signInNext } from "@/lib/safe-next";
+import {
+  campaignParams,
+  DEFAULT_NEXT,
+  safeNext,
+  sameOriginPath,
+  signInNext,
+} from "@/lib/safe-next";
 
 describe("sameOriginPath", () => {
   it("keeps a path on this site, query and fragment included", () => {
@@ -94,5 +100,23 @@ describe("signInNext", () => {
 
   it("carries nothing it wouldn't accept back", () => {
     expect(signInNext("//evil.example", "")).toBeNull();
+  });
+});
+
+describe("campaignParams", () => {
+  it("keeps a tagged link's utm_ params, nothing else (Step 196)", () => {
+    expect(
+      campaignParams(
+        "?view=settings&utm_source=ancestree&utm_medium=email&utm_campaign=getting-started&utm_content=claim&utm_term=button&_rsc=1",
+      ),
+    ).toEqual([
+      ["utm_source", "ancestree"],
+      ["utm_medium", "email"],
+      ["utm_campaign", "getting-started"],
+      ["utm_content", "claim"],
+      ["utm_term", "button"],
+    ]);
+    expect(campaignParams("?person=p1")).toEqual([]);
+    expect(campaignParams("")).toEqual([]);
   });
 });

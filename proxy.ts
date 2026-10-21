@@ -10,7 +10,7 @@ import {
   isTreeIdCookie,
   renewsPick,
 } from "@/lib/current-tree-cookie";
-import { signInNext } from "@/lib/safe-next";
+import { campaignParams, signInNext } from "@/lib/safe-next";
 import {
   isSupabaseConfigured,
   noteActiveDay,
@@ -90,6 +90,10 @@ export async function proxy(request: NextRequest, event: NextFetchEvent) {
         ? signInNext(pathname, request.nextUrl.search)
         : null;
     if (next) url.searchParams.set("next", next);
+    // A getting started email's tags stay in sight on sign-in (Step 196).
+    for (const [key, value] of campaignParams(request.nextUrl.search)) {
+      url.searchParams.set(key, value);
+    }
     return NextResponse.redirect(url);
   }
 

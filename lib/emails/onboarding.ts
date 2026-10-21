@@ -42,6 +42,34 @@ export type OnboardingEmailInput = {
   urls: OnboardingUrls;
 };
 
+/**
+ * A link of a getting started email, tagged for Google Analytics (Step
+ * 196): which email it was in (`utm_content`) and which link (`utm_term`),
+ * never whom it went to. Resend's own open and click tracking stay off,
+ * and the unsubscribe link goes untagged.
+ */
+export function campaignUrl(url: string, email: string, link: string): string {
+  const tagged = new URL(url);
+  tagged.searchParams.set("utm_source", "ancestree");
+  tagged.searchParams.set("utm_medium", "email");
+  tagged.searchParams.set("utm_campaign", "getting-started");
+  tagged.searchParams.set("utm_content", email);
+  tagged.searchParams.set("utm_term", link);
+  return tagged.toString();
+}
+
+/**
+ * The email's name in Analytics: its step ("claim", "claim-reminder",
+ * "invite", …), or the win-back's and the last one's with the step their
+ * button asks for ("winback-claim").
+ */
+export function campaignEmail(
+  input: Pick<OnboardingEmailInput, "kind" | "step" | "reminder">,
+): string {
+  if (input.kind !== input.step) return `${input.kind}-${input.step}`;
+  return input.reminder ? `${input.step}-reminder` : input.step;
+}
+
 /** Each email's small print: what it is, and the way out. */
 function footnote(unsubscribeUrl: string): string {
   return `Tips for your first weeks on ancestree.
@@ -145,6 +173,8 @@ export function onboardingEmail(input: OnboardingEmailInput): {
   const copy = stepCopy(input);
   const away = input.kind === "winback" || input.kind === "last";
   const recap = away && input.recap ? input.recap : null;
+  const email = campaignEmail(input);
+  const cta = { ...copy.cta, url: campaignUrl(copy.cta.url, email, "button") };
 
   if (!recap) {
     return {
@@ -154,13 +184,17 @@ export function onboardingEmail(input: OnboardingEmailInput): {
         preheader: escapeHtml(copy.body),
         heading: escapeHtml(copy.heading),
         bodyHtml: escapeHtml(copy.body),
-        cta: copy.cta,
+        cta,
         footnoteHtml: footnote(input.urls.unsubscribe),
       }),
     };
   }
 
-  const sections = issueSections(recap, input.urls);
+  const { personUrl, storyUrl } = input.urls;
+  const sections = issueSections(recap, {
+    personUrl: (id) => campaignUrl(personUrl(id), email, "person"),
+    storyUrl: (id) => campaignUrl(storyUrl(id), email, "story"),
+  });
   sections.push(
     `<p style="${HEADING}">${escapeHtml(copy.heading)}</p><p style="margin:8px 0 0;${TEXT}">${escapeHtml(copy.body)}</p>`,
   );
@@ -172,8 +206,11 @@ export function onboardingEmail(input: OnboardingEmailInput): {
       preheader: escapeHtml(copy.heading),
       heading,
       contentHtml: sections.join(""),
-      cta: copy.cta,
-      secondaryCta: { label: "open my family tree", url: input.urls.home },
+      cta,
+      secondaryCta: {
+        label: "open my family tree",
+        url: campaignUrl(input.urls.home, email, "my-family-tree"),
+      },
       footnoteHtml: footnote(input.urls.unsubscribe),
     }),
   };

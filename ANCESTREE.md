@@ -623,7 +623,10 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `previewOnboardingEmail`; the win-back's recap is the newsletter's
   issue since they were last here (`buildFamilyIssues` in
   `lib/newsletter.server.ts`, `issueSections` in
-  `lib/emails/newsletter.ts`); `lib/emails/onboarding.ts` (`.test.ts`);
+  `lib/emails/newsletter.ts`); `lib/emails/onboarding.ts` (`.test.ts`),
+  whose links but the unsubscribe carry `utm_*` tags for Google Analytics
+  (`campaignUrl`, Step 196; `proxy.ts` keeps them on `/join` for someone
+  signed out, `campaignParams` in `lib/safe-next.ts`);
   the signed-out off page `app/getting-started/[token]/` and one-click
   `app/api/getting-started/[token]/route.ts`
   (`lib/onboarding-settings.server.ts`); `components/getting-started-emails.tsx`
@@ -1957,6 +1960,26 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 196: the getting started emails' links say where a click came
+  from** (web only, no migration). **Asked for** (2026-10-21): Aalim
+  asked whether people open the drip and click to invite; nothing could
+  tell (Resend's open and click tracking are off for ancestree.space, and
+  no link was tagged), and none of the 29 emails sent 15–20 Oct had led
+  to an invite. He chose "add tracking params to the drip email links so
+  clicks show up in GA, drip emails only". **Now** every link in a getting
+  started email but the unsubscribe carries `utm_source=ancestree`,
+  `utm_medium=email`, `utm_campaign=getting-started`, `utm_content` = the
+  email (`claim`, `claim-reminder`, `invite`, `family`, `story`, or
+  `winback-<step>` / `last-<step>`) and `utm_term` = the link (`button`,
+  `my-family-tree`, `person`, `story`); nothing says who it went to. A
+  signed-out click keeps the tags on `/join` as well as in `next`, so
+  Analytics counts the visit where it starts. Resend's tracking stays
+  off; other emails are untouched. My calls: the tags rather than
+  Resend's tracking (which would reroute every email's links); the two
+  members with no entry of their own still lose the tags on `/family`'s
+  redirect to the canvas. In GA: Reports → Acquisition → Traffic
+  acquisition, session campaign `getting-started`, with session manual
+  ad content / term for the email and link.
 - **Step 195: Aalim's Notion copy edits on home and about-us** (web only,
   no migration). **Asked for** (2026-10-19): Aalim updated the home and
   "who" pages in the Marketing Site database. **Now** only what moved: the

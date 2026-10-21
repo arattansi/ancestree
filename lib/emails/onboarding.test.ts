@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 import {
+  campaignEmail,
+  campaignUrl,
   LAST_SUBJECT,
   namesList,
   onboardingEmail,
@@ -114,7 +116,9 @@ describe("the email", () => {
     const { subject, html } = onboardingEmail(input());
     expect(subject).toBe("Invite the 3 people you added");
     expect(html).toContain("Amina Khan, Yusuf Khan and Zahra Khan");
-    expect(html).toContain(urls.claim.replace("&", "&amp;"));
+    expect(html).toContain(
+      'href="https://www.ancestree.space/account?view=settings&amp;utm_source=ancestree&amp;utm_medium=email&amp;utm_campaign=getting-started&amp;utm_content=claim&amp;utm_term=button#people-you-added"',
+    );
     expect(html).toContain(urls.unsubscribe);
     expect(html).toContain("Tips for your first weeks on ancestree.");
   });
@@ -147,5 +151,59 @@ describe("the email", () => {
     const { subject, html } = onboardingEmail(input({ kind: "winback", recap: null }));
     expect(subject).toBe("Invite the 3 people you added");
     expect(html).not.toContain("Since you were last here");
+  });
+});
+
+describe("the links, tagged for Analytics (Step 196)", () => {
+  it("says which email and which link, keeping the address's own query and fragment", () => {
+    expect(campaignUrl(urls.claim, "claim", "button")).toBe(
+      "https://www.ancestree.space/account?view=settings&utm_source=ancestree&utm_medium=email&utm_campaign=getting-started&utm_content=claim&utm_term=button#people-you-added",
+    );
+    expect(campaignUrl(urls.home, "story", "button")).toBe(
+      "https://www.ancestree.space/family?utm_source=ancestree&utm_medium=email&utm_campaign=getting-started&utm_content=story&utm_term=button",
+    );
+  });
+
+  it("names each email: its step, the reminder, or the win-back with its step", () => {
+    expect(campaignEmail(input())).toBe("claim");
+    expect(campaignEmail(input({ reminder: true }))).toBe("claim-reminder");
+    expect(campaignEmail(input({ kind: "invite", step: "invite" }))).toBe("invite");
+    expect(campaignEmail(input({ kind: "winback" }))).toBe("winback-claim");
+    expect(campaignEmail(input({ kind: "last", step: "story" }))).toBe("last-story");
+  });
+
+  it("tags every link but the way out", () => {
+    const { html } = onboardingEmail(
+      input({
+        kind: "winback",
+        recap: {
+          ...recap,
+          trees: [
+            {
+              ...recap.trees[0],
+              stories: [
+                {
+                  id: "s1",
+                  about: [{ id: "p1", name: "Sara Khan" }],
+                  storytellers: [],
+                  interviewers: [],
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    );
+    const hrefs = [...html.matchAll(/href="([^"]+)"/g)].map((m) => m[1]);
+    const out = hrefs.filter((h) => h.startsWith(urls.unsubscribe));
+    const tagged = hrefs.filter((h) => !h.startsWith(urls.unsubscribe));
+    expect(out.length).toBeGreaterThan(0);
+    expect(out.every((h) => !h.includes("utm_"))).toBe(true);
+    expect(tagged.length).toBeGreaterThan(3);
+    for (const h of tagged) expect(h).toContain("utm_content=winback-claim");
+    expect(tagged.some((h) => h.includes("utm_term=button#people-you-added"))).toBe(true);
+    expect(tagged.some((h) => h.includes("/family?utm_") && h.includes("utm_term=my-family-tree"))).toBe(true);
+    expect(tagged.some((h) => h.includes("/family?person=p1&amp;utm_") && h.endsWith("utm_term=person"))).toBe(true);
+    expect(tagged.some((h) => h.includes("/stories/s1?utm_") && h.endsWith("utm_term=story"))).toBe(true);
   });
 });

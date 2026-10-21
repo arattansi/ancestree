@@ -65,3 +65,12 @@ export function signInNext(pathname: string, search: string): string | null {
   const path = sameOriginPath(query ? `${pathname}?${query}` : pathname);
   return path && path !== DEFAULT_NEXT ? path : null;
 }
+
+/**
+ * A tagged link's campaign (`utm_*`, Step 196), for the sign-in page's
+ * address as well as `next`: Analytics credits a visit to where it
+ * started, and someone signed out starts on sign-in.
+ */
+export function campaignParams(search: string): [string, string][] {
+  return [...new URLSearchParams(search)].filter(([key]) => key.startsWith("utm_"));
+}
