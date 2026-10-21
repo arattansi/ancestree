@@ -1,9 +1,9 @@
 import * as React from "react";
 import {
   ActivityIndicator,
+  BackHandler,
   KeyboardAvoidingView,
   LayoutAnimation,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -341,6 +341,21 @@ export function Scribe({
     onClose(changed.current);
   }
 
+  // Android's back (Step 198), as the iPhone's swipe is off: it closes only
+  // what holds nothing yet, or a story already saved. A story half told is
+  // left for the X, so a stray gesture doesn't lose it.
+  const onBack = React.useRef<() => boolean>(() => false);
+  onBack.current = () => {
+    const nothingYet =
+      step.at === "tell" && listening.phase === "idle" && !typed.trim() && !ownTitle.trim();
+    if (nothingYet || step.at === "saved") close();
+    return true;
+  };
+  React.useEffect(() => {
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => onBack.current());
+    return () => sub.remove();
+  }, []);
+
   if (!person) return null;
   const name = personDisplayName(person);
   const names = nameList(
@@ -624,7 +639,7 @@ export function Scribe({
         </View>
       ) : step.at === "tell" ? (
         <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          behavior="padding"
           style={styles.flex}
         >
           <ScrollView
@@ -670,7 +685,7 @@ export function Scribe({
         </View>
       ) : step.at === "review" && draft ? (
         <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          behavior="padding"
           style={styles.flex}
         >
           <ScrollView

@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import * as React from "react";
-import { StyleSheet, View } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { personDisplayName } from "@/lib/person-name";
@@ -40,7 +40,9 @@ export default function Search() {
 
   return (
     <SafeAreaView
-      edges={["bottom"]}
+      // A modal is a card below the status bar on an iPhone, the whole
+      // screen on Android (Step 198).
+      edges={Platform.OS === "android" ? ["top", "bottom"] : ["bottom"]}
       style={[styles.safe, { backgroundColor: palette.background }]}
     >
       <PeopleList

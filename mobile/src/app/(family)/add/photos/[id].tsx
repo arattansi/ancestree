@@ -2,7 +2,7 @@ import { randomUUID } from "expo-crypto";
 import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
 import * as React from "react";
-import { Image, KeyboardAvoidingView, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { ALBUM_DESCRIPTION_MAX } from "@/lib/limits";
 import { PHOTO_EXTENSIONS } from "@/lib/photo-path";
@@ -12,6 +12,7 @@ import { useFamily } from "@/family/family";
 import { detailsChanged } from "@/person/sheet";
 import { font, GUTTER, usePalette } from "@/theme";
 import { Button } from "@/ui/button";
+import { SheetKeyboardAvoidingView } from "@/ui/sheet-keyboard";
 import { TextField } from "@/ui/text-field";
 
 /** As many as the web's album dialog takes at once. */
@@ -105,7 +106,7 @@ export default function AddPhotos() {
   }
 
   return (
-    <KeyboardAvoidingView behavior="padding" style={styles.fill}>
+    <SheetKeyboardAvoidingView style={styles.fill}>
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         <Text style={[styles.heading, { color: palette.foreground }]}>Photos of {name}</Text>
         {!treeId ? (
@@ -143,7 +144,7 @@ export default function AddPhotos() {
           </>
         )}
       </ScrollView>
-    </KeyboardAvoidingView>
+    </SheetKeyboardAvoidingView>
   );
 }
 

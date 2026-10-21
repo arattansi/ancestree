@@ -1,6 +1,6 @@
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import * as React from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, BackHandler, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useSession } from "@/auth/session";
@@ -42,6 +42,20 @@ export default function LeafScreen() {
   const { signOut } = useSession();
   const { state, reload, focusId, trail, walkTo, back } = useFamily();
   const family = state.status === "ready" ? state.family : null;
+
+  // Android's back retraces the walk too, as the header's does (Step 198);
+  // on their own leaf it leaves the app.
+  const walked = trail.length > 0;
+  useFocusEffect(
+    React.useCallback(() => {
+      if (!walked) return;
+      const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+        back();
+        return true;
+      });
+      return () => sub.remove();
+    }, [walked, back]),
+  );
 
   return (
     <SafeAreaView

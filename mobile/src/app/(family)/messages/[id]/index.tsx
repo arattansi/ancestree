@@ -68,8 +68,10 @@ export default function ThreadScreen() {
   );
 
   React.useEffect(() => {
-    const shown = Keyboard.addListener("keyboardWillShow", () => setKeyboard(true));
-    const hidden = Keyboard.addListener("keyboardWillHide", () => setKeyboard(false));
+    // Android has no "will" events, only "did" (Step 198).
+    const when = Platform.OS === "ios" ? "Will" : "Did";
+    const shown = Keyboard.addListener(`keyboard${when}Show`, () => setKeyboard(true));
+    const hidden = Keyboard.addListener(`keyboard${when}Hide`, () => setKeyboard(false));
     return () => {
       shown.remove();
       hidden.remove();
@@ -159,7 +161,7 @@ export default function ThreadScreen() {
       ) : null}
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior="padding"
       >
         {!thread || (thread.loading && messages.length === 0) ? (
           <View style={styles.centre}>

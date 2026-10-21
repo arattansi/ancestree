@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from "expo-router";
 import * as React from "react";
-import { KeyboardAvoidingView, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { personDisplayName } from "@/lib/person-name";
 import type { RelativeProposal } from "@/lib/scribe-facts";
@@ -12,6 +12,7 @@ import { RelativeCard } from "@/scribe/relative-card";
 import { useRelatives } from "@/scribe/use-relatives";
 import { font, GUTTER, usePalette } from "@/theme";
 import { Button } from "@/ui/button";
+import { SheetKeyboardAvoidingView } from "@/ui/sheet-keyboard";
 import { Chip } from "@/ui/chip";
 import { TextField } from "@/ui/text-field";
 
@@ -148,7 +149,7 @@ function Form({
   }
 
   return (
-    <KeyboardAvoidingView behavior="padding" style={styles.fill}>
+    <SheetKeyboardAvoidingView style={styles.fill}>
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         <Text style={[styles.heading, { color: palette.foreground }]}>A relative of {name}</Text>
         <Choice label={`What are they to ${person.preferred_name || person.first_name || name}?`}>
@@ -199,7 +200,7 @@ function Form({
           </>
         ) : null}
       </ScrollView>
-    </KeyboardAvoidingView>
+    </SheetKeyboardAvoidingView>
   );
 }
 

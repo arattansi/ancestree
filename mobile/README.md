@@ -1,6 +1,6 @@
-# ancestree for iPhone
+# ancestree for iPhone and Android
 
-The phone app (Step 147): Expo SDK 57, React Native, Expo Router, the same
+The phone app (Step 147; on Android since Step 198, the same app): Expo SDK 57, React Native, Expo Router, the same
 Supabase project as the web. The plan it follows is the Notion page
 [Ancestree Mobile — Product Scope & Build Plan](https://app.notion.com/p/3ede5c10937e8155a47ff611c04aae00).
 
@@ -78,12 +78,8 @@ npx expo run:ios --device
 ```
 
 That needs Xcode, which signs the build with an ordinary Apple ID (no
-developer account; the build lasts a week). For an Android phone, with
-Android Studio's SDK and the phone in developer mode:
-
-```bash
-npx expo run:android --device
-```
+developer account; the build lasts a week). For Android, see
+**Android** below.
 
 The write-up needs `ANTHROPIC_API_KEY` set on the web's server (Vercel),
 and `EXPO_PUBLIC_SITE_URL` pointing at it.
@@ -226,6 +222,63 @@ signing in:
 npm run review:account -- --off
 ```
 
+## Android (Step 198)
+
+The same code, built for Android: everything above works there too. Where
+Android differs, the app follows it:
+
+- **Back** (the gesture or button) retraces the leaves you walked, closes
+  a sheet, and from another tab goes home. In the scribe it closes only
+  what holds nothing yet, or a saved story: a story half told is left for
+  the X, as the iPhone's swipe is off.
+- **The keyboard.** Forms rise above it with the same `padding` the
+  iPhone uses; a form in a sheet goes through `src/ui/sheet-keyboard.tsx`,
+  because React Native measures a sheet from its own top but the keyboard
+  from the screen's.
+- **Photos** come through Android's photo picker, which needs no
+  permission. **Exporting messages** hands the file to Android's share
+  sheet with `expo-sharing` (React Native's `Share` takes words only there).
+- **Listening** is Google's recognizer, over the network; it hears in
+  segments, which `@/lib/scribe-heard` already pieces together. Android
+  13 and later keep the recording; older phones still listen.
+- **Dark mode** follows the phone through `expo-system-ui`.
+- `app.json` `android.blockedPermissions` takes out the template's storage
+  and overlay permissions, so the app asks only for the microphone and
+  the camera.
+
+**On the Mac's emulator.** Android Studio isn't needed: JDK 17 and the
+SDK's command-line tools from Homebrew do (`brew install openjdk@17` and
+`brew install --cask android-commandlinetools`), then from `sdkmanager`
+`platform-tools`, `emulator`, `platforms;android-36`,
+`build-tools;36.0.0` and an Android 16 Play Store system image, and an
+emulator made with `avdmanager`. With `JAVA_HOME` and `ANDROID_HOME`
+(`/opt/homebrew/share/android-commandlinetools`) set and the emulator
+running:
+
+```bash
+npx expo run:android --device <emulator name> --port 8091
+```
+
+`expo prebuild` and `run:android` rewrite the `ios` and `android` scripts
+in `package.json`: put them back. The emulator reaches the Mac as
+`10.0.2.2`, not `localhost`, so `EXPO_PUBLIC_SITE_URL` should be the live
+site, as for a phone.
+
+**Builds and Google Play.** EAS builds it like the iPhone's, with an
+upload key it made and keeps:
+
+```bash
+npx eas-cli build --profile production --platform android
+```
+
+That's an `.aab` for Play; the `preview` profile makes an `.apk` to
+install directly. Google takes the first upload only by hand, in Play
+Console; after that, with a Google service account key on EAS,
+`--auto-submit` sends each build to internal testing
+(`submit.production.android.track`). Play's questions and their answers,
+and why a personal developer account needs a 14-day closed test first,
+are in `docs/play-store-review.md`.
+
 ## Run it on your iPhone (no developer account needed)
 
 Expo Go runs the app straight from your Mac.
@@ -268,7 +321,8 @@ the phone uses the Keychain.
   family's stack: `person/[id].tsx`, `add/` (the + menu), `relatives/[side].tsx`,
   `search.tsx`, `messages/` (a conversation and the rest), `scribe/[id].tsx`.
 - `src/ui/`: `app-header.tsx` (the wordmark), `menu-bar.tsx`, `icons.tsx`
-  (Lucide's, plus the apple), buttons, chips, fields.
+  (Lucide's, plus the apple), buttons, chips, fields, and
+  `sheet-keyboard.tsx` (a sheet's form clear of Android's keyboard).
 - `src/feed/notices.ts`: your notifications, as the web's bell reads them,
   shared by the feed and the calendar's apple.
 - `src/person/`: someone's details, read through `/api/mobile/person-sheet`.

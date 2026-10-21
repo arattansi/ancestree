@@ -17,6 +17,11 @@
     },
     "android": {
       "package": "space.ancestree.app",
+      "blockedPermissions": [
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#fbf8f1",
         "foregroundImage": "./assets/android-icon-foreground.png",

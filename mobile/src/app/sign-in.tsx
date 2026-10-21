@@ -3,7 +3,6 @@ import {
   Image,
   KeyboardAvoidingView,
   Linking,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -123,7 +122,7 @@ export default function SignIn() {
     <SafeAreaView style={[styles.safe, { backgroundColor: palette.background }]}>
       <KeyboardAvoidingView
         style={styles.safe}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior="padding"
       >
         <ScrollView
           contentContainerStyle={styles.body}

@@ -709,7 +709,8 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
 - `lib/supabase/` — `client.ts` (browser), `server.ts` (RSC/actions), `middleware.ts` (session refresh), `admin.ts` (service role, server-only)
 - `lib/database.types.ts` — generated Supabase types (regenerate after schema changes)
 - `supabase/` — local CLI project linked to `kkmemshpkxrzogijxgnb` (`Product-Ancestree`)
-- `mobile/` — the iPhone app (Step 147): Expo SDK 57 + Expo Router,
+- `mobile/` — the phone app, iPhone (Step 147) and Android (Step 198,
+  the same code): Expo SDK 57 + Expo Router,
   its own `package.json`; see `mobile/README.md`. It shares
   the web's `lib/` as `@/lib/*` (pure TypeScript only), and is left out of
   the web's `tsconfig.json` and ESLint. `lib/first-degree.ts` (who is one
@@ -730,7 +731,9 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `docs/mobile-server-paths.md` — every server action and service-role
   path, and what the app does instead. `docs/app-store-review.md` — the
   App Store privacy labels, App Review notes and purpose strings (Step
-  176).
+  176). `docs/play-store-review.md` — Google Play's: the order a personal
+  developer account goes in (internal, a 14-day closed test, then
+  production), app content, data safety, permissions (Step 198).
 - Deleting an account (Steps 22, 25, 103.4, 176): `lib/account-deletion.ts`
   — the trees that need a successor or go with the account
   (`soleRootTrees`, `loneTrees`, `everyTreeHandedOver`), and the phone's
@@ -1960,6 +1963,39 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 198: the phone app on Android** (phone only, no migration;
+  landed after Step 199).
+  **Asked for** (2026-10-21, Aalim): "i want to build the android app.
+  it should be a mirror of the iOS app with all of the same
+  functionality. i have the developer console approved" (a personal
+  Google Play account; no Android phone, so the emulator is the check).
+  **Now** the same `mobile/` app builds for Android
+  (`space.ancestree.app`, like the iPhone's bundle ID), with what Android
+  does differently handled: Android's back retraces the leaves walked
+  (`(tabs)/index.tsx`), closes sheets, and in the scribe closes only an
+  empty or saved story (a half-told one is left for the X, as the
+  iPhone's swipe is off); forms rise above the keyboard (`padding` on
+  both platforms; Android's `keyboardDid*` events in a conversation),
+  and a form in a sheet goes through `src/ui/sheet-keyboard.tsx`, since
+  React Native measured the sheet from its own top and left **add**
+  under the keyboard; search, a full-screen modal on Android, takes the
+  status bar's inset; exporting messages hands the file to Android's
+  share sheet (`expo-sharing`; `Share` takes words only there); dark
+  mode follows the phone (`expo-system-ui`); `android.blockedPermissions`
+  drops the template's storage and overlay permissions.
+  `eas.json`: `preview` makes an `.apk`, `submit.production.android`
+  goes to internal testing. `docs/play-store-review.md` has Play's
+  questions and answers. **Checked** on an Android 16 emulator (Pixel 9,
+  Play Store image, a debug build from `expo run:android`) as a throwaway
+  member with an invented family, since deleted with everything they
+  made: sign-in with the emailed code, the leaf view and walking, back,
+  details, + menu and the relative form, search, feed, settings, the
+  scribe listening with Google's recognizer (microphone prompt, clock,
+  pause, back held), a photo through the photo picker into an album
+  (69,832-byte JPEG stored), a message to a second throwaway member
+  (waiting), message security's QR code and export, the scanner's camera
+  prompt, dark mode. Not checked: words heard from a real voice, and a
+  real phone.
 - **Step 199: the phone's leaf view says what the leaf is, in a pill
   above the menu bar** (iPhone + Android app only, no migration, no
   native change: Metro serves it to the dev build). **Asked for**

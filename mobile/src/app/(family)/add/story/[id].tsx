@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from "expo-router";
 import * as React from "react";
-import { KeyboardAvoidingView, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { personDisplayName } from "@/lib/person-name";
 import { useFamily } from "@/family/family";
@@ -9,6 +9,7 @@ import { PersonChooser } from "@/scribe/person-chooser";
 import { ScribeError, tellStory } from "@/scribe/story";
 import { font, GUTTER, usePalette } from "@/theme";
 import { Button } from "@/ui/button";
+import { SheetKeyboardAvoidingView } from "@/ui/sheet-keyboard";
 import { TextField } from "@/ui/text-field";
 
 /** As long as a story may be (Step 113). */
@@ -95,7 +96,7 @@ export default function WriteStory() {
   }
 
   return (
-    <KeyboardAvoidingView behavior="padding" style={styles.fill}>
+    <SheetKeyboardAvoidingView style={styles.fill}>
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         <Text style={[styles.heading, { color: palette.foreground }]}>A story about {name}</Text>
         {treeId ? (
@@ -127,7 +128,7 @@ export default function WriteStory() {
           </Text>
         )}
       </ScrollView>
-    </KeyboardAvoidingView>
+    </SheetKeyboardAvoidingView>
   );
 }
 

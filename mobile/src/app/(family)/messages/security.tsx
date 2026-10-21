@@ -1,4 +1,5 @@
 import { File, Paths } from "expo-file-system";
+import * as Sharing from "expo-sharing";
 import * as React from "react";
 import { Platform, ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -65,7 +66,12 @@ export default function Security() {
         file.create({ overwrite: true });
         file.write(made.text);
         try {
-          await Share.share({ url: file.uri });
+          // Android's Share takes words only, not a file (Step 198).
+          if (Platform.OS === "android") {
+            await Sharing.shareAsync(file.uri, { mimeType: "text/plain", dialogTitle: made.filename });
+          } else {
+            await Share.share({ url: file.uri });
+          }
         } finally {
           // The words, readable, leave no copy behind once handed over.
           file.delete();
