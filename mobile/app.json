@@ -68,6 +68,14 @@
           "cameraPermission": "ancestree opens the camera only to scan the code that links this phone to your messages.",
           "recordAudioAndroid": false
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "buildArchs": ["arm64-v8a", "armeabi-v7a"]
+          }
+        }
       ]
     ],
     "experiments": {
