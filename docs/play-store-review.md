@@ -2,7 +2,15 @@
 
 Step 198. The same app as the iPhone's (`mobile/`), built for Android. What
 Play Console asks before a build reaches testers or the store, and the
-answers for this app. The iPhone's are in `docs/app-store-review.md`; keep
+answers for this app.
+
+**Not the route taken, for now.** On 2026-10-21 Aalim chose direct
+download: an APK from us, under his verified Android Developer Console
+account, with the package `app.ancestree.space` (see `mobile/README.md`,
+Android). There's no Play Console account yet. Keep this for if the app
+goes on Play later: production would need `android.buildType` back to
+`app-bundle`, and Play's own signing key added to the package in the
+Android Developer Console. The iPhone's are in `docs/app-store-review.md`; keep
 the two in step whenever the app starts collecting something new.
 
 ## The order things happen in
@@ -13,7 +21,8 @@ least 12 testers who stay opted in for 14 days in a row**. So:
 
 1. **Create the app** in Play Console: name `ancestree`, default language
    English (United States), App, Free. The package name is fixed by the
-   first upload: `space.ancestree.app`, the same as the iPhone's bundle ID.
+   first upload: `app.ancestree.space`, as registered in the Android
+   Developer Console.
 2. **Internal testing** (up to 100 testers, no review wait): the first
    build goes here. Google takes the very first upload only by hand: Play
    Console → Test and release → Testing → Internal testing → Create new
@@ -53,7 +62,7 @@ That needs a **Google service account key**, once: Google Cloud → IAM →
 Service accounts → create one → Keys → add a JSON key. In Play Console →
 Users and permissions, invite the service account's address with the
 release permissions for this app. Then `eas credentials` → Android →
-`space.ancestree.app` → Google Service Account → upload the JSON, so it's
+`app.ancestree.space` → Google Service Account → upload the JSON, so it's
 kept on EAS like the App Store key.
 
 ## App content

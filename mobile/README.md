@@ -264,20 +264,25 @@ in `package.json`: put them back. The emulator reaches the Mac as
 `10.0.2.2`, not `localhost`, so `EXPO_PUBLIC_SITE_URL` should be the live
 site, as for a phone.
 
-**Builds and Google Play.** EAS builds it like the iPhone's, with an
-upload key it made and keeps:
+**Builds and direct download.** Android users get the app as an APK
+straight from us, not from Google Play (Aalim's call, 2026-10-21). Its
+package is `app.ancestree.space`, registered to Aalim's verified account
+in Google's **Android Developer Console** (android.google.com/developerconsole,
+the identity check Android phones will require of apps from outside Play),
+so it differs from the iPhone's `space.ancestree.app`. EAS builds and signs
+it with a key it made for that package and keeps:
 
 ```bash
 npx eas-cli build --profile production --platform android
 ```
 
-That's an `.aab` for Play; the `preview` profile makes an `.apk` to
-install directly. Google takes the first upload only by hand, in Play
-Console; after that, with a Google service account key on EAS,
-`--auto-submit` sends each build to internal testing
-(`submit.production.android.track`). Play's questions and their answers,
-and why a personal developer account needs a 14-day closed test first,
-are in `docs/play-store-review.md`.
+The production profile makes an `.apk` (`android.buildType` in
+`eas.json`); the build page on expo.dev links to it. That key's SHA-256
+fingerprint is the one registered for the package: a build signed with
+any other key won't install where verification is enforced, so never
+make a new keystore for it. Google Play would need an Android App Bundle
+and its own Play Console account; `docs/play-store-review.md` keeps what
+Play asks, for if that comes later.
 
 ## Run it on your iPhone (no developer account needed)
 

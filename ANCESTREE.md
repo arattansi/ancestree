@@ -733,7 +733,10 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   App Store privacy labels, App Review notes and purpose strings (Step
   176). `docs/play-store-review.md` — Google Play's: the order a personal
   developer account goes in (internal, a 14-day closed test, then
-  production), app content, data safety, permissions (Step 198).
+  production), app content, data safety, permissions (Step 198); not the
+  route taken: Android is a direct-download APK, package
+  `app.ancestree.space`, registered in the Android Developer Console
+  (Step 198.3, `mobile/README.md` → Android).
 - Deleting an account (Steps 22, 25, 103.4, 176): `lib/account-deletion.ts`
   — the trees that need a successor or go with the account
   (`soleRootTrees`, `loneTrees`, `everyTreeHandedOver`), and the phone's
@@ -1963,6 +1966,19 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 198.3: Android by direct download, as `app.ancestree.space`**
+  (phone config only). **Asked for** (2026-10-21): Aalim's approved
+  account turned out to be Google's **Android Developer Console**
+  (developer verification for apps installed from outside Play), not a
+  Play Console account, which no Google account of his has. His calls:
+  direct download, not Play; the package is `app.ancestree.space`, the
+  draft already in that console, so Android no longer matches the
+  iPhone's `space.ancestree.app`. **Now** `app.json`'s Android package is
+  `app.ancestree.space`; the production profile builds an `.apk`; the
+  Play submit settings are gone. EAS made a new upload key for the new
+  package, and its SHA-256 fingerprint is the key registered for the
+  package in the console. `docs/play-store-review.md` stays for if Play
+  comes later.
 - **Step 198: the phone app on Android** (phone only, no migration;
   landed after Step 199).
   **Asked for** (2026-10-21, Aalim): "i want to build the android app.
