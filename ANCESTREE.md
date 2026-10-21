@@ -1960,6 +1960,41 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 197: Google Analytics sees addresses with their tokens taken
+  out** (web only, no migration). **Asked for** (2026-10-21, found while
+  checking Step 196): the GA page view of `/auth/confirm` carried the
+  sign-in email's one-time `token_hash`, since GA4 records each page
+  view's whole address (`dl`) and the one before it (`dr`), and the
+  property sits in the Medfair account. **Now** `redactedUrl`
+  (`lib/analytics-url.ts`, `.test.ts`) gives GA every address with the
+  token after `/join/` (invites, claim invites, family links),
+  `/newsletter/`, `/getting-started/`, `/message-emails/`, `/shared/`,
+  `/shared/story/`, `/library/subscription/` and `/library/submissions/`
+  as `:token`; `token_hash`, `token`, `invite`, `code`, `access_token`
+  and `refresh_token` left out; `next` redacted as an address of its
+  own; no fragment; everything else, `utm_*` tags included, as written.
+  `components/google-analytics.tsx` replaces `@next/third-parties`'
+  `GoogleAnalytics` (package removed): it loads gtag.js with
+  `send_page_view: false`, `gtag('set')`s the redacted `page_location`
+  and `page_referrer` (so scrolls and engagement carry them too) and
+  sends a `page_view` for the first page and each page the router opens,
+  once the router has put the page's title back. Consent mode
+  (`lib/consent.ts`) is untouched, and /privacy's Analytics line still
+  holds. **Checked** in the browser pane (`/g/collect` hits): `/join/<token>`
+  as `/join/:token?utm_source=…`, a real `/auth/confirm` as
+  `/auth/confirm?type=magiclink&next=…` with no `token_hash`, then
+  `/account?view=settings&utm_…` intact with that as its referrer.
+  **After deploy** turn off GA → Admin → Data streams → ancestree.space
+  → Enhanced measurement → Page views → advanced settings → "Page
+  changes based on browser history events": Google's own history page
+  views ignore `send_page_view: false` and carry the raw address (and
+  would double ours). Enhanced measurement's outbound clicks also send a
+  link's whole address as `link_url`, so a Root's WhatsApp share of the
+  family link (or a claim link) reaches GA with its token; turning
+  outbound clicks off too closes that. My calls: `/start/<code>` kept,
+  as a campaign's code is posted publicly and names the campaign; every
+  fragment dropped, settings anchors (`#newsletter`) with the keys; the
+  secret parameters dropped rather than kept as placeholders.
 - **Step 196: the getting started emails' links say where a click came
   from** (web only, no migration). **Asked for** (2026-10-21): Aalim
   asked whether people open the drip and click to invite; nothing could
