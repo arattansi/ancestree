@@ -16,7 +16,7 @@
       }
     },
     "android": {
-      "package": "space.ancestree.app",
+      "package": "app.ancestree.space",
       "blockedPermissions": [
         "android.permission.SYSTEM_ALERT_WINDOW",
         "android.permission.READ_EXTERNAL_STORAGE",

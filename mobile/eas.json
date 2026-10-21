@@ -18,16 +18,16 @@
     },
     "production": {
       "autoIncrement": true,
-      "environment": "production"
+      "environment": "production",
+      "android": {
+        "buildType": "apk"
+      }
     }
   },
   "submit": {
     "production": {
       "ios": {
         "ascAppId": "6823840744"
-      },
-      "android": {
-        "track": "internal"
       }
     }
   }
