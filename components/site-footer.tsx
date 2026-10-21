@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { androidHref } from "@/lib/android-app";
 import { changelogHref } from "@/lib/changelog";
 import { cn } from "@/lib/utils";
 
@@ -54,7 +55,8 @@ export function SiteFooter() {
   }
 
   const footnote = FOOTNOTES[pathname];
-  // The home page's footer also links the changelog, bottom left (Step 191).
+  // The home page's footer also links the changelog, bottom left (Step 191),
+  // and the Android app beside it (Step 200).
   const changelog = pathname === "/";
   if (!footnote && !changelog) return null;
 
@@ -67,12 +69,20 @@ export function SiteFooter() {
       )}
     >
       {changelog ? (
-        <Link
-          href={changelogHref()}
-          className="underline-offset-2 hover:text-foreground hover:underline"
-        >
-          changelog
-        </Link>
+        <div className="flex gap-4">
+          <Link
+            href={changelogHref()}
+            className="underline-offset-2 hover:text-foreground hover:underline"
+          >
+            changelog
+          </Link>
+          <Link
+            href={androidHref()}
+            className="underline-offset-2 hover:text-foreground hover:underline"
+          >
+            android app
+          </Link>
+        </div>
       ) : null}
       {footnote ? <p className="text-center sm:text-right">{footnote}</p> : null}
     </footer>

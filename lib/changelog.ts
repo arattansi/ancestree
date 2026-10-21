@@ -19,6 +19,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "2026-10-21",
+    title: "ancestree for android",
+    items: [
+      "an ancestree app for android phones: download it from ancestree.space/android. it comes from us, not google play.",
+    ],
+    steps: [198, 200],
+  },
+  {
     date: "2026-10-19",
     title: "privacy, on who we are",
     items: [

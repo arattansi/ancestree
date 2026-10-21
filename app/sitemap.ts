@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 
+import { androidHref } from "@/lib/android-app";
 import { blogHref, blogPostHref, blogSubmitHref } from "@/lib/blog";
 import { listPublishedPosts } from "@/lib/blog.server";
 import { changelogHref, changelogUpdated } from "@/lib/changelog";
@@ -8,8 +9,8 @@ import { getSiteUrl } from "@/lib/site-url";
 /**
  * The sitemap, for Search Console (Step 135): the marketing pages, the
  * library, its form for sending a story in (Step 157), every published
- * post and the changelog, as of its newest entry (Step 191). Nothing
- * signed in is listed.
+ * post, the changelog, as of its newest entry (Step 191), and the Android
+ * app's page (Step 200). Nothing signed in is listed.
  */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = getSiteUrl();
@@ -21,6 +22,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/about-us`, changeFrequency: "yearly", priority: 0.6 },
     { url: `${base}/pricing`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${base}/privacy`, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${base}${androidHref()}`, changeFrequency: "monthly", priority: 0.6 },
     {
       url: `${base}${changelogHref()}`,
       lastModified: changelogUpdated(),

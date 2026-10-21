@@ -33,6 +33,8 @@ const PUBLIC_PREFIXES = [
   "/api/library/",
   // The changelog and its feed (Step 191).
   "/changelog",
+  // The Android app's page and download (Step 200).
+  "/android",
   // For search engines (Step 135).
   "/sitemap.xml",
   "/robots.txt",

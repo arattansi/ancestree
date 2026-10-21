@@ -284,6 +284,38 @@ make a new keystore for it. Google Play would need an Android App Bundle
 and its own Play Console account; `docs/play-store-review.md` keeps what
 Play asks, for if that comes later.
 
+The APK carries only the two ABIs phones use, `arm64-v8a` and
+`armeabi-v7a` (`expo-build-properties`' `android.buildArchs` in
+`app.json`, Step 200), not the emulators' `x86` and `x86_64`: that took
+it from 132 MB to 74 MB. `expo run:android` still builds whatever its
+device needs, the arm64 emulator included.
+
+**Putting a build out (Step 200).** People get it at
+[ancestree.space/android](https://www.ancestree.space/android), whose
+**download for android** is `/android/download`, sent on to the build's
+file on a GitHub release of this (public) repo. For a new build, once EAS
+has finished it:
+
+```bash
+curl -L -o ancestree-0.1.0-4.apk <the build's .apk link from expo.dev>
+gh release create android-v0.1.0-4 ancestree-0.1.0-4.apk \
+  --title "Android 0.1.0 (4)" --notes "ancestree for Android, from ancestree.space/android."
+```
+
+(version and versionCode as EAS gave them), then set `version`, `build`
+and `bytes` in `lib/android-app.ts` to match and deploy the web. The page
+and `/android/download` follow that file, so the page never offers a
+build that isn't up yet. Older releases can stay. The app doesn't update
+itself: people download it again and Android installs it over the old one,
+which works only because every build is signed with the same key.
+
+Installing from Chrome (tried on the emulator, 2026-10-21, build 3 over
+build 2): Android first asks to allow installs from Chrome, then Google
+Play Protect blocks the app, as it "hasn't seen an app from this developer
+before"; **More details → Install anyway** lets it through, after which it
+asks whether to send the app to Google for a check. The page's steps say
+the same, so keep them in step with what phones show.
+
 ## Run it on your iPhone (no developer account needed)
 
 Expo Go runs the app straight from your Mac.

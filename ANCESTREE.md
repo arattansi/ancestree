@@ -736,7 +736,11 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   production), app content, data safety, permissions (Step 198); not the
   route taken: Android is a direct-download APK, package
   `app.ancestree.space`, registered in the Android Developer Console
-  (Step 198.3, `mobile/README.md` → Android).
+  (Step 198.3, `mobile/README.md` → Android). People get it at
+  `/android` (`app/(marketing)/android/`, Step 200): `/android/download`
+  sends them on to the APK on a GitHub release of this repo, the build
+  named in `lib/android-app.ts`; `components/qr-code.tsx` draws the
+  page's QR code for a visitor on a computer (and the messenger's).
 - Deleting an account (Steps 22, 25, 103.4, 176): `lib/account-deletion.ts`
   — the trees that need a successor or go with the account
   (`soleRootTrees`, `loneTrees`, `everyTreeHandedOver`), and the phone's
@@ -1965,6 +1969,36 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 200: Android's download page, and an APK half the size** (web +
+  phone build config, no migration). **Asked for** (2026-10-21, from the
+  Step 198 session): somewhere on ancestree.space to get the Android app,
+  now that it's a direct-download APK, and a smaller APK than 132 MB.
+  **Now** release builds carry only the phones' ABIs, `arm64-v8a` and
+  `armeabi-v7a` (`expo-build-properties`' `android.buildArchs`), so build
+  3 (`6fd13509`, 0.1.0 (3)) is 74 MB, still signed with the registered
+  `app.ancestree.space` key (SHA-256 `35:FE:…:E9:B5`, checked with
+  `apksigner`), minSdk 24. Aalim chose a **GitHub release** of the public
+  repo for the file (over a Supabase bucket, Vercel Blob or EAS's own
+  link): tag `android-v0.1.0-3`, asset `ancestree-0.1.0-3.apk`.
+  `lib/android-app.ts` names the build (version, versionCode, bytes) and
+  builds the release's address; `/android/download` sends people on to
+  it. `/android` (`app/(marketing)/android/`, public in `proxy.ts`, in the
+  sitemap) has **download for android**, the version and size, the
+  install steps, Google's review "on 21 october 2026" and, from `lg`, a
+  QR code of the page for a visitor on a computer (`components/qr-code.tsx`,
+  the messenger's, moved out to share). Linked from the home page's
+  footer beside the changelog (the web mentions no iPhone app to link
+  beside). **Checked** on the `ancestree-pixel` emulator through Chrome:
+  downloaded, Android asked to allow installs from Chrome, then **Google
+  Play Protect blocked it** ("hasn't seen an app from this developer
+  before"), More details → Install anyway, then offered to send it for a
+  check; it went in over build 2 as an update, kept the signed-in
+  session and opened on the leaf view. The page's steps follow that,
+  Play Protect's included. My calls: the page's address, its words, the
+  footer link, the QR code, `/android/download`, and turning off Chrome's
+  usage reports and ad settings on the emulator (Aalim's yes was to
+  Chrome's first run).
 
 - **Step 198.3: Android by direct download, as `app.ancestree.space`**
   (phone config only). **Asked for** (2026-10-21): Aalim's approved

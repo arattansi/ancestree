@@ -18,7 +18,6 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { encode as encodeQr } from "uqr";
 import * as React from "react";
 
 import { sendClaimInvite } from "@/app/actions/invites";
@@ -30,6 +29,7 @@ import {
 } from "@/components/messenger/messenger-store";
 import { copyText } from "@/components/copy-text";
 import { PendingButton } from "@/components/pending-button";
+import { QrCode } from "@/components/qr-code";
 import { useAction } from "@/components/use-action";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -1226,25 +1226,6 @@ function UnavailableView({ onClose }: { onClose: () => void }) {
         </p>
       </Notice>
     </>
-  );
-}
-
-/** A QR code, drawn as one path. */
-function QrCode({ text, label }: { text: string; label: string }) {
-  const { size, data } = React.useMemo(() => encodeQr(text, { ecc: "M", border: 2 }), [text]);
-  const d = data
-    .flatMap((row, y) => row.map((on, x) => (on ? `M${x} ${y}h1v1h-1z` : "")))
-    .join("");
-  return (
-    <svg
-      viewBox={`0 0 ${size} ${size}`}
-      role="img"
-      aria-label={label}
-      className="size-48 rounded-md bg-white"
-      shapeRendering="crispEdges"
-    >
-      <path d={d} fill="#000" />
-    </svg>
   );
 }
 
