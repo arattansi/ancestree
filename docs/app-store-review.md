@@ -126,6 +126,25 @@ Face ID message unless told not to (`"faceIDPermission": false`). The app
 keeps the session in the Keychain without Face ID, so it never asks. If the
 app starts using Face ID, give it a real message there.
 
+## Header and search results art
+
+App Store Connect → ancestree → the version → **Header and Search Results**
+(new 2026-10-05, shown on iOS 27). Step 201 made both images, in
+`docs/app-store/`:
+
+| File | Placement | Size | What it shows |
+| --- | --- | --- | --- |
+| `header.png` | Product page header | 3840 × 1646 (21:9) | The tagline, with the home page's family either side of it |
+| `search-result.png` | Search results | 3840 × 2560 (3:2) | The leaf view on Nila from the review family, seen by Asha |
+
+`npm run store:art` draws them again from the app's own geometry (Chrome,
+headless); `-- --guides` writes copies with Apple's art safe area on them.
+Apple's rules: no transparency, no prices, web addresses or copyright
+symbols. Its templates mark only a centred safe area (header x 1097–2743,
+y 493–1154; search x 836–3004, y 765–1795), not where the icon, name and
+get button sit, so check every device in **Preview** before submitting.
+Without a search results image, Apple shows the screenshots.
+
 ## Still to check before the App Store
 
 - **Shared content (guideline 1.2).** Once the phone shows other people's
