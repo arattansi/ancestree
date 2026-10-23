@@ -96,6 +96,10 @@ export default async function JoinPage({
                 </Link>
                 , or open the invite a relative emailed you.
               </p>
+              {/* A member with no email signs in through a Root (Step 202.3). */}
+              <p className="text-sm text-muted-foreground">
+                No email? Ask a Root of your tree for a sign-in link.
+              </p>
               <BackHome />
             </CardContent>
           </>

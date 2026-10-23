@@ -35,6 +35,7 @@ import {
   type FoundAccount,
   type FoundTree,
 } from "@/lib/admin-manage";
+import { shownEmail } from "@/lib/no-email";
 import { shortDate } from "@/lib/short-date";
 
 /**
@@ -99,7 +100,7 @@ export function AdminAccounts({
 }
 
 function accountName(a: FoundAccount): string {
-  return a.name ?? a.email ?? "Unnamed account";
+  return a.name ?? (a.email ? shownEmail(a.email) : null) ?? "Unnamed account";
 }
 
 function AccountRow({ account: a }: { account: FoundAccount }) {
@@ -115,7 +116,7 @@ function AccountRow({ account: a }: { account: FoundAccount }) {
           {a.reviewer ? <Badge variant="secondary">Reviewer</Badge> : null}
         </p>
         {a.name && a.email ? (
-          <p className="break-words text-muted-foreground">{a.email}</p>
+          <p className="break-words text-muted-foreground">{shownEmail(a.email)}</p>
         ) : null}
         {trees ? <p className="break-words text-muted-foreground">{trees}</p> : null}
         <p className="text-muted-foreground">

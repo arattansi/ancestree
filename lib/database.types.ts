@@ -3448,14 +3448,14 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "relationships_to_person_fkey"
-            columns: ["person_b"]
+            columns: ["person_a"]
             isOneToOne: false
             referencedRelation: "people"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "relationships_to_person_fkey"
-            columns: ["person_a"]
+            columns: ["person_b"]
             isOneToOne: false
             referencedRelation: "people"
             referencedColumns: ["id"]
@@ -4157,6 +4157,10 @@ export type Database = {
         Args: { p_person: string; p_tree: string }
         Returns: string
       }
+      make_sign_in_link: {
+        Args: { p_tree: string; p_user: string }
+        Returns: string
+      }
       mark_conversation_read: {
         Args: { p_conversation: string; p_up_to: string }
         Returns: string
@@ -4264,6 +4268,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      no_email_members: { Args: { p_tree: string }; Returns: string[] }
       note_active_day: { Args: never; Returns: boolean }
       onboarding_due: {
         Args: { p_users?: string[] }
@@ -4671,6 +4676,23 @@ export type Database = {
       show_card_again: {
         Args: { p_person: string; p_tree: string }
         Returns: string
+      }
+      sign_in_link_preview: {
+        Args: { p_token: string }
+        Returns: {
+          member_name: string
+          state: string
+          tree_name: string
+          user_id: string
+        }[]
+      }
+      spend_sign_in_link: {
+        Args: { p_token: string }
+        Returns: {
+          email: string
+          tree_id: string
+          user_id: string
+        }[]
       }
       stop_sharing_story: { Args: { p_story: string }; Returns: undefined }
       story_place: {

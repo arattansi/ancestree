@@ -41,7 +41,8 @@ export default function PrivacyPage() {
           <li>
             Your email address, used only to identify your account and to send
             one-time sign-in codes, alerts about your trees, and a weekly
-            newsletter about your family that you can turn off.
+            newsletter about your family that you can turn off. If you join
+            without one, we keep none and send you nothing.
           </li>
           <li>
             The demographic details you enter about yourself and relatives: names,
@@ -123,6 +124,12 @@ export default function PrivacyPage() {
           <li>
             Joining a tree is by invite. Every database row is protected by
             row-level security so only members of your tree can read it.
+          </li>
+          <li>
+            A member who joined without an email signs in again only through
+            a link a Root of their tree makes for them. It works once, for
+            24 hours, and they and every Root of the tree are told when
+            it&rsquo;s used.
           </li>
           <li>
             The site&rsquo;s owners see each tree&rsquo;s name and its counts —

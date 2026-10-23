@@ -5,6 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import { sendEmail } from "@/lib/email";
 import { messageWaitingEmail } from "@/lib/emails/message-waiting";
+import { reachableEmail } from "@/lib/no-email";
 import { getSiteUrl } from "@/lib/site-url";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -48,7 +49,9 @@ export async function tellWaiting(
     p_sender: senderId,
   });
   const row = rows?.[0];
-  if (readError || !row?.email) {
+  // A relative with no email (Step 202) is told by the bell alone.
+  const to = reachableEmail(row?.email);
+  if (readError || !row || !to) {
     await forget();
     return { told: false };
   }
@@ -60,7 +63,7 @@ export async function tellWaiting(
   });
   const sent = await sendEmail({
     ...email,
-    to: row.email,
+    to,
     headers: {
       "List-Unsubscribe": `<${site}${messageEmailsOneClickHref(row.token)}>`,
       "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",

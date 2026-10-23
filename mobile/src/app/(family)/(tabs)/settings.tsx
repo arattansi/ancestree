@@ -3,6 +3,7 @@ import * as React from "react";
 import { Image, Linking, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { shownEmail } from "@/lib/no-email";
 import { personDisplayName, personInitials } from "@/lib/person-name";
 import { useSession } from "@/auth/session";
 import { useFamily } from "@/family/family";
@@ -49,7 +50,7 @@ export default function Settings() {
               </Text>
             ) : null}
             <Text numberOfLines={1} style={[styles.email, { color: palette.mutedForeground }]}>
-              {session?.user.email}
+              {shownEmail(session?.user.email)}
             </Text>
           </View>
         </View>

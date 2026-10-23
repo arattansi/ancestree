@@ -22,6 +22,7 @@ import {
 } from "@/components/admin/admin-tree-settings";
 import { AdminFamilyLink } from "@/components/admin/admin-family-link";
 import { DeleteMemberButton } from "@/components/admin/delete-member-button";
+import { SignInLinkButton } from "@/components/admin/sign-in-link-button";
 import { DirectInviteForm } from "@/components/direct-invite-form";
 import {
   ShareLinkManager,
@@ -121,6 +122,7 @@ export async function AdminConsole({
     myTrees,
     openToRes,
     invitable,
+    noEmail,
   ] = await Promise.all([
     membersP,
     supabase
@@ -184,6 +186,10 @@ export async function AdminConsole({
       .eq("tree_id", tree.id),
     // Everyone living nobody is behind yet, to invite (Step 143).
     listInvitable(tree.id, currentAdmin.auth_user_id),
+    // Who has no email, to send a sign-in link (Step 202.3).
+    supabase
+      .rpc("no_email_members", { p_tree: tree.id })
+      .then((res) => new Set(res.data ?? [])),
   ]);
   const openTo = new Set((openToRes.data ?? []).map((v) => v.viewer_tree_id));
   const viewers = myTrees
@@ -379,7 +385,21 @@ export async function AdminConsole({
                     className="border-b border-border last:border-0"
                   >
                     <td className="px-4 py-3 font-medium text-foreground">
-                      {member.display_name ?? "—"}
+                      {noEmail.has(member.auth_user_id) ? (
+                        <div className="flex flex-col items-start gap-1">
+                          <span>{member.display_name ?? "—"}</span>
+                          <span className="text-xs font-normal text-muted-foreground">
+                            No email
+                          </span>
+                          <SignInLinkButton
+                            treeId={tree.id}
+                            userId={member.auth_user_id}
+                            name={member.display_name ?? "this member"}
+                          />
+                        </div>
+                      ) : (
+                        (member.display_name ?? "—")
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       {member.role !== "admin" ? (
@@ -390,10 +410,13 @@ export async function AdminConsole({
                             role={member.role ?? "member"}
                             name={member.display_name ?? "this member"}
                             roots={room.roots}
-                            unavailable={unavailableTypes(
-                              accountTypeOf(member.role).key,
-                              room,
-                            )}
+                            unavailable={{
+                              ...unavailableTypes(accountTypeOf(member.role).key, room),
+                              // A Root needs an email (Step 202).
+                              ...(noEmail.has(member.auth_user_id)
+                                ? { [ROOT.key]: "Needs an email" }
+                                : {}),
+                            }}
                           />
                           {member.role === "branch_admin"
                             ? [

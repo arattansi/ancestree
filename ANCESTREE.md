@@ -1970,6 +1970,65 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 202: family without email** (web, two migrations). **Asked for**
+  (2026-10-22): a member in mainland China couldn't bring their family in,
+  who use WeChat and no email, and every sign-in was an email code.
+  Researched first and set aside: WeChat login (Open Platform developer
+  verification, a separate Service Account for links opened inside
+  WeChat, maybe an ICP filing, OAuth Supabase can't speak without an
+  adapter), China SMS (registered signature and templates, a Chinese
+  business licence) and Supabase's passkeys (experimental, need an email or
+  phone first, not in WeChat's browser). Aalim took the family-vouched
+  route and all six of my picks. Scope and the inventory of every place
+  that assumed an email: the Notion epic. **Now:**
+  - **202.1, never mailed.** An account with no email has an address at
+    `no-email.ancestree.space`, a domain with no mail server
+    (`lib/no-email.ts`: `noEmailAddress`, `isNoEmailAddress`,
+    `reachableEmail`, `shownEmail`). `sendEmail`/`sendEmails` drop it, and
+    every sender drops it first: newsletter, getting started, waiting
+    messages, placement asks and reminders, request alerts
+    (`alertRecipients`). `isEmailAddress` refuses it, so nothing signs in
+    by it, invites it or adds it to an entry; `verifiedEmail` returns
+    `null` for it. Account, the phone app's Settings, admin Manage and an
+    invite for another address say "No email" (or their name), and
+    Account hides the newsletter, getting started and relatives-can-ask
+    switches. Migration `20261022120000_no_email_accounts`:
+    `private.is_no_email`, `seed_self_email` skips it (else it would land
+    on their card as a `mailto:`), and trigger `tree_members_no_email_root`
+    refuses a Root without an email however they'd become one
+    (`NO_EMAIL_ROOT`, worded by `NO_EMAIL_ROOT_REFUSAL`); the console's
+    picker marks Root "Needs an email" and asking to start a tree says
+    "Starting a tree needs an email address."
+  - **202.2, join without email.** A claim link or the family link
+    (`noEmailMayJoin`: live, bound to no address, not a founder invite, a
+    family link not full) offers "No email?" under the bare-link form:
+    name, the privacy tick, **join without email**
+    (`NoEmailJoinForm` → `joinWithoutEmailAction` → `joinWithoutEmail`).
+    It makes the account (`createUser`, confirmed), mints and spends a
+    session as `signInWithInvite` does (`signInAs`), and redeems the
+    invite with their name; if the invite won't take them, it signs out
+    and deletes the account again. `redeem_invite` is unchanged.
+  - **202.3, sign-in links.** Migration `20261022130000_sign_in_links`:
+    `private.sign_in_links` (hash only), `make_sign_in_link` (a Root of
+    the tree; the member is on it, has no email and isn't suspended; three
+    live at most), `sign_in_link_preview` and `spend_sign_in_link`
+    (service role), `no_email_members` (a Root), and notice
+    `signed_in_by_link` to the member and every Root. The Root console's
+    Who's on the Tree shows "No email" and a **sign-in link** button
+    (`SignInLinkButton`: a dialog with a QR code and the link to copy;
+    WeChat can't be opened with a message ready as `wa.me` can).
+    `/sign-in/<token>` (public in `proxy.ts`, `:token` to Analytics) shows
+    whose it is and **sign in**; only that POST spends it
+    (`signInWithLink` → `spendSignInLink`), since chat apps open links for
+    their previews. Lands on My Family Tree on the link's tree. /join says
+    "No email? Ask a Root of your tree for a sign-in link." `/privacy` and
+    the public changelog say so too.
+  Not done: adding an email later (202.4) and the phone app (202.5).
+  Known gaps: someone who joined without email and is later emailed an
+  invite at their real address gets a second account; invite reminders
+  to an address whose owner joined without it keep going until it lapses;
+  the pages are English only.
+
 - **Step 200: Android's download page, and an APK half the size** (web +
   phone build config, no migration). **Asked for** (2026-10-21, from the
   Step 198 session): somewhere on ancestree.space to get the Android app,

@@ -2,7 +2,7 @@
 
 import { after } from "next/server";
 
-import { requireProfile, type Profile } from "@/lib/auth";
+import { getSessionUser, requireProfile, type Profile } from "@/lib/auth";
 import { sendEmail, whyNotSent } from "@/lib/email";
 import { treeRequestApprovedEmail } from "@/lib/emails/tree-request-approved";
 import { mintFounderInvites } from "@/lib/founder-invites.server";
@@ -11,6 +11,7 @@ import {
   readNameAndEmail,
   type RequestFormState,
 } from "@/lib/request-forms";
+import { isNoEmailAddress } from "@/lib/no-email";
 import { askedAfresh } from "@/lib/request-alerts";
 import { alertReviewersOfTreeRequest } from "@/lib/request-alerts.server";
 import { revalidateTreePages } from "@/lib/revalidate";
@@ -35,6 +36,10 @@ export async function requestNewTree(): Promise<{
   error?: string;
 }> {
   const profile = await requireProfile();
+  // Its founder would be a Root, and a Root needs an email (Step 202).
+  if (isNoEmailAddress((await getSessionUser())?.email)) {
+    return { error: "Starting a tree needs an email address." };
+  }
   const supabase = await createClient();
   const { data: before } = await supabase.rpc("my_tree_request");
   const { data, error } = await supabase.rpc("request_tree");

@@ -6,6 +6,7 @@
  * it just doesn't email anyone.
  */
 
+import { reachableEmail } from "@/lib/no-email";
 import type { TreeRequestStatus } from "@/lib/tree-requests";
 
 /** At most this many alerts in any hour, and in any day. */
@@ -66,13 +67,16 @@ export function alertBudget(
   };
 }
 
-/** The addresses to alert: each once, in lower case, blanks dropped. */
+/**
+ * The addresses to alert: each once, in lower case, blanks and accounts with
+ * no email (Step 202) dropped.
+ */
 export function alertRecipients(
   emails: readonly (string | null | undefined)[],
 ): string[] {
   const seen = new Set<string>();
   for (const raw of emails) {
-    const email = (raw ?? "").trim().toLowerCase();
+    const email = (reachableEmail(raw) ?? "").toLowerCase();
     if (email.includes("@")) seen.add(email);
   }
   return [...seen];

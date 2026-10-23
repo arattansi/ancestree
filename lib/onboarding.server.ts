@@ -9,6 +9,7 @@ import {
   readNewsletterSchedule,
   type FamilyIssue,
 } from "@/lib/newsletter.server";
+import { reachableEmail } from "@/lib/no-email";
 import {
   daysBetween,
   isDripHour,
@@ -136,7 +137,8 @@ export async function sendOnboardingEmails(
     p_users: opts.users,
   });
   if (error) throw new Error(`onboarding_due: ${error.message}`);
-  const due = (data ?? []) as DueRow[];
+  // A member with no email (Step 202) has nothing to be sent to.
+  const due = ((data ?? []) as DueRow[]).filter((r) => reachableEmail(r.email));
   run.due = due.length;
 
   const picked: Picked[] = [];

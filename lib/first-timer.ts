@@ -9,6 +9,7 @@
  */
 
 import { isExpired } from "@/lib/expiry";
+import { reachableEmail } from "@/lib/no-email";
 import { inviteHref } from "@/lib/sign-in-links";
 
 /**
@@ -39,13 +40,14 @@ export type FirstTimerStep =
 /**
  * The signed-in account's address, lower-cased, once it has been verified;
  * `null` before then. Invites, requests and the waitlist all keep their
- * addresses lower-cased, so this is what they're looked up by.
+ * addresses lower-cased, so this is what they're looked up by. An account
+ * with no email (Step 202) has none to look up.
  */
 export function verifiedEmail(user: {
   email?: string | null;
   email_confirmed_at?: string | null;
 }): string | null {
-  const email = user.email?.trim().toLowerCase();
+  const email = reachableEmail(user.email)?.toLowerCase();
   return email && user.email_confirmed_at ? email : null;
 }
 

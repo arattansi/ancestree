@@ -40,6 +40,8 @@ const PUBLIC_PREFIXES = [
   "/robots.txt",
   "/request-invite",
   "/shared",
+  // A Root's sign-in link for a member with no email (Step 202.3).
+  "/sign-in",
   // A messages link from a member's other device (Step 174.6): it keeps the
   // link's key, in the fragment, while a signed-out device signs in.
   "/messages/link",

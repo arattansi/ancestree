@@ -5,8 +5,9 @@ import { redirect } from "next/navigation";
 
 import { isEmailAddress } from "@/lib/email-address";
 import { signInAsksName, type JoiningName } from "@/lib/joining-name";
-import { signInNeedsConsent } from "@/lib/privacy-consent";
+import { consentGiven, signInNeedsConsent } from "@/lib/privacy-consent";
 import {
+  nameProblem,
   problemState,
   readNameAndEmail,
   type RequestFormState,
@@ -25,8 +26,10 @@ import {
   completeCodeSignIn,
   completeEmailSignIn,
   emailInviteSignInCode,
+  joinWithoutEmail,
   safeNext,
   signInWithInvite,
+  spendSignInLink,
 } from "@/lib/sign-in.server";
 import { createClient } from "@/lib/supabase/server";
 import { getSiteUrl } from "@/lib/site-url";
@@ -230,6 +233,57 @@ export async function acceptInvite(
     };
   }
   return { error: "Could not sign you in. Try again shortly." };
+}
+
+/**
+ * "No email?" on a claim link or the family link (Step 202): join with a
+ * name alone, signed in on the spot, landing where an invite lands. Back in
+ * later through a sign-in link a Root sends them.
+ */
+export async function joinWithoutEmailAction(
+  _prev: RequestFormState,
+  formData: FormData,
+): Promise<RequestFormState> {
+  const token = String(formData.get("inviteToken") ?? "").trim();
+  const entered = {
+    firstName: String(formData.get("firstName") ?? "").trim(),
+    lastName: String(formData.get("lastName") ?? "").trim(),
+  };
+  const problem = nameProblem(entered);
+  if (problem) return { error: problem.message, errorField: problem.field, ...entered };
+  if (!consentGiven(formData)) {
+    return { error: "Please accept the privacy notice to continue.", ...entered };
+  }
+
+  const result = await joinWithoutEmail(token, {
+    first_name: entered.firstName,
+    last_name: entered.lastName,
+  });
+  if (result.ok) redirect(result.next);
+  if (result.reason === "invalid") {
+    return {
+      error:
+        "This invite is no longer valid. Ask the relative who invited you for a fresh one.",
+      ...entered,
+    };
+  }
+  return { error: "Could not sign you in. Try again shortly.", ...entered };
+}
+
+export type SignInLinkState = { error?: string };
+
+/**
+ * The button on a sign-in link's page (Step 202.3): spend it, sign in as the
+ * member it's for, and open their tree.
+ */
+export async function signInWithLink(
+  _prev: SignInLinkState,
+  formData: FormData,
+): Promise<SignInLinkState> {
+  const token = String(formData.get("token") ?? "").trim();
+  const result = await spendSignInLink(token);
+  if (result.ok) redirect(result.next);
+  return { error: "This link no longer works. Ask a Root of your tree for a new one." };
 }
 
 export type InviteSignInCodeState = {

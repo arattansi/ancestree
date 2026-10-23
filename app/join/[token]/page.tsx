@@ -22,6 +22,7 @@ import { getProfile, getSessionUser, getUser } from "@/lib/auth";
 import { verifiedEmail } from "@/lib/first-timer";
 import { sentToAnotherAddress } from "@/lib/invite-address";
 import { lapsedState, relativesOnTree } from "@/lib/lapsed-invites";
+import { isNoEmailAddress } from "@/lib/no-email";
 import { readSentCodeFor } from "@/lib/sent-code.server";
 import { inviteHref } from "@/lib/sign-in-links";
 import { opensOnSignInLink, readInvite } from "@/lib/sign-in.server";
@@ -127,7 +128,11 @@ export default async function InvitePage({
             claimName={preview.claim_person_name}
             founds={founds}
             sentTo={recipient.email}
-            signedInAs={signedInAs ?? user?.email ?? ""}
+            signedInAs={
+              signedInAs ??
+              (isNoEmailAddress(user?.email) ? profile?.display_name : user?.email) ??
+              ""
+            }
           />
         ) : preview?.valid && alreadyOn && onTreeId ? (
           <AlreadyOnTree
@@ -232,7 +237,11 @@ export default async function InvitePage({
                   founds={founds}
                 />
               ) : (
-                <MagicLinkSignIn inviteToken={token} submitLabel="accept &amp; sign in" />
+                <MagicLinkSignIn
+                  inviteToken={token}
+                  submitLabel="accept &amp; sign in"
+                  noEmail={invite.openToNoEmail}
+                />
               )}
               {!profile && recipient?.requested ? (
                 // They ticked the privacy notice when they asked to join, or

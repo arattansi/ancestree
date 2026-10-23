@@ -2,6 +2,7 @@ import "server-only";
 
 import { sendEmails, unsentSummary } from "@/lib/email";
 import { placementAskedEmail } from "@/lib/emails/placement-asked";
+import { reachableEmail } from "@/lib/no-email";
 import { getSiteUrl } from "@/lib/site-url";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { asksHref } from "@/lib/tree-links";
@@ -36,7 +37,7 @@ export async function alertPlacementAsks(asked: {
     if (error) throw error;
 
     const url = `${getSiteUrl()}${asksHref()}`;
-    const to = (data ?? []).filter((r) => r.email);
+    const to = (data ?? []).filter((r) => reachableEmail(r.email));
     const sent = await sendEmails(
       to.map((r) => ({
         to: r.email,
@@ -77,7 +78,7 @@ export async function sendPlacementNudges(treeId: string): Promise<void> {
     });
     if (error) throw error;
 
-    const to = (data ?? []).filter((r) => r.email);
+    const to = (data ?? []).filter((r) => reachableEmail(r.email));
     if (to.length === 0) return;
     const url = `${getSiteUrl()}${asksHref()}`;
     const sent = await sendEmails(

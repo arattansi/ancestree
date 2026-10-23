@@ -19,6 +19,15 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "2026-10-22",
+    title: "join without an email",
+    items: [
+      "family who don't use email, on wechat say, can join from a claim link or the family link with just their name.",
+      "to sign back in, a root of their tree makes them a sign-in link to send in any chat, or to scan. it works once, for 24 hours.",
+    ],
+    steps: [202],
+  },
+  {
     date: "2026-10-21",
     title: "ancestree for android",
     items: [

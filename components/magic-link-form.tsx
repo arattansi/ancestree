@@ -9,6 +9,7 @@ import {
   requestMagicLink,
   type MagicLinkState,
 } from "@/app/actions/auth";
+import { NoEmailJoinForm } from "@/components/no-email-join-form";
 import { JoinConsent, NameEmailFields } from "@/components/request-fields";
 import { SignInCodeForm } from "@/components/sign-in-code-form";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,9 @@ const INITIAL: MagicLinkState = {};
  * Given `sent`, a code this page's form emailed within the hour (Step 164,
  * `MagicLinkSignIn` reads it), it opens on the code box, as it was before
  * the page was reloaded.
+ *
+ * Given `noEmail`, a claim link or the family link, it offers "No email?":
+ * joining with a name alone (Step 202, `NoEmailJoinForm`).
  */
 export function MagicLinkForm({
   inviteToken,
@@ -40,6 +44,7 @@ export function MagicLinkForm({
   next,
   submitLabel = "email me a code",
   sent,
+  noEmail = false,
 }: {
   inviteToken?: string;
   /** A campaign link's code: signing in starts their tree (Step 103.3). */
@@ -49,6 +54,8 @@ export function MagicLinkForm({
   submitLabel?: string;
   /** A code already on its way from this form: see above. */
   sent?: SentCode;
+  /** Someone with no email may take this invite (`noEmailMayJoin`). */
+  noEmail?: boolean;
 }) {
   const [state, formAction, pending] = useActionState(
     requestMagicLink,
@@ -68,6 +75,13 @@ export function MagicLinkForm({
   const [changingFrom, setChangingFrom] = useState<MagicLinkState | null>(null);
   const needsConsent = signInNeedsConsent(inviteToken || campaign);
   const asksName = signInAsksName(inviteToken || campaign);
+  const [withoutEmail, setWithoutEmail] = useState(false);
+
+  if (noEmail && inviteToken && withoutEmail) {
+    return (
+      <NoEmailJoinForm inviteToken={inviteToken} onUseEmail={() => setWithoutEmail(false)} />
+    );
+  }
 
   if (state.ok && state.email && changingFrom !== state) {
     return (
@@ -165,6 +179,15 @@ export function MagicLinkForm({
       <Button type="submit" disabled={pending || (needsConsent && !consented)}>
         {pending ? "sending…" : submitLabel}
       </Button>
+      {noEmail && inviteToken ? (
+        <button
+          type="button"
+          onClick={() => setWithoutEmail(true)}
+          className="self-start text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
+        >
+          No email?
+        </button>
+      ) : null}
     </form>
   );
 }

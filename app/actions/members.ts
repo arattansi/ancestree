@@ -4,7 +4,9 @@ import {
   BRANCH_LIMIT_REFUSAL,
   isAssignable,
   isBranchLimitRefusal,
+  isNoEmailRootRefusal,
   isRootLimitRefusal,
+  NO_EMAIL_ROOT_REFUSAL,
   ROOT,
   ROOT_LIMIT_REFUSAL,
 } from "@/lib/account-types";
@@ -12,6 +14,8 @@ import { friendlyDbError } from "@/lib/db-errors";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { revalidateTreePages } from "@/lib/revalidate";
+import { signInLinkHref } from "@/lib/sign-in-links";
+import { getSiteUrl } from "@/lib/site-url";
 import { rootOf } from "@/lib/tree-context";
 
 /**
@@ -56,6 +60,7 @@ export async function setAccountType(
       return { error: "A Root stays a Root. Their account type can't change." };
     }
     if (isRootLimitRefusal(error?.message)) return { error: ROOT_LIMIT_REFUSAL };
+    if (isNoEmailRootRefusal(error?.message)) return { error: NO_EMAIL_ROOT_REFUSAL };
     if (isBranchLimitRefusal(error?.message)) {
       return { error: BRANCH_LIMIT_REFUSAL };
     }
@@ -119,4 +124,37 @@ export async function deleteMember(
 
   revalidateTreePages();
   return { lastTree: lastTree === true };
+}
+
+/**
+ * Root: a sign-in link for a member of the tree who has no email (Step
+ * 202.3), to send them in WeChat or any other way. It works once, for 24
+ * hours. The address comes back once and isn't kept: only its hash is.
+ */
+export async function makeSignInLink(
+  treeId: string,
+  userId: string,
+): Promise<{ url?: string; error?: string }> {
+  const { error: notRoot } = await rootOf(treeId);
+  if (notRoot) return { error: notRoot };
+
+  const supabase = await createClient();
+  const { data: token, error } = await supabase.rpc("make_sign_in_link", {
+    p_tree: treeId,
+    p_user: userId,
+  });
+  if (error || !token) {
+    return {
+      error: friendlyDbError(
+        error?.message,
+        [
+          ["SIGN_IN_LINK_LIMIT", "They have three links waiting already. Send one of those."],
+          ["HAS_EMAIL", "They sign in with their email."],
+          ["NOT_ON_TREE", "That member isn't on this tree."],
+        ],
+        "Couldn't make a sign-in link. Try again.",
+      ),
+    };
+  }
+  return { url: `${getSiteUrl()}${signInLinkHref(token)}` };
 }

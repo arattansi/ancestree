@@ -15,6 +15,8 @@
 const TOKEN_ROUTES = [
   // An invite, a claim invite or a Root's family link (`inviteHref`).
   "join",
+  // A Root's sign-in link for a member with no email (`signInLinkHref`).
+  "sign-in",
   // The newsletter's, the getting started emails' and the message emails'
   // unsubscribe pages (`lib/tree-links.ts`).
   "newsletter",

@@ -51,6 +51,7 @@ import { adminPageHref } from "@/lib/admin-page";
 import { loadAccountSettings } from "@/lib/account-settings.server";
 import { getSessionUser, requireProfile, type Profile } from "@/lib/auth";
 import { readRelayParam } from "@/lib/invite-relays";
+import { isNoEmailAddress, shownEmail } from "@/lib/no-email";
 import {
   loadOwnEntry,
   ownHeldBack,
@@ -133,7 +134,7 @@ export default async function AccountPage({
             Your Account
           </h1>
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
-            <span>Signed in as {user?.email ?? "—"}</span>
+            <span>Signed in as {shownEmail(user?.email) || "—"}</span>
             <span aria-hidden>·</span>
             <span className="flex items-center gap-1">
               Known to members as
@@ -170,6 +171,7 @@ export default async function AccountPage({
                 : null
             }
             openedRelayId={readRelayParam(relay)}
+            noEmail={isNoEmailAddress(user?.email)}
           />
         ) : (
           <ProfileView profile={profile} />
@@ -266,6 +268,7 @@ async function SettingsView({
   currentTreeId,
   pickedTreeId,
   openedRelayId,
+  noEmail,
 }: {
   profile: Profile;
   trees: MyTree[];
@@ -278,6 +281,8 @@ async function SettingsView({
   pickedTreeId: string | null;
   /** The ask named by the email's button (`relayHref`), if that's how they came. */
   openedRelayId: string | null;
+  /** They have no email (Step 202): no switches for emails they can't get. */
+  noEmail: boolean;
 }) {
   const {
     notifications,
@@ -544,7 +549,7 @@ async function SettingsView({
           >
             Privacy notice
           </Link>
-          <RelativesCanAsk on={profile.relatives_can_ask} />
+          {noEmail ? null : <RelativesCanAsk on={profile.relatives_can_ask} />}
           <div>
             <DeleteAccount soleRootTrees={soleRootTrees} />
           </div>
@@ -586,10 +591,12 @@ async function SettingsView({
         className="md:col-span-2"
         contentClassName="flex flex-col gap-6"
       >
-        <div className="flex flex-col gap-3">
-          <WeeklyNewsletter on={newsletterOn} />
-          <GettingStartedEmails on={gettingStartedOn} />
-        </div>
+        {noEmail ? null : (
+          <div className="flex flex-col gap-3">
+            <WeeklyNewsletter on={newsletterOn} />
+            <GettingStartedEmails on={gettingStartedOn} />
+          </div>
+        )}
         {trees.length > 1 ? (
           trees.map((t) => {
             const items = notifications.filter((n) => n.treeId === t.id);

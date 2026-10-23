@@ -16,6 +16,7 @@ import {
   type NewsletterSchedule,
 } from "@/lib/newsletter";
 import { ensureNewsletterToken } from "@/lib/newsletter-settings.server";
+import { reachableEmail } from "@/lib/no-email";
 import { personDisplayName } from "@/lib/person-name";
 import { getSiteUrl } from "@/lib/site-url";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -155,10 +156,12 @@ export async function sendWeeklyNewsletters(
   // A test send carries what the next one will: the note, the catch-up.
   const schedule = opts.schedule ?? (await readNewsletterSchedule());
 
-  const { data: due, error } = await supabase.rpc("newsletter_due", {
+  const { data: dueRows, error } = await supabase.rpc("newsletter_due", {
     p_users: opts.users,
   });
   if (error) throw new Error(`newsletter_due: ${error.message}`);
+  // A member with no email (Step 202) has nothing to be sent to.
+  const due = dueRows?.filter((r) => reachableEmail(r.email));
   run.due = due?.length ?? 0;
   if (!due?.length) return run;
 

@@ -408,6 +408,17 @@ export const ROOT_LIMIT_REFUSAL = `This tree already has its ${inWords(ROOTS_PER
 
 export const BRANCH_LIMIT_REFUSAL = `You’ve made your ${inWords(BRANCHES_PER_ROOT)} Branches on this tree. Make one of them a Leaf again to make someone else a Branch.`;
 
+/**
+ * A member with no email can't be a Root (Step 202): a Root sends their
+ * sign-in links and gets the tree's requests by email. The database marks
+ * it `NO_EMAIL_ROOT` (`tree_members_no_email_root`).
+ */
+export const NO_EMAIL_ROOT_REFUSAL = "A member with no email can’t be a Root.";
+
+export function isNoEmailRootRefusal(message: string | undefined): boolean {
+  return (message ?? "").includes("NO_EMAIL_ROOT");
+}
+
 export function isRootLimitRefusal(message: string | undefined): boolean {
   return (message ?? "").includes("ROOT_LIMIT");
 }

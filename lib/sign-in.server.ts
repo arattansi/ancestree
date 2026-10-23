@@ -13,7 +13,9 @@ import {
   readJoiningName,
   type JoiningName,
 } from "@/lib/joining-name";
+import { noEmailAddress, noEmailMayJoin } from "@/lib/no-email";
 import { signInLanding } from "@/lib/open-console.server";
+import { DEFAULT_NEXT } from "@/lib/safe-next";
 import { inviteHref, PENDING_HREF, signInCallbackUrl } from "@/lib/sign-in-links";
 import { getSiteUrl } from "@/lib/site-url";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -337,24 +339,32 @@ export async function getInviteRecipient(
  * (Step 77.1): who it was emailed to (`getInviteRecipient`) and the tree it
  * joins. The page asks for the tree so that a member already on it is told
  * so rather than offered to join as a Leaf: a family link goes round a
- * group chat most of whose members may be on the tree (Step 52).
+ * group chat most of whose members may be on the tree (Step 52). And
+ * whether someone with no email may take it (Step 202, `noEmailMayJoin`).
  */
-export async function readInvite(
-  token: string,
-): Promise<{ recipient: InviteRecipient | null; treeId: string | null }> {
+export async function readInvite(token: string): Promise<{
+  recipient: InviteRecipient | null;
+  treeId: string | null;
+  openToNoEmail: boolean;
+}> {
   const admin = createAdminClient();
   const { data: invite } = await admin
     .from("invites")
     .select(
-      "status, expires_at, invited_email, tree_id, invite_requests(first_name, last_name, email, source)",
+      `${NO_EMAIL_INVITE_COLUMNS}, tree_id, invite_requests(first_name, last_name, email, source)`,
     )
     .eq("token", token)
     .maybeSingle();
   return {
     recipient: recipientOf(invite),
     treeId: invite?.tree_id ?? null,
+    openToNoEmail: noEmailMayJoin(invite),
   };
 }
+
+/** What `noEmailMayJoin` reads off an invite. */
+const NO_EMAIL_INVITE_COLUMNS =
+  "status, expires_at, archived_at, invited_email, founds_tree, person_id, max_uses, use_count";
 
 type InviteRequestRow = {
   first_name: string;
@@ -500,6 +510,126 @@ export async function signInWithInvite(token: string): Promise<InviteSignInResul
 
   const { joined } = redeemed;
   return { ok: true, treeId: joined.treeId, next: joinedTreeHref(joined) };
+}
+
+export type NoEmailJoinResult =
+  | { ok: true; next: string }
+  | { ok: false; reason: "invalid" | "failed" };
+
+/**
+ * Join a tree with no email (Step 202): someone whose family use WeChat, say,
+ * opens a claim link or the family link and gives their name alone. Their
+ * account gets an address nothing is sent to (`noEmailAddress`); the session
+ * is minted and spent here, as `signInWithInvite` does, and the invite
+ * redeemed. If the invite won't take them after all, the account goes again,
+ * so nobody is left signed in to an account on no tree. Back in later
+ * through a Root's sign-in link (`spendSignInLink`).
+ */
+export async function joinWithoutEmail(
+  token: string,
+  name: JoiningName,
+): Promise<NoEmailJoinResult> {
+  const admin = createAdminClient();
+  const { data: invite } = await admin
+    .from("invites")
+    .select(NO_EMAIL_INVITE_COLUMNS)
+    .eq("token", token)
+    .maybeSingle();
+  if (!noEmailMayJoin(invite)) return { ok: false, reason: "invalid" };
+
+  const { data: made, error: makeError } = await admin.auth.admin.createUser({
+    email: noEmailAddress(crypto.randomUUID()),
+    email_confirm: true,
+    user_metadata: name,
+  });
+  const user = made?.user;
+  if (makeError || !user?.email) return { ok: false, reason: "failed" };
+  const undo = () => admin.auth.admin.deleteUser(user.id);
+
+  const supabase = await createClient();
+  if (!(await signInAs(supabase, user.email))) {
+    await undo();
+    return { ok: false, reason: "failed" };
+  }
+
+  const redeemed = await redeemInvite(supabase, token, joiningDisplayName(name));
+  if (!redeemed.ok) {
+    await supabase.auth.signOut();
+    await undo();
+    return { ok: false, reason: "invalid" };
+  }
+  return { ok: true, next: joinedTreeHref(redeemed.joined) };
+}
+
+/**
+ * Sign this browser in as an account by its address, with no email sent: a
+ * one-time token minted with the service role and spent at once on the
+ * cookie client. Only for an account the caller has already decided may be
+ * signed in this way.
+ */
+async function signInAs(supabase: ServerClient, email: string): Promise<boolean> {
+  const { data: link, error } = await createAdminClient().auth.admin.generateLink({
+    type: "magiclink",
+    email,
+  });
+  const tokenHash = link?.properties?.hashed_token;
+  if (error || !tokenHash) return false;
+  const { error: verifyError } = await supabase.auth.verifyOtp({
+    type: "email",
+    token_hash: tokenHash,
+  });
+  return !verifyError;
+}
+
+/** A sign-in link as its page shows it (Step 202.3), never spending it. */
+export type SignInLinkPreview = {
+  state: "live" | "used" | "expired";
+  memberName: string;
+  treeName: string;
+  userId: string;
+};
+
+/**
+ * Whose sign-in link a token is, and whether it still works, or `null` for
+ * one that never was. Read with the service role: the page is open to
+ * whoever holds the link.
+ */
+export async function readSignInLink(token: string): Promise<SignInLinkPreview | null> {
+  if (!token || token.length > 200) return null;
+  const { data } = await createAdminClient().rpc("sign_in_link_preview", {
+    p_token: token,
+  });
+  const row = data?.[0];
+  if (!row) return null;
+  const state = row.state === "live" || row.state === "used" ? row.state : "expired";
+  return {
+    state,
+    memberName: row.member_name,
+    treeName: row.tree_name,
+    userId: row.user_id,
+  };
+}
+
+/**
+ * The button on a sign-in link's page (Step 202.3): spend the link and sign
+ * this browser in as the member it's for, on the tree it came from. Only a
+ * POST reaches this: chat apps open links to draw their previews, and a GET
+ * that spent it would leave the member a dead link (Step 20).
+ */
+export async function spendSignInLink(
+  token: string,
+): Promise<{ ok: true; next: string } | { ok: false }> {
+  if (!token || token.length > 200) return { ok: false };
+  const { data, error } = await createAdminClient().rpc("spend_sign_in_link", {
+    p_token: token,
+  });
+  const row = data?.[0];
+  if (error || !row) return { ok: false };
+
+  const supabase = await createClient();
+  if (!(await signInAs(supabase, row.email))) return { ok: false };
+  await setCurrentTreeCookie(row.tree_id);
+  return { ok: true, next: DEFAULT_NEXT };
 }
 
 export type InviteSignInCodeResult =

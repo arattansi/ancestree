@@ -1,5 +1,7 @@
 import "server-only";
 
+import { isNoEmailAddress } from "@/lib/no-email";
+
 const RESEND_API_URL = "https://api.resend.com/emails";
 const DEFAULT_FROM = "ancestree <no-reply@ancestree.space>";
 /**
@@ -38,8 +40,15 @@ export type SendEmailResult =
  * the API key that was set as the SMTP password there.
  */
 export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult> {
+  if (isNoEmailAddress(input.to)) return NO_INBOX;
   return postToResend(RESEND_API_URL, message(input));
 }
+
+/**
+ * What a send to an account with no email (Step 202) answers: nothing goes.
+ * Every sender drops them first; this is the backstop.
+ */
+const NO_INBOX: SendEmailResult = { ok: false, error: "the account has no email" };
 
 /**
  * Several emails in one request (Step 77.5, audit S8): up to 100 in a batch,
@@ -54,6 +63,11 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
 export async function sendEmails(
   inputs: SendEmailInput[],
 ): Promise<SendEmailResult[]> {
+  if (inputs.some((input) => isNoEmailAddress(input.to))) {
+    const sendable = inputs.filter((input) => !isNoEmailAddress(input.to));
+    const sent = await sendEmails(sendable);
+    return inputs.map((input) => (isNoEmailAddress(input.to) ? NO_INBOX : sent.shift()!));
+  }
   if (inputs.length <= 1) return Promise.all(inputs.map(sendEmail));
   const results: SendEmailResult[] = [];
   for (let i = 0; i < inputs.length; i += BATCH_MAX) {

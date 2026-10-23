@@ -23,6 +23,14 @@ export function inviteHref(token: string): string {
 }
 
 /**
+ * A sign-in link's page (Step 202.3): a Root's link for a member with no
+ * email, pressed there to sign in.
+ */
+export function signInLinkHref(token: string): string {
+  return `/sign-in/${encodeURIComponent(token)}`;
+}
+
+/**
  * What a sign-in email's link is built on: `/auth/callback`, carrying where
  * the sign-in lands (`next`, already checked by `safeNext`) and, from a bare
  * invite link's form, the invite it redeems. The magic-link template adds
