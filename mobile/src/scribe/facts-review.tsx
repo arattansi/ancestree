@@ -96,7 +96,9 @@ export function FactsReview({
       ) : null}
       {mentions.length ? (
         <View style={styles.section}>
-          <Text style={[styles.label, { color: palette.foreground }]}>Also about</Text>
+          <Text style={[styles.label, { color: palette.foreground }]}>
+            {about.length ? "Also about" : "About"}
+          </Text>
           <View style={styles.chips}>
             {mentions.map((m) => (
               <Chip

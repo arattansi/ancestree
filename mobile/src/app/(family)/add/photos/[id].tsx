@@ -2,7 +2,7 @@ import { randomUUID } from "expo-crypto";
 import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
 import * as React from "react";
-import { Image, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, StyleSheet, Text, View } from "react-native";
 
 import { ALBUM_DESCRIPTION_MAX } from "@/lib/limits";
 import { PHOTO_EXTENSIONS } from "@/lib/photo-path";
@@ -12,7 +12,7 @@ import { useFamily } from "@/family/family";
 import { detailsChanged } from "@/person/sheet";
 import { font, GUTTER, usePalette } from "@/theme";
 import { Button } from "@/ui/button";
-import { SheetKeyboardAvoidingView } from "@/ui/sheet-keyboard";
+import { SheetForm } from "@/ui/sheet-keyboard";
 import { TextField } from "@/ui/text-field";
 
 /** As many as the web's album dialog takes at once. */
@@ -106,45 +106,43 @@ export default function AddPhotos() {
   }
 
   return (
-    <SheetKeyboardAvoidingView style={styles.fill}>
-      <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-        <Text style={[styles.heading, { color: palette.foreground }]}>Photos of {name}</Text>
-        {!treeId ? (
-          <Text style={[styles.note, { color: palette.mutedForeground }]}>
-            Photos of {name} are added on their own tree.
-          </Text>
-        ) : picked.length === 0 ? (
-          <Button label="choose photos" onPress={() => void choose()} />
-        ) : (
-          <>
-            <View style={styles.grid}>
-              {picked.map((p) => (
-                <Image
-                  key={p.uri}
-                  source={{ uri: p.uri }}
-                  style={[styles.thumb, { backgroundColor: palette.muted }]}
-                  accessible={false}
-                />
-              ))}
-            </View>
-            <TextField
-              label="Description"
-              value={description}
-              onChangeText={setDescription}
-              maxLength={ALBUM_DESCRIPTION_MAX}
-              multiline
-            />
-            {error ? <Text style={[styles.error, { color: palette.destructive }]}>{error}</Text> : null}
-            <Button
-              label={sending ? `adding ${sending} of ${picked.length}…` : picked.length === 1 ? "add it" : `add ${picked.length}`}
-              disabled={sending !== null}
-              onPress={() => void send()}
-            />
-            <Button variant="outline" label="choose others" disabled={sending !== null} onPress={() => void choose()} />
-          </>
-        )}
-      </ScrollView>
-    </SheetKeyboardAvoidingView>
+    <SheetForm style={styles.fill} contentContainerStyle={styles.body}>
+      <Text style={[styles.heading, { color: palette.foreground }]}>Photos of {name}</Text>
+      {!treeId ? (
+        <Text style={[styles.note, { color: palette.mutedForeground }]}>
+          Photos of {name} are added on their own tree.
+        </Text>
+      ) : picked.length === 0 ? (
+        <Button label="choose photos" onPress={() => void choose()} />
+      ) : (
+        <>
+          <View style={styles.grid}>
+            {picked.map((p) => (
+              <Image
+                key={p.uri}
+                source={{ uri: p.uri }}
+                style={[styles.thumb, { backgroundColor: palette.muted }]}
+                accessible={false}
+              />
+            ))}
+          </View>
+          <TextField
+            label="Description"
+            value={description}
+            onChangeText={setDescription}
+            maxLength={ALBUM_DESCRIPTION_MAX}
+            multiline
+          />
+          {error ? <Text style={[styles.error, { color: palette.destructive }]}>{error}</Text> : null}
+          <Button
+            label={sending ? `adding ${sending} of ${picked.length}…` : picked.length === 1 ? "add it" : `add ${picked.length}`}
+            disabled={sending !== null}
+            onPress={() => void send()}
+          />
+          <Button variant="outline" label="choose others" disabled={sending !== null} onPress={() => void choose()} />
+        </>
+      )}
+    </SheetForm>
   );
 }
 

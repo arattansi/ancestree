@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from "expo-router";
 import * as React from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 import { personDisplayName } from "@/lib/person-name";
 import { useFamily } from "@/family/family";
@@ -9,7 +9,7 @@ import { PersonChooser } from "@/scribe/person-chooser";
 import { ScribeError, tellStory } from "@/scribe/story";
 import { font, GUTTER, usePalette } from "@/theme";
 import { Button } from "@/ui/button";
-import { SheetKeyboardAvoidingView } from "@/ui/sheet-keyboard";
+import { SheetForm } from "@/ui/sheet-keyboard";
 import { TextField } from "@/ui/text-field";
 
 /** As long as a story may be (Step 113). */
@@ -96,39 +96,38 @@ export default function WriteStory() {
   }
 
   return (
-    <SheetKeyboardAvoidingView style={styles.fill}>
-      <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-        <Text style={[styles.heading, { color: palette.foreground }]}>A story about {name}</Text>
-        {treeId ? (
-          <>
-            <TextField label="Title" value={title} onChangeText={setTitle} maxLength={200} />
-            <TextField
-              label="Story"
-              value={story}
-              onChangeText={setStory}
-              multiline
-              maxLength={STORY_MAX}
-              textAlignVertical="top"
-              style={styles.story}
-            />
-            <PersonChooser
-              label="About"
-              people={aboutable}
-              chosen={about}
-              // Always the leaf's, and never nobody's.
-              onChange={(ids) => setAbout([person.id, ...ids.filter((pid) => pid !== person.id)])}
-              selfId={family.selfId}
-            />
-            {error ? <Text style={[styles.error, { color: palette.destructive }]}>{error}</Text> : null}
-            <Button label={saving ? "saving…" : "save"} disabled={saving} onPress={() => void save()} />
-          </>
-        ) : (
-          <Text style={[styles.note, { color: palette.mutedForeground }]}>
-            Stories about {name} are added on their own tree.
-          </Text>
-        )}
-      </ScrollView>
-    </SheetKeyboardAvoidingView>
+    <SheetForm style={styles.fill} contentContainerStyle={styles.body}>
+      <Text style={[styles.heading, { color: palette.foreground }]}>A story about {name}</Text>
+      {treeId ? (
+        <>
+          <TextField label="Title" value={title} onChangeText={setTitle} maxLength={200} />
+          <TextField
+            label="Story"
+            value={story}
+            onChangeText={setStory}
+            multiline
+            maxLength={STORY_MAX}
+            textAlignVertical="top"
+            style={styles.story}
+          />
+          <PersonChooser
+            label="About"
+            people={aboutable}
+            chosen={about}
+            // Always the leaf's, and never nobody's.
+            onChange={(ids) => setAbout([person.id, ...ids.filter((pid) => pid !== person.id)])}
+            fixed={[person.id]}
+            selfId={family.selfId}
+          />
+          {error ? <Text style={[styles.error, { color: palette.destructive }]}>{error}</Text> : null}
+          <Button label={saving ? "saving…" : "save"} disabled={saving} onPress={() => void save()} />
+        </>
+      ) : (
+        <Text style={[styles.note, { color: palette.mutedForeground }]}>
+          Stories about {name} are added on their own tree.
+        </Text>
+      )}
+    </SheetForm>
   );
 }
 

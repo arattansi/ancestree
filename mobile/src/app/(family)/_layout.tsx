@@ -35,6 +35,8 @@ export default function FamilyLayout() {
         <Stack.Screen name="add/relative/[id]" options={{ ...sheet, sheetAllowedDetents: [1] }} />
         <Stack.Screen name="add/photos/[id]" options={{ ...sheet, sheetAllowedDetents: [1] }} />
         <Stack.Screen name="add/story/[id]" options={{ ...sheet, sheetAllowedDetents: [1] }} />
+        {/* A leaf of the member's own, edited from Settings (Step 203). */}
+        <Stack.Screen name="edit/[id]" options={{ ...sheet, sheetAllowedDetents: [1] }} />
         {/* All of the sheet: the choices before deleting (Step 176). */}
         <Stack.Screen
           name="delete-account"

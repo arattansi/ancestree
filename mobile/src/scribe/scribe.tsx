@@ -126,7 +126,7 @@ export function Scribe({
   onClose,
 }: {
   family: Family;
-  /** Whose leaf the story is told on. */
+  /** The leaf it was opened on. */
   personId: string;
   /** `changed` when an accepted fact changed someone on the tree. */
   onClose: (changed?: boolean) => void;
@@ -134,12 +134,19 @@ export function Scribe({
   const palette = usePalette();
   const insets = useSafeAreaInsets();
   /**
-   * Whom it's about (Steps 179.6, 183): the leaf it was opened on, until
-   * the member says otherwise above the microphone or once it's written
-   * up. The first leads.
+   * Whom it's about (Steps 179.6, 183): nobody until the member says, above
+   * the microphone or once it's written up, never the leaf it was opened
+   * on by default (Aalim, Step 203). The first leads.
    */
-  const [about, setAbout] = React.useState<string[]>([personId]);
-  const person = family.people.get(about[0]) ?? null;
+  const [about, setAbout] = React.useState<string[]>([]);
+  const person = about.length ? (family.people.get(about[0]) ?? null) : null;
+  /**
+   * Whose names the recognizer and Claude are told, the story being told on
+   * their leaf: whom it's first about, else the leaf it was opened on (or
+   * the member's own, if that one isn't anywhere in full).
+   */
+  const nearId =
+    person?.id ?? (family.people.get(personId)?.fullOn.length ? personId : family.selfId);
   /** A title of the member's own, given before telling it; Claude's otherwise. */
   const [ownTitle, setOwnTitle] = React.useState("");
   /** Who's credited as asking; until picked, as `askersAtFirst`. */
@@ -235,12 +242,11 @@ export function Scribe({
   const interviewers = askers ?? askersAtFirst;
 
   /**
-   * Whom it's about now, never nobody. Someone off the first one's tree
-   * starts it afresh about them, as a story is told on one tree; a new first
-   * has who told it and asked chosen again, on their tree.
+   * Whom it's about now. Someone off the first one's tree starts it afresh
+   * about them, as a story is told on one tree; a new first has who told it
+   * and asked chosen again, on their tree.
    */
   function chooseAbout(ids: string[]) {
-    if (ids.length === 0) return;
     const added = ids.find((id) => !about.includes(id));
     const onTree = (id: string) =>
       !!treeId && !!family.people.get(id)?.fullOn.includes(treeId);
@@ -254,10 +260,9 @@ export function Scribe({
 
   /** What the story tells the tree, looked for while it's written up. */
   async function lookForFacts(heard: string, heardIn: string | null) {
-    if (!person) return;
     setFacts({ at: "looking" });
     try {
-      const found = await findFacts({ personId: person.id, heard, locale: heardIn });
+      const found = await findFacts({ personId: nearId, heard, locale: heardIn });
       setFacts({ at: "found", facts: found });
     } catch (error) {
       setFacts({
@@ -275,11 +280,10 @@ export function Scribe({
   }
 
   async function writeItUp(heard: string, heardIn: string | null) {
-    if (!person) return;
     setStep({ at: "writing", heard, locale: heardIn });
     try {
       const written = await writeUp({
-        personId: person.id,
+        personId: nearId,
         heard,
         locale: heardIn,
       });
@@ -303,9 +307,12 @@ export function Scribe({
     }
   }
 
-  /** Done talking: the recording goes up while Claude writes. */
+  /**
+   * Done talking: the recording goes up while Claude writes, into the folder
+   * of whom it's first about; when nobody's been chosen yet, it waits for
+   * the save (Step 203).
+   */
   function heardAll(heard: string, recordings: string[]) {
-    if (!person) return;
     if (!heard) {
       listening.reset();
       return;
@@ -314,19 +321,21 @@ export function Scribe({
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setSpoken(true);
     heardFiles.current = recordings;
-    uploading.current = keepRecording(person.id, recordings)
-      .then((recording) => {
-        setKept(recording);
-        return recording;
-      })
-      .catch((error: unknown) => {
-        setKeptProblem(
-          error instanceof ScribeError
-            ? error.message
-            : "The recording didn’t upload.",
-        );
-        return null;
-      });
+    if (person) {
+      uploading.current = keepRecording(person.id, recordings)
+        .then((recording) => {
+          setKept(recording);
+          return recording;
+        })
+        .catch((error: unknown) => {
+          setKeptProblem(
+            error instanceof ScribeError
+              ? error.message
+              : "The recording didn’t upload.",
+          );
+          return null;
+        });
+    }
     heardIt(heard, locale);
   }
 
@@ -356,8 +365,6 @@ export function Scribe({
     return () => sub.remove();
   }, []);
 
-  if (!person) return null;
-  const name = personDisplayName(person);
   const names = nameList(
     about.flatMap((id) => {
       const p = family.people.get(id);
@@ -365,14 +372,15 @@ export function Scribe({
     }),
   );
   // Someone it names may be in it too, on the tree it's told on (Steps
-  // 116, 183).
+  // 116, 183); before anyone's chosen, on any tree of the member's.
   const mentions =
-    facts?.at === "found" && treeId
-      ? facts.facts.mentions.filter(
-          (m) =>
-            m.personId !== person.id &&
-            family.people.get(m.personId)?.fullOn.includes(treeId),
-        )
+    facts?.at === "found"
+      ? facts.facts.mentions.filter((m) => {
+          const on = family.people.get(m.personId)?.fullOn ?? [];
+          return (
+            m.personId !== person?.id && (treeId ? on.includes(treeId) : on.length > 0)
+          );
+        })
       : [];
   const toggle = (set: ReadonlySet<string>, key: string) => {
     const next = new Set(set);
@@ -381,7 +389,8 @@ export function Scribe({
   };
 
   async function save() {
-    if (!draft || !person || !treeId || !self) return;
+    if (!draft || !self) return;
+    if (!person || !treeId) return setSaveError("Choose who it’s about.");
     const body = scribeBody(draft.story, draft.english);
     if (!draft.story.trim()) return setSaveError("Write the story.");
     if (!scribeBodyFits(body))
@@ -394,10 +403,12 @@ export function Scribe({
     try {
       let recording = uploading.current ? await uploading.current : kept;
       // Kept in the folder of whom it was first about when they were done;
-      // if they're not in it now, it goes up again for the first (Step 183).
-      if (recording && !about.includes(recording.path.split("/")[0])) {
+      // if they're not in it now, it goes up again for the first (Step
+      // 183), as it does when nobody was chosen by then (Step 203).
+      const waited = !uploading.current && heardFiles.current.length > 0;
+      if (waited || (recording && !about.includes(recording.path.split("/")[0]))) {
         const again = await keepRecording(person.id, heardFiles.current);
-        void discardRecording(recording.path);
+        if (recording) void discardRecording(recording.path);
         recording = again;
         uploading.current = Promise.resolve(again);
         setKept(again);
@@ -491,7 +502,7 @@ export function Scribe({
       />
     </View>
   );
-  const summary = [ownTitle.trim(), `About ${names}`].filter(Boolean).join(" · ");
+  const summary = [ownTitle.trim(), names && `About ${names}`].filter(Boolean).join(" · ");
 
   return (
     // The window's own insets: a full-screen modal on iOS 27 measures its
@@ -520,17 +531,11 @@ export function Scribe({
           numberOfLines={1}
           style={[styles.title, { color: palette.foreground }]}
         >
-          {name}
+          {names || "A story"}
         </Text>
       </View>
 
-      {!treeId ? (
-        <View style={styles.centre}>
-          <Text style={[styles.note, { color: palette.mutedForeground }]}>
-            Stories about {name} are told on their own tree.
-          </Text>
-        </View>
-      ) : step.at === "tell" && recorded ? (
+      {step.at === "tell" && recorded ? (
         <View style={styles.tell}>
           {listening.phase === "idle" ? (
             before
@@ -571,7 +576,9 @@ export function Scribe({
             >
               {listening.text ||
                 (listening.phase === "idle"
-                  ? `Tell a story about ${names}.`
+                  ? names
+                    ? `Tell a story about ${names}.`
+                    : "Tell a story."
                   : "Listening…")}
             </Text>
           </ScrollView>
@@ -608,7 +615,7 @@ export function Scribe({
                     : locale &&
                       // The form folds away while they talk (Step 179.6).
                       (LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut),
-                      void listening.start(locale, namesNear(family, person.id)))
+                      void listening.start(locale, namesNear(family, nearId)))
               }
               style={({ pressed }) => [
                 styles.mic,
@@ -645,6 +652,7 @@ export function Scribe({
           <ScrollView
             contentContainerStyle={styles.form}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
           >
             {before}
             <TextField
@@ -691,6 +699,7 @@ export function Scribe({
           <ScrollView
             contentContainerStyle={styles.form}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
           >
             <TextField
               label="Title"

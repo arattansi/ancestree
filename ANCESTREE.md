@@ -462,7 +462,9 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `place-autocomplete.tsx` — `places`-backed birth/death location picker
   (+ admin "add a place")
 - `lib/places.ts` — server-only `searchPlaces` / `getPlacesByIds` /
-  `formatPlaceLabel`; `lib/country-names.ts` — `countryName` (ISO→name) +
+  `formatPlaceLabel`, around `lib/place-lookup.ts` (`findPlaces`, the
+  search itself, given a reader of the candidates, which the phone runs
+  with its own client, Step 203); `lib/country-names.ts` — `countryName` (ISO→name) +
   `ALPHA2`, and a country's own `places` row (`countryPlaceId`,
   `isCountryPlace`, `isCountryPlaceId`, Step 79, `.test.ts`);
   `app/api/places` — `GET ?q=` the picker's search, a route so a newer
@@ -728,6 +730,11 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `inbox:<uid>` channel, the messaging key in the Keychain, linked from
   another device by its QR code or link; it shares `lib/messenger.ts`,
   `lib/messenger-relation.ts` and `lib/e2e/` with the web.
+  `mobile/index.ts` — the entry: `src/intl/display-names.ts` (English
+  country names, which Hermes lacks) before any route loads (Step 203).
+  `mobile/src/app/(family)/edit/[id].tsx` — the member's own leaf or one
+  they own, edited from Settings (`lib/entry-edit.ts`, the web person
+  form's rules for its fields, `.test.ts`; Step 203).
   `docs/mobile-server-paths.md` — every server action and service-role
   path, and what the app does instead. `docs/app-store-review.md` — the
   App Store privacy labels, App Review notes and purpose strings (Step
@@ -1969,6 +1976,65 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 203: the phone's forms clear the keyboard; edit your leaves from
+  Settings; the scribe's About starts blank** (phone + shared `lib/`, no
+  migration). **Asked for** (Aalim, 2026-10-22, from an iPhone screenshot
+  of "A relative of Noorbanu Kassum"): the form couldn't be scrolled to
+  "add", nor the keyboard put away; members should edit their own leaf
+  and the leaves they own from their account page in the app; the scribe
+  shouldn't assume the story is about the spotlighted person, About blank,
+  with a small "x" to take someone off. **Now:**
+  - **203.1, forms in a sheet.** React Native's KeyboardAvoidingView
+    measures itself from the sheet's top but the keyboard from the
+    screen's, so in a form sheet it fell short by the sheet's offset
+    (Step 198 had fixed Android only). `SheetForm` (`src/ui/
+    sheet-keyboard.tsx`) replaces it in the add sheets (relative, photos,
+    story) and the new edit sheet: on the iPhone the scroll view insets
+    itself natively (`automaticallyAdjustKeyboardInsets`, measured on the
+    screen) and brings the field typed in into view; a drag down the form
+    puts the keyboard away (`keyboardDismissMode`, the scribe's forms too).
+    `useRevealAboveKeyboard` scrolls something under a field (a search's
+    results) above the keyboard, measured against the form's own bottom:
+    a view measured "in the window" inside a sheet is measured from the
+    sheet's top.
+  - **203.2, edit your leaves.** Settings lists "Edit your leaves": your
+    own, then those you own (`owner_user_id`: the ones you added, until
+    someone claims one), as `entry_rights` says you may edit them,
+    placeholders left out (they stay empty until their parent shows them,
+    on the web); a search past eight. Each opens `edit/[id]`: names, sex,
+    date of birth (year, month, day, circa), place of birth, has died
+    (not on your own), date and place of death, lives in. The rules and
+    columns are the web person form's for those fields
+    (`lib/entry-edit.ts`; a test checks them against `toPersonPayload`);
+    only places the member changed are written, nothing else of the
+    entry's (photo, email, connections stay the web's). Places are found
+    as the web's picker finds them (`lib/place-lookup.ts`, moved out of
+    the server-only `lib/places.ts`) and only a found one is kept: a name
+    left unpicked holds the save ("Pick the place from the list, or clear
+    it."). Hermes has no `Intl.DisplayNames`, so the shared code named
+    Kenya "KE" (and kept a birth country as "KE"): `mobile/index.ts` now
+    loads `src/intl/display-names.ts` first, English region names
+    generated from Node's ICU.
+  - **203.3, the scribe's About.** It opens with nobody chosen ("A story",
+    "Tell a story."); the leaf it was opened on is only the first one
+    offered, and what Claude's told the story is told on (names to spell,
+    as before). The recording waits for someone to be chosen before it
+    goes up; saving with nobody asks "Choose who it's about." Every chosen
+    chip in a person chooser (About, storyteller, interviewer) has a small
+    x; the + menu's story keeps its own leaf, without one.
+  - **Checked** on an iOS 27 simulator (the Oct 17 dev build, this
+    worktree's JS) signed in as the App Store review account: the add
+    sheet scrolls to "add" with the keyboard up and a drag puts it away;
+    Settings lists You and the owned leaves; an edit (maiden name, lives
+    in Mombasa, Kenya) saved as written and was put back by the same form
+    (row identical but `updated_at`; no notices); the scribe opens blank,
+    and the x takes someone off back to blank. Not checked: a recording
+    (the simulator has no microphone), a write-up with nobody chosen, and
+    Android (no emulator run). `npm test` (`lib/entry-edit.test.ts` new),
+    both type-checks and lints clean. TestFlight and the Android APK need
+    a new build to carry it; dev builds take it from Metro (a restart of
+    Metro, for the new entry).
 
 - **Step 202.4: add an email later** (web, one migration). A member who
   joined without an email (Step 202) adds one under Account → Your Email

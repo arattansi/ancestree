@@ -1,25 +1,30 @@
 import { router } from "expo-router";
 import * as React from "react";
-import { Image, Linking, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { shownEmail } from "@/lib/no-email";
 import { personDisplayName, personInitials } from "@/lib/person-name";
 import { useSession } from "@/auth/session";
 import { useFamily } from "@/family/family";
+import type { Family } from "@/family/load";
 import { usePhotoUrl } from "@/family/photo";
+import { leavesToEdit } from "@/person/edit";
 import { font, GUTTER, usePalette } from "@/theme";
 import { AppHeader, ScreenTitle } from "@/ui/app-header";
 import { Button } from "@/ui/button";
+import { TextField } from "@/ui/text-field";
 
 const SITE = process.env.EXPO_PUBLIC_SITE_URL ?? "https://www.ancestree.space";
 const FACE = 64;
+/** How many of their leaves are listed before it takes a search. */
+const LEAVES_SHOWN = 8;
 
 /**
  * The member and their settings, the right end of the menu bar (Step
- * 179.4): who's signed in, signing out, the privacy notice, message
- * security, and deleting the account (Step 176), which the App Store asks
- * every app with accounts for.
+ * 179.4): who's signed in, their leaves to edit (Step 203), signing out,
+ * the privacy notice, message security, and deleting the account (Step
+ * 176), which the App Store asks every app with accounts for.
  */
 export default function Settings() {
   const palette = usePalette();
@@ -33,7 +38,7 @@ export default function Settings() {
   return (
     <SafeAreaView edges={["top"]} style={[styles.safe, { backgroundColor: palette.background }]}>
       <AppHeader />
-      <ScrollView contentContainerStyle={styles.body}>
+      <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         <ScreenTitle>Settings</ScreenTitle>
         <View style={styles.who}>
           {photo ? (
@@ -54,6 +59,7 @@ export default function Settings() {
             </Text>
           </View>
         </View>
+        {family && session ? <YourLeaves family={family} userId={session.user.id} /> : null}
         <View style={styles.actions}>
           {self ? (
             <Button
@@ -87,6 +93,78 @@ export default function Settings() {
   );
 }
 
+/**
+ * Their own leaf and the leaves they own, each opening its details to edit
+ * (Step 203); a search once there are more than a handful.
+ */
+function YourLeaves({ family, userId }: { family: Family; userId: string }) {
+  const palette = usePalette();
+  const [ids, setIds] = React.useState<string[] | null>(null);
+  const [failed, setFailed] = React.useState(false);
+  const [query, setQuery] = React.useState("");
+
+  React.useEffect(() => {
+    let live = true;
+    leavesToEdit(family, userId)
+      .then((leaves) => {
+        if (!live) return;
+        setIds(leaves);
+        setFailed(false);
+      })
+      .catch(() => live && setFailed(true));
+    return () => {
+      live = false;
+    };
+  }, [family, userId]);
+
+  if (failed && !ids) {
+    return (
+      <Text style={[styles.leavesNote, { color: palette.mutedForeground }]}>
+        Your leaves couldn&apos;t be read.
+      </Text>
+    );
+  }
+  if (!ids?.length) return null;
+  const nameOf = (id: string) =>
+    id === family.selfId ? "You" : personDisplayName(family.people.get(id)!);
+  const q = query.trim().toLowerCase();
+  const shown = ids
+    .filter((id) => !q || nameOf(id).toLowerCase().includes(q))
+    .slice(0, LEAVES_SHOWN);
+
+  return (
+    <View style={styles.leaves}>
+      <Text style={[styles.leavesTitle, { color: palette.foreground }]}>Edit your leaves</Text>
+      {ids.length > LEAVES_SHOWN ? (
+        <TextField label="Find a leaf" value={query} onChangeText={setQuery} autoCorrect={false} />
+      ) : null}
+      {shown.map((id) => (
+        <Pressable
+          key={id}
+          accessibilityRole="button"
+          accessibilityLabel={`Edit ${nameOf(id)}`}
+          onPress={() => router.push({ pathname: "/edit/[id]", params: { id } })}
+          style={({ pressed }) => [
+            styles.leaf,
+            { borderColor: palette.border },
+            pressed && { opacity: 0.6 },
+          ]}
+        >
+          <Text numberOfLines={1} style={[styles.leafName, { color: palette.foreground }]}>
+            {nameOf(id)}
+          </Text>
+          <Text style={[styles.leafEdit, { color: palette.mutedForeground }]}>edit</Text>
+        </Pressable>
+      ))}
+      {shown.length === 0 ? (
+        <Text style={[styles.leavesNote, { color: palette.mutedForeground }]}>
+          Nobody by that name.
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   safe: { flex: 1 },
   body: { paddingBottom: 32 },
@@ -103,6 +181,18 @@ const styles = StyleSheet.create({
   names: { flex: 1, minWidth: 0, gap: 2 },
   name: { fontFamily: font.semibold, fontSize: 20 },
   email: { fontFamily: font.regular, fontSize: 15 },
+  leaves: { marginTop: 24, gap: 4, paddingHorizontal: GUTTER },
+  leavesTitle: { fontFamily: font.medium, fontSize: 14, marginBottom: 4 },
+  leavesNote: { fontFamily: font.regular, fontSize: 15, paddingVertical: 8 },
+  leaf: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    minHeight: 48,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  leafName: { flex: 1, fontFamily: font.regular, fontSize: 17 },
+  leafEdit: { fontFamily: font.medium, fontSize: 15 },
   actions: { marginTop: 24, gap: 10, paddingHorizontal: GUTTER },
   links: { marginTop: 12, alignItems: "flex-start", paddingHorizontal: GUTTER },
 });

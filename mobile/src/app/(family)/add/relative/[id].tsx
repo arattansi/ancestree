@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from "expo-router";
 import * as React from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 import { personDisplayName } from "@/lib/person-name";
 import type { RelativeProposal } from "@/lib/scribe-facts";
@@ -12,7 +12,7 @@ import { RelativeCard } from "@/scribe/relative-card";
 import { useRelatives } from "@/scribe/use-relatives";
 import { font, GUTTER, usePalette } from "@/theme";
 import { Button } from "@/ui/button";
-import { SheetKeyboardAvoidingView } from "@/ui/sheet-keyboard";
+import { SheetForm } from "@/ui/sheet-keyboard";
 import { Chip } from "@/ui/chip";
 import { TextField } from "@/ui/text-field";
 
@@ -149,58 +149,56 @@ function Form({
   }
 
   return (
-    <SheetKeyboardAvoidingView style={styles.fill}>
-      <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-        <Text style={[styles.heading, { color: palette.foreground }]}>A relative of {name}</Text>
-        <Choice label={`What are they to ${person.preferred_name || person.first_name || name}?`}>
-          {RELATIONS.map((r) => (
-            <Chip
-              key={r.value}
-              label={r.label}
-              on={relation === r.value}
-              onPress={() => setRelation(r.value)}
-            />
-          ))}
-        </Choice>
-        {relation ? (
-          <>
-            <Choice label="Sex">
-              <Chip label="male" on={sex === "male"} onPress={() => setSex(sex === "male" ? null : "male")} />
-              <Chip label="female" on={sex === "female"} onPress={() => setSex(sex === "female" ? null : "female")} />
-            </Choice>
-            <View style={styles.row}>
-              <View style={styles.year}>
-                <TextField
-                  label="Year born"
-                  value={year}
-                  onChangeText={setYear}
-                  keyboardType="number-pad"
-                  maxLength={4}
-                />
-              </View>
-              <View style={styles.died}>
-                <Chip label="has died" on={died} onPress={() => setDied(!died)} />
-              </View>
-            </View>
-            {view ? (
-              <RelativeCard
-                fixed
-                view={view}
-                onToggle={() => {}}
-                onEdit={(patch) => edit(view.r, patch)}
-                onRetry={() => retry(view.r)}
+    <SheetForm style={styles.fill} contentContainerStyle={styles.body}>
+      <Text style={[styles.heading, { color: palette.foreground }]}>A relative of {name}</Text>
+      <Choice label={`What are they to ${person.preferred_name || person.first_name || name}?`}>
+        {RELATIONS.map((r) => (
+          <Chip
+            key={r.value}
+            label={r.label}
+            on={relation === r.value}
+            onPress={() => setRelation(r.value)}
+          />
+        ))}
+      </Choice>
+      {relation ? (
+        <>
+          <Choice label="Sex">
+            <Chip label="male" on={sex === "male"} onPress={() => setSex(sex === "male" ? null : "male")} />
+            <Chip label="female" on={sex === "female"} onPress={() => setSex(sex === "female" ? null : "female")} />
+          </Choice>
+          <View style={styles.row}>
+            <View style={styles.year}>
+              <TextField
+                label="Year born"
+                value={year}
+                onChangeText={setYear}
+                keyboardType="number-pad"
+                maxLength={4}
               />
-            ) : null}
-            {error ? <Text style={[styles.error, { color: palette.destructive }]}>{error}</Text> : null}
-            <Button
-              label={adding ? "adding…" : "add"}
-              disabled={adding || !view || view.status.at !== "ready"}
-              onPress={() => void add()}
+            </View>
+            <View style={styles.died}>
+              <Chip label="has died" on={died} onPress={() => setDied(!died)} />
+            </View>
+          </View>
+          {view ? (
+            <RelativeCard
+              fixed
+              view={view}
+              onToggle={() => {}}
+              onEdit={(patch) => edit(view.r, patch)}
+              onRetry={() => retry(view.r)}
             />
-          </>
-        ) : null}
-      </ScrollView>
-    </SheetKeyboardAvoidingView>
+          ) : null}
+          {error ? <Text style={[styles.error, { color: palette.destructive }]}>{error}</Text> : null}
+          <Button
+            label={adding ? "adding…" : "add"}
+            disabled={adding || !view || view.status.at !== "ready"}
+            onPress={() => void add()}
+          />
+        </>
+      ) : null}
+    </SheetForm>
   );
 }
 

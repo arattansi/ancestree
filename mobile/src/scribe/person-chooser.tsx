@@ -12,8 +12,9 @@ const SHOWN = 6;
 
 /**
  * Who a story is about, or who told it or asked (Step 179.6): the chosen
- * as chips (tap one to take it off), and **change** or **add** opening a
- * search of everyone who may be chosen. With `one`, choosing replaces.
+ * as chips, each with a small x that takes it off (Step 203), and
+ * **change** or **add** opening a search of everyone who may be chosen.
+ * With `one`, choosing replaces; `fixed` ones stay.
  */
 export function PersonChooser({
   label,
@@ -22,6 +23,7 @@ export function PersonChooser({
   onChange,
   selfId,
   one = false,
+  fixed = [],
 }: {
   label: string;
   /** Everyone who may be chosen, the likeliest first. */
@@ -31,6 +33,8 @@ export function PersonChooser({
   /** The member, named "You". */
   selfId: string;
   one?: boolean;
+  /** Chosen for good: no x (the leaf a story is added on). */
+  fixed?: string[];
 }) {
   const palette = usePalette();
   const [open, setOpen] = React.useState(false);
@@ -60,7 +64,14 @@ export function PersonChooser({
               key={id}
               label={nameOf(p)}
               on
-              onPress={() => (one ? setOpen(true) : onChange(chosen.filter((x) => x !== id)))}
+              removable={!one && !fixed.includes(id)}
+              onPress={() =>
+                one
+                  ? setOpen(true)
+                  : fixed.includes(id)
+                    ? undefined
+                    : onChange(chosen.filter((x) => x !== id))
+              }
             />
           ) : null;
         })}

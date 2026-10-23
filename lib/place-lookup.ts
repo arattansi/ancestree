@@ -1,0 +1,95 @@
+import { countryName } from "@/lib/country-names";
+import {
+  choosePlaces,
+  isCountryRow,
+  shapePlaceQuery,
+  type PlaceRow,
+  type PlaceSearch,
+} from "@/lib/place-search";
+
+export type PlaceHit = {
+  id: number;
+  name: string;
+  admin1_code: string | null;
+  country_code: string | null;
+  /** A whole country rather than a town in it (Step 79). */
+  is_country: boolean;
+};
+
+/**
+ * Human label for a place: "City, ST, Country" — the admin1 segment is only
+ * shown when GeoNames stored it as a letter code (US-style), since numeric
+ * admin1 codes aren't meaningful without the admin1 gazetteer we don't import.
+ * A whole country is just its name (Step 79).
+ */
+export function formatPlaceLabel(place: PlaceHit): string {
+  const country = countryName(place.country_code);
+  if (place.is_country) return country || place.name;
+  const parts = [place.name];
+  if (place.admin1_code && /^[A-Za-z]{2,3}$/.test(place.admin1_code)) {
+    parts.push(place.admin1_code.toUpperCase());
+  }
+  if (country) parts.push(country);
+  return parts.join(", ");
+}
+
+/** What a search reads of each place it finds. */
+export const PLACE_COLUMNS =
+  "id, name, ascii_name, admin1_code, country_code, population, search_name";
+
+/**
+ * How many name matches each search pulls, most populous first, for
+ * lib/place-search.ts to rank. With 60, smaller namesakes never got ranked
+ * (Ely, NV for "Ely"), nor a place in a hinted region behind 60 bigger ones.
+ * The database sorts every match whatever the limit, so 200 costs only the
+ * rows sent to the server (Step 66.4).
+ */
+export const PLACE_CANDIDATES = 200;
+
+/** What `search_name` is matched with: two letters whole (Step 66.5). */
+export function placePattern({ name, exact }: PlaceSearch): string {
+  return exact ? name : `%${name}%`;
+}
+
+/**
+ * One search's candidates, read with whichever client the caller has (the
+ * web's server, or the phone's own, which carries its own supabase-js):
+ * `places` whose `search_name` ILIKE `placePattern`, most populous first,
+ * `PLACE_CANDIDATES` at most, `PLACE_COLUMNS` of each; none on an error.
+ */
+export type PlaceCandidates = (
+  search: PlaceSearch,
+) => Promise<(PlaceRow & { id: number })[]>;
+
+/**
+ * Fuzzy place search for the autocomplete: trigram-indexed `search_name
+ * ILIKE`, shaped and ranked by lib/place-search.ts (the part before a comma
+ * is searched, what follows prefers a region; Step 66). Two letters only
+ * match a whole name, which the index serves (Step 66.5). The countries the
+ * search names are ranked in with the places (Step 79). The web's server
+ * searches through `searchPlaces` (lib/places.ts); the phone's edit form, as
+ * it's typed (Step 203).
+ */
+export async function findPlaces(
+  query: string,
+  candidates: PlaceCandidates,
+  limit = 8,
+): Promise<PlaceHit[]> {
+  const q = shapePlaceQuery(query);
+  if (!q) return [];
+
+  // The fallback goes out alongside the search as typed, so it costs no
+  // extra round trip; it's only used when the search as typed finds nothing.
+  const [found, rescued] = await Promise.all([
+    candidates(q),
+    q.fallback ? candidates(q.fallback) : null,
+  ]);
+
+  return choosePlaces(q, found, rescued).slice(0, limit).map((p) => ({
+    id: p.id,
+    name: p.name,
+    admin1_code: p.admin1_code,
+    country_code: p.country_code,
+    is_country: isCountryRow(p),
+  }));
+}
