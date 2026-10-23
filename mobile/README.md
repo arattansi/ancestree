@@ -199,6 +199,46 @@ Access): only the Admin, App Manager, Developer and Marketing roles can
 be internal testers. Then add them to the internal group under
 TestFlight.
 
+## Building on the Mac (Step 204)
+
+EAS's free plan builds 15 times a month for each platform in its cloud,
+and iPhone builds ran out first. The same build runs on this Mac instead,
+with the same `eas.json` profile, the signing kept on EAS and the build
+number counted up there, and counts against nothing:
+
+```bash
+npm run build:ios
+```
+
+builds the production app into `mobile/builds/` (git-ignored), then sends
+it to TestFlight with `eas submit`, as `--auto-submit` did. Add
+`-- --no-submit` to keep it here. For Android:
+
+```bash
+npm run build:android
+```
+
+makes the `.apk` there for a GitHub release (below). Both run
+`scripts/build-local.sh`, which sets a UTF-8 locale (CocoaPods and
+fastlane stop without one), `JAVA_HOME` and `ANDROID_HOME` as the emulator
+uses them, and keeps Gradle from leaving a daemon behind. EAS copies the
+repo to a temporary folder first, with what isn't committed, so the
+worktree can be edited again once the log reaches `INSTALL_DEPENDENCIES`.
+
+What the Mac needs: Xcode, CocoaPods and fastlane (`brew install
+fastlane`) for iOS; JDK 17 and the Android SDK (Android, below) for
+Android. And for iOS, Apple's **WWDR G3** intermediate certificate in the
+login keychain, which signs today's distribution certificates; without it
+the build stops at "Distribution certificate … hasn't been imported
+successfully":
+
+```bash
+curl -fsSLO https://www.apple.com/certificateauthority/AppleWWDRCAG3.cer
+security import AppleWWDRCAG3.cer -k ~/Library/Keychains/login.keychain-db
+```
+
+The cloud commands above still work, for when the Mac is busy.
+
 ## Apple's review (Step 176)
 
 External TestFlight testers and the App Store both go through Apple's
@@ -221,6 +261,40 @@ signing in:
 ```bash
 npm run review:account -- --off
 ```
+
+## Push notifications (Step 204)
+
+The phone is told of a new message (who wrote, never what: the words are
+end-to-end encrypted) and of a new story about someone the member sees.
+Once a member's family is read, the app asks whether it may notify them,
+then gives the web this phone's Expo push token (`register_push_token`);
+signing out gives it back. Settings → **Notifications** has a switch for
+each, kept per member (`push_settings`); on Android each is its own
+channel too. Tapping one opens the conversation, or the details of whom
+the story is about (`src/push/open.tsx`).
+
+The web sends them (`lib/push.server.ts`) through Expo's push service,
+free and outside the build allowance. After a message, the sender's
+device asks `/api/messages/push` or `/api/mobile/messages/push`; after a
+story is told, tagged or approved, the web's own actions or
+`/api/mobile/stories/push` ask. `claim_message_push` and
+`claim_story_push` decide whom, once each.
+
+Each platform needs its key on EAS once, before the build that brings
+`expo-notifications`:
+
+- **iPhone:** an Apple Push Notifications key, and the Push Notifications
+  capability on the App ID. Run `npx eas-cli credentials --platform ios`,
+  sign in to Apple, then production → Push Notifications → set up a key;
+  the next build makes a provisioning profile with the capability.
+- **Android:** a Firebase project for `app.ancestree.space`. In the
+  Firebase console add an Android app with that package, download
+  `google-services.json` into `mobile/`, and set
+  `"googleServicesFile": "./google-services.json"` under `android` in
+  `app.json`. Then Project settings → Service accounts → generate a key,
+  and upload it with `npx eas-cli credentials --platform android` →
+  production → Google Service Account → FCM V1. Without both, an Android
+  phone simply gets no token.
 
 ## Android (Step 198)
 
@@ -294,7 +368,8 @@ device needs, the arm64 emulator included.
 [ancestree.space/android](https://www.ancestree.space/android), whose
 **download for android** is `/android/download`, sent on to the build's
 file on a GitHub release of this (public) repo. For a new build, once EAS
-has finished it:
+has finished it (or `npm run build:android` has, Step 204: the file is in
+`mobile/builds/`, so skip the download):
 
 ```bash
 curl -L -o ancestree-0.1.0-4.apk <the build's .apk link from expo.dev>

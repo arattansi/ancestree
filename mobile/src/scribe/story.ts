@@ -20,6 +20,7 @@ import type { Json, TablesUpdate } from "@/lib/database.types";
 import { asSuggestionColumns } from "@/lib/suggestions";
 import { joinWav, wavSeconds } from "@/lib/wav";
 import { supabase } from "@/auth/supabase";
+import { storyTold } from "@/push/push";
 
 /**
  * The scribe's trips from the phone (Step 148): what was heard goes to
@@ -226,6 +227,8 @@ export async function tellStory(story: {
     );
   }
   const told = data as { id?: string; status?: string } | null;
+  // Its readers' phones, once someone it's about said yes (Step 204).
+  if (told?.id && told.status === "approved") void storyTold(told.id);
   return {
     id: told?.id ?? null,
     status: told?.status === "approved" ? "approved" : "pending",
@@ -259,7 +262,10 @@ export async function tagInStory(story: {
     p_told_precision: "day",
     p_about: [...new Set([...story.about, ...story.add])],
   });
-  if (!error) return null;
+  if (!error) {
+    void storyTold(story.id);
+    return null;
+  }
   return error.message.includes("not on your tree")
     ? "They aren’t on the tree it’s told on."
     : error.message.includes("too many people")

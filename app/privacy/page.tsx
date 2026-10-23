@@ -66,6 +66,12 @@ export default function PrivacyPage() {
             stories, reports, and in-app notifications.
           </li>
           <li>
+            If you let the phone app send you notifications, a token for each
+            phone you&rsquo;re signed in on, so Expo, Apple or Google can
+            deliver them. It goes when you sign out on that phone or delete
+            your account.
+          </li>
+          <li>
             The days you use ancestree — the date only, not what you looked
             at — so the site&rsquo;s owners can see how much it&rsquo;s used.
             They go when your account does.
@@ -251,6 +257,10 @@ export default function PrivacyPage() {
             haven&rsquo;t read, and how many messages, never what they say.
           </li>
           <li>
+            The phone app&rsquo;s notification says who wrote, never what.
+            None comes for a conversation you&rsquo;ve muted.
+          </li>
+          <li>
             Your key stays on your devices. Another device of yours gets it
             when you link it from one you&rsquo;ve used, or with a 12-word
             recovery phrase if you set one; that backup is kept encrypted and
@@ -392,6 +402,11 @@ export default function PrivacyPage() {
             </Link>
             , and nobody&rsquo;s ask for an invite reaches you. They
             aren&rsquo;t told you&rsquo;ve turned it off.
+          </li>
+          <li>
+            <strong>Turn off notifications.</strong> In the phone app&rsquo;s
+            settings, for new messages or new stories, or for ancestree in
+            your phone&rsquo;s own settings.
           </li>
           <li>
             <strong>Delete your account.</strong> From{" "}

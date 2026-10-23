@@ -11,7 +11,7 @@ App Store Connect → ancestree → **App Privacy** → Get Started.
 
 **Do you or your third-party partners collect data from this app?** Yes.
 
-Collect these five types and nothing else. For each one the answers are the
+Collect these six types and nothing else. For each one the answers are the
 same:
 
 - **Purpose:** App Functionality only. Not analytics, not advertising, not
@@ -27,6 +27,7 @@ same:
 | User Content | **Audio Data** | A story told aloud to the scribe: the recording is kept with the story. |
 | User Content | **Other User Content** | Stories (the words, title and credits), and the family details they add: names, births, deaths, places, sex, and who is whose parent or spouse. |
 | Identifiers | **User ID** | Their account's ID, which every row they add is kept under. |
+| Identifiers | **Device ID** | Since Step 204: the phone's push token, if they allow notifications, kept against their account to tell that phone of new messages and stories. Gone when they sign out on it. |
 
 Everything else is **not collected**:
 
@@ -42,8 +43,9 @@ Everything else is **not collected**:
 
 Who handles that data for ancestree (they count as collection by
 ancestree, not as third-party tracking): Supabase stores it, Vercel runs the
-server, Resend sends the emails, and Anthropic's Claude writes up a story
-from what was heard. The phone's own speech recognizer, which is Apple's,
+server, Resend sends the emails, Expo hands notifications to Apple's push
+service (who wrote, never what; whom a story is about), and Anthropic's
+Claude writes up a story from what was heard. The phone's own speech recognizer, which is Apple's,
 does the hearing.
 
 **Privacy Policy URL:** `https://www.ancestree.space/privacy`. It already

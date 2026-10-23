@@ -4,6 +4,7 @@ import * as React from "react";
 import { useSession } from "@/auth/session";
 import { FamilyProvider, useFamily } from "@/family/family";
 import { messenger } from "@/messages/store";
+import { PushNotifications } from "@/push/open";
 import { usePalette } from "@/theme";
 
 /** A signed-in member's screens, all over the one family read. */
@@ -18,6 +19,7 @@ export default function FamilyLayout() {
   return (
     <FamilyProvider>
       <MessengerWake />
+      <PushNotifications />
       <Stack
         screenOptions={{
           headerShown: false,

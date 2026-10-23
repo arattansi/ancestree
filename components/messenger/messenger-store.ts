@@ -1018,6 +1018,12 @@ async function send(id: string, text: string): Promise<boolean> {
       body: JSON.stringify({ conversationId: id }),
     }).catch(() => {});
   }
+  // Their phones are told who wrote (Step 204).
+  void fetch("/api/messages/push", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ messageId }),
+  }).catch(() => {});
   return true;
 }
 

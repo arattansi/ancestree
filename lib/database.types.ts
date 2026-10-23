@@ -1394,6 +1394,29 @@ export type Database = {
           },
         ]
       }
+      message_pushes: {
+        Row: {
+          message_id: string
+          pushed_at: string
+        }
+        Insert: {
+          message_id: string
+          pushed_at?: string
+        }
+        Update: {
+          message_id?: string
+          pushed_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_pushes_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: true
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       message_reports: {
         Row: {
           body: string
@@ -2512,6 +2535,81 @@ export type Database = {
           },
         ]
       }
+      push_settings: {
+        Row: {
+          messages: boolean
+          stories: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          messages?: boolean
+          stories?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          messages?: boolean
+          stories?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_settings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "push_settings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+        ]
+      }
+      push_tokens: {
+        Row: {
+          created_at: string
+          platform: string
+          seen_at: string
+          token: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          platform: string
+          seen_at?: string
+          token: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          platform?: string
+          seen_at?: string
+          token?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_tokens_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "push_tokens_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+        ]
+      }
       relationships: {
         Row: {
           created_at: string
@@ -2926,6 +3024,46 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "stories"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      story_pushes: {
+        Row: {
+          pushed_at: string
+          story_id: string
+          user_id: string
+        }
+        Insert: {
+          pushed_at?: string
+          story_id: string
+          user_id: string
+        }
+        Update: {
+          pushed_at?: string
+          story_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "story_pushes_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "stories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "story_pushes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "story_pushes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
           },
         ]
       }
@@ -3673,6 +3811,14 @@ export type Database = {
         }
         Returns: Json
       }
+      claim_message_push: {
+        Args: { p_message: string }
+        Returns: {
+          conversation_id: string
+          sender_name: string
+          user_id: string
+        }[]
+      }
       claim_newsletter_issues: {
         Args: { p_users: string[] }
         Returns: string[]
@@ -3686,6 +3832,15 @@ export type Database = {
           p_tree?: string
         }
         Returns: Json
+      }
+      claim_story_push: {
+        Args: { p_story: string }
+        Returns: {
+          about: string
+          person_id: string
+          title: string
+          user_id: string
+        }[]
       }
       claim_waiting_notice: {
         Args: { p_conversation: string }
@@ -3975,6 +4130,7 @@ export type Database = {
           tree_id: string
         }[]
       }
+      forget_push_token: { Args: { p_token: string }; Returns: undefined }
       forget_withheld_details: {
         Args: { p_person: string }
         Returns: undefined
@@ -4454,6 +4610,10 @@ export type Database = {
         Returns: Json
       }
       refuse_suspended: { Args: never; Returns: undefined }
+      register_push_token: {
+        Args: { p_platform: string; p_token: string }
+        Returns: undefined
+      }
       remove_story_subject: {
         Args: { p_person: string; p_story: string }
         Returns: undefined
@@ -4664,6 +4824,10 @@ export type Database = {
         Returns: undefined
       }
       set_onboarding_emails: { Args: { p_on: boolean }; Returns: undefined }
+      set_push_settings: {
+        Args: { p_messages: boolean; p_stories: boolean }
+        Returns: undefined
+      }
       share_story: { Args: { p_story: string }; Returns: string }
       shared_story: {
         Args: { p_token: string }

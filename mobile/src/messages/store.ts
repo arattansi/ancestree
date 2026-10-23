@@ -1017,20 +1017,25 @@ async function send(id: string, text: string): Promise<boolean> {
   // They're told by email that it waits, once for each sender (Step 182).
   if (waits) {
     undeliverable.delete(id);
-    void tellWaiting(id);
+    void tellWeb("messages/waiting", { conversationId: id });
   }
+  // Their phones are told who wrote (Step 204).
+  void tellWeb("messages/push", { messageId });
   return true;
 }
 
-/** Ask the web to email the member a message waits for (Step 182). */
-async function tellWaiting(conversationId: string) {
+/**
+ * Ask the web to tell the other member: by email that a message waits for
+ * them (Step 182), or on their phones that one came (Step 204).
+ */
+async function tellWeb(path: "messages/waiting" | "messages/push", body: object) {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
   if (!token) return;
-  await fetch(`${SITE}/api/mobile/messages/waiting`, {
+  await fetch(`${SITE}/api/mobile/${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ conversationId }),
+    body: JSON.stringify(body),
   }).catch(() => {});
 }
 
@@ -1430,6 +1435,8 @@ async function setVerified(otherId: string, key: string | null) {
 export const messenger = {
   start,
   stop,
+  /** The conversation on screen, while the app is open (Step 204). */
+  openThreadId,
   retryKeys,
   focus,
   send,

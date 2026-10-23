@@ -16,6 +16,7 @@ import {
 } from "@/lib/stories";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { toStoredDate } from "@/lib/partial-date";
+import { claimStoryPush, pushAfter } from "@/lib/push.server";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -120,6 +121,10 @@ export async function addStory(input: {
     };
   }
   const told = data as { id?: string; status?: string } | null;
+  // Its readers' phones, once someone it's about said yes (Step 204).
+  if (told?.status === "approved" && told.id) {
+    await pushAfter(claimStoryPush(supabase, told.id));
+  }
   // It's told either way; a list that can't be read now is read again.
   const stories = await listStories(input.personId, profile.auth_user_id).catch(
     () => undefined,
@@ -239,6 +244,10 @@ export async function editStory(input: {
     };
   }
   const edited = data as { status?: string; removed_audio?: string | null } | null;
+  // Anyone newly about it who said yes at once brings new readers (Step 204).
+  if (about && edited?.status === "approved") {
+    await pushAfter(claimStoryPush(supabase, input.storyId));
+  }
   // The recording it no longer has: nothing points at it now, so it goes
   // with the service role, as a deleted story's does.
   const removed = edited?.removed_audio;
@@ -289,6 +298,8 @@ export async function decideStory(
       ),
     };
   }
+  // A yes shows it to whoever sees them: their phones are told (Step 204).
+  if (approve) await pushAfter(claimStoryPush(supabase, storyId));
   return {};
 }
 

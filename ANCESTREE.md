@@ -735,6 +735,16 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `mobile/src/app/(family)/edit/[id].tsx` — the member's own leaf or one
   they own, edited from Settings (`lib/entry-edit.ts`, the web person
   form's rules for its fields, `.test.ts`; Step 203).
+  `mobile/src/push/` — push notifications (Step 204): `push.ts` asks
+  whether it may notify, gives the web this phone's Expo token and takes it back on
+  signing out, reads and sets the member's two switches; `open.tsx`
+  shows a push while the app's open (not a message in the conversation on
+  screen) and opens what a tapped one is about. The web sends them:
+  `lib/push.ts` (the words, addressing, batches, `.test.ts`) and
+  `lib/push.server.ts` (`claimMessagePush`, `claimStoryPush`,
+  `sendPushes` through Expo's push service). `mobile/scripts/
+  build-local.sh` — `npm run build:ios` / `build:android` build on this
+  Mac, not in EAS's cloud (Step 204).
   `docs/mobile-server-paths.md` — every server action and service-role
   path, and what the app does instead. `docs/app-store-review.md` — the
   App Store privacy labels, App Review notes and purpose strings (Step
@@ -1976,6 +1986,79 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 204: push notifications for new messages and new stories; the
+  phone builds on the Mac** (migration `20261023120000_push_notifications`,
+  web + phone; needs a new phone build). **Asked for** (Aalim,
+  2026-10-23): "there should be [push notifications] for messages and new
+  stories added", then, near EAS's free limit, builds on the Mac first.
+  Nothing pushed before: the phone heard only while open (the menu bar's
+  counts) or from the newsletter. **Now:**
+  - **204.1, building on the Mac.** `npm run build:ios` /
+    `build:android` in `mobile/` (`scripts/build-local.sh`): `eas build
+    --local` with the production profile, the signing on EAS and the
+    build number counted there, into `mobile/builds/`; iOS then goes to
+    TestFlight with `eas submit`. None of it counts against the free
+    plan's 15 cloud builds a month a platform (13 of iOS's were used by
+    Oct 23). fastlane installed by Homebrew. Checked: Android built in
+    about 6 minutes, 0.1.0 (4), 74 MB, signed with the registered key
+    (`35:FE…E9:B5`); iOS stopped at signing because the Mac had only
+    Apple's old WWDR intermediate, not G3 (README has the two commands).
+  - **204.2, tokens.** Signed in with the family read, the app asks once
+    whether it may notify (Android 13+ when the first channel is made:
+    "Messages", "New stories") and gives `register_push_token` this
+    phone's Expo token each time it opens; a token another account had
+    moves to whoever signs in; ten phones a member at most. Signing out
+    gives it back (`forget_push_token`); deleting the account takes them
+    all. `push_tokens` is the service role's only.
+  - **204.3, a message.** After a send, the web's messenger asks
+    `/api/messages/push` and the phone `/api/mobile/messages/push`
+    (bearer); `claim_message_push`, as the sender, within ten minutes,
+    once a message: the other member unless they muted it, either blocked
+    the other, they no longer share a tree, or they're suspended. Title
+    the sender's name (their entry's, else the name they set), body "New
+    message", never the words. Not shown while that conversation is on
+    screen. Tapping opens it.
+  - **204.4, a story.** The web's `addStory`, `editStory` (new people it's
+    about) and `decideStory` (a yes), and the phone's `tellStory` and
+    `tagInStory` (through `/api/mobile/stories/push`), ask
+    `claim_story_push` as its teller or whoever said a yes in the last
+    day: everyone the newest yeses let read it, as `can_read_story`
+    decides (a member of a tree where that person is fully placed), but
+    the teller and the asker, each reader once a story ("New story about
+    Amina Khan", its title as the body). Tapping opens that person's
+    details. My call: the newsletter's readers, not only close family.
+  - **Settings → Notifications**: "Messages" and "New stories", each on
+    until turned off, per member (`push_settings`, `set_push_settings`);
+    "open phone settings" when the phone has them off.
+  - Sent from the web (`lib/push.server.ts`) through Expo's push service,
+    claimed as the caller and sent after the response (`after()`); a phone
+    Expo calls `DeviceNotRegistered` is forgotten. `EXPO_ACCESS_TOKEN` is
+    sent only if set (Expo's enhanced push security, off).
+  - The privacy page (what we collect, Messages, Your choices),
+    `docs/app-store-review.md` (Device ID, Expo) and
+    `docs/mobile-server-paths.md` say so. The public `/changelog` waits
+    for the build that brings it.
+  - **Waiting on Aalim before pushes reach a phone:** an Apple Push
+    Notifications key on EAS (`eas credentials`, signed in to Apple) and
+    a Firebase project for `app.ancestree.space` (`google-services.json`
+    plus an FCM V1 key on EAS); then new builds. `mobile/README.md` →
+    Push notifications.
+  - **Checked:** the migration rehearsed in a rolled-back transaction on
+    live data (a story's 18 readers told once, nobody twice; a message's
+    one recipient once; muted, switched off, a bad token and reading
+    tokens as a member all refused), applied, statement md5 = file's;
+    one push to a made-up token through Expo's real service came back
+    `DeviceNotRegistered` and its row was deleted; web tsc, eslint and
+    2,409 tests, the phone's tsc and lint. On an iOS 27 simulator (a new
+    dev build of this worktree, signed in as the App Store review
+    account): the app asked once the family was read, got a real Expo
+    token and registered it; a push sent to it through Expo came back
+    `InvalidCredentials` (no Apple push key on EAS yet), so `simctl push`
+    stood in: the banner read "New story about Rohan Kapadia" with its
+    title and the tree icon, and tapping it opened Rohan's details; the
+    Settings switches saved off and on (`push_settings`); signing out
+    took the token back. Everything it left was removed.
 
 - **Step 203: the phone's forms clear the keyboard; edit your leaves from
   Settings; the scribe's About starts blank** (phone + shared `lib/`, no

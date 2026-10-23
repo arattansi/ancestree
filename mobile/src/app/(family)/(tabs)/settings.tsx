@@ -1,6 +1,15 @@
 import { router } from "expo-router";
 import * as React from "react";
-import { Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Image,
+  Linking,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { shownEmail } from "@/lib/no-email";
@@ -10,6 +19,13 @@ import { useFamily } from "@/family/family";
 import type { Family } from "@/family/load";
 import { usePhotoUrl } from "@/family/photo";
 import { leavesToEdit } from "@/person/edit";
+import {
+  pushPermission,
+  readPushSettings,
+  savePushSettings,
+  type PushPermission,
+  type PushSettings,
+} from "@/push/push";
 import { font, GUTTER, usePalette } from "@/theme";
 import { AppHeader, ScreenTitle } from "@/ui/app-header";
 import { Button } from "@/ui/button";
@@ -22,9 +38,10 @@ const LEAVES_SHOWN = 8;
 
 /**
  * The member and their settings, the right end of the menu bar (Step
- * 179.4): who's signed in, their leaves to edit (Step 203), signing out,
- * the privacy notice, message security, and deleting the account (Step
- * 176), which the App Store asks every app with accounts for.
+ * 179.4): who's signed in, their leaves to edit (Step 203), what the phone
+ * notifies them of (Step 204), signing out, the privacy notice, message
+ * security, and deleting the account (Step 176), which the App Store asks
+ * every app with accounts for.
  */
 export default function Settings() {
   const palette = usePalette();
@@ -60,6 +77,7 @@ export default function Settings() {
           </View>
         </View>
         {family && session ? <YourLeaves family={family} userId={session.user.id} /> : null}
+        <Notifications />
         <View style={styles.actions}>
           {self ? (
             <Button
@@ -165,6 +183,83 @@ function YourLeaves({ family, userId }: { family: Family; userId: string }) {
   );
 }
 
+/**
+ * What the phone notifies them of (Step 204): new messages and new
+ * stories, each on until they turn it off, for every phone they're signed
+ * in on. If the phone itself won't let the app notify them, they're sent
+ * to its settings.
+ */
+function Notifications() {
+  const palette = usePalette();
+  const [settings, setSettings] = React.useState<PushSettings | null>(null);
+  const [permission, setPermission] = React.useState<PushPermission | null>(null);
+  const [failed, setFailed] = React.useState(false);
+
+  React.useEffect(() => {
+    let live = true;
+    void pushPermission().then((p) => live && setPermission(p));
+    readPushSettings()
+      .then((s) => live && setSettings(s))
+      .catch(() => live && setFailed(true));
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  const change = (next: PushSettings) => {
+    const before = settings;
+    setSettings(next);
+    setFailed(false);
+    savePushSettings(next).catch(() => {
+      setSettings(before);
+      setFailed(true);
+    });
+  };
+
+  if (!settings) {
+    return failed ? (
+      <Text style={[styles.note, styles.section, { color: palette.mutedForeground }]}>
+        Your notifications couldn&apos;t be read.
+      </Text>
+    ) : null;
+  }
+  const row = (label: string, key: keyof PushSettings) => (
+    <View style={[styles.switchRow, { borderColor: palette.border }]}>
+      <Text style={[styles.leafName, { color: palette.foreground }]}>{label}</Text>
+      <Switch
+        accessibilityLabel={label}
+        value={settings[key]}
+        onValueChange={(on) => change({ ...settings, [key]: on })}
+        trackColor={{ true: palette.green }}
+      />
+    </View>
+  );
+  return (
+    <View style={styles.section}>
+      <Text style={[styles.leavesTitle, { color: palette.foreground }]}>Notifications</Text>
+      {row("Messages", "messages")}
+      {row("New stories", "stories")}
+      {permission === "denied" ? (
+        <View style={styles.off}>
+          <Text style={[styles.note, { color: palette.mutedForeground }]}>
+            Notifications are off for ancestree on this phone.
+          </Text>
+          <Button
+            variant="outline"
+            label="open phone settings"
+            onPress={() => void Linking.openSettings()}
+          />
+        </View>
+      ) : null}
+      {failed ? (
+        <Text style={[styles.note, { color: palette.mutedForeground }]}>
+          Couldn&apos;t save that. Try again.
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   safe: { flex: 1 },
   body: { paddingBottom: 32 },
@@ -193,6 +288,16 @@ const styles = StyleSheet.create({
   },
   leafName: { flex: 1, fontFamily: font.regular, fontSize: 17 },
   leafEdit: { fontFamily: font.medium, fontSize: 15 },
+  section: { marginTop: 24, gap: 4, paddingHorizontal: GUTTER },
+  switchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    minHeight: 48,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  note: { fontFamily: font.regular, fontSize: 15, paddingVertical: 8 },
+  off: { gap: 4, alignItems: "flex-start" },
   actions: { marginTop: 24, gap: 10, paddingHorizontal: GUTTER },
   links: { marginTop: 12, alignItems: "flex-start", paddingHorizontal: GUTTER },
 });

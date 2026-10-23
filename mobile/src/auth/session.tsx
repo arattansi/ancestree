@@ -2,6 +2,7 @@ import type { Session } from "@supabase/supabase-js";
 import * as React from "react";
 
 import { supabase } from "@/auth/supabase";
+import { forgetPush } from "@/push/push";
 
 type SessionState = {
   /** `undefined` while the stored session is still being read. */
@@ -38,6 +39,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     () => ({
       session,
       signOut: async () => {
+        // This phone tells nobody of their family once they've gone (Step 204).
+        await forgetPush().catch(() => {});
         await supabase.auth.signOut();
       },
     }),

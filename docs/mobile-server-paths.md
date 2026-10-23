@@ -108,7 +108,11 @@ All carry a top-level `"use server"`; none is inline.
   the inbox is the Realtime channel `inbox:<uid>`. Telling a member a
   message waits for them takes the service role (their address), so the
   phone asks `/api/mobile/messages/waiting` (bearer) as the web asks
-  `/api/messages/waiting` (Step 182). **Done in
+  `/api/messages/waiting` (Step 182), and its phones are told of each
+  message through `/api/mobile/messages/push` as the web's messenger asks
+  `/api/messages/push` (Step 204; the phones' tokens are the service
+  role's). A story told or tagged on the phone asks
+  `/api/mobile/stories/push`. **Done in
   Step 179.1** (`mobile/src/messages/`): the same RPCs and channel, who
   they are to you worked out on the phone over its family read
   (`lib/messenger-relation.ts`), the keys in the Keychain. Faces are
