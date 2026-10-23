@@ -1970,6 +1970,32 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 202.4: add an email later** (web, one migration). A member who
+  joined without an email (Step 202) adds one under Account → Your Email
+  (`AddEmailForm`, first in the settings view and its side nav, only for
+  them): an address, **email me a code**, then the 6-digit code and **add
+  email**. Not Supabase's own email change: the hosted project has secure
+  email change on (a yes from the old address too, which theirs can't
+  give) and a link template. Instead `sendAddEmailCode`
+  (`lib/no-email.server.ts`) makes the code (`randomInt`) and keeps only
+  its hash with the account's id (`begin_add_email`, service role only:
+  refuses an account with an email, an address that has an account
+  (`EMAIL_TAKEN`), and more than one a minute), and sends it ourselves
+  (`addEmailCodeEmail`, the sign-in email's code block, no button:
+  `renderEmail`'s `cta` is optional now). `confirm_add_email` gives the
+  address back for the right code, `null` for a wrong one (counted), and
+  refuses after an hour or five wrong tries; then
+  `updateUserById(email, email_confirm)` and `refreshSession()` so the
+  cookie carries the new address. From then on they're an ordinary
+  member: codes, the newsletter and getting started switches back, and
+  sign-in links refused (`HAS_EMAIL`). Migration
+  `20261022140000_add_email_later` (`private.email_claims`). Checked on the
+  dev server against live with throwaway accounts (since deleted): a
+  taken address refused, a wrong code refused, the right one (read from
+  Resend's test inbox) made the account `delivered+…@resend.dev`,
+  confirmed; a sign-in link then refused. Closes Step 202's
+  second-account gap for anyone who adds theirs first.
+
 - **Step 202: family without email** (web, two migrations). **Asked for**
   (2026-10-22): a member in mainland China couldn't bring their family in,
   who use WeChat and no email, and every sign-in was an email code.

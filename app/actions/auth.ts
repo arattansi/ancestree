@@ -3,8 +3,15 @@
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 
+import { getSessionUser } from "@/lib/auth";
 import { isEmailAddress } from "@/lib/email-address";
 import { signInAsksName, type JoiningName } from "@/lib/joining-name";
+import {
+  confirmAddEmail,
+  sendAddEmailCode,
+  type AddEmailConfirmRefusal,
+  type AddEmailSendRefusal,
+} from "@/lib/no-email.server";
 import { consentGiven, signInNeedsConsent } from "@/lib/privacy-consent";
 import {
   nameProblem,
@@ -284,6 +291,56 @@ export async function signInWithLink(
   const result = await spendSignInLink(token);
   if (result.ok) redirect(result.next);
   return { error: "This link no longer works. Ask a Root of your tree for a new one." };
+}
+
+/**
+ * Adding an email to an account that joined without one (Step 202.4): the
+ * address a code went to, and when, or what went wrong.
+ */
+export type AddEmailState = { error?: string; sentTo?: string; sentAt?: number };
+
+const ADD_EMAIL_SEND_REFUSALS: Record<AddEmailSendRefusal, string> = {
+  has_email: "Your account has an email already.",
+  taken: "That email already has an ancestree account.",
+  too_soon: "We sent a code a moment ago. Try again in a minute.",
+  failed: "Couldn't send the code. Try again shortly.",
+};
+
+const ADD_EMAIL_CONFIRM_REFUSALS: Record<AddEmailConfirmRefusal, string> = {
+  wrong: "That code isn't right.",
+  expired: "That code has run out. Send a new one.",
+  taken: "That email already has an ancestree account.",
+  failed: "Couldn't add your email. Try again shortly.",
+};
+
+/** Account → add an email: a code to the address (Step 202.4). */
+export async function sendAddEmailCodeAction(
+  _prev: AddEmailState,
+  formData: FormData,
+): Promise<AddEmailState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/join");
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  if (!isEmailAddress(email)) return { error: "Enter a valid email address." };
+  const result = await sendAddEmailCode(user.id, email);
+  if (!result.ok) return { error: ADD_EMAIL_SEND_REFUSALS[result.reason] };
+  return { sentTo: email, sentAt: Date.now() };
+}
+
+/** The code from that email: the address becomes the account's (Step 202.4). */
+export async function confirmAddEmailAction(
+  _prev: AddEmailState,
+  formData: FormData,
+): Promise<AddEmailState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/join");
+  const code = readSignInCode(String(formData.get("code") ?? ""));
+  if (!isWholeSignInCode(code)) {
+    return { error: `Enter the ${SIGN_IN_CODE_LENGTH}-digit code.` };
+  }
+  const result = await confirmAddEmail(user.id, code);
+  if (!result.ok) return { error: ADD_EMAIL_CONFIRM_REFUSALS[result.reason] };
+  redirect("/account?view=settings");
 }
 
 export type InviteSignInCodeState = {

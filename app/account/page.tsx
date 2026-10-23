@@ -15,6 +15,7 @@ import { AdminClaimInvites } from "@/components/admin/admin-claim-invites";
 import { AdminConsole } from "@/components/admin/admin-console";
 import { AdminNicknames } from "@/components/admin/admin-nicknames";
 import { AdminSideNav } from "@/components/admin/admin-side-nav";
+import { AddEmailForm } from "@/components/add-email-form";
 import { BackToTop } from "@/components/back-to-top";
 import {
   ClearNotificationsButton,
@@ -313,6 +314,7 @@ async function SettingsView({
 
   // The side nav, one label per card, in the cards' order (Step 108).
   const nav: AdminNavItem[] = [
+    ...(noEmail ? [{ id: "your-email", label: "Your Email" }] : []),
     ...(asks.length > 0 ? [{ id: "asked-of-you", label: "Asked of You" }] : []),
     ...(relays.length > 0 || openedRelayGone
       ? [{ id: "relatives-asking", label: "Relatives Asking for an Invite" }]
@@ -340,6 +342,18 @@ async function SettingsView({
         groups={[{ label: null, items: nav }]}
         label="Settings sections"
       />
+      {noEmail ? (
+        // They joined without one (Step 202): adding one makes them an
+        // ordinary member, signing in with codes (Step 202.4).
+        <Card id="your-email" className="scroll-mt-24 md:col-span-2">
+          <CardHeader>
+            <CardTitle>Your Email</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <AddEmailForm />
+          </CardContent>
+        </Card>
+      ) : null}
       {asks.length > 0 ? (
         <Card id="asked-of-you" className="scroll-mt-24 md:col-span-2">
           <CardHeader>

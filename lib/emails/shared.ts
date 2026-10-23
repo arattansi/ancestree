@@ -36,8 +36,9 @@ export function renderEmail(input: {
    * The button. `url` is our own address — never user-supplied text — but
    * escaped here all the same: a query string's `&` would otherwise read as
    * the start of an entity (`&sect…` shows as "§" in the pasteable copy).
+   * None for an email whose code is the point (Step 202.4).
    */
-  cta: { label: string; url: string };
+  cta?: { label: string; url: string };
   /**
    * An outlined button beside it, drawn first (the newsletter's "invite
    * family", Step 143). The two wrap onto two lines on a narrow screen.
@@ -57,8 +58,10 @@ export function renderEmail(input: {
     secondaryCta,
     footnoteHtml,
   } = input;
-  const href = escapeHtml(cta.url);
-  const buttons = secondaryCta
+  const href = cta ? escapeHtml(cta.url) : "";
+  const buttons = !cta
+    ? ""
+    : secondaryCta
     ? `<div style="margin:28px 0 0;font-size:0;">
                   ${emailButton(secondaryCta, "outline")}
                   ${emailButton(cta, "filled")}
@@ -117,10 +120,15 @@ export function renderEmail(input: {
                   ${footnoteHtml}
                 </p>
 
+${
+                  cta
+                    ? `
                 <p style="margin:16px 0 0;font-size:13px;line-height:1.6;color:#737373;">
                   If the button doesn&rsquo;t work, paste this into your browser:<br />
                   <a href="${href}" style="color:#737373;word-break:break-all;">${href}</a>
-                </p>
+                </p>`
+                    : ""
+                }
 
               </td>
             </tr>

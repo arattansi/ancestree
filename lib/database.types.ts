@@ -3626,6 +3626,10 @@ export type Database = {
           asked_person_id: string
         }[]
       }
+      begin_add_email: {
+        Args: { p_code: string; p_email: string; p_user: string }
+        Returns: undefined
+      }
       beta_reviewer_emails: { Args: never; Returns: string[] }
       block_member: { Args: { p_user: string }; Returns: undefined }
       blog_post: {
@@ -3685,6 +3689,10 @@ export type Database = {
       }
       claim_waiting_notice: {
         Args: { p_conversation: string }
+        Returns: string
+      }
+      confirm_add_email: {
+        Args: { p_code: string; p_user: string }
         Returns: string
       }
       connect_people: {
