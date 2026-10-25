@@ -19,6 +19,15 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "2026-10-24",
+    title: "birthday cakes",
+    items: [
+      "on someone's birthday their card on the tree turns into a cake, candles lit.",
+      "when their line is pulled out, or on my family tree, their leaf has birthday candles instead.",
+    ],
+    steps: [205],
+  },
+  {
     date: "2026-10-22",
     title: "join without an email",
     items: [

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   groupOccasions,
+  isBirthday,
   localDay,
   occasionDay,
   occasionTitle,
@@ -381,5 +382,49 @@ describe("weekMessage (Step 89)", () => {
   it("is empty when nothing falls this week", () => {
     const occasions = upcomingOccasions([person("zara", "1960-11-20")], [], today);
     expect(weekMessage(occasions, nameOf)).toBe("");
+  });
+});
+
+describe("isBirthday", () => {
+  it("is today's birthdays, Upcoming's Today", () => {
+    expect(isBirthday(person("a", "1990-09-26"), TODAY)).toBe(true);
+    expect(isBirthday(person("a", "1990-09-27"), TODAY)).toBe(false);
+    expect(isBirthday(person("a", "1990-09-25"), TODAY)).toBe(false);
+  });
+
+  it("counts a birthday kept without its year, and one in a rough year", () => {
+    const yearless = person("a", null, { birth_month: 9, birth_day: 26 });
+    expect(isBirthday(yearless, TODAY)).toBe(true);
+    const circa = person("a", "1990-09-26", { date_of_birth_circa: true });
+    expect(isBirthday(circa, TODAY)).toBe(true);
+  });
+
+  it("needs the day: a month or a year alone has none", () => {
+    for (const precision of ["month", "year"]) {
+      const rough = person("a", "1990-09-26", {
+        date_of_birth_precision: precision,
+      });
+      expect(isBirthday(rough, TODAY)).toBe(false);
+    }
+    // The phone reads a missing precision as a whole date.
+    const phone = person("a", "1990-09-26", { date_of_birth_precision: null });
+    expect(isBirthday(phone, TODAY)).toBe(true);
+  });
+
+  it("leaves out the dead, and the day someone was born", () => {
+    expect(
+      isBirthday(person("a", "1950-09-26", { is_deceased: true }), TODAY),
+    ).toBe(false);
+    const died = person("a", "1950-09-26", { date_of_death: "2020-01-01" });
+    expect(isBirthday(died, TODAY)).toBe(false);
+    expect(isBirthday(person("a", TODAY), TODAY)).toBe(false);
+  });
+
+  it("keeps 29 February on the 28th in a year without one", () => {
+    const leapling = person("a", "2000-02-29");
+    expect(isBirthday(leapling, "2027-02-28")).toBe(true);
+    expect(isBirthday(leapling, "2027-03-01")).toBe(false);
+    expect(isBirthday(leapling, "2028-02-29")).toBe(true);
+    expect(isBirthday(leapling, "2028-02-28")).toBe(false);
   });
 });

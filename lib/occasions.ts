@@ -23,14 +23,15 @@ import { personHasDied } from "@/lib/person-name";
 export type OccasionPerson = {
   id: string;
   date_of_birth: string | null;
-  date_of_birth_precision: string;
+  /** Null is a whole date, as the phone reads it (`asDatePrecision`). */
+  date_of_birth_precision: string | null;
   /** A birthday kept without its year (Step 63). */
   birth_month?: number | null;
   birth_day?: number | null;
   /** The year of birth is a rough estimate (Step 81): no age. */
   date_of_birth_circa?: boolean | null;
   date_of_death: string | null;
-  is_deceased: boolean;
+  is_deceased: boolean | null;
 };
 
 /** What an occasion reads off a line: only a marriage has one. */
@@ -114,6 +115,16 @@ function nextOccurrence(date: Recurring, today: Ymd): Ymd {
   return utc(thisYear) >= utc(today) ? thisYear : inYear(date, today.y + 1);
 }
 
+/** The day someone's birthday comes round on, if their entry has one. */
+function birthdayOf(p: OccasionPerson): Recurring | null {
+  const dated = p.date_of_birth
+    ? asDatePrecision(p.date_of_birth_precision) === "day"
+      ? parse(p.date_of_birth)
+      : null
+    : withoutYear(p.birth_month, p.birth_day);
+  return dated && p.date_of_birth_circa ? { ...dated, y: null } : dated;
+}
+
 function occasion(
   kind: Occasion["kind"],
   people: string[],
@@ -158,13 +169,7 @@ export function upcomingOccasions(
 
   const found: Occasion[] = [];
   for (const p of living.values()) {
-    const dated = p.date_of_birth
-      ? asDatePrecision(p.date_of_birth_precision) === "day"
-        ? parse(p.date_of_birth)
-        : null
-      : withoutYear(p.birth_month, p.birth_day);
-    const born: Recurring | null =
-      dated && p.date_of_birth_circa ? { ...dated, y: null } : dated;
+    const born = birthdayOf(p);
     const birthday = born && occasion("birthday", [p.id], born, day);
     if (birthday) found.push(birthday);
   }
@@ -198,6 +203,21 @@ export function upcomingOccasions(
         (a.kind === b.kind ? 0 : a.kind === "birthday" ? -1 : 1) ||
         name(a).localeCompare(name(b)),
     );
+}
+
+/**
+ * Whether `today` is someone's birthday (Step 205): the card that turns
+ * into a cake, the leaf that grows candles. Upcoming's rules, so the cake
+ * and the card's **Today** always agree: the living only, a day kept, and
+ * never the day they were born.
+ */
+export function isBirthday(person: OccasionPerson, today: string): boolean {
+  const day = parse(today);
+  if (!day || personHasDied(person)) return false;
+  const born = birthdayOf(person);
+  return (
+    !!born && occasion("birthday", [person.id], born, day)?.daysAway === 0
+  );
 }
 
 /** A run of occasions under one heading of the card. */

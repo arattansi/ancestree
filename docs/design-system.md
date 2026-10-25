@@ -432,6 +432,23 @@ card wears a mark for the tree it came from, and a key names them.
   behind a **key** button on a phone (Step 169); the
   sheet's **On** row, in place of **Also on**, each tree a link to it.
 
+## Birthdays
+
+On someone's birthday (Step 205) their card is a cake and their leaf or
+pill carries candles; Upcoming's **Today** says the same in words.
+
+- The cake's three tokens: `--cake-sponge` (#fdfaf3 light, a shade lighter
+  than `--brand-cream`, on which the card's `--muted-foreground` lines fell
+  just short of AA at 4.4:1; 4.6:1 here), `--cake-icing` (strawberry,
+  darker in dark) and `--cake-plate` (the board). The icing never holds
+  text: a cake's lines start under its drips.
+- Candles are striped in `--brand-red` and `--brand-green` on
+  `--brand-cream`, and the flames are the same amber and pale gold in both
+  themes, as flames are. Nothing else here is drawn in those flame colours.
+- They stand right of a card's or a leaf's middle, where a parent's line
+  lands, and sway a little only for `motion-safe:`; off a spotlight's line
+  they hold still.
+
 ## Marketing pages
 
 Home, **capitalism** (`/pricing`), **why** (`/manifesto`), **what + how**

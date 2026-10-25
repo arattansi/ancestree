@@ -4,9 +4,11 @@ import * as React from "react";
 
 import { AccountTypeMark } from "@/components/account-type-badge";
 import { MemberMark } from "@/components/logo-mark";
+import { BirthdayCandles } from "@/components/tree/birthday-candles";
 import { SamePersonMark } from "@/components/tree/same-person";
 import { TreeMarkDot, type CardMark } from "@/components/tree/tree-mark";
 import { FitText } from "@/components/ui/fit-text";
+import { leafCandles } from "@/lib/candles";
 import { cropStyle, parseCrop } from "@/lib/image-crop";
 import { leafGeometry, lineRoom } from "@/lib/leaf-shapes";
 import { leafLabel, type LeafShape, type NativeLeaf } from "@/lib/native-leaf";
@@ -165,6 +167,7 @@ export function LeafCard({
   quiet = false,
   label,
   place,
+  birthday = false,
 }: {
   person: TreeGraphPerson;
   leaf: NativeLeaf;
@@ -190,6 +193,8 @@ export function LeafCard({
   /** Said where the years would be, on a leaf with none: a /library
    *  post's birthplace (Step 158), the post's people having no dates. */
   place?: string;
+  /** Their birthday (Step 205): candles stuck into the top of the blade. */
+  birthday?: boolean;
 }) {
   // Each species' own leaf (Step 96), drawn and measured on first use.
   const geometry = leafGeometry(leaf.shape);
@@ -285,6 +290,18 @@ export function LeafCard({
           ))}
         </g>
       </svg>
+
+      {/* Stuck into the blade's top edge, in from the box by its overhang;
+          still off a spotlight's line. */}
+      {birthday ? (
+        <BirthdayCandles
+          feet={leafCandles(leaf.shape).map(({ x, y }) => ({
+            x,
+            y: y - OVERHANG,
+          }))}
+          still={quiet}
+        />
+      ) : null}
 
       {/* Whose entry this is (Step 19.1): hung centred just under its own
           leaf. Card and blade box share a scale, so the blade's depth

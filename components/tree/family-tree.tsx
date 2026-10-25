@@ -138,7 +138,7 @@ import {
   type MarriedIn,
 } from "@/lib/my-family";
 import { nativeLeaf } from "@/lib/native-leaf";
-import { upcomingOccasions } from "@/lib/occasions";
+import { isBirthday, upcomingOccasions } from "@/lib/occasions";
 import { asDayMonth } from "@/lib/partial-date";
 import { petYears, speciesLabel } from "@/lib/pet-labels";
 import { personSpotlight, spotlightPeople } from "@/lib/person-spotlight";
@@ -915,6 +915,16 @@ function Canvas({
     nameById,
     matchingIds,
   ]);
+  // Whose birthday it is today (Step 205): their card is a cake, their leaf
+  // or pill grows candles. A member's canvas only, as Upcoming is, and by
+  // Upcoming's rules, so a cake is always on its Today.
+  const birthdayIds = React.useMemo(() => {
+    if (readOnly || !today) return NOBODY;
+    const ids = shownPeople
+      .filter((p) => isBirthday(p, today))
+      .map((p) => p.id);
+    return ids.length > 0 ? new Set(ids) : NOBODY;
+  }, [readOnly, today, shownPeople]);
   // Which card is open, Search & filters (top right) or Upcoming (top left):
   // one at a time, so on a phone they never pile up.
   const [openCard, setOpenCard] = React.useState<"search" | "upcoming" | null>(
@@ -1390,6 +1400,7 @@ function Canvas({
         ...(pillLabel ? { compressed: true, pillLabel } : {}),
         ...(spouseIds.has(n.id) ? { yourSpouse: true } : {}),
         ...(memberIds && !isPet ? { member: memberIds.has(n.id) } : {}),
+        ...(!isPet && birthdayIds.has(n.id) ? { birthday: true } : {}),
       });
     }
     return map;
@@ -1410,6 +1421,7 @@ function Canvas({
     spouseIds,
     memberIds,
     allLeaves,
+    birthdayIds,
   ]);
   // A card whose flags came out the same is handed the very same `data`, so
   // it doesn't draw again when the rest of the tree changes (Step 87.1).

@@ -544,7 +544,11 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `lib/edge-geometry.ts` and the lanes' labels and titles
   `lib/generation-lanes.ts` (split in Step 77.6);
   `lib/occasions.ts` — upcoming birthdays and anniversaries (Step 57.1,
-  `.test.ts`; `weekMessage`, the week as a chat message, Step 89);
+  `.test.ts`; `weekMessage`, the week as a chat message, Step 89;
+  `isBirthday`, today's, Step 205); `lib/candles.ts` — where birthday
+  candles stand on a card and on each leaf, web and phone (Step 205,
+  `.test.ts`), drawn by `components/tree/birthday-candles.tsx` and
+  `mobile/src/leaf/candles.tsx`;
   `lib/share-text.ts` — `wa.me` and `sms:` links that open WhatsApp or
   Messages with a message typed out (Step 89, `.test.ts`); `lib/presence.ts` — the tree room's topic, colours, send
   rate and card-anchored pointers (Step 57.3, `.test.ts`);
@@ -1986,6 +1990,54 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 205: birthdays — a cake for the card, candles on the leaf** (web +
+  phone, no migration; the phone's part needs a new build). **Asked for**
+  (Aalim, 2026-10-24): "if it's someone's birthday, turn their node into a
+  birthday cake with minimally animated candles. in their spotlight/
+  leaf-view, just add birthday candles to the leaf". **Now:**
+  - **Whose birthday.** `isBirthday(person, today)` in `lib/occasions.ts`,
+    Upcoming's own rules (Step 57.1), so a cake is always on Upcoming's
+    **Today**: living, a birth date kept to the day (or a day and month
+    without the year, or a rough year), never the day they were born; 29
+    February on the 28th in a year without one. Today is the viewer's own
+    (`useToday`), so nothing is drawn until the browser knows it. A
+    member's canvas only, as Upcoming is: never a share link's or a
+    visitor's (which keep a hidden card's dates out anyway). `.test.ts`.
+  - **The card is a cake.** Same 208 × 112 box and handles, so nothing
+    moves: cream sponge (`--cake-sponge`, a shade lighter than the brand
+    cream so the card's grey lines clear AA, 4.6:1), strawberry icing over
+    the top with drips (`--cake-icing`), a bead of piping round its foot,
+    a board under it (`--cake-plate`), its lines starting under the drips.
+    Dark theme has its own three. "Birthday today" for screen readers.
+  - **Candles** (`components/tree/birthday-candles.tsx`): three striped
+    sticks (the apples' red, the leaves' green, red), wicks, and flames
+    that sway and stretch a little about their foot, out of step with
+    each other (`candle-flicker`, 1.6–2.1 s). The flames are elements of
+    their own, so the browser moves them without repainting the card;
+    `motion-safe:` only; still off a spotlight's line; no glow on a phone
+    (Step 87.7). They stand right of the middle (x 126, 142, 158), where
+    a parent's line comes down, so no line runs into a flame.
+  - **The leaf grows candles** in a spotlight and on My Family Tree, where
+    everyone is a leaf: `leafCandles(shape)` (`lib/candles.ts`) finds,
+    for each of the 47 leaves, the highest spot where a stick's whole foot
+    is pressed 2 into the blade (none on air between a frond's leaflets or
+    a sprig's needles), no higher than 4 above the box (a maple's lobe
+    takes its candle in deeper), always above the name. `.test.ts` checks
+    every leaf. My call: a married-in **pill** gets three candles along its
+    top too, since it can't be a cake.
+  - **The phone's leaf view** (`mobile/src/leaf/candles.tsx`): the same
+    candles on the leaf, from `leafCandles`, flames swayed by Reanimated
+    (`useReducedMotion` holds them still); `mobile/src/family/today.ts`
+    turns the day over at midnight and when the app comes back. Relatives'
+    pills there get none (my call: the leaf is what was asked for, and the
+    rows sit close). VoiceOver says "Birthday today" on the leaf.
+  - Checked: a fixture tree in the browser (cakes in both themes and at
+    phone width, the flicker running and staggered, no animation under
+    reduced motion, none on a read-only canvas or for someone who has
+    died, spotlight leaves and a pill with candles, no console errors), and
+    the phone leaf view on the iOS simulator (dev build, Karim's maple and
+    Nila's birch, flames moving, a walk between them).
 
 - **Step 204: push notifications for new messages and new stories; the
   phone builds on the Mac** (migration `20261023120000_push_notifications`,

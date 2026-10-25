@@ -5,6 +5,7 @@ import { Handle, Position, type NodeProps } from "@xyflow/react";
 
 import { AccountTypeMark } from "@/components/account-type-badge";
 import { MemberMark } from "@/components/logo-mark";
+import { BirthdayCandles } from "@/components/tree/birthday-candles";
 import { LeafCard } from "@/components/tree/leaf-card";
 import { PillCard } from "@/components/tree/pill-card";
 import { SamePersonMark } from "@/components/tree/same-person";
@@ -12,6 +13,7 @@ import { TreeMarkDot, type CardMark } from "@/components/tree/tree-mark";
 import { useSteadyPhoto } from "@/components/tree/use-steady-photo";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { FitText } from "@/components/ui/fit-text";
+import { CANDLE_XS } from "@/lib/candles";
 import { BASIC_DETAILS } from "@/lib/carry";
 import { cropStyle, parseCrop } from "@/lib/image-crop";
 import { nativeLeaf } from "@/lib/native-leaf";
@@ -57,6 +59,9 @@ export type PersonNodeData = {
   /** On My Family Tree, whether they have an account (Step 97.3): the
    *  member mark, in place of the account type the view never shows. */
   member?: boolean;
+  /** Their birthday, in the viewer's own day (Step 205): a card is a cake,
+   *  a leaf or a pill grows candles. */
+  birthday?: boolean;
 };
 
 // The handles are anchors for the branch lines, never something the reader
@@ -64,6 +69,36 @@ export type PersonNodeData = {
 // invisible: a grey dot on every edge of every card is four pieces of grit per
 // person, and on a leaf it lands on the blade.
 const handleClass = "!size-1 !border-0 !bg-transparent";
+
+/** Where each icing drip hangs: its middle, how far down, how wide. */
+const DRIPS = [
+  [18, 16, 12],
+  [54, 13, 10],
+  [98, 17, 12],
+  [146, 14, 10],
+  [186, 16, 12],
+] as const;
+/** How deep the icing lies over the top of the cake, drips aside. */
+const ICING = 9;
+
+/** The icing over a cake's top, its drips running down the front. */
+const ICING_PATH = [
+  "M0 0H208V" + ICING,
+  ...[...DRIPS].reverse().map(([x, depth, width]) => {
+    const [r, l] = [x + width / 2, x - width / 2];
+    return `L${r} ${ICING}C${r} ${depth - 2} ${x + width / 4} ${depth} ${x} ${depth}C${x - width / 4} ${depth} ${l} ${depth - 2} ${l} ${ICING}`;
+  }),
+  "L0 " + ICING + "Z",
+].join("");
+
+/** The piping round a cake's foot: a bead every 8 pixels, half showing. */
+const PIPING_PATH = Array.from({ length: 27 }, (_, i) => {
+  const x = i * 8;
+  return `M${x - 3} 113A3 3 0 0 1 ${x + 3} 113Z`;
+}).join("");
+
+/** A cake's candles, on its icing: right of where a parent's line lands. */
+const CAKE_CANDLES = CANDLE_XS.map((x) => ({ x, y: 3 }));
 
 function PersonNodeImpl({ data }: NodeProps) {
   const {
@@ -80,6 +115,7 @@ function PersonNodeImpl({ data }: NodeProps) {
     mark,
     same,
     member,
+    birthday,
   } = data as PersonNodeData;
   // The full name for the hover preview and the tooltip; the condensed one for
   // the card itself, where a surname would otherwise be cut off mid-word.
@@ -137,6 +173,7 @@ function PersonNodeImpl({ data }: NodeProps) {
           same={same}
           selected={!!selected}
           quiet={!!blurred}
+          birthday={!!birthday}
         />
       </div>
     );
@@ -183,6 +220,7 @@ function PersonNodeImpl({ data }: NodeProps) {
           same={same}
           member={member}
           quiet={!!blurred}
+          birthday={!!birthday}
         />
       </div>
     );
@@ -264,12 +302,22 @@ function PersonNodeImpl({ data }: NodeProps) {
           </div>
         </div>
       ) : null}
+      {/* On their birthday the card is a cake (Step 205), stood on a board
+          that shows round its foot. */}
+      {birthday ? (
+        <div
+          aria-hidden
+          className="absolute -inset-x-2 top-[105px] h-2.5 rounded-full bg-cake-plate"
+        />
+      ) : null}
       <div
         className={cn(
           // Fixed height (matching NODE_H) so every card is identical: the
           // left/right handles sit at each card's own centre, so cards of
           // differing heights would tilt the spouse line between them.
-          "relative flex h-28 w-52 items-center gap-3 overflow-hidden rounded-xl border bg-card px-3 py-2.5 text-left shadow-sm transition-[colors,opacity,transform,box-shadow]",
+          "relative flex h-28 w-52 items-center gap-3 overflow-hidden rounded-xl border px-3 text-left shadow-sm transition-[colors,opacity,transform,box-shadow]",
+          // A cake's lines start under its icing's drips.
+          birthday ? "bg-cake-sponge pt-[18px] pb-1" : "bg-card py-2.5",
           !blurred && "hover:border-ring/60",
           deceased ? "border-dashed border-border" : "border-border",
           selected && "border-ring ring-2 ring-ring/40",
@@ -297,6 +345,18 @@ function PersonNodeImpl({ data }: NodeProps) {
           position={Position.Bottom}
           className={handleClass}
         />
+
+        {birthday ? (
+          <svg
+            aria-hidden
+            viewBox="0 0 208 112"
+            preserveAspectRatio="none"
+            className="pointer-events-none absolute inset-0 size-full fill-cake-icing"
+          >
+            <path d={ICING_PATH} />
+            <path d={PIPING_PATH} />
+          </svg>
+        ) : null}
 
         {/* The tree it comes from, on My Family Tree (Step 92.2): the top
             corner across from the report count, clear of the photo. */}
@@ -416,8 +476,12 @@ function PersonNodeImpl({ data }: NodeProps) {
               Placeholder
             </p>
           ) : null}
+          {birthday ? <p className="sr-only">Birthday today</p> : null}
         </div>
       </div>
+      {birthday ? (
+        <BirthdayCandles feet={CAKE_CANDLES} still={blurred} />
+      ) : null}
     </div>
   );
 }

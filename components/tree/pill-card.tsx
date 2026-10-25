@@ -1,5 +1,6 @@
 "use client";
 
+import { BirthdayCandles } from "@/components/tree/birthday-candles";
 import { SamePersonMark } from "@/components/tree/same-person";
 import { TreeMarkDot, type CardMark } from "@/components/tree/tree-mark";
 import {
@@ -9,6 +10,13 @@ import {
 } from "@/lib/person-name";
 import type { TreeGraphPerson } from "@/lib/tree";
 import { cn } from "@/lib/utils";
+
+/**
+ * A pill's candles on its birthday (Step 205), along its flat top right of
+ * the middle, where the line to their own family comes down, pressed into
+ * its border. Inside that border, so a pixel in from the pill's edges.
+ */
+const PILL_CANDLES = [73, 85, 97].map((x) => ({ x, y: 1 }));
 
 /**
  * Someone who married in, named and no more, in a small neutral pill: a
@@ -27,6 +35,7 @@ export function PillCard({
   same,
   selected = false,
   quiet = false,
+  birthday = false,
 }: {
   person: TreeGraphPerson;
   /** Who they are to the family: "Spouse of Karim", "Married in ·
@@ -39,6 +48,8 @@ export function PillCard({
   selected?: boolean;
   /** Off a spotlight's line: nothing lights on hover (Step 97.3). */
   quiet?: boolean;
+  /** Their birthday (Step 205): candles along its top. */
+  birthday?: boolean;
 }) {
   // Someone who married in is who most often has a maiden name, and the
   // tooltip is the only place the pill has room for it.
@@ -46,6 +57,7 @@ export function PillCard({
   const who = maiden
     ? `${personDisplayName(person)}, ${maiden}`
     : personDisplayName(person);
+  const today = birthday ? "Birthday today" : null;
   return (
     // A real button so it takes focus; the click reaches the canvas's node
     // handler, which opens them. Enter and Space are turned into that click
@@ -61,9 +73,11 @@ export function PillCard({
       title={
         quiet
           ? undefined
-          : [who, label, mark?.name, same].filter(Boolean).join(" · ")
+          : [who, label, mark?.name, same, today].filter(Boolean).join(" · ")
       }
-      aria-label={[who, label, mark?.name, same].filter(Boolean).join(", ")}
+      aria-label={[who, label, mark?.name, same, today]
+        .filter(Boolean)
+        .join(", ")}
       className={cn(
         "relative flex h-9 w-[120px] items-center justify-center rounded-full border border-border bg-muted shadow-xs",
         // A mark takes room from the name, so it sits tight against it.
@@ -81,6 +95,9 @@ export function PillCard({
           where it goes on a card, and a pill has none. */}
       {same ? (
         <SamePersonMark className="absolute -top-1.5 -right-1.5" />
+      ) : null}
+      {birthday ? (
+        <BirthdayCandles feet={PILL_CANDLES} still={quiet} />
       ) : null}
     </button>
   );

@@ -25,6 +25,7 @@ import {
   type WalkScene,
 } from "@/lib/leaf-walk";
 import { leafLabel, nativeLeaf } from "@/lib/native-leaf";
+import { isBirthday } from "@/lib/occasions";
 import {
   maidenLine,
   personDisplayName,
@@ -32,6 +33,7 @@ import {
 } from "@/lib/person-name";
 import { addsOf, lineageOf, relativesOf } from "@/family/family";
 import type { Family } from "@/family/load";
+import { useToday } from "@/family/today";
 import { relationWord } from "@/family/words";
 import { AddPill } from "@/leaf/add-pill";
 import { DESCRIPTOR_ROOM, LeafDescriptor } from "@/leaf/descriptor";
@@ -283,6 +285,7 @@ function Scene({
 }) {
   const palette = usePalette();
   const person = family.people.get(focusId);
+  const today = useToday();
   // The family past the pills, out of focus (Step 184), and everything moved
   // to sit in the middle together, under how they're connected to the
   // member (Step 185).
@@ -356,6 +359,8 @@ function Scene({
     .join(" · ");
   const name = personDisplayName(person);
   const deceased = !!person.is_deceased || !!person.date_of_death;
+  // Their birthday, by the web's rules (Step 205): candles on the leaf.
+  const birthday = isBirthday(person, today);
   // Who glides in from the view walked from, and who glides out to the one
   // walked to.
   const walk: Walk = {
@@ -429,7 +434,14 @@ function Scene({
       >
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={[name, caption, maiden, years, leafLabel(leaf)]
+          accessibilityLabel={[
+            name,
+            caption,
+            maiden,
+            years,
+            leafLabel(leaf),
+            birthday ? "Birthday today" : null,
+          ]
             .filter(Boolean)
             .join(", ")}
           accessibilityHint="Opens their details"
@@ -447,6 +459,7 @@ function Scene({
             lines={[maiden, years].filter((l): l is string => !!l)}
             deceased={deceased}
             clipId={`leaf-${focusId}`}
+            birthday={birthday}
           />
         </Pressable>
       </Morph>

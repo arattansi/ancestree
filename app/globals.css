@@ -55,6 +55,9 @@
   --color-brand-brown: var(--brand-brown);
   --color-brand-red: var(--brand-red);
   --color-brand-cream: var(--brand-cream);
+  --color-cake-sponge: var(--cake-sponge);
+  --color-cake-icing: var(--cake-icing);
+  --color-cake-plate: var(--cake-plate);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -134,6 +137,13 @@
      both themes (docs/design-system.md, "Tree marks"). */
   --tree-mark-1: #2a78d6;
   --tree-mark-2: #d55181;
+  /* A card on its person's birthday is a cake (Step 205): the sponge it is
+     made of, a shade lighter than the brand's cream, on which the card's
+     muted lines would fall just short of AA (4.4:1; this is 4.6:1);
+     strawberry icing over the top; the board it stands on. */
+  --cake-sponge: #fdfaf3;
+  --cake-icing: oklch(0.85 0.08 8);
+  --cake-plate: oklch(0.86 0 0);
 }
 
 .dark {
@@ -178,6 +188,9 @@
   --orange-foreground: oklch(0.24 0.07 46);
   --tree-mark-1: #3987e5;
   --tree-mark-2: #d55181;
+  --cake-sponge: oklch(0.24 0.012 70);
+  --cake-icing: oklch(0.56 0.11 8);
+  --cake-plate: oklch(0.4 0 0);
 }
 
 @layer base {
@@ -365,6 +378,24 @@
   }
   to {
     transform: none;
+  }
+}
+
+/* A birthday candle's flame (Step 205): it sways a little and stretches,
+   about its foot. Only where motion is welcome (`motion-safe:`). */
+@keyframes candle-flicker {
+  0%,
+  100% {
+    transform: rotate(-3deg) scale(1, 1);
+  }
+  30% {
+    transform: rotate(2deg) scale(0.93, 1.08);
+  }
+  55% {
+    transform: rotate(-1deg) scale(1.05, 0.94);
+  }
+  80% {
+    transform: rotate(3deg) scale(0.96, 1.04);
   }
 }
 

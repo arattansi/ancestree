@@ -11,6 +11,7 @@ import {
   type LeafShape,
 } from "@/lib/leaf-shapes";
 import type { OrbitSide } from "@/lib/leaf-orbit";
+import { LeafCandles } from "@/leaf/candles";
 import { font, usePalette } from "@/theme";
 
 /** The blade box every leaf is drawn in (`lib/leaf-shapes.ts`). */
@@ -84,6 +85,7 @@ export function Leaf({
   lines,
   deceased,
   clipId,
+  birthday = false,
 }: {
   shape: LeafShape;
   width: number;
@@ -93,6 +95,8 @@ export function Leaf({
   deceased: boolean;
   /** Unique per leaf on screen. */
   clipId: string;
+  /** Their birthday (Step 205): candles stuck into the top of the blade. */
+  birthday?: boolean;
 }) {
   const palette = usePalette();
   const geometry = leafGeometry(shape);
@@ -146,6 +150,7 @@ export function Leaf({
           ))}
         </G>
       </Svg>
+      {birthday ? <LeafCandles shape={shape} scale={scale} /> : null}
       <View
         pointerEvents="none"
         style={[
