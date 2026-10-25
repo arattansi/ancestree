@@ -30,6 +30,14 @@ export type FamilyPerson = {
   /** Their photo in the private `photos` bucket, and how it's cropped. */
   photo_path: string | null;
   photo_crop: unknown;
+  /**
+   * Where a Root dragged their card on the web's canvas (`lib/tree-layout.ts`
+   * honours both): the whole-tree map keeps the same picture (Step 206).
+   */
+  pos_x: number | null;
+  pos_y: number | null;
+  pos_dx: number | null;
+  pos_dy: number | null;
   /** Only a name and a place of birth, waiting on a yes (Step 80). */
   basic: boolean;
   /**
@@ -57,6 +65,8 @@ export type FamilyLine = {
  * account type there, its bloodline's anchors, and everyone placed on it.
  */
 export type FamilyTree = {
+  /** What the tree is called, in the header's picker (Step 206). */
+  name: string;
   role: string | null;
   anchors: string[];
   people: Set<string>;
@@ -75,7 +85,7 @@ export type Family = {
 export type NoFamily = "no-profile" | "no-entry" | "no-tree";
 
 const PERSON_COLUMNS =
-  "tree_id, id, home_tree_id, is_home, detail, blurred, first_name, middle_name, preferred_name, maiden_name, last_name, placeholder_number, date_of_birth, date_of_death, date_of_birth_precision, date_of_death_precision, birth_month, birth_day, date_of_birth_circa, date_of_death_circa, is_deceased, city_of_birth, country_of_birth, place_of_residence, place_of_death, sex, photo_path, photo_crop";
+  "tree_id, id, home_tree_id, is_home, detail, blurred, first_name, middle_name, preferred_name, maiden_name, last_name, placeholder_number, date_of_birth, date_of_death, date_of_birth_precision, date_of_death_precision, birth_month, birth_day, date_of_birth_circa, date_of_death_circa, is_deceased, city_of_birth, country_of_birth, place_of_residence, place_of_death, sex, photo_path, photo_crop, pos_x, pos_y, pos_dx, pos_dy";
 const LINE_COLUMNS =
   "tree_id, id, from_person, to_person, type, is_divorced, marriage_date, marriage_month, marriage_day";
 
@@ -115,7 +125,7 @@ export async function loadFamily(
       .select("display_name, self_person_id")
       .eq("auth_user_id", userId)
       .maybeSingle();
-  const readTrees = () => supabase.from("my_trees").select("id, role").order("joined_at");
+  const readTrees = () => supabase.from("my_trees").select("id, name, role").order("joined_at");
   let [{ data: profile }, { data: trees }] = await Promise.all([readProfile(), readTrees()]);
   if (!profile) {
     // What the web does after a code sign-in (`establishMembership`): make
@@ -200,6 +210,10 @@ export async function loadFamily(
       sex: row.sex,
       photo_path: row.photo_path,
       photo_crop: row.photo_crop,
+      pos_x: row.pos_x,
+      pos_y: row.pos_y,
+      pos_dx: row.pos_dx,
+      pos_dy: row.pos_dy,
       basic: row.detail === "basic",
       fullOn: (fullOn.get(id) ?? []).sort((a, b) =>
         a === row.tree_id ? -1 : b === row.tree_id ? 1 : 0,
@@ -231,7 +245,12 @@ export async function loadFamily(
   const familyTrees = new Map<string, FamilyTree>();
   for (const t of trees ?? []) {
     if (!t.id) continue;
-    familyTrees.set(t.id, { role: t.role, anchors: [], people: placed.get(t.id) ?? new Set() });
+    familyTrees.set(t.id, {
+      name: t.name ?? "Your tree",
+      role: t.role,
+      anchors: [],
+      people: placed.get(t.id) ?? new Set(),
+    });
   }
   for (const a of anchorRows) familyTrees.get(a.tree_id)?.anchors.push(a.person_id);
 

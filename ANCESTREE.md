@@ -549,6 +549,9 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   candles stand on a card and on each leaf, web and phone (Step 205,
   `.test.ts`), drawn by `components/tree/birthday-candles.tsx` and
   `mobile/src/leaf/candles.tsx`;
+  `lib/tree-map.ts` — the whole tree as the phone's small pills, seated as
+  the web's canvas seats the cards, with its lines, fit, centring and drag
+  bounds (Step 206, `.test.ts`), drawn by `mobile/src/leaf/tree-map.tsx`;
   `lib/share-text.ts` — `wa.me` and `sms:` links that open WhatsApp or
   Messages with a message typed out (Step 89, `.test.ts`); `lib/presence.ts` — the tree room's topic, colours, send
   rate and card-anchored pointers (Step 57.3, `.test.ts`);
@@ -1990,6 +1993,57 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 206: the whole tree on a phone, and a tree picker** (phone only,
+  no migration; needs no new build beyond a bundle, no native change).
+  **Asked for** (Aalim, 2026-10-24): "a UX that allows for mobile users to
+  navigate/scroll through entire family trees. remove the 'backward'
+  navigation that shows as an arrow … instead, have a dropdown next to
+  ancestree to select which tree the user is on. tapping 'ancestree' still
+  returns the user to themselves as the spotlight. the scrolling function
+  works when a user touches any negative space on the map … everyone turns
+  into a small grey pill and the whole tree shape appears at that zoom level
+  - just first names and initials. the shape/arrangement is as it would be in
+  the desktop web view. the user can drag to scroll. selecting a node reveals
+  the spotlight view as it exists today". **Now:**
+  - **The whole tree** (`lib/tree-map.ts`, `.test.ts`;
+    `mobile/src/leaf/tree-map.tsx`): a tap on the ground around a leaf shows
+    the whole of the tree that leaf is on, everyone a small gray pill (first
+    name, initials in the disc; dashed once they've died; the member's own
+    edged dark; the leaf that was open ringed in brown), seated exactly where
+    the web's canvas seats their card: the same `layoutTree`, the same anchors
+    (`ownRoots` of the member, as the web centres), the Roots' dragged
+    positions honoured (`pos_x/pos_y/pos_dx/pos_dy` now read into the phone's
+    family). The lines run as the canvas's do: a couple's children off one bar
+    under the gap between them (`descentGeometry`/`descentRoute`), partners
+    level (dashed when divorced), parentless siblings bracketed. It opens at
+    the zoom that fits the whole tree (0.08–0.9), centred; a tree too big to
+    fit opens on whoever's leaf was open. One finger drags, two pinch about
+    the point between them, and the tree can't be dragged off the screen
+    (`clampOffset`). The ground's dots slide with it, a dot apart whatever
+    the zoom. Tap a pill and that leaf view opens (`walkTo`). Android's back
+    closes the map first.
+  - **The tree picker** (`mobile/src/ui/tree-picker.tsx`), beside the
+    wordmark in the header: the tree being looked at (the one the leaf is
+    on, else the member's first) and a menu of every tree they're on, the
+    web's switcher on a phone (`my_trees.name` now read). Picking one shows
+    the whole of it. The header's **back arrow is gone**: the trail is still
+    kept for Android's hardware back. The wordmark still goes home: own
+    leaf, the tree they started on, the map closed.
+  - `AppHeader` gains a `beside` slot (its `before` slot went with the
+    arrow); the header's icons no longer stretch, so the picker shrinks to
+    the room left and its name truncates. `Spotlight` takes `onBackground`
+    (a pressable under the scenes). `Grid`/`DOT` are exported from the
+    spotlight for the map's ground.
+  - Checked on the iOS simulator (dev build on Metro 8090, the Kapadia
+    family test account): the map opens from the ground, fits and centres,
+    drags, a pill opens its leaf, the picker lists and switches trees. Not
+    checked on Android or a phone; a pinch was reasoned, not tried (the
+    simulator tool has no two-finger gesture that the responder sees as a
+    pinch). `npm test` at the root: `lib/tree-map.test.ts` passes; eight
+    unrelated suites fail to load in this worktree for missing packages
+    (`@noble/*`, `@anthropic-ai/sdk`, `react-markdown`, `remark-gfm`), as
+    before.
 
 - **Step 205: birthdays — a cake for the card, candles on the leaf** (web +
   phone, no migration; the phone's part needs a new build). **Asked for**

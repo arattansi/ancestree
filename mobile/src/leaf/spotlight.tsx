@@ -103,6 +103,7 @@ export function Spotlight({
   onMore,
   onOpenLeaf,
   onAdd,
+  onBackground,
 }: {
   family: Family;
   focusId: string;
@@ -111,6 +112,8 @@ export function Spotlight({
   onOpenLeaf: () => void;
   /** Opens the add form for a first parent or child; none asked without it. */
   onAdd?: (relation: "parent" | "child") => void;
+  /** A tap on the ground, away from everyone: opens the whole tree (Step 206). */
+  onBackground?: () => void;
 }) {
   const [screen, setScreen] = React.useState<Frame | null>(null);
   const asks = !!onAdd;
@@ -189,6 +192,15 @@ export function Spotlight({
       }}
     >
       {screen ? <Ground frame={screen} slide={slide} /> : null}
+      {onBackground ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="The whole tree"
+          accessibilityHint="Shows everyone on the tree, small"
+          style={StyleSheet.absoluteFill}
+          onPress={onBackground}
+        />
+      ) : null}
       {screen
         ? stages.map((stage) => (
             <Scene
@@ -672,7 +684,7 @@ const CAPTION_ROOM = CAPTION_LINE + 14;
 const LINE = 2.5;
 const CORNER = 8;
 /** The ground's dots are this far apart. */
-const DOT = 20;
+export const DOT = 20;
 
 /**
  * The ground under the leaves, moved along with each slide (a dot's spacing
@@ -713,9 +725,9 @@ function Ground({ frame, slide }: { frame: Frame; slide: { key: number; by: XY }
 
 /**
  * The canvas's dotted ground, as the web's React Flow background draws it
- * (dots 20 apart).
+ * (dots 20 apart). The whole-tree map draws it too (Step 206).
  */
-function Grid({ width, height }: { width: number; height: number }) {
+export function Grid({ width, height }: { width: number; height: number }) {
   const palette = usePalette();
   return (
     <Svg width={width} height={height} style={StyleSheet.absoluteFill} pointerEvents="none">

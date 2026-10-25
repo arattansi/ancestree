@@ -22,11 +22,11 @@ export function useGoHome() {
  * clicking on the wordmark should return them to your node").
  */
 export function AppHeader({
-  before,
+  beside,
   children,
 }: {
-  /** Before the wordmark: the leaf view's back. */
-  before?: React.ReactNode;
+  /** Beside the wordmark: the leaf view's tree picker (Step 206). */
+  beside?: React.ReactNode;
   /** The screen's icons, on the right. */
   children?: React.ReactNode;
 }) {
@@ -34,14 +34,13 @@ export function AppHeader({
   const goHome = useGoHome();
   return (
     <View style={styles.header}>
-      {before}
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="ancestree"
         accessibilityHint="Back to your own leaf"
         onPress={goHome}
         hitSlop={8}
-        style={({ pressed }) => [styles.brand, !before && styles.brandAlone, pressed && { opacity: 0.6 }]}
+        style={({ pressed }) => [styles.brand, pressed && { opacity: 0.6 }]}
       >
         <Image
           source={require("../../assets/splash-icon.png")}
@@ -50,6 +49,7 @@ export function AppHeader({
         />
         <Text style={[styles.wordmark, { color: palette.foreground }]}>ancestree</Text>
       </Pressable>
+      {beside}
       <View style={styles.actions}>{children}</View>
     </View>
   );
@@ -72,11 +72,23 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
-  brand: { flexDirection: "row", alignItems: "center", gap: 7, paddingVertical: 6 },
-  brandAlone: { paddingLeft: 12 },
+  brand: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    paddingVertical: 6,
+    paddingLeft: 12,
+  },
   mark: { width: 26, height: 26 },
   wordmark: { fontFamily: font.semibold, fontSize: 19, letterSpacing: -0.4 },
-  actions: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 2 },
+  actions: {
+    marginLeft: "auto",
+    flexShrink: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: 2,
+  },
   title: {
     fontFamily: font.semibold,
     fontSize: 26,

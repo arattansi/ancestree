@@ -7,11 +7,13 @@ import { useSession } from "@/auth/session";
 import { useFamily } from "@/family/family";
 import type { NoFamily } from "@/family/load";
 import { Spotlight } from "@/leaf/spotlight";
+import { TreeMapView } from "@/leaf/tree-map";
 import { font, GUTTER, usePalette } from "@/theme";
 import { Button } from "@/ui/button";
 import { AppHeader } from "@/ui/app-header";
 import { HeaderButton } from "@/ui/header";
-import { ChevronLeftIcon, PlusIcon, SearchIcon } from "@/ui/icons";
+import { PlusIcon, SearchIcon } from "@/ui/icons";
+import { TreePicker } from "@/ui/tree-picker";
 
 const SITE = process.env.EXPO_PUBLIC_SITE_URL ?? "https://www.ancestree.space";
 const SITE_NAME = SITE.replace(/^https?:\/\/(www\.)?/, "");
@@ -35,26 +37,32 @@ const NOTHING: Record<NoFamily, { title: string; body: string }> = {
 /**
  * The member's family, one leaf at a time, opening on their own: home, the
  * middle of the menu bar (Step 179.4). The wordmark brings them back to
- * their own leaf; back retraces the leaves they walked.
+ * their own leaf. Beside it, which tree they're looking at (Step 206): pick
+ * one and the whole of it is on screen, everyone a small pill, as a tap on
+ * the ground around a leaf shows the whole of the tree the leaf is on; tap
+ * a pill and that leaf view opens.
  */
 export default function LeafScreen() {
   const palette = usePalette();
   const { signOut } = useSession();
-  const { state, reload, focusId, trail, walkTo, back } = useFamily();
+  const { state, reload, focusId, trail, walkTo, back, treeId, map, showMap, hideMap } =
+    useFamily();
   const family = state.status === "ready" ? state.family : null;
 
-  // Android's back retraces the walk too, as the header's does (Step 198);
-  // on their own leaf it leaves the app.
+  // Android's back closes the whole tree, then retraces the walk (Step 198),
+  // the header having no back of its own (Step 206); on their own leaf it
+  // leaves the app.
   const walked = trail.length > 0;
   useFocusEffect(
     React.useCallback(() => {
-      if (!walked) return;
+      if (!walked && !map) return;
       const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-        back();
+        if (map) hideMap();
+        else back();
         return true;
       });
       return () => sub.remove();
-    }, [walked, back]),
+    }, [walked, map, back, hideMap]),
   );
 
   return (
@@ -63,15 +71,13 @@ export default function LeafScreen() {
       style={[styles.safe, { backgroundColor: palette.background }]}
     >
       <AppHeader
-        before={
-          trail.length > 0 ? (
-            <HeaderButton label="Back" onPress={back}>
-              <ChevronLeftIcon color={palette.foreground} />
-            </HeaderButton>
+        beside={
+          family ? (
+            <TreePicker trees={family.trees} currentId={treeId} onPick={showMap} />
           ) : null
         }
       >
-        {family && focusId && family.people.get(focusId)?.fullOn.length ? (
+        {!map && family && focusId && family.people.get(focusId)?.fullOn.length ? (
           <AddButton
             onPress={() => router.push({ pathname: "/add/[id]", params: { id: focusId } })}
           />
@@ -95,11 +101,14 @@ export default function LeafScreen() {
         <Message title={NOTHING[state.why].title} body={NOTHING[state.why].body}>
           <Button variant="outline" label="sign out" onPress={() => void signOut()} />
         </Message>
+      ) : map && treeId ? (
+        <TreeMapView family={state.family} treeId={treeId} focusId={focusId} onPick={walkTo} />
       ) : focusId ? (
         <Spotlight
           family={state.family}
           focusId={focusId}
           onWalk={walkTo}
+          onBackground={() => showMap()}
           onMore={(side) =>
             router.push({ pathname: "/relatives/[side]", params: { side } })
           }

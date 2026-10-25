@@ -28,6 +28,13 @@ type FamilyContext = {
   walkTo: (id: string) => void;
   back: () => void;
   home: () => void;
+  /** The tree they're looking at (Step 206): the header's picker. */
+  treeId: string | null;
+  /** The whole of `treeId` is on screen, everyone a small pill. */
+  map: boolean;
+  /** Open the whole of a tree; the one they're on without an id. */
+  showMap: (treeId?: string) => void;
+  hideMap: () => void;
 };
 
 const Context = React.createContext<FamilyContext | null>(null);
@@ -53,6 +60,8 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   const state = answer && answer.key === key ? answer.state : LOADING;
   const [focusId, setFocusId] = React.useState<string | null>(null);
   const [trail, setTrail] = React.useState<string[]>([]);
+  const [chosenTree, setChosenTree] = React.useState<string | null>(null);
+  const [map, setMap] = React.useState(false);
 
   React.useEffect(() => {
     if (!userId || !key) return;
@@ -66,6 +75,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         }
         setAnswer({ key, state: { status: "ready", family: result } });
         setFocusId((id) => (id && result.people.has(id) ? id : result.selfId));
+        setChosenTree((id) => (id && result.trees.has(id) ? id : null));
       })
       .catch((error: unknown) => {
         if (!live) return;
@@ -83,6 +93,17 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     };
   }, [userId, key]);
 
+  // The tree looked at: the one picked, else the first of theirs that shows
+  // whoever is on the leaf, else their own first tree.
+  const family = state.status === "ready" ? state.family : null;
+  const treeId = React.useMemo(() => {
+    if (!family) return null;
+    if (chosenTree && family.trees.has(chosenTree)) return chosenTree;
+    const on = (id: string | null) =>
+      id ? [...family.trees.keys()].find((t) => family.trees.get(t)!.people.has(id)) : undefined;
+    return on(focusId) ?? on(family.selfId) ?? [...family.trees.keys()][0] ?? null;
+  }, [family, chosenTree, focusId]);
+
   const value = React.useMemo<FamilyContext>(
     () => ({
       state,
@@ -90,6 +111,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       focusId,
       trail,
       walkTo: (id) => {
+        setMap(false);
         if (!focusId || id === focusId) return;
         setTrail((t) => [...t, focusId]);
         setFocusId(id);
@@ -102,11 +124,20 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       },
       home: () => {
         if (state.status !== "ready") return;
+        setMap(false);
+        setChosenTree(null);
         setTrail([]);
         setFocusId(state.family.selfId);
       },
+      treeId,
+      map,
+      showMap: (id) => {
+        if (id) setChosenTree(id);
+        setMap(true);
+      },
+      hideMap: () => setMap(false),
     }),
-    [state, focusId, trail],
+    [state, focusId, trail, treeId, map],
   );
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }

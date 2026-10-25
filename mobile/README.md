@@ -20,9 +20,15 @@ What it does so far:
   pill with their first name and their initials cut out of a disc at its
   right end. The lines branch off a bar and turn round corners, in the
   brown of the web's lit lines, over the web's dotted ground. Tap a pill to
-  walk to that leaf, back retraces your steps, the magnifier finds anyone
-  on your trees by name, and a "+n" pill lists the rest of a group too big
-  to show.
+  walk to that leaf, the magnifier finds anyone on your trees by name, and
+  a "+n" pill lists the rest of a group too big to show.
+- **The whole tree** (Step 206): tap the ground around a leaf and the whole
+  of the tree it's on appears, everyone a small gray pill with their first
+  name and initials, arranged exactly as the web's canvas arranges their
+  cards, at the zoom that fits it all. Drag to move about it, pinch to
+  zoom, tap a pill to open that leaf. Beside the wordmark, a picker names
+  the tree you're looking at and lists your others; pick one to see the
+  whole of it. The wordmark still brings you back to your own leaf.
 - **add** (Step 179.3), beside the magnifier: a relative of whoever is on
   the leaf view (with the web's checks: 18 or older, the connections the
   tree implies, the database's say before anything is kept, an invite to
@@ -301,8 +307,8 @@ Each platform needs its key on EAS once, before the build that brings
 The same code, built for Android: everything above works there too. Where
 Android differs, the app follows it:
 
-- **Back** (the gesture or button) retraces the leaves you walked, closes
-  a sheet, and from another tab goes home. In the scribe it closes only
+- **Back** (the gesture or button) closes the whole tree, retraces the
+  leaves you walked, closes a sheet, and from another tab goes home. In the scribe it closes only
   what holds nothing yet, or a saved story: a story half told is left for
   the X, as the iPhone's swipe is off.
 - **The keyboard.** Forms rise above it with the same `padding` the
