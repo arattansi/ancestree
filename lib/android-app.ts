@@ -8,9 +8,9 @@
 export const ANDROID_APP = {
   version: "0.1.0",
   /** EAS's versionCode for the build. */
-  build: 3,
+  build: 5,
   /** The APK's size in bytes, as the release holds it. */
-  bytes: 73_835_475,
+  bytes: 74_762_131,
   /** The oldest Android it installs on (minSdkVersion 24). */
   minAndroid: "7",
 } as const;
