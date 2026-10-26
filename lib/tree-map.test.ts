@@ -64,7 +64,7 @@ const PHONE = { width: 393, height: 650 };
 describe("treeMap", () => {
   it("seats every pill in the middle of the web's card slot", () => {
     const map = treeMap(FAMILY);
-    const web = layoutTree([...FAMILY.people], FAMILY.lines, {
+    const web = layoutTree([...FAMILY.people], [...FAMILY.lines], {
       anchorIds: mapAnchors(FAMILY),
     });
     expect(map.pills.map((p) => p.id).sort()).toEqual(
