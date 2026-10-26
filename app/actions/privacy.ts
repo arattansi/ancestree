@@ -6,6 +6,12 @@ import { deleteAccountOf } from "@/lib/account-deletion.server";
 import { getSessionUser, requireProfile } from "@/lib/auth";
 import { clearCurrentTreeCookie } from "@/lib/current-tree.server";
 import {
+  profileCsv,
+  taggedMedia,
+  type MediaFile,
+  type MediaText,
+} from "@/lib/data-export.server";
+import {
   albumPhotosOf,
   removeUnusedAlbumPhotos,
   removeUnusedRecordings,
@@ -13,7 +19,7 @@ import {
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { revalidateTreePages } from "@/lib/revalidate";
-import { rootOf } from "@/lib/tree-context";
+import { listMyTrees, rootOf } from "@/lib/tree-context";
 
 /**
  * Root: full export of one tree as JSON. Every row a member of it could ever
@@ -212,6 +218,52 @@ export async function exportTreeData(treeId: string): Promise<{
     json: JSON.stringify(payload, null, 2),
     filename: `ancestree-${membership.tree.slug}-${stamp}.json`,
   };
+}
+
+/**
+ * A member's own profile as a .csv (Step 207, settings' **export data**):
+ * their account, settings, trees, entry and the relatives a line away, read
+ * as they are.
+ */
+export async function exportProfileData(): Promise<{
+  csv?: string;
+  filename?: string;
+  error?: string;
+}> {
+  const profile = await requireProfile();
+  const [user, trees] = await Promise.all([getSessionUser(), listMyTrees()]);
+  if (!user) return { error: "You are not signed in." };
+  const csv = await profileCsv(profile, user, trees);
+  const stamp = new Date().toISOString().slice(0, 10);
+  return { csv, filename: `ancestree-profile-${stamp}.csv` };
+}
+
+/**
+ * What a member's own entry is tagged in, for a .zip the browser builds
+ * (Step 207): signed links to their photo, the album photos and the
+ * stories' recordings, and the written stories and an index as text.
+ */
+export async function exportTaggedMedia(): Promise<{
+  files?: MediaFile[];
+  texts?: MediaText[];
+  filename?: string;
+  error?: string;
+}> {
+  const profile = await requireProfile();
+  if (!profile.self_person_id) {
+    return { error: "You don’t have an entry yet, so nothing’s tagged with you." };
+  }
+  let media: Awaited<ReturnType<typeof taggedMedia>>;
+  try {
+    media = await taggedMedia(profile);
+  } catch {
+    return { error: "Couldn’t read what you’re tagged in. Try again." };
+  }
+  if (media.files.length === 0 && media.texts.length === 0) {
+    return { error: "Nothing’s tagged with you yet." };
+  }
+  const stamp = new Date().toISOString().slice(0, 10);
+  return { ...media, filename: `ancestree-tagged-media-${stamp}.zip` };
 }
 
 /**

@@ -21,7 +21,9 @@ export const metadata: Metadata = marketingMetadata(
  * joined to their wedding photo beside it (under it on a phone). Its
  * column is the other marketing pages' too (`MarketingColumn`). The
  * story's footnote is on the footer's line (`site-footer.tsx`). It ends
- * on privacy and security, pointing to /privacy (Step 195).
+ * on privacy and security, pointing to /privacy (Step 195), under its own
+ * /data-sovereignty heading since Step 207, which names the export button
+ * in settings and the account's delete button.
  */
 export default function AboutUsPage() {
   return (
@@ -50,14 +52,28 @@ export default function AboutUsPage() {
         </p>
         <p>they still like each other.</p>
         <p>but they used to like each other, too*.</p>
-        <p>they also care a lot about privacy and security.</p>
+      </MarketingCopy>
+      <h2 className="pt-4 text-lg font-semibold tracking-tight">
+        /data-sovereignty
+      </h2>
+      <MarketingCopy>
+        <p>
+          Raiya and Aalim care a lot about privacy, security, and upholding your
+          ownership over your data.
+        </p>
+        <p>
+          they’ve made it easy to take back your data (simple export button) or
+          purge your data (simple purge button).
+        </p>
         <p>
           they won’t share anything with anyone and are proactively thinking
           about how to protect the people on ancestree. see more at{" "}
           <Link href="/privacy" className="underline underline-offset-4">
             /privacy
           </Link>
+          .
         </p>
+        <p>it’s your data. they’re just custodians of it.</p>
       </MarketingCopy>
     </MarketingColumn>
   );

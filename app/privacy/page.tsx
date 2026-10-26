@@ -380,8 +380,10 @@ export default function PrivacyPage() {
       <Section title="Your choices">
         <ul className="list-disc space-y-1 pl-5">
           <li>
-            <strong>See your data.</strong> A Root can export the full tree as a
-            JSON file on request.
+            <strong>See your data.</strong> Download your profile (a .csv) and
+            the photos, recordings and stories you&rsquo;re tagged in (a .zip)
+            from settings, any time. A Root can export the full tree as a JSON
+            file on request.
           </li>
           <li>
             <strong>Correct an entry.</strong> Edit your own entry any time, or

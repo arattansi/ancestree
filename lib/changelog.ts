@@ -19,6 +19,15 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "2026-10-26",
+    title: "take your data with you",
+    items: [
+      "settings has an export data button: download your profile as a .csv, or the photos, recordings and stories you're tagged in as a .zip.",
+      "the about-us page says why: it's your data, we're just custodians of it.",
+    ],
+    steps: [207],
+  },
+  {
     date: "2026-10-24",
     title: "birthday cakes",
     items: [

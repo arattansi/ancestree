@@ -172,7 +172,7 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   (`verifySignInCode`, Step 53), an emailed invite's accept and, for an
   address that's a member's already, its sign-in code
   (`sendInviteSignInCode`, Step 30.8) + sign out (`next` lets /join's "Use
-  another email" come back to its form); `privacy.ts`: `exportTreeData` (admin JSON export) / `deletePerson`
+  another email" come back to its form); `privacy.ts`: `exportTreeData` (admin JSON export) / `exportProfileData` + `exportTaggedMedia` (a member's own .csv and .zip, Step 207) / `deletePerson`
   (admin erasure + storage cleanup) / `deleteAccount` (self-serve, reassigns
   contributions to a founding admin);
   `trees.ts`: `foundTree` / `renameTree` / `deleteTree`, `placePeople` /
@@ -372,7 +372,7 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `lib/claims.ts` — claim candidates, notifications (a join notice's Branch
   offer, Step 171); `lib/join-notices.ts` — what a join tells each Root and
   the Branch it offers (`JOIN_NOTICE_TYPES`, `branchOffer`, `objectWord`,
-  `BRANCH_IN_A_LINE`; `.test.ts`); `lib/album.ts` —
+  `BRANCH_IN_A_LINE`; `.test.ts`); `lib/data-export.ts` + `.server.ts` — settings' export data: the profile .csv rows, safe unique file names, a written story as Markdown, and the reads behind them (Step 207; `.test.ts`); `lib/zip.ts` — a stored .zip built in the browser (`.test.ts`); `lib/album.ts` —
   album reads (`entry_album` + a signed 800px transform and the whole
   photo, Step 88.5); `lib/album-path.ts` — the `album` bucket's layout
   (`{tree}/{uuid}.{ext}`); `lib/photo-metadata.ts` — what a picked photo
@@ -1993,6 +1993,66 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 207: export data; about-us /data-sovereignty** (web only, no
+  migration, no new dependency). **Asked for** (Aalim, 2026-10-26): "i
+  updated the /about-us page copy … also, build a simple 'export data'
+  button in the Privacy & Your Data section of settings that allows a user
+  to easily download all of the data/files connected to their account.
+  pressing the export data button should prompt a dropdown of 2 options:
+  1. download profile data (.csv) 2. download tagged media (.zip). media
+  includes audio, documents, and images". **Now:**
+  - **/about-us** mirrors the Notion "who" page: the closing privacy lines
+    are a `/data-sovereignty` section of their own (an `h2` in the
+    features page's type), word for word, naming the export button and
+    the delete button. /privacy's "See your data" says members download
+    their own now.
+  - **export data** (`components/export-data.tsx`), beside **delete my
+    account** in settings' Privacy & Your Data: an outline button whose
+    menu holds Aalim's two options, worded as he wrote them.
+  - **download profile data (.csv)** (`exportProfileData` in
+    `app/actions/privacy.ts`, `profileCsv` in `lib/data-export.server.ts`):
+    `Section, Field, Value` rows, a long list rather than one wide row, so
+    a tree or a relative more is a row more: the account (name, email as
+    settings shows it, member since), the three email/ask switches, each
+    tree with its account type and when they founded or joined it, their
+    own entry (names, sex, dates as the card says them, places, email and
+    whether it's shown, hidden from visitors, whether there's a photo) and
+    everyone a line away (`firstDegree`: parents, partners, former
+    partners, children, siblings). Empty details are left out. Read as the
+    member, so it's what they can see already. A byte-order mark so Excel
+    reads "née"; a cell starting `= + - @` gets a `'` so a name a relative
+    typed can't run as a formula (`csvCell`).
+  - **download tagged media (.zip)** (`exportTaggedMedia`, `taggedMedia`):
+    what their own entry is tagged in, by kind: `images/` their photo and
+    the album photos they're in, `audio/` the stories about them that
+    have a recording, `documents/` those with words, as Markdown with who
+    it's about, who added it, when it was told and its credits on top
+    (`storyMarkdown`); `media.csv` says what each file is, who else is in
+    it, who added it, its credits, and "Waiting for you" where they
+    haven't answered. Whatever they declined is left out. Files are named
+    by date and description or title, made safe for every file system and
+    unique without case (`fileNamer`). "Documents" read as written
+    stories: the album took documents' place in Step 88.5, and nothing
+    else holds one now (my call).
+  - **The .zip is built in the browser** (`lib/zip.ts`, stored, not
+    compressed: the photos and recordings are compressed already): the
+    action reads the album and stories as the member (`entry_album`,
+    `entry_stories`), signs each file for 30 minutes, and the browser
+    fetches them four at a time, so no function holds a whole album or
+    meets a response limit. A file that won't come is left out and the
+    toast counts it; if none come, nothing is saved. Our own writer rather
+    than a package: about a hundred lines of PKWARE's format with UTF-8
+    names, checked against Python's `zipfile`, `unzip -t` and macOS's
+    Archive Utility. No entry yet, or nothing tagged: a toast says so.
+  - Tests: `lib/data-export.test.ts`, `lib/zip.test.ts`. Checked in the
+    browser on live with a throwaway member (own tree, entry, a parent and
+    a sibling, a portrait, a tagged album photo, a recorded story, a
+    written one and a declined one): the menu opens with both options; the
+    .csv held the account, settings, tree, entry and both relatives; the
+    .zip held the portrait, the photo, the recording and the written story
+    byte for byte, its index, and not the declined story. Everything
+    removed after (rows, files, user, sessions).
 
 - **Step 206: the whole tree on a phone, and a tree picker** (phone only,
   no migration; shipped in iOS build 15 and Android build 5 on 2026-10-25,

@@ -24,6 +24,7 @@ import { CollapsibleCard } from "@/components/collapsible-card";
 import { DeleteAccount } from "@/components/delete-account";
 import { DirectInviteForm } from "@/components/direct-invite-form";
 import { EditDisplayName } from "@/components/edit-display-name";
+import { ExportData } from "@/components/export-data";
 import { HomeTreePicker } from "@/components/home-tree-picker";
 import { OwnCardElsewhereList } from "@/components/own-card-elsewhere";
 import { NotificationsList } from "@/components/notifications-list";
@@ -564,7 +565,9 @@ async function SettingsView({
             Privacy notice
           </Link>
           {noEmail ? null : <RelativesCanAsk on={profile.relatives_can_ask} />}
-          <div>
+          {/* Take it with you, or take it away (Step 207). */}
+          <div className="flex flex-wrap gap-2">
+            <ExportData />
             <DeleteAccount soleRootTrees={soleRootTrees} />
           </div>
         </CardContent>
