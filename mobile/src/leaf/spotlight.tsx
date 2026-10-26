@@ -65,7 +65,7 @@ const DURATION: Record<Move["kind"], number> = { slide: 560, fade: 200, jump: 26
  * The web's camera's ease-out quint (`components/tree/family-tree.tsx`):
  * quick away, a long settle (Step 189).
  */
-const EASE = (t: number) => {
+export const EASE = (t: number) => {
   "worklet";
   return 1 - (1 - t) ** 5;
 };
@@ -652,7 +652,7 @@ function handover(m: WalkMorph | undefined, arriving: boolean): [number, number,
  * clock that kept real time would have a slide half over by the first frame
  * seen, so this one slows down instead.
  */
-function useClock(
+export function useClock(
   start: number,
   run: unknown,
   duration: number,

@@ -10,12 +10,10 @@ import {
   type GestureResponderEvent,
 } from "react-native";
 import Animated, {
-  Easing,
   Extrapolation,
   interpolate,
   useAnimatedStyle,
   useSharedValue,
-  withTiming,
   type SharedValue,
 } from "react-native-reanimated";
 import Svg, { Path } from "react-native-svg";
@@ -33,7 +31,7 @@ import {
 } from "@/lib/tree-map";
 import type { Family, FamilyPerson } from "@/family/load";
 import { BOX_H, BOX_W, Leaf } from "@/leaf/leaf";
-import { DOT, Grid, type SpotlightPlaces } from "@/leaf/spotlight";
+import { DOT, EASE, Grid, useClock, type SpotlightPlaces } from "@/leaf/spotlight";
 import { font, usePalette } from "@/theme";
 
 type XY = { x: number; y: number };
@@ -185,16 +183,11 @@ function Canvas({
 
   const offset = useSharedValue<XY>({ x: opening.x, y: opening.y });
   const zoom = useSharedValue(opening.zoom);
-  // The opening, 0 to 1, eased as a walk's slide is.
-  const opened = useSharedValue(0);
-  React.useEffect(() => {
-    opened.set(
-      withTiming(1, {
-        duration: from ? OPEN_MS : 240,
-        easing: from ? Easing.out(Easing.poly(5)) : Easing.linear,
-      }),
-    );
-  }, [opened, from]);
+  // The opening, 0 to 1 evenly, a frame at a time (`useClock`): drawing the
+  // whole tree holds up the first frames, and a clock that kept real time
+  // would have the morph half over by the first frame seen (Step 186). The
+  // glides ease (`EASE`); the fades read it as it is.
+  const opened = useClock(0, true, from ? OPEN_MS : 240);
 
   // Where each of the leaf view's pills glides from, in canvas units.
   const arrivals = React.useMemo(() => {
@@ -332,8 +325,8 @@ function ShrinkingLeaf({
   const height = (width * BOX_H) / BOX_W;
   const small = from.pill.height / height;
   const style = useAnimatedStyle(() => ({
-    opacity: interpolate(opened.value, [0, 0.5], [1, 0], CLAMP),
-    transform: [{ scale: small + (1 - small) * (1 - opened.value) }],
+    opacity: interpolate(opened.value, [0, 0.55], [1, 0], CLAMP),
+    transform: [{ scale: small + (1 - small) * (1 - EASE(opened.value)) }],
   }));
   const name = personDisplayName(person);
   const maiden = maidenLine(person);
@@ -486,9 +479,10 @@ function MapPill({
       : focused
         ? interpolate(e, [0.1, 0.5], [0, 1], CLAMP)
         : interpolate(e, [0.35, 0.9], [0, 1], CLAMP);
+    const g = 1 - EASE(e);
     return {
       opacity,
-      transform: [{ translateX: (1 - e) * dx }, { translateY: (1 - e) * dy }],
+      transform: [{ translateX: g * dx }, { translateY: g * dy }],
     };
   }, [animated, glides, focused, dx, dy]);
   return (

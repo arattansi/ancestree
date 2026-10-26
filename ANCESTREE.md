@@ -2051,9 +2051,13 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
     family test account): the map opens from the ground at the leaf's
     scale with the leaf's pill where the leaf was, drags, pinches, a pill
     opens its leaf, the chevron lists and switches trees, the wordmark
-    goes home. The morph's frames themselves weren't caught (a screenshot
-    straight after the tap still shows the leaf view: the map's first
-    draw takes a moment). Not checked on Android or a phone. `npm test` at
+    goes home. A screen recording (10 fps) first showed the morph over in
+    one frame: a timing animation started while the UI thread drew the
+    whole tree, and was nearly over by the first frame seen (Step 186's
+    stall), so the opening now runs on the spotlight's frame clock
+    (`useClock`, exported with `EASE`), and the recording shows the leaf
+    shrinking into its pill over six frames with the pills gliding. Not
+    checked on Android or a phone. `npm test` at
     the root: `lib/tree-map.test.ts` passes; the Step 206 deploy had
     failed Vercel's type check on that test (a readonly array handed to
     `layoutTree`), fixed `44cac4e`.
