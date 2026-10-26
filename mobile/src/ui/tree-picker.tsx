@@ -7,9 +7,10 @@ import { font, GUTTER, usePalette } from "@/theme";
 import { CheckIcon, ChevronDownIcon } from "@/ui/icons";
 
 /**
- * Which tree the member is looking at (Step 206), beside the wordmark: its
- * name and a chevron, and a menu of every tree they're on, the web's tree
- * switcher on a phone. Picking one opens the whole of that tree.
+ * Which tree the member is looking at (Step 206): a chevron beside the
+ * wordmark (no name, Aalim: "just the arrow"), opening a menu of every tree
+ * they're on, the current one ticked: the web's tree switcher on a phone.
+ * Picking one opens the whole of that tree.
  */
 export function TreePicker({
   trees,
@@ -32,17 +33,10 @@ export function TreePicker({
         accessibilityRole="button"
         accessibilityLabel={`Tree: ${label}. Switch tree`}
         onPress={() => setOpen(true)}
-        hitSlop={8}
-        style={({ pressed }) => [
-          styles.trigger,
-          { backgroundColor: palette.muted },
-          pressed && { opacity: 0.6 },
-        ]}
+        hitSlop={10}
+        style={({ pressed }) => [styles.trigger, pressed && { opacity: 0.6 }]}
       >
-        <Text numberOfLines={1} style={[styles.label, { color: palette.foreground }]}>
-          {label}
-        </Text>
-        <ChevronDownIcon size={15} color={palette.mutedForeground} />
+        <ChevronDownIcon size={18} color={palette.mutedForeground} />
       </Pressable>
       <Modal
         visible={open}
@@ -98,20 +92,7 @@ export function TreePicker({
 }
 
 const styles = StyleSheet.create({
-  trigger: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-    height: 30,
-    flexShrink: 1,
-    minWidth: 0,
-    maxWidth: 170,
-    paddingLeft: 10,
-    paddingRight: 7,
-    borderRadius: 15,
-    marginLeft: 6,
-  },
-  label: { fontFamily: font.medium, fontSize: 14, flexShrink: 1 },
+  trigger: { width: 28, height: 36, alignItems: "center", justifyContent: "center" },
   backdrop: { flex: 1 },
   menu: {
     position: "absolute",

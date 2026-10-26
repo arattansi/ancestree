@@ -16,7 +16,7 @@ import { connectionCaption } from "@/lib/connection-caption";
 import { roundedPolyline } from "@/lib/edge-geometry";
 import { NO_ADDS } from "@/lib/leaf-adds";
 import { ghostLayout, shiftOrbit, type GhostFamily } from "@/lib/leaf-ghosts";
-import { orbitLayout, orbitLines, type OrbitSide } from "@/lib/leaf-orbit";
+import { orbitLayout, orbitLines, type OrbitSide, type PillSize } from "@/lib/leaf-orbit";
 import {
   walkMorphs,
   walkOffset,
@@ -112,8 +112,11 @@ export function Spotlight({
   onOpenLeaf: () => void;
   /** Opens the add form for a first parent or child; none asked without it. */
   onAdd?: (relation: "parent" | "child") => void;
-  /** A tap on the ground, away from everyone: opens the whole tree (Step 206). */
-  onBackground?: () => void;
+  /**
+   * A tap on the ground, away from everyone: opens the whole tree (Step
+   * 206), told where the leaf and its pills are, so it can grow out of them.
+   */
+  onBackground?: (places: SpotlightPlaces | null) => void;
 }) {
   const [screen, setScreen] = React.useState<Frame | null>(null);
   const asks = !!onAdd;
@@ -198,7 +201,11 @@ export function Spotlight({
           accessibilityLabel="The whole tree"
           accessibilityHint="Shows everyone on the tree, small"
           style={StyleSheet.absoluteFill}
-          onPress={onBackground}
+          onPress={() =>
+            onBackground(
+              screen ? spotlightPlaces(family, lineage, focusId, screen, asks) : null,
+            )
+          }
         />
       ) : null}
       {screen
@@ -253,6 +260,32 @@ function sceneLayout(
   ]);
   const ghosts = ghostLayout(orbit, frame, lineage, onScreen);
   return { caption, room, frame, layout: shiftOrbit(orbit, ghosts.shift), ghosts };
+}
+
+/** Where a leaf view's leaf and pills are on the screen (Step 206). */
+export type SpotlightPlaces = {
+  /** The leaf's box, from its top left. */
+  leaf: { x: number; y: number; width: number; height: number };
+  pill: PillSize;
+  /** Each relative's pill's centre, by their id. */
+  pills: Map<string, XY>;
+};
+
+/**
+ * The leaf and its relatives' pills as they are on the screen, for the
+ * whole-tree map to open out of (Step 206).
+ */
+export function spotlightPlaces(
+  family: Family,
+  lineage: GhostFamily,
+  focusId: string,
+  screen: Frame,
+  asks: boolean,
+): SpotlightPlaces {
+  const { layout } = walkScene(focusId, sceneLayout(family, lineage, focusId, screen, asks));
+  const pills = new Map<string, XY>();
+  for (const p of layout.pills) if (p.id) pills.set(p.id, { x: p.x, y: p.y });
+  return { leaf: layout.leaf, pill: layout.pill, pills };
 }
 
 /** A leaf view as a walk reads it: on the screen, below the caption's room. */

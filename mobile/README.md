@@ -22,13 +22,14 @@ What it does so far:
   brown of the web's lit lines, over the web's dotted ground. Tap a pill to
   walk to that leaf, the magnifier finds anyone on your trees by name, and
   a "+n" pill lists the rest of a group too big to show.
-- **The whole tree** (Step 206): tap the ground around a leaf and the whole
-  of the tree it's on appears, everyone a small gray pill with their first
-  name and initials, arranged exactly as the web's canvas arranges their
-  cards, at the zoom that fits it all. Drag to move about it, pinch to
-  zoom, tap a pill to open that leaf. Beside the wordmark, a picker names
-  the tree you're looking at and lists your others; pick one to see the
-  whole of it. The wordmark still brings you back to your own leaf.
+- **The whole tree** (Step 206): tap the ground around a leaf and the leaf
+  softly shrinks into a small gray pill where it stands, its relatives'
+  pills glide to where the web's canvas seats them, and the rest of the
+  tree comes in round them, everyone a pill with their first name and
+  initials, at the scale the leaf view was. Drag to move about it, pinch
+  to zoom, tap a pill to open that leaf. The chevron beside the wordmark
+  lists your trees; pick one to see the whole of it. The wordmark still
+  brings you back to your own leaf.
 - **add** (Step 179.3), beside the magnifier: a relative of whoever is on
   the leaf view (with the web's checks: 18 or older, the connections the
   tree implies, the database's say before anything is kept, an invite to

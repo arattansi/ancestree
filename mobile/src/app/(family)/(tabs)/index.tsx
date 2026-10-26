@@ -6,7 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useSession } from "@/auth/session";
 import { useFamily } from "@/family/family";
 import type { NoFamily } from "@/family/load";
-import { Spotlight } from "@/leaf/spotlight";
+import { Spotlight, type SpotlightPlaces } from "@/leaf/spotlight";
 import { TreeMapView } from "@/leaf/tree-map";
 import { font, GUTTER, usePalette } from "@/theme";
 import { Button } from "@/ui/button";
@@ -48,6 +48,9 @@ export default function LeafScreen() {
   const { state, reload, focusId, trail, walkTo, back, treeId, map, showMap, hideMap } =
     useFamily();
   const family = state.status === "ready" ? state.family : null;
+  // Where the leaf view's leaf and pills were when the ground was tapped,
+  // for the whole tree to open out of; nothing from the picker.
+  const [from, setFrom] = React.useState<SpotlightPlaces | null>(null);
 
   // Android's back closes the whole tree, then retraces the walk (Step 198),
   // the header having no back of its own (Step 206); on their own leaf it
@@ -73,7 +76,14 @@ export default function LeafScreen() {
       <AppHeader
         beside={
           family ? (
-            <TreePicker trees={family.trees} currentId={treeId} onPick={showMap} />
+            <TreePicker
+              trees={family.trees}
+              currentId={treeId}
+              onPick={(id) => {
+                setFrom(null);
+                showMap(id);
+              }}
+            />
           ) : null
         }
       >
@@ -102,13 +112,22 @@ export default function LeafScreen() {
           <Button variant="outline" label="sign out" onPress={() => void signOut()} />
         </Message>
       ) : map && treeId ? (
-        <TreeMapView family={state.family} treeId={treeId} focusId={focusId} onPick={walkTo} />
+        <TreeMapView
+          family={state.family}
+          treeId={treeId}
+          focusId={focusId}
+          from={from}
+          onPick={walkTo}
+        />
       ) : focusId ? (
         <Spotlight
           family={state.family}
           focusId={focusId}
           onWalk={walkTo}
-          onBackground={() => showMap()}
+          onBackground={(places) => {
+            setFrom(places);
+            showMap();
+          }}
           onMore={(side) =>
             router.push({ pathname: "/relatives/[side]", params: { side } })
           }

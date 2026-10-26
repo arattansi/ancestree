@@ -23,8 +23,12 @@ import {
 import { NODE_H, NODE_W, type XY } from "@/lib/tree-dimensions";
 import { layoutTree, type LayoutPerson, type LayoutRelationship } from "@/lib/tree-layout";
 
-/** A pill's size in canvas units: most of its card's slot, so names read. */
-export const MAP_PILL_W = 176;
+/**
+ * A pill's size in canvas units: the leaf view's pill's proportions (3 to
+ * 1), so that at the zoom where one is the leaf view's pill's height it is
+ * its pill, and the tree opens at the scale the leaf view was at.
+ */
+export const MAP_PILL_W = 144;
 export const MAP_PILL_H = 48;
 
 export type MapPill = {
