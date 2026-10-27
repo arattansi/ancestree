@@ -4021,6 +4021,7 @@ export type Database = {
         Returns: undefined
       }
       engagement_dashboard: { Args: never; Returns: Json }
+      ensure_family_link: { Args: { p_tree: string }; Returns: string }
       ensure_profile: {
         Args: { p_display_name?: string }
         Returns: {

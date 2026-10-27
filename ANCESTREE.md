@@ -806,7 +806,7 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `people`                 | Demographic nodes, **one row per person across all trees**. `tree_id` is the person's **home tree** — whose rules govern their details (Step 25; moved by `set_home_tree`). `hidden_from_visitors` blurs them to visitors. Card positions live on `tree_placements`, not here (the pre-Step-25 `people.pos_*` were dropped in Step 25.6). `owner_user_id` starts as `created_by` and moves on claim. `date_of_birth_precision` / `date_of_death_precision` (`day` \| `month` \| `year`, Step 17) say how much of each date is known — a partial date is stored on the first day of its period, CHECK-enforced, so year-only readers need no change. A birthday with no year is `birth_month` / `birth_day` (Step 63), set only while `date_of_birth` is empty, so they see no year either. `date_of_birth_circa` / `date_of_death_circa` (Step 81) mark a date as a rough estimate, shown "c. 1950"; each needs its date (CHECK), and `people_before_write` clears it when the date is emptied. `place_id_birth` / `place_id_death` → `places(id)` (Step 4.5b; nullable, backfilled — legacy `city_of_birth` / `country_of_birth` / `place_of_death` text kept until reconciled). `place_id_residence` → `places(id)` and `place_of_residence` (its label, ≤ 160) are where someone lives now (Step 153): optional, for the living only (`people_before_write` empties both once `is_deceased`), and `tree_people` hands them only to the tree's members and the entry's owner — a visitor from another tree, a share link and a basic card get null. Nothing about ancestral lands is stored: a card shows Native Land Digital's names, looked up live, or nothing (Step 40; Step 27's `ancestral_lands_birth` / `ancestral_lands_death`, the family's own words, were never used and were dropped in Step 40.5). `placeholder_number` (Step 98.2) is set only on a **placeholder child** — no details at all (`people_placeholder_empty`; `people_required_identity` asks it for no name), shown "First Child", "Second Child"… — and cleared for good when their parent fills it in. An entry made a placeholder in Step 98.3 keeps what it had been given in `private.withheld_details` (old columns as jsonb), read only by its parent and the child (`withheld_details`) until the parent shows it (`reveal_withheld_details`) or forgets it (`forget_withheld_details`) |
 | `relationships`          | A fact about two people, not a tree (Step 25): a tree draws it when both ends are placed there; `tree_id` records the tree it was drawn on, and uniqueness ignores it. Directed `parent` edges; undirected `spouse` pairs (optional `marriage_date`, or `marriage_month` / `marriage_day` with no year (Step 63), / `is_divorced` / `divorce_date`, spouse-only by CHECK); siblings inferred |
 | `connection_suggestions` | Implied-connection prompts surfaced by the add-person flow (`suggested_type` spouse/parent/sibling_check, `source`, `status` pending/accepted/dismissed); UNIQUE (subject, related, type, source) = no re-prompt                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| `invites`                | Shareable tokens into one tree (`active` \| `accepted` \| `revoked`); `founds_tree` (Step 25) makes it a founder invite — redeeming plants a new tree with the redeemer as Root. `max_uses` set (1–20) makes it the tree's **family link** (Step 52): one per tree, open to anyone who has it, counted in `use_count` and kept after each join; made, rotated and re-capped only through `rotate_family_link` / `set_family_link_cap` (`family_link_guard`). Who joined with it: `private.family_link_joins` (read by Roots through `family_link_joins`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `invites`                | Shareable tokens into one tree (`active` \| `accepted` \| `revoked`); `founds_tree` (Step 25) makes it a founder invite — redeeming plants a new tree with the redeemer as Root. `max_uses` set (1–20) makes it the tree's **family link** (Step 52): one per tree, open to anyone who has it, counted in `use_count` and kept after each join; made, rotated and re-capped only through `rotate_family_link` / `set_family_link_cap` (`family_link_guard`); `ensure_family_link` (Step 212) makes one at the largest cap if the tree has none, for the founder's invite step. One nobody has joined through doesn't count as an invite (`COUNTS_AS_INVITED`). Who joined with it: `private.family_link_joins` (read by Roots through `family_link_joins`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `invite_requests`        | Public invite asks — first/last name + email, `pending` \| `approved` \| `declined`, `invite_id` of the link minted on approval. Admin-only RLS; inserted server-side with the service role (no `anon` grant). One pending row per email                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `tree_requests`          | Asks to start a tree during the beta (Step 28): a member's (`user_id`) or a waitlist sign-up's (name + email only), `pending` \| `approved` \| `declined`, answered by a beta reviewer (`private.beta_reviewers`). A member's approval is their permission to `found_tree`; a sign-up's approval mints a founder invite (`invite_id`). Reviewers see and answer every row, a member only their own; members ask through `request_tree`, the waitlist is written with the service role. One pending ask per member and per waitlist address                                                                                                                                                                                                                                                                   |
 | `invite_relays`          | Asks a newcomer with no match passed on to a relative (Step 30.5): their typed first/last name + email and the member it went to (`recipient_user_id`), `pending` \| `invited` \| `dismissed`, the tree they were invited to, `email_sent`. Only that member reads and answers it (RLS; update granted on the answer's columns only); filed by the server with the service role, and the rows are what the member's caps count. One open or dismissed ask per address and member. A pending ask lapses after 30 days, and is deleted as new asks come in (Step 41.5) |
@@ -1378,7 +1378,10 @@ mirror it for the UI.
   rotates it. **Rotate** (`rotate_family_link`) is like rotating an API key:
   the row is replaced, with a fresh token and count, attributed to that
   Root, and the old link stops working at once. **Turn off** deletes it. It
-  never expires (Aalim, 2026-09-25). `redeem_invite` counts a newcomer
+  never expires (Aalim, 2026-09-25). Since Step 212 the founder's invite
+  step makes one for them (`ensure_family_link`, cap 20) and leads with it:
+  a message to send it with (`familyLinkMessage`) and share / WhatsApp /
+  Messages / copy. `redeem_invite` counts a newcomer
   under the row lock, logs them in `private.family_link_joins` (which
   outlives rotations: its `invite_id` says which link) and keeps the row;
   someone already on the tree goes through uncounted, and the page tells
@@ -1995,6 +1998,41 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 212: the family link first on the founder's invite step, made
+  for them and shared in one tap** (web, migration
+  `20261027120000_family_link_made_for_you`, live). **Asked for**
+  (2026-10-27): F1 of that day's drop-off audit. Outside founders had
+  invited 3 of the 67 living relatives they added, one at a time, and none
+  had made a family link, the one way in that brought a burst of joins (7
+  in 4 days on the first tree). **Now** the invite step opens on a
+  **Family Link** card: the link is made as the step loads
+  (`ensure_family_link`, cap 20, one link however many loads ask at
+  once), with the message it goes with shown in full ("Join The Okafor
+  Family, our family tree on ancestree, and add your side of the family:
+  …"; "our family tree" on a default name) and **share** (the phone's
+  sheet, on touch devices that have one), **WhatsApp**, **Messages** (a
+  Mac without the sheet) and **copy**, which copies the whole message. A
+  full link offers **new link**; **Manage link** opens the Root console's
+  card (cap, rotate, turn off). The people they added and "someone else"
+  follow as before; Getting Started's and the planted card's
+  `#your-family` now lands on the link. The Root console's WhatsApp
+  button sends the same message (`familyLinkMessage`). **An unused
+  family link no longer counts as having invited anyone**
+  (`COUNTS_AS_INVITED`: the invite step's ticks, the canvas checklist,
+  `readStepSignals` and `onboarding_due`), so the checklist and the
+  getting started emails keep asking until someone joins through it or
+  another invite goes out; the step's button turns to **continue** once
+  they've shared it this visit. My calls: made on load rather than on the
+  first press (a WhatsApp link needs its address before the tap), so a
+  Root who turned the link off on the console gets a new one if they open
+  the invite step again; the message isn't editable here (it opens typed
+  out in the chat, where they can change it); on a phone Messages is left
+  to the share sheet so the buttons fit one row at 375px. Checked as a
+  throwaway founder on the dev server against live (desktop and 375px,
+  share sheet stubbed): link made once across reloads, copy and share
+  turn the button to continue, checklist unticked, full link → new link;
+  test data deleted. Migration rehearsed in a rolled-back transaction,
+  applied through the Management API (the hosted MCP refused), md5s match.
 - **Step 211: Aalim's Notion copy edit on the home page's promise** (web
   only, no migration). **Asked for** (2026-10-27): Aalim updated the hero
   copy on the "/" page in the Marketing Site database, and asked for the

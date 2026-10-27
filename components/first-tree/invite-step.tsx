@@ -1,10 +1,12 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
 
 import { AdminClaimInvites } from "@/components/admin/admin-claim-invites";
 import { AdminFamilyLink } from "@/components/admin/admin-family-link";
 import { DirectInviteForm } from "@/components/direct-invite-form";
+import { FamilyLinkShare } from "@/components/first-tree/family-link-share";
 import { LinkPendingLabel } from "@/components/link-pending";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,11 +23,11 @@ import type { InviteStepData } from "@/lib/first-tree.server";
 import type { Invitable } from "@/lib/invitable.server";
 
 /**
- * The founder's invite step (Step 29): first the people they added on the
- * family step, each to invite by email or a link to send any other way
- * (Step 162, as settings lists them), with the family link above them for
- * a Root; then anyone else, by name and address, each joining as a Leaf
- * (Step 34). Over them, one line on what an invite lets someone do, and who
+ * The founder's invite step (Step 29): first the tree's family link, made
+ * for them and ready to share with a message (Step 212); then the people
+ * they added on the family step, each to invite by email or a link to send
+ * any other way (Step 162, as settings lists them); then anyone else, by
+ * name and address, each joining as a Leaf (Step 34). Over them, one line on what an invite lets someone do, and who
  * can do what on demand (Step 171): the side panel that said it all before
  * anyone had joined is gone, and each Root hears when someone joins, with
  * the offer of a Branch then. Skippable — the canvas's "Getting started"
@@ -49,13 +51,18 @@ export function InviteStep({
   invited: boolean;
   /** The living people they added here that nobody is behind yet. */
   added: Invitable[];
-  /** A Root's family link, made or not. */
+  /** A Root's family link, made as the step loaded (Step 212). */
   familyLink: InviteStepData["familyLink"];
   baseUrl: string;
   nextHref: string;
 }) {
   // Someone they added who's been invited shows it in the list above.
   const listed = new Set(added.map((p) => p.id));
+  // Shared this visit: an unused family link isn't an invite (Step 212),
+  // so the page goes by the press.
+  const [shared, setShared] = React.useState(false);
+  const onward = invited || shared;
+  const onShared = React.useCallback(() => setShared(true), []);
   const others = invites.filter((i) => !i.personId || !listed.has(i.personId));
 
   return (
@@ -65,35 +72,46 @@ export function InviteStep({
         <WhoCanDoWhat currentRole={ROOT.key} />
       </p>
 
-      {familyLink ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Family Link</CardTitle>
-            <CardDescription>One link for the family group chat.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <AdminFamilyLink
-              treeId={treeId}
-              treeName={treeName}
-              link={familyLink.link}
-              joins={familyLink.joins}
-              baseUrl={baseUrl}
-              hideNoJoins
-            />
-          </CardContent>
-        </Card>
-      ) : null}
+      <div id={INVITE_FAMILY_ID} className="flex scroll-mt-24 flex-col gap-6">
+        {familyLink?.link ? (
+          <FamilyLinkShare
+            treeId={treeId}
+            treeName={treeName}
+            link={familyLink.link}
+            baseUrl={baseUrl}
+            onShared={onShared}
+          />
+        ) : familyLink ? (
+          // Making it as the step loaded didn't take: make it here.
+          <Card>
+            <CardHeader>
+              <CardTitle>Family Link</CardTitle>
+              <CardDescription>One link for your family chat.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AdminFamilyLink
+                treeId={treeId}
+                treeName={treeName}
+                link={null}
+                joins={familyLink.joins}
+                baseUrl={baseUrl}
+                hideNoJoins
+              />
+            </CardContent>
+          </Card>
+        ) : null}
 
-      {added.length > 0 ? (
-        <Card id={INVITE_FAMILY_ID} className="scroll-mt-24">
-          <CardHeader>
-            <CardTitle>Your Family</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <AdminClaimInvites treeId={treeId} treeName={treeName} people={added} />
-          </CardContent>
-        </Card>
-      ) : null}
+        {added.length > 0 ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Your Family</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <AdminClaimInvites treeId={treeId} treeName={treeName} people={added} />
+            </CardContent>
+          </Card>
+        ) : null}
+      </div>
 
       <Card>
         <CardHeader>
@@ -134,9 +152,9 @@ export function InviteStep({
         <Button
           nativeButton={false}
           render={<Link href={nextHref} />}
-          variant={invited ? "default" : "outline"}
+          variant={onward ? "default" : "outline"}
         >
-          <LinkPendingLabel>{invited ? "continue" : "skip for now"}</LinkPendingLabel>
+          <LinkPendingLabel>{onward ? "continue" : "skip for now"}</LinkPendingLabel>
         </Button>
         <p className="text-xs text-muted-foreground">
           You can invite people later too.

@@ -18,8 +18,9 @@ import {
   personLifespan,
 } from "@/lib/person-name";
 import { BASIC_DETAILS, type CarryLine, type CarryPerson } from "@/lib/carry";
+import { COUNTS_AS_INVITED } from "@/lib/family-link";
 import {
-  getFamilyLink,
+  ensureFamilyLink,
   listFamilyLinkJoins,
   type FamilyLink,
   type FamilyLinkJoin,
@@ -184,8 +185,9 @@ function stateOf(
  * name and address from the invite step, or to claim an entry — and
  * whether anyone has been invited or has joined at all: a link to claim
  * an entry or the family link counts too (Step 162), though neither names
- * anyone to list. Redeemed invites are deleted (Step 24), so a joined
- * member counts through the member count.
+ * anyone to list — the family link only once someone has joined through
+ * it, as the invite step makes it unasked (Step 212). Redeemed invites are
+ * deleted (Step 24), so a joined member counts through the member count.
  */
 async function treeInvites(treeId: string): Promise<{
   invited: boolean;
@@ -203,6 +205,7 @@ async function treeInvites(treeId: string): Promise<{
       .eq("founds_tree", false)
       .eq("status", "active")
       .is("archived_at", null)
+      .or(COUNTS_AS_INVITED)
       .order("created_at", { ascending: true }),
   ]);
 
@@ -324,17 +327,24 @@ export async function loadFirstTree(
 export type InviteStepData = {
   /** The living people the founder added here that nobody is behind yet. */
   added: Invitable[];
-  /** The tree's family link, for a Root: `link` is null before one is made. */
+  /**
+   * The tree's family link, for a Root, made as the step loads (Step 212):
+   * `link` is null only if that failed.
+   */
   familyLink: { link: FamilyLink | null; joins: FamilyLinkJoin[] } | null;
 };
 
 /**
  * The invite step's lists (Step 162): the people the founder added on the
  * family step, each to invite by email or a link (`listPeopleYouAdded`, as
- * settings lists them), and for a Root the family link (Step 52).
+ * settings lists them), and for a Root the family link (Step 52), made
+ * for them if the tree has none (Step 212): the one link that went round
+ * a family chat brought seven joins in four days, where founders sent
+ * three invites, one at a time, for 67 living relatives (audit,
+ * 2026-10-27).
  */
 export async function loadInviteStep(m: TreeMembership): Promise<InviteStepData> {
-  const link = m.isRoot ? getFamilyLink(m.tree.id) : null;
+  const link = m.isRoot ? ensureFamilyLink(m.tree.id) : null;
   const [added, familyLink] = await Promise.all([
     listPeopleYouAdded(m.profile.auth_user_id, m.profile.self_person_id, [
       { id: m.tree.id, name: m.tree.name, type: m.type },

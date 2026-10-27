@@ -19,6 +19,15 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "2026-10-27",
+    title: "one link for the family chat",
+    items: [
+      "when you start a tree, inviting family begins with your family link, made for you, and a message to send with it.",
+      "share it to whatsapp, messages or any chat in one tap. anyone who opens it can join, up to 20.",
+    ],
+    steps: [212],
+  },
+  {
     date: "2026-10-26",
     title: "take your data with you",
     items: [

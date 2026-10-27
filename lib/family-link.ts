@@ -6,6 +6,7 @@
  */
 
 import { whatsappHref } from "@/lib/share-text";
+import { isDefaultTreeName } from "@/lib/tree-names";
 
 /**
  * How many may join through one link before it must be rotated.
@@ -37,10 +38,27 @@ export function familyLinkCount(link: { useCount: number; maxUses: number }): st
   return `${link.useCount} of ${link.maxUses} joined`;
 }
 
-/** The message a Root sends with the link, ready for a group chat. */
+/**
+ * The message a Root sends with the link, ready for a group chat (Step
+ * 212): what it is and what joining lets them do, in the Root's own voice.
+ * A tree still on a default name is "our family tree", as an invite's
+ * `treeInSentence` would have it.
+ */
 export function familyLinkMessage(url: string, treeName: string): string {
-  return `Join ${treeName} on ancestree: ${url}`;
+  const name = treeName.trim();
+  return isDefaultTreeName(name)
+    ? `Join our family tree on ancestree and add your side of the family: ${url}`
+    : `Join ${name}, our family tree on ancestree, and add your side of the family: ${url}`;
 }
+
+/**
+ * Which invites say someone has invited family, as a PostgREST `or`
+ * filter on `invites` (Step 212): every one but a family link nobody has
+ * joined through, which the founder's invite step makes without being
+ * asked. Whoever joins through it counts through `invited_by_user_id`,
+ * as `onboarding_due` reads it.
+ */
+export const COUNTS_AS_INVITED = "max_uses.is.null,use_count.gt.0";
 
 /** Opens WhatsApp (the app, or WhatsApp Web) with the message ready to send. */
 export function whatsappShareHref(url: string, treeName: string): string {

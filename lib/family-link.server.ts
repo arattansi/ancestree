@@ -42,6 +42,22 @@ export async function getFamilyLink(treeId: string): Promise<FamilyLink | null> 
   };
 }
 
+/**
+ * A Root's tree's family link, made with the largest cap if it has none
+ * (Step 212): the founder's invite step opens with it ready to share.
+ * `ensure_family_link` checks the Root and makes one link however many
+ * loads ask at once. `null` if it couldn't.
+ */
+export async function ensureFamilyLink(treeId: string): Promise<FamilyLink | null> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("ensure_family_link", { p_tree: treeId });
+  if (error) {
+    console.error("[family-link] ensure", error.code);
+    return null;
+  }
+  return getFamilyLink(treeId);
+}
+
 export type FamilyLinkJoin = {
   userId: string;
   name: string | null;

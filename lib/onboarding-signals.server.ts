@@ -1,5 +1,6 @@
 import "server-only";
 
+import { COUNTS_AS_INVITED } from "@/lib/family-link";
 import { isInvitable } from "@/lib/invitable";
 import type { StepSignals } from "@/lib/onboarding";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -17,7 +18,8 @@ import { readApprovedClaims, readIn } from "@/lib/tree";
  *   people_added  every entry they made, their own not counted
  *   invited       an invite they made, someone who joined through them, or
  *                 an approved request they answered (an accepted invite is
- *                 deleted as it's redeemed)
+ *                 deleted as it's redeemed); a family link only once
+ *                 someone joined through it (Step 212)
  *   shared        a story they wrote or an album photo they put up
  *
  * With the service role, as `listPeopleYouAdded` reads what they made: only
@@ -42,6 +44,7 @@ export async function readStepSignals(
       .select("id")
       .eq("created_by", userId)
       .eq("founds_tree", false)
+      .or(COUNTS_AS_INVITED)
       .limit(1),
     admin
       .from("tree_members")

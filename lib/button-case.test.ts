@@ -23,6 +23,7 @@ const ROOT = path.resolve(__dirname, "..");
  */
 const NAMES = [
   "WhatsApp",
+  "Messages", // the phone's messages app, beside WhatsApp (Step 212)
   "JSON",
   "Markdown",
   " · Your entry", // the caption on a person's photo, which opens it

@@ -121,7 +121,10 @@ export function stepDone(step: FirstTreeStep, state: FirstTreeState): boolean {
   }
 }
 
-/** The invite step's list of the people the founder added (Step 162). */
+/**
+ * The invite step's family link and list of the people the founder added
+ * (Steps 162, 212).
+ */
 export const INVITE_FAMILY_ID = "your-family";
 
 /** That list's address: Getting Started's invite item, and the card at the
