@@ -1994,6 +1994,12 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 208: Aalim's Notion copy edits on about-us** (web only, no
+  migration). **Asked for** (2026-10-27): Aalim updated the "who" page in
+  the Marketing Site database. **Now** only what moved: the story sits
+  under its own "/founders" heading (styled as /data-sovereignty's), and
+  ends "…and then built ancestree." instead of "ancestree.space.". Left
+  off the public `/changelog` (my call): a heading and one word aren't news.
 - **Step 207: export data; about-us /data-sovereignty** (web only, no
   migration, no new dependency). **Asked for** (Aalim, 2026-10-26): "i
   updated the /about-us page copy … also, build a simple 'export data'

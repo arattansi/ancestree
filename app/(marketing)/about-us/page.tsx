@@ -23,12 +23,14 @@ export const metadata: Metadata = marketingMetadata(
  * story's footnote is on the footer's line (`site-footer.tsx`). It ends
  * on privacy and security, pointing to /privacy (Step 195), under its own
  * /data-sovereignty heading since Step 207, which names the export button
- * in settings and the account's delete button.
+ * in settings and the account's delete button. The story has its own
+ * /founders heading since Step 208.
  */
 export default function AboutUsPage() {
   return (
     <MarketingColumn aside={<OurNodes />}>
       <h1 className="text-2xl font-semibold tracking-tight">(about-us)</h1>
+      <h2 className="text-lg font-semibold tracking-tight">/founders</h2>
       <MarketingCopy>
         <p>
           Raiya grew up in the lower mainland of British Columbia and was raised
@@ -48,7 +50,7 @@ export default function AboutUsPage() {
         </p>
         <p>
           Raiya and Aalim met in Hamilton, Ontario and then liked each other and
-          then got married and then built ancestree.space.
+          then got married and then built ancestree.
         </p>
         <p>they still like each other.</p>
         <p>but they used to like each other, too*.</p>
