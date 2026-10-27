@@ -1995,6 +1995,14 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 210: Aalim's Notion copy edit on the library** (web only, no
+  migration). **Asked for** (2026-10-27): Aalim updated the CTA on the
+  "library" page in the Marketing Site database. **Now** only what moved:
+  /library's link to `/library/submit` reads "Submit a story for this
+  library →" instead of "Share a story from that library →". The post
+  pages keep "Share a story of someone who has passed →" (Notion names
+  only /library's). Checked in the pane at 1024px and 375px. Left off the
+  public `/changelog` (my call): a reworded link isn't news.
 - **Step 209: the whole tree packed closer, a smoother opening, and five
   phone fixes** (phone only, no migration; ships with the next iOS and
   Android builds). **Asked for** (Aalim, 2026-10-27): "in the mobile apps,

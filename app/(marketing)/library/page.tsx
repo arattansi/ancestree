@@ -44,7 +44,7 @@ export default async function LibraryPage() {
           </p>
           <p>– African proverb</p>
         </MarketingCopy>
-        <SendStoryLink>Share a story from that library</SendStoryLink>
+        <SendStoryLink>Submit a story for this library</SendStoryLink>
       </div>
       {posts.length === 0 ? (
         <MarketingCopy>
