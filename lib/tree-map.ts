@@ -7,9 +7,11 @@
  * the canvas's do: a couple's children hang off a bar under the gap between
  * them (`descentGeometry`), partners are joined level (`lateralGeometry`,
  * dashed when divorced), and siblings with no parent on the tree share a
- * bracket (`siblingBracketPoints`). Everything is in the canvas's own units;
- * the phone scales the lot to fit its screen. Pure, so it is tested without
- * a phone.
+ * bracket (`siblingBracketPoints`). The canvas is squeezed so each card is
+ * a pill's size, and the gaps between them with it (Step 209): on the web a
+ * card is big and the space round it reads, but round a small pill it was
+ * a long drag from one relative to the next. The phone scales the lot to
+ * fit its screen. Pure, so it is tested without a phone.
  */
 
 import { ownRoots } from "@/lib/branch";
@@ -67,14 +69,17 @@ const EMPTY: TreeMap = {
   bounds: { minX: 0, minY: 0, maxX: 0, maxY: 0 },
 };
 
-/** The pill in the middle of a card's slot, as a rectangle. */
+/**
+ * How much tighter than the web's canvas the map is, across and down (Step
+ * 209): a card squeezed to a pill, so partners sit 17 apart rather than 24,
+ * strangers 33 rather than 48, and one generation 57 above the next rather
+ * than 132.
+ */
+export const SQUEEZE = { x: MAP_PILL_W / NODE_W, y: MAP_PILL_H / NODE_H };
+
+/** A card's slot on the web's canvas as its pill on the map. */
 export function pillRect(slot: XY): CardRect {
-  return {
-    x: slot.x + (NODE_W - MAP_PILL_W) / 2,
-    y: slot.y + (NODE_H - MAP_PILL_H) / 2,
-    w: MAP_PILL_W,
-    h: MAP_PILL_H,
-  };
+  return { x: slot.x * SQUEEZE.x, y: slot.y * SQUEEZE.y, w: MAP_PILL_W, h: MAP_PILL_H };
 }
 
 /**

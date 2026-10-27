@@ -29,6 +29,7 @@ import {
 import { font, GUTTER, usePalette } from "@/theme";
 import { AppHeader, ScreenTitle } from "@/ui/app-header";
 import { Button } from "@/ui/button";
+import { ChevronDownIcon } from "@/ui/icons";
 import { TextField } from "@/ui/text-field";
 
 const SITE = process.env.EXPO_PUBLIC_SITE_URL ?? "https://www.ancestree.space";
@@ -38,10 +39,11 @@ const LEAVES_SHOWN = 8;
 
 /**
  * The member and their settings, the right end of the menu bar (Step
- * 179.4): who's signed in, their leaves to edit (Step 203), what the phone
- * notifies them of (Step 204), signing out, the privacy notice, message
- * security, and deleting the account (Step 176), which the App Store asks
- * every app with accounts for.
+ * 179.4): who's signed in, their leaves to edit (Step 203, folded away
+ * under their own since Step 209), what the phone notifies them of (Step
+ * 204), signing out, the privacy notice, message security, and deleting
+ * the account (Step 176), which the App Store asks every app with accounts
+ * for.
  */
 export default function Settings() {
   const palette = usePalette();
@@ -76,8 +78,6 @@ export default function Settings() {
             </Text>
           </View>
         </View>
-        {family && session ? <YourLeaves family={family} userId={session.user.id} /> : null}
-        <Notifications />
         <View style={styles.actions}>
           {self ? (
             <Button
@@ -86,6 +86,10 @@ export default function Settings() {
               onPress={() => router.push({ pathname: "/person/[id]", params: { id: self.id } })}
             />
           ) : null}
+          {family && session ? <EditLeaves family={family} userId={session.user.id} /> : null}
+        </View>
+        <Notifications />
+        <View style={styles.actions}>
           <Button
             variant="outline"
             label="message security"
@@ -113,13 +117,16 @@ export default function Settings() {
 
 /**
  * Their own leaf and the leaves they own, each opening its details to edit
- * (Step 203); a search once there are more than a handful.
+ * (Step 203); a search once there are more than a handful. Folded away
+ * under "your leaf" until opened (Step 209): most visits aren't to edit
+ * anyone, and a long list pushed the rest of the settings down.
  */
-function YourLeaves({ family, userId }: { family: Family; userId: string }) {
+function EditLeaves({ family, userId }: { family: Family; userId: string }) {
   const palette = usePalette();
   const [ids, setIds] = React.useState<string[] | null>(null);
   const [failed, setFailed] = React.useState(false);
   const [query, setQuery] = React.useState("");
+  const [open, setOpen] = React.useState(false);
 
   React.useEffect(() => {
     let live = true;
@@ -151,33 +158,51 @@ function YourLeaves({ family, userId }: { family: Family; userId: string }) {
     .slice(0, LEAVES_SHOWN);
 
   return (
-    <View style={styles.leaves}>
-      <Text style={[styles.leavesTitle, { color: palette.foreground }]}>Edit your leaves</Text>
-      {ids.length > LEAVES_SHOWN ? (
-        <TextField label="Find a leaf" value={query} onChangeText={setQuery} autoCorrect={false} />
-      ) : null}
-      {shown.map((id) => (
-        <Pressable
-          key={id}
-          accessibilityRole="button"
-          accessibilityLabel={`Edit ${nameOf(id)}`}
-          onPress={() => router.push({ pathname: "/edit/[id]", params: { id } })}
-          style={({ pressed }) => [
-            styles.leaf,
-            { borderColor: palette.border },
-            pressed && { opacity: 0.6 },
-          ]}
-        >
-          <Text numberOfLines={1} style={[styles.leafName, { color: palette.foreground }]}>
-            {nameOf(id)}
-          </Text>
-          <Text style={[styles.leafEdit, { color: palette.mutedForeground }]}>edit</Text>
-        </Pressable>
-      ))}
-      {shown.length === 0 ? (
-        <Text style={[styles.leavesNote, { color: palette.mutedForeground }]}>
-          Nobody by that name.
-        </Text>
+    <View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        onPress={() => setOpen(!open)}
+        style={({ pressed }) => [
+          styles.fold,
+          { borderColor: palette.border },
+          pressed && { opacity: 0.8 },
+        ]}
+      >
+        <Text style={[styles.foldText, { color: palette.foreground }]}>edit leaves</Text>
+        <View style={open && styles.flipped}>
+          <ChevronDownIcon color={palette.mutedForeground} size={18} />
+        </View>
+      </Pressable>
+      {open ? (
+        <View style={styles.leaves}>
+          {ids.length > LEAVES_SHOWN ? (
+            <TextField label="Find a leaf" value={query} onChangeText={setQuery} autoCorrect={false} />
+          ) : null}
+          {shown.map((id) => (
+            <Pressable
+              key={id}
+              accessibilityRole="button"
+              accessibilityLabel={`Edit ${nameOf(id)}`}
+              onPress={() => router.push({ pathname: "/edit/[id]", params: { id } })}
+              style={({ pressed }) => [
+                styles.leaf,
+                { borderColor: palette.border },
+                pressed && { opacity: 0.6 },
+              ]}
+            >
+              <Text numberOfLines={1} style={[styles.leafName, { color: palette.foreground }]}>
+                {nameOf(id)}
+              </Text>
+              <Text style={[styles.leafEdit, { color: palette.mutedForeground }]}>edit</Text>
+            </Pressable>
+          ))}
+          {shown.length === 0 ? (
+            <Text style={[styles.leavesNote, { color: palette.mutedForeground }]}>
+              Nobody by that name.
+            </Text>
+          ) : null}
+        </View>
       ) : null}
     </View>
   );
@@ -276,7 +301,19 @@ const styles = StyleSheet.create({
   names: { flex: 1, minWidth: 0, gap: 2 },
   name: { fontFamily: font.semibold, fontSize: 20 },
   email: { fontFamily: font.regular, fontSize: 15 },
-  leaves: { marginTop: 24, gap: 4, paddingHorizontal: GUTTER },
+  fold: {
+    minHeight: 48,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    paddingHorizontal: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  foldText: { fontFamily: font.medium, fontSize: 16 },
+  flipped: { transform: [{ rotate: "180deg" }] },
+  leaves: { marginTop: 10, gap: 4 },
   leavesTitle: { fontFamily: font.medium, fontSize: 14, marginBottom: 4 },
   leavesNote: { fontFamily: font.regular, fontSize: 15, paddingVertical: 8 },
   leaf: {

@@ -550,8 +550,9 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   `.test.ts`), drawn by `components/tree/birthday-candles.tsx` and
   `mobile/src/leaf/candles.tsx`;
   `lib/tree-map.ts` — the whole tree as the phone's small pills, seated as
-  the web's canvas seats the cards, with its lines, fit, centring and drag
-  bounds (Step 206, `.test.ts`), drawn by `mobile/src/leaf/tree-map.tsx`;
+  the web's canvas seats the cards, squeezed so each card is a pill's size
+  (Step 209), with its lines, fit, centring and drag bounds (Step 206,
+  `.test.ts`), drawn by `mobile/src/leaf/tree-map.tsx`;
   `lib/share-text.ts` — `wa.me` and `sms:` links that open WhatsApp or
   Messages with a message typed out (Step 89, `.test.ts`); `lib/presence.ts` — the tree room's topic, colours, send
   rate and card-anchored pointers (Step 57.3, `.test.ts`);
@@ -1994,6 +1995,60 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 209: the whole tree packed closer, a smoother opening, and five
+  phone fixes** (phone only, no migration; ships with the next iOS and
+  Android builds). **Asked for** (Aalim, 2026-10-27): "in the mobile apps,
+  the nodes are too far apart outside of the spotlight view. make the tree
+  more condensed … also, the transition from leaf view to pill view of the
+  nodes isn't smooth", and: the add-relative form resets the names when
+  the sex is picked after them; "edit leaves" collapsed, below "your leaf";
+  the calendar's and messages' notification marks a small red apple (with
+  the unread count on messages); the add button stays when leaving the
+  spotlight view. **Now:**
+  - **Packed closer** (`lib/tree-map.ts`, `.test.ts`): the web's layout
+    is squeezed so each card is exactly a map pill (`SQUEEZE`: 144/208
+    across, 48/112 down), the gaps with it: partners 17 apart rather than
+    24 (in canvas units, a pill being 144 × 48), strangers 33 rather than
+    48, one generation 57 above the next rather than 132. A row was over
+    four pills' heights from the next; it's now a little over one. The
+    lines' geometry already puts the bar mid-gap when the gap is under the
+    web's row gap, so nothing else changed. Dragged positions squeeze too.
+  - **The opening** (`mobile/src/leaf/spotlight.tsx`, `tree-map.tsx`,
+    `(tabs)/index.tsx`): a 60 fps recording showed a blank frame between
+    the leaf view and the map (the map waited a frame to measure itself),
+    then the lines, the ghosts, the caption, the dashed "+ child" and the
+    descriptor gone in one frame, and the header's + gone. Now the leaf
+    view stays under the map while it opens (`closing`): its leaf and
+    relatives' pills leave in the very frame the map's copies take over
+    in the same places, and the rest fades over the first third
+    (`CLOSED_BY`); the map draws in its first frame at the leaf view's
+    size (`SpotlightPlaces.screen`), its dotted ground carries on from the
+    leaf view's phase (`SpotlightPlaces.ground`, `wrapDot`), and the
+    screen runs the opening's clock (`useClock`, `OPEN_MS`), reset in the
+    tap itself so no frame shows the last opening's end. The recording
+    now runs the whole 560 ms at an even 60 fps with no cut. Tapping a
+    pill back into a leaf view is still the plain cut it was.
+  - **The +** stays on the whole tree, for whoever's leaf was open (the
+    ringed pill).
+  - **Add a relative** (`add/relative/[id].tsx`): a sex, year or death
+    chosen after the names is a new proposal (its questions asked afresh,
+    by key), and the names and invite address typed so far now carry over
+    to it instead of starting blank.
+  - **Settings:** **edit leaves** is folded away under **your leaf**
+    (`EditLeaves`, a chevron, closed at first), the search and the list
+    inside. My call: your own leaf stays in it as "You", first, since the
+    person sheet has no edit of its own.
+  - **Menu bar:** the feed's apple is the brand's apple red
+    (`palette.red` = `--brand-red`), and messages' count sits in white on
+    a small red apple (`AppleMark` at 24, "9+" past nine) instead of a
+    dark circle.
+  - Checked on the iOS simulator (dev build on Metro 8090, the Asha Mehta
+    test account): before/after recordings of the opening, twice in a row;
+    drag, pinch and a pill tap on the squeezed map; + → Relative from the
+    map and the leaf view; names then male then has died keep the names
+    (closed without adding); edit leaves folds and opens; both badges with
+    forced counts (3 and 12), reverted. Not checked on Android or a phone.
+    `lib/tree-map.test.ts` (14), `tree-layout` and `scribe-relatives` pass.
 - **Step 208: Aalim's Notion copy edits on about-us** (web only, no
   migration). **Asked for** (2026-10-27): Aalim updated the "who" page in
   the Marketing Site database. **Now** only what moved: the story sits

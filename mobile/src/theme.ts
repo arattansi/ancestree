@@ -8,6 +8,11 @@ import { useColorScheme } from "react-native";
 const brand = {
   green: "#77b255",
   brown: "#a57939",
+  /**
+   * The apples' red (`--brand-red`, the apple in the mark): something new
+   * on the menu bar (Step 209).
+   */
+  red: "#e8452c",
 };
 
 const light = {

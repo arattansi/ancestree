@@ -95,10 +95,16 @@ const MAX_STEP = 1000 / 30;
  * sharpen into the parent's pills and pills shrink away into ghosts. Back
  * slides the way it came. The leaf view walked to takes taps at once,
  * mid-slide.
+ *
+ * As the whole tree opens out of it (`closing`, Step 209), the leaf view
+ * stays under the map: its leaf and pills are the map's to move from the
+ * first frame, and its lines, ghosts, caption and dashed pills fade as the
+ * map comes, rather than going all at once.
  */
 export function Spotlight({
   family,
   focusId,
+  closing = null,
   onWalk,
   onMore,
   onOpenLeaf,
@@ -107,6 +113,8 @@ export function Spotlight({
 }: {
   family: Family;
   focusId: string;
+  /** How far the whole tree has opened out of this leaf view, 0 to 1. */
+  closing?: SharedValue<number> | null;
   onWalk: (id: string) => void;
   onMore: (side: OrbitSide) => void;
   onOpenLeaf: () => void;
@@ -119,6 +127,8 @@ export function Spotlight({
   onBackground?: (places: SpotlightPlaces | null) => void;
 }) {
   const [screen, setScreen] = React.useState<Frame | null>(null);
+  // Where the dotted ground has slid to, for the map to carry on from.
+  const groundAt = React.useRef<() => XY>(() => ({ x: 0, y: 0 }));
   const asks = !!onAdd;
   const lineage = React.useMemo(() => lineageOf(family), [family]);
   const reduced = useReduceMotion();
@@ -187,6 +197,7 @@ export function Spotlight({
   return (
     <View
       style={styles.stage}
+      pointerEvents={closing ? "none" : "auto"}
       onLayout={(e) => {
         const { width, height } = e.nativeEvent.layout;
         setScreen((f) =>
@@ -194,7 +205,8 @@ export function Spotlight({
         );
       }}
     >
-      {screen ? <Ground frame={screen} slide={slide} /> : null}
+      {/* The map draws the ground once it opens, from where this one was. */}
+      {screen && !closing ? <Ground frame={screen} slide={slide} atRef={groundAt} /> : null}
       {onBackground ? (
         <Pressable
           accessibilityRole="button"
@@ -203,7 +215,9 @@ export function Spotlight({
           style={StyleSheet.absoluteFill}
           onPress={() =>
             onBackground(
-              screen ? spotlightPlaces(family, lineage, focusId, screen, asks) : null,
+              screen
+                ? spotlightPlaces(family, lineage, focusId, screen, asks, groundAt.current())
+                : null,
             )
           }
         />
@@ -219,6 +233,7 @@ export function Spotlight({
               asks={asks}
               enter={stage.enter}
               leave={stage.leave}
+              closing={closing}
               onWalk={walk}
               onMore={onMore}
               onOpenLeaf={onOpenLeaf}
@@ -227,8 +242,34 @@ export function Spotlight({
             />
           ))
         : null}
-      <LeafDescriptor person={family.people.get(focusId)} />
+      <Fading closing={closing}>
+        <LeafDescriptor person={family.people.get(focusId)} />
+      </Fading>
     </View>
+  );
+}
+
+/** How soon, in the map's opening (0 to 1), the leaf view's lines and the rest are gone. */
+const CLOSED_BY = 0.35;
+
+/** What the map doesn't draw, fading as it opens over the leaf view. */
+function Fading({
+  closing,
+  children,
+}: {
+  closing: SharedValue<number> | null;
+  children: React.ReactNode;
+}) {
+  const style = useAnimatedStyle(
+    () => ({
+      opacity: closing ? interpolate(closing.value, [0, CLOSED_BY], [1, 0], CLAMP) : 1,
+    }),
+    [closing],
+  );
+  return (
+    <Animated.View style={[StyleSheet.absoluteFill, style]} pointerEvents="box-none">
+      {children}
+    </Animated.View>
   );
 }
 
@@ -269,6 +310,10 @@ export type SpotlightPlaces = {
   pill: PillSize;
   /** Each relative's pill's centre, by their id. */
   pills: Map<string, XY>;
+  /** The leaf view's size: the map's too, so it draws in its first frame (Step 209). */
+  screen: Frame;
+  /** How far the dotted ground had slid, under a dot's spacing. */
+  ground: XY;
 };
 
 /**
@@ -281,11 +326,12 @@ export function spotlightPlaces(
   focusId: string,
   screen: Frame,
   asks: boolean,
+  ground: XY = { x: 0, y: 0 },
 ): SpotlightPlaces {
   const { layout } = walkScene(focusId, sceneLayout(family, lineage, focusId, screen, asks));
   const pills = new Map<string, XY>();
   for (const p of layout.pills) if (p.id) pills.set(p.id, { x: p.x, y: p.y });
-  return { leaf: layout.leaf, pill: layout.pill, pills };
+  return { leaf: layout.leaf, pill: layout.pill, pills, screen, ground };
 }
 
 /** A leaf view as a walk reads it: on the screen, below the caption's room. */
@@ -307,6 +353,7 @@ function Scene({
   asks,
   enter,
   leave,
+  closing,
   onWalk,
   onMore,
   onOpenLeaf,
@@ -321,6 +368,11 @@ function Scene({
   asks: boolean;
   enter: Move | null;
   leave: Move | null;
+  /**
+   * The whole tree opening over it (Step 209): the leaf and the relatives'
+   * pills are the map's, and the rest fades.
+   */
+  closing: SharedValue<number> | null;
   onWalk: (id: string) => void;
   onMore: (side: OrbitSide) => void;
   onOpenLeaf: () => void;
@@ -362,15 +414,16 @@ function Scene({
       outKind === "none" || outKind === "slide"
         ? 1
         : 1 - interpolate(leaving.value, [0, outKind === "fade" ? 1 : 0.5], [0, 1], CLAMP);
+    const shut = closing ? interpolate(closing.value, [0, CLOSED_BY], [1, 0], CLAMP) : 1;
     return {
-      opacity: fadeIn * fadeOut,
+      opacity: fadeIn * fadeOut * shut,
       transform: [
         { translateX: (e - 1) * inBy.x + l * outBy.x },
         { translateY: (e - 1) * inBy.y + l * outBy.y },
         { scale: inKind === "jump" ? 0.94 + 0.06 * e : 1 },
       ],
     };
-  }, [inKind, outKind, inBy.x, inBy.y, outBy.x, outBy.y]);
+  }, [inKind, outKind, inBy.x, inBy.y, outBy.x, outBy.y, closing]);
   // Its lines and ghosts come once the people have nearly landed, and go
   // as soon as they set off, the lines being tied to where they were. Never
   // quite unseen coming in, so they're drawn as the scene comes in, not
@@ -469,45 +522,47 @@ function Scene({
         <GhostTargets ghosts={ghosts} onWalk={onWalk} />
       </Animated.View>
 
-      <Morph
-        walk={walk}
-        id={focusId}
-        at={{
-          x: layout.leaf.x + layout.leaf.width / 2,
-          y: layout.leaf.y + layout.leaf.height / 2,
-        }}
-      >
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={[
-            name,
-            caption,
-            maiden,
-            years,
-            leafLabel(leaf),
-            birthday ? "Birthday today" : null,
-          ]
-            .filter(Boolean)
-            .join(", ")}
-          accessibilityHint="Opens their details"
-          onPress={onOpenLeaf}
-          style={{
-            position: "absolute",
-            left: layout.leaf.x,
-            top: layout.leaf.y,
+      {closing ? null : (
+        <Morph
+          walk={walk}
+          id={focusId}
+          at={{
+            x: layout.leaf.x + layout.leaf.width / 2,
+            y: layout.leaf.y + layout.leaf.height / 2,
           }}
         >
-          <Leaf
-            shape={leaf.shape}
-            width={layout.leaf.width}
-            name={name}
-            lines={[maiden, years].filter((l): l is string => !!l)}
-            deceased={deceased}
-            clipId={`leaf-${focusId}`}
-            birthday={birthday}
-          />
-        </Pressable>
-      </Morph>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={[
+              name,
+              caption,
+              maiden,
+              years,
+              leafLabel(leaf),
+              birthday ? "Birthday today" : null,
+            ]
+              .filter(Boolean)
+              .join(", ")}
+            accessibilityHint="Opens their details"
+            onPress={onOpenLeaf}
+            style={{
+              position: "absolute",
+              left: layout.leaf.x,
+              top: layout.leaf.y,
+            }}
+          >
+            <Leaf
+              shape={leaf.shape}
+              width={layout.leaf.width}
+              name={name}
+              lines={[maiden, years].filter((l): l is string => !!l)}
+              deceased={deceased}
+              clipId={`leaf-${focusId}`}
+              birthday={birthday}
+            />
+          </Pressable>
+        </Morph>
+      )}
 
       {layout.pills.map((p) => {
         if (p.add) {
@@ -525,6 +580,8 @@ function Scene({
             </Morph>
           );
         }
+        // On the map, gliding from here.
+        if (closing && p.id) return null;
         const relative = p.id ? (family.people.get(p.id) ?? null) : null;
         const label = relative
           ? `${relationWord(p.side, relative.sex, formerSpouses.has(relative.id))}, ${personDisplayName(relative)}`
@@ -719,11 +776,26 @@ const CORNER = 8;
 /** The ground's dots are this far apart. */
 export const DOT = 20;
 
+/** How far past the last dot: a ground slid by this looks the same. */
+export const wrapDot = (v: number) => {
+  "worklet";
+  return ((v % DOT) + DOT) % DOT;
+};
+
 /**
  * The ground under the leaves, moved along with each slide (a dot's spacing
  * over, it looks the same, so it only ever shifts by less).
  */
-function Ground({ frame, slide }: { frame: Frame; slide: { key: number; by: XY } | null }) {
+function Ground({
+  frame,
+  slide,
+  atRef,
+}: {
+  frame: Frame;
+  slide: { key: number; by: XY } | null;
+  /** Set to tell where it has slid to (Step 209). */
+  atRef: React.RefObject<() => XY>;
+}) {
   const from = useSharedValue<XY>({ x: 0, y: 0 });
   const by = useSharedValue<XY>({ x: 0, y: 0 });
   const moved = useClock(1, slide?.key ?? null, DURATION.slide, undefined, (was) => {
@@ -734,13 +806,19 @@ function Ground({ frame, slide }: { frame: Frame; slide: { key: number; by: XY }
     from.set({ x: at.x + along.x * e, y: at.y + along.y * e });
     by.set(slide.by);
   });
+  React.useEffect(() => {
+    atRef.current = () => {
+      const e = EASE(moved.get());
+      const [f, b] = [from.get(), by.get()];
+      return { x: wrapDot(f.x + b.x * e), y: wrapDot(f.y + b.y * e) };
+    };
+  });
   const style = useAnimatedStyle(() => {
-    const wrap = (v: number) => ((v % DOT) + DOT) % DOT;
     const e = EASE(moved.value);
     return {
       transform: [
-        { translateX: wrap(from.value.x + by.value.x * e) },
-        { translateY: wrap(from.value.y + by.value.y * e) },
+        { translateX: wrapDot(from.value.x + by.value.x * e) },
+        { translateY: wrapDot(from.value.y + by.value.y * e) },
       ],
     };
   });

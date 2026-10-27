@@ -31,7 +31,7 @@ import {
 } from "@/lib/tree-map";
 import type { Family, FamilyPerson } from "@/family/load";
 import { BOX_H, BOX_W, Leaf } from "@/leaf/leaf";
-import { DOT, EASE, Grid, useClock, type SpotlightPlaces } from "@/leaf/spotlight";
+import { DOT, EASE, Grid, useClock, wrapDot, type SpotlightPlaces } from "@/leaf/spotlight";
 import { font, usePalette } from "@/theme";
 
 type XY = { x: number; y: number };
@@ -45,7 +45,7 @@ const SLOP = 6;
 const LINE = 3;
 const CORNER = 10;
 /** The opening takes as long as a walk's slide (Step 186). */
-const OPEN_MS = 560;
+export const OPEN_MS = 560;
 const CLAMP = Extrapolation.CLAMP;
 
 /**
@@ -59,14 +59,16 @@ const CLAMP = Extrapolation.CLAMP;
  * Opened from a leaf view (`from`), it opens at that view's own scale: the
  * leaf softly shrinks into its pill where it stands, the relatives' pills
  * glide from their places round the leaf to where the tree seats them, and
- * the rest of the tree and its lines fade in round them. Opened from the
- * picker, the whole tree fades in, fitted to the screen.
+ * the rest of the tree and its lines fade in round them, as the leaf view's
+ * own lines fade under it (`opening`, Step 209). Opened from the picker,
+ * the whole tree fades in, fitted to the screen.
  */
 export function TreeMapView({
   family,
   treeId,
   focusId,
   from,
+  opening,
   onPick,
 }: {
   family: Family;
@@ -75,10 +77,17 @@ export function TreeMapView({
   focusId: string | null;
   /** Where that leaf view's leaf and pills were, to open out of. */
   from?: SpotlightPlaces | null;
+  /**
+   * How far it has opened out of the leaf view, 0 to 1, evenly: the
+   * screen's to run (`OPEN_MS`), as the leaf view under it fades by it too.
+   */
+  opening?: SharedValue<number>;
   onPick: (id: string) => void;
 }) {
   const palette = usePalette();
-  const [screen, setScreen] = React.useState<Frame | null>(null);
+  // The leaf view's size, so the map is drawn in the frame the leaf view's
+  // people leave: waiting to measure itself left a blank frame (Step 209).
+  const [screen, setScreen] = React.useState<Frame | null>(from?.screen ?? null);
   const map = React.useMemo(() => mapOf(family, treeId), [family, treeId]);
 
   return (
@@ -93,12 +102,13 @@ export function TreeMapView({
     >
       {screen ? (
         <Canvas
-          key={treeId}
+          key={`${treeId}:${from ? "leaf" : "picked"}`}
           family={family}
           map={map}
           screen={screen}
           focusId={focusId}
           from={from ?? null}
+          opening={opening ?? null}
           onPick={onPick}
         />
       ) : null}
@@ -155,6 +165,7 @@ function Canvas({
   screen,
   focusId,
   from,
+  opening,
   onPick,
 }: {
   family: Family;
@@ -162,6 +173,7 @@ function Canvas({
   screen: Frame;
   focusId: string | null;
   from: SpotlightPlaces | null;
+  opening: SharedValue<number> | null;
   onPick: (id: string) => void;
 }) {
   const palette = usePalette();
@@ -169,7 +181,7 @@ function Canvas({
   // Out of a leaf view: the zoom at which a map pill is that view's pill,
   // placed so the leaf's pill sits where the leaf was. Otherwise the whole
   // tree, fitted.
-  const opening = React.useMemo(() => {
+  const start = React.useMemo(() => {
     if (from && focus) {
       const zoom = from.pill.height / MAP_PILL_H;
       const centre = {
@@ -181,13 +193,19 @@ function Canvas({
     return fitMap(map, screen, 24, ZOOM);
   }, [map, screen, from, focus]);
 
-  const offset = useSharedValue<XY>({ x: opening.x, y: opening.y });
-  const zoom = useSharedValue(opening.zoom);
+  const offset = useSharedValue<XY>({ x: start.x, y: start.y });
+  const zoom = useSharedValue(start.zoom);
   // The opening, 0 to 1 evenly, a frame at a time (`useClock`): drawing the
   // whole tree holds up the first frames, and a clock that kept real time
   // would have the morph half over by the first frame seen (Step 186). The
-  // glides ease (`EASE`); the fades read it as it is.
-  const opened = useClock(0, true, from ? OPEN_MS : 240);
+  // glides ease (`EASE`); the fades read it as it is. Out of a leaf view,
+  // the screen's clock, which fades the leaf view under it too.
+  const fading = useClock(0, true, 240);
+  const opened = from && opening ? opening : fading;
+  // The dotted ground carries on from where the leaf view's had slid.
+  const ground0 = from
+    ? { x: from.ground.x - start.x, y: from.ground.y - start.y }
+    : { x: 0, y: 0 };
 
   // Where each of the leaf view's pills glides from, in canvas units.
   const arrivals = React.useMemo(() => {
@@ -197,12 +215,12 @@ function Canvas({
       const was = from.pills.get(pill.id);
       if (!was) continue;
       out.set(pill.id, {
-        dx: (was.x - (opening.x + pill.x * opening.zoom)) / opening.zoom,
-        dy: (was.y - (opening.y + pill.y * opening.zoom)) / opening.zoom,
+        dx: (was.x - (start.x + pill.x * start.zoom)) / start.zoom,
+        dy: (was.y - (start.y + pill.y * start.zoom)) / start.zoom,
       });
     }
     return out;
-  }, [from, focus, map, opening]);
+  }, [from, focus, map, start]);
 
   const responder = React.useMemo(
     () => mapResponder({ map, screen, offset, zoom }),
@@ -221,12 +239,12 @@ function Canvas({
   }));
   // The ground slides with the map and keeps its dots a dot apart on
   // screen, whatever the zoom: it's the screen's ground, not the tree's.
-  const ground = useAnimatedStyle(() => {
-    const wrap = (v: number) => ((v % DOT) + DOT) % DOT;
-    return {
-      transform: [{ translateX: wrap(offset.value.x) }, { translateY: wrap(offset.value.y) }],
-    };
-  });
+  const ground = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: wrapDot(offset.value.x + ground0.x) },
+      { translateY: wrapDot(offset.value.y + ground0.y) },
+    ],
+  }));
   // The lines come once the pills have nearly settled.
   const lines = useAnimatedStyle(() => ({
     opacity: from ? interpolate(opened.value, [0.45, 1], [0, 1], CLAMP) : 1,

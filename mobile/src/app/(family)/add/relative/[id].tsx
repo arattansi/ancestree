@@ -4,7 +4,7 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { personDisplayName } from "@/lib/person-name";
 import type { RelativeProposal } from "@/lib/scribe-facts";
-import type { RelativeMade } from "@/lib/scribe-relatives";
+import type { RelativeDraft, RelativeMade } from "@/lib/scribe-relatives";
 import { useFamily } from "@/family/family";
 import type { Family, FamilyPerson } from "@/family/load";
 import { detailsChanged } from "@/person/sheet";
@@ -120,6 +120,23 @@ function Form({
   const view = views[0] ?? null;
   const treeId = person.fullOn[0] ?? null;
 
+  // What's been typed (Step 209). A sex, year or death chosen after the
+  // names is a new proposal, its questions asked afresh, but the names and
+  // the address carry over to it rather than starting blank.
+  const typed = React.useRef<Pick<RelativeDraft, "firstName" | "lastName" | "email">>({
+    firstName: "",
+    lastName: "",
+    email: "",
+  });
+  const key = view?.r.key;
+  React.useLayoutEffect(() => {
+    if (!view) return;
+    const { firstName, lastName, email } = typed.current;
+    if (firstName || lastName || email) edit(view.r, { firstName, lastName, email });
+    // Only a new proposal is filled in.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+
   async function add() {
     const why = problem();
     if (why) return setError(why);
@@ -186,7 +203,11 @@ function Form({
               fixed
               view={view}
               onToggle={() => {}}
-              onEdit={(patch) => edit(view.r, patch)}
+              onEdit={(patch) => {
+                const { firstName, lastName, email } = { ...typed.current, ...patch };
+                typed.current = { firstName, lastName, email };
+                edit(view.r, patch);
+              }}
               onRetry={() => retry(view.r)}
             />
           ) : null}

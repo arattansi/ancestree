@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { NODE_H, NODE_W, ROW_H } from "@/lib/tree-dimensions";
+import { COUPLE_GAP, NODE_H, NODE_W, ROW_GAP, ROW_H } from "@/lib/tree-dimensions";
 import { layoutTree } from "@/lib/tree-layout";
 import {
   centreOn,
@@ -9,6 +9,7 @@ import {
   MAP_PILL_H,
   MAP_PILL_W,
   mapAnchors,
+  SQUEEZE,
   treeMap,
   type MapInput,
 } from "@/lib/tree-map";
@@ -62,7 +63,7 @@ const FAMILY: MapInput = {
 const PHONE = { width: 393, height: 650 };
 
 describe("treeMap", () => {
-  it("seats every pill in the middle of the web's card slot", () => {
+  it("seats every pill where the web seats its card, squeezed to a pill", () => {
     const map = treeMap(FAMILY);
     const web = layoutTree([...FAMILY.people], [...FAMILY.lines], {
       anchorIds: mapAnchors(FAMILY),
@@ -72,19 +73,49 @@ describe("treeMap", () => {
     );
     for (const pill of map.pills) {
       const slot = web.positions.get(pill.id)!;
-      expect(pill.x).toBe(slot.x + NODE_W / 2);
-      expect(pill.y).toBe(slot.y + NODE_H / 2);
+      expect(pill.x).toBeCloseTo((slot.x + NODE_W / 2) * SQUEEZE.x);
+      expect(pill.y).toBeCloseTo((slot.y + NODE_H / 2) * SQUEEZE.y);
     }
   });
 
   it("keeps the web's rows: a generation a row apart, a couple side by side", () => {
     const map = treeMap(FAMILY);
     const at = (id: string) => map.pills.find((p) => p.id === id)!;
-    expect(at("mum").y - at("nana").y).toBe(ROW_H);
-    expect(at("me").y - at("mum").y).toBe(ROW_H);
+    expect(at("mum").y - at("nana").y).toBeCloseTo(ROW_H * SQUEEZE.y);
+    expect(at("me").y - at("mum").y).toBeCloseTo(ROW_H * SQUEEZE.y);
     expect(at("nana").y).toBe(at("grandad").y);
     expect(at("mum").y).toBe(at("dad").y);
     expect(at("me").y).toBe(at("sis").y);
+  });
+
+  it("packs the pills close: the gaps squeezed with the cards (Step 209)", () => {
+    const map = treeMap(FAMILY);
+    const at = (id: string) => map.pills.find((p) => p.id === id)!;
+    // A card is squeezed to exactly a pill.
+    expect(NODE_W * SQUEEZE.x).toBeCloseTo(MAP_PILL_W);
+    expect(NODE_H * SQUEEZE.y).toBeCloseTo(MAP_PILL_H);
+    // Partners a third of a pill's height apart, one generation a little
+    // over a pill's height above the next.
+    const couple = Math.abs(at("nana").x - at("grandad").x) - MAP_PILL_W;
+    expect(couple).toBeCloseTo(COUPLE_GAP * SQUEEZE.x);
+    expect(couple).toBeLessThan(MAP_PILL_H / 2);
+    const row = at("me").y - at("mum").y - MAP_PILL_H;
+    expect(row).toBeCloseTo(ROW_GAP * SQUEEZE.y);
+    expect(row).toBeLessThan(MAP_PILL_H * 1.25);
+    // Nobody on a row overlaps their neighbour.
+    const rows = new Map<number, number[]>();
+    for (const p of map.pills) {
+      const y = Math.round(p.y);
+      rows.set(y, [...(rows.get(y) ?? []), p.x]);
+    }
+    for (const xs of rows.values()) {
+      xs.sort((a, b) => a - b);
+      for (let i = 1; i < xs.length; i++) {
+        expect(xs[i] - xs[i - 1]).toBeGreaterThanOrEqual(
+          MAP_PILL_W + COUPLE_GAP * SQUEEZE.x - 0.01,
+        );
+      }
+    }
   });
 
   it("hangs children off a bar under their parents, down onto each pill", () => {

@@ -6,8 +6,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useSession } from "@/auth/session";
 import { useFamily } from "@/family/family";
 import type { NoFamily } from "@/family/load";
-import { Spotlight, type SpotlightPlaces } from "@/leaf/spotlight";
-import { TreeMapView } from "@/leaf/tree-map";
+import { Spotlight, useClock, type SpotlightPlaces } from "@/leaf/spotlight";
+import { OPEN_MS, TreeMapView } from "@/leaf/tree-map";
 import { font, GUTTER, usePalette } from "@/theme";
 import { Button } from "@/ui/button";
 import { AppHeader } from "@/ui/app-header";
@@ -40,7 +40,8 @@ const NOTHING: Record<NoFamily, { title: string; body: string }> = {
  * their own leaf. Beside it, which tree they're looking at (Step 206): pick
  * one and the whole of it is on screen, everyone a small pill, as a tap on
  * the ground around a leaf shows the whole of the tree the leaf is on; tap
- * a pill and that leaf view opens.
+ * a pill and that leaf view opens. The + stays on the whole tree, for
+ * whoever's leaf was open (Step 209).
  */
 export default function LeafScreen() {
   const palette = usePalette();
@@ -51,6 +52,11 @@ export default function LeafScreen() {
   // Where the leaf view's leaf and pills were when the ground was tapped,
   // for the whole tree to open out of; nothing from the picker.
   const [from, setFrom] = React.useState<SpotlightPlaces | null>(null);
+  // The leaf view stays under the whole tree as it opens out of it, its
+  // lines and the rest fading by the opening's clock, and goes once it's
+  // open (Step 209).
+  const [leaving, setLeaving] = React.useState(false);
+  const opening = useClock(1, from, OPEN_MS, () => setLeaving(false));
 
   // Android's back closes the whole tree, then retraces the walk (Step 198),
   // the header having no back of its own (Step 206); on their own leaf it
@@ -81,13 +87,14 @@ export default function LeafScreen() {
               currentId={treeId}
               onPick={(id) => {
                 setFrom(null);
+                setLeaving(false);
                 showMap(id);
               }}
             />
           ) : null
         }
       >
-        {!map && family && focusId && family.people.get(focusId)?.fullOn.length ? (
+        {family && focusId && family.people.get(focusId)?.fullOn.length ? (
           <AddButton
             onPress={() => router.push({ pathname: "/add/[id]", params: { id: focusId } })}
           />
@@ -111,34 +118,46 @@ export default function LeafScreen() {
         <Message title={NOTHING[state.why].title} body={NOTHING[state.why].body}>
           <Button variant="outline" label="sign out" onPress={() => void signOut()} />
         </Message>
-      ) : map && treeId ? (
-        <TreeMapView
-          family={state.family}
-          treeId={treeId}
-          focusId={focusId}
-          from={from}
-          onPick={walkTo}
-        />
-      ) : focusId ? (
-        <Spotlight
-          family={state.family}
-          focusId={focusId}
-          onWalk={walkTo}
-          onBackground={(places) => {
-            setFrom(places);
-            showMap();
-          }}
-          onMore={(side) =>
-            router.push({ pathname: "/relatives/[side]", params: { side } })
-          }
-          onOpenLeaf={() =>
-            router.push({ pathname: "/person/[id]", params: { id: focusId } })
-          }
-          onAdd={(relation) =>
-            router.push({ pathname: "/add/relative/[id]", params: { id: focusId, relation } })
-          }
-        />
-      ) : null}
+      ) : (
+        <View style={styles.fill}>
+          {focusId && (!map || leaving) ? (
+            <Spotlight
+              family={state.family}
+              focusId={focusId}
+              closing={map && leaving ? opening : null}
+              onWalk={walkTo}
+              onBackground={(places) => {
+                // Back to the start before the map's first frame, not after.
+                opening.set(0);
+                setFrom(places);
+                setLeaving(!!places);
+                showMap();
+              }}
+              onMore={(side) =>
+                router.push({ pathname: "/relatives/[side]", params: { side } })
+              }
+              onOpenLeaf={() =>
+                router.push({ pathname: "/person/[id]", params: { id: focusId } })
+              }
+              onAdd={(relation) =>
+                router.push({ pathname: "/add/relative/[id]", params: { id: focusId, relation } })
+              }
+            />
+          ) : null}
+          {map && treeId ? (
+            <View style={StyleSheet.absoluteFill}>
+              <TreeMapView
+                family={state.family}
+                treeId={treeId}
+                focusId={focusId}
+                from={from}
+                opening={opening}
+                onPick={walkTo}
+              />
+            </View>
+          ) : null}
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -201,6 +220,7 @@ const styles = StyleSheet.create({
   },
   addText: { fontFamily: font.medium, fontSize: 15 },
   safe: { flex: 1 },
+  fill: { flex: 1 },
   centre: { flex: 1, alignItems: "center", justifyContent: "center" },
   message: { paddingHorizontal: GUTTER + 8, gap: 12 },
   title: { fontFamily: font.semibold, fontSize: 20, textAlign: "center" },

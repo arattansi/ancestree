@@ -14,6 +14,8 @@ import { AppleMark, CalendarIcon, FeatherIcon, MessageSquareIcon } from "@/ui/ic
 /** How tall the bar is above the home indicator. */
 export const MENU_BAR_H = 58;
 const USER = 30;
+/** The apple the unread count is on. */
+const COUNT = 24;
 
 /** What a tab trigger hands the button it wraps (`asChild`). */
 type SlotProps = Omit<PressableProps, "children"> & {
@@ -89,7 +91,7 @@ export function RecordButton() {
   );
 }
 
-/** Feed and notifications: a calendar, and an apple on it when there's news. */
+/** Feed and notifications: a calendar, and a red apple on it when there's news. */
 export const FeedButton = React.forwardRef<View, SlotProps>(function FeedButton(props, ref) {
   const palette = usePalette();
   const unread = useNotices((s) => s.unread);
@@ -100,7 +102,7 @@ export const FeedButton = React.forwardRef<View, SlotProps>(function FeedButton(
         <CalendarIcon color={color} size={25} />
         {unread ? (
           <View style={styles.apple}>
-            <AppleMark size={13} color={palette.foreground} ring={palette.background} />
+            <AppleMark size={15} color={palette.red} ring={palette.background} />
           </View>
         ) : null}
       </View>
@@ -121,7 +123,10 @@ export const HomeButton = React.forwardRef<View, SlotProps>(function HomeButton(
   );
 });
 
-/** Messages: a dialogue box, with the unread count as on the web's launcher. */
+/**
+ * Messages: a dialogue box, with the unread count on a red apple, as the
+ * feed's news is marked (Step 209).
+ */
 export const MessagesButton = React.forwardRef<View, SlotProps>(function MessagesButton(props, ref) {
   const palette = usePalette();
   const unread = useUnread();
@@ -131,10 +136,9 @@ export const MessagesButton = React.forwardRef<View, SlotProps>(function Message
       <View>
         <MessageSquareIcon color={color} size={25} />
         {unread ? (
-          <View style={[styles.count, { backgroundColor: palette.foreground, borderColor: palette.background }]}>
-            <Text style={[styles.countText, { color: palette.background }]}>
-              {unread > 9 ? "9+" : unread}
-            </Text>
+          <View style={styles.count}>
+            <AppleMark size={COUNT} color={palette.red} ring={palette.background} />
+            <Text style={styles.countText}>{unread > 9 ? "9+" : unread}</Text>
           </View>
         ) : null}
       </View>
@@ -183,21 +187,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  apple: { position: "absolute", top: -4, right: -5 },
+  apple: { position: "absolute", top: -5, right: -6 },
   home: { width: 36, height: 36 },
-  count: {
+  count: { position: "absolute", top: -10, right: -11, width: COUNT, height: COUNT },
+  // On the apple's body, which is a little below the middle of its box.
+  countText: {
     position: "absolute",
-    top: -6,
-    right: -9,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 1.5,
-    paddingHorizontal: 3,
-    alignItems: "center",
-    justifyContent: "center",
+    left: 0,
+    right: 0,
+    top: COUNT * 0.555 - 6,
+    textAlign: "center",
+    fontFamily: font.semibold,
+    fontSize: 10,
+    lineHeight: 12,
+    color: "#ffffff",
+    fontVariant: ["tabular-nums"],
   },
-  countText: { fontFamily: font.semibold, fontSize: 10.5, fontVariant: ["tabular-nums"] },
   you: {
     width: USER + 6,
     height: USER + 6,

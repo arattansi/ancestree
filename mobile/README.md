@@ -9,7 +9,7 @@ What it does so far:
 - **Sign in** with an email and the 6-digit code, as on the web. App
   Review's one address asks for a password instead (Step 176).
 - **The menu bar** (Step 179.4), left to right: record (the feather), the
-  feed (the calendar, with an apple on it when there's something new),
+  feed (the calendar, with a red apple on it when there's something new),
   home (the ancestree mark), messages (the dialogue box) and you (your
   photo, or your initials). Only home and you are in colour. The ancestree
   wordmark stays at the top of every main screen; tap it to go back to your
@@ -25,15 +25,18 @@ What it does so far:
 - **The whole tree** (Step 206): tap the ground around a leaf and the leaf
   softly shrinks into a small gray pill where it stands, its relatives'
   pills glide to where the web's canvas seats them, and the rest of the
-  tree comes in round them, everyone a pill with their first name and
-  initials, at the scale the leaf view was. Drag to move about it, pinch
-  to zoom, tap a pill to open that leaf. The chevron beside the wordmark
+  tree comes in round them as the leaf view's lines fade, everyone a pill
+  with their first name and initials, at the scale the leaf view was. The
+  web's arrangement is squeezed so each card is a pill's size (Step 209):
+  a drag passes far more of the family. Drag to move about it, pinch to
+  zoom, tap a pill to open that leaf. The chevron beside the wordmark
   lists your trees; pick one to see the whole of it. The wordmark still
   brings you back to your own leaf.
-- **add** (Step 179.3), beside the magnifier: a relative of whoever is on
-  the leaf view (with the web's checks: 18 or older, the connections the
-  tree implies, the database's say before anything is kept, an invite to
-  claim), photos from your library for their album, or a written story.
+- **add** (Step 179.3), beside the magnifier, on the leaf view and the
+  whole tree: a relative of whoever is on the leaf view (with the web's
+  checks: 18 or older, the connections the tree implies, the database's
+  say before anything is kept, an invite to claim), photos from your
+  library for their album, or a written story.
 - **Someone's details** (Step 179.5), from their leaf: how they're
   connected to you ("Your grandfather", and the chain of people between),
   their dates and places, their family, the trees they're on, their album,
@@ -41,10 +44,11 @@ What it does so far:
   `/api/mobile/person-sheet` as the web's sheet reads them.
 - **The feed** (Step 179.4): birthdays and anniversaries in the next two
   months, and your notifications; opening it marks them read.
-- **Settings** (you, in the menu bar): sign out, message security, the
-  privacy notice, or delete the account for good (Step 176), choosing who
-  takes over a tree you're the only Root of. A tree nobody else is on goes
-  with it.
+- **Settings** (you, in the menu bar): your leaf, and under it **edit
+  leaves**, folded away until opened (Step 209): yours and the ones you
+  own. Sign out, message security, the privacy notice, or delete the
+  account for good (Step 176), choosing who takes over a tree you're the
+  only Root of. A tree nobody else is on goes with it.
 - **Tell a story** to the scribe (Step 148), from record in the menu bar or
   a leaf's details. Above the microphone, a title and whom it's about, both
   optional (Step 179.6); they fold away while you talk and come back when
@@ -63,7 +67,7 @@ What it does so far:
   ("Also about", Step 183); and relatives not on the tree yet. Nothing
   changes until you tick it and save.
 - **Messages** (Step 179.1), as on the web (Steps 174, 177): the
-  dialogue box in the menu bar, with the unread count on it, opens
+  dialogue box in the menu bar, with the unread count on a red apple, opens
   your conversations; **message** on a leaf's details opens one with the
   member behind it. New Message lists everyone on your trees, closest
   first, each with who they are to you ("Your granddaughter"); a

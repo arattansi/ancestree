@@ -170,10 +170,10 @@ export const CalendarIcon = (p: IconProps) => (
 );
 
 /**
- * The apple that marks something new on the calendar (Step 179.4), the
- * apple under the ancestree mark's tree: a filled body, its stem and a
- * leaf, with a ring of the ground round it so it reads over the calendar's
- * corner.
+ * The apple that marks something new on the menu bar (Step 179.4, red and
+ * on messages too since Step 209), the apple under the ancestree mark's
+ * tree: a filled body, its stem and a leaf, with a ring of the ground round
+ * it so it reads over the icon's corner.
  */
 const APPLE =
   "M6 3.6C5 2.9 3.2 3 2.3 4.2c-1 1.4-.7 3.6.4 5 .7.9 1.6 1.4 2.3 1.1.4-.2.7-.2 1.1 0 .7.3 1.6-.2 2.3-1.1 1.1-1.4 1.4-3.6.4-5C7.9 3 7 2.9 6 3.6z";
