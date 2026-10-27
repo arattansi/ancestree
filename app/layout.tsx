@@ -29,9 +29,9 @@ const geistMono = Geist_Mono({
 });
 
 // The promise under the home page's tagline (its Marketing Site page in
-// Notion since Step 188).
+// Notion since Step 188; reworded in Step 211).
 const description =
-  "a private, invite-only tree for your whole family, with audio stories, tagged photos and chat.";
+  "a private, invite-only tree for your whole family to connect. share stories and photos, chat, and learn about each other.";
 
 /** The ancestree GA4 property's web stream (Step 137). */
 const GA_MEASUREMENT_ID = "G-WRNLXD8WBF";

@@ -1995,6 +1995,20 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 211: Aalim's Notion copy edit on the home page's promise** (web
+  only, no migration). **Asked for** (2026-10-27): Aalim updated the hero
+  copy on the "/" page in the Marketing Site database, and asked for the
+  Brand Identity page in Notion to follow. **Now** only what moved: the
+  line under the tagline reads "a private, invite-only tree for your whole
+  family to connect. share stories and photos, chat, and learn about each
+  other." instead of "…for your whole family, with audio stories, tagged
+  photos and chat."; it's also the site's description (`app/layout.tsx`,
+  so search results and link previews). `docs/design-system.md` and the
+  Notion **Brand Identity** page (Essence, plus an audit-log review of
+  2026-10-27) carry it, and both now quote the pledge under the buttons
+  as the page has said it since Step 195 ("we make it easy…"). Checked in
+  the pane at 800px and 375px. Left off the public `/changelog` (my
+  call): a reworded line isn't news.
 - **Step 210: Aalim's Notion copy edit on the library** (web only, no
   migration). **Asked for** (2026-10-27): Aalim updated the CTA on the
   "library" page in the Marketing Site database. **Now** only what moved:

@@ -26,7 +26,7 @@ import { getTreeRequestStatus } from "@/lib/tree-requests.server";
  * the line under it and the one under the buttons are the Marketing Site
  * page's in Notion since Step 188; its footer's "an r+s production." is in
  * `site-footer.tsx`. Step 195 added "we make it" to the line under the
- * buttons.
+ * buttons; Step 211 reworded the line under the tagline.
  * Its buttons are lower-case, as every button is (docs/design-system.md).
  * Since Step 107 it's the first of the marketing pages, and the only one
  * over the Elevators tree: the other marketing pages are plain. Its
@@ -58,8 +58,8 @@ export default async function Home() {
             </div>
             <div className="flex max-w-xl flex-col gap-2 text-lg text-muted-foreground">
               <p className="text-balance">
-                a private, invite-only tree for your whole family, with audio
-                stories, tagged photos and chat.
+                a private, invite-only tree for your whole family to connect.
+                share stories and photos, chat, and learn about each other.
               </p>
             </div>
           </div>

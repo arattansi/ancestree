@@ -17,11 +17,12 @@ about the brand, the Notion page is right and this file is behind.
   written lower-case and drawn in small caps with wide tracking (the home
   page, the emails). The link preview draws capitals at that size, since
   an image has no small caps. Under it the promise: **a private,
-  invite-only tree for your whole family, with audio stories, tagged
-  photos and chat.**, also the site's description. "invite-only" is about
-  who sees a tree, not who may start one: anyone can start a tree.
+  invite-only tree for your whole family to connect. share stories and
+  photos, chat, and learn about each other.** (Step 211), also the
+  site's description. "invite-only" is about who sees a tree, not who
+  may start one: anyone can start a tree.
 - Under the home page's buttons, the pledge: **whatever you grow stays
-  yours: easy to take back your data, always.**
+  yours: we make it easy to take back your data, always.**
 - The mark is `public/brand/ancestree-mark.svg`, in colour, wherever it
   can be. `ancestree-mark-mono.svg` (one colour, `currentColor`) is for
   where colour can't be had or would fight its ground: one-ink print, a
