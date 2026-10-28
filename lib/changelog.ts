@@ -20,6 +20,15 @@ export type ChangelogEntry = {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-10-27",
+    title: "send a relative their link as you add them",
+    items: [
+      "when you add someone living to your tree, you can send them their own link straight away, by whatsapp, messages or any chat, with a message ready to go.",
+      "no email needed: the link lets them claim their entry and add their side of the family. you can still email it instead.",
+    ],
+    steps: [214],
+  },
+  {
+    date: "2026-10-27",
     title: "join from the family chat with just your name",
     items: [
       "a family link, or a link to claim your entry, asks only for your name: no trip to your inbox for a code before you see the tree.",

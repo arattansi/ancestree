@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
@@ -19,7 +20,7 @@ import { AdultQuestion } from "@/components/adult-question";
 import { AddPlaceholderButton } from "@/components/placeholder-child";
 import { CoParentOffer } from "@/components/co-parent-offer";
 import { FormError } from "@/components/form-error";
-import { JoinsAsNote } from "@/components/joins-as-note";
+import { LinkPendingLabel } from "@/components/link-pending";
 import { PendingButton } from "@/components/pending-button";
 import {
   BirthYearField,
@@ -31,6 +32,7 @@ import {
 } from "@/components/person-fields";
 import { PhotoPicker } from "@/components/photo-picker";
 import { InBetweenFields } from "@/components/in-between-fields";
+import { SendTheirLink } from "@/components/send-their-link";
 import { SpouseDatesFields } from "@/components/spouse-dates-fields";
 import {
   RelationshipPicker,
@@ -38,16 +40,7 @@ import {
 } from "@/components/relationship-picker";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { Form } from "@/components/ui/form";
 import {
   Select,
   SelectContent,
@@ -60,7 +53,6 @@ import { useFocusReturn } from "@/components/use-focus-return";
 import { usePhotoDraft } from "@/components/use-photo-draft";
 import {
   flowSchema,
-  inviteAddress,
   MAX_EXTRA_CONNECTIONS,
   type FlowValues,
 } from "@/lib/add-person-schema";
@@ -88,15 +80,12 @@ import {
 import { placeholderParents } from "@/lib/placeholders";
 import { personDisplayName } from "@/lib/person-name";
 import { emptyPersonValues } from "@/lib/person-schema";
+import { offersTheirLink } from "@/lib/family-link";
 import { toStoredSpouseDates } from "@/lib/spouse-dates";
 import { attachPhoto } from "@/lib/photo-upload";
 import { plural } from "@/lib/plural";
 import { treeFocusHref } from "@/lib/tree-links";
 import { cn } from "@/lib/utils";
-
-/** The entry saved but its invite didn't go, whether refused or unreachable. */
-const INVITE_UNSENT =
-  "Saved — but the invite didn't send. Send it again from their card.";
 
 /**
  * How a save went (`persist`); or, before one, the connections its lines
@@ -117,6 +106,7 @@ type Resolved = NonNullable<Parameters<typeof addRelative>[0]["suggestions"]>;
 export function AddPersonFlow({
   mode,
   treeId,
+  treeName = "",
   isAdmin,
   members,
   initialName,
@@ -131,11 +121,14 @@ export function AddPersonFlow({
 }: {
   mode: "self" | "relative";
   treeId: string;
+  /** For the message a relative's own link goes with (Step 214). */
+  treeName?: string;
   isAdmin: boolean;
   members: TreeMemberOption[];
   /**
-   * Ask for an email and, once the entry is saved, invite them to claim it
-   * (`sendClaimInvite`). They join as a Leaf.
+   * Once a living relative is saved, offer to send them their own link to
+   * claim the entry, or email it (Step 214, `SendTheirLink`), before
+   * going to the tree. They join as a Leaf.
    */
   canInvite?: boolean;
   /** Pre-fills the primary person's name — onboarding carries over the name
@@ -212,18 +205,26 @@ export function AddPersonFlow({
     resolved: Resolved | null;
   } | null>(null);
   const [adultIds, setAdultIds] = React.useState<string[]>([]);
-  // Adding a relative asks their name, how they connect (anyone in between
-  // included, Step 78) and an invite up front, and keeps everything else
+  // Adding a relative asks their name and how they connect (anyone in
+  // between included, Step 78) up front, and keeps everything else
   // behind "Add more details" at the bottom (Step 44). Adding yourself asks
   // as little: your name, the year you were born and a photo (Step 161).
   const [moreDetails, setMoreDetails] = React.useState(false);
+  // Saved, and offered their own link before going to the tree (Step 214).
+  const [added, setAdded] = React.useState<{
+    id: string;
+    name: string;
+    firstName: string;
+  } | null>(null);
   const details = moreDetails;
   const detailsHeading = React.useRef<HTMLHeadingElement>(null);
   // Opened from the bottom of the form: take the reader to what opened.
   React.useEffect(() => {
     if (moreDetails) detailsHeading.current?.focus();
   }, [moreDetails]);
-  const asksInvite = mode === "relative" && canInvite;
+  // Whether a relative, once saved, is offered their own link (Step 214).
+  const offersLink = (values: FlowValues) =>
+    mode === "relative" && canInvite && offersTheirLink(values.people[0]);
   const anchorMembers = anchorable
     ? members.filter((m) => anchorable.has(m.id))
     : members;
@@ -242,7 +243,6 @@ export function AddPersonFlow({
       anchorId: initialAnchorId ?? "",
       links: [{ kind: initialKind ?? "child" }],
       extraLinks: [],
-      inviteEmail: "",
     },
   });
 
@@ -269,13 +269,6 @@ export function AddPersonFlow({
   );
   const anchorId = useWatch({ control: form.control, name: "anchorId" }) ?? "";
   const watchedLinks = useWatch({ control: form.control, name: "links" }) ?? [];
-  const watchedInviteEmail =
-    useWatch({ control: form.control, name: "inviteEmail" }) ?? "";
-  const primaryDeceased = watchedPeople[0]?.is_deceased ?? false;
-  const invitesOnSave =
-    asksInvite &&
-    inviteAddress({ people: watchedPeople, inviteEmail: watchedInviteEmail })
-      .length > 0;
 
   const showChain = mustConnect || connecting;
   const connectShown = mustConnect || members.length > 0;
@@ -452,11 +445,11 @@ export function AddPersonFlow({
 
   /**
    * Looks for the connections the tree implies (unless they've been
-   * answered: `resolved`), then saves the entries and sends the invite asked
-   * for with them, in one call (Step 77.5); a photo follows in a second.
-   * Only the entries can fail it: once they exist, a photo or an invite that
-   * doesn't go through is a warning, since a failure would bring the button
-   * back and a second press would add everyone again.
+   * answered: `resolved`), then saves the entries in one call (Step 77.5);
+   * a photo follows in a second. Only the entries can fail it: once they
+   * exist, a photo that doesn't go through is a warning, since a failure
+   * would bring the button back and a second press would add everyone
+   * again.
    */
   async function save(
     values: FlowValues,
@@ -473,9 +466,6 @@ export function AddPersonFlow({
     yesIds: string[] = adultIds,
   ): Promise<SaveOutcome> {
     const { file, crop } = photo;
-    // Asked for with the entry, so sent once it exists: an invite to claim
-    // it. The card they land on offers the same invite again.
-    const address = asksInvite ? inviteAddress(values) : "";
     const result = await addRelative({
       treeId,
       people: values.people,
@@ -499,7 +489,6 @@ export function AddPersonFlow({
         askedAdult.includes(i) ? (adultAnswerOf(i) ?? null) : null,
       ),
       adultIds: yesIds,
-      inviteEmail: address || null,
       photoFollows: file !== null,
     });
 
@@ -521,21 +510,18 @@ export function AddPersonFlow({
         toast.warning("Saved — but the photo didn't upload. Add it later.");
       }
     }
-    if (result.inviteWarning) {
-      toast.warning(INVITE_UNSENT, { description: result.inviteWarning });
-    }
 
     // A founder's tree takes their family's name as they arrive (Step 168).
-    const arrived = result.treeName
-      ? `You're on ${result.treeName}.`
-      : "You're in the family tree.";
-    toast.success(
-      mode === "self"
-        ? arrived
-        : result.invited
-          ? `Relative added. Invite sent to ${result.invited}.`
-          : "Relative added.",
-    );
+    // A relative offered their link is said to be on the tree there.
+    if (mode === "self") {
+      toast.success(
+        result.treeName
+          ? `You're on ${result.treeName}.`
+          : "You're in the family tree.",
+      );
+    } else if (!offersLink(values)) {
+      toast.success("Relative added.");
+    }
     return { primaryId };
   }
 
@@ -544,8 +530,19 @@ export function AddPersonFlow({
   // ids in the order `people` was sent, and the chain's in-between people
   // follow the primary one. The save already drew the pages again, so
   // the tree arrives fresh (Step 61). Called from the save's `onSuccess`,
-  // which keeps its button busy until the page has changed.
-  function land(primaryId: string | undefined) {
+  // which keeps its button busy until the page has changed. A living
+  // relative is offered their own link first (Step 214), and the offer
+  // links on to the same place.
+  function land(primaryId: string | undefined, values: FlowValues) {
+    if (primaryId && offersLink(values)) {
+      const primary = values.people[0];
+      setAdded({
+        id: primaryId,
+        name: personDisplayName(primary),
+        firstName: primary.preferred_name || primary.first_name || "",
+      });
+      return;
+    }
     router.replace(doneHref ?? treeFocusHref(primaryId));
   }
 
@@ -589,7 +586,7 @@ export function AddPersonFlow({
           setPendingSave({ values, edges });
           return;
         }
-        land(primaryId);
+        land(primaryId, values);
       },
     });
   });
@@ -624,7 +621,7 @@ export function AddPersonFlow({
           });
           return;
         }
-        land(primaryId);
+        land(primaryId, values);
       },
     });
   }
@@ -652,7 +649,7 @@ export function AddPersonFlow({
           });
           return;
         }
-        land(primaryId);
+        land(primaryId, values);
       },
     });
   }
@@ -698,6 +695,33 @@ export function AddPersonFlow({
     </>
   ) : null;
 
+  // Saved: their own link to send, or an email, then on to the tree
+  // (Step 214).
+  if (added) {
+    return (
+      <section aria-labelledby="added-heading" className="flex flex-col gap-6">
+        <h2 id="added-heading" className="text-base font-semibold">
+          {added.name} is on the tree
+        </h2>
+        <SendTheirLink
+          personId={added.id}
+          firstName={added.firstName}
+          treeId={treeId}
+          treeName={treeName}
+        />
+        <div className="border-t border-border pt-6">
+          <Button
+            variant="outline"
+            nativeButton={false}
+            render={<Link href={doneHref ?? treeFocusHref(added.id)} replace />}
+          >
+            <LinkPendingLabel>view on tree</LinkPendingLabel>
+          </Button>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <Form {...form}>
       <form
@@ -736,7 +760,8 @@ export function AddPersonFlow({
             ) : (
               <>
                 <PersonNameFields control={form.control} prefix="people.0" />
-                {/* Up front, since it decides whether to ask for an invite. */}
+                {/* Up front, since it decides whether "18 or older?" is
+                    asked and, once saved, whether their link is offered. */}
                 <PersonDiedField
                   control={form.control}
                   prefix="people.0"
@@ -744,39 +769,6 @@ export function AddPersonFlow({
                 />
               </>
             )}
-
-            {/* Nobody can be invited to claim a deceased person's entry
-              (`private.can_invite_to_claim`), so the question goes with them. */}
-            {asksInvite && !primaryDeceased ? (
-              <div className="flex flex-col gap-3">
-                <FormField
-                  control={form.control}
-                  name="inviteEmail"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Invite them by email</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="email"
-                          inputMode="email"
-                          // Not "email": that would fill in the member's own.
-                          autoComplete="off"
-                          placeholder="them@example.com"
-                          {...field}
-                          value={field.value ?? ""}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Optional. We&rsquo;ll email them a link to join and take
-                        over this entry.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                {invitesOnSave ? <JoinsAsNote /> : null}
-              </div>
-            ) : null}
           </section>
         )}
 
@@ -1241,11 +1233,7 @@ export function AddPersonFlow({
             lineAsk !== null
           }
         >
-          {mode === "self"
-            ? "add me to the tree"
-            : invitesOnSave
-              ? "add relative & send invite"
-              : "add relative"}
+          {mode === "self" ? "add me to the tree" : "add relative"}
         </PendingButton>
       </form>
 

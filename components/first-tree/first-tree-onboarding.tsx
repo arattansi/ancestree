@@ -94,6 +94,7 @@ export async function FirstTreeOnboarding({
           />
           <FamilyStep
             treeId={tree.id}
+            treeName={tree.name}
             founder={founder}
             addYourself={
               founder ? (

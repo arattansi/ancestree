@@ -79,6 +79,7 @@ export default async function NewPersonPage({
           <AddPersonFlow
             mode="relative"
             treeId={tree.id}
+            treeName={tree.name}
             isAdmin={isRoot}
             members={members}
             initialAnchorId={initialAnchorId}
@@ -89,8 +90,9 @@ export default async function NewPersonPage({
             selfPersonId={profile.self_person_id}
             // A Root or a Branch holds a child's place instead (Step 98.2).
             canAddPlaceholder={type.key !== "member"}
-            // Whoever may add a relative may invite them to claim the entry
-            // they add, as `sendClaimInvite` allows (Step 22.1).
+            // Whoever may add a relative may send them a link to claim the
+            // entry they add, or email it, as `makeClaimLink` and
+            // `sendClaimInvite` allow (Steps 22.1, 214).
             canInvite
           />
         </CardContent>

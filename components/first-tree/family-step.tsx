@@ -35,6 +35,7 @@ import { cn } from "@/lib/utils";
  */
 export function FamilyStep({
   treeId,
+  treeName,
   founder,
   addYourself,
   family,
@@ -42,6 +43,8 @@ export function FamilyStep({
   doneHref,
 }: {
   treeId: string;
+  /** For the message a relative's own link goes with (Step 214). */
+  treeName: string;
   /** Their own entry, wherever it is; `null` until they've made one. */
   founder: (FamilyCard & { lastName: string; placedHere: boolean }) | null;
   /** The middle place until they're on this tree: the short form for their
@@ -192,6 +195,7 @@ export function FamilyStep({
           }}
           kind={adding ?? kind}
           treeId={treeId}
+          treeName={treeName}
           founder={{ id: founder.id, lastName: founder.lastName }}
         parents={family.parents.map((p) => ({ id: p.id, name: p.name }))}
         parentlessSiblings={family.siblings

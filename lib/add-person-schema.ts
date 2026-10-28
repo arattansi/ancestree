@@ -1,15 +1,15 @@
 import { z } from "zod";
 
 import { RELATIONSHIP_KINDS } from "@/lib/connections";
-import { isEmailAddress } from "@/lib/email-address";
 import { marriageDateProblems } from "@/lib/partial-date";
 import { personSchema } from "@/lib/person-schema";
 import type { SpouseDates } from "@/lib/spouse-dates";
 
 /**
  * The add-a-relative form (`components/add-person-flow.tsx`): who's being
- * added, the people in between, the lines to the tree and an invite, as the
- * form holds and checks them.
+ * added, the people in between and the lines to the tree, as the form holds
+ * and checks them. Since Step 214 the invite is offered once they're saved
+ * (`SendTheirLink`), not asked for here.
  */
 
 /** Multi-connection cap — keeps the one submit transaction small (Task 11.4). */
@@ -99,26 +99,5 @@ export const flowSchema = z.object({
         seen.add(key);
       });
     }),
-  /** Invite the new person to claim their entry once it's saved. */
-  inviteEmail: z.string().optional(),
-}).superRefine((values, ctx) => {
-  // Only asked, and only sent, while they're living.
-  const address = inviteAddress(values);
-  if (address && !isEmailAddress(address)) {
-    ctx.addIssue({
-      code: "custom",
-      message: "That doesn't look like an email address.",
-      path: ["inviteEmail"],
-    });
-  }
 });
 export type FlowValues = z.infer<typeof flowSchema>;
-
-/** Where the invite goes, or "" for none: a deceased person gets no invite. */
-export function inviteAddress(values: {
-  people: { is_deceased: boolean }[];
-  inviteEmail?: string;
-}): string {
-  if (values.people[0]?.is_deceased) return "";
-  return (values.inviteEmail ?? "").trim();
-}

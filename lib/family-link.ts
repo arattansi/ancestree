@@ -5,6 +5,7 @@
  * supabase/migrations/20260925150000_family_link.sql.
  */
 
+import { ageFromBirth } from "@/lib/minors";
 import { whatsappHref } from "@/lib/share-text";
 import { isDefaultTreeName } from "@/lib/tree-names";
 
@@ -52,11 +53,36 @@ export function familyLinkMessage(url: string, treeName: string): string {
 }
 
 /**
+ * The message sent with someone's own link the moment they're added (Step
+ * 214): a claim link, for a chat rather than an email, in the voice of
+ * whoever added them. A tree still on a default name is "our family tree",
+ * as `familyLinkMessage` has it.
+ */
+export function addedYouMessage(url: string, treeName: string): string {
+  const name = treeName.trim();
+  const tree = isDefaultTreeName(name) ? "our family tree" : name;
+  return `I added you to ${tree} on ancestree. Tap to claim your entry and add your side of the family: ${url}`;
+}
+
+/**
+ * Whether someone just added is offered their own link (Step 214): only
+ * the living, and not a child known to be under 18 (Step 98). Who may
+ * make the link is the database's to say (`makeClaimLink`).
+ */
+export function offersTheirLink(person: {
+  is_deceased: boolean;
+  date_of_birth?: string | null;
+}): boolean {
+  return !person.is_deceased && ageFromBirth(person.date_of_birth) !== "minor";
+}
+
+/**
  * Which invites say someone has invited family, as a PostgREST `or`
  * filter on `invites` (Step 212): every one but a family link nobody has
  * joined through, which the founder's invite step makes without being
  * asked. Whoever joins through it counts through `invited_by_user_id`,
- * as `onboarding_due` reads it.
+ * as `onboarding_due` reads it. A claim link counts once it's made, sent
+ * or not (Aalim, Step 214): it's made only when someone asks for it.
  */
 export const COUNTS_AS_INVITED = "max_uses.is.null,use_count.gt.0";
 

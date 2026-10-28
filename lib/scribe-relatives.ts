@@ -71,8 +71,8 @@ export function relativeDraft(r: RelativeProposal): RelativeDraft {
 
 /**
  * Where their invite to claim the entry goes once they're added, or "" for
- * none, as the web's add form has it (`inviteAddress`): nobody is invited
- * to claim the entry of someone who has died.
+ * none: nobody is invited to claim the entry of someone who has died, as
+ * the web offers no link for them (`offersTheirLink`).
  */
 export function relativeInviteAddress(r: RelativeProposal, draft: RelativeDraft): string {
   return r.died ? "" : draft.email.trim().toLowerCase();

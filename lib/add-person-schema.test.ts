@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { flowSchema, inviteAddress, type FlowValues } from "@/lib/add-person-schema";
+import { flowSchema, type FlowValues } from "@/lib/add-person-schema";
 import { emptyPersonValues } from "@/lib/person-schema";
 
 const person = { ...emptyPersonValues, first_name: "Zahra", last_name: "Suleman" };
@@ -12,7 +12,6 @@ function values(patch: Partial<FlowValues> = {}): FlowValues {
     anchorId: "anchor",
     links: [{ kind: "child" }],
     extraLinks: [],
-    inviteEmail: "",
     ...patch,
   };
 }
@@ -23,38 +22,9 @@ function problems(input: FlowValues): string[] {
   return parsed.success ? [] : parsed.error.issues.map((i) => i.path.join("."));
 }
 
-describe("inviteAddress", () => {
-  it("is the address, trimmed", () => {
-    expect(inviteAddress({ people: [person], inviteEmail: "  z@example.com " })).toBe(
-      "z@example.com",
-    );
-  });
-
-  it("is nobody's for someone who has died", () => {
-    expect(
-      inviteAddress({
-        people: [{ ...person, is_deceased: true }],
-        inviteEmail: "z@example.com",
-      }),
-    ).toBe("");
-  });
-});
-
 describe("flowSchema", () => {
   it("takes a plain add", () => {
     expect(problems(values())).toEqual([]);
-  });
-
-  it("refuses an address that isn't one, while they're living", () => {
-    expect(problems(values({ inviteEmail: "not an address" }))).toEqual(["inviteEmail"]);
-    expect(
-      problems(
-        values({
-          people: [{ ...person, is_deceased: true }],
-          inviteEmail: "not an address",
-        }),
-      ),
-    ).toEqual([]);
   });
 
   it("refuses the same connection twice", () => {

@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  addedYouMessage,
   COUNTS_AS_INVITED,
   FAMILY_LINK_CAPS,
   FAMILY_LINK_MAX_USES,
   familyLinkCount,
   familyLinkMessage,
   isFamilyLinkFull,
+  offersTheirLink,
   parseFamilyLinkCap,
   whatsappShareHref,
 } from "@/lib/family-link";
@@ -88,6 +90,46 @@ describe("familyLinkMessage (Step 212)", () => {
 
   it("trims a name typed with spaces round it", () => {
     expect(familyLinkMessage(url, "  The Chen Family ")).toMatch(/^Join The Chen Family, /);
+  });
+});
+
+describe("addedYouMessage (Step 214)", () => {
+  const link = "https://www.ancestree.space/join/abc123";
+
+  it("says who added them, where, and what the link lets them do", () => {
+    expect(addedYouMessage(link, "The Okafor Family")).toBe(
+      "I added you to The Okafor Family on ancestree. Tap to claim your entry and add your side of the family: https://www.ancestree.space/join/abc123",
+    );
+  });
+
+  it("calls a tree on a default name our family tree", () => {
+    expect(addedYouMessage(link, "Family")).toMatch(/^I added you to our family tree on ancestree\. /);
+    expect(addedYouMessage(link, " Second Family ")).toMatch(/^I added you to our family tree /);
+  });
+
+  it("trims a name typed with spaces round it", () => {
+    expect(addedYouMessage(link, "  The Chen Family ")).toMatch(/^I added you to The Chen Family on /);
+  });
+});
+
+describe("offersTheirLink (Step 214)", () => {
+  const living = { is_deceased: false, date_of_birth: "" };
+
+  it("offers the living, born whenever or not said", () => {
+    expect(offersTheirLink(living)).toBe(true);
+    expect(offersTheirLink({ ...living, date_of_birth: "1950-03-02" })).toBe(true);
+    expect(offersTheirLink({ is_deceased: false })).toBe(true);
+  });
+
+  it("offers nobody who has died", () => {
+    expect(offersTheirLink({ ...living, is_deceased: true })).toBe(false);
+  });
+
+  it("offers no child known to be under 18", () => {
+    const year = new Date().getFullYear();
+    expect(offersTheirLink({ ...living, date_of_birth: `${year - 5}-01-01` })).toBe(false);
+    // Could be 17 or 18 this year: not known to be under 18.
+    expect(offersTheirLink({ ...living, date_of_birth: `${year - 18}` })).toBe(true);
   });
 });
 

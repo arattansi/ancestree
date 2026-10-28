@@ -211,8 +211,8 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   fill blanks, drag-to-pin position, auto-arrange, photo writes, revert;
   `connections.ts`: `addRelative` (one call for an add: the implied
   connections asked about first, then a transactional multi-person + edge
-  create and the invite asked for with it, Step 77.5; a photo follows in a
-  second) and every line after it (the refusal wording `people.ts` and
+  create, Step 77.5; a photo follows in a second; the invite is offered
+  once they're saved since Step 214, `SendTheirLink`) and every line after it (the refusal wording `people.ts` and
   `connections.ts` share is `lib/entry-errors.ts`); `album.ts`:
   `addAlbumPhoto` / `decideAlbumPhoto` /
   `removeFromAlbum` / `deleteAlbumPhoto`, Step 88.5 (its reads are the
@@ -554,7 +554,9 @@ set, unauthenticated visits to `/tree` redirect to `/join`.
   (Step 209), with its lines, fit, centring and drag bounds (Step 206,
   `.test.ts`), drawn by `mobile/src/leaf/tree-map.tsx`;
   `lib/share-text.ts` — `wa.me` and `sms:` links that open WhatsApp or
-  Messages with a message typed out (Step 89, `.test.ts`); `lib/presence.ts` — the tree room's topic, colours, send
+  Messages with a message typed out (Step 89, `.test.ts`), sent by
+  `components/share-message.tsx` (`ShareMessage`: the message and its
+  share / WhatsApp / Messages / copy buttons by device, Steps 212, 214); `lib/presence.ts` — the tree room's topic, colours, send
   rate and card-anchored pointers (Step 57.3, `.test.ts`);
   `lib/person-name.ts` — display
   name + lifespan + initials, and whether someone has died
@@ -806,7 +808,7 @@ Applied on Product-Ancestree (`kkmemshpkxrzogijxgnb`). Local source of truth:
 | `people`                 | Demographic nodes, **one row per person across all trees**. `tree_id` is the person's **home tree** — whose rules govern their details (Step 25; moved by `set_home_tree`). `hidden_from_visitors` blurs them to visitors. Card positions live on `tree_placements`, not here (the pre-Step-25 `people.pos_*` were dropped in Step 25.6). `owner_user_id` starts as `created_by` and moves on claim. `date_of_birth_precision` / `date_of_death_precision` (`day` \| `month` \| `year`, Step 17) say how much of each date is known — a partial date is stored on the first day of its period, CHECK-enforced, so year-only readers need no change. A birthday with no year is `birth_month` / `birth_day` (Step 63), set only while `date_of_birth` is empty, so they see no year either. `date_of_birth_circa` / `date_of_death_circa` (Step 81) mark a date as a rough estimate, shown "c. 1950"; each needs its date (CHECK), and `people_before_write` clears it when the date is emptied. `place_id_birth` / `place_id_death` → `places(id)` (Step 4.5b; nullable, backfilled — legacy `city_of_birth` / `country_of_birth` / `place_of_death` text kept until reconciled). `place_id_residence` → `places(id)` and `place_of_residence` (its label, ≤ 160) are where someone lives now (Step 153): optional, for the living only (`people_before_write` empties both once `is_deceased`), and `tree_people` hands them only to the tree's members and the entry's owner — a visitor from another tree, a share link and a basic card get null. Nothing about ancestral lands is stored: a card shows Native Land Digital's names, looked up live, or nothing (Step 40; Step 27's `ancestral_lands_birth` / `ancestral_lands_death`, the family's own words, were never used and were dropped in Step 40.5). `placeholder_number` (Step 98.2) is set only on a **placeholder child** — no details at all (`people_placeholder_empty`; `people_required_identity` asks it for no name), shown "First Child", "Second Child"… — and cleared for good when their parent fills it in. An entry made a placeholder in Step 98.3 keeps what it had been given in `private.withheld_details` (old columns as jsonb), read only by its parent and the child (`withheld_details`) until the parent shows it (`reveal_withheld_details`) or forgets it (`forget_withheld_details`) |
 | `relationships`          | A fact about two people, not a tree (Step 25): a tree draws it when both ends are placed there; `tree_id` records the tree it was drawn on, and uniqueness ignores it. Directed `parent` edges; undirected `spouse` pairs (optional `marriage_date`, or `marriage_month` / `marriage_day` with no year (Step 63), / `is_divorced` / `divorce_date`, spouse-only by CHECK); siblings inferred |
 | `connection_suggestions` | Implied-connection prompts surfaced by the add-person flow (`suggested_type` spouse/parent/sibling_check, `source`, `status` pending/accepted/dismissed); UNIQUE (subject, related, type, source) = no re-prompt                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| `invites`                | Shareable tokens into one tree (`active` \| `accepted` \| `revoked`); `founds_tree` (Step 25) makes it a founder invite — redeeming plants a new tree with the redeemer as Root. `max_uses` set (1–20) makes it the tree's **family link** (Step 52): one per tree, open to anyone who has it, counted in `use_count` and kept after each join; made, rotated and re-capped only through `rotate_family_link` / `set_family_link_cap` (`family_link_guard`); `ensure_family_link` (Step 212) makes one at the largest cap if the tree has none, for the founder's invite step. One nobody has joined through doesn't count as an invite (`COUNTS_AS_INVITED`). Who joined with it: `private.family_link_joins` (read by Roots through `family_link_joins`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `invites`                | Shareable tokens into one tree (`active` \| `accepted` \| `revoked`); `founds_tree` (Step 25) makes it a founder invite — redeeming plants a new tree with the redeemer as Root. `max_uses` set (1–20) makes it the tree's **family link** (Step 52): one per tree, open to anyone who has it, counted in `use_count` and kept after each join; made, rotated and re-capped only through `rotate_family_link` / `set_family_link_cap` (`family_link_guard`); `ensure_family_link` (Step 212) makes one at the largest cap if the tree has none, for the founder's invite step. One nobody has joined through doesn't count as an invite (`COUNTS_AS_INVITED`); a bare claim link counts once it's made, sent or not (Step 214). Who joined with it: `private.family_link_joins` (read by Roots through `family_link_joins`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `invite_requests`        | Public invite asks — first/last name + email, `pending` \| `approved` \| `declined`, `invite_id` of the link minted on approval. Admin-only RLS; inserted server-side with the service role (no `anon` grant). One pending row per email                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `tree_requests`          | Asks to start a tree during the beta (Step 28): a member's (`user_id`) or a waitlist sign-up's (name + email only), `pending` \| `approved` \| `declined`, answered by a beta reviewer (`private.beta_reviewers`). A member's approval is their permission to `found_tree`; a sign-up's approval mints a founder invite (`invite_id`). Reviewers see and answer every row, a member only their own; members ask through `request_tree`, the waitlist is written with the service role. One pending ask per member and per waitlist address                                                                                                                                                                                                                                                                   |
 | `invite_relays`          | Asks a newcomer with no match passed on to a relative (Step 30.5): their typed first/last name + email and the member it went to (`recipient_user_id`), `pending` \| `invited` \| `dismissed`, the tree they were invited to, `email_sent`. Only that member reads and answers it (RLS; update granted on the answer's columns only); filed by the server with the service role, and the rows are what the member's caps count. One open or dismissed ask per address and member. A pending ask lapses after 30 days, and is deleted as new asks come in (Step 41.5) |
@@ -1505,9 +1507,13 @@ mirror it for the UI.
   are on it and it shows the entry, which is where accepting claims it.
   Roots invite from
   `/admin`; everyone else gets an "Invite a relative" card on `/account`, and
-  every invite form says the newcomer joins as a Leaf (`JoinsAsNote`). The add-relative form asks
-  for the new relative's email too (Step 31) and, once the entry is saved,
-  sends this same invite for it, unless they're deceased. `/join/<token>`
+  every invite form says the newcomer joins as a Leaf (`JoinsAsNote`). Once
+  the add-relative form or the founder's quick-add saves someone living
+  and not known to be under 18 (`offersTheirLink`), it offers **send
+  {first name} their link**, a claim link (`makeClaimLink`) with the
+  message it goes with (`addedYouMessage`), and **or email it**, this same
+  invite (`SendTheirLink`, Step 214; the email was asked for in the form
+  from Step 31). `/join/<token>`
   tells them what a Leaf is before they sign up. Like a direct invite, it
   keeps a "Sent invites" record for the Roots of the tree it joins (the home
   tree, unless a relayed ask picked another), named after the
@@ -2001,6 +2007,45 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 214: send someone their own link the moment they're added**
+  (web, no migration). **Asked for** (2026-10-27): F3 of that day's
+  drop-off audit. Five outside founders had added 67 living relatives and
+  only one entry had an email: the add forms' "Invite them by email" box
+  went unused, and nothing offered a link after saving. **Now** once the
+  founder's quick-add dialog or the add-relative form (`/people/new`)
+  saves someone living and not known to be under 18 (`offersTheirLink`:
+  no one who has died, no date of birth that makes them a minor), it
+  says "{name} is on the tree" and offers **send {first name} their
+  link** with **or email it** beside it (`SendTheirLink`). The first makes
+  a claim link for the new entry (`makeClaimLink`, whose rules say who
+  may) and shows the message it goes with ("I added you to The Okafor
+  Family on ancestree. Tap to claim your entry and add your side of the
+  family: …", `addedYouMessage`; "our family tree" on a default name)
+  with **share** (a phone's sheet, which also opens by itself once the
+  link is made, where the browser still allows it), **WhatsApp**,
+  **Messages** (a Mac) and **copy**. The second opens an address box and
+  **send invite** (`sendClaimInvite`), the email the forms used to ask
+  for up front; it's no longer in either form, so `addRelative`,
+  `flowSchema` and `inviteAddress` lost their invite. **done** closes the
+  dialog; **view on tree** goes where the form used to land. Anyone not
+  offered a link lands or closes as before, with the toast. Step 212's
+  device detection and buttons moved out of `FamilyLinkShare` into
+  `ShareMessage` (`components/share-message.tsx`), which both use; its
+  message box wraps anywhere, so a long link can't widen a dialog.
+  **Aalim's call** (2026-10-27): a claim link counts as having invited
+  family once it's made, shared or not (`COUNTS_AS_INVITED` unchanged),
+  since it's made only when they press the button. **My calls:** the
+  email moved behind "or email it" rather than staying in the forms; the
+  offer replaces the form until **done** / **view on tree**, rather than
+  waiting on the person's card; `JoinsAsNote` shows under the email box
+  only. Checked as a throwaway founder on the dev server against live:
+  quick-add at desktop (WhatsApp, Messages, copy; the pane refuses
+  clipboard writes, so copy said so) and 375px with the share sheet
+  stubbed (opened once with the message; share, WhatsApp, copy); email
+  to Resend's test inbox; a deceased parent and a child born 2018 not
+  offered; `/people/new` at both widths through the implied-connection
+  question, **view on tree** landing on the card, and a deceased
+  relative landing straight there; test rows deleted.
 - **Step 213: joining from a family link or claim link with a name, the
   email after** (web, no migration). **Asked for** (2026-10-27): F2 of
   that day's drop-off audit. Such a link opened signed out asked for a

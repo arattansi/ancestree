@@ -3,7 +3,6 @@
 import { OWN_LINE_REFUSAL, isOwnLineRefusal } from "@/lib/account-types";
 import { requireProfile, type Profile } from "@/lib/auth";
 import { bloodTieRefusal, readBloodTieRefusal } from "@/lib/bloodline";
-import { mintClaimInvite } from "@/lib/claim-invite-send.server";
 import {
   readAskAdult,
   readMinorRefusal,
@@ -250,10 +249,6 @@ async function addPeople(
 export type AddRelativeResult = AddPeopleResult & {
   /** Connections the tree implies, to answer before anything is saved. */
   askable?: ImpliedConnection[];
-  /** Where the invite to claim the new entry went. */
-  invited?: string;
-  /** Saved, but the invite didn't go: why. */
-  inviteWarning?: string;
   /** A founder adding themselves named their tree this (Step 168). */
   treeName?: string;
 };
@@ -261,13 +256,12 @@ export type AddRelativeResult = AddPeopleResult & {
 /**
  * Add a relative, or yourself, in one call (Step 77.5): look for the
  * connections the tree implies (`detect`, on the first try — answered, they
- * come back as `suggestions`), save the people and their lines, and send
- * the invite to claim the new entry that was asked for with it. It used to
- * be up to four calls, each drawing the page again.
+ * come back as `suggestions`), and save the people and their lines. It
+ * used to be up to four calls, each drawing the page again. The invite to
+ * claim the new entry is offered once it's saved (Step 214,
+ * `SendTheirLink`), no longer asked for with it.
  *
- * Only the entries can fail it. Once they exist, an invite that doesn't go
- * is a warning: a failure would bring the button back, and a second press
- * would add everyone again. A photo can't come in the same call — storage
+ * A photo can't come in the same call — storage
  * lets it into the entry's folder only once the entry exists — so with
  * `photoFollows` the page is drawn again by the photo's own save instead,
  * once.
@@ -275,7 +269,6 @@ export type AddRelativeResult = AddPeopleResult & {
 export async function addRelative(
   input: AddPeopleInput & {
     detect?: { newPeople: NewPersonInput[] };
-    inviteEmail?: string | null;
     photoFollows?: boolean;
   },
 ): Promise<AddRelativeResult> {
@@ -307,21 +300,8 @@ export async function addRelative(
     }
   }
 
-  const primaryId = added.personIds[0];
-  let invited: string | undefined;
-  let inviteWarning: string | undefined;
-  if (input.inviteEmail && primaryId) {
-    try {
-      const res = await mintClaimInvite(profile, primaryId, input.inviteEmail);
-      if (res.error) inviteWarning = res.error;
-      else invited = res.email;
-    } catch {
-      inviteWarning = "Couldn't reach the email service.";
-    }
-  }
-
   if (!input.photoFollows) revalidateTreePages();
-  return { ...added, invited, inviteWarning, treeName };
+  return { ...added, treeName };
 }
 
 /**

@@ -11,7 +11,6 @@ import { setPersonPhoto } from "@/app/actions/people";
 import { AdultQuestion } from "@/components/adult-question";
 import { CoParentOffer } from "@/components/co-parent-offer";
 import { FormError } from "@/components/form-error";
-import { JoinsAsNote } from "@/components/joins-as-note";
 import { PendingButton } from "@/components/pending-button";
 import {
   PersonDetailFields,
@@ -19,13 +18,12 @@ import {
   PersonNameFields,
 } from "@/components/person-fields";
 import { PhotoPicker } from "@/components/photo-picker";
+import { SendTheirLink } from "@/components/send-their-link";
 import { SpouseDatesFields } from "@/components/spouse-dates-fields";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Form } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useAction } from "@/components/use-action";
 import { usePhotoDraft } from "@/components/use-photo-draft";
 import { coParentSelection, type PartnerOption } from "@/lib/connections";
@@ -35,7 +33,7 @@ import {
   type CloseKind,
   type CloseRelativeLinks,
 } from "@/lib/first-tree";
-import { isEmailAddress } from "@/lib/email-address";
+import { offersTheirLink } from "@/lib/family-link";
 import { minorRefusal, newPeopleToAsk } from "@/lib/minors";
 import { marriageDateProblems } from "@/lib/partial-date";
 import { personDisplayName } from "@/lib/person-name";
@@ -56,9 +54,14 @@ const TITLES: Record<CloseKind, string> = {
 
 type Named = { id: string; name: string };
 
+/** Someone just added, offered their own link (Step 214). */
+type Added = { id: string; name: string; firstName: string };
+
 type QuickRelativeProps = {
   kind: CloseKind;
   treeId: string;
+  /** For the message their link goes with. */
+  treeName: string;
   founder: { id: string; lastName: string };
   /** The founder's parents on the tree. */
   parents: Named[];
@@ -77,6 +80,9 @@ type QuickRelativeProps = {
  * (`closeRelativeEdges`), so there's no connection to build by hand. Like
  * adding a relative anywhere (Step 44), the rest of their details, a
  * partner's wedding and a photo wait behind "add more details" (Step 161).
+ * Once someone living is added, the dialog offers to send them their own
+ * link (Step 214), by chat or by email, rather than asking for an email
+ * they rarely have up front.
  */
 export function QuickRelativeDialog({
   open,
@@ -89,16 +95,48 @@ export function QuickRelativeDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
-        <DialogTitle>{TITLES[props.kind]}</DialogTitle>
         {/* The dialog's contents unmount once it closes, so each opening
             starts this form afresh — no one's values carry over. */}
-        <QuickRelativeForm
+        <QuickRelativeBody
           key={props.kind}
           {...props}
           onDone={() => onOpenChange(false)}
         />
       </DialogContent>
     </Dialog>
+  );
+}
+
+function QuickRelativeBody({
+  onDone,
+  ...props
+}: QuickRelativeProps & { onDone: () => void }) {
+  const [added, setAdded] = React.useState<Added | null>(null);
+  if (!added) {
+    return (
+      <>
+        <DialogTitle>{TITLES[props.kind]}</DialogTitle>
+        <QuickRelativeForm {...props} onAdded={setAdded} onDone={onDone} />
+      </>
+    );
+  }
+  return (
+    <>
+      <DialogTitle>{added.name} is on the tree</DialogTitle>
+      <div className="flex flex-col gap-5 pt-2">
+        <SendTheirLink
+          personId={added.id}
+          firstName={added.firstName}
+          treeId={props.treeId}
+          treeName={props.treeName}
+        />
+        <div className="border-t border-border pt-5">
+          <Button type="button" variant="outline" onClick={onDone}>
+            done
+          </Button>
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -109,8 +147,13 @@ function QuickRelativeForm({
   parents,
   parentlessSiblings,
   partners,
+  onAdded,
   onDone,
-}: QuickRelativeProps & { onDone: () => void }) {
+}: QuickRelativeProps & {
+  /** Saved and living: offer them their own link. */
+  onAdded: (added: Added) => void;
+  onDone: () => void;
+}) {
   const form = useForm<PersonFormValues>({
     resolver: zodResolver(personSchema),
     mode: "onChange",
@@ -140,7 +183,6 @@ function QuickRelativeForm({
     siblingIds: parentlessSiblings.map((p) => p.id),
   };
   const photo = usePhotoDraft();
-  const [inviteEmail, setInviteEmail] = React.useState("");
   const [moreDetails, setMoreDetails] = React.useState(false);
   const detailsHeading = React.useRef<HTMLHeadingElement>(null);
   // Opened from the bottom of the form: take the reader to what opened.
@@ -189,12 +231,6 @@ function QuickRelativeForm({
 
   function onSubmit(values: PersonFormValues) {
     action.setError(null);
-    // Nobody is invited to take over a deceased person's entry.
-    const address = values.is_deceased ? "" : inviteEmail.trim();
-    if (address && !isEmailAddress(address)) {
-      action.setError("That email doesn't look right — fix it, or leave it empty.");
-      return;
-    }
     const links: CloseRelativeLinks = {};
     if (otherParent && partnered) links.partnerIds = [otherParent.id];
     if (kind === "parent") links.alsoParentOf = alsoParentOf;
@@ -231,9 +267,9 @@ function QuickRelativeForm({
 
     action.run(
       "add",
-      async (): Promise<{ error?: string; invited?: string }> => {
-        // Them, their lines and the invite asked for with them, in one call
-        // (Step 77.5); a photo follows in a second.
+      async (): Promise<{ error?: string; personId?: string }> => {
+        // Them and their lines in one call (Step 77.5); a photo follows in
+        // a second.
         const { file, crop } = photo;
         const result = await addRelative({
           treeId,
@@ -241,7 +277,6 @@ function QuickRelativeForm({
           edges: closeRelativeEdges(kind, founder.id, links),
           selfIndex: null,
           adults: [askedAdult ? (adult ?? null) : null],
-          inviteEmail: address || null,
           photoFollows: file !== null,
         });
         const personId = result.personIds?.[0];
@@ -261,24 +296,20 @@ function QuickRelativeForm({
             toast.warning("Added — but the photo didn't upload. Add it from the tree.");
           }
         }
-
-        // Asked for with the entry, so sent once it existed, as the
-        // add-relative form does (Step 31). The entry stays whatever happened
-        // to it, and their card on the tree offers the invite again.
-        if (result.inviteWarning) {
-          toast.warning("Added — but the invite didn't send. Send it again from their card.", {
-            description: result.inviteWarning,
-          });
-        }
-        return { invited: result.invited };
+        return { personId };
       },
       {
-        onSuccess: ({ invited }) => {
-          toast.success(
-            invited
-              ? `${personDisplayName(values)} is on the tree. Invite sent to ${invited}.`
-              : `${personDisplayName(values)} is on the tree.`,
-          );
+        onSuccess: ({ personId }) => {
+          const name = personDisplayName(values);
+          if (personId && offersTheirLink(values)) {
+            onAdded({
+              id: personId,
+              name,
+              firstName: values.preferred_name || values.first_name || "",
+            });
+            return;
+          }
+          toast.success(`${name} is on the tree.`);
           onDone();
         },
       },
@@ -293,7 +324,8 @@ function QuickRelativeForm({
         noValidate
       >
         <PersonNameFields control={form.control} />
-        {/* Up front, since it decides whether to ask for an invite. */}
+        {/* Up front, since it decides whether "18 or older?" is asked and,
+            once they're added, whether their link is offered (Step 214). */}
         <PersonDiedField control={form.control} idPrefix={`quick-${kind}`} />
 
         {otherParent ? (
@@ -387,30 +419,6 @@ function QuickRelativeForm({
             {underAge}
           </p>
         ) : null}
-
-        {deceased ? null : (
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor={`quick-${kind}-invite`}>Invite them by email</Label>
-              <Input
-                id={`quick-${kind}-invite`}
-                type="email"
-                inputMode="email"
-                // Not "email": that would fill in the founder's own.
-                autoComplete="off"
-                placeholder="them@example.com"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                disabled={submitting}
-              />
-              <p className="text-xs text-muted-foreground">
-                Optional. We&rsquo;ll email them a link to join and take over
-                this entry.
-              </p>
-            </div>
-            {inviteEmail.trim() ? <JoinsAsNote /> : null}
-          </div>
-        )}
 
         {moreDetails ? (
           <section className="flex flex-col gap-5 border-t border-border pt-5">
