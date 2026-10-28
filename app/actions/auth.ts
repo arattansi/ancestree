@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
 import { isEmailAddress } from "@/lib/email-address";
 import { signInAsksName, type JoiningName } from "@/lib/joining-name";
+import { EMAIL_ASKED_KEY } from "@/lib/no-email";
 import {
   confirmAddEmail,
   sendAddEmailCode,
@@ -295,9 +296,15 @@ export async function signInWithLink(
 
 /**
  * Adding an email to an account that joined without one (Step 202.4): the
- * address a code went to, and when, or what went wrong.
+ * address a code went to, and when, or what went wrong. `added` once it's
+ * theirs, when the form asked to stay where it is (Step 213).
  */
-export type AddEmailState = { error?: string; sentTo?: string; sentAt?: number };
+export type AddEmailState = {
+  error?: string;
+  sentTo?: string;
+  sentAt?: number;
+  added?: boolean;
+};
 
 const ADD_EMAIL_SEND_REFUSALS: Record<AddEmailSendRefusal, string> = {
   has_email: "Your account has an email already.",
@@ -327,7 +334,11 @@ export async function sendAddEmailCodeAction(
   return { sentTo: email, sentAt: Date.now() };
 }
 
-/** The code from that email: the address becomes the account's (Step 202.4). */
+/**
+ * The code from that email: the address becomes the account's (Step 202.4).
+ * From Account it opens their settings again; from My Family Tree's ask
+ * (`stay`, Step 213) the form says so and the page stays.
+ */
 export async function confirmAddEmailAction(
   _prev: AddEmailState,
   formData: FormData,
@@ -340,7 +351,21 @@ export async function confirmAddEmailAction(
   }
   const result = await confirmAddEmail(user.id, code);
   if (!result.ok) return { error: ADD_EMAIL_CONFIRM_REFUSALS[result.reason] };
+  if (formData.get("stay") === "1") return { added: true };
   redirect("/account?view=settings");
+}
+
+/**
+ * My Family Tree's ask for an email, closed (Step 213): kept on the account,
+ * so it isn't asked again on any device. The session is refreshed so its
+ * token carries it, as `getSessionUser` reads it.
+ */
+export async function closeEmailAsk(): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase.auth.updateUser({
+    data: { [EMAIL_ASKED_KEY]: new Date().toISOString() },
+  });
+  if (!error) await supabase.auth.refreshSession();
 }
 
 export type InviteSignInCodeState = {

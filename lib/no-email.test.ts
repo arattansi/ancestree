@@ -4,6 +4,8 @@ import { alertRecipients } from "@/lib/request-alerts";
 import { isEmailAddress } from "@/lib/email-address";
 import { verifiedEmail } from "@/lib/first-timer";
 import {
+  asksForEmail,
+  EMAIL_ASKED_KEY,
   isNoEmailAddress,
   NO_EMAIL_DOMAIN,
   noEmailAddress,
@@ -100,5 +102,22 @@ describe("who may join with no email (Step 202)", () => {
     expect(noEmailMayJoin({ ...claimLink, archived_at: "2026-10-01T00:00:00Z" }, now)).toBe(false);
     expect(noEmailMayJoin({ ...claimLink, expires_at: "2026-10-22T11:59:59Z" }, now)).toBe(false);
     expect(noEmailMayJoin({ ...familyLink, use_count: 20 }, now)).toBe(false);
+  });
+});
+
+describe("asking for an email after joining (Step 213)", () => {
+  it("asks an account with no email that hasn't closed the ask", () => {
+    expect(asksForEmail(placeholder, {})).toBe(true);
+    expect(asksForEmail(placeholder, null)).toBe(true);
+    expect(asksForEmail(placeholder, { first_name: "Amina", last_name: "Okafor" })).toBe(true);
+  });
+
+  it("asks once: not after it's closed", () => {
+    expect(asksForEmail(placeholder, { [EMAIL_ASKED_KEY]: "2026-10-27T12:00:00Z" })).toBe(false);
+  });
+
+  it("never asks an account with an email", () => {
+    expect(asksForEmail("aunt@example.com", {})).toBe(false);
+    expect(asksForEmail(null, {})).toBe(false);
   });
 });

@@ -10,7 +10,13 @@ import type { Tables } from "@/lib/database.types";
 export type Profile = Tables<"profiles">;
 
 /** Who the session's token says is signed in. */
-export type SessionUser = { id: string; email: string | null };
+export type SessionUser = {
+  id: string;
+  email: string | null;
+  /** The account's own metadata, as the token carries it: the name it
+   *  joined by, and whether it was asked for an email (Step 213). */
+  metadata: Record<string, unknown>;
+};
 
 /**
  * The signed-in user as their session's token names them, or `null`
@@ -28,6 +34,10 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   return {
     id: claims.sub,
     email: typeof claims.email === "string" ? claims.email : null,
+    metadata:
+      claims.user_metadata && typeof claims.user_metadata === "object"
+        ? (claims.user_metadata as Record<string, unknown>)
+        : {},
   };
 });
 

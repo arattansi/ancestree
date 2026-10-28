@@ -75,7 +75,8 @@ export default async function InvitePage({
   const relatives = relativesOnTree(preview?.members ?? lapsed?.members);
 
   // An invite emailed to someone is their sign-in link: one button, no second
-  // email. A bare link has no address on it, so it still asks for one. Only
+  // email. A bare link has no address on it: a family link or claim link
+  // joins with a name (Step 213), any other still asks for one. Only
   // that address may accept it (Step 51), so a member's page looks it up too.
   // Signed out, to an address that has an account already: open on its
   // sign-in link, with no tick to spend first (Step 41.2); with no session
@@ -180,7 +181,9 @@ export default async function InvitePage({
                       ? "Signing in adds it to your trees."
                       : recipient
                         ? "Accepting signs you in — there is nothing else to set up."
-                        : "Enter your name and email, and we’ll email you a code to join."}
+                        : invite.openToNoEmail
+                          ? "Enter your name to join."
+                          : "Enter your name and email, and we’ll email you a code to join."}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -237,10 +240,14 @@ export default async function InvitePage({
                   founds={founds}
                 />
               ) : (
+                // A family link or claim link joins with a name, and asks
+                // for an email once they're in (Step 213): opened from a
+                // group chat on a phone, there's no inbox to go to first.
                 <MagicLinkSignIn
                   inviteToken={token}
                   submitLabel="accept &amp; sign in"
                   noEmail={invite.openToNoEmail}
+                  joinLabel={`join ${preview.tree_name}`}
                 />
               )}
               {!profile && recipient?.requested ? (

@@ -3,7 +3,8 @@
  * from a claim link or the family link with their name alone, and get back
  * in through a sign-in link a Root sends them. Their account still needs an
  * address to hold a session, so it gets one at a domain with no mail
- * server. Nothing is ever sent to it, and it's never shown.
+ * server. Nothing is ever sent to it, and it's never shown. Since Step 213
+ * it's how everyone joins from those links: the email comes after.
  */
 export const NO_EMAIL_DOMAIN = "no-email.ancestree.space";
 
@@ -26,6 +27,24 @@ export function reachableEmail(email: string | null | undefined): string | null 
 /** An account's address as a screen shows it: "No email" for theirs. */
 export function shownEmail(email: string | null | undefined): string {
   return isNoEmailAddress(email) ? "No email" : (email ?? "");
+}
+
+/**
+ * Where an account keeps that it was asked to add an email (Step 213):
+ * its auth metadata, as the time they closed the ask.
+ */
+export const EMAIL_ASKED_KEY = "email_asked_at";
+
+/**
+ * Whether My Family Tree asks an account to add an email so they can sign
+ * back in (Step 213): one with no email, which hasn't closed the ask. Once
+ * closed, it's for Account → Your Email.
+ */
+export function asksForEmail(
+  email: string | null | undefined,
+  metadata: Record<string, unknown> | null | undefined,
+): boolean {
+  return isNoEmailAddress(email) && !metadata?.[EMAIL_ASKED_KEY];
 }
 
 /** An invite as `noEmailMayJoin` judges it. */

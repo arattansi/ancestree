@@ -3,13 +3,14 @@ import { redirect } from "next/navigation";
 
 import { FamilyTree } from "@/components/tree/family-tree";
 import { LEAF } from "@/lib/account-types";
-import { getProfile } from "@/lib/auth";
+import { getProfile, getSessionUser } from "@/lib/auth";
 import { readCurrentTreeId } from "@/lib/current-tree.server";
 import {
   foundedCurrentTree,
   getFamilyGettingStarted,
 } from "@/lib/first-tree.server";
 import { companionsShowing, MY_FAMILY_VIEW } from "@/lib/my-family";
+import { asksForEmail } from "@/lib/no-email";
 import { loadMyFamily } from "@/lib/my-family.server";
 import { getTreePets } from "@/lib/pets";
 import {
@@ -37,15 +38,17 @@ export const metadata: Metadata = {
  * `?joined=` naming it for the view to offer, and the end of a founder's
  * first run (Step 169), with `?planted=` naming the tree they've started;
  * the "Getting started" list of the tree they're looking at shows here as
- * on its canvas, a founder's (Step 169) or a joiner's (Step 170).
+ * on its canvas, a founder's (Step 169) or a joiner's (Step 170). Someone
+ * who joined with a name alone is asked here for an email (Step 213).
  */
 export default async function MyFamilyPage({
   searchParams,
 }: PageProps<"/family">) {
   // Read together (Step 77.1); which tree is shown by default isn't asked,
   // since the view needs only the one switched to this visit, if any.
-  const [profile, trees, chosenId, { joined, planted }] = await Promise.all([
+  const [profile, sessionUser, trees, chosenId, { joined, planted }] = await Promise.all([
     getProfile(),
+    getSessionUser(),
     listMyTrees(),
     readCurrentTreeId(),
     searchParams,
@@ -148,6 +151,8 @@ export default async function MyFamilyPage({
           joined: joinedTree
             ? { id: joinedTree.id, name: joinedTree.name }
             : null,
+          // Joined with a name alone (Step 213): an email, asked once.
+          askEmail: asksForEmail(sessionUser?.email, sessionUser?.metadata),
           // Just planted (Step 169): how big it is, and invite family.
           planted: plantedTree
             ? {

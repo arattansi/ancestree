@@ -17,6 +17,15 @@ export const PENDING_HREF = "/join?status=pending";
 export const SUSPENDED_HREF = "/auth/suspended";
 export const SUSPENDED_JOIN_HREF = "/join?error=suspended";
 
+/**
+ * /join's plain sign-in, landing on `next` once signed in: "Have an
+ * account? Sign in" on a family link or claim link (Step 213), which then
+ * comes back to the invite signed in.
+ */
+export function signInHref(next: string): string {
+  return `/join?next=${encodeURIComponent(next)}`;
+}
+
 /** An invite's own page, where it's accepted. */
 export function inviteHref(token: string): string {
   return `/join/${encodeURIComponent(token)}`;

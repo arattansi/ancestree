@@ -58,6 +58,7 @@ import {
   useIsSm,
 } from "@/components/tree/use-is-phone";
 import { CanvasTip } from "@/components/tree/canvas-tip";
+import { EmailAskCard } from "@/components/tree/email-ask-card";
 import { JoinedTreePrompt } from "@/components/tree/joined-tree-prompt";
 import { PlantedCard } from "@/components/tree/planted-card";
 import { ClaimSuggestions } from "@/components/tree/claim-suggestions";
@@ -248,6 +249,9 @@ export type FamilyView = {
   /** The tree a founder has just planted, at the end of their first run
    *  (Step 169): how many it has, and a way to invite family onto it. */
   planted?: { id: string; name: string; people: number } | null;
+  /** They joined with a name alone and haven't been asked yet: ask them
+   *  for an email, so they can sign back in (Step 213, `asksForEmail`). */
+  askEmail?: boolean;
 };
 
 type Props = {
@@ -2968,6 +2972,10 @@ function Canvas({
           >
             {/* The tree a founder has just planted (Step 169). */}
             {family?.planted ? <PlantedCard tree={family.planted} /> : null}
+            {/* An email, from someone who joined with a name alone
+                (Step 213): before the tree they joined, since on a phone
+                it's one card at a time and this one is asked once. */}
+            {family?.askEmail ? <EmailAskCard /> : null}
             {/* The tree they've just joined, offered from their own view
                 (Step 131). */}
             {family?.joined ? (

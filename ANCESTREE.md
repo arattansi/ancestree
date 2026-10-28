@@ -1336,8 +1336,9 @@ mirror it for the UI.
   an account after the page loaded. Because
   the token holder becomes that address, only a Root or the service role may
   set `invited_email` (`invites_guard`); the family link (Step 52, below),
-  like the bare links before it, has no address and still asks for one and
-  verifies it by email. The privacy
+  like the bare links before it, has no address: since Step 213 it, and a
+  bare claim link, joins with a name alone and asks for an email after.
+  The privacy
   checkbox sits on the ask-to-join form (`/request-invite`, and a share
   link's dialog, Step 41.4) for people who ask, on both waitlist
   forms for people who'll get a founder invite (Step 30.6), and on the
@@ -1369,8 +1370,10 @@ mirror it for the UI.
   invite per tree for a family group chat, which only a Root makes
   (Root console → Invites → **Family Link**). It's an `invites` row with
   `max_uses` set, so `/join/<token>` and sign-in take it as they took a
-  bare link: signed out, the name-and-email form and its sign-in email;
-  signed in, **Join <Tree>**. Whoever opens it joins as a Leaf, invited by
+  bare link: signed out, a name and the privacy tick (Step 213, the
+  no-email join of Step 202; it was name, email and a sign-in code until
+  then), or **Sign in** for someone with an account; signed in,
+  **Join <Tree>**. Whoever opens it joins as a Leaf, invited by
   the Root who made it. The Root picks a cap, 1 to 20
   (`FAMILY_LINK_MAX_USES` = `private.family_link_max_uses()`); once that many
   have joined, `invite_preview` and `redeem_invite` treat it as used up
@@ -1998,6 +2001,42 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 213: joining from a family link or claim link with a name, the
+  email after** (web, no migration). **Asked for** (2026-10-27): F2 of
+  that day's drop-off audit. Such a link opened signed out asked for a
+  name and email, then a 6-digit code from the inbox, before anything of
+  the tree showed: two app switches on a phone, and since Step 212 every
+  founder's invite step leads with the family link. **Now** a family link
+  with room, or a live bare claim link (`noEmailMayJoin`), opens on Step
+  202's no-email join as the main form: first and last name, the privacy
+  tick and **join {tree}** ("Enter your name to join."), then onboarding
+  and `/family?joined=` as before. Under it, **Have an account? Sign in**
+  goes to `/join?next=/join/<token>` (`signInHref`), which comes back to
+  the invite signed in ("You're already on {tree}", or **Join {tree}**),
+  so a member opening the link in a group chat doesn't make a second
+  account. A code this form's email path sent within the hour still opens
+  on its box (Step 164), with **Join without email** back. Emailed
+  invites, founder invites and invite requests are unchanged;
+  `redeem_invite` (Steps 51, 52), `use_count` and `invited_by_user_id`
+  are untouched, so the founder is still credited in `onboarding_due`.
+  **My Family Tree asks once for an email** (`EmailAskCard`, when
+  `asksForEmail`): "Add your email so you can sign back in." with **add
+  email**, which opens Account's own form (Step 202.4) in a dialog and
+  stays on the page (`stay`, `onAdded` → "Email added."), and ✕, kept on
+  the account as `user_metadata.email_asked_at` (`closeEmailAsk`, read off
+  the token's claims by `getSessionUser`). On a phone it comes before the
+  "You're on {tree}" card. **Aalim's calls** (2026-10-27): a name-only
+  joiner does everything a Leaf does (not view-only until an email, not
+  email-first with the code later); someone who never adds an email gets
+  back in through a Root's sign-in link, as in Step 202. **My calls:** no
+  email-first path for newcomers on these links (the ask after covers
+  it); the ask lives on My Family Tree only, where every join path ends;
+  closing it is per account, not per browser. Checked on the dev server
+  against live at 375px and desktop: a throwaway founder's family link
+  opened signed out, three name-only joins (use_count 3, all credited to
+  the founder, all Leaves, Roots notified), add email with the code from
+  Resend's test inbox, ✕ kept across a fresh render, **Sign in** round
+  trip, a claim link and an emailed invite; test rows deleted.
 - **Step 212: the family link first on the founder's invite step, made
   for them and shared in one tap** (web, migration
   `20261027120000_family_link_made_for_you`, live). **Asked for**

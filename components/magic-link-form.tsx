@@ -35,8 +35,10 @@ const INITIAL: MagicLinkState = {};
  * `MagicLinkSignIn` reads it), it opens on the code box, as it was before
  * the page was reloaded.
  *
- * Given `noEmail`, a claim link or the family link, it offers "No email?":
- * joining with a name alone (Step 202, `NoEmailJoinForm`).
+ * Given `noEmail`, a claim link or the family link, it opens on joining with
+ * a name alone (`NoEmailJoinForm`: Step 202, first since Step 213), whose
+ * button reads `joinLabel`. The email form is for a code already on its
+ * way, and offers the name form back.
  */
 export function MagicLinkForm({
   inviteToken,
@@ -45,6 +47,7 @@ export function MagicLinkForm({
   submitLabel = "email me a code",
   sent,
   noEmail = false,
+  joinLabel,
 }: {
   inviteToken?: string;
   /** A campaign link's code: signing in starts their tree (Step 103.3). */
@@ -56,6 +59,8 @@ export function MagicLinkForm({
   sent?: SentCode;
   /** Someone with no email may take this invite (`noEmailMayJoin`). */
   noEmail?: boolean;
+  /** The name form's button: "join {tree}". */
+  joinLabel?: string;
 }) {
   const [state, formAction, pending] = useActionState(
     requestMagicLink,
@@ -75,11 +80,16 @@ export function MagicLinkForm({
   const [changingFrom, setChangingFrom] = useState<MagicLinkState | null>(null);
   const needsConsent = signInNeedsConsent(inviteToken || campaign);
   const asksName = signInAsksName(inviteToken || campaign);
-  const [withoutEmail, setWithoutEmail] = useState(false);
+  // Name first (Step 213), unless this form's code is on its way already.
+  const [withoutEmail, setWithoutEmail] = useState(noEmail && !sent);
 
   if (noEmail && inviteToken && withoutEmail) {
     return (
-      <NoEmailJoinForm inviteToken={inviteToken} onUseEmail={() => setWithoutEmail(false)} />
+      <NoEmailJoinForm
+        inviteToken={inviteToken}
+        submitLabel={joinLabel}
+        onUseEmail={sent ? () => setWithoutEmail(false) : undefined}
+      />
     );
   }
 
@@ -185,7 +195,7 @@ export function MagicLinkForm({
           onClick={() => setWithoutEmail(true)}
           className="self-start text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
         >
-          No email?
+          Join without email
         </button>
       ) : null}
     </form>

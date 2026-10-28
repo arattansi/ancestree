@@ -17,10 +17,22 @@ const INITIAL: AddEmailState = {};
 /**
  * Account → Your Email, for a member who joined without one (Step 202.4): an
  * address, then the code we send it. Entering the code makes it theirs.
+ * Given `onAdded`, as My Family Tree's ask (Step 213), the page stays and
+ * that's called once it's theirs; Account opens their settings again.
  */
-export function AddEmailForm() {
+export function AddEmailForm({ onAdded }: { onAdded?: () => void } = {}) {
   const [sent, sendAction, sending] = useActionState(sendAddEmailCodeAction, INITIAL);
-  const [confirmed, confirmAction, confirming] = useActionState(confirmAddEmailAction, INITIAL);
+  const [confirmed, confirmAction, confirming] = useActionState(
+    async (prev: AddEmailState, formData: FormData) => {
+      const result = await confirmAddEmailAction(prev, formData);
+      // Here, not in an effect: the new address refreshes the session's
+      // cookie, which re-renders the page, and the ask holding this form
+      // goes with it.
+      if (result.added) onAdded?.();
+      return result;
+    },
+    INITIAL,
+  );
   // "Use another email" goes back to the address, until a new code goes.
   const [changingFrom, setChangingFrom] = useState<AddEmailState | null>(null);
   const [code, setCode] = useState("");
@@ -28,6 +40,7 @@ export function AddEmailForm() {
   if (sent.sentTo && changingFrom !== sent) {
     return (
       <form key={sent.sentAt} action={confirmAction} className="flex flex-col gap-3">
+        {onAdded ? <input type="hidden" name="stay" value="1" /> : null}
         <p className="text-sm text-muted-foreground">
           We sent a code to{" "}
           <span className="font-medium break-words text-foreground">{sent.sentTo}</span>.
