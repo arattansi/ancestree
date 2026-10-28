@@ -4160,6 +4160,7 @@ export type Database = {
           key_version: number
         }[]
       }
+      invite_glimpse: { Args: { p_token: string }; Returns: Json }
       invite_preview: {
         Args: { p_token: string }
         Returns: {

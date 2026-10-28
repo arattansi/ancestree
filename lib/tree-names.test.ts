@@ -5,6 +5,7 @@ import {
   foundingTreeName,
   isDefaultTreeName,
   suggestedTreeName,
+  treeForInvitee,
   treeInSentence,
 } from "@/lib/tree-names";
 
@@ -134,5 +135,27 @@ describe("treeInSentence", () => {
   it("keeps a name someone gave it", () => {
     expect(treeInSentence(" The Haddad Family ")).toBe("The Haddad Family");
     expect(treeInSentence("Family Tree")).toBe("Family Tree");
+  });
+});
+
+describe("treeForInvitee", () => {
+  it("keeps a name someone gave it", () => {
+    expect(treeForInvitee(" The Haddad Family ", { lastName: "Khan" })).toBe("The Haddad Family");
+  });
+
+  it("names a default tree after the inviter's family, maiden name first (Step 215)", () => {
+    expect(treeForInvitee("Family", { firstName: "Chidi", lastName: "Okafor" })).toBe(
+      "the Okafor family tree",
+    );
+    expect(
+      treeForInvitee("Second Family", { firstName: "Ada", maidenName: "Khan", lastName: "Okafor" }),
+    ).toBe("the Khan family tree");
+  });
+
+  it("falls back on the inviter's first name, then the family tree", () => {
+    expect(treeForInvitee("Family", { firstName: "Chidi", lastName: " " })).toBe(
+      "Chidi’s family tree",
+    );
+    expect(treeForInvitee("Family", {})).toBe("the family tree");
   });
 });

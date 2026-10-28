@@ -163,6 +163,16 @@ export default function PrivacyPage() {
             can edit their entry, or whoever told it can turn its links off.
           </li>
           <li>
+            Anyone with an invite link sees, before joining, who sent it and
+            their photo, the tree&rsquo;s name, how many are on it and how many
+            have joined, and everyone on it as an unnamed leaf in rows by
+            generation, shaped like a tree from where they were born. A link to
+            claim an entry also names that entry and what it is to whoever sent
+            it. Nobody else&rsquo;s name, photo or dates show. Hide your entry
+            from visitors and your photo stays off it, and your leaf is a plain
+            one.
+          </li>
+          <li>
             A story told aloud in the phone app is heard by the phone&rsquo;s
             own speech recognition (Apple&rsquo;s or Google&rsquo;s, which may
             send the sound to them to do it) and written up by Claude,

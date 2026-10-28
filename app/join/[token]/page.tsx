@@ -9,9 +9,11 @@ import { MagicLinkSignIn } from "@/components/magic-link-sign-in";
 import { CenteredPage } from "@/components/page-column";
 import { RenewInvite } from "@/components/renew-invite";
 import { SubmitButton } from "@/components/submit-button";
+import { TreeGlimpse } from "@/components/tree-glimpse";
 import { TreeTarget } from "@/components/tree-target";
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -20,6 +22,8 @@ import {
 import { LEAF, ROOT } from "@/lib/account-types";
 import { getProfile, getSessionUser, getUser } from "@/lib/auth";
 import { verifiedEmail } from "@/lib/first-timer";
+import { firstName, glimpseCount, UNNAMED_INVITER } from "@/lib/invite-glimpse";
+import { readInviteGlimpse } from "@/lib/invite-glimpse.server";
 import { sentToAnotherAddress } from "@/lib/invite-address";
 import { lapsedState, relativesOnTree } from "@/lib/lapsed-invites";
 import { isNoEmailAddress } from "@/lib/no-email";
@@ -33,7 +37,7 @@ import {
   listMyTrees,
 } from "@/lib/tree-context";
 import { treeHref, treesHref } from "@/lib/tree-links";
-import { treeInSentence } from "@/lib/tree-names";
+import { treeForInvitee, treeInSentence } from "@/lib/tree-names";
 
 export const metadata: Metadata = {
   title: "accept invite",
@@ -52,8 +56,9 @@ export default async function InvitePage({
   // 77.1). A member already: the invite adds a tree, not an account (Step
   // 25). The invite itself is read by its token, which is its secret, so
   // reading it before the preview has said it's live reveals nothing. An
-  // expired one emailed to someone has its own preview (Step 163).
-  const [profile, sessionUser, { data }, { data: lapsedData }, invite, myTrees, access, chosen] =
+  // expired one emailed to someone has its own preview (Step 163). What
+  // it shows of the tree comes with the rest (Step 215).
+  const [profile, sessionUser, { data }, { data: lapsedData }, invite, myTrees, access, chosen, glimpse] =
     await Promise.all([
       getProfile(),
       getSessionUser(),
@@ -63,6 +68,7 @@ export default async function InvitePage({
       listMyTrees(),
       currentAccess(),
       isTreeChosen(),
+      readInviteGlimpse(token),
     ]);
   // Only the tree picked this visit opens with a plain link: a bare /tree
   // with nothing picked opens My Family Tree.
@@ -71,8 +77,22 @@ export default async function InvitePage({
   const preview = data?.[0];
   const lapsed = preview ? null : lapsedData?.[0];
   // How many are on it already, never who (Step 163): the page is open to
-  // whoever has the link.
+  // whoever has the link. A live one shows the tree as unnamed leaves under
+  // the count, and a claim link says what its entry is to the inviter
+  // (Step 215, Aalim's calls): nothing in `glimpse` names anyone.
   const relatives = relativesOnTree(preview?.members ?? lapsed?.members);
+  const inviterFirst =
+    preview && preview.inviter_name !== UNNAMED_INVITER ? firstName(preview.inviter_name) : null;
+  const treeLabel = preview
+    ? treeForInvitee(preview.tree_name, { firstName: inviterFirst, ...glimpse?.inviterFamily })
+    : "";
+  const treeCount =
+    preview && glimpse
+      ? glimpseCount({ people: glimpse.people, members: preview.members })
+      : relatives;
+  // A tree with nobody on it but the inviter has no picture: its count is
+  // said with the rest.
+  const pictured = glimpse && glimpse.people > 1 ? glimpse : null;
 
   // An invite emailed to someone is their sign-in link: one button, no second
   // email. A bare link has no address on it: a family link or claim link
@@ -125,7 +145,7 @@ export default async function InvitePage({
           <ForAnotherAddress
             token={token}
             inviterName={preview.inviter_name}
-            treeName={preview.tree_name}
+            treeName={treeLabel}
             claimName={preview.claim_person_name}
             founds={founds}
             sentTo={recipient.email}
@@ -138,26 +158,47 @@ export default async function InvitePage({
         ) : preview?.valid && alreadyOn && onTreeId ? (
           <AlreadyOnTree
             treeId={onTreeId}
-            treeName={preview.tree_name}
+            treeName={treeLabel}
             currentTreeId={currentTreeId}
           />
         ) : preview?.valid ? (
           <>
             <CardHeader>
               <CardTitle>You&rsquo;re invited</CardTitle>
+              {glimpse?.inviterPhoto && !founds ? (
+                // Their own photo: they sent the link (Step 215), and it's
+                // left out if they hide their entry from visitors.
+                <CardAction className="size-11 overflow-hidden rounded-full border bg-muted">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- a signed storage link */}
+                  <img
+                    src={glimpse.inviterPhoto.url}
+                    alt={`Photo of ${preview.inviter_name}`}
+                    style={glimpse.inviterPhoto.style}
+                    className="size-full object-cover"
+                  />
+                </CardAction>
+              ) : null}
               <CardDescription>
                 <span className="font-medium text-foreground">
                   {preview.inviter_name}
                 </span>{" "}
-                invited you to{" "}
                 {founds ? (
-                  <>start a family tree of your own</>
+                  <>invited you to start a family tree of your own</>
+                ) : preview.claim_person_name && glimpse?.relation ? (
+                  // "Chidi Okafor added you to The Okafor Family as his
+                  // wife, Ada Okafor" (Step 215).
+                  <>
+                    added you to{" "}
+                    <span className="font-medium text-foreground">{treeLabel}</span>{" "}
+                    as {glimpse.relation},{" "}
+                    <span className="font-medium text-foreground">
+                      {preview.claim_person_name}
+                    </span>
+                  </>
                 ) : preview.claim_person_name ? (
                   <>
-                    join{" "}
-                    <span className="font-medium text-foreground">
-                      {treeInSentence(preview.tree_name)}
-                    </span>{" "}
+                    invited you to join{" "}
+                    <span className="font-medium text-foreground">{treeLabel}</span>{" "}
                     and claim the entry for{" "}
                     <span className="font-medium text-foreground">
                       {preview.claim_person_name}
@@ -165,14 +206,12 @@ export default async function InvitePage({
                   </>
                 ) : (
                   <>
-                    help build{" "}
-                    <span className="font-medium text-foreground">
-                      {treeInSentence(preview.tree_name)}
-                    </span>
+                    invited you to help build{" "}
+                    <span className="font-medium text-foreground">{treeLabel}</span>
                   </>
                 )}
                 .{" "}
-                {!founds && relatives ? `${relatives} ` : null}
+                {!founds && !pictured && treeCount ? `${treeCount} ` : null}
                 {profile
                   ? "You’re signed in, so accepting adds it to your trees."
                   : signedInAsRecipient
@@ -187,6 +226,14 @@ export default async function InvitePage({
               </CardDescription>
             </CardHeader>
             <CardContent>
+              {pictured && !founds && treeCount ? (
+                <TreeGlimpse
+                  rows={pictured.rows}
+                  inviterName={inviterFirst ?? "Who invited you"}
+                  caption={treeCount}
+                  className="mb-4"
+                />
+              ) : null}
               {founds ? (
                 <div className="mb-5 flex items-start gap-3 rounded-lg border border-account-root/30 bg-account-root/10 p-3 text-sm">
                   <AccountTypeGlyph type={ROOT} tinted className="mt-0.5" />
@@ -224,7 +271,7 @@ export default async function InvitePage({
               {profile ? (
                 <JoinTreeButton
                   token={token}
-                  label={founds ? "start my tree" : `join ${preview.tree_name}`}
+                  label={founds ? "start my tree" : `join ${treeLabel}`}
                 />
               ) : recipient && signInFirst ? (
                 <SignInToAccept
@@ -247,7 +294,7 @@ export default async function InvitePage({
                   inviteToken={token}
                   submitLabel="accept &amp; sign in"
                   noEmail={invite.openToNoEmail}
-                  joinLabel={`join ${preview.tree_name}`}
+                  joinLabel={`join ${treeLabel}`}
                 />
               )}
               {!profile && recipient?.requested ? (

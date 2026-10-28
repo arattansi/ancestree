@@ -1430,7 +1430,10 @@ mirror it for the UI.
   `profiles` row with `invited_by_user_id = invite.created_by` and flips the
   invite to `accepted`. `invite_preview(token)` and, for an expired one
   emailed to someone, `lapsed_invite_preview(token)` (Step 163) are the
-  only pre-auth RPCs.
+  only pre-auth RPCs. The join page's picture of the tree comes from
+  `invite_glimpse(token)` (Step 215), which only the service role may
+  call: its people and lines stay on the server, and the page gets leaf
+  shapes, the relation's words and the inviter's photo (`readInviteGlimpse`).
 - **Invites join as Leaves (Step 18.2; one type since Step 34)**: every
   invite carries `invites.joins_as`, always `member` — the Leaf — and
   `redeem_invite` joins the tree with it. Anyone on the tree may invite
@@ -2007,6 +2010,49 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 215: the join page shows the tree, and who you are to whoever
+  sent it** (web; migration `20261027150000_invite_glimpse`, live).
+  **Asked for** (2026-10-27): F4 of that day's drop-off audit. A join
+  page said "{inviter} invited you to help build {tree}", with "N
+  relatives are on it" from two members up: no tree, no faces, no
+  relation, nothing at all for a tree of one, and "the family tree" for
+  one still called "Family". **Aalim's calls** (2026-10-27, asked before
+  building, as the page is open to anyone holding the link): it may show
+  everyone on the tree as **unnamed leaves in their birthplace's species**
+  (not plain leaves, a blurred tree or counts only), **the inviter's
+  photo**, and on a claim link **what its entry is to the inviter**.
+  **Now** every invite into a tree (not a founder invite) draws
+  `TreeGlimpse` (`components/tree-glimpse.tsx`): a leaf for each person,
+  rows by generation off a trunk, read from `layoutTree` centred on the
+  inviter (`glimpseRows`), the inviter's leaf green and a claim link's
+  leaf brown with a key ("Chidi", "you"), and under it "14 people are
+  on it, and 3 have joined." (`glimpseCount`; "… so far." until a second
+  member). A row longer than 14 leaves shows those round the marked one
+  and "+12" either side; at most 7 rows. Leaves carry no names, dates or
+  dashed outlines for the dead; anyone hidden from visitors is a plain
+  leaf. Drawn on the server: one outline per shape and colour in
+  `<defs>`, a `<use>` per leaf (~50 KB on a 143-person tree). The
+  inviter's own photo sits beside "You're invited" (card-sized signed
+  URL), unless they hide their entry from visitors. A claim link whose
+  entry the tree can name to the inviter says "Chidi Okafor added you
+  to The Okafor Family as his wife, Ada Okafor." (`claimRelation`:
+  `relationOf`, Step 99's words, with his / her / their from the
+  inviter's entry), else as before. A tree of one or none has no picture
+  and says "It's just been started." A tree still on a default name reads
+  "the Okafor family tree" after the inviter's entry, maiden name first
+  as Step 168 would name it, else "Chidi's family tree"
+  (`treeForInvitee`), in the sentence and on **join …**. All of it from
+  `invite_glimpse(token)`: live like `invite_preview`, service role
+  only (anon and signed-in can't call it), the inviter's entry by
+  `self_person_id` ∪ approved claim on that tree. `/privacy` says what a
+  link holder sees. **My calls:** leaves upright on twigs off a trunk
+  rather than lying as on the spotlight; the inviter's leaf marked on
+  every link; the count of people on the tree, not only members;
+  "It's just been started." without the inviter's name, which the
+  sentence already has. Checked signed out at 375px, light and dark, on
+  a throwaway tree (claim link, family link, emailed invite, a 30-cousin
+  row, a test photo; an empty tree with a family link) and on a live
+  143-person family link; test rows deleted.
 - **Step 214: send someone their own link the moment they're added**
   (web, no migration). **Asked for** (2026-10-27): F3 of that day's
   drop-off audit. Five outside founders had added 67 living relatives and

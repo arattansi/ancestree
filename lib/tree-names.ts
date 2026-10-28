@@ -73,6 +73,30 @@ export function treeInSentence(name: string): string {
 }
 
 /**
+ * A tree's name on its join page (Step 215): its own, or while it still has
+ * a default name, the family of whoever sent the link, as their entry has it
+ * and as Step 168 would name the tree — "the Okafor family tree" — else
+ * theirs by first name, "Chidi's family tree". "The family tree" only when
+ * there's neither.
+ */
+export function treeForInvitee(
+  name: string,
+  inviter: {
+    firstName?: string | null;
+    maidenName?: string | null;
+    lastName?: string | null;
+  },
+): string {
+  if (!isDefaultTreeName(name)) return name.trim();
+  const family = [inviter.maidenName, inviter.lastName]
+    .map((n) => (n ?? "").trim())
+    .find(Boolean);
+  if (family) return `the ${family} family tree`;
+  const first = (inviter.firstName ?? "").trim();
+  return first ? `${first}’s family tree` : "the family tree";
+}
+
+/**
  * What to offer a founder in place of a default name: their family's name,
  * "The Garcia Family". A maiden name comes first — someone who married in
  * and starts a tree is starting their own side — and a name one of their
