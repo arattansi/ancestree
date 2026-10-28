@@ -4160,6 +4160,7 @@ export type Database = {
           key_version: number
         }[]
       }
+      invite_funnel: { Args: never; Returns: Json }
       invite_glimpse: { Args: { p_token: string }; Returns: Json }
       invite_preview: {
         Args: { p_token: string }
@@ -4436,6 +4437,19 @@ export type Database = {
       }
       no_email_members: { Args: { p_tree: string }; Returns: string[] }
       note_active_day: { Args: never; Returns: boolean }
+      note_invite_email_added: { Args: { p_user: string }; Returns: undefined }
+      note_invite_event: {
+        Args: { p_channel?: string; p_kind: string; p_token: string }
+        Returns: undefined
+      }
+      note_invite_opened: {
+        Args: { p_token: string; p_visitor: string }
+        Returns: undefined
+      }
+      note_invite_shared: {
+        Args: { p_channel: string; p_token: string }
+        Returns: undefined
+      }
       onboarding_due: {
         Args: { p_users?: string[] }
         Returns: {
@@ -4608,7 +4622,7 @@ export type Database = {
         }
       }
       redeem_invite_tree: {
-        Args: { p_display_name?: string; p_token: string }
+        Args: { p_display_name?: string; p_path?: string; p_token: string }
         Returns: Json
       }
       refuse_suspended: { Args: never; Returns: undefined }

@@ -6,7 +6,12 @@ import { makeClaimLink, sendClaimInvite } from "@/app/actions/invites";
 import { FormError } from "@/components/form-error";
 import { JoinsAsNote } from "@/components/joins-as-note";
 import { PendingButton } from "@/components/pending-button";
-import { ShareMessage, shareSheet, useShareDevice } from "@/components/share-message";
+import {
+  noteShared,
+  ShareMessage,
+  shareSheet,
+  useShareDevice,
+} from "@/components/share-message";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAction } from "@/components/use-action";
@@ -36,7 +41,7 @@ export function SendTheirLink({
 }) {
   const { sheet } = useShareDevice();
   const action = useAction({ inline: true });
-  const [message, setMessage] = React.useState<string | null>(null);
+  const [sent, setSent] = React.useState<{ message: string; token?: string } | null>(null);
   const [emailing, setEmailing] = React.useState(false);
   const [email, setEmail] = React.useState("");
   const [emailed, setEmailed] = React.useState<string | null>(null);
@@ -44,11 +49,15 @@ export function SendTheirLink({
 
   function link() {
     action.run("link", () => makeClaimLink(personId, treeId), {
-      onSuccess: ({ url }) => {
+      onSuccess: ({ url, token }) => {
         if (!url) return;
         const text = addedYouMessage(url, treeName);
-        setMessage(text);
-        if (sheet) void shareSheet(text);
+        setSent({ message: text, token });
+        if (sheet) {
+          void shareSheet(text).then((shared) => {
+            if (shared && token) noteShared(token, "share");
+          });
+        }
       },
     });
   }
@@ -64,8 +73,8 @@ export function SendTheirLink({
 
   return (
     <div className="flex flex-col gap-3">
-      {message ? (
-        <ShareMessage message={message} />
+      {sent ? (
+        <ShareMessage message={sent.message} inviteToken={sent.token} />
       ) : (
         <div className="flex flex-wrap items-center gap-2">
           <PendingButton

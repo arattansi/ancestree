@@ -6,6 +6,7 @@ import { AcceptInviteForm, SignInToAccept } from "@/components/accept-invite-for
 import { AccountTypeGlyph } from "@/components/account-type-badge";
 import { JoinTreeButton } from "@/components/join-tree-button";
 import { MagicLinkSignIn } from "@/components/magic-link-sign-in";
+import { InviteOpened } from "@/components/invite-opened";
 import { CenteredPage } from "@/components/page-column";
 import { RenewInvite } from "@/components/renew-invite";
 import { SubmitButton } from "@/components/submit-button";
@@ -163,6 +164,8 @@ export default async function InvitePage({
           />
         ) : preview?.valid ? (
           <>
+            {/* Counted once a visitor a day (Step 216). */}
+            <InviteOpened token={token} />
             <CardHeader>
               <CardTitle>You&rsquo;re invited</CardTitle>
               {glimpse?.inviterPhoto && !founds ? (

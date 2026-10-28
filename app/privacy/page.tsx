@@ -77,6 +77,13 @@ export default function PrivacyPage() {
             They go when your account does.
           </li>
           <li>
+            For each invite link: which share button sent it, how many opened
+            it each day, and how those who joined came in. Opening one sets a
+            cookie holding a random number, so one person opening it twice in a
+            day counts once; only a scrambled form of it is kept, never who
+            opened it, their IP address or their device.
+          </li>
+          <li>
             While you have a tree open, its other members who have it open too
             see that you&rsquo;re there and where your pointer is. It&rsquo;s
             passed between you as it happens and never stored; people viewing
@@ -139,7 +146,8 @@ export default function PrivacyPage() {
           </li>
           <li>
             The site&rsquo;s owners see each tree&rsquo;s name and its counts —
-            members, entries, days used — never its entries or who anyone is.
+            members, entries, days used, invites shared, opened and joined —
+            never its entries or who anyone is.
             For the links they share to start a tree, they see only how many
             opened each one, signed up and started a tree, never who.
           </li>

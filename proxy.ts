@@ -64,6 +64,9 @@ const PUBLIC_PREFIXES = [
   // The phone app's routes, which hold no cookie: each checks the bearer
   // token it's sent (`lib/supabase/bearer.ts`, Step 148).
   "/api/mobile/",
+  // An invite's page saying it was seen, signed out as often as not (Step
+  // 216).
+  "/api/invite-opened",
 ];
 
 export async function proxy(request: NextRequest, event: NextFetchEvent) {

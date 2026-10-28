@@ -40,6 +40,10 @@ vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({ from: (table: string) => query(table) }),
 }));
 vi.mock("@/lib/site-url", () => ({ getSiteUrl: () => "https://www.ancestree.space" }));
+const noteInvitesEmailed = vi.fn();
+vi.mock("@/lib/invite-events.server", () => ({
+  noteInvitesEmailed: (tokens: string[]) => noteInvitesEmailed(tokens),
+}));
 vi.mock("@/lib/email", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/email")>()),
   sendEmails: async (messages: SendEmailInput[]) => {
@@ -67,6 +71,7 @@ const rowsOf = (chain: Chain) => chain.steps[0][1] as Record<string, unknown>[];
 const inserted = (table: string) => chains.find((c) => c.table === table);
 
 beforeEach(() => {
+  noteInvitesEmailed.mockReset();
   chains = [];
   batches = [];
   answers = (messages) => messages.map(() => ({ ok: true }));
@@ -140,6 +145,9 @@ describe("mintInvites", () => {
       }),
       expect.objectContaining({ invite_id: "inv-omar", email_sent: false }),
     ]);
+
+    // Only the one that went counts as shared by email (Step 216).
+    expect(noteInvitesEmailed).toHaveBeenCalledWith(["tok-zahra"]);
 
     expect(minted).toEqual([
       {

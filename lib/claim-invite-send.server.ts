@@ -254,7 +254,7 @@ export async function mintClaimLink(
   inviter: Profile,
   personId: string,
   treeId: string,
-): Promise<{ url?: string; minted?: boolean; error?: string }> {
+): Promise<{ url?: string; token?: string; minted?: boolean; error?: string }> {
   const supabase = await createClient();
   const [role, { data: mayInvite }] = await Promise.all([
     getRoleIn(treeId),
@@ -283,7 +283,7 @@ export async function mintClaimLink(
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-  if (live) return { url: inviteUrl(live.token) };
+  if (live) return { url: inviteUrl(live.token), token: live.token };
 
   const { data: made, error } = await admin
     .from("invites")
@@ -301,5 +301,5 @@ export async function mintClaimLink(
     console.error(`[invites] claim link not made — ${error?.message}`);
     return { error: "Could not create a link. Try again." };
   }
-  return { url: inviteUrl(made.token), minted: true };
+  return { url: inviteUrl(made.token), token: made.token, minted: true };
 }

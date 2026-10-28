@@ -514,7 +514,7 @@ export async function setTreeVisibility(
 export async function joinTreeWithInvite(token: string): Promise<{ error?: string }> {
   await requireProfile();
   const supabase = await createClient();
-  const redeemed = await redeemInvite(supabase, token);
+  const redeemed = await redeemInvite(supabase, token, "signed_in");
   if (!redeemed.ok) {
     if (redeemed.reason === "another_address") {
       // Drawn again for whoever is signed in now, it says whose invite it

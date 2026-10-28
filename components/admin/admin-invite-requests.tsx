@@ -12,6 +12,7 @@ import { DeleteInviteButton } from "@/components/admin/delete-invite-button";
 import { CandidateRow } from "@/components/candidate-row";
 import { PendingButton } from "@/components/pending-button";
 import { RowCard, RowList } from "@/components/row-card";
+import { noteShared } from "@/components/share-message";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAction } from "@/components/use-action";
@@ -40,6 +41,8 @@ type Approved = {
   /** The request as it was when approved, to keep its row (`requestRows`). */
   request: PendingInviteRequest;
   url: string;
+  /** To count a copy of the link (Step 216). */
+  token?: string;
   emailed: boolean;
 };
 
@@ -120,6 +123,7 @@ function RequestRow({
             onApproved({
               request: r,
               url: res.url,
+              token: res.token,
               emailed: !!res.emailed,
             });
             // The buttons give way to the link: focus goes to its Copy.
@@ -144,8 +148,10 @@ function RequestRow({
     });
   }
 
-  function copy(url: string) {
-    void copyText(url, { copied: "Invite link copied" });
+  async function copy(url: string) {
+    if ((await copyText(url, { copied: "Invite link copied" })) && result?.token) {
+      noteShared(result.token, "copy");
+    }
   }
 
   return (
@@ -173,7 +179,7 @@ function RequestRow({
               ref={copyRef}
               type="button"
               variant="outline"
-              onClick={() => copy(result.url)}
+              onClick={() => void copy(result.url)}
               aria-label={`Copy the invite link for ${name}`}
             >
               copy

@@ -2,8 +2,10 @@
 
 import * as React from "react";
 
+import { noteInviteShared } from "@/app/actions/invite-events";
 import { copyText } from "@/components/copy-text";
 import { Button } from "@/components/ui/button";
+import type { ShareChannel } from "@/lib/invite-events";
 import { hasMessagesApp, messagesHref, whatsappHref } from "@/lib/share-text";
 import { cn } from "@/lib/utils";
 
@@ -46,31 +48,49 @@ export async function shareSheet(message: string): Promise<boolean> {
 }
 
 /**
+ * An invite sent out through `channel`, counted for the analytics tab
+ * (Step 216). It never holds anything up, and a count that fails says
+ * nothing.
+ */
+export function noteShared(inviteToken: string, channel: ShareChannel): void {
+  void noteInviteShared(inviteToken, channel).catch(() => {});
+}
+
+/**
  * A message ready for a family chat, and the ways to send it (Step 212,
  * shared since Step 214): on a phone the share sheet leads (WhatsApp,
  * Messages, anything), then WhatsApp and copy; elsewhere WhatsApp does,
  * then Messages where an `sms:` link opens it (a Mac), and copy. Each
  * opens the chat with the message typed out, for them to pick who and
- * press send.
+ * press send. Given the invite's token, each button pressed is counted by
+ * which it was (Step 216).
  */
 export function ShareMessage({
   message,
+  inviteToken,
   onShared,
   className,
 }: {
   message: string;
+  /** The invite the message carries, to count its shares. */
+  inviteToken?: string;
   /** It went somewhere, as far as the page can tell. */
   onShared?: () => void;
   className?: string;
 }) {
   const { sheet, messages } = useShareDevice();
 
+  function shared(channel: ShareChannel) {
+    onShared?.();
+    if (inviteToken) noteShared(inviteToken, channel);
+  }
+
   async function share() {
-    if (await shareSheet(message)) onShared?.();
+    if (await shareSheet(message)) shared("share");
   }
 
   async function copy() {
-    if (await copyText(message, { copied: "Message copied" })) onShared?.();
+    if (await copyText(message, { copied: "Message copied" })) shared("copy");
   }
 
   return (
@@ -97,7 +117,7 @@ export function ShareMessage({
               href={whatsappHref(message)}
               target="_blank"
               rel="noopener noreferrer"
-              onClick={onShared}
+              onClick={() => shared("whatsapp")}
             />
           }
         >
@@ -108,7 +128,7 @@ export function ShareMessage({
           <Button
             variant="outline"
             nativeButton={false}
-            render={<a href={messagesHref(message)} onClick={onShared} />}
+            render={<a href={messagesHref(message)} onClick={() => shared("messages")} />}
           >
             Messages
           </Button>

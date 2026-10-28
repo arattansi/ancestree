@@ -5,6 +5,7 @@ import * as React from "react";
 import { makeClaimLink, sendClaimInvite } from "@/app/actions/invites";
 import { copyText } from "@/components/copy-text";
 import { PendingButton } from "@/components/pending-button";
+import { noteShared } from "@/components/share-message";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAction } from "@/components/use-action";
@@ -22,7 +23,7 @@ export function claimLinkMessage(url: string, treeName: string): string {
  * way (Step 143): the Root console's list, the people a member added
  * (Step 151), the founder's invite step and a person's sheet (Step 162).
  * `head` sits beside the two buttons; the email box and the link open
- * under them.
+ * under them. Each copy and WhatsApp is counted (Step 216).
  */
 export function ClaimInviteControls({
   personId,
@@ -46,8 +47,13 @@ export function ClaimInviteControls({
   const id = React.useId();
   const [open, setOpen] = React.useState(false);
   const [email, setEmail] = React.useState("");
-  const [url, setUrl] = React.useState<string | null>(null);
+  const [made, setMade] = React.useState<{ url: string; token?: string } | null>(null);
+  const url = made?.url ?? null;
   const action = useAction({ inline: true });
+
+  async function copy(text: string, token?: string) {
+    if ((await copyText(text, { copied: "Link copied" })) && token) noteShared(token, "copy");
+  }
 
   function send(e: React.FormEvent) {
     e.preventDefault();
@@ -64,8 +70,8 @@ export function ClaimInviteControls({
     action.run("link", () => makeClaimLink(personId, treeId), {
       onSuccess: (res) => {
         if (!res.url) return;
-        setUrl(res.url);
-        void copyText(res.url, { copied: "Link copied" });
+        setMade({ url: res.url, token: res.token });
+        void copy(res.url, res.token);
       },
     });
   }
@@ -143,7 +149,7 @@ export function ClaimInviteControls({
               variant="outline"
               size="sm"
               className="sm:h-9"
-              onClick={() => void copyText(url, { copied: "Link copied" })}
+              onClick={() => void copy(url, made?.token)}
             >
               copy
             </Button>
@@ -157,6 +163,9 @@ export function ClaimInviteControls({
                   href={whatsappHref(claimLinkMessage(url, treeName))}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={() => {
+                    if (made?.token) noteShared(made.token, "whatsapp");
+                  }}
                 />
               }
             >

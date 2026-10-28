@@ -1,3 +1,4 @@
+import { InviteFunnelCard } from "@/components/dashboard/invite-funnel";
 import { WeeklyActiveChart } from "@/components/dashboard/weekly-active-chart";
 import {
   Card,
@@ -18,20 +19,23 @@ import {
   type Dashboard,
 } from "@/lib/dashboard";
 import { loadDashboard } from "@/lib/dashboard.server";
+import { loadInviteFunnel } from "@/lib/invite-funnel.server";
+import type { InviteFunnel } from "@/lib/invite-funnel";
 
 /**
  * The beta reviewers' dashboard (Step 56) — the admin page's analytics tab
  * (Step 103): how much ancestree is used across every tree, in counts that
  * name nobody but each tree's Roots. The admin page shows it only to a reviewer, and
- * `engagement_dashboard()` answers nobody else.
+ * `engagement_dashboard()` answers nobody else. What happened to each
+ * tree's invites sits above its Trees (Step 216).
  */
 export async function EngagementDashboard() {
-  const dashboard = await loadDashboard();
+  const [dashboard, funnel] = await Promise.all([loadDashboard(), loadInviteFunnel()]);
 
   return (
     <div className="flex flex-col gap-6">
       {dashboard ? (
-        <DashboardView d={dashboard} />
+        <DashboardView d={dashboard} funnel={funnel} />
       ) : (
         <Card>
           <CardHeader>
@@ -44,7 +48,7 @@ export async function EngagementDashboard() {
 }
 
 /** The cards, for a dashboard that has loaded. */
-export function DashboardView({ d }: { d: Dashboard }) {
+export function DashboardView({ d, funnel }: { d: Dashboard; funnel: InviteFunnel | null }) {
   const weeks = weeksSinceFirstActivity(d.weeks);
   const cell = "px-4 py-2 text-right tabular-nums";
 
@@ -224,6 +228,8 @@ export function DashboardView({ d }: { d: Dashboard }) {
           </div>
         </CardContent>
       </Card>
+
+      <InviteFunnelCard funnel={funnel} />
 
       <Card>
         <CardHeader>

@@ -23,6 +23,7 @@ import { revalidateTreePages } from "@/lib/revalidate";
 import { getSessionUser, requireProfile } from "@/lib/auth";
 import { ownedWrite } from "@/lib/db-errors";
 import { expiresAfter, isExpired } from "@/lib/expiry";
+import { noteInvitesEmailed } from "@/lib/invite-events.server";
 import { inviterName, inviteUrl } from "@/lib/invite-mint.server";
 import { INVITE_LIFETIME_DAYS } from "@/lib/limits";
 import { rootOf } from "@/lib/tree-context";
@@ -116,6 +117,8 @@ export async function approveInviteRequest(
   personId?: string | null,
 ): Promise<{
   url?: string;
+  /** Its token, to count a copy of the link (Step 216). */
+  token?: string;
   emailed?: boolean;
   emailError?: string;
   /** The entry the invite claims, when approved as one. */
@@ -204,6 +207,7 @@ export async function approveInviteRequest(
     entryName: entry?.name,
   });
   const sent = await sendEmail({ to: request.email, subject, html });
+  if (sent.ok) noteInvitesEmailed([invite.token]);
 
   // It's approved either way: this ties the record to its link, so Sent
   // Invites can resend it.
@@ -215,6 +219,7 @@ export async function approveInviteRequest(
   revalidateTreePages();
   return {
     url,
+    token: invite.token,
     emailed: sent.ok,
     emailError: whyNotSent(sent),
     entryName: entry?.name,
@@ -292,6 +297,7 @@ export async function resendInviteEmail(
       });
 
   const sent = await sendEmail({ to: request.email, subject, html });
+  if (sent.ok) noteInvitesEmailed([invite.token]);
 
   const { error: updateError } = await supabase
     .from("invite_requests")

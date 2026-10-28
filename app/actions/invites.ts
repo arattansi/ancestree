@@ -214,16 +214,16 @@ export async function sendClaimInvite(
  * address, to send however they like (Step 143, the Root console's list;
  * Step 151, the people a member added). Anyone who may invite someone to
  * claim it may make one. A live one already made for it comes back
- * instead.
+ * instead. Its token comes too, to count how it's shared (Step 216).
  */
 export async function makeClaimLink(
   personId: string,
   treeId: string,
-): Promise<{ url?: string; error?: string }> {
+): Promise<{ url?: string; token?: string; error?: string }> {
   const inviter = await requireProfile();
-  const { url, minted, error } = await mintClaimLink(inviter, personId, treeId);
+  const { url, token, minted, error } = await mintClaimLink(inviter, personId, treeId);
   if (minted) revalidateTreePages();
-  return { url, error };
+  return { url, token, error };
 }
 
 export type { RenewInviteState } from "@/lib/invite-renewal.server";

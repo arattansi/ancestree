@@ -11,6 +11,7 @@ import { AccountTypeBadge } from "@/components/account-type-badge";
 import { ConfirmButton } from "@/components/confirm-dialog";
 import { copyText } from "@/components/copy-text";
 import { PendingButton } from "@/components/pending-button";
+import { noteShared } from "@/components/share-message";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -73,8 +74,11 @@ export function AdminFamilyLink({
   const url = link ? `${baseUrl}${inviteHref(link.token)}` : null;
   const full = link ? isFamilyLinkFull(link) : false;
 
-  function copy(text: string) {
-    void copyText(text, { copied: "Family link copied" });
+  // Counted by which button (Step 216).
+  async function copy(text: string) {
+    if ((await copyText(text, { copied: "Family link copied" })) && link) {
+      noteShared(link.token, "copy");
+    }
   }
 
   function make() {
@@ -148,7 +152,7 @@ export function AdminFamilyLink({
               onFocus={(e) => e.currentTarget.select()}
             />
             <div className="flex gap-2">
-              <Button ref={copyRef} type="button" variant="outline" onClick={() => copy(url)}>
+              <Button ref={copyRef} type="button" variant="outline" onClick={() => void copy(url)}>
                 copy
               </Button>
               <Button
@@ -159,6 +163,9 @@ export function AdminFamilyLink({
                     href={whatsappShareHref(url, treeName)}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={() => {
+                      if (link) noteShared(link.token, "whatsapp");
+                    }}
                   />
                 }
               >

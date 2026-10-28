@@ -4,6 +4,7 @@ import { INVITED_AS } from "@/lib/account-types";
 import type { Profile } from "@/lib/auth";
 import { sendEmails, unsentSummary, whyNotSent } from "@/lib/email";
 import { expiresAfter } from "@/lib/expiry";
+import { noteInvitesEmailed } from "@/lib/invite-events.server";
 import { INVITE_LIFETIME_DAYS } from "@/lib/limits";
 import { inviteHref } from "@/lib/sign-in-links";
 import { getSiteUrl } from "@/lib/site-url";
@@ -128,6 +129,8 @@ export async function mintInvites({
   );
   const unsent = unsentSummary(sent);
   if (unsent) console.error(`[invites] invite emails: ${unsent}`);
+  // Each that went, counted as shared by email (Step 216).
+  noteInvitesEmailed(made.flatMap(({ invite }, i) => (sent[i].ok ? [invite.token] : [])));
 
   const reviewedAt = new Date().toISOString();
   const { error: recordError } = await admin.from("invite_requests").insert(

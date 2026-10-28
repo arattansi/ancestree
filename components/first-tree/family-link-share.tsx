@@ -77,7 +77,7 @@ export function FamilyLinkShare({
             </PendingButton>
           </div>
         ) : (
-          <ShareMessage message={message} onShared={onShared} />
+          <ShareMessage message={message} inviteToken={link.token} onShared={onShared} />
         )}
         <p className="text-xs text-muted-foreground">
           {link.useCount > 0 && !full ? `${familyLinkCount(link)} · ` : null}

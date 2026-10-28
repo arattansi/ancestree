@@ -172,7 +172,7 @@ describe("redeemInvite", () => {
         was_member: false,
       }),
     );
-    expect(await redeemInvite(server as never, "tok")).toEqual({
+    expect(await redeemInvite(server as never, "tok", "name")).toEqual({
       ok: true,
       joined: {
         treeId: "t1",
@@ -188,9 +188,19 @@ describe("redeemInvite", () => {
     expect(setCurrentTreeCookie).toHaveBeenCalledWith("t1");
   });
 
+  it("says how they came in, for the count of joins (Step 216)", async () => {
+    server = fakeServer(redeemed({ self_person_id: "p1" }));
+    await redeemInvite(server as never, "tok", "signed_in", "Ada Okafor");
+    expect(server.rpc).toHaveBeenCalledWith("redeem_invite_tree", {
+      p_token: "tok",
+      p_display_name: "Ada Okafor",
+      p_path: "signed_in",
+    });
+  });
+
   it("takes an answer without `self_placed` as not placed", async () => {
     server = fakeServer(redeemed({ self_person_id: "p1" }));
-    expect(await redeemInvite(server as never, "tok")).toMatchObject({
+    expect(await redeemInvite(server as never, "tok", "name")).toMatchObject({
       ok: true,
       joined: { selfPlaced: false },
     });
@@ -198,7 +208,7 @@ describe("redeemInvite", () => {
 
   it("takes an answer from before Step 50 as an ordinary invite", async () => {
     server = fakeServer(redeemed({ self_person_id: "p1", self_placed: true }));
-    expect(await redeemInvite(server as never, "tok")).toMatchObject({
+    expect(await redeemInvite(server as never, "tok", "name")).toMatchObject({
       ok: true,
       joined: { claimInvite: false, hadEntry: false, wasMember: false },
     });
@@ -206,7 +216,7 @@ describe("redeemInvite", () => {
 
   it("says when the invite was emailed to another address (Step 51)", async () => {
     server = fakeServer(ANOTHER_ADDRESS);
-    expect(await redeemInvite(server as never, "tok")).toEqual({
+    expect(await redeemInvite(server as never, "tok", "name")).toEqual({
       ok: false,
       reason: "another_address",
     });
@@ -215,7 +225,7 @@ describe("redeemInvite", () => {
 
   it("calls any other refusal invalid", async () => {
     server = fakeServer({ data: null, error: { message: "invalid_or_expired_invite" } });
-    expect(await redeemInvite(server as never, "tok")).toEqual({
+    expect(await redeemInvite(server as never, "tok", "name")).toEqual({
       ok: false,
       reason: "invalid",
     });
@@ -237,6 +247,11 @@ describe("establishMembership", () => {
     expect(
       await establishMembership(server as never, { invite: "tok", next: "/tree" }),
     ).toBe("/welcome");
+    // An emailed code's sign-in, counted as such (Step 216).
+    expect(server.rpc).toHaveBeenCalledWith(
+      "redeem_invite_tree",
+      expect.objectContaining({ p_path: "email_code" }),
+    );
   });
 
   it("lands on My Family Tree, offering the tree, after an ordinary invite (Step 131)", async () => {
@@ -434,6 +449,7 @@ describe("the name someone joins by (Step 30.7)", () => {
     expect(server.rpc).toHaveBeenCalledWith("redeem_invite_tree", {
       p_token: "tok",
       p_display_name: "Mary Ann Smith",
+      p_path: "emailed_invite",
     });
   });
 
@@ -457,6 +473,7 @@ describe("the name someone joins by (Step 30.7)", () => {
     expect(server.rpc).toHaveBeenCalledWith("redeem_invite_tree", {
       p_token: "tok",
       p_display_name: "Zahra Suleman",
+      p_path: "email_code",
     });
   });
 
@@ -470,6 +487,7 @@ describe("the name someone joins by (Step 30.7)", () => {
     expect(server.rpc).toHaveBeenCalledWith("redeem_invite_tree", {
       p_token: "tok",
       p_display_name: "Zahra Suleman",
+      p_path: "email_code",
     });
   });
 
@@ -479,6 +497,7 @@ describe("the name someone joins by (Step 30.7)", () => {
     expect(server.rpc).toHaveBeenCalledWith("redeem_invite_tree", {
       p_token: "tok",
       p_display_name: undefined,
+      p_path: "email_code",
     });
   });
 });
@@ -537,6 +556,7 @@ describe("completeCodeSignIn (Step 53)", () => {
     expect(server.rpc).toHaveBeenCalledWith("redeem_invite_tree", {
       p_token: "tok",
       p_display_name: "Zahra Suleman",
+      p_path: "email_code",
     });
   });
 

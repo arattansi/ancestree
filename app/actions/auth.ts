@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { getSessionUser } from "@/lib/auth";
 import { isEmailAddress } from "@/lib/email-address";
+import { noteEmailAdded, noteInviteEvent } from "@/lib/invite-events.server";
 import { signInAsksName, type JoiningName } from "@/lib/joining-name";
 import { EMAIL_ASKED_KEY } from "@/lib/no-email";
 import {
@@ -126,6 +127,8 @@ export async function requestMagicLink(
   }
 
   const sentAt = Date.now();
+  // A code from an invite's page, counted once a form (Step 216).
+  if (inviteToken && !resend) noteInviteEvent(inviteToken, "code_sent");
   await rememberSentCode({
     email,
     firstName: asksName ? entered.firstName : undefined,
@@ -351,6 +354,8 @@ export async function confirmAddEmailAction(
   }
   const result = await confirmAddEmail(user.id, code);
   if (!result.ok) return { error: ADD_EMAIL_CONFIRM_REFUSALS[result.reason] };
+  // Counted on the invite they joined by, if that was by name (Step 216).
+  noteEmailAdded(user.id);
   if (formData.get("stay") === "1") return { added: true };
   redirect("/account?view=settings");
 }
@@ -395,6 +400,7 @@ export async function sendInviteSignInCode(
   const result = await emailInviteSignInCode(token);
   if (result.ok) {
     const sentAt = Date.now();
+    if (!resend) noteInviteEvent(token, "code_sent");
     await rememberSentCode({ email: result.email, inviteToken: token, sentAt });
     return { sentTo: result.email, sentAt, resent: resend };
   }

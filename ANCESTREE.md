@@ -1434,6 +1434,16 @@ mirror it for the UI.
   `invite_glimpse(token)` (Step 215), which only the service role may
   call: its people and lines stay on the server, and the page gets leaf
   shapes, the relation's words and the inviter's photo (`readInviteGlimpse`).
+- **What happens to invites** (Step 216): `private.invite_events` records
+  each invite made, shared (by button, or emailed), opened (the page's
+  beacon, once a visitor a day), a code sent from its page, joined (by
+  name, email code, an emailed invite's button, or signed in) and an email
+  added after joining by name, kept after the invite is redeemed. Written
+  only through `note_invite_opened` (anyone), `note_invite_shared` (its
+  sender, a Root, or a claim inviter), `note_invite_event` /
+  `note_invite_email_added` (service role), the `invite_events_made`
+  trigger and `redeem_invite_tree`; read only by `invite_funnel()`.
+  `lib/invite-events*.ts`, `lib/invite-funnel*.ts`.
 - **Invites join as Leaves (Step 18.2; one type since Step 34)**: every
   invite carries `invites.joins_as`, always `member` — the Leaf — and
   `redeem_invite` joins the tree with it. Anyone on the tree may invite
@@ -1858,6 +1868,14 @@ Canadian context → PIPEDA-minded.
   `engagement_dashboard()` reads it, for the beta reviewers' dashboard,
   which shows each tree's name and counts, never a person. `/privacy` says
   both, under what we collect and how it's protected.
+- **Invite events** (Step 216): `private.invite_events` counts what
+  happens to invite links. An open keeps no IP, no user agent and not the
+  visitor's id: the `ancestree-visitor` cookie (a random UUID, a year,
+  sent only to `/api/invite-opened`) is stored as md5 with the invite and
+  the UTC day, so it can't be followed across links or days. A join keeps
+  who joined (gone with their account) so a later email finds their
+  invite. Rows go with their tree. Only `invite_funnel()` reads them, for
+  the beta reviewers; `/privacy` says so.
 
 ## Reference data — GeoNames `places`
 
@@ -2010,6 +2028,60 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 216: what happens to invites is recorded** (web; migrations
+  `20261027180000_invite_events` and
+  `20261027181000_invite_shared_by_claim_inviters`, both live).
+  **Asked for** (2026-10-27): F5 of that day's drop-off audit, which
+  couldn't tell a link never shared from one shared and never opened, or
+  opened and given up on: nothing recorded share buttons or opens, GA has
+  no custom events and Resend tracking is off. **Now** a first-party
+  record, `private.invite_events (invite_id, tree_id, kind, link,
+  channel, user_id, dedupe, at)`, by invite, with no foreign key on the
+  invite (redeeming deletes it; a joined invite keeps its history) and
+  the tree's cascading. Kinds: **made** (a trigger on `invites`, so every
+  way of making one), **shared** by `share` / `whatsapp` / `messages` /
+  `copy` (`ShareMessage` given `inviteToken`, so the family link card and
+  "send {first} their link"; `ClaimInviteControls`' copy link, copy and
+  WhatsApp; the Root console's family link and approved-request copies,
+  through `noteInviteShared` → `note_invite_shared`, which takes its
+  sender, a Root, or anyone who may invite someone to claim its entry) or
+  `email` (`mintInvites`, approvals and resends, server-side through
+  `note_invite_event`, service role), **opened** (the join page's
+  `InviteOpened` beacon posts to `/api/invite-opened` once drawn, so a
+  chat app's link preview doesn't count; a random id in the
+  `ancestree-visitor` cookie, sent only to that route, counts a visitor
+  once an invite a UTC day, stored only as an md5 with the invite and the
+  day; members already on the tree aren't counted; at most 200 a link a
+  day), **code_sent** (`requestMagicLink` and `sendInviteSignInCode` from
+  an invite's page, not resends), **joined** by `name` / `email_code` /
+  `emailed_invite` / `signed_in` (`redeem_invite_tree` takes `p_path`,
+  the two-argument version dropped, and notes the join from the invite
+  as it was, with who joined), and **email_added** (a name-first joiner
+  adding an email, once, on the invite they joined by). No IPs, no user
+  agents. Founder invites aren't recorded. A count never stops what it
+  counts (exception blocks in the trigger and wrapper; `after()` on the
+  server). The analytics tab's **Invites in the Last 30 Days**
+  (`invite_funnel()`, reviewers only) lists each tree with anything in the
+  window: made, shared (links, with each press by button), opened, code
+  sent, joined (by path), email added, outside founders first, then beta
+  reviewers' trees, test accounts (founded from resend.dev or example.com)
+  folded away, with "Counted since 28 Oct 2026" until the record covers
+  the 30 days. `/privacy` says opens are counted and how. **My calls:**
+  opens counted from the browser rather than the server (link previews);
+  the visitor id hashed per invite and day rather than kept; a separate
+  `invite_funnel()` rather than growing `engagement_dashboard()`; the
+  share allowance widened to claim inviters in a second migration (a
+  Leaf is handed back the link a Root made); no `/changelog` entry, as
+  only `/privacy` changes for members. Checked live on a throwaway tree:
+  the family link's WhatsApp, Messages and copy, a claim link's copy and
+  WhatsApp, an emailed invite and an emailed claim invite; the family
+  link opened by two visitors (one reloading), joined by name and the
+  email added after; the emailed invite joined with its one button; the
+  emailed claim invite to an existing account joined by email code. The
+  rows and the test reviewer's analytics tab both read made 4, shared 4
+  (WhatsApp 2, Messages 1, copy 2, email 2), opened 4, code sent 1,
+  joined 3 (name, email code, emailed invite), email added 1; test rows
+  deleted.
 - **Step 215: the join page shows the tree, and who you are to whoever
   sent it** (web; migration `20261027150000_invite_glimpse`, live).
   **Asked for** (2026-10-27): F4 of that day's drop-off audit. A join

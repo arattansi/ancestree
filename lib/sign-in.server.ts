@@ -8,6 +8,7 @@ import { isExpired } from "@/lib/expiry";
 import { verifiedEmail } from "@/lib/first-timer";
 import { waitingInviteHref } from "@/lib/first-timer.server";
 import { isAnotherAddressRefusal } from "@/lib/invite-address";
+import type { JoinPath } from "@/lib/invite-events";
 import {
   joiningDisplayName,
   readJoiningName,
@@ -63,16 +64,19 @@ export type RedeemResult =
  * none, a membership in the invite's tree — or, for a founder invite, a
  * brand-new tree with them as Root. Says which tree was joined, and makes
  * it the one their browser is looking at, or why it wasn't. Only from a
- * server action or route handler, since it writes a cookie.
+ * server action or route handler, since it writes a cookie. `path` is how
+ * they came in, counted with the join (Step 216).
  */
 export async function redeemInvite(
   supabase: ServerClient,
   token: string,
+  path: JoinPath,
   displayName?: string,
 ): Promise<RedeemResult> {
   const { data, error } = await supabase.rpc("redeem_invite_tree", {
     p_token: token,
     p_display_name: displayName,
+    p_path: path,
   });
   if (error || !data) {
     return {
@@ -188,7 +192,7 @@ export async function establishMembership(
     return started.ok ? joinedTreeHref({ ...started.joined, founded: true }) : campaignHref(campaign);
   }
   if (invite) {
-    const redeemed = await redeemInvite(supabase, invite, displayName);
+    const redeemed = await redeemInvite(supabase, invite, "email_code", displayName);
     if (redeemed.ok) return joinedTreeHref(redeemed.joined);
     return redeemed.reason === "another_address" ? inviteHref(invite) : "/join?error=invite";
   }
@@ -505,7 +509,12 @@ export async function signInWithInvite(token: string): Promise<InviteSignInResul
   });
   if (verifyError) return { ok: false, reason: "failed" };
 
-  const redeemed = await redeemInvite(supabase, token, recipient.name ?? undefined);
+  const redeemed = await redeemInvite(
+    supabase,
+    token,
+    "emailed_invite",
+    recipient.name ?? undefined,
+  );
   if (!redeemed.ok) return { ok: false, reason: "invalid" };
 
   const { joined } = redeemed;
@@ -552,7 +561,7 @@ export async function joinWithoutEmail(
     return { ok: false, reason: "failed" };
   }
 
-  const redeemed = await redeemInvite(supabase, token, joiningDisplayName(name));
+  const redeemed = await redeemInvite(supabase, token, "name", joiningDisplayName(name));
   if (!redeemed.ok) {
     await supabase.auth.signOut();
     await undo();
