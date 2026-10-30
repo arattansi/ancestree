@@ -19,6 +19,16 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "2026-10-29",
+    title: "birthday cards",
+    items: [
+      "family can sign a birthday card for someone on the tree: a message, a voice memo, a photo, any of them. everyone signing sees what the others wrote.",
+      "a spouse, a parent or a root starts it, up to a month before. an envelope tied with string sits at the corner of their card until the day.",
+      "it's sealed until midnight on their birthday, where they live. then it's waiting on their tree: pull the string to open it.",
+    ],
+    steps: [217],
+  },
+  {
     date: "2026-10-27",
     title: "see the tree before you join",
     items: [

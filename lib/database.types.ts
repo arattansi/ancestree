@@ -132,6 +132,70 @@ export type Database = {
           },
         ]
       }
+      birthday_cards: {
+        Row: {
+          announced_at: string | null
+          closes_at: string
+          created_at: string
+          id: string
+          opened_at: string | null
+          opens_at: string
+          opens_on: string
+          person_id: string
+          started_by: string | null
+          time_zone: string
+          year: number
+        }
+        Insert: {
+          announced_at?: string | null
+          closes_at: string
+          created_at?: string
+          id?: string
+          opened_at?: string | null
+          opens_at: string
+          opens_on: string
+          person_id: string
+          started_by?: string | null
+          time_zone: string
+          year: number
+        }
+        Update: {
+          announced_at?: string | null
+          closes_at?: string
+          created_at?: string
+          id?: string
+          opened_at?: string | null
+          opens_at?: string
+          opens_on?: string
+          person_id?: string
+          started_by?: string | null
+          time_zone?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "birthday_cards_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "birthday_cards_started_by_fkey"
+            columns: ["started_by"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "birthday_cards_started_by_fkey"
+            columns: ["started_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+        ]
+      }
       blog_post_likes: {
         Row: {
           created_at: string
@@ -307,6 +371,67 @@ export type Database = {
           trees_founded?: number
         }
         Relationships: []
+      }
+      card_signatures: {
+        Row: {
+          audio_path: string | null
+          audio_seconds: number | null
+          card_id: string
+          created_at: string
+          id: string
+          message: string | null
+          photo_path: string | null
+          signer_name: string
+          signer_user_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          audio_path?: string | null
+          audio_seconds?: number | null
+          card_id: string
+          created_at?: string
+          id?: string
+          message?: string | null
+          photo_path?: string | null
+          signer_name: string
+          signer_user_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          audio_path?: string | null
+          audio_seconds?: number | null
+          card_id?: string
+          created_at?: string
+          id?: string
+          message?: string | null
+          photo_path?: string | null
+          signer_name?: string
+          signer_user_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "card_signatures_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "birthday_cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "card_signatures_signer_user_id_fkey"
+            columns: ["signer_user_id"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "card_signatures_signer_user_id_fkey"
+            columns: ["signer_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+        ]
       }
       claims: {
         Row: {
@@ -2454,6 +2579,7 @@ export type Database = {
           name: string
           population: number | null
           search_name: string | null
+          time_zone: string | null
         }
         Insert: {
           admin1_code?: string | null
@@ -2467,6 +2593,7 @@ export type Database = {
           name: string
           population?: number | null
           search_name?: string | null
+          time_zone?: string | null
         }
         Update: {
           admin1_code?: string | null
@@ -2480,6 +2607,7 @@ export type Database = {
           name?: string
           population?: number | null
           search_name?: string | null
+          time_zone?: string | null
         }
         Relationships: []
       }
@@ -2491,6 +2619,7 @@ export type Database = {
           invited_by_user_id: string | null
           relatives_can_ask: boolean
           self_person_id: string | null
+          time_zone: string | null
           updated_at: string
         }
         Insert: {
@@ -2500,6 +2629,7 @@ export type Database = {
           invited_by_user_id?: string | null
           relatives_can_ask?: boolean
           self_person_id?: string | null
+          time_zone?: string | null
           updated_at?: string
         }
         Update: {
@@ -2509,6 +2639,7 @@ export type Database = {
           invited_by_user_id?: string | null
           relatives_can_ask?: boolean
           self_person_id?: string | null
+          time_zone?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -3735,6 +3866,18 @@ export type Database = {
         Returns: string
       }
       address_has_profile: { Args: { p_email: string }; Returns: boolean }
+      announce_birthday_cards: {
+        Args: never
+        Returns: {
+          card_id: string
+          email: string
+          first_name: string
+          person_id: string
+          signatures: number
+          tree_id: string
+          user_id: string
+        }[]
+      }
       answer_placements: {
         Args: { p_accept: boolean; p_placement_ids: string[] }
         Returns: {
@@ -3769,6 +3912,11 @@ export type Database = {
         Returns: undefined
       }
       beta_reviewer_emails: { Args: never; Returns: string[] }
+      birthday_card: { Args: { p_card: string }; Returns: Json }
+      birthday_cards_for: {
+        Args: { p_person: string; p_time_zone?: string }
+        Returns: Json
+      }
       block_member: { Args: { p_user: string }; Returns: undefined }
       blog_post: {
         Args: { p_slug: string }
@@ -3943,7 +4091,9 @@ export type Database = {
         Args: { p_approve: boolean; p_person?: string; p_story: string }
         Returns: undefined
       }
+      delete_birthday_card: { Args: { p_card: string }; Returns: Json }
       delete_blog_post: { Args: { p_id: string }; Returns: undefined }
+      delete_card_signature: { Args: { p_signature: string }; Returns: Json }
       delete_library_submission: { Args: { p_id: string }; Returns: string }
       delete_message: { Args: { p_message: string }; Returns: undefined }
       delete_tree: { Args: { p_tree: string }; Returns: Json }
@@ -4031,6 +4181,7 @@ export type Database = {
           invited_by_user_id: string | null
           relatives_can_ask: boolean
           self_person_id: string | null
+          time_zone: string | null
           updated_at: string
         }
         SetofOptions: {
@@ -4328,6 +4479,7 @@ export type Database = {
         Args: { p_tree: string; p_user: string }
         Returns: string
       }
+      mark_card_opened: { Args: { p_card: string }; Returns: undefined }
       mark_conversation_read: {
         Args: { p_conversation: string; p_up_to: string }
         Returns: string
@@ -4364,6 +4516,14 @@ export type Database = {
           blocked_at: string
           name: string
           user_id: string
+        }[]
+      }
+      my_card_flags: {
+        Args: never
+        Returns: {
+          card_id: string
+          person_id: string
+          state: string
         }[]
       }
       my_conversations: {
@@ -4612,6 +4772,7 @@ export type Database = {
           invited_by_user_id: string | null
           relatives_can_ask: boolean
           self_person_id: string | null
+          time_zone: string | null
           updated_at: string
         }
         SetofOptions: {
@@ -4742,6 +4903,15 @@ export type Database = {
           score: number
         }[]
       }
+      send_card_nudges: {
+        Args: never
+        Returns: {
+          body: string
+          person_id: string
+          tree_id: string
+          user_id: string
+        }[]
+      }
       send_message: {
         Args: {
           p_ciphertext: string
@@ -4830,6 +5000,7 @@ export type Database = {
         Args: { p_role: string; p_tree: string; p_user: string }
         Returns: string
       }
+      set_my_time_zone: { Args: { p_zone: string }; Returns: undefined }
       set_newsletter: { Args: { p_on: boolean }; Returns: undefined }
       set_newsletter_note: {
         Args: { p_all_stories: boolean; p_note: string }
@@ -4865,6 +5036,16 @@ export type Database = {
         Args: { p_person: string; p_tree: string }
         Returns: string
       }
+      sign_birthday_card: {
+        Args: {
+          p_audio_path?: string
+          p_audio_seconds?: number
+          p_card: string
+          p_message?: string
+          p_photo_path?: string
+        }
+        Returns: Json
+      }
       sign_in_link_preview: {
         Args: { p_token: string }
         Returns: {
@@ -4881,6 +5062,10 @@ export type Database = {
           tree_id: string
           user_id: string
         }[]
+      }
+      start_birthday_card: {
+        Args: { p_person: string; p_time_zone?: string }
+        Returns: Json
       }
       stop_sharing_story: { Args: { p_story: string }; Returns: undefined }
       story_place: {

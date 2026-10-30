@@ -1900,6 +1900,12 @@ with population ≥ 500).
   (`Prefer: resolution=merge-duplicates` — no `supabase-js`, so it runs on
   Node 20), so it is safe to re-run. It prints the final `places` row count.
 
+- **Time zones** (Step 217.2): each place keeps its IANA `time_zone`
+  (column 18 of the dump), and with GeoNames' `timeZones.txt` as a second
+  argument each country row (Step 79) lying in one zone gets it; 216 of
+  247 do. Re-imported 2026-10-29 from that day's `cities500.txt`: 236,851
+  rows upserted, 237,131 places, 237,067 with a zone. A birthday card
+  opens at midnight in its person's place's zone.
 - **Imported:** 2026-08-31 — 235,552 rows (cities500 is entirely
   `feature_class = 'P'`; it contains no `'A'` admin areas — those would need the
   full `allCountries` dump or a dedicated admin export). Spot-checked against
@@ -2027,6 +2033,41 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 217.2: birthday cards in the app** (web; migrations
+  `20261030090000_birthday_cards` and `20261030091000_card_time_zone_check`,
+  both live; scope "ancestree × Birthday Cards" in Notion's Product Feature
+  Briefs, with Aalim's 16 decisions). **Asked for** (2026-10-29): digital
+  birthday cards signed in the app, managed by the Root, Branch, spouse and
+  parents (on several trees only spouse and parents, else siblings and
+  children), sealed until the birthday, living on the person's node; the
+  look approved on a mock (kraft envelope tied with twine). **Now**
+  `birthday_cards` (one a person and a year, only for someone with an
+  account) and `card_signatures` (message, voice memo, photo; one each,
+  changed or taken off by its signer), no policies: every read is
+  `card_json`, which hides a card from its person until `opens_at`,
+  midnight on the day in `card_time_zone` (Lives in, birthplace,
+  `profiles.time_zone` from `set_my_time_zone`, the starter's, UTC). Who
+  manages is `card_managers`, who signs `may_sign_card_of`, who is told
+  `card_reminder_members` (My Family Tree's cards and pills). Calls:
+  `start_birthday_card`, `sign_birthday_card`, `delete_card_signature`,
+  `delete_birthday_card`, `birthday_cards_for` (the sheet's new `cards`
+  section), `birthday_card`, `my_card_flags` (the canvas), `mark_card_opened`;
+  the service role's `send_card_nudges` (14 days before, from 8 in each
+  manager's morning; moves sealed cards whose person moved) and
+  `announce_birthday_cards` (from 8 on the day, once, when anyone signed).
+  Bucket `cards`, no read policy: the server signs links for what
+  `card_json` returns. Web: the sheet's card section (start, sign with
+  message + the first in-browser recorder + photo, see the others, take
+  off, delete), the envelope on cards/leaves/pills (`EnvelopeMark`), the
+  pill and the opening (`CardEnvelope`: pull or untie; `CardPages`: a page
+  a signature, two across on a wide screen), `TimeZoneReport` on the
+  canvas. `/api/cron/birthday-cards` eight times a day (Hobby runs each
+  entry once a day) sends the notices and the "your birthday card is here"
+  email. Places carry time zones (re-imported from GeoNames). Phone pushes
+  wait for 217.4 with the app. Checked: a 40-check rolled-back rehearsal on
+  live, then in the browser with throwaway accounts (Root started, two
+  signed, the person saw nothing until the day, then opened it), cleaned up.
 
 - **Step 216: what happens to invites is recorded** (web; migrations
   `20261027180000_invite_events` and

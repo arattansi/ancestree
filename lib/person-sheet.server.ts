@@ -3,6 +3,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { listAlbum } from "@/lib/album";
+import { loadPersonCards } from "@/lib/birthday-cards.server";
 import type { Database } from "@/lib/database.types";
 import { listEntryReports } from "@/lib/entry-reports";
 import type { HeldBackDetails } from "@/lib/held-back";
@@ -76,6 +77,7 @@ export async function loadPersonSheet(
     album: () => listAlbum(personId, viewerId, db),
     stories: () => listStories(personId, viewerId, db),
     heldBack: () => heldBack(personId, db),
+    cards: () => loadPersonCards(personId, db),
   };
   const read = await Promise.allSettled(sections.map((s) => readers[s]()));
   const sheet: PersonSheet = {};

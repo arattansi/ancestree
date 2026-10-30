@@ -77,6 +77,11 @@ export default function PrivacyPage() {
             They go when your account does.
           </li>
           <li>
+            Your device&rsquo;s time zone, such as &ldquo;Africa/Lagos&rdquo;,
+            so a birthday card for you opens at midnight where you are, when
+            your entry doesn&rsquo;t say where you live.
+          </li>
+          <li>
             For each invite link: which share button sent it, how many opened
             it each day, and how those who joined came in. Opening one sets a
             cookie holding a random number, so one person opening it twice in a
@@ -238,6 +243,27 @@ export default function PrivacyPage() {
           <li>
             The parent can delete their child&rsquo;s placeholder until the
             child has claimed it.
+          </li>
+        </ul>
+      </Section>
+
+      {/* Step 217. */}
+      <Section title="Birthday cards">
+        <ul className="list-disc space-y-1 pl-5">
+          <li>
+            Before your birthday, family on your trees can sign a card for
+            you: a message, a voice memo, a photo. You can&rsquo;t see it, or
+            that it exists, until midnight on the day where you live.
+          </li>
+          <li>
+            Before the day, everyone who signs sees what the others signed,
+            and whoever started it can take a signature off. After the day,
+            the card is yours, and those who signed it or started it can
+            still open it.
+          </li>
+          <li>
+            Each signer can take their own signature off at any time; its
+            voice memo and photo are deleted with it.
           </li>
         </ul>
       </Section>

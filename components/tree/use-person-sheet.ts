@@ -33,6 +33,8 @@ export type SheetWant = {
   reports: number;
   /** A placeholder's held-back details, for its parent or the child (98.3). */
   heldBack?: boolean;
+  /** Their birthday cards (Step 217). */
+  cards?: boolean;
 };
 
 /**
@@ -88,6 +90,7 @@ function missing(personId: string, want: SheetWant, now: number): SheetSection[]
   if (want.album && !fresh("album")) need.push("album");
   if (want.stories && !fresh("stories")) need.push("stories");
   if (want.heldBack && !fresh("heldBack")) need.push("heldBack");
+  if (want.cards && !fresh("cards")) need.push("cards");
   return need;
 }
 
@@ -107,7 +110,7 @@ export function usePersonSheet(personId: string): PersonSheetEntry | null {
  */
 export function useLoadPersonSheet(
   personId: string | null,
-  { trees, album, stories, reports, heldBack = false }: SheetWant,
+  { trees, album, stories, reports, heldBack = false, cards = false }: SheetWant,
 ): void {
   const retries = React.useSyncExternalStore(
     subscribe,
@@ -117,7 +120,7 @@ export function useLoadPersonSheet(
 
   React.useEffect(() => {
     if (!personId) return;
-    const want = { trees, album, stories, reports, heldBack };
+    const want = { trees, album, stories, reports, heldBack, cards };
     const need = missing(personId, want, Date.now());
     if (need.length === 0) return;
 
@@ -165,7 +168,7 @@ export function useLoadPersonSheet(
       controller.abort();
       inflight.delete(personId);
     };
-  }, [personId, trees, album, stories, reports, heldBack, retries]);
+  }, [personId, trees, album, stories, reports, heldBack, cards, retries]);
 }
 
 /**

@@ -471,6 +471,21 @@ invite, and joining from there is theirs to press.
   sign-in does (Step 42). The column grants say so, and `profiles_guard`
   holds both links even if a grant comes back.
 
+## 8a. Birthday cards
+
+Step 217. A card is one person's, for one birthday, whatever trees they're
+on (`birthday_cards`, one a person and a year), and only for someone with
+an account. Every read goes through definer functions (`card_json`); the
+tables have no policies.
+
+| | Rule |
+|---|---|
+| Managers | `private.card_managers`: on one tree (shown in full nowhere else), its Roots, the Branch who tends their side, their spouse (a marriage not ended, to someone living) and their parents, as members. On several: only spouse and parents; with none of those on ancestree, siblings and children; with none of those either, the home tree's Roots. Never the person. Managers start a card (up to 31 days before), see every signature, take any off and delete the card, before the day. |
+| Signers | Any member of a tree that shows them in full, but the person (`may_sign_card_of`), until midnight after the day (`closes_at`). One signature each, changed or taken off by its signer at any time. Before the day everyone who may sign sees every signature. |
+| The seal | Midnight on their birthday where they live (`card_time_zone`: Lives in, else the birthplace, else their device's zone, else the starter's, else UTC; `places.time_zone` from GeoNames). Until `opens_at`, nothing about it is readable by the person. After, the person, its managers and its signers open it. |
+| Reminders | `card_reminder_members`: members whose My Family Tree shows the person, as a card or a pill (blood with them, their spouse, or blood with someone they married or had a child with), get the notice when it starts. Others who may sign see the envelope only. |
+| Files | Bucket `cards`, a folder a card; put there only by someone who may sign it, read only through links the server signs for what `card_json` handed the viewer. |
+
 ## 9. What was removed
 
 The Step 9 seam (`tree_bridges`, `start_own_tree`, `/trees/new` as a copy of

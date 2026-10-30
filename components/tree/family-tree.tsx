@@ -183,6 +183,9 @@ import {
   type Peer,
 } from "@/lib/presence";
 import type { TreeGraphEdge, TreeGraphPerson } from "@/lib/tree";
+import type { CardFlag } from "@/lib/birthday-cards";
+import { CardReadyPill, TimeZoneReport } from "@/components/birthday-card/card-ready-pill";
+import type { SignerOf } from "@/components/birthday-card/card-pages";
 import type { PersonRelation } from "@/components/tree/person-family";
 
 const nodeTypes = { person: PersonNode, pet: PetNode };
@@ -325,7 +328,15 @@ type Props = {
    * this tree's. A member's canvas only.
    */
   homeTrees?: TreeAccess[];
+  /**
+   * Birthday cards the viewer may sign, and their own when it's ready (Step
+   * 217, `my_card_flags`): an envelope at a card's corner, and on their
+   * birthday the pill that opens theirs. A member's canvas only.
+   */
+  cardFlags?: CardFlag[];
 };
+
+const NO_CARD_FLAGS: CardFlag[] = [];
 
 /** As close as a pulled-out tree is ever drawn. */
 const SPOTLIGHT_ZOOM = 1.15;
@@ -373,6 +384,7 @@ function Canvas({
   family = null,
   homeTrees = NO_HOME_TREES,
   unpicked = false,
+  cardFlags = NO_CARD_FLAGS,
   page,
 }: Props & { page: number }) {
   // My Family Tree moves nothing and adds nothing itself (Step 92.2): no
@@ -929,6 +941,13 @@ function Canvas({
       .map((p) => p.id);
     return ids.length > 0 ? new Set(ids) : NOBODY;
   }, [readOnly, today, shownPeople]);
+  // Birthday cards (Step 217): whose the viewer may sign, and their own once
+  // it's ready.
+  const cardSignIds = React.useMemo(() => {
+    const ids = readOnly ? [] : cardFlags.filter((f) => f.state === "sign").map((f) => f.personId);
+    return ids.length > 0 ? new Set(ids) : NOBODY;
+  }, [readOnly, cardFlags]);
+  const readyCard = readOnly ? null : (cardFlags.find((f) => f.state === "mine") ?? null);
   // Which card is open, Search & filters (top right) or Upcoming (top left):
   // one at a time, so on a phone they never pile up.
   const [openCard, setOpenCard] = React.useState<"search" | "upcoming" | null>(
@@ -1405,6 +1424,7 @@ function Canvas({
         ...(spouseIds.has(n.id) ? { yourSpouse: true } : {}),
         ...(memberIds && !isPet ? { member: memberIds.has(n.id) } : {}),
         ...(!isPet && birthdayIds.has(n.id) ? { birthday: true } : {}),
+        ...(!isPet && cardSignIds.has(n.id) ? { card: true } : {}),
       });
     }
     return map;
@@ -1426,6 +1446,7 @@ function Canvas({
     memberIds,
     allLeaves,
     birthdayIds,
+    cardSignIds,
   ]);
   // A card whose flags came out the same is handed the very same `data`, so
   // it doesn't draw again when the rest of the tree changes (Step 87.1).
@@ -2610,6 +2631,28 @@ function Canvas({
       relationOf(fromId, toId, personById, relationships),
     [personById, relationships],
   );
+  // A birthday card's pages (Step 217): each signer's leaf, if they're here.
+  const leafOf = React.useCallback(
+    (id: string) => {
+      const p = personById.get(id);
+      return p ? nativeLeaf(p).shape : null;
+    },
+    [personById],
+  );
+  const self = selfPersonId ? personById.get(selfPersonId) : undefined;
+  const readySigner = React.useCallback<SignerOf>(
+    (s) => {
+      const rel =
+        s.personId && selfPersonId && s.personId !== selfPersonId
+          ? relationOf(s.personId, selfPersonId, personById, relationships)
+          : null;
+      return {
+        leaf: s.personId ? leafOf(s.personId) : null,
+        relation: rel && "term" in rel ? `your ${rel.term.toLowerCase()}` : null,
+      };
+    },
+    [selfPersonId, personById, relationships, leafOf],
+  );
   const onSelectPet = React.useCallback((petId: string) => {
     setSelectedId(null);
     setSelectedPetId(petId);
@@ -3057,6 +3100,16 @@ function Canvas({
         </Panel>
       </ReactFlow>
 
+      {readyCard && self ? (
+        <CardReadyPill
+          cardId={readyCard.cardId}
+          firstName={self.preferred_name || self.first_name || personDisplayName(self)}
+          leaf={nativeLeaf(self).shape}
+          signer={readySigner}
+        />
+      ) : null}
+      {readOnly ? null : <TimeZoneReport />}
+
       {panelsReady || personOpened ? (
         <PersonPanel
           // A hidden person's card is a blur to a visitor: nothing to open.
@@ -3103,6 +3156,8 @@ function Canvas({
           onMinimize={onMinimize}
           minimizedFocus={foldedRef}
           onClose={onClosePerson}
+          viewerPersonId={selfPersonId}
+          leafOf={leafOf}
         />
       ) : null}
 

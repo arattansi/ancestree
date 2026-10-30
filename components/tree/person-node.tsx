@@ -5,6 +5,7 @@ import { Handle, Position, type NodeProps } from "@xyflow/react";
 
 import { AccountTypeMark } from "@/components/account-type-badge";
 import { MemberMark } from "@/components/logo-mark";
+import { EnvelopeMark } from "@/components/birthday-card/envelope-mark";
 import { BirthdayCandles } from "@/components/tree/birthday-candles";
 import { LeafCard } from "@/components/tree/leaf-card";
 import { PillCard } from "@/components/tree/pill-card";
@@ -62,6 +63,9 @@ export type PersonNodeData = {
   /** Their birthday, in the viewer's own day (Step 205): a card is a cake,
    *  a leaf or a pill grows candles. */
   birthday?: boolean;
+  /** A birthday card is going round for them that the viewer may sign
+   *  (Step 217): a little envelope tied with twine at the card's corner. */
+  card?: boolean;
 };
 
 // The handles are anchors for the branch lines, never something the reader
@@ -100,6 +104,15 @@ const PIPING_PATH = Array.from({ length: 27 }, (_, i) => {
 /** A cake's candles, on its icing: right of where a parent's line lands. */
 const CAKE_CANDLES = CANDLE_XS.map((x) => ({ x, y: 3 }));
 
+/** The envelope at a card's corner: a birthday card to sign (Step 217). */
+function CardGoingRound({ className }: { className: string }) {
+  return (
+    <span className={cn("pointer-events-none absolute z-10 rotate-[8deg]", className)}>
+      <EnvelopeMark label="A birthday card to sign" />
+    </span>
+  );
+}
+
 function PersonNodeImpl({ data }: NodeProps) {
   const {
     person,
@@ -116,6 +129,7 @@ function PersonNodeImpl({ data }: NodeProps) {
     same,
     member,
     birthday,
+    card,
   } = data as PersonNodeData;
   // The full name for the hover preview and the tooltip; the condensed one for
   // the card itself, where a surname would otherwise be cut off mid-word.
@@ -175,6 +189,7 @@ function PersonNodeImpl({ data }: NodeProps) {
           quiet={!!blurred}
           birthday={!!birthday}
         />
+        {card ? <CardGoingRound className="-top-3 -right-4" /> : null}
       </div>
     );
   }
@@ -222,6 +237,7 @@ function PersonNodeImpl({ data }: NodeProps) {
           quiet={!!blurred}
           birthday={!!birthday}
         />
+        {card ? <CardGoingRound className="top-1 right-1" /> : null}
       </div>
     );
   }
@@ -310,6 +326,7 @@ function PersonNodeImpl({ data }: NodeProps) {
           className="absolute -inset-x-2 top-[105px] h-2.5 rounded-full bg-cake-plate"
         />
       ) : null}
+      {card ? <CardGoingRound className="-top-3 -right-4" /> : null}
       <div
         className={cn(
           // Fixed height (matching NODE_H) so every card is identical: the

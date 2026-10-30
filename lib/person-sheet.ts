@@ -1,4 +1,5 @@
 import type { AlbumPhoto } from "@/lib/album";
+import type { PersonCards } from "@/lib/birthday-cards";
 import type { EntryReport } from "@/lib/entry-reports";
 import type { HeldBackDetails } from "@/lib/held-back";
 import type { EntryStory } from "@/lib/stories";
@@ -16,6 +17,7 @@ export const SHEET_SECTIONS = [
   "album",
   "stories",
   "heldBack",
+  "cards",
 ] as const;
 export type SheetSection = (typeof SHEET_SECTIONS)[number];
 
@@ -42,6 +44,8 @@ export type PersonSheet = {
    * child themself; empty for anyone else, or when nothing is held back.
    */
   heldBack?: HeldBackDetails;
+  /** Their birthday cards (Step 217), as the viewer may see them. */
+  cards?: PersonCards;
 };
 
 /** The route's answer: what it read, and which of those it couldn't. */

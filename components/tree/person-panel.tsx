@@ -42,6 +42,7 @@ import {
 import { AddMenu, type AddMedia } from "@/components/tree/add-menu";
 import { FamilyAddButton, type FamilyAdd } from "@/components/tree/add-to-tree";
 import type { CompanionOption } from "@/components/tree/companion-picker";
+import { BirthdayCardSection } from "@/components/birthday-card/card-section";
 import { EntryAlbum } from "@/components/tree/entry-album";
 import { EntryStories } from "@/components/tree/entry-stories";
 import { EntryReports } from "@/components/tree/entry-reports";
@@ -79,6 +80,8 @@ import { SEX_LABELS, type Sex } from "@/lib/person-labels";
 import { PersonOnTrees, PersonTrees } from "@/components/tree/person-trees";
 import { HeldBackDetails } from "@/components/tree/held-back-details";
 import { useLoadPersonSheet } from "@/components/tree/use-person-sheet";
+import type { LeafShape } from "@/lib/leaf-shapes";
+import { nativeLeaf } from "@/lib/native-leaf";
 import { joinedByTags } from "@/lib/joined-by";
 import { countOf } from "@/lib/plural";
 import type { FamilyViewTree } from "@/lib/my-family";
@@ -294,6 +297,8 @@ function PersonPanelImpl({
   onMinimize,
   minimizedFocus,
   onClose,
+  viewerPersonId = null,
+  leafOf,
 }: {
   person: TreeGraphPerson | null;
   treeId: string;
@@ -405,6 +410,10 @@ function PersonPanelImpl({
   /** Where focus goes once they're folded away: the card. */
   minimizedFocus?: React.RefObject<HTMLElement | null>;
   onClose: () => void;
+  /** The viewer's own entry: who each birthday card signer is to them (Step 217). */
+  viewerPersonId?: string | null;
+  /** Someone's leaf on this canvas, for a card's pages. */
+  leafOf?: (personId: string) => LeafShape | null;
 }) {
   const open = person !== null && !minimized;
   useDockedSheet(open);
@@ -465,6 +474,9 @@ function PersonPanelImpl({
     // What's held back of a placeholder: its parent's, or the child's own
     // (Step 98.3).
     heldBack: placeholder && !locked && (canEdit || isSelf),
+    // Their birthday cards (Step 217): the person's own once open, anyone
+    // else's who may sign or manage one. The database says which.
+    cards: !sealed,
   });
   const waiting = person
     ? waitingOn(person.approval, person.asked_of, personDisplayName(person))
@@ -994,6 +1006,20 @@ function PersonPanelImpl({
                 suggestions={suggestions}
                 onResolved={() => undefined}
               />
+
+              {/* A birthday card going round, or opened (Step 217): first,
+                  as it's the one thing here with a day on it. */}
+              {!sealed ? (
+                <BirthdayCardSection
+                  personId={person.id}
+                  name={personDisplayName(person)}
+                  sex={person.sex ?? null}
+                  leaf={nativeLeaf(person).shape}
+                  viewerPersonId={viewerPersonId}
+                  leafOf={leafOf}
+                  describeConnection={describeConnection}
+                />
+              ) : null}
 
               {/* The album (Step 88.5), where documents were: not on a
                   share link or to a visitor, and not on a basic card. */}

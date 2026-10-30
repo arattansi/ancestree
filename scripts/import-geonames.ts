@@ -9,7 +9,12 @@
  * Usage (needs NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in
  * .env.local):
  *
- *   npm run import:geonames -- ~/Downloads/cities500.txt
+ *   npm run import:geonames -- ~/Downloads/cities500.txt ~/Downloads/timeZones.txt
+ *
+ * Each place keeps its IANA time zone (Step 217.2: a birthday card opens at
+ * midnight where its person lives). Given GeoNames' `timeZones.txt` too, each
+ * country row (Step 79) that lies in one zone gets it; a country spanning
+ * several gets none.
  *
  * Re-runnable: upsert on `id` (Prefer: resolution=merge-duplicates) is
  * idempotent. See ANCESTREE.md for the source dump version and the free-tier
@@ -32,6 +37,7 @@ type PlaceRow = {
   latitude: number | null;
   longitude: number | null;
   population: number | null;
+  time_zone: string | null;
 };
 
 function text(value: string | undefined): string | null {
@@ -68,11 +74,13 @@ function parseLine(line: string): PlaceRow | null {
     country_code: text(c[8]),
     admin1_code: text(c[10]),
     population: num(c[14]),
+    time_zone: text(c[17]),
   };
 }
 
 async function main() {
   const file = process.argv[2] ?? "cities500.txt";
+  const zonesFile = process.argv[3];
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -144,6 +152,44 @@ async function main() {
     `Done. Read ${read} lines, kept ${kept} (P/A), upserted ${written}. ` +
       `places now holds ${total} rows.`,
   );
+
+  if (zonesFile) await countryZones(zonesFile, endpoint, headers);
+}
+
+/**
+ * The zone of each country that lies in only one, from `timeZones.txt`
+ * (country code, zone, offsets; a header line first), onto its country row.
+ */
+async function countryZones(
+  file: string,
+  endpoint: string,
+  headers: Record<string, string>,
+): Promise<void> {
+  const zones = new Map<string, Set<string>>();
+  const rl = createInterface({
+    input: createReadStream(file, { encoding: "utf8" }),
+    crlfDelay: Infinity,
+  });
+  for await (const line of rl) {
+    const [code, zone] = line.split("\t");
+    if (!code || !zone || code === "CountryCode") continue;
+    zones.set(code, (zones.get(code) ?? new Set()).add(zone));
+  }
+  let set = 0;
+  for (const [code, of] of zones) {
+    if (of.size !== 1) continue;
+    const [zone] = of;
+    const res = await fetch(
+      `${endpoint}?country_code=eq.${encodeURIComponent(code)}&feature_code=like.PCL*`,
+      { method: "PATCH", headers, body: JSON.stringify({ time_zone: zone }) },
+    );
+    if (!res.ok) {
+      console.error(`\nCountry ${code} failed (HTTP ${res.status}):`, await res.text());
+      process.exit(1);
+    }
+    set++;
+  }
+  console.log(`Country zones: ${set} of ${zones.size} countries lie in one zone.`);
 }
 
 main().catch((err) => {

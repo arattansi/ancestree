@@ -5,6 +5,7 @@ import { after } from "next/server";
 
 import { CenteredPage } from "@/components/page-column";
 import { FamilyTree } from "@/components/tree/family-tree";
+import { loadCardFlags } from "@/lib/birthday-cards.server";
 import { Button } from "@/components/ui/button";
 import { LEAF } from "@/lib/account-types";
 import {
@@ -124,6 +125,7 @@ export default async function TreePage({ searchParams }: PageProps<"/tree">) {
     declinedSuggestions,
     gettingStarted,
     homeTrees,
+    cardFlags,
   ] = await Promise.all([
     loadTreePeople(tree.id),
     graph,
@@ -148,6 +150,8 @@ export default async function TreePage({ searchParams }: PageProps<"/tree">) {
     Promise.all([graph, listMyTrees()]).then(([g, mine]) =>
       getHomeTreeAccess(profile, tree.id, g.people, mine),
     ),
+    // Birthday cards to sign, and their own when it's ready (Step 217).
+    loadCardFlags(),
   ]);
   if (!placedIds(placedPeople).includes(selfPersonId)) {
     redirect(onboardingHref());
@@ -186,6 +190,7 @@ export default async function TreePage({ searchParams }: PageProps<"/tree">) {
         treeSlug={tree.slug}
         treeName={tree.name}
         selfPersonId={selfPersonId}
+        cardFlags={cardFlags}
         anchorIds={anchorIds}
         rootIds={rootIds}
         currentUserId={profile.auth_user_id}

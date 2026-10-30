@@ -58,6 +58,14 @@
   --color-cake-sponge: var(--cake-sponge);
   --color-cake-icing: var(--cake-icing);
   --color-cake-plate: var(--cake-plate);
+  --color-kraft: var(--kraft);
+  --color-kraft-deep: var(--kraft-deep);
+  --color-kraft-line: var(--kraft-line);
+  --color-twine: var(--twine);
+  --color-kraft-flap: var(--kraft-flap);
+  --color-twine-fibre: var(--twine-fibre);
+  --color-twine-knot: var(--twine-knot);
+  --color-kraft-tag: var(--kraft-tag);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -144,6 +152,17 @@
   --cake-sponge: #fdfaf3;
   --cake-icing: oklch(0.85 0.08 8);
   --cake-plate: oklch(0.86 0 0);
+  /* A birthday card's envelope (Step 217): kraft paper tied with twine, the
+     way a card was posted before there were apps. The pocket, the flap's
+     shade under it and the inside, its creases, the twine and its fibres. */
+  --kraft: #e2c89d;
+  --kraft-flap: #d9bc8c;
+  --kraft-deep: #c8a675;
+  --kraft-line: #c4a473;
+  --twine: #9c7746;
+  --twine-fibre: #d2b27c;
+  --twine-knot: #8a6a3f;
+  --kraft-tag: #fbf6ea;
 }
 
 .dark {
@@ -191,6 +210,14 @@
   --cake-sponge: oklch(0.24 0.012 70);
   --cake-icing: oklch(0.56 0.11 8);
   --cake-plate: oklch(0.4 0 0);
+  --kraft: #a8875a;
+  --kraft-flap: #9b7b4f;
+  --kraft-deep: #7d6240;
+  --kraft-line: #6f5636;
+  --twine: #d9b98a;
+  --twine-fibre: #f1dcb6;
+  --twine-knot: #e6c99b;
+  --kraft-tag: #3a342b;
 }
 
 @layer base {
@@ -403,5 +430,100 @@
   [class*="animate-[branch-draw"],
   [class*="animate-[leaf-settle"] {
     animation: none;
+  }
+}
+
+/* A birthday card's envelope (Step 217), tied with twine. Pulled (or untied
+   with a press), the bow shrinks away, the twine slides off both ways and
+   the tag drops; then the flap lifts and the card slides out. The bow and
+   the pulled end follow the drag by their `transform` attribute until a
+   class takes over. */
+.card-envelope .card-twine g {
+  transition:
+    transform 0.5s ease,
+    opacity 0.4s ease;
+}
+.card-envelope .card-bow,
+.card-envelope .card-pull,
+.card-envelope .card-tails {
+  transform-box: view-box;
+  transform-origin: 150px 112px;
+}
+.card-envelope .card-inner {
+  transition: transform 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) 0.45s;
+}
+.card-envelope .card-flap {
+  transform-origin: 50% 0;
+  transition:
+    transform 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+    z-index 0s linear 0.3s;
+}
+.card-envelope[data-stage="idle"] .card-pull {
+  animation: card-sway 2.6s ease-in-out infinite;
+}
+.card-envelope[data-untied] .card-bow {
+  transform: scale(0.2);
+  opacity: 0;
+}
+.card-envelope[data-untied] .card-pull,
+.card-envelope[data-untied] .card-tails {
+  transform: translate(0, 34px);
+  opacity: 0;
+}
+.card-envelope[data-untied] .card-band-v {
+  transform: translateY(240px);
+  opacity: 0;
+  transition:
+    transform 0.7s ease-in 0.15s,
+    opacity 0.5s ease 0.3s;
+}
+.card-envelope[data-untied] .card-band-h {
+  transform: translateX(340px);
+  opacity: 0;
+  transition:
+    transform 0.7s ease-in 0.2s,
+    opacity 0.5s ease 0.35s;
+}
+.card-envelope[data-untied] .card-tag {
+  transform: translate(-24px, 170px) rotate(-48deg);
+  opacity: 0;
+  transition:
+    transform 0.8s cubic-bezier(0.5, 0, 0.8, 0.4) 0.05s,
+    opacity 0.6s ease 0.3s;
+}
+.card-envelope[data-stage="opening"] .card-flap {
+  transform: rotateX(180deg);
+  z-index: 0;
+}
+.card-envelope[data-stage="opening"] .card-inner {
+  transform: translateY(-112px);
+}
+@keyframes card-sway {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(7deg);
+  }
+}
+@keyframes card-page-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.card-page-in {
+  animation: card-page-in 0.45s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .card-envelope *,
+  .card-page-in {
+    animation: none !important;
+    transition: none !important;
   }
 }

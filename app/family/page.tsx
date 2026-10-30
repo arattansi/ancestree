@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { FamilyTree } from "@/components/tree/family-tree";
+import { loadCardFlags } from "@/lib/birthday-cards.server";
 import { LEAF } from "@/lib/account-types";
 import { getProfile, getSessionUser } from "@/lib/auth";
 import { readCurrentTreeId } from "@/lib/current-tree.server";
@@ -77,6 +78,7 @@ export default async function MyFamilyPage({
     declinedSuggestions,
     own,
     gettingStarted,
+    cardFlags,
   ] = await Promise.all([
     familyGraph,
     getTreePets(trees.map((t) => t.id)),
@@ -84,6 +86,8 @@ export default async function MyFamilyPage({
     listOwnDeclinedSuggestions(profile.auth_user_id),
     foundedCurrentTree(trees),
     getFamilyGettingStarted(familyGraph),
+    // Birthday cards to sign, and their own when it's ready (Step 217).
+    loadCardFlags(),
   ]);
   // Nothing to arrange it around yet (no entry of their own, or on none of
   // their trees): the canvas sends them where they'd add it. The canvas
@@ -114,6 +118,7 @@ export default async function MyFamilyPage({
         treeId={MY_FAMILY_VIEW}
         treeSlug=""
         selfPersonId={family.selfId}
+        cardFlags={cardFlags}
         // Always arranged around them (Step 92).
         anchorIds={[family.selfId]}
         rootIds={[]}

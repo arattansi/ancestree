@@ -450,6 +450,32 @@ pill carries candles; Upcoming's **Today** says the same in words.
   lands, and sway a little only for `motion-safe:`; off a spotlight's line
   they hold still.
 
+### Birthday cards
+
+A card the family sign (Step 217), in the look Aalim chose on its mock: a
+kraft envelope tied both ways with twine, a bow at the middle and a tag
+with the person's leaf and name.
+
+- **Everything the card itself says is lower case but names** (Aalim):
+  "happy birthday, Ada.", "sign Ada’s card", "her birthday is on 20
+  november.", "earlier cards", its links too ("see them", "delete the
+  card"). What signers write stays as they wrote it. The sheet's own
+  sections, dialogs asking first and notices keep the rules above.
+- The envelope's tokens: `--kraft`, `--kraft-flap`, `--kraft-deep`,
+  `--kraft-line`, `--twine`, `--twine-fibre`, `--twine-knot` and
+  `--kraft-tag`, darker in dark. The card's pages are on `--cake-sponge`.
+- Opening it: the string is pulled (a drag past 90 px) or untied with the
+  button; the bow shrinks away, the twine slides off both ways, the tag
+  drops, then the flap lifts and the card slides out (`.card-envelope` in
+  `app/globals.css`). Reduced motion opens it at once. Only the person's
+  first look starts at the envelope; after that, and for anyone else, a
+  card opens at its pages.
+- A phone shows one signature a page, a wide screen two side by side
+  across a fold, over a dimmed page (`bg-neutral-950/85`, blurred).
+- A card to sign is a small tied envelope at a card's top right corner
+  (`EnvelopeMark`), on a leaf at its right, on a pill at its end; never on
+  the person's own.
+
 ## Marketing pages
 
 Home, **capitalism** (`/pricing`), **why** (`/manifesto`), **what + how**
