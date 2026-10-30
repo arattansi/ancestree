@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   addressPushes,
+  cardReadyPush,
+  cardStartedPush,
   goneTokens,
   messagePush,
   PUSH_BATCH,
@@ -59,6 +61,35 @@ describe("storyPush", () => {
     expect(storyPush({ storyId: STORY, personId: PERSON, title: " ", about: null }).title).toBe(
       "New story",
     );
+  });
+});
+
+describe("birthday card pushes", () => {
+  it("asks those reminded to sign a card just started", () => {
+    const note = cardStartedPush({
+      personId: PERSON,
+      firstName: "Ada",
+      body: "Chidi Okafor started a card for Ada's birthday on 14 November.",
+    });
+    expect(note).toEqual({
+      title: "Ada’s birthday card",
+      body: "Chidi Okafor started a card for Ada's birthday on 14 November. Sign it?",
+      data: { kind: "card", personId: PERSON, open: false },
+      channelId: "cards",
+    });
+  });
+
+  it("tells the person their own card is here, and opens it", () => {
+    expect(cardReadyPush({ personId: PERSON, firstName: "Ada", signatures: 14 })).toEqual({
+      title: "Happy birthday, Ada",
+      body: "Your birthday card is here: 14 people signed it.",
+      data: { kind: "card", personId: PERSON, open: true },
+      channelId: "cards",
+    });
+    expect(cardReadyPush({ personId: PERSON, firstName: " ", signatures: 1 })).toMatchObject({
+      title: "Happy birthday",
+      body: "Your birthday card is here: 1 person signed it.",
+    });
   });
 });
 

@@ -485,6 +485,29 @@ with the person's leaf and name.
   Signed: a green tick and "signed. Ada will see it on 14 march.", the join
   or claim card bordered, then **signed so far** with the viewer's own
   outlined in near-black.
+- Ink (Step 217.4), on a touch screen only (`(pointer: coarse)`, decision
+  15; a mouse doesn't draw): **sign your name**, a dashed `--kraft-line`
+  strip on `--cake-sponge` (4 across to 1 down, a line to sign on at 78%)
+  under the message, and **draw something**, an outline button that opens
+  a square (at most 320 px) after the photo; each with **undo** and
+  **clear** under it, "sign here" / "draw here" in the empty box. Strokes
+  are filled outlines in the text's colour (`perfect-freehand`,
+  `lib/card-ink.ts`), wider where a pencil pressed harder or a finger went
+  slower. Without touch, ink a signature already has shows as a drawing
+  with an x to take it off.
+- On a page a name signed by hand takes the typed name's place (its
+  `aria-label` says the name); the drawing follows the message. As the
+  card opens, each page's ink writes itself out as it was drawn: the name,
+  then the drawing, pauses between strokes cut short, the whole in under
+  3.2 s. Reduced motion shows it at once.
+- On the phone (Step 217.4): the envelope sits at a leaf's top right
+  shoulder (`leafEnvelope` in `lib/candles.ts`, right of the candles,
+  tilted 8°), for a card to sign and for the person's own on the day,
+  when a tap on their leaf opens it. Signing is a full-screen form (a
+  stroke can't drag it away) with the same parts, the photo shrunk to
+  1,600 px and saved anew on the phone. The card opens over a near-black
+  screen (`#141414`): the envelope with a white **untie the string**, then
+  a page a signature, swiped or stepped with **previous** / **next**.
 
 ## Marketing pages
 

@@ -372,6 +372,49 @@ export type Database = {
         }
         Relationships: []
       }
+      card_pushes: {
+        Row: {
+          card_id: string
+          kind: string
+          pushed_at: string
+          user_id: string
+        }
+        Insert: {
+          card_id: string
+          kind: string
+          pushed_at?: string
+          user_id: string
+        }
+        Update: {
+          card_id?: string
+          kind?: string
+          pushed_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "card_pushes_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "birthday_cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "card_pushes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "card_pushes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+        ]
+      }
       card_signatures: {
         Row: {
           audio_path: string | null
@@ -381,6 +424,7 @@ export type Database = {
           created_at: string
           edit_token_hash: string | null
           id: string
+          ink: Json | null
           message: string | null
           photo_path: string | null
           relation: string | null
@@ -397,6 +441,7 @@ export type Database = {
           created_at?: string
           edit_token_hash?: string | null
           id?: string
+          ink?: Json | null
           message?: string | null
           photo_path?: string | null
           relation?: string | null
@@ -413,6 +458,7 @@ export type Database = {
           created_at?: string
           edit_token_hash?: string | null
           id?: string
+          ink?: Json | null
           message?: string | null
           photo_path?: string | null
           relation?: string | null
@@ -2700,18 +2746,21 @@ export type Database = {
       }
       push_settings: {
         Row: {
+          cards: boolean
           messages: boolean
           stories: boolean
           updated_at: string
           user_id: string
         }
         Insert: {
+          cards?: boolean
           messages?: boolean
           stories?: boolean
           updated_at?: string
           user_id: string
         }
         Update: {
+          cards?: boolean
           messages?: boolean
           stories?: boolean
           updated_at?: string
@@ -4008,6 +4057,16 @@ export type Database = {
         Returns: Json
       }
       card_personal_candidates: { Args: { p_card: string }; Returns: Json }
+      card_ready_pushes: {
+        Args: { p_cards: string[] }
+        Returns: {
+          card_id: string
+          first_name: string
+          person_id: string
+          signatures: number
+          user_id: string
+        }[]
+      }
       check_add_people_with_connections: {
         Args: {
           p_adult_existing?: string[]
@@ -4017,6 +4076,15 @@ export type Database = {
           p_tree?: string
         }
         Returns: Json
+      }
+      claim_card_started_push: {
+        Args: { p_card: string }
+        Returns: {
+          body: string
+          first_name: string
+          person_id: string
+          user_id: string
+        }[]
       }
       claim_message_push: {
         Args: { p_message: string }
@@ -5099,7 +5167,7 @@ export type Database = {
       }
       set_onboarding_emails: { Args: { p_on: boolean }; Returns: undefined }
       set_push_settings: {
-        Args: { p_messages: boolean; p_stories: boolean }
+        Args: { p_cards?: boolean; p_messages: boolean; p_stories: boolean }
         Returns: undefined
       }
       share_story: { Args: { p_story: string }; Returns: string }
@@ -5128,6 +5196,7 @@ export type Database = {
           p_audio_path?: string
           p_audio_seconds?: number
           p_card: string
+          p_ink?: Json
           p_message?: string
           p_photo_path?: string
         }
@@ -5137,6 +5206,7 @@ export type Database = {
         Args: {
           p_audio_path: string
           p_audio_seconds: number
+          p_ink?: Json
           p_message: string
           p_name: string
           p_photo_path: string

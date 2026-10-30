@@ -39,6 +39,15 @@ const light = {
   pillInk: "#525252",
   /** The canvas's dots, as React Flow draws the web's. */
   grid: "#91919a",
+  /**
+   * A birthday card (Step 217.4), as the web's: its pages' cream, the
+   * envelope's kraft, its flap and creases, and the twine round it.
+   */
+  cakeSponge: "#fdfaf3",
+  kraft: "#e2c89d",
+  kraftFlap: "#d9bc8c",
+  kraftLine: "#c4a473",
+  twine: "#9c7746",
 };
 
 export type Palette = typeof light;
@@ -61,6 +70,11 @@ const dark: Palette = {
   pillBorder: "#ffffff1a",
   pillInk: "#a3a3a3",
   grid: "#555555",
+  cakeSponge: "#231e19",
+  kraft: "#a8875a",
+  kraftFlap: "#9b7b4f",
+  kraftLine: "#6f5636",
+  twine: "#d9b98a",
 };
 
 export function usePalette(): Palette {

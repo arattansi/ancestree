@@ -9,7 +9,7 @@ const SITE = process.env.EXPO_PUBLIC_SITE_URL ?? "https://www.ancestree.space";
 
 /**
  * Push notifications on this phone (Step 204): a new message (who wrote,
- * never what) and a new story. The web sends them through Expo's push
+ * never what), a new story and (Step 217.4) birthday cards. The web sends them through Expo's push
  * service to every phone a member is signed in on; this file asks the
  * member whether it may, hands the web this phone's token, and gives it
  * back on signing out. What a push opens is `./open.tsx`.
@@ -77,24 +77,33 @@ async function makeChannels() {
     name: PUSH_CHANNELS.stories,
     importance: Notifications.AndroidImportance.DEFAULT,
   });
+  await Notifications.setNotificationChannelAsync("cards", {
+    name: PUSH_CHANNELS.cards,
+    importance: Notifications.AndroidImportance.DEFAULT,
+  });
 }
 
-export type PushSettings = { messages: boolean; stories: boolean };
+export type PushSettings = { messages: boolean; stories: boolean; cards: boolean };
 
-/** The member's two switches, both on until they turn one off. */
+/** The member's switches, each on until they turn it off. */
 export async function readPushSettings(): Promise<PushSettings> {
   const { data, error } = await supabase
     .from("push_settings")
-    .select("messages, stories")
+    .select("messages, stories, cards")
     .maybeSingle();
   if (error) throw error;
-  return { messages: data?.messages ?? true, stories: data?.stories ?? true };
+  return {
+    messages: data?.messages ?? true,
+    stories: data?.stories ?? true,
+    cards: data?.cards ?? true,
+  };
 }
 
 export async function savePushSettings(settings: PushSettings): Promise<void> {
   const { error } = await supabase.rpc("set_push_settings", {
     p_messages: settings.messages,
     p_stories: settings.stories,
+    p_cards: settings.cards,
   });
   if (error) throw error;
 }

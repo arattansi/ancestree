@@ -165,6 +165,7 @@ describe("a link signature on a card's page", () => {
         audioPath: `${CARD}/a.m4a`,
         audioSeconds: 12,
         photoPath: `${CARD}/b.jpg`,
+        ink: { sign: [[[0.1, 0.5, 0.5, 0]]] },
         mine: false,
         createdAt: "",
         updatedAt: "",
@@ -172,6 +173,7 @@ describe("a link signature on a card's page", () => {
       new Map([[`${CARD}/a.m4a`, "https://signed/a"]]),
     );
     expect(page.personId).toBeNull();
+    expect(page.ink).toEqual({ sign: [[[0.1, 0.5, 0.5, 0]]] });
     expect(page.relation).toBe("cousin");
     expect(page.audioUrl).toBe("https://signed/a");
     expect(page.photoUrl).toBeNull();

@@ -4,6 +4,8 @@ import { fromTheJob } from "@/lib/cron.server";
 import { sendEmails } from "@/lib/email";
 import { birthdayCardEmail } from "@/lib/emails/birthday-card";
 import { reachableEmail } from "@/lib/no-email";
+import { cardReadyPush } from "@/lib/push";
+import { sendPushes } from "@/lib/push.server";
 import { getSiteUrl } from "@/lib/site-url";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -18,7 +20,8 @@ const NO_STORE = { "Cache-Control": "no-store" };
  * Each run: managers of a birthday 14 days off with no card yet are nudged,
  * from 8 in their morning (`send_card_nudges`), and the person whose card
  * opened at midnight is told, from 8 in theirs, in the app and by email
- * (`announce_birthday_cards`). Then a link signer's upload no signature
+ * (`announce_birthday_cards`), and on their phones (`card_ready_pushes`,
+ * Step 217.4). Then a link signer's upload no signature
  * took for a day is removed (`take_stale_card_uploads`, Step 217.3). The
  * card itself opens at midnight whatever this does: the database reads the
  * clock. Answers with counts only.
@@ -43,6 +46,20 @@ export async function GET(request: NextRequest) {
     });
     const sent = await sendEmails(emails);
 
+    // Their phones, where the cards switch is on; a failure is logged only.
+    const announced = (told.data ?? []).map((r) => r.card_id);
+    let pushed = 0;
+    if (announced.length > 0) {
+      const ready = await admin.rpc("card_ready_pushes", { p_cards: announced });
+      if (ready.error) console.error("[cards] couldn't claim the day's pushes", ready.error);
+      ({ sent: pushed } = await sendPushes(
+        (ready.data ?? []).map((r) => ({
+          userId: r.user_id,
+          note: cardReadyPush({ personId: r.person_id, firstName: r.first_name, signatures: r.signatures }),
+        })),
+      ));
+    }
+
     // A file never signed with; a failure here waits for the next run.
     const stale = await admin.rpc("take_stale_card_uploads");
     const staleFiles = stale.error ? [] : (stale.data ?? []);
@@ -55,6 +72,7 @@ export async function GET(request: NextRequest) {
         nudged: nudged.data?.length ?? 0,
         told: told.data?.length ?? 0,
         emailed: sent.filter((s) => s.ok).length,
+        pushed,
         stale: staleFiles.length,
       },
       { headers: NO_STORE },

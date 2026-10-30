@@ -78,3 +78,50 @@ export function leafCandles(shape: LeafShape): XY[] {
   feet.set(shape, found);
   return found;
 }
+
+/**
+ * A birthday card going round for someone (Step 217.4): the small envelope
+ * at their leaf's shoulder on the phone, as the web puts one at the corner
+ * of their card. The web's mark, 30 by 21, tilted.
+ */
+export const ENVELOPE = { width: 30, height: 21, tilt: 8 } as const;
+
+/** Where across a leaf the envelope's middle is: right of the candles, short of the tip. */
+const ENVELOPE_X = 184;
+
+/** How far its foot tucks into the blade, where the blade reaches up that high. */
+const TUCK = 7;
+
+/** How far above the box a lobe can reach: `BLADE_OVERHANG`'s worth, and a little. */
+const BLADE_REACH = 14;
+
+/** The lowest its foot sits: where the blade is low there, it floats above the name. */
+const LOWEST_FOOT = 30;
+
+const envelopes = new Map<LeafShape, XY>();
+
+/**
+ * Where the envelope sits on a leaf, its top-left corner in blade-box
+ * units: its foot tucked into the top edge of the blade right of the
+ * candles, so it's clear of them on a birthday, or, on a blade that's low
+ * there, at the shoulder, above where the name is written.
+ */
+export function leafEnvelope(shape: LeafShape): XY {
+  const known = envelopes.get(shape);
+  if (known) return known;
+  const polys = polygons(leafGeometry(shape).blade);
+  const half = ENVELOPE.width / 2;
+  let edge: number = MIDRIB;
+  for (let x = ENVELOPE_X - half; x <= ENVELOPE_X + half; x += 1) {
+    for (let y = -BLADE_REACH; y < edge; y += 0.5) {
+      if (inside(polys, { x, y })) {
+        edge = y;
+        break;
+      }
+    }
+  }
+  const foot = Math.min(edge + TUCK, LOWEST_FOOT);
+  const found = { x: ENVELOPE_X - half, y: foot - ENVELOPE.height };
+  envelopes.set(shape, found);
+  return found;
+}

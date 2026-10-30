@@ -1,8 +1,10 @@
 /**
  * Push notifications to the phone apps (Step 204), as Expo's push service
  * takes them: who wrote, never what (messages are end-to-end encrypted),
- * and whom a new story is about. What each opens rides in `data`, read by
- * the phone when it's tapped (`mobile/src/push/`).
+ * whom a new story is about, and birthday cards (Step 217.4): one started
+ * for someone the member is reminded to sign, and their own on the day.
+ * What each opens rides in `data`, read by the phone when it's tapped
+ * (`mobile/src/push/`).
  */
 
 /** Expo's push service, which hands each on to Apple or Google. */
@@ -15,6 +17,7 @@ export const PUSH_BATCH = 100;
 export const PUSH_CHANNELS = {
   messages: "Messages",
   stories: "New stories",
+  cards: "Birthday cards",
 } as const;
 
 export type PushChannel = keyof typeof PUSH_CHANNELS;
@@ -22,7 +25,9 @@ export type PushChannel = keyof typeof PUSH_CHANNELS;
 /** What a push opens on the phone. */
 export type PushData =
   | { kind: "message"; conversationId: string }
-  | { kind: "story"; storyId: string; personId: string };
+  | { kind: "story"; storyId: string; personId: string }
+  /** Whose card; `open` for the person's own, ready to open. */
+  | { kind: "card"; personId: string; open: boolean };
 
 /** One push, before it's addressed to a phone. */
 export type PushNote = {
@@ -62,6 +67,33 @@ export function storyPush(input: {
     ...(title ? { body: `“${title}”` } : {}),
     data: { kind: "story", storyId: input.storyId, personId: input.personId },
     channelId: "stories",
+  };
+}
+
+/**
+ * A card started for someone the member is reminded to sign: "Ada’s
+ * birthday card", and the notice's own words ("Chidi Okafor started a card
+ * for Ada's birthday on 14 November.").
+ */
+export function cardStartedPush(input: { personId: string; firstName: string; body: string }): PushNote {
+  const first = input.firstName.trim();
+  return {
+    title: first ? `${first}’s birthday card` : "A birthday card",
+    body: `${input.body.trim()} Sign it?`,
+    data: { kind: "card", personId: input.personId, open: false },
+    channelId: "cards",
+  };
+}
+
+/** Their own card, on the day: "Happy birthday, Ada", and how many signed it. */
+export function cardReadyPush(input: { personId: string; firstName: string; signatures: number }): PushNote {
+  const first = input.firstName.trim();
+  const n = input.signatures;
+  return {
+    title: first ? `Happy birthday, ${first}` : "Happy birthday",
+    body: `Your birthday card is here: ${n} ${n === 1 ? "person" : "people"} signed it.`,
+    data: { kind: "card", personId: input.personId, open: true },
+    channelId: "cards",
   };
 }
 

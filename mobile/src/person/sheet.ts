@@ -1,5 +1,6 @@
 import * as React from "react";
 
+import type { PersonCards } from "@/lib/birthday-cards";
 import { supabase } from "@/auth/supabase";
 
 const SITE = process.env.EXPO_PUBLIC_SITE_URL ?? "https://www.ancestree.space";
@@ -41,10 +42,12 @@ export type PersonSheet = {
   reports?: SheetReport[];
   album?: SheetPhoto[];
   stories?: SheetStory[];
+  /** Their birthday cards, as the member may see them (Step 217.4). */
+  cards?: PersonCards;
 };
 
 /** What the full details read beyond the card: the web sheet's sections. */
-const WANT = "trees,reports,album,stories";
+const WANT = "trees,reports,album,stories,cards";
 
 type SheetState =
   | { status: "loading" }

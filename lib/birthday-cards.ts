@@ -1,3 +1,4 @@
+import { asCardInk, type CardInk } from "@/lib/card-ink";
 import { asCardRelation, type CardRelation } from "@/lib/card-relations";
 import { MONTH_NAMES } from "@/lib/partial-date";
 
@@ -53,6 +54,8 @@ export type CardSignature = {
   audioPath: string | null;
   audioSeconds: number | null;
   photoPath: string | null;
+  /** A drawing and a name signed by hand, on a touch screen (Step 217.4). */
+  ink: CardInk | null;
   /** The viewer signed it. */
   mine: boolean;
   createdAt: string;
@@ -150,6 +153,7 @@ function asSignature(value: unknown): CardSignature | null {
     audioPath: text(s.audioPath),
     audioSeconds: num(s.audioSeconds),
     photoPath: text(s.photoPath),
+    ink: asCardInk(s.ink),
     mine: bool(s.mine),
     createdAt: text(s.createdAt) ?? "",
     updatedAt: text(s.updatedAt) ?? "",
@@ -270,7 +274,8 @@ export const CARD_ERRORS = [
   ["no birthday", "Add their birthday, with the day, first."],
   ["too early", "A card can be started up to a month before the day."],
   ["not open for you to sign", "This card isn’t open for you to sign."],
-  ["nothing to sign with", "Write a message, record one or add a photo."],
+  ["nothing to sign with", "Write a message, record one, add a photo or draw."],
+  ["not ink the card takes", "That drawing can’t go on the card. Clear it and try again."],
   ["longer than a message may be", `Keep it under ${CARD_MESSAGE_MAX.toLocaleString("en")} characters.`],
   ["longer than a voice memo may be", "Keep the voice memo under two minutes."],
   ["didn't arrive", "A file didn’t upload. Try again."],

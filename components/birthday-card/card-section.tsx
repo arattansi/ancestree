@@ -6,6 +6,7 @@ import { ImagePlusIcon, XIcon } from "lucide-react";
 import { CardOpening } from "@/components/birthday-card/card-opening";
 import { CardPage, type SignerOf } from "@/components/birthday-card/card-pages";
 import { EnvelopeMark } from "@/components/birthday-card/envelope-mark";
+import { InkField } from "@/components/birthday-card/ink-pad";
 import { VoiceRecorder, type VoiceTake } from "@/components/birthday-card/voice-recorder";
 import { ConfirmButton } from "@/components/confirm-dialog";
 import { FormError } from "@/components/form-error";
@@ -39,6 +40,7 @@ import {
   type CardSignatureView,
   type PersonCards,
 } from "@/lib/birthday-cards";
+import { draftOf, inkOf, type InkDraft } from "@/lib/card-ink";
 import { cardLinkMessage, relationWords, type CardRelative } from "@/lib/card-links";
 import { discardCardFile, uploadCardFile } from "@/lib/card-upload";
 import type { Relation } from "@/lib/connection-path";
@@ -374,8 +376,9 @@ function SignForm({
   const [photo, setPhoto] = React.useState<Photo | null>(
     mine?.photoPath ? { kind: "kept", path: mine.photoPath, url: mine.photoUrl } : null,
   );
+  const [ink, setInk] = React.useState<InkDraft>(() => draftOf(mine?.ink));
   const picker = React.useRef<HTMLInputElement | null>(null);
-  const empty = !message.trim() && !voice && !photo;
+  const empty = !message.trim() && !voice && !photo && !inkOf(ink);
 
   async function send() {
     const sent: string[] = [];
@@ -396,7 +399,15 @@ function SignForm({
         photoPath = await uploadCardFile(card.id, photo.file, photo.file.type);
         sent.push(photoPath);
       }
-      const answer = await signBirthdayCard({ personId, cardId: card.id, message, audioPath, audioSeconds, photoPath });
+      const answer = await signBirthdayCard({
+        personId,
+        cardId: card.id,
+        message,
+        audioPath,
+        audioSeconds,
+        photoPath,
+        ink: inkOf(ink),
+      });
       if (answer.error) sent.forEach((p) => void discardCardFile(p));
       return answer;
     } catch {
@@ -421,6 +432,8 @@ function SignForm({
           disabled={sign.pending}
         />
       </div>
+
+      <InkField part="sign" value={ink} onChange={setInk} disabled={sign.pending} />
 
       <VoiceRecorder value={voice} onChange={setVoice} disabled={sign.pending} />
 
@@ -475,6 +488,8 @@ function SignForm({
         }}
       />
 
+      <InkField part="draw" value={ink} onChange={setInk} disabled={sign.pending} />
+
       <div className="flex flex-wrap items-center gap-2">
         <PendingButton
           pending={sign.pendingKey === "sign"}
@@ -490,6 +505,7 @@ function SignForm({
             disabled={sign.pending}
             confirm={{
               title: "Take your signature off?",
+              description: "Your message, voice memo, photo and drawing go with it.",
               confirmLabel: "take it off",
               pendingLabel: "taking it off…",
               destructive: true,

@@ -4,7 +4,9 @@ import {
   CANDLE,
   CANDLE_HEIGHT,
   CANDLE_XS,
+  ENVELOPE,
   leafCandles,
+  leafEnvelope,
   SINK,
 } from "@/lib/candles";
 import {
@@ -46,5 +48,24 @@ describe("leafCandles", () => {
     const ovate = leafCandles("ovate");
     expect(ovate[0].y).toBeGreaterThan(20);
     expect(ovate[2].y).toBeGreaterThan(ovate[0].y);
+  });
+});
+
+describe("leafEnvelope", () => {
+  it.each(LEAF_SHAPES)("%s holds its envelope at its shoulder", (shape) => {
+    const at = leafEnvelope(shape);
+    // Right of the candles' flames, inside the box.
+    expect(at.x).toBeGreaterThan(CANDLE_XS[2] + CANDLE.flameWidth / 2 + 4);
+    expect(at.x + ENVELOPE.width).toBeLessThanOrEqual(208);
+    // Above the name, and not far above the box.
+    expect(at.y + ENVELOPE.height).toBeLessThan(LEAF_LINES[0].top - 4);
+    expect(at.y).toBeGreaterThanOrEqual(-23);
+  });
+
+  it("tucks into a frond that reaches up there, else sits at the shoulder", () => {
+    // A palm's leaflets rise right of the candles: its foot goes in among them.
+    expect(leafEnvelope("palm").y + ENVELOPE.height).toBeLessThan(20);
+    // A plain leaf narrows there: it sits clear above the name.
+    expect(leafEnvelope("ovate").y + ENVELOPE.height).toBe(30);
   });
 });

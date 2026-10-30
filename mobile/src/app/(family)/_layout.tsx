@@ -2,6 +2,7 @@ import { Stack } from "expo-router";
 import * as React from "react";
 
 import { useSession } from "@/auth/session";
+import { readCards, reportTimeZone } from "@/cards/cards";
 import { FamilyProvider, useFamily } from "@/family/family";
 import { messenger } from "@/messages/store";
 import { PushNotifications } from "@/push/open";
@@ -19,6 +20,7 @@ export default function FamilyLayout() {
   return (
     <FamilyProvider>
       <MessengerWake />
+      <CardsWake />
       <PushNotifications />
       <Stack
         screenOptions={{
@@ -54,6 +56,16 @@ export default function FamilyLayout() {
           name="messages/scan"
           options={{ presentation: "fullScreenModal", contentStyle: sheet.contentStyle }}
         />
+        {/* Signing a birthday card: full screen, so a stroke in an ink box
+            never drags it away (Step 217.4). */}
+        <Stack.Screen
+          name="card/[id]"
+          options={{
+            presentation: "fullScreenModal",
+            gestureEnabled: false,
+            contentStyle: sheet.contentStyle,
+          }}
+        />
         {/* Full screen, and no swipe away: a story half told isn't lost to a
             stray gesture (Step 148). */}
         <Stack.Screen
@@ -82,5 +94,21 @@ function MessengerWake() {
     if (userId && ready) messenger.start(userId);
   }, [userId, ready]);
   React.useEffect(() => () => messenger.stop(), []);
+  return null;
+}
+
+/**
+ * Once the member is in (Step 217.4): the birthday cards their leaves are
+ * marked for, read as theirs, and this phone's time zone, where their own
+ * card opens if nothing says where they live.
+ */
+function CardsWake() {
+  const { session } = useSession();
+  const userId = session?.user.id ?? null;
+  React.useEffect(() => {
+    if (!userId) return;
+    readCards();
+    reportTimeZone();
+  }, [userId]);
   return null;
 }

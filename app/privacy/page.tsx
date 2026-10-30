@@ -252,7 +252,8 @@ export default function PrivacyPage() {
         <ul className="list-disc space-y-1 pl-5">
           <li>
             Before your birthday, family on your trees can sign a card for
-            you: a message, a voice memo, a photo. You can&rsquo;t see it, or
+            you: a message, a voice memo, a photo, and on a phone or tablet a
+            drawing or their name signed by hand. You can&rsquo;t see it, or
             that it exists, until midnight on the day where you live.
           </li>
           <li>
@@ -264,6 +265,14 @@ export default function PrivacyPage() {
           <li>
             Each signer can take their own signature off at any time; its
             voice memo and photo are deleted with it.
+          </li>
+          {/* Step 217.4. */}
+          <li>
+            A drawing or a signed name is kept as the lines drawn (where each
+            point was, how hard it was pressed and when), not as a picture, so
+            the card can write it out again as it opens. A photo added in the
+            phone app is made smaller and saved again on the phone first, so
+            where and when it was taken don&rsquo;t go with it.
           </li>
           {/* Step 217.3. */}
           <li>
@@ -479,8 +488,8 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong>Turn off notifications.</strong> In the phone app&rsquo;s
-            settings, for new messages or new stories, or for ancestree in
-            your phone&rsquo;s own settings.
+            settings, for new messages, new stories or birthday cards, or for
+            ancestree in your phone&rsquo;s own settings.
           </li>
           <li>
             <strong>Delete your account.</strong> From{" "}

@@ -20,6 +20,7 @@ import {
   personInitials,
   personLifespan,
 } from "@/lib/person-name";
+import { CardSection } from "@/cards/card-section";
 import { relativesOf, useFamily } from "@/family/family";
 import type { Family, FamilyPerson } from "@/family/load";
 import { usePhotoUrl } from "@/family/photo";
@@ -43,7 +44,8 @@ const FACE = 56;
  */
 export default function PersonDetails() {
   const palette = usePalette();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  // `card=open`: from a push, or their own leaf on the day (Step 217.4).
+  const { id, card } = useLocalSearchParams<{ id: string; card?: string }>();
   const { state, walkTo } = useFamily();
   const family = state.status === "ready" ? state.family : null;
   const person = family?.people.get(id) ?? null;
@@ -142,6 +144,18 @@ export default function PersonDetails() {
           onPress={() => walk(person.id)}
         />
       </View>
+
+      {sheet.state.status === "ready" ? (
+        <CardSection
+          family={family}
+          personId={person.id}
+          name={person.preferred_name || person.first_name || name}
+          sex={person.sex}
+          leaf={nativeLeaf(person).shape}
+          cards={sheet.state.sheet.cards}
+          openNow={card === "open"}
+        />
+      ) : null}
 
       <Details person={person} />
 

@@ -1,4 +1,5 @@
 import { cardDay, possessive, type CardSignatureView } from "@/lib/birthday-cards";
+import { asCardInk, type CardInk } from "@/lib/card-ink";
 import {
   asCardRelation,
   relationLabel,
@@ -77,6 +78,7 @@ export type CardLinkSignature = {
   audioPath: string | null;
   audioSeconds: number | null;
   photoPath: string | null;
+  ink: CardInk | null;
   mine: boolean;
   createdAt: string;
   updatedAt: string;
@@ -91,6 +93,7 @@ export type CardLinkMine = {
   audioPath: string | null;
   audioSeconds: number | null;
   photoPath: string | null;
+  ink: CardInk | null;
   updatedAt: string;
 };
 
@@ -152,6 +155,7 @@ function asMine(value: unknown): CardLinkMine | null {
     audioPath: text(m.audioPath),
     audioSeconds: num(m.audioSeconds),
     photoPath: text(m.photoPath),
+    ink: asCardInk(m.ink),
     updatedAt: text(m.updatedAt) ?? "",
   };
 }
@@ -168,6 +172,7 @@ function asLinkSignature(value: unknown): CardLinkSignature | null {
     audioPath: text(s.audioPath),
     audioSeconds: num(s.audioSeconds),
     photoPath: text(s.photoPath),
+    ink: asCardInk(s.ink),
     mine: bool(s.mine),
     createdAt: text(s.createdAt) ?? "",
     updatedAt: text(s.updatedAt) ?? "",
@@ -238,6 +243,7 @@ export function asPageSignature(
     audioPath: s.audioPath,
     audioSeconds: s.audioSeconds,
     photoPath: s.photoPath,
+    ink: s.ink,
     mine: s.mine,
     createdAt: s.createdAt,
     updatedAt: s.updatedAt,
@@ -277,7 +283,8 @@ export const CARD_LINK_ERRORS = [
   ["three cards a day", "That’s three cards today from this browser. Try again tomorrow."],
   ["too many files", "Too many files today. Try again tomorrow."],
   ["too many right now", "Too many people are signing right now. Try again in a little while."],
-  ["nothing to sign with", "Write a message, record one or add a photo."],
+  ["nothing to sign with", "Write a message, record one, add a photo or draw."],
+  ["not ink the card takes", "That drawing can’t go on the card. Clear it and try again."],
   ["longer than a message may be", "Keep it under 2,000 characters."],
   ["longer than a voice memo may be", "Keep the voice memo under two minutes."],
   ["not a relation", "Say how you know them."],

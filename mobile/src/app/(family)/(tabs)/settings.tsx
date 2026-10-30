@@ -209,8 +209,8 @@ function EditLeaves({ family, userId }: { family: Family; userId: string }) {
 }
 
 /**
- * What the phone notifies them of (Step 204): new messages and new
- * stories, each on until they turn it off, for every phone they're signed
+ * What the phone notifies them of (Step 204): new messages, new stories
+ * and (Step 217.4) birthday cards, each on until they turn it off, for every phone they're signed
  * in on. If the phone itself won't let the app notify them, they're sent
  * to its settings.
  */
@@ -264,6 +264,7 @@ function Notifications() {
       <Text style={[styles.leavesTitle, { color: palette.foreground }]}>Notifications</Text>
       {row("Messages", "messages")}
       {row("New stories", "stories")}
+      {row("Birthday cards", "cards")}
       {permission === "denied" ? (
         <View style={styles.off}>
           <Text style={[styles.note, { color: palette.mutedForeground }]}>

@@ -24,10 +24,13 @@ import {
 export function SheetForm({
   style,
   contentContainerStyle,
+  scrollEnabled = true,
   children,
 }: {
   style?: StyleProp<ViewStyle>;
   contentContainerStyle?: StyleProp<ViewStyle>;
+  /** Off while a finger draws in it (Step 217.4's ink). */
+  scrollEnabled?: boolean;
   children: React.ReactNode;
 }) {
   const ref = React.useRef<ScrollView>(null);
@@ -60,6 +63,7 @@ export function SheetForm({
         ref={ref}
         innerViewRef={content as React.RefObject<View>}
         contentContainerStyle={contentContainerStyle}
+        scrollEnabled={scrollEnabled}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
         automaticallyAdjustKeyboardInsets

@@ -2034,6 +2034,51 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 217.4: ink, and birthday cards on the phone** (web and phone;
+  migration `20261031090000_card_ink`, live; Phase 3 of the scope, decision
+  15). **Asked for** (2026-10-29): on a mobile device a signature can hold a
+  drawing or a hand-signed name. **Now** `lib/card-ink.ts` (shared, tested)
+  keeps ink as strokes, points `[x, y, pressure, ms]` in the box's 0–1
+  units, a `draw` square and a `sign` strip (4:1), and draws each with
+  `perfect-freehand` (pressure from a pencil, simulated from a finger), and
+  re-times it to write out again (pauses cut to 160 ms, the whole under
+  3.2 s). `card_signatures.ink` (jsonb, about 200 KB at most, checked by
+  `private.card_ink_ok` in the column and both signing calls); ink alone
+  signs a card. `sign_birthday_card` and `sign_card_by_link` take `p_ink`
+  (dropped and re-created from 217.3's file, old named calls still
+  resolve); `card_json`, `card_link_signatures_json` and `card_link_view`
+  return it. Web: `InkPad` (a canvas, Pointer Events with coalesced points
+  and pressure, `touch-action: none`, mouse ignored) on touch screens only,
+  "sign your name" under the message and "draw something" after the photo,
+  in the sheet's and the link's forms; without touch, kept ink shows with
+  an x. `CardPage` puts a hand-signed name in the typed name's place and
+  the drawing under the message; `CardOpening` replays each page's ink
+  (`InkDrawing`), reduced motion excepted. Phone (`mobile/src/cards/`):
+  the envelope on the leaf (`leafEnvelope` in `lib/candles.ts`, tested on
+  every shape) from `my_card_flags`, read again when the member changes;
+  the card on someone's details (`want=cards` from the existing sheet
+  route); a full-screen sign form (`/card/[id]`: message, ink through
+  `PanResponder` + `react-native-svg`, a voice memo with `expo-audio`, a
+  photo through `expo-image-manipulator` at 1,600 px, saved anew with no
+  camera, date or place), RPCs and storage as the member, released files
+  removed by their uploader; the opening on the day (envelope pulled or
+  untied, then a page a signature with the ink replayed); their own leaf on
+  the day opens it. Pushes: Android channel "Birthday cards" and a **Birthday
+  cards** switch (`push_settings.cards`, `set_push_settings` takes
+  `p_cards`, an older phone's call leaves it be); `card_started` pushed
+  after a start on the web (`claim_card_started_push`), `card_ready` from
+  the cron (`card_ready_pushes`), once each (`card_pushes`); a `card` push
+  opens their details, their own card straight away. The phone reports its
+  time zone (`set_my_time_zone`). Checked: a 31-check rolled-back rehearsal
+  on live; in the browser with throwaway accounts (start pushed and the fake
+  token pruned, a signed-out link signer drawing with pen pressure and
+  signing by touch, ink alone; a member's touch signature; desktop showing
+  kept ink; the day's opening replaying both); in the iOS simulator on a
+  dev build (envelope on the leaf, signing with message, ink, a 6 s voice
+  memo and a photo whose GPS and camera tags were gone, the opening pulled
+  open with replay, a `card_ready` push opening the card). Not on Android;
+  no store build (Aalim's).
+
 - **Step 217.3: a birthday card's link, and joining from it** (web;
   migration `20261030120000_birthday_card_links`, live; Phase 2 of the scope,
   Aalim's decisions 7, 8, 11, 14). **Asked for** (2026-10-29): a public link

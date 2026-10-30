@@ -4,6 +4,7 @@ import { ActivityIndicator, BackHandler, Pressable, StyleSheet, Text, View } fro
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useSession } from "@/auth/session";
+import { useCardFlag } from "@/cards/cards";
 import { useFamily } from "@/family/family";
 import type { NoFamily } from "@/family/load";
 import { Spotlight, useClock, type SpotlightPlaces } from "@/leaf/spotlight";
@@ -49,6 +50,7 @@ export default function LeafScreen() {
   const { state, reload, focusId, trail, walkTo, back, treeId, map, showMap, hideMap } =
     useFamily();
   const family = state.status === "ready" ? state.family : null;
+  const cardFlag = useCardFlag(focusId);
   // Where the leaf view's leaf and pills were when the ground was tapped,
   // for the whole tree to open out of; nothing from the picker.
   const [from, setFrom] = React.useState<SpotlightPlaces | null>(null);
@@ -137,7 +139,11 @@ export default function LeafScreen() {
                 router.push({ pathname: "/relatives/[side]", params: { side } })
               }
               onOpenLeaf={() =>
-                router.push({ pathname: "/person/[id]", params: { id: focusId } })
+                router.push({
+                  pathname: "/person/[id]",
+                  // Their own card, ready: a tap on their leaf opens it (Step 217.4).
+                  params: cardFlag?.state === "mine" ? { id: focusId, card: "open" } : { id: focusId },
+                })
               }
               onAdd={(relation) =>
                 router.push({ pathname: "/add/relative/[id]", params: { id: focusId, relation } })

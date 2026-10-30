@@ -20,6 +20,15 @@ export type ChangelogEntry = {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-10-30",
+    title: "draw on a birthday card",
+    items: [
+      "on a phone or tablet, sign a birthday card with your finger: your name signed by hand, and a drawing if you like. your signed name stands in for your typed one.",
+      "when the card opens, each signature writes itself out again, the way it was drawn.",
+    ],
+    steps: [217],
+  },
+  {
+    date: "2026-10-30",
     title: "sign a birthday card from a link",
     items: [
       "whoever runs a birthday card can share it as a link in the family chat. anyone with it can sign with just their name, no account needed.",

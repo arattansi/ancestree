@@ -44,6 +44,8 @@ const answer = {
       updatedAt: "2026-10-30T04:00:00Z",
     },
     { id: "s2", name: "Ngozi", message: "Happy birthday, Aunty!", mine: false },
+    { id: "s3", name: "Bisi", ink: { sign: [[[0.2, 0.5, 0.5, 0]]] } },
+    { id: "s4", name: "Kemi", ink: { draw: "not ink" } },
     { name: "no id, dropped" },
   ],
 };
@@ -53,8 +55,11 @@ describe("asBirthdayCard", () => {
     const card = asBirthdayCard(answer);
     expect(card?.opensOn).toBe("2026-11-10");
     expect(card?.manager).toBe(true);
-    expect(card?.signatures.map((s) => s.id)).toEqual(["s1", "s2"]);
-    expect(card?.signatures[1]).toMatchObject({ audioPath: null, mine: false, personId: null });
+    expect(card?.signatures.map((s) => s.id)).toEqual(["s1", "s2", "s3", "s4"]);
+    expect(card?.signatures[1]).toMatchObject({ audioPath: null, mine: false, personId: null, ink: null });
+    // Ink (Step 217.4), read as the card takes it; anything else is none.
+    expect(card?.signatures[2].ink).toEqual({ sign: [[[0.2, 0.5, 0.5, 0]]] });
+    expect(card?.signatures[3].ink).toBeNull();
   });
 
   it("is null for nothing, or a card without its keys", () => {

@@ -85,6 +85,7 @@ export function CardOpening({
                   endLabel="close"
                   onEnd={() => onOpenChange(false)}
                   onDark
+                  replay
                 />
               </div>
             </div>

@@ -2,6 +2,7 @@ import type { Session } from "@supabase/supabase-js";
 import * as React from "react";
 
 import { supabase } from "@/auth/supabase";
+import { forgetCards } from "@/cards/cards";
 import { forgetPush } from "@/push/push";
 
 type SessionState = {
@@ -41,6 +42,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       signOut: async () => {
         // This phone tells nobody of their family once they've gone (Step 204).
         await forgetPush().catch(() => {});
+        forgetCards();
         await supabase.auth.signOut();
       },
     }),

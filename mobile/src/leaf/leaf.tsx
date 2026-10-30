@@ -11,6 +11,7 @@ import {
   type LeafShape,
 } from "@/lib/leaf-shapes";
 import type { OrbitSide } from "@/lib/leaf-orbit";
+import { LeafEnvelope } from "@/cards/envelope";
 import { LeafCandles } from "@/leaf/candles";
 import { font, usePalette } from "@/theme";
 
@@ -86,6 +87,7 @@ export function Leaf({
   deceased,
   clipId,
   birthday = false,
+  card = false,
 }: {
   shape: LeafShape;
   width: number;
@@ -97,6 +99,8 @@ export function Leaf({
   clipId: string;
   /** Their birthday (Step 205): candles stuck into the top of the blade. */
   birthday?: boolean;
+  /** A birthday card going round for them, or theirs, ready (Step 217.4). */
+  card?: boolean;
 }) {
   const palette = usePalette();
   const geometry = leafGeometry(shape);
@@ -151,6 +155,7 @@ export function Leaf({
         </G>
       </Svg>
       {birthday ? <LeafCandles shape={shape} scale={scale} /> : null}
+      {card ? <LeafEnvelope shape={shape} scale={scale} /> : null}
       <View
         pointerEvents="none"
         style={[

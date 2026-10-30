@@ -291,6 +291,26 @@ story is told, tagged or approved, the web's own actions or
 `/api/mobile/stories/push` ask. `claim_message_push` and
 `claim_story_push` decide whom, once each.
 
+Birthday cards (Step 217.4) are a third kind, with their own switch and
+Android channel: a card started for someone whose card the member is
+reminded to sign (asked by the web after the start,
+`claim_card_started_push`), and the member's own card on the day (the
+cron, `card_ready_pushes`). Tapping one opens that person's details; their
+own card opens straight away.
+
+## Birthday cards (Step 217.4)
+
+`src/cards/`: the envelope on a leaf (`leafEnvelope`, `lib/candles.ts`),
+the card on someone's details, signing at `/card/[id]` (message, a name
+signed by hand and a drawing as strokes, `lib/card-ink.ts` drawn with
+`react-native-svg` and touched with `PanResponder`; a voice memo with
+`expo-audio`; a photo shrunk and saved anew with `expo-image-manipulator`,
+so no camera, date or place goes with it) and the opening on the day.
+Signed-in writes are the same RPCs the web's sheet calls. `expo-audio` and
+`expo-image-manipulator` are native: the first build after Step 217.4
+brings them, and the microphone's purpose string now names birthday
+messages too.
+
 Each platform needs its key on EAS once, before the build that brings
 `expo-notifications`:
 

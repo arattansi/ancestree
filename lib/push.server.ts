@@ -6,6 +6,7 @@ import { after } from "next/server";
 import type { Database } from "@/lib/database.types";
 import {
   addressPushes,
+  cardStartedPush,
   EXPO_PUSH_URL,
   goneTokens,
   messagePush,
@@ -59,6 +60,27 @@ export async function claimStoryPush(
   return (data ?? []).map((r) => ({
     userId: r.user_id,
     note: storyPush({ storyId, personId: r.person_id, title: r.title, about: r.about }),
+  }));
+}
+
+/**
+ * Whom a card just started should reach (Step 217.4): those it told in the
+ * app, asked as whoever started it. `claim_card_started_push` decides,
+ * each once a card.
+ */
+export async function claimCardStartedPush(
+  supabase: SupabaseClient<Database>,
+  cardId: unknown,
+): Promise<PushFor[]> {
+  if (typeof cardId !== "string" || !UUID.test(cardId)) return [];
+  const { data, error } = await supabase.rpc("claim_card_started_push", { p_card: cardId });
+  if (error) {
+    console.error("[push] couldn't claim a card's push", error);
+    return [];
+  }
+  return (data ?? []).map((r) => ({
+    userId: r.user_id,
+    note: cardStartedPush({ personId: r.person_id, firstName: r.first_name, body: r.body }),
   }));
 }
 

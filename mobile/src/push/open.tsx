@@ -30,7 +30,8 @@ const opened = new Set<string>();
  * Push notifications for a signed-in member (Step 204): once their family
  * is read, ask whether the app may notify them and give the web this
  * phone's token; and a push tapped, the app open or not, opens what it's
- * about: the conversation, or the details of whom the story is about.
+ * about: the conversation, the details of whom the story is about, or of
+ * whose birthday card it is.
  */
 export function PushNotifications() {
   const { session } = useSession();
@@ -53,6 +54,12 @@ export function PushNotifications() {
       router.push({ pathname: "/messages/[id]", params: { id: data.conversationId } });
     } else if (data?.kind === "story" && data.personId) {
       router.push({ pathname: "/person/[id]", params: { id: data.personId } });
+    } else if (data?.kind === "card" && data.personId) {
+      // Their own card on the day opens straight away (Step 217.4).
+      router.push({
+        pathname: "/person/[id]",
+        params: data.open ? { id: data.personId, card: "open" } : { id: data.personId },
+      });
     }
   }, [response, ready]);
   return null;

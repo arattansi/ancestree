@@ -14,6 +14,7 @@ import {
   releasedFiles,
   removeCardFilesLater,
 } from "@/lib/birthday-cards.server";
+import { asCardInk } from "@/lib/card-ink";
 import {
   asCardRelatives,
   CARD_LINK_ERRORS,
@@ -25,6 +26,7 @@ import { mintClaimLink } from "@/lib/claim-invite-send.server";
 import { friendlyDbError } from "@/lib/db-errors";
 import type { ShareChannel } from "@/lib/invite-events";
 import { revalidateTreePages } from "@/lib/revalidate";
+import { claimCardStartedPush, pushAfter } from "@/lib/push.server";
 import { getSiteUrl } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/server";
 
@@ -55,19 +57,23 @@ export async function startBirthdayCard(input: {
 }): Promise<CardsAnswer> {
   await requireProfile();
   const supabase = await createClient();
-  const { error } = await supabase.rpc("start_birthday_card", {
+  const { data, error } = await supabase.rpc("start_birthday_card", {
     p_person: input.personId,
     p_time_zone: input.timeZone ?? undefined,
   });
   if (error) {
     return { error: friendlyDbError(error.message, CARD_ERRORS, "Couldn’t start the card. Try again.") };
   }
+  // Those told in the app hear of it on their phones too (Step 217.4).
+  const started = data && typeof data === "object" ? (data as { id?: unknown; started?: unknown }) : null;
+  if (started?.started === true) await pushAfter(claimCardStartedPush(supabase, started.id));
   return cardsOf(input.personId);
 }
 
 /**
- * Sign a card, or change one's signature: a message, a voice memo and a
- * photo, any of them, the files already in the card's folder. What the
+ * Sign a card, or change one's signature: a message, a voice memo, a photo
+ * and, from a touch screen, a drawing and a name signed by hand (Step
+ * 217.4), any of them, the files already in the card's folder. What the
  * change let go is removed once the answer has gone.
  */
 export async function signBirthdayCard(input: {
@@ -77,11 +83,16 @@ export async function signBirthdayCard(input: {
   audioPath: string | null;
   audioSeconds: number | null;
   photoPath: string | null;
+  ink: unknown;
 }): Promise<CardsAnswer> {
   await requireProfile();
   const message = input.message.trim();
-  if (!message && !input.audioPath && !input.photoPath) {
-    return { error: "Write a message, record one or add a photo." };
+  const ink = input.ink == null ? null : asCardInk(input.ink);
+  if (input.ink != null && !ink) {
+    return { error: "That drawing can’t go on the card. Clear it and try again." };
+  }
+  if (!message && !input.audioPath && !input.photoPath && !ink) {
+    return { error: "Write a message, record one, add a photo or draw." };
   }
   if (message.length > CARD_MESSAGE_MAX) {
     return { error: `Keep it under ${CARD_MESSAGE_MAX.toLocaleString("en")} characters.` };
@@ -101,6 +112,7 @@ export async function signBirthdayCard(input: {
     p_audio_path: input.audioPath ?? undefined,
     p_audio_seconds: input.audioPath && seconds !== null ? seconds : undefined,
     p_photo_path: input.photoPath ?? undefined,
+    p_ink: ink ?? undefined,
   });
   if (error) {
     return { error: friendlyDbError(error.message, CARD_ERRORS, "Couldn’t sign it. Try again.") };

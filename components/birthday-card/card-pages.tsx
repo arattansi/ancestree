@@ -4,6 +4,7 @@ import * as React from "react";
 import { PauseIcon, PlayIcon } from "lucide-react";
 
 import { CardLeaf } from "@/components/birthday-card/card-leaf";
+import { InkDrawing, replayLength } from "@/components/birthday-card/ink-drawing";
 import type { CardSignatureView } from "@/lib/birthday-cards";
 import type { LeafShape } from "@/lib/leaf-shapes";
 import { formatDuration } from "@/lib/story-audio";
@@ -82,9 +83,23 @@ export function VoiceMemo({
   );
 }
 
-/** One signature, a page of the card. */
-export function CardPage({ signature, signer }: { signature: CardSignatureView; signer: SignerOf }) {
+/**
+ * One signature, a page of the card. A name signed by hand takes the typed
+ * name's place (Step 217.4); with `replay`, as the card opens, it writes
+ * itself out again, then the drawing.
+ */
+export function CardPage({
+  signature,
+  signer,
+  replay = false,
+}: {
+  signature: CardSignatureView;
+  signer: SignerOf;
+  replay?: boolean;
+}) {
   const { leaf, relation } = signer(signature);
+  const signed = signature.ink?.sign ?? null;
+  const drawn = signature.ink?.draw ?? null;
   return (
     <article className="card-page-in flex h-full flex-col gap-5 overflow-y-auto p-6 sm:p-8">
       <div className="flex items-center gap-3">
@@ -98,13 +113,33 @@ export function CardPage({ signature, signer }: { signature: CardSignatureView; 
             {signature.name.slice(0, 1)}
           </span>
         )}
-        <div className="flex flex-col">
-          <span className="text-base font-semibold">{signature.name}</span>
+        <div className="flex min-w-0 flex-col">
+          {signed ? (
+            <InkDrawing
+              box="sign"
+              strokes={signed}
+              label={signature.name}
+              replay={replay}
+              className="h-11 w-auto max-w-full self-start"
+            />
+          ) : (
+            <span className="text-base font-semibold">{signature.name}</span>
+          )}
           {relation ? <span className="text-[13px] text-muted-foreground">{relation}</span> : null}
         </div>
       </div>
       {signature.message ? (
         <p className="text-lg leading-relaxed whitespace-pre-line sm:text-xl">{signature.message}</p>
+      ) : null}
+      {drawn ? (
+        <InkDrawing
+          box="draw"
+          strokes={drawn}
+          label={`${signature.name}’s drawing`}
+          replay={replay}
+          delay={replay && signed ? replayLength(signed) + 250 : 0}
+          className="w-full max-w-72"
+        />
       ) : null}
       {signature.audioPath ? (
         <VoiceMemo url={signature.audioUrl} seconds={signature.audioSeconds} name={signature.name} />
@@ -137,6 +172,7 @@ export function CardPages({
   endLabel,
   onEnd,
   onDark = false,
+  replay = false,
 }: {
   signatures: readonly CardSignatureView[];
   signer: SignerOf;
@@ -145,6 +181,8 @@ export function CardPages({
   onEnd: () => void;
   /** Over the dimmed page, as a card opens: light buttons. */
   onDark?: boolean;
+  /** Each page's ink writes itself out as the page turns to it. */
+  replay?: boolean;
 }) {
   const per = wide ? 2 : 1;
   const [at, setAt] = React.useState(0);
@@ -177,7 +215,7 @@ export function CardPages({
         {shown.length === 0 ? (
           <p className="p-8 text-muted-foreground">nobody has signed it yet.</p>
         ) : (
-          shown.map((s) => <CardPage key={s.id} signature={s} signer={signer} />)
+          shown.map((s) => <CardPage key={s.id} signature={s} signer={signer} replay={replay} />)
         )}
       </div>
       <div className="flex justify-between gap-3">

@@ -7,6 +7,7 @@ import { CheckIcon, ImagePlusIcon, XIcon } from "lucide-react";
 import { CardLeaf } from "@/components/birthday-card/card-leaf";
 import { CardOpening } from "@/components/birthday-card/card-opening";
 import { CardPage, type SignerOf } from "@/components/birthday-card/card-pages";
+import { InkField } from "@/components/birthday-card/ink-pad";
 import { VoiceRecorder, type VoiceTake } from "@/components/birthday-card/voice-recorder";
 import { ConfirmButton } from "@/components/confirm-dialog";
 import { FormError } from "@/components/form-error";
@@ -23,6 +24,7 @@ import {
   possessive,
   type BirthdayCardView,
 } from "@/lib/birthday-cards";
+import { draftOf, inkOf, type InkDraft } from "@/lib/card-ink";
 import { joinLine, pronounOf, relationWords } from "@/lib/card-links";
 import type { CardLinkPage } from "@/lib/card-links.server";
 import {
@@ -188,7 +190,7 @@ export function CardLinkSigning({ page }: { page: LivePage }) {
             className="h-auto self-start p-0 text-muted-foreground"
             confirm={{
               title: "Take your signature off?",
-              description: "Your message, voice memo and photo go with it.",
+              description: "Your message, voice memo, photo and drawing go with it.",
               confirmLabel: "take it off",
               pendingLabel: "taking it off…",
               destructive: true,
@@ -267,6 +269,7 @@ function SignForm({
   const [photo, setPhoto] = React.useState<Photo | null>(
     mine?.photoPath ? { kind: "kept", path: mine.photoPath, url: mine.photoUrl } : null,
   );
+  const [ink, setInk] = React.useState<InkDraft>(() => draftOf(mine?.ink));
   const picker = React.useRef<HTMLInputElement | null>(null);
   const honeypot = React.useRef<HTMLInputElement | null>(null);
   const pronoun = pronounOf(page.sex);
@@ -274,7 +277,7 @@ function SignForm({
 
   const named = !!page.viewerName || name.trim().length > 0;
   const placed = !page.asksHow || how === "friend" || (how === "family" && relation !== "");
-  const something = !!message.trim() || !!voice || !!photo;
+  const something = !!message.trim() || !!voice || !!photo || !!inkOf(ink);
   const ready = named && placed && something;
   const chosen: CardRelation | null = !page.asksHow ? null : how === "friend" ? "friend" : relation || null;
 
@@ -302,6 +305,7 @@ function SignForm({
         audioPath,
         audioSeconds,
         photoPath,
+        ink: inkOf(ink),
         website: honeypot.current?.value ?? "",
       });
     } catch (error) {
@@ -398,6 +402,8 @@ function SignForm({
         />
       </div>
 
+      <InkField part="sign" value={ink} onChange={setInk} disabled={sign.pending} />
+
       <VoiceRecorder value={voice} onChange={setVoice} disabled={sign.pending} />
 
       {photo ? (
@@ -450,6 +456,8 @@ function SignForm({
           setPhoto({ kind: "new", file: small, url: URL.createObjectURL(small) });
         }}
       />
+
+      <InkField part="draw" value={ink} onChange={setInk} disabled={sign.pending} />
 
       {/* Left empty by people; a bot that fills every field fills this. */}
       <div aria-hidden className="absolute -left-[9999px] h-px w-px overflow-hidden">

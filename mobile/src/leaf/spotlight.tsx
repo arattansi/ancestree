@@ -31,6 +31,7 @@ import {
   personDisplayName,
   personLifespan,
 } from "@/lib/person-name";
+import { useCardFlag } from "@/cards/cards";
 import { addsOf, lineageOf, relativesOf } from "@/family/family";
 import type { Family } from "@/family/load";
 import { useToday } from "@/family/today";
@@ -383,6 +384,7 @@ function Scene({
   const palette = usePalette();
   const person = family.people.get(focusId);
   const today = useToday();
+  const cardFlag = useCardFlag(focusId);
   // The family past the pills, out of focus (Step 184), and everything moved
   // to sit in the middle together, under how they're connected to the
   // member (Step 185).
@@ -459,6 +461,8 @@ function Scene({
   const deceased = !!person.is_deceased || !!person.date_of_death;
   // Their birthday, by the web's rules (Step 205): candles on the leaf.
   const birthday = isBirthday(person, today);
+  // A birthday card going round for them, or their own, ready (Step 217.4).
+  const card = cardFlag !== null;
   // Who glides in from the view walked from, and who glides out to the one
   // walked to.
   const walk: Walk = {
@@ -540,10 +544,11 @@ function Scene({
               years,
               leafLabel(leaf),
               birthday ? "Birthday today" : null,
+              cardFlag?.state === "mine" ? "Your birthday card is here" : cardFlag ? "A birthday card to sign" : null,
             ]
               .filter(Boolean)
               .join(", ")}
-            accessibilityHint="Opens their details"
+            accessibilityHint={cardFlag?.state === "mine" ? "Opens your card" : "Opens their details"}
             onPress={onOpenLeaf}
             style={{
               position: "absolute",
@@ -559,6 +564,7 @@ function Scene({
               deceased={deceased}
               clipId={`leaf-${focusId}`}
               birthday={birthday}
+              card={card}
             />
           </Pressable>
         </Morph>
