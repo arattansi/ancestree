@@ -35,6 +35,8 @@ export type PendingInviteRequest = {
    * (`invite_request_candidates`, Step 30.3). Empty when none do.
    */
   candidates: SelfCandidate[];
+  /** "From Ada’s birthday card, as her cousin." (Step 217.3) */
+  fromCard: string | null;
 };
 
 type Approved = {
@@ -161,6 +163,7 @@ function RequestRow({
         {r.email} ·{" "}
         {shortDate(r.createdAt)}
       </p>
+      {r.fromCard ? <p className="text-muted-foreground">{r.fromCard}</p> : null}
       {result ? (
         <div className="flex flex-col gap-2">
           <p className={result.emailed ? "text-muted-foreground" : "text-destructive"}>

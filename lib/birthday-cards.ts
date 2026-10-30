@@ -1,3 +1,4 @@
+import { asCardRelation, type CardRelation } from "@/lib/card-relations";
 import { MONTH_NAMES } from "@/lib/partial-date";
 
 /**
@@ -44,6 +45,10 @@ export type CardSignature = {
   name: string;
   /** The signer's own entry, to say who they are to the person. */
   personId: string | null;
+  /** What a link signer said they are to the person (Step 217.3). */
+  relation: CardRelation | null;
+  /** In the app, through the public link, or through a personal link. */
+  cameBy: "app" | "link" | "personal_link";
   message: string | null;
   audioPath: string | null;
   audioSeconds: number | null;
@@ -78,6 +83,11 @@ export type BirthdayCard = {
   manager: boolean;
   /** The viewer signed it. */
   signed: boolean;
+  /**
+   * For a manager: whether the public link is on, and whether they may turn
+   * it on (a parent's, for someone under 18). Null for anyone else.
+   */
+  link: { on: boolean; mayTurnOn: boolean } | null;
   signatures: CardSignature[];
 };
 
@@ -134,6 +144,8 @@ function asSignature(value: unknown): CardSignature | null {
     id,
     name: text(s.name) ?? "A relative",
     personId: text(s.personId),
+    relation: asCardRelation(s.relation),
+    cameBy: s.cameBy === "link" || s.cameBy === "personal_link" ? s.cameBy : "app",
     message: text(s.message),
     audioPath: text(s.audioPath),
     audioSeconds: num(s.audioSeconds),
@@ -152,6 +164,7 @@ export function asBirthdayCard(value: unknown): BirthdayCard | null {
   const personId = text(c.personId);
   const opensOn = text(c.opensOn);
   if (!id || !personId || !opensOn) return null;
+  const link = c.link && typeof c.link === "object" ? (c.link as Record<string, unknown>) : null;
   return {
     id,
     personId,
@@ -166,6 +179,7 @@ export function asBirthdayCard(value: unknown): BirthdayCard | null {
     recipient: bool(c.recipient),
     manager: bool(c.manager),
     signed: bool(c.signed),
+    link: link ? { on: bool(link.on), mayTurnOn: bool(link.mayTurnOn) } : null,
     signatures: Array.isArray(c.signatures)
       ? c.signatures.flatMap((s) => {
           const one = asSignature(s);

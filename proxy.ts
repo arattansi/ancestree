@@ -67,6 +67,13 @@ const PUBLIC_PREFIXES = [
   // An invite's page saying it was seen, signed out as often as not (Step
   // 216).
   "/api/invite-opened",
+  // A birthday card's link and what it signs with (Step 217.3): anyone
+  // holding the link may sign, signed out.
+  "/c/",
+  "/api/cards/",
+  // Vercel BotID's script and its checks (`withBotId`), which the link's
+  // page loads signed out.
+  "/149e9513-01fa-4fb0-aad4-566afd725d1b/",
 ];
 
 export async function proxy(request: NextRequest, event: NextFetchEvent) {

@@ -74,14 +74,14 @@ export function ShareMessage({
   message: string;
   /** The invite the message carries, to count its shares. */
   inviteToken?: string;
-  /** It went somewhere, as far as the page can tell. */
-  onShared?: () => void;
+  /** It went somewhere, as far as the page can tell, by which button. */
+  onShared?: (channel: ShareChannel) => void;
   className?: string;
 }) {
   const { sheet, messages } = useShareDevice();
 
   function shared(channel: ShareChannel) {
-    onShared?.();
+    onShared?.(channel);
     if (inviteToken) noteShared(inviteToken, channel);
   }
 

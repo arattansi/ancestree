@@ -376,36 +376,48 @@ export type Database = {
         Row: {
           audio_path: string | null
           audio_seconds: number | null
+          came_by: string
           card_id: string
           created_at: string
+          edit_token_hash: string | null
           id: string
           message: string | null
           photo_path: string | null
+          relation: string | null
           signer_name: string
+          signer_person_id: string | null
           signer_user_id: string | null
           updated_at: string
         }
         Insert: {
           audio_path?: string | null
           audio_seconds?: number | null
+          came_by?: string
           card_id: string
           created_at?: string
+          edit_token_hash?: string | null
           id?: string
           message?: string | null
           photo_path?: string | null
+          relation?: string | null
           signer_name: string
+          signer_person_id?: string | null
           signer_user_id?: string | null
           updated_at?: string
         }
         Update: {
           audio_path?: string | null
           audio_seconds?: number | null
+          came_by?: string
           card_id?: string
           created_at?: string
+          edit_token_hash?: string | null
           id?: string
           message?: string | null
           photo_path?: string | null
+          relation?: string | null
           signer_name?: string
+          signer_person_id?: string | null
           signer_user_id?: string | null
           updated_at?: string
         }
@@ -415,6 +427,13 @@ export type Database = {
             columns: ["card_id"]
             isOneToOne: false
             referencedRelation: "birthday_cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "card_signatures_signer_person_id_fkey"
+            columns: ["signer_person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
             referencedColumns: ["id"]
           },
           {
@@ -1116,6 +1135,7 @@ export type Database = {
       }
       invite_requests: {
         Row: {
+          card_person_id: string | null
           created_at: string
           email: string
           email_sent: boolean | null
@@ -1123,6 +1143,7 @@ export type Database = {
           id: string
           invite_id: string | null
           last_name: string
+          relation: string | null
           reviewed_at: string | null
           reviewed_by: string | null
           source: string
@@ -1131,6 +1152,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          card_person_id?: string | null
           created_at?: string
           email: string
           email_sent?: boolean | null
@@ -1138,6 +1160,7 @@ export type Database = {
           id?: string
           invite_id?: string | null
           last_name: string
+          relation?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           source?: string
@@ -1146,6 +1169,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          card_person_id?: string | null
           created_at?: string
           email?: string
           email_sent?: boolean | null
@@ -1153,6 +1177,7 @@ export type Database = {
           id?: string
           invite_id?: string | null
           last_name?: string
+          relation?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           source?: string
@@ -1161,6 +1186,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "invite_requests_card_person_id_fkey"
+            columns: ["card_person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "invite_requests_invite_id_fkey"
             columns: ["invite_id"]
@@ -3907,6 +3939,17 @@ export type Database = {
           asked_person_id: string
         }[]
       }
+      ask_to_join_from_card: {
+        Args: {
+          p_email: string
+          p_first_name: string
+          p_last_name: string
+          p_secret: string
+          p_token: string
+          p_viewer: string
+        }
+        Returns: Json
+      }
       begin_add_email: {
         Args: { p_code: string; p_email: string; p_user: string }
         Returns: undefined
@@ -3949,6 +3992,22 @@ export type Database = {
         Args: { p_person_id: string; p_tree: string }
         Returns: boolean
       }
+      card_funnel: { Args: never; Returns: Json }
+      card_link_upload: {
+        Args: {
+          p_kind: string
+          p_secret: string
+          p_token: string
+          p_type: string
+          p_viewer: string
+        }
+        Returns: string
+      }
+      card_link_view: {
+        Args: { p_secret?: string; p_token: string; p_viewer?: string }
+        Returns: Json
+      }
+      card_personal_candidates: { Args: { p_card: string }; Returns: Json }
       check_add_people_with_connections: {
         Args: {
           p_adult_existing?: string[]
@@ -4094,6 +4153,15 @@ export type Database = {
       delete_birthday_card: { Args: { p_card: string }; Returns: Json }
       delete_blog_post: { Args: { p_id: string }; Returns: undefined }
       delete_card_signature: { Args: { p_signature: string }; Returns: Json }
+      delete_card_signature_by_link: {
+        Args: {
+          p_secret: string
+          p_signature: string
+          p_token: string
+          p_viewer: string
+        }
+        Returns: Json
+      }
       delete_library_submission: { Args: { p_id: string }; Returns: string }
       delete_message: { Args: { p_message: string }; Returns: undefined }
       delete_tree: { Args: { p_tree: string }; Returns: Json }
@@ -4471,8 +4539,13 @@ export type Database = {
           said_by: string
         }[]
       }
+      make_card_link: { Args: { p_card: string }; Returns: string }
       make_card_name_only: {
         Args: { p_person: string; p_tree: string }
+        Returns: string
+      }
+      make_card_personal_link: {
+        Args: { p_card: string; p_invite_token: string; p_person: string }
         Returns: string
       }
       make_sign_in_link: {
@@ -4597,6 +4670,19 @@ export type Database = {
       }
       no_email_members: { Args: { p_tree: string }; Returns: string[] }
       note_active_day: { Args: never; Returns: boolean }
+      note_card_link_seen: {
+        Args: {
+          p_secret: string
+          p_token: string
+          p_viewer: string
+          p_what: string
+        }
+        Returns: undefined
+      }
+      note_card_shared: {
+        Args: { p_channel: string; p_token: string }
+        Returns: undefined
+      }
       note_invite_email_added: { Args: { p_user: string }; Returns: undefined }
       note_invite_event: {
         Args: { p_channel?: string; p_kind: string; p_token: string }
@@ -4870,6 +4956,7 @@ export type Database = {
         Returns: undefined
       }
       revert_entry_edit: { Args: { p_revision_id: string }; Returns: string[] }
+      revoke_card_link: { Args: { p_card: string }; Returns: undefined }
       rotate_family_link: {
         Args: { p_max_uses: number; p_tree: string }
         Returns: string
@@ -5046,6 +5133,20 @@ export type Database = {
         }
         Returns: Json
       }
+      sign_card_by_link: {
+        Args: {
+          p_audio_path: string
+          p_audio_seconds: number
+          p_message: string
+          p_name: string
+          p_photo_path: string
+          p_relation: string
+          p_secret: string
+          p_token: string
+          p_viewer: string
+        }
+        Returns: Json
+      }
       sign_in_link_preview: {
         Args: { p_token: string }
         Returns: {
@@ -5116,6 +5217,7 @@ export type Database = {
         Returns: string[]
       }
       take_key_transfer: { Args: { p_id: string }; Returns: string }
+      take_stale_card_uploads: { Args: never; Returns: string[] }
       thread_messages: {
         Args: { p_before?: string; p_conversation: string; p_limit?: number }
         Returns: {

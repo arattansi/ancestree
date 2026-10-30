@@ -101,6 +101,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { toastError } from "@/components/use-action";
 import { accountTypeOf } from "@/lib/account-types";
+import { relationWords } from "@/lib/card-links";
 import { NAME_ONLY } from "@/lib/carry";
 import { isRedirect, UNREACHABLE } from "@/lib/action-feedback";
 import {
@@ -2648,7 +2649,9 @@ function Canvas({
           : null;
       return {
         leaf: s.personId ? leafOf(s.personId) : null,
-        relation: rel && "term" in rel ? `your ${rel.term.toLowerCase()}` : null,
+        // Someone who signed through the link, in their own words (Step 217.3).
+        relation:
+          rel && "term" in rel ? `your ${rel.term.toLowerCase()}` : relationWords(s.relation, "your"),
       };
     },
     [selfPersonId, personById, relationships, leafOf],

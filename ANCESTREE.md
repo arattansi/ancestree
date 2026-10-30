@@ -2034,6 +2034,50 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 217.3: a birthday card's link, and joining from it** (web;
+  migration `20261030120000_birthday_card_links`, live; Phase 2 of the scope,
+  Aalim's decisions 7, 8, 11, 14). **Asked for** (2026-10-29): a public link
+  for non-users and non-family, signed without logging in, with a CTA to join
+  the person's tree if eligible. **Now** a manager makes one public link a
+  card from the sheet's new "share the card" (`make_card_link`: 144 bits,
+  URL-safe, only its sha256 kept in `private.card_links`; remade or turned
+  off with `revoke_card_link`; a parent's alone for someone under 18,
+  `may_share_card_of`) and shares it through `ShareMessage` ("It’s Ada’s
+  birthday on 14 march. Sign her card: …"); "send relatives their own link"
+  lists `card_personal_candidates` (relatives on the tree with no account
+  the manager may invite to claim) and makes each a claim link
+  (`mintClaimLink`) with a personal card link bound to it
+  (`make_card_personal_link`). `/c/<token>` (public) shows the first name,
+  the day, their leaf and who's collecting, the photo unless hidden from
+  visitors (`card_link_view`, service role only); the person signed in
+  gets "no peeking.". Signing out: name, "how do you know Ada?" (family
+  with a relation, or friend), message, voice memo, photo; files go to the
+  bucket through `createSignedUploadUrl` places from `/api/cards/upload`
+  (`card_link_upload`, `private.card_uploads`); `/api/cards/sign`
+  (`sign_card_by_link`) keeps a signed-out signer by an edit token, the
+  sha256 of an httpOnly cookie's secret (`ancestree-card`) and the card;
+  caps 200 a card, three a day a browser, 300 an hour in all, a honeypot
+  and Vercel BotID (Basic; `instrumentation-client.ts`, `withBotId`,
+  `notABot` lets a request through if BotID can't run). The others'
+  signatures show once the visitor has signed; after the day the card opens
+  on the browser that signed. `card_signatures` gains `relation`,
+  `came_by`, `edit_token_hash`, `signer_person_id`. A personal link's
+  signer gets "claim your entry" (Step 213's name-first join); a public
+  link's family signer whose relation passes the bloodline gate on the
+  person's home tree (`card_join_eligible`) gets Ask to join
+  (`ask_to_join_from_card` into `invite_requests` with `source` 'card',
+  `relation`, `card_person_id`; the Root's queue says "From Ada’s birthday
+  card, as her daughter."). `private.card_events` (made, shared, opened,
+  signed by how, join shown, asked, claimed via a trigger on
+  `invite_events`) feeds "Birthday Cards in the Last 30 Days" beside the
+  invites (`card_funnel()`). `card_json` and `sign_birthday_card` re-created
+  with the link and the count. The cron removes uploads a day old that no
+  signature took. Checked: a 48-check rolled-back rehearsal on live, then in
+  the browser with throwaway accounts on separate hosts (make, share,
+  personal link, cousin and daughter signing out with photo and voice,
+  ask to join, claim by name, a signed-in friend, the person's "no
+  peeking", revoke, the day), cleaned up.
+
 - **Step 217.2: birthday cards in the app** (web; migrations
   `20261030090000_birthday_cards` and `20261030091000_card_time_zone_check`,
   both live; scope "ancestree × Birthday Cards" in Notion's Product Feature

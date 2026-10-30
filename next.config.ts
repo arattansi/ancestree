@@ -1,3 +1,4 @@
+import { withBotId } from "botid/next/config";
 import type { NextConfig } from "next";
 
 /** Supabase Storage host — signed photo URLs are served from here. */
@@ -22,4 +23,6 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// Vercel BotID on a birthday card link's signed-out writes (Step 217.3):
+// its script and checks go through these rewrites.
+export default withBotId(nextConfig);

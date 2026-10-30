@@ -18,8 +18,10 @@ const NO_STORE = { "Cache-Control": "no-store" };
  * Each run: managers of a birthday 14 days off with no card yet are nudged,
  * from 8 in their morning (`send_card_nudges`), and the person whose card
  * opened at midnight is told, from 8 in theirs, in the app and by email
- * (`announce_birthday_cards`). The card itself opens at midnight whatever
- * this does: the database reads the clock. Answers with counts only.
+ * (`announce_birthday_cards`). Then a link signer's upload no signature
+ * took for a day is removed (`take_stale_card_uploads`, Step 217.3). The
+ * card itself opens at midnight whatever this does: the database reads the
+ * clock. Answers with counts only.
  */
 export async function GET(request: NextRequest) {
   if (!fromTheJob(request)) {
@@ -40,11 +42,20 @@ export async function GET(request: NextRequest) {
         : [];
     });
     const sent = await sendEmails(emails);
+
+    // A file never signed with; a failure here waits for the next run.
+    const stale = await admin.rpc("take_stale_card_uploads");
+    const staleFiles = stale.error ? [] : (stale.data ?? []);
+    if (staleFiles.length > 0) {
+      const { error } = await admin.storage.from("cards").remove(staleFiles);
+      if (error) console.error("[cards] couldn't remove stale uploads", error);
+    }
     return NextResponse.json(
       {
         nudged: nudged.data?.length ?? 0,
         told: told.data?.length ?? 0,
         emailed: sent.filter((s) => s.ok).length,
+        stale: staleFiles.length,
       },
       { headers: NO_STORE },
     );

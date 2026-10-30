@@ -14,8 +14,18 @@ import {
   releasedFiles,
   removeCardFilesLater,
 } from "@/lib/birthday-cards.server";
+import {
+  asCardRelatives,
+  CARD_LINK_ERRORS,
+  cardLinkUrl,
+  type CardRelative,
+} from "@/lib/card-links";
 import { requireProfile } from "@/lib/auth";
+import { mintClaimLink } from "@/lib/claim-invite-send.server";
 import { friendlyDbError } from "@/lib/db-errors";
+import type { ShareChannel } from "@/lib/invite-events";
+import { revalidateTreePages } from "@/lib/revalidate";
+import { getSiteUrl } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -157,4 +167,79 @@ export async function setMyTimeZone(zone: string): Promise<void> {
   if (typeof zone !== "string" || zone.length > 64) return;
   const supabase = await createClient();
   await supabase.rpc("set_my_time_zone", { p_zone: zone });
+}
+
+/**
+ * Turn on a card's public link, or make it again: the one before stops
+ * working (Step 217.3). A manager, and a parent for someone under 18. Its
+ * address comes back once; only its hash is kept.
+ */
+export async function makeCardLink(input: {
+  personId: string;
+  cardId: string;
+}): Promise<CardsAnswer & { url?: string; token?: string }> {
+  await requireProfile();
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("make_card_link", { p_card: input.cardId });
+  if (error || typeof data !== "string") {
+    return { error: friendlyDbError(error?.message, CARD_LINK_ERRORS, "Couldn’t make the link. Try again.") };
+  }
+  const { cards } = await cardsOf(input.personId);
+  return { url: cardLinkUrl(getSiteUrl(), data), token: data, cards };
+}
+
+/** Turn the public link off: it stops working, for signing and reading. */
+export async function turnOffCardLink(input: { personId: string; cardId: string }): Promise<CardsAnswer> {
+  await requireProfile();
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("revoke_card_link", { p_card: input.cardId });
+  if (error) {
+    return { error: friendlyDbError(error.message, CARD_LINK_ERRORS, "Couldn’t turn it off. Try again.") };
+  }
+  return cardsOf(input.personId);
+}
+
+/** The person's relatives on the tree with no account, for their own links. */
+export async function listCardRelatives(cardId: string): Promise<{
+  error?: string;
+  relatives?: CardRelative[];
+}> {
+  await requireProfile();
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("card_personal_candidates", { p_card: cardId });
+  if (error) return { error: "Couldn’t read who to send it to. Try again." };
+  return { relatives: asCardRelatives(data) };
+}
+
+/**
+ * A relative's own link to the card, which is also their claim link
+ * (Step 217.3): the claim link first (`mintClaimLink`, whose rules say who
+ * may), then the card's link bound to it. After signing they claim their
+ * entry by name, as any claim link does.
+ */
+export async function makeCardPersonalLink(input: {
+  cardId: string;
+  personId: string;
+  treeId: string;
+}): Promise<{ error?: string; url?: string; token?: string; inviteToken?: string }> {
+  const inviter = await requireProfile();
+  const claim = await mintClaimLink(inviter, input.personId, input.treeId);
+  if (claim.minted) revalidateTreePages();
+  if (claim.error || !claim.token) return { error: claim.error ?? "Couldn’t make their link. Try again." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("make_card_personal_link", {
+    p_card: input.cardId,
+    p_person: input.personId,
+    p_invite_token: claim.token,
+  });
+  if (error || typeof data !== "string") {
+    return { error: friendlyDbError(error?.message, CARD_LINK_ERRORS, "Couldn’t make their link. Try again.") };
+  }
+  return { url: cardLinkUrl(getSiteUrl(), data), token: data, inviteToken: claim.token };
+}
+
+/** A share button pressed on one of a card's links, for the analytics tab. */
+export async function noteCardShared(token: string, channel: ShareChannel): Promise<void> {
+  const supabase = await createClient();
+  await supabase.rpc("note_card_shared", { p_token: token, p_channel: channel });
 }

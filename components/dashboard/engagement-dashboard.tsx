@@ -1,3 +1,4 @@
+import { CardFunnelCard } from "@/components/dashboard/card-funnel";
 import { InviteFunnelCard } from "@/components/dashboard/invite-funnel";
 import { WeeklyActiveChart } from "@/components/dashboard/weekly-active-chart";
 import {
@@ -19,6 +20,8 @@ import {
   type Dashboard,
 } from "@/lib/dashboard";
 import { loadDashboard } from "@/lib/dashboard.server";
+import { loadCardFunnel } from "@/lib/card-funnel.server";
+import type { CardFunnel } from "@/lib/card-funnel";
 import { loadInviteFunnel } from "@/lib/invite-funnel.server";
 import type { InviteFunnel } from "@/lib/invite-funnel";
 
@@ -27,15 +30,20 @@ import type { InviteFunnel } from "@/lib/invite-funnel";
  * (Step 103): how much ancestree is used across every tree, in counts that
  * name nobody but each tree's Roots. The admin page shows it only to a reviewer, and
  * `engagement_dashboard()` answers nobody else. What happened to each
- * tree's invites sits above its Trees (Step 216).
+ * tree's invites sits above its Trees (Step 216), and each birthday card's
+ * links beside it (Step 217.3).
  */
 export async function EngagementDashboard() {
-  const [dashboard, funnel] = await Promise.all([loadDashboard(), loadInviteFunnel()]);
+  const [dashboard, funnel, cards] = await Promise.all([
+    loadDashboard(),
+    loadInviteFunnel(),
+    loadCardFunnel(),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
       {dashboard ? (
-        <DashboardView d={dashboard} funnel={funnel} />
+        <DashboardView d={dashboard} funnel={funnel} cards={cards} />
       ) : (
         <Card>
           <CardHeader>
@@ -48,7 +56,15 @@ export async function EngagementDashboard() {
 }
 
 /** The cards, for a dashboard that has loaded. */
-export function DashboardView({ d, funnel }: { d: Dashboard; funnel: InviteFunnel | null }) {
+export function DashboardView({
+  d,
+  funnel,
+  cards,
+}: {
+  d: Dashboard;
+  funnel: InviteFunnel | null;
+  cards: CardFunnel | null;
+}) {
   const weeks = weeksSinceFirstActivity(d.weeks);
   const cell = "px-4 py-2 text-right tabular-nums";
 
@@ -230,6 +246,7 @@ export function DashboardView({ d, funnel }: { d: Dashboard; funnel: InviteFunne
       </Card>
 
       <InviteFunnelCard funnel={funnel} />
+      <CardFunnelCard funnel={cards} />
 
       <Card>
         <CardHeader>

@@ -265,6 +265,34 @@ export default function PrivacyPage() {
             Each signer can take their own signature off at any time; its
             voice memo and photo are deleted with it.
           </li>
+          {/* Step 217.3. */}
+          <li>
+            Whoever runs your card can make it a link for a family chat, and
+            send a relative on the tree with no account a link of their own,
+            which also lets them claim their entry. The link shows only your
+            first name, the day, a leaf shaped like a tree from where you were
+            born and who&rsquo;s collecting, and your photo unless you hide
+            your entry from visitors: never your surname, your age or anyone
+            else on the tree. It never lets anyone onto the tree. Only a parent
+            can make one for someone under 18, and it can be turned off at any
+            time.
+          </li>
+          <li>
+            Anyone with the link can sign, signed out with just a name. Once
+            they have, they see what everyone signed, voice memos and photos
+            too, and after the day they can open the card on the browser they
+            signed from. Family who sign can ask to join the tree; a Root
+            decides, as with any request.
+          </li>
+          <li>
+            Signing through the link signed out keeps the name you typed, how
+            you know them, what you signed, and a cookie holding a random
+            number, so that browser can change or take off your signature and
+            open the card later. Only a scrambled form of it is kept, never
+            your IP address or your device. It also counts how many opened the
+            link each day, which share button sent it, and at most three
+            signatures a day from one browser.
+          </li>
         </ul>
       </Section>
 

@@ -43,6 +43,8 @@ import {
   type TreeRoom,
 } from "@/lib/account-types";
 import { branchSidesOn } from "@/lib/branch.server";
+import { askedFromCard } from "@/lib/card-links";
+import { asCardRelation } from "@/lib/card-relations";
 import { buildAdminActionItems } from "@/lib/admin-notifications";
 import { adminNav, groupSectionIds } from "@/lib/admin-sections";
 import { listTreeReports } from "@/lib/entry-reports";
@@ -92,7 +94,9 @@ export async function AdminConsole({
     );
   const pendingRequestsP = supabase
     .from("invite_requests")
-    .select("id, first_name, last_name, email, created_at")
+    .select(
+      "id, first_name, last_name, email, created_at, source, relation, card_person:people!invite_requests_card_person_id_fkey(first_name, preferred_name, sex)",
+    )
     .eq("tree_id", tree.id)
     .eq("status", "pending")
     .order("created_at", { ascending: true })
@@ -239,6 +243,11 @@ export async function AdminConsole({
     email: r.email,
     createdAt: r.created_at,
     candidates: requestCandidates.get(r.id) ?? [],
+    // An ask from someone's birthday card (Step 217.3).
+    fromCard:
+      r.source === "card"
+        ? askedFromCard({ person: r.card_person, relation: asCardRelation(r.relation) })
+        : null,
   }));
 
   const shareLinks: ShareLinkRow[] = (shareLinksRes.data ?? []).map((l) => ({

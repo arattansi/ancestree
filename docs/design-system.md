@@ -475,6 +475,16 @@ with the person's leaf and name.
 - A card to sign is a small tied envelope at a card's top right corner
   (`EnvelopeMark`), on a leaf at its right, on a pill at its end; never on
   the person's own.
+- The card's link (`/c/<token>`, Step 217.3), as its mock: the person's
+  leaf large at the top (their photo, round, with the leaf at its corner,
+  when they show their entry to visitors), "Ada’s birthday is on 14
+  march." and "Chidi is collecting messages. she’ll see them on the day.",
+  then the form: **your name**, **how do you know Ada?** as two chips
+  (**family**, **friend**; a chosen one near-black), **you’re her** as a
+  list, then message, voice memo, photo and a full-width **sign card**.
+  Signed: a green tick and "signed. Ada will see it on 14 march.", the join
+  or claim card bordered, then **signed so far** with the viewer's own
+  outlined in near-black.
 
 ## Marketing pages
 

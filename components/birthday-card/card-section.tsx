@@ -10,6 +10,7 @@ import { VoiceRecorder, type VoiceTake } from "@/components/birthday-card/voice-
 import { ConfirmButton } from "@/components/confirm-dialog";
 import { FormError } from "@/components/form-error";
 import { PendingButton } from "@/components/pending-button";
+import { ShareMessage } from "@/components/share-message";
 import { setPersonSheet, usePersonSheet } from "@/components/tree/use-person-sheet";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,10 +18,15 @@ import { useAction } from "@/components/use-action";
 import {
   deleteBirthdayCard,
   deleteCardSignature,
+  listCardRelatives,
+  makeCardLink,
+  makeCardPersonalLink,
   markCardOpened,
+  noteCardShared,
   openBirthdayCard,
   signBirthdayCard,
   startBirthdayCard,
+  turnOffCardLink,
 } from "@/app/actions/birthday-cards";
 import {
   CARD_MESSAGE_MAX,
@@ -33,6 +39,7 @@ import {
   type CardSignatureView,
   type PersonCards,
 } from "@/lib/birthday-cards";
+import { cardLinkMessage, relationWords, type CardRelative } from "@/lib/card-links";
 import { discardCardFile, uploadCardFile } from "@/lib/card-upload";
 import type { Relation } from "@/lib/connection-path";
 import type { LeafShape } from "@/lib/leaf-shapes";
@@ -89,6 +96,7 @@ export function BirthdayCardSection({
   const first = firstOf(name);
   const [opening, setOpening] = React.useState<BirthdayCardView | null>(null);
   const past = useAction();
+  const forRecipient = cards?.current?.recipient ?? false;
 
   const signer = React.useCallback<SignerOf>(
     (s) => {
@@ -98,9 +106,14 @@ export function BirthdayCardSection({
         s.personId && viewerPersonId && s.personId !== viewerPersonId
           ? describeConnection?.(s.personId, viewerPersonId)
           : null;
-      return { leaf: leafShape, relation: rel && "term" in rel ? `your ${rel.term.toLowerCase()}` : null };
+      if (rel && "term" in rel) return { leaf: leafShape, relation: `your ${rel.term.toLowerCase()}` };
+      // Someone who signed through the link, in their own words (Step 217.3).
+      return {
+        leaf: leafShape,
+        relation: relationWords(s.relation, forRecipient ? "your" : possessive(first)),
+      };
     },
-    [leafOf, describeConnection, viewerPersonId],
+    [leafOf, describeConnection, viewerPersonId, forRecipient, first],
   );
 
   if (!cards || (!cards.current && !cards.startsOn && cards.past.length === 0)) return null;
@@ -306,6 +319,10 @@ function SignCard({
           <p className="text-sm text-muted-foreground">signing has closed.</p>
         )}
 
+        {card.link ? (
+          <ShareCard card={card} personId={personId} first={first} sex={sex} onCards={onCards} />
+        ) : null}
+
         {card.manager ? (
           <ConfirmButton
             variant="link"
@@ -485,6 +502,216 @@ function SignForm({
         ) : null}
       </div>
       <FormError>{sign.error}</FormError>
+    </div>
+  );
+}
+
+/**
+ * A manager's ways to send the card round (Step 217.3): its public link,
+ * for the family chat, with the message ready (only a parent turns it on
+ * for someone under 18), and a link of their own for each relative on the
+ * tree with no account, which is also their claim link. The link's address
+ * shows once, when it's made: only its hash is kept, so a link already on is
+ * made again to share it again.
+ */
+function ShareCard({
+  card,
+  personId,
+  first,
+  sex,
+  onCards,
+}: {
+  card: BirthdayCardView;
+  personId: string;
+  first: string;
+  sex: string | null;
+  onCards: (cards: PersonCards | undefined) => void;
+}) {
+  const action = useAction({ inline: true });
+  const [made, setMade] = React.useState<{ message: string; token: string } | null>(null);
+  const link = card.link;
+  if (!link) return null;
+
+  function make() {
+    action.run("make", () => makeCardLink({ personId, cardId: card.id }), {
+      onSuccess: ({ url, token, cards }) => {
+        if (url && token) {
+          setMade({ message: cardLinkMessage({ url, firstName: first, opensOn: card.opensOn, sex }), token });
+        }
+        onCards(cards);
+      },
+    });
+  }
+
+  return (
+    <div className="flex flex-col gap-3 border-t border-kraft-line/30 pt-4">
+      <div className="flex flex-col gap-0.5">
+        <h3 className="text-sm font-semibold">share the card</h3>
+        <p className="text-[13px] text-muted-foreground">
+          anyone with the link can sign it, and then sees everyone’s.
+        </p>
+      </div>
+      {!link.mayTurnOn ? (
+        <p className="text-sm text-muted-foreground">only a parent can share {possessive(first)} card.</p>
+      ) : made && link.on ? (
+        <ShareMessage message={made.message} onShared={(channel) => void noteCardShared(made.token, channel)} />
+      ) : link.on ? (
+        <div className="flex flex-col gap-2">
+          <p className="text-sm">the link is on.</p>
+          <div className="flex flex-wrap gap-2">
+            <ConfirmButton
+              variant="outline"
+              disabled={action.pending}
+              confirm={{
+                title: "Make a new link?",
+                description: "The link you shared stops working.",
+                confirmLabel: "make a new link",
+                pendingLabel: "making…",
+                onConfirm: () => makeCardLink({ personId, cardId: card.id }),
+                onSuccess: ({ url, token, cards }) => {
+                  if (url && token) {
+                    setMade({
+                      message: cardLinkMessage({ url, firstName: first, opensOn: card.opensOn, sex }),
+                      token,
+                    });
+                  }
+                  onCards(cards);
+                },
+              }}
+            >
+              new link
+            </ConfirmButton>
+            <PendingButton
+              variant="ghost"
+              pending={action.pendingKey === "off"}
+              pendingLabel="turning off…"
+              disabled={action.pending}
+              onClick={() =>
+                action.run("off", () => turnOffCardLink({ personId, cardId: card.id }), {
+                  onSuccess: ({ cards }) => {
+                    setMade(null);
+                    onCards(cards);
+                  },
+                })
+              }
+            >
+              turn it off
+            </PendingButton>
+          </div>
+        </div>
+      ) : (
+        <PendingButton
+          className="self-start"
+          pending={action.pendingKey === "make"}
+          pendingLabel="making…"
+          disabled={action.pending}
+          onClick={make}
+        >
+          make a link
+        </PendingButton>
+      )}
+      <FormError>{action.error}</FormError>
+      <SendRelativesTheirLinks card={card} first={first} sex={sex} />
+    </div>
+  );
+}
+
+/** Relatives on the tree with no account, each with a link of their own. */
+function SendRelativesTheirLinks({
+  card,
+  first,
+  sex,
+}: {
+  card: BirthdayCardView;
+  first: string;
+  sex: string | null;
+}) {
+  const load = useAction({ inline: true });
+  const send = useAction({ inline: true });
+  const [relatives, setRelatives] = React.useState<CardRelative[] | null>(null);
+  const [sent, setSent] = React.useState<Record<string, { message: string; token: string; inviteToken: string }>>(
+    {},
+  );
+
+  if (!relatives) {
+    return (
+      <div className="flex flex-col gap-1">
+        <PendingButton
+          variant="link"
+          size="sm"
+          className="h-auto self-start p-0"
+          pending={load.pending}
+          pendingLabel="looking…"
+          onClick={() =>
+            load.run("load", () => listCardRelatives(card.id), {
+              onSuccess: ({ relatives }) => setRelatives(relatives ?? []),
+            })
+          }
+        >
+          send relatives their own link
+        </PendingButton>
+        <FormError>{load.error}</FormError>
+      </div>
+    );
+  }
+
+  if (relatives.length === 0) {
+    return (
+      <p className="text-[13px] text-muted-foreground">
+        everyone close to {first} on the tree has an account, or none you can send a link.
+      </p>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <h4 className="text-[13px] font-semibold">relatives with no account</h4>
+      <ul className="flex flex-col gap-3">
+        {relatives.map((r) => {
+          const done = sent[r.personId];
+          return (
+            <li key={r.personId} className="flex flex-col gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="flex-1 text-sm">{r.name}</span>
+                {r.signed ? (
+                  <span className="text-[13px] text-muted-foreground">signed</span>
+                ) : done ? null : (
+                  <PendingButton
+                    size="sm"
+                    variant="outline"
+                    pending={send.pendingKey === r.personId}
+                    pendingLabel="making…"
+                    disabled={send.pending}
+                    onClick={() =>
+                      send.run(
+                        r.personId,
+                        () => makeCardPersonalLink({ cardId: card.id, personId: r.personId, treeId: r.treeId }),
+                        {
+                          onSuccess: ({ url, token, inviteToken }) => {
+                            if (!url || !token || !inviteToken) return;
+                            const message = cardLinkMessage({ url, firstName: first, opensOn: card.opensOn, sex });
+                            setSent((prev) => ({ ...prev, [r.personId]: { message, token, inviteToken } }));
+                          },
+                        },
+                      )
+                    }
+                  >
+                    send {r.firstName} their link
+                  </PendingButton>
+                )}
+              </div>
+              {done ? (
+                <ShareMessage
+                  message={done.message}
+                  inviteToken={done.inviteToken}
+                  onShared={(channel) => void noteCardShared(done.token, channel)}
+                />
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+      <FormError>{send.error}</FormError>
     </div>
   );
 }
