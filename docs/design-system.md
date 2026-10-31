@@ -508,6 +508,22 @@ with the person's leaf and name.
   1,600 px and saved anew on the phone. The card opens over a near-black
   screen (`#141414`): the envelope with a white **untie the string**, then
   a page a signature, swiped or stepped with **previous** / **next**.
+- After the day (Step 217.5), under **open your card**: **thank everyone**
+  (outline) opens **your thank-you**, a textarea, with **send to everyone**
+  and **cancel**; once sent, "you thanked everyone." over the words in
+  quotes, and "2 more signed since." with **thank them too** while anyone
+  is left. A signer it reached sees the words in quotes under **open the
+  card**, captioned "Ada’s thank-you", on the sheet and on the link. On the
+  phone the thank-you is written on the full-screen card form, so the
+  keyboard never covers it.
+- In the opened card the person's own pages end on a rule and an outline
+  **hide**; a hidden page says "hidden from everyone else." beside
+  **unhide**.
+- On the link, signed out, the last field before **sign card** is **email
+  for Ada’s thank-you (optional)** (decision 16).
+- A card whose person died: "Ada’s birthday card" / "the card is closed."
+  with an outline **open the card** while it has signatures; no envelope,
+  on the sheet, the phone or the link.
 
 ## Marketing pages
 

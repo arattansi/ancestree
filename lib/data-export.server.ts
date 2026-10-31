@@ -1,7 +1,11 @@
 import "server-only";
 
 import type { Profile, SessionUser } from "@/lib/auth";
+import { loadMyCards } from "@/lib/birthday-cards.server";
+import { inkSvg } from "@/lib/card-ink";
+import { relationWords } from "@/lib/card-links";
 import {
+  cardMarkdown,
   dateStem,
   extensionOf,
   fileNamer,
@@ -218,9 +222,11 @@ export type MediaText = { name: string; text: string };
  * `images/`, the stories about them as their recordings under `audio/` and
  * their words under `documents/` (Markdown, as they're kept), and
  * `media.csv` saying what each file is. Whatever they declined is left
- * out; what still waits for their answer is in, and says so. Files are
- * signed here and fetched by the browser, so no function holds a whole
- * album.
+ * out; what still waits for their answer is in, and says so. Their own
+ * birthday cards go under `cards/<year>/` (Step 217.5): each signature's
+ * voice memo, photo and ink (as SVG), and the card's words as `card.md`.
+ * Files are signed here and fetched by the browser, so no function holds a
+ * whole album.
  */
 export async function taggedMedia(
   profile: Profile,
@@ -229,12 +235,13 @@ export async function taggedMedia(
   if (!personId) return { files: [], texts: [] };
   const supabase = await createClient();
 
-  const [{ data: person }, album, stories] = await Promise.all([
+  const [{ data: person }, album, stories, cards] = await Promise.all([
     supabase.from("people").select("photo_path").eq("id", personId).maybeSingle(),
     supabase.rpc("entry_album", { p_person: personId }),
     supabase.rpc("entry_stories", { p_person: personId }),
+    loadMyCards(supabase).catch(() => null),
   ]);
-  if (album.error || stories.error) throw new Error("Couldn’t read what you’re tagged in.");
+  if (album.error || stories.error || !cards) throw new Error("Couldn’t read what you’re tagged in.");
   const photos = (album.data ?? []).filter((p) => p.status !== "declined");
   const told = (stories.data ?? []).filter((s) => s.status !== "declined");
 
@@ -321,6 +328,50 @@ export async function taggedMedia(
       });
       index.push(row(name, "Written story"));
     }
+  }
+
+  for (const card of cards) {
+    const folder = `cards/${card.year}`;
+    const title = `${card.year} birthday card`;
+    const day = formatPartialDate(card.opensOn, "day") ?? "";
+    const signatures = card.signatures.map((s) => {
+      const own: string[] = [];
+      const add = (name: string, kind: string) => {
+        own.push(name.slice(folder.length + 1));
+        index.push([name, kind, title, day, s.name, "", "", s.hidden ? "Hidden by you" : ""]);
+      };
+      if (s.audioPath && s.audioUrl) {
+        const name = nameFile(folder, [s.name, "voice memo"], "voice memo", extensionOf(s.audioPath, "m4a"));
+        files.push({ name, url: s.audioUrl });
+        add(name, "Birthday card voice memo");
+      }
+      if (s.photoPath && s.photoUrl) {
+        const name = nameFile(folder, [s.name, "photo"], "photo", extensionOf(s.photoPath, "jpg"));
+        files.push({ name, url: s.photoUrl });
+        add(name, "Birthday card photo");
+      }
+      if (s.ink?.sign) {
+        const name = nameFile(folder, [s.name, "signature"], "signature", "svg");
+        texts.push({ name, text: inkSvg(s.ink.sign, "sign", `${s.name}, signed by hand`) });
+        add(name, "Birthday card signature");
+      }
+      if (s.ink?.draw) {
+        const name = nameFile(folder, [s.name, "drawing"], "drawing", "svg");
+        texts.push({ name, text: inkSvg(s.ink.draw, "draw", `${s.name}’s drawing`) });
+        add(name, "Birthday card drawing");
+      }
+      return {
+        name: s.name,
+        relation: relationWords(s.relation, "your"),
+        message: s.message,
+        signedAt: s.createdAt,
+        hidden: s.hidden,
+        files: own,
+      };
+    });
+    const name = nameFile(folder, ["card"], "card", "md");
+    texts.push({ name, text: cardMarkdown({ year: card.year, opensOn: card.opensOn, thanks: card.thanks, signatures }) });
+    index.push([name, "Birthday card", title, day, "", "", "", ""]);
   }
 
   if (files.length === 0 && texts.length === 0) return { files, texts };

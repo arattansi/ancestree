@@ -4,6 +4,7 @@ import {
   addressPushes,
   cardReadyPush,
   cardStartedPush,
+  cardThanksPush,
   goneTokens,
   messagePush,
   PUSH_BATCH,
@@ -90,6 +91,25 @@ describe("birthday card pushes", () => {
       title: "Happy birthday",
       body: "Your birthday card is here: 1 person signed it.",
     });
+  });
+});
+
+describe("cardThanksPush", () => {
+  it("says who thanked them and how, opening the person's details", () => {
+    expect(cardThanksPush({ personId: PERSON, firstName: "Ada", thanks: "thank you all,\nI loved it" })).toEqual({
+      title: "Ada’s birthday card",
+      body: "Ada thanked you for signing: “thank you all, I loved it”",
+      data: { kind: "card", personId: PERSON, open: false },
+      channelId: "cards",
+    });
+  });
+
+  it("cuts a long thank-you at a word", () => {
+    const long = `${"word ".repeat(40)}end`;
+    const { body } = cardThanksPush({ personId: PERSON, firstName: "Ada", thanks: long });
+    expect(body?.endsWith("…”")).toBe(true);
+    expect(body!.length).toBeLessThan(180);
+    expect(body).not.toContain("wor…");
   });
 });
 

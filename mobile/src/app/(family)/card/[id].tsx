@@ -17,14 +17,16 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   CARD_MESSAGE_MAX,
   CARD_PHOTO_EDGE,
+  CARD_THANKS_MAX,
   cardDay,
+  moreSince,
   possessive,
   signedSoFar,
   type BirthdayCardView,
 } from "@/lib/birthday-cards";
 import { draftOf, inkOf, type InkDraft } from "@/lib/card-ink";
 import { personDisplayName } from "@/lib/person-name";
-import { CardError, signCard, takeOffSignature, type Photo, type Voice } from "@/cards/cards";
+import { CardError, signCard, takeOffSignature, thankEveryone, type Photo, type Voice } from "@/cards/cards";
 import { InkPad } from "@/cards/ink";
 import { SignaturePage, signerWords } from "@/cards/pages";
 import { VoiceRecorder } from "@/cards/voice";
@@ -45,6 +47,9 @@ const firstOf = (name: string) => name.split(" ")[0] || name;
  * nothing of where it was taken goes with it) and a drawing, any of them;
  * then changing or taking it off until the day. Full screen, so a stroke
  * in a box never drags the screen away. Everyone else's so far underneath.
+ * For the person, once their card is open, their thank-you to everyone
+ * who signed it instead (Step 217.5): full screen too, so the keyboard
+ * never covers it.
  */
 export default function SignCardScreen() {
   const palette = usePalette();
@@ -78,11 +83,13 @@ export default function SignCardScreen() {
           <XIcon size={22} color={palette.foreground} />
         </Pressable>
         <Text accessibilityRole="header" style={[styles.heading, { color: palette.foreground }]}>
-          sign {possessive(first)} card
+          {card?.recipient ? "thank everyone" : `sign ${possessive(first)} card`}
         </Text>
       </View>
       {!family || !person ? null : sheet.state.status === "loading" ? (
         <ActivityIndicator color={palette.green} style={styles.loading} />
+      ) : card?.recipient && card.isOpen && !card.closed ? (
+        <ThankForm card={card} />
       ) : !card || card.isOpen || !card.signing ? (
         <View style={styles.closed}>
           <Text style={[styles.note, { color: palette.mutedForeground }]}>
@@ -100,6 +107,66 @@ export default function SignCardScreen() {
         />
       )}
     </View>
+  );
+}
+
+/**
+ * The person's thank-you to everyone who signed (Step 217.5): their words
+ * the first time; after that, the same words for anyone who signed since.
+ */
+function ThankForm({ card }: { card: BirthdayCardView }) {
+  const palette = usePalette();
+  const [message, setMessage] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const again = card.thanks !== null;
+
+  async function send() {
+    setError(null);
+    setBusy(true);
+    try {
+      await thankEveryone(card.id, again ? "" : message);
+      router.back();
+    } catch (e) {
+      setError(e instanceof CardError ? e.message : "Couldn’t send it. Try again.");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <SheetForm style={styles.fill} contentContainerStyle={styles.body}>
+      {again ? (
+        <>
+          <Text style={[styles.note, { color: palette.mutedForeground }]}>you thanked everyone.</Text>
+          <Text style={[styles.thanks, { color: palette.foreground }]}>“{card.thanks}”</Text>
+          <Text style={[styles.note, { color: palette.mutedForeground }]}>
+            {card.unthanked > 0 ? moreSince(card.unthanked) : "everyone who signed has been thanked."}
+          </Text>
+        </>
+      ) : (
+        <TextField
+          label="your thank-you"
+          value={message}
+          onChangeText={setMessage}
+          maxLength={CARD_THANKS_MAX}
+          multiline
+          editable={!busy}
+          autoFocus
+          style={styles.message}
+        />
+      )}
+      {error ? (
+        <Text accessibilityLiveRegion="polite" style={[styles.note, { color: palette.destructive }]}>
+          {error}
+        </Text>
+      ) : null}
+      <Button
+        label={busy ? "sending…" : again ? "thank them too" : "send to everyone"}
+        busy={busy}
+        disabled={again ? card.unthanked === 0 : !message.trim()}
+        onPress={send}
+      />
+    </SheetForm>
   );
 }
 
@@ -347,6 +414,7 @@ const styles = StyleSheet.create({
   closed: { padding: GUTTER + 4, gap: 16 },
   body: { padding: GUTTER + 4, paddingTop: 8, gap: 18, paddingBottom: 48 },
   note: { fontFamily: font.regular, fontSize: 15, lineHeight: 21 },
+  thanks: { fontFamily: font.regular, fontSize: 17, lineHeight: 25 },
   label: { fontFamily: font.medium, fontSize: 14 },
   message: { minHeight: 110, paddingTop: 12, textAlignVertical: "top" },
   part: { gap: 6 },

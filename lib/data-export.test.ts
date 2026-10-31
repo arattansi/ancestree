@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  cardMarkdown,
   csvCell,
   dateStem,
   extensionOf,
@@ -210,5 +211,71 @@ describe("storyMarkdown", () => {
       about: [],
     });
     expect(md.startsWith("# A story\n\nAdded by A relative, 1 October 2026\n\n---")).toBe(true);
+  });
+});
+
+describe("cardMarkdown", () => {
+  it("writes the card out: the day, the thank-you, each signature and its files", () => {
+    expect(
+      cardMarkdown({
+        year: 2026,
+        opensOn: "2026-11-14",
+        thanks: "thank you all",
+        signatures: [
+          {
+            name: "Chidi Okafor",
+            relation: null,
+            message: "Happy birthday, love.\n",
+            signedAt: "2026-11-01T09:00:00Z",
+            hidden: false,
+            files: ["Chidi Okafor voice memo.m4a"],
+          },
+          {
+            name: "Emeka",
+            relation: "your cousin",
+            message: null,
+            signedAt: "2026-11-02T09:00:00Z",
+            hidden: true,
+            files: ["Emeka drawing.svg"],
+          },
+        ],
+      }),
+    ).toBe(
+      [
+        "# Your birthday card, 14 November 2026",
+        "",
+        "2 signatures",
+        "",
+        "Your thank-you: “thank you all”",
+        "",
+        "---",
+        "",
+        "## Chidi Okafor",
+        "",
+        "Signed 1 November 2026  ",
+        "Files: Chidi Okafor voice memo.m4a",
+        "",
+        "Happy birthday, love.",
+        "",
+        "---",
+        "",
+        "## Emeka",
+        "",
+        "Your cousin, signed 2 November 2026  ",
+        "Hidden from everyone else  ",
+        "Files: Emeka drawing.svg",
+        "",
+      ].join("\n"),
+    );
+  });
+
+  it("counts one signature as one, with no thank-you", () => {
+    const md = cardMarkdown({
+      year: 2026,
+      opensOn: "2026-11-14",
+      thanks: null,
+      signatures: [{ name: "Bisi", relation: null, message: "hi", signedAt: "2026-11-01T00:00:00Z", hidden: false, files: [] }],
+    });
+    expect(md).toBe("# Your birthday card, 14 November 2026\n\n1 signature\n\n---\n\n## Bisi\n\nSigned 1 November 2026\n\nhi\n");
   });
 });

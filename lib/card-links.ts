@@ -69,6 +69,19 @@ export function isCardSecret(value: unknown): value is string {
   return typeof value === "string" && /^[A-Za-z0-9_-]{32,64}$/.test(value);
 }
 
+/**
+ * A signed-out signer's email for the person's thank-you (decision 16,
+ * Step 217.5): optional, asked only when signing through a link, and kept
+ * only until the thank-you is sent. The database checks the same shape.
+ */
+export function thanksEmail(raw: unknown): { email: string | null } | null {
+  if (raw == null) return { email: null };
+  if (typeof raw !== "string") return null;
+  const email = raw.trim().toLowerCase();
+  if (!email) return { email: null };
+  return email.length <= 254 && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) ? { email } : null;
+}
+
 /** One signature as the link's page shows it, once the viewer has signed. */
 export type CardLinkSignature = {
   id: string;
@@ -94,6 +107,8 @@ export type CardLinkMine = {
   audioSeconds: number | null;
   photoPath: string | null;
   ink: CardInk | null;
+  /** Theirs, for the person's thank-you, until it's sent (Step 217.5). */
+  email: string | null;
   updatedAt: string;
 };
 
@@ -111,6 +126,8 @@ export type CardLinkLive = {
   isOpen: boolean;
   /** Signing still open through this link. */
   signing: boolean;
+  /** The person died: the card won't open (Step 217.5). */
+  closed: boolean;
   /** Who started the card: "Chidi is collecting messages." */
   collector: string;
   /** For their leaf, unless they hide their entry from visitors. */
@@ -126,6 +143,8 @@ export type CardLinkLive = {
   /** A personal link, once signed: their claim link's token. */
   claimToken: string | null;
   mine: CardLinkMine | null;
+  /** The person's thank-you, once it reached the viewer's signature (Step 217.5). */
+  thanks: string | null;
   /** Show the join button (decision 11). */
   joinable: boolean;
   /** Everyone's, once the viewer has signed; null before. */
@@ -156,6 +175,7 @@ function asMine(value: unknown): CardLinkMine | null {
     audioSeconds: num(m.audioSeconds),
     photoPath: text(m.photoPath),
     ink: asCardInk(m.ink),
+    email: text(m.email),
     updatedAt: text(m.updatedAt) ?? "",
   };
 }
@@ -209,6 +229,7 @@ export function asCardLinkView(raw: unknown): CardLinkView | null {
     closesAt: text(v.closesAt) ?? "",
     isOpen: bool(v.isOpen),
     signing: bool(v.signing),
+    closed: bool(v.closed),
     collector: text(v.collector) ?? "A relative",
     birthplace: birthplace ? { city: text(birthplace.city), country: text(birthplace.country) } : null,
     photoPath: text(v.photoPath),
@@ -218,6 +239,7 @@ export function asCardLinkView(raw: unknown): CardLinkView | null {
     personal: personal ? { name: text(personal.name) ?? "" } : null,
     claimToken: text(v.claimToken),
     mine: asMine(v.mine),
+    thanks: text(v.thanks),
     joinable: bool(v.joinable),
     signatures: Array.isArray(v.signatures)
       ? v.signatures.flatMap((s) => {
@@ -245,6 +267,7 @@ export function asPageSignature(
     photoPath: s.photoPath,
     ink: s.ink,
     mine: s.mine,
+    hidden: false,
     createdAt: s.createdAt,
     updatedAt: s.updatedAt,
     audioUrl: s.audioPath ? (links.get(s.audioPath) ?? null) : null,
@@ -291,6 +314,7 @@ export const CARD_LINK_ERRORS = [
   ["didn't arrive", "A file didn’t upload. Try again."],
   ["a name to sign with", "Enter your name."],
   ["a shorter name", "That name is too long."],
+  ["not an email", "Check your email address, or leave it empty."],
   ["not yours to take off", "That isn’t yours to take off."],
   ["sign first", "Sign the card first."],
   ["already on the tree", "You’re on the tree already."],

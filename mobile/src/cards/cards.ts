@@ -8,6 +8,7 @@ import {
   CARD_FILE_MAX_BYTES,
   CARD_FILE_TYPES,
   CARD_MESSAGE_MAX,
+  CARD_THANKS_MAX,
   CARD_VOICE_SECONDS,
   cardFilePath,
   type CardFlag,
@@ -22,7 +23,8 @@ import { detailsChanged } from "@/person/sheet";
  * web's sheet makes, as the member: the cards to mark on leaves
  * (`my_card_flags`), signing (`sign_birthday_card`, the files put in the
  * card's folder first), taking a signature off, and the person's first
- * look. Reading a card, with its files' links, is the sheet's
+ * look; after the day (Step 217.5), the person's thank-you and hiding a
+ * signature. Reading a card, with its files' links, is the sheet's
  * (`/api/mobile/person-sheet?want=cards`).
  */
 
@@ -220,6 +222,40 @@ export async function takeOffSignature(signatureId: string): Promise<void> {
 export async function markOpened(cardId: string): Promise<void> {
   await supabase.rpc("mark_card_opened", { p_card: cardId });
   void readFlags();
+}
+
+/**
+ * Thank everyone who signed one's own card, once it's open (Step 217.5):
+ * the words the first time, then the same words for those who signed
+ * since. Those who signed are told in the app at once; their phones and a
+ * link signer's email follow with the server's next round (the cron), as
+ * the phone has no route of its own for them.
+ */
+export async function thankEveryone(cardId: string, message: string): Promise<void> {
+  const words = message.trim();
+  if (words.length > CARD_THANKS_MAX) {
+    throw new CardError(`Keep it under ${CARD_THANKS_MAX.toLocaleString("en")} characters.`);
+  }
+  const { error } = await supabase.rpc("thank_card_signers", {
+    p_card: cardId,
+    p_message: words || undefined,
+  });
+  if (error) {
+    throw new CardError(friendlyDbError(error.message, CARD_ERRORS, "Couldn’t send it. Try again."));
+  }
+  cardsChanged();
+}
+
+/** Hide a signature on one's own open card from everyone else, or show it again (Step 217.5). */
+export async function hideSignature(signatureId: string, hidden: boolean): Promise<void> {
+  const { error } = await supabase.rpc("hide_card_signature", {
+    p_signature: signatureId,
+    p_hidden: hidden,
+  });
+  if (error) {
+    throw new CardError(friendlyDbError(error.message, CARD_ERRORS, "Couldn’t change it. Try again."));
+  }
+  cardsChanged();
 }
 
 /** This phone's time zone, where a card opens if nothing says where they live. */

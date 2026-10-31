@@ -272,3 +272,26 @@ export function inkUpTo(strokes: readonly InkStroke[], ms: number): InkStroke[] 
   }
   return out;
 }
+
+/** XML's own five, escaped. */
+const xml = (text: string) =>
+  text.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" })[c]!);
+
+/**
+ * One box's ink as an SVG file of its own, near-black on nothing, as the
+ * card draws it: for Export data (Step 217.5). `title` names it ("Ada’s
+ * drawing").
+ */
+export function inkSvg(strokes: readonly InkStroke[], box: InkBox, title: string): string {
+  const height = 100;
+  const width = height * INK_ASPECT[box];
+  const paths = inkPaths(strokes, box, width, height)
+    .filter((d) => d.length > 0)
+    .map((d) => `<path d="${d}"/>`)
+    .join("");
+  return (
+    `<?xml version="1.0" encoding="UTF-8"?>\n` +
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width * 4}" height="${height * 4}">` +
+    `<title>${xml(title)}</title><g fill="#171717">${paths}</g></svg>\n`
+  );
+}

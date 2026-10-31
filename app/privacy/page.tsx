@@ -302,6 +302,28 @@ export default function PrivacyPage() {
             link each day, which share button sent it, and at most three
             signatures a day from one browser.
           </li>
+          {/* Step 217.5. */}
+          <li>
+            Signing through the link signed out, you can leave your email for
+            the thank-you. It&rsquo;s asked only there, it&rsquo;s used only
+            to send you that thank-you once, and it&rsquo;s deleted as it
+            goes, or 30 days after the birthday if no thank-you comes. Nobody
+            on the tree, the person included, can see it.
+          </li>
+          <li>
+            Once your card has opened, you can thank everyone who signed it
+            with one message: those with an account are told in the app and on
+            their phones, and those who left an email get it by email. You can
+            hide any signature from everyone else, and show it again; only you
+            and whoever signed it still see it. Your cards, with every
+            signature&rsquo;s message, voice memo, photo and drawing, are in
+            the tagged media you can download under export data.
+          </li>
+          <li>
+            If someone dies before their birthday, their card closes: nothing
+            is sent and it won&rsquo;t open on the day. Whoever ran it is
+            told, and keeps the signatures.
+          </li>
         </ul>
       </Section>
 

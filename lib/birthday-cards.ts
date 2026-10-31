@@ -17,6 +17,9 @@ import { MONTH_NAMES } from "@/lib/partial-date";
 /** A message, as the card keeps it. */
 export const CARD_MESSAGE_MAX = 2000;
 
+/** The person's thank-you to everyone who signed (Step 217.5). */
+export const CARD_THANKS_MAX = 1000;
+
 /** A voice memo: two minutes, a little more stored for the encoder's tail. */
 export const CARD_VOICE_SECONDS = 120;
 
@@ -58,6 +61,8 @@ export type CardSignature = {
   ink: CardInk | null;
   /** The viewer signed it. */
   mine: boolean;
+  /** Hidden by the person after the day (Step 217.5): only they are told so. */
+  hidden: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -76,6 +81,8 @@ export type BirthdayCard = {
   isOpen: boolean;
   /** The viewer may sign it, or change their signature, now. */
   signing: boolean;
+  /** The person died: it won't open, and nothing is sent (Step 217.5). */
+  closed: boolean;
   /** Who started it, as the trees name them. */
   startedBy: string;
   /** The person's first look. */
@@ -86,6 +93,15 @@ export type BirthdayCard = {
   manager: boolean;
   /** The viewer signed it. */
   signed: boolean;
+  /**
+   * The person's thank-you (Step 217.5): to them, once sent, and to each
+   * signer it reached.
+   */
+  thanks: string | null;
+  /** For the person: when they first thanked everyone. */
+  thankedAt: string | null;
+  /** For the person: signatures shown and not yet thanked. */
+  unthanked: number;
   /**
    * For a manager: whether the public link is on, and whether they may turn
    * it on (a parent's, for someone under 18). Null for anyone else.
@@ -155,6 +171,7 @@ function asSignature(value: unknown): CardSignature | null {
     photoPath: text(s.photoPath),
     ink: asCardInk(s.ink),
     mine: bool(s.mine),
+    hidden: bool(s.hidden),
     createdAt: text(s.createdAt) ?? "",
     updatedAt: text(s.updatedAt) ?? "",
   };
@@ -178,11 +195,15 @@ export function asBirthdayCard(value: unknown): BirthdayCard | null {
     closesAt: text(c.closesAt) ?? "",
     isOpen: bool(c.isOpen),
     signing: bool(c.signing),
+    closed: bool(c.closed),
     startedBy: text(c.startedBy) ?? "A relative",
     openedAt: text(c.openedAt),
     recipient: bool(c.recipient),
     manager: bool(c.manager),
     signed: bool(c.signed),
+    thanks: text(c.thanks),
+    thankedAt: text(c.thankedAt),
+    unthanked: num(c.unthanked) ?? 0,
     link: link ? { on: bool(link.on), mayTurnOn: bool(link.mayTurnOn) } : null,
     signatures: Array.isArray(c.signatures)
       ? c.signatures.flatMap((s) => {
@@ -260,6 +281,11 @@ export function signedYourCard(names: readonly string[]): string {
   return `${shown.slice(0, -1).join(", ")} and ${shown[shown.length - 1]} signed your card.`;
 }
 
+/** "2 more signed since.": signatures the person's thank-you hasn't reached yet. */
+export function moreSince(n: number): string {
+  return n === 1 ? "1 more signed since." : `${n} more signed since.`;
+}
+
 /** Signatures two at a time, as a wide screen opens the card like a book. */
 export function spreads<T>(items: readonly T[], per = 2): T[][] {
   const out: T[][] = [];
@@ -281,4 +307,9 @@ export const CARD_ERRORS = [
   ["didn't arrive", "A file didn’t upload. Try again."],
   ["not yours to take off", "Only its signer can take that off now."],
   ["not yours to delete", "Only its managers can delete a card, before the day."],
+  ["not yours to thank for", "Only you can thank everyone for your card, once it’s open."],
+  ["nobody to thank", "Everyone who signed has been thanked."],
+  ["a thank-you to send", "Write your thank-you."],
+  ["a shorter thank-you", `Keep it under ${CARD_THANKS_MAX.toLocaleString("en")} characters.`],
+  ["not yours to hide", "Only you can hide a signature on your card, once it’s open."],
 ] as const;

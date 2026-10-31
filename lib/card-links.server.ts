@@ -96,6 +96,8 @@ export type CardLinkPage =
       opensOn: string;
       isOpen: boolean;
       signing: boolean;
+      /** The person died: the card won't open (Step 217.5). */
+      closed: boolean;
       collector: string;
       leaf: LeafShape;
       photo: { url: string; style: React.CSSProperties } | null;
@@ -110,6 +112,8 @@ export type CardLinkPage =
       /** A personal link, signed: where they claim their entry. */
       claimUrl: string | null;
       mine: (CardLinkMine & { audioUrl: string | null; photoUrl: string | null }) | null;
+      /** The person's thank-you, once it reached the viewer (Step 217.5). */
+      thanks: string | null;
       joinable: boolean;
       signatures: CardSignatureView[] | null;
     };
@@ -161,6 +165,7 @@ export async function loadCardLinkPage(token: string): Promise<CardLinkPage | nu
     opensOn: view.opensOn,
     isOpen: view.isOpen,
     signing: view.signing,
+    closed: view.closed,
     collector: view.collector,
     leaf: nativeLeaf({
       city_of_birth: view.birthplace?.city,
@@ -179,6 +184,7 @@ export async function loadCardLinkPage(token: string): Promise<CardLinkPage | nu
           photoUrl: view.mine.photoPath ? (links.get(view.mine.photoPath) ?? null) : null,
         }
       : null,
+    thanks: view.thanks,
     joinable: view.joinable,
     signatures: view.signatures ? view.signatures.map((s) => asPageSignature(s, links)) : null,
   };

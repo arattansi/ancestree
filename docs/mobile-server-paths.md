@@ -117,6 +117,15 @@ All carry a top-level `"use server"`; none is inline.
   they are to you worked out on the phone over its family read
   (`lib/messenger-relation.ts`), the keys in the Keychain. Faces are
   initials for now.
+- **Birthday cards (Steps 217.4, 217.5):** the phone reads a person's
+  cards through the sheet's existing route (`want=cards`) and does
+  everything else with RPCs as the member: `my_card_flags`,
+  `sign_birthday_card` (files put in the card's folder first),
+  `delete_card_signature`, `mark_card_opened`, and after the day the
+  person's `thank_card_signers` and `hide_card_signature`. A card started
+  on the web pushes from the web; a thank-you sent from the phone has its
+  pushes and emails sent by the cron's next run (`sendCardThanks`), so no
+  bearer route was added.
 - **Everything else in A:** suggestions, reports, placements, home tree,
   name-only cards, share links, family link, nicknames, pets: the same RPC
   or write.

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+import { sendCardThanks } from "@/lib/birthday-cards.server";
 import { fromTheJob } from "@/lib/cron.server";
 import { sendEmails } from "@/lib/email";
 import { birthdayCardEmail } from "@/lib/emails/birthday-card";
@@ -21,7 +22,10 @@ const NO_STORE = { "Cache-Control": "no-store" };
  * from 8 in their morning (`send_card_nudges`), and the person whose card
  * opened at midnight is told, from 8 in theirs, in the app and by email
  * (`announce_birthday_cards`), and on their phones (`card_ready_pushes`,
- * Step 217.4). Then a link signer's upload no signature
+ * Step 217.4). A thank-you's pushes and emails not sent yet go (one thanked
+ * from the phone, or one whose sending failed; `sendCardThanks`, Step
+ * 217.5), and an address left for one that never came is forgotten 30 days
+ * after the day. Then a link signer's upload no signature
  * took for a day is removed (`take_stale_card_uploads`, Step 217.3). The
  * card itself opens at midnight whatever this does: the database reads the
  * clock. Answers with counts only.
@@ -60,6 +64,9 @@ export async function GET(request: NextRequest) {
       ));
     }
 
+    // Thank-yous: each push and email once; a failure is logged only.
+    const thanks = await sendCardThanks(null);
+
     // A file never signed with; a failure here waits for the next run.
     const stale = await admin.rpc("take_stale_card_uploads");
     const staleFiles = stale.error ? [] : (stale.data ?? []);
@@ -73,6 +80,7 @@ export async function GET(request: NextRequest) {
         told: told.data?.length ?? 0,
         emailed: sent.filter((s) => s.ok).length,
         pushed,
+        thanked: thanks.pushed + thanks.emailed,
         stale: staleFiles.length,
       },
       { headers: NO_STORE },

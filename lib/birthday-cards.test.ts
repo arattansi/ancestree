@@ -7,6 +7,7 @@ import {
   cardFilePath,
   cardFiles,
   isCardFilePath,
+  moreSince,
   signedSoFar,
   signedYourCard,
   spreads,
@@ -60,6 +61,22 @@ describe("asBirthdayCard", () => {
     // Ink (Step 217.4), read as the card takes it; anything else is none.
     expect(card?.signatures[2].ink).toEqual({ sign: [[[0.2, 0.5, 0.5, 0]]] });
     expect(card?.signatures[3].ink).toBeNull();
+  });
+
+  it("reads what the day after brings (Step 217.5): the thank-you, hidden pages, a closed card", () => {
+    const card = asBirthdayCard({
+      ...answer,
+      closed: true,
+      thanks: "thank you all",
+      thankedAt: "2026-11-11T09:00:00Z",
+      unthanked: 2,
+      signatures: [{ id: "s1", name: "Ngozi", message: "xo", hidden: true }],
+    });
+    expect(card).toMatchObject({ closed: true, thanks: "thank you all", unthanked: 2 });
+    expect(card?.signatures[0].hidden).toBe(true);
+    // An answer from before it says none of it.
+    expect(asBirthdayCard(answer)).toMatchObject({ closed: false, thanks: null, thankedAt: null, unthanked: 0 });
+    expect(asBirthdayCard(answer)?.signatures[0].hidden).toBe(false);
   });
 
   it("is null for nothing, or a card without its keys", () => {
@@ -125,6 +142,13 @@ describe("words", () => {
     expect(signedYourCard(["a", "b", "c", "d", "e", "f", "g", "h"])).toBe(
       "a, b, c, d, e and 3 more signed your card.",
     );
+  });
+});
+
+describe("moreSince", () => {
+  it("counts those the thank-you hasn't reached", () => {
+    expect(moreSince(1)).toBe("1 more signed since.");
+    expect(moreSince(3)).toBe("3 more signed since.");
   });
 });
 

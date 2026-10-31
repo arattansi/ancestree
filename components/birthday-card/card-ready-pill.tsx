@@ -2,7 +2,12 @@
 
 import * as React from "react";
 
-import { markCardOpened, openBirthdayCard, setMyTimeZone } from "@/app/actions/birthday-cards";
+import {
+  hideCardSignature,
+  markCardOpened,
+  openBirthdayCard,
+  setMyTimeZone,
+} from "@/app/actions/birthday-cards";
 import { CardOpening } from "@/components/birthday-card/card-opening";
 import type { SignerOf } from "@/components/birthday-card/card-pages";
 import { PendingButton } from "@/components/pending-button";
@@ -12,8 +17,9 @@ import type { LeafShape } from "@/lib/leaf-shapes";
 
 /**
  * On their birthday, at the foot of their tree (Step 217): "happy birthday,
- * Ada. your card is here." and the button that opens it, envelope first.
- * Gone once they've looked.
+ * Ada. your card is here." and the button that opens it, envelope first,
+ * each page theirs to hide from everyone else (Step 217.5). Gone once
+ * they've looked.
  */
 export function CardReadyPill({
   cardId,
@@ -29,6 +35,7 @@ export function CardReadyPill({
   const [card, setCard] = React.useState<BirthdayCardView | null>(null);
   const [done, setDone] = React.useState(false);
   const open = useAction();
+  const hiding = useAction();
   if (done && !card) return null;
   return (
     <>
@@ -65,6 +72,20 @@ export function CardReadyPill({
           onFirstLook={() => {
             setDone(true);
             void markCardOpened(cardId);
+          }}
+          hide={{
+            pendingId: hiding.pendingKey,
+            onHide: (s) =>
+              hiding.run(
+                s.id,
+                () =>
+                  hideCardSignature({ personId: card.personId, cardId, signatureId: s.id, hidden: !s.hidden }),
+                {
+                  onSuccess: ({ card: next }) => {
+                    if (next) setCard(next);
+                  },
+                },
+              ),
           }}
         />
       ) : null}

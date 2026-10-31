@@ -10,12 +10,25 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { cardDay, signedYourCard, type BirthdayCardView } from "@/lib/birthday-cards";
+import {
+  cardDay,
+  signedYourCard,
+  type BirthdayCardView,
+  type CardSignatureView,
+} from "@/lib/birthday-cards";
 import type { LeafShape } from "@/lib/leaf-shapes";
 import { CardEnvelope } from "@/cards/envelope";
 import { SignaturePage, type SignerWords } from "@/cards/pages";
 import { font, GUTTER, usePalette } from "@/theme";
+import { Button } from "@/ui/button";
 import { XIcon } from "@/ui/icons";
+
+/** The person's hiding of a page, after the day (Step 217.5). */
+export type HidePage = {
+  onHide: (signature: CardSignatureView) => void;
+  /** The signature being hidden or shown again, while it is. */
+  pendingId: string | null;
+};
 
 /**
  * A birthday card, opened on the phone (Step 217.4), over everything,
@@ -23,7 +36,8 @@ import { XIcon } from "@/ui/icons";
  * the envelope, tied with twine; then a page a signature, each one's ink
  * writing itself out as the page turns to it. Anyone else, or the person
  * again, goes straight to the pages. `onFirstLook` runs as the envelope
- * opens.
+ * opens. With `hide`, the person hides a page from everyone else, or shows
+ * it again (Step 217.5).
  */
 export function CardOpening({
   card,
@@ -32,6 +46,7 @@ export function CardOpening({
   words,
   onClose,
   onFirstLook,
+  hide,
 }: {
   card: BirthdayCardView;
   firstName: string;
@@ -39,6 +54,7 @@ export function CardOpening({
   words: SignerWords;
   onClose: () => void;
   onFirstLook?: () => void;
+  hide?: HidePage;
 }) {
   const { width } = useWindowDimensions();
   // The root's insets: a modal's own come back empty.
@@ -60,7 +76,7 @@ export function CardOpening({
             <XIcon size={18} color="#ffffff" />
           </Pressable>
           {reading ? (
-            <Pages card={card} firstName={firstName} words={words} width={width} onClose={onClose} />
+            <Pages card={card} firstName={firstName} words={words} width={width} onClose={onClose} hide={hide} />
           ) : (
             <View style={styles.sealed}>
               <View style={styles.greeting}>
@@ -95,12 +111,14 @@ function Pages({
   words,
   width,
   onClose,
+  hide,
 }: {
   card: BirthdayCardView;
   firstName: string;
   words: SignerWords;
   width: number;
   onClose: () => void;
+  hide?: HidePage;
 }) {
   const palette = usePalette();
   const pager = React.useRef<ScrollView | null>(null);
@@ -154,6 +172,20 @@ function Pages({
                     replay={i === at}
                   />
                 ) : null}
+                {hide ? (
+                  <View style={[styles.hide, { borderTopColor: palette.kraftLine }]}>
+                    <Text style={[styles.hidden, { color: palette.mutedForeground }]}>
+                      {s.hidden ? "hidden from everyone else." : ""}
+                    </Text>
+                    <Button
+                      variant="outline"
+                      label={s.hidden ? "unhide" : "hide"}
+                      busy={hide.pendingId === s.id}
+                      disabled={hide.pendingId !== null}
+                      onPress={() => hide.onHide(s)}
+                    />
+                  </View>
+                ) : null}
               </ScrollView>
             </View>
           ))}
@@ -206,6 +238,15 @@ const styles = StyleSheet.create({
   sheet: { flex: 1, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth * 2 },
   sheetBody: { padding: 24 },
   empty: { fontFamily: font.regular, fontSize: 15, padding: 24 },
+  hide: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginTop: 24,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth * 2,
+  },
+  hidden: { flex: 1, fontFamily: font.regular, fontSize: 13 },
   steps: { flexDirection: "row", justifyContent: "space-between", gap: 12, padding: GUTTER },
   step: { height: 44, borderRadius: 10, paddingHorizontal: 18, alignItems: "center", justifyContent: "center" },
   stepOutline: { borderWidth: 1, borderColor: "rgba(255,255,255,0.4)" },

@@ -20,6 +20,17 @@ export type ChangelogEntry = {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-10-30",
+    title: "thank everyone for your birthday card",
+    items: [
+      "once your birthday card opens, thank everyone who signed it with one message. family on ancestree are told in the app, and anyone who signed from a link and left their email gets it by email.",
+      "hide any signature on your card from everyone else, and show it again whenever you like.",
+      "signing a card from a link, you can leave your email for the thank-you. it's used once, then deleted.",
+      "your birthday cards are in export data now: every message, voice memo, photo and drawing.",
+    ],
+    steps: [217],
+  },
+  {
+    date: "2026-10-30",
     title: "draw on a birthday card",
     items: [
       "on a phone or tablet, sign a birthday card with your finger: your name signed by hand, and a drawing if you like. your signed name stands in for your typed one.",

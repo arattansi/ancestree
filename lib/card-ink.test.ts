@@ -10,6 +10,7 @@ import {
   inkOf,
   inkPaths,
   inkPoint,
+  inkSvg,
   inkUpTo,
   INK_MAX_CHARS,
   INK_MAX_POINTS,
@@ -168,5 +169,15 @@ describe("writing it out again", () => {
 
   it("takes no time for no ink", () => {
     expect(replayTimeline([])).toEqual({ strokes: [], duration: 0 });
+  });
+});
+
+describe("inkSvg", () => {
+  it("writes a box's ink as an SVG file of its own, a path a stroke", () => {
+    const svg = inkSvg([line(3), line(4, 100)], "sign", "Ada’s <signature> & more");
+    expect(svg.startsWith('<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 100"')).toBe(true);
+    expect(svg.match(/<path d="M /g)).toHaveLength(2);
+    expect(svg).toContain("<title>Ada’s &lt;signature&gt; &amp; more</title>");
+    expect(inkSvg([line(2)], "draw", "drawing")).toContain('viewBox="0 0 100 100" width="400" height="400"');
   });
 });

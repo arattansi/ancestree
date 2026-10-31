@@ -5,6 +5,7 @@ import { PauseIcon, PlayIcon } from "lucide-react";
 
 import { CardLeaf } from "@/components/birthday-card/card-leaf";
 import { InkDrawing, replayLength } from "@/components/birthday-card/ink-drawing";
+import { PendingButton } from "@/components/pending-button";
 import type { CardSignatureView } from "@/lib/birthday-cards";
 import type { LeafShape } from "@/lib/leaf-shapes";
 import { formatDuration } from "@/lib/story-audio";
@@ -83,19 +84,29 @@ export function VoiceMemo({
   );
 }
 
+/** The person's hiding of a page, after the day (Step 217.5). */
+export type HidePage = {
+  onHide: (signature: CardSignatureView) => void;
+  /** The signature being hidden or shown again, while it is. */
+  pendingId: string | null;
+};
+
 /**
  * One signature, a page of the card. A name signed by hand takes the typed
  * name's place (Step 217.4); with `replay`, as the card opens, it writes
- * itself out again, then the drawing.
+ * itself out again, then the drawing. With `hide`, the person hides it
+ * from everyone else, or shows it again (Step 217.5).
  */
 export function CardPage({
   signature,
   signer,
   replay = false,
+  hide,
 }: {
   signature: CardSignatureView;
   signer: SignerOf;
   replay?: boolean;
+  hide?: HidePage;
 }) {
   const { leaf, relation } = signer(signature);
   const signed = signature.ink?.sign ?? null;
@@ -156,6 +167,23 @@ export function CardPage({
           <p className="text-sm text-muted-foreground">the photo couldn’t be loaded.</p>
         )
       ) : null}
+      {hide ? (
+        <div className="mt-auto flex items-center gap-3 border-t border-kraft-line/30 pt-3">
+          <p className="flex-1 text-[13px] text-muted-foreground">
+            {signature.hidden ? "hidden from everyone else." : ""}
+          </p>
+          <PendingButton
+            variant="outline"
+            size="sm"
+            pending={hide.pendingId === signature.id}
+            pendingLabel={signature.hidden ? "unhiding…" : "hiding…"}
+            disabled={hide.pendingId !== null}
+            onClick={() => hide.onHide(signature)}
+          >
+            {signature.hidden ? "unhide" : "hide"}
+          </PendingButton>
+        </div>
+      ) : null}
     </article>
   );
 }
@@ -173,6 +201,7 @@ export function CardPages({
   onEnd,
   onDark = false,
   replay = false,
+  hide,
 }: {
   signatures: readonly CardSignatureView[];
   signer: SignerOf;
@@ -183,6 +212,8 @@ export function CardPages({
   onDark?: boolean;
   /** Each page's ink writes itself out as the page turns to it. */
   replay?: boolean;
+  /** The person's own card, after the day: each page hides. */
+  hide?: HidePage;
 }) {
   const per = wide ? 2 : 1;
   const [at, setAt] = React.useState(0);
@@ -215,7 +246,7 @@ export function CardPages({
         {shown.length === 0 ? (
           <p className="p-8 text-muted-foreground">nobody has signed it yet.</p>
         ) : (
-          shown.map((s) => <CardPage key={s.id} signature={s} signer={signer} replay={replay} />)
+          shown.map((s) => <CardPage key={s.id} signature={s} signer={signer} replay={replay} hide={hide} />)
         )}
       </div>
       <div className="flex justify-between gap-3">

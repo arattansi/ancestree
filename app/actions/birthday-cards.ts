@@ -1,8 +1,11 @@
 "use server";
 
+import { after } from "next/server";
+
 import {
   CARD_ERRORS,
   CARD_MESSAGE_MAX,
+  CARD_THANKS_MAX,
   CARD_VOICE_SECONDS,
   isCardFilePath,
   type BirthdayCardView,
@@ -13,6 +16,7 @@ import {
   loadPersonCards,
   releasedFiles,
   removeCardFilesLater,
+  sendCardThanks,
 } from "@/lib/birthday-cards.server";
 import { asCardInk } from "@/lib/card-ink";
 import {
@@ -172,6 +176,59 @@ export async function markCardOpened(cardId: string): Promise<void> {
   await requireProfile();
   const supabase = await createClient();
   await supabase.rpc("mark_card_opened", { p_card: cardId });
+}
+
+/**
+ * Thank everyone who signed one's own card, once it's open (Step 217.5):
+ * one message, the first time; later, those who signed since (or were shown
+ * again) are thanked with the same words. Members who signed are told in
+ * the app at once, and on their phones and, for a link signer who left an
+ * address, by email once the answer has gone.
+ */
+export async function thankCardSigners(input: {
+  personId: string;
+  cardId: string;
+  message: string;
+}): Promise<CardsAnswer> {
+  await requireProfile();
+  const message = input.message.trim();
+  if (message.length > CARD_THANKS_MAX) {
+    return { error: `Keep it under ${CARD_THANKS_MAX.toLocaleString("en")} characters.` };
+  }
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("thank_card_signers", {
+    p_card: input.cardId,
+    p_message: message || undefined,
+  });
+  if (error) {
+    return { error: friendlyDbError(error.message, CARD_ERRORS, "Couldn’t send it. Try again.") };
+  }
+  after(() => sendCardThanks(input.cardId).then(() => undefined));
+  return cardsOf(input.personId);
+}
+
+/**
+ * Hide a signature on one's own card once it's open, or show it again
+ * (Step 217.5): hidden, only the person and its signer see it. Answers the
+ * sheet's cards and the card itself, for an earlier one opened from the list.
+ */
+export async function hideCardSignature(input: {
+  personId: string;
+  cardId: string;
+  signatureId: string;
+  hidden: boolean;
+}): Promise<CardsAnswer & { card?: BirthdayCardView }> {
+  await requireProfile();
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("hide_card_signature", {
+    p_signature: input.signatureId,
+    p_hidden: input.hidden,
+  });
+  if (error) {
+    return { error: friendlyDbError(error.message, CARD_ERRORS, "Couldn’t change it. Try again.") };
+  }
+  const [cards, card] = await Promise.all([cardsOf(input.personId), loadCard(input.cardId).catch(() => null)]);
+  return { ...cards, card: card ?? undefined };
 }
 
 /** The member's device's time zone, for the cards that open at their midnight. */

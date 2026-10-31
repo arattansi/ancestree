@@ -2,7 +2,8 @@
  * Push notifications to the phone apps (Step 204), as Expo's push service
  * takes them: who wrote, never what (messages are end-to-end encrypted),
  * whom a new story is about, and birthday cards (Step 217.4): one started
- * for someone the member is reminded to sign, and their own on the day.
+ * for someone the member is reminded to sign, their own on the day, and
+ * (Step 217.5) the person's thank-you to those who signed.
  * What each opens rides in `data`, read by the phone when it's tapped
  * (`mobile/src/push/`).
  */
@@ -93,6 +94,26 @@ export function cardReadyPush(input: { personId: string; firstName: string; sign
     title: first ? `Happy birthday, ${first}` : "Happy birthday",
     body: `Your birthday card is here: ${n} ${n === 1 ? "person" : "people"} signed it.`,
     data: { kind: "card", personId: input.personId, open: true },
+    channelId: "cards",
+  };
+}
+
+/** How much of a thank-you a push shows: the start, whole words. */
+const THANKS_IN_PUSH = 140;
+
+/**
+ * The person's thank-you, to someone who signed their card: "Ada’s
+ * birthday card", "Ada thanked you for signing: “…”". Opens their details,
+ * where the card says it whole.
+ */
+export function cardThanksPush(input: { personId: string; firstName: string; thanks: string }): PushNote {
+  const first = input.firstName.trim();
+  const words = input.thanks.trim().replace(/\s+/g, " ");
+  const cut = words.length > THANKS_IN_PUSH ? words.slice(0, THANKS_IN_PUSH).replace(/\s+\S*$/, "") : words;
+  return {
+    title: first ? `${first}’s birthday card` : "A birthday card",
+    body: `${first || "They"} thanked you for signing: “${cut}${cut.length < words.length ? "…" : ""}”`,
+    data: { kind: "card", personId: input.personId, open: false },
     channelId: "cards",
   };
 }

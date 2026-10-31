@@ -255,3 +255,49 @@ export function storyMarkdown(story: StoryForExport): string {
   lines.push("", "---", "", story.body.trim(), "");
   return lines.join("\n");
 }
+
+/** A birthday card of their own, as its .md file in the archive (Step 217.5). */
+export type CardForExport = {
+  year: number;
+  /** The birthday, `YYYY-MM-DD`. */
+  opensOn: string;
+  /** Their thank-you, if they sent one. */
+  thanks: string | null;
+  signatures: {
+    name: string;
+    /** "your cousin", in a link signer's own words; null for the rest. */
+    relation: string | null;
+    message: string | null;
+    signedAt: string;
+    /** They hid it from everyone else. */
+    hidden: boolean;
+    /** This signature's files in the archive, beside this one. */
+    files: string[];
+  }[];
+};
+
+/**
+ * A birthday card as Markdown: the day, how many signed, the thank-you, then
+ * each signature as signed, its files named, its message as written.
+ */
+export function cardMarkdown(card: CardForExport): string {
+  const n = card.signatures.length;
+  const lines = [
+    `# Your birthday card, ${dayOf(card.opensOn)}`,
+    "",
+    n === 1 ? "1 signature" : `${n} signatures`,
+  ];
+  if (card.thanks?.trim()) lines.push("", `Your thank-you: “${card.thanks.trim()}”`);
+  for (const s of card.signatures) {
+    lines.push("", "---", "", `## ${s.name}`, "");
+    const signed = `signed ${dayOf(s.signedAt)}`;
+    const about = s.relation ? `${s.relation}, ${signed}` : signed;
+    lines.push(`${about[0]!.toUpperCase()}${about.slice(1)}  `);
+    if (s.hidden) lines.push("Hidden from everyone else  ");
+    if (s.files.length) lines.push(`Files: ${s.files.join(", ")}  `);
+    lines[lines.length - 1] = lines[lines.length - 1]!.trimEnd();
+    if (s.message?.trim()) lines.push("", s.message.trim());
+  }
+  lines.push("");
+  return lines.join("\n");
+}

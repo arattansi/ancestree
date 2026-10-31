@@ -2034,6 +2034,52 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 217.5: birthday cards after the day** (web and phone; migration
+  `20261031120000_card_after_the_day`, live; Phase 4 of the scope, decision
+  16, §11's death before the day). **Asked for** (2026-10-29): the person
+  thanks everyone at once, signed-out signers who left an email get it by
+  email, cards go in Export data, and the person hides a signature after the
+  day. **Now** once their card opens, the person thanks everyone with one
+  message (`thank_card_signers`; `birthday_cards.thanks`, 1,000 characters):
+  every signature shown is thanked once (`card_signatures.thanked_at`), and
+  anyone who signs later, or is shown again, gets "2 more signed since." /
+  **thank them too** with the same words. Members who signed (and a personal
+  link's relative who has since claimed) get a `card_thanks` notice; their
+  phones get a push behind the **Birthday cards** switch
+  (`card_thanks_pushes`, `card_pushes` kind `thanks`, `cardThanksPush`); a
+  link signer signed out who left an address gets "a thank-you from Ada"
+  (`card_thanks_emails` hands it over once and forgets it; unused, it's
+  forgotten 30 days after the day). Both go from the action's `after()` and
+  from every cron run (`sendCardThanks`), which carries a thank-you sent from
+  the phone (no bearer route). The link's form asks, signed out only, **email
+  for Ada’s thank-you (optional)** (`sign_card_by_link` takes `p_email`,
+  re-created from 217.4's file; a signature already thanked keeps none). The
+  person **hides** a page from everyone else and unhides it
+  (`hide_card_signature`, `hidden_at`), in the opened card on the sheet, the
+  day's pill and the phone; `card_json` and the link's signatures leave a
+  hidden one to the person and its signer, and hidden ones aren't thanked.
+  The signers it reached see the thank-you under **open the card**, in the
+  app and on the link. **Export data**'s .zip has `cards/<year>/`: each
+  signature's voice memo, photo, signed name and drawing (SVG, `inkSvg`) and
+  `card.md` (`cardMarkdown`), from `my_birthday_cards`. **A death before the
+  day** (`is_deceased` or a date of death) closes the card: the trigger
+  `people_card_closed` tells its managers once (`card_closed`, never whoever
+  marked it), no envelope (`my_card_flags`), "the card is closed." on the
+  sheet, the phone and the link, managers and signers can still open it.
+  `birthday_cards_for` counts what the viewer may see. Phone: the thank-you
+  is written on the full-screen `/card/[id]`, hide on each page of the
+  opening. Checked: a 44-check rolled-back rehearsal on live; in the browser
+  with throwaway accounts (a signed-out link signer's bad address refused and
+  a good one kept lower case; the person hiding a page and thanking from the
+  sheet, the members' notices, the push claimed and its fake token pruned,
+  the email delivered to Resend's test inbox and the address gone; the
+  thank-you on a member's sheet and on the link, the hidden page left out
+  there; the export's card folder with a photo, two SVGs and card.md; a
+  closed card on the sheet and the link); in the iOS simulator on 217.4's dev
+  build (the thank-you shown, unhiding a page, thank them too, the
+  first-time form, a signer seeing it, the cron's claim of its push). Not on
+  Android; no store build (Aalim's).
+
 - **Step 217.4: ink, and birthday cards on the phone** (web and phone;
   migration `20261031090000_card_ink`, live; Phase 3 of the scope, decision
   15). **Asked for** (2026-10-29): on a mobile device a signature can hold a

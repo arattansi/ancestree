@@ -143,6 +143,8 @@ export type Database = {
           opens_on: string
           person_id: string
           started_by: string | null
+          thanked_at: string | null
+          thanks: string | null
           time_zone: string
           year: number
         }
@@ -156,6 +158,8 @@ export type Database = {
           opens_on: string
           person_id: string
           started_by?: string | null
+          thanked_at?: string | null
+          thanks?: string | null
           time_zone: string
           year: number
         }
@@ -169,6 +173,8 @@ export type Database = {
           opens_on?: string
           person_id?: string
           started_by?: string | null
+          thanked_at?: string | null
+          thanks?: string | null
           time_zone?: string
           year?: number
         }
@@ -423,6 +429,7 @@ export type Database = {
           card_id: string
           created_at: string
           edit_token_hash: string | null
+          hidden_at: string | null
           id: string
           ink: Json | null
           message: string | null
@@ -431,6 +438,8 @@ export type Database = {
           signer_name: string
           signer_person_id: string | null
           signer_user_id: string | null
+          thanked_at: string | null
+          thanks_email: string | null
           updated_at: string
         }
         Insert: {
@@ -440,6 +449,7 @@ export type Database = {
           card_id: string
           created_at?: string
           edit_token_hash?: string | null
+          hidden_at?: string | null
           id?: string
           ink?: Json | null
           message?: string | null
@@ -448,6 +458,8 @@ export type Database = {
           signer_name: string
           signer_person_id?: string | null
           signer_user_id?: string | null
+          thanked_at?: string | null
+          thanks_email?: string | null
           updated_at?: string
         }
         Update: {
@@ -457,6 +469,7 @@ export type Database = {
           card_id?: string
           created_at?: string
           edit_token_hash?: string | null
+          hidden_at?: string | null
           id?: string
           ink?: Json | null
           message?: string | null
@@ -465,6 +478,8 @@ export type Database = {
           signer_name?: string
           signer_person_id?: string | null
           signer_user_id?: string | null
+          thanked_at?: string | null
+          thanks_email?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -4067,6 +4082,24 @@ export type Database = {
           user_id: string
         }[]
       }
+      card_thanks_emails: {
+        Args: { p_card?: string }
+        Returns: {
+          first_name: string
+          message: string
+          signer: string
+          to_email: string
+        }[]
+      }
+      card_thanks_pushes: {
+        Args: { p_card?: string }
+        Returns: {
+          first_name: string
+          person_id: string
+          thanks: string
+          user_id: string
+        }[]
+      }
       check_add_people_with_connections: {
         Args: {
           p_adult_existing?: string[]
@@ -4447,6 +4480,10 @@ export type Database = {
           key_version: number
         }[]
       }
+      hide_card_signature: {
+        Args: { p_hidden: boolean; p_signature: string }
+        Returns: undefined
+      }
       invite_funnel: { Args: never; Returns: Json }
       invite_glimpse: { Args: { p_token: string }; Returns: Json }
       invite_preview: {
@@ -4651,6 +4688,7 @@ export type Database = {
         Args: { p_conversation: string; p_until?: string }
         Returns: string
       }
+      my_birthday_cards: { Args: never; Returns: Json }
       my_blocks: {
         Args: never
         Returns: {
@@ -5206,6 +5244,7 @@ export type Database = {
         Args: {
           p_audio_path: string
           p_audio_seconds: number
+          p_email?: string
           p_ink?: Json
           p_message: string
           p_name: string
@@ -5288,6 +5327,10 @@ export type Database = {
       }
       take_key_transfer: { Args: { p_id: string }; Returns: string }
       take_stale_card_uploads: { Args: never; Returns: string[] }
+      thank_card_signers: {
+        Args: { p_card: string; p_message?: string }
+        Returns: Json
+      }
       thread_messages: {
         Args: { p_before?: string; p_conversation: string; p_limit?: number }
         Returns: {

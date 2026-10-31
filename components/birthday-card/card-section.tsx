@@ -19,6 +19,7 @@ import { useAction } from "@/components/use-action";
 import {
   deleteBirthdayCard,
   deleteCardSignature,
+  hideCardSignature,
   listCardRelatives,
   makeCardLink,
   makeCardPersonalLink,
@@ -27,12 +28,15 @@ import {
   openBirthdayCard,
   signBirthdayCard,
   startBirthdayCard,
+  thankCardSigners,
   turnOffCardLink,
 } from "@/app/actions/birthday-cards";
 import {
   CARD_MESSAGE_MAX,
   CARD_PHOTO_EDGE,
+  CARD_THANKS_MAX,
   cardDay,
+  moreSince,
   possessive,
   signedSoFar,
   signedYourCard,
@@ -69,9 +73,11 @@ type Photo = { kind: "new"; file: File; url: string } | { kind: "kept"; path: st
  * those who may sign it: who's collecting, who has signed (and what), and
  * the viewer's own signature to write, record, add a photo to, change or
  * take off. For a manager with none started yet: start one. On the day and
- * after: the person opens theirs (the envelope first), and its managers and
- * signers open it too. Earlier years below. Nothing for the person before
- * the day: the database doesn't say a card exists.
+ * after: the person opens theirs (the envelope first), thanks everyone who
+ * signed and hides a page from the others (Step 217.5), and its managers
+ * and signers open it too, the thank-you with it once it reached them.
+ * Earlier years below. A card whose person died is closed. Nothing for the
+ * person before the day: the database doesn't say a card exists.
  */
 export function BirthdayCardSection({
   personId,
@@ -98,6 +104,7 @@ export function BirthdayCardSection({
   const first = firstOf(name);
   const [opening, setOpening] = React.useState<BirthdayCardView | null>(null);
   const past = useAction();
+  const hiding = useAction();
   const forRecipient = cards?.current?.recipient ?? false;
 
   const signer = React.useCallback<SignerOf>(
@@ -126,11 +133,28 @@ export function BirthdayCardSection({
 
   return (
     <section className="flex flex-col gap-4 border-t border-border pt-5">
-      {current && !current.isOpen ? (
+      {current?.closed ? (
+        <div className="flex flex-col gap-3 rounded-xl border border-kraft-line/40 bg-cake-sponge p-4">
+          <div className="flex items-center gap-3">
+            <EnvelopeMark />
+            <div className="flex flex-col">
+              <h2 className="text-[15px] font-bold">{possessive(first)} birthday card</h2>
+              <p className="text-[13px] text-muted-foreground">the card is closed.</p>
+            </div>
+          </div>
+          {current.signatures.length > 0 ? (
+            <Button variant="outline" className="self-start" onClick={() => setOpening(current)}>
+              open the card
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+
+      {current && !current.isOpen && !current.closed ? (
         <SignCard card={current} personId={personId} first={first} sex={sex} signer={signer} onCards={update} />
       ) : null}
 
-      {current?.isOpen ? (
+      {current?.isOpen && !current.closed ? (
         <div className="flex flex-col gap-3 rounded-xl border border-kraft-line/40 bg-cake-sponge p-4">
           <div className="flex items-center gap-3">
             <EnvelopeMark />
@@ -148,6 +172,14 @@ export function BirthdayCardSection({
           <Button className="self-start" onClick={() => setOpening(current)}>
             {current.recipient ? "open your card" : "open the card"}
           </Button>
+          {current.recipient ? (
+            <ThankEveryone card={current} personId={personId} onCards={update} />
+          ) : current.thanks ? (
+            <figure className="flex flex-col gap-1 border-t border-kraft-line/40 pt-3">
+              <blockquote className="text-[15px] whitespace-pre-line">“{current.thanks}”</blockquote>
+              <figcaption className="text-[13px] text-muted-foreground">{possessive(first)} thank-you</figcaption>
+            </figure>
+          ) : null}
         </div>
       ) : null}
 
@@ -198,9 +230,121 @@ export function BirthdayCardSection({
               update({ ...cards, current: { ...current, openedAt: new Date().toISOString() } });
             }
           }}
+          hide={
+            opening.recipient
+              ? {
+                  pendingId: hiding.pendingKey,
+                  onHide: (s) =>
+                    hiding.run(
+                      s.id,
+                      () =>
+                        hideCardSignature({ personId, cardId: opening.id, signatureId: s.id, hidden: !s.hidden }),
+                      {
+                        onSuccess: ({ cards: next, card }) => {
+                          update(next);
+                          if (card) setOpening(card);
+                        },
+                      },
+                    ),
+                }
+              : undefined
+          }
         />
       ) : null}
     </section>
+  );
+}
+
+/**
+ * The person thanks everyone who signed their card, once it's open (Step
+ * 217.5): one message, sent to every signature shown (hidden ones aren't
+ * thanked); anyone who signs after is thanked with the same words.
+ */
+function ThankEveryone({
+  card,
+  personId,
+  onCards,
+}: {
+  card: BirthdayCardView;
+  personId: string;
+  onCards: (cards: PersonCards | undefined) => void;
+}) {
+  const thank = useAction({ inline: true });
+  const [writing, setWriting] = React.useState(false);
+  const [message, setMessage] = React.useState("");
+
+  if (card.thanks === null && card.unthanked === 0) return null;
+
+  if (card.thanks !== null) {
+    return (
+      <div className="flex flex-col gap-2 border-t border-kraft-line/40 pt-3">
+        <p className="text-[13px] text-muted-foreground">you thanked everyone.</p>
+        <blockquote className="text-[15px] whitespace-pre-line">“{card.thanks}”</blockquote>
+        {card.unthanked > 0 ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-[13px] text-muted-foreground">{moreSince(card.unthanked)}</p>
+            <PendingButton
+              size="sm"
+              variant="outline"
+              pending={thank.pending}
+              pendingLabel="sending…"
+              onClick={() =>
+                thank.run("more", () => thankCardSigners({ personId, cardId: card.id, message: "" }), {
+                  onSuccess: ({ cards }) => onCards(cards),
+                })
+              }
+            >
+              thank them too
+            </PendingButton>
+          </div>
+        ) : null}
+        <FormError>{thank.error}</FormError>
+      </div>
+    );
+  }
+
+  if (!writing) {
+    return (
+      <Button variant="outline" className="self-start" onClick={() => setWriting(true)}>
+        thank everyone
+      </Button>
+    );
+  }
+
+  return (
+    <form
+      className="flex flex-col gap-2 border-t border-kraft-line/40 pt-3"
+      noValidate
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!message.trim()) return;
+        thank.run("send", () => thankCardSigners({ personId, cardId: card.id, message }), {
+          onSuccess: ({ cards }) => onCards(cards),
+        });
+      }}
+    >
+      <label htmlFor={`card-thanks-${card.id}`} className="text-[13px] font-medium">
+        your thank-you
+      </label>
+      <Textarea
+        id={`card-thanks-${card.id}`}
+        rows={3}
+        value={message}
+        maxLength={CARD_THANKS_MAX}
+        onChange={(e) => setMessage(e.target.value)}
+        disabled={thank.pending}
+        autoFocus
+      />
+      <div className="flex flex-wrap items-center gap-2">
+        <PendingButton type="submit" pending={thank.pending} pendingLabel="sending…" disabled={!message.trim()}>
+          send to everyone
+        </PendingButton>
+        <Button type="button" variant="ghost" disabled={thank.pending} onClick={() => setWriting(false)}>
+          cancel
+        </Button>
+      </div>
+      <FormError>{thank.error}</FormError>
+    </form>
   );
 }
 

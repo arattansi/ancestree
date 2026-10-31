@@ -119,20 +119,30 @@ export function CardLinkSigning({ page }: { page: LivePage }) {
         <h1 className="text-2xl font-bold tracking-tight">
           {possessive(first)} birthday is on {cardDay(page.opensOn)}.
         </h1>
-        <p className="text-[15px] text-muted-foreground">
-          {page.collector} is collecting messages. {theyWill(page.sex)} see them on the day.
-        </p>
+        {page.closed ? null : (
+          <p className="text-[15px] text-muted-foreground">
+            {page.collector} is collecting messages. {theyWill(page.sex)} see them on the day.
+          </p>
+        )}
       </header>
 
       {page.mine && !editing ? (
         <div className="flex flex-col gap-6">
-          {page.isOpen ? (
+          {page.closed ? (
+            <p className="text-center text-[15px] text-muted-foreground">the card is closed.</p>
+          ) : page.isOpen ? (
             <div className="flex flex-col items-start gap-3 rounded-xl border border-kraft-line/40 bg-cake-sponge p-4">
               <div className="flex flex-col">
                 <h2 className="text-[15px] font-bold">{possessive(first)} birthday card</h2>
                 <p className="text-[13px] text-muted-foreground">it opened on {cardDay(page.opensOn)}.</p>
               </div>
               <Button onClick={() => setOpening(true)}>open the card</Button>
+              {page.thanks ? (
+                <figure className="flex flex-col gap-1 self-stretch border-t border-kraft-line/40 pt-3">
+                  <blockquote className="text-[15px] whitespace-pre-line">“{page.thanks}”</blockquote>
+                  <figcaption className="text-[13px] text-muted-foreground">{possessive(first)} thank-you</figcaption>
+                </figure>
+              ) : null}
             </div>
           ) : (
             <div className="flex items-start gap-3">
@@ -162,7 +172,7 @@ export function CardLinkSigning({ page }: { page: LivePage }) {
           {page.claimUrl ? <ClaimEntry first={first} url={page.claimUrl} /> : null}
           {page.joinable ? <JoinTree page={page} /> : null}
 
-          {!page.isOpen ? (
+          {!page.isOpen && !page.closed ? (
             <section className="flex flex-col gap-2.5">
               <h2 className="text-[15px] font-semibold">
                 signed so far <span className="font-normal text-muted-foreground">{signatures.length}</span>
@@ -207,7 +217,7 @@ export function CardLinkSigning({ page }: { page: LivePage }) {
         <p className="text-center text-[15px] text-muted-foreground">signing has closed.</p>
       )}
 
-      {opening && page.isOpen ? (
+      {opening && page.isOpen && !page.closed ? (
         <CardOpening
           card={openedCard(page)}
           firstName={first}
@@ -234,11 +244,15 @@ function openedCard(page: LivePage): BirthdayCardView {
     closesAt: "",
     isOpen: true,
     signing: false,
+    closed: false,
     startedBy: page.collector,
     openedAt: null,
     recipient: false,
     manager: false,
     signed: true,
+    thanks: page.thanks,
+    thankedAt: null,
+    unthanked: 0,
     link: null,
     signatures: page.signatures ?? [],
   };
@@ -270,6 +284,7 @@ function SignForm({
     mine?.photoPath ? { kind: "kept", path: mine.photoPath, url: mine.photoUrl } : null,
   );
   const [ink, setInk] = React.useState<InkDraft>(() => draftOf(mine?.ink));
+  const [email, setEmail] = React.useState(mine?.email ?? "");
   const picker = React.useRef<HTMLInputElement | null>(null);
   const honeypot = React.useRef<HTMLInputElement | null>(null);
   const pronoun = pronounOf(page.sex);
@@ -306,6 +321,7 @@ function SignForm({
         audioSeconds,
         photoPath,
         ink: inkOf(ink),
+        email: page.viewerName ? null : email,
         website: honeypot.current?.value ?? "",
       });
     } catch (error) {
@@ -458,6 +474,26 @@ function SignForm({
       />
 
       <InkField part="draw" value={ink} onChange={setInk} disabled={sign.pending} />
+
+      {/* Decision 16: asked only here, signed out, for the thank-you alone. */}
+      {page.viewerName ? null : (
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="card-link-email" className="text-sm font-medium">
+            email for {possessive(first)} thank-you (optional)
+          </label>
+          <Input
+            id="card-link-email"
+            className="h-11"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            maxLength={254}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            disabled={sign.pending}
+          />
+        </div>
+      )}
 
       {/* Left empty by people; a bot that fills every field fills this. */}
       <div aria-hidden className="absolute -left-[9999px] h-px w-px overflow-hidden">

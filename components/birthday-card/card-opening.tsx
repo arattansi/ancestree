@@ -5,7 +5,7 @@ import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { XIcon } from "lucide-react";
 
 import { CardEnvelope } from "@/components/birthday-card/card-envelope";
-import { CardPages, type SignerOf } from "@/components/birthday-card/card-pages";
+import { CardPages, type HidePage, type SignerOf } from "@/components/birthday-card/card-pages";
 import { cardDay, signedYourCard, type BirthdayCardView } from "@/lib/birthday-cards";
 import type { LeafShape } from "@/lib/leaf-shapes";
 
@@ -26,7 +26,8 @@ function useWide(): boolean {
  * A birthday card, opened (Step 217): over everything, dimmed behind. The
  * person's first look starts at the envelope, tied with twine, which they
  * pull or untie; then its pages. Anyone else, or the person again, goes
- * straight to the pages. `onFirstLook` runs as the envelope opens.
+ * straight to the pages. `onFirstLook` runs as the envelope opens. With
+ * `hide`, the person hides a page from everyone else (Step 217.5).
  */
 export function CardOpening({
   card,
@@ -36,6 +37,7 @@ export function CardOpening({
   open,
   onOpenChange,
   onFirstLook,
+  hide,
 }: {
   card: BirthdayCardView;
   firstName: string;
@@ -45,6 +47,7 @@ export function CardOpening({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onFirstLook?: () => void;
+  hide?: HidePage;
 }) {
   const wide = useWide();
   // Mounted each time it opens, so this starts over every time.
@@ -86,6 +89,7 @@ export function CardOpening({
                   onEnd={() => onOpenChange(false)}
                   onDark
                   replay
+                  hide={hide}
                 />
               </div>
             </div>

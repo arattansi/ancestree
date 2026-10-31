@@ -14,6 +14,7 @@ import {
   joinLine,
   pronounOf,
   relationWords,
+  thanksEmail,
 } from "@/lib/card-links";
 import { asCardRelation, CARD_FAMILY_RELATIONS, relationLabel } from "@/lib/card-relations";
 
@@ -137,6 +138,22 @@ describe("asCardLinkView", () => {
     expect(view.joinable).toBe(true);
   });
 
+  it("reads the day after (Step 217.5): their email, the thank-you, a closed card", () => {
+    const view = asCardLinkView({
+      ...live,
+      closed: true,
+      thanks: "thank you all",
+      mine: { id: "s9", name: "Emeka Obi", message: "hi", email: "emeka@example.com", updatedAt: "x" },
+    });
+    if (view?.state !== "live") throw new Error("not live");
+    expect(view.mine?.email).toBe("emeka@example.com");
+    expect(view.thanks).toBe("thank you all");
+    expect(view.closed).toBe(true);
+    const before = asCardLinkView(live);
+    if (before?.state !== "live") throw new Error("not live");
+    expect(before).toMatchObject({ closed: false, thanks: null });
+  });
+
   it("reads the person themself, a link turned off, and nothing", () => {
     expect(asCardLinkView({ state: "peek", firstName: "Ada", opensOn: "2026-11-14" })).toEqual({
       state: "peek",
@@ -151,6 +168,24 @@ describe("asCardLinkView", () => {
   it("doesn't ask a personal link's relative or a member how they know them", () => {
     expect(asksHowTheyKnow({ kind: "personal", member: false })).toBe(false);
     expect(asksHowTheyKnow({ kind: "public", member: true })).toBe(false);
+  });
+});
+
+describe("thanksEmail", () => {
+  it("keeps an address as the database does, lower case, or none", () => {
+    expect(thanksEmail(" Emeka@Example.COM ")).toEqual({ email: "emeka@example.com" });
+    expect(thanksEmail("")).toEqual({ email: null });
+    expect(thanksEmail("   ")).toEqual({ email: null });
+    expect(thanksEmail(null)).toEqual({ email: null });
+    expect(thanksEmail(undefined)).toEqual({ email: null });
+  });
+
+  it("refuses what isn't one", () => {
+    expect(thanksEmail("emeka")).toBeNull();
+    expect(thanksEmail("emeka@example")).toBeNull();
+    expect(thanksEmail("e meka@example.com")).toBeNull();
+    expect(thanksEmail(`${"a".repeat(250)}@b.co`)).toBeNull();
+    expect(thanksEmail(42)).toBeNull();
   });
 });
 
