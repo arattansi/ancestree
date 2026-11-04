@@ -19,6 +19,15 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "2026-11-03",
+    title: "branches mark who has died",
+    items: [
+      "a branch can mark anyone on their tree as deceased, with a date and place of death if they know them, or as living again. it's in the person's details.",
+      "that includes a member's own entry, and they're told.",
+    ],
+    steps: [218],
+  },
+  {
     date: "2026-10-30",
     title: "thank everyone for your birthday card",
     items: [

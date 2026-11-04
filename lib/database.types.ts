@@ -5189,6 +5189,10 @@ export type Database = {
         Args: { p_id: string; p_status: string }
         Returns: undefined
       }
+      set_life_status: {
+        Args: { p_death?: Json; p_deceased: boolean; p_person: string }
+        Returns: string[]
+      }
       set_member_role: {
         Args: { p_role: string; p_tree: string; p_user: string }
         Returns: string

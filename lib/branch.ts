@@ -352,15 +352,31 @@ export function entryRights(
   entry: EntrySubject,
   home: Viewer | null,
   selfId: string | null,
-): { canEdit: boolean; canFill: boolean } {
+): { canEdit: boolean; canFill: boolean; canSetLifeStatus: boolean } {
   if (entry.placeholderParents) {
-    return { canEdit: isOwnPlaceholder(entry, selfId), canFill: false };
+    const canEdit = isOwnPlaceholder(entry, selfId);
+    return { canEdit, canFill: false, canSetLifeStatus: false };
   }
   const canEdit = home ? canEditEntry(entry, home) : entry.id === selfId;
   return {
     canEdit,
     canFill: !canEdit && !!home && canFillEntry(entry, home),
+    canSetLifeStatus: canEdit || (!!home && canSetLifeStatus(entry, home)),
   };
+}
+
+/**
+ * Mirrors `private.can_set_life_status` (Step 218): whether the viewer may
+ * mark someone as deceased or living. Whoever edits the entry, and a Branch
+ * anywhere on the entry's home tree, another member's own entry included;
+ * never a placeholder child, which has no details at all.
+ */
+export function canSetLifeStatus(entry: EntrySubject, viewer: Viewer): boolean {
+  if (entry.placeholderParents) return false;
+  return (
+    accountTypeOf(viewer.role).lifeStatus === "tree" ||
+    canEditEntry(entry, viewer)
+  );
 }
 
 /**

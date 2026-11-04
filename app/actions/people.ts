@@ -16,6 +16,7 @@ import {
 } from "@/lib/person-schema";
 import { fillFields } from "@/lib/fill-blanks";
 import { groupsToShow, type HeldBackGroup } from "@/lib/held-back";
+import { deathFields } from "@/lib/life-status";
 import { revalidateTreePages } from "@/lib/revalidate";
 import { rootOf } from "@/lib/tree-context";
 import { createClient } from "@/lib/supabase/server";
@@ -170,6 +171,48 @@ export async function fillPersonBlanks(
   if (error) return { error: friendlyFillError(error.message) };
   revalidateTreePages();
   return { filled: data ?? [] };
+}
+
+/**
+ * Mark someone as deceased, with a date and place of death where none is
+ * recorded, or as living (Step 218): whoever edits the entry, or a Branch
+ * anywhere on its home tree, another member's own entry included. The
+ * `set_life_status` RPC decides who may, and marking them living takes their
+ * death details with it. Returns what changed.
+ */
+export async function setLifeStatus(
+  personId: string,
+  values: PersonFormValues,
+): Promise<{ changed?: string[]; error?: string }> {
+  await requireProfile();
+  const parsed = personSchema.safeParse(values);
+  if (!parsed.success) {
+    return { error: "Please fix the highlighted fields and try again." };
+  }
+  const person = toPersonPayload(parsed.data);
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("set_life_status", {
+    p_person: personId,
+    p_deceased: person.is_deceased,
+    p_death: person.is_deceased ? deathFields(person) : {},
+  });
+  if (error) {
+    return {
+      error: friendlyDbError(
+        error.message,
+        [
+          [
+            "not yours to change",
+            "This entry isn't yours to change any more. Refresh and look again.",
+          ],
+          ...ENTRY_RULES,
+        ],
+        "Couldn't save this entry. Check the fields and try again.",
+      ),
+    };
+  }
+  revalidateTreePages();
+  return { changed: data ?? [] };
 }
 
 /**

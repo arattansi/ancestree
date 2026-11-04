@@ -930,7 +930,11 @@ given a Branch the Root's whole side; 22.2 took the other grandparents'
 families back out.) Two limits: another member's own entry (`self_person_id` or a
 settled claim) is never theirs to edit, and a connection needs **both** ends on
 the branch (`private.can_edit_relationship`) — one end alone would let them
-redraw a line into someone else's family. When a Branch changes an entry a
+redraw a line into someone else's family. Whether someone has died is the
+exception (Step 218): a Branch marks anyone whose home tree they're a Branch
+of as deceased or living, past their side and on another member's own entry
+too (`private.can_set_life_status`, `set_life_status`; that member is told,
+as with any edit). When a Branch changes an entry a
 Root created or owns, the edit publishes at once and the Root can undo it
 (**Branch edits and the Root's undo**, below). Nothing else moves: deleting
 what others added and the Root console stay
@@ -1237,6 +1241,7 @@ mirror it for the UI.
 | Edit entries                                       | Every entry                                                                                                     | Their part of a Root's side (not another member's own), plus what they added | What they added, and their own       |
 | Branch edits to a Root's entries                   | Told; one-click undo                                                                                            | Publish at once                                                              | —                                    |
 | Suggest a change; answer one                       | Suggest where they can't edit; answer on every entry                                                            | Suggest where they can't edit; answer where they can                         | Same as Branch                       |
+| Mark someone deceased or living                    | Every entry                                                                                                     | Every entry on the tree, another member's own too                            | Where they edit                      |
 | Change connections                                 | Any                                                                                                             | Both ends on their side, or ones they drew                                   | Ones they drew                       |
 | Companions                                         | Any                                                                                                             | On their side, or ones they added                                            | Ones they added                      |
 | Add relatives                                      | ✓ (bloodline gate)                                                                                              | ✓ (bloodline gate)                                                           | On their own line (bloodline gate)   |
@@ -2034,6 +2039,45 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 218: a Branch marks anyone on their tree as deceased or living**
+  (web; migration `20261103090000_branches_mark_life_status`, live: statement
+  md5 `a6e65c3c…`, bodies `43a316a9…` / `0a64d228…`). **Asked for**
+  (Aalim, 2026-11-03): "branches should be able to update the
+  living/deceased statuses on nodes". Until now that stayed with whoever
+  could edit the entry (Step 44 kept it out of filling in), so a Branch past
+  their side, or on another member's own entry, could only suggest it. **Asked
+  and answered:** every entry whose home tree they're a Branch of, past their
+  side too; members' own entries included, the member told. **Now**
+  `private.can_set_life_status` = `can_edit_person` or a Branch of the home
+  tree, never a placeholder child; `set_life_status(person, deceased, death)`
+  marks them deceased, with a date and place of death only where none is
+  recorded (never over one), or living, which empties the death details as
+  the edit form does; nothing else moves. The update runs as the caller, so
+  `people_before_write` (a living child's birth date under 18 stays a
+  parent's; where they live goes on a death), `person_edit_notify` (owner and
+  adder told "was updated: death details"; a Root gets undo when a Branch
+  changes what they added) and `people_card_closed` all apply. On the web,
+  `canSetLifeStatus` (`lib/branch.ts`, `AccountType.lifeStatus`: Root and
+  Branch `tree`, Leaf `own`) joins `entryRights`; the details sheet offers a
+  **deceased** / **living** tag beside **suggest** to whoever may set it but
+  can't edit the entry, opening `LifeStatusDialog`: "Mark Ada as deceased?"
+  with the date and place of death that aren't recorded, or "Mark Ada as
+  living?" saying what goes ("Their date and place of death go."), through
+  `setLifeStatus`. Editors keep the edit form's tick. The Branch's
+  account-type description and the permissions matrix say so. **My calls:**
+  the tag's icons (a flower for deceased, a pulse for living); the tag only
+  for those who can't edit; the phone app has no editing of others' entries,
+  so nothing there. **Checked:** a rolled-back rehearsal on the family tree
+  as its own members (a Branch marks another member's own entry deceased
+  with date, circa and place, the owner told; marks someone dead living,
+  details gone; never over a recorded date; a Leaf, a placeholder, another
+  tree's entry, a null answer and anon refused; a Root's entry gets a
+  revision and an undoable notice; a deceased under-18 marked living refused
+  `MINOR`; a plain `update` still refused by RLS), then in the app as a
+  throwaway Branch related to no Root on a throwaway Root's own entry: the
+  tag, the dialog, both toasts, the Root's two undoable notices. The dialog
+  keeps the entry as it was when opened, so the refreshed entry doesn't turn
+  its question round while it fades out.
 - **Step 217.5: birthday cards after the day** (web and phone; migration
   `20261031120000_card_after_the_day`, live; Phase 4 of the scope, decision
   16, §11's death before the day). **Asked for** (2026-10-29): the person

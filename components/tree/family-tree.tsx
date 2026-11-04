@@ -2494,6 +2494,7 @@ function Canvas({
       : null;
   const canEdit = !!rights?.canEdit;
   const canFill = !!rights?.canFill;
+  const canSetLifeStatus = !!rights?.canSetLifeStatus;
   // A Root of the card's tree, on My Family Tree; of this tree, on a tree.
   const sheetIsAdmin = family
     ? !!cardViewer && accountTypeOf(cardViewer.role).runsTree
@@ -3133,6 +3134,7 @@ function Canvas({
           isSelf={selectedPerson?.id === selfPersonId}
           canEdit={canEdit}
           canFill={canFill}
+          canSetLifeStatus={canSetLifeStatus}
           canDelete={canDelete}
           canInviteToClaim={canInvite}
           claimInvites={selectedInvites}

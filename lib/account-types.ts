@@ -106,6 +106,13 @@ export type AccountType = {
    */
   claimInvites: Reach;
   /**
+   * Whose entries they can mark as deceased or living (Step 218): `tree`,
+   * every entry whose home tree they're on as this type, another member's
+   * own entry included (that member is told), or `own`, the entries they
+   * edit (`lib/branch.ts#canSetLifeStatus`, `private.can_set_life_status`).
+   */
+  lifeStatus: "tree" | "own";
+  /**
    * Which entries they can delete (Step 22.3): `tree` for a Root; `own` —
    * unclaimed entries they created, while nobody else has built on them
    * (`private.can_delete_person`).
@@ -132,6 +139,7 @@ export const ROOT: AccountType = {
   companions: "tree",
   addRelatives: "tree",
   claimInvites: "tree",
+  lifeStatus: "tree",
   deletes: "tree",
   runsTree: true,
   limit: { count: ROOTS_PER_TREE, per: "tree" },
@@ -141,13 +149,14 @@ export const BRANCH: AccountType = {
   key: "branch_admin",
   name: "Branch",
   tagline: "Tends their part of a Root’s side",
-  description: `A Branch looks after the part of a Root’s side of the family they’re related through: their own ancestors on that side, everyone descended from them, and the people those relatives married — so a Root’s father’s family, say, but not their mother’s, when that is how the Branch is related. They can edit any entry and connection there, except another member’s own entry, and past that side they fill in what’s missing on their own line, as a Leaf does. A Root is told when they change an entry that Root added, and can undo it. They bring relatives in as Leaves, can invite someone to claim an unclaimed entry on that side, and can delete an entry they added while nobody else has built on it. Each Root can make up to ${inWords(BRANCHES_PER_ROOT)} Branches.`,
+  description: `A Branch looks after the part of a Root’s side of the family they’re related through: their own ancestors on that side, everyone descended from them, and the people those relatives married — so a Root’s father’s family, say, but not their mother’s, when that is how the Branch is related. They can edit any entry and connection there, except another member’s own entry, and past that side they fill in what’s missing on their own line, as a Leaf does. A Root is told when they change an entry that Root added, and can undo it. Anywhere on the tree they can mark someone as deceased or living, another member’s own entry too, and that member is told. They bring relatives in as Leaves, can invite someone to claim an unclaimed entry on that side, and can delete an entry they added while nobody else has built on it. Each Root can make up to ${inWords(BRANCHES_PER_ROOT)} Branches.`,
   entries: "branch",
   fillsBlanks: "line",
   connections: "branch",
   companions: "branch",
   addRelatives: "tree",
   claimInvites: "branch",
+  lifeStatus: "tree",
   deletes: "own",
   runsTree: false,
   limit: { count: BRANCHES_PER_ROOT, per: "root" },
@@ -165,6 +174,7 @@ export const LEAF: AccountType = {
   companions: "own",
   addRelatives: "line",
   claimInvites: "own",
+  lifeStatus: "own",
   deletes: "own",
   runsTree: false,
   limit: null,

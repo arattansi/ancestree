@@ -4,6 +4,8 @@ import * as React from "react";
 import Link from "next/link";
 import {
   Flag,
+  Flower2,
+  HeartPulse,
   Lightbulb,
   Loader2Icon,
   Mail,
@@ -95,6 +97,11 @@ import type { TreeGraphPerson } from "@/lib/tree";
 // sheet is mounted and the browser is idle, so they're here before it opens.
 const ReportDialog = lazyComponent(() =>
   import("@/components/tree/report-dialog").then((m) => m.ReportDialog),
+);
+const LifeStatusDialog = lazyComponent(() =>
+  import("@/components/tree/life-status-dialog").then(
+    (m) => m.LifeStatusDialog,
+  ),
 );
 const AddCompanionDialog = lazyComponent(() =>
   import("@/components/tree/add-companion-dialog").then(
@@ -273,6 +280,7 @@ function PersonPanelImpl({
   isSelf,
   canEdit,
   canFill = false,
+  canSetLifeStatus = false,
   canDelete = false,
   canInviteToClaim = false,
   claimInvites = [],
@@ -341,6 +349,12 @@ function PersonPanelImpl({
    * 44): an unclaimed entry on their own line (`canFillEntry`).
    */
   canFill?: boolean;
+  /**
+   * May mark them deceased or living (Step 218): whoever edits the entry, or
+   * a Branch anywhere on its home tree (`canSetLifeStatus`). Offered as its
+   * own button only to those who can't edit it; editing asks it already.
+   */
+  canSetLifeStatus?: boolean;
   /**
    * Offer "Delete entry" (Step 22.3): a Root, or the Branch or Leaf who added
    * it while it is still theirs (`canOfferDelete`). The database still
@@ -429,6 +443,7 @@ function PersonPanelImpl({
   // controls (Step 162).
   const cropSave = useAction({ inline: true });
   const [reporting, setReporting] = React.useState(false);
+  const [markingLife, setMarkingLife] = React.useState(false);
   const [photoOpen, setPhotoOpen] = React.useState(false);
   const [addingCompanion, setAddingCompanion] = React.useState(false);
   const [cropOpen, setCropOpen] = React.useState(false);
@@ -441,7 +456,12 @@ function PersonPanelImpl({
   React.useEffect(
     () =>
       whenIdle(() => {
-        for (const lazy of [ReportDialog, AddCompanionDialog, PhotoCropEditor])
+        for (const lazy of [
+          ReportDialog,
+          LifeStatusDialog,
+          AddCompanionDialog,
+          PhotoCropEditor,
+        ])
           lazy.preload().catch(() => {});
       }),
     [],
@@ -506,6 +526,8 @@ function PersonPanelImpl({
   // A problem with an entry is reported by whoever can't put it right
   // themselves, or has a claim to dispute.
   const canReport = !locked && (!canEdit || canDispute);
+  // Deceased or living, for a Branch who can't edit the rest (Step 218).
+  const canMarkLife = !locked && !placeholder && !canEdit && canSetLifeStatus;
   const joinedTags = locked
     ? []
     : joinedByTags(person?.joined_by ?? null, currentUserId);
@@ -568,6 +590,7 @@ function PersonPanelImpl({
   if (person?.id !== prevId) {
     setPrevId(person?.id);
     setReporting(false);
+    setMarkingLife(false);
     setPhotoOpen(false);
     setAddingCompanion(false);
     setCropOpen(false);
@@ -797,6 +820,23 @@ function PersonPanelImpl({
                           {canEdit && !placeholder ? "edit" : "fill in"}
                         </TagLink>
                       )
+                    ) : null}
+                    {canMarkLife ? (
+                      <TagButton
+                        title={
+                          person.is_deceased
+                            ? "Mark as living"
+                            : "Mark as deceased"
+                        }
+                        onClick={() => setMarkingLife(true)}
+                      >
+                        {person.is_deceased ? (
+                          <HeartPulse aria-hidden />
+                        ) : (
+                          <Flower2 aria-hidden />
+                        )}
+                        {person.is_deceased ? "living" : "deceased"}
+                      </TagButton>
                     ) : null}
                     {!canEdit && !placeholder ? (
                       inView ? (
@@ -1144,6 +1184,18 @@ function PersonPanelImpl({
                 </footer>
               ) : null}
             </div>
+
+            {canMarkLife ? (
+              <LifeStatusDialog
+                open={markingLife}
+                onOpenChange={setMarkingLife}
+                person={person}
+                name={
+                  (person.preferred_name || person.first_name || "").trim() ||
+                  personDisplayName(person)
+                }
+              />
+            ) : null}
 
             {canReport ? (
               <ReportDialog

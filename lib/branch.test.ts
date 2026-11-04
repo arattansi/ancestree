@@ -13,6 +13,7 @@ import {
   canInviteToClaimHere,
   canOfferDelete,
   canOfferDeleteHere,
+  canSetLifeStatus,
   descendantIds,
   entryRights,
   homeTreesShown,
@@ -830,12 +831,14 @@ describe("an entry's details follow its home tree (Step 93)", () => {
     expect(entryRights(entry(), branchAdmin, "arzu")).toEqual({
       canEdit: true,
       canFill: false,
+      canSetLifeStatus: true,
     });
     // The same entry, its home tree having them as a Leaf: on their own
     // line, unclaimed, so theirs to fill in.
     expect(entryRights(entry(), leafHere, "arzu")).toEqual({
       canEdit: false,
       canFill: true,
+      canSetLifeStatus: false,
     });
     // A Root of the home tree edits it, whatever they are here.
     expect(entryRights(entry({ isClaimed: true }), admin, null).canEdit).toBe(
@@ -847,6 +850,7 @@ describe("an entry's details follow its home tree (Step 93)", () => {
     expect(entryRights(entry(), null, "arzu")).toEqual({
       canEdit: false,
       canFill: false,
+      canSetLifeStatus: false,
     });
     // Even one they own: the owner rule is the home tree's.
     expect(
@@ -915,6 +919,46 @@ describe("an entry's details follow its home tree (Step 93)", () => {
   });
 });
 
+describe("marking someone deceased or living (Step 218)", () => {
+  const leafHere = { ...member, userId: "arzu-user" };
+
+  it("is a Branch's anywhere on the home tree, members' own entries too", () => {
+    // Past their side, and another member's own: not theirs to edit.
+    const theirs = entry({ id: "noorali", isClaimed: true, isSomeoneElsesOwn: true });
+    expect(canEditEntry(theirs, branchAdmin)).toBe(false);
+    expect(canSetLifeStatus(theirs, branchAdmin)).toBe(true);
+    expect(entryRights(theirs, branchAdmin, "arzu")).toEqual({
+      canEdit: false,
+      canFill: false,
+      canSetLifeStatus: true,
+    });
+  });
+
+  it("is a Leaf's only where they edit, and a Root's everywhere", () => {
+    expect(canSetLifeStatus(entry(), leafHere)).toBe(false);
+    const theirOwn = entry({
+      id: "minaz",
+      owner_user_id: "arzu-user",
+      created_by: "arzu-user",
+    });
+    expect(canSetLifeStatus(theirOwn, leafHere)).toBe(true);
+    expect(canSetLifeStatus(entry({ isSomeoneElsesOwn: true }), admin)).toBe(true);
+  });
+
+  it("is nobody's on a tree they aren't on, but their own entry", () => {
+    expect(entryRights(entry(), null, "arzu").canSetLifeStatus).toBe(false);
+    expect(entryRights(entry({ id: "arzu" }), null, "arzu").canSetLifeStatus).toBe(
+      true,
+    );
+  });
+
+  it("never reaches a placeholder child", () => {
+    const placeholder = entry({ id: "first-child", placeholderParents: ["arzu"] });
+    expect(canSetLifeStatus(placeholder, admin)).toBe(false);
+    expect(canSetLifeStatus(placeholder, branchAdmin)).toBe(false);
+  });
+});
+
 describe("placeholder children (Step 98.2)", () => {
   // Arzu's placeholder child, made by a Root ("a") or by Arzu as a Branch.
   const placeholder = (over: Partial<EntrySubject> = {}) =>
@@ -935,11 +979,13 @@ describe("placeholder children (Step 98.2)", () => {
     expect(entryRights(placeholder(), admin, null)).toEqual({
       canEdit: false,
       canFill: false,
+      canSetLifeStatus: false,
     });
     // Its parent edits it from any tree, a member of its home or not.
     expect(entryRights(placeholder(), null, "arzu")).toEqual({
       canEdit: true,
       canFill: false,
+      canSetLifeStatus: false,
     });
   });
 

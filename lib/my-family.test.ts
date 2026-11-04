@@ -608,6 +608,7 @@ describe("acting from the view (Step 92.3)", () => {
     expect(entryRights(entry("cousin"), viewerOn("dads"), "me")).toEqual({
       canEdit: true,
       canFill: false,
+      canSetLifeStatus: true,
     });
     // Not someone else's own entry, though.
     expect(
@@ -618,6 +619,7 @@ describe("acting from the view (Step 92.3)", () => {
     expect(entryRights(entry("momDad"), viewerOn("moms"), "me")).toEqual({
       canEdit: false,
       canFill: true,
+      canSetLifeStatus: false,
     });
     expect(entryRights(entry("lin"), viewerOn("moms"), "me").canFill).toBe(
       true,
@@ -626,6 +628,7 @@ describe("acting from the view (Step 92.3)", () => {
     expect(entryRights(entry("stranger"), null, "me")).toEqual({
       canEdit: false,
       canFill: false,
+      canSetLifeStatus: false,
     });
     expect(entryRights(entry("me"), null, "me").canEdit).toBe(true);
   });
