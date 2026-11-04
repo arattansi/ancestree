@@ -2039,6 +2039,39 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 219: /features gains direct messaging and birthday cards** (web
+  only, no migration). **Asked for** (2026-11-04): Aalim's edits to the
+  "what + how" page in the Marketing Site database (made 2026-11-03/04).
+  **Now** only what moved: the heading reads "(features+how-to)"; stories
+  + albums is 2, then two new parts, word for word: **3. direct-messaging**
+  beside a conversation with your unc (`chat-demo.tsx`: the messenger's
+  thread, small, Stone Curie / "Your Unc" over it and an **encrypted chat**
+  badge where the lock is; Aalim's six lines, his arriving, yours typed and
+  sent, the older ones going up out of the window), and
+  **4. birthday-cards** beside your card opening on the day
+  (`card-demo.tsx`: "happy birthday, André." over the envelope,
+  **untie the string**, then a page a signature as `CardPages` draws them:
+  your momma Rumi with "Love, Momma" signed by hand where her name goes,
+  written out by `InkDrawing` as a card replays ink; your cousin's boo
+  Kong, 🙄 for Aalim's "rolling-eyes-emoji"; your poppa René). Privacy +
+  security is 5, newsletter 6, account-types 7 (moved down from 2),
+  native lands 8. "Love, Momma" is ink as a card keeps it
+  (`love-momma-ink.json`, 17 strokes): the Hershey Script single-line
+  font's strokes (via the `hersheytext` npm package, MIT), smoothed,
+  squeezed to 75 % wide, timed as written and pressed harder on the
+  down-strokes, so it draws like a pencil signature. Both samples take
+  turns 3 and 4 in the `DemoQueue`, play once, then **watch again**;
+  less motion shows the last line of the chat and momma's page. **My
+  calls:** the samples are 168px tall like the story sample, so beside
+  one or three lines of words they're taller than the words (92px and
+  112px; Step 115 kept samples under their words, which these words are
+  too short for); on a phone the card is 192px so momma's page fits; the
+  story sample was already what Notion's note asks for (title,
+  description, interviewer, storyteller), so it's unchanged. Checked
+  headless (Chrome, playwright-core) at 1400px, 1024px, 390px and 360px,
+  light and dark, each page measured inside its frame; vitest 2643
+  passing. Left off the public `/changelog` (my call): the page describes
+  features already there.
 - **Step 218: a Branch marks anyone on their tree as deceased or living**
   (web; migration `20261103090000_branches_mark_life_status`, live: statement
   md5 `a6e65c3c…`, bodies `43a316a9…` / `0a64d228…`). **Asked for**

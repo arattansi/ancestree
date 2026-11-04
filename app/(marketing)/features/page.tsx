@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import type * as React from "react";
 
 import { AccountTypeMark } from "@/components/account-type-badge";
+import { CardDemo } from "@/components/marketing/card-demo";
+import { ChatDemo } from "@/components/marketing/chat-demo";
 import { ClaimDemo } from "@/components/marketing/claim-demo";
 import { DemoQueue } from "@/components/marketing/demo-play";
 import {
@@ -28,11 +30,13 @@ export const metadata: Metadata = marketingMetadata(
  * real name, in brackets. Under it the add-a-relative form's basic fields
  * and beside them the leaves they make (Step 112), the one demo a visitor
  * can try. Then Aalim's copy from the Marketing Site page in Notion, word
- * for word (Step 115), in parts, two with a moving sample beside them no
- * taller than their words: a leaf invited to be claimed, and a recorded
- * story. The three demos take turns: each starts once the one before has
- * ended, or once it's scrolled to. Privacy + security (Step 188),
- * newsletter and native lands run the full width. The copy's footnote is on the footer's line (`site-footer.tsx`).
+ * for word (Step 115), in parts, four with a moving sample beside them: a
+ * leaf invited to be claimed, a recorded story, and since Step 219 a
+ * conversation with your unc and your birthday card opening. The demos
+ * take turns: each starts once the one before has ended, or once it's
+ * scrolled to. Privacy + security (Step 188), newsletter, account types
+ * and native lands run the full width. The copy's footnote is on the
+ * footer's line (`site-footer.tsx`).
  */
 export default function FeaturesPage() {
   return (
@@ -41,7 +45,7 @@ export default function FeaturesPage() {
         <LeafDemo turn={0}>
           <MarketingRow aside={<LeafDemoTree />}>
             <h1 className="text-2xl font-semibold tracking-tight">
-              (how-to + features)
+              (features+how-to)
             </h1>
             <MarketingCopy>
               <p>
@@ -67,12 +71,8 @@ export default function FeaturesPage() {
             <p>once they join they can add to the tree as well.</p>
           </MarketingCopy>
         </MarketingRow>
-        <MarketingRow>
-          <Heading>2. account-types</Heading>
-          <AccountTypes />
-        </MarketingRow>
         <MarketingRow aside={<StoryDemo turn={2} />} flush>
-          <Heading>3. stories &amp; albums</Heading>
+          <Heading>2. stories + albums</Heading>
           <MarketingCopy>
             <p>
               write or upload audio recordings of stories directly to a family
@@ -85,8 +85,27 @@ export default function FeaturesPage() {
             </p>
           </MarketingCopy>
         </MarketingRow>
+        <MarketingRow aside={<ChatDemo turn={3} />} flush>
+          <Heading>3. direct-messaging</Heading>
+          <MarketingCopy>
+            <p>
+              there’s messaging on ancestree. a device encrypted,
+              forwarding-free, bare bones, chat.
+            </p>
+          </MarketingCopy>
+        </MarketingRow>
+        <MarketingRow aside={<CardDemo turn={4} />} flush>
+          <Heading>4. birthday-cards</Heading>
+          <MarketingCopy>
+            <p>
+              a birthday card that you can share with non-family members.
+              draw, sign, message. then come back to it whenever you want.
+              it’s stored for when you forget that you are loved.
+            </p>
+          </MarketingCopy>
+        </MarketingRow>
         <MarketingRow wide>
-          <Heading>4. privacy + security</Heading>
+          <Heading>5. privacy + security</Heading>
           <MarketingCopy>
             <p>
               end-to-end encrypted chat. nothing in your family tree is public
@@ -96,7 +115,7 @@ export default function FeaturesPage() {
           </MarketingCopy>
         </MarketingRow>
         <MarketingRow wide>
-          <Heading>5. newsletter</Heading>
+          <Heading>6. newsletter</Heading>
           <MarketingCopy>
             <p>
               a weekly update on upcoming birthdays and additions to the trees
@@ -104,8 +123,12 @@ export default function FeaturesPage() {
             </p>
           </MarketingCopy>
         </MarketingRow>
+        <MarketingRow>
+          <Heading>7. account-types</Heading>
+          <AccountTypes />
+        </MarketingRow>
         <MarketingRow wide>
-          <Heading>6. native lands</Heading>
+          <Heading>8. native lands</Heading>
           <MarketingCopy>
             <p>
               those of us privileged enough to spend time and resources to
