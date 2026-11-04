@@ -177,9 +177,10 @@ export async function typeOut(
 /**
  * Plays a sample demo's `script` once, when `ref`'s element is first on
  * screen (Step 115) and it's the demo's `turn`: `reset` first. `replay`
- * plays it again from the start; `ended` says it has played. With reduced
- * motion it doesn't play and counts as ended; the demo shows its last
- * frame instead.
+ * plays it again from the start; `ended` says it has played. `hold` is
+ * the visitor taking it over (Step 219): it stops where it is and counts
+ * as ended. With reduced motion it doesn't play and counts as ended; the
+ * demo shows its last frame instead.
  */
 export function useSamplePlay(
   ref: React.RefObject<HTMLElement | null>,
@@ -190,13 +191,14 @@ export function useSamplePlay(
   const reduced = useReducedMotion();
   const [run, setRun] = React.useState(0);
   const [ended, setEnded] = React.useState(false);
+  const [held, setHeld] = React.useState(false);
   const seen = React.useRef(false);
   const onScreen = React.useCallback((value: boolean) => {
     seen.current = value;
   }, []);
   useOnScreen(ref, onScreen);
   useLookedAt(ref, turn);
-  const go = useTurn(turn, reduced || ended);
+  const go = useTurn(turn, reduced || ended || held);
   // The latest script and reset, so a render doesn't restart it.
   const latest = React.useRef({ script, reset });
   React.useEffect(() => {
@@ -204,7 +206,7 @@ export function useSamplePlay(
   });
 
   React.useEffect(() => {
-    if (reduced || !go) return;
+    if (reduced || !go || held) return;
     let stopped = false;
     const wait = waiter(
       () => seen.current,
@@ -220,11 +222,15 @@ export function useSamplePlay(
     return () => {
       stopped = true;
     };
-  }, [reduced, go, run]);
+  }, [reduced, go, run, held]);
 
   return {
     reduced,
-    ended: reduced || ended,
-    replay: () => setRun((n) => n + 1),
+    ended: reduced || ended || held,
+    replay: () => {
+      setHeld(false);
+      setRun((n) => n + 1);
+    },
+    hold: () => setHeld(true),
   };
 }

@@ -21,7 +21,9 @@ import { cn } from "@/lib/utils";
  * `CardPages` draws them. Aalim's three, word for word: your momma signed
  * her name by hand, so "Love, Momma" writes itself out where her name
  * would be, as a hand-signed name does; then your cousin's boo, then your
- * poppa. It plays once, then offers **watch again**. A picture that moves.
+ * poppa. It plays once, then offers **watch again**. Its buttons work as
+ * the card's do: untie, previous, next, close back to the envelope; a
+ * press while it plays takes it over, stopping it where it is.
  *
  * "Love, Momma" is ink as a card keeps it (`lib/card-ink.ts`), made from
  * the Hershey Script single-line font's strokes (via the `hersheytext`
@@ -69,17 +71,22 @@ const PAGES: Page[] = [
 
 const SIGNED = signedYourCard(PAGES.map((p) => p.name.split(" ")[0]));
 
-/** A card's button, small: `primary` as next is, otherwise as previous. */
-const BUTTON = "h-6 rounded-md px-2.5 text-xs font-semibold";
+/** A card's button, small, as `CardPages` draws them. */
+const BUTTON =
+  "h-6 rounded-md px-2.5 text-xs font-semibold outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
+const PRIMARY = "bg-primary text-primary-foreground";
+const SECONDARY = "border border-border bg-background disabled:opacity-40";
 
 /** `turn`: its place in a `DemoQueue`. */
 export function CardDemo({ turn }: { turn?: number }) {
   // The page open, or null while it's in its envelope.
   const [at, setAt] = React.useState<number | null>(null);
   const [pressing, setPressing] = React.useState(false);
+  // Whether the visitor has turned a page themselves.
+  const [moved, setMoved] = React.useState(false);
   const box = React.useRef<HTMLDivElement>(null);
 
-  const { reduced, ended, replay } = useSamplePlay(
+  const { reduced, ended, replay, hold } = useSamplePlay(
     box,
     async (wait) => {
       const press = async () => {
@@ -105,8 +112,15 @@ export function CardDemo({ turn }: { turn?: number }) {
     },
     turn,
   );
-  // Less motion: the page signed by hand, as it is.
-  const shown = reduced ? 0 : at;
+  // Less motion: the page signed by hand, as it is, till a page is turned.
+  const shown = reduced && !moved ? 0 : at;
+  // A press: the visitor takes the card over from here.
+  const turnTo = (page: number | null) => {
+    hold();
+    setPressing(false);
+    setMoved(true);
+    setAt(page);
+  };
 
   return (
     <div
@@ -118,7 +132,7 @@ export function CardDemo({ turn }: { turn?: number }) {
       {/* A phone's narrower page wraps her message: a little taller there. */}
       <div className="flex h-48 flex-col gap-2 rounded-xl border bg-card p-2.5 shadow-sm lg:h-[10.5rem]">
         {shown === null ? (
-          <Sealed pressing={pressing} />
+          <Sealed pressing={pressing} onUntie={() => turnTo(0)} />
         ) : (
           <>
             <div className="flex items-baseline justify-between gap-2">
@@ -136,30 +150,28 @@ export function CardDemo({ turn }: { turn?: number }) {
               <CardPage key={shown} page={PAGES[shown]} />
             </div>
             <div className="flex items-center justify-between gap-2">
-              <span
-                aria-hidden
-                className={cn(
-                  BUTTON,
-                  "flex items-center border border-border bg-background",
-                  shown === 0 && "opacity-40",
-                )}
+              <button
+                type="button"
+                onClick={() => turnTo(shown - 1)}
+                disabled={shown === 0}
+                className={cn(BUTTON, SECONDARY)}
               >
                 previous
-              </span>
-              {ended && !reduced ? (
-                <WatchAgain onClick={replay} />
-              ) : (
-                <span
-                  aria-hidden
-                  className={cn(
-                    BUTTON,
-                    "flex items-center bg-primary text-primary-foreground",
-                    pressing && "translate-y-px opacity-80",
-                  )}
-                >
-                  {shown === PAGES.length - 1 ? "close" : "next"}
-                </span>
-              )}
+              </button>
+              {ended && !reduced ? <WatchAgain onClick={replay} /> : null}
+              <button
+                type="button"
+                onClick={() =>
+                  turnTo(shown === PAGES.length - 1 ? null : shown + 1)
+                }
+                className={cn(
+                  BUTTON,
+                  PRIMARY,
+                  pressing && "translate-y-px opacity-80",
+                )}
+              >
+                {shown === PAGES.length - 1 ? "close" : "next"}
+              </button>
             </div>
           </>
         )}
@@ -169,21 +181,28 @@ export function CardDemo({ turn }: { turn?: number }) {
 }
 
 /** The day's first look: the envelope, tied, and who's signed. */
-function Sealed({ pressing }: { pressing: boolean }) {
+function Sealed({
+  pressing,
+  onUntie,
+}: {
+  pressing: boolean;
+  onUntie: () => void;
+}) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center">
       <p className="font-semibold tracking-tight">happy birthday, André.</p>
       <EnvelopeMark className="h-[42px] w-[60px]" />
-      <span
-        aria-hidden
+      <button
+        type="button"
+        onClick={onUntie}
         className={cn(
           BUTTON,
-          "flex items-center bg-primary text-primary-foreground",
+          PRIMARY,
           pressing && "translate-y-px opacity-80",
         )}
       >
         untie the string
-      </span>
+      </button>
       <p className="text-xs text-muted-foreground">{SIGNED}</p>
     </div>
   );

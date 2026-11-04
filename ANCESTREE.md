@@ -2061,7 +2061,12 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   squeezed to 75 % wide, timed as written and pressed harder on the
   down-strokes, so it draws like a pencil signature. Both samples take
   turns 3 and 4 in the `DemoQueue`, play once, then **watch again**;
-  less motion shows the last line of the chat and momma's page. **My
+  less motion shows the last line of the chat and momma's page. The
+  card's buttons work (Aalim: "the 'previous' button in the birthday card
+  demo doesn't work"): untie, previous, next, and close back to the
+  envelope; a press while it plays takes it over, stopping it where it is
+  (`hold` from `useSamplePlay`), and **watch again** sits between previous
+  and next. **My
   calls:** the samples are 168px tall like the story sample, so beside
   one or three lines of words they're taller than the words (92px and
   112px; Step 115 kept samples under their words, which these words are
