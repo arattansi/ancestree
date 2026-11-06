@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { redactedPath, redactedSearch, redactedUrl } from "@/lib/analytics-url";
+import {
+  redactedPath,
+  redactedSearch,
+  redactedUrl,
+  withRedactedUrl,
+} from "@/lib/analytics-url";
 
 const SITE = "https://www.ancestree.space";
 const TOKEN = "Qx7_pZ2kLm9vR4tY8wE1aB3c";
@@ -17,6 +22,8 @@ describe("redactedUrl", () => {
       [`/shared/story/${TOKEN}`, "/shared/story/:token"],
       [`/library/subscription/${TOKEN}`, "/library/subscription/:token"],
       [`/library/submissions/${TOKEN}`, "/library/submissions/:token"],
+      [`/sign-in/${TOKEN}`, "/sign-in/:token"],
+      [`/c/${TOKEN}`, "/c/:token"],
     ];
     for (const [path, seen] of routes) {
       expect(redactedUrl(`${SITE}${path}`), path).toBe(`${SITE}${seen}`);
@@ -33,6 +40,8 @@ describe("redactedUrl", () => {
       "/library/an-arrangement-honoured",
       "/library/submit",
       "/start/df9590fa4260",
+      "/c",
+      "/changelog",
       "/privacy",
     ]) {
       expect(redactedUrl(`${SITE}${path}`), path).toBe(`${SITE}${path}`);
@@ -116,5 +125,29 @@ describe("redactedPath and redactedSearch", () => {
     expect(redactedSearch("")).toBe("");
     expect(redactedSearch("?token_hash=abc")).toBe("");
     expect(redactedSearch("?a=1&&b")).toBe("?a=1&b");
+  });
+});
+
+describe("withRedactedUrl", () => {
+  it("redacts a Vercel event's address and keeps the rest", () => {
+    expect(
+      withRedactedUrl({
+        type: "pageview",
+        url: `${SITE}/c/${TOKEN}?token_hash=abc#k`,
+        payload: { a: 1 },
+      }),
+    ).toEqual({ type: "pageview", url: `${SITE}/c/:token`, payload: { a: 1 } });
+    expect(
+      withRedactedUrl({ type: "vital", url: `${SITE}/join/${TOKEN}`, route: "/join/[token]" }),
+    ).toEqual({ type: "vital", url: `${SITE}/join/:token`, route: "/join/[token]" });
+    expect(withRedactedUrl({ type: "pageview", url: `${SITE}/family` })).toEqual({
+      type: "pageview",
+      url: `${SITE}/family`,
+    });
+  });
+
+  it("drops an event whose address isn't one", () => {
+    expect(withRedactedUrl({ type: "pageview", url: "" })).toBeNull();
+    expect(withRedactedUrl({ type: "pageview", url: "about:blank" })).toBeNull();
   });
 });

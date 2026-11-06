@@ -11,6 +11,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader, SiteHeaderShell } from "@/components/site-header";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { VercelAnalytics } from "@/components/vercel-analytics";
 import { consentDefaultScript, needsConsent } from "@/lib/consent";
 import { getSiteUrl } from "@/lib/site-url";
 
@@ -98,6 +99,9 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <Suspense fallback={null}>
           <GoogleAnalytics gaId={GA_MEASUREMENT_ID} />
         </Suspense>
+        {/* Vercel's Web Analytics and Speed Insights (Step 220), cookieless,
+            told the same redacted addresses. */}
+        <VercelAnalytics />
         {askConsent ? <ConsentBanner /> : null}
       </body>
     </html>

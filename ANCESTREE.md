@@ -17,7 +17,10 @@ Product brief and build plan live in the **🌳 Ancestree** Notion teamspace.
 - **Styling**: Tailwind CSS v4 + shadcn/ui (base color: neutral)
 - **Font**: Public Sans (`--font-sans`)
 - **Backend**: Supabase (Auth / Postgres / Storage) — free tier
-- **Hosting**: Vercel (Hobby) at `ancestree.space`
+- **Hosting**: Vercel (Pro, the Medfair team; project `ancestree`) at `ancestree.space`
+- **Analytics**: Google Analytics 4 (Steps 137, 197) and Vercel Web Analytics
+  + Speed Insights (Step 220), all three told each page's address with its
+  tokens taken out (`lib/analytics-url.ts`)
 - **GitHub**: https://github.com/arattansi/ancestree
 - **Supabase project**: `Product-Ancestree` (`kkmemshpkxrzogijxgnb`, ca-central-1, Free)
 - **Tree UI**: React Flow (`@xyflow/react`) + a purpose-built anchored auto-layout
@@ -2038,6 +2041,34 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 `ancestree.space` via Vercel (`git push` → production on `main`).
 
 ## Changelog
+
+- **Step 220: Vercel Web Analytics and Speed Insights** (web only, no
+  migration). **Asked for** (2026-11-05): "set up web analytics and
+  everything for ancestree on vercel". **Found** Web Analytics switched on
+  for the project since 2026-08-31 with no script on the site, so 0 page
+  views; Speed Insights collecting nothing. **Now** `@vercel/analytics`
+  2.0.1 and `@vercel/speed-insights` 2.1.0 (installed with npm 11: npm 10
+  stops on their optional `@sveltejs/kit` peer; Vercel builds on Node 24's
+  npm 11) sit in the root layout as `components/vercel-analytics.tsx`, both
+  with `beforeSend: withRedactedUrl`, so the address each sends (`o` for a
+  page view, `href` for a vital) goes through `redactedUrl` as GA's does;
+  the route they send besides is the page's pattern (`/join/[token]`).
+  Neither sets a cookie, so neither waits on the consent banner. A birthday
+  card's link (`/c/<token>`, Step 217.3) was missing from `TOKEN_ROUTES`,
+  so GA had seen those tokens whole since 2026-10-30; it's `/c/:token` now,
+  for all three. /privacy names Vercel's two beside GA (no cookie, can't
+  tell you apart from one day to the next, never the private part of a
+  link). Speed Insights stays on its free tier (10,000 events every 30
+  days, shared across the Medfair team; past that it pauses, no charge);
+  Plus ($10 a project a month: every Core Web Vital, countries, 30 days)
+  and Web Analytics Plus ($10 a month: UTM breakdowns, 24 months) are left
+  off. Web Analytics on Pro is $0.03 per 1,000 events. **Checked** on the
+  dev server, where both log instead of sending: a page view of
+  `/c/<token>?utm_source=test&token_hash=…#secret` went as
+  `/c/:token?utm_source=test` (route `/c/[token]`), a router push to
+  `/join/<token>?invite=abc&utm_medium=email` as
+  `/join/:token?utm_medium=email`, and a Speed Insights TTFB on
+  `/shared/story/<token>?token=…#k` with `href` `/shared/story/:token`.
 
 - **Step 219: /features gains direct messaging and birthday cards** (web
   only, no migration). **Asked for** (2026-11-04): Aalim's edits to the

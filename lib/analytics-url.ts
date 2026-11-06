@@ -1,11 +1,12 @@
 /**
- * The address Google Analytics is told a page has (Step 197): the page's
- * own, with every secret in it taken out. Many of ancestree's links carry
- * one — an invite's token, a sign-in email's one-time `token_hash`, an
- * unsubscribe page's token — and Analytics would otherwise record each
- * page view's whole address, and the address before it, for anyone who can
- * see the property. Pure, for `components/google-analytics.tsx` and its
- * tests.
+ * The address Google Analytics is told a page has (Step 197), and Vercel's
+ * Web Analytics and Speed Insights too (Step 220): the page's own, with
+ * every secret in it taken out. Many of ancestree's links carry one — an
+ * invite's token, a sign-in email's one-time `token_hash`, an unsubscribe
+ * page's token — and Analytics would otherwise record each page view's
+ * whole address, and the address before it, for anyone who can see the
+ * property. Pure, for `components/google-analytics.tsx`,
+ * `components/vercel-analytics.tsx` and their tests.
  */
 
 /**
@@ -28,6 +29,9 @@ const TOKEN_ROUTES = [
   // A library subscription's page, and a story sent in (`lib/blog.ts`).
   "library/subscription",
   "library/submissions",
+  // A birthday card's public link (`lib/card-links.ts`, Step 217.3; left
+  // out until Step 220).
+  "c",
 ];
 
 const TOKEN_PATH = new RegExp(`^/(${TOKEN_ROUTES.join("|")})/[^/]+`, "i");
@@ -114,4 +118,15 @@ export function redactedUrl(href: string): string {
   }
   if (url.protocol !== "http:" && url.protocol !== "https:") return "";
   return `${url.origin}${redactedPath(url.pathname)}${redactedSearch(url.search)}`;
+}
+
+/**
+ * An event for Vercel's Web Analytics or Speed Insights (Step 220), its
+ * `beforeSend`: the address redacted as above, everything else as it was.
+ * One whose address isn't one isn't sent. Their route (`/join/[token]`)
+ * is the page's pattern, never its token, so it's left alone.
+ */
+export function withRedactedUrl<E extends { url: string }>(event: E): E | null {
+  const url = redactedUrl(event.url);
+  return url ? { ...event, url } : null;
 }

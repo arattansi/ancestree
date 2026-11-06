@@ -134,6 +134,15 @@ export default function PrivacyPage() {
             European Economic Area, the UK and Switzerland it sets no cookie
             until you allow it, and runs without one if you don&rsquo;t.
           </li>
+          <li>
+            Vercel Web Analytics and Speed Insights, on every page: which
+            pages are visited, from which site and country, on what kind of
+            device, and how fast each page loads. They set no cookie and
+            can&rsquo;t tell you apart from one day to the next. Neither they
+            nor Google Analytics see the private part of a link, like an
+            invite&rsquo;s. The site&rsquo;s owners use them to see which
+            pages are read and which are slow.
+          </li>
         </ul>
       </Section>
 
