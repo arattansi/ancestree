@@ -109,6 +109,22 @@ export async function savePushSettings(settings: PushSettings): Promise<void> {
 }
 
 /**
+ * A birthday card started from the phone (Step 221): the web tells those
+ * it told in the app on their phones too (`/api/mobile/cards/push`), each
+ * once a card.
+ */
+export async function cardStarted(cardId: string): Promise<void> {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) return;
+  await fetch(`${SITE}/api/mobile/cards/push`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ cardId }),
+  }).catch(() => {});
+}
+
+/**
  * A story told, or more people put in one, from the phone: the web tells
  * those it now shows to (`/api/mobile/stories/push`), each once a story.
  */

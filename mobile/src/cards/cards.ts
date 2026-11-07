@@ -17,14 +17,16 @@ import { asCardInk, type CardInk } from "@/lib/card-ink";
 import { friendlyDbError } from "@/lib/db-errors";
 import { supabase } from "@/auth/supabase";
 import { detailsChanged } from "@/person/sheet";
+import { cardStarted } from "@/push/push";
 
 /**
  * Birthday cards on the phone (Step 217.4), through the same calls the
  * web's sheet makes, as the member: the cards to mark on leaves
- * (`my_card_flags`), signing (`sign_birthday_card`, the files put in the
- * card's folder first), taking a signature off, and the person's first
- * look; after the day (Step 217.5), the person's thank-you and hiding a
- * signature. Reading a card, with its files' links, is the sheet's
+ * (`my_card_flags`), starting one (Step 221, `start_birthday_card`),
+ * signing (`sign_birthday_card`, the files put in the card's folder
+ * first), taking a signature off, and the person's first look; after the
+ * day (Step 217.5), the person's thank-you and hiding a signature. Reading
+ * a card, with its files' links, is the sheet's
  * (`/api/mobile/person-sheet?want=cards`).
  */
 
@@ -99,6 +101,29 @@ export function forgetCards() {
 /** Signed in: the member's own leaves to mark, read afresh. */
 export function readCards() {
   void readFlags();
+}
+
+// ---------------------------------------------------------------------------
+// Starting
+// ---------------------------------------------------------------------------
+
+/**
+ * Start someone's card for their next birthday (Step 221), as the web's
+ * sheet does: their spouse, a parent, a Root or their Branch, up to a
+ * month before. The phone's time zone is where it opens if nothing says
+ * where they live. Those told in the app hear of it on their phones too.
+ */
+export async function startCard(personId: string): Promise<void> {
+  const { data, error } = await supabase.rpc("start_birthday_card", {
+    p_person: personId,
+    p_time_zone: phoneZone() ?? undefined,
+  });
+  if (error) {
+    throw new CardError(friendlyDbError(error.message, CARD_ERRORS, "Couldn’t start the card. Try again."));
+  }
+  const started = data && typeof data === "object" ? (data as { id?: unknown; started?: unknown }) : null;
+  if (started?.started === true && typeof started.id === "string") void cardStarted(started.id);
+  cardsChanged();
 }
 
 // ---------------------------------------------------------------------------
@@ -258,13 +283,18 @@ export async function hideSignature(signatureId: string, hidden: boolean): Promi
   cardsChanged();
 }
 
+/** This phone's time zone, if it has one the database takes. */
+function phoneZone(): string | null {
+  try {
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return zone && zone.length <= 64 ? zone : null;
+  } catch {
+    return null;
+  }
+}
+
 /** This phone's time zone, where a card opens if nothing says where they live. */
 export function reportTimeZone() {
-  let zone: string | undefined;
-  try {
-    zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  } catch {
-    zone = undefined;
-  }
-  if (zone && zone.length <= 64) void supabase.rpc("set_my_time_zone", { p_zone: zone });
+  const zone = phoneZone();
+  if (zone) void supabase.rpc("set_my_time_zone", { p_zone: zone });
 }

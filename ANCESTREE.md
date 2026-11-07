@@ -2042,6 +2042,35 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 221: Start a birthday card from the phone** (phone + one web
+  route, no migration). **Asked for** (2026-11-07): Aalim couldn't find
+  "start a card" for Aly and Safia (both Nov 28, both his to start) on
+  the phone; Step 217.4 had left starting a card to the web. On the web
+  the button was there all along (checked signed in as him); Safia isn't
+  on his My Family Tree, only on the Rattansi-Suleman Tree, and Nurdin
+  can't have a card (no account). **Now** someone's details on the phone
+  show the web's start box when `birthday_cards_for` offers one
+  (`startsOn`): the envelope, "Ada’s birthday is on 20 november." and
+  **start a card**, which calls `start_birthday_card` as the member with
+  the phone's time zone (`startCard` in `mobile/src/cards/cards.ts`;
+  `phoneZone()` now shared with `reportTimeZone`), shows a refusal under
+  the button, and reads the details and leaf flags again, so the box
+  becomes "sign Ada’s card". When the phone started it, it asks
+  `POST /api/mobile/cards/push` `{ cardId }` (bearer, Node runtime) to
+  send the "started" pushes the web's action sends
+  (`claimCardStartedPush` + `pushAfter`, as `/api/mobile/stories/push`
+  does). Sending a card's links stays on the web. **Checked** on the
+  iPhone 17e simulator (dev build, Metro from this worktree, web on Node
+  22) as a throwaway Root with a throwaway daughter 13 days from her
+  birthday: the box showed, the tap made the card (`America/Vancouver`,
+  the simulator's zone, as she lives nowhere and Canada has several),
+  the box turned into the signing one; with a throwaway son on the tree
+  holding a push token, he got the `card_started` notice and the route
+  claimed his `started` push and sent it (Expo refused the fake token and
+  it was forgotten). Throwaways removed, nothing left on live. Reaches
+  phones with the next iOS and Android builds; the web route deploys with
+  main.
+
 - **Step 222: the person sheet's buttons, one size in one row** (web only,
   no migration). **Asked for** (2026-11-07): "update the invite, copy link,
   message, and edit node buttons to be same size and in line with each
@@ -2248,7 +2277,8 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   the day opens it. Pushes: Android channel "Birthday cards" and a **Birthday
   cards** switch (`push_settings.cards`, `set_push_settings` takes
   `p_cards`, an older phone's call leaves it be); `card_started` pushed
-  after a start on the web (`claim_card_started_push`), `card_ready` from
+  after a start on the web (`claim_card_started_push`; from the phone too
+  since Step 221, through `/api/mobile/cards/push`), `card_ready` from
   the cron (`card_ready_pushes`), once each (`card_pushes`); a `card` push
   opens their details, their own card straight away. The phone reports its
   time zone (`set_my_time_zone`). Checked: a 31-check rolled-back rehearsal

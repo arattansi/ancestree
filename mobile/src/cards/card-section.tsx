@@ -13,7 +13,7 @@ import {
 import { pronounOf } from "@/lib/card-links";
 import type { LeafShape } from "@/lib/leaf-shapes";
 import type { Family } from "@/family/load";
-import { CardError, hideSignature, markOpened } from "@/cards/cards";
+import { CardError, hideSignature, markOpened, startCard } from "@/cards/cards";
 import { EnvelopeMark } from "@/cards/envelope";
 import { CardOpening } from "@/cards/opening";
 import { signerWords } from "@/cards/pages";
@@ -29,9 +29,10 @@ const firstOf = (name: string) => name.split(" ")[0] || name;
  * after, the person opens theirs (the envelope first), thanks everyone and
  * hides a page from the others (Step 217.5), and its signers and managers
  * open it too, the thank-you with it once it reached them. A card whose
- * person died is closed. Starting a card and sending its links stay on the
- * web. Nothing for the person before the day: the database says nothing.
- * `openNow` opens it straight away, from a push or their leaf.
+ * person died is closed. With no card yet, whoever may start one is
+ * offered to, up to a month before (Step 221); sending its links stays on
+ * the web. Nothing for the person before the day: the database says
+ * nothing. `openNow` opens it straight away, from a push or their leaf.
  */
 export function CardSection({
   family,
@@ -58,12 +59,42 @@ export function CardSection({
   const [shut, setShut] = React.useState(false);
   const [looked, setLooked] = React.useState(false);
   const [hiding, setHiding] = React.useState<string | null>(null);
+  const [starting, setStarting] = React.useState(false);
+  const [startError, setStartError] = React.useState<string | null>(null);
   const words = React.useMemo(
     () => signerWords(family, first, current?.recipient ?? false),
     [family, first, current?.recipient],
   );
 
-  if (!current) return null;
+  if (!current) {
+    const startsOn = cards?.startsOn;
+    if (!startsOn) return null;
+    const start = () => {
+      setStarting(true);
+      setStartError(null);
+      startCard(personId)
+        .catch((e: unknown) =>
+          setStartError(e instanceof CardError ? e.message : "Couldn’t start the card. Try again."),
+        )
+        .finally(() => setStarting(false));
+    };
+    return (
+      <View style={[styles.card, { borderColor: palette.kraftLine, backgroundColor: palette.cakeSponge }]}>
+        <View style={styles.head}>
+          <EnvelopeMark />
+          <Text style={[styles.lead, { color: palette.foreground }]}>
+            {possessive(first)} birthday is on {cardDay(startsOn)}.
+          </Text>
+        </View>
+        <Button label="start a card" busy={starting} onPress={start} />
+        {startError ? (
+          <Text accessibilityRole="alert" style={[styles.line, { color: palette.destructive }]}>
+            {startError}
+          </Text>
+        ) : null}
+      </View>
+    );
+  }
   const opening = tapped || (openNow && !shut && current.isOpen && !current.closed);
   const thank = () => router.push({ pathname: "/card/[id]", params: { id: personId } });
   const mine = current.signatures.find((s) => s.mine) ?? null;
@@ -207,6 +238,7 @@ const styles = StyleSheet.create({
   head: { flexDirection: "row", alignItems: "center", gap: 12 },
   headText: { flex: 1, minWidth: 0, gap: 2 },
   title: { fontFamily: font.semibold, fontSize: 16 },
+  lead: { flex: 1, minWidth: 0, fontFamily: font.regular, fontSize: 16, lineHeight: 22 },
   line: { fontFamily: font.regular, fontSize: 14, lineHeight: 20 },
   thanks: { gap: 6, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth * 2 },
   quote: { fontFamily: font.regular, fontSize: 16, lineHeight: 23 },
