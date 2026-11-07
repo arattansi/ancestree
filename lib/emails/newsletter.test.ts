@@ -373,6 +373,48 @@ describe("newsletterEmail", () => {
     expect(html).toContain(">Zed &lt;Z&gt;</a>");
   });
 
+  it("puts birthday cards to start right after those to sign, on the canvas where asked (Step 224)", () => {
+    const { html } = newsletterEmail({
+      issue: issue({
+        cards: [{ id: "p-aly", name: "Aly Rattansi", date: "2026-11-28", daysAway: 21 }],
+        toStart: [
+          { id: "p-ada", name: "Ada Okafor", relation: "your sister", date: "2026-12-01", daysAway: 24 },
+          { id: "p-ali", name: "Ali Suleman", date: "2026-12-04", daysAway: 27, onCanvas: true },
+        ],
+        messages: [{ userId: "u2", name: "Yusuf Khan", unread: 3 }],
+      }),
+      storyUrl: (id) => `https://www.ancestree.space/stories/${id}`,
+      personUrl: (id) => `https://www.ancestree.space/family?person=${id}`,
+      canvasUrl: (id) => `https://www.ancestree.space/tree?person=${id}`,
+      familyUrl: "https://www.ancestree.space/family",
+      unsubscribeUrl: "https://www.ancestree.space/newsletter/tok-1",
+      inviteUrl: "https://www.ancestree.space/account/admin?tree=t1&section=invite-to-claim",
+      messagesUrl: (id) => `https://www.ancestree.space/family?messages=${id ?? ""}`,
+    });
+    const at = (s: string) => html.indexOf(s);
+    expect(at("Birthday Cards to Sign")).toBeLessThan(at("Birthday Cards to Start"));
+    expect(at("Birthday Cards to Start")).toBeLessThan(at("Unread Messages"));
+    expect(html).toContain(
+      '&#9993;&#65039; <a href="https://www.ancestree.space/family?person=p-ada" style="color:#0a0a0a;text-decoration:underline;">Ada Okafor</a> (your sister)',
+    );
+    expect(html).toContain(
+      '&#9993;&#65039; <a href="https://www.ancestree.space/tree?person=p-ali" style="color:#0a0a0a;text-decoration:underline;">Ali Suleman</a>',
+    );
+    expect(html).toContain("Tue 1 Dec");
+  });
+
+  it("opens a card to start on My Family Tree when there's no canvas link", () => {
+    const { html } = render(
+      issue({ toStart: [{ id: "p-ali", name: "Ali Suleman", date: "2026-12-04", daysAway: 27, onCanvas: true }] }),
+    );
+    expect(html).toContain('href="https://www.ancestree.space/family?person=p-ali"');
+  });
+
+  it("has no Birthday Cards to Start with none to start", () => {
+    expect(render(issue()).html).not.toContain("Birthday Cards to Start");
+    expect(render(issue({ toStart: [] })).html).not.toContain("Birthday Cards to Start");
+  });
+
   it("has no Birthday Cards to Sign with none to sign", () => {
     expect(render(issue()).html).not.toContain("Birthday Cards to Sign");
     expect(render(issue({ cards: [] })).html).not.toContain("Birthday Cards to Sign");
@@ -399,6 +441,21 @@ describe("preheaderOf", () => {
         }),
       ),
     ).toMatch(/^1 card to sign · 3 unread messages · /);
+  });
+
+  it("says how many cards could be started, after those to sign (Step 224)", () => {
+    expect(
+      preheaderOf(
+        issue({
+          cards: [{ id: "p-aly", name: "Aly Rattansi", date: "2026-11-28", daysAway: 21 }],
+          toStart: [
+            { id: "p-ada", name: "Ada Okafor", date: "2026-12-01", daysAway: 24 },
+            { id: "p-ali", name: "Ali Suleman", date: "2026-12-04", daysAway: 27 },
+          ],
+          messages: [{ userId: "u2", name: "Yusuf Khan", unread: 3 }],
+        }),
+      ),
+    ).toMatch(/^1 card to sign · 2 cards to start · 3 unread messages · /);
   });
 
   it("says how many messages are waiting before anything else (Step 180)", () => {
@@ -467,6 +524,27 @@ describe("newsletterEmail's tagged links (Step 225)", () => {
       new Set(["cards", "messages", "this-week", "later", "news", "story", "open", "invite"]),
     );
     expect(new Set(tags(html).map((t) => t.split("@")[1]))).toEqual(new Set(["2026-11-08"]));
+  });
+
+  it("tags cards to start as their own block, on the canvas too (Step 224)", () => {
+    const html = newsletterEmail({
+      issue: issue({
+        toStart: [
+          { id: "p-ada", name: "Ada Okafor", date: "2026-12-01", daysAway: 24 },
+          { id: "p-ali", name: "Ali Suleman", date: "2026-12-04", daysAway: 27, onCanvas: true },
+        ],
+      }),
+      issueDay: "2026-11-08",
+      storyUrl: (id) => `https://www.ancestree.space/stories/${id}`,
+      personUrl: (id) => `https://www.ancestree.space/family?person=${id}`,
+      canvasUrl: (id) => `https://www.ancestree.space/tree?person=${id}`,
+      familyUrl: "https://www.ancestree.space/family",
+      unsubscribeUrl: "https://www.ancestree.space/newsletter/tok-1",
+      inviteUrl: "https://www.ancestree.space/account/admin?tree=t1&section=invite-to-claim",
+      messagesUrl: (id) => `https://www.ancestree.space/family?messages=${id ?? ""}`,
+    }).html;
+    expect(html).toMatch(/family\?person=p-ada&amp;[^"]*utm_content=cards-to-start&amp;utm_term=2026-11-08"/);
+    expect(html).toMatch(/tree\?person=p-ali&amp;[^"]*utm_content=cards-to-start&amp;utm_term=2026-11-08"/);
   });
 
   it("keeps what was already in each address", () => {

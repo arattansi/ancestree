@@ -2,8 +2,9 @@
  * Push notifications to the phone apps (Step 204), as Expo's push service
  * takes them: who wrote, never what (messages are end-to-end encrypted),
  * whom a new story is about, and birthday cards (Step 217.4): one started
- * for someone the member is reminded to sign, their own on the day, and
- * (Step 217.5) the person's thank-you to those who signed.
+ * for someone the member is reminded to sign, their own on the day,
+ * (Step 217.5) the person's thank-you to those who signed, and (Step 224)
+ * one a manager can start.
  * What each opens rides in `data`, read by the phone when it's tapped
  * (`mobile/src/push/`).
  */
@@ -81,6 +82,22 @@ export function cardStartedPush(input: { personId: string; firstName: string; bo
   return {
     title: first ? `${first}’s birthday card` : "A birthday card",
     body: `${input.body.trim()} Sign it?`,
+    data: { kind: "card", personId: input.personId, open: false },
+    channelId: "cards",
+  };
+}
+
+/**
+ * A card a manager can start and nobody has (Step 224): "Ada’s birthday
+ * card", and the notice's own words ("Ada's birthday is on 14 November.
+ * Start a card for the family to sign?", or the reminder's "No card yet
+ * for…"). Opens their details, where the card is started.
+ */
+export function cardStartPush(input: { personId: string; firstName: string; body: string }): PushNote {
+  const first = input.firstName.trim();
+  return {
+    title: first ? `${first}’s birthday card` : "A birthday card",
+    body: input.body.trim(),
     data: { kind: "card", personId: input.personId, open: false },
     channelId: "cards",
   };

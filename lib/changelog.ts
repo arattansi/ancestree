@@ -20,6 +20,15 @@ export type ChangelogEntry = {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-11-07",
+    title: "when to start a birthday card",
+    items: [
+      "if you can start someone's birthday card, you now hear as soon as you can, a month before their birthday, and again two weeks before if nobody has.",
+      "the weekly email lists the cards you can start, under the ones to sign.",
+    ],
+    steps: [224],
+  },
+  {
+    date: "2026-11-07",
     title: "birthday cards in the weekly email",
     items: [
       "the weekly email now opens with the birthday cards you can sign and haven't yet, each with the day and a link to the card.",

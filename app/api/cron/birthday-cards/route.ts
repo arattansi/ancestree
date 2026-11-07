@@ -5,7 +5,7 @@ import { fromTheJob } from "@/lib/cron.server";
 import { sendEmails } from "@/lib/email";
 import { birthdayCardEmail } from "@/lib/emails/birthday-card";
 import { reachableEmail } from "@/lib/no-email";
-import { cardReadyPush } from "@/lib/push";
+import { cardReadyPush, cardStartPush } from "@/lib/push";
 import { sendPushes } from "@/lib/push.server";
 import { getSiteUrl } from "@/lib/site-url";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -18,8 +18,10 @@ const NO_STORE = { "Cache-Control": "no-store" };
  * entry runs once a day, so there are eight), and nobody else — without the
  * job's secret it answers 401 and does nothing.
  *
- * Each run: managers of a birthday 14 days off with no card yet are nudged,
- * from 8 in their morning (`send_card_nudges`), and the person whose card
+ * Each run: managers of a birthday with no card yet are nudged, from 8 in
+ * their morning, in the app and on their phones: once when it can be
+ * started, 31 days before, and again from 14 if nobody has (Step 224,
+ * `send_card_nudges`). And the person whose card
  * opened at midnight is told, from 8 in theirs, in the app and by email
  * (`announce_birthday_cards`), and on their phones (`card_ready_pushes`,
  * Step 217.4). A thank-you's pushes and emails not sent yet go (one thanked
@@ -38,6 +40,16 @@ export async function GET(request: NextRequest) {
     const admin = createAdminClient();
     const nudged = await admin.rpc("send_card_nudges");
     if (nudged.error) throw nudged.error;
+    // The nudges on the phones of those whose cards switch is on (Step
+    // 224); a failure is logged only.
+    const { sent: nudgePushed } = await sendPushes(
+      (nudged.data ?? [])
+        .filter((r) => r.push)
+        .map((r) => ({
+          userId: r.user_id,
+          note: cardStartPush({ personId: r.person_id, firstName: r.first_name, body: r.body }),
+        })),
+    );
     const told = await admin.rpc("announce_birthday_cards");
     if (told.error) throw told.error;
 
@@ -79,7 +91,7 @@ export async function GET(request: NextRequest) {
         nudged: nudged.data?.length ?? 0,
         told: told.data?.length ?? 0,
         emailed: sent.filter((s) => s.ok).length,
-        pushed,
+        pushed: pushed + nudgePushed,
         thanked: thanks.pushed + thanks.emailed,
         stale: staleFiles.length,
       },

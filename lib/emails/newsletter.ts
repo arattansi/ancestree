@@ -5,6 +5,7 @@ import { newsletterLink, type NewsletterSection } from "@/lib/newsletter-clicks"
 import {
   addedCount,
   cardsCount,
+  cardsToStartCount,
   unreadCount,
   type Issue,
   type IssueAdded,
@@ -39,13 +40,17 @@ export const HEADING =
  * reviewers, when there is one, goes above the greeting, in Markdown
  * (Step 159), and "invite family" sits
  * beside the main button (Step 143). First of all, the birthday cards they
- * could sign and haven't (Step 223), then who has written to them that they
- * haven't read, each opening that conversation (Step 180).
+ * could sign and haven't (Step 223) and those they could start (Step 224),
+ * then who has written to them that they haven't read, each opening that
+ * conversation (Step 180).
  */
 export function newsletterEmail(input: {
   issue: Issue;
   /** Their card on My Family Tree, on the site's origin. */
   personUrl: (personId: string) => string;
+  /** Their card on the tree's canvas, for a card to start of someone My
+   *  Family Tree doesn't show (Step 224), on the site's origin. */
+  canvasUrl?: (personId: string) => string;
   /** My Family Tree, on the site's origin. */
   familyUrl: string;
   /** The page that turns it off, on the site's origin. */
@@ -115,11 +120,13 @@ export function issueSections(
   issue: Issue,
   {
     personUrl,
+    canvasUrl,
     storyUrl,
     messagesUrl,
     tag,
   }: {
     personUrl: (personId: string) => string;
+    canvasUrl?: (personId: string) => string;
     storyUrl: (storyId: string) => string;
     messagesUrl?: (userId?: string) => string;
     /** Tags a link as one of a block of the email (Step 225): the weekly
@@ -138,10 +145,21 @@ export function issueSections(
 
   const sections: string[] = [];
   // Birthday cards to sign at the very top (Aalim, Step 223): each closes at
-  // the end of the day, so it can't wait for the rest.
+  // the end of the day, so it can't wait for the rest. Then those they could
+  // start (Step 224), each opening their details, where it's started: on
+  // the canvas for someone My Family Tree doesn't show.
+  const linkCardIn = (section: NewsletterSection) => (c: IssueCard) =>
+    c.onCanvas && canvasUrl
+      ? `<a href="${escapeHtml(tagged(canvasUrl(c.id), section))}" style="${LINK}">${escapeHtml(oneLine(c.name))}</a>${c.relation ? ` (${escapeHtml(c.relation)})` : ""}`
+      : linkKinIn(section)(c);
   if (issue.cards?.length) {
     sections.push(
-      `<p style="${HEADING}">Birthday Cards to Sign</p>${cardRows(issue.cards, linkKinIn("cards"))}`,
+      `<p style="${HEADING}">Birthday Cards to Sign</p>${cardRows(issue.cards, linkCardIn("cards"))}`,
+    );
+  }
+  if (issue.toStart?.length) {
+    sections.push(
+      `<p style="${HEADING}">Birthday Cards to Start</p>${cardRows(issue.toStart, linkCardIn("cards-to-start"))}`,
     );
   }
   // Who's waiting on a reply before anything else (Step 180).
@@ -255,18 +273,18 @@ function list(names: readonly IssueName[], link: (n: IssueName) => string): stri
 
 /**
  * A row each, soonest first (Step 223): their birthday, then an envelope and
- * whose card it is, the name opening their card on My Family Tree, where it
- * waits to be signed. "Sat 28 Nov  ✉️ Aly Rattansi (your brother)".
+ * whose card it is, the name opening their details, where it waits to be
+ * signed or started. "Sat 28 Nov  ✉️ Aly Rattansi (your brother)".
  */
 function cardRows(
   cards: readonly IssueCard[],
-  linkKin: (n: IssueName) => string,
+  linkCard: (c: IssueCard) => string,
 ): string {
   const rows = cards.map((c) => {
     const day = c.daysAway === 0 ? "Today" : c.daysAway === 1 ? "Tomorrow" : occasionDay(c.date);
     return `<tr>
                     <td style="padding:6px 12px 0 0;white-space:nowrap;vertical-align:top;font-size:14px;line-height:1.6;color:#737373;">${day}</td>
-                    <td style="padding:6px 0 0;vertical-align:top;${TEXT}">&#9993;&#65039; ${linkKin(c)}</td>
+                    <td style="padding:6px 0 0;vertical-align:top;${TEXT}">&#9993;&#65039; ${linkCard(c)}</td>
                   </tr>`;
   });
   return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:4px 0 0;">${rows.join("")}</table>`;
@@ -303,8 +321,8 @@ function occasionRows(
 
 /**
  * The inbox's preview line, what's waiting and coming up first: "1 card to
- * sign · 3 unread messages · 2 birthdays this week · 1 milestone later this
- * month · 4 added", each part only when there is one.
+ * sign · 1 card to start · 3 unread messages · 2 birthdays this week · 1
+ * milestone later this month · 4 added", each part only when there is one.
  */
 export function preheaderOf(issue: Issue): string {
   const plural = (n: number, one: string, many: string) =>
@@ -312,12 +330,14 @@ export function preheaderOf(issue: Issue): string {
   const added = addedCount(issue);
   const unread = unreadCount(issue);
   const cards = cardsCount(issue);
+  const toStart = cardsToStartCount(issue);
   const stories = issue.trees.reduce((n, t) => n + t.stories.length, 0);
   const photos = issue.trees.reduce((n, t) => n + t.photos.length, 0);
   const birthdays = issue.week.filter((o) => o.kind === "birthday").length;
   const anniversaries = issue.week.length - birthdays;
   const parts = [
     cards ? plural(cards, "card to sign", "cards to sign") : "",
+    toStart ? plural(toStart, "card to start", "cards to start") : "",
     unread ? plural(unread, "unread message", "unread messages") : "",
     birthdays ? `${plural(birthdays, "birthday", "birthdays")} this week` : "",
     anniversaries

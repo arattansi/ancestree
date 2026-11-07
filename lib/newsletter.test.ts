@@ -4,6 +4,7 @@ import type { FamilyLine, Showing } from "@/lib/my-family";
 import {
   addedCount,
   cardsCount,
+  cardsToStartCount,
   isMilestone,
   isSendDay,
   nextSendAt,
@@ -634,5 +635,60 @@ describe("weeklyIssue: birthday cards to sign (Step 223)", () => {
       input("u-karim", "karim", { cards: [card("aalim", "2026-10-30"), card("dad", "2026-10-06")] }),
     );
     expect(issue && cardsCount(issue)).toBe(2);
+  });
+});
+
+describe("weeklyIssue: birthday cards to start (Step 224)", () => {
+  const start = (person: string, opensOn: string, first: string | null = null) => ({
+    person_id: person,
+    first_name: first,
+    opens_on: opensOn,
+  });
+  const quietWeek = {
+    placements: [],
+    showings: Object.values(people).map((p) => showing(TREE.id, { ...p, date_of_birth: null })),
+    lines: lines.map((l) => ({ ...l, marriage_date: null })),
+  };
+
+  it("names each as the reader's trees name them, soonest first, on the canvas where My Family Tree doesn't show them", () => {
+    const issue = weeklyIssue(
+      input("u-karim", "karim", {
+        toStart: [
+          start("aalim", "2026-10-30", "Aalim"),
+          // Raiya's father: on Karim's tree, not on his My Family Tree.
+          start("sDad", "2026-10-20", "Ali"),
+          start("gone", "2026-10-05", "Zed"),
+        ],
+      }),
+    );
+    expect(issue?.toStart).toEqual([
+      // On none of Karim's trees: the first name, and My Family Tree's link.
+      { id: "gone", name: "Zed", date: "2026-10-05", daysAway: 1 },
+      { id: "sDad", name: "Ali Suleman", date: "2026-10-20", daysAway: 16, onCanvas: true },
+      {
+        id: "aalim",
+        name: "Aalim Rattansi",
+        relation: "your first cousin",
+        date: "2026-10-30",
+        daysAway: 26,
+      },
+    ]);
+    expect(issue?.cards).toEqual([]);
+  });
+
+  it("sends a quiet week for a card to start, never the reader's own, and counts them", () => {
+    expect(weeklyIssue(input("u-karim", "karim", { ...quietWeek, toStart: [] }))).toBeNull();
+    const issue = weeklyIssue(
+      input("u-karim", "karim", { ...quietWeek, toStart: [start("dad", "2026-10-06")] }),
+    );
+    expect(issue?.toStart?.map((c) => c.id)).toEqual(["dad"]);
+    expect(issue && cardsToStartCount(issue)).toBe(1);
+    expect(
+      weeklyIssue(input("u-karim", "karim", { ...quietWeek, toStart: [start("karim", "2026-10-08")] })),
+    ).toBeNull();
+  });
+
+  it("has none when there are none", () => {
+    expect(weeklyIssue(input("u-karim", "karim"))?.toStart).toEqual([]);
   });
 });

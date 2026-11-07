@@ -13,6 +13,7 @@ import {
   type Issue,
   type IssueCardRow,
   type IssuePlacement,
+  type IssueStartRow,
   type IssueUnreadRow,
   type NewsletterSchedule,
 } from "@/lib/newsletter";
@@ -38,6 +39,7 @@ import {
   newsletterOneClickHref,
   newsletterPageHref,
   storyHref,
+  treeFocusHref,
 } from "@/lib/tree-links";
 
 /** What a run did, for the cron job's answer and the logs: counts only. */
@@ -254,6 +256,16 @@ export async function buildWeeklyNewsletters(
   for (const c of cardRows ?? []) {
     cardsBy.set(c.user_id, [...(cardsBy.get(c.user_id) ?? []), c]);
   }
+  // And those each manages and could start, which nobody has (Step 224).
+  const { data: startRows, error: startError } = await createAdminClient().rpc(
+    "newsletter_cards_to_start",
+    { p_users: due.map((r) => r.user_id) },
+  );
+  if (startError) throw new Error(`newsletter_cards_to_start: ${startError.message}`);
+  const startBy = new Map<string, IssueStartRow[]>();
+  for (const c of startRows ?? []) {
+    startBy.set(c.user_id, [...(startBy.get(c.user_id) ?? []), c]);
+  }
   const unreadBy = new Map<string, UnreadSender[]>();
   for (const u of [...(unread ?? []), ...(waiting ?? []).map((w) => ({ ...w, waiting: true }))]) {
     const list = unreadBy.get(u.user_id) ?? [];
@@ -265,6 +277,7 @@ export async function buildWeeklyNewsletters(
       ...r,
       unread: unreadBy.get(r.user_id) ?? [],
       cards: cardsBy.get(r.user_id) ?? [],
+      toStart: startBy.get(r.user_id) ?? [],
     })),
     now,
     { allStories },
@@ -286,6 +299,7 @@ export async function buildWeeklyNewsletters(
         ...newsletterEmail({
           issue: made.issue,
           personUrl: (id) => `${site}${myFamilyFocusHref(id)}`,
+          canvasUrl: (id) => `${site}${treeFocusHref(id)}`,
           familyUrl: `${site}${myFamilyHref()}`,
           unsubscribeUrl: page,
           inviteUrl: `${site}${made.invite}`,
@@ -320,6 +334,8 @@ export type IssueReader = Pick<
   unread?: readonly UnreadSender[];
   /** Birthday cards they could sign and haven't (Step 223): the newsletter's. */
   cards?: readonly IssueCardRow[];
+  /** Birthday cards they could start (Step 224): the newsletter's. */
+  toStart?: readonly IssueStartRow[];
 };
 
 /** One reader's issue, and where they invite family from. */
@@ -539,6 +555,7 @@ export async function buildFamilyIssues(
               display_name: profileOf.get(u.sender_id)?.display_name ?? null,
             })),
             cards: r.cards,
+            toStart: r.toStart,
             since: r.since,
             today,
           })

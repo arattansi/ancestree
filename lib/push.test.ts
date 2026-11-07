@@ -4,6 +4,7 @@ import {
   addressPushes,
   cardReadyPush,
   cardStartedPush,
+  cardStartPush,
   cardThanksPush,
   goneTokens,
   messagePush,
@@ -78,6 +79,22 @@ describe("birthday card pushes", () => {
       data: { kind: "card", personId: PERSON, open: false },
       channelId: "cards",
     });
+  });
+
+  it("asks a manager to start a card, in the notice's words, opening their details", () => {
+    expect(
+      cardStartPush({
+        personId: PERSON,
+        firstName: "Ada",
+        body: " No card yet for Ada's birthday on 14 November. Start one for the family to sign? ",
+      }),
+    ).toEqual({
+      title: "Ada’s birthday card",
+      body: "No card yet for Ada's birthday on 14 November. Start one for the family to sign?",
+      data: { kind: "card", personId: PERSON, open: false },
+      channelId: "cards",
+    });
+    expect(cardStartPush({ personId: PERSON, firstName: "", body: "x" }).title).toBe("A birthday card");
   });
 
   it("tells the person their own card is here, and opens it", () => {

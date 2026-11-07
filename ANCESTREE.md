@@ -2042,6 +2042,40 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 224: Told when a birthday card can be started** (web + migration
+  `20261107160000_card_start_notices`; no phone change). **Asked for**
+  (2026-11-07): "build a notification for users when a birthday card can be
+  started". `start_birthday_card` takes a start 31 days before, but
+  `send_card_nudges` told managers only in the app, 14 days before, so
+  Aalim didn't know he could start Aly's and Safia's cards. **Aalim's calls:**
+  managers only (`card_managers`, Step 217's decision 5); told when starting
+  opens and reminded at 14 days if nobody has; in the app, on their phones
+  and in the newsletter; no email. **Now** `private.card_nudges` keeps a
+  `kind`: `open` from 31 days, `reminder` from 14 (never within a week of
+  the first; whoever first hears within the 14 gets the first's words);
+  each row `send_card_nudges` hands back says its kind, first name and
+  whether the phone may be told (`push_reachable(…, 'cards')`), and the cron
+  sends those as `cardStartPush` ("Ada’s birthday card", the notice's words,
+  opening their details, `{ kind: "card", open: false }`, which the phones
+  already open where Step 221's start box is: no new build). Reminder words:
+  "No card yet for Ada's birthday on 1 December. Start one for the family
+  to sign?". `newsletter_cards_to_start(p_users)` (service role) gives each
+  reader the cards they manage that can be started and nobody has, on a tree
+  of theirs showing the person in full; the newsletter's **Birthday Cards to
+  Start** follows **to Sign**, a row each, sending an otherwise quiet week,
+  the preview line saying "1 card to start". A row for someone on the
+  reader's trees but not their My Family Tree (a Root's or a Branch's to
+  start) opens on the canvas (`/tree?person=`), since My Family Tree
+  wouldn't show them. Its links count as the `cards-to-start` block of Step
+  225's clicks. **Checked:** a rolled-back rehearsal on live of the
+  migration with seven seeded birthdays (31-day notice to Root and spouse,
+  push only for the one with a phone; reminder after a first 10 days back;
+  none 3 days after one; first-time reminder with the first's words; none
+  at 40 days, for a started card or after a reminder; a second run sent
+  nothing; the newsletter call listed exactly the startable five); a route
+  test for the pushes. The cron's first run after this sends the 31-day
+  notice to the managers of the two December birthdays (7 people).
+
 - **Step 225: Newsletter clicks, tagged links and an admin card** (web +
   migration `20261107150000_newsletter_clicks`, live, statement md5
   2bf61471…). **Asked for** (2026-11-07): Aalim wanted the newsletter's open

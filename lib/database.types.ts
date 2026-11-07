@@ -4755,6 +4755,15 @@ export type Database = {
           user_id: string
         }[]
       }
+      newsletter_cards_to_start: {
+        Args: { p_users: string[] }
+        Returns: {
+          first_name: string
+          opens_on: string
+          person_id: string
+          user_id: string
+        }[]
+      }
       newsletter_due: {
         Args: { p_users?: string[] }
         Returns: {
@@ -5119,7 +5128,10 @@ export type Database = {
         Args: never
         Returns: {
           body: string
+          first_name: string
+          kind: string
           person_id: string
+          push: boolean
           tree_id: string
           user_id: string
         }[]

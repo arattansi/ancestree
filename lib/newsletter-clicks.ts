@@ -13,13 +13,15 @@ export const NEWSLETTER_CAMPAIGN = "newsletter";
 
 /**
  * The blocks of the email whose links are counted, in the order it draws
- * them: the birthday cards to sign, the unread messages, This Week, Later
+ * them: the birthday cards to sign, those to start (Step 224), the unread
+ * messages, This Week, Later
  * This Month, a tree's news (who joined, who was added, new photos), a story,
  * the main button, "invite family", and the button that asks for a story in a
  * week with none.
  */
 export const NEWSLETTER_SECTIONS = [
   "cards",
+  "cards-to-start",
   "messages",
   "this-week",
   "later",
@@ -35,6 +37,7 @@ export type NewsletterSection = (typeof NEWSLETTER_SECTIONS)[number];
 /** How the analytics card names each block. */
 export const SECTION_LABELS: Record<NewsletterSection, string> = {
   cards: "Birthday cards",
+  "cards-to-start": "Birthday cards to start",
   messages: "Unread messages",
   "this-week": "This week",
   later: "Later this month",
