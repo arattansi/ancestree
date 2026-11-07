@@ -22,6 +22,10 @@ export type NewsletterIssueRow = {
   clicked: number;
   /** Members who arrived from a link in each block of it. */
   bySection: Partial<Record<NewsletterSection, number>>;
+  /** Copies with a pixel, the members who said yes to counting opens
+   *  (Step 226), and how many of those were opened. */
+  counting: number;
+  opened: number;
 };
 
 export type NewsletterEngagement = {
@@ -58,6 +62,8 @@ export function readNewsletterEngagement(data: unknown): NewsletterEngagement | 
       sent: count(row.sent),
       clicked: count(row.clicked),
       bySection,
+      counting: count(row.counting),
+      opened: count(row.opened),
     });
   }
   return {
@@ -70,6 +76,15 @@ export function readNewsletterEngagement(data: unknown): NewsletterEngagement | 
 export function clickedShare(row: Pick<NewsletterIssueRow, "sent" | "clicked">): string {
   if (row.sent <= 0) return "–";
   return `${Math.round((Math.min(row.clicked, row.sent) / row.sent) * 100)}%`;
+}
+
+/**
+ * "60%" of the copies counting that were opened, or "–" when none was
+ * counting. Opens read high: Apple Mail loads the image on arrival.
+ */
+export function openedShare(row: Pick<NewsletterIssueRow, "counting" | "opened">): string {
+  if (row.counting <= 0) return "–";
+  return `${Math.round((Math.min(row.opened, row.counting) / row.counting) * 100)}%`;
 }
 
 export type SectionTotal = { section: NewsletterSection; label: string; members: number };

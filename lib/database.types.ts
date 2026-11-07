@@ -2042,21 +2042,33 @@ export type Database = {
       }
       newsletter_settings: {
         Row: {
+          count_opens: boolean
+          count_opens_at: string | null
+          count_opens_via: string | null
           last_issue_at: string | null
+          opens_asked_at: string | null
           subscribed: boolean
           token: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          count_opens?: boolean
+          count_opens_at?: string | null
+          count_opens_via?: string | null
           last_issue_at?: string | null
+          opens_asked_at?: string | null
           subscribed?: boolean
           token?: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          count_opens?: boolean
+          count_opens_at?: string | null
+          count_opens_via?: string | null
           last_issue_at?: string | null
+          opens_asked_at?: string | null
           subscribed?: boolean
           token?: string
           updated_at?: string
@@ -4826,6 +4838,7 @@ export type Database = {
         Args: { p_issue: string; p_section: string }
         Returns: undefined
       }
+      note_newsletter_open: { Args: { p_key: string }; Returns: undefined }
       onboarding_due: {
         Args: { p_users?: string[] }
         Returns: {
@@ -4972,6 +4985,10 @@ export type Database = {
       record_invite_reminders: { Args: { p_sends: Json }; Returns: string[] }
       record_newsletter_issue: {
         Args: { p_day: string; p_sent?: number }
+        Returns: undefined
+      }
+      record_newsletter_pixels: {
+        Args: { p_day: string; p_keys: string[] }
         Returns: undefined
       }
       record_onboarding_sends: { Args: { p_sends: Json }; Returns: string[] }
@@ -5234,6 +5251,7 @@ export type Database = {
         Args: { p_all_stories: boolean; p_note: string }
         Returns: undefined
       }
+      set_newsletter_opens: { Args: { p_on: boolean }; Returns: undefined }
       set_newsletter_schedule: {
         Args: { p_paused: boolean; p_weekday: number }
         Returns: undefined

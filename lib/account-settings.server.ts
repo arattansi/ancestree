@@ -141,7 +141,7 @@ export async function loadAccountSettings(
     // their own row, and no row yet means on.
     supabase
       .from("newsletter_settings")
-      .select("subscribed")
+      .select("subscribed, count_opens")
       .eq("user_id", profile.auth_user_id)
       .maybeSingle(),
     // Shared by every tree, so one list for whoever runs any.
@@ -235,6 +235,8 @@ export async function loadAccountSettings(
     soleRootTrees,
     asks,
     newsletterOn: newsletter?.subscribed ?? true,
+    // Off until they say yes (Step 226).
+    newsletterOpens: newsletter?.count_opens ?? false,
     nicknameGroups,
     gettingStartedOn: gettingStarted?.subscribed ?? true,
     peopleYouAdded,

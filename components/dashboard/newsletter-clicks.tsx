@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { dayWithYear } from "@/lib/dashboard";
 import {
   clickedShare,
+  openedShare,
   sectionTotals,
   type NewsletterEngagement,
 } from "@/lib/newsletter-engagement";
@@ -11,9 +12,10 @@ const cell = "px-4 py-2 text-right tabular-nums";
 /**
  * The weekly newsletter's links opened (Step 225): per issue, how many were
  * sent and how many members arrived from one of its links, once each, then
- * which links. Opens aren't counted: a mail app loads images before anyone
- * reads (Apple's), and some people never see them. A link opened signed out
- * isn't a member yet, so it isn't counted either.
+ * which links. Opens (Step 226) are counted only in the copies of members who
+ * said yes, and read high: a mail app loads images before anyone reads
+ * (Apple's), and some people never see them. A link opened signed out isn't
+ * a member yet, so it isn't counted either.
  */
 export function NewsletterClicksCard({
   engagement,
@@ -21,6 +23,8 @@ export function NewsletterClicksCard({
   engagement: NewsletterEngagement | null;
 }) {
   const totals = engagement ? sectionTotals(engagement.issues) : [];
+  // Only the issues someone was counting in (Step 226).
+  const counted = engagement ? engagement.issues.filter((i) => i.counting > 0) : [];
 
   return (
     <Card>
@@ -70,6 +74,52 @@ export function NewsletterClicksCard({
                 </tbody>
               </table>
             </div>
+            {counted.length ? (
+              <section className="flex flex-col gap-1">
+                <h3 className="text-xs font-medium text-muted-foreground">
+                  Opens, from members who said yes
+                </h3>
+                <div className="-mx-(--card-spacing) overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <caption className="sr-only">
+                      Each issue: how many copies were counting opens, how many of those
+                      were opened, and the share
+                    </caption>
+                    <thead>
+                      <tr className="border-b border-border whitespace-nowrap text-muted-foreground">
+                        <th scope="col" className="px-4 py-2 text-left font-medium">
+                          Issue
+                        </th>
+                        <th scope="col" className="px-4 py-2 text-right font-medium">
+                          Counting
+                        </th>
+                        <th scope="col" className="px-4 py-2 text-right font-medium">
+                          Opened
+                        </th>
+                        <th scope="col" className="px-4 py-2 text-right font-medium">
+                          Share
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {counted.map((i) => (
+                        <tr key={i.day} className="border-b border-border last:border-0">
+                          <th scope="row" className="px-4 py-2 text-left font-normal">
+                            {dayWithYear(i.day)}
+                          </th>
+                          <td className={cell}>{i.counting}</td>
+                          <td className={cell}>{i.opened}</td>
+                          <td className={cell}>{openedShare(i)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Apple Mail marks a copy opened when it arrives.
+                </p>
+              </section>
+            ) : null}
             {totals.length ? (
               <section className="flex flex-col gap-1">
                 <h3 className="text-xs font-medium text-muted-foreground">

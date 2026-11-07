@@ -37,6 +37,7 @@ import { RelayInvites } from "@/components/relay-invites";
 import { SubmitButton } from "@/components/submit-button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { WeeklyNewsletter } from "@/components/weekly-newsletter";
+import { WeeklyNewsletterOpens } from "@/components/weekly-newsletter-opens";
 import { GettingStartedEmails } from "@/components/getting-started-emails";
 import { TreeTarget } from "@/components/tree-target";
 import { Button } from "@/components/ui/button";
@@ -301,6 +302,7 @@ async function SettingsView({
     soleRootTrees,
     asks,
     newsletterOn,
+    newsletterOpens,
     nicknameGroups,
     gettingStartedOn,
     peopleYouAdded,
@@ -611,6 +613,7 @@ async function SettingsView({
         {noEmail ? null : (
           <div className="flex flex-col gap-3">
             <WeeklyNewsletter on={newsletterOn} />
+            <WeeklyNewsletterOpens on={newsletterOpens} />
             <GettingStartedEmails on={gettingStartedOn} />
           </div>
         )}

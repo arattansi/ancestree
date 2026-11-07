@@ -94,8 +94,19 @@ export default function PrivacyPage() {
             part of the email they&rsquo;re in, the same for everyone. Opening
             one while signed in counts once for that issue, kept only as a
             scrambled number made from you and the issue, never what you do
-            next. We don&rsquo;t count who opens the email itself. Google
-            Analytics sees the tag too, as part of the address.
+            next. Google Analytics sees the tag too, as part of the address.
+          </li>
+          <li>
+            Only if you say yes, in settings or from the newsletter&rsquo;s
+            own page, the newsletter counts when you open it. Your copy then
+            holds an invisible one-pixel image with a random number of its
+            own, kept with the issue and when it was first loaded, never with
+            you, so we see how many copies were opened and never whose.
+            It&rsquo;s off until you turn it on, each issue says when it&rsquo;s
+            counting and how to stop, and the newsletter asks no more than
+            once every six months. When you said yes and from where is kept,
+            to show it. Apple&rsquo;s Mail loads images on arrival, so the
+            count runs high.
           </li>
           <li>
             While you have a tree open, its other members who have it open too

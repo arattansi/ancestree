@@ -2,6 +2,7 @@ import { escapeHtml } from "@/lib/email";
 import { markdownEmailHtml } from "@/lib/emails/markdown";
 import { emailButton, oneLine, renderEmail } from "@/lib/emails/shared";
 import { newsletterLink, type NewsletterSection } from "@/lib/newsletter-clicks";
+import type { IssueOpens } from "@/lib/newsletter-opens";
 import {
   addedCount,
   cardsCount,
@@ -68,8 +69,15 @@ export function newsletterEmail(input: {
    *  unsubscribe one is tagged as the issue's and its block's, so Analytics
    *  and the admin page can tell which were opened (Step 225). */
   issueDay?: string;
+  /**
+   * Counting when it's opened (Step 226), only for a member who says yes:
+   * an `ask` adds a section asking them to (its link opens the page where
+   * they can), and `counting` is for one who has, with the way to stop and
+   * the one-pixel image whose load is the count (none in a preview).
+   */
+  opens?: IssueOpens;
 }): { subject: string; html: string } {
-  const { issue, issueDay } = input;
+  const { issue, issueDay, opens } = input;
   const tag = issueDay
     ? (url: string, section: NewsletterSection) => newsletterLink(url, section, issueDay)
     : undefined;
@@ -91,7 +99,24 @@ export function newsletterEmail(input: {
     );
   }
 
+  // Asked once, never assumed (Step 226): inaction is a no.
+  if (opens?.kind === "ask") {
+    sections.push(
+      `<p style="${HEADING}">Count Opens?</p><p style="margin:8px 0 0;${TEXT}">We&rsquo;d like to count how many members open this newsletter, never who. Say yes and yours counts; ignore this and nothing does. <a href="${escapeHtml(opens.url)}" style="${LINK}">Yes, count mine</a>.</p>`,
+    );
+  }
+
   const unsubscribe = escapeHtml(input.unsubscribeUrl);
+  // A member who said yes is told it's counting, with the way to stop on
+  // every issue (CNIL §5), and the image sits last.
+  const counting =
+    opens?.kind === "counting"
+      ? ` Counting when you open it: <a href="${escapeHtml(opens.stopUrl)}" style="color:#737373;">stop</a>.`
+      : "";
+  const pixel =
+    opens?.kind === "counting" && opens.pixelUrl
+      ? `<img src="${escapeHtml(opens.pixelUrl)}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0;" />`
+      : "";
   return {
     subject: NEWSLETTER_SUBJECT,
     html: renderEmail({
@@ -102,8 +127,8 @@ export function newsletterEmail(input: {
       contentHtml: sections.join(""),
       cta: { label: "open my family tree", url: tagged(input.familyUrl, "open") },
       secondaryCta: { label: "invite family", url: tagged(input.inviteUrl, "invite") },
-      footnoteHtml: `Sent weekly.
-                  <a href="${unsubscribe}" style="color:#737373;">Unsubscribe</a>.`,
+      footnoteHtml: `Sent weekly.${counting}
+                  <a href="${unsubscribe}" style="color:#737373;">Unsubscribe</a>.${pixel}`,
     }),
   };
 }

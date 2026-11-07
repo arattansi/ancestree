@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   clickedShare,
+  openedShare,
   readNewsletterEngagement,
   sectionTotals,
 } from "@/lib/newsletter-engagement";
@@ -12,15 +13,30 @@ describe("readNewsletterEngagement", () => {
       readNewsletterEngagement({
         counted_from: "2026-11-01",
         issues: [
-          { day: "2026-11-08", sent: 24, clicked: 9, by_section: { cards: 5, open: 4 } },
+          {
+            day: "2026-11-08",
+            sent: 24,
+            clicked: 9,
+            by_section: { cards: 5, open: 4 },
+            counting: 6,
+            opened: 4,
+          },
           { day: "2026-11-01", sent: 22, clicked: 0, by_section: {} },
         ],
       }),
     ).toEqual({
       countedFrom: "2026-11-01",
       issues: [
-        { day: "2026-11-08", sent: 24, clicked: 9, bySection: { cards: 5, open: 4 } },
-        { day: "2026-11-01", sent: 22, clicked: 0, bySection: {} },
+        {
+          day: "2026-11-08",
+          sent: 24,
+          clicked: 9,
+          bySection: { cards: 5, open: 4 },
+          counting: 6,
+          opened: 4,
+        },
+        // An answer from before opens were counted has none.
+        { day: "2026-11-01", sent: 22, clicked: 0, bySection: {}, counting: 0, opened: 0 },
       ],
     });
   });
@@ -45,7 +61,9 @@ describe("readNewsletterEngagement", () => {
     });
     expect(read).toEqual({
       countedFrom: null,
-      issues: [{ day: "2026-11-08", sent: 0, clicked: 0, bySection: { news: 1 } }],
+      issues: [
+        { day: "2026-11-08", sent: 0, clicked: 0, bySection: { news: 1 }, counting: 0, opened: 0 },
+      ],
     });
   });
 });
@@ -62,12 +80,24 @@ describe("clickedShare", () => {
   });
 });
 
+describe("openedShare", () => {
+  it("is the share of the copies counting that were opened, rounded", () => {
+    expect(openedShare({ counting: 5, opened: 3 })).toBe("60%");
+    expect(openedShare({ counting: 3, opened: 0 })).toBe("0%");
+  });
+
+  it("is a dash with none counting, and never over 100%", () => {
+    expect(openedShare({ counting: 0, opened: 0 })).toBe("–");
+    expect(openedShare({ counting: 2, opened: 9 })).toBe("100%");
+  });
+});
+
 describe("sectionTotals", () => {
   it("adds each block over the issues, the most first, leaving out any nobody opened", () => {
     expect(
       sectionTotals([
-        { day: "2026-11-08", sent: 24, clicked: 9, bySection: { cards: 5, open: 4 } },
-        { day: "2026-11-01", sent: 22, clicked: 6, bySection: { open: 3, story: 3 } },
+        { day: "2026-11-08", sent: 24, clicked: 9, bySection: { cards: 5, open: 4 }, counting: 0, opened: 0 },
+        { day: "2026-11-01", sent: 22, clicked: 6, bySection: { open: 3, story: 3 }, counting: 0, opened: 0 },
       ]),
     ).toEqual([
       { section: "open", label: "Open my family tree", members: 7 },

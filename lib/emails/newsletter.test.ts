@@ -595,6 +595,72 @@ describe("newsletterEmail's tagged links (Step 225)", () => {
   });
 });
 
+describe("newsletterEmail's opens (Step 226)", () => {
+  const withOpens = (opens: Parameters<typeof newsletterEmail>[0]["opens"]) =>
+    newsletterEmail({
+      issue: issue(),
+      storyUrl: (id) => `https://www.ancestree.space/stories/${id}`,
+      personUrl: (id) => `https://www.ancestree.space/family?person=${id}`,
+      familyUrl: "https://www.ancestree.space/family",
+      unsubscribeUrl: "https://www.ancestree.space/newsletter/tok-1",
+      inviteUrl: "https://www.ancestree.space/account/admin?tree=t1",
+      messagesUrl: (id) => `https://www.ancestree.space/family?messages=${id ?? ""}`,
+      opens,
+    }).html;
+
+  it("counts and shows nothing of opens for a member who hasn't been asked either", () => {
+    const html = withOpens(undefined);
+    expect(html).not.toContain("Count Opens?");
+    expect(html).not.toContain("Counting when you open it");
+    expect(html).not.toMatch(/<img[^>]+width="1"/);
+  });
+
+  it("asks once, with a link to the page where they say yes, and no pixel", () => {
+    const html = withOpens({ kind: "ask", url: "https://www.ancestree.space/newsletter/tok-1#opens" });
+    expect(html).toContain("Count Opens?");
+    expect(html).toContain(
+      '<a href="https://www.ancestree.space/newsletter/tok-1#opens" style="color:#0a0a0a;text-decoration:underline;">Yes, count mine</a>',
+    );
+    expect(html).toContain("ignore this and nothing does");
+    expect(html).not.toMatch(/<img[^>]+width="1"/);
+    expect(html).not.toContain("Counting when you open it");
+  });
+
+  it("asks above the buttons, below what the issue tells", () => {
+    const html = withOpens({ kind: "ask", url: "https://www.ancestree.space/newsletter/tok-1#opens" });
+    expect(html.indexOf("This Week")).toBeLessThan(html.indexOf("Count Opens?"));
+    expect(html.indexOf("Count Opens?")).toBeLessThan(html.indexOf(">open my family tree</a>"));
+  });
+
+  it("says it's counting, with the way to stop, and puts the image last", () => {
+    const html = withOpens({
+      kind: "counting",
+      stopUrl: "https://www.ancestree.space/newsletter/tok-1#opens",
+      pixelUrl: "https://www.ancestree.space/api/newsletter/open/4dd369bc-aa82-4ff3-97de-514ae3000ee0",
+    });
+    expect(html).toContain("Counting when you open it:");
+    expect(html).toContain(
+      'href="https://www.ancestree.space/newsletter/tok-1#opens" style="color:#737373;">stop</a>',
+    );
+    expect(html).not.toContain("Count Opens?");
+    const img = html.match(/<img[^>]+width="1"[^>]*>/)?.[0] ?? "";
+    expect(img).toContain('src="https://www.ancestree.space/api/newsletter/open/4dd369bc-aa82-4ff3-97de-514ae3000ee0"');
+    expect(img).toContain('alt=""');
+    // After Unsubscribe, the last thing in the small print.
+    expect(html.indexOf(">Unsubscribe</a>")).toBeLessThan(html.indexOf(img));
+    expect(html.indexOf(img)).toBeGreaterThan(html.indexOf("Sent weekly."));
+  });
+
+  it("says it's counting without an image in a preview", () => {
+    const html = withOpens({
+      kind: "counting",
+      stopUrl: "https://www.ancestree.space/newsletter/tok-1#opens",
+    });
+    expect(html).toContain("Counting when you open it:");
+    expect(html).not.toMatch(/<img[^>]+width="1"/);
+  });
+});
+
 describe("coupleDisplayName", () => {
   it("shares one surname, or names both in full", () => {
     const a = { first_name: "Ahmed", last_name: "Khan" };

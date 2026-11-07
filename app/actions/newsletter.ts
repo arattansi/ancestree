@@ -6,7 +6,7 @@ import { adminPageHref } from "@/lib/admin-page";
 import { getSessionUser, requireProfile } from "@/lib/auth";
 import { sendEmail } from "@/lib/email";
 import { NOTE_MAX } from "@/lib/newsletter";
-import { setNewsletterByToken } from "@/lib/newsletter-settings.server";
+import { setNewsletterByToken, setOpensByToken } from "@/lib/newsletter-settings.server";
 import { ownNewsletter } from "@/lib/newsletter.server";
 import { createClient } from "@/lib/supabase/server";
 import { byJoined, listMyTrees } from "@/lib/tree-context";
@@ -25,6 +25,32 @@ export async function setWeeklyNewsletter(on: boolean): Promise<{ error?: string
   if (error) return { error: "Couldn't save that. Try again." };
   revalidatePath("/account");
   return {};
+}
+
+/**
+ * Member: whether the newsletter counts when they open it (Step 226), the
+ * second box in settings. Off unless they tick it: counting is only ever
+ * with their say.
+ */
+export async function setNewsletterOpens(on: boolean): Promise<{ error?: string }> {
+  await requireProfile();
+  if (typeof on !== "boolean") return { error: "Couldn't save that. Try again." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_newsletter_opens", { p_on: on });
+  if (error) return { error: "Couldn't save that. Try again." };
+  revalidatePath("/account");
+  return {};
+}
+
+/**
+ * Anyone holding a member's unsubscribe link (Step 226): turn counting when
+ * they open the newsletter on, or off, signed out. The page's button posts
+ * here, so a mail scanner opening the link changes nothing.
+ */
+export async function setOpensFromLink(token: string, on: boolean): Promise<void> {
+  if (typeof on !== "boolean") return;
+  await setOpensByToken(token, on);
+  revalidatePath(newsletterPageHref(token));
 }
 
 /**

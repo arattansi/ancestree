@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { setNewsletterFromLink } from "@/app/actions/newsletter";
+import { setNewsletterFromLink, setOpensFromLink } from "@/app/actions/newsletter";
 import { CenteredPage } from "@/components/page-column";
 import { SubmitButton } from "@/components/submit-button";
 import { Button } from "@/components/ui/button";
@@ -22,8 +22,10 @@ export const metadata: Metadata = {
 
 /**
  * The weekly newsletter's Unsubscribe link (Step 95), signed out: says
- * whether it's on and turns it off, or back on. Opening it changes
- * nothing; the button does, so a mail scanner following the link can't.
+ * whether it's on and turns it off, or back on, and (Step 226) whether it
+ * counts when they open it, which they turn on or off here too. Opening it
+ * changes nothing; the buttons do, so a mail scanner following the link
+ * can't.
  */
 export default async function NewsletterPage({
   params,
@@ -50,6 +52,7 @@ export default async function NewsletterPage({
   }
 
   const on = settings.subscribed;
+  const counting = settings.countOpens;
   return (
     <CenteredPage>
       <Card className="w-full max-w-sm">
@@ -61,7 +64,7 @@ export default async function NewsletterPage({
               : "You're unsubscribed."}
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col gap-6">
           <form action={setNewsletterFromLink.bind(null, token, !on)}>
             <SubmitButton
               variant={on ? "default" : "outline"}
@@ -70,6 +73,22 @@ export default async function NewsletterPage({
               {on ? "unsubscribe" : "subscribe again"}
             </SubmitButton>
           </form>
+          <section id="opens" className="flex scroll-mt-24 flex-col gap-3">
+            <h2 className="text-sm font-semibold">Opens</h2>
+            <p className="text-sm text-muted-foreground">
+              {counting
+                ? "It counts when you open it, never who."
+                : "It doesn't count when you open it."}
+            </p>
+            <form action={setOpensFromLink.bind(null, token, !counting)}>
+              <SubmitButton
+                variant={counting ? "default" : "outline"}
+                pendingLabel="saving…"
+              >
+                {counting ? "stop counting" : "count my opens"}
+              </SubmitButton>
+            </form>
+          </section>
         </CardContent>
       </Card>
     </CenteredPage>

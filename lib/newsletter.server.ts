@@ -1,5 +1,7 @@
 import "server-only";
 
+import { randomUUID } from "node:crypto";
+
 import { ROOT } from "@/lib/account-types";
 import { openConsoleHref } from "@/lib/admin-queue";
 import { sendEmails, unsentSummary, type SendEmailInput } from "@/lib/email";
@@ -17,8 +19,16 @@ import {
   type IssueUnreadRow,
   type NewsletterSchedule,
 } from "@/lib/newsletter";
-import { noteNewsletterIssue } from "@/lib/newsletter-engagement.server";
-import { ensureNewsletterToken } from "@/lib/newsletter-settings.server";
+import {
+  noteNewsletterIssue,
+  noteNewsletterPixels,
+} from "@/lib/newsletter-engagement.server";
+import { opensForIssue, type OpensState } from "@/lib/newsletter-opens";
+import {
+  ensureNewsletterToken,
+  noteOpensAsked,
+  readOpensStates,
+} from "@/lib/newsletter-settings.server";
 import { reachableEmail } from "@/lib/no-email";
 import { personDisplayName } from "@/lib/person-name";
 import { getSiteUrl } from "@/lib/site-url";
@@ -37,7 +47,9 @@ import {
   myFamilyFocusHref,
   myFamilyHref,
   newsletterOneClickHref,
+  newsletterOpensHref,
   newsletterPageHref,
+  newsletterPixelHref,
   storyHref,
   treeFocusHref,
 } from "@/lib/tree-links";
@@ -169,10 +181,12 @@ export async function sendWeeklyNewsletters(
   run.due = due?.length ?? 0;
   if (!due?.length) return run;
 
-  const { emails, quiet, failed } = await buildWeeklyNewsletters(
+  const { emails, quiet, failed, pixels, asked } = await buildWeeklyNewsletters(
     due,
     opts.now ?? new Date(),
     schedule,
+    // A test send to some members has no pixels: nothing records them.
+    { pixels: !opts.users },
   );
   run.quiet = quiet;
   run.unsent = failed.size;
@@ -185,7 +199,8 @@ export async function sendWeeklyNewsletters(
   );
   if (claimError) throw new Error(`claim_newsletter_issues: ${claimError.message}`);
   const ours = new Set(claimed ?? []);
-  const toSend = [...emails].filter(([id]) => ours.has(id)).map(([, e]) => e);
+  const sending = [...emails].filter(([id]) => ours.has(id));
+  const toSend = sending.map(([, e]) => e);
   run.skipped = emails.size - toSend.length;
 
   // The issue is on record before the first one goes, so a first click never
@@ -193,10 +208,25 @@ export async function sendWeeklyNewsletters(
   // send to some members isn't an issue.
   const issueDay = utcDay(opts.now ?? new Date());
   if (!opts.users && toSend.length) await noteNewsletterIssue(issueDay, 0);
+  // And the keys of the one-pixel images in the copies of those who said yes
+  // to counting opens, before any copy can be opened (Step 226).
+  if (!opts.users) {
+    await noteNewsletterPixels(
+      issueDay,
+      sending.flatMap(([id]) => pixels.get(id) ?? []),
+    );
+  }
   const results = await sendEmails(toSend);
   run.sent = results.filter((s) => s.ok).length;
   run.unsent += results.length - run.sent;
   if (!opts.users && run.sent) await noteNewsletterIssue(issueDay, run.sent);
+  // Those whose copy asked them to count their opens went out asked, so it
+  // won't ask again for six months (Step 226).
+  if (!opts.users) {
+    await noteOpensAsked(
+      sending.flatMap(([id], i) => (results[i]?.ok && asked.has(id) ? [id] : [])),
+    );
+  }
   const unsent = unsentSummary(results);
   if (unsent) console.error(`[newsletter] ${unsent}`);
   console.info(
@@ -227,10 +257,17 @@ export async function buildWeeklyNewsletters(
   now: Date,
   /** What the send carries besides (Step 144): the note, every story. */
   { note, all_stories: allStories }: Pick<NewsletterSchedule, "note" | "all_stories"> = DEFAULT_SCHEDULE,
+  /** `pixels`: put the one-pixel image in the copy of whoever said yes to
+   *  counting opens (Step 226). Only a send that records their keys does. */
+  { pixels: withPixels = false }: { pixels?: boolean } = {},
 ): Promise<{
   emails: Map<string, SendEmailInput>;
   quiet: number;
   failed: Set<string>;
+  /** Each counting member's copy's own key (none stands for a member). */
+  pixels: Map<string, string>;
+  /** Whose copy asks them to count their opens (Step 226). */
+  asked: Set<string>;
 }> {
   // Who has written to each that they haven't read (Step 180): only the
   // newsletter tells it, not the getting started win-back.
@@ -284,6 +321,16 @@ export async function buildWeeklyNewsletters(
   );
   const site = getSiteUrl();
   const emails = new Map<string, SendEmailInput>();
+  const pixels = new Map<string, string>();
+  const asked = new Set<string>();
+  // What each has said on counting opens (Step 226). If it can't be read,
+  // nobody is asked and nothing is counted: the issue still goes.
+  let opensBy: Map<string, OpensState> | null = null;
+  try {
+    opensBy = await readOpensStates(due.map((r) => r.user_id));
+  } catch (err) {
+    console.error("[newsletter] couldn't read who counts opens", err);
+  }
   let quiet = 0;
   for (const r of due) {
     if (failed.has(r.user_id)) continue;
@@ -294,6 +341,16 @@ export async function buildWeeklyNewsletters(
     }
     try {
       const page = `${site}${newsletterPageHref(r.token)}`;
+      const { opens, key, asked: asks } = opensForIssue({
+        state: opensBy ? opensBy.get(r.user_id) : null,
+        now,
+        withPixels,
+        opensUrl: `${site}${newsletterOpensHref(r.token)}`,
+        pixelUrl: (k) => `${site}${newsletterPixelHref(k)}`,
+        newKey: randomUUID,
+      });
+      if (key) pixels.set(r.user_id, key);
+      if (asks) asked.add(r.user_id);
       emails.set(r.user_id, {
         to: r.email,
         ...newsletterEmail({
@@ -307,6 +364,7 @@ export async function buildWeeklyNewsletters(
           messagesUrl: (userId) => `${site}${messagesHref(userId)}`,
           note,
           issueDay: utcDay(now),
+          opens,
         }),
         headers: {
           "List-Unsubscribe": `<${site}${newsletterOneClickHref(r.token)}>`,
@@ -318,7 +376,7 @@ export async function buildWeeklyNewsletters(
       console.error("[newsletter] couldn't make one issue", err);
     }
   }
-  return { emails, quiet, failed };
+  return { emails, quiet, failed, pixels, asked };
 }
 
 /** Someone who has written to a reader that they haven't read (Step 180),

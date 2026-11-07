@@ -22,6 +22,26 @@ export async function noteNewsletterIssue(day: string, sent: number): Promise<vo
 }
 
 /**
+ * The keys of the pixels in an issue's copies, noted as it goes out (Step
+ * 226). The keys belong to no member. A failure is logged and the copies go
+ * without a pixel's worth of count.
+ */
+export async function noteNewsletterPixels(day: string, keys: readonly string[]): Promise<void> {
+  if (keys.length === 0) return;
+  const { error } = await createAdminClient().rpc("record_newsletter_pixels", {
+    p_day: day,
+    p_keys: [...keys],
+  });
+  if (error) console.error(`[newsletter] pixels not recorded — ${error.message}`);
+}
+
+/** A copy's pixel was loaded (Step 226); a failure is logged and shown to nobody. */
+export async function noteNewsletterOpen(key: string): Promise<void> {
+  const { error } = await createAdminClient().rpc("note_newsletter_open", { p_key: key });
+  if (error) console.error(`[newsletter] open not noted — ${error.message}`);
+}
+
+/**
  * The analytics tab's newsletter (Step 225) for a beta reviewer; null for
  * anyone else, whom `newsletter_engagement()` refuses anyway, and when it
  * can't be read.

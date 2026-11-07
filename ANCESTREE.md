@@ -2042,6 +2042,49 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 226: Newsletter opens, only for members who say yes** (web +
+  migration `20261107170000_newsletter_opens`, live, statement md5
+  07cbe504…). **Asked for** (2026-11-07): "build opens", the second half of
+  "clicks and opens" (Step 225). France's CNIL (deliberation 2026-042, §3.1)
+  puts the opening rate behind prior consent and treats silence as a no
+  (§4.2), and Resend's own tracking is per domain, so opens are counted with
+  our own image, only in the copies of members who opted in. **Now**
+  `newsletter_settings.count_opens` is off until a member turns it on, in
+  settings (a box beside the newsletter's, `set_newsletter_opens`) or on the
+  signed-out `/newsletter/<token>` page (an "Opens" section with a
+  "count my opens" / "stop counting" button, which posts, so a scanner opening
+  the link changes nothing); `count_opens_at` and `count_opens_via` keep when
+  and where, as the proof (§6). An issue asks a member who hasn't said yes
+  once, a "Count Opens?" section above the buttons with a link to that page,
+  and not again for 183 days (`opens_asked_at`, `shouldAskOpens`;
+  `opensForIssue` decides ask / count / nothing per reader). A member who
+  said yes has a one-pixel image last in their copy of each real issue
+  (`/api/newsletter/open/<key>`, public, always the same 42-byte GIF) and
+  "Counting when you open it: stop" in the small print (§5). The key is a
+  random UUID per copy, kept in `private.newsletter_pixels` with the issue and
+  when it was first loaded and **never with the member**, so the count says
+  how many, never who. `sendWeeklyNewsletters` records the keys just before
+  the batch goes and marks those asked once their copy went; a test send to
+  some members has no images and marks nobody. If who counts can't be read,
+  nobody is asked and nothing is counted, and the issue still goes. The
+  analytics tab's Newsletter card gains **Opens, from members who said yes**
+  (counting, opened, share, with "Apple Mail marks a copy opened when it
+  arrives"). `/privacy` says all of it. The phone app has no newsletter
+  settings at all, so nothing changes there. **My calls:** keys kept for good (a random number with a day and a time is no
+  personal data), the ask above the buttons rather than in the small print,
+  and stopping from the page, a button press, rather than a link that stops
+  at once. **Checked:** a rolled-back rehearsal on live (grants: a member
+  reads `count_opens` only, the server alone writes keys and opens; defaults
+  off; set on and off with when and where; duplicate keys and repeat loads
+  harmless; the card's answer), then applied and md5-matched; as the test
+  reviewer on the dev server the settings box saved on (via settings), the
+  signed-out page showed "stop counting", saved off (via page) and
+  re-rendered, a recorded key's image loaded 200 `image/gif` 42 bytes with
+  no-store and marked its copy opened while an unknown or malformed key
+  got the same image and wrote nothing, and the card showed counting 1,
+  opened 1, 100% (rows deleted after); Aalim's real issue built without
+  sending asked ("Count Opens?", the link to his page) and had no image.
+
 - **Step 227: A birthday card nobody could start gets someone who can**
   (migration `20261107173000_card_managers_fallback` only). **Found** in
   Step 224 (2026-11-07): nobody could start Lucan's card (18 Nov). He's the
@@ -2061,6 +2104,7 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   card for the family to sign?" and her newsletter would list him under
   Birthday Cards to Start. Firdous (11 Jan) is alone on her tree: still
   nobody, as no rule could help.
+
 
 - **Step 224: Told when a birthday card can be started** (web + migration
   `20261107160000_card_start_notices`; no phone change). **Asked for**

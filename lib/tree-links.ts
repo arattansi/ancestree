@@ -320,6 +320,21 @@ export function newsletterPageHref(token: string): string {
   return `/newsletter/${enc(token)}`;
 }
 
+/**
+ * The same page at its box for counting when they open the newsletter (Step
+ * 226): where the issue's "count mine" and "stop" links lead. Callers add
+ * the site's origin.
+ */
+export function newsletterOpensHref(token: string): string {
+  return `${newsletterPageHref(token)}#opens`;
+}
+
+/** The one-pixel image in a counting member's copy of an issue (Step 226),
+ *  by that copy's own random key. Callers add the site's origin. */
+export function newsletterPixelHref(key: string): string {
+  return `/api/newsletter/open/${enc(key)}`;
+}
+
 /** What a mail app's one-click unsubscribe posts to (RFC 8058), for the
  *  newsletter's `List-Unsubscribe` header. */
 export function newsletterOneClickHref(token: string): string {
