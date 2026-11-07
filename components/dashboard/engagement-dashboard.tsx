@@ -1,5 +1,6 @@
 import { CardFunnelCard } from "@/components/dashboard/card-funnel";
 import { InviteFunnelCard } from "@/components/dashboard/invite-funnel";
+import { NewsletterClicksCard } from "@/components/dashboard/newsletter-clicks";
 import { WeeklyActiveChart } from "@/components/dashboard/weekly-active-chart";
 import {
   Card,
@@ -24,6 +25,8 @@ import { loadCardFunnel } from "@/lib/card-funnel.server";
 import type { CardFunnel } from "@/lib/card-funnel";
 import { loadInviteFunnel } from "@/lib/invite-funnel.server";
 import type { InviteFunnel } from "@/lib/invite-funnel";
+import { loadNewsletterEngagement } from "@/lib/newsletter-engagement.server";
+import type { NewsletterEngagement } from "@/lib/newsletter-engagement";
 
 /**
  * The beta reviewers' dashboard (Step 56) — the admin page's analytics tab
@@ -31,19 +34,21 @@ import type { InviteFunnel } from "@/lib/invite-funnel";
  * name nobody but each tree's Roots. The admin page shows it only to a reviewer, and
  * `engagement_dashboard()` answers nobody else. What happened to each
  * tree's invites sits above its Trees (Step 216), and each birthday card's
- * links beside it (Step 217.3).
+ * links beside it (Step 217.3), and which of each weekly newsletter's links
+ * members opened (Step 225).
  */
 export async function EngagementDashboard() {
-  const [dashboard, funnel, cards] = await Promise.all([
+  const [dashboard, funnel, cards, newsletter] = await Promise.all([
     loadDashboard(),
     loadInviteFunnel(),
     loadCardFunnel(),
+    loadNewsletterEngagement(),
   ]);
 
   return (
     <div className="flex flex-col gap-6">
       {dashboard ? (
-        <DashboardView d={dashboard} funnel={funnel} cards={cards} />
+        <DashboardView d={dashboard} funnel={funnel} cards={cards} newsletter={newsletter} />
       ) : (
         <Card>
           <CardHeader>
@@ -60,10 +65,12 @@ export function DashboardView({
   d,
   funnel,
   cards,
+  newsletter,
 }: {
   d: Dashboard;
   funnel: InviteFunnel | null;
   cards: CardFunnel | null;
+  newsletter: NewsletterEngagement | null;
 }) {
   const weeks = weeksSinceFirstActivity(d.weeks);
   const cell = "px-4 py-2 text-right tabular-nums";
@@ -247,6 +254,7 @@ export function DashboardView({
 
       <InviteFunnelCard funnel={funnel} />
       <CardFunnelCard funnel={cards} />
+      <NewsletterClicksCard engagement={newsletter} />
 
       <Card>
         <CardHeader>

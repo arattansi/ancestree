@@ -4766,6 +4766,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      newsletter_engagement: { Args: never; Returns: Json }
       newsletter_unread_messages: {
         Args: { p_users: string[] }
         Returns: {
@@ -4810,6 +4811,10 @@ export type Database = {
       }
       note_invite_shared: {
         Args: { p_channel: string; p_token: string }
+        Returns: undefined
+      }
+      note_newsletter_click: {
+        Args: { p_issue: string; p_section: string }
         Returns: undefined
       }
       onboarding_due: {
@@ -4956,6 +4961,10 @@ export type Database = {
         Returns: undefined
       }
       record_invite_reminders: { Args: { p_sends: Json }; Returns: string[] }
+      record_newsletter_issue: {
+        Args: { p_day: string; p_sent?: number }
+        Returns: undefined
+      }
       record_onboarding_sends: { Args: { p_sends: Json }; Returns: string[] }
       record_share_link_view: {
         Args: { p_link_id: string }

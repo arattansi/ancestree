@@ -10,10 +10,12 @@ import {
   isTreeIdCookie,
   renewsPick,
 } from "@/lib/current-tree-cookie";
+import { isRouterRequest, readNewsletterClick } from "@/lib/newsletter-clicks";
 import { campaignParams, signInNext } from "@/lib/safe-next";
 import {
   isSupabaseConfigured,
   noteActiveDay,
+  noteNewsletterClick,
   updateSession,
 } from "@/lib/supabase/middleware";
 
@@ -88,6 +90,18 @@ export async function proxy(request: NextRequest, event: NextFetchEvent) {
   // A day they used ancestree, for the beta reviewers' dashboard (Step 56),
   // noted in the background so no page waits on it.
   if (userId) event.waitUntil(noteActiveDay(supabase, userId));
+
+  // A member arriving by one of the weekly newsletter's tagged links, for
+  // the analytics tab's Newsletter Clicks (Step 225): the visit itself, not
+  // the router's prefetch of it, and only a signed-in member's.
+  if (
+    userId &&
+    request.method === "GET" &&
+    !isRouterRequest({ headers: request.headers, params: request.nextUrl.searchParams })
+  ) {
+    const click = readNewsletterClick(request.nextUrl.searchParams);
+    if (click) event.waitUntil(noteNewsletterClick(supabase, userId, click));
+  }
 
   const isPublic =
     pathname === "/" ||

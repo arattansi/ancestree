@@ -16,6 +16,7 @@ import {
   type IssueUnreadRow,
   type NewsletterSchedule,
 } from "@/lib/newsletter";
+import { noteNewsletterIssue } from "@/lib/newsletter-engagement.server";
 import { ensureNewsletterToken } from "@/lib/newsletter-settings.server";
 import { reachableEmail } from "@/lib/no-email";
 import { personDisplayName } from "@/lib/person-name";
@@ -185,9 +186,15 @@ export async function sendWeeklyNewsletters(
   const toSend = [...emails].filter(([id]) => ours.has(id)).map(([, e]) => e);
   run.skipped = emails.size - toSend.length;
 
+  // The issue is on record before the first one goes, so a first click never
+  // finds none, and told how many went once they have (Step 225). A test
+  // send to some members isn't an issue.
+  const issueDay = utcDay(opts.now ?? new Date());
+  if (!opts.users && toSend.length) await noteNewsletterIssue(issueDay, 0);
   const results = await sendEmails(toSend);
   run.sent = results.filter((s) => s.ok).length;
   run.unsent += results.length - run.sent;
+  if (!opts.users && run.sent) await noteNewsletterIssue(issueDay, run.sent);
   const unsent = unsentSummary(results);
   if (unsent) console.error(`[newsletter] ${unsent}`);
   console.info(
@@ -285,6 +292,7 @@ export async function buildWeeklyNewsletters(
           storyUrl: (id) => `${site}${storyHref(id)}`,
           messagesUrl: (userId) => `${site}${messagesHref(userId)}`,
           note,
+          issueDay: utcDay(now),
         }),
         headers: {
           "List-Unsubscribe": `<${site}${newsletterOneClickHref(r.token)}>`,

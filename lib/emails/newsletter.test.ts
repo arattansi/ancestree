@@ -432,6 +432,91 @@ describe("preheaderOf", () => {
   });
 });
 
+describe("newsletterEmail's tagged links (Step 225)", () => {
+  const tagged = (i: Issue) =>
+    newsletterEmail({
+      issue: i,
+      issueDay: "2026-11-08",
+      storyUrl: (id) => `https://www.ancestree.space/stories/${id}`,
+      personUrl: (id) => `https://www.ancestree.space/family?person=${id}`,
+      familyUrl: "https://www.ancestree.space/family",
+      unsubscribeUrl: "https://www.ancestree.space/newsletter/tok-1",
+      inviteUrl: "https://www.ancestree.space/account/admin?tree=t1&section=invite-to-claim",
+      messagesUrl: (id) => `https://www.ancestree.space/family?messages=${id ?? ""}`,
+    }).html;
+
+  /** Each href with its block and the day it was tagged for. */
+  const tags = (html: string) =>
+    [...html.matchAll(/href="([^"]+)"/g)].flatMap(([, href]) => {
+      const params = new URL(href.replace(/&amp;/g, "&")).searchParams;
+      return params.get("utm_campaign") === "newsletter"
+        ? [`${params.get("utm_content")}@${params.get("utm_term")}`]
+        : [];
+    });
+
+  const full = issue({
+    cards: [{ id: "p-aly", name: "Aly Rattansi", date: "2026-11-28", daysAway: 21 }],
+    messages: [{ userId: "u2", name: "Yusuf Khan", unread: 3 }],
+    later: [occasion({ daysAway: 20, milestone: true })],
+  });
+
+  it("tags every link as the block it's in, for the issue's day", () => {
+    const html = tagged(full);
+    const found = new Set(tags(html).map((t) => t.split("@")[0]));
+    expect(found).toEqual(
+      new Set(["cards", "messages", "this-week", "later", "news", "story", "open", "invite"]),
+    );
+    expect(new Set(tags(html).map((t) => t.split("@")[1]))).toEqual(new Set(["2026-11-08"]));
+  });
+
+  it("keeps what was already in each address", () => {
+    const html = tagged(full);
+    expect(html).toContain(
+      'href="https://www.ancestree.space/family?person=p-aly&amp;utm_source=ancestree&amp;utm_medium=email&amp;utm_campaign=newsletter&amp;utm_content=cards&amp;utm_term=2026-11-08"',
+    );
+    expect(html).toContain(
+      'href="https://www.ancestree.space/account/admin?tree=t1&amp;section=invite-to-claim&amp;utm_source=ancestree&amp;utm_medium=email&amp;utm_campaign=newsletter&amp;utm_content=invite&amp;utm_term=2026-11-08"',
+    );
+  });
+
+  it("tags the story link and the names in it as a story's, a tree's news as news", () => {
+    const html = tagged(full);
+    expect(html).toMatch(/stories\/s1\?[^"]*utm_content=story&amp;utm_term=2026-11-08"/);
+    expect(html).toMatch(/person=p2&amp;[^"]*utm_content=news&amp;/);
+    expect(html).toMatch(/person=p1&amp;[^"]*utm_content=story&amp;/);
+  });
+
+  it("tags the button that asks for a story in a week with none", () => {
+    const none = issue({
+      trees: [{ id: "t1", name: "Khan family", joined: [], added: [], stories: [], photos: [] }],
+    });
+    expect(tags(tagged(none))).toContain("write-a-story@2026-11-08");
+    expect(tags(tagged(full))).not.toContain("write-a-story@2026-11-08");
+  });
+
+  it("leaves the unsubscribe link, and the reviewers' note, untagged", () => {
+    const html = newsletterEmail({
+      issue: full,
+      issueDay: "2026-11-08",
+      note: "See [the plan](https://www.ancestree.space/features).",
+      storyUrl: (id) => `https://www.ancestree.space/stories/${id}`,
+      personUrl: (id) => `https://www.ancestree.space/family?person=${id}`,
+      familyUrl: "https://www.ancestree.space/family",
+      unsubscribeUrl: "https://www.ancestree.space/newsletter/tok-1",
+      inviteUrl: "https://www.ancestree.space/account/admin?tree=t1",
+      messagesUrl: (id) => `https://www.ancestree.space/family?messages=${id ?? ""}`,
+    }).html;
+    expect(html).toContain('href="https://www.ancestree.space/newsletter/tok-1"');
+    expect(html).toContain('href="https://www.ancestree.space/features"');
+    expect(html).not.toMatch(/newsletter\/tok-1[^"]*utm_/);
+  });
+
+  it("tags nothing without an issue day", () => {
+    expect(tags(render(full).html)).toEqual([]);
+    expect(render(full).html).not.toContain("utm_");
+  });
+});
+
 describe("coupleDisplayName", () => {
   it("shares one surname, or names both in full", () => {
     const a = { first_name: "Ahmed", last_name: "Khan" };

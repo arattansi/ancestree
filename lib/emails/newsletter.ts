@@ -1,6 +1,7 @@
 import { escapeHtml } from "@/lib/email";
 import { markdownEmailHtml } from "@/lib/emails/markdown";
 import { emailButton, oneLine, renderEmail } from "@/lib/emails/shared";
+import { newsletterLink, type NewsletterSection } from "@/lib/newsletter-clicks";
 import {
   addedCount,
   cardsCount,
@@ -58,21 +59,30 @@ export function newsletterEmail(input: {
   messagesUrl: (userId?: string) => string;
   /** The beta reviewers' note for this send, in Markdown (Steps 144, 159). */
   note?: string | null;
+  /** The day the issue goes out, `YYYY-MM-DD`: with it every link but the
+   *  unsubscribe one is tagged as the issue's and its block's, so Analytics
+   *  and the admin page can tell which were opened (Step 225). */
+  issueDay?: string;
 }): { subject: string; html: string } {
-  const { issue } = input;
+  const { issue, issueDay } = input;
+  const tag = issueDay
+    ? (url: string, section: NewsletterSection) => newsletterLink(url, section, issueDay)
+    : undefined;
+  const tagged = (url: string, section: NewsletterSection) =>
+    tag ? tag(url, section) : url;
   // Their note above everything (Step 144; above the greeting at Aalim's
   // ask), in Markdown: bold, italics, links and the rest (Step 159).
   const note = input.note?.trim();
   const lead = note
     ? `<div style="margin:0 0 28px;">${markdownEmailHtml(note)}</div>`
     : undefined;
-  const sections = issueSections(issue, input);
+  const sections = issueSections(issue, { ...input, tag });
 
   // A week with no stories asks for one (Step 144): written on whoever's
   // card they pick on My Family Tree.
   if (!issue.trees.some((t) => t.stories.length)) {
     sections.push(
-      `<p style="${HEADING}">Share a Story</p><p style="margin:8px 0 0;${TEXT}">No new stories this week. Write one about someone for the family to read.</p><div style="margin:12px 0 0;font-size:0;">${emailButton({ label: "write a story", url: input.familyUrl }, "outline")}</div>`,
+      `<p style="${HEADING}">Share a Story</p><p style="margin:8px 0 0;${TEXT}">No new stories this week. Write one about someone for the family to read.</p><div style="margin:12px 0 0;font-size:0;">${emailButton({ label: "write a story", url: tagged(input.familyUrl, "write-a-story") }, "outline")}</div>`,
     );
   }
 
@@ -85,8 +95,8 @@ export function newsletterEmail(input: {
       leadHtml: lead,
       heading: "Your family this week",
       contentHtml: sections.join(""),
-      cta: { label: "open my family tree", url: input.familyUrl },
-      secondaryCta: { label: "invite family", url: input.inviteUrl },
+      cta: { label: "open my family tree", url: tagged(input.familyUrl, "open") },
+      secondaryCta: { label: "invite family", url: tagged(input.inviteUrl, "invite") },
       footnoteHtml: `Sent weekly.
                   <a href="${unsubscribe}" style="color:#737373;">Unsubscribe</a>.`,
     }),
@@ -107,49 +117,60 @@ export function issueSections(
     personUrl,
     storyUrl,
     messagesUrl,
+    tag,
   }: {
     personUrl: (personId: string) => string;
     storyUrl: (storyId: string) => string;
     messagesUrl?: (userId?: string) => string;
+    /** Tags a link as one of a block of the email (Step 225): the weekly
+     *  newsletter's; the getting started win-back tags its own. */
+    tag?: (url: string, section: NewsletterSection) => string;
   },
 ): string[] {
-  const link = (n: IssueName) =>
-    `<a href="${escapeHtml(personUrl(n.id))}" style="${LINK}">${escapeHtml(oneLine(n.name))}</a>`;
+  // A link, tagged as the block it's in when the issue is (Step 225).
+  const tagged = (url: string, section: NewsletterSection) =>
+    tag ? tag(url, section) : url;
+  const linkIn = (section: NewsletterSection) => (n: IssueName) =>
+    `<a href="${escapeHtml(tagged(personUrl(n.id), section))}" style="${LINK}">${escapeHtml(oneLine(n.name))}</a>`;
   // "Yusuf Khan (your first cousin)", where there's a word for it.
-  const linkKin = (n: IssueName) =>
-    n.relation ? `${link(n)} (${escapeHtml(n.relation)})` : link(n);
+  const linkKinIn = (section: NewsletterSection) => (n: IssueName) =>
+    n.relation ? `${linkIn(section)(n)} (${escapeHtml(n.relation)})` : linkIn(section)(n);
 
   const sections: string[] = [];
   // Birthday cards to sign at the very top (Aalim, Step 223): each closes at
   // the end of the day, so it can't wait for the rest.
   if (issue.cards?.length) {
     sections.push(
-      `<p style="${HEADING}">Birthday Cards to Sign</p>${cardRows(issue.cards, linkKin)}`,
+      `<p style="${HEADING}">Birthday Cards to Sign</p>${cardRows(issue.cards, linkKinIn("cards"))}`,
     );
   }
   // Who's waiting on a reply before anything else (Step 180).
   if (messagesUrl && issue.messages.length) {
     sections.push(
-      `<p style="${HEADING}">Unread Messages</p>${unreadLines(issue.messages, messagesUrl)}`,
+      `<p style="${HEADING}">Unread Messages</p>${unreadLines(issue.messages, (userId) => tagged(messagesUrl(userId), "messages"))}`,
     );
   }
   // What's coming up first (Aalim, 2026-10-01), then each tree's news.
   if (issue.week.length) {
-    sections.push(`<p style="${HEADING}">This Week</p>${occasionRows(issue.week, link)}`);
+    sections.push(
+      `<p style="${HEADING}">This Week</p>${occasionRows(issue.week, linkIn("this-week"))}`,
+    );
   }
   if (issue.later.length) {
     sections.push(
-      `<p style="${HEADING}">Later This Month</p>${occasionRows(issue.later, link)}`,
+      `<p style="${HEADING}">Later This Month</p>${occasionRows(issue.later, linkIn("later"))}`,
     );
   }
   for (const tree of issue.trees) {
     const lines = [
-      ...(tree.joined.length ? [`${list(tree.joined, linkKin)} joined.`] : []),
-      ...tree.added.map((g) => addedLine(g, linkKin)),
-      ...tree.stories.map((st) => storyLine(st, storyUrl(st.id), link)),
+      ...(tree.joined.length ? [`${list(tree.joined, linkKinIn("news"))} joined.`] : []),
+      ...tree.added.map((g) => addedLine(g, linkKinIn("news"))),
+      ...tree.stories.map((st) =>
+        storyLine(st, tagged(storyUrl(st.id), "story"), linkIn("story")),
+      ),
       ...(tree.photos.length
         ? [
-            `${tree.photos.length === 1 ? "A new photo" : "New photos"} of ${list(tree.photos, link)}.`,
+            `${tree.photos.length === 1 ? "A new photo" : "New photos"} of ${list(tree.photos, linkIn("news"))}.`,
           ]
         : []),
     ];

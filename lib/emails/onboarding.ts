@@ -1,3 +1,4 @@
+import { taggedUrl } from "@/lib/campaign-url";
 import { escapeHtml } from "@/lib/email";
 import {
   HEADING,
@@ -49,13 +50,7 @@ export type OnboardingEmailInput = {
  * and the unsubscribe link goes untagged.
  */
 export function campaignUrl(url: string, email: string, link: string): string {
-  const tagged = new URL(url);
-  tagged.searchParams.set("utm_source", "ancestree");
-  tagged.searchParams.set("utm_medium", "email");
-  tagged.searchParams.set("utm_campaign", "getting-started");
-  tagged.searchParams.set("utm_content", email);
-  tagged.searchParams.set("utm_term", link);
-  return tagged.toString();
+  return taggedUrl(url, "getting-started", email, link);
 }
 
 /**

@@ -4,6 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { NotedToday, utcDay } from "@/lib/active-days";
 import type { Database } from "@/lib/database.types";
+import type { NewsletterSection } from "@/lib/newsletter-clicks";
 
 export function isSupabaseConfigured() {
   return Boolean(
@@ -67,4 +68,34 @@ export async function noteActiveDay(
   }
   // Signed in but not a member yet: ask again on their next request.
   if (data !== true) notedToday.release(userId);
+}
+
+/** Newsletter arrivals this server has told the database of (Step 225). */
+const clicksNoted = new Set<string>();
+const CLICKS_NOTED_MAX = 5_000;
+
+/**
+ * Notes that a signed-in member arrived from one of a weekly issue's tagged
+ * links (Step 225), for the analytics tab: once per member, block and issue
+ * to reach this server (the database counts each once anyway). A link
+ * opened signed out isn't counted, and neither is a router's prefetch. A
+ * failure is logged, and tried again on the next arrival.
+ */
+export async function noteNewsletterClick(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  click: { issueDay: string; section: NewsletterSection },
+): Promise<void> {
+  const key = `${userId}|${click.issueDay}|${click.section}`;
+  if (clicksNoted.has(key)) return;
+  if (clicksNoted.size >= CLICKS_NOTED_MAX) clicksNoted.clear();
+  clicksNoted.add(key);
+  const { error } = await supabase.rpc("note_newsletter_click", {
+    p_issue: click.issueDay,
+    p_section: click.section,
+  });
+  if (error) {
+    console.error("[newsletter-clicks] couldn't note it", error.code);
+    clicksNoted.delete(key);
+  }
 }

@@ -89,6 +89,15 @@ export default function PrivacyPage() {
             opened it, their IP address or their device.
           </li>
           <li>
+            For each weekly newsletter: how many were sent, and which of its
+            links members opened. Its links are tagged with the issue and the
+            part of the email they&rsquo;re in, the same for everyone. Opening
+            one while signed in counts once for that issue, kept only as a
+            scrambled number made from you and the issue, never what you do
+            next. We don&rsquo;t count who opens the email itself. Google
+            Analytics sees the tag too, as part of the address.
+          </li>
+          <li>
             While you have a tree open, its other members who have it open too
             see that you&rsquo;re there and where your pointer is. It&rsquo;s
             passed between you as it happens and never stored; people viewing

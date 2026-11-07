@@ -2042,6 +2042,47 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 225: Newsletter clicks, tagged links and an admin card** (web +
+  migration `20261107150000_newsletter_clicks`, live, statement md5
+  2bf61471…). **Asked for** (2026-11-07): Aalim wanted the newsletter's open
+  rate on the admin analytics tab, then, told that Apple Mail loads every
+  image so opens mean little and France's CNIL wants consent before they're
+  counted (deliberation 2026-042, 14 April 2026, §3.1), "clicks and opens";
+  this is the clicks, opens (our own pixel, only for members who opt in)
+  being a later step. **Now** every link of the weekly newsletter but the
+  unsubscribe one, and the reviewers' note's, carries `utm_source=ancestree`,
+  `utm_medium=email`, `utm_campaign=newsletter`, `utm_content=<block>` (cards,
+  messages, this-week, later, news, story, open, invite, write-a-story) and
+  `utm_term=<the issue's UTC day>`, the same for everyone
+  (`lib/newsletter-clicks.ts`, `newsletterEmail`'s `issueDay`; `campaignUrl`
+  of the getting started emails shares `taggedUrl`, `lib/campaign-url.ts`),
+  so Google Analytics shows them under Traffic acquisition's session
+  campaign `newsletter` as it shows Step 196's. The proxy counts a
+  signed-in member arriving by one (a GET that isn't the router's prefetch)
+  once per issue and block (`note_newsletter_click`): `private.newsletter_
+  clicks` keeps only md5 of the member with the issue, as Step 216 keeps an
+  invite visitor, at most 12 blocks a member an issue and only for an issue
+  that went out. `sendWeeklyNewsletters` records each real run
+  (`record_newsletter_issue`, before the first batch with none, then with how
+  many went; a test send to some members isn't an issue). The analytics tab's
+  **Newsletter Clicks** card (`newsletter_engagement()`, beta reviewers only)
+  shows the last 12 issues' sent, members who clicked and share, and which
+  blocks. `/privacy` says so. **Not counted:** opens; a link opened signed
+  out; a member whose entry-less `/family` redirect loses the tags in
+  Analytics (Step 196's known gap), though the proxy has already counted
+  them. **My calls:** counting in the proxy rather than a page beacon (one
+  place for every page a link opens; only a signed-in request counts, so
+  mail scanners and link previews don't); no /changelog entry (admin and
+  privacy only, as Step 216). **Checked:** a rolled-back rehearsal on live
+  (anon refused, a member's duplicate and unknown-issue and bad-block calls
+  ignored, a non-reviewer refused, a reviewer's answer right), then applied
+  and md5-matched; as the test reviewer on the dev server, arriving by a tagged
+  `/family` link noted one `open` row (a 32-character key, no member) and
+  the card showed it (sent 5, clicked 1, 20%), rows deleted after; Aalim's
+  real issue built from live data without sending had its Birthday Cards to
+  Sign, Write a Story, invite and main-button links tagged for 2026-11-08 and
+  only the unsubscribe link left plain.
+
 - **Step 223: Birthday cards to sign, at the top of the newsletter** (web
   + migration `20261107120000_newsletter_cards_to_sign`, live, statement
   md5 7e71e4b3…). **Asked for** (2026-11-07): "add that 'birthday cards to
