@@ -2042,6 +2042,30 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 223: Birthday cards to sign, at the top of the newsletter** (web
+  + migration `20261107120000_newsletter_cards_to_sign`, live, statement
+  md5 7e71e4b3…). **Asked for** (2026-11-07): "add that 'birthday cards to
+  sign' line at the top of the newsletter" (a started card told relatives
+  only in the app and on their phones). **Now** `newsletter_cards_to_sign
+  (p_users)` (service role, as `newsletter_unread_messages`) gives each
+  reader every card still open for signing (`now() < closes_at`) of
+  someone living, among whose `card_reminder_members` they are (the in-app
+  notice's audience: members whose My Family Tree shows the person, never
+  the person), that they haven't signed (signed in, or through their own
+  personal link). `buildWeeklyNewsletters` reads it beside the unread
+  messages and `weeklyIssue` turns it into `issue.cards`, soonest first,
+  named as the reader's trees name them with what they are to the reader,
+  else by the card's first name; one still to sign sends an otherwise
+  quiet week, and the reader's own is never named. The email's first
+  section is **Birthday Cards to Sign**, a row each as This Week draws them
+  ("Sat 28 Nov ✉️ Aly Rattansi (your brother)"), the name opening their
+  details on My Family Tree, where the card is; the preview line leads with
+  "1 card to sign". The getting started win-back shares the sections but
+  reads no cards. **Checked:** a rolled-back rehearsal, then live: Aly's
+  card (started 2026-11-07) reaches 10 readers, Safia's 6 (not Aalim, her
+  son-in-law: she isn't on his My Family Tree); Aalim's real issue built
+  without sending (otherwise a quiet week) opened with the section above.
+
 - **Step 221: Start a birthday card from the phone** (phone + one web
   route, no migration). **Asked for** (2026-11-07): Aalim couldn't find
   "start a card" for Aly and Safia (both Nov 28, both his to start) on

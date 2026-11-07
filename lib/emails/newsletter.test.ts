@@ -353,6 +353,31 @@ describe("newsletterEmail", () => {
     );
   });
 
+  it("puts birthday cards to sign above everything, each opening their card (Step 223)", () => {
+    const { html } = render(
+      issue({
+        cards: [
+          { id: "p-aly", name: "Aly Rattansi", relation: "your brother", date: "2026-11-28", daysAway: 21 },
+          { id: "p-zed", name: "Zed <Z>", date: "2026-11-08", daysAway: 1 },
+        ],
+        messages: [{ userId: "u2", name: "Yusuf Khan", unread: 3 }],
+      }),
+    );
+    expect(html).toContain("Birthday Cards to Sign");
+    expect(html.indexOf("Birthday Cards to Sign")).toBeLessThan(html.indexOf("Unread Messages"));
+    expect(html).toContain(
+      '&#9993;&#65039; <a href="https://www.ancestree.space/family?person=p-aly" style="color:#0a0a0a;text-decoration:underline;">Aly Rattansi</a> (your brother)',
+    );
+    expect(html).toContain("Sat 28 Nov");
+    expect(html).toContain("Tomorrow");
+    expect(html).toContain(">Zed &lt;Z&gt;</a>");
+  });
+
+  it("has no Birthday Cards to Sign with none to sign", () => {
+    expect(render(issue()).html).not.toContain("Birthday Cards to Sign");
+    expect(render(issue({ cards: [] })).html).not.toContain("Birthday Cards to Sign");
+  });
+
   it("has no Unread Messages with nothing unread", () => {
     expect(render(issue()).html).not.toContain("Unread Messages");
   });
@@ -365,6 +390,17 @@ describe("newsletterEmail", () => {
 });
 
 describe("preheaderOf", () => {
+  it("says how many cards wait to be signed first of all (Step 223)", () => {
+    expect(
+      preheaderOf(
+        issue({
+          cards: [{ id: "p-aly", name: "Aly Rattansi", date: "2026-11-28", daysAway: 21 }],
+          messages: [{ userId: "u2", name: "Yusuf Khan", unread: 3 }],
+        }),
+      ),
+    ).toMatch(/^1 card to sign · 3 unread messages · /);
+  });
+
   it("says how many messages are waiting before anything else (Step 180)", () => {
     expect(
       preheaderOf(

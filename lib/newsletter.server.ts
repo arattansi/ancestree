@@ -11,6 +11,7 @@ import {
   nextSendAt,
   weeklyIssue,
   type Issue,
+  type IssueCardRow,
   type IssuePlacement,
   type IssueUnreadRow,
   type NewsletterSchedule,
@@ -236,6 +237,16 @@ export async function buildWeeklyNewsletters(
     { p_users: due.map((r) => r.user_id) },
   );
   if (waitingError) throw new Error(`newsletter_waiting_messages: ${waitingError.message}`);
+  // The birthday cards each could sign and hasn't (Step 223), at the top.
+  const { data: cardRows, error: cardsError } = await createAdminClient().rpc(
+    "newsletter_cards_to_sign",
+    { p_users: due.map((r) => r.user_id) },
+  );
+  if (cardsError) throw new Error(`newsletter_cards_to_sign: ${cardsError.message}`);
+  const cardsBy = new Map<string, IssueCardRow[]>();
+  for (const c of cardRows ?? []) {
+    cardsBy.set(c.user_id, [...(cardsBy.get(c.user_id) ?? []), c]);
+  }
   const unreadBy = new Map<string, UnreadSender[]>();
   for (const u of [...(unread ?? []), ...(waiting ?? []).map((w) => ({ ...w, waiting: true }))]) {
     const list = unreadBy.get(u.user_id) ?? [];
@@ -243,7 +254,11 @@ export async function buildWeeklyNewsletters(
     unreadBy.set(u.user_id, list);
   }
   const { issues, failed } = await buildFamilyIssues(
-    due.map((r) => ({ ...r, unread: unreadBy.get(r.user_id) ?? [] })),
+    due.map((r) => ({
+      ...r,
+      unread: unreadBy.get(r.user_id) ?? [],
+      cards: cardsBy.get(r.user_id) ?? [],
+    })),
     now,
     { allStories },
   );
@@ -295,6 +310,8 @@ export type IssueReader = Pick<
 > & {
   /** Who has written that they haven't read (Step 180): the newsletter's. */
   unread?: readonly UnreadSender[];
+  /** Birthday cards they could sign and haven't (Step 223): the newsletter's. */
+  cards?: readonly IssueCardRow[];
 };
 
 /** One reader's issue, and where they invite family from. */
@@ -513,6 +530,7 @@ export async function buildFamilyIssues(
               person_id: profileOf.get(u.sender_id)?.self_person_id ?? null,
               display_name: profileOf.get(u.sender_id)?.display_name ?? null,
             })),
+            cards: r.cards,
             since: r.since,
             today,
           })

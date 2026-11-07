@@ -4745,6 +4745,16 @@ export type Database = {
         }[]
       }
       my_tree_request: { Args: never; Returns: string }
+      newsletter_cards_to_sign: {
+        Args: { p_users: string[] }
+        Returns: {
+          card_id: string
+          first_name: string
+          opens_on: string
+          person_id: string
+          user_id: string
+        }[]
+      }
       newsletter_due: {
         Args: { p_users?: string[] }
         Returns: {

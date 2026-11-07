@@ -172,7 +172,32 @@ export type IssueSender = {
   waiting?: boolean;
 };
 
+/**
+ * A birthday card the reader could sign and hasn't (Step 223), as
+ * `newsletter_cards_to_sign` finds it: still open for signing, of someone
+ * whose card would tell them in the app.
+ */
+export type IssueCardRow = {
+  card_id: string;
+  person_id: string;
+  /** Their first name, for when the reader's trees don't show them. */
+  first_name: string | null;
+  /** Their birthday, the day it opens: `YYYY-MM-DD`. */
+  opens_on: string;
+};
+
+/** A birthday card to sign (Step 223), soonest first. */
+export type IssueCard = IssueName & {
+  /** The birthday it opens on: `YYYY-MM-DD`. */
+  date: string;
+  /** Days from today: 0 on the day itself, still signable until it ends. */
+  daysAway: number;
+};
+
 export type Issue = {
+  /** Birthday cards they could sign and haven't, soonest first (Step 223);
+   *  only the weekly newsletter reads them. */
+  cards?: IssueCard[];
   /** Who has written that they haven't read, newest first (Step 180). */
   messages: IssueSender[];
   /** Only the trees with something to say, in the order the reader joined. */
@@ -206,6 +231,8 @@ export type IssueInput<R extends IssuePerson & { id: string }> = {
   memberEntries: ReadonlyMap<string, string>;
   /** Who has written that they haven't read (Step 180); none when left out. */
   unread?: readonly IssueUnreadRow[];
+  /** Birthday cards they could sign and haven't (Step 223); none when left out. */
+  cards?: readonly IssueCardRow[];
 
   /** The start of the week being told: an ISO timestamp. */
   since: string;
@@ -384,11 +411,44 @@ export function weeklyIssue<R extends IssuePerson & { id: string }>(
   });
   const newMessage = unread.some((u) => Date.parse(u.newest_at) >= since);
 
+  // Birthday cards to sign (Step 223), soonest first: named as their trees
+  // name them, with what they are to the reader, or by their first name
+  // where the reader's trees don't show them. One still open sends the
+  // issue in a week that's otherwise quiet: it won't wait.
+  const cardsToSign = [...(input.cards ?? [])]
+    .filter((c) => c.person_id !== input.selfId)
+    .map((c): IssueCard => {
+      const shown = cards.has(c.person_id);
+      const name = shown ? nameOf(c.person_id) : c.first_name?.trim() || "Someone";
+      const relation = shown ? relationTo(c.person_id) : undefined;
+      return {
+        id: c.person_id,
+        name,
+        ...(relation ? { relation } : {}),
+        date: c.opens_on,
+        daysAway: daysBetween(input.today, c.opens_on),
+      };
+    })
+    .sort((a, b) => a.daysAway - b.daysAway || a.name.localeCompare(b.name));
+
   const trees = [...byTree.values()].filter(
     (t) => t.joined.length || t.added.length || t.stories.length || t.photos.length,
   );
-  if (!trees.length && !week.length && !later.length && !newMessage) return null;
-  return { messages, trees, week, later };
+  if (!trees.length && !week.length && !later.length && !newMessage && !cardsToSign.length) {
+    return null;
+  }
+  return { cards: cardsToSign, messages, trees, week, later };
+}
+
+/** Whole days from one `YYYY-MM-DD` to another; never below 0. */
+function daysBetween(from: string, to: string): number {
+  const days = Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
+  return Number.isFinite(days) ? Math.max(0, days) : 0;
+}
+
+/** How many birthday cards are waiting to be signed (Step 223). */
+export function cardsCount(issue: Issue): number {
+  return issue.cards?.length ?? 0;
 }
 
 /** How many messages are waiting, everyone's together (Step 180). */

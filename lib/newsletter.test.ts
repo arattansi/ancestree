@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { FamilyLine, Showing } from "@/lib/my-family";
 import {
   addedCount,
+  cardsCount,
   isMilestone,
   isSendDay,
   nextSendAt,
@@ -570,5 +571,68 @@ describe("weeklyIssue: unread messages (Step 180)", () => {
     expect(issue?.messages).toEqual([
       expect.objectContaining({ userId: "u-aalim", unread: 2, waiting: true }),
     ]);
+  });
+});
+
+describe("weeklyIssue: birthday cards to sign (Step 223)", () => {
+  const card = (person: string, opensOn: string, first: string | null = null) => ({
+    card_id: `c-${person}`,
+    person_id: person,
+    first_name: first,
+    opens_on: opensOn,
+  });
+  const quietWeek = {
+    placements: [],
+    showings: Object.values(people).map((p) => showing(TREE.id, { ...p, date_of_birth: null })),
+    lines: lines.map((l) => ({ ...l, marriage_date: null })),
+  };
+
+  it("names each as the reader's trees name them, soonest first, with what they are", () => {
+    const issue = weeklyIssue(
+      input("u-karim", "karim", {
+        cards: [
+          card("aalim", "2026-10-30", "Aalim"),
+          card("gone", "2026-10-04", "  Zed  "),
+          card("dad", "2026-10-06", "Amir"),
+        ],
+      }),
+    );
+    expect(issue?.cards).toEqual([
+      // Not on Karim's trees: the first name the card gives, nothing more.
+      { id: "gone", name: "Zed", date: "2026-10-04", daysAway: 0 },
+      // No sex on the fixture, so the word for either.
+      { id: "dad", name: "Amir Rattansi", relation: "your aunt or uncle", date: "2026-10-06", daysAway: 2 },
+      {
+        id: "aalim",
+        name: "Aalim Rattansi",
+        relation: "your first cousin",
+        date: "2026-10-30",
+        daysAway: 26,
+      },
+    ]);
+  });
+
+  it("sends a quiet week for a card still to sign, and never names the reader's own", () => {
+    const quiet = weeklyIssue(input("u-karim", "karim", { ...quietWeek, cards: [] }));
+    expect(quiet).toBeNull();
+    const issue = weeklyIssue(
+      input("u-karim", "karim", { ...quietWeek, cards: [card("aalim", "2026-10-30")] }),
+    );
+    expect(issue?.cards?.map((c) => c.id)).toEqual(["aalim"]);
+    const own = weeklyIssue(
+      input("u-karim", "karim", { ...quietWeek, cards: [card("karim", "2026-10-08")] }),
+    );
+    expect(own).toBeNull();
+  });
+
+  it("has none when there are none", () => {
+    expect(weeklyIssue(input("u-karim", "karim"))?.cards).toEqual([]);
+  });
+
+  it("counts them for the preview line", () => {
+    const issue = weeklyIssue(
+      input("u-karim", "karim", { cards: [card("aalim", "2026-10-30"), card("dad", "2026-10-06")] }),
+    );
+    expect(issue && cardsCount(issue)).toBe(2);
   });
 });
