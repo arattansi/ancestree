@@ -2042,6 +2042,26 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 227: A birthday card nobody could start gets someone who can**
+  (migration `20261107173000_card_managers_fallback` only). **Found** in
+  Step 224 (2026-11-07): nobody could start Lucan's card (18 Nov). He's the
+  only Root of The White Family, his parents and three siblings have no
+  account, and on one tree `card_managers` stopped at the Roots, a tending
+  Branch and a spouse or parent who's a member, never the person; Elizabeth,
+  his parent's first cousin and the tree's other member, would have been
+  reminded to sign. **Aalim's calls:** with no spouse, parent, Root or Branch,
+  sibling or child members manage it, on one tree as on several; with still
+  nobody, anyone reminded to sign (`card_reminder_members`); either way in
+  full, as any manager. **Now** `private.card_managers` (re-created from
+  `20261030090000_birthday_cards`, live body asserted) falls back in that
+  order, the several-trees home-Roots fallback (decision 4) kept before the
+  last. **Checked** in a rolled-back rehearsal on live: of the 27 members
+  with an account only Lucan's managers changed (none → Elizabeth); the
+  nudges would tell Elizabeth "Lucan's birthday is on 18 November. Start a
+  card for the family to sign?" and her newsletter would list him under
+  Birthday Cards to Start. Firdous (11 Jan) is alone on her tree: still
+  nobody, as no rule could help.
+
 - **Step 224: Told when a birthday card can be started** (web + migration
   `20261107160000_card_start_notices`; no phone change). **Asked for**
   (2026-11-07): "build a notification for users when a birthday card can be

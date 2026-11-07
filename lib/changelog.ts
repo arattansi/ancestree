@@ -20,6 +20,14 @@ export type ChangelogEntry = {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-11-07",
+    title: "a birthday card for everyone",
+    items: [
+      "when nobody who'd usually start someone's birthday card is on ancestree, their brothers, sisters or children can start it, or else the family who'd sign it.",
+    ],
+    steps: [227],
+  },
+  {
+    date: "2026-11-07",
     title: "when to start a birthday card",
     items: [
       "if you can start someone's birthday card, you now hear as soon as you can, a month before their birthday, and again two weeks before if nobody has.",
