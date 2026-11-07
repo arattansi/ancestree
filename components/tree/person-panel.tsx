@@ -2,18 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import {
-  Flag,
-  Flower2,
-  HeartPulse,
-  Lightbulb,
-  Loader2Icon,
-  Mail,
-  MessageSquare,
-  Minimize2,
-  Pencil,
-  UserPlus,
-} from "lucide-react";
+import { Flag, Loader2Icon, Mail, Minimize2, UserPlus } from "lucide-react";
 
 import { claimPerson } from "@/app/actions/claims";
 import { switchTreeForm } from "@/app/actions/current-tree";
@@ -23,6 +12,7 @@ import { describeClaimInvite, type EntryInvite } from "@/lib/claim-invites";
 import type { Relation } from "@/lib/connection-path";
 import type { PanelSuggestion } from "@/lib/connection-suggestions";
 import { AccountTypeBadge } from "@/components/account-type-badge";
+import { actionRow, actionRowButton } from "@/components/action-row";
 import { AncestralLands } from "@/components/ancestral-lands";
 import { ClaimInviteControls } from "@/components/claim-invite-controls";
 import { ConfirmButton } from "@/components/confirm-dialog";
@@ -120,10 +110,10 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 /**
- * A link drawn like the badges it sits beside, the account type tag's size
- * (Step 88.1), with a whole 44px to press on a touch screen.
+ * A link drawn as a button of the sheet's row, invite's and copy link's
+ * size (Step 222).
  */
-function TagLink({
+function ActionLink({
   href,
   title,
   children,
@@ -133,92 +123,91 @@ function TagLink({
   children: React.ReactNode;
 }) {
   return (
-    <Badge
+    <Button
       variant="outline"
+      size="sm"
+      nativeButton={false}
       render={<Link href={href} title={title} />}
-      className="relative tap-target overflow-visible"
+      className={actionRowButton}
     >
       {children}
-    </Badge>
+    </Button>
   );
 }
 
 /**
- * `TagLink` to a page on another tree than the one the browser remembers
+ * `ActionLink` to a page on another tree than the one the browser remembers
  * (Step 92.3: from My Family Tree, a card's own): a button that switches
  * to that tree first and stays busy until the page arrives, as
  * `TreeTarget` does. On the remembered tree it's the plain link.
  */
-function TagTreeLink({
+function ActionTreeLink({
   treeId,
   currentTreeId,
   href,
   title,
-  icon,
   children,
 }: {
   treeId: string;
   currentTreeId: string | null;
   href: string;
   title?: string;
-  icon: React.ReactNode;
   children: React.ReactNode;
 }) {
   const go = useAction();
   if (treeId === currentTreeId) {
     return (
-      <TagLink href={href} title={title}>
-        {icon}
+      <ActionLink href={href} title={title}>
         {children}
-      </TagLink>
+      </ActionLink>
     );
   }
   return (
-    <Badge
+    <Button
+      type="button"
       variant="outline"
-      render={
-        <button
-          type="button"
-          title={title}
-          disabled={go.pending}
-          aria-busy={go.pending || undefined}
-          onClick={() => go.run("open", () => switchTreeForm(treeId, href))}
-        />
-      }
-      className="relative tap-target overflow-visible hover:bg-muted hover:text-muted-foreground disabled:opacity-70"
+      size="sm"
+      title={title}
+      disabled={go.pending}
+      focusableWhenDisabled={go.pending}
+      aria-busy={go.pending || undefined}
+      onClick={() => go.run("open", () => switchTreeForm(treeId, href))}
+      className={cn(actionRowButton, "disabled:opacity-70")}
     >
-      {go.pending ? <Loader2Icon aria-hidden className="animate-spin" /> : icon}
+      {go.pending ? <Loader2Icon aria-hidden className="animate-spin" /> : null}
       {children}
-    </Badge>
+    </Button>
   );
 }
 
-/** A button drawn like `TagLink` beside it. */
-function TagButton({
+/**
+ * A button of the sheet's row beside `ActionLink`. With only an icon it's
+ * square, the row's height, and leaves the rest the width.
+ */
+function ActionButton({
   title,
   onClick,
+  iconOnly = false,
   children,
 }: {
   /** Its name, for a button that shows only an icon. */
   title: string;
   onClick: () => void;
+  iconOnly?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <Badge
+    <Button
+      type="button"
       variant="outline"
-      render={
-        <button
-          type="button"
-          onClick={onClick}
-          aria-label={title}
-          title={title}
-        />
-      }
-      className="relative tap-target overflow-visible hover:bg-muted hover:text-muted-foreground"
+      size={iconOnly ? "icon-sm" : "sm"}
+      onClick={onClick}
+      aria-label={title}
+      title={title}
+      className={iconOnly ? "relative tap-target" : actionRowButton}
     >
       {children}
-    </Badge>
+    </Button>
   );
 }
 
@@ -559,32 +548,119 @@ function PersonPanelImpl({
       </ConfirmButton>
     ) : null;
 
+  // What may be done with the entry, as buttons of one size in one row
+  // under the badges (Step 222; in the header since Step 62, so they're
+  // found without scrolling). Anyone who can't edit the entry can suggest
+  // a change (Step 67), or report a problem with it (Step 88.2).
+  const actions =
+    !person || locked ? null : (
+      <>
+        {messageTo || inviteToChat ? (
+          <ActionButton
+            title="Message"
+            onClick={() =>
+              messageTo
+                ? void messenger.openWith(messageTo)
+                : messenger.openInvite({
+                    personId: person.id,
+                    name: personDisplayName(person),
+                    firstName: (
+                      person.preferred_name ||
+                      person.first_name ||
+                      ""
+                    ).trim(),
+                    photoUrl: person.photo_card_url,
+                    photoCrop: person.photo_crop,
+                    treeId,
+                    treeName,
+                    canInvite: !!chatInvite?.canInvite,
+                    invites: claimInvites,
+                  })
+            }
+          >
+            message
+          </ActionButton>
+        ) : null}
+        {canEdit || fillable ? (
+          inView ? (
+            <ActionTreeLink
+              treeId={treeId}
+              currentTreeId={currentTreeId}
+              href={editPersonHref(person.id, { fromFamily: true })}
+              title={canEdit ? undefined : "Fill in what’s missing"}
+            >
+              {canEdit && !placeholder ? "edit" : "fill in"}
+            </ActionTreeLink>
+          ) : (
+            <ActionLink
+              href={editPersonHref(person.id)}
+              title={canEdit ? undefined : "Fill in what’s missing"}
+            >
+              {canEdit && !placeholder ? "edit" : "fill in"}
+            </ActionLink>
+          )
+        ) : null}
+        {canMarkLife ? (
+          <ActionButton
+            title={person.is_deceased ? "Mark as living" : "Mark as deceased"}
+            onClick={() => setMarkingLife(true)}
+          >
+            {person.is_deceased ? "living" : "deceased"}
+          </ActionButton>
+        ) : null}
+        {!canEdit && !placeholder ? (
+          inView ? (
+            <ActionTreeLink
+              treeId={treeId}
+              currentTreeId={currentTreeId}
+              href={suggestChangeHref(person.id, undefined, {
+                fromFamily: true,
+              })}
+              title="Suggest a change"
+            >
+              suggest
+            </ActionTreeLink>
+          ) : (
+            <ActionLink
+              href={suggestChangeHref(person.id)}
+              title="Suggest a change"
+            >
+              suggest
+            </ActionLink>
+          )
+        ) : null}
+        {canReport ? (
+          <ActionButton
+            title="Report a problem"
+            iconOnly
+            onClick={() => setReporting(true)}
+          >
+            <Flag aria-hidden />
+          </ActionButton>
+        ) : null}
+      </>
+    );
+
   // Nobody is behind this entry yet, and it is the viewer's to hand over
   // (`canInviteToClaim`): theirs to edit, or a card their tree shows and
   // they're its Root (Step 84). The server asks the database the same thing
-  // before minting the link. Under the header since Step 162, by email or
-  // as a link, a basic card's too.
-  const inviteToClaim = !person || readOnly ? null : canInviteToClaim ? (
-    <div className="flex flex-col gap-2">
-      <ClaimInviteRecords invites={claimInvites} />
-      <ClaimInviteControls
-        // A new person, a fresh box: what was typed for the last one goes.
-        key={person.id}
-        personId={person.id}
-        personName={personDisplayName(person)}
-        treeId={treeId}
-        treeName={treeName}
-        emailLabel={
-          placeholder
-            ? "invite them"
-            : `invite ${(person.preferred_name || person.first_name || "them").trim()}`
-        }
-      />
-    </div>
-  ) : claimInvites.length > 0 ? (
-    // Everyone else on the tree still sees that it's in hand.
-    <ClaimInviteRecords invites={claimInvites} />
-  ) : null;
+  // before minting the link. By email or as a link, a basic card's too
+  // (Step 162), leading the row of buttons (Step 222).
+  const actionRowControls = !person ? null : !readOnly && canInviteToClaim ? (
+    <ClaimInviteControls
+      // A new person, a fresh box: what was typed for the last one goes.
+      key={person.id}
+      personId={person.id}
+      personName={personDisplayName(person)}
+      treeId={treeId}
+      treeName={treeName}
+      // Their name is the sheet's title, so the four fit one line.
+      emailLabel="invite"
+      more={actions}
+    />
+  ) : (
+    <div className={actionRow}>{actions}</div>
+  );
 
   // A different person: what was open for the last one closes.
   if (person?.id !== prevId) {
@@ -746,11 +822,7 @@ function PersonPanelImpl({
                   </div>
                 </div>
               )}
-              {/* The edit button sits at the end of the badges, the account
-                  type tag's size (Step 88.1; in the header since Step 62, so
-                  it's found without scrolling). Anyone who can't edit the
-                  entry can suggest a change (Step 67), or report a problem
-                  with it (Step 88.2). */}
+              {/* The badges, then the row of buttons under them (Step 222). */}
               <div className="flex flex-wrap items-center gap-1.5 empty:hidden">
                 {kinship ? (
                   <Badge variant="outline" title={kinship.detail}>
@@ -771,107 +843,8 @@ function PersonPanelImpl({
                 {person.account_type ? (
                   <AccountTypeBadge role={person.account_type} />
                 ) : null}
-                {!locked ? (
-                  <span className="ml-auto flex gap-1.5">
-                    {messageTo || inviteToChat ? (
-                      <TagButton
-                        title="Message"
-                        onClick={() =>
-                          messageTo
-                            ? void messenger.openWith(messageTo)
-                            : messenger.openInvite({
-                                personId: person.id,
-                                name: personDisplayName(person),
-                                firstName: (
-                                  person.preferred_name ||
-                                  person.first_name ||
-                                  ""
-                                ).trim(),
-                                photoUrl: person.photo_card_url,
-                                photoCrop: person.photo_crop,
-                                treeId,
-                                treeName,
-                                canInvite: !!chatInvite?.canInvite,
-                                invites: claimInvites,
-                              })
-                        }
-                      >
-                        <MessageSquare aria-hidden />
-                        message
-                      </TagButton>
-                    ) : null}
-                    {canEdit || fillable ? (
-                      inView ? (
-                        <TagTreeLink
-                          treeId={treeId}
-                          currentTreeId={currentTreeId}
-                          href={editPersonHref(person.id, { fromFamily: true })}
-                          title={canEdit ? undefined : "Fill in what’s missing"}
-                          icon={<Pencil aria-hidden />}
-                        >
-                          {canEdit && !placeholder ? "edit" : "fill in"}
-                        </TagTreeLink>
-                      ) : (
-                        <TagLink
-                          href={editPersonHref(person.id)}
-                          title={canEdit ? undefined : "Fill in what’s missing"}
-                        >
-                          <Pencil aria-hidden />
-                          {canEdit && !placeholder ? "edit" : "fill in"}
-                        </TagLink>
-                      )
-                    ) : null}
-                    {canMarkLife ? (
-                      <TagButton
-                        title={
-                          person.is_deceased
-                            ? "Mark as living"
-                            : "Mark as deceased"
-                        }
-                        onClick={() => setMarkingLife(true)}
-                      >
-                        {person.is_deceased ? (
-                          <HeartPulse aria-hidden />
-                        ) : (
-                          <Flower2 aria-hidden />
-                        )}
-                        {person.is_deceased ? "living" : "deceased"}
-                      </TagButton>
-                    ) : null}
-                    {!canEdit && !placeholder ? (
-                      inView ? (
-                        <TagTreeLink
-                          treeId={treeId}
-                          currentTreeId={currentTreeId}
-                          href={suggestChangeHref(person.id, undefined, {
-                            fromFamily: true,
-                          })}
-                          title="Suggest a change"
-                          icon={<Lightbulb aria-hidden />}
-                        >
-                          suggest
-                        </TagTreeLink>
-                      ) : (
-                        <TagLink
-                          href={suggestChangeHref(person.id)}
-                          title="Suggest a change"
-                        >
-                          <Lightbulb aria-hidden />
-                          suggest
-                        </TagLink>
-                      )
-                    ) : null}
-                    {canReport ? (
-                      <TagButton
-                        title="Report a problem"
-                        onClick={() => setReporting(true)}
-                      >
-                        <Flag aria-hidden />
-                      </TagButton>
-                    ) : null}
-                  </span>
-                ) : null}
               </div>
+              {actionRowControls}
               {placeholder ? null : familyAdd ? (
                 // From the person on My Family Tree: the trees showing them
                 // where the viewer may add (Step 92.3).
@@ -896,7 +869,9 @@ function PersonPanelImpl({
 
             <div className="flex flex-col gap-6 px-4 pb-6">
               {connectionPrompt}
-              {inviteToClaim}
+              {/* Who's been asked to claim it: everyone on the tree sees
+                  that it's in hand. */}
+              {readOnly ? null : <ClaimInviteRecords invites={claimInvites} />}
               {waiting ? (
                 <p className="rounded-md border border-dashed border-border bg-muted/40 px-3 py-2.5 text-sm text-muted-foreground">
                   {waiting}

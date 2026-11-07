@@ -19,6 +19,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "2026-11-07",
+    title: "a person's buttons in one row",
+    items: [
+      "invite, copy link, message and edit now sit together under a person's name in their details, all the same size. on a phone they're two to a line.",
+    ],
+    steps: [222],
+  },
+  {
     date: "2026-11-03",
     title: "branches mark who has died",
     items: [

@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import { makeClaimLink, sendClaimInvite } from "@/app/actions/invites";
+import { actionRow, actionRowButton } from "@/components/action-row";
 import { copyText } from "@/components/copy-text";
 import { PendingButton } from "@/components/pending-button";
 import { noteShared } from "@/components/share-message";
@@ -32,6 +33,7 @@ export function ClaimInviteControls({
   treeName,
   emailLabel = "email",
   head,
+  more,
   className,
 }: {
   personId: string;
@@ -42,9 +44,16 @@ export function ClaimInviteControls({
   /** The email button's label. */
   emailLabel?: string;
   head?: React.ReactNode;
+  /**
+   * More buttons after the two, on their row and their size (`actionRow`):
+   * the person sheet's message and edit (Step 222). Given at all, even as
+   * null, the two take the row's sizing.
+   */
+  more?: React.ReactNode;
   className?: string;
 }) {
   const id = React.useId();
+  const inRow = more !== undefined;
   const [open, setOpen] = React.useState(false);
   const [email, setEmail] = React.useState("");
   const [made, setMade] = React.useState<{ url: string; token?: string } | null>(null);
@@ -80,11 +89,12 @@ export function ClaimInviteControls({
     <div className={cn("flex flex-col gap-2", className)}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         {head}
-        <div className="flex gap-2">
+        <div className={inRow ? cn(actionRow, "w-full") : "flex gap-2"}>
           <Button
             type="button"
             variant={open ? "secondary" : "outline"}
             size="sm"
+            className={inRow ? actionRowButton : undefined}
             aria-expanded={open}
             aria-controls={`${id}-email`}
             onClick={() => setOpen(!open)}
@@ -95,6 +105,7 @@ export function ClaimInviteControls({
             type="button"
             variant="outline"
             size="sm"
+            className={inRow ? actionRowButton : undefined}
             pending={action.pendingKey === "link"}
             pendingLabel="making…"
             disabled={action.pending}
@@ -102,6 +113,7 @@ export function ClaimInviteControls({
           >
             copy link
           </PendingButton>
+          {more}
         </div>
       </div>
 

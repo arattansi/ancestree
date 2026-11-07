@@ -2042,6 +2042,29 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 222: the person sheet's buttons, one size in one row** (web only,
+  no migration). **Asked for** (2026-11-07): "update the invite, copy link,
+  message, and edit node buttons to be same size and in line with each
+  other". **Found** message and edit drawn as badge-sized tags at the end
+  of the badges (Step 88.1), and invite + copy link as `sm` buttons in the
+  body under the header (Step 162). **Now** every action on the entry is an
+  `sm` outline button in one row under the badges (`components/action-row.ts`):
+  invite, copy link, message, edit, then deceased / living (Step 218),
+  suggest and report, a square flag that leaves the rest the width. Each
+  grows from nothing, so they're equal across a desktop sheet (81.8 × 28 px
+  each with four), and starts at half the row on a phone (two to a line); a
+  label wider than its share keeps its width and what no longer fits wraps.
+  With icons the four needed 374 px of the row's 351, and "invite Ada"
+  pushed a long name onto a second line, so the row has no icons and the
+  invite button reads "invite": the sheet's title is the name.
+  `ClaimInviteControls` takes `more`, the buttons after its two, and given
+  at all (even null, as on a locked entry) sizes its two for the row; the
+  admin console's rows pass none and are unchanged. Who's been asked to
+  claim stays in the body. **Checked** as a throwaway Root on the dev
+  server: four equal on a desktop sheet, 2 × 2 on a phone, the email box
+  opening under the row, edit alone filling it on your own entry; deleted
+  after.
+
 - **Step 220: Vercel Web Analytics and Speed Insights** (web only, no
   migration). **Asked for** (2026-11-05): "set up web analytics and
   everything for ancestree on vercel". **Found** Web Analytics switched on
