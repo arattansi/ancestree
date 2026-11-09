@@ -7,7 +7,7 @@ import {
   reminderStageDue,
   type ReminderStage,
 } from "@/lib/invite-reminders";
-import { inviteUrl } from "@/lib/invite-mint.server";
+import { mailedInviteUrl } from "@/lib/invite-mint.server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /** What a run did, for the cron job's answer and the logs: counts only. */
@@ -73,7 +73,7 @@ export async function sendInviteReminders(
         entryName: row.claim_person_name,
         placeholder: row.placeholder,
         daysLeft: daysLeft(row.expires_at, now),
-        url: inviteUrl(row.token),
+        url: mailedInviteUrl(row.token),
       }),
     })),
   );

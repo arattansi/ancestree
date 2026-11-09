@@ -19,6 +19,9 @@ const INITIAL_CODE: InviteSignInCodeState = {};
 /**
  * One-button accept for an invite that was emailed to someone: the link
  * reaching their inbox is the verification, so there is no second email.
+ * That's the email's own link, which carries `inviteKey` (audit H3). Opened
+ * from any other copy of it (`oneTap` false), the button emails the
+ * invite's address a code instead, entered here to join.
  * `consentGiven` skips the checkbox for people who ticked it when they asked
  * to join. An address that already has an account is offered a sign-in
  * code instead (Step 30.8). Signed out, the page opens on that for such an
@@ -27,11 +30,17 @@ const INITIAL_CODE: InviteSignInCodeState = {};
  */
 export function AcceptInviteForm({
   inviteToken,
+  inviteKey,
+  oneTap,
   email,
   consentGiven,
   founds = false,
 }: {
   inviteToken: string;
+  /** The key the email's link carried, if this is that link. */
+  inviteKey?: string;
+  /** Accepting signs them in; otherwise it emails `email` a code. */
+  oneTap: boolean;
   email: string;
   consentGiven: boolean;
   founds?: boolean;
@@ -39,6 +48,15 @@ export function AcceptInviteForm({
   const [state, formAction, pending] = useActionState(acceptInvite, INITIAL);
   const [consented, setConsented] = useState(consentGiven);
 
+  if (state.codeSentTo && state.codeSentAt) {
+    return (
+      <SignInToAccept
+        inviteToken={inviteToken}
+        email={email}
+        sent={{ email: state.codeSentTo, sentAt: state.codeSentAt }}
+      />
+    );
+  }
   if (state.alreadyMember) {
     return <SignInToAccept inviteToken={inviteToken} email={email} />;
   }
@@ -46,6 +64,7 @@ export function AcceptInviteForm({
   return (
     <form action={formAction} className="flex flex-col gap-4">
       <input type="hidden" name="inviteToken" value={inviteToken} />
+      {inviteKey ? <input type="hidden" name="inviteKey" value={inviteKey} /> : null}
       <p className="text-sm text-muted-foreground">
         You&rsquo;ll join as{" "}
         <span className="font-medium text-foreground">{email}</span>.
@@ -73,7 +92,13 @@ export function AcceptInviteForm({
       ) : null}
 
       <Button type="submit" disabled={pending || !consented}>
-        {pending ? "opening the tree…" : "accept & open the tree"}
+        {oneTap
+          ? pending
+            ? "opening the tree…"
+            : "accept & open the tree"
+          : pending
+            ? "sending…"
+            : "email me a code"}
       </Button>
     </form>
   );

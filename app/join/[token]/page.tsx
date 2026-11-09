@@ -26,6 +26,7 @@ import { verifiedEmail } from "@/lib/first-timer";
 import { firstName, glimpseCount, UNNAMED_INVITER } from "@/lib/invite-glimpse";
 import { readInviteGlimpse } from "@/lib/invite-glimpse.server";
 import { sentToAnotherAddress } from "@/lib/invite-address";
+import { INVITE_KEY_PARAM, isInviteKey } from "@/lib/invite-key.server";
 import { lapsedState, relativesOnTree } from "@/lib/lapsed-invites";
 import { isNoEmailAddress } from "@/lib/no-email";
 import { readSentCodeFor } from "@/lib/sent-code.server";
@@ -47,10 +48,16 @@ export const metadata: Metadata = {
 
 export default async function InvitePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ token: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { token } = await params;
+  // The key the email's own link carries (audit H3): with it, accepting
+  // signs its address in; without, that address is emailed a code.
+  const keyParam = (await searchParams)[INVITE_KEY_PARAM];
+  const inviteKey = typeof keyParam === "string" && isInviteKey(token, keyParam) ? keyParam : undefined;
   const supabase = await createClient();
 
   // Everything that needs only the token or the session, at once (Step
@@ -221,8 +228,10 @@ export default async function InvitePage({
                     ? "You’re signed in with the address it was sent to — there is nothing else to set up."
                     : signInFirst
                       ? "Signing in adds it to your trees."
-                      : recipient
-                        ? "Accepting signs you in — there is nothing else to set up."
+                      : recipient && !inviteKey
+                        ? "We’ll email you a code to join."
+                        : recipient
+                          ? "Accepting signs you in — there is nothing else to set up."
                         : invite.openToNoEmail
                           ? "Enter your name to join."
                           : "Enter your name and email, and we’ll email you a code to join."}
@@ -285,6 +294,8 @@ export default async function InvitePage({
               ) : recipient ? (
                 <AcceptInviteForm
                   inviteToken={token}
+                  inviteKey={inviteKey}
+                  oneTap={Boolean(inviteKey) || signedInAsRecipient}
                   email={recipient.email}
                   consentGiven={recipient.requested}
                   founds={founds}

@@ -2,7 +2,7 @@ import "server-only";
 
 import { sendEmail } from "@/lib/email";
 import { treeInviteEmail } from "@/lib/emails/tree-invite";
-import { inviteUrl } from "@/lib/invite-mint.server";
+import { mailedInviteUrl } from "@/lib/invite-mint.server";
 import { inviteRenewedNotice, lapsedState, type LapsedState } from "@/lib/lapsed-invites";
 import { INVITE_LIFETIME_DAYS } from "@/lib/limits";
 import { personDisplayName } from "@/lib/person-name";
@@ -68,7 +68,7 @@ export async function renewLapsedInvite(token: string): Promise<RenewInviteState
       record?.first_name || entry?.preferred_name || entry?.first_name || entryName || "",
     inviterName: inviter?.display_name ?? "A family member",
     treeName,
-    url: inviteUrl(renewed.invite_token),
+    url: mailedInviteUrl(renewed.invite_token),
     entryName,
     placeholder: entry?.placeholder_number != null,
   });

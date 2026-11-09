@@ -41,10 +41,12 @@ export const TOKEN_PLACEHOLDER = ":token";
 
 /**
  * Query parameters that are secrets themselves, left out: a sign-in
- * email's one-time token, the invite a sign-in redeems, and the codes and
- * tokens Supabase's own redirects can carry.
+ * email's one-time token, the invite a sign-in redeems, the key an emailed
+ * invite's link carries (`INVITE_KEY_PARAM`), and the codes and tokens
+ * Supabase's own redirects can carry.
  */
 const SECRET_PARAMS = new Set([
+  "k",
   "token_hash",
   "token",
   "invite",
