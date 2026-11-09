@@ -89,6 +89,8 @@ const PERSON_COLUMNS =
 const LINE_COLUMNS =
   "tree_id, id, from_person, to_person, type, is_divorced, marriage_date, marriage_month, marriage_day";
 
+const UNREAD = "Your trees couldn't be read.";
+
 /** How many rows PostgREST answers with at most (the project's `max_rows`). */
 const PAGE = 1000;
 
@@ -98,7 +100,7 @@ async function readPaged<T>(
   const rows: T[] = [];
   for (let from = 0; ; from += PAGE) {
     const { data, error } = await read(from, from + PAGE - 1);
-    if (error) throw new Error("Your trees couldn't be read.");
+    if (error) throw new Error(UNREAD);
     rows.push(...(data ?? []));
     if ((data ?? []).length < PAGE) return rows;
   }
@@ -126,13 +128,22 @@ export async function loadFamily(
       .eq("auth_user_id", userId)
       .maybeSingle();
   const readTrees = () => supabase.from("my_trees").select("id, name, role").order("joined_at");
-  let [{ data: profile }, { data: trees }] = await Promise.all([readProfile(), readTrees()]);
+  // A read that failed says nothing about whether they're on a tree: it
+  // throws, for "try again", and never passes for "Not on a tree yet".
+  const read = async () => {
+    const [profile, trees] = await Promise.all([readProfile(), readTrees()]);
+    if (profile.error || trees.error) throw new Error(UNREAD);
+    return { profile: profile.data, trees: trees.data };
+  };
+  let { profile, trees } = await read();
   if (!profile) {
     // What the web does after a code sign-in (`establishMembership`): make
     // the profile an accepted invite or a tree of their own entitles them to.
     const { error } = await supabase.rpc("ensure_profile", {});
-    if (error) return "no-profile";
-    [{ data: profile }, { data: trees }] = await Promise.all([readProfile(), readTrees()]);
+    // Only the database's own no (42501: nothing entitles them) is one.
+    if (error?.code === "42501") return "no-profile";
+    if (error) throw new Error(UNREAD);
+    ({ profile, trees } = await read());
     if (!profile) return "no-profile";
   }
   if (!profile.self_person_id) return "no-entry";
