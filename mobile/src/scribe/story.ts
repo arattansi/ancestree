@@ -47,6 +47,15 @@ async function askServer(
   if (!token) throw new ScribeError("Sign in again.");
   let response: Response;
   try {
+    // A long write-up answers nothing for a minute or two (the route's
+    // `maxDuration` is 300), and this plain fetch waits for it: Expo 57's
+    // fetch sets `timeoutInterval = 0` on its request (`expo/ios/Fetch/
+    // ExpoURLSessionTask.swift`), which lifts URLSession's 60 s of silence
+    // (tried on the iOS 27 simulator, 2026-11-09: a silent server answered
+    // after 290 s, and the same request left at the default failed at 60 s),
+    // and Android's client has no read timeout (`OkHttpClientProvider`).
+    // `EXPO_PUBLIC_USE_RN_FETCH`, or a custom session configuration, would
+    // change that: stream the answer then.
     response = await fetch(`${SITE}${path}`, {
       method: "POST",
       headers: {
