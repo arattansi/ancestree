@@ -10,6 +10,8 @@ import {
   messagePush,
   PUSH_BATCH,
   pushBatches,
+  pushIsFor,
+  readPushForget,
   storyPush,
   type ExpoPush,
 } from "@/lib/push";
@@ -146,6 +148,35 @@ describe("addressPushes", () => {
     );
     expect(pushes.map((p) => p.to)).toEqual(["ExponentPushToken[a1]", "ExponentPushToken[a2]"]);
     expect(pushes.every((p) => p.sound === "default" && p.title === "Hassan")).toBe(true);
+  });
+
+  it("says in each push whose it is, beside what it opens", () => {
+    const note = messagePush({ senderName: "Hassan", conversationId: CONVERSATION });
+    const [push] = addressPushes([{ userId: "a", note }], [{ user_id: "a", token: "ExponentPushToken[a1]" }]);
+    expect(push.data).toEqual({ kind: "message", conversationId: CONVERSATION, userId: "a" });
+    expect(note.data).toEqual({ kind: "message", conversationId: CONVERSATION });
+  });
+});
+
+describe("pushIsFor", () => {
+  it("is for whoever it names, and for anyone when it names nobody", () => {
+    expect(pushIsFor({ kind: "story", userId: "a" }, "a")).toBe(true);
+    expect(pushIsFor({ kind: "story", userId: "a" }, "b")).toBe(false);
+    expect(pushIsFor({ kind: "story", userId: "a" }, null)).toBe(false);
+    expect(pushIsFor({ kind: "story" }, "b")).toBe(true);
+    expect(pushIsFor(undefined, "b")).toBe(true);
+  });
+});
+
+describe("readPushForget", () => {
+  it("takes an Expo token and a member's id, and nothing else", () => {
+    const ok = { token: "ExponentPushToken[abc-123_x]", userId: PERSON };
+    expect(readPushForget(ok)).toEqual(ok);
+    expect(readPushForget({ ...ok, more: 1 })).toEqual(ok);
+    expect(readPushForget({ ...ok, token: "abc" })).toBeNull();
+    expect(readPushForget({ ...ok, userId: "me" })).toBeNull();
+    expect(readPushForget({ token: ok.token })).toBeNull();
+    expect(readPushForget(null)).toBeNull();
   });
 });
 

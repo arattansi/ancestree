@@ -1,9 +1,11 @@
 import { isAuthRetryableFetchError, type Session } from "@supabase/supabase-js";
 import * as React from "react";
+import { AppState } from "react-native";
 
 import { storedSession, supabase } from "@/auth/supabase";
 import { forgetCards } from "@/cards/cards";
-import { forgetPush } from "@/push/push";
+import { forgetNotices } from "@/feed/notices";
+import { forgetPush, settlePush } from "@/push/push";
 
 type SessionState = {
   /** `undefined` while the stored session is still being read. */
@@ -15,6 +17,9 @@ const SessionContext = React.createContext<SessionState>({
   session: undefined,
   signOut: async () => {},
 });
+
+/** How long signing out waits for the push token to be given back. */
+const FORGET_WAIT_MS = 4000;
 
 /** Whoever is signed in, kept current as Supabase signs in, refreshes and out. */
 export function SessionProvider({ children }: { children: React.ReactNode }) {
@@ -61,13 +66,43 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  // Whoever was signed in is gone, however they went (signed out, the
+  // session refused, the account deleted, someone else in): nothing read
+  // as them is left for the next.
+  const userId = session?.user.id ?? null;
+  React.useEffect(() => {
+    if (!userId) return;
+    return () => {
+      forgetCards();
+      forgetNotices();
+    };
+  }, [userId]);
+
+  // Nobody signed in: this phone gives back any push token it still has
+  // out, now and each time the app comes to the front until it's taken
+  // (Step 204; signing out with no connection couldn't).
+  const signedOut = session === null;
+  React.useEffect(() => {
+    if (!signedOut) return;
+    void settlePush();
+    const sub = AppState.addEventListener("change", (next) => {
+      if (next === "active") void settlePush();
+    });
+    return () => sub.remove();
+  }, [signedOut]);
+
   const value = React.useMemo<SessionState>(
     () => ({
       session,
       signOut: async () => {
-        // This phone tells nobody of their family once they've gone (Step 204).
-        await forgetPush().catch(() => {});
-        forgetCards();
+        // This phone tells nobody of their family once they've gone (Step
+        // 204), asked while there's still a session to ask as. Signing out
+        // doesn't wait long on it: what couldn't be given back is owed, and
+        // given back signed out (`settlePush`).
+        await Promise.race([
+          forgetPush().catch(() => {}),
+          new Promise((done) => setTimeout(done, FORGET_WAIT_MS)),
+        ]);
         await supabase.auth.signOut();
       },
     }),

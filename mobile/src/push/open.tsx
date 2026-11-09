@@ -2,18 +2,24 @@ import * as Notifications from "expo-notifications";
 import { router } from "expo-router";
 import * as React from "react";
 
-import type { PushData } from "@/lib/push";
+import { pushIsFor, type PushData } from "@/lib/push";
 import { useSession } from "@/auth/session";
 import { useFamily } from "@/family/family";
 import { messenger } from "@/messages/store";
 import { startPush } from "@/push/push";
 
+/** Who is signed in on this phone, for the handler below. */
+let signedIn: string | null = null;
+
 // While the app is open a push still shows, but not a message in the
-// conversation on screen, which shows it already.
+// conversation on screen, which shows it already, and not one for a member
+// who was signed in here before (their token not yet given back).
 Notifications.setNotificationHandler({
   handleNotification: async (notification) => {
     const data = notification.request.content.data as Partial<PushData> | undefined;
-    const shown = data?.kind === "message" && data.conversationId === messenger.openThreadId();
+    const shown =
+      !pushIsFor(data, signedIn) ||
+      (data?.kind === "message" && data.conversationId === messenger.openThreadId());
     return {
       shouldShowBanner: !shown,
       shouldShowList: !shown,
@@ -31,7 +37,8 @@ const opened = new Set<string>();
  * is read, ask whether the app may notify them and give the web this
  * phone's token; and a push tapped, the app open or not, opens what it's
  * about: the conversation, the details of whom the story is about, or of
- * whose birthday card it is.
+ * whose birthday card it is. Each push says whose it is (`userId` in its
+ * data); one for somebody else is neither shown nor opened.
  */
 export function PushNotifications() {
   const { session } = useSession();
@@ -39,7 +46,8 @@ export function PushNotifications() {
   const userId = session?.user.id ?? null;
   const ready = state.status === "ready";
   React.useEffect(() => {
-    if (userId && ready) void startPush();
+    signedIn = userId;
+    if (userId && ready) void startPush(userId);
   }, [userId, ready]);
 
   const response = Notifications.useLastNotificationResponse();
@@ -50,6 +58,8 @@ export function PushNotifications() {
     if (opened.has(key)) return;
     opened.add(key);
     const data = response.notification.request.content.data as Partial<PushData> | undefined;
+    // One sent to whoever was signed in here before opens nothing of theirs.
+    if (!pushIsFor(data, userId)) return;
     if (data?.kind === "message" && data.conversationId) {
       router.push({ pathname: "/messages/[id]", params: { id: data.conversationId } });
     } else if (data?.kind === "story" && data.personId) {
@@ -61,6 +71,6 @@ export function PushNotifications() {
         params: data.open ? { id: data.personId, card: "open" } : { id: data.personId },
       });
     }
-  }, [response, ready]);
+  }, [response, ready, userId]);
   return null;
 }

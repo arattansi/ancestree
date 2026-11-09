@@ -30,6 +30,8 @@ function set(next: Partial<NoticesState>) {
 }
 
 let reading: Promise<void> | null = null;
+/** Counts the members signed in here, so a read never lands on the next one. */
+let era = 0;
 
 /**
  * The member's latest fifty notices across their trees, newest first: the
@@ -39,12 +41,14 @@ let reading: Promise<void> | null = null;
  */
 export function readNotices(): Promise<void> {
   if (reading) return reading;
-  reading = (async () => {
+  const mine = era;
+  const run = (async () => {
     const { data, error } = await supabase
       .from("notifications")
       .select("id, type, body, created_at, read_at, person_id, trees(name)")
       .order("created_at", { ascending: false })
       .limit(50);
+    if (mine !== era) return;
     if (error) {
       set({ failed: true });
       return;
@@ -63,9 +67,10 @@ export function readNotices(): Promise<void> {
     });
     set({ items, unread: items.filter((n) => !n.readAt).length, failed: false });
   })().finally(() => {
-    reading = null;
+    if (reading === run) reading = null;
   });
-  return reading;
+  reading = run;
+  return run;
 }
 
 /**
@@ -80,6 +85,13 @@ export async function markNoticesRead(): Promise<void> {
     .update({ read_at: new Date().toISOString() })
     .is("read_at", null);
   if (!error) set({ unread: 0 });
+}
+
+/** Whoever was signed in is gone: their notices and count with them. */
+export function forgetNotices() {
+  era += 1;
+  reading = null;
+  set({ items: null, unread: 0, failed: false });
 }
 
 function subscribe(onChange: () => void) {
@@ -99,10 +111,7 @@ export function useNotices<T>(select: (s: NoticesState) => T): T {
  */
 export function useNoticesWake(signedIn: boolean) {
   React.useEffect(() => {
-    if (!signedIn) {
-      state = { items: null, unread: 0, failed: false };
-      return;
-    }
+    if (!signedIn) return;
     void readNotices();
     const sub = AppState.addEventListener("change", (s) => {
       if (s === "active") void readNotices();

@@ -41,8 +41,38 @@ export type PushNote = {
   threadId?: string;
 };
 
-/** A push addressed to one phone's Expo token. */
-export type ExpoPush = PushNote & { to: string; sound: "default" };
+/**
+ * A push addressed to one phone's Expo token. Its data says whose it is,
+ * so a phone someone else has signed in on since doesn't open it.
+ */
+export type ExpoPush = Omit<PushNote, "data"> & {
+  to: string;
+  sound: "default";
+  data: PushData & { userId: string };
+};
+
+/**
+ * Whether a push that reached this phone is for whoever is signed in on
+ * it. One that doesn't say whose it is (sent before they did) passes.
+ */
+export function pushIsFor(data: unknown, userId: string | null): boolean {
+  const whose = (data as { userId?: unknown } | null | undefined)?.userId;
+  return typeof whose !== "string" || whose === userId;
+}
+
+const EXPO_TOKEN = /^Expo(nent)?PushToken\[[A-Za-z0-9_-]{1,200}\]$/;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** A phone's token and whose it was, to forget (`/api/mobile/push/forget`). */
+export type PushForget = { token: string; userId: string };
+
+/** Reads what a phone sends to be forgotten; null for anything else. */
+export function readPushForget(body: unknown): PushForget | null {
+  const b = body as { token?: unknown; userId?: unknown } | null;
+  if (typeof b?.token !== "string" || !EXPO_TOKEN.test(b.token)) return null;
+  if (typeof b.userId !== "string" || !UUID.test(b.userId)) return null;
+  return { token: b.token, userId: b.userId };
+}
 
 /** "Amina Khan", "New message". */
 export function messagePush(input: { senderName: string; conversationId: string }): PushNote {
@@ -143,7 +173,12 @@ export function addressPushes(
   const phones = new Map<string, string[]>();
   for (const t of tokens) phones.set(t.user_id, [...(phones.get(t.user_id) ?? []), t.token]);
   return notes.flatMap(({ userId, note }) =>
-    (phones.get(userId) ?? []).map((to) => ({ ...note, to, sound: "default" as const })),
+    (phones.get(userId) ?? []).map((to) => ({
+      ...note,
+      data: { ...note.data, userId },
+      to,
+      sound: "default" as const,
+    })),
   );
 }
 

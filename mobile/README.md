@@ -279,7 +279,12 @@ The phone is told of a new message (who wrote, never what: the words are
 end-to-end encrypted) and of a new story about someone the member sees.
 Once a member's family is read, the app asks whether it may notify them,
 then gives the web this phone's Expo push token (`register_push_token`);
-signing out gives it back. Settings → **Notifications** has a switch for
+signing out gives it back (`forget_push_token`), and a sign-out that
+couldn't reach the web owes it: the phone keeps the token and whose it
+was in the Keychain and gives it back signed out, through
+`/api/mobile/push/forget`, each time the app opens until it's taken. Every
+push says whose it is (`userId` in its data), and the phone neither shows
+nor opens one for somebody else. Settings → **Notifications** has a switch for
 each, kept per member (`push_settings`); on Android each is its own
 channel too. Tapping one opens the conversation, or the details of whom
 the story is about (`src/push/open.tsx`).
