@@ -5,6 +5,7 @@ import type { Profile } from "@/lib/auth";
 import { sendEmails, unsentSummary, whyNotSent } from "@/lib/email";
 import { expiresAfter } from "@/lib/expiry";
 import { noteInvitesEmailed } from "@/lib/invite-events.server";
+import { INVITE_KEY_PARAM, inviteKey } from "@/lib/invite-key.server";
 import { INVITE_LIFETIME_DAYS } from "@/lib/limits";
 import { inviteHref } from "@/lib/sign-in-links";
 import { getSiteUrl } from "@/lib/site-url";
@@ -34,9 +35,22 @@ export type InviteEmail = (
   sent: { url: string; inviterName: string; treeName: string },
 ) => { subject: string; html: string };
 
-/** An invite's link, as its email carries it. */
+/**
+ * An invite's link as it's shown to whoever sent it: copied from the Root
+ * console, or a claim link handed over by hand. Opened, an invite emailed
+ * to someone asks for a code sent to that address (audit H3).
+ */
 export function inviteUrl(token: string): string {
   return `${getSiteUrl()}${inviteHref(token)}`;
+}
+
+/**
+ * An invite's link as its email carries it, and only its email: with the
+ * key that signs its address in on one tap (`lib/invite-key.server.ts`).
+ * Never handed back to the sender.
+ */
+export function mailedInviteUrl(token: string): string {
+  return `${inviteUrl(token)}?${INVITE_KEY_PARAM}=${inviteKey(token)}`;
 }
 
 /** How an invite's email names whoever sent it. */
@@ -122,9 +136,13 @@ export async function mintInvites({
   const from = inviterName(inviter);
   const treeName = tree?.name ?? "your family’s tree";
   const sent = await sendEmails(
-    made.map(({ recipient, url }) => ({
+    made.map(({ recipient, invite }) => ({
       to: recipient.email,
-      ...email(recipient, { url, inviterName: from, treeName }),
+      ...email(recipient, {
+        url: mailedInviteUrl(invite.token),
+        inviterName: from,
+        treeName,
+      }),
     })),
   );
   const unsent = unsentSummary(sent);

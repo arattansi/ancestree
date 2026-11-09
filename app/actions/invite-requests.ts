@@ -24,7 +24,7 @@ import { getSessionUser, requireProfile } from "@/lib/auth";
 import { ownedWrite } from "@/lib/db-errors";
 import { expiresAfter, isExpired } from "@/lib/expiry";
 import { noteInvitesEmailed } from "@/lib/invite-events.server";
-import { inviterName, inviteUrl } from "@/lib/invite-mint.server";
+import { inviterName, inviteUrl, mailedInviteUrl } from "@/lib/invite-mint.server";
 import { INVITE_LIFETIME_DAYS } from "@/lib/limits";
 import { rootOf } from "@/lib/tree-context";
 
@@ -198,12 +198,14 @@ export async function approveInviteRequest(
     return { error: "Could not create an invite link. Try again." };
   }
 
+  // The Root's copy of the link carries no key (audit H3): only the email's
+  // signs its address in on one tap.
   const url = inviteUrl(invite.token);
   const { subject, html } = inviteApprovedEmail({
     firstName: request.first_name,
     inviterName: inviterName(admin),
     treeName: membership.tree.name,
-    url,
+    url: mailedInviteUrl(invite.token),
     entryName: entry?.name,
   });
   const sent = await sendEmail({ to: request.email, subject, html });
@@ -276,7 +278,7 @@ export async function resendInviteEmail(
     };
   }
 
-  const url = inviteUrl(invite.token);
+  const url = mailedInviteUrl(invite.token);
   // Keep the original wording (`treeInviteEmail`); a founder invite starts a
   // tree of their own, so it must not read as joining this one.
   const input = { firstName: request.first_name, inviterName: inviterName(admin), url };

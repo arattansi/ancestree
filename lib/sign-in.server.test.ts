@@ -22,6 +22,7 @@ vi.mock("@/lib/first-timer.server", () => ({
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => admin }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: async () => server }));
 
+import { inviteKey } from "@/lib/invite-key.server";
 import {
   addressHasProfile,
   completeCodeSignIn,
@@ -63,10 +64,13 @@ function fakeServer(
     metadata = {},
     spent = false,
     otpError = null,
+    signedIn = true,
   }: {
     metadata?: Record<string, unknown>;
     spent?: boolean;
     otpError?: { message: string } | null;
+    /** `false`: nobody is signed in on this browser yet. */
+    signedIn?: boolean;
   } = {},
 ) {
   const user = {
@@ -86,8 +90,9 @@ function fakeServer(
             }
           : { data: { user, session: {} }, error: null },
       ),
-      getUser: vi.fn(async () => ({ data: { user } })),
+      getUser: vi.fn(async () => ({ data: { user: signedIn ? user : null } })),
       signInWithOtp: vi.fn(async () => ({ data: {}, error: otpError })),
+      signOut: vi.fn(async () => ({ error: null })),
     },
   };
 }
@@ -110,15 +115,18 @@ function fakeAdmin({
   hasProfile = false,
   request = null,
   live = true,
+  archived = false,
 }: {
   member?: boolean | null;
   hasProfile?: boolean;
   request?: RequestRow | null;
   live?: boolean;
+  archived?: boolean;
 } = {}) {
   const invite = {
     status: live ? "active" : "accepted",
     expires_at: null,
+    archived_at: archived ? "2026-11-01T00:00:00Z" : null,
     invited_email: "newcomer@example.com",
     invite_requests: request,
   };
@@ -155,6 +163,7 @@ function fakeAdmin({
 }
 
 beforeEach(() => {
+  process.env.SUPABASE_SERVICE_ROLE_KEY = "service-secret";
   setCurrentTreeCookie.mockReset();
   waitingInviteHref.mockReset();
   waitingInviteHref.mockResolvedValue(null);
@@ -417,6 +426,56 @@ describe("signInWithInvite", () => {
     server = fakeServer(ANOTHER_ADDRESS);
     expect(await signInWithInvite("tok")).toEqual({ ok: false, reason: "invalid" });
   });
+
+  describe("from a link without the email's key (audit H3)", () => {
+    const JOINED = redeemed({ self_person_id: null, self_placed: false });
+
+    it("signs nobody in: the address is to be sent a code", async () => {
+      server = fakeServer(JOINED, { signedIn: false });
+      expect(await signInWithInvite("tok")).toEqual({ ok: false, reason: "needs_code" });
+      expect(await signInWithInvite("tok", "not-the-key")).toEqual({
+        ok: false,
+        reason: "needs_code",
+      });
+      expect(await signInWithInvite("tok", inviteKey("another-token"))).toEqual({
+        ok: false,
+        reason: "needs_code",
+      });
+      expect(admin.auth.admin.createUser).not.toHaveBeenCalled();
+      expect(admin.auth.admin.generateLink).not.toHaveBeenCalled();
+      expect(server.auth.verifyOtp).not.toHaveBeenCalled();
+      expect(server.rpc).not.toHaveBeenCalled();
+    });
+
+    it("signs in on one tap with the key", async () => {
+      server = fakeServer(JOINED, { signedIn: false });
+      expect(await signInWithInvite("tok", inviteKey("tok"))).toEqual({
+        ok: true,
+        treeId: "t1",
+        next: "/onboarding",
+      });
+    });
+
+    it("joins someone signed in as the invite's address, who has proved it", async () => {
+      server = fakeServer(JOINED);
+      expect(await signInWithInvite("tok")).toMatchObject({ ok: true });
+    });
+  });
+
+  it("leaves nobody signed in when the redeem is refused", async () => {
+    server = fakeServer(ANOTHER_ADDRESS);
+    await signInWithInvite("tok");
+    expect(server.auth.verifyOtp).toHaveBeenCalled();
+    expect(server.auth.signOut).toHaveBeenCalled();
+  });
+
+  it("signs nobody in on an archived invite", async () => {
+    admin = fakeAdmin({ archived: true });
+    server = fakeServer(redeemed({ self_person_id: "p1", self_placed: true }));
+    expect(await signInWithInvite("tok")).toEqual({ ok: false, reason: "invalid" });
+    expect(admin.auth.admin.createUser).not.toHaveBeenCalled();
+    expect(server.auth.verifyOtp).not.toHaveBeenCalled();
+  });
 });
 
 describe("the name someone joins by (Step 30.7)", () => {
@@ -515,8 +574,9 @@ describe("emailInviteSignInCode (Step 30.8)", () => {
       { email: string; options: { emailRedirectTo: string; shouldCreateUser: boolean } },
     ];
     expect(email).toBe("newcomer@example.com");
-    // An account that exists already: never a new one on an invite's say-so.
-    expect(options.shouldCreateUser).toBe(false);
+    // A newcomer whose link has no key gets one too (audit H3): the account
+    // is nobody's until the code is entered.
+    expect(options.shouldCreateUser).toBe(true);
     const callback = new URL(options.emailRedirectTo);
     expect(callback.pathname).toBe("/auth/callback");
     // Only a stock template would link anywhere: back to the invite.

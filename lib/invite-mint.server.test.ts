@@ -40,6 +40,11 @@ vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({ from: (table: string) => query(table) }),
 }));
 vi.mock("@/lib/site-url", () => ({ getSiteUrl: () => "https://www.ancestree.space" }));
+// The key an email's link carries (audit H3), told apart by its token here.
+vi.mock("@/lib/invite-key.server", () => ({
+  INVITE_KEY_PARAM: "k",
+  inviteKey: (token: string) => `key-of-${token}`,
+}));
 const noteInvitesEmailed = vi.fn();
 vi.mock("@/lib/invite-events.server", () => ({
   noteInvitesEmailed: (tokens: string[]) => noteInvitesEmailed(tokens),
@@ -121,12 +126,12 @@ describe("mintInvites", () => {
         {
           to: ZAHRA.email,
           subject: "Amina invited Zahra to Suleman Family",
-          html: "https://www.ancestree.space/join/tok-zahra",
+          html: "https://www.ancestree.space/join/tok-zahra?k=key-of-tok-zahra",
         },
         {
           to: OMAR.email,
           subject: "Amina invited Omar to Suleman Family",
-          html: "https://www.ancestree.space/join/tok-omar",
+          html: "https://www.ancestree.space/join/tok-omar?k=key-of-tok-omar",
         },
       ],
     ]);

@@ -209,6 +209,12 @@ export type AcceptInviteState = {
    * (`sendInviteSignInCode`, Step 30.8).
    */
   alreadyMember?: boolean;
+  /**
+   * The link had no key, so the invite's address was emailed a code
+   * instead of being signed in (audit H3): when, for the code box.
+   */
+  codeSentTo?: string;
+  codeSentAt?: number;
 };
 
 /**
@@ -216,6 +222,10 @@ export type AcceptInviteState = {
  * went to and join the tree — no second email — landing on their own entry
  * when a claim invite claimed it (Step 30.2), else on onboarding. Bare links
  * (no recipient) go through `requestMagicLink` instead.
+ *
+ * Only the link the email carried does that (`inviteKey`, audit H3). The
+ * same invite opened from a link without its key (copied by whoever sent
+ * it) emails that address a code, entered on the page to join.
  */
 export async function acceptInvite(
   _prev: AcceptInviteState,
@@ -228,8 +238,21 @@ export async function acceptInvite(
     return { error: "Please accept the privacy notice to continue." };
   }
 
-  const result = await signInWithInvite(token);
+  const key = String(formData.get("inviteKey") ?? "").trim() || null;
+  const result = await signInWithInvite(token, key);
   if (result.ok) redirect(result.next);
+
+  // Not the link from the email: its address proves itself with a code.
+  if (result.reason === "needs_code") {
+    const sent = await emailInviteSignInCode(token);
+    if (sent.ok) {
+      const sentAt = Date.now();
+      noteInviteEvent(token, "code_sent");
+      await rememberSentCode({ email: sent.email, inviteToken: token, sentAt });
+      return { codeSentTo: sent.email, codeSentAt: sentAt };
+    }
+    if (sent.reason !== "invalid") return { error: sendCodeRefusal(sent.errorCode) };
+  }
 
   if (result.reason === "already_member") {
     return {

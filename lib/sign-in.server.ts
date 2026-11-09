@@ -8,6 +8,7 @@ import { isExpired } from "@/lib/expiry";
 import { verifiedEmail } from "@/lib/first-timer";
 import { waitingInviteHref } from "@/lib/first-timer.server";
 import { isAnotherAddressRefusal } from "@/lib/invite-address";
+import { isInviteKey } from "@/lib/invite-key.server";
 import type { JoinPath } from "@/lib/invite-events";
 import {
   joiningDisplayName,
@@ -382,11 +383,15 @@ function recipientOf(
   invite: {
     status: string;
     expires_at: string | null;
+    archived_at: string | null;
     invited_email: string | null;
     invite_requests: InviteRequestRow | InviteRequestRow[] | null;
   } | null,
 ): InviteRecipient | null {
   if (!invite || invite.status !== "active") return null;
+  // Archived is dead too, as `redeem_invite` has it: signing its address in
+  // would leave a session behind for an invite that then can't be redeemed.
+  if (invite.archived_at) return null;
   if (isExpired(invite.expires_at)) return null;
 
   // One-to-one FK that PostgREST still hands back as an array.
@@ -451,7 +456,7 @@ export type InviteSignInResult =
       /** Where to land: see `joinedTreeHref`. */
       next: string;
     }
-  | { ok: false; reason: "invalid" | "already_member" | "failed" };
+  | { ok: false; reason: "invalid" | "already_member" | "needs_code" | "failed" };
 
 /**
  * Accept an emailed invite in one step: create the account for the address
@@ -459,14 +464,32 @@ export type InviteSignInResult =
  *
  * The invite link reached that inbox, which is all a sign-in email would
  * prove — so we mint the one-time token ourselves and spend it on the spot
- * instead of mailing a second link. Refuses an address that is already a
+ * instead of mailing a second link. That holds only for the link the email
+ * itself carried, told by its key (`key`, `lib/invite-key.server.ts`, audit
+ * H3): whoever sent the invite can read its token, so a link without the
+ * key proves nothing, and is answered `needs_code` for the page to send that
+ * address a code instead. Someone signed in as the address already has
+ * proved it. Refuses an address that is already a
  * member: their invite must not double as a 30-day key to a live account —
  * a member joins another tree from the invite page while signed in, and
  * `emailInviteSignInCode` sends one who isn't a sign-in code instead.
  */
-export async function signInWithInvite(token: string): Promise<InviteSignInResult> {
+export async function signInWithInvite(
+  token: string,
+  key?: string | null,
+): Promise<InviteSignInResult> {
   const recipient = await getInviteRecipient(token);
   if (!recipient) return { ok: false, reason: "invalid" };
+
+  const supabase = await createClient();
+  if (!isInviteKey(token, key)) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user || verifiedEmail(user) !== recipient.email) {
+      return { ok: false, reason: "needs_code" };
+    }
+  }
 
   // A member's address is refused before anything is minted for it: minting
   // a token stamps the account, and Supabase then won't email it the
@@ -502,7 +525,6 @@ export async function signInWithInvite(token: string): Promise<InviteSignInResul
     .maybeSingle();
   if (existing) return { ok: false, reason: "already_member" };
 
-  const supabase = await createClient();
   const { error: verifyError } = await supabase.auth.verifyOtp({
     type: "email",
     token_hash: link.properties.hashed_token,
@@ -515,7 +537,12 @@ export async function signInWithInvite(token: string): Promise<InviteSignInResul
     "emailed_invite",
     recipient.name ?? undefined,
   );
-  if (!redeemed.ok) return { ok: false, reason: "invalid" };
+  if (!redeemed.ok) {
+    // The invite signed them in, and it didn't hold: nobody stays signed in
+    // as its address on the strength of a link that joined nothing.
+    await supabase.auth.signOut();
+    return { ok: false, reason: "invalid" };
+  }
 
   const { joined } = redeemed;
   return { ok: true, treeId: joined.treeId, next: joinedTreeHref(joined) };
@@ -651,9 +678,14 @@ export type InviteSignInCodeResult =
  * the invite's say-so, so this emails that address an ordinary sign-in
  * code. Entering it on the invite's page signs them in and joins, bringing
  * their own entry (Step 30.9), with no second tap since Step 53. Only ever
- * to the invite's own address, and only to an account that exists already:
- * a newcomer accepts with the one button. No privacy tick: it's a plain
- * sign-in (Step 30.4), and a member's join button asks for none.
+ * to the invite's own address. No privacy tick for an account that exists
+ * already: it's a plain sign-in (Step 30.4), and a member's join button
+ * asks for none.
+ *
+ * A newcomer gets one too when their link has no key (audit H3): copied by
+ * whoever sent it, not opened from the email, after the accept form's tick.
+ * The account it opens keeps the name the invite was sent to (Step 30.7),
+ * and is nobody's until the code is entered.
  */
 export async function emailInviteSignInCode(
   token: string,
@@ -667,7 +699,8 @@ export async function emailInviteSignInCode(
     options: {
       // Only a stock template would use it: ours carries the code alone.
       emailRedirectTo: signInCallbackUrl(getSiteUrl(), { next: inviteHref(token) }),
-      shouldCreateUser: false,
+      shouldCreateUser: true,
+      data: recipient.joiningName ?? undefined,
     },
   });
   if (error) return { ok: false, reason: "failed", errorCode: error.code };
