@@ -32,9 +32,24 @@ const AHEAD_DAYS = 62;
  */
 export default function Feed() {
   const palette = usePalette();
-  const { state } = useFamily();
+  const { state, refresh } = useFamily();
   const family = state.status === "ready" ? state.family : null;
   const items = useNotices((s) => s.items);
+
+  // A notice about someone the family read doesn't have (added since):
+  // read the family again, once for each such person, so its row opens them.
+  const asked = React.useRef(new Set<string>());
+  React.useEffect(() => {
+    if (!family || !items) return;
+    const unknown = items.flatMap((n) =>
+      n.personId && !family.people.has(n.personId) && !asked.current.has(n.personId)
+        ? [n.personId]
+        : [],
+    );
+    if (unknown.length === 0) return;
+    for (const id of unknown) asked.current.add(id);
+    void refresh();
+  }, [family, items, refresh]);
   const failed = useNotices((s) => s.failed);
 
   useFocusEffect(

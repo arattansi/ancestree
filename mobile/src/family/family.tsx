@@ -1,4 +1,5 @@
 import * as React from "react";
+import { AppState } from "react-native";
 
 import { firstDegree, type FirstDegree } from "@/lib/first-degree";
 import { addRows, NO_ADDS, type AddRows } from "@/lib/leaf-adds";
@@ -21,6 +22,12 @@ type FamilyState =
 type FamilyContext = {
   state: FamilyState;
   reload: () => void;
+  /**
+   * Read the family again behind what's on screen: relatives' changes show
+   * without a spinner, and a read that fails leaves what was there. Done
+   * when the read is.
+   */
+  refresh: () => Promise<void>;
   /** The leaf in the middle of the screen. */
   focusId: string | null;
   /** Leaves walked through to get here, most recent last. */
@@ -41,10 +48,15 @@ const Context = React.createContext<FamilyContext | null>(null);
 
 const LOADING: FamilyState = { status: "loading" };
 
+/** Coming back to the app reads the family again, this long after the last read. */
+const STALE_MS = 60_000;
+
 /**
- * The signed-in member's family, read once (`loadFamily`), and where they
- * are in it: the leaf on screen and the trail back to the one they came
- * from. Opens on their own leaf.
+ * The signed-in member's family (`loadFamily`), and where they are in it:
+ * the leaf on screen and the trail back to the one they came from. Opens
+ * on their own leaf. Read on signing in, again behind the screen when the
+ * app comes back to the front (relatives change it too), and whenever
+ * something names a person it doesn't have (`refresh`).
  */
 export function FamilyProvider({ children }: { children: React.ReactNode }) {
   const { session } = useSession();
@@ -63,19 +75,27 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   const [chosenTree, setChosenTree] = React.useState<string | null>(null);
   const [map, setMap] = React.useState(false);
 
+  // Where they are, kept to people and trees the family read still has.
+  const settle = React.useCallback((family: Family) => {
+    setFocusId((id) => (id && family.people.has(id) ? id : family.selfId));
+    setChosenTree((id) => (id && family.trees.has(id) ? id : null));
+    setTrail((t) => (t.every((id) => family.people.has(id)) ? t : t.filter((id) => family.people.has(id))));
+  }, []);
+  const readAt = React.useRef(0);
+
   React.useEffect(() => {
     if (!userId || !key) return;
     let live = true;
     loadFamily(supabase, userId)
       .then((result) => {
         if (!live) return;
+        readAt.current = Date.now();
         if (typeof result === "string") {
           setAnswer({ key, state: { status: "none", why: result } });
           return;
         }
         setAnswer({ key, state: { status: "ready", family: result } });
-        setFocusId((id) => (id && result.people.has(id) ? id : result.selfId));
-        setChosenTree((id) => (id && result.trees.has(id) ? id : null));
+        settle(result);
       })
       .catch((error: unknown) => {
         if (!live) return;
@@ -91,7 +111,53 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     return () => {
       live = false;
     };
-  }, [userId, key]);
+  }, [userId, key, settle]);
+
+  // One refresh at a time for a read; whoever asks meanwhile waits on it.
+  const refreshing = React.useRef<{ key: string; done: Promise<void> } | null>(null);
+  const refresh = React.useCallback((): Promise<void> => {
+    if (!userId || !key) return Promise.resolve();
+    if (refreshing.current?.key === key) return refreshing.current.done;
+    const done = loadFamily(supabase, userId)
+      .then((result) => {
+        readAt.current = Date.now();
+        let taken = false;
+        // Only over the family this read is of, already on screen: a first
+        // read or a retry under way answers for itself.
+        setAnswer((now) => {
+          if (!now || now.key !== key || now.state.status !== "ready") return now;
+          taken = true;
+          return {
+            key,
+            state:
+              typeof result === "string"
+                ? { status: "none", why: result }
+                : { status: "ready", family: result },
+          };
+        });
+        if (taken && typeof result !== "string") settle(result);
+      })
+      // What's on screen stays: the next return to the app tries again.
+      .catch(() => {})
+      .finally(() => {
+        if (refreshing.current?.done === done) refreshing.current = null;
+      });
+    refreshing.current = { key, done };
+    return done;
+  }, [userId, key, settle]);
+
+  // Back at the front: a read that failed is tried again, and a family
+  // read a while ago is read again behind the screen.
+  const status = state.status;
+  React.useEffect(() => {
+    if (!userId) return;
+    const sub = AppState.addEventListener("change", (next) => {
+      if (next !== "active") return;
+      if (status === "failed") setAttempt((n) => n + 1);
+      else if (status === "ready" && Date.now() - readAt.current > STALE_MS) void refresh();
+    });
+    return () => sub.remove();
+  }, [userId, status, refresh]);
 
   // The tree looked at: the one picked, else the first of theirs that shows
   // whoever is on the leaf, else their own first tree.
@@ -108,6 +174,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     () => ({
       state,
       reload: () => setAttempt((n) => n + 1),
+      refresh,
       focusId,
       trail,
       walkTo: (id) => {
@@ -137,7 +204,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       },
       hideMap: () => setMap(false),
     }),
-    [state, focusId, trail, treeId, map],
+    [state, refresh, focusId, trail, treeId, map],
   );
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }

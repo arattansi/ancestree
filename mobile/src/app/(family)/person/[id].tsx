@@ -46,9 +46,22 @@ export default function PersonDetails() {
   const palette = usePalette();
   // `card=open`: from a push, or their own leaf on the day (Step 217.4).
   const { id, card } = useLocalSearchParams<{ id: string; card?: string }>();
-  const { state, walkTo } = useFamily();
+  const { state, walkTo, refresh } = useFamily();
   const family = state.status === "ready" ? state.family : null;
   const person = family?.people.get(id) ?? null;
+  // Someone the family read doesn't have (a push or a notice about a
+  // relative added since): read it again before saying they can't be found.
+  const [looked, setLooked] = React.useState<string | null>(null);
+  const unknown = !!family && !person;
+  React.useEffect(() => {
+    if (unknown) void refresh().then(() => setLooked(id));
+    // Once for each person opened, not again for each family read.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unknown, id]);
+  const lookAgain = () => {
+    setLooked(null);
+    void refresh().then(() => setLooked(id));
+  };
   const self = !!family && family.selfId === id;
   const messageTo = useMessageTarget(self ? null : id);
   const opening = useMessenger((s) => s.opening);
@@ -56,7 +69,8 @@ export default function PersonDetails() {
   const sheet = usePersonSheet(person ? id : null);
   const { width } = useWindowDimensions();
   const photo = usePhotoUrl(person?.photo_path, width);
-  if (!family || !person) return null;
+  if (!family) return null;
+  if (!person) return <Missing looking={looked !== id} onRetry={lookAgain} />;
 
   async function message(userId: string) {
     setMessageError(null);
@@ -380,7 +394,28 @@ function FamilyRows({
   );
 }
 
+/** Nobody by that id on the member's trees, once the family was read again. */
+function Missing({ looking, onRetry }: { looking: boolean; onRetry: () => void }) {
+  const palette = usePalette();
+  return (
+    <View style={styles.missing}>
+      {looking ? (
+        <ActivityIndicator color={palette.green} />
+      ) : (
+        <>
+          <Text style={[styles.missingTitle, { color: palette.foreground }]}>
+            Couldn’t find them
+          </Text>
+          <Button variant="outline" label="try again" onPress={onRetry} />
+        </>
+      )}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  missing: { flex: 1, alignItems: "center", justifyContent: "center", gap: 16, padding: GUTTER + 8 },
+  missingTitle: { fontFamily: font.semibold, fontSize: 20, textAlign: "center" },
   page: { paddingBottom: 40 },
   hero: { justifyContent: "flex-end" },
   scrim: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: "rgba(0,0,0,0.35)" },
