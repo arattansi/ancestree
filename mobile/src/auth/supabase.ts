@@ -1,6 +1,6 @@
 import "react-native-url-polyfill/auto";
 
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type Session } from "@supabase/supabase-js";
 import { AppState, Platform } from "react-native";
 
 import type { Database } from "@/lib/database.types";
@@ -15,6 +15,13 @@ if (!url || !anonKey) {
 }
 
 /**
+ * Where the session is kept: the name Supabase gives it by default
+ * (`sb-<project>-auth-token`), spelled out so `storedSession` reads the
+ * same value. Changing it would sign everyone out.
+ */
+const SESSION_KEY = `sb-${new URL(url).hostname.split(".")[0]}-auth-token`;
+
+/**
  * The one Supabase client: the same project, RLS and RPCs as the web, as
  * the signed-in member. The anon key only; anything that needs the service
  * role goes through the web's server (see docs/mobile-server-paths.md).
@@ -22,6 +29,7 @@ if (!url || !anonKey) {
 export const supabase = createClient<Database>(url, anonKey, {
   auth: {
     storage: sessionStorage,
+    storageKey: SESSION_KEY,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
@@ -35,4 +43,22 @@ if (Platform.OS !== "web") {
     if (state === "active") supabase.auth.startAutoRefresh();
     else supabase.auth.stopAutoRefresh();
   });
+}
+
+/**
+ * The session as the Keychain has it, expired or not, with no trip to the
+ * server: who was signed in when the app last ran. Throws if the Keychain
+ * can't be read.
+ */
+export async function storedSession(): Promise<Session | null> {
+  const raw = await sessionStorage.getItem(SESSION_KEY);
+  if (!raw) return null;
+  try {
+    const session = JSON.parse(raw) as Partial<Session> | null;
+    return session?.access_token && session.refresh_token && session.user?.id
+      ? (session as Session)
+      : null;
+  } catch {
+    return null;
+  }
 }
