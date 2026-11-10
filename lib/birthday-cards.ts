@@ -274,12 +274,30 @@ export function possessive(name: string): string {
   return `${name}’s`;
 }
 
-/** "Chidi has signed", "Chidi and Ngozi have signed", "Chidi, Ngozi and Bisi have signed". */
-export function signedSoFar(names: readonly string[]): string {
-  if (names.length === 0) return "nobody has signed yet";
+/**
+ * "Chidi has signed", "Chidi and Ngozi have signed", "Chidi, Ngozi and Bisi
+ * have signed": everyone but the viewer. With nobody, "nobody else" once
+ * the viewer has signed (Step 228).
+ */
+export function signedSoFar(names: readonly string[], youSigned = false): string {
+  if (names.length === 0) return youSigned ? "nobody else has signed yet" : "nobody has signed yet";
   if (names.length === 1) return `${names[0]} has signed`;
   const head = names.slice(0, -1).join(", ");
   return `${head} and ${names[names.length - 1]} have signed`;
+}
+
+/**
+ * "voice memo · photo · drawing · signed by hand": what a signature has
+ * besides its message, as the viewer's own folds up once it's signed (Step
+ * 228). Empty for a message alone.
+ */
+export function signatureExtras(signature: Pick<CardSignature, "audioPath" | "photoPath" | "ink">): string {
+  const parts: string[] = [];
+  if (signature.audioPath) parts.push("voice memo");
+  if (signature.photoPath) parts.push("photo");
+  if (signature.ink?.draw?.length) parts.push("drawing");
+  if (signature.ink?.sign?.length) parts.push("signed by hand");
+  return parts.join(" · ");
 }
 
 /** "Chidi, Ifeoma, Ngozi and Bisi signed your card." */

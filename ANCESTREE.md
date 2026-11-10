@@ -2042,6 +2042,20 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 228: Your signature folds up once you've signed** (web only).
+  **Asked for** (2026-11-10): "after a user has signed a birthday card, they
+  shouldn't see the whole field open as though it hasn't been submitted when
+  they go to that user's node. have their submission collapsed with a button
+  to edit". **Now** `SignCard` on the person's sheet shows the viewer's own
+  signature as a row (a tick, "you signed it", the message in two lines at
+  most, then what else it has: voice memo · photo · drawing · signed by hand,
+  from `signatureExtras`) with **edit**, which opens the form; the form gains
+  **cancel**, and saving or cancelling folds it up again, focus going back to
+  edit. With signing closed the row stays, without edit. The line above says
+  "nobody else has signed yet" once you have (`signedSoFar(names,
+  youSigned)`), not "nobody has signed yet". The public link page and the
+  phone already did this ("change your signature"), so they're unchanged.
+
 - **Step 229: a birthday card's link stays copyable** (web; migration
   `20261110120000_card_links_copyable`, live, statement md5 dd975dd4…, 4
   bodies asserted; guarded on 217.3's `make_card_link` c098b98e… and

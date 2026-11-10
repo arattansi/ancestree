@@ -8,6 +8,7 @@ import {
   cardFiles,
   isCardFilePath,
   moreSince,
+  signatureExtras,
   signedSoFar,
   signedYourCard,
   spreads,
@@ -132,6 +133,25 @@ describe("words", () => {
     expect(signedSoFar([])).toBe("nobody has signed yet");
     expect(signedSoFar(["Chidi"])).toBe("Chidi has signed");
     expect(signedSoFar(["Chidi", "Ngozi", "Bisi"])).toBe("Chidi, Ngozi and Bisi have signed");
+  });
+
+  it("says nobody else once the viewer has signed", () => {
+    expect(signedSoFar([], true)).toBe("nobody else has signed yet");
+    expect(signedSoFar(["Chidi"], true)).toBe("Chidi has signed");
+  });
+
+  it("names what a signature has besides its message", () => {
+    const none = { audioPath: null, photoPath: null, ink: null };
+    expect(signatureExtras(none)).toBe("");
+    expect(signatureExtras({ ...none, ink: { draw: [], sign: [] } })).toBe("");
+    expect(
+      signatureExtras({
+        audioPath: "a/b.webm",
+        photoPath: "a/c.jpg",
+        ink: { draw: [[[1, 2, 0.5, 0]]], sign: [[[3, 4, 0.5, 0]]] },
+      }),
+    ).toBe("voice memo · photo · drawing · signed by hand");
+    expect(signatureExtras({ ...none, ink: { sign: [[[3, 4, 0.5, 0]]] } })).toBe("signed by hand");
   });
 
   it("names who signed the person's card, and counts past six", () => {

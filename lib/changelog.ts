@@ -20,6 +20,14 @@ export type ChangelogEntry = {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-11-10",
+    title: "your signature, folded up",
+    items: [
+      "once you've signed someone's birthday card, their details show your signature folded up instead of an open form, with edit to change it.",
+    ],
+    steps: [228],
+  },
+  {
+    date: "2026-11-10",
     title: "a birthday card's link, whenever you need it",
     items: [
       "once you've made a link for someone's birthday card, it's there each time you open their card, to share or copy again, without making a new one.",

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ImagePlusIcon, XIcon } from "lucide-react";
+import { CheckIcon, ImagePlusIcon, XIcon } from "lucide-react";
 
 import { CardOpening } from "@/components/birthday-card/card-opening";
 import { CardPage, type SignerOf } from "@/components/birthday-card/card-pages";
@@ -39,6 +39,7 @@ import {
   cardDay,
   moreSince,
   possessive,
+  signatureExtras,
   signedSoFar,
   signedYourCard,
   type BirthdayCardView,
@@ -405,6 +406,16 @@ function SignCard({
   const others = card.signatures.filter((s) => !s.mine);
   const mine = card.signatures.find((s) => s.mine) ?? null;
   const remove = useAction();
+  // Once signed, theirs folds up; edit opens the form again (Step 228).
+  const [editing, setEditing] = React.useState(false);
+  const formOpen = card.signing && (!mine || editing);
+  const editButton = React.useRef<HTMLButtonElement | null>(null);
+  const wasOpen = React.useRef(formOpen);
+  React.useEffect(() => {
+    // Signed, saved or cancelled: focus lands where the form was, not lost.
+    if (wasOpen.current && !formOpen) editButton.current?.focus();
+    wasOpen.current = formOpen;
+  }, [formOpen]);
 
   return (
     <div className="flex flex-col overflow-hidden rounded-xl border border-kraft-line/40">
@@ -421,7 +432,7 @@ function SignCard({
       <div className="flex flex-col gap-4 p-4">
         <div className="flex items-center gap-2">
           <p className="flex-1 text-[13px] text-muted-foreground">
-            {signedSoFar(others.map((s) => firstOf(s.name)))}
+            {signedSoFar(others.map((s) => firstOf(s.name)), mine !== null)}
           </p>
           {others.length > 0 ? (
             <Button variant="link" size="sm" className="h-auto p-0" onClick={() => setShowAll((v) => !v)}>
@@ -460,11 +471,26 @@ function SignCard({
           </ul>
         ) : null}
 
-        {card.signing ? (
-          <SignForm key={mine?.updatedAt ?? "new"} card={card} personId={personId} mine={mine} onCards={onCards} />
-        ) : (
-          <p className="text-sm text-muted-foreground">signing has closed.</p>
-        )}
+        {formOpen ? (
+          <SignForm
+            key={mine?.updatedAt ?? "new"}
+            card={card}
+            personId={personId}
+            mine={mine}
+            onCards={(next) => {
+              setEditing(false);
+              onCards(next);
+            }}
+            onCancel={mine ? () => setEditing(false) : undefined}
+          />
+        ) : mine ? (
+          <MySignature
+            signature={mine}
+            editRef={editButton}
+            onEdit={card.signing ? () => setEditing(true) : undefined}
+          />
+        ) : null}
+        {card.signing ? null : <p className="text-sm text-muted-foreground">signing has closed.</p>}
 
         {card.link ? (
           <ShareCard card={card} personId={personId} first={first} sex={sex} onCards={onCards} />
@@ -502,16 +528,58 @@ function SignedRow({ signature, signer }: { signature: CardSignatureView; signer
   );
 }
 
+/**
+ * The viewer's own signature once it's signed, folded up (Step 228): what
+ * it says, in a line or two, and what else it has, with edit while signing
+ * is open.
+ */
+function MySignature({
+  signature,
+  editRef,
+  onEdit,
+}: {
+  signature: CardSignatureView;
+  editRef: React.Ref<HTMLButtonElement>;
+  onEdit?: () => void;
+}) {
+  const extras = signatureExtras(signature);
+  return (
+    <div className="flex items-start gap-3 rounded-lg border border-kraft-line/30 bg-cake-sponge p-3">
+      <span
+        aria-hidden
+        className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-brand-green text-white"
+      >
+        <CheckIcon className="size-3.5" />
+      </span>
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <h3 className="text-sm font-semibold">you signed it</h3>
+        {signature.message ? (
+          <p className="line-clamp-2 text-[13px] whitespace-pre-line text-muted-foreground">{signature.message}</p>
+        ) : null}
+        {extras ? <p className="text-[13px] text-muted-foreground">{extras}</p> : null}
+      </div>
+      {onEdit ? (
+        <Button ref={editRef} variant="outline" size="sm" aria-label="edit your signature" onClick={onEdit}>
+          edit
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
 function SignForm({
   card,
   personId,
   mine,
   onCards,
+  onCancel,
 }: {
   card: BirthdayCardView;
   personId: string;
   mine: CardSignatureView | null;
   onCards: (cards: PersonCards | undefined) => void;
+  /** Editing a signature already on the card: fold it up again unchanged. */
+  onCancel?: () => void;
 }) {
   const sign = useAction({ inline: true });
   const [message, setMessage] = React.useState(mine?.message ?? "");
@@ -644,9 +712,15 @@ function SignForm({
         >
           {mine ? "save changes" : "sign card"}
         </PendingButton>
+        {onCancel ? (
+          <Button type="button" variant="ghost" disabled={sign.pending} onClick={onCancel}>
+            cancel
+          </Button>
+        ) : null}
         {mine ? (
           <ConfirmButton
             variant="ghost"
+            className="ml-auto"
             disabled={sign.pending}
             confirm={{
               title: "Take your signature off?",
