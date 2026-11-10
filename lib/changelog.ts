@@ -19,6 +19,15 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "2026-11-10",
+    title: "a birthday card's link, whenever you need it",
+    items: [
+      "once you've made a link for someone's birthday card, it's there each time you open their card, to share or copy again, without making a new one.",
+      "sending a relative their own link again gives them the same one.",
+    ],
+    steps: [229],
+  },
+  {
     date: "2026-11-07",
     title: "a birthday card for everyone",
     items: [

@@ -13,12 +13,15 @@ import {
   type CardFlag,
   type PersonCards,
 } from "@/lib/birthday-cards";
+import { shownAgain } from "@/lib/card-link-key.server";
+import { cardLinkUrl } from "@/lib/card-links";
 import type { Database } from "@/lib/database.types";
 import { sendEmails } from "@/lib/email";
 import { cardThanksEmail } from "@/lib/emails/card-thanks";
 import { reachableEmail } from "@/lib/no-email";
 import { cardThanksPush } from "@/lib/push";
 import { sendPushes } from "@/lib/push.server";
+import { getSiteUrl } from "@/lib/site-url";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -46,13 +49,38 @@ async function linked(card: BirthdayCard): Promise<BirthdayCardView> {
   return withLinks(card, links);
 }
 
+/**
+ * The card's public link again, for a manager who may share it, while it's
+ * on (Step 229): the database answers its id and hash (`card_public_link`)
+ * and the address is worked out here. One made before Step 229 can't be,
+ * and is left null; so is one the read failed for.
+ */
+async function withLiveLink(supabase: DbClient, card: BirthdayCardView): Promise<BirthdayCardView> {
+  if (!card.link?.on || !card.link.mayTurnOn) return card;
+  const { data, error } = await supabase.rpc("card_public_link", { p_card: card.id });
+  if (error) {
+    console.error("[cards] couldn't read the card's link", error.message);
+    return card;
+  }
+  const live = shownAgain(data);
+  if (!live) return card;
+  return {
+    ...card,
+    link: { ...card.link, live: { url: cardLinkUrl(getSiteUrl(), live.token), token: live.token } },
+  };
+}
+
 /** What someone's sheet shows of their cards to the viewer (`birthday_cards_for`). */
 export async function loadPersonCards(personId: string, db?: DbClient): Promise<PersonCards> {
   const supabase = db ?? (await createClient());
   const { data, error } = await supabase.rpc("birthday_cards_for", { p_person: personId });
   if (error) throw new Error("Couldn’t read the cards.");
   const { current, past, startsOn } = asPersonCards(data);
-  return { current: current ? await linked(current) : null, past, startsOn };
+  return {
+    current: current ? await withLiveLink(supabase, await linked(current)) : null,
+    past,
+    startsOn,
+  };
 }
 
 /** One card, as the viewer may see it, for opening an earlier one again. */
@@ -61,7 +89,7 @@ export async function loadCard(cardId: string, db?: DbClient): Promise<BirthdayC
   const { data, error } = await supabase.rpc("birthday_card", { p_card: cardId });
   if (error) throw new Error("Couldn’t read the card.");
   const card = asBirthdayCard(data);
-  return card ? linked(card) : null;
+  return card ? withLiveLink(supabase, await linked(card)) : null;
 }
 
 /**

@@ -19,6 +19,7 @@ import {
   sendCardThanks,
 } from "@/lib/birthday-cards.server";
 import { asCardInk } from "@/lib/card-ink";
+import { newCardLink, shownAgain } from "@/lib/card-link-key.server";
 import {
   asCardRelatives,
   CARD_LINK_ERRORS,
@@ -240,8 +241,9 @@ export async function setMyTimeZone(zone: string): Promise<void> {
 
 /**
  * Turn on a card's public link, or make it again: the one before stops
- * working (Step 217.3). A manager, and a parent for someone under 18. Its
- * address comes back once; only its hash is kept.
+ * working (Step 217.3). A manager, and a parent for someone under 18. The
+ * token is the server's own from the link's id (Step 229), and only its
+ * hash is kept, so the sheet shows the same address again while it's on.
  */
 export async function makeCardLink(input: {
   personId: string;
@@ -249,12 +251,17 @@ export async function makeCardLink(input: {
 }): Promise<CardsAnswer & { url?: string; token?: string }> {
   await requireProfile();
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("make_card_link", { p_card: input.cardId });
-  if (error || typeof data !== "string") {
-    return { error: friendlyDbError(error?.message, CARD_LINK_ERRORS, "Couldn’t make the link. Try again.") };
+  const link = newCardLink();
+  const { error } = await supabase.rpc("make_card_link", {
+    p_card: input.cardId,
+    p_link: link.id,
+    p_token_hash: link.hash,
+  });
+  if (error) {
+    return { error: friendlyDbError(error.message, CARD_LINK_ERRORS, "Couldn’t make the link. Try again.") };
   }
   const { cards } = await cardsOf(input.personId);
-  return { url: cardLinkUrl(getSiteUrl(), data), token: data, cards };
+  return { url: cardLinkUrl(getSiteUrl(), link.token), token: link.token, cards };
 }
 
 /** Turn the public link off: it stops working, for signing and reading. */
@@ -283,8 +290,10 @@ export async function listCardRelatives(cardId: string): Promise<{
 /**
  * A relative's own link to the card, which is also their claim link
  * (Step 217.3): the claim link first (`mintClaimLink`, whose rules say who
- * may), then the card's link bound to it. After signing they claim their
- * entry by name, as any claim link does.
+ * may, and which hands back the live one), then the card's link bound to
+ * it. One already made for that claim link is shown again rather than
+ * another made (Step 229). After signing they claim their entry by name,
+ * as any claim link does.
  */
 export async function makeCardPersonalLink(input: {
   cardId: string;
@@ -296,15 +305,27 @@ export async function makeCardPersonalLink(input: {
   if (claim.minted) revalidateTreePages();
   if (claim.error || !claim.token) return { error: claim.error ?? "Couldn’t make their link. Try again." };
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("make_card_personal_link", {
+  const { data: before } = await supabase.rpc("card_personal_link", {
     p_card: input.cardId,
     p_person: input.personId,
     p_invite_token: claim.token,
   });
-  if (error || typeof data !== "string") {
-    return { error: friendlyDbError(error?.message, CARD_LINK_ERRORS, "Couldn’t make their link. Try again.") };
+  const again = shownAgain(before);
+  if (again) {
+    return { url: cardLinkUrl(getSiteUrl(), again.token), token: again.token, inviteToken: claim.token };
   }
-  return { url: cardLinkUrl(getSiteUrl(), data), token: data, inviteToken: claim.token };
+  const link = newCardLink();
+  const { error } = await supabase.rpc("make_card_personal_link", {
+    p_card: input.cardId,
+    p_person: input.personId,
+    p_invite_token: claim.token,
+    p_link: link.id,
+    p_token_hash: link.hash,
+  });
+  if (error) {
+    return { error: friendlyDbError(error.message, CARD_LINK_ERRORS, "Couldn’t make their link. Try again.") };
+  }
+  return { url: cardLinkUrl(getSiteUrl(), link.token), token: link.token, inviteToken: claim.token };
 }
 
 /** A share button pressed on one of a card's links, for the analytics tab. */

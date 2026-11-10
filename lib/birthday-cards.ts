@@ -106,7 +106,16 @@ export type BirthdayCard = {
    * For a manager: whether the public link is on, and whether they may turn
    * it on (a parent's, for someone under 18). Null for anyone else.
    */
-  link: { on: boolean; mayTurnOn: boolean } | null;
+  link: {
+    on: boolean;
+    mayTurnOn: boolean;
+    /**
+     * While it's on, its address again, for one who may share it (Step
+     * 229): the server works it out (`card_public_link`). Null for a link
+     * made before then, which is made again once to show.
+     */
+    live: { url: string; token: string } | null;
+  } | null;
   signatures: CardSignature[];
 };
 
@@ -204,7 +213,7 @@ export function asBirthdayCard(value: unknown): BirthdayCard | null {
     thanks: text(c.thanks),
     thankedAt: text(c.thankedAt),
     unthanked: num(c.unthanked) ?? 0,
-    link: link ? { on: bool(link.on), mayTurnOn: bool(link.mayTurnOn) } : null,
+    link: link ? { on: bool(link.on), mayTurnOn: bool(link.mayTurnOn), live: null } : null,
     signatures: Array.isArray(c.signatures)
       ? c.signatures.flatMap((s) => {
           const one = asSignature(s);

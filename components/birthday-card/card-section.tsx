@@ -9,6 +9,7 @@ import { EnvelopeMark } from "@/components/birthday-card/envelope-mark";
 import { InkField } from "@/components/birthday-card/ink-pad";
 import { VoiceRecorder, type VoiceTake } from "@/components/birthday-card/voice-recorder";
 import { ConfirmButton } from "@/components/confirm-dialog";
+import { copyText } from "@/components/copy-text";
 import { FormError } from "@/components/form-error";
 import { PendingButton } from "@/components/pending-button";
 import { ShareMessage } from "@/components/share-message";
@@ -670,9 +671,10 @@ function SignForm({
  * A manager's ways to send the card round (Step 217.3): its public link,
  * for the family chat, with the message ready (only a parent turns it on
  * for someone under 18), and a link of their own for each relative on the
- * tree with no account, which is also their claim link. The link's address
- * shows once, when it's made: only its hash is kept, so a link already on is
- * made again to share it again.
+ * tree with no account, which is also their claim link. While the link is
+ * on, its message shows whenever the sheet opens, to share or copy again
+ * (Step 229): the server works the address out again. One made before then
+ * can't be, so it's made again once to show.
  */
 function ShareCard({
   card,
@@ -688,20 +690,59 @@ function ShareCard({
   onCards: (cards: PersonCards | undefined) => void;
 }) {
   const action = useAction({ inline: true });
-  const [made, setMade] = React.useState<{ message: string; token: string } | null>(null);
+  // The link just made, should the cards that came with it not show it.
+  const [made, setMade] = React.useState<{ url: string; token: string } | null>(null);
   const link = card.link;
   if (!link) return null;
+  const live = link.on ? (link.live ?? made) : null;
 
   function make() {
     action.run("make", () => makeCardLink({ personId, cardId: card.id }), {
       onSuccess: ({ url, token, cards }) => {
-        if (url && token) {
-          setMade({ message: cardLinkMessage({ url, firstName: first, opensOn: card.opensOn, sex }), token });
-        }
+        setMade(url && token ? { url, token } : null);
         onCards(cards);
       },
     });
   }
+
+  const remake = (
+    <ConfirmButton
+      variant="outline"
+      disabled={action.pending}
+      confirm={{
+        title: "Make a new link?",
+        description: "The link you shared stops working.",
+        confirmLabel: "make a new link",
+        pendingLabel: "making…",
+        onConfirm: () => makeCardLink({ personId, cardId: card.id }),
+        onSuccess: ({ url, token, cards }) => {
+          setMade(url && token ? { url, token } : null);
+          onCards(cards);
+        },
+      }}
+    >
+      new link
+    </ConfirmButton>
+  );
+
+  const turnOff = (
+    <PendingButton
+      variant="ghost"
+      pending={action.pendingKey === "off"}
+      pendingLabel="turning off…"
+      disabled={action.pending}
+      onClick={() =>
+        action.run("off", () => turnOffCardLink({ personId, cardId: card.id }), {
+          onSuccess: ({ cards }) => {
+            setMade(null);
+            onCards(cards);
+          },
+        })
+      }
+    >
+      turn it off
+    </PendingButton>
+  );
 
   return (
     <div className="flex flex-col gap-3 border-t border-kraft-line/30 pt-4">
@@ -713,50 +754,32 @@ function ShareCard({
       </div>
       {!link.mayTurnOn ? (
         <p className="text-sm text-muted-foreground">only a parent can share {possessive(first)} card.</p>
-      ) : made && link.on ? (
-        <ShareMessage message={made.message} onShared={(channel) => void noteCardShared(made.token, channel)} />
-      ) : link.on ? (
+      ) : live ? (
         <div className="flex flex-col gap-2">
-          <p className="text-sm">the link is on.</p>
+          <ShareMessage
+            message={cardLinkMessage({ url: live.url, firstName: first, opensOn: card.opensOn, sex })}
+            onShared={(channel) => void noteCardShared(live.token, channel)}
+          />
           <div className="flex flex-wrap gap-2">
-            <ConfirmButton
+            <Button
+              type="button"
               variant="outline"
-              disabled={action.pending}
-              confirm={{
-                title: "Make a new link?",
-                description: "The link you shared stops working.",
-                confirmLabel: "make a new link",
-                pendingLabel: "making…",
-                onConfirm: () => makeCardLink({ personId, cardId: card.id }),
-                onSuccess: ({ url, token, cards }) => {
-                  if (url && token) {
-                    setMade({
-                      message: cardLinkMessage({ url, firstName: first, opensOn: card.opensOn, sex }),
-                      token,
-                    });
-                  }
-                  onCards(cards);
-                },
+              onClick={async () => {
+                if (await copyText(live.url, { copied: "Link copied" })) void noteCardShared(live.token, "copy");
               }}
             >
-              new link
-            </ConfirmButton>
-            <PendingButton
-              variant="ghost"
-              pending={action.pendingKey === "off"}
-              pendingLabel="turning off…"
-              disabled={action.pending}
-              onClick={() =>
-                action.run("off", () => turnOffCardLink({ personId, cardId: card.id }), {
-                  onSuccess: ({ cards }) => {
-                    setMade(null);
-                    onCards(cards);
-                  },
-                })
-              }
-            >
-              turn it off
-            </PendingButton>
+              copy link
+            </Button>
+            {remake}
+            {turnOff}
+          </div>
+        </div>
+      ) : link.on ? (
+        <div className="flex flex-col gap-2">
+          <p className="text-sm">the link is on. make a new link to copy it.</p>
+          <div className="flex flex-wrap gap-2">
+            {remake}
+            {turnOff}
           </div>
         </div>
       ) : (

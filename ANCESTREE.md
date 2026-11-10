@@ -2042,6 +2042,51 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 229: a birthday card's link stays copyable** (web; migration
+  `20261110120000_card_links_copyable`, live, statement md5 dd975dd4…, 4
+  bodies asserted; guarded on 217.3's `make_card_link` c098b98e… and
+  `make_card_personal_link` 854302ed…). **Asked for** (2026-11-10): "keep
+  the share link copiable so that it can be easily referenced to share
+  again. right now, i have to generate a new link and kill the old one
+  every time i lose track." Since 217.3 only a token's sha256 was kept, so
+  the address showed once, when made. **Now** the server makes the token,
+  an HMAC-SHA256 of the link row's id under the service-role key with a
+  label of its own (`lib/card-link-key.server.ts`: `cardLinkToken`,
+  `newCardLink`, `shownAgain`; the pattern of `invite-key.server.ts`), and
+  hands `make_card_link` / `make_card_personal_link` the id and hash
+  (`p_link`, `p_token_hash`; called without them, as the web before this
+  step does, they make a random token as before). Still only the hash is
+  stored and a visitor is checked by it alone (`card_link_by_token`
+  unchanged). `card_public_link(card)` answers a manager who may share it
+  the live link's `{id, hash}`; `loadPersonCards` / `loadCard` work the
+  address out again into `card.link.live`, so "share the card" shows the
+  message (share, WhatsApp, Messages, copy) with **copy link** (the bare
+  URL), new link and turn it off every time the sheet opens.
+  `card_personal_link(card, person, invite token)` answers a relative's
+  newest live link bound to their live claim invite, so "send {first}
+  their link" shows the same one again instead of making another. **My
+  calls:** HMAC over storing the token encrypted: both need a key off the
+  database, but the HMAC needs no new column, no IV and nothing to decrypt,
+  and keying it on the service-role key means nothing new to set up (whoever
+  holds that key can read every card anyway). A link made before this step
+  (one live public link on live, 2026-11-10) or after the key is rotated
+  can't be worked out (its hash doesn't match): the sheet says "the link
+  is on. make a new link to copy it." with new link and turn it off, once.
+  Personal links are copyable again too, by asking again, not listed up
+  front. **Checked:** a rolled-back rehearsal on live (manager, outsider,
+  anon; malformed and reused hashes refused; legacy calls still return a
+  24-character token; a visitor's token finds the server-made row; the
+  personal link found by its live claim invite, not a wrong or expired
+  one; grants), applied and md5-matched; with throwaway accounts on the dev
+  server: made a link, reloaded, same address; the signed-out page opened
+  by it; new link killed the old one ("this link no longer works"); copy
+  link handed the clipboard the bare URL and counted a `copy` share; a
+  simulated pre-229 link showed "make a new link to copy it." and showed
+  its address once remade; Chidi's own link was the same after a reload
+  (one row) and opened as his; turn it off went back to "make a link" and
+  the link stopped working; at 375 px nothing overflowed. Throwaways
+  removed (no leftovers across 267 uuid columns).
+
 - **Step 226: Newsletter opens, only for members who say yes** (web +
   migration `20261107170000_newsletter_opens`, live, statement md5
   07cbe504…). **Asked for** (2026-11-07): "build opens", the second half of

@@ -222,13 +222,14 @@ describe("the card's sheet", () => {
       personId: "p1",
       opensOn: "2026-11-14",
       manager: true,
-      link: { on: true, mayTurnOn: false },
+      // The address is the server's to add (Step 229), never the database's.
+      link: { on: true, mayTurnOn: false, live: { url: "https://x/c/y", token: "y" } },
       signatures: [
         { id: "s1", name: "Emeka", relation: "cousin", cameBy: "link" },
         { id: "s2", name: "Chidi", relation: "nonsense", cameBy: "smoke signal" },
       ],
     });
-    expect(card?.link).toEqual({ on: true, mayTurnOn: false });
+    expect(card?.link).toEqual({ on: true, mayTurnOn: false, live: null });
     expect(card?.signatures.map((s) => [s.relation, s.cameBy])).toEqual([
       ["cousin", "link"],
       [null, "app"],

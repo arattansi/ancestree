@@ -4084,6 +4084,11 @@ export type Database = {
         Returns: Json
       }
       card_personal_candidates: { Args: { p_card: string }; Returns: Json }
+      card_personal_link: {
+        Args: { p_card: string; p_invite_token: string; p_person: string }
+        Returns: Json
+      }
+      card_public_link: { Args: { p_card: string }; Returns: Json }
       card_ready_pushes: {
         Args: { p_cards: string[] }
         Returns: {
@@ -4656,13 +4661,22 @@ export type Database = {
           said_by: string
         }[]
       }
-      make_card_link: { Args: { p_card: string }; Returns: string }
+      make_card_link: {
+        Args: { p_card: string; p_link?: string; p_token_hash?: string }
+        Returns: string
+      }
       make_card_name_only: {
         Args: { p_person: string; p_tree: string }
         Returns: string
       }
       make_card_personal_link: {
-        Args: { p_card: string; p_invite_token: string; p_person: string }
+        Args: {
+          p_card: string
+          p_invite_token: string
+          p_link?: string
+          p_person: string
+          p_token_hash?: string
+        }
         Returns: string
       }
       make_sign_in_link: {
