@@ -2042,6 +2042,29 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 230: A signature taken off takes its "signed" notice with it**
+  (database only; migration `20261110150000_card_notices_follow_signatures`,
+  live, statement md5 6627f4b7…, 2 bodies asserted). **Asked about**
+  (2026-11-10): "i got a notification that Karim Kanji signed Aly's birthday
+  card but i don't see it in app". Karim had signed through the card's
+  public link and taken it off from the link page 32 seconds later
+  (`delete_card_signature_by_link`, in the API logs); nothing showed it
+  because nothing was there, but the `card_signed` notice stayed. **Now** an
+  after-delete trigger on `card_signatures` (`private.card_signature_gone`)
+  finds the notices a signature sent by its `created_at` (the signing makes
+  both in one transaction, so they're equal) and deletes them, or, since a
+  manager hears of one signature a day a card, hands each to the first
+  signature it held back that's still on the card (that signer's name and
+  time, unread). A before-delete trigger on `birthday_cards`
+  (`private.card_gone`) takes a deleted card's `card_started` notices and
+  its signatures' `card_signed` ones. Triggers, so the signer's call, the
+  link's call, a manager's removal and a card's deletion are all covered.
+  The one stale notice on live (Karim's) was removed. Checked: a rolled-back
+  rehearsal on live (backfill; Rahim's taken off as a manager through
+  `delete_card_signature` handed both his notices to a later test signer,
+  unread; that one taken off deleted them; deleting the card took its 9
+  started notices).
+
 - **Step 228: Your signature folds up once you've signed** (web only).
   **Asked for** (2026-11-10): "after a user has signed a birthday card, they
   shouldn't see the whole field open as though it hasn't been submitted when

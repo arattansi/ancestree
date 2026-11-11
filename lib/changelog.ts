@@ -20,6 +20,15 @@ export type ChangelogEntry = {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-11-10",
+    title: "no notice for a signature that's gone",
+    items: [
+      "when someone takes their signature off a birthday card, the notice that they signed goes with it. if someone else signed that day, the notice names them instead.",
+      "when a card is deleted before the day, its notices go too.",
+    ],
+    steps: [230],
+  },
+  {
+    date: "2026-11-10",
     title: "your signature, folded up",
     items: [
       "once you've signed someone's birthday card, their details show your signature folded up instead of an open form, with edit to change it.",
