@@ -95,12 +95,16 @@ export async function loadDetectionTree(
   });
 }
 
-/** Their one line, as the add takes it. */
+/**
+ * Their one line, as the add takes it. A former spouse's carries
+ * `is_divorced` and no dates: the phone asks none (Step 231.2).
+ */
 const edgesOf = (r: RelativeProposal) =>
   relativeEdges(r).map((e) => ({
     type: e.type,
     a: refToString(e.a),
     b: refToString(e.b),
+    ...(e.is_divorced ? { is_divorced: true } : {}),
   }));
 
 /**

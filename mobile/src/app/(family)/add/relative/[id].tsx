@@ -85,11 +85,14 @@ function Form({
   const [relation, setRelation] = React.useState<Relation | null>(chosen);
   const [sex, setSex] = React.useState<"male" | "female" | null>(null);
   const [died, setDied] = React.useState(false);
+  const [divorced, setDivorced] = React.useState(false);
   const [year, setYear] = React.useState("");
   const [adding, setAdding] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   const born = /^\d{4}$/.test(year.trim()) ? Number(year.trim()) : null;
+  // Only a spouse is divorced (Step 231.2), as the web's "They later divorced".
+  const former = relation === "spouse" && divorced;
   const proposals = React.useMemo<RelativeProposal[]>(
     () =>
       relation
@@ -97,7 +100,7 @@ function Form({
             {
               // What they are, and anything the questions turn on, so a
               // change is asked about afresh.
-              key: `add:${relation}:${sex ?? ""}:${died ? "died" : ""}:${born ?? ""}`,
+              key: `add:${relation}:${sex ?? ""}:${died ? "died" : ""}:${former ? "divorced" : ""}:${born ?? ""}`,
               firstName: null,
               lastName: null,
               sex,
@@ -111,10 +114,11 @@ function Form({
               bornYear: born ? { year: born, circa: false } : null,
               bornPlace: null,
               diedYear: null,
+              divorced: former,
             },
           ]
         : [],
-    [relation, sex, died, born, person.id, name],
+    [relation, sex, died, former, born, person.id, name],
   );
   const { views, edit, retry, problem, addTicked } = useRelatives(family, proposals, null, true);
   const view = views[0] ?? null;
@@ -196,6 +200,9 @@ function Form({
             </View>
             <View style={styles.died}>
               <Chip label="has died" on={died} onPress={() => setDied(!died)} />
+              {relation === "spouse" ? (
+                <Chip label="divorced" on={divorced} onPress={() => setDivorced(!divorced)} />
+              ) : null}
             </View>
           </View>
           {view ? (
@@ -243,6 +250,6 @@ const styles = StyleSheet.create({
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   row: { flexDirection: "row", alignItems: "flex-end", gap: 12 },
   year: { width: 120 },
-  died: { paddingBottom: 8 },
+  died: { flexDirection: "row", gap: 8, paddingBottom: 8 },
   error: { fontFamily: font.regular, fontSize: 15 },
 });

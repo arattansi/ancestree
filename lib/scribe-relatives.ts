@@ -80,9 +80,14 @@ export function relativeInviteAddress(r: RelativeProposal, draft: RelativeDraft)
 
 const NEW: PersonRef = { kind: "new", index: 0 };
 
-/** Their one line: to the person the story named, as it named it. */
+/**
+ * Their one line: to the person the story named, as it named it. A spouse's
+ * says when they've divorced (Step 231.2).
+ */
 export function relativeEdges(r: RelativeProposal): ConnectionEdge[] {
-  return buildChainEdges(r.ofId, [NEW], [r.relation]);
+  return buildChainEdges(r.ofId, [NEW], [r.relation]).map((e) =>
+    e.type === "spouse" && r.divorced ? { ...e, is_divorced: true } : e,
+  );
 }
 
 /** Their name as typed: "Rahim Jaffer". */

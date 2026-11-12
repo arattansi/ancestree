@@ -102,6 +102,20 @@ describe("relativeEdges", () => {
     expect(relativeEdges(relative({ relation: "sibling" }))).toEqual([{ type: "sibling", a: of, b: them }]);
     expect(relativeEdges(relative({ relation: "spouse" }))).toEqual([{ type: "spouse", a: of, b: them }]);
   });
+
+  it("marks a former spouse's line divorced, and no one else's", () => {
+    const of = { kind: "existing", id: REHMAT };
+    const them = { kind: "new", index: 0 };
+    expect(relativeEdges(relative({ relation: "spouse", divorced: true }))).toEqual([
+      { type: "spouse", a: of, b: them, is_divorced: true },
+    ]);
+    expect(relativeEdges(relative({ relation: "spouse", divorced: false }))).toEqual([
+      { type: "spouse", a: of, b: them },
+    ]);
+    expect(relativeEdges(relative({ relation: "sibling", divorced: true }))).toEqual([
+      { type: "sibling", a: of, b: them },
+    ]);
+  });
 });
 
 describe("relativeRow and relativeAfter", () => {

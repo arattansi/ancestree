@@ -70,6 +70,11 @@ export type RelativeProposal = {
   bornYear?: RelativeYear | null;
   bornPlace?: RelativePlace | null;
   diedYear?: RelativeYear | null;
+  /**
+   * A spouse they've since divorced: the phone's + menu says so (Step
+   * 231.2); the scribe doesn't.
+   */
+  divorced?: boolean;
 };
 
 /** What `/api/mobile/scribe/facts` answers with. */
@@ -119,7 +124,8 @@ function isRelative(v: unknown): v is RelativeProposal {
     isText(v.evidence) &&
     isYear(v.bornYear) &&
     isPlace(v.bornPlace) &&
-    isYear(v.diedYear)
+    isYear(v.diedYear) &&
+    (v.divorced === undefined || typeof v.divorced === "boolean")
   );
 }
 

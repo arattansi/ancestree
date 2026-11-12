@@ -2042,7 +2042,8 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
-- **Step 231: Adding a spouse asks whether they're divorced** (web only).
+- **Step 231: Adding a spouse asks whether they're divorced** (web; phone
+  in 231.2).
   **Asked for** (2026-11-11): "if a connection is being added of a spouse,
   add a checkbox to specify if they are now divorced". The box was there,
   but only with the marriage dates behind "add more details" (Steps 44,
@@ -2055,8 +2056,20 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
   connection between two people already on the tree, a spouse's row and
   extra connections showed it already. Checked on a throwaway page, signed
   out, actions parked: ticking it carries into the details box, and both
-  saves send `is_divorced: true` on the spouse edge with no dates. The
-  phone's add-a-relative screen still has no way to say it.
+  saves send `is_divorced: true` on the spouse edge with no dates.
+  - **231.2, the phone** (reaches people with the next TestFlight / Android
+    build; no public changelog entry): the + menu's add-a-relative screen
+    shows a "divorced" chip beside "has died" for a spouse only. It sets
+    `RelativeProposal.divorced` (optional, so the scribe and an older server
+    are unaffected) and is part of the proposal's key, so the questions are
+    asked afresh and the typed names carry over; `relativeEdges` marks that
+    spouse line `is_divorced: true` (tested), and the phone sends only that,
+    no dates, to `check_add_people_with_connections` and
+    `add_people_with_connections`, which read it off each spouse edge.
+    Checked in the iOS simulator as a throwaway member: no chip for a
+    sibling; a divorced husband added from the phone was stored
+    `is_divorced = true` with no dates and drawn with the leaf view's dashed
+    former-spouse line. Throwaway removed.
 
 - **Step 230: A signature taken off takes its "signed" notice with it**
   (database only; migration `20261110150000_card_notices_follow_signatures`,
