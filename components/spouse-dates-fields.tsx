@@ -51,14 +51,11 @@ export function SpouseDatesFields({
           <p className="text-xs text-destructive">{errors.marriage}</p>
         ) : null}
       </div>
-      <label className="flex items-center gap-3 text-sm">
-        <Checkbox
-          id={`${idBase}-divorced`}
-          checked={value.is_divorced ?? false}
-          onCheckedChange={(c) => onPatch({ is_divorced: c === true })}
-        />
-        <span>They later divorced</span>
-      </label>
+      <DivorcedCheckbox
+        id={`${idBase}-divorced`}
+        checked={value.is_divorced ?? false}
+        onChange={(on) => onPatch({ is_divorced: on })}
+      />
       {value.is_divorced ? (
         <div className="flex flex-col gap-1.5">
           <Label htmlFor={`${idBase}-divorce`} className={labelClass}>
@@ -76,5 +73,31 @@ export function SpouseDatesFields({
         </div>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * Whether a couple later divorced. Asked on its own where a spouse is added
+ * with the dates still behind "add more details", so a former spouse isn't
+ * drawn as a current one; the dates' box asks it again under the same id.
+ */
+export function DivorcedCheckbox({
+  id,
+  checked,
+  onChange,
+}: {
+  id: string;
+  checked: boolean;
+  onChange: (on: boolean) => void;
+}) {
+  return (
+    <label className="flex items-center gap-3 text-sm">
+      <Checkbox
+        id={id}
+        checked={checked}
+        onCheckedChange={(c) => onChange(c === true)}
+      />
+      <span>They later divorced</span>
+    </label>
   );
 }

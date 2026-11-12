@@ -19,6 +19,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "2026-11-11",
+    title: "a former spouse, from the start",
+    items: [
+      "adding someone's spouse or partner asks whether they later divorced, without opening more details first.",
+    ],
+    steps: [231],
+  },
+  {
     date: "2026-11-10",
     title: "no notice for a signature that's gone",
     items: [

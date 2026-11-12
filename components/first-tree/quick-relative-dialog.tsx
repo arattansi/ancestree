@@ -19,7 +19,10 @@ import {
 } from "@/components/person-fields";
 import { PhotoPicker } from "@/components/photo-picker";
 import { SendTheirLink } from "@/components/send-their-link";
-import { SpouseDatesFields } from "@/components/spouse-dates-fields";
+import {
+  DivorcedCheckbox,
+  SpouseDatesFields,
+} from "@/components/spouse-dates-fields";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -327,6 +330,15 @@ function QuickRelativeForm({
         {/* Up front, since it decides whether "18 or older?" is asked and,
             once they're added, whether their link is offered (Step 214). */}
         <PersonDiedField control={form.control} idPrefix={`quick-${kind}`} />
+
+        {/* Divorced is asked up front, the dates with the details. */}
+        {kind === "partner" && !moreDetails ? (
+          <DivorcedCheckbox
+            id="quick-partner-divorced"
+            checked={marriage.is_divorced ?? false}
+            onChange={(on) => setMarriage((m) => ({ ...m, is_divorced: on }))}
+          />
+        ) : null}
 
         {otherParent ? (
           <label className="flex items-start gap-2 text-sm">

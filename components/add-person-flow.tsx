@@ -33,7 +33,10 @@ import {
 import { PhotoPicker } from "@/components/photo-picker";
 import { InBetweenFields } from "@/components/in-between-fields";
 import { SendTheirLink } from "@/components/send-their-link";
-import { SpouseDatesFields } from "@/components/spouse-dates-fields";
+import {
+  DivorcedCheckbox,
+  SpouseDatesFields,
+} from "@/components/spouse-dates-fields";
 import {
   RelationshipPicker,
   type TreeMemberOption,
@@ -839,6 +842,20 @@ export function AddPersonFlow({
                           </Select>
                           <span className="font-medium">{linkObject(i)}</span>
                         </div>
+                        {/* Divorced is asked up front, the dates with the
+                            details. */}
+                        {!details && watchedLinks[i]?.kind === "spouse" ? (
+                          <DivorcedCheckbox
+                            id={`link-${i}-divorced`}
+                            checked={watchedLinks[i]?.is_divorced ?? false}
+                            onChange={(on) =>
+                              form.setValue(`links.${i}.is_divorced`, on, {
+                                shouldDirty: true,
+                                shouldValidate: true,
+                              })
+                            }
+                          />
+                        ) : null}
                         {details && watchedLinks[i]?.kind === "spouse" ? (
                           <SpouseDatesFields
                             idBase={`link-${i}`}

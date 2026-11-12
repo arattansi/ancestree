@@ -2042,6 +2042,22 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 231: Adding a spouse asks whether they're divorced** (web only).
+  **Asked for** (2026-11-11): "if a connection is being added of a spouse,
+  add a checkbox to specify if they are now divorced". The box was there,
+  but only with the marriage dates behind "add more details" (Steps 44,
+  161), so a former spouse added in the short form was drawn as a current
+  one. **Now** `DivorcedCheckbox` (split out of `SpouseDatesFields`, same
+  "They later divorced" label) sits under a spouse link on add-a-relative
+  (`links.{i}.is_divorced`) and under "This person is deceased" in the
+  first run's partner dialog; once the details open, the dates' box asks it
+  instead, under the same id and holding the same value. Adding a
+  connection between two people already on the tree, a spouse's row and
+  extra connections showed it already. Checked on a throwaway page, signed
+  out, actions parked: ticking it carries into the details box, and both
+  saves send `is_divorced: true` on the spouse edge with no dates. The
+  phone's add-a-relative screen still has no way to say it.
+
 - **Step 230: A signature taken off takes its "signed" notice with it**
   (database only; migration `20261110150000_card_notices_follow_signatures`,
   live, statement md5 6627f4b7…, 2 bodies asserted). **Asked about**
