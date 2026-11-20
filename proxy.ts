@@ -63,6 +63,9 @@ const PUBLIC_PREFIXES = [
   // unsubscribe page and one-click link, likewise (Step 182).
   "/message-emails/",
   "/api/message-emails/",
+  // The "last chance to sign" birthday card emails', likewise (Step 232).
+  "/card-emails/",
+  "/api/card-emails/",
   // The phone app's routes, which hold no cookie: each checks the bearer
   // token it's sent (`lib/supabase/bearer.ts`, Step 148).
   "/api/mobile/",

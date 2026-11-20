@@ -23,6 +23,7 @@ const TOKEN_ROUTES = [
   "newsletter",
   "getting-started",
   "message-emails",
+  "card-emails",
   // A story's public link (`storyLinkPath`), and a tree's share link.
   "shared/story",
   "shared",

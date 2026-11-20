@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { sendCardThanks } from "@/lib/birthday-cards.server";
+import { sendCardLastCalls } from "@/lib/card-last-calls.server";
 import { fromTheJob } from "@/lib/cron.server";
 import { sendEmails } from "@/lib/email";
 import { birthdayCardEmail } from "@/lib/emails/birthday-card";
@@ -21,7 +22,10 @@ const NO_STORE = { "Cache-Control": "no-store" };
  * Each run: managers of a birthday with no card yet are nudged, from 8 in
  * their morning, in the app and on their phones: once when it can be
  * started, 31 days before, and again from 14 if nobody has (Step 224,
- * `send_card_nudges`). And the person whose card
+ * `send_card_nudges`). A week before a card opens, each member reminded to
+ * sign it who hasn't is emailed "last chance to sign Ada’s birthday card!",
+ * once, from 8 in their morning (Step 232, `sendCardLastCalls`). And the
+ * person whose card
  * opened at midnight is told, from 8 in theirs, in the app and by email
  * (`announce_birthday_cards`), and on their phones (`card_ready_pushes`,
  * Step 217.4). A thank-you's pushes and emails not sent yet go (one thanked
@@ -50,6 +54,10 @@ export async function GET(request: NextRequest) {
           note: cardStartPush({ personId: r.person_id, firstName: r.first_name, body: r.body }),
         })),
     );
+    // A week before: those who haven't signed (Step 232); a failure is
+    // logged only.
+    const lastCalls = await sendCardLastCalls();
+
     const told = await admin.rpc("announce_birthday_cards");
     if (told.error) throw told.error;
 
@@ -89,6 +97,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         nudged: nudged.data?.length ?? 0,
+        lastCalls: lastCalls.emailed,
         told: told.data?.length ?? 0,
         emailed: sent.filter((s) => s.ok).length,
         pushed: pushed + nudgePushed,

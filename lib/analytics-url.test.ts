@@ -17,6 +17,7 @@ describe("redactedUrl", () => {
       [`/newsletter/${TOKEN}`, "/newsletter/:token"],
       [`/getting-started/${TOKEN}`, "/getting-started/:token"],
       [`/message-emails/${TOKEN}`, "/message-emails/:token"],
+      [`/card-emails/${TOKEN}`, "/card-emails/:token"],
       [`/shared/${TOKEN}`, "/shared/:token"],
       [`/shared/${TOKEN}/ancestral-lands`, "/shared/:token/ancestral-lands"],
       [`/shared/story/${TOKEN}`, "/shared/story/:token"],

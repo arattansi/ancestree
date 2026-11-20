@@ -2042,6 +2042,44 @@ multi-tree "start your own tree" stub; mobile-first + WCAG AA. Deploy to
 
 ## Changelog
 
+- **Step 232: "last chance to sign Ada’s birthday card!", by email a week
+  before** (migration `20261120120000_card_last_call_emails`, live).
+  **Asked for** (2026-11-20): "create a notification email for t-1 week as
+  'last chance to sign ___ birthday card!'". Until now someone who hadn't
+  signed heard of a card in the app when it was started and in the Sunday
+  newsletter's Birthday Cards to Sign (Step 223), never by email. **Now**
+  each run of `/api/cron/birthday-cards` calls `sendCardLastCalls`
+  (`lib/card-last-calls.server.ts`), and `claim_card_last_calls()` (service
+  role) records and answers the emails due: from a week before a card
+  opens (`opens_at <= now() + 7 days`, still open for signing, the person
+  living), from 8 in the member's morning (`profiles.time_zone`, else
+  UTC), once a card and member (`card_last_calls`), to the members reminded
+  to sign it (`private.card_reminder_members`, the newsletter's set: never
+  the person) who haven't signed, signed in or through their own personal
+  link; not a no-email account, a suspended one, or one unsubscribed. The
+  email (`lib/emails/card-last-call.ts`): subject "last chance to sign
+  Ada’s birthday card!", "Ada’s birthday is in a week, on 28 november. 3
+  people have signed." (tomorrow / in 3 days for a card started late; the
+  date alone when the member's day is further off), **sign the card**
+  opening her details on My Family Tree, and "One email for each birthday
+  card you haven’t signed, a week before. Unsubscribe." Its switch and
+  token are `card_sign_emails` (on unless turned off), the page signed out
+  at `/card-emails/<token>` and one-click at `/api/card-emails/<token>`,
+  as the message emails' (Step 182; no box in settings, likewise), both in
+  `PUBLIC_PREFIXES` and redacted for analytics. A send Resend turned down
+  for a reason that may pass (429, 5xx) is taken off the record so the next
+  run tries again; one never answered (may have gone) or refused (422)
+  isn't. **My calls:** email only, no push or in-app notice (the start's
+  notice told them already); the count of signers, never who; a card
+  started inside the week emails its signers at the next run. Live: statement
+  md5 `86a24c68…` = the file's, body `eaf1c925…`, service role only, RLS
+  on. Checked: a rolled-back rehearsal on live with the two 28 November
+  cards moved a day closer (16 due, exactly the newsletter's to-sign set for
+  them; none for the person or a signer; a second run none; unsubscribed
+  none, back on one, same token); the signed-out page and one-click on the
+  dev server with the test reviewer's row (removed); one real email to the
+  reviewer's `@resend.dev` inbox, delivered.
+
 - **Step 231: Adding a spouse asks whether they're divorced** (web; phone
   in 231.2).
   **Asked for** (2026-11-11): "if a connection is being added of a spouse,

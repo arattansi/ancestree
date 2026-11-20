@@ -390,6 +390,22 @@ export function messageEmailsOneClickHref(token: string): string {
 }
 
 /**
+ * The page for the emails telling a member a birthday card they haven't
+ * signed opens in a week (Step 232): opened from an email's link with
+ * their own token, signed out, to turn them off or back on. Callers add
+ * the site's origin.
+ */
+export function cardEmailsPageHref(token: string): string {
+  return `/card-emails/${enc(token)}`;
+}
+
+/** What a mail app's one-click unsubscribe posts to (RFC 8058), for those
+ *  emails' `List-Unsubscribe` header (Step 232). */
+export function cardEmailsOneClickHref(token: string): string {
+  return `/api/card-emails/${enc(token)}`;
+}
+
+/**
  * Settings, at the living people the member added whom nobody is behind
  * yet, each to invite to claim their entry (Step 151): the claim email's
  * button. Callers add the site's origin.

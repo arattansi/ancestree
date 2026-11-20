@@ -303,6 +303,12 @@ export default function PrivacyPage() {
             phone app is made smaller and saved again on the phone first, so
             where and when it was taken don&rsquo;t go with it.
           </li>
+          {/* Step 232. */}
+          <li>
+            A week before someone&rsquo;s birthday, if you haven&rsquo;t
+            signed their card, we email you once to say so, with how many
+            have signed but never who. Every one has a link to turn them off.
+          </li>
           {/* Step 217.3. */}
           <li>
             Whoever runs your card can make it a link for a family chat, and

@@ -378,6 +378,46 @@ export type Database = {
         }
         Relationships: []
       }
+      card_last_calls: {
+        Row: {
+          card_id: string
+          sent_at: string
+          user_id: string
+        }
+        Insert: {
+          card_id: string
+          sent_at?: string
+          user_id: string
+        }
+        Update: {
+          card_id?: string
+          sent_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "card_last_calls_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "birthday_cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "card_last_calls_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "card_last_calls_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+        ]
+      }
       card_pushes: {
         Row: {
           card_id: string
@@ -416,6 +456,42 @@ export type Database = {
             foreignKeyName: "card_pushes_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["auth_user_id"]
+          },
+        ]
+      }
+      card_sign_emails: {
+        Row: {
+          subscribed: boolean
+          token: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          subscribed?: boolean
+          token?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          subscribed?: boolean
+          token?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "card_sign_emails_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "member_directory"
+            referencedColumns: ["auth_user_id"]
+          },
+          {
+            foreignKeyName: "card_sign_emails_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
             referencedRelation: "profiles"
             referencedColumns: ["auth_user_id"]
           },
@@ -4126,6 +4202,20 @@ export type Database = {
           p_tree?: string
         }
         Returns: Json
+      }
+      claim_card_last_calls: {
+        Args: never
+        Returns: {
+          card_id: string
+          days_away: number
+          email: string
+          first_name: string
+          opens_on: string
+          person_id: string
+          signatures: number
+          token: string
+          user_id: string
+        }[]
       }
       claim_card_started_push: {
         Args: { p_card: string }

@@ -19,6 +19,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "2026-11-20",
+    title: "last chance to sign",
+    items: [
+      "a week before someone's birthday, if you haven't signed their card, you get one email saying so, with a link straight to it. you can unsubscribe from the email.",
+    ],
+    steps: [232],
+  },
+  {
     date: "2026-11-11",
     title: "a former spouse, from the start",
     items: [
